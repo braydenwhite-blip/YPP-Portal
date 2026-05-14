@@ -1,56 +1,51 @@
 import {
   LEADERSHIP_STAGES,
   LeadershipStageId,
-  OVERALL_ROLE_MISSION,
 } from "@/lib/leadership-pathway";
 
 interface RoleIdentityCardProps {
   stageId: LeadershipStageId | null;
   nextStageId: LeadershipStageId | null;
-  /** Compact omits the full mission paragraph; used on profile / G&R headers. */
+  /**
+   * Compact = a slim, typographic header (no bullets, no mission paragraph).
+   * Full = used only on the /leadership-pathway hero and renders the
+   * full role narrative.
+   */
   compact?: boolean;
-  /** Optional hover link target — when present, the card becomes a link. */
-  href?: string | null;
 }
 
 /**
- * The headline "who you are at YPP" card. Renders the user's current
- * stage with mission, focus areas, mentorship pattern, and a calm
- * "what's next" hint pointing to the next stage.
- *
- * Lives on profile, /my-mentor, the leadership pathway page, and
- * (compact) on the G&R page. Single component, single look.
+ * Typographic role header. White surface, a 3px stage-tone accent on
+ * the left, and otherwise no card chrome. Compact mode is the
+ * default; the full mode is reserved for the canonical pathway page.
  */
 export function RoleIdentityCard({
   stageId,
   nextStageId,
   compact = false,
-  href,
 }: RoleIdentityCardProps) {
   if (!stageId) {
     return (
       <div
-        className="card"
         style={{
+          padding: "12px 16px",
+          borderLeft: "3px solid var(--border)",
           background: "var(--surface)",
-          padding: 16,
-          lineHeight: 1.5,
         }}
       >
-        <p
-          className="badge"
+        <div
           style={{
-            background: "#f1f5f9",
-            color: "#475569",
-            display: "inline-block",
-            marginBottom: 8,
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            color: "var(--muted)",
           }}
         >
-          Your Role
-        </p>
-        <p style={{ margin: 0, color: "var(--muted)" }}>
-          Once your YPP role is assigned, you&apos;ll see your stage,
-          mentor, and growth expectations here.
+          Your role
+        </div>
+        <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
+          Once your YPP role is assigned, you&apos;ll see it here.
         </p>
       </div>
     );
@@ -59,189 +54,127 @@ export function RoleIdentityCard({
   const stage = LEADERSHIP_STAGES[stageId];
   const nextStage = nextStageId ? LEADERSHIP_STAGES[nextStageId] : null;
 
-  const inner = (
+  if (compact) {
+    return (
+      <div
+        style={{
+          padding: "12px 16px",
+          borderLeft: `3px solid ${stage.color.accent}`,
+          background: "var(--surface)",
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "var(--muted)",
+            }}
+          >
+            Your role
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: "var(--text)",
+              marginTop: 2,
+            }}
+          >
+            {stage.label}
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              color: "var(--muted)",
+              lineHeight: 1.45,
+              marginTop: 2,
+            }}
+          >
+            {stage.tagline}
+          </div>
+        </div>
+        {nextStage && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "var(--muted)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Next →{" "}
+            <span style={{ color: "var(--text)", fontWeight: 600 }}>
+              {nextStage.label}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Full mode — used only on the /leadership-pathway hero.
+  return (
     <div
-      className="card"
       style={{
-        background: stage.color.bg,
-        border: `1.5px solid ${stage.color.border}`,
-        padding: compact ? 14 : 18,
-        position: "relative",
-        overflow: "hidden",
+        padding: "20px 24px",
+        borderLeft: `3px solid ${stage.color.accent}`,
+        background: "var(--surface)",
       }}
     >
       <div
         style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "var(--muted)",
         }}
       >
-        <div style={{ flex: "1 1 280px", minWidth: 0 }}>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "3px 10px",
-              borderRadius: 999,
-              background: stage.color.accent,
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
-          >
-            Your role at YPP
-          </div>
-          <h3
-            style={{
-              margin: "8px 0 4px",
-              fontSize: compact ? 18 : 22,
-              fontWeight: 700,
-              color: stage.color.text,
-            }}
-          >
-            {stage.label}
-          </h3>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 13,
-              color: stage.color.text,
-              opacity: 0.85,
-              fontWeight: 500,
-            }}
-          >
-            {stage.tagline}
-          </p>
-        </div>
-        {!compact && nextStage && (
-          <div
-            style={{
-              flex: "0 0 auto",
-              maxWidth: 220,
-              padding: "8px 12px",
-              borderRadius: 8,
-              background: "rgba(255,255,255,0.7)",
-              border: "1px dashed var(--border)",
-            }}
-            aria-label="Next role"
-          >
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--muted)",
-              }}
-            >
-              Path forward
-            </div>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--text)",
-                marginTop: 2,
-              }}
-            >
-              → {nextStage.label}
-            </div>
-          </div>
-        )}
+        You are here
       </div>
-
-      {!compact && (
-        <>
-          <p
-            style={{
-              margin: "14px 0 0",
-              fontSize: 14,
-              lineHeight: 1.55,
-              color: "var(--text)",
-            }}
-          >
-            {stage.mission}
-          </p>
-          <div
-            style={{
-              marginTop: 14,
-              display: "grid",
-              gap: 6,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: stage.color.text,
-              }}
-            >
-              What this looks like
-            </div>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: 18,
-                fontSize: 13,
-                lineHeight: 1.55,
-                color: "var(--text)",
-                display: "grid",
-                gap: 4,
-              }}
-            >
-              {stage.focusAreas.map((area, i) => (
-                <li key={i}>{area}</li>
-              ))}
-            </ul>
-          </div>
-          {stage.promotionWindow && (
-            <p
-              style={{
-                margin: "14px 0 0",
-                padding: "10px 12px",
-                borderRadius: 8,
-                background: "rgba(255,255,255,0.65)",
-                border: "1px solid var(--border)",
-                fontSize: 12,
-                lineHeight: 1.5,
-                color: "var(--text)",
-              }}
-            >
-              <strong style={{ color: stage.color.text }}>What&apos;s next:</strong>{" "}
-              {stage.promotionWindow}
-            </p>
-          )}
-          <p
-            style={{
-              margin: "10px 0 0",
-              fontSize: 11,
-              color: "var(--muted)",
-              fontStyle: "italic",
-              lineHeight: 1.4,
-            }}
-          >
-            {OVERALL_ROLE_MISSION}
-          </p>
-        </>
+      <h2
+        style={{
+          margin: "4px 0 6px",
+          fontSize: 28,
+          fontWeight: 700,
+          letterSpacing: "-0.01em",
+          color: "var(--text)",
+        }}
+      >
+        {stage.label}
+      </h2>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 15,
+          color: "var(--muted)",
+          lineHeight: 1.5,
+        }}
+      >
+        {stage.mission}
+      </p>
+      {nextStage && (
+        <p
+          style={{
+            margin: "12px 0 0",
+            fontSize: 13,
+            color: "var(--muted)",
+          }}
+        >
+          Next stage:{" "}
+          <span style={{ color: "var(--text)", fontWeight: 600 }}>
+            {nextStage.label}
+          </span>
+          {stage.promotionWindow ? ` — ${stage.promotionWindow}` : ""}
+        </p>
       )}
     </div>
   );
-
-  if (href) {
-    // eslint-disable-next-line @next/next/no-html-link-for-pages
-    return (
-      <a href={href} style={{ textDecoration: "none", color: "inherit" }}>
-        {inner}
-      </a>
-    );
-  }
-  return inner;
 }

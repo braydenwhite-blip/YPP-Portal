@@ -6,20 +6,15 @@ import {
 
 interface StageRibbonProps {
   currentStageId: LeadershipStageId | null;
-  /** When true, render compact "chip" mode for headers; otherwise full ribbon. */
-  compact?: boolean;
-  /** Optional click handler — when omitted, ribbon is purely visual. */
 }
 
 /**
- * A continuous, calm visualization of the YPP leadership pathway with the
- * current user's stage highlighted. Used at the top of the Leadership
- * Pathway page, on the My Mentor page, and (compact) on the G&R header.
- *
- * Deliberately not gamified: no XP bars, no "levels", no medals — just a
- * quiet, prestigious line that says "you are part of a pipeline."
+ * A quiet step indicator: dot · line · dot. The current stage gets a
+ * filled dot in its tone; past stages are filled gray; future stages
+ * are outlined. No card chrome, no tagline, no "Stage N" prefix —
+ * just the progression.
  */
-export function StageRibbon({ currentStageId, compact = false }: StageRibbonProps) {
+export function StageRibbon({ currentStageId }: StageRibbonProps) {
   const stages = LEADERSHIP_STAGE_ORDER.map((id) => LEADERSHIP_STAGES[id]);
   const currentIndex = currentStageId
     ? LEADERSHIP_STAGE_ORDER.indexOf(currentStageId)
@@ -28,145 +23,94 @@ export function StageRibbon({ currentStageId, compact = false }: StageRibbonProp
   return (
     <div
       role="group"
-      aria-label="YPP instructor leadership pathway"
+      aria-label="Instructor leadership pathway"
       style={{
         display: "flex",
         alignItems: "stretch",
         gap: 0,
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: 12,
-        padding: compact ? "10px 12px" : "16px 18px",
+        width: "100%",
         overflowX: "auto",
-        flexWrap: compact ? "nowrap" : "wrap",
       }}
     >
       {stages.map((stage, idx) => {
         const isCurrent = idx === currentIndex;
         const isPast = currentIndex >= 0 && idx < currentIndex;
-        const isFuture = currentIndex >= 0 && idx > currentIndex;
-        const isUnknown = currentIndex < 0;
-
+        const isFirst = idx === 0;
+        const isLast = idx === stages.length - 1;
+        const dotColor = isCurrent
+          ? stage.color.accent
+          : isPast
+            ? "var(--muted)"
+            : "transparent";
+        const dotBorder = isCurrent
+          ? stage.color.accent
+          : isPast
+            ? "var(--muted)"
+            : "var(--border)";
         return (
           <div
             key={stage.id}
             style={{
+              flex: "1 1 0",
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
-              gap: 8,
-              flex: compact ? "0 0 auto" : "1 1 0",
               minWidth: 0,
             }}
           >
             <div
               style={{
                 display: "flex",
-                flexDirection: "column",
-                gap: 4,
-                alignItems: "flex-start",
-                padding: compact ? "4px 10px" : "8px 12px",
-                background: isCurrent
-                  ? stage.color.bg
-                  : isPast
-                    ? "rgba(0,0,0,0.02)"
-                    : "transparent",
-                border: isCurrent
-                  ? `1.5px solid ${stage.color.border}`
-                  : "1px solid transparent",
-                borderRadius: 10,
-                minWidth: 0,
-                flex: "1 1 0",
+                alignItems: "center",
+                width: "100%",
+                height: 12,
               }}
             >
-              <div
+              <span
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: compact ? 11 : 12,
-                  fontWeight: 600,
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                  color: isCurrent
-                    ? stage.color.text
-                    : isPast
-                      ? "var(--muted)"
-                      : isFuture
-                        ? "var(--muted)"
-                        : "var(--muted)",
-                  opacity: isUnknown || isFuture ? 0.65 : 1,
+                  flex: 1,
+                  height: 1,
+                  background: isFirst ? "transparent" : "var(--border)",
                 }}
-              >
-                <span
-                  aria-hidden
-                  style={{
-                    display: "inline-block",
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: isCurrent
-                      ? stage.color.accent
-                      : isPast
-                        ? "var(--muted)"
-                        : "transparent",
-                    border: isFuture
-                      ? "1.5px solid var(--border)"
-                      : `1.5px solid ${isCurrent ? stage.color.accent : "var(--muted)"}`,
-                  }}
-                />
-                Stage {idx + 1}
-              </div>
-              <div
-                style={{
-                  fontSize: compact ? 13 : 15,
-                  fontWeight: isCurrent ? 700 : 600,
-                  color: isCurrent ? stage.color.text : "var(--text)",
-                  opacity: isFuture ? 0.7 : 1,
-                  whiteSpace: compact ? "nowrap" : "normal",
-                }}
-              >
-                {stage.label}
-              </div>
-              {!compact && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--muted)",
-                    opacity: isFuture ? 0.7 : 1,
-                    lineHeight: 1.35,
-                  }}
-                >
-                  {stage.tagline}
-                </div>
-              )}
-              {isCurrent && (
-                <div
-                  style={{
-                    marginTop: 4,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: stage.color.text,
-                  }}
-                  aria-label="You are here"
-                >
-                  You are here
-                </div>
-              )}
-            </div>
-            {idx < stages.length - 1 && (
+                aria-hidden
+              />
               <span
                 aria-hidden
                 style={{
-                  fontSize: 14,
-                  color: "var(--muted)",
-                  opacity: 0.5,
-                  padding: "0 2px",
-                  alignSelf: "center",
+                  width: isCurrent ? 10 : 8,
+                  height: isCurrent ? 10 : 8,
+                  borderRadius: "50%",
+                  background: dotColor,
+                  border: `1.5px solid ${dotBorder}`,
+                  flex: "0 0 auto",
                 }}
-              >
-                →
-              </span>
-            )}
+              />
+              <span
+                style={{
+                  flex: 1,
+                  height: 1,
+                  background: isLast ? "transparent" : "var(--border)",
+                }}
+                aria-hidden
+              />
+            </div>
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 11,
+                fontWeight: isCurrent ? 700 : 500,
+                color: isCurrent
+                  ? stage.color.text
+                  : isPast
+                    ? "var(--text)"
+                    : "var(--muted)",
+                textAlign: "center",
+                lineHeight: 1.3,
+                padding: "0 4px",
+              }}
+            >
+              {stage.label}
+            </div>
           </div>
         );
       })}

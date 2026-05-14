@@ -162,9 +162,6 @@ export default async function AdminMentorshipRelationshipDetailPage({
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <span className={`pill ${statusToneClass}`}>{mentorship.status}</span>
-          <Link href="/leadership-pathway" className="button secondary small">
-            Leadership pathway →
-          </Link>
           <Link
             href={`/mentorship/mentees/${mentorship.menteeId}`}
             className="button secondary small"
