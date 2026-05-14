@@ -24,26 +24,6 @@ async function findOrCreateChapter(input: { name: string; city: string; region: 
   return prisma.chapter.create({ data: input });
 }
 
-const SEATTLE_DEMO_EVENT_TITLE = "Seattle Chapter Community Night";
-
-async function ensureSeattleChapterDemoEvent(chapterId: string) {
-  const existing = await prisma.event.findFirst({
-    where: { chapterId, title: SEATTLE_DEMO_EVENT_TITLE },
-    select: { id: true },
-  });
-  if (existing) return;
-  await prisma.event.create({
-    data: {
-      title: SEATTLE_DEMO_EVENT_TITLE,
-      description: "Regional meetup for Seattle families, mentors, and chapter partners.",
-      eventType: EventType.WORKSHOP,
-      startDate: new Date("2026-04-18T23:00:00.000Z"),
-      endDate: new Date("2026-04-19T01:00:00.000Z"),
-      chapterId,
-    },
-  });
-}
-
 async function main() {
   const seedPassword = process.env.SEED_PASSWORD;
   if (!seedPassword) {
@@ -51,31 +31,34 @@ async function main() {
   }
   const passwordHash = await bcrypt.hash(seedPassword, 10);
 
-  const frisch = await findOrCreateChapter({
-    name: "The Frisch School",
-    city: "New York",
-    region: "Northeast",
-  });
-
-  const boston = await findOrCreateChapter({
-    name: "Boston Chapter",
-    city: "Boston",
-    region: "Northeast",
-  });
-
-  const seattle = await findOrCreateChapter({
-    name: "Seattle Chapter",
-    city: "Seattle",
-    region: "Pacific Northwest",
-  });
-
-  // Scarsdale is the only chapter currently exposed in the applicant signup
-  // flow (see app/api/chapters/route.ts). Ensure it exists in seeded
-  // environments so local testing of the applicant flow works.
-  await findOrCreateChapter({
+  const scarsdale = await findOrCreateChapter({
     name: "Scarsdale",
     city: "Scarsdale",
     region: "Northeast",
+  });
+
+  await prisma.user.upsert({
+    where: { email: "milo.wald@youthpassionproject.org" },
+    create: {
+      name: "Milo Wald",
+      email: "milo.wald@youthpassionproject.org",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.CHAPTER_PRESIDENT,
+      chapterId: scarsdale.id,
+      roles: { create: [{ role: RoleType.CHAPTER_PRESIDENT }] },
+    },
+    update: {
+      name: "Milo Wald",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.CHAPTER_PRESIDENT,
+      chapterId: scarsdale.id,
+      roles: {
+        deleteMany: {},
+        create: [{ role: RoleType.CHAPTER_PRESIDENT }],
+      },
+    },
   });
 
   const verifiedAt = new Date();
@@ -98,7 +81,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.ADMIN,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         create: [{ role: RoleType.ADMIN }, { role: RoleType.INSTRUCTOR }],
       },
@@ -109,7 +92,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.ADMIN,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         deleteMany: {},
         create: [{ role: RoleType.ADMIN }, { role: RoleType.INSTRUCTOR }],
@@ -125,7 +108,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.ADMIN,
-      chapterId: seattle.id,
+      chapterId: scarsdale.id,
       roles: {
         create: [{ role: RoleType.ADMIN }],
       },
@@ -138,7 +121,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.ADMIN,
-      chapterId: seattle.id,
+      chapterId: scarsdale.id,
       roles: {
         deleteMany: {},
         create: [{ role: RoleType.ADMIN }],
@@ -159,7 +142,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.MENTOR,
-      chapterId: boston.id,
+      chapterId: scarsdale.id,
       roles: {
         create: [{ role: RoleType.MENTOR }, { role: RoleType.STAFF }],
       },
@@ -170,7 +153,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.MENTOR,
-      chapterId: boston.id,
+      chapterId: scarsdale.id,
       roles: {
         deleteMany: {},
         create: [{ role: RoleType.MENTOR }, { role: RoleType.STAFF }],
@@ -187,7 +170,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.INSTRUCTOR,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         create: [{ role: RoleType.INSTRUCTOR }],
       },
@@ -198,7 +181,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.INSTRUCTOR,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         deleteMany: {},
         create: [{ role: RoleType.INSTRUCTOR }],
@@ -215,7 +198,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.STUDENT,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         create: [{ role: RoleType.STUDENT }],
       },
@@ -226,7 +209,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.STUDENT,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         deleteMany: {},
         create: [{ role: RoleType.STUDENT }],
@@ -234,23 +217,20 @@ async function main() {
     },
   });
 
-  await ensureSeattleChapterDemoEvent(seattle.id);
-
   // ── Instructor Applicant Workflow V1 seed ──────────────────────────────────
-  await seedInstructorApplicantWorkflow(frisch.id, passwordHash, verifiedAt);
+  await seedInstructorApplicantWorkflow(scarsdale.id, passwordHash, verifiedAt);
 
   // ── Leadership Action Center seed ──────────────────────────────────────────
   await seedLeadershipActionCenter();
 
   // ── Instructor Assignment System (Phase 1) seed ────────────────────────────
   await seedInstructorAssignmentDemoData({
-    frischChapterId: frisch.id,
-    bostonChapterId: boston.id,
+    chapterId: scarsdale.id,
   });
 
   // ── Regular Instructor Assignments demo seed ───────────────────────────────
   await seedRegularInstructorAssignments({
-    chapterId: frisch.id,
+    chapterId: scarsdale.id,
     instructorId: instructor.id,
     creatorId: instructor.id,
   });
@@ -262,7 +242,7 @@ async function main() {
 
   if (seedAlreadyPresent) {
     console.log(
-      `Seed dataset already present ("${SEED_PATHWAY_NAME}" exists). Updated seed users; ensured Seattle Chapter + demo event.`
+      `Seed dataset already present ("${SEED_PATHWAY_NAME}" exists). Updated seed users for the Scarsdale chapter.`
     );
     return;
   }
@@ -273,7 +253,7 @@ async function main() {
       description: "One-off exploration class to spark curiosity.",
       format: CourseFormat.ONE_OFF,
       interestArea: "Psychology",
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -285,7 +265,7 @@ async function main() {
       format: CourseFormat.LEVELED,
       level: CourseLevel.LEVEL_101,
       interestArea: "Psychology",
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -297,7 +277,7 @@ async function main() {
       format: CourseFormat.LEVELED,
       level: CourseLevel.LEVEL_201,
       interestArea: "Psychology",
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -309,7 +289,7 @@ async function main() {
       format: CourseFormat.LEVELED,
       level: CourseLevel.LEVEL_301,
       interestArea: "Psychology",
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -320,7 +300,7 @@ async function main() {
       description: "Project-based, in-person-first lab with showcase.",
       format: CourseFormat.LAB,
       interestArea: "Psychology",
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -332,7 +312,7 @@ async function main() {
       format: CourseFormat.COMMONS,
       interestArea: "Psychology",
       isVirtual: true,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -344,7 +324,7 @@ async function main() {
       format: CourseFormat.COMPETITION_PREP,
       interestArea: "Psychology",
       isVirtual: true,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -402,7 +382,7 @@ async function main() {
       eventType: EventType.FESTIVAL,
       startDate: new Date("2026-03-20T18:00:00Z"),
       endDate: new Date("2026-03-20T20:30:00Z"),
-      chapterId: frisch.id
+      chapterId: scarsdale.id
     }
   });
 
@@ -413,7 +393,7 @@ async function main() {
       comments: "Clear pathway and strong instructor support.",
       courseId: course101.id,
       instructorId: instructor.id,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       authorId: student.id
     }
   });
@@ -1228,8 +1208,7 @@ async function seedLeadershipActionCenter() {
 // admin board has something to render out-of-the-box. Idempotent: re-running
 // the seed updates the same rows by deterministic title+partner.
 async function seedInstructorAssignmentDemoData(input: {
-  frischChapterId: string;
-  bostonChapterId: string;
+  chapterId: string;
 }) {
   const adminOwner = await prisma.user.findUnique({
     where: { email: "brayden.white@youthpassionproject.org" },
@@ -1264,7 +1243,7 @@ async function seedInstructorAssignmentDemoData(input: {
       slotsNeeded: 2,
       ageGroup: "Grades 7-9",
       topicTags: ["physics", "stem", "summer"],
-      chapterId: input.bostonChapterId,
+      chapterId: input.chapterId,
     },
     {
       title: "Code Together — Online Workshop Series",
@@ -1302,7 +1281,7 @@ async function seedInstructorAssignmentDemoData(input: {
       slotsNeeded: 3,
       ageGroup: "Grades 4-8",
       topicTags: ["maker", "robotics", "engineering"],
-      chapterId: input.frischChapterId,
+      chapterId: input.chapterId,
     },
   ];
 

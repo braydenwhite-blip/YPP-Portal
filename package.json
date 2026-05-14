@@ -44,7 +44,8 @@
     "journey-editor:seed-sample": "node scripts/seed-journey-editor-sample.mjs",
     "backfill:email-verified": "node scripts/backfill-email-verified.mjs",
     "backfill:mentorship-redesign": "node scripts/backfill-mentorship-redesign.mjs",
-    "migrate:users:validate-csv": "node scripts/import-users-from-csv.mjs"
+    "migrate:users:validate-csv": "node scripts/import-users-from-csv.mjs",
+    "cleanup:non-scarsdale-chapters": "tsx scripts/cleanup-non-scarsdale-chapters.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",
