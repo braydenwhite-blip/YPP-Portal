@@ -11,6 +11,7 @@ import {
 } from "@/lib/instructor-applicant-board-queries";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
 import ApplicantPipelineOverview from "@/components/instructor-applicants/ApplicantPipelineOverview";
+import { ArchiveAllButton } from "@/components/instructor-applicants/ArchiveActions";
 import { type FunnelCounts } from "@/components/instructor-applicants/PipelineFunnelChart";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
@@ -388,6 +389,7 @@ export default async function AdminInstructorApplicantsPage({
               Download CSV
             </a>
           )}
+          {isAdmin && <ArchiveAllButton />}
         </div>
       </div>
 

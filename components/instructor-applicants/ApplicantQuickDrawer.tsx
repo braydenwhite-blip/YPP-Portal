@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { formatScheduleDateTime } from "@/lib/scheduling/shared";
+import { ArchiveOneButton } from "./ArchiveActions";
 
 type DrawerApp = {
   id: string;
@@ -37,6 +38,7 @@ type DrawerApp = {
 interface ApplicantQuickDrawerProps {
   app: DrawerApp;
   onClose: () => void;
+  isAdmin?: boolean;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -56,6 +58,7 @@ const STATUS_LABELS: Record<string, string> = {
 export default function ApplicantQuickDrawer({
   app,
   onClose,
+  isAdmin = false,
 }: ApplicantQuickDrawerProps) {
   const leadInterviewer = app.interviewerAssignments.find((a) => a.role === "LEAD");
   const secondInterviewer = app.interviewerAssignments.find((a) => a.role === "SECOND");
@@ -233,13 +236,21 @@ export default function ApplicantQuickDrawer({
               )}
 
               {/* Open full workspace CTA */}
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: 24, display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <Link
                   href={`/applications/instructor/${app.id}`}
                   className="button applicant-quick-drawer-cta"
                 >
                   Open full workspace
                 </Link>
+                {isAdmin && (
+                  <ArchiveOneButton
+                    applicationId={app.id}
+                    kind="instructor"
+                    applicantName={app.applicant.name ?? app.applicant.email}
+                    onArchived={onClose}
+                  />
+                )}
               </div>
         </div>
       </div>

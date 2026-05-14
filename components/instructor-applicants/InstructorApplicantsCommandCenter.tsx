@@ -330,6 +330,7 @@ export default function InstructorApplicantsCommandCenter({
               return (
                 <ApplicantQuickDrawer
                   app={originalApp}
+                  isAdmin={isAdmin}
                   onClose={() => {
                     setSelectedDrawerApp(null);
                     onClose();
@@ -380,6 +381,7 @@ export default function InstructorApplicantsCommandCenter({
       {selectedDrawerApp && (
         <ApplicantQuickDrawer
           app={selectedDrawerApp}
+          isAdmin={isAdmin}
           onClose={() => setSelectedDrawerApp(null)}
         />
       )}
