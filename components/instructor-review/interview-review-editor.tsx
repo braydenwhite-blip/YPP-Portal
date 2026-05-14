@@ -387,6 +387,38 @@ export default function InterviewReviewEditor({
     ? questionBank.find((question) => question.id === activeQuestion.questionBankId)
     : null;
 
+  const questionBankById = useMemo(
+    () => new Map(questionBank.map((bank) => [bank.id, bank])),
+    [questionBank]
+  );
+
+  const groupedQuestionNav = useMemo(() => {
+    const groups: Array<{
+      topic: string;
+      items: Array<{ question: QuestionState; originalIndex: number; isMustAsk: boolean }>;
+    }> = [];
+    const groupIndexByTopic = new Map<string, number>();
+
+    questions.forEach((question, originalIndex) => {
+      const bankItem = question.questionBankId ? questionBankById.get(question.questionBankId) : null;
+      const topic =
+        question.source === "CUSTOM" ? "Custom follow-ups" : bankItem?.topic ?? "Interview question";
+      let index = groupIndexByTopic.get(topic);
+      if (index === undefined) {
+        index = groups.length;
+        groupIndexByTopic.set(topic, index);
+        groups.push({ topic, items: [] });
+      }
+      groups[index].items.push({
+        question,
+        originalIndex,
+        isMustAsk: bankItem?.isMustAsk ?? false,
+      });
+    });
+
+    return groups;
+  }, [questions, questionBankById]);
+
   const progress = useMemo(() => {
     const asked = questions.filter((question) => question.status === "ASKED").length;
     const skipped = questions.filter((question) => question.status === "SKIPPED").length;
@@ -398,7 +430,13 @@ export default function InterviewReviewEditor({
     ).length;
     const sections = questions.reduce<Record<string, { total: number; asked: number }>>(
       (acc, question) => {
-        const key = question.competency || activeBankItem?.topic || "Interview";
+        const bankItem = question.questionBankId
+          ? questionBankById.get(question.questionBankId)
+          : null;
+        const key =
+          question.source === "CUSTOM"
+            ? "Custom follow-ups"
+            : bankItem?.topic ?? "Interview";
         const entry = acc[key] ?? { total: 0, asked: 0 };
         entry.total += 1;
         if (question.status === "ASKED") entry.asked += 1;
@@ -408,7 +446,7 @@ export default function InterviewReviewEditor({
       {}
     );
     return { asked, skipped, untouched, redFlags, followUps, incompleteAsked, sections };
-  }, [activeBankItem?.topic, questions]);
+  }, [questionBankById, questions]);
 
   const showRecommendation = canFinalizeRecommendation;
   const showRevisionRequirements = recommendation === "ACCEPT_WITH_SUPPORT";
@@ -852,18 +890,32 @@ export default function InterviewReviewEditor({
           </div>
 
           <div className="live-question-nav">
-            {questions.map((question, index) => (
-              <button
-                key={question.localId}
-                type="button"
-                className={`live-question-nav-item ${statusClass(question.status)}${
-                  question.localId === activeQuestion?.localId ? " is-active" : ""
-                }`}
-                onClick={() => setActiveQuestionId(question.localId)}
-              >
-                <span>{index + 1}</span>
-                <strong>{question.competency || "Custom"}</strong>
-              </button>
+            {groupedQuestionNav.map((group) => (
+              <div key={group.topic} className="live-question-nav-group">
+                <div className="live-question-nav-section-label">{group.topic}</div>
+                {group.items.map(({ question, originalIndex, isMustAsk }) => (
+                  <button
+                    key={question.localId}
+                    type="button"
+                    className={`live-question-nav-item ${statusClass(question.status)}${
+                      question.localId === activeQuestion?.localId ? " is-active" : ""
+                    }${isMustAsk ? " has-star" : ""}`}
+                    onClick={() => setActiveQuestionId(question.localId)}
+                  >
+                    <span>{originalIndex + 1}</span>
+                    <strong>{question.competency || "Custom"}</strong>
+                    {isMustAsk ? (
+                      <span
+                        className="live-question-nav-item-star"
+                        aria-label="Must-ask question"
+                        title="Must ask"
+                      >
+                        ★
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
 
@@ -880,13 +932,24 @@ export default function InterviewReviewEditor({
         {activeQuestion ? (
           <article
             ref={questionCardRef}
-            className={`live-question-card ${statusClass(activeQuestion.status)}`}
+            className={`live-question-card ${statusClass(activeQuestion.status)}${
+              activeBankItem?.isMustAsk ? " is-must-ask" : ""
+            }`}
           >
             <div className="live-question-card-header">
               <div>
-                <span className="cockpit-section-kicker">
-                  {activeQuestion.source === "CUSTOM" ? "Custom follow-up" : activeBankItem?.topic ?? "Interview question"}
-                </span>
+                <div className="live-question-card-header-meta">
+                  <span className="cockpit-section-kicker">
+                    {activeQuestion.source === "CUSTOM"
+                      ? "Custom follow-up"
+                      : activeBankItem?.topic ?? "Interview question"}
+                  </span>
+                  {activeBankItem?.isMustAsk ? (
+                    <span className="live-must-ask-badge" aria-label="Must-ask question">
+                      <span aria-hidden="true">★</span> Must ask
+                    </span>
+                  ) : null}
+                </div>
                 <h3>{activeQuestion.competency || "Live interview question"}</h3>
               </div>
               <span className={`live-status-pill ${statusClass(activeQuestion.status)}`}>
@@ -948,7 +1011,18 @@ export default function InterviewReviewEditor({
               <>
                 <p className="live-question-text">{activeQuestion.prompt}</p>
                 {activeBankItem?.whyItMatters ? (
-                  <p className="live-guidance-callout">{activeBankItem.whyItMatters}</p>
+                  <div className="live-trying-to-learn">
+                    <span className="live-guidance-label">
+                      For interviewer · what you&apos;re trying to learn
+                    </span>
+                    <p className="live-guidance-callout">{activeBankItem.whyItMatters}</p>
+                  </div>
+                ) : null}
+                {activeBankItem?.interviewerGuidance ? (
+                  <div className="live-trying-to-learn">
+                    <span className="live-guidance-label">How to ask this</span>
+                    <p className="live-guidance-callout">{activeBankItem.interviewerGuidance}</p>
+                  </div>
                 ) : null}
               </>
             )}
@@ -972,23 +1046,30 @@ export default function InterviewReviewEditor({
               </button>
             </div>
 
-            {activeBankItem ? (
-              <div className="live-guidance-grid">
-                <div>
-                  <h4>Strong Signals</h4>
-                  <ul>
-                    {asStringArray(activeBankItem.strongSignals).map((signal) => (
-                      <li key={signal}>{signal}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h4>Concern Signals</h4>
-                  <ul>
-                    {asStringArray(activeBankItem.concernSignals).map((signal) => (
-                      <li key={signal}>{signal}</li>
-                    ))}
-                  </ul>
+            {activeBankItem &&
+            (asStringArray(activeBankItem.strongSignals).length > 0 ||
+              asStringArray(activeBankItem.concernSignals).length > 0) ? (
+              <div className="live-guidance-section">
+                <span className="live-guidance-label">
+                  Interviewer guidance only · do not read aloud
+                </span>
+                <div className="live-guidance-grid">
+                  <div>
+                    <h4>Strong answer signals</h4>
+                    <ul>
+                      {asStringArray(activeBankItem.strongSignals).map((signal) => (
+                        <li key={signal}>{signal}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4>Red flags</h4>
+                    <ul>
+                      {asStringArray(activeBankItem.concernSignals).map((signal) => (
+                        <li key={signal}>{signal}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               </div>
             ) : null}
@@ -1015,24 +1096,29 @@ export default function InterviewReviewEditor({
             </label>
 
             {activeBankItem && asStringArray(activeBankItem.suggestedFollowUps).length > 0 ? (
-              <div className="live-followup-suggestions">
-                {asStringArray(activeBankItem.suggestedFollowUps).map((followUp) => (
-                  <button
-                    key={followUp}
-                    type="button"
-                    disabled={!canEdit}
-                    onClick={() =>
-                      updateQuestion(activeQuestion.localId, (question) => ({
-                        ...question,
-                        followUpPrompt: question.followUpPrompt
-                          ? `${question.followUpPrompt}\n${followUp}`
-                          : followUp,
-                      }))
-                    }
-                  >
-                    {followUp}
-                  </button>
-                ))}
+              <div className="live-followup-section">
+                <span className="live-guidance-label">
+                  Optional follow-ups · ask only if needed
+                </span>
+                <div className="live-followup-suggestions">
+                  {asStringArray(activeBankItem.suggestedFollowUps).map((followUp) => (
+                    <button
+                      key={followUp}
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() =>
+                        updateQuestion(activeQuestion.localId, (question) => ({
+                          ...question,
+                          followUpPrompt: question.followUpPrompt
+                            ? `${question.followUpPrompt}\n${followUp}`
+                            : followUp,
+                        }))
+                      }
+                    >
+                      + {followUp}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
 
