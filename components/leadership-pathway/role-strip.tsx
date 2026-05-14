@@ -8,6 +8,12 @@ interface RoleStripProps {
   mentorRoleLabel: string | null;
   /** Optional ID used to deep-link the "view mentor" affordance. */
   showMentorLink?: boolean;
+  /**
+   * Hide the right-side action links (My mentor →, Pathway →) entirely.
+   * Used on surfaces that ARE the destination of those links — the
+   * mentorship hub, for example, already lives at the mentor view.
+   */
+  showActions?: boolean;
 }
 
 /**
@@ -22,6 +28,7 @@ export function RoleStrip({
   mentorName,
   mentorRoleLabel,
   showMentorLink = true,
+  showActions = true,
 }: RoleStripProps) {
   if (!stageId) return null;
   const stage = LEADERSHIP_STAGES[stageId];
@@ -90,39 +97,41 @@ export function RoleStrip({
         </div>
       )}
 
-      <div
-        style={{
-          marginLeft: "auto",
-          display: "flex",
-          gap: 12,
-          alignItems: "center",
-        }}
-      >
-        {showMentorLink && mentorName && (
+      {showActions && (
+        <div
+          style={{
+            marginLeft: "auto",
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+          }}
+        >
+          {showMentorLink && mentorName && (
+            <Link
+              href="/my-mentor"
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--text)",
+                textDecoration: "none",
+              }}
+            >
+              My mentor →
+            </Link>
+          )}
           <Link
-            href="/my-mentor"
+            href="/leadership-pathway"
             style={{
               fontSize: 12,
               fontWeight: 600,
-              color: "var(--text)",
+              color: stage.color.text,
               textDecoration: "none",
             }}
           >
-            My mentor →
+            Pathway →
           </Link>
-        )}
-        <Link
-          href="/leadership-pathway"
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: stage.color.text,
-            textDecoration: "none",
-          }}
-        >
-          Pathway →
-        </Link>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
