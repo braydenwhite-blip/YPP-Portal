@@ -86,7 +86,6 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   // training surface that the Summer Workshop pathway depends on).
   "/instructor/workshop-design-studio",
   "/instructor-training",
-  "/training",
 ];
 
 /**
