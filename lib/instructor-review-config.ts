@@ -1,45 +1,33 @@
 export const INSTRUCTOR_REVIEW_CATEGORIES = [
   {
     key: "CURRICULUM_STRENGTH",
-    label: "Teaching/Instruction",
+    label: "GOAL 1 — Curriculum & Class Delivery",
     description:
-      "Course idea shows promise and applicant shows promise to teach it.",
+      "Strength of the proposed curriculum and the applicant's ability to deliver engaging, well-structured classes.",
   },
   {
     key: "RELATIONSHIP_BUILDING",
-    label: "Relationships/Personability",
+    label: "GOAL 2 — Student & Family Relationships",
     description:
-      "Applicant shows promise to build strong relationships with parents and students.",
+      "Applicant's ability to build trusting, supportive relationships with students and their families.",
   },
   {
     key: "ORGANIZATION_AND_COMMITMENT",
-    label: "Organization/Commitment",
+    label: "GOAL 3 — Organization, Commitment & Reliability",
     description:
-      "Application shows applicant is organized and will make necessary commitment.",
+      "Applicant is organized, follows through, and can be counted on to honor their commitments.",
   },
   {
     key: "COMMUNITY_FIT",
-    label: "Connection to YPP Community",
+    label: "GOAL 4 — YPP Community Involvement",
     description:
-      "Applicant shows signs of connecting to and strengthening the YPP community.",
+      "Applicant shows signs of connecting to, contributing to, and strengthening the YPP community.",
   },
   {
     key: "LONG_TERM_POTENTIAL",
-    label: "Long-Term Potential",
+    label: "GOAL 5 — Long-Term Growth & Increased Involvement",
     description:
-      "Application suggests applicant has long-term leadership potential within YPP.",
-  },
-  {
-    key: "PROFESSIONALISM_AND_FOLLOW_THROUGH",
-    label: "Interview Readiness & Professionalism",
-    description:
-      "Follow-through, preparation habits, and whether the candidate operates like someone others can count on.",
-  },
-  {
-    key: "SUBJECT_MATTER_FIT",
-    label: "Subject Matter Fit",
-    description:
-      "Depth and currency of knowledge in the subjects they plan to teach, and ability to make the content accessible.",
+      "Applicant has the potential to grow over time and take on increased involvement and leadership within YPP.",
   },
 ] as const;
 
@@ -49,27 +37,33 @@ export type InstructorReviewCategoryValue =
 export const INSTRUCTOR_INITIAL_REVIEW_SIGNALS = [
   {
     key: "CURRICULUM_STRENGTH",
-    label: "Teaching/Instruction",
+    label: "GOAL 1 — Curriculum & Class Delivery",
     description:
-      "Course idea shows promise and applicant shows promise to teach it.",
+      "Strength of the proposed curriculum and the applicant's ability to deliver engaging, well-structured classes.",
   },
   {
     key: "RELATIONSHIP_BUILDING",
-    label: "Relationships/Personability",
+    label: "GOAL 2 — Student & Family Relationships",
     description:
-      "Applicant shows promise to build strong relationships with parents and students.",
+      "Applicant's ability to build trusting, supportive relationships with students and their families.",
   },
   {
     key: "ORGANIZATION_AND_COMMITMENT",
-    label: "Organization/Commitment",
+    label: "GOAL 3 — Organization, Commitment & Reliability",
     description:
-      "Application shows applicant is organized and will make necessary commitment.",
+      "Applicant is organized, follows through, and can be counted on to honor their commitments.",
+  },
+  {
+    key: "COMMUNITY_FIT",
+    label: "GOAL 4 — YPP Community Involvement",
+    description:
+      "Applicant shows signs of connecting to, contributing to, and strengthening the YPP community.",
   },
   {
     key: "LONG_TERM_POTENTIAL",
-    label: "Long-Term Potential",
+    label: "GOAL 5 — Long-Term Growth & Increased Involvement",
     description:
-      "Application suggests applicant has long-term leadership potential within YPP.",
+      "Applicant has the potential to grow over time and take on increased involvement and leadership within YPP.",
   },
 ] as const satisfies ReadonlyArray<{
   key: InstructorReviewCategoryValue;

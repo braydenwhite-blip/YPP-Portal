@@ -999,7 +999,7 @@ async function seedInstructorApplicantWorkflow(
         categories: {
           create: [
             { category: "RELATIONSHIP_BUILDING", rating: "ABOVE_AND_BEYOND", notes: "Clear and engaging communicator." },
-            { category: "SUBJECT_MATTER_FIT", rating: "ABOVE_AND_BEYOND", notes: "Deep expertise in CS fundamentals." },
+            { category: "CURRICULUM_STRENGTH", rating: "ABOVE_AND_BEYOND", notes: "Strong curriculum design and clear delivery plan." },
             { category: "COMMUNITY_FIT", rating: "ON_TRACK", notes: "Clearly driven by mission." },
           ],
         },

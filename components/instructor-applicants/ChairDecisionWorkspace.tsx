@@ -21,7 +21,6 @@ interface InterviewReview {
   reviewer: { id: string; name: string | null };
   overallRating: string | null;
   recommendation: string | null;
-  summary: string | null;
   categories: Category[];
 }
 
@@ -378,11 +377,6 @@ export default function ChairDecisionWorkspace({ application, backHref }: Props)
                       );
                     })}
                   </div>
-                  {review.summary && (
-                    <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-                      {review.summary}
-                    </p>
-                  )}
                 </div>
               ))}
             </div>

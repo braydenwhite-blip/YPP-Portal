@@ -168,7 +168,6 @@ async function fetchCockpitData(applicationId: string) {
           round: true,
           overallRating: true,
           recommendation: true,
-          summary: true,
           submittedAt: true,
           reviewer: { select: { id: true, name: true } },
           categories: { select: { category: true, rating: true, notes: true } },
@@ -639,9 +638,6 @@ export default async function ApplicantCockpitPage({
                             </span>
                           ) : null}
                         </header>
-                        {review.summary ? (
-                          <p className="iv-cockpit-review-summary">{review.summary}</p>
-                        ) : null}
                         {actorIsInterviewer && review.reviewerId === actor.id ? (
                           <Link
                             href={`/applications/instructor/${id}/interview`}

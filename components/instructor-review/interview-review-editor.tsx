@@ -59,7 +59,6 @@ type ReviewSnapshot = {
   status: "DRAFT" | "SUBMITTED";
   overallRating: ProgressRatingValue | null;
   recommendation: InstructorInterviewRecommendationValue | null;
-  summary: string | null;
   revisionRequirements: string | null;
   applicantMessage: string | null;
   flagForLeadership: boolean;
@@ -111,7 +110,6 @@ type LiveDraftInput = {
   questionResponsesJson: string;
   overallRating: string | null;
   recommendation: string | null;
-  summary: string | null;
   revisionRequirements: string | null;
   applicantMessage: string | null;
   flagForLeadership: boolean;
@@ -268,7 +266,6 @@ export default function InterviewReviewEditor({
   const [recommendation, setRecommendation] = useState<InstructorInterviewRecommendationValue | "">(
     initialReview?.recommendation ?? ""
   );
-  const [summary, setSummary] = useState(initialReview?.summary ?? "");
   const [revisionRequirements, setRevisionRequirements] = useState(
     initialReview?.revisionRequirements ?? ""
   );
@@ -362,7 +359,6 @@ export default function InterviewReviewEditor({
       questionResponsesJson: questionPayload,
       overallRating: overallRating || null,
       recommendation: recommendation || null,
-      summary: summary || null,
       revisionRequirements: revisionRequirements || null,
       applicantMessage: applicantMessage || null,
       flagForLeadership,
@@ -376,7 +372,6 @@ export default function InterviewReviewEditor({
       questionPayload,
       recommendation,
       revisionRequirements,
-      summary,
     ]
   );
   const livePayloadRef = useRef(livePayload);
@@ -1356,19 +1351,6 @@ export default function InterviewReviewEditor({
       </section>
 
       <section className="review-editor-panel">
-        <label className="form-row">
-          Final interview summary
-          <textarea
-            className="input"
-            name="summary"
-            rows={4}
-            value={summary}
-            disabled={!canEdit}
-            onChange={(event) => setSummary(event.target.value)}
-            placeholder="What matters most after the full interview?"
-          />
-        </label>
-
         {showRevisionRequirements ? (
           <>
             <div className="review-editor-warning">

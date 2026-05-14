@@ -394,8 +394,6 @@ enum InstructorReviewCategoryKey {
   ORGANIZATION_AND_COMMITMENT
   COMMUNITY_FIT
   LONG_TERM_POTENTIAL
-  PROFESSIONALISM_AND_FOLLOW_THROUGH
-  SUBJECT_MATTER_FIT
 }
 
 enum InstructorApplicationNextStep {
@@ -1969,7 +1967,6 @@ model InstructorInterviewReview {
   isLeadReview         Boolean                               @default(false)
   overallRating        ProgressStatus?
   recommendation       InstructorInterviewRecommendation?
-  summary              String?                               @db.Text
   revisionRequirements String?                               @db.Text
   applicantMessage     String?                               @db.Text
   flagForLeadership    Boolean                               @default(false)
