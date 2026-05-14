@@ -7,10 +7,16 @@ import {
 } from "@/lib/mentorship-access";
 import { getSimplifiedMentorKanban } from "@/lib/mentorship-kanban-actions";
 import { getMentorshipPendingActionCount } from "@/lib/mentorship-notifications";
-import { MentorDashboard } from "./_components/mentor-dashboard";
+import { MentorPriorityList } from "./_components/mentor-priority-list";
 import { MenteeDashboard } from "./_components/mentee-dashboard";
+import { MentorshipTabShell } from "./_components/mentorship-tab-shell";
+import { EmptyStateEditorial } from "./_components/empty-state-editorial";
 
-export default async function MentorshipPage() {
+interface PageProps {
+  searchParams?: Promise<{ view?: string }>;
+}
+
+export default async function MentorshipPage({ searchParams }: PageProps) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -20,42 +26,38 @@ export default async function MentorshipPage() {
     redirect("/my-program?notice=mentorship-not-available");
   }
 
+  const params = (await searchParams) ?? {};
+
   const isAdmin = roles.includes("ADMIN");
   const membership = await getInstructorMentorshipMembership(userId);
   const showMentorSection = membership.isMentor || isAdmin;
   const showMenteeSection = membership.isMentee;
 
-  // Neither: clear empty state instead of dropping the user on a blank page.
+  // Neither: editorial empty state instead of a generic card.
   if (!showMenteeSection && !showMentorSection) {
     return (
       <div>
         <div className="topbar">
           <div>
             <p className="badge">Mentorship</p>
-            <h1 className="page-title">Instructor Mentorship</h1>
-            <p className="page-subtitle">
-              Where instructors track the support they receive and the
-              instructors they mentor.
-            </p>
+            <h1 className="page-title">Your mentorship</h1>
           </div>
           <Link href="/leadership-pathway" className="button secondary small">
             Pathway →
           </Link>
         </div>
-        <div className="card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
-          <h3 style={{ marginTop: 0 }}>You aren&apos;t part of a mentorship relationship right now.</h3>
-          <p style={{ color: "var(--muted)", maxWidth: 480, margin: "0 auto", lineHeight: 1.55, fontSize: 14 }}>
-            Once you&apos;re paired with a mentor — or assigned to mentor an
-            instructor — this page becomes your home base.
-          </p>
-        </div>
+        <EmptyStateEditorial
+          title="Your home base is on the way."
+          body="Once you're paired with a mentor — or assigned to mentor an instructor — this page becomes the place you'll work from each month. Reach out to chapter leadership if you expected to be paired."
+          link={{
+            label: "See the leadership pathway",
+            href: "/leadership-pathway",
+          }}
+        />
       </div>
     );
   }
 
-  // Mentor data is only loaded when the user actually has mentees.
-  // Pending-action count rolls up unread mentorship notifications across
-  // both mentee and mentor surfaces.
   const [mentorBlockResult, pendingActionCount] = await Promise.all([
     showMentorSection ? getSimplifiedMentorKanban() : Promise.resolve(null),
     getMentorshipPendingActionCount(userId),
@@ -68,19 +70,38 @@ export default async function MentorshipPage() {
     mentorBlock?.columns
       .flatMap((c) => c.cards)
       .filter((c) => c.kickoffPending).length ?? 0;
+  const menteeCount = mentorBlock?.total ?? 0;
 
-  const subtitle = showMenteeSection && showMentorSection
-    ? "Your mentor relationships are below — what you're working on with your mentor and the instructors you support."
-    : showMenteeSection
-      ? "Your goals, reflections, feedback, and progress with your mentor."
-      : `${mentorBlock?.total ?? 0} instructor mentee${(mentorBlock?.total ?? 0) === 1 ? "" : "s"} across all cycles`;
+  // Render only the more urgent of the two top alerts — stacked alerts is
+  // noise; one is signal.
+  let urgentAlert: { tone: "blue" | "amber"; title: string; detail: string } | null = null;
+  if (needsKickoff > 0) {
+    urgentAlert = {
+      tone: "amber",
+      title: `${needsKickoff} instructor${needsKickoff !== 1 ? "s" : ""} need a kickoff meeting`,
+      detail: "Schedule and mark the kickoff to unlock the monthly review cycle.",
+    };
+  } else if (pendingReview > 0) {
+    urgentAlert = {
+      tone: "blue",
+      title: `${pendingReview} instructor${pendingReview !== 1 ? "s" : ""} ready for your review`,
+      detail: "Their reflections have been submitted and are waiting on your feedback.",
+    };
+  }
+
+  const subtitle =
+    showMenteeSection && showMentorSection
+      ? "Your mentorship — the people who develop you, and the instructors you develop."
+      : showMenteeSection
+        ? "Your goals, reflections, feedback, and progress with your mentor."
+        : `${menteeCount} instructor mentee${menteeCount === 1 ? "" : "s"} across all cycles.`;
 
   return (
     <div>
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>
-          <h1 className="page-title">Instructor Mentorship</h1>
+          <h1 className="page-title">Your mentorship</h1>
           <p className="page-subtitle">{subtitle}</p>
           {pendingActionCount > 0 && (
             <Link
@@ -100,7 +121,7 @@ export default async function MentorshipPage() {
           )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {roles.includes("ADMIN") && (
+          {isAdmin && (
             <Link href="/admin/mentorship" className="button secondary small">
               Admin Oversight →
             </Link>
@@ -108,84 +129,78 @@ export default async function MentorshipPage() {
         </div>
       </div>
 
-      {showMenteeSection && (
-        <section style={{ marginBottom: 32 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-            <h2 className="section-title" style={{ margin: 0 }}>My Mentorship</h2>
-            <Link href="/mentorship-program/reviews" className="button secondary small">
-              Reflections & Reviews
-            </Link>
-          </div>
-          <p style={{ color: "var(--muted)", marginTop: 0, marginBottom: 14, fontSize: 13 }}>
-            What you need to do as an instructor being mentored.
-          </p>
-          <MenteeDashboard userId={userId} />
-        </section>
-      )}
-
-      {showMentorSection && mentorBlock && (
-        <section>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-            <h2 className="section-title" style={{ margin: 0 }}>Instructors I Mentor</h2>
-            <Link href="/mentorship/mentees" className="button secondary small">
-              Open all mentees →
-            </Link>
-          </div>
-          <p style={{ color: "var(--muted)", marginTop: 0, marginBottom: 14, fontSize: 13 }}>
-            Instructors you are responsible for mentoring this cycle.
-          </p>
-
-          {pendingReview > 0 && (
-            <div
-              className="card"
-              style={{
-                marginBottom: 16,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 16,
-                flexWrap: "wrap",
-                borderLeft: "4px solid #3b82f6",
-                background: "#eff6ff",
-              }}
-            >
-              <div>
-                <strong>
-                  {pendingReview} instructor{pendingReview !== 1 ? "s" : ""} ready for your review
-                </strong>
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
-                  Their reflections have been submitted and are waiting on your feedback.
-                </p>
-              </div>
-              <span style={{ fontSize: 13, color: "var(--muted)" }}>See "Ready for Review" →</span>
-            </div>
-          )}
-
-          {needsKickoff > 0 && (
-            <div
-              className="card"
-              style={{
-                marginBottom: 16,
-                borderLeft: "4px solid #f59e0b",
-                background: "#fffbeb",
-              }}
-            >
-              <strong style={{ color: "#92400e" }}>
-                {needsKickoff} instructor{needsKickoff !== 1 ? "s" : ""} need a kickoff meeting
-              </strong>
-              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#92400e" }}>
-                Schedule and mark the kickoff to unlock the monthly review cycle.
-              </p>
-            </div>
-          )}
-
-          <MentorDashboard
-            columns={mentorBlock.columns}
-            inactive={mentorBlock.inactive}
-            total={mentorBlock.total}
+      <MentorshipTabShell
+        requestedView={params.view}
+        showMentee={showMenteeSection}
+        showMentor={showMentorSection}
+        menteeCount={menteeCount}
+        menteeContent={<MenteeDashboard userId={userId} />}
+        mentorContent={
+          <MentorTabContent
+            urgentAlert={urgentAlert}
+            mentorBlock={mentorBlock}
           />
-        </section>
+        }
+      />
+    </div>
+  );
+}
+
+function MentorTabContent({
+  urgentAlert,
+  mentorBlock,
+}: {
+  urgentAlert: { tone: "blue" | "amber"; title: string; detail: string } | null;
+  mentorBlock: Awaited<ReturnType<typeof getSimplifiedMentorKanban>> | null;
+}) {
+  if (!mentorBlock || mentorBlock.total === 0) {
+    return (
+      <EmptyStateEditorial
+        title="Ready when they arrive."
+        body="You'll see your mentees here as soon as chapter leadership pairs you with one. In the meantime, the leadership pathway is the same rubric you'll use to support them."
+        link={{
+          label: "See the leadership pathway",
+          href: "/leadership-pathway",
+        }}
+      />
+    );
+  }
+
+  const alertColors =
+    urgentAlert?.tone === "amber"
+      ? { border: "#f59e0b", bg: "#fffbeb", text: "#92400e" }
+      : { border: "#3b82f6", bg: "#eff6ff", text: "#1e40af" };
+
+  return (
+    <div style={{ display: "grid", gap: 24 }}>
+      {urgentAlert && (
+        <div
+          style={{
+            padding: "14px 18px",
+            background: alertColors.bg,
+            borderLeft: `4px solid ${alertColors.border}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+          role="status"
+        >
+          <div>
+            <strong style={{ color: alertColors.text }}>{urgentAlert.title}</strong>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: alertColors.text, opacity: 0.85 }}>
+              {urgentAlert.detail}
+            </p>
+          </div>
+        </div>
       )}
+
+      <MentorPriorityList
+        columns={mentorBlock.columns}
+        inactive={mentorBlock.inactive}
+        total={mentorBlock.total}
+      />
     </div>
   );
 }
