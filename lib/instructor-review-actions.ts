@@ -655,6 +655,7 @@ export async function getInstructorInterviewReviewWorkspace(applicationId: strin
         concernSignals: true,
         notePrompts: true,
         sortOrder: true,
+        isMustAsk: true,
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),

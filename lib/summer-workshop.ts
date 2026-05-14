@@ -160,6 +160,7 @@ export type SummerWorkshopInterviewPrompt = {
   concernSignals: unknown;
   notePrompts: unknown;
   sortOrder: number;
+  isMustAsk: boolean;
 };
 
 export const SUMMER_WORKSHOP_INTERVIEW_PROMPTS: SummerWorkshopInterviewPrompt[] = [
@@ -181,6 +182,7 @@ export const SUMMER_WORKSHOP_INTERVIEW_PROMPTS: SummerWorkshopInterviewPrompt[] 
     concernSignals: [],
     notePrompts: [],
     sortOrder: 1001,
+    isMustAsk: false,
   },
   {
     id: "summer-workshop-engagement-hook",
@@ -199,6 +201,7 @@ export const SUMMER_WORKSHOP_INTERVIEW_PROMPTS: SummerWorkshopInterviewPrompt[] 
     concernSignals: [],
     notePrompts: [],
     sortOrder: 1002,
+    isMustAsk: false,
   },
   {
     id: "summer-workshop-adaptability",
@@ -217,6 +220,7 @@ export const SUMMER_WORKSHOP_INTERVIEW_PROMPTS: SummerWorkshopInterviewPrompt[] 
     concernSignals: [],
     notePrompts: [],
     sortOrder: 1003,
+    isMustAsk: false,
   },
   {
     id: "summer-workshop-disruption",
@@ -235,6 +239,7 @@ export const SUMMER_WORKSHOP_INTERVIEW_PROMPTS: SummerWorkshopInterviewPrompt[] 
     concernSignals: [],
     notePrompts: [],
     sortOrder: 1004,
+    isMustAsk: false,
   },
 ];
 

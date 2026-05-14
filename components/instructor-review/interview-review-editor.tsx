@@ -102,6 +102,7 @@ type QuestionBankItem = {
   concernSignals: unknown;
   notePrompts: unknown;
   sortOrder: number;
+  isMustAsk: boolean;
 };
 
 type LiveDraftInput = {

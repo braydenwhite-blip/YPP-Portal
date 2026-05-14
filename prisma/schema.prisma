@@ -1946,6 +1946,7 @@ model InstructorInterviewQuestionBank {
   notePrompts         Json                                  @default("[]")
   sortOrder           Int                                   @default(0)
   isActive            Boolean                               @default(true)
+  isMustAsk           Boolean                               @default(false)
   responses           InstructorInterviewQuestionResponse[]
   createdAt           DateTime                              @default(now())
   updatedAt           DateTime                              @updatedAt
