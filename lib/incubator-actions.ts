@@ -612,7 +612,7 @@ export async function getMyApplications() {
   const session = await requireAnyRole(["STUDENT", "ADMIN"]);
   try {
     return await prisma.incubatorApplication.findMany({
-      where: { studentId: session.user.id },
+      where: { studentId: session.user.id, archivedAt: null },
       include: {
         cohort: {
           select: {

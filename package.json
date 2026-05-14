@@ -45,7 +45,8 @@
     "backfill:email-verified": "node scripts/backfill-email-verified.mjs",
     "backfill:mentorship-redesign": "node scripts/backfill-mentorship-redesign.mjs",
     "migrate:users:validate-csv": "node scripts/import-users-from-csv.mjs",
-    "cleanup:non-scarsdale-chapters": "tsx scripts/cleanup-non-scarsdale-chapters.ts"
+    "cleanup:non-scarsdale-chapters": "tsx scripts/cleanup-non-scarsdale-chapters.ts",
+    "archive:all-applications": "tsx scripts/archive-all-applications.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",

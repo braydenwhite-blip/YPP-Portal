@@ -90,7 +90,7 @@ export async function getInternshipListings(filters?: {
 
   // Check which ones user has applied to
   const myApps = await prisma.internshipApplication.findMany({
-    where: { studentId: session.user.id },
+    where: { studentId: session.user.id, archivedAt: null },
     select: { listingId: true, status: true },
   });
   const myAppMap = Object.fromEntries(myApps.map((a) => [a.listingId, a.status]));
