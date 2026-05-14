@@ -5,28 +5,27 @@ import {
 } from "@/lib/leadership-pathway";
 
 interface ExpectationsMatrixProps {
-  /** Highlight this stage's column. */
   highlightStageId?: LeadershipStageId | null;
-  /** When true, render only the current stage column for tight spaces. */
-  singleColumn?: boolean;
 }
 
+type RubricStage = "INSTRUCTOR" | "SENIOR_INSTRUCTOR" | "LEAD_INSTRUCTOR";
+
+const RUBRIC_STAGES: RubricStage[] = [
+  "INSTRUCTOR",
+  "SENIOR_INSTRUCTOR",
+  "LEAD_INSTRUCTOR",
+];
+
 /**
- * The five-goal × three-stage rubric, rendered as a side-by-side
- * matrix so instructors can see exactly what teaching, family,
- * reliability, community, and growth look like at each role.
- *
- * In single-column mode it collapses to just the current stage —
- * used on the G&R page where we want a focused view.
+ * The five-goal × three-stage rubric, rendered as a typographic table
+ * with subtle column tinting for the current stage. No per-cell card
+ * chrome, no per-stage colored backgrounds — just rows, columns, and
+ * the right amount of contrast to skim.
  */
 export function ExpectationsMatrix({
   highlightStageId,
-  singleColumn = false,
 }: ExpectationsMatrixProps) {
-  const focusStage: Exclude<
-    LeadershipStageId,
-    "WORKSHOP_INSTRUCTOR" | "ORGANIZATIONAL_LEADERSHIP"
-  > =
+  const focusStage: RubricStage =
     highlightStageId === "SENIOR_INSTRUCTOR"
       ? "SENIOR_INSTRUCTOR"
       : highlightStageId === "LEAD_INSTRUCTOR" ||
@@ -34,191 +33,149 @@ export function ExpectationsMatrix({
         ? "LEAD_INSTRUCTOR"
         : "INSTRUCTOR";
 
-  const stagesToRender: Array<
-    Exclude<
-      LeadershipStageId,
-      "WORKSHOP_INSTRUCTOR" | "ORGANIZATIONAL_LEADERSHIP"
-    >
-  > = singleColumn
-    ? [focusStage]
-    : ["INSTRUCTOR", "SENIOR_INSTRUCTOR", "LEAD_INSTRUCTOR"];
-
   return (
     <div
       style={{
-        display: "grid",
-        gap: 12,
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        overflowX: "auto",
       }}
     >
-      <div
+      <table
         style={{
-          display: "grid",
-          gridTemplateColumns: singleColumn
-            ? "minmax(160px, 220px) 1fr"
-            : `minmax(180px, 240px) repeat(${stagesToRender.length}, minmax(220px, 1fr))`,
-          gap: 12,
-          alignItems: "stretch",
+          width: "100%",
+          minWidth: 720,
+          borderCollapse: "collapse",
+          fontSize: 13,
+          lineHeight: 1.55,
         }}
       >
-        {/* Header row */}
-        <div />
-        {stagesToRender.map((sid) => {
-          const stage = LEADERSHIP_STAGES[sid];
-          const isFocus = sid === focusStage;
-          return (
-            <div
-              key={sid}
+        <thead>
+          <tr>
+            <th
               style={{
-                padding: "10px 12px",
-                borderRadius: 10,
-                background: isFocus ? stage.color.bg : "var(--surface)",
-                border: isFocus
-                  ? `1.5px solid ${stage.color.border}`
-                  : "1px solid var(--border)",
+                width: "22%",
+                textAlign: "left",
+                padding: "14px 16px 12px",
+                borderBottom: "1px solid var(--border)",
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--muted)",
+                verticalAlign: "bottom",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: stage.color.text,
-                  opacity: isFocus ? 1 : 0.85,
-                }}
-              >
-                <span
-                  aria-hidden
+              Growth area
+            </th>
+            {RUBRIC_STAGES.map((sid) => {
+              const stage = LEADERSHIP_STAGES[sid];
+              const isFocus = sid === focusStage;
+              return (
+                <th
+                  key={sid}
+                  scope="col"
                   style={{
-                    display: "inline-block",
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: stage.color.accent,
+                    textAlign: "left",
+                    padding: "14px 16px 12px",
+                    borderBottom: "1px solid var(--border)",
+                    verticalAlign: "bottom",
+                    background: isFocus ? "var(--bg-2, #faf7ff)" : "transparent",
+                    width: "26%",
                   }}
-                />
-                {stage.label}
-              </div>
-              <div
+                >
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "var(--text)",
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      style={{
+                        display: "inline-block",
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: stage.color.accent,
+                      }}
+                    />
+                    {stage.label}
+                  </div>
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {LEADERSHIP_GOALS.map((goal, rowIdx) => (
+            <tr key={goal.id}>
+              <th
+                scope="row"
                 style={{
-                  fontSize: 12,
-                  color: "var(--muted)",
-                  marginTop: 2,
-                  lineHeight: 1.4,
+                  textAlign: "left",
+                  padding: "14px 16px",
+                  borderBottom:
+                    rowIdx === LEADERSHIP_GOALS.length - 1
+                      ? "none"
+                      : "1px solid var(--border)",
+                  verticalAlign: "top",
                 }}
               >
-                {stage.tagline}
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Goal rows */}
-        {LEADERSHIP_GOALS.map((goal) => (
-          <ExpectationsMatrixRow
-            key={goal.id}
-            goal={goal}
-            stagesToRender={stagesToRender}
-            focusStage={focusStage}
-          />
-        ))}
-      </div>
+                <div style={{ fontWeight: 600, color: "var(--text)" }}>
+                  {goal.title}
+                </div>
+                <div
+                  style={{
+                    marginTop: 2,
+                    fontSize: 12,
+                    color: "var(--muted)",
+                    fontWeight: 400,
+                  }}
+                >
+                  {goal.oneLiner}
+                </div>
+              </th>
+              {RUBRIC_STAGES.map((sid) => {
+                const isFocus = sid === focusStage;
+                const exps = goal.expectations[sid];
+                return (
+                  <td
+                    key={sid}
+                    style={{
+                      padding: "14px 16px",
+                      borderBottom:
+                        rowIdx === LEADERSHIP_GOALS.length - 1
+                          ? "none"
+                          : "1px solid var(--border)",
+                      verticalAlign: "top",
+                      background: isFocus ? "var(--bg-2, #faf7ff)" : "transparent",
+                      color: "var(--text)",
+                    }}
+                  >
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 16,
+                        display: "grid",
+                        gap: 4,
+                      }}
+                    >
+                      {exps.map((e, i) => (
+                        <li key={i}>{e}</li>
+                      ))}
+                    </ul>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
-  );
-}
-
-interface RowProps {
-  goal: (typeof LEADERSHIP_GOALS)[number];
-  stagesToRender: Array<
-    Exclude<
-      LeadershipStageId,
-      "WORKSHOP_INSTRUCTOR" | "ORGANIZATIONAL_LEADERSHIP"
-    >
-  >;
-  focusStage: Exclude<
-    LeadershipStageId,
-    "WORKSHOP_INSTRUCTOR" | "ORGANIZATIONAL_LEADERSHIP"
-  >;
-}
-
-function ExpectationsMatrixRow({ goal, stagesToRender, focusStage }: RowProps) {
-  return (
-    <>
-      <div
-        style={{
-          padding: "12px 14px",
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderRadius: 10,
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            color: "var(--muted)",
-          }}
-        >
-          Goal {goal.number}
-        </div>
-        <div
-          style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}
-        >
-          {goal.title}
-        </div>
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--muted)",
-            lineHeight: 1.4,
-          }}
-        >
-          {goal.oneLiner}
-        </div>
-      </div>
-
-      {stagesToRender.map((sid) => {
-        const stage = LEADERSHIP_STAGES[sid];
-        const expectations = goal.expectations[sid];
-        const isFocus = sid === focusStage;
-        return (
-          <div
-            key={sid}
-            style={{
-              padding: "12px 14px",
-              borderRadius: 10,
-              background: isFocus ? stage.color.bg : "var(--surface)",
-              border: isFocus
-                ? `1.5px solid ${stage.color.border}`
-                : "1px solid var(--border)",
-            }}
-          >
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: 16,
-                fontSize: 13,
-                lineHeight: 1.55,
-                color: isFocus ? stage.color.text : "var(--text)",
-                display: "grid",
-                gap: 4,
-              }}
-            >
-              {expectations.map((exp, i) => (
-                <li key={i}>{exp}</li>
-              ))}
-            </ul>
-          </div>
-        );
-      })}
-    </>
   );
 }
