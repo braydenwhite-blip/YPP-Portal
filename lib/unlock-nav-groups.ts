@@ -47,9 +47,24 @@ export const SECTION_REQUIREMENTS: Record<string, string> = {
 // Roles that see everything unlocked by default
 export const FULL_ACCESS_ROLES = new Set([
   "ADMIN",
-  "CHAPTER_PRESIDENT",
   "MENTOR",
   "STAFF",
+]);
+
+// CHAPTER_PRESIDENT is temporarily scoped to the hiring/interview pipeline only.
+// Any nav link whose href is NOT in this allowlist is hidden for chapter
+// presidents. Direct URL access to non-listed pages is not blocked here — add
+// route-level guards if stronger isolation is needed.
+export const CHAPTER_PRESIDENT_ALLOWED_HREFS = new Set<string>([
+  "/",
+  "/interviews",
+  "/scheduling",
+  "/chapter/recruiting",
+  "/chapter-lead/instructor-applicants",
+  "/chapter-lead/dashboard",
+  "/profile",
+  "/settings/personalization",
+  "/notifications",
 ]);
 
 /**

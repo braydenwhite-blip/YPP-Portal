@@ -1,6 +1,6 @@
 import { CORE_NAV_LIMIT, CORE_NAV_MAP, PRIMARY_ROLE_FALLBACK_ORDER } from "@/lib/navigation/core-map";
 import { NAV_CATALOG } from "@/lib/navigation/catalog";
-import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
+import { CHAPTER_PRESIDENT_ALLOWED_HREFS, getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import {
   INSTRUCTOR_V1_ALLOWED_HREFS,
   shouldApplyInstructorV1NavFilter,
@@ -526,6 +526,11 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       }
 
       if (ALWAYS_HIDDEN_HREFS.has(item.href)) return false;
+
+      // Chapter presidents are temporarily scoped to the hiring/interview pipeline.
+      if (primaryRole === "CHAPTER_PRESIDENT" && !CHAPTER_PRESIDENT_ALLOWED_HREFS.has(item.href)) {
+        return false;
+      }
 
       // Public portal gate: when only Summer Workshop applications +
       // proposals are public, hide every nav link that points to a
