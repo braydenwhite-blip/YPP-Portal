@@ -38,22 +38,15 @@ export default async function MentorshipPage() {
               instructors they mentor.
             </p>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Link href="/leadership-pathway" className="button secondary small">
-              View leadership pathway →
-            </Link>
-            <Link href="/my-mentor" className="button small">
-              My mentor page →
-            </Link>
-          </div>
+          <Link href="/leadership-pathway" className="button secondary small">
+            Pathway →
+          </Link>
         </div>
         <div className="card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
-          <h3 style={{ marginTop: 0 }}>You are not currently part of an instructor mentorship relationship.</h3>
-          <p style={{ color: "var(--muted)", maxWidth: 520, margin: "0 auto", lineHeight: 1.55 }}>
-            When you are paired with a mentor, or assigned to mentor another
-            instructor, this page becomes your home base. Reach out to your
-            chapter leadership to get matched — and in the meantime, the
-            leadership pathway page shows what the journey looks like at YPP.
+          <h3 style={{ marginTop: 0 }}>You aren&apos;t part of a mentorship relationship right now.</h3>
+          <p style={{ color: "var(--muted)", maxWidth: 480, margin: "0 auto", lineHeight: 1.55, fontSize: 14 }}>
+            Once you&apos;re paired with a mentor — or assigned to mentor an
+            instructor — this page becomes your home base.
           </p>
         </div>
       </div>

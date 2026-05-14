@@ -389,19 +389,10 @@ export const NAV_CATALOG: NavLink[] = [
         "Promotion",
         "Career",
         "Growth Pathway",
+        "My Mentor",
       ],
       dashboardDescription:
-        "See the YPP instructor leadership pathway, what each role means, and where you fit on the journey.",
-      dashboardPriority: 4,
-    },
-    {
-      href: "/my-mentor",
-      label: "My Mentor",
-      icon: "🧭",
-      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
-      searchAliases: ["Mentor", "My Mentor Page", "Mentor Card"],
-      dashboardDescription:
-        "Your mentor, your role, and how mentorship flows at YPP.",
+        "See where you fit on the YPP instructor pathway and who's mentoring you.",
       dashboardPriority: 4,
     },
     {
