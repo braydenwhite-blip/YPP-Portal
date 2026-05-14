@@ -15,7 +15,16 @@ import {
 import { FieldLabel } from "@/components/field-help";
 import { curriculumHelp } from "@/data/instructor-guide-content";
 
-export function CurriculumBuilderClient() {
+export interface CurriculumBuilderClientProps {
+  // When true the form is being used by an admin to author a Course Library
+  // entry — submission flags isCatalogItem + isPublished and routes back to
+  // /admin/course-library on success.
+  libraryMode?: boolean;
+}
+
+export function CurriculumBuilderClient({
+  libraryMode = false,
+}: CurriculumBuilderClientProps = {}) {
   const defaultLearnerFit = getLegacyLearnerFitCopy("LEVEL_101");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -108,9 +117,18 @@ export function CurriculumBuilderClient() {
       if (description) formData.set("description", description);
       formData.set("engagementStrategy", JSON.stringify(engagement));
 
-      await createClassTemplate(formData);
+      if (libraryMode) {
+        formData.set("isCatalogItem", "true");
+        formData.set("isPublished", "true");
+      }
+
+      const result = await createClassTemplate(formData);
       setSuccess(true);
-      router.refresh();
+      if (libraryMode && result?.id) {
+        router.push(`/admin/course-library/${result.id}`);
+      } else {
+        router.refresh();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save curriculum");
     } finally {

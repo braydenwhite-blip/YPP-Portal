@@ -6909,10 +6909,19 @@ model ClassTemplate {
 
   // Meta
   isPublished Boolean  @default(false)
+  // Admin-curated catalog flag — true when this template is part of the
+  // Course Library that instructors pick from on /instructor/curriculum-builder.
+  isCatalogItem Boolean @default(false)
   createdById String
   createdBy   User     @relation("ClassTemplatesCreated", fields: [createdById], references: [id])
   chapterId   String?
   chapter     Chapter? @relation(fields: [chapterId], references: [id])
+
+  // Set when an instructor picks a course from the library; points at the
+  // admin's source template so we can show usage counts and provenance.
+  clonedFromId String?
+  clonedFrom   ClassTemplate?  @relation("CourseClones", fields: [clonedFromId], references: [id])
+  clones       ClassTemplate[] @relation("CourseClones")
 
   offerings    ClassOffering[]
   lessonPlans  LessonPlan[]
@@ -6926,6 +6935,8 @@ model ClassTemplate {
   @@index([difficultyLevel])
   @@index([createdById])
   @@index([submissionStatus])
+  @@index([isCatalogItem])
+  @@index([clonedFromId])
 }
 
 // Specific offering of a class template (Feature #80, #83)

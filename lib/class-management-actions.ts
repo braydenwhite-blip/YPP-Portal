@@ -9,6 +9,7 @@ import {
   createCompatibleClassTemplate,
   getClassTemplateCapabilities,
   getClassTemplateSelect,
+  type CurriculumSubmissionStatus,
 } from "@/lib/class-template-compat";
 import {
   type CurriculumEngagementStrategy,
@@ -482,6 +483,15 @@ export async function createClassTemplate(formData: FormData) {
     }
   }
 
+  // Admin Course Library flag — only honored when set by an admin posting from
+  // /admin/course-library/new. We patch it after create so the legacy compat
+  // layer doesn't have to know about it.
+  const wantsCatalog = formData.get("isCatalogItem") === "true";
+  const callerIsAdmin = (session.user?.roles ?? []).includes("ADMIN");
+  const isCatalogItem = wantsCatalog && callerIsAdmin;
+  const isPublishedFlag =
+    callerIsAdmin && formData.get("isPublished") === "true";
+
   const template = await createCompatibleClassTemplate(prisma, capabilities, {
     title,
     description: description || "",
@@ -503,8 +513,18 @@ export async function createClassTemplate(formData: FormData) {
     targetAgeGroup: targetAgeGroup || null,
     classDurationMin: classDurationMin || null,
     engagementStrategy: engagementStrategy as Prisma.InputJsonValue | null,
+    isPublished: isPublishedFlag,
     createdById: session.user.id,
   });
+
+  if (isCatalogItem) {
+    await prisma.classTemplate.update({
+      where: { id: template.id },
+      data: { isCatalogItem: true },
+      select: { id: true },
+    });
+    revalidatePath("/admin/course-library");
+  }
 
   revalidatePath("/instructor/curriculum-builder");
   revalidatePath("/curriculum");
@@ -706,6 +726,159 @@ export async function publishClassTemplate(id: string) {
 
   revalidatePath("/instructor/curriculum-builder");
   revalidatePath("/curriculum");
+  return { success: true };
+}
+
+// ============================================
+// COURSE LIBRARY (admin-curated catalog)
+// ============================================
+
+type CloneClassTemplateOptions = {
+  newOwnerId: string;
+  asLibraryItem?: boolean;
+  autoSubmit?: boolean;
+};
+
+// Pure clone helper. Copies all curriculum content + linked LessonPlans
+// (with their activities) into a brand-new ClassTemplate owned by newOwnerId.
+// Used by both the admin "duplicate into library" flow and the instructor
+// "pick from library" flow.
+export async function cloneClassTemplate(
+  sourceTemplateId: string,
+  opts: CloneClassTemplateOptions
+) {
+  const source = await prisma.classTemplate.findUnique({
+    where: { id: sourceTemplateId },
+    include: {
+      lessonPlans: { include: { activities: true } },
+    },
+  });
+  if (!source) throw new Error("Source template not found");
+
+  const capabilities = await getClassTemplateCapabilities();
+  const submissionStatus: CurriculumSubmissionStatus | undefined = opts.autoSubmit
+    ? "SUBMITTED"
+    : "DRAFT";
+  const submittedAt = opts.autoSubmit ? new Date() : null;
+
+  const created = await createCompatibleClassTemplate(prisma, capabilities, {
+    title: source.title,
+    description: source.description,
+    interestArea: source.interestArea,
+    difficultyLevel: source.difficultyLevel,
+    learnerFitLabel: source.learnerFitLabel,
+    learnerFitDescription: source.learnerFitDescription,
+    prerequisites: source.prerequisites,
+    weeklyTopics: (source.weeklyTopics ?? []) as Prisma.InputJsonValue,
+    learningOutcomes: source.learningOutcomes,
+    estimatedHours: source.estimatedHours,
+    durationWeeks: source.durationWeeks,
+    sessionsPerWeek: source.sessionsPerWeek,
+    minStudents: source.minStudents,
+    maxStudents: source.maxStudents,
+    idealSize: source.idealSize,
+    sizeNotes: source.sizeNotes,
+    deliveryModes: source.deliveryModes,
+    targetAgeGroup: source.targetAgeGroup,
+    classDurationMin: source.classDurationMin,
+    engagementStrategy: source.engagementStrategy as Prisma.InputJsonValue | null,
+    submissionStatus,
+    submittedAt,
+    isPublished: false,
+    createdById: opts.newOwnerId,
+  });
+
+  // The compat helper writes the canonical fields; flag fields not in its
+  // signature get patched here so we don't have to widen its API.
+  await prisma.classTemplate.update({
+    where: { id: created.id },
+    data: {
+      isCatalogItem: opts.asLibraryItem === true,
+      clonedFromId: source.id,
+    },
+    select: { id: true },
+  });
+
+  if (source.lessonPlans.length > 0) {
+    for (const plan of source.lessonPlans) {
+      await prisma.lessonPlan.create({
+        data: {
+          title: plan.title,
+          description: plan.description,
+          totalMinutes: plan.totalMinutes,
+          isTemplate: plan.isTemplate,
+          authorId: opts.newOwnerId,
+          classTemplateId: created.id,
+          activities: {
+            create: plan.activities
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((act) => ({
+                title: act.title,
+                description: act.description,
+                type: act.type,
+                durationMin: act.durationMin,
+                sortOrder: act.sortOrder,
+                resources: act.resources,
+                notes: act.notes,
+              })),
+          },
+        },
+        select: { id: true },
+      });
+    }
+  }
+
+  return { id: created.id };
+}
+
+// Instructor-facing "pick from library" action. Validates the source is a
+// published catalog item, clones it into a personal draft auto-marked as
+// SUBMITTED so it shows up in the existing /admin/curricula review queue.
+export async function pickFromCourseLibrary(formData: FormData) {
+  const session = await requireInstructor();
+  const sourceId = getString(formData, "templateId");
+
+  const source = await prisma.classTemplate.findUnique({
+    where: { id: sourceId },
+    select: { id: true, isPublished: true, isCatalogItem: true },
+  });
+  if (!source) throw new Error("Library course not found");
+  if (!source.isCatalogItem || !source.isPublished) {
+    throw new Error("This course isn't available in the library");
+  }
+
+  const cloned = await cloneClassTemplate(source.id, {
+    newOwnerId: session.user.id,
+    autoSubmit: true,
+  });
+
+  revalidatePath("/instructor/curriculum-builder");
+  revalidatePath("/admin/curricula");
+  revalidatePath("/admin/course-library");
+  revalidatePath(`/admin/course-library/${source.id}`);
+  return { success: true, id: cloned.id };
+}
+
+export async function setCourseLibraryStatus(formData: FormData) {
+  const session = await getSession();
+  const roles = session?.user?.roles ?? [];
+  if (!session?.user?.id || !roles.includes("ADMIN")) {
+    throw new Error("Unauthorized – admin role required");
+  }
+
+  const id = getString(formData, "id");
+  const isCatalogItem = formData.get("isCatalogItem") === "true";
+  const isPublished = formData.get("isPublished") === "true";
+
+  await prisma.classTemplate.update({
+    where: { id },
+    data: { isCatalogItem, isPublished },
+    select: { id: true },
+  });
+
+  revalidatePath("/admin/course-library");
+  revalidatePath(`/admin/course-library/${id}`);
+  revalidatePath("/instructor/curriculum-builder");
   return { success: true };
 }
 
