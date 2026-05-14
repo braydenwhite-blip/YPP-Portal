@@ -125,7 +125,6 @@ async function buildSubmitFormData() {
   formData.set("intent", "submit");
   formData.set("overallRating", "ON_TRACK");
   formData.set("recommendation", "ACCEPT");
-  formData.set("summary", "Strong interview with clear teaching signals.");
   formData.set("overallNotes", "Candidate handled follow-ups well.");
   formData.set("demeanorNotes", "Warm and calm.");
   formData.set("maturityNotes", "Owned tradeoffs.");

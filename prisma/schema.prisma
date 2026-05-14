@@ -1967,7 +1967,6 @@ model InstructorInterviewReview {
   isLeadReview         Boolean                               @default(false)
   overallRating        ProgressStatus?
   recommendation       InstructorInterviewRecommendation?
-  summary              String?                               @db.Text
   revisionRequirements String?                               @db.Text
   applicantMessage     String?                               @db.Text
   flagForLeadership    Boolean                               @default(false)

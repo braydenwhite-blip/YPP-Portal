@@ -970,7 +970,6 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
   questionResponsesJson?: string;
   overallRating?: string | null;
   recommendation?: string | null;
-  summary?: string | null;
   revisionRequirements?: string | null;
   applicantMessage?: string | null;
   curriculumDraftId?: string | null;
@@ -987,7 +986,6 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
     const recommendation = parseInterviewRecommendation(input.recommendation);
     const categories = parseCategories(input.categoriesJson ?? "[]");
     const questionResponses = parseInterviewQuestionResponses(input.questionResponsesJson ?? "[]");
-    const summary = normalizeNullableText(input.summary);
     const revisionRequirements = normalizeNullableText(input.revisionRequirements);
     const applicantMessage = normalizeNullableText(input.applicantMessage);
     const curriculumDraftId = normalizeNullableText(input.curriculumDraftId);
@@ -1052,7 +1050,6 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
           isLeadReview: isLeadReviewer,
           overallRating,
           recommendation,
-          summary,
           revisionRequirements,
           applicantMessage,
           flagForLeadership,
@@ -1064,7 +1061,6 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
           isLeadReview: isLeadReviewer,
           overallRating,
           recommendation,
-          summary,
           revisionRequirements,
           applicantMessage,
           flagForLeadership,
@@ -1101,7 +1097,6 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
   const recommendation = parseInterviewRecommendation(formData.get("recommendation"));
   const categories = parseCategories(getString(formData, "categoriesJson"));
   const questionResponses = parseInterviewQuestionResponses(getString(formData, "questionResponsesJson"));
-  const summary = normalizeNullableText(getString(formData, "summary", false));
   const revisionRequirements = normalizeNullableText(getString(formData, "revisionRequirements", false));
   const applicantMessage = normalizeNullableText(getString(formData, "applicantMessage", false));
   const curriculumDraftId = normalizeNullableText(getString(formData, "curriculumDraftId", false));
@@ -1198,7 +1193,6 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
         isLeadReview: isLeadReviewer,
         overallRating,
         recommendation,
-        summary,
         revisionRequirements,
         applicantMessage,
         flagForLeadership,
@@ -1213,7 +1207,6 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
         isLeadReview: isLeadReviewer,
         overallRating,
         recommendation,
-        summary,
         revisionRequirements,
         applicantMessage,
         flagForLeadership,
@@ -1245,7 +1238,7 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
       canFinalizeRecommendation &&
       recommendation
     ) {
-      await markInterviewCompleted(applicationId, actor.id, summary ?? undefined);
+      await markInterviewCompleted(applicationId, actor.id);
       const chairFormData = new FormData();
       chairFormData.set("applicationId", applicationId);
       const chairResult = await sendToChair(chairFormData);

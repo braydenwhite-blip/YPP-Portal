@@ -38,7 +38,6 @@ export type SerializedInterviewReview = {
   round: number | null;
   recommendation: InstructorInterviewRecommendation | null;
   overallRating: string | null;
-  summary: string | null;
   categories: Array<{ category: string; rating: string | null; notes: string | null }>;
 };
 
@@ -270,7 +269,6 @@ function serializeApplication(
       round: review.round,
       recommendation: review.recommendation,
       overallRating: review.overallRating,
-      summary: review.summary,
       categories: review.categories.map((c) => ({
         category: c.category,
         rating: c.rating,
@@ -366,7 +364,6 @@ export async function getApplicationForFinalReview(
             round: true,
             recommendation: true,
             overallRating: true,
-            summary: true,
             reviewer: { select: { id: true, name: true } },
             categories: { select: { category: true, rating: true, notes: true } },
           },

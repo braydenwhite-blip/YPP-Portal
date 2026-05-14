@@ -57,7 +57,7 @@ export default function ActivityFeed({ application }: ActivityFeedProps) {
       round: r.round,
       recommendation: r.recommendation,
       overallRating: r.overallRating,
-      summary: r.summary,
+      summary: null,
       kind: "INTERVIEW_REVIEW",
     }));
     if (application.reviewerNote) {

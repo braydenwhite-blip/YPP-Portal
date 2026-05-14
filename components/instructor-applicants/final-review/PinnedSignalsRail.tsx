@@ -30,7 +30,7 @@ export default function PinnedSignalsRail({ application }: PinnedSignalsRailProp
     for (const review of application.interviewReviews) {
       lookup.set(`interview-${review.id}`, {
         reviewerName: review.reviewerName,
-        summary: review.summary,
+        summary: null,
         recommendation: review.recommendation,
       });
     }
