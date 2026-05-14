@@ -633,7 +633,6 @@ export async function sendInstructorApplicationSubmittedEmail({
     <p>Here's what happens next:</p>
     <ul style="color: #57534e; font-size: 14px; line-height: 1.8; padding-left: 20px;">
       <li>Our review team typically reaches out within <strong>3–5 business days</strong>.</li>
-      <li>If we'd like to move forward, you'll be invited to a short <strong>interview</strong> — a relaxed conversation about your teaching approach, not a test or exam.</li>
       <li>After the interview, we'll make a final decision on your application.</li>
     </ul>
     <p>In the meantime you can check your application status in the portal at any time.</p>
