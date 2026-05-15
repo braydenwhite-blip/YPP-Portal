@@ -5,8 +5,10 @@ import {
   getInstructorOfferings,
   submitCurriculumForReview,
 } from "@/lib/class-management-actions";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CurriculumBuilderClient } from "./client";
+import { LibraryTab, type LibraryCard } from "./library-tab";
 import {
   getClassTemplateCapabilities,
   getTemplateSubmissionStatus,
@@ -14,7 +16,17 @@ import {
 import { getLearnerFitSummary } from "@/lib/learner-fit";
 import { summarizeRichText } from "@/lib/rich-text-summary";
 
-export default async function CurriculumBuilderPage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function pickStr(v: string | string[] | undefined): string {
+  return Array.isArray(v) ? v[0] ?? "" : v ?? "";
+}
+
+export default async function CurriculumBuilderPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -22,6 +34,10 @@ export default async function CurriculumBuilderPage() {
   if (!roles.includes("ADMIN") && !roles.includes("INSTRUCTOR") && !roles.includes("CHAPTER_PRESIDENT")) {
     redirect("/");
   }
+
+  const params = (await searchParams) ?? {};
+  const tab = pickStr(params.tab) === "build" ? "build" : "library";
+  const pickedId = pickStr(params.picked) || null;
 
   let capabilities = {
     hasAdvancedCurriculumFields: false,
@@ -43,8 +59,204 @@ export default async function CurriculumBuilderPage() {
       "This deployment could not load your saved curriculum summaries. The form still works, and the saved lists will return after the connected database schema is updated.";
   }
 
-  const hasReviewWorkflow = capabilities.hasReviewWorkflow;
+  let catalogRows: Array<{
+    id: string;
+    title: string;
+    description: string;
+    interestArea: string;
+    difficultyLevel: string;
+    durationWeeks: number;
+    sessionsPerWeek: number;
+    idealSize: number;
+    deliveryModes: string[];
+    learnerFitLabel: string | null;
+    learnerFitDescription: string | null;
+    targetAgeGroup: string | null;
+    weeklyTopics: unknown;
+    learningOutcomes: string[];
+    createdBy: { id: string; name: string | null } | null;
+    _count: { clones: number; lessonPlans: number };
+  }> = [];
+  try {
+    catalogRows = await prisma.classTemplate.findMany({
+      where: { isCatalogItem: true, isPublished: true },
+      orderBy: [{ updatedAt: "desc" }],
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        interestArea: true,
+        difficultyLevel: true,
+        durationWeeks: true,
+        sessionsPerWeek: true,
+        idealSize: true,
+        deliveryModes: true,
+        learnerFitLabel: true,
+        learnerFitDescription: true,
+        targetAgeGroup: true,
+        weeklyTopics: true,
+        learningOutcomes: true,
+        createdBy: { select: { id: true, name: true } },
+        _count: { select: { clones: true, lessonPlans: true } },
+      },
+    });
+  } catch (error) {
+    console.error("Failed to load course library catalog", error);
+  }
 
+  const catalog: LibraryCard[] = catalogRows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    interestArea: row.interestArea,
+    difficultyLevel: row.difficultyLevel,
+    durationWeeks: row.durationWeeks,
+    sessionsPerWeek: row.sessionsPerWeek,
+    idealSize: row.idealSize,
+    deliveryModes: row.deliveryModes,
+    learnerFitLabel: row.learnerFitLabel,
+    learnerFitDescription: row.learnerFitDescription,
+    targetAgeGroup: row.targetAgeGroup,
+    weeklyTopics: Array.isArray(row.weeklyTopics)
+      ? (row.weeklyTopics as LibraryCard["weeklyTopics"])
+      : [],
+    learningOutcomes: row.learningOutcomes,
+    createdBy: row.createdBy,
+    pickCount: row._count?.clones ?? 0,
+    lessonPlanCount: row._count?.lessonPlans ?? 0,
+  }));
+
+  const pickedTemplate = pickedId
+    ? templates.find((t) => t.id === pickedId) ?? null
+    : null;
+
+  const tabBase = "/instructor/curriculum-builder";
+
+  return (
+    <div>
+      <div className="topbar">
+        <div>
+          <p className="badge">Instructor</p>
+          <h1 className="page-title">Curriculum Builder</h1>
+          <p className="page-subtitle">
+            {tab === "library"
+              ? "Pick a course and we'll give you the materials. Or build your own."
+              : "Manage your curricula and submit for approval. Pick a head start from the library anytime."}
+          </p>
+        </div>
+        {tab === "build" ? (
+          <Link href="/instructor/curriculum-builder#create" className="button primary">
+            + New Curriculum
+          </Link>
+        ) : null}
+      </div>
+
+      <div
+        role="tablist"
+        aria-label="Curriculum builder mode"
+        style={{
+          display: "flex",
+          gap: 4,
+          borderBottom: "1px solid var(--border)",
+          marginBottom: 20,
+        }}
+      >
+        <Link
+          role="tab"
+          aria-selected={tab === "library"}
+          href={`${tabBase}?tab=library`}
+          className="tab-link"
+          style={{
+            padding: "10px 16px",
+            borderBottom:
+              tab === "library"
+                ? "2px solid var(--ypp-purple)"
+                : "2px solid transparent",
+            color: tab === "library" ? "var(--ypp-purple)" : "var(--text-secondary)",
+            fontWeight: tab === "library" ? 600 : 500,
+            textDecoration: "none",
+          }}
+        >
+          📚 Pick from Library{" "}
+          {catalog.length > 0 ? (
+            <span
+              style={{
+                marginLeft: 6,
+                background: "var(--ypp-purple)",
+                color: "white",
+                padding: "1px 8px",
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
+              {catalog.length}
+            </span>
+          ) : null}
+        </Link>
+        <Link
+          role="tab"
+          aria-selected={tab === "build"}
+          href={`${tabBase}?tab=build`}
+          className="tab-link"
+          style={{
+            padding: "10px 16px",
+            borderBottom:
+              tab === "build"
+                ? "2px solid var(--ypp-purple)"
+                : "2px solid transparent",
+            color: tab === "build" ? "var(--ypp-purple)" : "var(--text-secondary)",
+            fontWeight: tab === "build" ? 600 : 500,
+            textDecoration: "none",
+          }}
+        >
+          🛠️ Your curricula &amp; build from scratch
+        </Link>
+      </div>
+
+      {pickedTemplate ? (
+        <div
+          className="card"
+          style={{
+            marginBottom: 16,
+            background: "#dcfce7",
+            border: "1px solid #86efac",
+          }}
+        >
+          <p style={{ margin: 0, color: "#166534", fontSize: 14 }}>
+            <strong>Added to your drafts:</strong> &ldquo;{pickedTemplate.title}
+            &rdquo; was copied with all weekly topics and materials, and
+            submitted for review. Review the details below and create an
+            offering whenever you&rsquo;re ready.
+          </p>
+        </div>
+      ) : null}
+
+      {tab === "library" ? (
+        <LibraryTab catalog={catalog} />
+      ) : (
+        <BuildTabContent
+          templates={templates}
+          offerings={offerings}
+          loadWarning={loadWarning}
+          hasReviewWorkflow={capabilities.hasReviewWorkflow}
+        />
+      )}
+    </div>
+  );
+}
+
+function BuildTabContent({
+  templates,
+  offerings,
+  loadWarning,
+  hasReviewWorkflow,
+}: {
+  templates: Awaited<ReturnType<typeof getInstructorTemplates>>;
+  offerings: Awaited<ReturnType<typeof getInstructorOfferings>>;
+  loadWarning: string | null;
+  hasReviewWorkflow: boolean;
+}) {
   const submissionStatusColors: Record<string, { bg: string; color: string }> = {
     DRAFT: { bg: "var(--gray-200)", color: "var(--text-secondary)" },
     SUBMITTED: { bg: "#fef9c3", color: "#854d0e" },
@@ -53,17 +265,8 @@ export default async function CurriculumBuilderPage() {
   };
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Instructor</p>
-          <h1 className="page-title">Curriculum Builder</h1>
-          <p className="page-subtitle">Build structured, pedagogically-rich curricula and submit for approval.</p>
-        </div>
-        <Link href="/instructor/curriculum-builder#create" className="button primary">
-          + New Curriculum
-        </Link>
-      </div>
+    <>
+      <div id="templates" />
 
       {/* Stats Overview */}
       <div className="grid four" style={{ marginBottom: 28 }}>
@@ -274,6 +477,6 @@ export default async function CurriculumBuilderPage() {
         </p>
         <CurriculumBuilderClient />
       </div>
-    </div>
+    </>
   );
 }

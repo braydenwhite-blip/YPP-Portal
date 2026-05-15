@@ -75,6 +75,7 @@ const ADMIN_LINKS_BY_SUBTYPE = {
     "/admin/chapter-president-applicants",
     "/admin/recruiting",
     "/admin/curricula",
+    "/admin/course-library",
     "/admin/announcements",
     "/admin/audit-log",
     "/admin/analytics",
@@ -103,6 +104,7 @@ const ADMIN_LINKS_BY_SUBTYPE = {
   ],
   CONTENT_ADMIN: [
     "/admin/curricula",
+    "/admin/course-library",
   ],
   COMMUNICATIONS_ADMIN: [
     "/admin/announcements",

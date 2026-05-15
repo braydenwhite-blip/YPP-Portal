@@ -927,6 +927,15 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "pending_curriculum_review",
     },
     {
+      href: "/admin/course-library",
+      label: "Course Library",
+      icon: "📚",
+      roles: ADMIN_ONLY,
+      dashboardDescription:
+        "Curate the courses instructors pick from instead of building from scratch.",
+      dashboardPriority: 7,
+    },
+    {
       href: "/admin/workshop-library",
       label: "Workshop Library",
       icon: "🎒",
