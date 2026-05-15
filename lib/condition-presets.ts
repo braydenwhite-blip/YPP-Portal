@@ -13,7 +13,7 @@
 export interface ConditionPreset {
   id: string;
   label: string;
-  defaultOwner: "CHAIR" | "CHAPTER_LEAD" | "INSTRUCTOR" | null;
+  defaultOwner: "CHAIR" | "CHAPTER_PRESIDENT" | "INSTRUCTOR" | null;
   defaultDueOffsetDays: number | null;
 }
 
@@ -21,7 +21,7 @@ export const CONDITION_PRESETS: ConditionPreset[] = [
   {
     id: "mentorship-pair-up",
     label: "Mentorship pair-up for first semester",
-    defaultOwner: "CHAPTER_LEAD",
+    defaultOwner: "CHAPTER_PRESIDENT",
     defaultDueOffsetDays: 14,
   },
   {
@@ -33,7 +33,7 @@ export const CONDITION_PRESETS: ConditionPreset[] = [
   {
     id: "teaching-shadow",
     label: "Teaching shadow with an experienced instructor before first class",
-    defaultOwner: "CHAPTER_LEAD",
+    defaultOwner: "CHAPTER_PRESIDENT",
     defaultDueOffsetDays: 21,
   },
   {
@@ -51,13 +51,13 @@ export const CONDITION_PRESETS: ConditionPreset[] = [
   {
     id: "chapter-president-1on1",
     label: "Attend chapter president 1:1 within first 2 weeks",
-    defaultOwner: "CHAPTER_LEAD",
+    defaultOwner: "CHAPTER_PRESIDENT",
     defaultDueOffsetDays: 14,
   },
   {
     id: "first-class-observation",
     label: "First-class observation by chapter lead",
-    defaultOwner: "CHAPTER_LEAD",
+    defaultOwner: "CHAPTER_PRESIDENT",
     defaultDueOffsetDays: 35,
   },
 ];

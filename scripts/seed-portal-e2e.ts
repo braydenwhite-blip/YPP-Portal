@@ -221,7 +221,7 @@ async function main() {
     primaryRole: RoleType.CHAPTER_PRESIDENT,
     chapterId: alphaChapter.id,
     passwordHash,
-    roles: [RoleType.CHAPTER_PRESIDENT, RoleType.CHAPTER_LEAD],
+    roles: [RoleType.CHAPTER_PRESIDENT],
   });
   const applicant = await ensureUser({
     email: "e2e.applicant.alpha@ypp.test",

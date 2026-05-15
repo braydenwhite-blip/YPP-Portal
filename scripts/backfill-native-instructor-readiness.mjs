@@ -13,7 +13,7 @@ async function getFallbackReviewerId() {
   if (admin) return admin.id;
 
   const chapterLead = await prisma.user.findFirst({
-    where: { roles: { some: { role: "CHAPTER_LEAD" } } },
+    where: { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
     select: { id: true },
     orderBy: { createdAt: "asc" },
   });

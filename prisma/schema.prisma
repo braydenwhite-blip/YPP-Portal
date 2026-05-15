@@ -22,7 +22,6 @@ enum RoleType {
   INSTRUCTOR
   STUDENT
   MENTOR
-  CHAPTER_LEAD
   CHAPTER_PRESIDENT
   STAFF
   PARENT
@@ -9920,7 +9919,7 @@ model OpsRule {
   chapter   Chapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
   // Escalation
-  escalateToRoles String[] // e.g. ["ADMIN", "CHAPTER_LEAD"]
+  escalateToRoles String[] // e.g. ["ADMIN", "CHAPTER_PRESIDENT"]
   autoNotify      Boolean  @default(true)
 
   createdById String
@@ -10823,7 +10822,6 @@ enum JourneyAudienceRole {
   STUDENT
   INSTRUCTOR
   CHAPTER_PRESIDENT
-  CHAPTER_LEAD
   LEADERSHIP
   SUMMER_WORKSHOP_INSTRUCTOR
   MENTOR

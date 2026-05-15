@@ -3,7 +3,6 @@ import { PrismaClient, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const CHAPTERS_TO_REMOVE = ["The Frisch School", "Boston Chapter", "Seattle Chapter"];
 const SCARSDALE_NAME = "Scarsdale";
 
 interface ColumnRef {
@@ -42,7 +41,7 @@ async function main() {
   console.log(`Scarsdale chapter id: ${scarsdale.id}`);
 
   const toRemove = await prisma.chapter.findMany({
-    where: { name: { in: CHAPTERS_TO_REMOVE } },
+    where: { id: { not: scarsdale.id } },
     select: { id: true, name: true },
   });
   if (toRemove.length === 0) {
