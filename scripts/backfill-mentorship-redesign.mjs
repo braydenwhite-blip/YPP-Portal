@@ -54,14 +54,14 @@ function getMentorshipTypeForGroup(programGroup) {
 
 function getLegacyChairRoleType(primaryRole) {
   if (primaryRole === "INSTRUCTOR") return "INSTRUCTOR";
-  if (primaryRole === "CHAPTER_LEAD") return "CHAPTER_PRESIDENT";
+  if (primaryRole === "CHAPTER_PRESIDENT") return "CHAPTER_PRESIDENT";
   return "GLOBAL_LEADERSHIP";
 }
 
 function getReflectionRoleType(primaryRole) {
   if (primaryRole === "INSTRUCTOR") return "INSTRUCTOR";
   if (primaryRole === "STUDENT") return "STUDENT";
-  if (primaryRole === "CHAPTER_LEAD") return "CHAPTER_LEAD";
+  if (primaryRole === "CHAPTER_PRESIDENT") return "CHAPTER_PRESIDENT";
   return "ADMIN";
 }
 
