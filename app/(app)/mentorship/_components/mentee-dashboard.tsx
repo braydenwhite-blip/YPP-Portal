@@ -5,6 +5,13 @@ import { MENTORSHIP_RESOURCE_TYPE_META } from "@/lib/mentorship-hub";
 import { nextActionForInstructorMentee } from "@/lib/instructor-mentee-next-action";
 import { getLeadershipContext } from "@/lib/leadership-context";
 import { RoleStrip } from "@/components/leadership-pathway/role-strip";
+import { CheckInPanel } from "@/components/mentorship/check-in-panel";
+import { getMentorshipCheckIns } from "@/lib/mentorship-checkin-actions";
+import {
+  GoalTrajectory,
+  type TrajectoryGoal,
+  type TrajectoryPoint,
+} from "@/components/mentorship/goal-trajectory";
 import { CycleHeroCard } from "./cycle-hero-card";
 import { EmptyStateEditorial } from "./empty-state-editorial";
 
@@ -42,7 +49,7 @@ async function loadMenteeDashboardData(userId: string) {
     mentee: { select: { id: true, name: true } },
   } as const;
 
-  const [mentorship, pointSummary, goals, resourcesToMe] = await Promise.all([
+  const [mentorship, pointSummary, goals, resourcesToMe, resourcesByMe] = await Promise.all([
     prisma.mentorship.findFirst({
       where: { menteeId: userId, status: "ACTIVE" },
       select: {
@@ -90,9 +97,20 @@ async function loadMenteeDashboardData(userId: string) {
       take: 3,
       select: resourceSelect,
     }),
+    prisma.mentorshipResource.findMany({
+      where: {
+        isPublished: true,
+        createdById: userId,
+        menteeId: { not: null },
+        NOT: { menteeId: userId },
+      },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      take: 5,
+      select: resourceSelect,
+    }),
   ]);
 
-  return { mentorship, pointSummary, goals, resourcesToMe };
+  return { mentorship, pointSummary, goals, resourcesToMe, resourcesByMe };
 }
 
 
@@ -139,7 +157,7 @@ function AwardBar({ totalPoints, currentTier }: { totalPoints: number; currentTi
 }
 
 export async function MenteeDashboard({ userId }: Props) {
-  const [{ mentorship, pointSummary, goals, resourcesToMe }, leadership] =
+  const [{ mentorship, pointSummary, goals, resourcesToMe, resourcesByMe }, leadership] =
     await Promise.all([
       loadMenteeDashboardData(userId),
       getLeadershipContext(userId),
@@ -157,6 +175,34 @@ export async function MenteeDashboard({ userId }: Props) {
 
   const latestApprovedReview = mentorship.goalReviews[0] ?? null;
   const historyReviews = mentorship.goalReviews.slice(1);
+  const checkIns = await getMentorshipCheckIns(mentorship.id);
+
+  // Build per-goal rating arcs across recent reviews (oldest → newest).
+  const chronologicalReviews = [...mentorship.goalReviews].reverse();
+  const trajectoryTitles = new Set<string>();
+  for (const review of chronologicalReviews) {
+    for (const gr of review.goalRatings) {
+      if (gr.goal?.title) trajectoryTitles.add(gr.goal.title);
+    }
+  }
+  const trajectoryGoals: TrajectoryGoal[] = [...trajectoryTitles]
+    .map((title) => ({
+      title,
+      points: chronologicalReviews
+        .map((review): TrajectoryPoint | null => {
+          const gr = review.goalRatings.find((x) => x.goal?.title === title);
+          return gr
+            ? {
+                label: new Date(review.cycleMonth).toLocaleDateString("en-US", {
+                  month: "short",
+                }),
+                rating: gr.rating,
+              }
+            : null;
+        })
+        .filter((p): p is TrajectoryPoint => p != null),
+    }))
+    .filter((goal) => goal.points.length >= 2);
 
   const nextAction = nextActionForInstructorMentee({
     hasMentor: true,
@@ -495,8 +541,114 @@ export async function MenteeDashboard({ userId }: Props) {
               </ul>
             )}
           </section>
+
+          {resourcesByMe.length > 0 && (
+            <section
+              style={{
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                padding: "20px 22px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "var(--muted)",
+                  }}
+                >
+                  Resources you&apos;ve shared as a mentor
+                </h3>
+                <Link
+                  href="/mentor/resources"
+                  style={{ fontSize: 12, color: "var(--muted)", textDecoration: "none" }}
+                >
+                  Manage →
+                </Link>
+              </div>
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: "14px 0 0",
+                  display: "grid",
+                  gap: 10,
+                }}
+              >
+                {resourcesByMe.map((resource) => (
+                  <li
+                    key={resource.id}
+                    style={{
+                      padding: "10px 14px",
+                      background: "var(--bg-2)",
+                      borderLeft: "3px solid var(--border)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        alignItems: "baseline",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>
+                        {resource.url ? (
+                          <a
+                            href={resource.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="link"
+                          >
+                            {resource.title}
+                          </a>
+                        ) : (
+                          resource.title
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          padding: "2px 7px",
+                          borderRadius: 999,
+                          background: "var(--surface)",
+                          color: "var(--muted)",
+                          fontWeight: 600,
+                          letterSpacing: "0.04em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {MENTORSHIP_RESOURCE_TYPE_META[resource.type]?.label ??
+                          resource.type}
+                      </span>
+                    </div>
+                    {resource.mentee?.name && (
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>
+                        Shared with {resource.mentee.name}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
       </div>
+
+      <CheckInPanel checkIns={checkIns} viewer="mentee" />
 
       {/* Trajectory subsection — quieter, lower priority */}
       <section style={{ display: "grid", gap: 16 }}>
@@ -525,6 +677,8 @@ export async function MenteeDashboard({ userId }: Props) {
             currentTier={pointSummary?.currentTier ?? null}
           />
         </div>
+
+        {trajectoryGoals.length > 0 && <GoalTrajectory goals={trajectoryGoals} />}
 
         {historyReviews.length > 0 && (
           <details

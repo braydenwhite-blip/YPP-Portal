@@ -136,7 +136,7 @@ export default async function MentorFeedbackPage() {
                           marginBottom: 4,
                         }}
                       >
-                        From: {req.student.name}
+                        From: {req.mentee.name}
                       </div>
                     )}
                     <span
@@ -214,7 +214,7 @@ export default async function MentorFeedbackPage() {
                           marginBottom: 4,
                         }}
                       >
-                        From: {req.student.name}
+                        From: {req.mentee.name}
                       </div>
                     )}
                     <span
@@ -305,7 +305,7 @@ export default async function MentorFeedbackPage() {
                         </span>
                       ) : (
                         isStudent &&
-                        req.student.id === userId && (
+                        req.mentee.id === userId && (
                           <HelpfulButton responseId={resp.id} />
                         )
                       )}

@@ -7,6 +7,8 @@ import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
 import { CycleStatusBlock } from "@/components/mentorship/cycle-status-block";
 import { ReviewSpine } from "@/components/mentorship/review-spine";
+import { CheckInPanel } from "@/components/mentorship/check-in-panel";
+import { getMentorshipCheckIns } from "@/lib/mentorship-checkin-actions";
 import { getReviewSpineForMentee } from "@/lib/mentorship-cycle";
 import { requireReviewSpineAccess } from "@/lib/authorization-helpers";
 import { formatEnum } from "@/lib/format-utils";
@@ -82,6 +84,10 @@ export default async function MenteeDetailPage({
   // in case this component grows additional branches.
   await requireReviewSpineAccess(menteeId);
   const reviewSpineCycles = await getReviewSpineForMentee(menteeId);
+
+  const checkIns = workspace.mentorship
+    ? await getMentorshipCheckIns(workspace.mentorship.id)
+    : [];
 
   const isSelfWorkspace = session.user.id === workspace.mentee.id;
   const canManageActionPlan = Boolean(workspace.mentorship || workspace.intakePlanLaunch) && !isSelfWorkspace;
@@ -666,6 +672,16 @@ export default async function MenteeDetailPage({
           )}
         </section>
       </div>
+
+      {workspace.mentorship && (
+        <div style={{ marginBottom: 24 }}>
+          <CheckInPanel
+            checkIns={checkIns}
+            viewer={isSelfWorkspace ? "mentee" : "mentor"}
+            menteeName={workspace.mentee.name ?? undefined}
+          />
+        </div>
+      )}
 
       <div className="grid two" style={{ marginBottom: 24 }}>
         <section className="card">
