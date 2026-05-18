@@ -1,8 +1,7 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PositionType } from "@prisma/client";
+import { requireAdminPage } from "@/lib/page-guards";
 import ApplicationsView from "./applications-view";
 
 type ApplicationFilters = {
@@ -29,12 +28,7 @@ export default async function AdminApplicationsPage({
   searchParams: Promise<ApplicationFilters>;
 }) {
   const params = await searchParams;
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  await requireAdminPage();
 
   const selectedType = normalizeType(params.type);
   const chapterProposalOnly = params.chapterProposal === "true";

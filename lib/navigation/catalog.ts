@@ -42,6 +42,15 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 1,
       coreEligible: true,
     },
+    {
+      href: "/my-interview",
+      label: "My Interview",
+      icon: "🎤",
+      roles: INSTRUCTOR_APPLICANT_ONLY,
+      dashboardDescription: "Schedule and track your application interview.",
+      dashboardPriority: 2,
+      coreEligible: true,
+    },
   ]),
 
   ...groupLinks("Family", 100, [

@@ -1,7 +1,7 @@
 import type { NavRole } from "@/lib/navigation/types";
 
 /** Bump when the href set changes so dashboard cache partitions stay correct. */
-export const APPLICANT_ALLOWLIST_VERSION = "1";
+export const APPLICANT_ALLOWLIST_VERSION = "2";
 
 /**
  * Navigation allowlist for APPLICANT-role users.
@@ -15,6 +15,7 @@ export const APPLICANT_ALLOWLIST_VERSION = "1";
 export const APPLICANT_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/",
   "/application-status",
+  "/my-interview",
   "/positions",
   "/applications",
   "/messages",

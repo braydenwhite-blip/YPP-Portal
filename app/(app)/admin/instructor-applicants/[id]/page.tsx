@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { requireApplicationReviewerPage } from "@/lib/page-guards";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +21,7 @@ export default async function AdminInstructorApplicantRedirect({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
+  await requireApplicationReviewerPage();
 
   const { id } = await params;
 

@@ -1,20 +1,10 @@
 import Link from "next/link";
-import { getSession } from "@/lib/auth-supabase";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createChapterPosition } from "@/lib/application-actions";
+import { requireAdminPage } from "@/lib/page-guards";
 
 export default async function NewAdminRecruitingPositionPage() {
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  const sessionUser = await requireAdminPage();
 
   const [chapters, hiringLeads] = await Promise.all([
     prisma.chapter.findMany({
@@ -87,7 +77,7 @@ export default async function NewAdminRecruitingPositionPage() {
             </label>
             <label className="form-row">
               Hiring Lead
-              <select className="input" name="hiringLeadId" defaultValue={session.user.id}>
+              <select className="input" name="hiringLeadId" defaultValue={sessionUser.id}>
                 {hiringLeads.map((lead) => (
                   <option key={lead.id} value={lead.id}>
                     {lead.name} {lead.chapter?.name ? `(${lead.chapter.name})` : ""}
