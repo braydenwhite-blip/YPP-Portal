@@ -62,13 +62,11 @@ export default async function LockedPage({
       </div>
 
       <h1 style={{ fontSize: 30, fontWeight: 700, margin: "0 0 12px" }}>
-        This part of the portal is in internal testing
+        This part of the portal isn&apos;t ready yet
       </h1>
       <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 28px" }}>
-        We&apos;re focused on running an excellent Summer Workshop season right
-        now. The rest of the portal — chapter tools, mentorship, goals &amp;
-        resources, and more — is still being polished and will roll out
-        gradually. In the meantime, the two flows below are open and ready.
+        Most of the portal is still being built and tested. For now, the two
+        pages below are the only ones open.
       </p>
 
       <div
@@ -96,9 +94,7 @@ export default async function LockedPage({
           </div>
           <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>Summer Workshop Application</h2>
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-            Apply to lead a focused, high-impact workshop at camp. Strong
-            workshop instructors may quickly be considered for full instructor
-            work and instructor mentorship based on readiness and leadership.
+            Apply to lead a workshop at a partner summer camp.
           </p>
         </Link>
 
@@ -119,14 +115,14 @@ export default async function LockedPage({
           </div>
           <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>Summer Workshop Proposal</h2>
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-            Design and submit a workshop outline in the Workshop Design
-            Studio so we can review and schedule it for a camp.
+            Design a workshop outline in the Workshop Design Studio for the
+            team to review.
           </p>
         </Link>
       </div>
 
       <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
-        Internal tester?{" "}
+        On the team?{" "}
         <Link
           href={from ? `/preview?next=${encodeURIComponent(from)}` : "/preview"}
           style={{ color: "#6b21c8" }}

@@ -82,6 +82,12 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   "/applications",                    // "My applications" listing
   "/application-status",              // applicant-facing status page
 
+  // The instructor applicant board (admin hiring kanban) — the primary
+  // live surface. The page enforces its own role checks (ADMIN /
+  // HIRING_CHAIR / CHAPTER_PRESIDENT), so listing it here only lets the
+  // route through middleware; it does not grant access.
+  "/admin/instructor-applicants",
+
   // Summer Workshop Proposals (workshop design studio + required
   // training surface that the Summer Workshop pathway depends on).
   "/instructor/workshop-design-studio",
