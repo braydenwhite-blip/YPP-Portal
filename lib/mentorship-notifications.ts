@@ -225,6 +225,48 @@ export const notifyMenteeReviewReleased = safeEmit(async function notifyMenteeRe
   });
 }, "notifyMenteeReviewReleased");
 
+// ─── Mentor weekly digest ────────────────────────────────────────────────────
+
+/**
+ * One rolled-up notification per mentor summarising what their mentoring week
+ * needs from them. Skips entirely when there is nothing outstanding so the
+ * digest never becomes noise.
+ */
+export const notifyMentorWeeklyDigest = safeEmit(async function notifyMentorWeeklyDigest(params: {
+  mentorId: string;
+  weekKey: string;
+  reviewsDue: number;
+  kickoffsUnscheduled: number;
+  quietMentees: number;
+}) {
+  const parts: string[] = [];
+  if (params.reviewsDue > 0) {
+    parts.push(`${params.reviewsDue} review${params.reviewsDue === 1 ? "" : "s"} waiting on you`);
+  }
+  if (params.kickoffsUnscheduled > 0) {
+    parts.push(
+      `${params.kickoffsUnscheduled} kickoff${params.kickoffsUnscheduled === 1 ? "" : "s"} still unscheduled`
+    );
+  }
+  if (params.quietMentees > 0) {
+    parts.push(
+      `${params.quietMentees} mentee${params.quietMentees === 1 ? "" : "s"} with no recent activity`
+    );
+  }
+  if (parts.length === 0) {
+    return null;
+  }
+  await createOnce({
+    userId: params.mentorId,
+    type: NotificationType.MENTOR_WEEKLY_DIGEST,
+    title: "Your mentoring week ahead",
+    body: `${parts.join(" · ")}. Open your mentor hub to act on them.`,
+    link: "/mentorship",
+    dedupKey: `mentor-digest:${params.mentorId}:${params.weekKey}`,
+    updateBodyIfExists: true,
+  });
+}, "notifyMentorWeeklyDigest");
+
 export async function getMentorshipPendingActionCount(userId: string): Promise<number> {
   return prisma.notification.count({
     where: {
@@ -240,6 +282,7 @@ export async function getMentorshipPendingActionCount(userId: string): Promise<n
           NotificationType.GR_REVIEW_DUE,
           NotificationType.GR_CHAIR_APPROVAL_PENDING,
           NotificationType.GR_REVIEW_RELEASED,
+          NotificationType.MENTOR_WEEKLY_DIGEST,
         ],
       },
     },

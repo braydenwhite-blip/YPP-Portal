@@ -5,6 +5,13 @@ import { MENTORSHIP_RESOURCE_TYPE_META } from "@/lib/mentorship-hub";
 import { nextActionForInstructorMentee } from "@/lib/instructor-mentee-next-action";
 import { getLeadershipContext } from "@/lib/leadership-context";
 import { RoleStrip } from "@/components/leadership-pathway/role-strip";
+import { CheckInPanel } from "@/components/mentorship/check-in-panel";
+import { getMentorshipCheckIns } from "@/lib/mentorship-checkin-actions";
+import {
+  GoalTrajectory,
+  type TrajectoryGoal,
+  type TrajectoryPoint,
+} from "@/components/mentorship/goal-trajectory";
 import { CycleHeroCard } from "./cycle-hero-card";
 import { EmptyStateEditorial } from "./empty-state-editorial";
 
@@ -168,6 +175,34 @@ export async function MenteeDashboard({ userId }: Props) {
 
   const latestApprovedReview = mentorship.goalReviews[0] ?? null;
   const historyReviews = mentorship.goalReviews.slice(1);
+  const checkIns = await getMentorshipCheckIns(mentorship.id);
+
+  // Build per-goal rating arcs across recent reviews (oldest → newest).
+  const chronologicalReviews = [...mentorship.goalReviews].reverse();
+  const trajectoryTitles = new Set<string>();
+  for (const review of chronologicalReviews) {
+    for (const gr of review.goalRatings) {
+      if (gr.goal?.title) trajectoryTitles.add(gr.goal.title);
+    }
+  }
+  const trajectoryGoals: TrajectoryGoal[] = [...trajectoryTitles]
+    .map((title) => ({
+      title,
+      points: chronologicalReviews
+        .map((review): TrajectoryPoint | null => {
+          const gr = review.goalRatings.find((x) => x.goal?.title === title);
+          return gr
+            ? {
+                label: new Date(review.cycleMonth).toLocaleDateString("en-US", {
+                  month: "short",
+                }),
+                rating: gr.rating,
+              }
+            : null;
+        })
+        .filter((p): p is TrajectoryPoint => p != null),
+    }))
+    .filter((goal) => goal.points.length >= 2);
 
   const nextAction = nextActionForInstructorMentee({
     hasMentor: true,
@@ -613,6 +648,8 @@ export async function MenteeDashboard({ userId }: Props) {
         </div>
       </div>
 
+      <CheckInPanel checkIns={checkIns} viewer="mentee" />
+
       {/* Trajectory subsection — quieter, lower priority */}
       <section style={{ display: "grid", gap: 16 }}>
         <h3
@@ -640,6 +677,8 @@ export async function MenteeDashboard({ userId }: Props) {
             currentTier={pointSummary?.currentTier ?? null}
           />
         </div>
+
+        {trajectoryGoals.length > 0 && <GoalTrajectory goals={trajectoryGoals} />}
 
         {historyReviews.length > 0 && (
           <details
