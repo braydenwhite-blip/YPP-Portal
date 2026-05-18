@@ -28,7 +28,7 @@ import {
   studentMinimalLinkOrderIndex,
 } from "@/lib/navigation/student-v1-nav-layout";
 import type { NavGroup, NavLink, NavRole, NavViewModel } from "@/lib/navigation/types";
-import { normalizeAdminSubtypes } from "@/lib/admin-subtypes";
+import { canAccessAdminRoute } from "@/lib/admin-capabilities";
 import { applyAdminPrimarySidebarFilter } from "@/lib/navigation/admin-primary-nav-filter";
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
@@ -61,55 +61,6 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/admin/chapters",
 ]);
 
-/** Shown in the primary admin sidebar without subtype gating (full RBAC still applies on the page). */
-const ADMIN_NAV_UNIVERSAL_HREFS = new Set<string>([
-  "/admin/reflections",
-  "/admin/chapters",
-  "/admin/training",
-  "/admin/bulk-users",
-]);
-
-const ADMIN_LINKS_BY_SUBTYPE = {
-  SUPER_ADMIN: [
-    "/admin/instructor-applicants",
-    "/admin/chapter-president-applicants",
-    "/admin/recruiting",
-    "/admin/curricula",
-    "/admin/course-library",
-    "/admin/announcements",
-    "/admin/audit-log",
-    "/admin/analytics",
-    "/admin/export",
-    "/chapter/student-intake",
-    "/mentorship-program",
-    "/mentorship-program/reviews",
-    "/mentorship-program/chair",
-    "/mentorship-program/awards",
-    "/admin/mentorship-program",
-  ],
-  HIRING_ADMIN: [
-    "/admin/instructor-applicants",
-    "/admin/chapter-president-applicants",
-    "/admin/recruiting",
-  ],
-  MENTORSHIP_ADMIN: [
-    "/mentorship-program",
-    "/mentorship-program/reviews",
-    "/mentorship-program/chair",
-    "/mentorship-program/awards",
-    "/admin/mentorship-program",
-  ],
-  INTAKE_ADMIN: [
-    "/chapter/student-intake",
-  ],
-  CONTENT_ADMIN: [
-    "/admin/curricula",
-    "/admin/course-library",
-  ],
-  COMMUNICATIONS_ADMIN: [
-    "/admin/announcements",
-  ],
-} as const;
 
 const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   STUDENT: [
@@ -363,17 +314,7 @@ function hasAdminSubtypeAccess(item: NavLink, roles: NavRole[], adminSubtypes: s
   if (hasNonAdminRoleAccess(item, roles)) return true;
   if (!requiresAdminSubtypeFiltering(item)) return true;
 
-  if (ADMIN_NAV_UNIVERSAL_HREFS.has(item.href)) return true;
-
-  const normalizedSubtypes = normalizeAdminSubtypes(adminSubtypes);
-  const allowedHrefs = new Set<string>();
-  for (const subtype of normalizedSubtypes) {
-    for (const href of ADMIN_LINKS_BY_SUBTYPE[subtype]) {
-      allowedHrefs.add(href);
-    }
-  }
-
-  return allowedHrefs.has(item.href);
+  return canAccessAdminRoute(adminSubtypes, item.href);
 }
 
 function hiringDemoHrefsForRole(primaryRole: NavRole): string[] | null {
