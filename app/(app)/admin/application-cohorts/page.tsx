@@ -1,15 +1,9 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import ApplicationCohortManager from "@/components/application-cohort-manager";
+import { requireAdminPage } from "@/lib/page-guards";
 
 export default async function ApplicationCohortsPage() {
-  const session = await getSession();
-
-  const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  await requireAdminPage();
 
   const cohorts = await prisma.applicationCohort.findMany({
     include: {

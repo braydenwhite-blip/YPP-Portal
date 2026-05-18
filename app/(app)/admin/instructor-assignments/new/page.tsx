@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import {
   listOfferingsForAssignmentPicker,
   rankInstructorsForOffering,
   createRegularInstructorAssignment,
 } from "@/lib/regular-instructor-assignments";
+import { requireAdminPage } from "@/lib/page-guards";
 import {
   ASSIGNMENT_ROLES,
   ASSIGNMENT_STATUSES,
@@ -22,11 +21,7 @@ export default async function NewAssignmentPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  await requireAdminPage();
 
   const params = (await searchParams) ?? {};
   const offeringId = params.offering ?? null;

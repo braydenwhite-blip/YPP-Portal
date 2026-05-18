@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import { getHiringChairQueue } from "@/lib/application-actions";
+import { requireAdminPage } from "@/lib/page-guards";
 import ChairDecisionActions from "./chair-decision-actions";
 import RecommendationDistributionChart from "./recommendation-chart";
 
@@ -11,15 +10,7 @@ function formatRecommendation(accepted: boolean) {
 }
 
 export default async function HiringCommitteePage() {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
-  const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  await requireAdminPage();
 
   const queue = await getHiringChairQueue();
   const pendingHires = queue.filter((item) => item.accepted).length;

@@ -1,12 +1,9 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import { getFormTemplates, createFormTemplate } from "@/lib/form-template-actions";
 import { FormTemplateBuilder } from "@/components/form-template-builder";
+import { requireAdminPage } from "@/lib/page-guards";
 
 export default async function AdminFormTemplatesPage() {
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) redirect("/");
+  await requireAdminPage();
 
   const templates = await getFormTemplates();
 

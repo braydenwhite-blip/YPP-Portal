@@ -1,15 +1,12 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { RoleType } from "@prisma/client";
+import { requireAdminPage } from "@/lib/page-guards";
 import CPKanbanBoard from "./kanban-board";
 import CPApplicantsClient from "./client";
 
 export default async function AdminCPApplicantsPage() {
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) redirect("/");
+  await requireAdminPage();
 
   // Fetch all applications, reviewers, and chapters in parallel
   const [applications, reviewerUsers, allChapters] = await Promise.all([
