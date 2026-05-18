@@ -120,8 +120,8 @@ export default async function PreviewModePage({
         >
           No preview passcode is configured for this environment. Set
           <code style={{ marginInline: 4 }}>PORTAL_PREVIEW_PASSCODE</code>
-          in the deployment environment variables to enable passcode-based
-          unlock. Admins still bypass the gate automatically.
+          in the deployment environment variables so the team can unlock
+          the rest of the portal.
         </div>
       )}
 

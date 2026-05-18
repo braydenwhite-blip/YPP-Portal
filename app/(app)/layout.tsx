@@ -5,7 +5,6 @@ import SessionUnavailablePage from "@/components/session-unavailable-page";
 import { getSession } from "@/lib/auth-supabase";
 import {
   PREVIEW_COOKIE_NAME,
-  isAdminBypassRole,
   isPublicGateEnabled,
   verifyPreviewToken,
 } from "@/lib/public-gate";
@@ -169,19 +168,17 @@ export default async function AppLayout({
   const instructorFullPortalExplorer = process.env.INSTRUCTOR_FULL_PORTAL_EXPLORER === "true";
   const studentHasChapter = Boolean(session?.user?.chapterId);
 
-  // Public portal gate: an admin (auto-bypass) or a tester with a valid
-  // signed preview cookie sees the full portal exactly as before. Every
-  // other authenticated user sees the focused Summer Workshop experience
-  // and a sidebar trimmed to the public-allowed routes.
+  // Public portal gate: a tester with a valid signed preview cookie sees
+  // the full portal. Every other authenticated user — admins included —
+  // sees the focused experience with a sidebar trimmed to the
+  // public-allowed routes until they enter the preview passcode.
   const publicGateEnabled = isPublicGateEnabled();
-  const isAdmin = isAdminBypassRole({ roles, primaryRole });
   const cookieStore = await cookies();
   const previewToken = cookieStore.get(PREVIEW_COOKIE_NAME)?.value ?? null;
   const previewActive = previewToken ? await verifyPreviewToken(previewToken) : false;
-  // The gate is "active" for this user only if they don't have an
-  // override path. Admins get a transparent bypass; preview-cookie
-  // testers get the same bypass.
-  const publicGateActive = publicGateEnabled && !isAdmin && !previewActive;
+  // The gate is "active" for this user unless they hold a valid preview
+  // cookie. There is no admin bypass.
+  const publicGateActive = publicGateEnabled && !previewActive;
 
   // Resolve the user's instructor subtype (most recent application) so
   // SUMMER_WORKSHOP-approved users keep workshop studio + training links

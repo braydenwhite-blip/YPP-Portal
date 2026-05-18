@@ -534,12 +534,11 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
         return false;
       }
 
-      // Public portal gate: when only Summer Workshop applications +
-      // proposals are public, hide every nav link that points to a
-      // surface the middleware would redirect to /locked. This keeps
-      // the sidebar focused for normal users — admins and testers in
-      // preview mode see the full nav (the layout passes
-      // publicGateActive=false for them).
+      // Public portal gate: hide every nav link that points to a surface
+      // the middleware would redirect to /locked. This applies to every
+      // user, admins included, until they enter preview mode (the layout
+      // passes publicGateActive=false only when a valid preview cookie
+      // is present).
       if (input.publicGateActive && !isAllowedPublicPath(item.href)) {
         return false;
       }

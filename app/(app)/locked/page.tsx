@@ -1,24 +1,16 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import {
   SUMMER_WORKSHOP_APPLY_HREF,
   SUMMER_WORKSHOP_PROPOSE_HREF,
-  isAdminBypassRole,
-  isPublicGateEnabled,
 } from "@/lib/public-gate";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Polished "Feature Locked / Coming Soon" page shown when a user lands
- * on a portal surface that is hidden behind the public gate.
- *
- * Admins are auto-bounced to /api/preview/admin-grant which sets the
- * preview cookie and returns them to the route they tried to visit, so
- * an admin only ever sees this page if PORTAL_PUBLIC_GATE is off (in
- * which case the gate is disabled and they wouldn't have been redirected
- * here anyway).
+ * "Feature Locked / Coming Soon" page shown when a user lands on a
+ * portal surface hidden behind the public gate. Everyone — admins
+ * included — passes the gate the same way: the preview passcode at
+ * /preview.
  */
 export default async function LockedPage({
   searchParams,
@@ -28,19 +20,6 @@ export default async function LockedPage({
   const params = await searchParams;
   const fromRaw = params.from;
   const from = fromRaw && fromRaw.startsWith("/") && !fromRaw.startsWith("//") ? fromRaw : null;
-
-  // Admin auto-bypass: silently elevate to preview mode and bounce back
-  // to where they were headed. This keeps the admin experience identical
-  // to "the gate isn't there" while still gating non-admins.
-  const session = await getSession();
-  const user = session?.user;
-  if (
-    isPublicGateEnabled() &&
-    isAdminBypassRole({ roles: user?.roles ?? [], primaryRole: user?.primaryRole ?? null })
-  ) {
-    const next = from ?? "/";
-    redirect(`/api/preview/admin-grant?next=${encodeURIComponent(next)}`);
-  }
 
   return (
     <div style={{ maxWidth: 640, margin: "64px auto", padding: "0 24px" }}>
