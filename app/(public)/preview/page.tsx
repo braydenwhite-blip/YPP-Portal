@@ -52,10 +52,8 @@ export default async function PreviewModePage({
         Internal Preview Mode
       </h1>
       <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 24px" }}>
-        The portal is currently focused on Summer Workshop applications and
-        proposals for public users. Enter the internal preview passcode to
-        unlock the full portal on this deployment for testing — your access
-        is stored in a secure cookie on this device only.
+        Most of the portal is still being tested. Enter the team passcode to
+        unlock it on this device. Your access is saved in a cookie here only.
       </p>
 
       {!gateEnabled && (
@@ -87,9 +85,8 @@ export default async function PreviewModePage({
             marginBottom: 16,
           }}
         >
-          Preview mode is currently <strong>active</strong> on this device.
-          You can browse the full portal, or exit preview mode below to return
-          to the public Summer Workshop experience.
+          Preview mode is <strong>active</strong> on this device. You can
+          browse the full portal, or exit below to go back to the public view.
         </div>
       )}
 
@@ -123,8 +120,8 @@ export default async function PreviewModePage({
         >
           No preview passcode is configured for this environment. Set
           <code style={{ marginInline: 4 }}>PORTAL_PREVIEW_PASSCODE</code>
-          in the deployment environment variables to enable passcode-based
-          unlock. Admins still bypass the gate automatically.
+          in the deployment environment variables so the team can unlock
+          the rest of the portal.
         </div>
       )}
 

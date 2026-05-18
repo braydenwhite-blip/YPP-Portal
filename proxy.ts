@@ -210,11 +210,10 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Public portal gate: while only Summer Workshop applications and
-  // proposals are public, redirect any non-allowed surface to /locked
-  // unless the visitor presents a valid signed preview cookie. Admins
-  // are bounced from /locked to /api/preview/admin-grant which auto-
-  // issues the cookie — so they never see the locked page in practice.
+  // Public portal gate: redirect any non-allowed surface to /locked
+  // unless the visitor presents a valid signed preview cookie. This
+  // applies to every authenticated user, admins included — the only
+  // way past the gate is the preview passcode at /preview.
   if (isPublicGateEnabled() && isAuthenticated && pathname !== LOCKED_PATH) {
     if (!isAllowedPublicPath(pathname)) {
       const previewCookie = request.cookies.get(PREVIEW_COOKIE_NAME)?.value ?? null;

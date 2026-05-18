@@ -9,11 +9,10 @@
  * is hidden behind this gate so the production deployment feels focused
  * while we keep iterating on the rest of the platform.
  *
- * Two ways past the gate on the same deployment URL:
- *   1. ADMIN role (auto-grant via /api/preview/admin-grant on first hit).
- *   2. INTERNAL PREVIEW MODE — testers visit /preview, enter the passcode
- *      from `PORTAL_PREVIEW_PASSCODE`, and receive a signed HTTP-only
- *      cookie that unlocks the rest of the portal for ~7 days.
+ * One way past the gate, the same for everyone (admins included):
+ * INTERNAL PREVIEW MODE — visit /preview, enter the passcode from
+ * `PORTAL_PREVIEW_PASSCODE`, and receive a signed HTTP-only cookie that
+ * unlocks the rest of the portal for ~7 days.
  *
  * IMPORTANT: this gate ONLY controls feature visibility / route
  * availability. It does NOT grant admin permissions. Sensitive admin
@@ -81,6 +80,12 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   // Summer Workshop Applications.
   "/applications",                    // "My applications" listing
   "/application-status",              // applicant-facing status page
+
+  // The instructor applicant board (admin hiring kanban) — the primary
+  // live surface. The page enforces its own role checks (ADMIN /
+  // HIRING_CHAIR / CHAPTER_PRESIDENT), so listing it here only lets the
+  // route through middleware; it does not grant access.
+  "/admin/instructor-applicants",
 
   // Summer Workshop Proposals (workshop design studio + required
   // training surface that the Summer Workshop pathway depends on).
@@ -230,21 +235,6 @@ export async function verifyPreviewToken(token: string | null | undefined): Prom
   if (payload.exp < Math.floor(Date.now() / 1000)) return false;
 
   return true;
-}
-
-/**
- * Server-side check: does this user qualify for an automatic admin
- * bypass of the public gate? Mirrors the role normalization used
- * elsewhere in the codebase.
- */
-export function isAdminBypassRole(opts: {
-  roles?: readonly string[] | null;
-  primaryRole?: string | null;
-}): boolean {
-  const roles = opts.roles ?? [];
-  if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) return true;
-  if (opts.primaryRole === "ADMIN" || opts.primaryRole === "SUPER_ADMIN") return true;
-  return false;
 }
 
 /** Whether the configured passcode env var is set (controls /preview UX). */
