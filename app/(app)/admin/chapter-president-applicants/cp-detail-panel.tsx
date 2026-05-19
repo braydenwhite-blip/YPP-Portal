@@ -6,6 +6,7 @@ import {
   statusPillClass,
   statusLabel,
   formatDate,
+  recommendationInfo,
 } from "@/components/kanban/kanban-utils";
 import type { CPApp, ChapterOption, Reviewer } from "./kanban-board";
 import {
@@ -13,7 +14,22 @@ import {
   assignCPReviewer,
   assignCPApplicationChapter,
 } from "@/lib/cp-application-kanban-actions";
-import { reviewCPApplicationAction } from "@/lib/chapter-president-application-actions";
+import {
+  reviewCPApplicationAction,
+  reviewChapterPresidentApplication,
+} from "@/lib/chapter-president-application-actions";
+
+/* ── Helpers ───────────────────────────────────────── */
+
+const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** Convert an ISO timestamp to a `datetime-local` input value in local time. */
+function toDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 /* ── Score Bar ─────────────────────────────────────── */
 
@@ -91,6 +107,12 @@ export default function CPDetailPanel({
   const [interviewSummary, setInterviewSummary] = useState(app.interviewSummary || "");
   const [notes, setNotes] = useState(app.reviewerNotes || "");
   const [selectedReviewer, setSelectedReviewer] = useState(app.reviewerId || "");
+  const [interviewDate, setInterviewDate] = useState(
+    app.interviewScheduledAt ? toDatetimeLocal(app.interviewScheduledAt) : ""
+  );
+  const [meetingUrl, setMeetingUrl] = useState(app.interviewMeetingUrl || "");
+  const [recommendation, setRecommendation] = useState(app.decisionRecommendation || "");
+  const [recRationale, setRecRationale] = useState(app.recommendationRationale || "");
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
   const toast = useToast();
@@ -107,9 +129,13 @@ export default function CPDetailPanel({
     setInterviewSummary(app.interviewSummary || "");
     setNotes(app.reviewerNotes || "");
     setSelectedReviewer(app.reviewerId || "");
+    setInterviewDate(app.interviewScheduledAt ? toDatetimeLocal(app.interviewScheduledAt) : "");
+    setMeetingUrl(app.interviewMeetingUrl || "");
+    setRecommendation(app.decisionRecommendation || "");
+    setRecRationale(app.recommendationRationale || "");
     setAssignedChapterId(app.chapter?.id || app.chapterId || "");
     setChapterError(null);
-  }, [app.id, app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommunication, app.scoreFit, app.interviewSummary, app.reviewerNotes, app.reviewerId, app.chapter?.id, app.chapterId]);
+  }, [app.id, app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommunication, app.scoreFit, app.interviewSummary, app.reviewerNotes, app.reviewerId, app.interviewScheduledAt, app.interviewMeetingUrl, app.decisionRecommendation, app.recommendationRationale, app.chapter?.id, app.chapterId]);
 
   // Save scores & notes
   async function handleSaveScores() {
@@ -187,6 +213,7 @@ export default function CPDetailPanel({
 
     const statusMap: Record<string, string> = {
       mark_under_review: "UNDER_REVIEW",
+      request_info: "INFO_REQUESTED",
       mark_interview_complete: "INTERVIEW_COMPLETED",
       submit_recommendation: "RECOMMENDATION_SUBMITTED",
       approve: "APPROVED",
@@ -197,6 +224,86 @@ export default function CPDetailPanel({
       toast.show(`Status updated to ${statusLabel(statusMap[action])}`);
     } else {
       toast.show("Action completed");
+    }
+  }
+
+  // Schedule (or reschedule) the interview with an optional meeting link.
+  // Calls the action directly so validation errors surface in the toast.
+  async function handleScheduleInterview() {
+    if (!interviewDate) {
+      toast.show("Pick an interview date and time first");
+      return;
+    }
+    const dt = new Date(interviewDate);
+    if (isNaN(dt.getTime())) {
+      toast.show("Invalid interview date/time");
+      return;
+    }
+    const trimmedUrl = meetingUrl.trim();
+    if (trimmedUrl && !/^https?:\/\//i.test(trimmedUrl)) {
+      toast.show("Meeting link must start with http:// or https://");
+      return;
+    }
+    const formData = new FormData();
+    formData.set("applicationId", app.id);
+    formData.set("action", "schedule_interview");
+    formData.set("scheduledAt", dt.toISOString());
+    if (trimmedUrl) formData.set("meetingUrl", trimmedUrl);
+
+    setSaving(true);
+    const result = await reviewChapterPresidentApplication(
+      { status: "idle", message: "" },
+      formData
+    );
+    setSaving(false);
+
+    if (result.status === "success") {
+      onUpdate({
+        id: app.id,
+        status: "INTERVIEW_SCHEDULED",
+        interviewScheduledAt: dt.toISOString(),
+        interviewMeetingUrl: trimmedUrl || null,
+      });
+      toast.show(app.interviewScheduledAt ? "Interview updated" : "Interview scheduled");
+    } else {
+      toast.show(result.message || "Failed to schedule interview");
+    }
+  }
+
+  // Submit the final recommendation that the chair/decision-maker reviews
+  // before approving or rejecting.
+  async function handleSubmitRecommendation() {
+    if (!recommendation) {
+      toast.show("Pick a recommendation first");
+      return;
+    }
+    if (!recRationale.trim()) {
+      toast.show("Add a short rationale for your recommendation");
+      return;
+    }
+    const formData = new FormData();
+    formData.set("applicationId", app.id);
+    formData.set("action", "submit_recommendation");
+    formData.set("recommendation", recommendation);
+    formData.set("recommendationRationale", recRationale.trim());
+
+    setSaving(true);
+    const result = await reviewChapterPresidentApplication(
+      { status: "idle", message: "" },
+      formData
+    );
+    setSaving(false);
+
+    if (result.status === "success") {
+      onUpdate({
+        id: app.id,
+        status: "RECOMMENDATION_SUBMITTED",
+        decisionRecommendation: recommendation,
+        recommendationRationale: recRationale.trim(),
+      });
+      toast.show("Recommendation submitted");
+    } else {
+      toast.show(result.message || "Failed to submit recommendation");
     }
   }
 
@@ -498,6 +605,66 @@ export default function CPDetailPanel({
         </select>
       </div>
 
+      {/* Interview Scheduling */}
+      {["SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED", "INTERVIEW_SCHEDULED"].includes(
+        app.status
+      ) && (
+        <div className="slideout-section">
+          <div className="slideout-section-title">
+            {app.status === "INTERVIEW_SCHEDULED" ? "Interview" : "Schedule Interview"}
+          </div>
+          {app.availabilityWindows.length > 0 && (
+            <div className="slideout-field" style={{ marginBottom: 10 }}>
+              <div className="slideout-field-label">Applicant-submitted availability</div>
+              <div className="slideout-field-value" style={{ fontSize: 13 }}>
+                {app.availabilityWindows.map((w) => (
+                  <div key={w.id}>
+                    {DOW_LABELS[w.dayOfWeek] ?? "?"} {w.startTime}–{w.endTime} ({w.timezone})
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={{ marginBottom: 8 }}>
+            <div className="slideout-field-label" style={{ marginBottom: 4 }}>
+              Interview date &amp; time
+            </div>
+            <input
+              type="datetime-local"
+              className="input"
+              value={interviewDate}
+              onChange={(e) => setInterviewDate(e.target.value)}
+              style={{ marginBottom: 0 }}
+            />
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <div className="slideout-field-label" style={{ marginBottom: 4 }}>
+              Meeting link (Zoom / Google Meet) — optional
+            </div>
+            <input
+              type="url"
+              className="input"
+              value={meetingUrl}
+              onChange={(e) => setMeetingUrl(e.target.value)}
+              placeholder="https://zoom.us/j/..."
+              style={{ marginBottom: 0 }}
+            />
+          </div>
+          <button
+            className="button secondary"
+            onClick={handleScheduleInterview}
+            disabled={saving}
+            style={{ fontSize: 12 }}
+          >
+            {saving
+              ? "Saving..."
+              : app.status === "INTERVIEW_SCHEDULED"
+                ? "Update Interview Time"
+                : "Schedule Interview & Notify Applicant"}
+          </button>
+        </div>
+      )}
+
       {/* Interview Evaluation — scored after the interview */}
       <div className="slideout-section">
         <div className="slideout-section-title">
@@ -567,6 +734,76 @@ export default function CPDetailPanel({
         </button>
       </div>
 
+      {/* Final Recommendation */}
+      {["INTERVIEW_COMPLETED", "RECOMMENDATION_SUBMITTED", "APPROVED", "REJECTED"].includes(
+        app.status
+      ) && (
+        <div className="slideout-section">
+          <div className="slideout-section-title">Final Recommendation</div>
+          {app.status === "INTERVIEW_COMPLETED" ? (
+            <>
+              <div style={{ marginBottom: 8 }}>
+                <div className="slideout-field-label" style={{ marginBottom: 4 }}>
+                  Recommendation
+                </div>
+                <select
+                  className="input"
+                  value={recommendation}
+                  onChange={(e) => setRecommendation(e.target.value)}
+                  style={{ marginBottom: 0 }}
+                >
+                  <option value="">Select a recommendation…</option>
+                  <option value="STRONG_YES">Strong Yes</option>
+                  <option value="YES">Yes</option>
+                  <option value="MAYBE">Maybe</option>
+                  <option value="NO">No</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <div className="slideout-field-label" style={{ marginBottom: 4 }}>
+                  Rationale
+                </div>
+                <textarea
+                  className="input"
+                  value={recRationale}
+                  onChange={(e) => setRecRationale(e.target.value)}
+                  rows={3}
+                  placeholder="Tie this to the rubric scores and interview signals so the final decision-maker has context."
+                  style={{ marginBottom: 0 }}
+                />
+              </div>
+              <button
+                className="button"
+                onClick={handleSubmitRecommendation}
+                disabled={saving}
+                style={{ fontSize: 12, background: "#7c3aed" }}
+              >
+                {saving ? "Submitting..." : "Submit Recommendation"}
+              </button>
+            </>
+          ) : (
+            <>
+              {(() => {
+                const rec = recommendationInfo(app.decisionRecommendation);
+                return rec ? (
+                  <span className={rec.className}>{rec.label}</span>
+                ) : (
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                    No recommendation was recorded for this application.
+                  </div>
+                );
+              })()}
+              {app.recommendationRationale && (
+                <div className="slideout-field" style={{ marginTop: 8 }}>
+                  <div className="slideout-field-label">Rationale</div>
+                  <div className="slideout-field-value">{app.recommendationRationale}</div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Quick Actions */}
       {!isFinal && (
         <div className="slideout-section">
@@ -582,6 +819,22 @@ export default function CPDetailPanel({
                 Begin Review
               </button>
             )}
+            {["SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED"].includes(app.status) && (
+              <button
+                className="button secondary"
+                onClick={() => {
+                  const message = prompt(
+                    "What additional information do you need from the applicant?"
+                  );
+                  if (!message?.trim()) return;
+                  handleAction("request_info", { message });
+                }}
+                disabled={saving}
+                style={{ fontSize: 12 }}
+              >
+                Request More Info
+              </button>
+            )}
             {app.status === "INTERVIEW_SCHEDULED" && (
               <button
                 className="button secondary"
@@ -593,14 +846,9 @@ export default function CPDetailPanel({
               </button>
             )}
             {app.status === "INTERVIEW_COMPLETED" && (
-              <button
-                className="button"
-                onClick={() => handleAction("submit_recommendation")}
-                disabled={saving}
-                style={{ fontSize: 12, background: "#7c3aed" }}
-              >
-                Submit Recommendation
-              </button>
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                Submit a recommendation above to move this application forward.
+              </span>
             )}
             {app.status === "RECOMMENDATION_SUBMITTED" && (
               <>

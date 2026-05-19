@@ -27,6 +27,7 @@ import { revalidatePath } from "next/cache";
 import {
   ApplicationSource,
   ApplicationTrack,
+  ChapterPresidentApplicationStatus,
   InstructorApplicationStatus,
   InstructorSubtype,
   ManualEmailKind,
@@ -40,6 +41,7 @@ import {
   buildManualEmailTemplate,
 } from "@/lib/application-source-config";
 import { findDefaultInitialReviewerForChapter } from "@/lib/instructor-application-defaults";
+import { syncChapterPresidentApplicationWorkflow } from "@/lib/workflow";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -356,6 +358,248 @@ export async function createExternalInstructorApplicantFromForm(
       teachingExperience: String(formData.get("teachingExperience") ?? "") || null,
       availability: String(formData.get("availability") ?? "") || null,
       cohortId: String(formData.get("cohortId") ?? "") || null,
+    });
+    return { ok: true, applicationId: result.applicationId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { ok: false, error: message };
+  }
+}
+
+// ─── Chapter President external intake ───────────────────────────────────────
+
+export interface CreateExternalChapterPresidentApplicantInput {
+  /** Required — applicant's display name (or "First Last"). */
+  name: string;
+  /** Required — applicant's email; used to find or create a portal User. */
+  email: string;
+  /** Optional — phone number for offline contact. */
+  phone?: string | null;
+  /** Required — where this application came from. */
+  source: ExternalApplicantSource;
+  /** Optional — chapter the applicant would lead. */
+  chapterId?: string | null;
+  /** Optional — link to the Google Form response (when source = GOOGLE_FORMS). */
+  externalResponseUrl?: string | null;
+  /** Optional — raw / copied answers from Google Form (or notes for manual entry). */
+  externalAnswersCopy?: string | null;
+  /** Optional — when the applicant originally submitted externally. */
+  externalSubmittedAt?: Date | null;
+  /** Optional — admin notes about this applicant. */
+  internalNotes?: string | null;
+  /** Optional — pre-populate core essays / availability if known. */
+  leadershipExperience?: string | null;
+  chapterVision?: string | null;
+  availability?: string | null;
+  /** Optional — when set, the application is created already INTERVIEW_SCHEDULED. */
+  interviewScheduledAt?: Date | null;
+  /** Optional — Zoom / Google Meet join link for the interview. */
+  interviewMeetingUrl?: string | null;
+}
+
+export interface CreateExternalChapterPresidentApplicantResult {
+  applicationId: string;
+  applicantUserId: string;
+  createdNewUser: boolean;
+}
+
+/**
+ * Seeds the default checklist of ManualEmailTask rows for a freshly created
+ * external chapter president application. Idempotent on (application, kind).
+ */
+export async function seedDefaultManualEmailTasksForChapterPresidentApplication(opts: {
+  applicationId: string;
+  applicantName: string | null;
+  createdById: string | null;
+}): Promise<{ created: number; skipped: number }> {
+  let created = 0;
+  let skipped = 0;
+  for (const kind of DEFAULT_EXTERNAL_INTAKE_EMAIL_KINDS) {
+    const existing = await prisma.manualEmailTask.findFirst({
+      where: { chapterPresidentApplicationId: opts.applicationId, kind },
+      select: { id: true },
+    });
+    if (existing) {
+      skipped++;
+      continue;
+    }
+    const template = buildManualEmailTemplate(kind, {
+      applicantName: opts.applicantName,
+      applicationLabel: "Chapter President",
+    });
+    await prisma.manualEmailTask.create({
+      data: {
+        chapterPresidentApplicationId: opts.applicationId,
+        kind,
+        suggestedSubject: template.subject,
+        suggestedBody: template.body,
+        createdById: opts.createdById,
+      },
+    });
+    created++;
+  }
+  return { created, skipped };
+}
+
+/**
+ * Create a chapter president application from an external source (Google Forms
+ * or manual admin entry). Mirrors `createExternalInstructorApplicant` but for
+ * the ChapterPresidentApplication pipeline.
+ *
+ * `ChapterPresidentApplication.applicantId` is unique — one CP application per
+ * user — so this errors out if the applicant already has one on file.
+ *
+ * No emails are auto-sent: intake seeds ManualEmailTask rows only. When an
+ * interview time is supplied the application is created already
+ * INTERVIEW_SCHEDULED so it lands in the correct kanban column.
+ */
+export async function createExternalChapterPresidentApplicant(
+  input: CreateExternalChapterPresidentApplicantInput,
+): Promise<CreateExternalChapterPresidentApplicantResult> {
+  const session = await getSession();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN")) {
+    throw new Error("Unauthorized - Admin access required");
+  }
+  const importedById = session.user.id;
+
+  const name = (input.name ?? "").trim();
+  const email = normalizeEmail(input.email ?? "");
+  if (!name) throw new Error("Applicant name is required.");
+  if (!email || !email.includes("@")) throw new Error("A valid applicant email is required.");
+  if (input.source !== "GOOGLE_FORMS" && input.source !== "MANUAL_ADMIN_ENTRY") {
+    throw new Error("Source must be GOOGLE_FORMS or MANUAL_ADMIN_ENTRY.");
+  }
+
+  const chapterId = input.chapterId?.trim() || null;
+  const interviewMeetingUrl = input.interviewMeetingUrl?.trim() || null;
+  if (interviewMeetingUrl && !/^https?:\/\//i.test(interviewMeetingUrl)) {
+    throw new Error("Meeting link must be a valid URL.");
+  }
+  const interviewScheduledAt = input.interviewScheduledAt ?? null;
+  if (interviewScheduledAt && Number.isNaN(interviewScheduledAt.getTime())) {
+    throw new Error("Interview date/time is invalid.");
+  }
+
+  // 1) Find or create the applicant User (mirrors the instructor intake).
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  let applicantUser = existingUser;
+  let createdNewUser = false;
+  if (!applicantUser) {
+    applicantUser = await prisma.user.create({
+      data: {
+        name,
+        email,
+        phone: input.phone?.trim() || null,
+        passwordHash: "IMPORTED",
+        primaryRole: RoleType.APPLICANT,
+        chapterId,
+      },
+    });
+    createdNewUser = true;
+  } else if (chapterId && !applicantUser.chapterId) {
+    applicantUser = await prisma.user.update({
+      where: { id: applicantUser.id },
+      data: { chapterId },
+    });
+  }
+
+  // 2) Guard against duplicate CP applications (applicantId is unique).
+  const existingApplication = await prisma.chapterPresidentApplication.findUnique({
+    where: { applicantId: applicantUser.id },
+    select: { id: true },
+  });
+  if (existingApplication) {
+    throw new Error("This applicant already has a chapter president application on file.");
+  }
+
+  // 3) Create the ChapterPresidentApplication.
+  const externalImportedAt = new Date();
+  const application = await prisma.chapterPresidentApplication.create({
+    data: {
+      applicantId: applicantUser.id,
+      chapterId,
+      status: interviewScheduledAt
+        ? ChapterPresidentApplicationStatus.INTERVIEW_SCHEDULED
+        : ChapterPresidentApplicationStatus.SUBMITTED,
+      interviewScheduledAt,
+      interviewMeetingUrl,
+      // Required Text columns — default to empty strings, same as the
+      // portal-native flow's defaulting for unsupplied required fields.
+      leadershipExperience: input.leadershipExperience?.trim() || "",
+      chapterVision: input.chapterVision?.trim() || "",
+      availability: input.availability?.trim() || "",
+      phoneNumber: input.phone?.trim() || null,
+      source: input.source,
+      importedById,
+      externalImportedAt,
+      externalSubmittedAt: input.externalSubmittedAt ?? null,
+      externalResponseUrl: input.externalResponseUrl?.trim() || null,
+      externalAnswersCopy: input.externalAnswersCopy?.trim() || null,
+      internalNotes: input.internalNotes?.trim() || null,
+    },
+    select: { id: true },
+  });
+
+  // 4) Seed the manual-email checklist + sync workflow state.
+  await seedDefaultManualEmailTasksForChapterPresidentApplication({
+    applicationId: application.id,
+    applicantName: applicantUser.name,
+    createdById: importedById,
+  });
+  await syncChapterPresidentApplicationWorkflow(application.id);
+
+  // 5) Cache invalidation.
+  revalidatePath("/admin/chapter-president-applicants");
+  revalidatePath("/admin/external-applicants");
+
+  return {
+    applicationId: application.id,
+    applicantUserId: applicantUser.id,
+    createdNewUser,
+  };
+}
+
+/**
+ * FormData adapter for the admin "Add External Applicant" page when the
+ * Chapter President role is selected.
+ */
+export async function createExternalChapterPresidentApplicantFromForm(
+  formData: FormData,
+): Promise<{ ok: true; applicationId: string } | { ok: false; error: string }> {
+  try {
+    const sourceRaw = String(formData.get("source") ?? "").trim();
+    const source: ExternalApplicantSource =
+      sourceRaw === "MANUAL_ADMIN_ENTRY" ? "MANUAL_ADMIN_ENTRY" : "GOOGLE_FORMS";
+
+    const submittedAtRaw = String(formData.get("externalSubmittedAt") ?? "").trim();
+    const externalSubmittedAt = submittedAtRaw ? new Date(submittedAtRaw) : null;
+    if (externalSubmittedAt && Number.isNaN(externalSubmittedAt.getTime())) {
+      return { ok: false, error: "External submitted-at must be a valid date." };
+    }
+
+    const interviewRaw = String(formData.get("interviewScheduledAt") ?? "").trim();
+    const interviewScheduledAt = interviewRaw ? new Date(interviewRaw) : null;
+    if (interviewScheduledAt && Number.isNaN(interviewScheduledAt.getTime())) {
+      return { ok: false, error: "Interview date/time must be a valid date." };
+    }
+
+    const result = await createExternalChapterPresidentApplicant({
+      name: String(formData.get("name") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      phone: String(formData.get("phone") ?? "") || null,
+      source,
+      chapterId: String(formData.get("chapterId") ?? "") || null,
+      externalResponseUrl: String(formData.get("externalResponseUrl") ?? "") || null,
+      externalAnswersCopy: String(formData.get("externalAnswersCopy") ?? "") || null,
+      externalSubmittedAt,
+      internalNotes: String(formData.get("internalNotes") ?? "") || null,
+      leadershipExperience: String(formData.get("leadershipExperience") ?? "") || null,
+      chapterVision: String(formData.get("chapterVision") ?? "") || null,
+      availability: String(formData.get("availability") ?? "") || null,
+      interviewScheduledAt,
+      interviewMeetingUrl: String(formData.get("interviewMeetingUrl") ?? "") || null,
     });
     return { ok: true, applicationId: result.applicationId };
   } catch (err) {

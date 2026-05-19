@@ -52,6 +52,7 @@ export default async function MyInterviewPage() {
         id: true,
         status: true,
         interviewScheduledAt: true,
+        interviewMeetingUrl: true,
         schedulingNoMatchAt: true,
         availabilityWindows: true,
       },
@@ -174,7 +175,8 @@ export default async function MyInterviewPage() {
             cpApp.interviewScheduledAt ? (
               <>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                  Your interview is confirmed.
+                  Your interview is confirmed. To reschedule, reach out to your
+                  reviewer or admin.
                 </p>
                 <div
                   style={{
@@ -187,6 +189,17 @@ export default async function MyInterviewPage() {
                   <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
                     {formatSlot(cpApp.interviewScheduledAt)}
                   </p>
+                  {cpApp.interviewMeetingUrl && (
+                    <a
+                      href={cpApp.interviewMeetingUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="button"
+                      style={{ display: "inline-block", marginTop: 12, textDecoration: "none" }}
+                    >
+                      Join Interview
+                    </a>
+                  )}
                 </div>
               </>
             ) : (

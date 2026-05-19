@@ -1,137 +1,128 @@
-import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth-supabase";
-import { redirect } from "next/navigation";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
 
 export default async function ChapterPresidentPage() {
   const session = await getSession();
-  if (!session?.user?.id) {
-    redirect("/auth/signin");
-  }
+  if (!session?.user?.id) redirect("/login");
 
-  // Find the current user's chapter
   const currentUser = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: {
-      id: true,
-      chapter: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
+    select: { id: true, chapter: { select: { id: true, name: true } } },
   });
 
   if (!currentUser?.chapter) {
     return (
-      <div style={{ padding: "2rem", maxWidth: "800px", margin: "0 auto" }}>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700 }}>
-          Your Chapter President
-        </h1>
-        <p style={{ color: "#666", marginTop: "1rem" }}>
-          You are not assigned to a chapter yet.
-        </p>
+      <div className="page-shell">
+        <div className="page-header">
+          <div>
+            <p className="badge">Chapter Presidentership</p>
+            <h1 className="page-title">Your Chapter President</h1>
+          </div>
+        </div>
+        <div className="card" style={{ textAlign: "center", padding: 32 }}>
+          <p style={{ margin: 0 }}>You are not assigned to a chapter yet.</p>
+        </div>
       </div>
     );
   }
 
-  // Find the chapter president (user with CHAPTER_PRESIDENT role in this chapter)
   const chapterPresident = await prisma.user.findFirst({
     where: {
       chapterId: currentUser.chapter.id,
       roles: { some: { role: "CHAPTER_PRESIDENT" } },
     },
+    select: { id: true, name: true, email: true },
   });
 
-  // Fetch their application for the vision statement
-  let application = null;
-  if (chapterPresident) {
-    application = await prisma.chapterPresidentApplication.findFirst({
-      where: {
-        applicantId: chapterPresident.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-  }
+  const application = chapterPresident
+    ? await prisma.chapterPresidentApplication.findFirst({
+        where: { applicantId: chapterPresident.id },
+        orderBy: { createdAt: "desc" },
+        select: { chapterVision: true },
+      })
+    : null;
+
+  const viewerIsPresident = chapterPresident?.id === currentUser.id;
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "800px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: "0.5rem" }}>
-        Your Chapter President
-      </h1>
-      <p style={{ color: "#666", fontSize: "0.875rem", marginBottom: "2rem" }}>
-        {currentUser.chapter.name}
-      </p>
+    <div className="page-shell">
+      <div className="page-header">
+        <div>
+          <p className="badge">Chapter Presidentership</p>
+          <h1 className="page-title">Your Chapter President</h1>
+          <p className="page-subtitle">{currentUser.chapter.name}</p>
+        </div>
+        {viewerIsPresident && (
+          <Link href="/chapter/dashboard" className="button" style={{ textDecoration: "none" }}>
+            President Dashboard
+          </Link>
+        )}
+      </div>
+
+      {viewerIsPresident && (
+        <div
+          className="card"
+          style={{ marginBottom: 16, background: "#f0e6ff", border: "1px solid #d8b4fe" }}
+        >
+          <p style={{ margin: 0, fontSize: 14, color: "#6b21c8" }}>
+            You lead this chapter. Manage members, events, and announcements from
+            your{" "}
+            <Link href="/chapter/dashboard" className="link">
+              President Dashboard
+            </Link>
+            .
+          </p>
+        </div>
+      )}
 
       {chapterPresident ? (
-        <div
-          style={{
-            padding: "1.5rem",
-            border: "1px solid #e5e7eb",
-            borderRadius: "8px",
-            backgroundColor: "#fff",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "1rem",
-              marginBottom: "1rem",
-            }}
-          >
+        <div className="card">
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
             <div
               style={{
-                width: "64px",
-                height: "64px",
+                width: 64,
+                height: 64,
                 borderRadius: "50%",
-                backgroundColor: "#3b82f6",
+                background: "#6b21c8",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#fff",
-                fontSize: "1.5rem",
+                color: "white",
+                fontSize: 24,
                 fontWeight: 700,
+                flexShrink: 0,
               }}
             >
-              {chapterPresident.name
-                ? chapterPresident.name.charAt(0).toUpperCase()
-                : "?"}
+              {chapterPresident.name ? chapterPresident.name.charAt(0).toUpperCase() : "?"}
             </div>
             <div>
-              <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>
+              <h2 style={{ margin: 0, fontSize: 20 }}>
                 {chapterPresident.name || "Unknown"}
               </h2>
-              <p style={{ color: "#666", fontSize: "0.875rem" }}>
+              <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
                 {chapterPresident.email}
               </p>
             </div>
           </div>
 
           {application?.chapterVision && (
-            <div style={{ marginTop: "1rem" }}>
-              <h3
-                style={{
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  color: "#374151",
-                  marginBottom: "0.5rem",
-                }}
-              >
+            <div>
+              <h3 className="section-title" style={{ marginTop: 0 }}>
                 Chapter Vision
               </h3>
               <p
                 style={{
-                  color: "#555",
-                  fontSize: "0.875rem",
-                  lineHeight: "1.6",
-                  padding: "1rem",
-                  backgroundColor: "#f9fafb",
-                  borderRadius: "6px",
-                  border: "1px solid #f3f4f6",
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  whiteSpace: "pre-wrap",
+                  background: "var(--surface-2)",
+                  borderRadius: 8,
+                  padding: 16,
+                  margin: 0,
                 }}
               >
                 {application.chapterVision}
@@ -139,75 +130,33 @@ export default async function ChapterPresidentPage() {
             </div>
           )}
 
-          <div style={{ marginTop: "1.5rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Link
               href="/chapter/calendar"
-              style={{
-                display: "inline-block",
-                padding: "0.5rem 1rem",
-                backgroundColor: "#111827",
-                color: "#fff",
-                borderRadius: "6px",
-                textDecoration: "none",
-                fontSize: "0.875rem",
-                fontWeight: 500,
-              }}
+              className="button"
+              style={{ textDecoration: "none" }}
             >
               Open Chapter Calendar
             </Link>
             <Link
               href="/my-chapter/calendar"
-              style={{
-                display: "inline-block",
-                padding: "0.5rem 1rem",
-                backgroundColor: "#fff",
-                color: "#111827",
-                border: "1px solid #d1d5db",
-                borderRadius: "6px",
-                textDecoration: "none",
-                fontSize: "0.875rem",
-                fontWeight: 500,
-              }}
+              className="button outline"
+              style={{ textDecoration: "none" }}
             >
               View Member Calendar
             </Link>
           </div>
         </div>
       ) : (
-        <div
-          style={{
-            padding: "2rem",
-            border: "1px solid #e5e7eb",
-            borderRadius: "8px",
-            backgroundColor: "#f9fafb",
-            textAlign: "center",
-          }}
-        >
-          <h2
-            style={{
-              fontSize: "1.25rem",
-              fontWeight: 600,
-              color: "#374151",
-              marginBottom: "0.5rem",
-            }}
-          >
-            Position Open
-          </h2>
-          <p style={{ color: "#666", marginBottom: "1rem" }}>
+        <div className="card" style={{ textAlign: "center", padding: 32 }}>
+          <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>Position Open</h2>
+          <p style={{ color: "var(--muted)", marginBottom: 16 }}>
             Your chapter does not currently have a chapter president.
           </p>
           <Link
             href="/chapter/apply"
-            style={{
-              display: "inline-block",
-              padding: "0.5rem 1.25rem",
-              backgroundColor: "#3b82f6",
-              color: "#fff",
-              borderRadius: "6px",
-              textDecoration: "none",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-            }}
+            className="button"
+            style={{ display: "inline-block", textDecoration: "none" }}
           >
             Apply for Chapter President
           </Link>

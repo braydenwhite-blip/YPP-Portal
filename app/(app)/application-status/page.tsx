@@ -705,6 +705,17 @@ export default async function ApplicationStatusPage() {
                           hour: "numeric", minute: "2-digit",
                         })}
                       </p>
+                      {cpApp.interviewMeetingUrl && (
+                        <a
+                          href={cpApp.interviewMeetingUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="button"
+                          style={{ display: "inline-block", marginTop: 12, textDecoration: "none" }}
+                        >
+                          Join Interview
+                        </a>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -735,11 +746,16 @@ export default async function ApplicationStatusPage() {
               <>
                 <h3 className="section-title" style={{ color: "#16a34a" }}>Approved!</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
-                  Your chapter president application has been approved. Welcome to the leadership team!
+                  Your chapter president application has been approved. Welcome to the leadership team! Start with onboarding, then run your chapter from the President Dashboard.
                 </p>
-                <Link href="/chapter/onboarding" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
-                  Start Chapter Onboarding
-                </Link>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <Link href="/chapter/onboarding" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
+                    Start Chapter Onboarding
+                  </Link>
+                  <Link href="/chapter/dashboard" className="button outline" style={{ display: "inline-block", textDecoration: "none" }}>
+                    President Dashboard
+                  </Link>
+                </div>
               </>
             )}
             {cpApp.status === "REJECTED" && (

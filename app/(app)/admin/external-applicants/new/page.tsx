@@ -88,9 +88,10 @@ export default async function NewExternalApplicantPage({
             existing sign-in flow.
           </li>
           <li>
-            An InstructorApplication is created and routed to your chapter&apos;s
-            default reviewer (if one is configured) so it lands in the review
-            queue immediately.
+            An application is created in the matching review pipeline — an
+            InstructorApplication routed to your chapter&apos;s default reviewer
+            (if configured), or a ChapterPresidentApplication on the chapter
+            president board — so it lands in the review queue immediately.
           </li>
           <li>
             A &quot;Send application confirmation&quot; task is queued in the
