@@ -96,8 +96,8 @@ describe("InterviewReviewEditor live runner", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Mark Asked" }));
     // Required-field label includes a RequiredStar span, so textContent is
-    // "Notes on candidate answer*" — match by prefix instead of exact text.
-    fireEvent.change(screen.getByLabelText(/Notes on candidate answer/), {
+    // "Notes*" — match by prefix instead of exact text.
+    fireEvent.change(screen.getByLabelText(/Notes/), {
       target: { value: "Candidate gave a strong student-centered example." },
     });
 
@@ -145,16 +145,15 @@ describe("InterviewReviewEditor live runner", () => {
   it("labels interviewer-only guidance distinctly from candidate-facing copy", () => {
     renderEditor();
 
+    // Appears both in the legend and as the question-card guidance label.
     expect(
-      screen.getByText(/For interviewer · what you're trying to learn/i)
-    ).toBeInTheDocument();
+      screen.getAllByText(/What we're trying to learn/i).length
+    ).toBeGreaterThan(0);
     expect(
-      screen.getByText(/Interviewer guidance only · do not read aloud/i)
+      screen.getByText(/For you only · don't read aloud/i)
     ).toBeInTheDocument();
-    expect(screen.getByText("Strong answer signals")).toBeInTheDocument();
+    expect(screen.getByText("Strong answers")).toBeInTheDocument();
     expect(screen.getByText("Red flags")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Optional follow-ups · ask only if needed/i)
-    ).toBeInTheDocument();
+    expect(screen.getAllByText(/Follow-ups/i).length).toBeGreaterThan(0);
   });
 });

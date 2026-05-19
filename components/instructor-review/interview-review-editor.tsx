@@ -844,6 +844,30 @@ export default function InterviewReviewEditor({
           </div>
         </section>
 
+        <section className="live-legend" aria-label="How to use this runner">
+          <span className="live-legend-title">How to use</span>
+          <span className="live-legend-item">
+            <span className="live-legend-dot dot-question" aria-hidden="true" />
+            Black — the actual question you should be saying
+          </span>
+          <span className="live-legend-item">
+            <span className="live-legend-dot dot-followup" aria-hidden="true" />
+            Blue — follow-ups
+          </span>
+          <span className="live-legend-item">
+            <span className="live-legend-dot dot-learn" aria-hidden="true" />
+            Yellow — what we&apos;re trying to learn
+          </span>
+          <span className="live-legend-item">
+            <span className="live-legend-dot dot-strong" aria-hidden="true" />
+            Green — strong answers
+          </span>
+          <span className="live-legend-item">
+            <span className="live-legend-dot dot-flag" aria-hidden="true" />
+            Red — answers that should make you pause
+          </span>
+        </section>
+
       <section className="live-interview-grid">
         <aside className="live-progress-rail" aria-label="Interview progress">
           <div className="live-progress-counts">
@@ -1004,19 +1028,26 @@ export default function InterviewReviewEditor({
               </div>
             ) : (
               <>
-                <p className="live-question-text">{activeQuestion.prompt}</p>
+                <div className="live-question-prompt-block">
+                  <span className="live-guidance-label is-question">
+                    Main question · say this out loud
+                  </span>
+                  <p className="live-question-text">{activeQuestion.prompt}</p>
+                </div>
                 {activeBankItem?.whyItMatters ? (
                   <div className="live-trying-to-learn">
-                    <span className="live-guidance-label">
-                      For interviewer · what you&apos;re trying to learn
+                    <span className="live-guidance-label is-learn">
+                      What we&apos;re trying to learn
                     </span>
-                    <p className="live-guidance-callout">{activeBankItem.whyItMatters}</p>
+                    <p className="live-guidance-callout is-learn">{activeBankItem.whyItMatters}</p>
                   </div>
                 ) : null}
                 {activeBankItem?.interviewerGuidance ? (
                   <div className="live-trying-to-learn">
-                    <span className="live-guidance-label">How to ask this</span>
-                    <p className="live-guidance-callout">{activeBankItem.interviewerGuidance}</p>
+                    <span className="live-guidance-label is-note">Note for you</span>
+                    <p className="live-guidance-callout is-note">
+                      {activeBankItem.interviewerGuidance}
+                    </p>
                   </div>
                 ) : null}
               </>
@@ -1045,19 +1076,17 @@ export default function InterviewReviewEditor({
             (asStringArray(activeBankItem.strongSignals).length > 0 ||
               asStringArray(activeBankItem.concernSignals).length > 0) ? (
               <div className="live-guidance-section">
-                <span className="live-guidance-label">
-                  Interviewer guidance only · do not read aloud
-                </span>
+                <span className="live-guidance-label">For you only · don&apos;t read aloud</span>
                 <div className="live-guidance-grid">
-                  <div>
-                    <h4>Strong answer signals</h4>
+                  <div className="is-strong">
+                    <h4>Strong answers</h4>
                     <ul>
                       {asStringArray(activeBankItem.strongSignals).map((signal) => (
                         <li key={signal}>{signal}</li>
                       ))}
                     </ul>
                   </div>
-                  <div>
+                  <div className="is-flag">
                     <h4>Red flags</h4>
                     <ul>
                       {asStringArray(activeBankItem.concernSignals).map((signal) => (
@@ -1069,32 +1098,13 @@ export default function InterviewReviewEditor({
               </div>
             ) : null}
 
-            <label className="form-row">
-              Follow-up asked or planned
-              <textarea
-                className="input"
-                rows={2}
-                value={activeQuestion.followUpPrompt}
-                disabled={!canEdit}
-                onChange={(event) =>
-                  updateQuestion(activeQuestion.localId, (question) => ({
-                    ...question,
-                    followUpPrompt: event.target.value,
-                  }))
-                }
-                placeholder={
-                  activeBankItem
-                    ? asStringArray(activeBankItem.suggestedFollowUps)[0] ?? "Capture the follow-up you asked..."
-                    : "Capture the custom follow-up or next probe..."
-                }
-              />
-            </label>
-
-            {activeBankItem && asStringArray(activeBankItem.suggestedFollowUps).length > 0 ? (
-              <div className="live-followup-section">
-                <span className="live-guidance-label">
-                  Optional follow-ups · ask only if needed
-                </span>
+            <div className="live-followup-section">
+              <span className="live-guidance-label is-followup">Follow-ups</span>
+              <p className="live-field-hint">
+                Don&apos;t ask all follow-ups — only ask if the candidate&apos;s original answer
+                was vague.
+              </p>
+              {activeBankItem && asStringArray(activeBankItem.suggestedFollowUps).length > 0 ? (
                 <div className="live-followup-suggestions">
                   {asStringArray(activeBankItem.suggestedFollowUps).map((followUp) => (
                     <button
@@ -1114,14 +1124,33 @@ export default function InterviewReviewEditor({
                     </button>
                   ))}
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+              <label className="form-row">
+                Follow-up you asked
+                <textarea
+                  className="input"
+                  rows={2}
+                  value={activeQuestion.followUpPrompt}
+                  disabled={!canEdit}
+                  onChange={(event) =>
+                    updateQuestion(activeQuestion.localId, (question) => ({
+                      ...question,
+                      followUpPrompt: event.target.value,
+                    }))
+                  }
+                  placeholder="Record the follow-up you actually asked, if any..."
+                />
+              </label>
+            </div>
 
             <label className="form-row">
               <span>
-                Notes on candidate answer
+                Notes
                 {activeQuestion.status === "ASKED" ? <RequiredStar /> : null}
               </span>
+              <p className="live-field-hint">
+                Take real notes that can be helpful for others.
+              </p>
               <textarea
                 className="input live-notes-input"
                 rows={7}
