@@ -28,6 +28,20 @@ const URGENT_REASON: Record<string, string> = {
 };
 
 /**
+ * Whether a mentee card is waiting on the mentor right now — a kickoff to
+ * run, a reflection to review, or a follow-up the mentor flagged. Shared with
+ * the command strip so the "Needs you now" count and group always match.
+ */
+export function mentorCardNeedsAttention(card: SimplifiedKanbanCard): boolean {
+  return (
+    card.kickoffPending ||
+    card.cycleStage === "REFLECTION_SUBMITTED" ||
+    card.cycleStage === "CHANGES_REQUESTED" ||
+    card.mentorTag === "FOLLOW_UP_NEEDED"
+  );
+}
+
+/**
  * Replaces the 5-column horizontal kanban with a prioritized single
  * vertical list. Kanbans imply that mentors *move* mentees through a
  * workflow — but mentees self-advance by submitting reflections. The
@@ -314,12 +328,7 @@ function groupByPriority(cards: SimplifiedKanbanCard[]): Group[] {
   const settled: SimplifiedKanbanCard[] = [];
 
   for (const card of cards) {
-    if (
-      card.kickoffPending ||
-      card.cycleStage === "REFLECTION_SUBMITTED" ||
-      card.cycleStage === "CHANGES_REQUESTED" ||
-      card.mentorTag === "FOLLOW_UP_NEEDED"
-    ) {
+    if (mentorCardNeedsAttention(card)) {
       needsNow.push(card);
     } else if (
       card.cycleStage === "KICKOFF_PENDING" ||
