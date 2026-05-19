@@ -6,6 +6,10 @@ import {
   getSessionWithRecords,
   recordAttendance,
 } from "@/lib/attendance-actions";
+import {
+  AttendanceRollCall,
+  type RollCallStudent,
+} from "@/components/instructor/attendance-roll-call";
 
 function formatDate(date: Date): string {
   return new Date(date).toLocaleDateString("en-US", {
@@ -14,43 +18,6 @@ function formatDate(date: Date): string {
     day: "numeric",
     year: "numeric",
   });
-}
-
-function formatTime(date: Date): string {
-  return new Date(date).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function statusColor(status: string): string {
-  switch (status) {
-    case "PRESENT":
-      return "#16a34a";
-    case "ABSENT":
-      return "#dc2626";
-    case "LATE":
-      return "#d97706";
-    case "EXCUSED":
-      return "#2563eb";
-    default:
-      return "#6b7280";
-  }
-}
-
-function statusBg(status: string): string {
-  switch (status) {
-    case "PRESENT":
-      return "#dcfce7";
-    case "ABSENT":
-      return "#fee2e2";
-    case "LATE":
-      return "#fef3c7";
-    case "EXCUSED":
-      return "#dbeafe";
-    default:
-      return "#f3f4f6";
-  }
 }
 
 export default async function SessionDetailPage({
@@ -78,19 +45,35 @@ export default async function SessionDetailPage({
     redirect("/attendance");
   }
 
-  // For the "Add Student" section, look up users who are not already in this session
+  // For the "Add Student" section, look up users who are not already in this
+  // session. When the session is tied to a course, scope the picker to that
+  // course's roster instead of every student on the platform.
   let availableStudents: { id: string; name: string; email: string }[] = [];
   if (isStaff) {
     const existingUserIds = attendanceSession.records.map((r) => r.user.id);
-    availableStudents = await prisma.user.findMany({
-      where: {
-        id: { notIn: existingUserIds.length > 0 ? existingUserIds : ["__none__"] },
-        roles: { some: { role: "STUDENT" } },
-      },
-      select: { id: true, name: true, email: true },
-      orderBy: { name: "asc" },
-      take: 100,
-    });
+    const excludeIds = existingUserIds.length > 0 ? existingUserIds : ["__none__"];
+    if (attendanceSession.courseId) {
+      const enrollments = await prisma.enrollment.findMany({
+        where: {
+          courseId: attendanceSession.courseId,
+          status: "ENROLLED",
+          userId: { notIn: excludeIds },
+        },
+        select: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { user: { name: "asc" } },
+      });
+      availableStudents = enrollments.map((e) => e.user);
+    } else {
+      availableStudents = await prisma.user.findMany({
+        where: {
+          id: { notIn: excludeIds },
+          roles: { some: { role: "STUDENT" } },
+        },
+        select: { id: true, name: true, email: true },
+        orderBy: { name: "asc" },
+        take: 100,
+      });
+    }
   }
 
   // Summary counts
@@ -99,6 +82,15 @@ export default async function SessionDetailPage({
   const absentCount = attendanceSession.records.filter((r) => r.status === "ABSENT").length;
   const lateCount = attendanceSession.records.filter((r) => r.status === "LATE").length;
   const excusedCount = attendanceSession.records.filter((r) => r.status === "EXCUSED").length;
+
+  const rollCallStudents: RollCallStudent[] = attendanceSession.records.map((record) => ({
+    userId: record.user.id,
+    name: record.user.name,
+    email: record.user.email,
+    status: record.status,
+    notes: record.notes ?? "",
+  }));
+  const rollCallKey = rollCallStudents.map((s) => s.userId).join("-");
 
   return (
     <div className="main-content">
@@ -209,168 +201,27 @@ export default async function SessionDetailPage({
         </div>
       </div>
 
-      {/* Attendance Records Table */}
+      {/* Roll Call */}
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600 }}>
           Roll Call ({totalRecords} student{totalRecords !== 1 ? "s" : ""})
         </h3>
 
-        {attendanceSession.records.length === 0 ? (
-          <p className="empty">
-            No attendance records yet. Use the form below to add students and
-            record their attendance.
-          </p>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table
-              className="table"
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 14,
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: "2px solid var(--border, #e5e7eb)",
-                    textAlign: "left",
-                  }}
-                >
-                  <th style={{ padding: "8px 12px", fontWeight: 600, fontSize: 13 }}>
-                    Student
-                  </th>
-                  <th style={{ padding: "8px 12px", fontWeight: 600, fontSize: 13 }}>
-                    Email
-                  </th>
-                  <th style={{ padding: "8px 12px", fontWeight: 600, fontSize: 13 }}>
-                    Status
-                  </th>
-                  <th style={{ padding: "8px 12px", fontWeight: 600, fontSize: 13 }}>
-                    Notes
-                  </th>
-                  <th style={{ padding: "8px 12px", fontWeight: 600, fontSize: 13 }}>
-                    Checked In
-                  </th>
-                  {isStaff && (
-                    <th style={{ padding: "8px 12px", fontWeight: 600, fontSize: 13 }}>
-                      Update
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {attendanceSession.records.map((record) => (
-                  <tr
-                    key={record.id}
-                    style={{
-                      borderBottom: "1px solid var(--border, #e5e7eb)",
-                    }}
-                  >
-                    <td style={{ padding: "10px 12px", fontWeight: 500 }}>
-                      {record.user.name}
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 12px",
-                        fontSize: 13,
-                        color: "var(--muted, #6b7280)",
-                      }}
-                    >
-                      {record.user.email}
-                    </td>
-                    <td style={{ padding: "10px 12px" }}>
-                      <span
-                        className="badge"
-                        style={{
-                          display: "inline-block",
-                          padding: "3px 10px",
-                          borderRadius: 12,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: statusColor(record.status),
-                          backgroundColor: statusBg(record.status),
-                        }}
-                      >
-                        {record.status}
-                      </span>
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 12px",
-                        fontSize: 13,
-                        color: "var(--muted, #6b7280)",
-                        maxWidth: 200,
-                      }}
-                    >
-                      {record.notes || "\u2014"}
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 12px",
-                        fontSize: 12,
-                        color: "var(--muted, #9ca3af)",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {record.checkedInAt ? formatTime(record.checkedInAt) : "\u2014"}
-                    </td>
-                    {isStaff && (
-                      <td style={{ padding: "10px 12px" }}>
-                        <form
-                          action={recordAttendance}
-                          style={{
-                            display: "flex",
-                            gap: 6,
-                            alignItems: "center",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <input type="hidden" name="sessionId" value={sessionId} />
-                          <input type="hidden" name="userId" value={record.user.id} />
-                          <select
-                            name="status"
-                            defaultValue={record.status}
-                            style={{
-                              padding: "4px 8px",
-                              borderRadius: 6,
-                              border: "1px solid var(--border, #d1d5db)",
-                              fontSize: 13,
-                            }}
-                          >
-                            <option value="PRESENT">Present</option>
-                            <option value="ABSENT">Absent</option>
-                            <option value="LATE">Late</option>
-                            <option value="EXCUSED">Excused</option>
-                          </select>
-                          <input
-                            name="notes"
-                            type="text"
-                            placeholder="Notes..."
-                            defaultValue={record.notes || ""}
-                            style={{
-                              padding: "4px 8px",
-                              borderRadius: 6,
-                              border: "1px solid var(--border, #d1d5db)",
-                              fontSize: 13,
-                              width: 120,
-                            }}
-                          />
-                          <button
-                            type="submit"
-                            className="btn btn-secondary"
-                            style={{ fontSize: 12, padding: "4px 10px" }}
-                          >
-                            Save
-                          </button>
-                        </form>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {rollCallStudents.length === 0 ? (
+          <div className="empty-state" style={{ padding: "26px 16px" }}>
+            <span className="empty-state-icon" aria-hidden="true">{"\ud83d\udccb"}</span>
+            <p className="empty-state-title">No students on this session yet</p>
+            <p className="empty-state-text">
+              Add students with the form below \u2014 then mark everyone&apos;s
+              attendance in one place and save the whole class at once.
+            </p>
           </div>
+        ) : (
+          <AttendanceRollCall
+            key={rollCallKey}
+            sessionId={sessionId}
+            initialStudents={rollCallStudents}
+          />
         )}
       </div>
 

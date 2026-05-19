@@ -3825,6 +3825,152 @@ a.dash-row:hover {
 }
 
 /* ============================================
+   ATTENDANCE ROLL CALL
+   ============================================ */
+
+.rollcall-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.rollcall-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.rollcall-summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.rollcall-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rollcall-dirty-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--warning-text);
+}
+
+.rollcall-list {
+  display: grid;
+  gap: 8px;
+}
+
+.rollcall-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+
+.rollcall-row-name {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+
+.rollcall-row-name strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rollcall-row-name span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rollcall-status-group {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.rollcall-status-btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  min-height: 36px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.rollcall-status-btn:hover {
+  border-color: var(--ypp-purple-300);
+}
+
+.rollcall-status-btn.active[data-status="PRESENT"] {
+  background: var(--success-bg);
+  border-color: var(--success-color);
+  color: var(--success-text);
+}
+
+.rollcall-status-btn.active[data-status="LATE"] {
+  background: var(--warning-bg);
+  border-color: var(--warning-color);
+  color: var(--warning-text);
+}
+
+.rollcall-status-btn.active[data-status="ABSENT"] {
+  background: var(--error-bg);
+  border-color: var(--error-color);
+  color: var(--error-text);
+}
+
+.rollcall-status-btn.active[data-status="EXCUSED"] {
+  background: var(--info-bg);
+  border-color: var(--info-border);
+  color: var(--info-text);
+}
+
+.rollcall-notes {
+  flex: 1 1 150px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.rollcall-notes:focus {
+  outline: none;
+  border-color: var(--ypp-primary-brand);
+  box-shadow: 0 0 0 3px rgba(107, 33, 200, 0.12);
+}
+
+/* ============================================
    APPLICATION STATUS
    ============================================ */
 
