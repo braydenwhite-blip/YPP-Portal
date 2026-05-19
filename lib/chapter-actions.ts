@@ -388,13 +388,18 @@ export async function createChapterUpdate(formData: FormData) {
   const chapterId = user?.chapterId;
   if (!chapterId) throw new Error("User is not assigned to a chapter");
 
-  const title = formData.get("title") as string;
-  const content = formData.get("content") as string;
+  const title = ((formData.get("title") as string) ?? "").trim();
+  const content = ((formData.get("content") as string) ?? "").trim();
   const isPinned = formData.get("isPinned") === "true";
-  const targetRolesRaw = formData.get("targetRoles") as string;
-  const targetRoles = targetRolesRaw
-    ? (parseRoleTypes(targetRolesRaw.split(",")) as RoleType[])
-    : [];
+  // `<select multiple>` submits one entry per selected option — `formData.get`
+  // would return only the first, silently dropping the rest.
+  const targetRoles = parseRoleTypes(
+    formData.getAll("targetRoles").map((value) => String(value)),
+  ) as RoleType[];
+
+  if (!title || !content) {
+    throw new Error("Title and content are required.");
+  }
 
   const update = await prisma.chapterUpdate.create({
     data: {

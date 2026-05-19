@@ -19,7 +19,7 @@ export default async function ChapterPresidentPage() {
       <div className="page-shell">
         <div className="page-header">
           <div>
-            <p className="badge">Chapter Presidentership</p>
+            <p className="badge">Chapter Leadership</p>
             <h1 className="page-title">Your Chapter President</h1>
           </div>
         </div>
@@ -52,7 +52,7 @@ export default async function ChapterPresidentPage() {
     <div className="page-shell">
       <div className="page-header">
         <div>
-          <p className="badge">Chapter Presidentership</p>
+          <p className="badge">Chapter Leadership</p>
           <h1 className="page-title">Your Chapter President</h1>
           <p className="page-subtitle">{currentUser.chapter.name}</p>
         </div>

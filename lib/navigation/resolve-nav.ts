@@ -1,6 +1,12 @@
 import { CORE_NAV_LIMIT, CORE_NAV_MAP, PRIMARY_ROLE_FALLBACK_ORDER } from "@/lib/navigation/core-map";
 import { NAV_CATALOG } from "@/lib/navigation/catalog";
-import { CHAPTER_PRESIDENT_ALLOWED_HREFS, getVisibleNavGroups } from "@/lib/unlock-nav-groups";
+import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
+import {
+  CHAPTER_PRESIDENT_ALLOWED_HREFS,
+  applyChapterPresidentMinimalSidebarLayout,
+  chapterPresidentMinimalLinkOrderIndex,
+  shouldApplyChapterPresidentNavFilter,
+} from "@/lib/navigation/chapter-president-v1-nav-layout";
 import {
   INSTRUCTOR_V1_ALLOWED_HREFS,
   shouldApplyInstructorV1NavFilter,
@@ -128,13 +134,15 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   CHAPTER_PRESIDENT: [
     "Start Here",
     "Chapters",
+    "Recruiting",
+    "Growth",
+    "Profile & Settings",
     "Progress",
     "People & Support",
     "Learning",
     "Opportunities",
     "Projects",
     "Challenges",
-    "Profile & Settings",
     "Family",
     "Admin People",
     "Admin Content",
@@ -469,10 +477,16 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
         return hiringDemoHrefs.includes(item.href) && hasRoleAccess(item, roles);
       }
 
-      if (ALWAYS_HIDDEN_HREFS.has(item.href)) return false;
+      // Chapter presidents have a dedicated, comprehensive sidebar
+      // (chapter-president-v1-nav-layout.ts). For them the CP allowlist is the
+      // single source of truth — `ALWAYS_HIDDEN_HREFS` (which exists to keep
+      // OTHER roles' sidebars compact by routing chapter pages through the Hub)
+      // does not apply, since the CP gets those pages as first-class nav.
+      const isChapterPresidentNav = shouldApplyChapterPresidentNavFilter(primaryRole);
 
-      // Chapter presidents are temporarily scoped to the hiring/interview pipeline.
-      if (primaryRole === "CHAPTER_PRESIDENT" && !CHAPTER_PRESIDENT_ALLOWED_HREFS.has(item.href)) {
+      if (ALWAYS_HIDDEN_HREFS.has(item.href) && !isChapterPresidentNav) return false;
+
+      if (isChapterPresidentNav && !CHAPTER_PRESIDENT_ALLOWED_HREFS.has(item.href)) {
         return false;
       }
 
@@ -566,12 +580,18 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     primaryRole === "INSTRUCTOR" &&
     shouldApplyInstructorV1NavFilter(primaryRole, input.instructorFullPortalExplorer);
 
+  const chapterPresidentSidebar = shouldApplyChapterPresidentNavFilter(primaryRole);
+
   if (studentMinimalSidebar) {
     visible = visible.map(applyStudentMinimalSidebarLayout);
   }
 
   if (instructorMinimalSidebar) {
     visible = visible.map(applyInstructorMinimalSidebarLayout);
+  }
+
+  if (chapterPresidentSidebar) {
+    visible = visible.map(applyChapterPresidentMinimalSidebarLayout);
   }
 
   const visibleByHref = new Map(visible.map((item) => [item.href, item]));
@@ -632,7 +652,13 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
           ? [...items].sort(
               (a, b) => instructorMinimalLinkOrderIndex(a.href) - instructorMinimalLinkOrderIndex(b.href),
             )
-          : items;
+          : chapterPresidentSidebar
+            ? [...items].sort(
+                (a, b) =>
+                  chapterPresidentMinimalLinkOrderIndex(a.href) -
+                  chapterPresidentMinimalLinkOrderIndex(b.href),
+              )
+            : items;
     return { label, items: sorted };
   });
 

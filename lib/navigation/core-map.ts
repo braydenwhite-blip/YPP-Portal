@@ -69,16 +69,10 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/messages",
   ],
   CHAPTER_PRESIDENT: [
+    // "Shortcuts" row above the grouped CP sidebar. Everything else is
+    // organized into groups by chapter-president-v1-nav-layout.ts.
     "/",
-    "/chapter-lead/dashboard",
-    // /chapter-lead/portal-rollout was here but it's listed in
-    // ALWAYS_HIDDEN_HREFS in resolve-nav.ts, so pinning it silently
-    // dropped one of the 8 core slots. Removed.
-    "/chapter-lead/instructor-applicants",
-    "/chapter-lead/instructor-readiness",
     "/chapter",
-    "/attendance",
-    "/messages",
   ],
   MENTOR: [
     "/",

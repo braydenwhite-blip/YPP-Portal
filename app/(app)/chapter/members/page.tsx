@@ -1,8 +1,9 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
+import { requirePageRoles } from "@/lib/page-guards";
 import { getChapterMembers } from "@/lib/chapter-member-actions";
 import { MemberSearch } from "./member-search";
+
+export const dynamic = "force-dynamic";
 
 const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   CHAPTER_PRESIDENT: { label: "Chapter President", color: "#5a1da8", bg: "#f0e6ff" },
@@ -19,8 +20,7 @@ export default async function ChapterMembersPage({
 }: {
   searchParams: { q?: string };
 }) {
-  const session = await getSession();
-  if (!session?.user?.id) redirect("/login");
+  await requirePageRoles(["CHAPTER_PRESIDENT", "ADMIN"]);
 
   const members = await getChapterMembers(searchParams.q);
 
@@ -38,11 +38,16 @@ export default async function ChapterMembersPage({
     <main className="main-content">
       <div className="page-header">
         <div>
+          <Link href="/chapter" className="back-link">
+            ← Command Center
+          </Link>
           <h1>Chapter Members</h1>
-          <p className="subtitle">{members.length} members</p>
+          <p className="page-subtitle">
+            {members.length} {members.length === 1 ? "member" : "members"} across your chapter
+          </p>
         </div>
-        <Link href="/my-chapter" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
-          ← Chapter Home
+        <Link href="/chapter/invites" className="button" style={{ textDecoration: "none" }}>
+          Invite Members
         </Link>
       </div>
 
@@ -109,22 +114,27 @@ export default async function ChapterMembersPage({
                             flexShrink: 0,
                           }}
                         >
-                          {member.name.charAt(0)}
+                          {(member.name || member.email || "?").charAt(0).toUpperCase()}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{member.name}</p>
-                          <p
+                          <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>
+                            {member.name || "Unnamed member"}
+                          </p>
+                          <a
+                            href={`mailto:${member.email}`}
+                            title={`Email ${member.name || member.email}`}
                             style={{
                               margin: 0,
+                              display: "block",
                               fontSize: 12,
-                              color: "var(--muted)",
+                              color: "var(--ypp-purple)",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
                             }}
                           >
                             {member.email}
-                          </p>
+                          </a>
                           <p style={{ margin: 0, fontSize: 11, color: "var(--muted)" }}>
                             Joined {new Date(member.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                           </p>

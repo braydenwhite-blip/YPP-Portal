@@ -24,6 +24,8 @@ export type NavGroup =
   | "Opportunities"
   | "People & Support"
   | "Chapters"
+  | "Recruiting"
+  | "Growth"
   | "Profile & Settings"
   | "Schedule"
   | "Community"
