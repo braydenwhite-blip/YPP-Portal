@@ -8270,6 +8270,163 @@ select.input {
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
 }
 
+/* Live runner — color legend matching the printed YPP interview guide */
+.live-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 11px 16px;
+  border: 1px solid var(--cockpit-line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(59, 15, 110, 0.08);
+}
+
+.live-legend-title {
+  color: var(--cockpit-soft-ink);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.live-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--cockpit-soft-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.live-legend-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.live-legend-dot.dot-question {
+  background: #1e293b;
+}
+
+.live-legend-dot.dot-followup {
+  background: #2563eb;
+}
+
+.live-legend-dot.dot-learn {
+  background: #f59e0b;
+}
+
+.live-legend-dot.dot-strong {
+  background: #16a34a;
+}
+
+.live-legend-dot.dot-flag {
+  background: #dc2626;
+}
+
+/* Main question prompt block */
+.live-question-prompt-block {
+  display: grid;
+  gap: 8px;
+}
+
+/* Color-coded guidance labels */
+.live-guidance-label.is-question::before {
+  background: #1e293b;
+  opacity: 1;
+}
+
+.live-guidance-label.is-followup::before {
+  background: #2563eb;
+  opacity: 1;
+}
+
+.live-guidance-label.is-learn::before {
+  background: #f59e0b;
+  opacity: 1;
+}
+
+.live-guidance-label.is-note::before {
+  background: #94a3b8;
+  opacity: 1;
+}
+
+.live-guidance-label.is-question {
+  color: var(--cockpit-ink);
+}
+
+.live-guidance-label.is-learn {
+  color: #b45309;
+}
+
+.live-guidance-label.is-followup {
+  color: #1d4ed8;
+}
+
+/* Color-coded callouts */
+.live-guidance-callout.is-learn {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.live-guidance-callout.is-note {
+  border-left-color: #94a3b8;
+  background: #f8fafc;
+  color: var(--cockpit-soft-ink);
+}
+
+/* Strong answers / red flags color tints */
+.live-guidance-grid > div.is-strong {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.live-guidance-grid > div.is-strong h4 {
+  color: #15803d;
+}
+
+.live-guidance-grid > div.is-strong ul {
+  color: #166534;
+}
+
+.live-guidance-grid > div.is-flag {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.live-guidance-grid > div.is-flag h4 {
+  color: #b91c1c;
+}
+
+.live-guidance-grid > div.is-flag ul {
+  color: #991b1b;
+}
+
+/* Follow-up suggestions — blue */
+.live-followup-section .live-followup-suggestions button {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.live-followup-section .live-followup-suggestions button:hover:not(:disabled) {
+  border-color: #2563eb;
+  background: #dbeafe;
+}
+
+/* Field hint line */
+.live-field-hint {
+  margin: 0;
+  color: var(--cockpit-soft-ink);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .cockpit-review-card {
   padding: 16px;
   border: 1px solid var(--cockpit-line);
