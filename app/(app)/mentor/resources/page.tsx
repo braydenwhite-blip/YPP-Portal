@@ -75,7 +75,7 @@ export default async function CuratedResourcesPage({
             href="/mentorship"
             style={{ fontSize: 13, color: "var(--muted)", display: "inline-block", marginBottom: 4 }}
           >
-            &larr; Support Hub
+            &larr; Mentorship
           </Link>
           <h1 className="page-title">Resource Commons</h1>
           <p className="page-subtitle">

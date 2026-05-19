@@ -424,9 +424,10 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/mentorship/reviews",
-      label: "Chair Queue",
+      label: "Review Inbox",
       icon: "✅",
       roles: MENTOR_ROLES,
+      searchAliases: ["Chair Queue", "Review Approvals", "Monthly Review Inbox"],
       dashboardDescription: "Approve or return monthly goal reviews waiting on chair action.",
       dashboardPriority: 6,
     },
@@ -437,6 +438,33 @@ export const NAV_CATALOG: NavLink[] = [
       roles: MENTOR_ROLES,
       dashboardDescription: "Manage availability and confirm session requests from your mentees.",
       dashboardPriority: 8,
+    },
+    {
+      href: "/mentor/feedback",
+      label: "Feedback Portal",
+      icon: "💬",
+      roles: MENTOR_ROLES,
+      searchAliases: ["Mentee Feedback", "Feedback Requests", "Review Work"],
+      dashboardDescription: "Respond to private feedback requests on mentee projects, drafts, and work samples.",
+      dashboardPriority: 9,
+    },
+    {
+      href: "/mentor/ask",
+      label: "Ask a Mentor",
+      icon: "❓",
+      roles: MENTOR_ROLES,
+      searchAliases: ["Mentor Commons", "Mentor Q&A", "Answer Questions"],
+      dashboardDescription: "Answer public questions and grow the shared mentor knowledge commons.",
+      dashboardPriority: 10,
+    },
+    {
+      href: "/mentor/resources",
+      label: "Mentor Resources",
+      icon: "📚",
+      roles: MENTOR_ROLES,
+      searchAliases: ["Resource Commons", "Mentor Playbooks"],
+      dashboardDescription: "Search and publish shared playbooks, templates, and resources from mentoring work.",
+      dashboardPriority: 11,
     },
     // /mentorship/unlock-sections is intentionally not surfaced in top-level
     // nav -- it's a rare, contextual action accessed from a mentee's workspace.
@@ -465,13 +493,9 @@ export const NAV_CATALOG: NavLink[] = [
     //                                    mentee detail page; mentee surface
     //                                    is the monthly self-reflection form
     //                                    accessed from the mentee dashboard.
-    {
-      href: "/mentorship-program/chair",
-      label: "Chair Queue",
-      icon: "✅",
-      roles: ["ADMIN"] as NavRole[],
-      dashboardDescription: "Approve or request changes on mentor goal reviews before they are released.",
-    },
+    // /mentorship-program/chair removed from nav — it is a legacy redirect to
+    // /mentorship/reviews, which already surfaces for ADMIN via MENTOR_ROLES.
+    // Two "Chair Queue" entries created a duplicate visible label for admins.
     {
       href: "/mentorship-program/awards",
       label: "Awards",
@@ -563,7 +587,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 20,
     },
     { href: "/check-in", label: "Check-In", icon: "✔", roles: STUDENT_ONLY },
-    { href: "/mentor/resources", label: "Mentor Resources", icon: "📚", roles: MENTOR_ROLES },
     {
       href: "/attendance",
       label: "Attendance",

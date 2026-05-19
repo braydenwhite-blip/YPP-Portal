@@ -26,7 +26,7 @@ function isKind(value: string): value is ApplicantSubmissionKind {
  */
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { kind: string; id: string } }
+  { params }: { params: Promise<{ kind: string; id: string }> }
 ) {
   const session = await getSession();
   if (!session?.user?.id) {
@@ -36,7 +36,7 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { kind, id } = params;
+  const { kind, id } = await params;
   if (!isKind(kind)) {
     return NextResponse.json(
       { error: `Invalid kind. Must be one of: ${KINDS.join(", ")}` },

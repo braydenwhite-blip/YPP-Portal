@@ -6,6 +6,17 @@ import {
   getHiringDemoHomeHref,
   isHiringDemoModeEnabled,
 } from "@/lib/hiring-demo-mode";
+import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
+import { getMyClassesHubData } from "@/lib/student-class-portal";
+import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
+import {
+  getUnreadDirectMessageCountCached,
+  getUnreadNotificationCountCached,
+} from "@/lib/server-request-cache";
+import type { ActivePathwaySummary } from "@/lib/dashboard/types";
+import StudentDashboard, {
+  type StudentHomeNextSession,
+} from "@/components/dashboard/student-dashboard";
 
 // Roles that work the hiring pipeline and should land on the applicant board.
 const REVIEWER_ROLES = ["ADMIN", "HIRING_CHAIR", "CHAPTER_PRESIDENT"];
@@ -103,6 +114,104 @@ function ApplicantHome({ name }: { name: string }) {
   );
 }
 
+/** "16:00" -> "4:00 PM". Passes through anything that isn't HH:MM. */
+function formatTime(raw: string): string {
+  const match = /^(\d{1,2}):(\d{2})/.exec(raw.trim());
+  if (!match) return raw;
+  let hour = Number(match[1]);
+  const minute = match[2];
+  const meridiem = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${hour}:${minute} ${meridiem}`;
+}
+
+function relativeDayLabel(
+  date: Date,
+  now: Date,
+): { label: string; isToday: boolean } {
+  const startOfDay = (value: Date) => {
+    const next = new Date(value);
+    next.setHours(0, 0, 0, 0);
+    return next;
+  };
+  const diffDays = Math.round(
+    (startOfDay(date).getTime() - startOfDay(now).getTime()) / 86_400_000,
+  );
+  if (diffDays === 0) return { label: "Today", isToday: true };
+  if (diffDays === 1) return { label: "Tomorrow", isToday: false };
+  return {
+    label: new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(date),
+    isToday: false,
+  };
+}
+
+async function StudentHomeView({ userId, name }: { userId: string; name: string }) {
+  const now = new Date();
+  const [snapshot, hub, journey, unreadNotifications, unreadMessages] =
+    await Promise.all([
+      getStudentProgressSnapshot(userId).catch(() => null),
+      getMyClassesHubData(userId).catch(() => null),
+      getStudentChapterJourneyData(userId).catch(() => null),
+      getUnreadNotificationCountCached(userId).catch(() => 0),
+      getUnreadDirectMessageCountCached(userId).catch(() => 0),
+    ]);
+
+  const hour = now.getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const todayDateLabel = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(now);
+
+  let nextSession: StudentHomeNextSession | null = null;
+  if (hub?.nextSession) {
+    const session = hub.nextSession;
+    const { label, isToday } = relativeDayLabel(session.date, now);
+    nextSession = {
+      classTitle: session.classTitle,
+      topic: session.topic,
+      dateLabel: label,
+      timeLabel: `${formatTime(session.startTime)} – ${formatTime(session.endTime)}`,
+      isToday,
+      classHref: `/curriculum/${session.offeringId}`,
+      zoomLink: session.zoomLink,
+      instructorName: session.instructorName,
+    };
+  }
+
+  const pathways: ActivePathwaySummary[] = (journey?.visiblePathways ?? [])
+    .filter((pathway) => pathway.isEnrolled || pathway.completedCount > 0)
+    .slice(0, 4)
+    .map((pathway) => ({
+      id: pathway.id,
+      name: pathway.name,
+      interestArea: pathway.interestArea,
+      progressPercent: pathway.progressPercent,
+      completedCount: pathway.completedCount,
+      totalCount: pathway.totalCount,
+      nextStepTitle: pathway.nextRecommendedStep?.title ?? null,
+    }));
+
+  return (
+    <StudentDashboard
+      firstName={name}
+      greeting={greeting}
+      todayDateLabel={todayDateLabel}
+      unreadMessages={unreadMessages}
+      unreadNotifications={unreadNotifications}
+      snapshot={snapshot}
+      nextSession={nextSession}
+      pathways={pathways}
+    />
+  );
+}
+
 export default async function OverviewPage() {
   const session = await getSession();
 
@@ -123,5 +232,13 @@ export default async function OverviewPage() {
   const isReviewer = roles.some((role) => REVIEWER_ROLES.includes(role));
   const name = firstName(session.user.name);
 
-  return isReviewer ? <ReviewerHome name={name} /> : <ApplicantHome name={name} />;
+  if (isReviewer) {
+    return <ReviewerHome name={name} />;
+  }
+
+  if (roles.includes("STUDENT")) {
+    return <StudentHomeView userId={session.user.id} name={name} />;
+  }
+
+  return <ApplicantHome name={name} />;
 }

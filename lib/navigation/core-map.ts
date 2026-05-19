@@ -78,9 +78,10 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/",
     "/mentorship",
     "/mentorship/mentees",
+    "/mentorship/schedule",
+    "/mentor/feedback",
     "/mentor/resources",
     "/office-hours",
-    "/events",
     "/messages",
   ],
   STAFF: [
