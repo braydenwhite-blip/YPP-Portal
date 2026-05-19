@@ -1,12 +1,12 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
+import { requirePageRoles } from "@/lib/page-guards";
 import { getChapterInvites, getChapterReferralStats } from "@/lib/chapter-invite-actions";
 import { InviteManager } from "./invite-manager";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function ChapterInvitesPage() {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  await requirePageRoles(["CHAPTER_PRESIDENT", "ADMIN"]);
 
   const [invites, referralStats] = await Promise.all([
     getChapterInvites(),

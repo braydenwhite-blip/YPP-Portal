@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
+import { requirePageRoles } from "@/lib/page-guards";
 import {
   getChapterMarketing,
   addMarketingStats,
@@ -7,9 +6,10 @@ import {
 } from "@/lib/chapter-actions";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function ChapterMarketingPage() {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  await requirePageRoles(["CHAPTER_PRESIDENT", "ADMIN"]);
 
   const { stats, goals } = await getChapterMarketing();
 
