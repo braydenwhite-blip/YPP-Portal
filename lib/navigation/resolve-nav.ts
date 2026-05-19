@@ -84,6 +84,7 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   ],
   INSTRUCTOR: [
     "Start Here",
+    "Teach",
     "Progress",
     "People & Support",
     "Chapters",

@@ -24,6 +24,7 @@ export const PARENT_ALWAYS_VISIBLE_GROUPS: NavGroup[] = [
 // Nav groups always visible for instructors. Everything else is hidden by default.
 export const INSTRUCTOR_ALWAYS_VISIBLE_GROUPS: NavGroup[] = [
   "Start Here",
+  "Teach",
   "Progress",
   "People & Support",
   "Chapters",
