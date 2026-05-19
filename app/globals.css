@@ -12350,3 +12350,259 @@ select.input {
 .table-scroll .table {
   min-width: 560px;
 }
+
+/* ============================================
+   CHAPTER — INSTRUCTOR DETAIL
+   Layout + components for /chapter/instructors/[id].
+   ============================================ */
+.instructor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.instructor-grid .main-column,
+.instructor-grid .side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+@media (max-width: 880px) {
+  .instructor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.instructor-grid section.card h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.instructor-grid .profile-info p,
+.instructor-grid .bio p {
+  margin: 4px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.instructor-grid .bio {
+  margin-top: 12px;
+}
+
+.instructor-grid .curriculum-link {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ypp-purple);
+}
+
+.instructor-grid .goals-list,
+.instructor-grid .reflections-list,
+.instructor-grid .training-list,
+.instructor-grid .history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.instructor-grid .goal-item {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.instructor-grid .goal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.instructor-grid .goal-header h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.instructor-grid .goal-header .target,
+.instructor-grid .progress-meta,
+.instructor-grid .history-item .date {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.instructor-grid .goal-desc,
+.instructor-grid .comment,
+.instructor-grid .history-comment {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 6px 0;
+}
+
+.instructor-grid .progress-section {
+  margin-top: 8px;
+}
+
+.instructor-grid .history {
+  margin-top: 8px;
+}
+
+.instructor-grid .history > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ypp-purple);
+  font-weight: 600;
+}
+
+.instructor-grid .history-item {
+  padding: 8px 0;
+  border-top: 1px solid var(--border-light);
+}
+
+.instructor-grid .reflection-item > summary {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.instructor-grid .reflection-content {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.instructor-grid .response .question {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 2px;
+}
+
+.instructor-grid .response .answer {
+  font-size: 14px;
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.instructor-grid .rating .star {
+  color: var(--border);
+}
+
+.instructor-grid .rating .star.filled {
+  color: #f59e0b;
+}
+
+/* Training progress ring */
+.training-circle {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.training-circle .circle {
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  margin: 0 auto;
+  background: conic-gradient(
+    var(--ypp-purple) var(--progress, 0%),
+    var(--border) 0
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.training-circle .circle .percent {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--ypp-purple);
+}
+
+.training-circle .training-label {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.instructor-grid .training-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.instructor-grid .training-item .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.instructor-grid .training-item .dot.complete {
+  background: #16a34a;
+}
+
+.instructor-grid .training-item .dot.in-progress {
+  background: #f59e0b;
+}
+
+.instructor-grid .levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.instructor-grid .level-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-alt, #f1f5f9);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.instructor-grid .courses-list,
+.instructor-grid .awards-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.instructor-grid .courses-list li,
+.instructor-grid .awards-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.instructor-grid .courses-list .enrolled,
+.instructor-grid .awards-list .award-date {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.instructor-grid .mentor-info p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}

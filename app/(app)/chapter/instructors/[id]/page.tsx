@@ -1,16 +1,17 @@
-import { redirect, notFound } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
+import { notFound } from "next/navigation";
+import { requirePageRoles } from "@/lib/page-guards";
 import { getInstructorDetail } from "@/lib/chapter-actions";
 import Link from "next/link";
 import { ProgressBar } from "@/components/progress-bar";
+
+export const dynamic = "force-dynamic";
 
 export default async function InstructorDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  await requirePageRoles(["CHAPTER_PRESIDENT", "ADMIN", "MENTOR"]);
 
   const instructor = await getInstructorDetail(params.id);
 
@@ -66,7 +67,8 @@ export default async function InstructorDetailPage({
         </div>
         <Link
           href={`/mentorship/reviews/${instructor.id}`}
-          className="btn btn-primary"
+          className="button"
+          style={{ textDecoration: "none" }}
         >
           Open Monthly Review
         </Link>
@@ -221,7 +223,7 @@ export default async function InstructorDetailPage({
                                   <span
                                     key={n}
                                     className={
-                                      n <= parseInt(resp.value)
+                                      n <= (Number.parseInt(resp.value, 10) || 0)
                                         ? "star filled"
                                         : "star"
                                     }
