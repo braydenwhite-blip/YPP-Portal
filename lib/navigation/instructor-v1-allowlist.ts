@@ -1,15 +1,21 @@
 import type { NavRole } from "@/lib/navigation/types";
 
 /** Bump when the href set changes so dashboard cache partitions stay correct. */
-export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "5";
+export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "6";
 
 /**
- * Default instructor nav: training, teaching ops, scheduling, updates, program hub, chapter, account.
- * Awards, interviews, growth, college tools, events, journey, etc. stay off the sidebar unless
+ * Default instructor nav: a dedicated Teach section (workspace, curriculum,
+ * lesson plans, class settings), training, teaching ops, scheduling, updates,
+ * program hub, chapter, account. Awards, interviews, growth, college tools,
+ * events, journey, etc. stay off the sidebar unless
  * `INSTRUCTOR_FULL_PORTAL_EXPLORER` is enabled (full catalog within visible nav groups).
  */
 export const INSTRUCTOR_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/",
+  "/instructor/workspace",
+  "/instructor/curriculum-builder",
+  "/lesson-plans",
+  "/instructor/class-settings",
   "/instructor-training",
   "/instructor/lesson-design-studio",
   "/instructor/workshop-design-studio",

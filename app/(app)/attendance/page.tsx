@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 import {
   createAttendanceSession,
   getAttendanceSessions,
@@ -60,7 +61,7 @@ export default async function AttendancePage() {
     roles.includes("CHAPTER_PRESIDENT");
 
   if (isStaff) {
-    return <StaffView />;
+    return <StaffView userId={session.user.id} />;
   }
 
   return <StudentView />;
@@ -70,8 +71,17 @@ export default async function AttendancePage() {
    STAFF VIEW: Session management
    ============================================ */
 
-async function StaffView() {
-  const sessions = await getAttendanceSessions();
+async function StaffView({ userId }: { userId: string }) {
+  const [sessions, courses] = await Promise.all([
+    getAttendanceSessions(),
+    prisma.course
+      .findMany({
+        where: { leadInstructorId: userId },
+        select: { id: true, title: true },
+        orderBy: { title: "asc" },
+      })
+      .catch(() => [] as { id: string; title: string }[]),
+  ]);
 
   return (
     <div className="main-content">
@@ -112,6 +122,36 @@ async function StaffView() {
                 }}
               />
             </div>
+            {courses.length > 0 && (
+              <div className="form-group" style={{ flex: "1 1 200px" }}>
+                <label
+                  htmlFor="courseId"
+                  style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}
+                >
+                  Link to a Class (optional)
+                </label>
+                <select
+                  id="courseId"
+                  name="courseId"
+                  defaultValue=""
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border, #d1d5db)",
+                    fontSize: 14,
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <option value="">— No class —</option>
+                  {courses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="form-group" style={{ flex: "0 1 200px" }}>
               <label
                 htmlFor="date"

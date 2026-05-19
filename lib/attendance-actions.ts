@@ -305,7 +305,7 @@ export async function bulkRecordAttendance(formData: FormData) {
     throw new Error("Attendance session not found");
   }
 
-  let records: { userId: string; status: AttendanceStatus }[];
+  let records: { userId: string; status: AttendanceStatus; notes?: string | null }[];
   try {
     records = JSON.parse(recordsJson);
   } catch {
@@ -327,8 +327,12 @@ export async function bulkRecordAttendance(formData: FormData) {
   }
 
   await prisma.$transaction(
-    records.map((record) =>
-      prisma.attendanceRecord.upsert({
+    records.map((record) => {
+      const notes =
+        typeof record.notes === "string" && record.notes.trim()
+          ? record.notes.trim()
+          : null;
+      return prisma.attendanceRecord.upsert({
         where: {
           sessionId_userId: { sessionId, userId: record.userId },
         },
@@ -336,13 +340,15 @@ export async function bulkRecordAttendance(formData: FormData) {
           sessionId,
           userId: record.userId,
           status: record.status,
+          notes,
         },
         update: {
           status: record.status,
+          notes,
           checkedInAt: new Date(),
         },
-      })
-    )
+      });
+    })
   );
 
   revalidatePath("/attendance");

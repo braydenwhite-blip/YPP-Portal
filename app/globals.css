@@ -101,6 +101,28 @@
   --border-light: var(--ypp-line-soft);
   --focus-ring: var(--ypp-purple-400);
 
+  /* Semantic status tokens — previously referenced but never defined,
+     which made several instructor surfaces render with invalid colors. */
+  --primary-color: var(--ypp-purple-600);
+  --primary: var(--ypp-purple-600);
+  --border-color: var(--border);
+  --success-color: #15803d;
+  --success-bg: #f0fdf4;
+  --success-border: #bbf7d0;
+  --success-text: #166534;
+  --warning-color: #b45309;
+  --warning-bg: #fffbeb;
+  --warning-border: #fcd34d;
+  --warning-text: #92400e;
+  --error-color: #dc2626;
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+  --error-text: #991b1b;
+  --info-bg: #eff6ff;
+  --info-border: #bfdbfe;
+  --info-text: #1e40af;
+  --surface-warm: #fbfaf7;
+
   /* Shadows — purple-tinted like marketing site */
   --shadow-xs: 0 1px 3px rgba(15, 23, 42, 0.06);
   --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.08);
@@ -3248,6 +3270,707 @@ select.input {
 }
 
 /* ============================================
+   SHARED TEACHING-UI UTILITIES
+   Foundational classes that replace repeated inline styling
+   across the instructor surfaces.
+   ============================================ */
+
+/* Active state for tab-style buttons (replaces inline color hacks). */
+.button.active,
+.button.secondary.active {
+  background: var(--ypp-purple-600);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(107, 33, 200, 0.3);
+}
+
+/* Segmented control / tab strip */
+.seg-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--ypp-purple-50);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+}
+
+.seg-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.seg-tab:hover {
+  color: var(--ypp-purple-700);
+}
+
+.seg-tab.active {
+  background: var(--surface);
+  color: var(--ypp-purple-700);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Horizontal-scroll wrapper so data tables never break mobile layout. */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md);
+}
+
+/* A button/action row that always wraps gracefully. */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Progress bar. */
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background: var(--gray-200);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--ypp-purple-600);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow);
+}
+
+.progress-fill.is-success {
+  background: var(--success-color);
+}
+
+.progress-fill.is-warning {
+  background: var(--warning-color);
+}
+
+/* Skeleton loading shimmer. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--gray-200);
+  border-radius: var(--radius-sm);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.65),
+    transparent
+  );
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-text {
+  height: 12px;
+  margin: 8px 0;
+}
+
+.skeleton-card {
+  height: 130px;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+}
+
+/* Empty state — guidance instead of a dead end. */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 40px 28px;
+}
+
+.empty-state-icon {
+  font-size: 30px;
+  margin-bottom: 4px;
+}
+
+.empty-state-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.empty-state-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 440px;
+  line-height: 1.55;
+}
+
+.empty-state .button {
+  margin-top: 14px;
+}
+
+/* Callout banners — consistent info/warning/success/error messaging. */
+.callout {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.callout-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.callout.is-warning {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
+}
+
+.callout.is-success {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success-text);
+}
+
+.callout.is-error {
+  background: var(--error-bg);
+  border-color: var(--error-border);
+  color: var(--error-text);
+}
+
+.callout.is-info {
+  background: var(--info-bg);
+  border-color: var(--info-border);
+  color: var(--info-text);
+}
+
+/* ============================================
+   INSTRUCTOR COMMAND-CENTER DASHBOARD
+   ============================================ */
+
+.dash {
+  display: grid;
+  gap: 20px;
+}
+
+.dash-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 26px 28px;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(
+    135deg,
+    var(--ypp-purple-800) 0%,
+    var(--ypp-purple-600) 55%,
+    var(--ypp-mid) 100%
+  );
+  color: #fff;
+  box-shadow: var(--shadow-md);
+}
+
+.dash-hero-greeting {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.dash-hero-date {
+  margin: 5px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.dash-hero-status {
+  margin: 14px 0 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.95);
+  max-width: 470px;
+}
+
+.dash-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dash-hero-actions .button {
+  margin-top: 0;
+  width: auto;
+}
+
+.dash-hero-actions .button.secondary {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  box-shadow: none;
+}
+
+.dash-hero-actions .button.secondary:hover {
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+
+.dash-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.dash-section-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.dash-section-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ypp-purple-600);
+  white-space: nowrap;
+}
+
+/* Action queue */
+.action-list {
+  display: grid;
+  gap: 10px;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 15px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+a.action-item:hover {
+  border-color: var(--ypp-purple-300);
+  box-shadow: var(--shadow-xs);
+  transform: translateX(2px);
+}
+
+.action-item-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 17px;
+  background: var(--ypp-purple-100);
+}
+
+.action-item.is-critical .action-item-icon {
+  background: var(--error-bg);
+}
+
+.action-item.is-high .action-item-icon {
+  background: var(--warning-bg);
+}
+
+.action-item.is-info .action-item-icon {
+  background: var(--info-bg);
+}
+
+.action-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.action-item-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.action-item-detail {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.action-item-tag {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 9px;
+  border-radius: var(--radius-full);
+  background: var(--ypp-purple-100);
+  color: var(--ypp-purple-700);
+}
+
+.action-item-tag.is-critical {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
+.action-item-tag.is-high {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.action-item-tag.is-info {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+
+/* List rows — sessions / classes */
+.dash-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+a.dash-row:hover {
+  border-color: var(--ypp-purple-300);
+  box-shadow: var(--shadow-xs);
+}
+
+.dash-row-date {
+  flex-shrink: 0;
+  width: 50px;
+  text-align: center;
+  border-radius: var(--radius-sm);
+  background: var(--ypp-purple-50);
+  padding: 6px 4px;
+}
+
+.dash-row-date-month {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ypp-purple-600);
+}
+
+.dash-row-date-day {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ypp-purple-800);
+}
+
+.dash-row-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-row-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-row-meta {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.dash-row-aside {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ypp-purple-700);
+  white-space: nowrap;
+}
+
+/* Tool grid */
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 10px;
+}
+
+.tool-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.tool-tile:hover {
+  border-color: var(--ypp-purple-300);
+  box-shadow: var(--shadow-xs);
+  transform: translateY(-2px);
+}
+
+.tool-tile-icon {
+  font-size: 20px;
+}
+
+.tool-tile-label {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.tool-tile-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Impact stats */
+.impact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.impact-stat {
+  padding: 16px 14px;
+  border-radius: var(--radius-md);
+  background: var(--ypp-purple-50);
+  text-align: center;
+}
+
+.impact-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ypp-purple-800);
+  line-height: 1;
+}
+
+.impact-stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+
+@media (max-width: 600px) {
+  .dash-hero {
+    padding: 20px;
+  }
+
+  .dash-hero-greeting {
+    font-size: 21px;
+  }
+
+  .action-item-detail {
+    font-size: 12.5px;
+  }
+}
+
+/* ============================================
+   ATTENDANCE ROLL CALL
+   ============================================ */
+
+.rollcall-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.rollcall-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.rollcall-summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.rollcall-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rollcall-dirty-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--warning-text);
+}
+
+.rollcall-list {
+  display: grid;
+  gap: 8px;
+}
+
+.rollcall-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+
+.rollcall-row-name {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+
+.rollcall-row-name strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rollcall-row-name span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rollcall-status-group {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.rollcall-status-btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  min-height: 36px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.rollcall-status-btn:hover {
+  border-color: var(--ypp-purple-300);
+}
+
+.rollcall-status-btn.active[data-status="PRESENT"] {
+  background: var(--success-bg);
+  border-color: var(--success-color);
+  color: var(--success-text);
+}
+
+.rollcall-status-btn.active[data-status="LATE"] {
+  background: var(--warning-bg);
+  border-color: var(--warning-color);
+  color: var(--warning-text);
+}
+
+.rollcall-status-btn.active[data-status="ABSENT"] {
+  background: var(--error-bg);
+  border-color: var(--error-color);
+  color: var(--error-text);
+}
+
+.rollcall-status-btn.active[data-status="EXCUSED"] {
+  background: var(--info-bg);
+  border-color: var(--info-border);
+  color: var(--info-text);
+}
+
+.rollcall-notes {
+  flex: 1 1 150px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.rollcall-notes:focus {
+  outline: none;
+  border-color: var(--ypp-primary-brand);
+  box-shadow: 0 0 0 3px rgba(107, 33, 200, 0.12);
+}
+
+/* ============================================
    .btn — inline button primitive
    Used ~140x across the app (messages, notifications, etc.) but was
    previously undefined, so those controls rendered as raw browser
@@ -4266,9 +4989,9 @@ select.input {
     padding-top: 72px;
   }
 
-  .grid.two,
-  .grid.three {
-    grid-template-columns: 1fr;
+  .grid.three,
+  .grid.four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .quick-actions {
@@ -4329,6 +5052,8 @@ select.input {
 }
 
 @media (max-width: 600px) {
+  .grid.two,
+  .grid.three,
   .grid.four {
     grid-template-columns: 1fr;
   }
@@ -6985,24 +7710,7 @@ select.input {
   white-space: nowrap;
 }
 
-/* Grid four helper for instructor readiness */
-.grid.four {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 900px) {
-  .grid.four {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 480px) {
-  .grid.four {
-    grid-template-columns: 1fr;
-  }
-
   .admin-quick-actions {
     bottom: 16px;
     right: 16px;
