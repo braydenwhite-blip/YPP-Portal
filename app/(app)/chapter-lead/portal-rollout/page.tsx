@@ -29,7 +29,7 @@ function buildChapterFallbackTasks({
 }): RolloutTask[] {
   return [
     {
-      phase: "Chapter Presidentership Alignment",
+      phase: "Chapter Leadership Alignment",
       owner: "Chapter President",
       dueDate: "2026-02-20",
       status: "IN_PROGRESS",

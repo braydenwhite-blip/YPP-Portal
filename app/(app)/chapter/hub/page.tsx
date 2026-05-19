@@ -53,7 +53,7 @@ const LINKS: HubLink[] = [
   },
   {
     href: "/chapters/leaderboard",
-    label: "Chapter Presidenterboard",
+    label: "Chapter Leaderboard",
     icon: "🏆",
     description: "Compare chapter growth across the network.",
   },

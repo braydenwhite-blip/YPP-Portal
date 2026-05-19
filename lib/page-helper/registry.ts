@@ -1088,7 +1088,7 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/chapter/leaderboard",
-    title: "Chapter Presidenterboard",
+    title: "Chapter Leaderboard",
     content: {
       purpose: "This page gives you a clear view of the chapter presidenterboard so you can spot what needs attention first.",
       firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
@@ -1250,7 +1250,7 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/chapters/leaderboard",
-    title: "Chapter Presidenterboard",
+    title: "Chapter Leaderboard",
     content: {
       purpose: "This page gives you a clear view of the chapter presidenterboard so you can spot what needs attention first.",
       firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",

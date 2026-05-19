@@ -8,14 +8,18 @@ export function AddMilestoneForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(formData: FormData) {
+    setError(null);
     try {
       await createCustomMilestone(formData);
       setShowForm(false);
       startTransition(() => router.refresh());
-    } catch {
-      // ignore
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not create the milestone.",
+      );
     }
   }
 
@@ -30,6 +34,22 @@ export function AddMilestoneForm() {
   return (
     <div className="card">
       <h3 style={{ margin: "0 0 12px" }}>Add Custom Milestone</h3>
+      {error && (
+        <p
+          role="alert"
+          style={{
+            margin: "0 0 12px",
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#b91c1c",
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </p>
+      )}
       <form action={handleSubmit}>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div className="grid two">
