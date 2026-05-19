@@ -6,7 +6,7 @@ import { withPrismaFallback } from "@/lib/prisma-guard";
 import {
   sourceTypeLabel,
   submissionStatusLabel,
-  submissionStatusTone,
+  workshopStatusPalette,
 } from "@/lib/workshop-proposal-constants";
 import type {
   WorkshopProposalSourceType,
@@ -17,14 +17,34 @@ import { ReviewQueueFilters } from "./filters";
 const COLUMNS: {
   status: WorkshopProposalSubmissionStatus;
   label: string;
-  dotColor: string;
 }[] = [
-  { status: "SUBMITTED",         label: "New submissions",   dotColor: "#6366f1" },
-  { status: "IN_REVIEW",         label: "In review",         dotColor: "#0ea5e9" },
-  { status: "CHANGES_REQUESTED", label: "Changes requested", dotColor: "#f59e0b" },
-  { status: "APPROVED",          label: "Approved",          dotColor: "#16a34a" },
-  { status: "REJECTED",          label: "Rejected",          dotColor: "#71717a" },
+  { status: "SUBMITTED",         label: "New submissions" },
+  { status: "IN_REVIEW",         label: "In review" },
+  { status: "CHANGES_REQUESTED", label: "Changes requested" },
+  { status: "APPROVED",          label: "Approved" },
+  { status: "REJECTED",          label: "Rejected" },
 ];
+
+/**
+ * Whole days a submission has been waiting in the reviewer queue. Returns
+ * null when there's no submit timestamp (legacy rows).
+ */
+function queueWaitDays(submittedAt: Date | null): number | null {
+  if (!submittedAt) return null;
+  const ms = Date.now() - new Date(submittedAt).getTime();
+  return Math.max(0, Math.floor(ms / 86_400_000));
+}
+
+/**
+ * Traffic-light tone for queue wait time: green within target, yellow as it
+ * slips, red once it's clearly overdue — keeps the "we aim to read within a
+ * few days" promise visible to reviewers triaging the inbox.
+ */
+function waitTone(days: number): { surface: string; ink: string; border: string } {
+  if (days <= 3) return { surface: "#f0fdf4", ink: "#166534", border: "#bbf7d0" };
+  if (days <= 7) return { surface: "#fffbeb", ink: "#92400e", border: "#fde68a" };
+  return { surface: "#fef2f2", ink: "#991b1b", border: "#fecaca" };
+}
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -260,17 +280,31 @@ export default async function WorkshopReviewsPage({
         <Link
           href="?status=SUBMITTED"
           className="card"
-          style={{ textDecoration: "none", color: "inherit", display: "block" }}
+          style={{
+            textDecoration: "none",
+            color: "inherit",
+            display: "block",
+            borderLeft: "4px solid #6b21c8",
+          }}
         >
-          <div className="kpi">{counts.awaitingReview}</div>
+          <div className="kpi" style={{ color: "#6b21c8" }}>
+            {counts.awaitingReview}
+          </div>
           <div className="kpi-label">Awaiting review</div>
         </Link>
         <Link
           href="?status=CHANGES_REQUESTED"
           className="card"
-          style={{ textDecoration: "none", color: "inherit", display: "block" }}
+          style={{
+            textDecoration: "none",
+            color: "inherit",
+            display: "block",
+            borderLeft: "4px solid #d97706",
+          }}
         >
-          <div className="kpi">{counts.changesRequested}</div>
+          <div className="kpi" style={{ color: "#d97706" }}>
+            {counts.changesRequested}
+          </div>
           <div className="kpi-label">Changes requested</div>
         </Link>
         <Link
@@ -280,10 +314,17 @@ export default async function WorkshopReviewsPage({
             textDecoration: "none",
             color: "inherit",
             display: "block",
-            borderColor: counts.approvedUnplaced > 0 ? "#f59e0b" : undefined,
+            borderLeft: `4px solid ${
+              counts.approvedUnplaced > 0 ? "#d97706" : "#16a34a"
+            }`,
           }}
         >
-          <div className="kpi">{counts.approvedUnplaced}</div>
+          <div
+            className="kpi"
+            style={{ color: counts.approvedUnplaced > 0 ? "#d97706" : "#16a34a" }}
+          >
+            {counts.approvedUnplaced}
+          </div>
           <div className="kpi-label">Approved · not yet placed</div>
         </Link>
         <div className="card">
@@ -312,6 +353,7 @@ export default async function WorkshopReviewsPage({
       >
         {visibleColumns.map((col) => {
           const list = grouped.get(col.status) ?? [];
+          const palette = workshopStatusPalette(col.status);
           return (
             <div key={col.status}>
               <div
@@ -320,6 +362,10 @@ export default async function WorkshopReviewsPage({
                   alignItems: "center",
                   gap: 6,
                   marginBottom: 10,
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                  background: palette.surface,
+                  border: `1px solid ${palette.border}`,
                 }}
               >
                 <span
@@ -327,12 +373,24 @@ export default async function WorkshopReviewsPage({
                     width: 10,
                     height: 10,
                     borderRadius: "50%",
-                    background: col.dotColor,
+                    background: palette.accent,
                     display: "inline-block",
                   }}
                 />
-                <span style={{ fontWeight: 600, fontSize: 13 }}>
-                  {col.label} ({list.length})
+                <span
+                  style={{ fontWeight: 700, fontSize: 13, color: palette.ink }}
+                >
+                  {col.label}
+                </span>
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: palette.ink,
+                  }}
+                >
+                  {list.length}
                 </span>
               </div>
               <div style={{ display: "grid", gap: 10 }}>
@@ -400,24 +458,16 @@ export default async function WorkshopReviewsPage({
                         );
                       })()}
                       {(() => {
-                        const tone = submissionStatusTone(s.status);
-                        const toneStyle: Record<typeof tone, { bg: string; fg: string }> = {
-                          neutral: { bg: "var(--surface-alt, #f3f4f6)", fg: "var(--ink, #111827)" },
-                          info:    { bg: "#eff6ff", fg: "#1d4ed8" },
-                          warn:    { bg: "#fffbeb", fg: "#92400e" },
-                          success: { bg: "#dcfce7", fg: "#166534" },
-                          danger:  { bg: "#fef2f2", fg: "#991b1b" },
-                        };
-                        const palette = toneStyle[tone];
+                        const palette = workshopStatusPalette(s.status);
                         return (
                           <span
                             className="pill pill-small"
                             style={{
                               marginTop: 8,
                               display: "inline-block",
-                              background: palette.bg,
-                              color: palette.fg,
-                              border: "1px solid currentColor",
+                              background: palette.surface,
+                              color: palette.ink,
+                              border: `1px solid ${palette.border}`,
                             }}
                           >
                             {submissionStatusLabel(s.status)}
@@ -455,6 +505,32 @@ export default async function WorkshopReviewsPage({
                           {new Date(s.submittedAt).toLocaleDateString()}
                         </p>
                       ) : null}
+                      {col.status === "SUBMITTED" ||
+                      col.status === "IN_REVIEW"
+                        ? (() => {
+                            const days = queueWaitDays(s.submittedAt);
+                            if (days == null) return null;
+                            const t = waitTone(days);
+                            return (
+                              <span
+                                className="pill pill-small"
+                                style={{
+                                  marginTop: 6,
+                                  display: "inline-block",
+                                  background: t.surface,
+                                  color: t.ink,
+                                  border: `1px solid ${t.border}`,
+                                }}
+                              >
+                                {days === 0
+                                  ? "In queue today"
+                                  : `Waiting ${days} day${
+                                      days === 1 ? "" : "s"
+                                    }`}
+                              </span>
+                            );
+                          })()
+                        : null}
                     </Link>
                   ))
                 )}

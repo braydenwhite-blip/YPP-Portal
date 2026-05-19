@@ -28,6 +28,7 @@ import {
   getWorkshopStudioGateStatus,
   isSummerWorkshopApplicant,
 } from "@/lib/workshop-proposal-access";
+import { createSystemNotification } from "@/lib/notification-actions";
 
 // ---------------------------------------------------------------------------
 // Auth helpers
@@ -667,4 +668,45 @@ export async function commitWorkshopReview(formData: FormData) {
   ]);
 
   revalidateAllWorkshopSurfaces(submissionId);
+
+  // Tell the applicant a decision landed. Workshop proposals are the
+  // capstone of the Summer Workshop Instructor pathway, so this rides the
+  // APPLICATION_DECISIONS policy (in-app + email, text where configured).
+  // Wrapped so a delivery hiccup never rolls back a committed decision.
+  const decisionCopy: Record<
+    WorkshopProposalReviewRecommendation,
+    { title: string; body: string }
+  > = {
+    APPROVE: {
+      title: "Your workshop proposal was approved",
+      body: "A YPP reviewer approved your Summer Workshop proposal. An admin will follow up about scheduling and location.",
+    },
+    REQUEST_CHANGES: {
+      title: "Changes requested on your workshop proposal",
+      body: "A YPP reviewer asked for changes before your Summer Workshop proposal can move forward. Open the Workshop Design Studio to see their feedback and resubmit.",
+    },
+    REJECT: {
+      title: "Update on your workshop proposal",
+      body: "A YPP reviewer has finished reviewing your Summer Workshop proposal. Open the Workshop Design Studio to read their feedback.",
+    },
+  };
+  const copy = decisionCopy[recommendation];
+  const notificationBody = applicantFeedback
+    ? `${copy.body} Reviewer feedback: "${applicantFeedback}"`
+    : copy.body;
+  try {
+    await createSystemNotification(
+      submission.authorId,
+      "SYSTEM",
+      copy.title,
+      notificationBody,
+      "/instructor/workshop-design-studio",
+      { sendEmail: true, policyKey: "APPLICATION_DECISIONS" }
+    );
+  } catch (error) {
+    console.error(
+      "[workshop-studio] decision notification failed to deliver",
+      error
+    );
+  }
 }
