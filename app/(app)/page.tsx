@@ -6,6 +6,7 @@ import {
   getHiringDemoHomeHref,
   isHiringDemoModeEnabled,
 } from "@/lib/hiring-demo-mode";
+import { InstructorDashboard } from "@/components/instructor/instructor-dashboard";
 
 // Roles that work the hiring pipeline and should land on the applicant board.
 const REVIEWER_ROLES = ["ADMIN", "HIRING_CHAIR", "CHAPTER_PRESIDENT"];
@@ -121,7 +122,17 @@ export default async function OverviewPage() {
 
   const roles = session.user.roles ?? [];
   const isReviewer = roles.some((role) => REVIEWER_ROLES.includes(role));
+  const isInstructor =
+    roles.includes("INSTRUCTOR") || session.user.primaryRole === "INSTRUCTOR";
   const name = firstName(session.user.name);
 
-  return isReviewer ? <ReviewerHome name={name} /> : <ApplicantHome name={name} />;
+  if (isReviewer) {
+    return <ReviewerHome name={name} />;
+  }
+
+  if (isInstructor) {
+    return <InstructorDashboard userId={session.user.id} name={name} />;
+  }
+
+  return <ApplicantHome name={name} />;
 }

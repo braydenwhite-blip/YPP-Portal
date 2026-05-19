@@ -3480,6 +3480,351 @@ select.input {
 }
 
 /* ============================================
+   INSTRUCTOR COMMAND-CENTER DASHBOARD
+   ============================================ */
+
+.dash {
+  display: grid;
+  gap: 20px;
+}
+
+.dash-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 26px 28px;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(
+    135deg,
+    var(--ypp-purple-800) 0%,
+    var(--ypp-purple-600) 55%,
+    var(--ypp-mid) 100%
+  );
+  color: #fff;
+  box-shadow: var(--shadow-md);
+}
+
+.dash-hero-greeting {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.dash-hero-date {
+  margin: 5px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.dash-hero-status {
+  margin: 14px 0 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.95);
+  max-width: 470px;
+}
+
+.dash-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dash-hero-actions .button {
+  margin-top: 0;
+  width: auto;
+}
+
+.dash-hero-actions .button.secondary {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  box-shadow: none;
+}
+
+.dash-hero-actions .button.secondary:hover {
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+
+.dash-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.dash-section-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.dash-section-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ypp-purple-600);
+  white-space: nowrap;
+}
+
+/* Action queue */
+.action-list {
+  display: grid;
+  gap: 10px;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 15px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+a.action-item:hover {
+  border-color: var(--ypp-purple-300);
+  box-shadow: var(--shadow-xs);
+  transform: translateX(2px);
+}
+
+.action-item-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 17px;
+  background: var(--ypp-purple-100);
+}
+
+.action-item.is-critical .action-item-icon {
+  background: var(--error-bg);
+}
+
+.action-item.is-high .action-item-icon {
+  background: var(--warning-bg);
+}
+
+.action-item.is-info .action-item-icon {
+  background: var(--info-bg);
+}
+
+.action-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.action-item-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.action-item-detail {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.action-item-tag {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 9px;
+  border-radius: var(--radius-full);
+  background: var(--ypp-purple-100);
+  color: var(--ypp-purple-700);
+}
+
+.action-item-tag.is-critical {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
+.action-item-tag.is-high {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.action-item-tag.is-info {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+
+/* List rows — sessions / classes */
+.dash-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+a.dash-row:hover {
+  border-color: var(--ypp-purple-300);
+  box-shadow: var(--shadow-xs);
+}
+
+.dash-row-date {
+  flex-shrink: 0;
+  width: 50px;
+  text-align: center;
+  border-radius: var(--radius-sm);
+  background: var(--ypp-purple-50);
+  padding: 6px 4px;
+}
+
+.dash-row-date-month {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ypp-purple-600);
+}
+
+.dash-row-date-day {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ypp-purple-800);
+}
+
+.dash-row-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-row-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-row-meta {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.dash-row-aside {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ypp-purple-700);
+  white-space: nowrap;
+}
+
+/* Tool grid */
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 10px;
+}
+
+.tool-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.tool-tile:hover {
+  border-color: var(--ypp-purple-300);
+  box-shadow: var(--shadow-xs);
+  transform: translateY(-2px);
+}
+
+.tool-tile-icon {
+  font-size: 20px;
+}
+
+.tool-tile-label {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.tool-tile-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Impact stats */
+.impact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.impact-stat {
+  padding: 16px 14px;
+  border-radius: var(--radius-md);
+  background: var(--ypp-purple-50);
+  text-align: center;
+}
+
+.impact-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ypp-purple-800);
+  line-height: 1;
+}
+
+.impact-stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+
+@media (max-width: 600px) {
+  .dash-hero {
+    padding: 20px;
+  }
+
+  .dash-hero-greeting {
+    font-size: 21px;
+  }
+
+  .action-item-detail {
+    font-size: 12.5px;
+  }
+}
+
+/* ============================================
    APPLICATION STATUS
    ============================================ */
 
