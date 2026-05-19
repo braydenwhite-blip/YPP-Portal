@@ -12506,3 +12506,97 @@ a.mentor-panel__row:focus-visible {
   }
 }
 
+/* Collapsible page-help shared by every mentor surface. */
+.mentor-guide {
+  margin-bottom: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.mentor-guide__summary {
+  cursor: pointer;
+  padding: 11px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mentor-guide__summary::-webkit-details-marker {
+  display: none;
+}
+
+.mentor-guide__summary::before {
+  content: "▸";
+  font-size: 10px;
+  color: var(--ypp-purple-400);
+  transition: transform var(--transition-fast);
+}
+
+.mentor-guide[open] .mentor-guide__summary::before {
+  transform: rotate(90deg);
+}
+
+.mentor-guide__summary:hover {
+  color: var(--text);
+}
+
+.mentor-guide__summary:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: -2px;
+}
+
+.mentor-guide__body {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.mentor-guide__intro {
+  margin: 13px 0 14px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.mentor-guide__items {
+  display: grid;
+  gap: 10px;
+}
+
+.mentor-guide__item {
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border-left: 3px solid var(--border);
+}
+
+.mentor-guide__item-label {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 5px;
+  color: var(--text);
+}
+
+.mentor-guide__item-line {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.mentor-guide__item-line:last-child {
+  margin-bottom: 0;
+}
+
+.mentor-guide__item-line strong {
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mentor-guide__summary::before {
+    transition: none;
+  }
+}
+
