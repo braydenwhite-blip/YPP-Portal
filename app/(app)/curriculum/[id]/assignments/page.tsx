@@ -74,12 +74,28 @@ export default async function ClassAssignmentsPage({
 
       {assignments.length === 0 ? (
         <div className="card">
-          <h3>No Assignments Yet</h3>
+          <h3>No assignments yet</h3>
           <p style={{ color: "var(--text-secondary)", marginTop: 8 }}>
             {isInstructor
-              ? "Create your first enjoyment-focused assignment to inspire your students!"
-              : "No assignments have been posted yet. Check back soon!"}
+              ? "Create your first exploration-focused assignment to inspire your students."
+              : "Nothing has been posted for this class yet. New work will show up here as soon as your instructor adds it."}
           </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
+            {isInstructor ? (
+              <Link href={`/curriculum/${offeringId}/assignments/create`} className="btn btn-primary">
+                Create assignment
+              </Link>
+            ) : (
+              <>
+                <Link href={`/curriculum/${offeringId}`} className="btn btn-primary">
+                  Back to class
+                </Link>
+                <Link href="/my-classes" className="btn btn-secondary">
+                  All my classes
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
