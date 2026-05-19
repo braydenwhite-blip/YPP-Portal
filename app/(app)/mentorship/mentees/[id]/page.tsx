@@ -128,7 +128,7 @@ export default async function MenteeDetailPage({
       <div className="topbar">
         <div>
           <Link href="/mentorship/mentees" style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Instructors I Mentor
+            &larr; Your mentees
           </Link>
           <h1 className="page-title">{workspace.mentee.name}</h1>
           <p className="page-subtitle">
@@ -392,9 +392,14 @@ export default async function MenteeDetailPage({
         )}
       </section>
 
-      <div className="grid two" style={{ marginBottom: 24 }}>
-        <section id="session-form" className="card" style={{ scrollMarginTop: 80 }}>
-          <div className="section-title">Schedule or Log a Session</div>
+      <div style={{ display: "grid", gap: 16, marginBottom: 24 }}>
+        <details id="session-form" className="card" style={{ scrollMarginTop: 80 }}>
+          <summary
+            style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.95rem", listStyle: "revert" }}
+          >
+            Schedule or log a session
+          </summary>
+          <div style={{ marginTop: 14 }}>
           {canScheduleSessions ? (
             <form action={createMentorshipSession} className="form-grid">
               <input type="hidden" name="menteeId" value={workspace.mentee.id} />
@@ -530,10 +535,16 @@ export default async function MenteeDetailPage({
                 : "Assign an active mentor before sessions can be scheduled or logged here."}
             </p>
           )}
-        </section>
+          </div>
+        </details>
 
-        <section className="card">
-          <div className="section-title">Create an Action Item</div>
+        <details className="card">
+          <summary
+            style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.95rem", listStyle: "revert" }}
+          >
+            Create an action item
+          </summary>
+          <div style={{ marginTop: 14 }}>
           {canManageActionPlan ? (
             <form action={createMentorshipActionItem} className="form-grid">
               <input type="hidden" name="menteeId" value={workspace.mentee.id} />
@@ -604,7 +615,8 @@ export default async function MenteeDetailPage({
                 : "Launch an intake plan or assign an active mentor before action items can be created here."}
             </p>
           )}
-        </section>
+          </div>
+        </details>
       </div>
 
       <div className="grid two" style={{ marginBottom: 24 }}>

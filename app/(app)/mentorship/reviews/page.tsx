@@ -72,7 +72,7 @@ export default async function MonthlyReviewInboxPage() {
       <div className="topbar">
         <div>
           <Link href="/mentorship" style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Support Hub
+            &larr; Mentorship
           </Link>
           <p className="badge">Review Approval</p>
           <h1 className="page-title">Monthly Review Inbox</h1>

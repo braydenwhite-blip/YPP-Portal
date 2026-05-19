@@ -30,11 +30,13 @@ export function MentorTagDropdown({ mentorshipId, currentTag }: Props) {
       onChange={handleChange}
       disabled={isPending}
       title="Flag this mentee"
+      aria-label="Flag this mentee"
       style={{
-        fontSize: "0.7rem",
-        padding: "2px 4px",
+        fontSize: "0.78rem",
+        padding: "6px 9px",
+        minHeight: 34,
         border: "1px solid var(--border, #e2e8f0)",
-        borderRadius: 4,
+        borderRadius: 6,
         background: "var(--surface, #fff)",
         color: "var(--muted)",
         cursor: "pointer",
