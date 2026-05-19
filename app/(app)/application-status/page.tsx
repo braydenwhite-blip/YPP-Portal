@@ -705,6 +705,17 @@ export default async function ApplicationStatusPage() {
                           hour: "numeric", minute: "2-digit",
                         })}
                       </p>
+                      {cpApp.interviewMeetingUrl && (
+                        <a
+                          href={cpApp.interviewMeetingUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="button"
+                          style={{ display: "inline-block", marginTop: 12, textDecoration: "none" }}
+                        >
+                          Join Interview
+                        </a>
+                      )}
                     </div>
                   </>
                 ) : (

@@ -17,6 +17,10 @@ export default async function AdminCPApplicantsPage() {
         chapter: { select: { id: true, name: true } },
         reviewer: { select: { name: true } },
         customResponses: { include: { field: { select: { label: true, fieldType: true } } } },
+        availabilityWindows: {
+          select: { id: true, dayOfWeek: true, startTime: true, endTime: true, timezone: true },
+          orderBy: { dayOfWeek: "asc" },
+        },
       },
       orderBy: { createdAt: "desc" },
     }),

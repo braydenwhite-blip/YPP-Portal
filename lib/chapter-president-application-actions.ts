@@ -415,6 +415,10 @@ export async function reviewChapterPresidentApplication(
         if (isNaN(scheduledAt.getTime())) {
           return { status: "error", message: "Invalid interview date/time." };
         }
+        const meetingUrl = getString(formData, "meetingUrl", false) || null;
+        if (meetingUrl && !/^https?:\/\//i.test(meetingUrl)) {
+          return { status: "error", message: "Meeting link must be a valid URL." };
+        }
         const notes = getString(formData, "notes", false);
         await prisma.chapterPresidentApplication.update({
           where: { id: applicationId },
@@ -422,6 +426,7 @@ export async function reviewChapterPresidentApplication(
             status: ChapterPresidentApplicationStatus.INTERVIEW_SCHEDULED,
             reviewerId: session.user.id,
             interviewScheduledAt: scheduledAt,
+            interviewMeetingUrl: meetingUrl,
             reviewerNotes: notes || null,
           },
         });
@@ -433,6 +438,7 @@ export async function reviewChapterPresidentApplication(
             applicantName: application.applicant.name,
             scheduledAt,
             statusUrl: `${baseUrl}/application-status`,
+            meetingUrl,
           });
         } catch (e) {
           console.error("[scheduleCPInterview] email failed:", e);

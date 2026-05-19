@@ -9376,6 +9376,7 @@ model ChapterPresidentApplication {
   applicantResponse    String?                   @db.Text
   rejectionReason      String?                   @db.Text
   interviewScheduledAt DateTime?
+  interviewMeetingUrl  String?
   approvedAt           DateTime?
   rejectedAt           DateTime?
   customResponses      ApplicationFormResponse[] @relation("CPAppFormResponses")
