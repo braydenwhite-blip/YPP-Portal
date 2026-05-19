@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-nav";
 import { INSTRUCTOR_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/instructor-v1-nav-layout";
 import { STUDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/student-v1-nav-layout";
+import { CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/chapter-president-v1-nav-layout";
 import type { NavGroup, NavLink } from "@/lib/navigation/types";
 
 /** Counts passed from the server layout for notification badges. */
@@ -265,9 +266,15 @@ export default function Nav({
     model.primaryRole === "STUDENT" && studentFullPortalExplorer !== true;
   const showInstructorMinimalChrome =
     model.primaryRole === "INSTRUCTOR" && instructorFullPortalExplorer !== true;
-  const useMinimalFlatNavChrome = showStudentMinimalChrome || showInstructorMinimalChrome;
+  const showChapterPresidentMinimalChrome = model.primaryRole === "CHAPTER_PRESIDENT";
+  const useMinimalFlatNavChrome =
+    showStudentMinimalChrome || showInstructorMinimalChrome || showChapterPresidentMinimalChrome;
   const minimalGroupEmoji =
-    model.primaryRole === "INSTRUCTOR" ? INSTRUCTOR_MINIMAL_GROUP_EMOJI : STUDENT_MINIMAL_GROUP_EMOJI;
+    model.primaryRole === "INSTRUCTOR"
+      ? INSTRUCTOR_MINIMAL_GROUP_EMOJI
+      : model.primaryRole === "CHAPTER_PRESIDENT"
+        ? CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI
+        : STUDENT_MINIMAL_GROUP_EMOJI;
   const studentHomeOnlyCore =
     showStudentMinimalChrome &&
     filteredCore.length === 1 &&
