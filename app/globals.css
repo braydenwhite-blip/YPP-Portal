@@ -12332,3 +12332,21 @@ select.input {
   }
 }
 
+
+/* ============================================
+   TABLE-SCROLL — mobile-safe table wrapper
+   Tables use sticky headers; without a scroll
+   container they overflow narrow viewports.
+   ============================================ */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.table-scroll .table {
+  min-width: 560px;
+}
