@@ -6,6 +6,7 @@ import {
   statusPillClass,
   statusLabel,
   formatDate,
+  recommendationInfo,
 } from "@/components/kanban/kanban-utils";
 import type { CPApp, ChapterOption, Reviewer } from "./kanban-board";
 import {
@@ -110,6 +111,8 @@ export default function CPDetailPanel({
     app.interviewScheduledAt ? toDatetimeLocal(app.interviewScheduledAt) : ""
   );
   const [meetingUrl, setMeetingUrl] = useState(app.interviewMeetingUrl || "");
+  const [recommendation, setRecommendation] = useState(app.decisionRecommendation || "");
+  const [recRationale, setRecRationale] = useState(app.recommendationRationale || "");
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
   const toast = useToast();
@@ -128,9 +131,11 @@ export default function CPDetailPanel({
     setSelectedReviewer(app.reviewerId || "");
     setInterviewDate(app.interviewScheduledAt ? toDatetimeLocal(app.interviewScheduledAt) : "");
     setMeetingUrl(app.interviewMeetingUrl || "");
+    setRecommendation(app.decisionRecommendation || "");
+    setRecRationale(app.recommendationRationale || "");
     setAssignedChapterId(app.chapter?.id || app.chapterId || "");
     setChapterError(null);
-  }, [app.id, app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommunication, app.scoreFit, app.interviewSummary, app.reviewerNotes, app.reviewerId, app.interviewScheduledAt, app.interviewMeetingUrl, app.chapter?.id, app.chapterId]);
+  }, [app.id, app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommunication, app.scoreFit, app.interviewSummary, app.reviewerNotes, app.reviewerId, app.interviewScheduledAt, app.interviewMeetingUrl, app.decisionRecommendation, app.recommendationRationale, app.chapter?.id, app.chapterId]);
 
   // Save scores & notes
   async function handleSaveScores() {
@@ -262,6 +267,43 @@ export default function CPDetailPanel({
       toast.show(app.interviewScheduledAt ? "Interview updated" : "Interview scheduled");
     } else {
       toast.show(result.message || "Failed to schedule interview");
+    }
+  }
+
+  // Submit the final recommendation that the chair/decision-maker reviews
+  // before approving or rejecting.
+  async function handleSubmitRecommendation() {
+    if (!recommendation) {
+      toast.show("Pick a recommendation first");
+      return;
+    }
+    if (!recRationale.trim()) {
+      toast.show("Add a short rationale for your recommendation");
+      return;
+    }
+    const formData = new FormData();
+    formData.set("applicationId", app.id);
+    formData.set("action", "submit_recommendation");
+    formData.set("recommendation", recommendation);
+    formData.set("recommendationRationale", recRationale.trim());
+
+    setSaving(true);
+    const result = await reviewChapterPresidentApplication(
+      { status: "idle", message: "" },
+      formData
+    );
+    setSaving(false);
+
+    if (result.status === "success") {
+      onUpdate({
+        id: app.id,
+        status: "RECOMMENDATION_SUBMITTED",
+        decisionRecommendation: recommendation,
+        recommendationRationale: recRationale.trim(),
+      });
+      toast.show("Recommendation submitted");
+    } else {
+      toast.show(result.message || "Failed to submit recommendation");
     }
   }
 
@@ -692,6 +734,76 @@ export default function CPDetailPanel({
         </button>
       </div>
 
+      {/* Final Recommendation */}
+      {["INTERVIEW_COMPLETED", "RECOMMENDATION_SUBMITTED", "APPROVED", "REJECTED"].includes(
+        app.status
+      ) && (
+        <div className="slideout-section">
+          <div className="slideout-section-title">Final Recommendation</div>
+          {app.status === "INTERVIEW_COMPLETED" ? (
+            <>
+              <div style={{ marginBottom: 8 }}>
+                <div className="slideout-field-label" style={{ marginBottom: 4 }}>
+                  Recommendation
+                </div>
+                <select
+                  className="input"
+                  value={recommendation}
+                  onChange={(e) => setRecommendation(e.target.value)}
+                  style={{ marginBottom: 0 }}
+                >
+                  <option value="">Select a recommendation…</option>
+                  <option value="STRONG_YES">Strong Yes</option>
+                  <option value="YES">Yes</option>
+                  <option value="MAYBE">Maybe</option>
+                  <option value="NO">No</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <div className="slideout-field-label" style={{ marginBottom: 4 }}>
+                  Rationale
+                </div>
+                <textarea
+                  className="input"
+                  value={recRationale}
+                  onChange={(e) => setRecRationale(e.target.value)}
+                  rows={3}
+                  placeholder="Tie this to the rubric scores and interview signals so the final decision-maker has context."
+                  style={{ marginBottom: 0 }}
+                />
+              </div>
+              <button
+                className="button"
+                onClick={handleSubmitRecommendation}
+                disabled={saving}
+                style={{ fontSize: 12, background: "#7c3aed" }}
+              >
+                {saving ? "Submitting..." : "Submit Recommendation"}
+              </button>
+            </>
+          ) : (
+            <>
+              {(() => {
+                const rec = recommendationInfo(app.decisionRecommendation);
+                return rec ? (
+                  <span className={rec.className}>{rec.label}</span>
+                ) : (
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                    No recommendation was recorded for this application.
+                  </div>
+                );
+              })()}
+              {app.recommendationRationale && (
+                <div className="slideout-field" style={{ marginTop: 8 }}>
+                  <div className="slideout-field-label">Rationale</div>
+                  <div className="slideout-field-value">{app.recommendationRationale}</div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Quick Actions */}
       {!isFinal && (
         <div className="slideout-section">
@@ -734,14 +846,9 @@ export default function CPDetailPanel({
               </button>
             )}
             {app.status === "INTERVIEW_COMPLETED" && (
-              <button
-                className="button"
-                onClick={() => handleAction("submit_recommendation")}
-                disabled={saving}
-                style={{ fontSize: 12, background: "#7c3aed" }}
-              >
-                Submit Recommendation
-              </button>
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                Submit a recommendation above to move this application forward.
+              </span>
             )}
             {app.status === "RECOMMENDATION_SUBMITTED" && (
               <>

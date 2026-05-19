@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
-import { RoleType, ChapterPresidentApplicationStatus } from "@prisma/client";
+import { RoleType, ChapterPresidentApplicationStatus, HiringRecommendation } from "@prisma/client";
 import {
   sendNewApplicationNotification,
   sendApplicationApprovedEmail,
@@ -462,11 +462,19 @@ export async function reviewChapterPresidentApplication(
       }
 
       case "submit_recommendation": {
+        const recommendationRaw = getString(formData, "recommendation");
+        const validRecommendations = Object.values(HiringRecommendation) as string[];
+        if (!validRecommendations.includes(recommendationRaw)) {
+          return { status: "error", message: "Pick a recommendation before submitting." };
+        }
+        const rationale = getString(formData, "recommendationRationale");
         await prisma.chapterPresidentApplication.update({
           where: { id: applicationId },
           data: {
             status: ChapterPresidentApplicationStatus.RECOMMENDATION_SUBMITTED,
             reviewerId: session.user.id,
+            decisionRecommendation: recommendationRaw as HiringRecommendation,
+            recommendationRationale: rationale,
           },
         });
         await syncChapterPresidentApplicationWorkflow(applicationId);

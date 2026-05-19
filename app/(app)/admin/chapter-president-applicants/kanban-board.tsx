@@ -36,7 +36,8 @@ export type CPApp = {
   scoreFit: number | null;
   scoreCommunication: number | null;
   interviewSummary: string | null;
-  decisionRecommendation?: string | null;
+  decisionRecommendation: string | null;
+  recommendationRationale: string | null;
   actionDueDate?: string | null;
   createdAt: string;
   updatedAt: string;

@@ -622,6 +622,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
+      href: "/chapter/dashboard",
+      label: "President Dashboard",
+      icon: "📊",
+      roles: CHAPTER_PRESIDENT_ONLY,
+      dashboardDescription: "Your chapter at a glance — members, goals, onboarding, and quick actions.",
+      dashboardPriority: 1,
+    },
+    {
       href: "/chapter/president",
       label: "Chapter President",
       icon: "👑",
