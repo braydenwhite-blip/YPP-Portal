@@ -157,16 +157,10 @@ export default async function MenteeHealthPage() {
                   </div>
                   <div style={{ marginLeft: 16, display: "flex", flexDirection: "column", gap: 8 }}>
                     <Link
-                      href={`/messages/new?to=${mentee.id}`}
+                      href={`/messages?to=${mentee.id}`}
                       className="button primary small"
                     >
                       Send Message
-                    </Link>
-                    <Link
-                      href={`/students/${mentee.id}`}
-                      className="button secondary small"
-                    >
-                      View Profile
                     </Link>
                   </div>
                 </div>
