@@ -9,7 +9,7 @@ import {
   recommendationLabel,
   sourceTypeLabel,
   submissionStatusLabel,
-  submissionStatusTone,
+  workshopStatusPalette,
   workshopFormatLabel,
 } from "@/lib/workshop-proposal-constants";
 import {
@@ -244,15 +244,21 @@ export default async function WorkshopReviewDetailPage({
           </p>
         </div>
         <div>
-          <span
-            className={`pill${
-              submissionStatusTone(submission.status) === "success"
-                ? " pill-success"
-                : ""
-            }`}
-          >
-            {submissionStatusLabel(submission.status)}
-          </span>
+          {(() => {
+            const palette = workshopStatusPalette(submission.status);
+            return (
+              <span
+                className="pill"
+                style={{
+                  background: palette.surface,
+                  color: palette.ink,
+                  border: `1px solid ${palette.border}`,
+                }}
+              >
+                {submissionStatusLabel(submission.status)}
+              </span>
+            );
+          })()}
         </div>
       </div>
 

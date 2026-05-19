@@ -159,22 +159,52 @@ export function submissionStatusLabel(status: WorkshopProposalSubmissionStatus):
   }
 }
 
-export function submissionStatusTone(
+/**
+ * Status colour palette — a four-colour traffic-light + brand-purple scheme
+ * shared by the reviewer queue, the review detail header, and the applicant
+ * status card so a submission reads the same colour everywhere:
+ *
+ *   purple → active for a reviewer (submitted / in review)
+ *   yellow → waiting on the applicant (changes requested)
+ *   green  → approved
+ *   red    → rejected
+ *
+ * Hex values track the shared `--iv-*` semantic surfaces in globals.css and
+ * the `--ypp-purple-*` brand scale, so the workshop surfaces stay visually
+ * consistent with the rest of the admin app.
+ */
+export type WorkshopStatusPalette = {
+  /** Soft tinted background. */
+  surface: string;
+  /** Border / hairline. */
+  border: string;
+  /** Readable text colour on `surface`. */
+  ink: string;
+  /** Strong accent — column dots, left rails, pill outlines. */
+  accent: string;
+};
+
+const WORKSHOP_STATUS_PALETTES: Record<
+  WorkshopProposalSubmissionStatus,
+  WorkshopStatusPalette
+> = {
+  // Pre-submit — never shown in the reviewer queue, kept for completeness.
+  DRAFT: { surface: "#f5f5f4", border: "#e7e5e4", ink: "#44403c", accent: "#78716c" },
+  // Purple = needs a reviewer. Lighter shade for brand-new, deeper once open.
+  SUBMITTED: { surface: "#f3ecff", border: "#e8d8ff", ink: "#5a1da8", accent: "#8b3fe8" },
+  IN_REVIEW: { surface: "#f3ecff", border: "#e8d8ff", ink: "#5a1da8", accent: "#6b21c8" },
+  // Yellow = the ball is in the applicant's court.
+  CHANGES_REQUESTED: { surface: "#fffbeb", border: "#fde68a", ink: "#92400e", accent: "#d97706" },
+  // Green = approved.
+  APPROVED: { surface: "#f0fdf4", border: "#bbf7d0", ink: "#166534", accent: "#16a34a" },
+  // Red = rejected.
+  REJECTED: { surface: "#fef2f2", border: "#fecaca", ink: "#991b1b", accent: "#dc2626" },
+};
+
+export function workshopStatusPalette(
   status: WorkshopProposalSubmissionStatus
-): "neutral" | "info" | "warn" | "success" | "danger" {
-  switch (status) {
-    case "DRAFT":
-      return "neutral";
-    case "SUBMITTED":
-    case "IN_REVIEW":
-      return "info";
-    case "CHANGES_REQUESTED":
-      return "warn";
-    case "APPROVED":
-      return "success";
-    case "REJECTED":
-      return "danger";
-  }
+): WorkshopStatusPalette {
+  return WORKSHOP_STATUS_PALETTES[status];
 }
 
 export function recommendationLabel(

@@ -42,8 +42,8 @@ export function StartReviewBanner({
       role="status"
       style={{
         marginBottom: 16,
-        background: "#eff6ff",
-        borderColor: "#bfdbfe",
+        background: "#f3ecff",
+        borderColor: "#e8d8ff",
       }}
     >
       <div
@@ -55,7 +55,7 @@ export function StartReviewBanner({
           flexWrap: "wrap",
         }}
       >
-        <p style={{ margin: 0, fontSize: 13, color: "#1d4ed8" }}>
+        <p style={{ margin: 0, fontSize: 13, color: "#5a1da8" }}>
           New submission. Click <strong>Start review</strong> to flag it as
           in-review and lock the applicant&rsquo;s edits while you read.
         </p>

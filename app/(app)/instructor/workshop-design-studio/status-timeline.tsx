@@ -30,8 +30,10 @@ const STEPS: Step[] = [
   },
   {
     key: "DECISION",
+    // Detail is rendered via decisionDetail() so the copy reflects the
+    // actual outcome; this is the pre-decision fallback.
     label: "Decision",
-    detail: "Approved, or revisions requested with specific feedback.",
+    detail: "A YPP reviewer approves it or sends revisions to make.",
   },
   {
     key: "ASSIGNED",
@@ -39,6 +41,25 @@ const STEPS: Step[] = [
     detail: "An admin matches you with a real workshop or camp.",
   },
 ];
+
+/**
+ * The "Decision" step copy depends on the actual outcome — a rejected
+ * applicant should never read "Approved, or revisions requested".
+ */
+function decisionDetail(
+  status: WorkshopProposalSubmissionStatus | null
+): string {
+  switch (status) {
+    case "APPROVED":
+      return "Approved — your feedback and next steps are below.";
+    case "REJECTED":
+      return "Not approved this round. Reviewer feedback explains why.";
+    case "CHANGES_REQUESTED":
+      return "Revisions requested — read the feedback, then resubmit.";
+    default:
+      return "A YPP reviewer approves it or sends revisions to make.";
+  }
+}
 
 function activeIndex(
   status: WorkshopProposalSubmissionStatus | null,
@@ -96,6 +117,8 @@ export function ApplicantStatusTimeline({
           const reached = i <= idx;
           const isCurrent = i === idx;
           const dim = isRejected && i > 2;
+          const detail =
+            step.key === "DECISION" ? decisionDetail(status) : step.detail;
           return (
             <li
               key={step.key}
@@ -145,7 +168,7 @@ export function ApplicantStatusTimeline({
                   lineHeight: 1.4,
                 }}
               >
-                {step.detail}
+                {detail}
               </p>
             </li>
           );
