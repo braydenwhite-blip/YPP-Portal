@@ -76,7 +76,7 @@ export function MentorCommandStrip({
         <span className="mentor-stat__value">{activeMentees}</span>
         <span className="mentor-stat__sub">
           {activeMentees === 0
-            ? "None paired yet"
+            ? "All paused — open roster →"
             : "Open the full roster →"}
         </span>
       </Link>

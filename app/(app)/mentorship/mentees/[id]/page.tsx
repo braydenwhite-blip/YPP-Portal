@@ -128,7 +128,7 @@ export default async function MenteeDetailPage({
       <div className="topbar">
         <div>
           <Link href="/mentorship/mentees" style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Instructors I Mentor
+            &larr; Your mentees
           </Link>
           <h1 className="page-title">{workspace.mentee.name}</h1>
           <p className="page-subtitle">
