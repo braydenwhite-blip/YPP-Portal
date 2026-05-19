@@ -80,8 +80,8 @@ export default function StudentSteps({
         </div>
         <h1 className="onboarding-title">Welcome to YPP Pathways, {firstName}.</h1>
         <p className="onboarding-subtitle">
-          We are going to keep this simple. First we will learn a little about what excites you,
-          then we will show you how your YPP journey can grow from there.
+          Two quick steps and you&apos;re in. First, tell us what you&apos;re into — then
+          we&apos;ll show you where your YPP journey can go from there.
         </p>
 
         <div className="onboarding-features-grid">
@@ -138,8 +138,8 @@ export default function StudentSteps({
 
         <h1 className="onboarding-title">Let&apos;s Find Your Path</h1>
         <p className="onboarding-subtitle">
-          Pick what sounds most like you right now. These answers go onto your student profile and help YPP suggest
-          good places to start, without making you commit to one pathway during setup.
+          Pick what sounds most like you. Your answers help us suggest great places to
+          start — you&apos;re never locked in.
         </p>
 
         <form
@@ -157,15 +157,25 @@ export default function StudentSteps({
           <input type="hidden" name="primaryGoal" value={selectedPrimaryGoal ?? ""} />
 
           <section className="onboarding-quiz-section">
-            <h2 className="onboarding-quiz-question">1. Which topics sound exciting to explore?</h2>
-            <p className="onboarding-quiz-help">Choose one or more.</p>
-            <div className="onboarding-choice-grid">
+            <h2 className="onboarding-quiz-question" id="quiz-q-interests">
+              1. Which topics sound exciting to explore?
+            </h2>
+            <p className="onboarding-quiz-help" id="quiz-help-interests">
+              Choose one or more.
+            </p>
+            <div
+              className="onboarding-choice-grid"
+              role="group"
+              aria-labelledby="quiz-q-interests quiz-help-interests"
+            >
               {STUDENT_INTEREST_OPTIONS.map((option) => {
                 const isSelected = selectedInterests.includes(option.value);
                 return (
                   <button
                     key={option.value}
                     type="button"
+                    role="checkbox"
+                    aria-checked={isSelected}
                     className={`onboarding-choice-card ${isSelected ? "selected" : ""}`}
                     onClick={() => onInterestToggle(option.value)}
                   >
@@ -178,14 +188,22 @@ export default function StudentSteps({
           </section>
 
           <section className="onboarding-quiz-section">
-            <h2 className="onboarding-quiz-question">2. How do you like to learn best?</h2>
-            <div className="onboarding-choice-grid">
+            <h2 className="onboarding-quiz-question" id="quiz-q-learning">
+              2. How do you like to learn best?
+            </h2>
+            <div
+              className="onboarding-choice-grid"
+              role="radiogroup"
+              aria-labelledby="quiz-q-learning"
+            >
               {STUDENT_LEARNING_STYLE_OPTIONS.map((option) => {
                 const isSelected = selectedLearningStyle === option.value;
                 return (
                   <button
                     key={option.value}
                     type="button"
+                    role="radio"
+                    aria-checked={isSelected}
                     className={`onboarding-choice-card ${isSelected ? "selected" : ""}`}
                     onClick={() => onLearningStyleChange(option.value)}
                   >
@@ -198,14 +216,22 @@ export default function StudentSteps({
           </section>
 
           <section className="onboarding-quiz-section">
-            <h2 className="onboarding-quiz-question">3. What is your biggest goal right now?</h2>
-            <div className="onboarding-choice-grid">
+            <h2 className="onboarding-quiz-question" id="quiz-q-goal">
+              3. What is your biggest goal right now?
+            </h2>
+            <div
+              className="onboarding-choice-grid"
+              role="radiogroup"
+              aria-labelledby="quiz-q-goal"
+            >
               {STUDENT_PRIMARY_GOAL_OPTIONS.map((option) => {
                 const isSelected = selectedPrimaryGoal === option.value;
                 return (
                   <button
                     key={option.value}
                     type="button"
+                    role="radio"
+                    aria-checked={isSelected}
                     className={`onboarding-choice-card ${isSelected ? "selected" : ""}`}
                     onClick={() => onPrimaryGoalChange(option.value)}
                   >
@@ -217,9 +243,18 @@ export default function StudentSteps({
             </div>
           </section>
 
-          {formError ? <div className="form-error">{formError}</div> : null}
+          {formError ? (
+            <div className="form-error" role="alert">
+              {formError}
+            </div>
+          ) : null}
 
           <div className="onboarding-actions">
+            {!quizIsComplete ? (
+              <p className="onboarding-quiz-gate-hint">
+                Pick at least one topic, a learning style, and a goal to continue.
+              </p>
+            ) : null}
             <button type="submit" className="button" disabled={isPending || !quizIsComplete}>
               Save and see my journey
             </button>
@@ -259,8 +294,8 @@ export default function StudentSteps({
           }}
         >
           <div className="onboarding-callout">
-            <strong>One last quick fix.</strong> This older account is missing a few basics that new family signups
-            already collect up front, so let&apos;s finish those before you head to the dashboard.
+            <strong>Almost there.</strong> Just a couple of details to finish your
+            profile, then you&apos;re in.
           </div>
 
           <div className="onboarding-legacy-fields">
@@ -323,7 +358,11 @@ export default function StudentSteps({
             ) : null}
           </div>
 
-          {formError ? <div className="form-error">{formError}</div> : null}
+          {formError ? (
+            <div className="form-error" role="alert">
+              {formError}
+            </div>
+          ) : null}
 
           <div className="onboarding-actions">
             <button type="submit" className="button" disabled={isPending}>
@@ -337,12 +376,28 @@ export default function StudentSteps({
           </div>
         </form>
       ) : (
-        <>
-          <div className="onboarding-callout onboarding-callout-centered">
-            Your school, grade, and parent or guardian details are already in place, so you are ready to move
-            straight into the portal.
+        <div className="onboarding-celebrate">
+          <div className="onboarding-celebrate-badge" aria-hidden>
+            <svg
+              width="34"
+              height="34"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
           </div>
-
+          <h2 className="onboarding-celebrate-title">
+            You&apos;re all set, {firstName}!
+          </h2>
+          <p className="onboarding-celebrate-text">
+            Your profile is ready. Your home base shows your classes, what&apos;s due,
+            and the best next step — let&apos;s dive in.
+          </p>
           <div className="onboarding-actions">
             <button className="button" onClick={onNext} disabled={isPending}>
               Enter my dashboard
@@ -353,7 +408,7 @@ export default function StudentSteps({
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

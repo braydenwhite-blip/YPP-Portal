@@ -72,7 +72,11 @@ export default function OnboardingWizard({
   const router = useRouter();
 
   async function finishOnboarding() {
-    await completeOnboarding();
+    const result = await completeOnboarding();
+    if (result?.error) {
+      setFormError(result.error);
+      return;
+    }
     router.push("/");
     router.refresh();
   }
@@ -199,6 +203,10 @@ export default function OnboardingWizard({
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="sr-only" role="status" aria-live="polite">
+          Step {currentStep + 1} of {totalSteps}: {stepLabels[currentStep]}
         </div>
 
         {/* Step content */}
