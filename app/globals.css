@@ -101,6 +101,28 @@
   --border-light: var(--ypp-line-soft);
   --focus-ring: var(--ypp-purple-400);
 
+  /* Semantic status tokens — previously referenced but never defined,
+     which made several instructor surfaces render with invalid colors. */
+  --primary-color: var(--ypp-purple-600);
+  --primary: var(--ypp-purple-600);
+  --border-color: var(--border);
+  --success-color: #15803d;
+  --success-bg: #f0fdf4;
+  --success-border: #bbf7d0;
+  --success-text: #166534;
+  --warning-color: #b45309;
+  --warning-bg: #fffbeb;
+  --warning-border: #fcd34d;
+  --warning-text: #92400e;
+  --error-color: #dc2626;
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+  --error-text: #991b1b;
+  --info-bg: #eff6ff;
+  --info-border: #bfdbfe;
+  --info-text: #1e40af;
+  --surface-warm: #fbfaf7;
+
   /* Shadows — purple-tinted like marketing site */
   --shadow-xs: 0 1px 3px rgba(15, 23, 42, 0.06);
   --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.08);
@@ -3248,6 +3270,216 @@ select.input {
 }
 
 /* ============================================
+   SHARED TEACHING-UI UTILITIES
+   Foundational classes that replace repeated inline styling
+   across the instructor surfaces.
+   ============================================ */
+
+/* Active state for tab-style buttons (replaces inline color hacks). */
+.button.active,
+.button.secondary.active {
+  background: var(--ypp-purple-600);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(107, 33, 200, 0.3);
+}
+
+/* Segmented control / tab strip */
+.seg-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--ypp-purple-50);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+}
+
+.seg-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.seg-tab:hover {
+  color: var(--ypp-purple-700);
+}
+
+.seg-tab.active {
+  background: var(--surface);
+  color: var(--ypp-purple-700);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Horizontal-scroll wrapper so data tables never break mobile layout. */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md);
+}
+
+/* A button/action row that always wraps gracefully. */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Progress bar. */
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background: var(--gray-200);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--ypp-purple-600);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow);
+}
+
+.progress-fill.is-success {
+  background: var(--success-color);
+}
+
+.progress-fill.is-warning {
+  background: var(--warning-color);
+}
+
+/* Skeleton loading shimmer. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--gray-200);
+  border-radius: var(--radius-sm);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.65),
+    transparent
+  );
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-text {
+  height: 12px;
+  margin: 8px 0;
+}
+
+.skeleton-card {
+  height: 130px;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+}
+
+/* Empty state — guidance instead of a dead end. */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 40px 28px;
+}
+
+.empty-state-icon {
+  font-size: 30px;
+  margin-bottom: 4px;
+}
+
+.empty-state-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.empty-state-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 440px;
+  line-height: 1.55;
+}
+
+.empty-state .button {
+  margin-top: 14px;
+}
+
+/* Callout banners — consistent info/warning/success/error messaging. */
+.callout {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.callout-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.callout.is-warning {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
+}
+
+.callout.is-success {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success-text);
+}
+
+.callout.is-error {
+  background: var(--error-bg);
+  border-color: var(--error-border);
+  color: var(--error-text);
+}
+
+.callout.is-info {
+  background: var(--info-bg);
+  border-color: var(--info-border);
+  color: var(--info-text);
+}
+
+/* ============================================
    APPLICATION STATUS
    ============================================ */
 
@@ -4159,9 +4391,9 @@ select.input {
     padding-top: 72px;
   }
 
-  .grid.two,
-  .grid.three {
-    grid-template-columns: 1fr;
+  .grid.three,
+  .grid.four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .quick-actions {
@@ -4222,6 +4454,8 @@ select.input {
 }
 
 @media (max-width: 600px) {
+  .grid.two,
+  .grid.three,
   .grid.four {
     grid-template-columns: 1fr;
   }
@@ -6813,24 +7047,7 @@ select.input {
   white-space: nowrap;
 }
 
-/* Grid four helper for instructor readiness */
-.grid.four {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 900px) {
-  .grid.four {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 480px) {
-  .grid.four {
-    grid-template-columns: 1fr;
-  }
-
   .admin-quick-actions {
     bottom: 16px;
     right: 16px;
