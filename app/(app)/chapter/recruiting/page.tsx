@@ -287,6 +287,7 @@ export default async function ChapterRecruitingPage({
           {applications.length === 0 ? (
             <p className="empty">No applications yet.</p>
           ) : (
+            <div className="table-scroll">
             <table className="table">
               <thead>
                 <tr>
@@ -325,6 +326,7 @@ export default async function ChapterRecruitingPage({
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       ) : null}
