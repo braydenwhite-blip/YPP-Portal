@@ -32,18 +32,26 @@ export async function sendVerificationEmail(userId: string): Promise<void> {
   try {
     const supabaseAdmin = createServiceClient();
     const baseUrl = await getBaseUrl();
+    const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent("/verify-email?source=intake")}`;
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: "magiclink",
       email: user.email,
-      options: {
-        redirectTo: `${baseUrl}/verify-email?source=intake`,
-      },
+      options: { redirectTo },
     });
-    if (error || !data?.properties?.action_link) {
-      console.error("[sendVerificationEmail] generateLink failed:", error?.message);
+    if (error) {
+      console.error("[sendVerificationEmail] generateLink failed:", error.message);
       return;
     }
-    verifyUrl = data.properties.action_link;
+    // Admin-generated links cannot use PKCE — build our own callback URL with
+    // `hashed_token` so the callback can verify via verifyOtp.
+    const hashedToken = data?.properties?.hashed_token;
+    verifyUrl = hashedToken
+      ? `${redirectTo}&token_hash=${encodeURIComponent(hashedToken)}&type=magiclink`
+      : (data?.properties?.action_link ?? "");
+    if (!verifyUrl) {
+      console.error("[sendVerificationEmail] generateLink returned no link");
+      return;
+    }
   } catch (e) {
     console.error("[sendVerificationEmail] supabase admin call failed:", e);
     return;

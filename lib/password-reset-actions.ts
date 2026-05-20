@@ -56,7 +56,14 @@ export async function requestPasswordReset(
       },
     });
 
-    const resetUrl = data?.properties?.action_link;
+    // Admin-generated links cannot use PKCE, so the default action_link sends
+    // the session in a URL fragment our server cannot read. Build our own
+    // callback URL using `hashed_token` so the callback can verify it via
+    // verifyOtp and set session cookies through the SSR client.
+    const hashedToken = data?.properties?.hashed_token;
+    const resetUrl = hashedToken
+      ? `${redirectTo}&token_hash=${encodeURIComponent(hashedToken)}&type=recovery`
+      : data?.properties?.action_link;
 
     if (error || !resetUrl) {
       console.error(

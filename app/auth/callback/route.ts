@@ -112,6 +112,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=account_archived", origin));
   }
 
+  // Stamp emailVerified for verification flows when the Prisma record hasn't
+  // been marked verified yet. verifyOtp success means Supabase confirmed the
+  // address belongs to this user.
+  if (prismaUser?.id && tokenHash) {
+    await prisma.user
+      .updateMany({
+        where: { id: prismaUser.id, emailVerified: null },
+        data: { emailVerified: new Date() },
+      })
+      .catch((e) => {
+        console.error("[Auth Callback] Failed to stamp emailVerified:", e);
+      });
+  }
+
   if (next === "/reset-password" || next.startsWith("/reset-password")) {
     return NextResponse.redirect(new URL("/reset-password", origin));
   }
