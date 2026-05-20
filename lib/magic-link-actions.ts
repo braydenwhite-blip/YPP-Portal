@@ -62,14 +62,14 @@ export async function requestMagicLink(
       options: { redirectTo },
     });
 
-    // Admin-generated links cannot use PKCE (no client-side code verifier), so
-    // the default `action_link` redirects with the session in a URL fragment
-    // that the server cannot read. Build our own callback URL using the
-    // `hashed_token` and verify it server-side via `verifyOtp`.
+    // Admin-generated links cannot use PKCE, so the default `action_link`
+    // would redirect with the session in a URL fragment we can't read
+    // server-side. Build our own callback URL with `hashed_token` and let the
+    // callback verify it via verifyOtp.
     const hashedToken = data?.properties?.hashed_token;
     const magicUrl = hashedToken
       ? `${redirectTo}&token_hash=${encodeURIComponent(hashedToken)}&type=magiclink`
-      : data?.properties?.action_link;
+      : null;
 
     if (error || !magicUrl) {
       console.error(

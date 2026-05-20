@@ -38,20 +38,17 @@ export async function sendVerificationEmail(userId: string): Promise<void> {
       email: user.email,
       options: { redirectTo },
     });
-    if (error) {
-      console.error("[sendVerificationEmail] generateLink failed:", error.message);
-      return;
-    }
-    // Admin-generated links cannot use PKCE — build our own callback URL with
-    // `hashed_token` so the callback can verify via verifyOtp.
     const hashedToken = data?.properties?.hashed_token;
-    verifyUrl = hashedToken
-      ? `${redirectTo}&token_hash=${encodeURIComponent(hashedToken)}&type=magiclink`
-      : (data?.properties?.action_link ?? "");
-    if (!verifyUrl) {
-      console.error("[sendVerificationEmail] generateLink returned no link");
+    if (error || !hashedToken) {
+      console.error(
+        "[sendVerificationEmail] generateLink failed:",
+        error?.message ?? "missing hashed_token"
+      );
       return;
     }
+    // Admin-generated links cannot use PKCE; route through our callback with
+    // `hashed_token` so the callback can verifyOtp and set session cookies.
+    verifyUrl = `${redirectTo}&token_hash=${encodeURIComponent(hashedToken)}&type=magiclink`;
   } catch (e) {
     console.error("[sendVerificationEmail] supabase admin call failed:", e);
     return;

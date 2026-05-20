@@ -21,7 +21,6 @@ function LoginPageContent() {
   const supabaseUnavailableError =
     searchParams.get("error") === "supabase_unavailable";
   const linkInvalidError = searchParams.get("error") === "link_invalid";
-  const missingTokenError = searchParams.get("error") === "missing_token";
 
   const [loginMethod, setLoginMethod] = useState<"password" | "magic">("password");
   const [email, setEmail] = useState("");
@@ -62,15 +61,8 @@ function LoginPageContent() {
       setError(
         "This sign-in link is invalid or has expired. Please request a new one below."
       );
-      return;
     }
-
-    if (missingTokenError) {
-      setError(
-        "This sign-in link is missing required information. Please request a new one below."
-      );
-    }
-  }, [archivedError, supabaseUnavailableError, linkInvalidError, missingTokenError]);
+  }, [archivedError, supabaseUnavailableError, linkInvalidError]);
 
   async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
