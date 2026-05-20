@@ -5,6 +5,7 @@ import {
   deleteFeatureGateRule,
   getEnabledFeatureKeysForUsers,
   listFeatureGateRules,
+  setGlobalFeatureGateRule,
   setUserFeatureGateRule,
 } from "@/lib/feature-gates";
 import { FEATURE_KEYS, FEATURE_KEY_DEFAULTS } from "@/lib/feature-gate-constants";
@@ -36,6 +37,9 @@ export default async function AdminFeatureGatesPage({
 
   const allRules = await listFeatureGateRules();
   const userRules = allRules.filter((rule) => rule.scope === "USER" && rule.userId);
+  const globalRuleByKey = new Map(
+    allRules.filter((rule) => rule.scope === "GLOBAL").map((rule) => [rule.featureKey, rule] as const)
+  );
 
   const recentUserIds = Array.from(
     new Set(userRules.map((rule) => rule.userId).filter((value): value is string => Boolean(value)))
@@ -129,6 +133,74 @@ export default async function AdminFeatureGatesPage({
         <p style={{ marginTop: 10, marginBottom: 0, fontSize: 13, color: "var(--muted)" }}>
           Default-off features matter most here: `PASSION_WORLD`, `INSTRUCTOR_TEACHING_TOOLS`, and `INTERVIEWER`.
         </p>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h2 style={{ marginTop: 0, marginBottom: 4, fontSize: 16 }}>Global toggles</h2>
+        <p style={{ marginTop: 0, marginBottom: 12, fontSize: 13, color: "var(--muted)" }}>
+          Flip a feature ON or OFF for everyone at once. Per-user overrides (below) win over global rules.
+        </p>
+        <div style={{ display: "grid", gap: 10 }}>
+          {FEATURE_KEYS.map((featureKey) => {
+            const globalRule = globalRuleByKey.get(featureKey);
+            const effective = globalRule ? globalRule.enabled : FEATURE_KEY_DEFAULTS[featureKey];
+            return (
+              <div
+                key={featureKey}
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  padding: 12,
+                  background: "var(--surface-alt)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <strong>{featureKey}</strong>
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                    Globally {effective ? "ENABLED" : "DISABLED"} · Default:{" "}
+                    {FEATURE_KEY_DEFAULTS[featureKey] ? "Enabled" : "Disabled"}
+                  </p>
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                    {globalRule
+                      ? `Global override is ${globalRule.enabled ? "ENABLED" : "DISABLED"}${globalRule.note ? ` · ${globalRule.note}` : ""}`
+                      : "No global override — default is in effect."}
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <form action={setGlobalFeatureGateRule}>
+                    <input type="hidden" name="featureKey" value={featureKey} />
+                    <input type="hidden" name="enabled" value="true" />
+                    <input type="hidden" name="note" value="Enabled globally from admin feature access page." />
+                    <button type="submit" className="button small">
+                      Enable for all
+                    </button>
+                  </form>
+                  <form action={setGlobalFeatureGateRule}>
+                    <input type="hidden" name="featureKey" value={featureKey} />
+                    <input type="hidden" name="enabled" value="false" />
+                    <input type="hidden" name="note" value="Disabled globally from admin feature access page." />
+                    <button type="submit" className="button small outline">
+                      Disable for all
+                    </button>
+                  </form>
+                  {globalRule ? (
+                    <form action={deleteFeatureGateRule}>
+                      <input type="hidden" name="ruleId" value={globalRule.id} />
+                      <button type="submit" className="button small ghost">
+                        Use Default
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {users.length === 0 ? (

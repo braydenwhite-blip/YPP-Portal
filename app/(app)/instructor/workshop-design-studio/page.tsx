@@ -35,6 +35,9 @@ export default async function WorkshopDesignStudioPage({
       // Standard instructors should never land here — bounce them to LDS.
       redirect("/instructor/lesson-design-studio");
     }
+    if (gate.reason === "FEATURE_DISABLED") {
+      redirect("/instructor-training?locked=workshop-design-studio-closed");
+    }
     // Training not done yet — back to the academy with a banner.
     redirect("/instructor-training?locked=workshop-design-studio");
   }

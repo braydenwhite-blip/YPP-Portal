@@ -6,6 +6,7 @@ export const FEATURE_KEYS = [
   "INSTRUCTOR_TEACHING_TOOLS",
   "INTERVIEWER",
   "GR_SYSTEM",
+  "WORKSHOP_DESIGN_STUDIO",
   // Mentorship rollout flags (Phase 0.5)
   "MENTORSHIP_V2",
   "MENTORSHIP_STUDENT_LANE",
@@ -23,6 +24,11 @@ export const FEATURE_KEY_DEFAULTS: Record<FeatureKey, boolean> = {
   INSTRUCTOR_TEACHING_TOOLS: false,
   INTERVIEWER: false,
   GR_SYSTEM: false,
+  // WORKSHOP_DESIGN_STUDIO: global kill-switch for the Summer Workshop Design Studio.
+  // OFF by default so the studio can be opened deliberately at the start of a
+  // workshop cycle and closed again once the design window ends. Admins and
+  // chapter presidents bypass this gate (see getWorkshopStudioGateStatus).
+  WORKSHOP_DESIGN_STUDIO: false,
   // Mentorship rollout flags
   // MENTORSHIP_V2: gates the unified modern pipeline + new mentor Kanban. Off until Phase 1 ships.
   MENTORSHIP_V2: false,
