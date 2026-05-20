@@ -15,6 +15,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { withPrismaFallback } from "@/lib/prisma-guard";
+import { isFeatureEnabledForUser } from "@/lib/feature-gates";
 import { READINESS_CHECK_MODULE_KEY } from "@/lib/training-constants";
 
 type RoleLike = string | null | undefined;
@@ -22,13 +23,21 @@ type RoleLike = string | null | undefined;
 export type WorkshopStudioGateReason =
   | "READY"
   | "REVIEWER_BYPASS"
+  | "FEATURE_DISABLED" // admin has globally disabled the studio
   | "WRONG_SUBTYPE" // user is a STANDARD applicant, not summer workshop
   | "READINESS_CHECK_REQUIRED" // training not yet complete
   | "READINESS_CHECK_NOT_IMPORTED"; // M5 not seeded yet — open access for back-compat
 
 export type WorkshopStudioGateStatus =
-  | { unlocked: true; reason: Exclude<WorkshopStudioGateReason, "WRONG_SUBTYPE" | "READINESS_CHECK_REQUIRED"> }
+  | {
+      unlocked: true;
+      reason: Exclude<
+        WorkshopStudioGateReason,
+        "WRONG_SUBTYPE" | "READINESS_CHECK_REQUIRED" | "FEATURE_DISABLED"
+      >;
+    }
   | { unlocked: false; reason: "WRONG_SUBTYPE" }
+  | { unlocked: false; reason: "FEATURE_DISABLED" }
   | {
       unlocked: false;
       reason: "READINESS_CHECK_REQUIRED";
@@ -100,6 +109,16 @@ export async function getWorkshopStudioGateStatus(
 ): Promise<WorkshopStudioGateStatus> {
   if (isReviewer(roles)) {
     return { unlocked: true, reason: "REVIEWER_BYPASS" };
+  }
+
+  // Global kill-switch — admins can close the studio between cycles via
+  // /admin/feature-gates. Reviewers (above) always bypass.
+  const featureEnabled = await isFeatureEnabledForUser("WORKSHOP_DESIGN_STUDIO", {
+    userId,
+    roles: roles.filter((r): r is string => typeof r === "string"),
+  });
+  if (!featureEnabled) {
+    return { unlocked: false, reason: "FEATURE_DISABLED" };
   }
 
   const isSW = await isSummerWorkshopApplicant(userId);

@@ -213,6 +213,7 @@ export default async function InstructorTrainingPage({
   const lockedParam = Array.isArray(lockedParamRaw) ? lockedParamRaw[0] : lockedParamRaw;
   const showLdsLockedBanner = lockedParam === "lesson-design-studio";
   const showWorkshopLockedBanner = lockedParam === "workshop-design-studio";
+  const showWorkshopClosedBanner = lockedParam === "workshop-design-studio-closed";
 
   const roles = session.user.roles ?? [];
   const canAccessTraining = hasApprovedInstructorTrainingAccess(roles);
@@ -708,6 +709,24 @@ export default async function InstructorTrainingPage({
             ) : (
               "."
             )}
+          </p>
+        </div>
+      ) : null}
+
+      {showWorkshopClosedBanner ? (
+        <div
+          className="card"
+          role="status"
+          style={{
+            marginBottom: 16,
+            borderColor: "#f59e0b",
+            background: "#fffbeb",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
+            <strong>Workshop Design Studio is closed.</strong>{" "}
+            The design window is not currently open. We&apos;ll let you know
+            when the studio reopens for the next workshop cycle.
           </p>
         </div>
       ) : null}

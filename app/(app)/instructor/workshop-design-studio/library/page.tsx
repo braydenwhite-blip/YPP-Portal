@@ -34,6 +34,9 @@ export default async function WorkshopLibraryPage({
     if (gate.reason === "WRONG_SUBTYPE") {
       redirect("/instructor/lesson-design-studio");
     }
+    if (gate.reason === "FEATURE_DISABLED") {
+      redirect("/instructor-training?locked=workshop-design-studio-closed");
+    }
     redirect("/instructor-training?locked=workshop-design-studio");
   }
 

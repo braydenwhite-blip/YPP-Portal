@@ -345,6 +345,11 @@ function revalidateFeatureGateSurfaces() {
   revalidatePath("/instructor/class-settings");
   revalidatePath("/instructor/parent-feedback");
   revalidatePath("/interviews");
+  revalidatePath("/instructor/workshop-design-studio");
+  revalidatePath("/instructor/workshop-design-studio/design");
+  revalidatePath("/instructor/workshop-design-studio/library");
+  revalidatePath("/instructor/workshop-design-studio/review");
+  revalidatePath("/instructor-training");
   revalidatePath("/admin/feature-gates");
   revalidatePath("/admin/rollout-comms");
 }
