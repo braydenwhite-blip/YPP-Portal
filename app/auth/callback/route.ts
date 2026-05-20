@@ -1,6 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { createServerClientOrNull } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+
+const VALID_OTP_TYPES = new Set<EmailOtpType>([
+  "signup",
+  "invite",
+  "magiclink",
+  "recovery",
+  "email_change",
+  "email",
+]);
 
 /**
  * Auth callback handler for Supabase email-link redirects.
@@ -17,10 +27,12 @@ import { prisma } from "@/lib/prisma";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const tokenHash = searchParams.get("token_hash");
+  const typeParam = searchParams.get("type");
   const next = searchParams.get("next") || "/";
 
-  if (!code) {
-    return NextResponse.redirect(new URL("/login", origin));
+  if (!code && !tokenHash) {
+    return NextResponse.redirect(new URL("/login?error=missing_token", origin));
   }
 
   const supabase = await createServerClientOrNull();
@@ -30,26 +42,52 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  let authUserId: string | null = null;
+  let authUserEmail: string | null = null;
+  let authUserMetadata: Record<string, unknown> | undefined;
 
-  if (error || !data.user) {
-    console.error("[Auth Callback] Error exchanging code:", error?.message);
-    return NextResponse.redirect(new URL("/login", origin));
+  if (tokenHash) {
+    const type = (typeParam && VALID_OTP_TYPES.has(typeParam as EmailOtpType)
+      ? (typeParam as EmailOtpType)
+      : "magiclink") as EmailOtpType;
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type,
+    });
+    if (error || !data.user) {
+      console.error("[Auth Callback] verifyOtp failed:", error?.message);
+      return NextResponse.redirect(new URL("/login?error=link_invalid", origin));
+    }
+    authUserId = data.user.id;
+    authUserEmail = data.user.email ?? null;
+    authUserMetadata = data.user.user_metadata;
+  } else if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error || !data.user) {
+      console.error("[Auth Callback] Error exchanging code:", error?.message);
+      return NextResponse.redirect(new URL("/login?error=link_invalid", origin));
+    }
+    authUserId = data.user.id;
+    authUserEmail = data.user.email ?? null;
+    authUserMetadata = data.user.user_metadata;
   }
 
-  const authUser = data.user;
-  if (authUser.user_metadata?.portalArchived === true) {
+  if (!authUserId) {
+    return NextResponse.redirect(new URL("/login?error=link_invalid", origin));
+  }
+
+  if ((authUserMetadata as { portalArchived?: boolean } | undefined)?.portalArchived === true) {
     return NextResponse.redirect(new URL("/login?error=account_archived", origin));
   }
 
   let prismaUser = await prisma.user.findUnique({
-    where: { supabaseAuthId: authUser.id },
+    where: { supabaseAuthId: authUserId },
     select: { id: true, archivedAt: true },
   });
 
-  if (!prismaUser) {
+  if (!prismaUser && authUserEmail) {
     const byEmail = await prisma.user.findUnique({
-      where: { email: authUser.email! },
+      where: { email: authUserEmail },
       select: { id: true, supabaseAuthId: true, archivedAt: true },
     });
 
@@ -60,7 +98,7 @@ export async function GET(request: NextRequest) {
     if (byEmail && !byEmail.supabaseAuthId) {
       await prisma.user.update({
         where: { id: byEmail.id },
-        data: { supabaseAuthId: authUser.id },
+        data: { supabaseAuthId: authUserId },
       });
       prismaUser = { id: byEmail.id, archivedAt: byEmail.archivedAt };
     } else if (!byEmail) {
