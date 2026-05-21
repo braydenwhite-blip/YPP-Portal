@@ -77,6 +77,12 @@ export interface CreateExternalInstructorApplicantInput {
   availability?: string | null;
   /** Optional — assign to a specific cohort. */
   cohortId?: string | null;
+  /** Optional — when set, the application is created already INTERVIEW_SCHEDULED. */
+  interviewScheduledAt?: Date | null;
+  /** Optional — Zoom / Google Meet join link. When supplied with a scheduled
+   *  time, a confirmed OfferedInterviewSlot row is also created so the applicant
+   *  sees the link on /my-interview. */
+  interviewMeetingUrl?: string | null;
 }
 
 export interface CreateExternalInstructorApplicantResult {
@@ -89,6 +95,19 @@ export interface CreateExternalInstructorApplicantResult {
 
 function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
+}
+
+/**
+ * Loose meeting-link normalization: trims, and prepends `https://` if the
+ * admin pasted a bare host like `zoom.us/j/123`. We deliberately don't
+ * validate the URL further — meeting platforms vary too much for a regex
+ * to be useful, and a bad link only ever lands in the applicant's view.
+ */
+function normalizeMeetingLink(raw: string | null | undefined): string | null {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return null;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
 }
 
 async function requireAdminOrChapterLead() {
@@ -150,6 +169,15 @@ export async function createExternalInstructorApplicant(
       ? InstructorSubtype.SUMMER_WORKSHOP
       : InstructorSubtype.STANDARD;
 
+  const interviewMeetingUrl = normalizeMeetingLink(input.interviewMeetingUrl);
+  const interviewScheduledAt = input.interviewScheduledAt ?? null;
+  if (interviewScheduledAt && Number.isNaN(interviewScheduledAt.getTime())) {
+    throw new Error("Interview date/time is invalid.");
+  }
+  if (!interviewScheduledAt && interviewMeetingUrl) {
+    throw new Error("Set an interview time before adding a meeting link.");
+  }
+
   // 1) Find or create the applicant User. We mirror csv-import-actions for
   //    consistency: stub users get a sentinel passwordHash and the APPLICANT
   //    primary role. They can claim the account later via the existing
@@ -199,11 +227,14 @@ export async function createExternalInstructorApplicant(
       externalResponseUrl: input.externalResponseUrl?.trim() || null,
       externalAnswersCopy: input.externalAnswersCopy?.trim() || null,
       internalNotes: input.internalNotes?.trim() || null,
-      status: defaultInitialReviewer
-        ? InstructorApplicationStatus.UNDER_REVIEW
-        : InstructorApplicationStatus.SUBMITTED,
+      status: interviewScheduledAt
+        ? InstructorApplicationStatus.INTERVIEW_SCHEDULED
+        : defaultInitialReviewer
+          ? InstructorApplicationStatus.UNDER_REVIEW
+          : InstructorApplicationStatus.SUBMITTED,
       reviewerId: defaultInitialReviewer?.id,
       reviewerAssignedAt: defaultInitialReviewer ? externalImportedAt : null,
+      interviewScheduledAt,
       // Pre-populated fields. Empty strings (rather than null) match the
       // portal-native flow's defaulting for required Text columns.
       motivation: input.motivation?.trim() || null,
@@ -242,6 +273,21 @@ export async function createExternalInstructorApplicant(
     },
     select: { id: true },
   });
+
+  // 2b) If both an interview time and a meeting link are supplied, record the
+  //     time + link as a confirmed OfferedInterviewSlot so the applicant can
+  //     see the join link on /my-interview.
+  if (interviewScheduledAt && interviewMeetingUrl) {
+    await prisma.offeredInterviewSlot.create({
+      data: {
+        instructorApplicationId: application.id,
+        scheduledAt: interviewScheduledAt,
+        meetingUrl: interviewMeetingUrl,
+        offeredByUserId: importedById,
+        confirmedAt: externalImportedAt,
+      },
+    });
+  }
 
   // 3) Seed the default manual-email checklist. Portal-native intake gets
   //    auto-emails; external intake gets a "send manually + mark sent"
@@ -343,6 +389,12 @@ export async function createExternalInstructorApplicantFromForm(
       return { ok: false, error: "External submitted-at must be a valid date." };
     }
 
+    const interviewRaw = String(formData.get("interviewScheduledAt") ?? "").trim();
+    const interviewScheduledAt = interviewRaw ? new Date(interviewRaw) : null;
+    if (interviewScheduledAt && Number.isNaN(interviewScheduledAt.getTime())) {
+      return { ok: false, error: "Interview date/time must be a valid date." };
+    }
+
     const result = await createExternalInstructorApplicant({
       name: String(formData.get("name") ?? ""),
       email: String(formData.get("email") ?? ""),
@@ -358,6 +410,8 @@ export async function createExternalInstructorApplicantFromForm(
       teachingExperience: String(formData.get("teachingExperience") ?? "") || null,
       availability: String(formData.get("availability") ?? "") || null,
       cohortId: String(formData.get("cohortId") ?? "") || null,
+      interviewScheduledAt,
+      interviewMeetingUrl: String(formData.get("interviewMeetingUrl") ?? "") || null,
     });
     return { ok: true, applicationId: result.applicationId };
   } catch (err) {
@@ -473,10 +527,7 @@ export async function createExternalChapterPresidentApplicant(
   }
 
   const chapterId = input.chapterId?.trim() || null;
-  const interviewMeetingUrl = input.interviewMeetingUrl?.trim() || null;
-  if (interviewMeetingUrl && !/^https?:\/\//i.test(interviewMeetingUrl)) {
-    throw new Error("Meeting link must be a valid URL.");
-  }
+  const interviewMeetingUrl = normalizeMeetingLink(input.interviewMeetingUrl);
   const interviewScheduledAt = input.interviewScheduledAt ?? null;
   if (interviewScheduledAt && Number.isNaN(interviewScheduledAt.getTime())) {
     throw new Error("Interview date/time is invalid.");
