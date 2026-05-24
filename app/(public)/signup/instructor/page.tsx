@@ -40,8 +40,15 @@ const SECTION_LABELS = ["Account", "Profile", "School", "Teaching", "Availabilit
 const AVAILABILITY_OPTIONS = [
   "Weekday mornings",
   "Weekday afternoons",
+  "After school",
   "Weekday evenings",
-  "Weekends",
+  "Saturday mornings",
+  "Saturday afternoons",
+  "Sunday mornings",
+  "Sunday afternoons",
+  "School holidays",
+  "Summer",
+  "Flexible",
 ] as const;
 
 type ApplicationTrackOption = "STANDARD_INSTRUCTOR" | "SUMMER_WORKSHOP_INSTRUCTOR";
@@ -68,7 +75,7 @@ const HEAR_ABOUT_OPTIONS = [
 function timeHint(section: number, summerWorkshop = false): string {
   if (summerWorkshop) {
     const hints: Record<number, string> = {
-      1: "About 4–5 minutes left. You can leave and come back — we save your answers on this device.",
+      1: "About 4–5 minutes left. You can leave and come back. We save your answers on this device.",
       2: "About 3 minutes left.",
       3: "About 2 minutes left.",
       4: "About 1 minute left.",
@@ -77,7 +84,7 @@ function timeHint(section: number, summerWorkshop = false): string {
     return hints[section] ?? hints[5];
   }
   const hints: Record<number, string> = {
-    1: "About 8–12 minutes left from here. You can leave and come back — we save your answers on this device.",
+    1: "About 8–12 minutes left from here. You can leave and come back. We save your answers on this device.",
     2: "About 6–9 minutes left.",
     3: "About 4–6 minutes left.",
     4: "About 3–5 minutes left.",
@@ -322,7 +329,7 @@ export default function InstructorSignupPage() {
                 {
                   value: "SUMMER_WORKSHOP_INSTRUCTOR" as const,
                   title: "Summer Workshop Instructor",
-                  blurb: "Lead a focused, high-impact workshop at camp. A fast-start teaching role — strong workshop instructors may quickly be considered for full instructor work and instructor mentorship.",
+                  blurb: "Lead a focused, high-impact workshop at camp. A fast-start teaching role. Strong workshop instructors may quickly be considered for full instructor work and instructor mentorship.",
                 },
               ]
             ).map((opt) => {
@@ -361,7 +368,7 @@ export default function InstructorSignupPage() {
             <p style={{ margin: "0 0 10px" }}>
               We found a saved application on this device from{" "}
               {new Date(resumeBanner.savedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.
-              Your password is never stored — you will re-enter it before submitting.
+              Your password is never stored. You will re-enter it before submitting.
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               <button type="button" className="button" style={{ fontSize: 13, padding: "8px 14px" }} onClick={handleResume}>
@@ -474,13 +481,15 @@ export default function InstructorSignupPage() {
           <div data-signup-section="2">
             <div style={SECTION_STYLE}>Personal details</div>
 
-            <label className="form-label">
-              Legal name
-              <input className="input" name="legalName" placeholder="First, middle, and last name" required defaultValue={field(d, "legalName", sf)} />
-              <span style={HELPER}>
-                The name as it appears on your government ID. We use this only for onboarding paperwork if you&apos;re hired — it isn&apos;t shown publicly.
-              </span>
-            </label>
+            {!isSummerWorkshop && (
+              <label className="form-label">
+                Legal name
+                <input className="input" name="legalName" placeholder="First, middle, and last name" required defaultValue={field(d, "legalName", sf)} />
+                <span style={HELPER}>
+                  The name as it appears on your government ID. Used only for onboarding paperwork if you&apos;re hired. Not shown publicly.
+                </span>
+              </label>
+            )}
 
             <label className="form-label">
               Preferred first name
@@ -600,14 +609,14 @@ export default function InstructorSignupPage() {
                 required
                 placeholder={
                   isSummerWorkshop
-                    ? "Ever helped someone learn something — tutoring, coaching, a club, babysitting? Tell us about it."
+                    ? "Ever helped someone learn something? Tutoring, coaching, a club, babysitting. Tell us about it."
                     : "Walk us through the most relevant teaching, tutoring, coaching, camp, or mentoring experience you have. What did you lead, who were you working with, and what worked well?"
                 }
                 defaultValue={field(d, "teachingExperience", sf)}
               />
               {!isSummerWorkshop && (
                 <span style={HELPER}>
-                  Aim for 3–4 sentences (or a few bullets). Specific examples — a class, a club, a camp role, a tutoring streak — help reviewers more than general claims. You don&apos;t need to be polished; clear and concrete is what we&apos;re looking for.
+                  Aim for 3–4 sentences (or a few bullets). Specific examples like a class, a club, a camp role, or a tutoring streak help reviewers more than general claims. Clear and concrete is what we&apos;re looking for.
                 </span>
               )}
             </label>
@@ -666,7 +675,7 @@ export default function InstructorSignupPage() {
 
             {isSummerWorkshop && (
               <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f5f3ff", border: "1px solid #ddd6fe", fontSize: 13, color: "#5b21b6", marginTop: 12 }}>
-                You&apos;ll design your full workshop with us after you&apos;re in — no curriculum needed upfront.
+                You&apos;ll design your full workshop with us after you&apos;re in. No curriculum needed upfront.
               </div>
             )}
 
@@ -753,11 +762,11 @@ export default function InstructorSignupPage() {
                     className="input"
                     name="referralEmails"
                     rows={3}
-                    placeholder="name@example.com — Teacher, How they know you"
+                    placeholder="name@example.com, Teacher, How they know you"
                     defaultValue={field(d, "referralEmails", sf)}
                   />
                   <span style={HELPER}>
-                    Emails of 1–2 people who can speak to your teaching, mentoring, or leadership — a teacher, coach, supervisor, club advisor, or chapter leader. Friends and family aren&apos;t a fit. We only reach out if we&apos;re moving forward with your application, and we&apos;ll let you know first.
+                    Emails of 1–2 people who can speak to your teaching, mentoring, or leadership: a teacher, coach, supervisor, club advisor, or chapter leader. Friends and family aren&apos;t a fit. We only reach out if we&apos;re moving forward with your application, and we&apos;ll let you know first.
                   </span>
                 </label>
               </>

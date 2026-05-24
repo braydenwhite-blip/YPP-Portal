@@ -112,8 +112,15 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
   const AVAILABILITY_OPTIONS = [
     "Weekday mornings",
     "Weekday afternoons",
+    "After school",
     "Weekday evenings",
-    "Weekends",
+    "Saturday mornings",
+    "Saturday afternoons",
+    "Sunday mornings",
+    "Sunday afternoons",
+    "School holidays",
+    "Summer",
+    "Flexible",
   ] as const;
 
   const [availabilitySlots, setAvailabilitySlots] = useState<string[]>(() => {
@@ -149,10 +156,12 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
       <div>
         <div style={SECTION_STYLE}>Personal details</div>
 
-        <label className="form-label">
-          Legal name
-          <input className="input" name="legalName" required defaultValue={get("legalName")} />
-        </label>
+        {!isSummerWorkshop && (
+          <label className="form-label">
+            Legal name
+            <input className="input" name="legalName" required defaultValue={get("legalName")} />
+          </label>
+        )}
 
         <label className="form-label">
           Preferred first name
@@ -299,7 +308,7 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
             required
             placeholder={
               isSummerWorkshop
-                ? "Ever helped someone learn something — tutoring, coaching, a club, babysitting? Tell us about it."
+                ? "Ever helped someone learn something? Tutoring, coaching, a club, babysitting. Tell us about it."
                 : undefined
             }
             defaultValue={get("teachingExperience")}
@@ -344,7 +353,7 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
 
         {isSummerWorkshop && (
           <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f5f3ff", border: "1px solid #ddd6fe", fontSize: 13, color: "#5b21b6", marginTop: 12 }}>
-            You&apos;ll design your full workshop with us after you&apos;re in — no curriculum needed upfront.
+            You&apos;ll design your full workshop with us after you&apos;re in. No curriculum needed upfront.
           </div>
         )}
 

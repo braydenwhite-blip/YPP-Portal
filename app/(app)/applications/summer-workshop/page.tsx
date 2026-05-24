@@ -81,7 +81,7 @@ export default async function SummerWorkshopLandingPage() {
       </h1>
       <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 24px" }}>
         Lead a hands-on workshop at a YPP camp. Tell us about your teaching background
-        and a subject you&apos;re excited about — no curriculum required upfront.
+        and a subject you&apos;re excited about. No curriculum required upfront.
         Strong instructors can grow into full teaching roles and mentorship.
       </p>
 
@@ -99,7 +99,7 @@ export default async function SummerWorkshopLandingPage() {
                 marginBottom: 16,
               }}
             >
-              Your previous application is closed. You can submit a new one — it will be
+              Your previous application is closed. You can submit a new one and it will be
               flagged as a re-application so the review team has full context.
             </div>
           )}
