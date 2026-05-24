@@ -600,26 +600,34 @@ export default function InstructorSignupPage() {
           <div data-signup-section="4">
             <div style={SECTION_STYLE}>{isSummerWorkshop ? "Workshop application" : "Teaching application"}</div>
 
-            <label className="form-label">
-              Teaching or mentoring experience
-              <textarea
-                className="input"
-                name="teachingExperience"
-                rows={isSummerWorkshop ? 2 : 4}
-                required
-                placeholder={
-                  isSummerWorkshop
-                    ? "Ever helped someone learn something? Tutoring, coaching, a club, babysitting. Tell us about it."
-                    : "Walk us through the most relevant teaching, tutoring, coaching, camp, or mentoring experience you have. What did you lead, who were you working with, and what worked well?"
-                }
-                defaultValue={field(d, "teachingExperience", sf)}
-              />
-              {!isSummerWorkshop && (
+            {isSummerWorkshop ? (
+              <label className="form-label">
+                What would you teach?
+                <textarea
+                  className="input"
+                  name="teachingExperience"
+                  rows={2}
+                  required
+                  placeholder="e.g. A 45-minute intro to public speaking for middle schoolers, with a short practice speech at the end."
+                  defaultValue={field(d, "teachingExperience", sf)}
+                />
+              </label>
+            ) : (
+              <label className="form-label">
+                Teaching or mentoring experience
+                <textarea
+                  className="input"
+                  name="teachingExperience"
+                  rows={4}
+                  required
+                  placeholder="Walk us through the most relevant teaching, tutoring, coaching, camp, or mentoring experience you have. What did you lead, who were you working with, and what worked well?"
+                  defaultValue={field(d, "teachingExperience", sf)}
+                />
                 <span style={HELPER}>
                   Aim for 3–4 sentences (or a few bullets). Specific examples like a class, a club, a camp role, or a tutoring streak help reviewers more than general claims. Clear and concrete is what we&apos;re looking for.
                 </span>
-              )}
-            </label>
+              </label>
+            )}
 
             {!isSummerWorkshop && (
               <>

@@ -299,21 +299,30 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
       <div>
         <div style={SECTION_STYLE}>{isSummerWorkshop ? "Workshop application" : "Teaching application"}</div>
 
-        <label className="form-label">
-          Teaching or mentoring experience
-          <textarea
-            className="input"
-            name="teachingExperience"
-            rows={isSummerWorkshop ? 2 : 4}
-            required
-            placeholder={
-              isSummerWorkshop
-                ? "Ever helped someone learn something? Tutoring, coaching, a club, babysitting. Tell us about it."
-                : undefined
-            }
-            defaultValue={get("teachingExperience")}
-          />
-        </label>
+        {isSummerWorkshop ? (
+          <label className="form-label">
+            What would you teach?
+            <textarea
+              className="input"
+              name="teachingExperience"
+              rows={2}
+              required
+              placeholder="e.g. A 45-minute intro to public speaking for middle schoolers, with a short practice speech at the end."
+              defaultValue={get("teachingExperience")}
+            />
+          </label>
+        ) : (
+          <label className="form-label">
+            Teaching or mentoring experience
+            <textarea
+              className="input"
+              name="teachingExperience"
+              rows={4}
+              required
+              defaultValue={get("teachingExperience")}
+            />
+          </label>
+        )}
 
         {!isSummerWorkshop && (
           <>
