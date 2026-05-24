@@ -37,6 +37,13 @@ function SubmitButton({ label }: { label: string }) {
 
 const SECTION_LABELS = ["Account", "Profile", "School", "Teaching", "Availability"] as const;
 
+const AVAILABILITY_OPTIONS = [
+  "Weekday mornings",
+  "Weekday afternoons",
+  "Weekday evenings",
+  "Weekends",
+] as const;
+
 type ApplicationTrackOption = "STANDARD_INSTRUCTOR" | "SUMMER_WORKSHOP_INSTRUCTOR";
 
 /**
@@ -58,7 +65,17 @@ const HEAR_ABOUT_OPTIONS = [
   "Other",
 ] as const;
 
-function timeHint(section: number): string {
+function timeHint(section: number, summerWorkshop = false): string {
+  if (summerWorkshop) {
+    const hints: Record<number, string> = {
+      1: "About 4–5 minutes left. You can leave and come back — we save your answers on this device.",
+      2: "About 3 minutes left.",
+      3: "About 2 minutes left.",
+      4: "About 1 minute left.",
+      5: "Almost done.",
+    };
+    return hints[section] ?? hints[5];
+  }
   const hints: Record<number, string> = {
     1: "About 8–12 minutes left from here. You can leave and come back — we save your answers on this device.",
     2: "About 6–9 minutes left.",
@@ -215,6 +232,10 @@ export default function InstructorSignupPage() {
     return fromState ?? "STANDARD_INSTRUCTOR";
   });
   const isSummerWorkshop = applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR";
+  const [availabilitySlots, setAvailabilitySlots] = useState<string[]>(() => {
+    const raw = field(appliedDraft, "availability", state.fields);
+    return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  });
 
   useEffect(() => {
     setHearAbout(field(d, "hearAboutYPPOption", sf) ?? "");
@@ -376,7 +397,7 @@ export default function InstructorSignupPage() {
               </span>
             ))}
           </div>
-          <p style={{ fontSize: 12, color: "var(--muted)", margin: "10px 0 0", lineHeight: 1.45 }}>{timeHint(activeSection)}</p>
+          <p style={{ fontSize: 12, color: "var(--muted)", margin: "10px 0 0", lineHeight: 1.45 }}>{timeHint(activeSection, isSummerWorkshop)}</p>
         </div>
 
         <form
@@ -575,14 +596,20 @@ export default function InstructorSignupPage() {
               <textarea
                 className="input"
                 name="teachingExperience"
-                rows={isSummerWorkshop ? 4 : 4}
+                rows={isSummerWorkshop ? 2 : 4}
                 required
-                placeholder="Walk us through the most relevant teaching, tutoring, coaching, camp, or mentoring experience you have. What did you lead, who were you working with, and what worked well?"
+                placeholder={
+                  isSummerWorkshop
+                    ? "Ever helped someone learn something — tutoring, coaching, a club, babysitting? Tell us about it."
+                    : "Walk us through the most relevant teaching, tutoring, coaching, camp, or mentoring experience you have. What did you lead, who were you working with, and what worked well?"
+                }
                 defaultValue={field(d, "teachingExperience", sf)}
               />
-              <span style={HELPER}>
-                Aim for 3–4 sentences (or a few bullets). Specific examples — a class, a club, a camp role, a tutoring streak — help reviewers more than general claims. You don&apos;t need to be polished; clear and concrete is what we&apos;re looking for.
-              </span>
+              {!isSummerWorkshop && (
+                <span style={HELPER}>
+                  Aim for 3–4 sentences (or a few bullets). Specific examples — a class, a club, a camp role, a tutoring streak — help reviewers more than general claims. You don&apos;t need to be polished; clear and concrete is what we&apos;re looking for.
+                </span>
+              )}
             </label>
 
             {!isSummerWorkshop && (
@@ -638,132 +665,23 @@ export default function InstructorSignupPage() {
             )}
 
             {isSummerWorkshop && (
-              <div style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", marginTop: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Workshop Outline</div>
-
-                <label className="form-label">
-                  Workshop title
-                  <input
-                    className="input"
-                    name="workshopTitle"
-                    placeholder="e.g. Intro to Public Speaking"
-                    required
-                    defaultValue={field(d, "workshopTitle", sf)}
-                  />
-                </label>
-
-                <div className="grid two">
-                  <label className="form-label">
-                    Age range
-                    <input
-                      className="input"
-                      name="workshopAgeRange"
-                      placeholder="e.g. Grades 6–8"
-                      required
-                      defaultValue={field(d, "workshopAgeRange", sf)}
-                    />
-                  </label>
-                  <label className="form-label">
-                    Duration (minutes)
-                    <input
-                      className="input"
-                      name="workshopDurationMinutes"
-                      type="number"
-                      min={15}
-                      max={240}
-                      placeholder="e.g. 45"
-                      required
-                      defaultValue={field(d, "workshopDurationMinutes", sf)}
-                    />
-                  </label>
-                </div>
-
-                <label className="form-label">
-                  Learning goals
-                  <textarea
-                    className="input"
-                    name="workshopLearningGoals"
-                    rows={4}
-                    required
-                    placeholder={"What should students be able to do or understand by the end? List 2–4 concrete goals, one per line.\n\nExample:\n- Identify a persuasive opening\n- Practice eye contact and pacing\n- Deliver a 60-second talk on a topic they care about"}
-                    defaultValue={field(d, "workshopLearningGoals", sf)}
-                  />
-                  <span style={HELPER}>
-                    2–4 bullets, one per line. Focus on what the student walks away able to do, not what you&apos;ll cover.
-                  </span>
-                </label>
-
-                <label className="form-label">
-                  Activity flow
-                  <textarea
-                    className="input"
-                    name="workshopActivityFlow"
-                    rows={5}
-                    required
-                    placeholder={"Walk us through the workshop from start to finish — opening, main activity, and closing. A short timestamped outline works well.\n\nExample:\n- Hook & intros (5 min)\n- Mini-lesson on persuasive openings (10 min)\n- Pair practice with feedback (20 min)\n- Share-outs and debrief (10 min)"}
-                    defaultValue={field(d, "workshopActivityFlow", sf)}
-                  />
-                  <span style={HELPER}>
-                    Roughly 4–6 steps with approximate times. We want to see how you pace the room from open to close.
-                  </span>
-                </label>
-
-                <label className="form-label">
-                  Materials needed <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
-                  <textarea
-                    className="input"
-                    name="workshopMaterialsNeeded"
-                    rows={2}
-                    placeholder={"Anything beyond chairs and a whiteboard. One per line.\n\nExample:\n- Index cards\n- Markers"}
-                    defaultValue={field(d, "workshopMaterialsNeeded", sf)}
-                  />
-                  <span style={HELPER}>
-                    One per line. Leave blank if your workshop doesn&apos;t need anything special.
-                  </span>
-                </label>
-
-                <label className="form-label">
-                  Engagement hook
-                  <textarea
-                    className="input"
-                    name="workshopEngagementHook"
-                    rows={3}
-                    required
-                    placeholder="How will you grab attention in the first 5 minutes? Tell us what you'd actually say or do — a story, a question, a quick demo, a challenge."
-                    defaultValue={field(d, "workshopEngagementHook", sf)}
-                  />
-                  <span style={HELPER}>
-                    A few sentences. The more specific the hook, the easier it is for us to picture you running the room.
-                  </span>
-                </label>
-
-                <label className="form-label">
-                  Adapting on the fly
-                  <textarea
-                    className="input"
-                    name="workshopAdaptationNotes"
-                    rows={3}
-                    required
-                    placeholder="If the energy dips, or a few students are way ahead while others are lost, how do you adjust in the moment?"
-                    defaultValue={field(d, "workshopAdaptationNotes", sf)}
-                  />
-                  <span style={HELPER}>
-                    3–4 sentences is plenty. A real example from past teaching, tutoring, or leading peers is great here.
-                  </span>
-                </label>
+              <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f5f3ff", border: "1px solid #ddd6fe", fontSize: 13, color: "#5b21b6", marginTop: 12 }}>
+                You&apos;ll design your full workshop with us after you&apos;re in — no curriculum needed upfront.
               </div>
             )}
 
-            <label className="form-label">
-              Anything else you&apos;d like us to know? <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
-              <textarea
-                className="input"
-                name="motivation"
-                rows={3}
-                placeholder="Why this opportunity matters to you, context the review team should consider, or anything you couldn't fit above."
-                defaultValue={field(d, "motivation", sf)}
-              />
-            </label>
+            {!isSummerWorkshop && (
+              <label className="form-label">
+                Anything else you&apos;d like us to know? <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
+                <textarea
+                  className="input"
+                  name="motivation"
+                  rows={3}
+                  placeholder="Why this opportunity matters to you, context the review team should consider, or anything you couldn't fit above."
+                  defaultValue={field(d, "motivation", sf)}
+                />
+              </label>
+            )}
           </div>
 
           <hr style={HR} />
@@ -772,41 +690,78 @@ export default function InstructorSignupPage() {
           <div data-signup-section="5">
             <div style={SECTION_STYLE}>Availability</div>
 
-            <label className="form-label">
-              Interview availability
-              <input
-                className="input"
-                name="availability"
-                placeholder="e.g. weekday evenings, time zone"
-                required
-                defaultValue={field(d, "availability", sf)}
-              />
-            </label>
+            {isSummerWorkshop ? (
+              <>
+                <input type="hidden" name="availability" value={availabilitySlots.join(", ")} />
+                <div className="form-label" style={{ marginBottom: 8 }}>When are you generally free?</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+                  {AVAILABILITY_OPTIONS.map((opt) => {
+                    const selected = availabilitySlots.includes(opt);
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() =>
+                          setAvailabilitySlots((prev) =>
+                            selected ? prev.filter((s) => s !== opt) : [...prev, opt]
+                          )
+                        }
+                        style={{
+                          padding: "8px 16px",
+                          borderRadius: 20,
+                          border: selected ? "2px solid #6b21c8" : "1px solid var(--border)",
+                          background: selected ? "#f5f3ff" : "var(--background)",
+                          color: selected ? "#6b21c8" : "var(--foreground)",
+                          fontSize: 13,
+                          fontWeight: selected ? 600 : 400,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <>
+                <label className="form-label">
+                  Interview availability
+                  <input
+                    className="input"
+                    name="availability"
+                    placeholder="e.g. weekday evenings, time zone"
+                    required
+                    defaultValue={field(d, "availability", sf)}
+                  />
+                </label>
 
-            <div className="grid two">
-              <label className="form-label">
-                Hours per week you can commit
-                <input className="input" name="hoursPerWeek" type="number" min={1} max={40} required defaultValue={field(d, "hoursPerWeek", sf)} />
-              </label>
-              <label className="form-label">
-                Preferred start date
-                <input className="input" name="preferredStartDate" type="date" defaultValue={field(d, "preferredStartDate", sf)} />
-              </label>
-            </div>
+                <div className="grid two">
+                  <label className="form-label">
+                    Hours per week you can commit
+                    <input className="input" name="hoursPerWeek" type="number" min={1} max={40} required defaultValue={field(d, "hoursPerWeek", sf)} />
+                  </label>
+                  <label className="form-label">
+                    Preferred start date
+                    <input className="input" name="preferredStartDate" type="date" defaultValue={field(d, "preferredStartDate", sf)} />
+                  </label>
+                </div>
 
-            <label className="form-label">
-              References <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
-              <textarea
-                className="input"
-                name="referralEmails"
-                rows={3}
-                placeholder="name@example.com — Teacher, How they know you"
-                defaultValue={field(d, "referralEmails", sf)}
-              />
-              <span style={HELPER}>
-                Emails of 1–2 people who can speak to your teaching, mentoring, or leadership — a teacher, coach, supervisor, club advisor, or chapter leader. Friends and family aren&apos;t a fit. We only reach out if we&apos;re moving forward with your application, and we&apos;ll let you know first.
-              </span>
-            </label>
+                <label className="form-label">
+                  References <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
+                  <textarea
+                    className="input"
+                    name="referralEmails"
+                    rows={3}
+                    placeholder="name@example.com — Teacher, How they know you"
+                    defaultValue={field(d, "referralEmails", sf)}
+                  />
+                  <span style={HELPER}>
+                    Emails of 1–2 people who can speak to your teaching, mentoring, or leadership — a teacher, coach, supervisor, club advisor, or chapter leader. Friends and family aren&apos;t a fit. We only reach out if we&apos;re moving forward with your application, and we&apos;ll let you know first.
+                  </span>
+                </label>
+              </>
+            )}
           </div>
 
           {state.status === "error" && state.message === "ACCOUNT_EXISTS_SIGNIN_REQUIRED" ? (
@@ -872,7 +827,7 @@ export default function InstructorSignupPage() {
           ) : null}
 
           <SubmitButton
-            label={isSummerWorkshop ? "Submit Workshop Instructor Application" : "Submit Application"}
+            label={isSummerWorkshop ? "Send it →" : "Submit Application"}
           />
         </form>
 
