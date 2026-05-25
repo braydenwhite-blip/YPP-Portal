@@ -338,7 +338,7 @@ function DirectoryRow({
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-export default function InstructorOpsHub({
+export default function LifecycleBoardClient({
   instructors,
   chapters,
   mentors: _mentors,
