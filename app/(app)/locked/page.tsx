@@ -100,15 +100,27 @@ export default async function LockedPage({
         </Link>
       </div>
 
-      <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
-        On the team?{" "}
-        <Link
-          href={from ? `/preview?next=${encodeURIComponent(from)}` : "/preview"}
-          style={{ color: "#6b21c8" }}
-        >
-          Enter the preview passcode
-        </Link>{" "}
-        to unlock the rest of the portal on this device.
+      <Link
+        href={from ? `/preview?next=${encodeURIComponent(from)}` : "/preview"}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "10px 18px",
+          borderRadius: 8,
+          background: "#6b21c8",
+          color: "#fff",
+          fontSize: 14,
+          fontWeight: 600,
+          textDecoration: "none",
+          marginBottom: 12,
+        }}
+      >
+        <span style={{ fontSize: 16 }}>🔑</span>
+        Enter the preview passcode
+      </Link>
+      <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6, marginTop: 8 }}>
+        On the team? Use the passcode to unlock the full portal on this device.
       </p>
     </div>
   );
