@@ -9,6 +9,11 @@ const INSTRUCTOR_AND_APPLICANT_ROLES: NavRole[] = ["APPLICANT", "INSTRUCTOR", "A
 const MENTOR_ROLES: NavRole[] = ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"];
 const MY_PROGRAM_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"];
 const APPLICANT_ROLES: NavRole[] = ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
+// Like APPLICANT_ROLES but excludes APPLICANT — used for the broader
+// "My Applications" tracker, since applicants already have "My Application"
+// (singular) pointing at /application-status and the plural view would
+// redirect right back for them.
+const APPLICANT_ROLES_EXCLUDING_APPLICANT: NavRole[] = ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
 const INTERVIEW_ROLES: NavRole[] = ["INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"];
 const ADMIN_ONLY: NavRole[] = ["ADMIN"];
 const HIRING_CHAIR_ADMIN_ROLES: NavRole[] = ["ADMIN", "HIRING_CHAIR"];
@@ -357,7 +362,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/applications",
       label: "My Applications",
       icon: "📨",
-      roles: APPLICANT_ROLES,
+      roles: APPLICANT_ROLES_EXCLUDING_APPLICANT,
       dashboardDescription: "Track your submitted applications and interview status.",
       dashboardPriority: 8,
       dashboardBadgeKey: "active_applications",
@@ -371,6 +376,25 @@ export const NAV_CATALOG: NavLink[] = [
   ]),
 
   ...groupLinks("People & Support", 800, [
+    {
+      href: "/leadership-pathway",
+      label: "Leadership Pathway",
+      icon: "🪜",
+      roles: ["INSTRUCTOR", "MENTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
+      searchAliases: [
+        "Role",
+        "Roles",
+        "Senior Instructor",
+        "Lead Instructor",
+        "Promotion",
+        "Career",
+        "Growth Pathway",
+        "My Mentor",
+      ],
+      dashboardDescription:
+        "See where you fit on the YPP instructor pathway and who's mentoring you.",
+      dashboardPriority: 4,
+    },
     {
       href: "/mentorship",
       label: "Mentorship",
@@ -769,6 +793,19 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "👩‍🏫",
       roles: ADMIN_ONLY,
     },
+    {
+      href: "/admin/instructor-assignments",
+      label: "Instructor Assignments",
+      icon: "🧩",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Assign regular instructors to class offerings and track coverage.",
+      dashboardPriority: 5,
+      searchAliases: [
+        "Regular Instructor Assignments",
+        "Class Coverage",
+        "Instructor Coverage",
+      ],
+    },
     { href: "/admin/bulk-users", label: "Bulk Users", icon: "👥", roles: ADMIN_ONLY },
     {
       href: "/admin/parent-approvals",
@@ -890,6 +927,15 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "pending_curriculum_review",
     },
     {
+      href: "/admin/course-library",
+      label: "Course Library",
+      icon: "📚",
+      roles: ADMIN_ONLY,
+      dashboardDescription:
+        "Curate the courses instructors pick from instead of building from scratch.",
+      dashboardPriority: 7,
+    },
+    {
       href: "/admin/workshop-library",
       label: "Workshop Library",
       icon: "🎒",
@@ -904,6 +950,20 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ["ADMIN", "CHAPTER_PRESIDENT"] as NavRole[],
       dashboardDescription: "Score Summer Workshop Instructor proposals and committed decisions.",
       dashboardPriority: 9,
+    },
+    {
+      href: "/admin/opportunities",
+      label: "Workshop & Camp Assignments",
+      icon: "🎯",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Manage partner camps and workshops, see uncovered slots, and assign instructors.",
+      dashboardPriority: 9,
+      searchAliases: [
+        "Opportunities",
+        "Camp Assignments",
+        "Instructor Assignments",
+        "Workshop Assignments",
+      ],
     },
   ]),
 
@@ -986,5 +1046,20 @@ export const NAV_CATALOG: NavLink[] = [
     },
     { href: "/admin/alumni", label: "Manage Alumni", icon: "🎓", roles: ADMIN_ONLY },
     { href: "/admin/unlock-approvals", label: "Unlock Approvals", icon: "🔓", roles: ADMIN_ONLY, dashboardDescription: "Review and approve section unlock recommendations from mentors." },
+    {
+      href: "/admin/action-center",
+      label: "Action Center",
+      icon: "🎯",
+      roles: ["ADMIN", "STAFF"] as NavRole[],
+      searchAliases: [
+        "Leadership Action Center",
+        "Officer Operations",
+        "Weekly Action Tracker",
+        "Action Items",
+      ],
+      dashboardDescription:
+        "Officer operating rhythm: tasks, weekly digest, meetings, and the live tracker that replaces the spreadsheet+email workflow.",
+      dashboardPriority: 3,
+    },
   ]),
 ];

@@ -24,26 +24,59 @@ const RATING_FIELDS: { name: string; label: string }[] = [
 type ReviewDecisionFormProps = {
   submissionId: string;
   disabled: boolean;
+  /**
+   * Validation issues the applicant would still have to fix before this
+   * proposal would pass our own submit-time validator. Surfaced as a
+   * confirmation dialog before APPROVE is committed; never blocks
+   * REQUEST_CHANGES or REJECT.
+   */
+  incompleteIssues?: string[];
 };
 
 export function ReviewDecisionForm({
   submissionId,
   disabled,
+  incompleteIssues = [],
 }: ReviewDecisionFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [recommendation, setRecommendation] = useState<string>("");
 
   function handle(formData: FormData) {
     setError(null);
     formData.set("submissionId", submissionId);
+    const rec = String(formData.get("overallRecommendation") ?? "");
+
+    if (rec === "APPROVE" && incompleteIssues.length > 0) {
+      const ok = window.confirm(
+        `This proposal is missing ${incompleteIssues.length} required item${
+          incompleteIssues.length === 1 ? "" : "s"
+        }:\n\n` +
+          incompleteIssues.slice(0, 8).join("\n") +
+          (incompleteIssues.length > 8
+            ? `\n…and ${incompleteIssues.length - 8} more`
+            : "") +
+          "\n\nApprove anyway?"
+      );
+      if (!ok) return;
+    }
+
     startTransition(async () => {
       try {
         await commitWorkshopReview(formData);
         router.refresh();
       } catch (err) {
+        const message =
+          err instanceof Error && err.message
+            ? err.message
+            : "Could not save review.";
+        // Map Next's production-masked digest error to a friendlier copy
+        // so admins don't see "Server Components render error" inline.
         setError(
-          err instanceof Error ? err.message : "Could not save review."
+          message.toLowerCase().includes("server components render")
+            ? "Couldn't save the review — refresh the page and try again."
+            : message
         );
       }
     });
@@ -101,6 +134,7 @@ export function ReviewDecisionForm({
           required
           defaultValue=""
           disabled={disabled || isPending}
+          onChange={(e) => setRecommendation(e.target.value)}
         >
           <option value="" disabled>
             Pick a decision…
@@ -112,6 +146,42 @@ export function ReviewDecisionForm({
           ))}
         </select>
       </label>
+
+      {recommendation === "APPROVE" && incompleteIssues.length > 0 ? (
+        <div
+          role="alert"
+          style={{
+            padding: 10,
+            borderRadius: 8,
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontSize: 12,
+              color: "#92400e",
+              fontWeight: 600,
+            }}
+          >
+            Heads up — incomplete proposal
+          </p>
+          <p
+            style={{
+              margin: "4px 0 0",
+              fontSize: 12,
+              color: "#92400e",
+              lineHeight: 1.5,
+            }}
+          >
+            The applicant&rsquo;s proposal is missing {incompleteIssues.length}{" "}
+            required item{incompleteIssues.length === 1 ? "" : "s"}. You can
+            still approve it, but consider Request changes first — you&rsquo;ll
+            be asked to confirm.
+          </p>
+        </div>
+      ) : null}
 
       <label style={{ display: "grid", gap: 4 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>

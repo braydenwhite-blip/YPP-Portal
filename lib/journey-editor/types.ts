@@ -21,7 +21,6 @@ export type JourneyAudienceRole =
   | "STUDENT"
   | "INSTRUCTOR"
   | "CHAPTER_PRESIDENT"
-  | "CHAPTER_LEAD"
   | "LEADERSHIP"
   | "SUMMER_WORKSHOP_INSTRUCTOR"
   | "MENTOR";

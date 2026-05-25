@@ -15,6 +15,10 @@ type ReviewQueueFiltersProps = {
   currentSearch: string;
   currentStatus: WorkshopProposalSubmissionStatus | "";
   currentSource: WorkshopProposalSourceType | "";
+  /** "assigned" | "unassigned" | "" — only meaningful for APPROVED rows. */
+  currentAssignment: "assigned" | "unassigned" | "";
+  currentCategory: string;
+  categories: string[];
   totalVisible: number;
   totalAll: number;
 };
@@ -42,6 +46,9 @@ export function ReviewQueueFilters({
   currentSearch,
   currentStatus,
   currentSource,
+  currentAssignment,
+  currentCategory,
+  categories,
   totalVisible,
   totalAll,
 }: ReviewQueueFiltersProps) {
@@ -70,7 +77,13 @@ export function ReviewQueueFilters({
     debounceRef.current = setTimeout(() => update({ q: value }), 200);
   }
 
-  const hasAny = Boolean(currentSearch || currentStatus || currentSource);
+  const hasAny = Boolean(
+    currentSearch ||
+      currentStatus ||
+      currentSource ||
+      currentAssignment ||
+      currentCategory
+  );
 
   return (
     <div
@@ -130,6 +143,34 @@ export function ReviewQueueFilters({
           ))}
         </select>
       </label>
+      <label style={{ display: "grid", gap: 4, flex: "1 1 160px", minWidth: 140 }}>
+        <span style={{ fontSize: 12, fontWeight: 600 }}>Category</span>
+        <select
+          className="input"
+          value={currentCategory}
+          onChange={(e) => update({ category: e.target.value })}
+          disabled={categories.length === 0}
+        >
+          <option value="">Any category</option>
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label style={{ display: "grid", gap: 4, flex: "1 1 180px", minWidth: 160 }}>
+        <span style={{ fontSize: 12, fontWeight: 600 }}>Assignment</span>
+        <select
+          className="input"
+          value={currentAssignment}
+          onChange={(e) => update({ assignment: e.target.value })}
+        >
+          <option value="">Any placement</option>
+          <option value="unassigned">Approved · not yet placed</option>
+          <option value="assigned">Approved · placed</option>
+        </select>
+      </label>
       <div
         style={{
           marginLeft: "auto",
@@ -145,7 +186,15 @@ export function ReviewQueueFilters({
           <button
             type="button"
             className="button small secondary"
-            onClick={() => update({ q: "", status: "", source: "" })}
+            onClick={() =>
+              update({
+                q: "",
+                status: "",
+                source: "",
+                category: "",
+                assignment: "",
+              })
+            }
           >
             Clear filters
           </button>

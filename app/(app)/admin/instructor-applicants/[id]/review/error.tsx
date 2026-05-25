@@ -15,7 +15,7 @@ export default function FinalReviewError({
         We couldn&apos;t load the chair review cockpit.
       </h1>
       <p style={{ color: "var(--ink-muted, #6b5f7a)", maxWidth: 540 }}>
-        {error.message}. Try again, or fall back to the legacy chair workspace.
+        {error.message}. Try again, or return to the chair queue.
       </p>
       <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
         <button type="button" className="button" onClick={() => reset()}>

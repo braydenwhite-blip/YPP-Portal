@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { enforceInstructorGate } from "@/lib/instructor-gate";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export default async function TrainingSectionLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await enforceInstructorGate();
+  const pathname = (await headers()).get("x-pathname") ?? "/training";
+  await enforceInstructorGate({ pathname });
   return <>{children}</>;
 }

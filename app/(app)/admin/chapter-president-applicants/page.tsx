@@ -14,6 +14,7 @@ export default async function AdminCPApplicantsPage() {
   // Fetch all applications, reviewers, and chapters in parallel
   const [applications, reviewerUsers, allChapters] = await Promise.all([
     prisma.chapterPresidentApplication.findMany({
+      where: { archivedAt: null },
       include: {
         applicant: { select: { id: true, name: true, email: true, chapter: { select: { name: true } } } },
         chapter: { select: { id: true, name: true } },

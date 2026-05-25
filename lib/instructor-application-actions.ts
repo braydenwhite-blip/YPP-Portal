@@ -3026,6 +3026,167 @@ export async function autoArchiveTerminalApplications(): Promise<{ archived: num
 }
 
 /**
+ * Bulk soft-archive every applicant submission across all five submission
+ * tables. Idempotent (filters on archivedAt: null), so re-runs return zeros.
+ * Used by the one-off "fresh slate" script and the admin archive-all endpoint.
+ */
+export async function archiveAllApplicantSubmissions(opts?: {
+  actorId?: string | null;
+  reason?: string;
+}): Promise<{
+  instructorApplications: number;
+  applications: number;
+  chapterPresidentApplications: number;
+  incubatorApplications: number;
+  internshipApplications: number;
+  total: number;
+}> {
+  const now = new Date();
+  const reason = opts?.reason ?? "archive-all-fresh-slate";
+  const actorId = opts?.actorId ?? null;
+
+  return prisma.$transaction(async (tx) => {
+    const instructorIds = await tx.instructorApplication.findMany({
+      where: { archivedAt: null },
+      select: { id: true },
+    });
+    const instructorRes = await tx.instructorApplication.updateMany({
+      where: { archivedAt: null },
+      data: { archivedAt: now },
+    });
+    if (instructorIds.length > 0) {
+      await tx.instructorApplicationTimelineEvent.createMany({
+        data: instructorIds.map(({ id }) => ({
+          applicationId: id,
+          kind: "ARCHIVED",
+          actorId,
+          payload: { manual: true, reason },
+        })),
+      });
+    }
+
+    const applicationRes = await tx.application.updateMany({
+      where: { archivedAt: null },
+      data: { archivedAt: now },
+    });
+    const chapterPresidentRes = await tx.chapterPresidentApplication.updateMany({
+      where: { archivedAt: null },
+      data: { archivedAt: now },
+    });
+    const incubatorRes = await tx.incubatorApplication.updateMany({
+      where: { archivedAt: null },
+      data: { archivedAt: now },
+    });
+    const internshipRes = await tx.internshipApplication.updateMany({
+      where: { archivedAt: null },
+      data: { archivedAt: now },
+    });
+
+    return {
+      instructorApplications: instructorRes.count,
+      applications: applicationRes.count,
+      chapterPresidentApplications: chapterPresidentRes.count,
+      incubatorApplications: incubatorRes.count,
+      internshipApplications: internshipRes.count,
+      total:
+        instructorRes.count +
+        applicationRes.count +
+        chapterPresidentRes.count +
+        incubatorRes.count +
+        internshipRes.count,
+    };
+  });
+}
+
+export type ApplicantSubmissionKind =
+  | "instructor"
+  | "application"
+  | "chapter-president"
+  | "incubator"
+  | "internship";
+
+/**
+ * Soft-archive a single applicant submission by kind + id. Returns false if
+ * the row was already archived or does not exist.
+ */
+export async function archiveApplicantSubmissionById(
+  kind: ApplicantSubmissionKind,
+  id: string,
+  opts?: { actorId?: string | null; reason?: string }
+): Promise<boolean> {
+  const now = new Date();
+  const reason = opts?.reason ?? "manual-admin-archive";
+  const actorId = opts?.actorId ?? null;
+
+  switch (kind) {
+    case "instructor": {
+      const res = await prisma.$transaction(async (tx) => {
+        const updated = await tx.instructorApplication.updateMany({
+          where: { id, archivedAt: null },
+          data: { archivedAt: now },
+        });
+        if (updated.count > 0) {
+          await tx.instructorApplicationTimelineEvent.create({
+            data: {
+              applicationId: id,
+              kind: "ARCHIVED",
+              actorId,
+              payload: { manual: true, reason },
+            },
+          });
+        }
+        return updated.count;
+      });
+      return res > 0;
+    }
+    case "application": {
+      const res = await prisma.application.updateMany({
+        where: { id, archivedAt: null },
+        data: { archivedAt: now },
+      });
+      return res.count > 0;
+    }
+    case "chapter-president": {
+      const res = await prisma.chapterPresidentApplication.updateMany({
+        where: { id, archivedAt: null },
+        data: { archivedAt: now },
+      });
+      return res.count > 0;
+    }
+    case "incubator": {
+      const res = await prisma.incubatorApplication.updateMany({
+        where: { id, archivedAt: null },
+        data: { archivedAt: now },
+      });
+      return res.count > 0;
+    }
+    case "internship": {
+      const res = await prisma.internshipApplication.updateMany({
+        where: { id, archivedAt: null },
+        data: { archivedAt: now },
+      });
+      return res.count > 0;
+    }
+  }
+}
+
+/**
+ * Soft-archive a single User by id. Returns false if the user was already
+ * archived or does not exist.
+ */
+export async function archiveUserById(
+  userId: string,
+  opts?: { actorId?: string | null }
+): Promise<boolean> {
+  const now = new Date();
+  const res = await prisma.user.updateMany({
+    where: { id: userId, archivedAt: null },
+    data: { archivedAt: now },
+  });
+  return res.count > 0;
+}
+
+/**
  * Fields the applicant can edit after submission. Identity fields
  * (legalName, dateOfBirth, schoolName) and admin/reviewer-controlled
  * fields are intentionally excluded.

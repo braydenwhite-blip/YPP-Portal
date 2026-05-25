@@ -179,7 +179,7 @@ function CockpitInner({
         reviewerName: r.reviewerName,
         recommendation: r.recommendation,
         overallRating: (r.overallRating ?? null) as InterviewSignal["overallRating"],
-        hasNarrative: Boolean(r.summary?.trim()),
+        hasNarrative: r.categories.some((c) => Boolean(c.notes?.trim())),
         unscoredCategoryCount: r.categories.filter((c) => !c.rating).length,
       })),
     [application.interviewReviews]

@@ -773,10 +773,11 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   {
     pattern: "/application-status",
     title: "Your Applications",
+    hidden: true,
     content: {
-      purpose: "This page helps you review your applications and move each item to the right next step.",
-      firstStep: "Open the item that is newest, overdue, or blocked so you can confirm the current status before changing anything.",
-      nextStep: "After you approve, return, score, or update the record, the workflow reflects the change for the next person automatically."
+      purpose: "",
+      firstStep: "",
+      nextStep: ""
     }
   },
   {
@@ -2095,6 +2096,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/leadership-pathway",
+    title: "Leadership Pathway",
+    content: {
+      purpose: "This page explains the YPP instructor pathway — what each role means, who mentors whom, and what growth looks like at every stage.",
+      firstStep: "Start at the stage ribbon — find where you are today and read the role-detail card for your current stage.",
+      nextStep: "Open your G&R or My Mentor page when you're ready to act on the growth areas the rubric calls out."
+    }
+  },
+  {
     pattern: "/learn",
     title: "Self-Paced Learning",
     content: {
@@ -3392,11 +3402,11 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/admin/instructor-applicants/chair-queue/[applicationId]",
-    title: "Chair Decision Workspace",
+    title: "Chair Decision Redirect",
     content: {
-      purpose: "This admin page shows everything the chair needs to commit a decision on a single applicant.",
-      firstStep: "Read the materials, scores, and review history before drafting the decision.",
-      nextStep: "Commit the decision when you're ready; this notifies the applicant and closes their workflow."
+      purpose: "This old chair decision URL redirects to the final review cockpit.",
+      firstStep: "Let the redirect finish so the current cockpit can load the applicant.",
+      nextStep: "Use the final review cockpit to draft and commit the chair decision."
     }
   },
   {

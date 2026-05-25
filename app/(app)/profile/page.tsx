@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { getProfilePageData } from "@/lib/profile-page-data";
+import { getLeadershipContext } from "@/lib/leadership-context";
 import ProfileMain from "@/components/profile/profile-main";
+import { RoleStrip } from "@/components/leadership-pathway/role-strip";
 
 export default async function ProfilePage() {
   const session = await getSession();
@@ -14,7 +16,10 @@ export default async function ProfilePage() {
     redirect("/settings/personalization");
   }
 
-  const user = await getProfilePageData(session.user.id);
+  const [user, leadership] = await Promise.all([
+    getProfilePageData(session.user.id),
+    getLeadershipContext(session.user.id),
+  ]);
 
   if (!user) {
     redirect("/login");
@@ -33,6 +38,17 @@ export default async function ProfilePage() {
           {roles.join(" · ")}
         </div>
       </div>
+
+      {leadership?.stageId && (
+        <div style={{ marginBottom: 16 }}>
+          <RoleStrip
+            stageId={leadership.stageId}
+            nextStageId={leadership.nextStageId}
+            mentorName={leadership.primaryMentor?.name ?? null}
+            mentorRoleLabel={leadership.primaryMentor?.roleLabel ?? null}
+          />
+        </div>
+      )}
 
       <ProfileMain user={user} />
     </div>

@@ -22,7 +22,6 @@ enum RoleType {
   INSTRUCTOR
   STUDENT
   MENTOR
-  CHAPTER_LEAD
   CHAPTER_PRESIDENT
   STAFF
   PARENT
@@ -394,8 +393,6 @@ enum InstructorReviewCategoryKey {
   ORGANIZATION_AND_COMMITMENT
   COMMUNITY_FIT
   LONG_TERM_POTENTIAL
-  PROFESSIONALISM_AND_FOLLOW_THROUGH
-  SUBJECT_MATTER_FIT
 }
 
 enum InstructorApplicationNextStep {
@@ -735,6 +732,7 @@ model Chapter {
   marketingGoals                 MarketingGoal[]
   chapterUpdates                 ChapterUpdate[]
   classTemplates                 ClassTemplate[]
+  regularInstructorAssignments   RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsForChapter")
   launchTasks                    LaunchTask[]
   mentorshipTracks               MentorshipTrack[]
   rolloutCampaigns               RolloutCampaign[]
@@ -766,6 +764,9 @@ model Chapter {
   kpiSnapshots      ChapterKpiSnapshot[]
   opsRules          OpsRule[]
   opsRuleViolations OpsRuleViolation[]
+
+  // Instructor assignment system
+  workshopOpportunities WorkshopOpportunity[] @relation("WorkshopOpportunityChapter")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1055,6 +1056,9 @@ model User {
   classTemplatesCreated    ClassTemplate[]          @relation("ClassTemplatesCreated")
   classTemplatesReviewed   ClassTemplate[]          @relation("ClassTemplatesReviewed")
   classOfferingsInstructed ClassOffering[]          @relation("ClassOfferingsInstructed")
+  regularInstructorAssignments         RegularInstructorAssignment[] @relation("RegularInstructorAssignments")
+  regularInstructorAssignmentsCreated  RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsCreated")
+  regularInstructorAssignmentsUpdated  RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsUpdated")
   classEnrollments         ClassEnrollment[]        @relation("ClassEnrollments")
   classAttendanceRecords   ClassAttendanceRecord[]  @relation("ClassAttendanceRecords")
   classRemindersReceived   ClassReminder[]          @relation("ClassRemindersReceived")
@@ -1269,8 +1273,24 @@ model User {
   workshopProposalSubmissionsReviewed WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionsReviewed")
   workshopProposalReviews           WorkshopProposalReview[]     @relation("WorkshopProposalReviewsAuthored")
 
+  // Leadership Action Center
+  leadershipActionItemsOwned        LeadershipActionItem[]        @relation("LeadershipActionItemsOwned")
+  leadershipActionItemsCreated      LeadershipActionItem[]        @relation("LeadershipActionItemsCreated")
+  leadershipActionItemsUpdated      LeadershipActionItem[]        @relation("LeadershipActionItemsUpdated")
+  leadershipActionItemInputRoles    LeadershipActionItemInput[]   @relation("LeadershipActionItemInputUser")
+  leadershipActionItemUpdates       LeadershipActionItemUpdate[]  @relation("LeadershipActionItemUpdateAuthor")
+  leadershipMeetingsOwned           LeadershipMeeting[]           @relation("LeadershipMeetingsOwner")
+
+  // Instructor-to-camp/workshop assignment system (admin operations layer)
+  workshopOpportunitiesOwned        WorkshopOpportunity[]        @relation("WorkshopOpportunityOwner")
+  workshopOpportunitiesCreated      WorkshopOpportunity[]        @relation("WorkshopOpportunityCreatedBy")
+  instructorAssignments             InstructorAssignment[]       @relation("InstructorAssignmentInstructor")
+  instructorAssignmentsAssigned     InstructorAssignment[]       @relation("InstructorAssignmentAssignedBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([archivedAt])
 }
 
 model TwoFactorRecovery {
@@ -1925,6 +1945,7 @@ model InstructorInterviewQuestionBank {
   notePrompts         Json                                  @default("[]")
   sortOrder           Int                                   @default(0)
   isActive            Boolean                               @default(true)
+  isMustAsk           Boolean                               @default(false)
   responses           InstructorInterviewQuestionResponse[]
   createdAt           DateTime                              @default(now())
   updatedAt           DateTime                              @updatedAt
@@ -1945,7 +1966,6 @@ model InstructorInterviewReview {
   isLeadReview         Boolean                               @default(false)
   overallRating        ProgressStatus?
   recommendation       InstructorInterviewRecommendation?
-  summary              String?                               @db.Text
   revisionRequirements String?                               @db.Text
   applicantMessage     String?                               @db.Text
   flagForLeadership    Boolean                               @default(false)
@@ -3058,6 +3078,7 @@ model Application {
   decision            Decision?
   submittedAt         DateTime                     @default(now())
   updatedAt           DateTime                     @updatedAt
+  archivedAt          DateTime?
 
   // --- External intake (Google Forms / CSV / manual admin entry) ---
   source              ApplicationSource            @default(PORTAL)
@@ -3073,6 +3094,7 @@ model Application {
   @@index([positionId, status, submittedAt])
   @@index([source])
   @@index([importedById])
+  @@index([archivedAt])
 }
 
 model InterviewSlot {
@@ -6883,14 +6905,24 @@ model ClassTemplate {
 
   // Meta
   isPublished Boolean  @default(false)
+  // Admin-curated catalog flag — true when this template is part of the
+  // Course Library that instructors pick from on /instructor/curriculum-builder.
+  isCatalogItem Boolean @default(false)
   createdById String
   createdBy   User     @relation("ClassTemplatesCreated", fields: [createdById], references: [id])
   chapterId   String?
   chapter     Chapter? @relation(fields: [chapterId], references: [id])
 
+  // Set when an instructor picks a course from the library; points at the
+  // admin's source template so we can show usage counts and provenance.
+  clonedFromId String?
+  clonedFrom   ClassTemplate?  @relation("CourseClones", fields: [clonedFromId], references: [id])
+  clones       ClassTemplate[] @relation("CourseClones")
+
   offerings    ClassOffering[]
   lessonPlans  LessonPlan[]
   pathwaySteps PathwayStep[]   @relation("ClassTemplateSteps")
+  regularInstructorAssignments RegularInstructorAssignment[] @relation("ClassTemplateAssignments")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6899,6 +6931,8 @@ model ClassTemplate {
   @@index([difficultyLevel])
   @@index([createdById])
   @@index([submissionStatus])
+  @@index([isCatalogItem])
+  @@index([clonedFromId])
 }
 
 // Specific offering of a class template (Feature #80, #83)
@@ -6960,6 +6994,7 @@ model ClassOffering {
   fallbackRequests PathwayFallbackRequest[]
   approval         ClassOfferingApproval?
   timeline         ClassOfferingTimelineEvent[]
+  regularInstructorAssignments RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsForOffering")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8241,14 +8276,16 @@ model IncubatorApplication {
   reviewedAt      DateTime?
   acceptedProject IncubatorProject?  @relation("IncubatorAcceptedFrom")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
 
   @@unique([cohortId, studentId])
   @@index([studentId])
   @@index([status])
   @@index([passionId])
   @@index([reviewedById])
+  @@index([archivedAt])
 }
 
 // An active project within the incubator (wraps ProjectTracker with incubator context)
@@ -8572,12 +8609,14 @@ model InternshipApplication {
   status      ApplicationState @default(APPLIED)
   reviewNotes String?
 
-  appliedAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  appliedAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
 
   @@unique([listingId, studentId])
   @@index([studentId])
   @@index([status])
+  @@index([archivedAt])
 }
 
 // Service Projects (Community Impact)
@@ -9353,8 +9392,9 @@ model ChapterPresidentApplication {
   importedBy          User?             @relation("ChapterPresidentApplicationImportedBy", fields: [importedById], references: [id])
   manualEmailTasks    ManualEmailTask[] @relation("ManualEmailTasksChapterPresidentApplication")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
 
   @@index([status])
   @@index([reviewerId])
@@ -9364,6 +9404,7 @@ model ChapterPresidentApplication {
   @@index([stateProvince])
   @@index([source])
   @@index([importedById])
+  @@index([archivedAt])
 }
 
 // ============================================
@@ -9730,6 +9771,7 @@ model CurriculumDraft {
   createdAt                    DateTime                      @default(now())
   updatedAt                    DateTime                      @updatedAt
   comments                     CurriculumComment[]
+  regularInstructorAssignments RegularInstructorAssignment[] @relation("CurriculumDraftAssignments")
 
   @@index([authorId])
   @@index([status])
@@ -9877,7 +9919,7 @@ model OpsRule {
   chapter   Chapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
   // Escalation
-  escalateToRoles String[] // e.g. ["ADMIN", "CHAPTER_LEAD"]
+  escalateToRoles String[] // e.g. ["ADMIN", "CHAPTER_PRESIDENT"]
   autoNotify      Boolean  @default(true)
 
   createdById String
@@ -10780,7 +10822,6 @@ enum JourneyAudienceRole {
   STUDENT
   INSTRUCTOR
   CHAPTER_PRESIDENT
-  CHAPTER_LEAD
   LEADERSHIP
   SUMMER_WORKSHOP_INSTRUCTOR
   MENTOR
@@ -11214,6 +11255,10 @@ model WorkshopProposalSubmission {
 
   reviews         WorkshopProposalReview[]            @relation("WorkshopProposalReviewSubmission")
 
+  /// Camp/workshop assignments using this proposal as curriculum. One proposal
+  /// can power multiple assignments (reusable curriculum across opportunities).
+  assignments     InstructorAssignment[]              @relation("WorkshopProposalSubmissionAssignments")
+
   createdAt       DateTime                            @default(now())
   updatedAt       DateTime                            @updatedAt
 
@@ -11314,4 +11359,484 @@ model WorkshopProposalReview {
   @@index([submissionId])
   @@index([reviewerId])
   @@index([overallRecommendation])
+}
+
+// ============================================
+// INSTRUCTOR ASSIGNMENT SYSTEM (admin operations layer)
+//
+// Phase 1: admin-only operational tool that lets staff manage partner camps /
+// workshops / programs that need instructors and track who is staffed where.
+//
+// A `WorkshopOpportunity` represents one real-world placement (a partner camp,
+// a one-time workshop, a chapter program) that needs N instructor slots filled.
+// An `InstructorAssignment` links a User (instructor) to one WorkshopOpportunity
+// with a role + status + optional WorkshopProposalSubmission curriculum link.
+//
+// Out of scope for Phase 1 (deliberately):
+//   - Instructor-side accept/decline UI (admins manage statuses)
+//   - Email/notification dispatch
+//   - Hard conflict detection across overlapping date ranges
+//   - Calendar/Slack integration
+// ============================================
+
+/// Kind of placement an opportunity represents. Drives sort/filter on the
+/// admin board and lets us evolve specialized views later.
+enum OpportunityType {
+  SUMMER_CAMP
+  PARTNER_PROGRAM
+  ONE_TIME_WORKSHOP
+  MULTI_DAY_CAMP
+  CHAPTER_CLASS_SERIES
+  ONLINE_WORKSHOP
+  OTHER
+}
+
+/// Lifecycle of an opportunity from admin's perspective.
+///   DRAFT       — admin drafting, not yet visible as "open" on the board
+///   OPEN        — needs instructors (partially or fully unstaffed)
+///   CONFIRMED   — all required slots staffed and locked
+///   COMPLETED   — placement happened
+///   CANCELLED   — partner pulled out / never ran
+///   ARCHIVED    — closed out for historical reference
+enum OpportunityStatus {
+  DRAFT
+  OPEN
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+/// Urgency tag the admin sets manually to surface what needs attention first.
+enum OpportunityUrgency {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// ============================================
+// LEADERSHIP ACTION CENTER
+// Internal operating-rhythm tracker that turns the spreadsheet + weekly
+// email update into structured tasks the portal can read off of.
+// ============================================
+
+enum LeadershipActionCategory {
+  INSTRUCTION
+  TECHNOLOGY
+  COMMUNICATION
+  STAFF_MANAGEMENT
+}
+
+enum LeadershipActionStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  BLOCKED
+  COMPLETE
+}
+
+enum LeadershipActionPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum LeadershipActionSource {
+  MANUAL
+  SPREADSHEET
+  EMAIL
+  IMPORT
+}
+
+enum LeadershipMeetingKind {
+  OFFICERS
+  MARKETING
+  TECH
+  INSTRUCTION
+  STAFF
+  OTHER
+}
+
+enum LeadershipActionUpdateKind {
+  COMMENT
+  STATUS_CHANGE
+  ASSIGNEE_CHANGE
+  DEADLINE_CHANGE
+  CREATED
+  IMPORTED
+}
+
+/// Recurring or one-off leadership meeting (Officers, Marketing, Tech, etc.)
+/// Tasks attach to a meeting so the meeting prep view can surface them and
+/// build a suggested agenda from the live tracker.
+model LeadershipMeeting {
+  id          String                @id @default(cuid())
+  title       String
+  kind        LeadershipMeetingKind @default(OFFICERS)
+  scheduledAt DateTime?
+  notes       String?               @db.Text
+  ownerId     String?
+  owner       User?                 @relation("LeadershipMeetingsOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  archivedAt  DateTime?
+  actionItems LeadershipActionItem[] @relation("LeadershipActionItemMeeting")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, scheduledAt])
+  @@index([scheduledAt])
+}
+
+/// One row per action item in the leadership tracker. Replaces the columns
+/// of the "Action Items Tracker" spreadsheet (Category, Item, Deadline,
+/// Primary Owners, Get Input From, Status, Needs Officer Discussion?,
+/// Officer Discussion Date) with structured fields the portal can query.
+///
+/// `weekStart` is the Monday of the operating week the task is attached to;
+/// the weekly digest groups by this date.
+model LeadershipActionItem {
+  id          String                  @id @default(cuid())
+  title       String
+  description String?                 @db.Text
+  category    LeadershipActionCategory @default(INSTRUCTION)
+  status      LeadershipActionStatus   @default(NOT_STARTED)
+  priority    LeadershipActionPriority @default(NORMAL)
+  source      LeadershipActionSource   @default(MANUAL)
+  /// Free-text label for the source row (spreadsheet row #, email subject, etc.)
+  sourceLabel String?
+  /// Free-text notes about how the row was imported.
+  sourceNotes String?                 @db.Text
+
+  /// Calendar deadline for the task. Used for due-today / due-this-week
+  /// filters and the weekly digest grouping.
+  dueDate     DateTime?
+  /// Monday of the operating week the task belongs to. Optional so backlog
+  /// items can exist without a week assignment.
+  weekStart   DateTime?
+
+  /// Officer-discussion flag + the meeting it should be discussed at.
+  needsOfficerDiscussion Boolean   @default(false)
+  officerDiscussionDate  DateTime?
+
+  /// Optional link to a structured meeting record (Officers, Tech, etc.).
+  meetingId   String?
+  meeting     LeadershipMeeting? @relation("LeadershipActionItemMeeting", fields: [meetingId], references: [id], onDelete: SetNull)
+
+  /// Primary owner is a single user (the row in the spreadsheet usually
+  /// names one accountable person). Additional owners can be tracked via
+  /// the secondaryOwners string list to avoid an extra join table for v1.
+  primaryOwnerId  String?
+  primaryOwner    User?    @relation("LeadershipActionItemsOwned", fields: [primaryOwnerId], references: [id], onDelete: SetNull)
+  /// Free-text fallback for owners that are not yet portal users.
+  ownerNames      String[] @default([])
+
+  /// Plain-text "input needed from" fallback when the people are not yet
+  /// portal users. Structured `inputNeededFrom` rows below cover users.
+  inputNeededNames String[] @default([])
+
+  /// Notes / blocker description shown in the table and digest.
+  notes        String? @db.Text
+  /// True when the task has been completed.
+  completedAt  DateTime?
+
+  createdById  String?
+  createdBy    User?  @relation("LeadershipActionItemsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById  String?
+  updatedBy    User?  @relation("LeadershipActionItemsUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  archivedAt DateTime?
+
+  inputNeededFrom LeadershipActionItemInput[]   @relation("LeadershipActionItemInputItem")
+  updates         LeadershipActionItemUpdate[]  @relation("LeadershipActionItemUpdateItem")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, dueDate])
+  @@index([category, status])
+  @@index([weekStart, status])
+  @@index([primaryOwnerId, status])
+  @@index([needsOfficerDiscussion, officerDiscussionDate])
+  @@index([meetingId])
+  @@index([archivedAt])
+}
+
+/// Many-to-many link between an action item and the users who should give
+/// input on it. Kept separate from `inputNeededNames` (free-text fallback)
+/// so structured users can be filtered/notified independently.
+model LeadershipActionItemInput {
+  id           String @id @default(cuid())
+  actionItemId String
+  actionItem   LeadershipActionItem @relation("LeadershipActionItemInputItem", fields: [actionItemId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                  @relation("LeadershipActionItemInputUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([actionItemId, userId])
+  @@index([userId])
+}
+
+/// Activity log + comments for an action item. `kind` lets the UI render
+/// human comments differently from system events (status changes, etc.).
+model LeadershipActionItemUpdate {
+  id           String @id @default(cuid())
+  actionItemId String
+  actionItem   LeadershipActionItem @relation("LeadershipActionItemUpdateItem", fields: [actionItemId], references: [id], onDelete: Cascade)
+  authorId     String?
+  author       User?                @relation("LeadershipActionItemUpdateAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  kind         LeadershipActionUpdateKind @default(COMMENT)
+  body         String                     @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([actionItemId, createdAt])
+}
+
+/// Role an instructor plays on a given assignment.
+enum AssignmentRole {
+  LEAD_INSTRUCTOR
+  CO_INSTRUCTOR
+  ASSISTANT
+  SUBSTITUTE
+  MENTOR
+}
+
+/// Admin-driven assignment lifecycle. The dual confirmation timestamps
+/// (`instructorConfirmedAt` / `partnerConfirmedAt`) on the row let admins
+/// record fine-grained state without a status explosion.
+///
+///   SUGGESTED      — admin shortlisted internally, not yet offered
+///   PENDING        — offered to instructor (or partner), awaiting confirmation
+///   CONFIRMED      — instructor + partner both locked in
+///   WAITLISTED     — backup option
+///   DECLINED       — instructor declined or no longer available
+///   CANCELLED      — assignment voided
+///   COMPLETED      — assignment fulfilled
+enum AssignmentStatus {
+  SUGGESTED
+  PENDING
+  CONFIRMED
+  WAITLISTED
+  DECLINED
+  CANCELLED
+  COMPLETED
+}
+
+/// A real-world placement that needs instructors. Distinct from `ClassOffering`
+/// (which is a chapter class series with student enrollment) — opportunities
+/// support multi-instructor staffing, partner contacts, and external programs.
+model WorkshopOpportunity {
+  id              String              @id @default(cuid())
+  title           String
+  partnerName     String?
+  type            OpportunityType     @default(PARTNER_PROGRAM)
+  status          OpportunityStatus   @default(OPEN)
+  urgency         OpportunityUrgency  @default(NORMAL)
+
+  /// Free-text summary shown in the detail drawer. Keep short.
+  description     String?             @db.Text
+
+  /// Reuses the existing DeliveryMode enum (IN_PERSON | VIRTUAL | HYBRID).
+  deliveryMode    DeliveryMode        @default(IN_PERSON)
+
+  /// Location fields are optional so online programs can omit them.
+  locationName    String?
+  locationCity    String?
+  locationState   String?
+  locationCountry String?
+
+  /// Scheduling window. Both nullable so partial info can be drafted.
+  startDate       DateTime?
+  endDate         DateTime?
+  /// Deadline by which staffing should be finalized.
+  fillByDate      DateTime?
+
+  /// Number of instructor slots required. Coverage is derived from
+  /// `assignments` filtered to active statuses (CONFIRMED / PENDING).
+  slotsNeeded     Int                 @default(1)
+
+  /// Free-form audience descriptor (e.g. "Grades 6-8", "Ages 10-12").
+  ageGroup        String?
+
+  /// Topic tags used for matching (lowercased on write). E.g. ["physics", "coding"].
+  topicTags       String[]            @default([])
+
+  /// Optional required teaching level (links to existing CourseLevel enum).
+  requiredCourseLevel CourseLevel?
+
+  /// Chapter scope (optional). If set, chapter presidents can manage this row.
+  chapterId       String?
+  chapter         Chapter?            @relation("WorkshopOpportunityChapter", fields: [chapterId], references: [id], onDelete: SetNull)
+
+  /// Internal admin owner — the person on staff responsible for filling it.
+  ownerId         String?
+  owner           User?               @relation("WorkshopOpportunityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  /// Partner-facing contact info (kept admin-private).
+  partnerContactName  String?
+  partnerContactEmail String?
+  partnerContactPhone String?
+
+  /// Internal admin notes (never shown to instructors).
+  internalNotes   String?             @db.Text
+
+  createdById     String
+  createdBy       User                @relation("WorkshopOpportunityCreatedBy", fields: [createdById], references: [id])
+
+  assignments     InstructorAssignment[] @relation("InstructorAssignmentOpportunity")
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  archivedAt      DateTime?
+
+  @@index([status])
+  @@index([urgency])
+  @@index([startDate])
+  @@index([fillByDate])
+  @@index([chapterId])
+  @@index([ownerId])
+  @@index([type])
+}
+
+/// Links an instructor to a WorkshopOpportunity. One row per
+/// (opportunity, instructor) pair — a single instructor cannot hold two
+/// active slots on the same opportunity.
+model InstructorAssignment {
+  id              String           @id @default(cuid())
+
+  opportunityId   String
+  opportunity     WorkshopOpportunity @relation("InstructorAssignmentOpportunity", fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  instructorId    String
+  instructor      User             @relation("InstructorAssignmentInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+
+  /// Optional pointer to the approved WorkshopProposalSubmission the
+  /// instructor will teach. Nullable so admins can stage assignments before
+  /// curriculum is finalized.
+  proposalId      String?
+  proposal        WorkshopProposalSubmission? @relation("WorkshopProposalSubmissionAssignments", fields: [proposalId], references: [id], onDelete: SetNull)
+
+  role            AssignmentRole   @default(LEAD_INSTRUCTOR)
+  status          AssignmentStatus @default(SUGGESTED)
+
+  assignedById    String?
+  assignedBy      User?            @relation("InstructorAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedAt      DateTime         @default(now())
+
+  instructorConfirmedAt DateTime?
+  partnerConfirmedAt    DateTime?
+  declinedAt            DateTime?
+  cancelledAt           DateTime?
+  completedAt           DateTime?
+
+  /// Override for this assignment when it differs from the parent opportunity
+  /// (e.g. one instructor covers a single day of a multi-day camp).
+  startTime       DateTime?
+  endTime         DateTime?
+
+  /// Internal admin notes (never shown to the instructor).
+  internalNotes   String?          @db.Text
+  /// Instructor-visible notes about expectations / prep.
+  instructorNotes String?          @db.Text
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([opportunityId, instructorId])
+  @@index([instructorId])
+  @@index([status])
+  @@index([proposalId])
+  @@index([assignedById])
+}
+
+// ============================================
+// REGULAR INSTRUCTOR ASSIGNMENTS (MVP)
+// ============================================
+// First-class join between a ClassOffering and an instructor User.
+// Adds role + lifecycle status on top of the existing singular
+// ClassOffering.instructorId (which remains the canonical "lead pointer"
+// so downstream surfaces — reminders, attendance, my-classes, instructor
+// gating — keep working unchanged). Co-instructors, assistants, and
+// backups all live here.
+
+/// Role an instructor holds on a class offering.
+enum RegularInstructorAssignmentRole {
+  LEAD
+  CO_INSTRUCTOR
+  ASSISTANT
+  BACKUP
+}
+
+/// Lifecycle state for a regular instructor assignment.
+enum RegularInstructorAssignmentStatus {
+  SUGGESTED              // Admin shortlisted via matching, not yet acted on
+  PENDING_REVIEW         // Created, awaiting admin action
+  OFFERED                // Sent to instructor; awaiting their acceptance
+  INSTRUCTOR_CONFIRMED   // Instructor accepted; chapter not yet confirmed
+  CHAPTER_CONFIRMED      // Chapter confirmed; instructor not yet accepted
+  FULLY_CONFIRMED        // Both sides confirmed
+  NEEDS_TRAINING         // Blocked on training requirement
+  NEEDS_CURRICULUM       // Blocked on curriculum review
+  DECLINED               // Instructor declined the offer
+  REMOVED                // Admin removed the assignment
+  COMPLETED              // Class run finished
+}
+
+model RegularInstructorAssignment {
+  id           String        @id @default(cuid())
+  offeringId   String
+  offering     ClassOffering @relation("RegularInstructorAssignmentsForOffering", fields: [offeringId], references: [id], onDelete: Cascade)
+  instructorId String
+  instructor   User          @relation("RegularInstructorAssignments", fields: [instructorId], references: [id])
+
+  role   RegularInstructorAssignmentRole   @default(LEAD)
+  status RegularInstructorAssignmentStatus @default(PENDING_REVIEW)
+
+  // Optional chapter/region — denormalized for filtering. Defaults from
+  // the offering's chapter at create time.
+  chapterId String?
+  chapter   Chapter? @relation("RegularInstructorAssignmentsForChapter", fields: [chapterId], references: [id])
+
+  // Optional curriculum link. Either a draft (in-flight curriculum) or the
+  // template the offering was instantiated from. Both nullable so admins can
+  // make assignments before curriculum is finalized.
+  curriculumDraftId String?
+  curriculumDraft   CurriculumDraft? @relation("CurriculumDraftAssignments", fields: [curriculumDraftId], references: [id])
+  classTemplateId   String?
+  classTemplate     ClassTemplate?   @relation("ClassTemplateAssignments", fields: [classTemplateId], references: [id])
+
+  // Confirmation timestamps — null until each side confirms.
+  offeredAt             DateTime?
+  instructorConfirmedAt DateTime?
+  chapterConfirmedAt    DateTime?
+  declinedAt            DateTime?
+  removedAt             DateTime?
+  completedAt           DateTime?
+
+  // Notes. `adminNotes` is admin-only; `instructorNote` is shown to the
+  // assigned instructor on their assignment card.
+  adminNotes     String? @db.Text
+  instructorNote String? @db.Text
+
+  // Audit
+  createdById String?
+  createdBy   User?   @relation("RegularInstructorAssignmentsCreated", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?   @relation("RegularInstructorAssignmentsUpdated", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One row per (offering, instructor, role) — an instructor can hold
+  // multiple distinct roles on the same offering only if we intentionally
+  // create them (e.g. mentor + assistant), which is rare. The unique
+  // constraint prevents accidental duplicate assignments.
+  @@unique([offeringId, instructorId, role])
+  @@index([offeringId])
+  @@index([instructorId])
+  @@index([status])
+  @@index([chapterId])
+  @@index([role])
 }

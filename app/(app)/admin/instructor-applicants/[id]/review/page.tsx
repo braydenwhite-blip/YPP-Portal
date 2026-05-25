@@ -2,10 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
 import { canSeeChairQueue, getHiringActor, isAdmin } from "@/lib/chapter-hiring-permissions";
-import {
-  isFinalReviewV2EnabledForChapter,
-  isInstructorApplicantWorkflowV1Enabled,
-} from "@/lib/feature-flags";
+import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import {
   getApplicationForFinalReview,
   getChairDraft,
@@ -76,12 +73,6 @@ export default async function FinalReviewCockpitPage({
 
   if (!application) {
     notFound();
-  }
-
-  // Per-chapter rollout gate: route falls back to the legacy chair workspace
-  // if the cockpit isn't enabled for this applicant's chapter.
-  if (!isFinalReviewV2EnabledForChapter(application.applicant.chapterId)) {
-    redirect(`/admin/instructor-applicants/chair-queue/${id}`);
   }
 
   const isCrossChapter = Boolean(

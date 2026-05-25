@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { getGoalsForMentee } from "@/lib/mentorship-gr-binding";
 import { MENTORSHIP_RESOURCE_TYPE_META } from "@/lib/mentorship-hub";
 import { nextActionForInstructorMentee } from "@/lib/instructor-mentee-next-action";
+import { getLeadershipContext } from "@/lib/leadership-context";
+import { RoleStrip } from "@/components/leadership-pathway/role-strip";
+import { CycleHeroCard } from "./cycle-hero-card";
+import { EmptyStateEditorial } from "./empty-state-editorial";
 
 const TIER_THRESHOLDS = [
   { tier: "BRONZE", pts: 175, label: "Bronze", color: "#92400e", bg: "#fef3c7" },
@@ -12,10 +16,10 @@ const TIER_THRESHOLDS = [
 ] as const;
 
 const RATING_LABEL: Record<string, string> = {
-  BEHIND_SCHEDULE: "Red — Behind Schedule",
-  GETTING_STARTED: "Yellow — Getting Started",
-  ACHIEVED: "Green — Achieved",
-  ABOVE_AND_BEYOND: "Purple — Above & Beyond",
+  BEHIND_SCHEDULE: "Behind",
+  GETTING_STARTED: "Getting started",
+  ACHIEVED: "Achieved",
+  ABOVE_AND_BEYOND: "Above & beyond",
 };
 
 const RATING_COLOR: Record<string, string> = {
@@ -38,20 +42,14 @@ async function loadMenteeDashboardData(userId: string) {
     mentee: { select: { id: true, name: true } },
   } as const;
 
-  const [mentorship, pointSummary, goals, resourcesToMe, resourcesByMe] = await Promise.all([
+  const [mentorship, pointSummary, goals, resourcesToMe] = await Promise.all([
     prisma.mentorship.findFirst({
       where: { menteeId: userId, status: "ACTIVE" },
       select: {
         id: true,
         cycleStage: true,
         kickoffCompletedAt: true,
-        kickoffScheduledAt: true,
         mentor: { select: { id: true, name: true, email: true } },
-        selfReflections: {
-          orderBy: { cycleNumber: "desc" },
-          take: 1,
-          select: { id: true, cycleNumber: true, submittedAt: true, cycleMonth: true },
-        },
         goalReviews: {
           where: { status: "APPROVED" },
           orderBy: { cycleNumber: "desc" },
@@ -89,28 +87,12 @@ async function loadMenteeDashboardData(userId: string) {
         ],
       },
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
-      take: 4,
-      select: resourceSelect,
-    }),
-    // Resources this user authored that are tied to a specific mentee
-    // (i.e. recommended in their capacity as a mentor). Excludes generic
-    // library entries with no mentee/mentorship link.
-    prisma.mentorshipResource.findMany({
-      where: {
-        isPublished: true,
-        createdById: userId,
-        OR: [
-          { menteeId: { not: null } },
-          { mentorshipId: { not: null } },
-        ],
-      },
-      orderBy: [{ createdAt: "desc" }],
-      take: 4,
+      take: 3,
       select: resourceSelect,
     }),
   ]);
 
-  return { mentorship, pointSummary, goals, resourcesToMe, resourcesByMe };
+  return { mentorship, pointSummary, goals, resourcesToMe };
 }
 
 
@@ -120,7 +102,7 @@ function AwardBar({ totalPoints, currentTier }: { totalPoints: number; currentTi
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 13 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
         <span>
           {currentTier ? (
             <strong style={{ color: TIER_THRESHOLDS.find((t) => t.tier === currentTier)?.color }}>
@@ -136,7 +118,7 @@ function AwardBar({ totalPoints, currentTier }: { totalPoints: number; currentTi
       </div>
       <div
         style={{
-          height: 8,
+          height: 6,
           background: "var(--border, #e2e8f0)",
           borderRadius: 999,
           overflow: "hidden",
@@ -146,60 +128,35 @@ function AwardBar({ totalPoints, currentTier }: { totalPoints: number; currentTi
           style={{
             height: "100%",
             width: `${pct}%`,
-            background: "var(--color-primary, #6b21c8)",
+            background: "var(--ypp-purple-600, #6b21c8)",
             borderRadius: 999,
             transition: "width 0.4s ease",
           }}
         />
-      </div>
-      <div style={{ display: "flex", gap: 4, marginTop: 8, flexWrap: "wrap" }}>
-        {TIER_THRESHOLDS.map((t) => (
-          <span
-            key={t.tier}
-            style={{
-              fontSize: "0.68rem",
-              padding: "2px 7px",
-              borderRadius: 999,
-              background: totalPoints >= t.pts ? t.bg : "var(--surface-alt)",
-              color: totalPoints >= t.pts ? t.color : "var(--muted)",
-              fontWeight: totalPoints >= t.pts ? 700 : 400,
-              border: `1px solid ${totalPoints >= t.pts ? t.color : "var(--border)"}`,
-            }}
-          >
-            {t.label} {t.pts}+
-          </span>
-        ))}
       </div>
     </div>
   );
 }
 
 export async function MenteeDashboard({ userId }: Props) {
-  const { mentorship, pointSummary, goals, resourcesToMe, resourcesByMe } = await loadMenteeDashboardData(userId);
+  const [{ mentorship, pointSummary, goals, resourcesToMe }, leadership] =
+    await Promise.all([
+      loadMenteeDashboardData(userId),
+      getLeadershipContext(userId),
+    ]);
 
   if (!mentorship) {
     return (
-      <div className="card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
-        <h3 style={{ marginTop: 0 }}>No mentor assigned yet</h3>
-        <p style={{ color: "var(--muted)", maxWidth: 480, margin: "0 auto" }}>
-          You haven't been paired with an instructor mentor yet. Reach out to
-          your chapter leadership and they can match you. Once paired, your
-          goals, reflections, and feedback will appear here.
-        </p>
-      </div>
+      <EmptyStateEditorial
+        title="Your pairing is on the way."
+        body="You haven't been paired with an instructor mentor yet. Reach out to your chapter leadership and they'll match you. Until then, the leadership pathway is the same rubric you'll grow against."
+        link={{ label: "See the leadership pathway", href: "/leadership-pathway" }}
+      />
     );
   }
 
-  const latestReflection = mentorship.selfReflections[0] ?? null;
   const latestApprovedReview = mentorship.goalReviews[0] ?? null;
   const historyReviews = mentorship.goalReviews.slice(1);
-
-  const reflectionDue =
-    mentorship.cycleStage === "REFLECTION_DUE" ||
-    mentorship.cycleStage === "KICKOFF_PENDING";
-  const reflectionSubmitted =
-    mentorship.cycleStage !== "REFLECTION_DUE" &&
-    mentorship.cycleStage !== "KICKOFF_PENDING";
 
   const nextAction = nextActionForInstructorMentee({
     hasMentor: true,
@@ -209,352 +166,453 @@ export async function MenteeDashboard({ userId }: Props) {
     hasReleasedReview: !!latestApprovedReview?.releasedToMenteeAt,
   });
 
+  const stageAccent = leadership?.stage?.color.accent ?? undefined;
+  const mentorForHero = leadership?.primaryMentor
+    ? {
+        name: leadership.primaryMentor.name,
+        email: leadership.primaryMentor.email,
+        roleLabel: leadership.primaryMentor.roleLabel,
+      }
+    : mentorship.mentor
+      ? {
+          name: mentorship.mentor.name,
+          email: mentorship.mentor.email,
+          roleLabel: null,
+        }
+      : null;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Next action card */}
+    <div style={{ display: "grid", gap: 32 }}>
+      {leadership?.stageId && (
+        <RoleStrip
+          stageId={leadership.stageId}
+          nextStageId={leadership.nextStageId}
+          mentorName={leadership.primaryMentor?.name ?? null}
+          mentorRoleLabel={leadership.primaryMentor?.roleLabel ?? null}
+          showActions={false}
+        />
+      )}
+
+      <CycleHeroCard
+        action={nextAction}
+        cycleStage={mentorship.cycleStage ?? null}
+        mentor={mentorForHero}
+        accentColor={stageAccent}
+      />
+
       <div
-        className="card"
         style={{
-          borderLeft: "4px solid var(--ypp-purple, #6b21c8)",
-          background: "var(--ypp-purple-50, #faf5ff)",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: 20,
+          alignItems: "start",
         }}
       >
-        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--muted)", marginBottom: 4 }}>
-          Your next step
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{nextAction.label}</div>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>{nextAction.detail}</p>
-          </div>
-          {nextAction.href && (
-            <Link href={nextAction.href} className="button primary small" style={{ whiteSpace: "nowrap" }}>
-              Take action →
-            </Link>
-          )}
-        </div>
-      </div>
-
-      {/* Mentor card */}
-      <div className="card" style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--muted)", marginBottom: 4 }}>
-            Your Mentor
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{mentorship.mentor.name ?? mentorship.mentor.email}</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 3 }}>{mentorship.mentor.email}</div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-          <a href={`mailto:${mentorship.mentor.email}`} className="button secondary small">
-            Send email →
-          </a>
-        </div>
-      </div>
-
-      {/* Monthly reflection status (action lives in the Next-Action card above) */}
-      {(reflectionDue || (reflectionSubmitted && latestReflection)) && (
-        <div
-          className="card"
+        {/* Goals — left column */}
+        <section
           style={{
-            borderLeft: reflectionDue
-              ? "4px solid #f59e0b"
-              : "4px solid #22c55e",
-            background: reflectionDue ? "#fffbeb" : undefined,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            padding: "20px 22px",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Monthly Reflection</div>
-              {reflectionDue && (
-                <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
-                  Your reflection for this month is due. Complete it so your mentor can review your progress.
-                </p>
-              )}
-              {reflectionSubmitted && latestReflection && (
-                <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-                  Submitted {new Date(latestReflection.submittedAt!).toLocaleDateString()} — your mentor is reviewing it.
-                </p>
-              )}
-            </div>
-            {reflectionDue && (
-              <Link href="/my-program/reflect" className="button primary small">
-                Submit Reflection →
-              </Link>
-            )}
-            {reflectionSubmitted && latestReflection && (
-              <Link href={`/my-program/reflect/${latestReflection.id}`} className="button secondary small">
-                View Reflection
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* This month's goals */}
-      {goals.length === 0 ? (
-        <div className="card">
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>This Month's Goals</div>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-            No goals are set yet. Your mentor will work with you to add goals to
-            your Goals & Resources document — once they're in place, they'll
-            appear here with your progress and any ratings from your last
-            review.
-          </p>
-        </div>
-      ) : (
-        <div className="card">
-          <div style={{ fontWeight: 700, marginBottom: 12 }}>This Month's Goals</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {goals.map((goal) => {
-              const rating = latestApprovedReview?.goalRatings.find(
-                (gr) => gr.goal?.title === goal.title
-              );
-              return (
-                <div
-                  key={goal.id}
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    alignItems: "flex-start",
-                    padding: "0.6rem 0.8rem",
-                    background: "var(--surface-alt)",
-                    borderRadius: "var(--radius-md, 8px)",
-                    borderLeft: rating
-                      ? `3px solid ${RATING_COLOR[rating.rating]}`
-                      : "3px solid var(--border)",
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{goal.title}</div>
-                    {goal.description && (
-                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>
-                        {goal.description}
-                      </div>
-                    )}
-                  </div>
-                  {rating && (
-                    <span
-                      style={{
-                        fontSize: "0.68rem",
-                        padding: "2px 7px",
-                        borderRadius: 999,
-                        background: RATING_COLOR[rating.rating] + "22",
-                        color: RATING_COLOR[rating.rating],
-                        fontWeight: 700,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {RATING_LABEL[rating.rating]}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Resources recommended to you */}
-      <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <div style={{ fontWeight: 700 }}>Resources Recommended To You</div>
-          <Link href="/mentor/resources" className="muted" style={{ fontSize: 12 }}>
-            Browse all →
-          </Link>
-        </div>
-        {resourcesToMe.length === 0 ? (
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-            No resources have been recommended to you yet. Items your mentor
-            attaches to your Goals & Resources or sends you directly will show
-            up here.
-          </p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {resourcesToMe.map((resource) => (
-              <div
-                key={resource.id}
-                style={{
-                  padding: "0.6rem 0.8rem",
-                  background: "var(--surface-alt)",
-                  borderRadius: "var(--radius-md, 8px)",
-                  borderLeft: "3px solid var(--ypp-purple, #6b21c8)",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>
-                    {resource.url ? (
-                      <a href={resource.url} target="_blank" rel="noreferrer" className="link">
-                        {resource.title}
-                      </a>
-                    ) : (
-                      resource.title
-                    )}
-                  </div>
-                  <span className="pill" style={{ fontSize: "0.68rem" }}>
-                    {MENTORSHIP_RESOURCE_TYPE_META[resource.type]?.label ?? resource.type}
-                  </span>
-                </div>
-                {resource.description && (
-                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
-                    {resource.description}
-                  </p>
-                )}
-                {resource.createdBy?.name && (
-                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--muted)" }}>
-                    Recommended by {resource.createdBy.name}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Resources I recommended as a mentor — only shown when there are any */}
-      {resourcesByMe.length > 0 && (
-        <div className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-            <div style={{ fontWeight: 700 }}>Resources I Recommended As Mentor</div>
-            <Link href="/mentorship/mentees" className="muted" style={{ fontSize: 12 }}>
-              Open my mentees →
-            </Link>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {resourcesByMe.map((resource) => (
-              <div
-                key={resource.id}
-                style={{
-                  padding: "0.6rem 0.8rem",
-                  background: "var(--surface-alt)",
-                  borderRadius: "var(--radius-md, 8px)",
-                  borderLeft: "3px solid #0f766e",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>
-                    {resource.url ? (
-                      <a href={resource.url} target="_blank" rel="noreferrer" className="link">
-                        {resource.title}
-                      </a>
-                    ) : (
-                      resource.title
-                    )}
-                  </div>
-                  <span className="pill" style={{ fontSize: "0.68rem" }}>
-                    {MENTORSHIP_RESOURCE_TYPE_META[resource.type]?.label ?? resource.type}
-                  </span>
-                </div>
-                {resource.description && (
-                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
-                    {resource.description}
-                  </p>
-                )}
-                {resource.mentee?.name && (
-                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--muted)" }}>
-                    Sent to {resource.mentee.name}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Latest feedback */}
-      {latestApprovedReview && (
-        <div className="card">
-          <div style={{ fontWeight: 700, marginBottom: 12 }}>
-            Latest Feedback —{" "}
-            <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: 13 }}>
-              {new Date(latestApprovedReview.cycleMonth).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-            </span>
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Overall Rating</div>
-            <span
+          <h3
+            style={{
+              margin: 0,
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "var(--muted)",
+            }}
+          >
+            This month&apos;s goals
+          </h3>
+          {goals.length === 0 ? (
+            <p
               style={{
-                display: "inline-block",
-                fontSize: "0.75rem",
-                padding: "3px 10px",
-                borderRadius: 999,
-                background: RATING_COLOR[latestApprovedReview.overallRating] + "22",
-                color: RATING_COLOR[latestApprovedReview.overallRating],
-                fontWeight: 700,
+                margin: "12px 0 0",
+                color: "var(--muted)",
+                fontSize: 13,
+                lineHeight: 1.6,
               }}
             >
-              {RATING_LABEL[latestApprovedReview.overallRating]}
-            </span>
-          </div>
-          {latestApprovedReview.overallComments && (
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Comments</div>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>{latestApprovedReview.overallComments}</p>
-            </div>
-          )}
-          {latestApprovedReview.planOfAction && (
-            <div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Plan for Next Month</div>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>{latestApprovedReview.planOfAction}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Awards progress */}
-      <div className="card">
-        <div style={{ fontWeight: 700, marginBottom: 12 }}>Achievement Progress</div>
-        <AwardBar
-          totalPoints={pointSummary?.totalPoints ?? 0}
-          currentTier={pointSummary?.currentTier ?? null}
-        />
-      </div>
-
-      {/* History */}
-      {historyReviews.length > 0 && (
-        <details className="card">
-          <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.9rem" }}>
-            Review History ({historyReviews.length} previous)
-          </summary>
-          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
-            {historyReviews.map((review) => (
-              <div
-                key={review.id}
-                style={{
-                  padding: "0.75rem",
-                  background: "var(--surface-alt)",
-                  borderRadius: "var(--radius-md, 8px)",
-                  borderLeft: `3px solid ${RATING_COLOR[review.overallRating]}`,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
-                  <strong style={{ fontSize: 14 }}>
-                    {new Date(review.cycleMonth).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-                  </strong>
-                  <span
+              No goals are set yet. Your mentor will work with you to add goals
+              to your Goals &amp; Resources document — once they&apos;re in
+              place, they&apos;ll appear here with your progress and ratings.
+            </p>
+          ) : (
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: "14px 0 0",
+                display: "grid",
+                gap: 10,
+              }}
+            >
+              {goals.map((goal) => {
+                const rating = latestApprovedReview?.goalRatings.find(
+                  (gr) => gr.goal?.title === goal.title
+                );
+                return (
+                  <li
+                    key={goal.id}
                     style={{
-                      fontSize: "0.68rem",
-                      padding: "2px 7px",
-                      borderRadius: 999,
-                      background: RATING_COLOR[review.overallRating] + "22",
-                      color: RATING_COLOR[review.overallRating],
-                      fontWeight: 700,
+                      padding: "10px 14px",
+                      background: "var(--bg-2)",
+                      borderLeft: rating
+                        ? `3px solid ${RATING_COLOR[rating.rating]}`
+                        : "3px solid var(--border)",
+                      display: "flex",
+                      gap: 10,
+                      alignItems: "flex-start",
                     }}
                   >
-                    {RATING_LABEL[review.overallRating]}
-                  </span>
-                </div>
-                {review.overallComments && (
-                  <p style={{ margin: 0, fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }}>
-                    {review.overallComments.length > 180
-                      ? review.overallComments.slice(0, 177) + "…"
-                      : review.overallComments}
-                  </p>
-                )}
-              </div>
-            ))}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{goal.title}</div>
+                      {goal.description && (
+                        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3, lineHeight: 1.5 }}>
+                          {goal.description}
+                        </div>
+                      )}
+                    </div>
+                    {rating && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          padding: "2px 7px",
+                          borderRadius: 999,
+                          background: RATING_COLOR[rating.rating] + "22",
+                          color: RATING_COLOR[rating.rating],
+                          fontWeight: 700,
+                          letterSpacing: "0.04em",
+                          textTransform: "uppercase",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {RATING_LABEL[rating.rating]}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div style={{ marginTop: 14 }}>
+            <Link
+              href="/my-program/gr"
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--accent)",
+                textDecoration: "none",
+              }}
+            >
+              Open Goals &amp; Resources →
+            </Link>
           </div>
-        </details>
-      )}
+        </section>
+
+        {/* Latest feedback + Resources — right column */}
+        <div style={{ display: "grid", gap: 20 }}>
+          {latestApprovedReview && (
+            <section
+              style={{
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                padding: "20px 22px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "var(--muted)",
+                  }}
+                >
+                  Latest feedback
+                </h3>
+                <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                  {new Date(latestApprovedReview.cycleMonth).toLocaleDateString(
+                    "en-US",
+                    { month: "long", year: "numeric" }
+                  )}
+                </span>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <span
+                  style={{
+                    display: "inline-block",
+                    fontSize: 11,
+                    padding: "3px 10px",
+                    borderRadius: 999,
+                    background:
+                      RATING_COLOR[latestApprovedReview.overallRating] + "22",
+                    color: RATING_COLOR[latestApprovedReview.overallRating],
+                    fontWeight: 700,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {RATING_LABEL[latestApprovedReview.overallRating]}
+                </span>
+              </div>
+              {latestApprovedReview.overallComments && (
+                <p
+                  style={{
+                    margin: "12px 0 0",
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    color: "var(--text)",
+                  }}
+                >
+                  {latestApprovedReview.overallComments}
+                </p>
+              )}
+            </section>
+          )}
+
+          <section
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              padding: "20px 22px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--muted)",
+                }}
+              >
+                Resources from your mentor
+              </h3>
+              <Link
+                href="/mentor/resources"
+                style={{ fontSize: 12, color: "var(--muted)", textDecoration: "none" }}
+              >
+                Browse all →
+              </Link>
+            </div>
+            {resourcesToMe.length === 0 ? (
+              <p
+                style={{
+                  margin: "12px 0 0",
+                  color: "var(--muted)",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                }}
+              >
+                Items your mentor attaches to your G&amp;R or sends you directly
+                will appear here.
+              </p>
+            ) : (
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: "14px 0 0",
+                  display: "grid",
+                  gap: 10,
+                }}
+              >
+                {resourcesToMe.map((resource) => (
+                  <li
+                    key={resource.id}
+                    style={{
+                      padding: "10px 14px",
+                      background: "var(--bg-2)",
+                      borderLeft: "3px solid var(--ypp-purple, #6b21c8)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        alignItems: "baseline",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>
+                        {resource.url ? (
+                          <a
+                            href={resource.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="link"
+                          >
+                            {resource.title}
+                          </a>
+                        ) : (
+                          resource.title
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          padding: "2px 7px",
+                          borderRadius: 999,
+                          background: "var(--surface)",
+                          color: "var(--muted)",
+                          fontWeight: 600,
+                          letterSpacing: "0.04em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {MENTORSHIP_RESOURCE_TYPE_META[resource.type]?.label ??
+                          resource.type}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </div>
+
+      {/* Trajectory subsection — quieter, lower priority */}
+      <section style={{ display: "grid", gap: 16 }}>
+        <h3
+          style={{
+            margin: 0,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--muted)",
+          }}
+        >
+          Your trajectory
+        </h3>
+
+        <div
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            padding: "20px 22px",
+          }}
+        >
+          <AwardBar
+            totalPoints={pointSummary?.totalPoints ?? 0}
+            currentTier={pointSummary?.currentTier ?? null}
+          />
+        </div>
+
+        {historyReviews.length > 0 && (
+          <details
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              padding: "16px 22px",
+            }}
+          >
+            <summary
+              style={{
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--muted)",
+              }}
+            >
+              Past reviews ({historyReviews.length})
+            </summary>
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: "14px 0 0",
+                display: "grid",
+                gap: 12,
+              }}
+            >
+              {historyReviews.map((review) => (
+                <li
+                  key={review.id}
+                  style={{
+                    padding: "12px 14px",
+                    background: "var(--bg-2)",
+                    borderLeft: `3px solid ${RATING_COLOR[review.overallRating]}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "baseline",
+                      gap: 8,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <strong style={{ fontSize: 13 }}>
+                      {new Date(review.cycleMonth).toLocaleDateString("en-US", {
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </strong>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: "2px 7px",
+                        borderRadius: 999,
+                        background: RATING_COLOR[review.overallRating] + "22",
+                        color: RATING_COLOR[review.overallRating],
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {RATING_LABEL[review.overallRating]}
+                    </span>
+                  </div>
+                  {review.overallComments && (
+                    <p
+                      style={{
+                        margin: "8px 0 0",
+                        fontSize: 13,
+                        color: "var(--muted)",
+                        lineHeight: 1.55,
+                      }}
+                    >
+                      {review.overallComments.length > 180
+                        ? review.overallComments.slice(0, 177) + "…"
+                        : review.overallComments}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </section>
     </div>
   );
 }
+

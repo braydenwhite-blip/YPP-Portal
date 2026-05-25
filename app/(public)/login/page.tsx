@@ -242,28 +242,44 @@ function LoginPageContent() {
           <div className="login-logo login-logo--lockup">
             <BrandLockup height={52} className="brand-lockup" priority reloadOnClick />
           </div>
-          <p className="badge">Pathways Portal</p>
-          <h1 className="page-title mt-8">
-            Master your craft. Inspire a generation. Track every milestone.
-          </h1>
-          <p className="hero-subtitle mt-12">
-            The Pathways Portal is the official digital backbone of the Youth Passion Project. From your very first
-            101 class to launching a portfolio-ready passion project, we connect learners, mentors, and families
-            in one unified ecosystem.
-          </p>
-          <div className="hero-grid">
-            <div className="hero-card">
-              <h3>Students: Your Passion Journey</h3>
-              <p>Complete 101-401 levels, earn badges, and build a portfolio. Connect with mentors and alumni to launch your passion.</p>
-            </div>
-            <div className="hero-card">
-              <h3>Instructors: Teaching Excellence</h3>
-              <p>Finish Academy training, access lesson plans, and manage classes. Support growth with high-impact tracking and feedback.</p>
-            </div>
-            <div className="hero-card">
-              <h3>Parents: Visibility & Support</h3>
-              <p>Stay updated with real-time progress reports and certificates. See the impact of mentorship on your child&apos;s learning journey.</p>
-            </div>
+          <span
+            style={{
+              display: "inline-block",
+              padding: "6px 12px",
+              borderRadius: 999,
+              background: "#f5f3ff",
+              border: "1px solid #ddd6fe",
+              fontSize: 11,
+              color: "#5b21b6",
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              fontWeight: 700,
+              marginBottom: 14,
+            }}
+          >
+            Summer 2026 · Now Accepting Applications
+          </span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginTop: 24 }}>
+            <Link
+              href="/signup/instructor"
+              className="button"
+              style={{
+                display: "inline-flex",
+                width: "auto",
+                margin: 0,
+                padding: "14px 28px",
+                fontSize: 15,
+                fontWeight: 700,
+              }}
+            >
+              Apply Now
+            </Link>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+              Already applied?{" "}
+              <Link href="/login?callbackUrl=/application-status" style={{ color: "var(--ypp-purple)", fontWeight: 600 }}>
+                Check your status
+              </Link>
+            </span>
           </div>
 
         </section>
@@ -440,15 +456,22 @@ function LoginPageContent() {
             <div className="login-help">
               Need help? Contact your chapter administrator or support team.
             </div>
-            <Link
-              className="button secondary login-card-signup-cta"
-              style={{ display: "block", textAlign: "center" }}
-              href="/signup"
+            <div
+              style={{
+                marginTop: 16,
+                paddingTop: 16,
+                borderTop: "1px solid var(--border)",
+                display: "grid",
+                gap: 8,
+              }}
             >
-              Create Family Account
-            </Link>
-            <div className="login-help" style={{ marginTop: 8 }}>
-              Applying to teach? <Link href="/signup/instructor">Start the instructor application</Link>
+              <Link
+                className="button"
+                href="/signup/instructor"
+                style={{ display: "flex", marginTop: 0, justifyContent: "center" }}
+              >
+                Start Summer Workshop Application
+              </Link>
             </div>
           </>}
         </div>

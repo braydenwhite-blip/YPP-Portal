@@ -380,7 +380,6 @@ const CHAIR_QUEUE_SELECT = {
       round: true,
       recommendation: true,
       overallRating: true,
-      summary: true,
       reviewer: { select: { id: true, name: true } },
       categories: { select: { category: true, rating: true, notes: true } },
     },

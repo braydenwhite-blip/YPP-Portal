@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { getMyGRDocument } from "@/lib/gr-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { getLeadershipContext } from "@/lib/leadership-context";
 import GRDocumentView from "@/components/gr/gr-document-view";
+import { RoleStrip } from "@/components/leadership-pathway/role-strip";
 import Link from "next/link";
 import type { GoalRatingColor } from "@prisma/client";
 
@@ -16,7 +18,10 @@ export default async function MyGRPage() {
   const menteeRoleType = toMenteeRoleType(primaryRole);
   if (!menteeRoleType) redirect("/");
 
-  const doc = await getMyGRDocument();
+  const [doc, leadership] = await Promise.all([
+    getMyGRDocument(),
+    getLeadershipContext(session.user.id),
+  ]);
 
   if (!doc) {
     return (
@@ -24,19 +29,55 @@ export default async function MyGRPage() {
         <div className="topbar">
           <div>
             <p className="badge">Mentorship Program</p>
-            <h1 className="page-title">My Goals & Resources</h1>
+            <h1 className="page-title">My Goals &amp; Resources</h1>
           </div>
         </div>
-        <div className="card" style={{ padding: "2rem", textAlign: "center" }}>
-          <p style={{ fontSize: "1.1rem", color: "var(--muted)", marginBottom: "1rem" }}>
-            Your G&R document hasn&apos;t been assigned yet.
-          </p>
-          <p style={{ color: "var(--muted)" }}>
-            Your program administrator will set up your Goals &amp; Resources document once your mentorship pairing is established.
-          </p>
-          <Link href="/my-program" className="button primary" style={{ marginTop: "1.5rem" }}>
-            Back to My Program
-          </Link>
+        <div style={{ display: "grid", gap: 16 }}>
+          {leadership?.stageId && (
+            <RoleStrip
+              stageId={leadership.stageId}
+              nextStageId={leadership.nextStageId}
+              mentorName={leadership.primaryMentor?.name ?? null}
+              mentorRoleLabel={leadership.primaryMentor?.roleLabel ?? null}
+            />
+          )}
+          <div
+            style={{
+              padding: "28px 20px",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              textAlign: "center",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 15,
+                color: "var(--text)",
+                margin: "0 0 4px",
+                fontWeight: 600,
+              }}
+            >
+              Your G&amp;R document isn&apos;t assigned yet.
+            </p>
+            <p
+              style={{
+                color: "var(--muted)",
+                fontSize: 13,
+                margin: "0 auto",
+                maxWidth: 420,
+              }}
+            >
+              Your program admin will set it up once your mentorship
+              pairing is established.
+            </p>
+            <Link
+              href="/my-program"
+              className="button"
+              style={{ marginTop: 16 }}
+            >
+              Back to My Program
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -218,6 +259,17 @@ export default async function MyGRPage() {
           <p className="page-subtitle">{doc.template.title}</p>
         </div>
       </div>
+
+      {leadership?.stageId && (
+        <div style={{ marginBottom: 16 }}>
+          <RoleStrip
+            stageId={leadership.stageId}
+            nextStageId={leadership.nextStageId}
+            mentorName={leadership.primaryMentor?.name ?? null}
+            mentorRoleLabel={leadership.primaryMentor?.roleLabel ?? null}
+          />
+        </div>
+      )}
 
       <GRDocumentView document={serialized} isOwner={true} />
     </div>

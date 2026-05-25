@@ -3,7 +3,8 @@ export const LEGACY_AUTH_BYPASS_EMAILS = [
   "anthea.zamir@youthpassionproject.org",
   "carlygelles@gmail.com",
   "avery.lin@youthpassionproject.org",
-  "jordan.patel@youthpassionproject.org"
+  "jordan.patel@youthpassionproject.org",
+  "milo.wald@youthpassionproject.org"
 ];
 
 export function isLegacyAuthBypassEmail(email?: string | null) {

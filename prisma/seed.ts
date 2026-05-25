@@ -1,6 +1,7 @@
 import "dotenv/config";
 import {
   PrismaClient,
+  Prisma,
   AdminSubtype,
   CourseFormat,
   CourseLevel,
@@ -23,26 +24,6 @@ async function findOrCreateChapter(input: { name: string; city: string; region: 
   return prisma.chapter.create({ data: input });
 }
 
-const SEATTLE_DEMO_EVENT_TITLE = "Seattle Chapter Community Night";
-
-async function ensureSeattleChapterDemoEvent(chapterId: string) {
-  const existing = await prisma.event.findFirst({
-    where: { chapterId, title: SEATTLE_DEMO_EVENT_TITLE },
-    select: { id: true },
-  });
-  if (existing) return;
-  await prisma.event.create({
-    data: {
-      title: SEATTLE_DEMO_EVENT_TITLE,
-      description: "Regional meetup for Seattle families, mentors, and chapter partners.",
-      eventType: EventType.WORKSHOP,
-      startDate: new Date("2026-04-18T23:00:00.000Z"),
-      endDate: new Date("2026-04-19T01:00:00.000Z"),
-      chapterId,
-    },
-  });
-}
-
 async function main() {
   const seedPassword = process.env.SEED_PASSWORD;
   if (!seedPassword) {
@@ -50,22 +31,34 @@ async function main() {
   }
   const passwordHash = await bcrypt.hash(seedPassword, 10);
 
-  const frisch = await findOrCreateChapter({
-    name: "The Frisch School",
-    city: "New York",
+  const scarsdale = await findOrCreateChapter({
+    name: "Scarsdale",
+    city: "Scarsdale",
     region: "Northeast",
   });
 
-  const boston = await findOrCreateChapter({
-    name: "Boston Chapter",
-    city: "Boston",
-    region: "Northeast",
-  });
-
-  const seattle = await findOrCreateChapter({
-    name: "Seattle Chapter",
-    city: "Seattle",
-    region: "Pacific Northwest",
+  await prisma.user.upsert({
+    where: { email: "milo.wald@youthpassionproject.org" },
+    create: {
+      name: "Milo Wald",
+      email: "milo.wald@youthpassionproject.org",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.CHAPTER_PRESIDENT,
+      chapterId: scarsdale.id,
+      roles: { create: [{ role: RoleType.CHAPTER_PRESIDENT }] },
+    },
+    update: {
+      name: "Milo Wald",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.CHAPTER_PRESIDENT,
+      chapterId: scarsdale.id,
+      roles: {
+        deleteMany: {},
+        create: [{ role: RoleType.CHAPTER_PRESIDENT }],
+      },
+    },
   });
 
   const verifiedAt = new Date();
@@ -88,7 +81,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.ADMIN,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         create: [{ role: RoleType.ADMIN }, { role: RoleType.INSTRUCTOR }],
       },
@@ -99,7 +92,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.ADMIN,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         deleteMany: {},
         create: [{ role: RoleType.ADMIN }, { role: RoleType.INSTRUCTOR }],
@@ -115,7 +108,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.ADMIN,
-      chapterId: seattle.id,
+      chapterId: scarsdale.id,
       roles: {
         create: [{ role: RoleType.ADMIN }],
       },
@@ -128,7 +121,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.ADMIN,
-      chapterId: seattle.id,
+      chapterId: scarsdale.id,
       roles: {
         deleteMany: {},
         create: [{ role: RoleType.ADMIN }],
@@ -149,7 +142,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.MENTOR,
-      chapterId: boston.id,
+      chapterId: scarsdale.id,
       roles: {
         create: [{ role: RoleType.MENTOR }, { role: RoleType.STAFF }],
       },
@@ -160,7 +153,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.MENTOR,
-      chapterId: boston.id,
+      chapterId: scarsdale.id,
       roles: {
         deleteMany: {},
         create: [{ role: RoleType.MENTOR }, { role: RoleType.STAFF }],
@@ -177,7 +170,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.INSTRUCTOR,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         create: [{ role: RoleType.INSTRUCTOR }],
       },
@@ -188,7 +181,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.INSTRUCTOR,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         deleteMany: {},
         create: [{ role: RoleType.INSTRUCTOR }],
@@ -205,7 +198,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.STUDENT,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         create: [{ role: RoleType.STUDENT }],
       },
@@ -216,7 +209,7 @@ async function main() {
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.STUDENT,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       roles: {
         deleteMany: {},
         create: [{ role: RoleType.STUDENT }],
@@ -224,10 +217,23 @@ async function main() {
     },
   });
 
-  await ensureSeattleChapterDemoEvent(seattle.id);
-
   // ── Instructor Applicant Workflow V1 seed ──────────────────────────────────
-  await seedInstructorApplicantWorkflow(frisch.id, passwordHash, verifiedAt);
+  await seedInstructorApplicantWorkflow(scarsdale.id, passwordHash, verifiedAt);
+
+  // ── Leadership Action Center seed ──────────────────────────────────────────
+  await seedLeadershipActionCenter();
+
+  // ── Instructor Assignment System (Phase 1) seed ────────────────────────────
+  await seedInstructorAssignmentDemoData({
+    chapterId: scarsdale.id,
+  });
+
+  // ── Regular Instructor Assignments demo seed ───────────────────────────────
+  await seedRegularInstructorAssignments({
+    chapterId: scarsdale.id,
+    instructorId: instructor.id,
+    creatorId: instructor.id,
+  });
 
   const seedAlreadyPresent = await prisma.pathway.findFirst({
     where: { name: SEED_PATHWAY_NAME },
@@ -236,7 +242,7 @@ async function main() {
 
   if (seedAlreadyPresent) {
     console.log(
-      `Seed dataset already present ("${SEED_PATHWAY_NAME}" exists). Updated seed users; ensured Seattle Chapter + demo event.`
+      `Seed dataset already present ("${SEED_PATHWAY_NAME}" exists). Updated seed users for the Scarsdale chapter.`
     );
     return;
   }
@@ -247,7 +253,7 @@ async function main() {
       description: "One-off exploration class to spark curiosity.",
       format: CourseFormat.ONE_OFF,
       interestArea: "Psychology",
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -259,7 +265,7 @@ async function main() {
       format: CourseFormat.LEVELED,
       level: CourseLevel.LEVEL_101,
       interestArea: "Psychology",
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -271,7 +277,7 @@ async function main() {
       format: CourseFormat.LEVELED,
       level: CourseLevel.LEVEL_201,
       interestArea: "Psychology",
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -283,7 +289,7 @@ async function main() {
       format: CourseFormat.LEVELED,
       level: CourseLevel.LEVEL_301,
       interestArea: "Psychology",
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -294,7 +300,7 @@ async function main() {
       description: "Project-based, in-person-first lab with showcase.",
       format: CourseFormat.LAB,
       interestArea: "Psychology",
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -306,7 +312,7 @@ async function main() {
       format: CourseFormat.COMMONS,
       interestArea: "Psychology",
       isVirtual: true,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -318,7 +324,7 @@ async function main() {
       format: CourseFormat.COMPETITION_PREP,
       interestArea: "Psychology",
       isVirtual: true,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       leadInstructorId: instructor.id
     }
   });
@@ -376,7 +382,7 @@ async function main() {
       eventType: EventType.FESTIVAL,
       startDate: new Date("2026-03-20T18:00:00Z"),
       endDate: new Date("2026-03-20T20:30:00Z"),
-      chapterId: frisch.id
+      chapterId: scarsdale.id
     }
   });
 
@@ -387,7 +393,7 @@ async function main() {
       comments: "Clear pathway and strong instructor support.",
       courseId: course101.id,
       instructorId: instructor.id,
-      chapterId: frisch.id,
+      chapterId: scarsdale.id,
       authorId: student.id
     }
   });
@@ -993,7 +999,7 @@ async function seedInstructorApplicantWorkflow(
         categories: {
           create: [
             { category: "RELATIONSHIP_BUILDING", rating: "ABOVE_AND_BEYOND", notes: "Clear and engaging communicator." },
-            { category: "SUBJECT_MATTER_FIT", rating: "ABOVE_AND_BEYOND", notes: "Deep expertise in CS fundamentals." },
+            { category: "CURRICULUM_STRENGTH", rating: "ABOVE_AND_BEYOND", notes: "Strong curriculum design and clear delivery plan." },
             { category: "COMMUNITY_FIT", rating: "ON_TRACK", notes: "Clearly driven by mission." },
           ],
         },
@@ -1002,6 +1008,456 @@ async function seedInstructorApplicantWorkflow(
   }
 
   console.log("Seeded Instructor Applicant Workflow V1 demo data.");
+}
+
+// ── Leadership Action Center demo data ────────────────────────────────────
+async function seedLeadershipActionCenter() {
+  const existing = await prisma.leadershipActionItem.count();
+  if (existing > 0) {
+    console.log("Leadership Action Center: existing tasks present, skipping seed.");
+    return;
+  }
+
+  const brayden = await prisma.user.findUnique({
+    where: { email: "brayden.white@youthpassionproject.org" },
+    select: { id: true, name: true },
+  });
+  const anthea = await prisma.user.findUnique({
+    where: { email: "anthea.zamir@youthpassionproject.org" },
+    select: { id: true, name: true },
+  });
+
+  // Use upcoming Monday as the operating week start so the "this week" view
+  // immediately shows the demo content regardless of when the seed runs.
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayOfWeek = today.getDay();
+  const offsetToMonday = (dayOfWeek + 6) % 7;
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - offsetToMonday);
+
+  function dayOfWeekDate(weekdayIndex: number) {
+    // 0 = Mon, 6 = Sun
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + weekdayIndex);
+    return d;
+  }
+
+  // Meetings ----------------------------------------------------------------
+  const officersMeeting = await prisma.leadershipMeeting.create({
+    data: {
+      title: "Officers weekly sync",
+      kind: "OFFICERS",
+      scheduledAt: dayOfWeekDate(2), // Wednesday
+      ownerId: anthea?.id,
+      notes: "Standing officers meeting. Bring decisions, blockers, and items needing officer input.",
+    },
+  });
+  const marketingMeeting = await prisma.leadershipMeeting.create({
+    data: {
+      title: "Marketing & comms",
+      kind: "MARKETING",
+      scheduledAt: dayOfWeekDate(3), // Thursday
+      ownerId: brayden?.id,
+      notes: "Editorial review, social pipeline, newsletter cadence.",
+    },
+  });
+  await prisma.leadershipMeeting.create({
+    data: {
+      title: "Tech team standup",
+      kind: "TECH",
+      scheduledAt: dayOfWeekDate(1), // Tuesday
+      ownerId: brayden?.id,
+      notes: "Portal release planning, bug triage, infra updates.",
+    },
+  });
+
+  // Action items ------------------------------------------------------------
+  const items: Prisma.LeadershipActionItemUncheckedCreateInput[] = [
+    {
+      title: "Email all summer camps about partnership",
+      description: "Send the partnership pitch + scheduling form to the camp directors list.",
+      category: "COMMUNICATION",
+      status: "IN_PROGRESS",
+      priority: "HIGH",
+      source: "SPREADSHEET",
+      sourceLabel: "Action Items Tracker · Week of " + weekStart.toLocaleDateString(),
+      dueDate: dayOfWeekDate(1),
+      weekStart,
+      primaryOwnerId: brayden?.id,
+      ownerNames: brayden?.name ? [] : ["Brayden"],
+      inputNeededNames: ["Anthea"],
+      notes: "List is in the partnerships tracker; reuse last summer's template.",
+      meetingId: marketingMeeting.id,
+    },
+    {
+      title: "Find Scarsdale instructor applications",
+      category: "INSTRUCTION",
+      status: "NOT_STARTED",
+      priority: "HIGH",
+      source: "SPREADSHEET",
+      dueDate: dayOfWeekDate(2),
+      weekStart,
+      primaryOwnerId: anthea?.id,
+      ownerNames: anthea?.name ? [] : ["Anthea"],
+      needsOfficerDiscussion: true,
+      officerDiscussionDate: dayOfWeekDate(2),
+      notes: "Need to confirm if forms are still on the legacy Google Drive folder.",
+      meetingId: officersMeeting.id,
+    },
+    {
+      title: "Test the portal for instructor signup",
+      category: "TECHNOLOGY",
+      status: "IN_PROGRESS",
+      priority: "NORMAL",
+      source: "SPREADSHEET",
+      dueDate: dayOfWeekDate(3),
+      weekStart,
+      primaryOwnerId: brayden?.id,
+      inputNeededNames: ["Engineering team"],
+      notes: "Walk through every step end-to-end; capture any UX rough edges.",
+    },
+    {
+      title: "Create social media templates",
+      category: "COMMUNICATION",
+      status: "NOT_STARTED",
+      priority: "NORMAL",
+      source: "EMAIL",
+      sourceLabel: "Weekly update — May",
+      dueDate: dayOfWeekDate(5),
+      weekStart,
+      ownerNames: ["Comms team"],
+      meetingId: marketingMeeting.id,
+    },
+    {
+      title: "Centralize parent / student / instructor records",
+      category: "STAFF_MANAGEMENT",
+      status: "BLOCKED",
+      priority: "URGENT",
+      source: "SPREADSHEET",
+      dueDate: dayOfWeekDate(6),
+      weekStart,
+      primaryOwnerId: anthea?.id,
+      inputNeededNames: ["Brayden"],
+      needsOfficerDiscussion: true,
+      officerDiscussionDate: dayOfWeekDate(2),
+      notes: "Blocked on whether to consolidate inside the portal or stay on Airtable.",
+      meetingId: officersMeeting.id,
+    },
+    {
+      title: "Finalize interview questions",
+      category: "INSTRUCTION",
+      status: "IN_PROGRESS",
+      priority: "HIGH",
+      source: "SPREADSHEET",
+      dueDate: dayOfWeekDate(1),
+      weekStart,
+      ownerNames: ["Hiring chair"],
+      inputNeededNames: ["Anthea"],
+      meetingId: officersMeeting.id,
+    },
+    {
+      title: "Draft G&R templates",
+      category: "COMMUNICATION",
+      status: "NOT_STARTED",
+      priority: "HIGH",
+      source: "SPREADSHEET",
+      dueDate: dayOfWeekDate(4),
+      weekStart,
+      primaryOwnerId: brayden?.id,
+      needsOfficerDiscussion: true,
+      officerDiscussionDate: dayOfWeekDate(2),
+      meetingId: officersMeeting.id,
+      notes: "Draft for both the mentor and chapter-president roles.",
+    },
+    {
+      title: "Create newsletter templates",
+      category: "COMMUNICATION",
+      status: "NOT_STARTED",
+      priority: "NORMAL",
+      source: "EMAIL",
+      dueDate: dayOfWeekDate(5),
+      weekStart,
+      ownerNames: ["Comms team"],
+      meetingId: marketingMeeting.id,
+    },
+  ];
+
+  for (const data of items) {
+    await prisma.leadershipActionItem.create({
+      data: {
+        ...data,
+        createdById: brayden?.id ?? null,
+        updatedById: brayden?.id ?? null,
+        updates: {
+          create: {
+            authorId: brayden?.id ?? null,
+            kind: "CREATED",
+            body: "Imported from the seed dataset",
+          },
+        },
+      },
+    });
+  }
+
+  console.log("Seeded Leadership Action Center demo tasks + meetings.");
+}
+
+// ── Instructor Assignment System (Phase 1) ────────────────────────────────────
+// Adds a few WorkshopOpportunity rows + sample InstructorAssignments so the
+// admin board has something to render out-of-the-box. Idempotent: re-running
+// the seed updates the same rows by deterministic title+partner.
+async function seedInstructorAssignmentDemoData(input: {
+  chapterId: string;
+}) {
+  const adminOwner = await prisma.user.findUnique({
+    where: { email: "brayden.white@youthpassionproject.org" },
+    select: { id: true },
+  });
+  const instructorAvery = await prisma.user.findUnique({
+    where: { email: "avery.lin@youthpassionproject.org" },
+    select: { id: true },
+  });
+  if (!adminOwner || !instructorAvery) {
+    console.log("Skipping assignment-system seed (admin/instructor not found).");
+    return;
+  }
+
+  const opportunitySeeds = [
+    {
+      title: "Summer of Physics — Lincoln Academy",
+      partnerName: "Lincoln Summer Academy",
+      type: "SUMMER_CAMP" as const,
+      status: "OPEN" as const,
+      urgency: "HIGH" as const,
+      deliveryMode: "IN_PERSON" as const,
+      description:
+        "Two-week residential physics camp for rising 7th-9th graders. Need lead + assistant.",
+      locationName: "Lincoln Academy Campus",
+      locationCity: "Boston",
+      locationState: "MA",
+      locationCountry: "USA",
+      startDate: new Date("2026-07-13T13:00:00.000Z"),
+      endDate: new Date("2026-07-24T21:00:00.000Z"),
+      fillByDate: new Date("2026-06-15T00:00:00.000Z"),
+      slotsNeeded: 2,
+      ageGroup: "Grades 7-9",
+      topicTags: ["physics", "stem", "summer"],
+      chapterId: input.chapterId,
+    },
+    {
+      title: "Code Together — Online Workshop Series",
+      partnerName: "YPP Internal",
+      type: "ONLINE_WORKSHOP" as const,
+      status: "OPEN" as const,
+      urgency: "NORMAL" as const,
+      deliveryMode: "VIRTUAL" as const,
+      description:
+        "Six-session evening online workshop teaching Python fundamentals. Need one instructor.",
+      locationCountry: "USA",
+      startDate: new Date("2026-06-08T00:00:00.000Z"),
+      endDate: new Date("2026-07-13T00:00:00.000Z"),
+      fillByDate: new Date("2026-05-25T00:00:00.000Z"),
+      slotsNeeded: 1,
+      ageGroup: "Ages 12-15",
+      topicTags: ["coding", "python", "online"],
+    },
+    {
+      title: "Frisch Maker Festival",
+      partnerName: "The Frisch School",
+      type: "ONE_TIME_WORKSHOP" as const,
+      status: "OPEN" as const,
+      urgency: "URGENT" as const,
+      deliveryMode: "IN_PERSON" as const,
+      description:
+        "One-day maker festival. Need three instructor leads for hands-on stations.",
+      locationName: "The Frisch School",
+      locationCity: "New York",
+      locationState: "NY",
+      locationCountry: "USA",
+      startDate: new Date("2026-05-30T14:00:00.000Z"),
+      endDate: new Date("2026-05-30T22:00:00.000Z"),
+      fillByDate: new Date("2026-05-20T00:00:00.000Z"),
+      slotsNeeded: 3,
+      ageGroup: "Grades 4-8",
+      topicTags: ["maker", "robotics", "engineering"],
+      chapterId: input.chapterId,
+    },
+  ];
+
+  for (const seed of opportunitySeeds) {
+    const existing = await prisma.workshopOpportunity.findFirst({
+      where: { title: seed.title },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.workshopOpportunity.update({
+        where: { id: existing.id },
+        data: { ...seed, ownerId: adminOwner.id, createdById: adminOwner.id },
+      });
+    } else {
+      await prisma.workshopOpportunity.create({
+        data: { ...seed, ownerId: adminOwner.id, createdById: adminOwner.id },
+      });
+    }
+  }
+
+  // Sample assignment: put Avery as SUGGESTED on the Frisch festival so the
+  // admin board shows partial coverage out of the box.
+  const frischFestival = await prisma.workshopOpportunity.findFirst({
+    where: { title: "Frisch Maker Festival" },
+    select: { id: true },
+  });
+  if (frischFestival) {
+    await prisma.instructorAssignment.upsert({
+      where: {
+        opportunityId_instructorId: {
+          opportunityId: frischFestival.id,
+          instructorId: instructorAvery.id,
+        },
+      },
+      create: {
+        opportunityId: frischFestival.id,
+        instructorId: instructorAvery.id,
+        role: "LEAD_INSTRUCTOR",
+        status: "PENDING",
+        assignedById: adminOwner.id,
+        internalNotes: "Reached out via Slack DM 2 days ago — awaiting confirmation.",
+      },
+      update: {},
+    });
+  }
+
+  console.log("Seeded Instructor Assignment System Phase 1 demo data.");
+}
+
+// ── Regular Instructor Assignments demo seed ────────────────────────────────
+// Creates one ClassTemplate + two ClassOfferings + a couple of
+// RegularInstructorAssignment rows so /admin/instructor-assignments has
+// something to show on a fresh seed. Fully idempotent — skips records that
+// already exist.
+async function seedRegularInstructorAssignments(args: {
+  chapterId: string;
+  instructorId: string;
+  creatorId: string;
+}) {
+  const { chapterId, instructorId, creatorId } = args;
+
+  const templateTitle = "Demo: Behavioral Science Foundations";
+
+  const template = await prisma.classTemplate.upsert({
+    where: { id: `seed-template-${chapterId}` },
+    create: {
+      id: `seed-template-${chapterId}`,
+      title: templateTitle,
+      description:
+        "Demo template for /admin/instructor-assignments. Foundational behavioral science class for 7th–9th graders.",
+      interestArea: "Psychology",
+      targetAgeGroup: "12-14",
+      classDurationMin: 60,
+      durationWeeks: 6,
+      sessionsPerWeek: 1,
+      deliveryModes: ["VIRTUAL"],
+      isPublished: true,
+      createdById: creatorId,
+      chapterId,
+    },
+    update: {},
+  });
+
+  const offerings: { id: string; title: string }[] = [];
+  const offeringSeeds = [
+    {
+      id: `seed-offering-${chapterId}-1`,
+      title: "Behavioral Science Foundations — Spring Cohort A",
+      startDateOffsetDays: 7,
+      endDateOffsetDays: 49,
+    },
+    {
+      id: `seed-offering-${chapterId}-2`,
+      title: "Behavioral Science Foundations — Spring Cohort B",
+      startDateOffsetDays: 14,
+      endDateOffsetDays: 56,
+    },
+  ];
+
+  for (const seed of offeringSeeds) {
+    const now = Date.now();
+    const offering = await prisma.classOffering.upsert({
+      where: { id: seed.id },
+      create: {
+        id: seed.id,
+        templateId: template.id,
+        instructorId,
+        title: seed.title,
+        startDate: new Date(now + seed.startDateOffsetDays * 86_400_000),
+        endDate: new Date(now + seed.endDateOffsetDays * 86_400_000),
+        meetingDays: ["Tuesday"],
+        meetingTime: "16:00-17:00",
+        deliveryMode: "VIRTUAL",
+        capacity: 18,
+        status: "DRAFT",
+        chapterId,
+      },
+      update: {},
+    });
+    offerings.push({ id: offering.id, title: offering.title });
+  }
+
+  // First offering: instructor confirmed (LEAD). Second offering: pending
+  // review (LEAD) so admins see both lifecycle states on the dashboard.
+  if (offerings[0]) {
+    await prisma.regularInstructorAssignment.upsert({
+      where: {
+        offeringId_instructorId_role: {
+          offeringId: offerings[0].id,
+          instructorId,
+          role: "LEAD",
+        },
+      },
+      create: {
+        offeringId: offerings[0].id,
+        instructorId,
+        role: "LEAD",
+        status: "FULLY_CONFIRMED",
+        chapterId,
+        classTemplateId: template.id,
+        offeredAt: new Date(),
+        instructorConfirmedAt: new Date(),
+        chapterConfirmedAt: new Date(),
+        adminNotes: "Demo assignment: fully confirmed lead.",
+        instructorNote: "Welcome aboard — class kicks off next week.",
+        createdById: creatorId,
+        updatedById: creatorId,
+      },
+      update: {},
+    });
+  }
+  if (offerings[1]) {
+    await prisma.regularInstructorAssignment.upsert({
+      where: {
+        offeringId_instructorId_role: {
+          offeringId: offerings[1].id,
+          instructorId,
+          role: "LEAD",
+        },
+      },
+      create: {
+        offeringId: offerings[1].id,
+        instructorId,
+        role: "LEAD",
+        status: "PENDING_REVIEW",
+        chapterId,
+        classTemplateId: template.id,
+        adminNotes: "Demo assignment: pending admin review.",
+        createdById: creatorId,
+        updatedById: creatorId,
+      },
+      update: {},
+    });
+  }
+
+  console.log("Seeded regular instructor assignment demo data.");
 }
 
 main()

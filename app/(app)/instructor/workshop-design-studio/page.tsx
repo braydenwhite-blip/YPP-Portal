@@ -14,6 +14,9 @@ import {
 import { getOrCreateApplicantSubmission } from "@/lib/workshop-proposal-actions";
 import { ChooseWorkshopPathButtons } from "./choice-buttons";
 import { ReviewerFeedbackCard } from "./reviewer-feedback";
+import { ApplicantStatusTimeline } from "./status-timeline";
+import { ReviewerExpectationsCard } from "./reviewer-expectations-card";
+import { WorkshopPathwayCallout } from "@/components/leadership-pathway/workshop-pathway-callout";
 
 export default async function WorkshopDesignStudioPage({
   searchParams,
@@ -51,6 +54,27 @@ export default async function WorkshopDesignStudioPage({
 
   const editable = submission ? isSubmissionEditable(submission.status) : true;
 
+  // Light read of the instructor-assignment table. We use this purely to
+  // colour the "assigned" step in the status timeline; the assignment
+  // model is the canonical source of truth and lives on the admin side.
+  // Defensive: if the read fails, treat as not-yet-assigned rather than
+  // breaking the page.
+  const assignmentCount =
+    !isReviewerPreview && submission?.status === "APPROVED"
+      ? await withPrismaFallback(
+          "workshop-studio:assignment-count",
+          () =>
+            prisma.instructorAssignment.count({
+              where: {
+                instructorId: userId,
+                status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
+              },
+            }),
+          0
+        )
+      : 0;
+  const hasAssignment = assignmentCount > 0;
+
   return (
     <div>
       <div style={{ marginBottom: 12 }}>
@@ -68,12 +92,27 @@ export default async function WorkshopDesignStudioPage({
           <p className="badge">Summer Workshop Instructor · Workshop Proposal</p>
           <h1 className="page-title">Workshop Design Studio</h1>
           <p className="page-subtitle">
-            You&rsquo;re approved as a Summer Workshop Instructor — propose the
-            focused, high-impact workshop you&rsquo;ll lead at camp. Design your
-            own or pick from YPP&rsquo;s approved library.
+            Summer Workshop Instructors are approved YPP educators leading
+            focused, high-impact workshops at camp. Design your own workshop
+            or pick from YPP&rsquo;s approved library — both paths land in the
+            same review queue.
           </p>
         </div>
+        {!isReviewerPreview && (
+          <Link
+            href="/leadership-pathway"
+            className="button secondary small"
+          >
+            View leadership pathway →
+          </Link>
+        )}
       </div>
+
+      {!isReviewerPreview && (
+        <div style={{ marginBottom: 16 }}>
+          <WorkshopPathwayCallout isCurrentWorkshopInstructor />
+        </div>
+      )}
 
       {isReviewerPreview ? (
         <div
@@ -87,10 +126,27 @@ export default async function WorkshopDesignStudioPage({
         >
           <p style={{ margin: 0, fontSize: 13, color: "#5b21b6" }}>
             <strong>Reviewer preview.</strong> You&rsquo;re looking at the
-            applicant view. Use the admin reviews page to score submissions.
+            applicant view. Use the{" "}
+            <Link
+              href="/admin/workshop-reviews"
+              className="link"
+              style={{ color: "#5b21b6" }}
+            >
+              admin reviews page
+            </Link>{" "}
+            to score real submissions.
           </p>
         </div>
       ) : null}
+
+      {!isReviewerPreview ? (
+        <ApplicantStatusTimeline
+          status={submission?.status ?? null}
+          hasAssignment={hasAssignment}
+        />
+      ) : null}
+
+      <ReviewerExpectationsCard />
 
       {justSubmitted && submission && submission.status !== "DRAFT" ? (
         <div
@@ -193,10 +249,16 @@ export default async function WorkshopDesignStudioPage({
               submit again.
             </p>
           ) : null}
-          {submission.status === "APPROVED" ? (
+          {submission.status === "APPROVED" && !hasAssignment ? (
             <p style={{ margin: "8px 0 0", fontSize: 13, color: "#15803d" }}>
               You&rsquo;re approved as a Summer Workshop Instructor. An admin
               will follow up about scheduling and location.
+            </p>
+          ) : null}
+          {submission.status === "APPROVED" && hasAssignment ? (
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "#15803d" }}>
+              You&rsquo;re approved and matched with a real placement —
+              expect an admin to confirm the schedule and venue.
             </p>
           ) : null}
         </div>
@@ -244,6 +306,7 @@ export default async function WorkshopDesignStudioPage({
               path="CUSTOM_DESIGN"
               continueHref="/instructor/workshop-design-studio/design"
               disabled={!editable}
+              isReviewerPreview={isReviewerPreview}
             />
           </article>
 
@@ -273,6 +336,7 @@ export default async function WorkshopDesignStudioPage({
               path="TEMPLATE_SELECTION"
               continueHref="/instructor/workshop-design-studio/library"
               disabled={!editable}
+              isReviewerPreview={isReviewerPreview}
             />
           </article>
         </div>

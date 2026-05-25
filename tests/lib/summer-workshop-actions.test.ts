@@ -133,6 +133,10 @@ describe("promoteToFullInstructor", () => {
     mockIsHiringChair.mockReturnValue(true);
     mockFindUnique.mockResolvedValue({
       id: "app-1",
+      // Promotion now requires the underlying application to be APPROVED
+      // before the subtype can be flipped — mirror that here so the test
+      // exercises the real path.
+      status: "APPROVED",
       instructorSubtype: "SUMMER_WORKSHOP",
       applicationTrack: "SUMMER_WORKSHOP_INSTRUCTOR",
       promotionEligibility: null,

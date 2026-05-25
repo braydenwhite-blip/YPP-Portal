@@ -60,7 +60,7 @@ const HEAR_ABOUT_OPTIONS = [
 
 function timeHint(section: number): string {
   const hints: Record<number, string> = {
-    1: "About 8–12 minutes left from here. You can leave and come back — we save your answers on this device (except your password).",
+    1: "About 8–12 minutes left from here. You can leave and come back — we save your answers on this device.",
     2: "About 6–9 minutes left.",
     3: "About 4–6 minutes left.",
     4: "About 3–5 minutes left.",
@@ -120,6 +120,7 @@ export default function InstructorSignupPage() {
 
   const emailRef = useRef("");
   const passwordRef = useRef("");
+  const [password, setPassword] = useState("");
 
   const scheduleSave = useCallback(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -282,33 +283,10 @@ export default function InstructorSignupPage() {
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>
           {isSummerWorkshop ? "Apply to be a YPP Summer Workshop Instructor." : "Apply to become a YPP instructor."}
         </h1>
-        <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 24px", lineHeight: 1.6 }}>
-          {isSummerWorkshop
-            ? "Summer Workshop Instructors lead focused, high-impact workshops at camps — a fast-start teaching role where you run the room and own the session. Share a single workshop outline so we can see how you'd lead it. Strong workshop instructors may quickly be considered for full instructor responsibilities and, based on readiness and leadership, may also mentor other instructors."
-            : "Share your background, availability, and a rough class plan so the review team can understand what you want to teach and whether an interview is the right next step."}
-        </p>
 
         {/* Track selector */}
         {!REGULAR_INSTRUCTOR_ENABLED ? (
-          <div style={{ marginBottom: 24 }}>
-            <input type="hidden" name="applicationTrack" value="SUMMER_WORKSHOP_INSTRUCTOR" />
-            <div
-              style={{
-                padding: "12px 14px",
-                borderRadius: 10,
-                background: "#f5f3ff",
-                border: "1px solid #ddd6fe",
-                fontSize: 13,
-                lineHeight: 1.5,
-                color: "#5b21b6",
-              }}
-            >
-              <strong>Now hiring: Summer Workshop Instructors.</strong> We&apos;re focused on
-              staffing a strong summer cohort right now. Lead a focused, high-impact
-              workshop at camp; strong workshop instructors may quickly be considered
-              for full instructor work and instructor mentorship.
-            </div>
-          </div>
+          <input type="hidden" name="applicationTrack" value="SUMMER_WORKSHOP_INSTRUCTOR" />
         ) : (
         <div style={{ marginBottom: 24 }}>
           <div style={SECTION_STYLE}>What are you applying for?</div>
@@ -421,8 +399,11 @@ export default function InstructorSignupPage() {
             <div style={SECTION_STYLE}>Account</div>
 
             <label className="form-label" style={{ marginTop: 0 }}>
-              Full name
-              <input className="input" name="name" placeholder="Your full name" required defaultValue={field(d, "name", sf)} />
+              Preferred name
+              <input className="input" name="name" placeholder="What you'd like reviewers to call you" required defaultValue={field(d, "name", sf)} />
+              <span style={HELPER}>
+                This is the name we use across the portal. You&apos;ll provide your legal name separately in the next section.
+              </span>
             </label>
 
             <label className="form-label">
@@ -446,7 +427,12 @@ export default function InstructorSignupPage() {
                 type="password"
                 placeholder="Min 8 characters, letter + number"
                 required
-                onInput={(e) => { passwordRef.current = (e.target as HTMLInputElement).value; }}
+                value={password}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setPassword(next);
+                  passwordRef.current = next;
+                }}
               />
             </label>
 
@@ -470,6 +456,9 @@ export default function InstructorSignupPage() {
             <label className="form-label">
               Legal name
               <input className="input" name="legalName" placeholder="First, middle, and last name" required defaultValue={field(d, "legalName", sf)} />
+              <span style={HELPER}>
+                The name as it appears on your government ID. We use this only for onboarding paperwork if you&apos;re hired — it isn&apos;t shown publicly.
+              </span>
             </label>
 
             <label className="form-label">
@@ -583,12 +572,17 @@ export default function InstructorSignupPage() {
 
             <label className="form-label">
               Teaching or mentoring experience
-              <textarea className="input" name="teachingExperience" rows={isSummerWorkshop ? 3 : 4} required defaultValue={field(d, "teachingExperience", sf)} />
-              {isSummerWorkshop && (
-                <span style={HELPER}>
-                  A short paragraph is fine — focus on classroom, camp, tutoring, or coaching experience.
-                </span>
-              )}
+              <textarea
+                className="input"
+                name="teachingExperience"
+                rows={isSummerWorkshop ? 4 : 4}
+                required
+                placeholder="Walk us through the most relevant teaching, tutoring, coaching, camp, or mentoring experience you have. What did you lead, who were you working with, and what worked well?"
+                defaultValue={field(d, "teachingExperience", sf)}
+              />
+              <span style={HELPER}>
+                Aim for 3–4 sentences (or a few bullets). Specific examples — a class, a club, a camp role, a tutoring streak — help reviewers more than general claims. You don&apos;t need to be polished; clear and concrete is what we&apos;re looking for.
+              </span>
             </label>
 
             {!isSummerWorkshop && (
@@ -645,14 +639,7 @@ export default function InstructorSignupPage() {
 
             {isSummerWorkshop && (
               <div style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", marginTop: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Workshop Outline</div>
-                <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
-                  Sketch one short workshop you&apos;d run at a camp. This replaces the
-                  full course outline — you do not need to design a multi-week
-                  curriculum. Most workshops happen in person, so use the
-                  &ldquo;Materials needed&rdquo; section to flag any space, supplies, or
-                  safety needs the review team should plan around.
-                </p>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Workshop Outline</div>
 
                 <label className="form-label">
                   Workshop title
@@ -696,12 +683,14 @@ export default function InstructorSignupPage() {
                   <textarea
                     className="input"
                     name="workshopLearningGoals"
-                    rows={3}
+                    rows={4}
                     required
-                    placeholder={"One per line. 1–3 short bullets are great.\nExample:\n- Identify a persuasive opening\n- Practice eye contact\n- Deliver a 60-second talk"}
+                    placeholder={"What should students be able to do or understand by the end? List 2–4 concrete goals, one per line.\n\nExample:\n- Identify a persuasive opening\n- Practice eye contact and pacing\n- Deliver a 60-second talk on a topic they care about"}
                     defaultValue={field(d, "workshopLearningGoals", sf)}
                   />
-                  <span style={HELPER}>One per line.</span>
+                  <span style={HELPER}>
+                    2–4 bullets, one per line. Focus on what the student walks away able to do, not what you&apos;ll cover.
+                  </span>
                 </label>
 
                 <label className="form-label">
@@ -709,23 +698,28 @@ export default function InstructorSignupPage() {
                   <textarea
                     className="input"
                     name="workshopActivityFlow"
-                    rows={4}
+                    rows={5}
                     required
-                    placeholder={"Bullet the rough flow of the workshop.\nExample:\n- Hook (5 min)\n- Mini-lesson (10 min)\n- Activity (20 min)\n- Share-outs (10 min)"}
+                    placeholder={"Walk us through the workshop from start to finish — opening, main activity, and closing. A short timestamped outline works well.\n\nExample:\n- Hook & intros (5 min)\n- Mini-lesson on persuasive openings (10 min)\n- Pair practice with feedback (20 min)\n- Share-outs and debrief (10 min)"}
                     defaultValue={field(d, "workshopActivityFlow", sf)}
                   />
+                  <span style={HELPER}>
+                    Roughly 4–6 steps with approximate times. We want to see how you pace the room from open to close.
+                  </span>
                 </label>
 
                 <label className="form-label">
-                  Materials needed
+                  Materials needed <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
                   <textarea
                     className="input"
                     name="workshopMaterialsNeeded"
                     rows={2}
-                    placeholder={"Optional. One per line.\nExample:\n- Index cards\n- Markers"}
+                    placeholder={"Anything beyond chairs and a whiteboard. One per line.\n\nExample:\n- Index cards\n- Markers"}
                     defaultValue={field(d, "workshopMaterialsNeeded", sf)}
                   />
-                  <span style={HELPER}>Optional. One per line.</span>
+                  <span style={HELPER}>
+                    One per line. Leave blank if your workshop doesn&apos;t need anything special.
+                  </span>
                 </label>
 
                 <label className="form-label">
@@ -735,9 +729,12 @@ export default function InstructorSignupPage() {
                     name="workshopEngagementHook"
                     rows={3}
                     required
-                    placeholder="How will you grab attention in the first 5 minutes?"
+                    placeholder="How will you grab attention in the first 5 minutes? Tell us what you'd actually say or do — a story, a question, a quick demo, a challenge."
                     defaultValue={field(d, "workshopEngagementHook", sf)}
                   />
+                  <span style={HELPER}>
+                    A few sentences. The more specific the hook, the easier it is for us to picture you running the room.
+                  </span>
                 </label>
 
                 <label className="form-label">
@@ -747,16 +744,25 @@ export default function InstructorSignupPage() {
                     name="workshopAdaptationNotes"
                     rows={3}
                     required
-                    placeholder="If energy or skill levels are mixed, how do you adapt?"
+                    placeholder="If the energy dips, or a few students are way ahead while others are lost, how do you adjust in the moment?"
                     defaultValue={field(d, "workshopAdaptationNotes", sf)}
                   />
+                  <span style={HELPER}>
+                    3–4 sentences is plenty. A real example from past teaching, tutoring, or leading peers is great here.
+                  </span>
                 </label>
               </div>
             )}
 
             <label className="form-label">
-              {isSummerWorkshop ? "Optional motivation" : "Optional written motivation"}
-              <textarea className="input" name="motivation" rows={3} defaultValue={field(d, "motivation", sf)} />
+              Anything else you&apos;d like us to know? <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
+              <textarea
+                className="input"
+                name="motivation"
+                rows={3}
+                placeholder="Why this opportunity matters to you, context the review team should consider, or anything you couldn't fit above."
+                defaultValue={field(d, "motivation", sf)}
+              />
             </label>
           </div>
 
@@ -789,8 +795,17 @@ export default function InstructorSignupPage() {
             </div>
 
             <label className="form-label">
-              Referral emails
-              <textarea className="input" name="referralEmails" rows={3} defaultValue={field(d, "referralEmails", sf)} />
+              References <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
+              <textarea
+                className="input"
+                name="referralEmails"
+                rows={3}
+                placeholder="name@example.com — Teacher, How they know you"
+                defaultValue={field(d, "referralEmails", sf)}
+              />
+              <span style={HELPER}>
+                Emails of 1–2 people who can speak to your teaching, mentoring, or leadership — a teacher, coach, supervisor, club advisor, or chapter leader. Friends and family aren&apos;t a fit. We only reach out if we&apos;re moving forward with your application, and we&apos;ll let you know first.
+              </span>
             </label>
           </div>
 
@@ -831,9 +846,29 @@ export default function InstructorSignupPage() {
               </div>
             </div>
           ) : state.message && state.message !== "APPLICATION_SUBMITTED" ? (
-            <div className={state.status === "error" ? "form-error" : "form-success"} style={{ marginTop: 16 }}>
-              {state.message}
-            </div>
+            (() => {
+              const lines = state.message.split("\n").filter((line) => line.trim().length > 0);
+              const className = state.status === "error" ? "form-error" : "form-success";
+              if (lines.length <= 1) {
+                return (
+                  <div className={className} style={{ marginTop: 16 }}>
+                    {state.message}
+                  </div>
+                );
+              }
+              return (
+                <div className={className} role="alert" style={{ marginTop: 16 }}>
+                  <strong style={{ display: "block", marginBottom: 6 }}>
+                    Please fix the following before submitting:
+                  </strong>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {lines.map((line, i) => (
+                      <li key={i} style={{ marginBottom: 2 }}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()
           ) : null}
 
           <SubmitButton
@@ -843,9 +878,6 @@ export default function InstructorSignupPage() {
 
         <div className="login-help" style={{ marginTop: 24 }}>
           Already have an account? <Link href="/login">Sign in</Link>
-        </div>
-        <div className="login-help" style={{ marginTop: 8 }}>
-          Need the family signup instead? <Link href="/signup">Create a family account</Link>
         </div>
       </div>
     </div>
