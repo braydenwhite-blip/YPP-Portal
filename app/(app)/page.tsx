@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { isPublicGateEnabled } from "@/lib/public-gate";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import {
@@ -76,7 +77,7 @@ function PrimaryCard({
   );
 }
 
-function ReviewerHome({ name }: { name: string }) {
+function ReviewerHome({ name, gateEnabled }: { name: string; gateEnabled: boolean }) {
   return (
     <HomeShell
       greeting={name ? `Hi, ${name}.` : "Welcome back."}
@@ -88,6 +89,31 @@ function ReviewerHome({ name }: { name: string }) {
         body="Review instructor applicants and move them through the hiring pipeline."
         cta="Open the board"
       />
+      {gateEnabled && (
+        <div style={{ marginTop: 20 }}>
+          <Link
+            href="/preview"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 18px",
+              borderRadius: 8,
+              background: "#6b21c8",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            <span style={{ fontSize: 16 }}>🔑</span>
+            Enter the preview passcode
+          </Link>
+          <p style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>
+            Unlock the rest of the portal on this device.
+          </p>
+        </div>
+      )}
     </HomeShell>
   );
 }
@@ -236,7 +262,7 @@ export default async function OverviewPage() {
   const name = firstName(session.user.name);
 
   if (isReviewer) {
-    return <ReviewerHome name={name} />;
+    return <ReviewerHome name={name} gateEnabled={isPublicGateEnabled()} />;
   }
 
   if (isInstructor) {
