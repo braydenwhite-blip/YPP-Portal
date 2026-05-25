@@ -7,6 +7,8 @@ import {
   formatInstructorOpsLabel,
   getInstructorOpsProfile,
 } from "@/lib/instructor-ops";
+import { loadInstructorProfileDetail, listAllTags } from "@/lib/instructor-ops-actions";
+import { TagsEditor, NotesEditor, TasksEditor } from "./profile-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,11 @@ export default async function AdminInstructorProfilePage({
     redirect("/");
   }
 
-  const profile = await getInstructorOpsProfile(id);
+  const [profile, detail, allTags] = await Promise.all([
+    getInstructorOpsProfile(id),
+    loadInstructorProfileDetail(id),
+    listAllTags(),
+  ]);
   if (!profile) {
     notFound();
   }
@@ -147,11 +153,17 @@ export default async function AdminInstructorProfilePage({
             ]}
           />
           <div>
-            <h3>Tags and categories</h3>
-            <div className="instructor-ops-tag-row is-large">
-              {record.tags.length > 0 ? record.tags.map((tag) => <span key={tag}>{tag}</span>) : <span>No tags yet</span>}
-            </div>
-            <div className="instructor-profile-signal-grid">
+            <TagsEditor
+              userId={id}
+              initialTags={detail.tags}
+              allTags={allTags.map((t) => ({
+                id: t.id,
+                namespace: t.namespace,
+                label: t.label,
+                color: t.color,
+              }))}
+            />
+            <div className="instructor-profile-signal-grid" style={{ marginTop: 16 }}>
               <Signal label="Mentor eligible" value={record.mentorEligible ? "Yes" : "No"} />
               <Signal label="Workshop eligible" value={record.workshopEligible ? "Yes" : "No"} />
               <Signal label="Leadership track" value={record.leadershipTrack ? "Yes" : "No"} />
@@ -342,7 +354,13 @@ export default async function AdminInstructorProfilePage({
       </section>
 
       <section id="activity" className="card instructor-profile-section">
-        <SectionHeading title="Notes/Activity" detail="Recent review notes, application events, and growth events." />
+        <SectionHeading title="Notes/Activity" detail="Admin notes, open tasks, application events, and growth events." />
+
+        <div className="instructor-profile-activity-grid" style={{ marginBottom: 24 }}>
+          <NotesEditor userId={id} initialNotes={detail.notes} />
+          <TasksEditor userId={id} initialTasks={detail.tasks} />
+        </div>
+
         <div className="instructor-profile-activity-grid">
           <div>
             <h3>Application activity</h3>
