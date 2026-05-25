@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { getSession } from "@/lib/auth-supabase";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getInstructorReadinessMany } from "@/lib/instructor-readiness";
 import { withPrismaFallback } from "@/lib/prisma-guard";
+import { requireAdminPage } from "@/lib/page-guards";
 import EvidenceBoard from "./evidence-board";
 import OfferingBoard from "./offering-board";
 import InterviewBoard from "./interview-board";
@@ -14,11 +13,7 @@ function formatDate(value: Date | string | null | undefined) {
 }
 
 export default async function InstructorReadinessPage() {
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  await requireAdminPage();
 
   const [instructors, evidenceQueue, approvalQueue, interviewQueue] =
     await Promise.all([

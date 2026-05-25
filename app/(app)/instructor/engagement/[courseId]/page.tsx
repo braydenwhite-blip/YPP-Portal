@@ -3,14 +3,19 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
-export default async function EngagementIndicatorsPage({ params }: { params: { courseId: string } }) {
+export default async function EngagementIndicatorsPage({
+  params,
+}: {
+  params: Promise<{ courseId: string }>;
+}) {
+  const { courseId } = await params;
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
 
   const course = await prisma.course.findUnique({
-    where: { id: params.courseId },
+    where: { id: courseId },
     include: {
       enrollments: {
         where: { status: "ENROLLED" },
@@ -19,12 +24,13 @@ export default async function EngagementIndicatorsPage({ params }: { params: { c
             include: {
               assignmentSubmissions: {
                 where: {
-                  assignment: { courseId: params.courseId }
-                }
+                  assignment: { courseId: courseId }
+                },
+                orderBy: { createdAt: "desc" }
               },
               studyGroupMemberships: {
                 where: {
-                  group: { courseId: params.courseId }
+                  group: { courseId: courseId }
                 }
               }
             }
@@ -49,7 +55,7 @@ export default async function EngagementIndicatorsPage({ params }: { params: { c
     session.user.roles.includes("ADMIN");
 
   if (!isInstructor) {
-    redirect(`/courses/${params.courseId}`);
+    redirect(`/courses/${courseId}`);
   }
 
   const now = new Date();
@@ -109,7 +115,7 @@ export default async function EngagementIndicatorsPage({ params }: { params: { c
       <div className="topbar">
         <div>
           <p className="badge">
-            <Link href={`/courses/${params.courseId}`} style={{ color: "inherit", textDecoration: "none" }}>
+            <Link href={`/courses/${courseId}`} style={{ color: "inherit", textDecoration: "none" }}>
               {course.title}
             </Link>
           </p>
@@ -131,6 +137,30 @@ export default async function EngagementIndicatorsPage({ params }: { params: { c
           <div className="kpi-label">High Engagement</div>
         </div>
       </div>
+
+      {studentMetrics.length === 0 && (
+        <div className="card">
+          <div className="empty-state">
+            <span className="empty-state-icon" aria-hidden="true">{"👥"}</span>
+            <p className="empty-state-title">No students enrolled yet</p>
+            <p className="empty-state-text">
+              Engagement indicators appear here once students enroll and start
+              participating in this class.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {studentMetrics.length > 0 && course.assignments.length === 0 && (
+        <div className="callout is-info" style={{ marginBottom: 28 }}>
+          <span className="callout-icon" aria-hidden="true">{"ℹ️"}</span>
+          <span>
+            This class has no assignments yet, so engagement scores rely only on
+            study-group participation. Add an assignment to get a fuller picture
+            of how students are doing.
+          </span>
+        </div>
+      )}
 
       {/* Low engagement students (priority) */}
       {lowEngagement.length > 0 && (
@@ -155,20 +185,13 @@ export default async function EngagementIndicatorsPage({ params }: { params: { c
                     📅 Recent activity: <strong>{recentSubmission ? "Yes" : "No"}</strong>
                   </div>
                 </div>
-                <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <div style={{ marginTop: 12 }}>
                   <Link
-                    href={`/messages/new?to=${student.id}`}
+                    href={`/messages?to=${student.id}`}
                     className="button primary small"
-                    style={{ flex: 1 }}
+                    style={{ width: "100%" }}
                   >
-                    Send Message
-                  </Link>
-                  <Link
-                    href={`/students/${student.id}`}
-                    className="button secondary small"
-                    style={{ flex: 1 }}
-                  >
-                    View Profile
+                    Check in with {student.name?.split(" ")[0] ?? "this student"}
                   </Link>
                 </div>
               </div>

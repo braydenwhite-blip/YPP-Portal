@@ -1,9 +1,8 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { ApplicationTrack, ApplicationSource } from "@prisma/client";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import { canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
+import { requireApplicationReviewerPage } from "@/lib/page-guards";
 import {
   getApplicantPipeline,
   getArchivedApplications,
@@ -23,21 +22,17 @@ export default async function AdminInstructorApplicantsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-  const isAdmin = roles.includes("ADMIN");
-  const isChapterPresident = roles.includes("CHAPTER_PRESIDENT");
   // Hiring chairs need pipeline context (prior reviews, in-flight interview
   // queues, chapter peers) before deciding applicants. Allow read access to
   // the board; mutations remain gated on the role-specific assertions inside
   // each server action (chairDecide, assignReviewer, etc.).
+  const sessionUser = await requireApplicationReviewerPage();
+  const roles = sessionUser.roles;
+  const isAdmin = roles.includes("ADMIN");
+  const isChapterPresident = roles.includes("CHAPTER_PRESIDENT");
   const isHiringChair = roles.includes("HIRING_CHAIR");
 
   const hiringDemoMode = isHiringDemoModeEnabled();
-
-  if (!isAdmin && !isChapterPresident && !isHiringChair) {
-    redirect("/");
-  }
 
   // Feature flag gate — if off, show legacy empty state with TODO
   if (!isInstructorApplicantWorkflowV1Enabled()) {
@@ -59,7 +54,7 @@ export default async function AdminInstructorApplicantsPage({
 
   const resolvedParams = await searchParams;
   const actor = {
-    id: session!.user.id,
+    id: sessionUser.id,
     roles: roles as string[],
     chapterId: null as string | null,
     featureKeys: new Set<string>(),
@@ -74,7 +69,7 @@ export default async function AdminInstructorApplicantsPage({
   const needsChapterScope = isChapterPresident && !isAdmin && !isHiringChair;
   if (needsChapterScope) {
     const user = await prisma.user.findUnique({
-      where: { id: session!.user.id },
+      where: { id: sessionUser.id },
       select: { chapterId: true },
     });
     chapterId = user?.chapterId ?? undefined;
@@ -145,7 +140,7 @@ export default async function AdminInstructorApplicantsPage({
     interviewerId,
     materialsMissing,
     overdueOnly,
-    myCasesActorId: myCasesOnly ? session!.user.id : undefined,
+    myCasesActorId: myCasesOnly ? sessionUser.id : undefined,
     applicationTrack: applicationTrackFilter,
     source: sourceFilter,
   };
@@ -413,7 +408,7 @@ export default async function AdminInstructorApplicantsPage({
         chapters={chapters}
         reviewers={reviewerUsers}
         interviewers={interviewerUsers}
-        actorId={session!.user.id}
+        actorId={sessionUser.id}
         isAdmin={isAdmin}
       />
     </div>

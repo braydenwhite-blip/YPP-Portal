@@ -1,440 +1,241 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { Prisma } from "@prisma/client";
+import { isPublicGateEnabled } from "@/lib/public-gate";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import { getSession } from "@/lib/auth-supabase";
-import { ADMIN_SUBTYPE_LABELS, normalizeAdminSubtypes } from "@/lib/admin-subtypes";
-import { getDashboardData } from "@/lib/dashboard/data";
-import { isUnifiedAllToolsDashboardEnabled } from "@/lib/dashboard/flags";
-import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
-import { prisma } from "@/lib/prisma";
-import {
-  getUnreadDirectMessageCountCached,
-  getUnreadNotificationCountCached,
-} from "@/lib/server-request-cache";
-import { listWorkflowHomeItems, listWorkflowMasterRows } from "@/lib/workflow";
-import RoleHero from "@/components/dashboard/role-hero";
-import KpiStrip from "@/components/dashboard/kpi-strip";
-import QueueBoard from "@/components/dashboard/queue-board";
-import NextActions from "@/components/dashboard/next-actions";
-import InstructorReadinessWidget from "@/components/dashboard/instructor-readiness-widget";
-import DailyChecklist from "@/components/dashboard/daily-checklist";
-import JourneyRoadmap from "@/components/dashboard/journey-roadmap";
-import NudgeStrip from "@/components/dashboard/nudge-strip";
-import AtRiskPanel from "@/components/dashboard/at-risk-panel";
-import { getAtRiskChapters } from "@/lib/governance/actions";
-import LegacyOverviewPage from "./legacy-overview-page";
-import StudentHome from "@/components/dashboard/student-home";
 import {
   getHiringDemoHomeHref,
   isHiringDemoModeEnabled,
 } from "@/lib/hiring-demo-mode";
-import HiringChairHome from "@/components/dashboard/hiring-chair-home";
-import { getHiringChairHomeData } from "@/lib/hiring-chair-home";
-import { cookies } from "next/headers";
+import { InstructorDashboard } from "@/components/instructor/instructor-dashboard";
+import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
+import { getMyClassesHubData } from "@/lib/student-class-portal";
+import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
 import {
-  PREVIEW_COOKIE_NAME,
-  SUMMER_WORKSHOP_APPLY_HREF,
-  isAdminBypassRole,
-  isPublicGateEnabled,
-  verifyPreviewToken,
-} from "@/lib/public-gate";
+  getUnreadDirectMessageCountCached,
+  getUnreadNotificationCountCached,
+} from "@/lib/server-request-cache";
+import type { ActivePathwaySummary } from "@/lib/dashboard/types";
+import StudentDashboard, {
+  type StudentHomeNextSession,
+} from "@/components/dashboard/student-dashboard";
 
-function isMissingTableError(error: unknown) {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2021"
-  );
+// Roles that work the hiring pipeline and should land on the applicant board.
+const REVIEWER_ROLES = ["ADMIN", "HIRING_CHAIR", "CHAPTER_PRESIDENT"];
+
+function firstName(displayName: string | null | undefined): string {
+  const trimmed = (displayName ?? "").trim();
+  if (!trimmed) return "";
+  return trimmed.split(/\s+/)[0] ?? "";
 }
 
-/** Table or column missing vs Prisma schema (local DB behind migrations). */
-function isMissingTableOrColumnError(error: unknown) {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    (error.code === "P2021" || error.code === "P2022")
-  );
-}
-
-function formatAbsoluteDate(value: Date | null | undefined) {
-  if (!value) return "No date";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(value);
-}
-
-function formatStage(stage: string) {
-  return stage.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function notificationTag(type: string) {
-  return type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function firstNameFromDisplay(fullName: string): string {
-  const trimmed = fullName.trim();
-  if (!trimmed) return "there";
-  return trimmed.split(/\s+/)[0] ?? trimmed;
-}
-
-async function MasterWorkflowSection() {
-  const masterRows = await listWorkflowMasterRows();
-
-  return (
-    <section className="card" style={{ marginTop: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 16 }}>
-        <div>
-          <h2 style={{ margin: 0 }}>Master Dashboard</h2>
-          <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
-            Progress across everyone currently tracked in the shared workflow system.
-          </p>
-        </div>
-      </div>
-
-      {masterRows.length === 0 ? (
-        <p style={{ margin: 0, color: "var(--muted)" }}>
-          Workflow items will appear here once people are routed into the shared dashboard.
-        </p>
-      ) : (
-        <div style={{ display: "grid", gap: 12 }}>
-          {masterRows.map((row) => (
-            <div
-              key={row.subjectUserId}
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: 14,
-                padding: 16,
-                background: "var(--surface)",
-              }}
-            >
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 220px) minmax(220px, 2fr)", gap: 16, alignItems: "start" }}>
-                <div>
-                  <p style={{ margin: 0, fontWeight: 700 }}>{row.name}</p>
-                </div>
-                <div>
-                  <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted)", fontWeight: 700 }}>Progress</p>
-                  <div style={{ height: 10, borderRadius: 999, background: "var(--surface-hover)", overflow: "hidden" }}>
-                    <div
-                      style={{
-                        width: `${row.progressPercent}%`,
-                        height: "100%",
-                        background: "linear-gradient(90deg, var(--accent) 0%, #4f46e5 100%)",
-                      }}
-                    />
-                  </div>
-                  <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)" }}>{row.progressPercent}% complete</p>
-                </div>
-                <div>
-                  <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted)", fontWeight: 700 }}>Remaining Tasks</p>
-                  {row.remainingTasks.length === 0 ? (
-                    <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>No remaining tasks.</p>
-                  ) : (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {row.remainingTasks.map((task) => (
-                        <div key={`${row.subjectUserId}-${task.title}`} style={{ fontSize: 14 }}>
-                          <strong>{task.title}</strong>
-                          <span style={{ color: "var(--muted)" }}>
-                            {" "}· {formatAbsoluteDate(task.dueAt)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function formatDashboardRoleLabel(role: string): string {
-  return role
-    .replace(/_/g, " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-async function renderAdminWorkflowHome(params: {
-  userId: string;
-  roles: string[];
-  adminSubtypes: string[];
+function HomeShell({
+  greeting,
+  intro,
+  children,
+}: {
+  greeting: string;
+  intro: string;
+  children: ReactNode;
 }) {
-  const isSuperAdmin = params.adminSubtypes.includes("SUPER_ADMIN");
-
-  const [workflowItems, unreadNotifications] = await Promise.all([
-    listWorkflowHomeItems({
-      userId: params.userId,
-      roles: params.roles,
-      adminSubtypes: params.adminSubtypes,
-    }),
-    getUnreadNotificationCountCached(params.userId),
-  ]);
-
-  let notifications: Prisma.NotificationGetPayload<{
-    select: {
-      id: true;
-      title: true;
-      body: true;
-      link: true;
-      isRead: true;
-      createdAt: true;
-      type: true;
-    };
-  }>[] = [];
-  try {
-    notifications = await prisma.notification.findMany({
-      where: { userId: params.userId },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-      select: {
-        id: true,
-        title: true,
-        body: true,
-        link: true,
-        isRead: true,
-        createdAt: true,
-        type: true,
-      },
-    });
-  } catch (error) {
-    if (!isMissingTableOrColumnError(error)) {
-      throw error;
-    }
-  }
-
-  const todayLabel = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(new Date());
-
   return (
-    <div className="page-shell">
-      <div className="page-header">
-        <div>
-          <span className="badge">Home</span>
-          <h1 className="page-title">Your Portal Home</h1>
-          <p className="page-subtitle">
-            {todayLabel}. Start with the next action at the top, then clear notifications that need attention.
-          </p>
-        </div>
-      </div>
-
-      {params.adminSubtypes.length === 0 ? (
-        <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
-          <h2 style={{ marginTop: 0, marginBottom: 8 }}>Waiting for Admin Subtype Assignment</h2>
-          <p style={{ margin: 0, color: "var(--muted)" }}>
-            Your account has the base admin role, but no admin subtype has been assigned yet. Until that happens, this page stays in a minimal queue mode.
-          </p>
-        </div>
-      ) : (
-        <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
-          <p style={{ margin: 0, color: "var(--muted)" }}>
-            Active admin types:{" "}
-            <strong>
-              {params.adminSubtypes.map((subtype) => ADMIN_SUBTYPE_LABELS[subtype as keyof typeof ADMIN_SUBTYPE_LABELS] ?? subtype).join(", ")}
-            </strong>
-          </p>
-        </div>
-      )}
-
-      <div className="grid two" style={{ alignItems: "start" }}>
-        <section className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 16 }}>
-            <div>
-              <h2 style={{ margin: 0 }}>Next Actions</h2>
-              <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
-                Assigned work for your current role and workflow ownership.
-              </p>
-            </div>
-            <span className="badge">{workflowItems.length}</span>
-          </div>
-
-          {workflowItems.length === 0 ? (
-            <p style={{ margin: 0, color: "var(--muted)" }}>
-              You do not have any assigned workflow items right now.
-            </p>
-          ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {workflowItems.map((item) => (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  className="workflow-home-card"
-                  style={{ display: "block", color: "inherit", textDecoration: "none" }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
-                    <div>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                        <span className="pill pill-small pill-info">{formatStage(item.stage)}</span>
-                        <span className="pill pill-small">{item.kind.replace(/_/g, " ")}</span>
-                      </div>
-                      <p style={{ margin: 0, fontWeight: 700 }}>{item.title}</p>
-                      {item.summary ? (
-                        <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 14 }}>{item.summary}</p>
-                      ) : null}
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>Open</span>
-                  </div>
-                  <div style={{ marginTop: 12, fontSize: 12, color: "var(--muted)" }}>
-                    Deadline to action: {formatAbsoluteDate(item.dueAt)}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 16 }}>
-            <div>
-              <h2 style={{ margin: 0 }}>Notifications</h2>
-              <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
-                Recent portal alerts with exact dates.
-              </p>
-            </div>
-            <span className="badge">{unreadNotifications} unread</span>
-          </div>
-
-          {notifications.length === 0 ? (
-            <p style={{ margin: 0, color: "var(--muted)" }}>
-              You do not have any notifications right now.
-            </p>
-          ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {notifications.map((notification) => (
-                <Link
-                  key={notification.id}
-                  href={notification.link || "/notifications"}
-                  className="workflow-home-card"
-                  style={{ display: "block", color: "inherit", textDecoration: "none" }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
-                    <div>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                        <span className="pill pill-small">{notificationTag(notification.type)}</span>
-                        {!notification.isRead ? (
-                          <span className="pill pill-small pill-attention">Unread</span>
-                        ) : null}
-                      </div>
-                      <p style={{ margin: 0, fontWeight: 700 }}>{notification.title}</p>
-                      <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 14 }}>{notification.body}</p>
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>Open</span>
-                  </div>
-                  <div style={{ marginTop: 12, fontSize: 12, color: "var(--muted)" }}>
-                    Posted: {formatAbsoluteDate(notification.createdAt)}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-
-      {isSuperAdmin ? (
-        <Suspense
-          fallback={(
-            <section className="card" style={{ marginTop: 20 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 16 }}>
-                <div>
-                  <h2 style={{ margin: 0 }}>Master Dashboard</h2>
-                  <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
-                    Progress across everyone currently tracked in the shared workflow system.
-                  </p>
-                </div>
-              </div>
-              <p style={{ margin: 0, color: "var(--muted)" }}>
-                Loading the shared workflow summary...
-              </p>
-            </section>
-          )}
-        >
-          <MasterWorkflowSection />
-        </Suspense>
-      ) : null}
+    <div style={{ maxWidth: 540, margin: "72px auto 96px", padding: "0 24px" }}>
+      <h1 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 8px" }}>{greeting}</h1>
+      <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.55, margin: "0 0 24px" }}>
+        {intro}
+      </p>
+      {children}
     </div>
   );
 }
 
-function PublicSummerWorkshopHome({ firstName }: { firstName: string }) {
+function PrimaryCard({
+  href,
+  title,
+  body,
+  cta,
+}: {
+  href: string;
+  title: string;
+  body: string;
+  cta: string;
+}) {
   return (
-    <div style={{ maxWidth: 760, margin: "40px auto 72px", padding: "0 24px" }}>
-      <div
-        style={{
-          display: "inline-block",
-          padding: "6px 12px",
-          borderRadius: 999,
-          background: "#f5f3ff",
-          border: "1px solid #ddd6fe",
-          fontSize: 11,
-          color: "#5b21b6",
-          marginBottom: 18,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-          fontWeight: 700,
-        }}
-      >
-        Summer 2026 · Now Accepting Applications
-      </div>
-
-      <h1 style={{ fontSize: 38, fontWeight: 800, margin: "0 0 14px", lineHeight: 1.15, letterSpacing: -0.5 }}>
-        Teach a Summer Workshop{firstName ? `, ${firstName}` : ""}.
-      </h1>
-      <p style={{ fontSize: 17, color: "var(--muted)", lineHeight: 1.55, margin: "0 0 28px", maxWidth: 620 }}>
-        A focused teaching opportunity at a partner summer camp. You design and lead
-        one workshop with real ownership of the room, and strong workshop
-        instructors are often considered for broader instructor and mentor
-        roles afterward.
+    <Link
+      href={href}
+      className="card"
+      style={{ display: "block", padding: "22px 24px", textDecoration: "none", color: "inherit" }}
+    >
+      <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>{title}</h2>
+      <p style={{ margin: "0 0 16px", fontSize: 14, color: "var(--muted)", lineHeight: 1.5 }}>
+        {body}
       </p>
+      <span className="button small" style={{ pointerEvents: "none" }}>
+        {cta}
+      </span>
+    </Link>
+  );
+}
 
-      {/* Primary CTA card */}
-      <div
-        style={{
-          padding: "28px 28px 24px",
-          borderRadius: 18,
-          background: "linear-gradient(135deg, #faf5ff 0%, #f5f3ff 60%, #ede9fe 100%)",
-          border: "1px solid #ddd6fe",
-          boxShadow: "0 10px 30px rgba(107, 33, 200, 0.10)",
-          marginBottom: 18,
-        }}
-      >
-        <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 700, color: "#3b0f6e" }}>
-          Summer Workshop Instructor Application
-        </h2>
-        <p style={{ margin: "0 0 18px", fontSize: 14, color: "#5b21b6", lineHeight: 1.55 }}>
-          Share one workshop outline so we can see how you&apos;d lead the room.
-          Most applicants finish in about 20 minutes.
-        </p>
+function ReviewerHome({ name, gateEnabled }: { name: string; gateEnabled: boolean }) {
+  return (
+    <HomeShell
+      greeting={name ? `Hi, ${name}.` : "Welcome back."}
+      intro="The application board is the one page that's ready to use. The rest of the portal is still being tested."
+    >
+      <PrimaryCard
+        href="/admin/instructor-applicants"
+        title="Application board"
+        body="Review instructor applicants and move them through the hiring pipeline."
+        cta="Open the board"
+      />
+      {gateEnabled && (
+        <div style={{ marginTop: 20 }}>
+          <Link
+            href="/preview"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 18px",
+              borderRadius: 8,
+              background: "#6b21c8",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            <span style={{ fontSize: 16 }}>🔑</span>
+            Enter the preview passcode
+          </Link>
+          <p style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>
+            Unlock the rest of the portal on this device.
+          </p>
+        </div>
+      )}
+    </HomeShell>
+  );
+}
 
-        <Link
-          href={SUMMER_WORKSHOP_APPLY_HREF}
-          className="button"
-          style={{
-            display: "inline-flex",
-            width: "auto",
-            margin: 0,
-            padding: "14px 28px",
-            fontSize: 15,
-            fontWeight: 700,
-          }}
-        >
-          Start Application →
-        </Link>
-      </div>
-
-      <p style={{ marginTop: 32, fontSize: 13, color: "var(--muted)", textAlign: "center" }}>
-        Already applied?{" "}
-        <Link href="/application-status" style={{ color: "#6b21c8", fontWeight: 600 }}>
-          Check your application status
+function ApplicantHome({ name }: { name: string }) {
+  return (
+    <HomeShell
+      greeting={name ? `Hi, ${name}.` : "Welcome back."}
+      intro="Check where your application stands below. The rest of the portal is still being tested."
+    >
+      <PrimaryCard
+        href="/application-status"
+        title="Your application"
+        body="See your current status and respond to anything the team has asked for."
+        cta="View status"
+      />
+      <p style={{ marginTop: 20, fontSize: 13, color: "var(--muted)" }}>
+        Haven&apos;t applied yet?{" "}
+        <Link href="/applications/summer-workshop" style={{ color: "#6b21c8", fontWeight: 600 }}>
+          Start an application
         </Link>
         .
       </p>
-    </div>
+    </HomeShell>
+  );
+}
+
+/** "16:00" -> "4:00 PM". Passes through anything that isn't HH:MM. */
+function formatTime(raw: string): string {
+  const match = /^(\d{1,2}):(\d{2})/.exec(raw.trim());
+  if (!match) return raw;
+  let hour = Number(match[1]);
+  const minute = match[2];
+  const meridiem = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${hour}:${minute} ${meridiem}`;
+}
+
+function relativeDayLabel(
+  date: Date,
+  now: Date,
+): { label: string; isToday: boolean } {
+  const startOfDay = (value: Date) => {
+    const next = new Date(value);
+    next.setHours(0, 0, 0, 0);
+    return next;
+  };
+  const diffDays = Math.round(
+    (startOfDay(date).getTime() - startOfDay(now).getTime()) / 86_400_000,
+  );
+  if (diffDays === 0) return { label: "Today", isToday: true };
+  if (diffDays === 1) return { label: "Tomorrow", isToday: false };
+  return {
+    label: new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(date),
+    isToday: false,
+  };
+}
+
+async function StudentHomeView({ userId, name }: { userId: string; name: string }) {
+  const now = new Date();
+  const [snapshot, hub, journey, unreadNotifications, unreadMessages] =
+    await Promise.all([
+      getStudentProgressSnapshot(userId).catch(() => null),
+      getMyClassesHubData(userId).catch(() => null),
+      getStudentChapterJourneyData(userId).catch(() => null),
+      getUnreadNotificationCountCached(userId).catch(() => 0),
+      getUnreadDirectMessageCountCached(userId).catch(() => 0),
+    ]);
+
+  const hour = now.getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const todayDateLabel = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(now);
+
+  let nextSession: StudentHomeNextSession | null = null;
+  if (hub?.nextSession) {
+    const session = hub.nextSession;
+    const { label, isToday } = relativeDayLabel(session.date, now);
+    nextSession = {
+      classTitle: session.classTitle,
+      topic: session.topic,
+      dateLabel: label,
+      timeLabel: `${formatTime(session.startTime)} – ${formatTime(session.endTime)}`,
+      isToday,
+      classHref: `/curriculum/${session.offeringId}`,
+      zoomLink: session.zoomLink,
+      instructorName: session.instructorName,
+    };
+  }
+
+  const pathways: ActivePathwaySummary[] = (journey?.visiblePathways ?? [])
+    .filter((pathway) => pathway.isEnrolled || pathway.completedCount > 0)
+    .slice(0, 4)
+    .map((pathway) => ({
+      id: pathway.id,
+      name: pathway.name,
+      interestArea: pathway.interestArea,
+      progressPercent: pathway.progressPercent,
+      completedCount: pathway.completedCount,
+      totalCount: pathway.totalCount,
+      nextStepTitle: pathway.nextRecommendedStep?.title ?? null,
+    }));
+
+  return (
+    <StudentDashboard
+      firstName={name}
+      greeting={greeting}
+      todayDateLabel={todayDateLabel}
+      unreadMessages={unreadMessages}
+      unreadNotifications={unreadNotifications}
+      snapshot={snapshot}
+      nextSession={nextSession}
+      pathways={pathways}
+    />
   );
 }
 
@@ -445,307 +246,32 @@ export default async function OverviewPage() {
     redirect("/login");
   }
 
-  const roles = session.user.roles ?? [];
-  const adminSubtypes = normalizeAdminSubtypes(
-    ((session.user as { adminSubtypes?: string[] }).adminSubtypes ?? [])
-  );
-
-  // Public portal gate: when only Summer Workshop applications and
-  // proposals are public, the dashboard becomes a focused two-card
-  // landing instead of the full role-based home. Admins (auto-bypass)
-  // and testers in preview mode skip this and see the regular home.
-  if (isPublicGateEnabled()) {
-    const isAdmin = isAdminBypassRole({ roles, primaryRole: session.user.primaryRole ?? null });
-    if (!isAdmin) {
-      const cookieStore = await cookies();
-      const previewToken = cookieStore.get(PREVIEW_COOKIE_NAME)?.value ?? null;
-      const previewActive = previewToken ? await verifyPreviewToken(previewToken) : false;
-      if (!previewActive) {
-        return (
-          <PublicSummerWorkshopHome
-            firstName={firstNameFromDisplay(session.user.name ?? "")}
-          />
-        );
-      }
-    }
-  }
-
   if (isHiringDemoModeEnabled()) {
     redirect(
       getHiringDemoHomeHref({
         primaryRole: session.user.primaryRole,
-        roles,
+        roles: session.user.roles ?? [],
       })
     );
   }
 
-  if (roles.includes("ADMIN")) {
-    return renderAdminWorkflowHome({
-      userId: session.user.id,
-      roles,
-      adminSubtypes,
-    });
+  const roles = session.user.roles ?? [];
+  const isReviewer = roles.some((role) => REVIEWER_ROLES.includes(role));
+  const isInstructor =
+    roles.includes("INSTRUCTOR") || session.user.primaryRole === "INSTRUCTOR";
+  const name = firstName(session.user.name);
+
+  if (isReviewer) {
+    return <ReviewerHome name={name} gateEnabled={isPublicGateEnabled()} />;
   }
 
-  if (roles.includes("HIRING_CHAIR")) {
-    const todayDateLabel = new Intl.DateTimeFormat("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    }).format(new Date());
-    const [chairData, unreadNotifications, unreadMessages] = await Promise.all([
-      getHiringChairHomeData(session.user.id),
-      getUnreadNotificationCountCached(session.user.id).catch(() => 0),
-      getUnreadDirectMessageCountCached(session.user.id).catch(() => 0),
-    ]);
-    return (
-      <HiringChairHome
-        firstName={firstNameFromDisplay(session.user.name?.trim() || "there")}
-        todayDateLabel={todayDateLabel}
-        data={chairData}
-        unreadNotifications={unreadNotifications}
-        unreadMessages={unreadMessages}
-      />
-    );
+  if (isInstructor) {
+    return <InstructorDashboard userId={session.user.id} name={name} />;
   }
 
-  if (!isUnifiedAllToolsDashboardEnabled()) {
-    return <LegacyOverviewPage />;
+  if (roles.includes("STUDENT")) {
+    return <StudentHomeView userId={session.user.id} name={name} />;
   }
 
-  const dashboard = await getDashboardData(
-    session.user.id,
-    session.user.primaryRole ?? null
-  );
-  const activeRoles = roles.length
-    ? roles
-    : (session.user.primaryRole ? [session.user.primaryRole] : []);
-
-  let launchBanner: {
-    title: string;
-    content: string;
-    createdAt: Date;
-    linkUrl: string | null;
-  } | null = null;
-
-  try {
-    const campaign = await prisma.rolloutCampaign.findFirst({
-      where: {
-        status: "SENT",
-        ...(activeRoles.length > 0
-          ? { targetRoles: { hasSome: activeRoles as any } }
-          : {}),
-      },
-      orderBy: [{ sentAt: "desc" }, { createdAt: "desc" }],
-      select: {
-        title: true,
-        content: true,
-        sentAt: true,
-        createdAt: true,
-        linkUrl: true,
-      },
-    });
-    if (campaign) {
-      launchBanner = {
-        title: campaign.title,
-        content: campaign.content,
-        createdAt: campaign.sentAt ?? campaign.createdAt,
-        linkUrl: campaign.linkUrl ?? null,
-      };
-    }
-  } catch (error) {
-    if (!isMissingTableError(error)) {
-      throw error;
-    }
-  }
-
-  if (!launchBanner) {
-    const announcement = await prisma.announcement.findFirst({
-      where: {
-        isActive: true,
-        title: { startsWith: "[Rollout]" },
-        ...(activeRoles.length > 0
-          ? { targetRoles: { hasSome: activeRoles as any } }
-          : {}),
-      },
-      orderBy: { createdAt: "desc" },
-      select: {
-        title: true,
-        content: true,
-        createdAt: true,
-      },
-    });
-    if (announcement) {
-      launchBanner = {
-        title: announcement.title,
-        content: announcement.content,
-        createdAt: announcement.createdAt,
-        linkUrl: null,
-      };
-    }
-  }
-
-  const studentSnapshot = dashboard.role === "STUDENT"
-    ? await getStudentProgressSnapshot(session.user.id)
-    : null;
-
-  const atRiskChapters = dashboard.role === "ADMIN"
-    ? await getAtRiskChapters().catch(() => [])
-    : [];
-
-  const todayDateLabel = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(new Date());
-
-  const userId = session.user.id;
-  let unreadNotifications = 0;
-  let unreadMessages = 0;
-  try {
-    [unreadNotifications, unreadMessages] = await Promise.all([
-      getUnreadNotificationCountCached(userId),
-      getUnreadDirectMessageCountCached(userId),
-    ]);
-  } catch {
-    unreadNotifications = 0;
-    unreadMessages = 0;
-  }
-
-  const displayName = session.user.name?.trim() || "there";
-  const firstName = firstNameFromDisplay(displayName);
-  const friendlyRole = formatDashboardRoleLabel(dashboard.role);
-  const isStudent = dashboard.role === "STUDENT";
-
-  if (isStudent) {
-    let recentNotifications: {
-      id: string;
-      title: string;
-      body: string;
-      link: string | null;
-      isRead: boolean;
-      createdAt: string;
-      type: string;
-    }[] = [];
-
-    try {
-      const rows = await prisma.notification.findMany({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-        take: 6,
-        select: {
-          id: true,
-          title: true,
-          body: true,
-          link: true,
-          isRead: true,
-          createdAt: true,
-          type: true,
-        },
-      });
-      recentNotifications = rows.map((n) => ({
-        ...n,
-        createdAt: n.createdAt.toISOString(),
-      }));
-    } catch {
-      recentNotifications = [];
-    }
-
-    return (
-      <StudentHome
-        firstName={firstName}
-        roleLabel={formatDashboardRoleLabel("STUDENT")}
-        todayDateLabel={todayDateLabel}
-        unreadNotifications={unreadNotifications}
-        snapshot={studentSnapshot}
-        nextActions={dashboard.nextActions}
-        recentNotifications={recentNotifications}
-      />
-    );
-  }
-
-  return (
-    <div>
-      <div className="topbar topbar-dashboard">
-        <div>
-          <h1 className="dashboard-page-title">Home Dashboard</h1>
-          <p className="dashboard-header-date">
-            <span className="dashboard-header-role">{friendlyRole}</span>
-            <span className="dashboard-header-sep" aria-hidden> · </span>
-            {todayDateLabel}
-          </p>
-        </div>
-        <div className="dashboard-header-actions">
-          <span className="dashboard-role-pill">{friendlyRole}</span>
-          <Link
-            href="/messages"
-            className={`dashboard-header-icon-btn${unreadMessages > 0 ? " has-unread" : ""}`}
-            aria-label={unreadMessages > 0 ? `Messages, ${unreadMessages > 99 ? "99+" : unreadMessages} unread` : "Messages"}
-          >
-            ✉
-          </Link>
-          <Link
-            href="/notifications"
-            className={`dashboard-header-icon-btn${unreadNotifications > 0 ? " has-unread" : ""}`}
-            aria-label={unreadNotifications > 0 ? `Notifications, ${unreadNotifications > 99 ? "99+" : unreadNotifications} unread` : "Notifications"}
-          >
-            🔔
-          </Link>
-        </div>
-      </div>
-
-      {launchBanner ? (
-        <div className="card" style={{ marginBottom: 16, borderLeft: "4px solid var(--ypp-purple)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <h3 style={{ margin: 0 }}>{launchBanner.title}</h3>
-            <span className="pill">{new Date(launchBanner.createdAt).toLocaleDateString()}</span>
-          </div>
-          <p style={{ marginTop: 8, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
-            {launchBanner.content}
-          </p>
-          {launchBanner.linkUrl ? (
-            <div style={{ marginTop: 10 }}>
-              <Link href={launchBanner.linkUrl} className="link">Open rollout resource</Link>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      <RoleHero
-        role={dashboard.role}
-        title={dashboard.heroTitle}
-        subtitle={dashboard.heroSubtitle}
-      />
-
-      {dashboard.checklist && dashboard.checklist.length > 0 ? (
-        <DailyChecklist items={dashboard.checklist} />
-      ) : null}
-
-      {dashboard.nudges && dashboard.nudges.length > 0 ? (
-        <NudgeStrip nudges={dashboard.nudges} />
-      ) : null}
-
-      {dashboard.journeyMilestones ? (
-        <JourneyRoadmap milestones={dashboard.journeyMilestones} />
-      ) : null}
-
-      <NextActions actions={dashboard.nextActions} />
-
-      <QueueBoard queues={dashboard.queues} />
-
-      <KpiStrip kpis={dashboard.kpis} />
-
-      {dashboard.role === "ADMIN" && atRiskChapters.length > 0 ? (
-        <div style={{ marginTop: 16 }}>
-          <AtRiskPanel chapters={atRiskChapters} />
-        </div>
-      ) : null}
-
-      {dashboard.role === "INSTRUCTOR" && dashboard.instructorReadiness ? (
-        <div style={{ marginTop: 16 }}>
-          <InstructorReadinessWidget summary={dashboard.instructorReadiness} />
-        </div>
-      ) : null}
-    </div>
-  );
+  return <ApplicantHome name={name} />;
 }

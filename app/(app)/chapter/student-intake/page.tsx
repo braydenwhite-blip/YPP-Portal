@@ -9,6 +9,7 @@ import {
   updateStudentIntakeCaseStatus,
 } from "@/lib/student-intake-actions";
 import { getStudentIntakeStatusMeta } from "@/lib/student-intake-shared";
+import { ConfirmSubmitButton } from "@/components/chapter-dashboard/confirm-submit-button";
 
 function formatAge(from: Date) {
   const diffHours = (Date.now() - from.getTime()) / 36e5;
@@ -206,12 +207,22 @@ export default async function ChapterStudentIntakePage() {
                         >
                           Save / Move To Review
                         </button>
-                        <button type="submit" formAction={approveStudentIntakeCase} className="button">
+                        <ConfirmSubmitButton
+                          formAction={approveStudentIntakeCase}
+                          className="button"
+                          confirm={`Approve ${intakeCase.studentName}'s intake and launch their support plan?`}
+                          pendingText="Launching…"
+                        >
                           Approve And Launch Plan
-                        </button>
-                        <button type="submit" formAction={rejectStudentIntakeCase} className="button secondary">
+                        </ConfirmSubmitButton>
+                        <ConfirmSubmitButton
+                          formAction={rejectStudentIntakeCase}
+                          className="button secondary"
+                          confirm={`Reject ${intakeCase.studentName}'s intake case? This closes the request.`}
+                          pendingText="Rejecting…"
+                        >
                           Reject
-                        </button>
+                        </ConfirmSubmitButton>
                       </div>
                     </form>
                   </div>

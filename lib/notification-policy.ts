@@ -293,6 +293,14 @@ const POLICY_BY_TYPE: Record<NotificationType, Omit<NotificationPolicy, "type">>
     email: false,
     smsPlanned: false,
   },
+  MENTOR_WEEKLY_DIGEST: {
+    label: "Mentor Weekly Digest",
+    description: "Weekly roll-up of reviews, kickoffs, and quiet mentees that need a mentor's attention.",
+    bucket: "portal_only",
+    portalHistory: true,
+    email: false,
+    smsPlanned: false,
+  },
 };
 
 export function getNotificationPolicy(type: NotificationType): NotificationPolicy {

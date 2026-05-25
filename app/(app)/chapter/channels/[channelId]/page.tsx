@@ -1,8 +1,10 @@
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getChannelMessages } from "@/lib/chapter-channel-actions";
 import { ChannelMessageComposer } from "./channel-message-composer";
+
+export const dynamic = "force-dynamic";
 
 function formatTime(date: Date): string {
   return new Intl.DateTimeFormat("en-US", {
@@ -30,7 +32,11 @@ export default async function ChannelPage({
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
-  const { channel, messages } = await getChannelMessages(params.channelId);
+  // A bad/unauthorized channelId throws — render a clean 404 instead of an
+  // unhandled error page.
+  const result = await getChannelMessages(params.channelId).catch(() => null);
+  if (!result) notFound();
+  const { channel, messages } = result;
 
   return (
     <main className="main-content">
@@ -110,9 +116,11 @@ export default async function ChannelPage({
                           flexShrink: 0,
                         }}
                       >
-                        {msg.author.name.charAt(0)}
+                        {(msg.author.name || "?").charAt(0).toUpperCase()}
                       </div>
-                      <strong style={{ fontSize: 14 }}>{msg.author.name}</strong>
+                      <strong style={{ fontSize: 14 }}>
+                        {msg.author.name || "Member"}
+                      </strong>
                       <span style={{ fontSize: 11, color: "var(--muted)" }}>
                         {formatTime(msg.createdAt)}
                       </span>

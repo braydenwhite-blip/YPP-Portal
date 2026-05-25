@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
-import { RoleType, ChapterPresidentApplicationStatus } from "@prisma/client";
+import { RoleType, ChapterPresidentApplicationStatus, HiringRecommendation } from "@prisma/client";
 import {
   sendNewApplicationNotification,
   sendApplicationApprovedEmail,
@@ -415,6 +415,10 @@ export async function reviewChapterPresidentApplication(
         if (isNaN(scheduledAt.getTime())) {
           return { status: "error", message: "Invalid interview date/time." };
         }
+        const meetingUrl = getString(formData, "meetingUrl", false) || null;
+        if (meetingUrl && !/^https?:\/\//i.test(meetingUrl)) {
+          return { status: "error", message: "Meeting link must be a valid URL." };
+        }
         const notes = getString(formData, "notes", false);
         await prisma.chapterPresidentApplication.update({
           where: { id: applicationId },
@@ -422,6 +426,7 @@ export async function reviewChapterPresidentApplication(
             status: ChapterPresidentApplicationStatus.INTERVIEW_SCHEDULED,
             reviewerId: session.user.id,
             interviewScheduledAt: scheduledAt,
+            interviewMeetingUrl: meetingUrl,
             reviewerNotes: notes || null,
           },
         });
@@ -433,6 +438,7 @@ export async function reviewChapterPresidentApplication(
             applicantName: application.applicant.name,
             scheduledAt,
             statusUrl: `${baseUrl}/application-status`,
+            meetingUrl,
           });
         } catch (e) {
           console.error("[scheduleCPInterview] email failed:", e);
@@ -456,11 +462,19 @@ export async function reviewChapterPresidentApplication(
       }
 
       case "submit_recommendation": {
+        const recommendationRaw = getString(formData, "recommendation");
+        const validRecommendations = Object.values(HiringRecommendation) as string[];
+        if (!validRecommendations.includes(recommendationRaw)) {
+          return { status: "error", message: "Pick a recommendation before submitting." };
+        }
+        const rationale = getString(formData, "recommendationRationale");
         await prisma.chapterPresidentApplication.update({
           where: { id: applicationId },
           data: {
             status: ChapterPresidentApplicationStatus.RECOMMENDATION_SUBMITTED,
             reviewerId: session.user.id,
+            decisionRecommendation: recommendationRaw as HiringRecommendation,
+            recommendationRationale: rationale,
           },
         });
         await syncChapterPresidentApplicationWorkflow(applicationId);

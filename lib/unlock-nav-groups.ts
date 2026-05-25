@@ -24,6 +24,7 @@ export const PARENT_ALWAYS_VISIBLE_GROUPS: NavGroup[] = [
 // Nav groups always visible for instructors. Everything else is hidden by default.
 export const INSTRUCTOR_ALWAYS_VISIBLE_GROUPS: NavGroup[] = [
   "Start Here",
+  "Teach",
   "Progress",
   "People & Support",
   "Chapters",
@@ -51,21 +52,9 @@ export const FULL_ACCESS_ROLES = new Set([
   "STAFF",
 ]);
 
-// CHAPTER_PRESIDENT is temporarily scoped to the hiring/interview pipeline only.
-// Any nav link whose href is NOT in this allowlist is hidden for chapter
-// presidents. Direct URL access to non-listed pages is not blocked here — add
-// route-level guards if stronger isolation is needed.
-export const CHAPTER_PRESIDENT_ALLOWED_HREFS = new Set<string>([
-  "/",
-  "/interviews",
-  "/scheduling",
-  "/chapter/recruiting",
-  "/chapter-lead/instructor-applicants",
-  "/chapter-lead/dashboard",
-  "/profile",
-  "/settings/personalization",
-  "/notifications",
-]);
+// The Chapter President sidebar is defined in
+// `lib/navigation/chapter-president-v1-nav-layout.ts`
+// (`CHAPTER_PRESIDENT_ALLOWED_HREFS`) alongside the rest of the CP nav layout.
 
 /**
  * Given a user's role and unlocked sections, returns the set of NavGroup names

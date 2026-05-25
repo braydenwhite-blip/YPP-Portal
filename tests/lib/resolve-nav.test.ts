@@ -275,6 +275,6 @@ describe("resolveNavModel", () => {
       enabledFeatureKeys: new Set(),
     });
 
-    expect(hrefs(model)).toContain("/mentorship-program/reviews");
+    expect(hrefs(model)).toContain("/mentorship/reviews");
   });
 });

@@ -24,34 +24,54 @@ export function InviteManager({ invites }: { invites: Invite[] }) {
   const [showCreate, setShowCreate] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleCreate(formData: FormData) {
+    setError(null);
     try {
       await createChapterInvite(formData);
       setShowCreate(false);
       startTransition(() => router.refresh());
-    } catch {
-      // ignore
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not create the invite link.",
+      );
     }
   }
 
   async function handleDeactivate(id: string) {
+    if (
+      !window.confirm(
+        "Deactivate this invite link? Anyone who still has it will no longer be able to join.",
+      )
+    ) {
+      return;
+    }
     setActionId(id);
+    setError(null);
     try {
       await deactivateInvite(id);
       startTransition(() => router.refresh());
-    } catch {
-      // ignore
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not deactivate the link.",
+      );
     } finally {
       setActionId(null);
     }
   }
 
-  function copyLink(code: string) {
+  async function copyLink(code: string) {
     const url = `${window.location.origin}/invite/${code}`;
-    navigator.clipboard.writeText(url);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 2000);
+    } catch {
+      // Clipboard API is unavailable (insecure context / permissions) —
+      // fall back to a prompt the President can copy from manually.
+      window.prompt("Copy this invite link:", url);
+    }
   }
 
   function getStatus(invite: Invite): { label: string; color: string; bg: string } {
@@ -63,6 +83,22 @@ export function InviteManager({ invites }: { invites: Invite[] }) {
 
   return (
     <div>
+      {error && (
+        <p
+          role="alert"
+          style={{
+            margin: "0 0 12px",
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#b91c1c",
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </p>
+      )}
       {/* Create Form */}
       {showCreate ? (
         <div className="card" style={{ marginBottom: 20 }}>

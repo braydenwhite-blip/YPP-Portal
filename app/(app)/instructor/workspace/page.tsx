@@ -172,13 +172,15 @@ export default async function InstructorWorkspacePage({
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+      <div
+        className="seg-tabs"
+        style={{ marginBottom: 18, width: "fit-content", maxWidth: "100%" }}
+      >
         {tabs.map((candidate) => (
           <Link
             key={candidate}
             href={`/instructor/workspace?tab=${candidate}`}
-            className="button secondary"
-            style={tab === candidate ? { background: "var(--ypp-purple)", color: "white", borderColor: "var(--ypp-purple)" } : {}}
+            className={`seg-tab${tab === candidate ? " active" : ""}`}
           >
             {TAB_LABELS[candidate]}
           </Link>
@@ -186,13 +188,12 @@ export default async function InstructorWorkspacePage({
       </div>
 
       {!hasReviewWorkflow && (
-        <div
-          className="card"
-          style={{ marginBottom: 18, background: "#fffbeb", border: "1px solid #fcd34d" }}
-        >
-          <p style={{ margin: 0, color: "#92400e", fontSize: 14 }}>
-            Curriculum review status will appear automatically after the latest curriculum database migration is applied.
-          </p>
+        <div className="callout is-warning" style={{ marginBottom: 18 }}>
+          <span className="callout-icon" aria-hidden="true">{"⚠️"}</span>
+          <span>
+            Curriculum review status will appear automatically after the latest
+            curriculum database migration is applied.
+          </span>
         </div>
       )}
 
@@ -717,18 +718,12 @@ export default async function InstructorWorkspacePage({
                 Select the YPP pathways you teach or plan to teach. This helps students and admins find the right instructor.
               </p>
               {!hasPathwaySpecsTable && (
-                <div
-                  style={{
-                    marginBottom: 14,
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    background: "#fffbeb",
-                    border: "1px solid #fcd34d",
-                    color: "#92400e",
-                    fontSize: 13,
-                  }}
-                >
-                  Teaching-specialty selections will appear here after the latest pathway database migration is applied.
+                <div className="callout is-warning" style={{ marginBottom: 14 }}>
+                  <span className="callout-icon" aria-hidden="true">{"⚠️"}</span>
+                  <span>
+                    Teaching-specialty selections will appear here after the
+                    latest pathway database migration is applied.
+                  </span>
                 </div>
               )}
               {allPathways.length === 0 ? (

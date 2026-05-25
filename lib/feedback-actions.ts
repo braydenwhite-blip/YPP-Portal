@@ -154,7 +154,7 @@ export async function getMyFeedbackRequests() {
       .map((resource) => resource.url)
       .filter((url): url is string => Boolean(url)),
     createdAt: request.requestedAt,
-    student: {
+    mentee: {
       id: request.mentee.id,
       name: request.mentee.name,
     },

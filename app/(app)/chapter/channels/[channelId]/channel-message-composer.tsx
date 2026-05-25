@@ -7,19 +7,24 @@ import { useRouter } from "next/navigation";
 export function ChannelMessageComposer({ channelId }: { channelId: string }) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
 
   async function handleSend() {
     if (!message.trim() || sending) return;
     setSending(true);
+    setError(null);
     try {
       await sendChannelMessage(channelId, message);
       setMessage("");
       router.refresh();
       inputRef.current?.focus();
-    } catch {
-      // error handled by server
+    } catch (err) {
+      // Keep the typed text so the member can retry without re-typing.
+      setError(
+        err instanceof Error ? err.message : "Message failed to send. Try again.",
+      );
     } finally {
       setSending(false);
     }
@@ -33,7 +38,16 @@ export function ChannelMessageComposer({ channelId }: { channelId: string }) {
   }
 
   return (
-    <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+    <div>
+      {error && (
+        <p
+          role="alert"
+          style={{ margin: "0 0 6px", fontSize: 12, color: "#b91c1c" }}
+        >
+          {error}
+        </p>
+      )}
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
       <textarea
         ref={inputRef}
         value={message}
@@ -59,6 +73,7 @@ export function ChannelMessageComposer({ channelId }: { channelId: string }) {
       >
         {sending ? "..." : "Send"}
       </button>
+      </div>
     </div>
   );
 }

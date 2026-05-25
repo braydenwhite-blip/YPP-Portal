@@ -763,12 +763,14 @@ export async function sendInterviewScheduledEmail({
   applicantName,
   scheduledAt,
   statusUrl,
+  meetingUrl,
   variant = "default",
 }: {
   to: string;
   applicantName: string;
   scheduledAt: Date;
   statusUrl: string;
+  meetingUrl?: string | null;
   variant?: "default" | "instructor_application";
 }): Promise<EmailResult> {
   const subject = "Your YPP Interview Has Been Scheduled";
@@ -781,6 +783,16 @@ export async function sendInterviewScheduledEmail({
     minute: "2-digit",
     timeZoneName: "short",
   });
+  const meetingBlock = meetingUrl
+    ? `
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(meetingUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Join Interview</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">You can also join from your application status page.</p>`
+    : `
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
+    </div>`;
   const html = emailShell(`
     <h2 style="margin: 0 0 16px; color: #1c1917;">Interview scheduled, ${applicantName}!</h2>
     <p>Great news — your interview with the review team has been scheduled. This is a conversation about your teaching approach — not a test.</p>
@@ -788,9 +800,7 @@ export async function sendInterviewScheduledEmail({
       <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1c1917;">${formattedDate}</p>
     </div>
     <p>You can view your full application status and any additional details in the portal.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
-    </div>
+    ${meetingBlock}
     <p style="color: #78716c; font-size: 13px;">If you have questions, please reach out to your chapter president or admin.</p>
   `);
   return sendEmail({ to, subject, html });

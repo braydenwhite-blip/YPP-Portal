@@ -8,7 +8,7 @@ import {
   isSubmissionEditable,
   isSubmissionReviewable,
   submissionStatusLabel,
-  submissionStatusTone,
+  workshopStatusPalette,
   sourceTypeLabel,
 } from "@/lib/workshop-proposal-constants";
 import { getOrCreateApplicantSubmission } from "@/lib/workshop-proposal-actions";
@@ -34,6 +34,9 @@ export default async function WorkshopDesignStudioPage({
     if (gate.reason === "WRONG_SUBTYPE") {
       // Standard instructors should never land here — bounce them to LDS.
       redirect("/instructor/lesson-design-studio");
+    }
+    if (gate.reason === "FEATURE_DISABLED") {
+      redirect("/instructor-training?locked=workshop-design-studio-closed");
     }
     // Training not done yet — back to the academy with a banner.
     redirect("/instructor-training?locked=workshop-design-studio");
@@ -211,14 +214,7 @@ export default async function WorkshopDesignStudioPage({
           role="status"
           style={{
             marginBottom: 16,
-            borderColor:
-              submissionStatusTone(submission.status) === "success"
-                ? "#16a34a"
-                : submissionStatusTone(submission.status) === "danger"
-                  ? "#dc2626"
-                  : submissionStatusTone(submission.status) === "warn"
-                    ? "#f59e0b"
-                    : "#6366f1",
+            borderColor: workshopStatusPalette(submission.status).accent,
           }}
         >
           <p style={{ margin: 0, fontWeight: 600 }}>

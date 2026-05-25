@@ -36,11 +36,13 @@ export type CPApp = {
   scoreFit: number | null;
   scoreCommunication: number | null;
   interviewSummary: string | null;
-  decisionRecommendation?: string | null;
+  decisionRecommendation: string | null;
+  recommendationRationale: string | null;
   actionDueDate?: string | null;
   createdAt: string;
   updatedAt: string;
   interviewScheduledAt: string | null;
+  interviewMeetingUrl: string | null;
   approvedAt: string | null;
   rejectedAt: string | null;
   whyChapterPresident: string | null;
@@ -79,6 +81,13 @@ export type CPApp = {
     value: string;
     fileUrl: string | null;
     field: { label: string; fieldType: string };
+  }[];
+  availabilityWindows: {
+    id: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    timezone: string;
   }[];
 };
 

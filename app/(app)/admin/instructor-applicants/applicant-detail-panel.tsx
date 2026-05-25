@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition, useEffect, useCallback } from "react";
 import type { InstructorApp, Reviewer } from "./kanban-board";
 import {
+  reviewInstructorApplication,
   reviewInstructorApplicationAction,
   saveDecisionRecommendation,
   assignReviewer,
@@ -154,6 +155,20 @@ export default function ApplicantDetailPanel({
   const [offerMeetingUrl, setOfferMeetingUrl] = useState("");
   const [offerSending, setOfferSending] = useState(false);
 
+  // Direct "set interview time" state — bypasses the offer-slots flow when the
+  // reviewer already knows when they're meeting (e.g. confirmed by email).
+  function toLocalDatetimeInputValue(iso: string | null | undefined): string {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  const [interviewDateTime, setInterviewDateTime] = useState<string>(
+    toLocalDatetimeInputValue(app.interviewScheduledAt)
+  );
+  const [interviewSaving, setInterviewSaving] = useState(false);
+
   // Reset local state when app changes
   useEffect(() => {
     setScores({
@@ -168,8 +183,9 @@ export default function ApplicantDetailPanel({
     setRecommendation(app.decisionRecommendation || "");
     setDueDate(app.actionDueDate ? app.actionDueDate.slice(0, 10) : "");
     setSelectedReviewer(app.reviewerId || "");
+    setInterviewDateTime(toLocalDatetimeInputValue(app.interviewScheduledAt));
     setActionMessage(null);
-  }, [app.id, app.scoreSubjectKnowledge, app.scoreCommunication, app.scoreTeachingMethodology, app.scoreCurriculumAlignment, app.scoreFit, app.curriculumReviewSummary, app.reviewerNotes, app.decisionRecommendation, app.actionDueDate, app.reviewerId]);
+  }, [app.id, app.scoreSubjectKnowledge, app.scoreCommunication, app.scoreTeachingMethodology, app.scoreCurriculumAlignment, app.scoreFit, app.curriculumReviewSummary, app.reviewerNotes, app.decisionRecommendation, app.actionDueDate, app.reviewerId, app.interviewScheduledAt]);
 
   // Close on Escape
   useEffect(() => {
@@ -319,6 +335,42 @@ export default function ApplicantDetailPanel({
       showMessage(result.error || "Failed to send times");
     }
     setOfferSending(false);
+  }
+
+  async function handleSetInterviewTime() {
+    if (!interviewDateTime) {
+      showMessage("Pick a date and time first.");
+      return;
+    }
+    const scheduledAt = new Date(interviewDateTime);
+    if (isNaN(scheduledAt.getTime())) {
+      showMessage("That date/time is not valid.");
+      return;
+    }
+    if (scheduledAt <= new Date()) {
+      showMessage("Interview time must be in the future.");
+      return;
+    }
+    setInterviewSaving(true);
+    const formData = new FormData();
+    formData.set("applicationId", app.id);
+    formData.set("action", "schedule_interview");
+    formData.set("scheduledAt", scheduledAt.toISOString());
+    const result = await reviewInstructorApplication(
+      { status: "idle", message: "" },
+      formData
+    );
+    setInterviewSaving(false);
+    if (result.status === "error") {
+      showMessage(result.message || "Failed to set interview time.");
+      return;
+    }
+    onUpdate({
+      id: app.id,
+      status: "INTERVIEW_SCHEDULED",
+      interviewScheduledAt: scheduledAt.toISOString(),
+    });
+    showMessage("Interview time set — workspace ready to open.");
   }
 
   const displayName = app.legalName || app.applicant.name;
@@ -601,6 +653,44 @@ export default function ApplicantDetailPanel({
               ))}
             </div>
           </div>
+
+          {/* Set Interview Time directly (skip the offer-slots dance) */}
+          {!isFinal && app.status !== "INTERVIEW_COMPLETED" && (
+            <div className="slideout-section">
+              <div className="slideout-section-title">Set Interview Time</div>
+              <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0, marginBottom: 10 }}>
+                Pick a date and time to schedule the interview directly. The applicant will be
+                emailed, status will move to <em>Interview scheduled</em>, and the Interview
+                Workspace button above will open the interview runner.
+              </p>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <input
+                  type="datetime-local"
+                  className="input"
+                  value={interviewDateTime}
+                  onChange={(e) => setInterviewDateTime(e.target.value)}
+                  style={{ maxWidth: 240, marginBottom: 0 }}
+                />
+                <button
+                  className="button"
+                  onClick={handleSetInterviewTime}
+                  disabled={interviewSaving || !interviewDateTime}
+                  style={{ fontSize: 12 }}
+                >
+                  {interviewSaving
+                    ? "Saving..."
+                    : app.interviewScheduledAt
+                      ? "Update Interview Time"
+                      : "Set Interview Time"}
+                </button>
+                {app.interviewScheduledAt && (
+                  <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                    Currently scheduled for {new Date(app.interviewScheduledAt).toLocaleString()}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Offer Times (visible when INTERVIEW_SCHEDULED) */}
           {app.status === "INTERVIEW_SCHEDULED" && (

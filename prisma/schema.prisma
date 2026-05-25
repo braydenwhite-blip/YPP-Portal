@@ -2679,12 +2679,16 @@ model Mentorship {
 }
 
 model MentorshipCheckIn {
-  id           String     @id @default(cuid())
-  mentorshipId String
-  notes        String
-  rating       Int?
-  createdAt    DateTime   @default(now())
-  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id])
+  id             String     @id @default(cuid())
+  mentorshipId   String
+  notes          String
+  rating         Int?
+  mentorResponse String?
+  acknowledgedAt DateTime?
+  createdAt      DateTime   @default(now())
+  mentorship     Mentorship @relation(fields: [mentorshipId], references: [id])
+
+  @@index([mentorshipId, createdAt])
 }
 
 model MentorshipCircleMember {
@@ -3970,6 +3974,7 @@ enum NotificationType {
   GR_REVIEW_DUE
   GR_CHAIR_APPROVAL_PENDING
   GR_REVIEW_RELEASED
+  MENTOR_WEEKLY_DIGEST
 }
 
 /// Mentor-applied tag for Kanban UX. Separate from cycleStage to avoid breaking rollover logic.
@@ -9363,6 +9368,10 @@ model ChapterPresidentApplication {
   scoreCommunication Int?
   interviewSummary   String? @db.Text
 
+  // --- Final recommendation (input to the chair / final decision) ---
+  decisionRecommendation  HiringRecommendation?
+  recommendationRationale String?               @db.Text
+
   // --- Review workflow ---
   reviewerId           String?
   reviewer             User?                     @relation("ChapterPresidentApplicationReviews", fields: [reviewerId], references: [id])
@@ -9371,6 +9380,7 @@ model ChapterPresidentApplication {
   applicantResponse    String?                   @db.Text
   rejectionReason      String?                   @db.Text
   interviewScheduledAt DateTime?
+  interviewMeetingUrl  String?
   approvedAt           DateTime?
   rejectedAt           DateTime?
   customResponses      ApplicationFormResponse[] @relation("CPAppFormResponses")
@@ -9492,6 +9502,8 @@ model ChapterPresidentOnboarding {
   setChapterGoals   Boolean          @default(false)
   reviewedResources Boolean          @default(false)
   introMessageSent  Boolean          @default(false)
+  chapterGoals      String?          @db.Text
+  introMessage      String?          @db.Text
   completedAt       DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt

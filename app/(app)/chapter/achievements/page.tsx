@@ -16,14 +16,16 @@ export default async function ChapterAchievementsPage() {
     <main className="main-content">
       <div className="page-header">
         <div>
+          {isLead && (
+            <Link href="/chapter" className="back-link">
+              ← Command Center
+            </Link>
+          )}
           <h1>Chapter Achievements</h1>
-          <p className="subtitle">
+          <p className="page-subtitle">
             {unlockedCount} of {totalCount} milestones unlocked
           </p>
         </div>
-        <Link href="/my-chapter" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
-          ← Chapter Home
-        </Link>
       </div>
 
       {/* Progress Overview */}
@@ -61,6 +63,14 @@ export default async function ChapterAchievementsPage() {
       </div>
 
       {/* Milestone Grid */}
+      {milestones.length === 0 && (
+        <div className="card" style={{ textAlign: "center", padding: 32 }}>
+          <p style={{ margin: 0, color: "var(--muted)" }}>
+            No milestones are configured yet. As your chapter grows, milestones
+            for members, events, and courses will appear here.
+          </p>
+        </div>
+      )}
       <div className="grid two" style={{ marginBottom: 24 }}>
         {milestones.map((milestone: {
           id: string;

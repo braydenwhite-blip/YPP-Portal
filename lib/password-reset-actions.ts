@@ -56,7 +56,12 @@ export async function requestPasswordReset(
       },
     });
 
-    const resetUrl = data?.properties?.action_link;
+    // Admin-generated links cannot use PKCE; route through our callback with
+    // `hashed_token` so the callback can verifyOtp and set session cookies.
+    const hashedToken = data?.properties?.hashed_token;
+    const resetUrl = hashedToken
+      ? `${redirectTo}&token_hash=${encodeURIComponent(hashedToken)}&type=recovery`
+      : null;
 
     if (error || !resetUrl) {
       console.error(

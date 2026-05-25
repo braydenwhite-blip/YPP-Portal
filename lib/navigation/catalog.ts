@@ -42,6 +42,15 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 1,
       coreEligible: true,
     },
+    {
+      href: "/my-interview",
+      label: "My Interview",
+      icon: "🎤",
+      roles: INSTRUCTOR_APPLICANT_ONLY,
+      dashboardDescription: "Schedule and track your application interview.",
+      dashboardPriority: 2,
+      coreEligible: true,
+    },
   ]),
 
   ...groupLinks("Family", 100, [
@@ -415,9 +424,10 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/mentorship/reviews",
-      label: "Chair Queue",
+      label: "Review Inbox",
       icon: "✅",
       roles: MENTOR_ROLES,
+      searchAliases: ["Chair Queue", "Review Approvals", "Monthly Review Inbox"],
       dashboardDescription: "Approve or return monthly goal reviews waiting on chair action.",
       dashboardPriority: 6,
     },
@@ -428,6 +438,33 @@ export const NAV_CATALOG: NavLink[] = [
       roles: MENTOR_ROLES,
       dashboardDescription: "Manage availability and confirm session requests from your mentees.",
       dashboardPriority: 8,
+    },
+    {
+      href: "/mentor/feedback",
+      label: "Feedback Portal",
+      icon: "💬",
+      roles: MENTOR_ROLES,
+      searchAliases: ["Mentee Feedback", "Feedback Requests", "Review Work"],
+      dashboardDescription: "Respond to private feedback requests on mentee projects, drafts, and work samples.",
+      dashboardPriority: 9,
+    },
+    {
+      href: "/mentor/ask",
+      label: "Ask a Mentor",
+      icon: "❓",
+      roles: MENTOR_ROLES,
+      searchAliases: ["Mentor Commons", "Mentor Q&A", "Answer Questions"],
+      dashboardDescription: "Answer public questions and grow the shared mentor knowledge commons.",
+      dashboardPriority: 10,
+    },
+    {
+      href: "/mentor/resources",
+      label: "Mentor Resources",
+      icon: "📚",
+      roles: MENTOR_ROLES,
+      searchAliases: ["Resource Commons", "Mentor Playbooks"],
+      dashboardDescription: "Search and publish shared playbooks, templates, and resources from mentoring work.",
+      dashboardPriority: 11,
     },
     // /mentorship/unlock-sections is intentionally not surfaced in top-level
     // nav -- it's a rare, contextual action accessed from a mentee's workspace.
@@ -456,13 +493,9 @@ export const NAV_CATALOG: NavLink[] = [
     //                                    mentee detail page; mentee surface
     //                                    is the monthly self-reflection form
     //                                    accessed from the mentee dashboard.
-    {
-      href: "/mentorship-program/chair",
-      label: "Chair Queue",
-      icon: "✅",
-      roles: ["ADMIN"] as NavRole[],
-      dashboardDescription: "Approve or request changes on mentor goal reviews before they are released.",
-    },
+    // /mentorship-program/chair removed from nav — it is a legacy redirect to
+    // /mentorship/reviews, which already surfaces for ADMIN via MENTOR_ROLES.
+    // Two "Chair Queue" entries created a duplicate visible label for admins.
     {
       href: "/mentorship-program/awards",
       label: "Awards",
@@ -554,7 +587,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 20,
     },
     { href: "/check-in", label: "Check-In", icon: "✔", roles: STUDENT_ONLY },
-    { href: "/mentor/resources", label: "Mentor Resources", icon: "📚", roles: MENTOR_ROLES },
     {
       href: "/attendance",
       label: "Attendance",
@@ -606,11 +638,12 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/chapter",
-      label: "My Chapter",
-      icon: "🏠",
+      label: "Command Center",
+      icon: "🧭",
       roles: CHAPTER_PRESIDENT_ONLY,
-      dashboardDescription: "Open chapter performance, members, and operations.",
-      dashboardPriority: 6,
+      dashboardDescription: "Run your chapter: health, action queues, members, and operations.",
+      dashboardPriority: 1,
+      searchAliases: ["Dashboard", "Chapter OS", "President Dashboard", "Overview"],
     },
     {
       href: "/chapter/president",
@@ -656,6 +689,16 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 22,
     },
     {
+      href: "/chapter/updates",
+      label: "Chapter Announcements",
+      icon: "📢",
+      roles: CHAPTER_PRESIDENT_ONLY,
+      coreEligible: false,
+      dashboardDescription: "Post announcements and updates to your chapter.",
+      dashboardPriority: 22,
+      searchAliases: ["Announcements", "Chapter Updates", "Post Update"],
+    },
+    {
       href: "/chapter/members",
       label: "Chapter Members",
       icon: "👥",
@@ -663,9 +706,39 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 21,
     },
     {
+      href: "/chapter/students",
+      label: "Chapter Students",
+      icon: "🎓",
+      roles: CHAPTER_PRESIDENT_ONLY,
+      coreEligible: false,
+      dashboardDescription: "Track student rosters, enrollment, and engagement.",
+      dashboardPriority: 21,
+      searchAliases: ["Students", "Student Roster"],
+    },
+    {
+      href: "/chapter/instructors",
+      label: "Chapter Instructors",
+      icon: "👩‍🏫",
+      roles: CHAPTER_PRESIDENT_ONLY,
+      coreEligible: false,
+      dashboardDescription: "Monitor instructor training, courses, and goals.",
+      dashboardPriority: 21,
+      searchAliases: ["Instructors", "Instructor Roster"],
+    },
+    {
+      href: "/chapter/marketing",
+      label: "Chapter Marketing",
+      icon: "📊",
+      roles: CHAPTER_PRESIDENT_ONLY,
+      coreEligible: false,
+      dashboardDescription: "Log outreach metrics and track growth goals.",
+      dashboardPriority: 24,
+      searchAliases: ["Marketing", "Outreach", "Growth"],
+    },
+    {
       href: "/chapter/leaderboard",
       label: "XP Leaderboard",
-      icon: "🏆",
+      icon: "🥇",
       dashboardDescription: "See who's leading in XP within your chapter.",
       dashboardPriority: 25,
     },
@@ -686,7 +759,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/chapters/leaderboard",
-      label: "Chapter Presidenterboard",
+      label: "Network Chapter Leaderboard",
       icon: "🏆",
       dashboardDescription: "See how chapters across the network are growing.",
       dashboardPriority: 24,
@@ -706,14 +779,6 @@ export const NAV_CATALOG: NavLink[] = [
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Customize your chapter profile, branding, and join policy.",
       dashboardPriority: 20,
-    },
-    {
-      href: "/chapter-lead/dashboard",
-      label: "Chapter Dashboard",
-      icon: "📊",
-      roles: CHAPTER_PRESIDENT_ONLY,
-      dashboardDescription: "Review chapter-wide KPIs and activity.",
-      dashboardPriority: 15,
     },
     {
       href: "/chapter-lead/instructor-applicants",

@@ -1,14 +1,14 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
+import { requirePageRoles } from "@/lib/page-guards";
 import { getChapterSettings } from "@/lib/chapter-settings-actions";
 import { getJoinRequests } from "@/lib/chapter-join-actions";
 import { ChapterSettingsForm } from "./chapter-settings-form";
 import { JoinRequestsPanel } from "./join-requests-panel";
 
+export const dynamic = "force-dynamic";
+
 export default async function ChapterSettingsPage() {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  await requirePageRoles(["CHAPTER_PRESIDENT", "ADMIN"]);
 
   const [settings, joinRequests] = await Promise.all([
     getChapterSettings(),
@@ -123,8 +123,16 @@ export default async function ChapterSettingsPage() {
           </div>
 
           {/* Join Requests */}
-          {joinRequests.length > 0 && (
+          {joinRequests.length > 0 ? (
             <JoinRequestsPanel requests={joinRequests} />
+          ) : (
+            <div className="card">
+              <h3>Join Requests</h3>
+              <p style={{ color: "var(--muted)", fontSize: 14, margin: "4px 0 0" }}>
+                No pending requests. When someone asks to join your chapter,
+                you&apos;ll be able to approve or decline them here.
+              </p>
+            </div>
           )}
         </div>
       </div>

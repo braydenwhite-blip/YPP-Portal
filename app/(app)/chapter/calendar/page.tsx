@@ -9,6 +9,7 @@ import {
   saveChapterMilestoneAction,
   updateChapterProfileAction,
 } from "@/lib/chapter-calendar-actions";
+import { ConfirmSubmitButton } from "@/components/chapter-dashboard/confirm-submit-button";
 
 type ChapterCalendarPageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -448,9 +449,13 @@ export default async function ChapterCalendarPage({ searchParams }: ChapterCalen
                           <input type="hidden" name="chapterId" value={chapter.id} />
                           <input type="hidden" name="eventId" value={event.id} />
                           <input type="hidden" name="cancellationReason" value="Cancelled from the chapter calendar workspace." />
-                          <button type="submit" className="button outline small">
+                          <ConfirmSubmitButton
+                            className="button outline small"
+                            confirm={`Cancel "${event.title}"? Members will see it as cancelled.`}
+                            pendingText="Cancelling…"
+                          >
                             Cancel event
-                          </button>
+                          </ConfirmSubmitButton>
                         </form>
                       ) : null}
                     </div>

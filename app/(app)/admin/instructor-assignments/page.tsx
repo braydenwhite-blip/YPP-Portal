@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import {
   getAssignmentDashboardCounts,
   getAssignmentDashboardRows,
 } from "@/lib/regular-instructor-assignments";
+import { requireAdminPage } from "@/lib/page-guards";
 import AssignmentsBoard from "./assignments-board";
 import ChapterFilter from "./chapter-filter";
 
@@ -22,11 +21,7 @@ export default async function AdminInstructorAssignmentsPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  await requireAdminPage();
 
   const params = (await searchParams) ?? {};
   const chapterId = params.chapter && params.chapter !== "all" ? params.chapter : null;

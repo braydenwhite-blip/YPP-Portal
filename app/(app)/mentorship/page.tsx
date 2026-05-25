@@ -7,7 +7,15 @@ import {
 } from "@/lib/mentorship-access";
 import { getSimplifiedMentorKanban } from "@/lib/mentorship-kanban-actions";
 import { getMentorshipPendingActionCount } from "@/lib/mentorship-notifications";
-import { MentorPriorityList } from "./_components/mentor-priority-list";
+import { getMentorEngagementSnapshot } from "@/lib/mentor-overview";
+import {
+  MentorPriorityList,
+  mentorCardNeedsAttention,
+} from "./_components/mentor-priority-list";
+import {
+  MentorCommandStrip,
+  MentorEngagementPanels,
+} from "./_components/mentor-command-center";
 import { MenteeDashboard } from "./_components/mentee-dashboard";
 import { MentorshipTabShell } from "./_components/mentorship-tab-shell";
 import { EmptyStateEditorial } from "./_components/empty-state-editorial";
@@ -58,19 +66,24 @@ export default async function MentorshipPage({ searchParams }: PageProps) {
     );
   }
 
-  const [mentorBlockResult, pendingActionCount] = await Promise.all([
-    showMentorSection ? getSimplifiedMentorKanban() : Promise.resolve(null),
-    getMentorshipPendingActionCount(userId),
-  ]);
+  const [mentorBlockResult, engagementResult, pendingActionCount] =
+    await Promise.all([
+      showMentorSection ? getSimplifiedMentorKanban() : Promise.resolve(null),
+      showMentorSection ? getMentorEngagementSnapshot() : Promise.resolve(null),
+      getMentorshipPendingActionCount(userId),
+    ]);
   const mentorBlock = mentorBlockResult;
+  const engagement = engagementResult;
 
+  const allMentorCards = mentorBlock?.columns.flatMap((c) => c.cards) ?? [];
   const pendingReview =
     mentorBlock?.columns.find((c) => c.key === "READY_FOR_REVIEW")?.cards.length ?? 0;
-  const needsKickoff =
-    mentorBlock?.columns
-      .flatMap((c) => c.cards)
-      .filter((c) => c.kickoffPending).length ?? 0;
+  const needsKickoff = allMentorCards.filter((c) => c.kickoffPending).length;
+  const needsYouCount = allMentorCards.filter(mentorCardNeedsAttention).length;
   const menteeCount = mentorBlock?.total ?? 0;
+  const activeMenteeCount = mentorBlock
+    ? mentorBlock.total - mentorBlock.inactive.length
+    : 0;
 
   // Render only the more urgent of the two top alerts — stacked alerts is
   // noise; one is signal.
@@ -139,6 +152,9 @@ export default async function MentorshipPage({ searchParams }: PageProps) {
           <MentorTabContent
             urgentAlert={urgentAlert}
             mentorBlock={mentorBlock}
+            engagement={engagement}
+            activeMenteeCount={activeMenteeCount}
+            needsYouCount={needsYouCount}
           />
         }
       />
@@ -149,9 +165,15 @@ export default async function MentorshipPage({ searchParams }: PageProps) {
 function MentorTabContent({
   urgentAlert,
   mentorBlock,
+  engagement,
+  activeMenteeCount,
+  needsYouCount,
 }: {
   urgentAlert: { tone: "blue" | "amber"; title: string; detail: string } | null;
   mentorBlock: Awaited<ReturnType<typeof getSimplifiedMentorKanban>> | null;
+  engagement: Awaited<ReturnType<typeof getMentorEngagementSnapshot>> | null;
+  activeMenteeCount: number;
+  needsYouCount: number;
 }) {
   if (!mentorBlock || mentorBlock.total === 0) {
     return (
@@ -173,6 +195,14 @@ function MentorTabContent({
 
   return (
     <div style={{ display: "grid", gap: 24 }}>
+      <MentorCommandStrip
+        activeMentees={activeMenteeCount}
+        needsYou={needsYouCount}
+        upcomingSessionCount={engagement?.upcomingSessionCount ?? 0}
+        nextSessionAt={engagement?.nextSessionAt ?? null}
+        quietCount={engagement?.quietMentees.length ?? 0}
+      />
+
       {urgentAlert && (
         <div
           style={{
@@ -201,6 +231,13 @@ function MentorTabContent({
         inactive={mentorBlock.inactive}
         total={mentorBlock.total}
       />
+
+      {engagement && (
+        <MentorEngagementPanels
+          upcomingSessions={engagement.upcomingSessions}
+          quietMentees={engagement.quietMentees}
+        />
+      )}
     </div>
   );
 }

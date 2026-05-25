@@ -1,18 +1,52 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { getCommandCenterData } from "@/lib/chapter-dashboard-actions";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { ActionCenter } from "@/components/chapter-dashboard/action-center";
 import { MemberPulse } from "@/components/chapter-dashboard/member-pulse";
 import { GrowthChart } from "@/components/chapter-dashboard/growth-chart";
 import { ChapterGoals } from "@/components/chapter-dashboard/chapter-goals";
 
-export default async function ChapterDashboardPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ChapterCommandCenterPage() {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
 
   const data = await getCommandCenterData();
   const title = data.chapter?.name ?? data.scope.label;
+
+  // Chapter-president onboarding nudge — surfaced inline so the President has
+  // one home instead of a separate "President Dashboard" page.
+  const onboarding = data.scope.isAdmin
+    ? null
+    : await prisma.chapterPresidentOnboarding
+        .findUnique({
+          where: { userId: session.user.id },
+          select: {
+            status: true,
+            metTeam: true,
+            setChapterGoals: true,
+            reviewedResources: true,
+            introMessageSent: true,
+          },
+        })
+        .catch(() => null);
+
+  const onboardingSteps = onboarding
+    ? [
+        onboarding.metTeam,
+        onboarding.setChapterGoals,
+        onboarding.reviewedResources,
+        onboarding.introMessageSent,
+      ]
+    : [];
+  const onboardingComplete =
+    onboarding?.status === "COMPLETED" ||
+    (onboardingSteps.length > 0 && onboardingSteps.every(Boolean));
+  const onboardingDone = onboardingSteps.filter(Boolean).length;
+  const showOnboardingBanner = onboarding != null && !onboardingComplete;
 
   return (
     <main className="main-content">
@@ -88,7 +122,7 @@ export default async function ChapterDashboardPage() {
           )}
           <div style={{ color: "white", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.9 }}>
-              {data.scope.isAdmin ? "Admin Oversight" : "Chapter OS"}
+              {data.scope.isAdmin ? "Admin Oversight" : "Chapter Command Center"}
             </div>
             <h1 style={{ margin: "6px 0 0", fontSize: 30 }}>{title}</h1>
             {data.chapter?.tagline ? (
@@ -138,40 +172,58 @@ export default async function ChapterDashboardPage() {
         </div>
       </div>
 
-      <div style={{ marginBottom: 16, fontSize: 13 }}>
-        <Link href="/my-chapter" style={{ color: "var(--ypp-purple)", textDecoration: "none" }}>
-          ← Chapter Home
-        </Link>
-        <span style={{ color: "var(--muted)", margin: "0 6px" }}>/</span>
-        <span style={{ color: "var(--muted)" }}>Chapter OS</span>
-      </div>
+      {showOnboardingBanner && (
+        <div
+          className="card"
+          style={{
+            marginBottom: 16,
+            background: "#fef9c3",
+            border: "1px solid #fde68a",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <h3 style={{ margin: "0 0 2px", fontSize: 15, color: "#854d0e" }}>
+              Finish setting up as Chapter President
+            </h3>
+            <p style={{ margin: 0, fontSize: 13, color: "#854d0e" }}>
+              {onboardingDone} of 4 steps complete — wrap these up to get fully set up.
+            </p>
+          </div>
+          <Link href="/chapter/onboarding" className="button" style={{ textDecoration: "none" }}>
+            Continue Onboarding
+          </Link>
+        </div>
+      )}
 
       <div className="stats-grid">
-        <div className="stat-card">
+        <Link href="/chapter/members" className="stat-card" style={{ textDecoration: "none", color: "inherit" }}>
           <span className="stat-value">{data.stats.totalMembers}</span>
           <span className="stat-label">Total Members</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value">{data.stats.totalCourses}</span>
-          <span className="stat-label">Courses</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value">{data.stats.staleInterviewScheduling}</span>
-          <span className="stat-label">Stale Interview Queue</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value">{data.stats.nextInterviewBookings}</span>
-          <span className="stat-label">Booked Next 72h</span>
-        </div>
-        <div className="stat-card">
+        </Link>
+        <Link href="/chapter/students" className="stat-card" style={{ textDecoration: "none", color: "inherit" }}>
+          <span className="stat-value">{data.stats.totalStudents}</span>
+          <span className="stat-label">Students</span>
+        </Link>
+        <Link href="/chapter/instructors" className="stat-card" style={{ textDecoration: "none", color: "inherit" }}>
+          <span className="stat-value">{data.stats.totalInstructors}</span>
+          <span className="stat-label">Instructors</span>
+        </Link>
+        <Link href="/chapter/calendar" className="stat-card" style={{ textDecoration: "none", color: "inherit" }}>
+          <span className="stat-value">{data.stats.upcomingEvents}</span>
+          <span className="stat-label">Upcoming Events</span>
+        </Link>
+        <Link href="/chapter/recruiting" className="stat-card" style={{ textDecoration: "none", color: "inherit" }}>
           <span className="stat-value">{data.stats.openPositions}</span>
           <span className="stat-label">Open Positions</span>
           {data.stats.totalApplications > 0 && (
-            <Link href="/chapter/recruiting" className="stat-link">
-              {data.stats.totalApplications} applications →
-            </Link>
+            <span className="stat-link">{data.stats.totalApplications} applications →</span>
           )}
-        </div>
+        </Link>
       </div>
 
       <div className="grid two" style={{ marginTop: 24, alignItems: "start" }}>

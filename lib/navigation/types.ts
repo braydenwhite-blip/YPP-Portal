@@ -16,6 +16,7 @@ export type NavBadgeKey = "notifications" | "messages" | "approvals" | "chairQue
 export type NavGroup =
   | "Family"
   | "Start Here"
+  | "Teach"
   | "Learning"
   | "Progress"
   | "Challenges"
@@ -23,6 +24,8 @@ export type NavGroup =
   | "Opportunities"
   | "People & Support"
   | "Chapters"
+  | "Recruiting"
+  | "Growth"
   | "Profile & Settings"
   | "Schedule"
   | "Community"

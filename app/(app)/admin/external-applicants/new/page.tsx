@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { requirePageRoles } from "@/lib/page-guards";
 import ExternalApplicantIntakeForm from "./intake-form";
 
 export const dynamic = "force-dynamic";
@@ -21,13 +20,9 @@ export default async function NewExternalApplicantPage({
 }: {
   searchParams: Promise<{ created?: string; error?: string }>;
 }) {
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
+  const sessionUser = await requirePageRoles(["ADMIN", "CHAPTER_PRESIDENT"]);
+  const roles = sessionUser.roles;
   const isAdmin = roles.includes("ADMIN");
-  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
-  if (!session?.user?.id || (!isAdmin && !isChapterLead)) {
-    redirect("/");
-  }
   const params = await searchParams;
 
   // Chapter list — admins see all, Chapter Presidents are locked to their own.
@@ -40,7 +35,7 @@ export default async function NewExternalApplicantPage({
     });
   } else {
     const me = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: sessionUser.id },
       select: { chapterId: true, chapter: { select: { id: true, name: true } } },
     });
     scopedChapterId = me?.chapterId ?? null;
@@ -93,9 +88,10 @@ export default async function NewExternalApplicantPage({
             existing sign-in flow.
           </li>
           <li>
-            An InstructorApplication is created and routed to your chapter&apos;s
-            default reviewer (if one is configured) so it lands in the review
-            queue immediately.
+            An application is created in the matching review pipeline — an
+            InstructorApplication routed to your chapter&apos;s default reviewer
+            (if configured), or a ChapterPresidentApplication on the chapter
+            president board — so it lands in the review queue immediately.
           </li>
           <li>
             A &quot;Send application confirmation&quot; task is queued in the

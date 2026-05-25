@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { CopyFeedbackTemplateButton } from "@/components/instructor/feedback-template-actions";
 
 export default async function FeedbackTemplatesPage() {
   const session = await getSession();
@@ -33,8 +34,6 @@ export default async function FeedbackTemplatesPage() {
     orderBy: { usageCount: "desc" },
     take: 10
   });
-
-  const categories = ["Positive", "Constructive", "Technical", "Effort", "Improvement"];
 
   return (
     <div>
@@ -76,9 +75,17 @@ export default async function FeedbackTemplatesPage() {
         <div className="section-title">My Templates</div>
         {myTemplates.length === 0 ? (
           <div className="card">
-            <p style={{ color: "var(--text-secondary)" }}>
-              No templates yet. Create your first template to save time on grading!
-            </p>
+            <div className="empty-state">
+              <span className="empty-state-icon" aria-hidden="true">{"💬"}</span>
+              <p className="empty-state-title">No feedback templates yet</p>
+              <p className="empty-state-text">
+                Save your go-to comments as templates to grade faster and give
+                students consistent, high-quality feedback.
+              </p>
+              <Link href="/instructor/feedback-templates/new" className="button primary">
+                Create your first template
+              </Link>
+            </div>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -101,12 +108,11 @@ export default async function FeedbackTemplatesPage() {
                     </div>
                   </div>
                   <div style={{ marginLeft: 16, display: "flex", gap: 8 }}>
-                    <form action="/api/feedback-templates/use" method="POST" style={{ display: "inline" }}>
-                      <input type="hidden" name="templateId" value={template.id} />
-                      <button type="submit" className="button secondary small">
-                        Copy
-                      </button>
-                    </form>
+                    <CopyFeedbackTemplateButton
+                      templateId={template.id}
+                      content={template.content}
+                      variant="secondary"
+                    />
                     <Link
                       href={`/instructor/feedback-templates/${template.id}/edit`}
                       className="button secondary small"
@@ -143,12 +149,13 @@ export default async function FeedbackTemplatesPage() {
                       By {template.instructor.name} • Used {template.usageCount} times
                     </div>
                   </div>
-                  <form action="/api/feedback-templates/use" method="POST" style={{ marginLeft: 16 }}>
-                    <input type="hidden" name="templateId" value={template.id} />
-                    <button type="submit" className="button primary small">
-                      Copy
-                    </button>
-                  </form>
+                  <div style={{ marginLeft: 16 }}>
+                    <CopyFeedbackTemplateButton
+                      templateId={template.id}
+                      content={template.content}
+                      variant="primary"
+                    />
+                  </div>
                 </div>
               </div>
             ))}

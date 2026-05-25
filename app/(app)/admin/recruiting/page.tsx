@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { getSession } from "@/lib/auth-supabase";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requireAdminPage } from "@/lib/page-guards";
 
 const FINAL_APPLICATION_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
 
@@ -20,16 +19,7 @@ export default async function AdminRecruitingPage({
   searchParams: Promise<RecruitingFilters>;
 }) {
   const params = await searchParams;
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  await requireAdminPage();
 
   const selectedChapterId = params.chapter && params.chapter !== "all" ? params.chapter : null;
 

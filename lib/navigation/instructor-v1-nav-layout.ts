@@ -3,6 +3,7 @@ import type { NavGroup, NavLink } from "@/lib/navigation/types";
 /** Section emoji in sidebar for focused instructor IA. */
 export const INSTRUCTOR_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
   "Start Here": "🏠",
+  Teach: "📚",
   Progress: "🎓",
   "People & Support": "📋",
   Chapters: "🏘",
@@ -11,6 +12,10 @@ export const INSTRUCTOR_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, string>> =
 
 const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: string }> = {
   "/": { group: "Start Here", label: "Home", icon: "🏠" },
+  "/instructor/workspace": { group: "Teach", label: "Workspace", icon: "🧩" },
+  "/instructor/curriculum-builder": { group: "Teach", label: "Curriculum Builder", icon: "🛠" },
+  "/lesson-plans": { group: "Teach", label: "Lesson Plans", icon: "📝" },
+  "/instructor/class-settings": { group: "Teach", label: "Class Settings", icon: "⚙️" },
   "/instructor-training": { group: "Progress", label: "Instructor Training", icon: "🎓" },
   "/instructor/lesson-design-studio": { group: "Progress", label: "Lesson Design Studio", icon: "🎨" },
   "/instructor/workshop-design-studio": { group: "Progress", label: "Workshop Design Studio", icon: "🎒" },
@@ -30,6 +35,10 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
 
 /** Order of links within the instructor minimal sidebar (lower = earlier). */
 export const INSTRUCTOR_SIDEBAR_LINK_ORDER: string[] = [
+  "/instructor/workspace",
+  "/instructor/curriculum-builder",
+  "/lesson-plans",
+  "/instructor/class-settings",
   "/instructor-training",
   "/instructor/lesson-design-studio",
   "/instructor/workshop-design-studio",

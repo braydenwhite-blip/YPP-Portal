@@ -1,17 +1,7 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
+import { requireAdminPage } from "@/lib/page-guards";
 
 export default async function AdminRecruitingNewAliasPage() {
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
-
+  await requireAdminPage();
   redirect("/admin/recruiting/positions/new");
 }

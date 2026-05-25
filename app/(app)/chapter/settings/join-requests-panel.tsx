@@ -19,13 +19,30 @@ type JoinRequest = {
 
 export function JoinRequestsPanel({ requests }: { requests: JoinRequest[] }) {
   const [processing, setProcessing] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  async function handleReview(requestId: string, decision: "APPROVED" | "REJECTED") {
-    setProcessing(requestId);
+  async function handleReview(
+    request: JoinRequest,
+    decision: "APPROVED" | "REJECTED",
+  ) {
+    if (
+      decision === "REJECTED" &&
+      !window.confirm(
+        `Reject ${request.user.name}'s request to join your chapter? They will not be added.`,
+      )
+    ) {
+      return;
+    }
+    setProcessing(request.id);
+    setError(null);
     try {
-      await reviewJoinRequest(requestId, decision);
-    } catch {
-      // Error handled by server action
+      await reviewJoinRequest(request.id, decision);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not update the request. Please try again.",
+      );
     } finally {
       setProcessing(null);
     }
@@ -37,6 +54,23 @@ export function JoinRequestsPanel({ requests }: { requests: JoinRequest[] }) {
       <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 4 }}>
         {requests.length} {requests.length === 1 ? "person wants" : "people want"} to join your chapter
       </p>
+
+      {error && (
+        <p
+          role="alert"
+          style={{
+            margin: "12px 0 0",
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#b91c1c",
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </p>
+      )}
 
       <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
         {requests.map((request) => (
@@ -67,14 +101,14 @@ export function JoinRequestsPanel({ requests }: { requests: JoinRequest[] }) {
               <button
                 className="button small"
                 disabled={processing === request.id}
-                onClick={() => handleReview(request.id, "APPROVED")}
+                onClick={() => handleReview(request, "APPROVED")}
               >
-                Approve
+                {processing === request.id ? "Working…" : "Approve"}
               </button>
               <button
                 className="button small secondary"
                 disabled={processing === request.id}
-                onClick={() => handleReview(request.id, "REJECTED")}
+                onClick={() => handleReview(request, "REJECTED")}
               >
                 Reject
               </button>

@@ -1,6 +1,12 @@
 import { CORE_NAV_LIMIT, CORE_NAV_MAP, PRIMARY_ROLE_FALLBACK_ORDER } from "@/lib/navigation/core-map";
 import { NAV_CATALOG } from "@/lib/navigation/catalog";
-import { CHAPTER_PRESIDENT_ALLOWED_HREFS, getVisibleNavGroups } from "@/lib/unlock-nav-groups";
+import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
+import {
+  CHAPTER_PRESIDENT_ALLOWED_HREFS,
+  applyChapterPresidentMinimalSidebarLayout,
+  chapterPresidentMinimalLinkOrderIndex,
+  shouldApplyChapterPresidentNavFilter,
+} from "@/lib/navigation/chapter-president-v1-nav-layout";
 import {
   INSTRUCTOR_V1_ALLOWED_HREFS,
   shouldApplyInstructorV1NavFilter,
@@ -28,7 +34,7 @@ import {
   studentMinimalLinkOrderIndex,
 } from "@/lib/navigation/student-v1-nav-layout";
 import type { NavGroup, NavLink, NavRole, NavViewModel } from "@/lib/navigation/types";
-import { normalizeAdminSubtypes } from "@/lib/admin-subtypes";
+import { canAccessAdminRoute } from "@/lib/admin-capabilities";
 import { applyAdminPrimarySidebarFilter } from "@/lib/navigation/admin-primary-nav-filter";
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
@@ -61,55 +67,6 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/admin/chapters",
 ]);
 
-/** Shown in the primary admin sidebar without subtype gating (full RBAC still applies on the page). */
-const ADMIN_NAV_UNIVERSAL_HREFS = new Set<string>([
-  "/admin/reflections",
-  "/admin/chapters",
-  "/admin/training",
-  "/admin/bulk-users",
-]);
-
-const ADMIN_LINKS_BY_SUBTYPE = {
-  SUPER_ADMIN: [
-    "/admin/instructor-applicants",
-    "/admin/chapter-president-applicants",
-    "/admin/recruiting",
-    "/admin/curricula",
-    "/admin/course-library",
-    "/admin/announcements",
-    "/admin/audit-log",
-    "/admin/analytics",
-    "/admin/export",
-    "/chapter/student-intake",
-    "/mentorship-program",
-    "/mentorship-program/reviews",
-    "/mentorship-program/chair",
-    "/mentorship-program/awards",
-    "/admin/mentorship-program",
-  ],
-  HIRING_ADMIN: [
-    "/admin/instructor-applicants",
-    "/admin/chapter-president-applicants",
-    "/admin/recruiting",
-  ],
-  MENTORSHIP_ADMIN: [
-    "/mentorship-program",
-    "/mentorship-program/reviews",
-    "/mentorship-program/chair",
-    "/mentorship-program/awards",
-    "/admin/mentorship-program",
-  ],
-  INTAKE_ADMIN: [
-    "/chapter/student-intake",
-  ],
-  CONTENT_ADMIN: [
-    "/admin/curricula",
-    "/admin/course-library",
-  ],
-  COMMUNICATIONS_ADMIN: [
-    "/admin/announcements",
-  ],
-} as const;
 
 const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   STUDENT: [
@@ -133,6 +90,7 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   ],
   INSTRUCTOR: [
     "Start Here",
+    "Teach",
     "Progress",
     "People & Support",
     "Chapters",
@@ -176,13 +134,15 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   CHAPTER_PRESIDENT: [
     "Start Here",
     "Chapters",
+    "Recruiting",
+    "Growth",
+    "Profile & Settings",
     "Progress",
     "People & Support",
     "Learning",
     "Opportunities",
     "Projects",
     "Challenges",
-    "Profile & Settings",
     "Family",
     "Admin People",
     "Admin Content",
@@ -363,17 +323,7 @@ function hasAdminSubtypeAccess(item: NavLink, roles: NavRole[], adminSubtypes: s
   if (hasNonAdminRoleAccess(item, roles)) return true;
   if (!requiresAdminSubtypeFiltering(item)) return true;
 
-  if (ADMIN_NAV_UNIVERSAL_HREFS.has(item.href)) return true;
-
-  const normalizedSubtypes = normalizeAdminSubtypes(adminSubtypes);
-  const allowedHrefs = new Set<string>();
-  for (const subtype of normalizedSubtypes) {
-    for (const href of ADMIN_LINKS_BY_SUBTYPE[subtype]) {
-      allowedHrefs.add(href);
-    }
-  }
-
-  return allowedHrefs.has(item.href);
+  return canAccessAdminRoute(adminSubtypes, item.href);
 }
 
 function hiringDemoHrefsForRole(primaryRole: NavRole): string[] | null {
@@ -527,19 +477,24 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
         return hiringDemoHrefs.includes(item.href) && hasRoleAccess(item, roles);
       }
 
-      if (ALWAYS_HIDDEN_HREFS.has(item.href)) return false;
+      // Chapter presidents have a dedicated, comprehensive sidebar
+      // (chapter-president-v1-nav-layout.ts). For them the CP allowlist is the
+      // single source of truth — `ALWAYS_HIDDEN_HREFS` (which exists to keep
+      // OTHER roles' sidebars compact by routing chapter pages through the Hub)
+      // does not apply, since the CP gets those pages as first-class nav.
+      const isChapterPresidentNav = shouldApplyChapterPresidentNavFilter(primaryRole);
 
-      // Chapter presidents are temporarily scoped to the hiring/interview pipeline.
-      if (primaryRole === "CHAPTER_PRESIDENT" && !CHAPTER_PRESIDENT_ALLOWED_HREFS.has(item.href)) {
+      if (ALWAYS_HIDDEN_HREFS.has(item.href) && !isChapterPresidentNav) return false;
+
+      if (isChapterPresidentNav && !CHAPTER_PRESIDENT_ALLOWED_HREFS.has(item.href)) {
         return false;
       }
 
-      // Public portal gate: when only Summer Workshop applications +
-      // proposals are public, hide every nav link that points to a
-      // surface the middleware would redirect to /locked. This keeps
-      // the sidebar focused for normal users — admins and testers in
-      // preview mode see the full nav (the layout passes
-      // publicGateActive=false for them).
+      // Public portal gate: hide every nav link that points to a surface
+      // the middleware would redirect to /locked. This applies to every
+      // user, admins included, until they enter preview mode (the layout
+      // passes publicGateActive=false only when a valid preview cookie
+      // is present).
       if (input.publicGateActive && !isAllowedPublicPath(item.href)) {
         return false;
       }
@@ -625,12 +580,18 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     primaryRole === "INSTRUCTOR" &&
     shouldApplyInstructorV1NavFilter(primaryRole, input.instructorFullPortalExplorer);
 
+  const chapterPresidentSidebar = shouldApplyChapterPresidentNavFilter(primaryRole);
+
   if (studentMinimalSidebar) {
     visible = visible.map(applyStudentMinimalSidebarLayout);
   }
 
   if (instructorMinimalSidebar) {
     visible = visible.map(applyInstructorMinimalSidebarLayout);
+  }
+
+  if (chapterPresidentSidebar) {
+    visible = visible.map(applyChapterPresidentMinimalSidebarLayout);
   }
 
   const visibleByHref = new Map(visible.map((item) => [item.href, item]));
@@ -691,7 +652,13 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
           ? [...items].sort(
               (a, b) => instructorMinimalLinkOrderIndex(a.href) - instructorMinimalLinkOrderIndex(b.href),
             )
-          : items;
+          : chapterPresidentSidebar
+            ? [...items].sort(
+                (a, b) =>
+                  chapterPresidentMinimalLinkOrderIndex(a.href) -
+                  chapterPresidentMinimalLinkOrderIndex(b.href),
+              )
+            : items;
     return { label, items: sorted };
   });
 

@@ -1,13 +1,9 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getLegacyLearnerFitCopy } from "@/lib/learner-fit";
+import { requireAdminPage } from "@/lib/page-guards";
 
 export default async function InstructorApprovalsPage() {
-  const session = await getSession();
-  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  await requireAdminPage();
 
   // Get pending instructor approvals
   const pendingApprovals = await prisma.user.findMany({

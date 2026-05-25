@@ -1,116 +1,96 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
-import { getChapterStudents } from "@/lib/chapter-actions";
 import Link from "next/link";
+import { requirePageRoles } from "@/lib/page-guards";
+import { getChapterStudents } from "@/lib/chapter-actions";
+import { ChapterStudentsView, type ChapterStudentRow } from "./students-view";
+
+export const dynamic = "force-dynamic";
+
+const INACTIVE_DAYS = 14;
 
 export default async function ChapterStudentsPage() {
-  const session = await getSession();
-  if (!session) redirect("/login");
+  await requirePageRoles(["CHAPTER_PRESIDENT", "ADMIN"]);
 
-  const students = await getChapterStudents();
+  const raw = await getChapterStudents();
+  const now = Date.now();
+
+  const students: ChapterStudentRow[] = raw.map((s) => {
+    const daysInactive = Math.max(
+      0,
+      Math.floor((now - new Date(s.updatedAt).getTime()) / 86_400_000),
+    );
+    return {
+      id: s.id,
+      name: s.name || s.email || "Unnamed student",
+      email: s.email ?? "",
+      grade: s.profile?.grade != null ? String(s.profile.grade) : null,
+      school: s.profile?.school ?? null,
+      courses: s.enrollments.map((e) => ({
+        title: e.course.title,
+        format: e.course.format,
+      })),
+      mentorName: s.menteePairs[0]?.mentor.name ?? null,
+      hasRecentFeedback: s.feedbackGiven.length > 0,
+      daysInactive,
+      inactive: daysInactive >= INACTIVE_DAYS,
+    };
+  });
+
+  const enrolled = students.filter((s) => s.courses.length > 0).length;
+  const needsAttention = students.filter((s) => s.inactive).length;
 
   return (
     <main className="main-content">
       <div className="page-header">
         <div>
           <Link href="/chapter" className="back-link">
-            ← Back to Dashboard
+            ← Command Center
           </Link>
           <h1>Chapter Students</h1>
+          <p className="page-subtitle">
+            Track who is enrolled, who has a mentor, and who needs a nudge.
+          </p>
         </div>
       </div>
 
-      <div className="stats-row">
+      <div className="stats-grid">
         <div className="stat-card">
           <span className="stat-value">{students.length}</span>
           <span className="stat-label">Total Students</span>
         </div>
         <div className="stat-card">
-          <span className="stat-value">
-            {students.filter((s) => s.enrollments.length > 0).length}
-          </span>
-          <span className="stat-label">Enrolled in Courses</span>
+          <span className="stat-value">{enrolled}</span>
+          <span className="stat-label">Enrolled in a Course</span>
         </div>
         <div className="stat-card">
-          <span className="stat-value">
-            {students.reduce((sum, s) => sum + s.enrollments.length, 0)}
+          <span className="stat-value">{students.length - enrolled}</span>
+          <span className="stat-label">Not Enrolled</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-value" style={{ color: needsAttention > 0 ? "#dc2626" : undefined }}>
+            {needsAttention}
           </span>
-          <span className="stat-label">Total Enrollments</span>
+          <span className="stat-label">Inactive 14d+</span>
         </div>
       </div>
 
       {students.length === 0 ? (
-        <div className="card">
-          <p>No students in your chapter yet.</p>
+        <div className="card" style={{ textAlign: "center", padding: 32 }}>
+          <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>No students yet</h2>
+          <p style={{ color: "var(--muted)", marginBottom: 16 }}>
+            Grow your chapter by sharing an invite link or opening recruiting.
+          </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+            <Link href="/chapter/invites" className="button" style={{ textDecoration: "none" }}>
+              Create Invite Link
+            </Link>
+            <Link href="/chapter/recruiting" className="button outline" style={{ textDecoration: "none" }}>
+              Open Recruiting
+            </Link>
+          </div>
         </div>
       ) : (
-        <div className="students-table-wrapper">
-          <table className="students-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Grade</th>
-                <th>School</th>
-                <th>Courses</th>
-                <th>Mentor</th>
-                <th>Recent Feedback</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((student) => (
-                <tr key={student.id}>
-                  <td>
-                    <strong>{student.name}</strong>
-                  </td>
-                  <td>{student.email}</td>
-                  <td>{student.profile?.grade || "-"}</td>
-                  <td>{student.profile?.school || "-"}</td>
-                  <td>
-                    {student.enrollments.length > 0 ? (
-                      <details className="courses-dropdown">
-                        <summary>
-                          {student.enrollments.length} course
-                          {student.enrollments.length > 1 ? "s" : ""}
-                        </summary>
-                        <ul>
-                          {student.enrollments.map((e) => (
-                            <li key={e.id}>
-                              {e.course.title}
-                              <span className="format">
-                                {e.course.format}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    ) : (
-                      <span className="none">None</span>
-                    )}
-                  </td>
-                  <td>
-                    {student.menteePairs.length > 0
-                      ? student.menteePairs[0].mentor.name
-                      : "-"}
-                  </td>
-                  <td>
-                    {student.feedbackGiven.length > 0 ? (
-                      <span className="feedback-date">
-                        {new Date(
-                          student.feedbackGiven[0].createdAt
-                        ).toLocaleDateString()}
-                      </span>
-                    ) : (
-                      <span className="none">None</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ChapterStudentsView students={students} />
       )}
-
     </main>
   );
 }

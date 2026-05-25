@@ -6,15 +6,21 @@ import { createChannel } from "@/lib/chapter-channel-actions";
 export function CreateChannelForm() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
+    setError(null);
     try {
       await createChannel(new FormData(e.currentTarget));
       setOpen(false);
-    } catch {
-      // handled by server
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not create the channel. Please try again.",
+      );
     } finally {
       setSaving(false);
     }
@@ -37,6 +43,22 @@ export function CreateChannelForm() {
       style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}
     >
       <h3 style={{ margin: 0 }}>Create Channel</h3>
+      {error && (
+        <p
+          role="alert"
+          style={{
+            margin: 0,
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#b91c1c",
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </p>
+      )}
       <input
         name="name"
         placeholder="channel-name (lowercase, hyphens)"

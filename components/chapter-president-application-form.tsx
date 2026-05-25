@@ -249,6 +249,13 @@ export default function ChapterPresidentApplicationForm({
               <option key={ch.id} value={ch.id}>{ch.name}</option>
             ))}
           </select>
+          <p style={{ fontSize: 12, color: "var(--muted)", margin: "6px 0 0" }}>
+            Don&apos;t like any of the options? Email{" "}
+            <a href="mailto:support@youthpassionproject.org" className="link">
+              support@youthpassionproject.org
+            </a>{" "}
+            to hear about other opportunities.
+          </p>
         </div>
 
         <div className="form-row">

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
-import { getHiringActor, canSeeChairQueue, isAdmin } from "@/lib/chapter-hiring-permissions";
+import { getHiringActor, isAdmin } from "@/lib/chapter-hiring-permissions";
 import { getChairQueue } from "@/lib/instructor-applicant-board-queries";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
+import { requireChairPage } from "@/lib/page-guards";
 import ChairQueueClientWrapper from "./client";
 
 export const dynamic = "force-dynamic";
@@ -48,17 +48,8 @@ function daysSince(date: Date | null): number | null {
 }
 
 export default async function ChairQueuePage() {
-  const session = await getSession();
-  if (!session?.user?.id) redirect("/login");
-
-  const actor = await getHiringActor(session.user.id);
-
-  if (!canSeeChairQueue(actor)) {
-    // Send non-chairs back to home rather than to /admin/instructor-applicants
-    // (which redirects non-admins to /, looping). HIRING_CHAIR-only users get
-    // their chair home; admins see their admin home.
-    redirect("/");
-  }
+  const sessionUser = await requireChairPage();
+  const actor = await getHiringActor(sessionUser.id);
 
   // Feature-flag fallback: when the V1 workflow is paused, only ADMIN has any
   // alternative surface to land on. Send pure HIRING_CHAIRs back to / so the
