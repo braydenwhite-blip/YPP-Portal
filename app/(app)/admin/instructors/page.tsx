@@ -44,6 +44,12 @@ export default async function AdminInstructorsPage() {
           </p>
         </div>
         <div className="instructor-ops-header-actions">
+          <Link href="/admin/instructors/lifecycle" className="button secondary">
+            Lifecycle board
+          </Link>
+          <Link href="/admin/instructor-mentor-matching" className="button secondary">
+            Mentor matching
+          </Link>
           <Link href="/admin/instructors/directory" className="button secondary">
             Directory
           </Link>
@@ -141,40 +147,7 @@ export default async function AdminInstructorsPage() {
         </section>
       </div>
 
-      <section className="card instructor-ops-board-card">
-        <div className="instructor-ops-section-heading">
-          <div>
-            <h2>Pipeline Board</h2>
-            <p>
-              Computed from existing application, readiness, assignment, mentorship,
-              certification, and growth records. V1 uses quick actions instead of
-              persisted drag moves.
-            </p>
-          </div>
-          <div className="instructor-ops-stage-strip">
-            <span>{metrics.applicants} applicants</span>
-            <span>{metrics.ready} ready</span>
-            <span>{metrics.leadership} leadership</span>
-          </div>
-        </div>
-        <InstructorOpsKanban records={records} />
-      </section>
-
-      <section className="card instructor-ops-assignment-board">
-        <div className="instructor-ops-section-heading">
-          <div>
-            <h2>Assignment Load Board</h2>
-            <p>
-              A lightweight assignment pipeline for availability, overload, mentor
-              readiness, and underutilization.
-            </p>
-          </div>
-          <Link href="/admin/classes" className="button small secondary">
-            Class operations
-          </Link>
-        </div>
-        <AssignmentLoadBoard records={records} />
-      </section>
+      <InstructorOpsKanban records={records} />
     </div>
   );
 }
@@ -193,86 +166,17 @@ function MetricCard({
   tone: "danger" | "warning" | "success" | "info";
 }) {
   return (
-    <Link href={href} className={`card instructor-ops-metric is-${tone}`}>
-      <span className="kpi">{value}</span>
-      <span className="kpi-label">{label}</span>
-      <span>{detail}</span>
+    <Link href={href} className={`card instructor-ops-metric instructor-ops-metric-${tone}`}>
+      <div className="instructor-ops-metric-label">{label}</div>
+      <div className="instructor-ops-metric-value">{value}</div>
+      <div className="instructor-ops-metric-detail">{detail}</div>
     </Link>
   );
 }
 
 function EmptyLine({ text }: { text: string }) {
-  return (
-    <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
-      {text}
-    </p>
-  );
+  return <p className="instructor-ops-empty">{text}</p>;
 }
 
-function AssignmentLoadBoard({ records }: { records: InstructorOpsRecord[] }) {
-  const lanes = [
-    {
-      key: "available",
-      title: "Available",
-      records: records.filter(
-        (record) => record.currentLoadLabel === "Available" && record.activeAssignmentCount === 0
-      ),
-    },
-    {
-      key: "active",
-      title: "Active Workshops",
-      records: records.filter(
-        (record) => record.activeAssignmentCount > 0 && record.workshopEligible
-      ),
-    },
-    {
-      key: "mentor-ready",
-      title: "Mentor Ready",
-      records: records.filter(
-        (record) => record.mentorEligible && record.currentLoadLabel !== "Overloaded"
-      ),
-    },
-    {
-      key: "underutilized",
-      title: "Underutilized",
-      records: records.filter(
-        (record) =>
-          record.isInstructor &&
-          record.readinessComplete &&
-          record.activeAssignmentCount === 0 &&
-          record.assignmentCount <= 1
-      ),
-    },
-    {
-      key: "overloaded",
-      title: "Overloaded",
-      records: records.filter((record) => record.currentLoadLabel === "Overloaded"),
-    },
-  ];
-
-  return (
-    <div className="instructor-ops-load-lanes">
-      {lanes.map((lane) => (
-        <div key={lane.key} className="instructor-ops-load-lane">
-          <div className="instructor-ops-load-lane-header">
-            <strong>{lane.title}</strong>
-            <span>{lane.records.length}</span>
-          </div>
-          <div className="instructor-ops-load-stack">
-            {lane.records.slice(0, 8).map((record) => (
-              <Link key={record.id} href={record.profileHref} className="instructor-ops-load-card">
-                <span>{record.name}</span>
-                <small>
-                  {record.activeAssignmentCount} active / {record.assignmentCount} total
-                </small>
-              </Link>
-            ))}
-            {lane.records.length === 0 && (
-              <p>No instructors in this lane.</p>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// Re-export so V1's existing imports from this file keep working.
+export type { InstructorOpsRecord };
