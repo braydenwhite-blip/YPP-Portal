@@ -1,124 +1,94 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
+import { requireAdminPage } from "@/lib/page-guards";
 import { prisma } from "@/lib/prisma";
+import { loadInstructorOpsData, listAllTags, listSavedViews } from "@/lib/instructor-ops-actions";
 import Link from "next/link";
-import InstructorTable from "./instructor-table";
+import InstructorOpsHub from "./instructor-ops-hub";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminInstructorsPage() {
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  await requireAdminPage();
 
-  const [instructors, chapters, mentors] = await Promise.all([
-    prisma.user.findMany({
-      where: {
-        roles: { some: { role: "INSTRUCTOR" } }
-      },
-      include: {
-        roles: true,
-        chapter: true,
-        trainings: { include: { module: true } },
-        menteePairs: { include: { mentor: true } },
-        courses: true,
-        interviewGate: { select: { status: true } },
-        classOfferingsInstructed: {
-          select: {
-            grandfatheredTrainingExemption: true,
-            approval: {
-              select: {
-                status: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { name: "asc" }
-    }),
+  const [instructors, chapters, mentors, allTags, savedViews] = await Promise.all([
+    loadInstructorOpsData(),
     prisma.chapter.findMany({ orderBy: { name: "asc" } }),
     prisma.user.findMany({
       where: { roles: { some: { role: "MENTOR" } } },
-      orderBy: { name: "asc" }
-    })
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    listAllTags(),
+    listSavedViews(),
   ]);
 
-  const instructorData = instructors.map((instructor) => {
-    const completedTrainings = instructor.trainings.filter((t) => t.status === "COMPLETE").length;
-    const totalTrainings = instructor.trainings.length;
-    const mentor = instructor.menteePairs.find((m) => m.type === "INSTRUCTOR")?.mentor;
-    const interviewPassed =
-      instructor.interviewGate?.status === "PASSED" || instructor.interviewGate?.status === "WAIVED";
-    const pendingApprovals = instructor.classOfferingsInstructed.filter((offering) =>
-      ["REQUESTED", "UNDER_REVIEW"].includes(offering.approval?.status ?? "")
-    ).length;
-    const changesRequested = instructor.classOfferingsInstructed.filter((offering) =>
-      ["CHANGES_REQUESTED", "REJECTED"].includes(offering.approval?.status ?? "")
-    ).length;
-    const approvedOfferings = instructor.classOfferingsInstructed.filter(
-      (offering) =>
-        offering.grandfatheredTrainingExemption ||
-        offering.approval?.status === "APPROVED"
-    ).length;
-    const legacyExemptions = instructor.classOfferingsInstructed.filter(
-      (offering) => offering.grandfatheredTrainingExemption
-    ).length;
-    const approvalStatus =
-      pendingApprovals > 0
-        ? "APPROVAL_IN_REVIEW"
-        : changesRequested > 0
-          ? "CHANGES_REQUESTED"
-          : totalTrainings > 0 && completedTrainings < totalTrainings
-            ? "TRAINING_IN_PROGRESS"
-            : !interviewPassed
-              ? "INTERVIEW_PENDING"
-              : approvedOfferings > 0
-                ? "APPROVED"
-                : "APPROVAL_READY";
-    const approvalSummaryParts = [
-      pendingApprovals > 0 ? `${pendingApprovals} waiting` : null,
-      changesRequested > 0 ? `${changesRequested} need updates` : null,
-      approvedOfferings > 0 ? `${approvedOfferings} approved` : null,
-      legacyExemptions > 0 ? `${legacyExemptions} legacy exempt` : null,
-    ].filter(Boolean);
+  const stageCount = instructors.reduce<Record<string, number>>((acc, i) => {
+    acc[i.lifecycleStage] = (acc[i.lifecycleStage] ?? 0) + 1;
+    return acc;
+  }, {});
 
-    return {
-      id: instructor.id,
-      name: instructor.name,
-      email: instructor.email,
-      chapter: instructor.chapter?.name ?? "None",
-      chapterId: instructor.chapterId ?? "",
-      approvalStatus,
-      approvalSummary: approvalSummaryParts.join(" • ") || "No offering approvals yet",
-      trainingProgress: totalTrainings > 0 ? `${completedTrainings}/${totalTrainings}` : "0/0",
-      trainingPercent: totalTrainings > 0 ? Math.round((completedTrainings / totalTrainings) * 100) : 0,
-      coursesCount: instructor.courses.length,
-      mentorId: mentor?.id ?? "",
-      mentorName: mentor?.name ?? "Unassigned",
-      createdAt: instructor.createdAt.toISOString()
-    };
-  });
+  const needsAttention = instructors.filter(
+    (i) => i.openTaskCount > 0 || i.isOnHold,
+  ).length;
 
   return (
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">Admin</p>
-          <h1 className="page-title">All Instructors</h1>
+          <p className="badge">Admin · Instructor Ops</p>
+          <h1 className="page-title">Instructor Operations</h1>
+          <p className="page-subtitle">
+            Manage lifecycle stages, tags, tasks, and assignments for all instructors.
+          </p>
         </div>
-        <div>
-          <span className="kpi" style={{ fontSize: 24 }}>{instructors.length}</span>
-          <span className="kpi-label" style={{ marginLeft: 8 }}>Total Instructors</span>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <Link href="/admin/instructor-mentor-matching" className="button">
+            Mentor Matching
+          </Link>
+          <Link href="/admin/instructor-assignments" className="button">
+            Assignment Board
+          </Link>
         </div>
       </div>
 
-      <div className="card">
-        <InstructorTable
-          instructors={instructorData}
-          chapters={chapters}
-          mentors={mentors}
-        />
+      {/* KPI strip */}
+      <div className="grid four" style={{ gap: 12, marginBottom: 24 }}>
+        <div className="card" style={{ padding: "14px 18px" }}>
+          <div style={{ fontSize: 28, fontWeight: 700 }}>{instructors.length}</div>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Total instructors</div>
+        </div>
+        <div className="card" style={{ padding: "14px 18px" }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "#16a34a" }}>
+            {stageCount["ACTIVE"] ?? 0}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Active</div>
+        </div>
+        <div className="card" style={{ padding: "14px 18px" }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "#7c3aed" }}>
+            {stageCount["ONBOARDING"] ?? 0}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Onboarding</div>
+        </div>
+        <div className="card" style={{ padding: "14px 18px" }}>
+          <div
+            style={{
+              fontSize: 28,
+              fontWeight: 700,
+              color: needsAttention > 0 ? "#dc2626" : "#71717a",
+            }}
+          >
+            {needsAttention}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>Needs attention</div>
+        </div>
       </div>
+
+      <InstructorOpsHub
+        instructors={instructors}
+        chapters={chapters}
+        mentors={mentors}
+        allTags={allTags}
+        savedViews={savedViews}
+      />
     </div>
   );
 }
