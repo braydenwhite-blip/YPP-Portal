@@ -168,11 +168,11 @@ describe("summerWorkshopInstructorApplicationSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects when workshopOutline is missing", () => {
+  it("accepts a SW application without a workshopOutline (designed post-intake)", () => {
     const result = summerWorkshopInstructorApplicationSchema.safeParse(
       baseInstructorPayload
     );
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("relaxes teaching experience minimum vs the standard schema", () => {

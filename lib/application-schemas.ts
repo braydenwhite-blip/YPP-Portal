@@ -292,8 +292,16 @@ export const summerWorkshopInstructorApplicationSchema = instructorApplicationSc
   textbook: z.string().max(500).optional().or(z.literal("")),
   courseOutline: z.string().max(2000).optional().or(z.literal("")),
   firstClassPlan: z.string().max(2000).optional().or(z.literal("")),
-  // Required: the structured workshop outline.
-  workshopOutline: workshopOutlineSchema,
+  // The simplified summer-workshop intake no longer collects these upfront —
+  // legal name is gathered during onboarding, hours/week isn't relevant for a
+  // single workshop, and the workshop itself is designed with us after intake.
+  legalName: z.string().max(200, "Name should be under 200 characters.").optional().or(z.literal("")),
+  hoursPerWeek: z.number().int().min(1).max(40).optional(),
+  workshopOutline: workshopOutlineSchema.optional(),
+  availability: z
+    .string()
+    .min(1, "Please select at least one availability option.")
+    .max(1000, "Availability should be under 1,000 characters."),
 });
 
 export type SummerWorkshopInstructorApplicationInput = z.infer<
