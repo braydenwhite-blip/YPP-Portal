@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { HiringChairHomeData } from "@/lib/hiring-chair-home";
 
 const CHAIR_QUEUE_HREF = "/admin/instructor-applicants/chair-queue";
+const ACTIVITY_FEED_HREF = "/admin/instructor-applicants/activity";
 
 function finalReviewHref(applicationId: string): string {
   return `/admin/instructor-applicants/${applicationId}/review`;
@@ -117,16 +118,21 @@ export default function HiringChairHome({
                 : "There is nothing waiting on a chair decision right now."}
             </p>
           </div>
-          <Link
-            href={
-              oldestWaiting
-                ? finalReviewHref(oldestWaiting.id)
-                : CHAIR_QUEUE_HREF
-            }
-            className="button"
-          >
-            {oldestWaiting ? `Review ${oldestWaiting.displayName}` : "Open Chair Queue"}
-          </Link>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link href={ACTIVITY_FEED_HREF} className="button outline">
+              Activity feed
+            </Link>
+            <Link
+              href={
+                oldestWaiting
+                  ? finalReviewHref(oldestWaiting.id)
+                  : CHAIR_QUEUE_HREF
+              }
+              className="button"
+            >
+              {oldestWaiting ? `Review ${oldestWaiting.displayName}` : "Open Chair Queue"}
+            </Link>
+          </div>
         </div>
       </section>
 
