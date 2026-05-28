@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
+import { LearnMore } from "@/components/mentorship/learn-more";
 import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
 import { CycleStatusBlock } from "@/components/mentorship/cycle-status-block";
 import { ReviewSpine } from "@/components/mentorship/review-spine";
@@ -163,11 +164,15 @@ export default async function MenteeDetailPage({
         )}
       </div>
 
-      <MentorshipGuideCard
-        title="How To Use This Support Workspace"
-        intro="This workspace is the day-to-day operating area for one mentee. Work from top to bottom when you want the full picture."
-        items={WORKSPACE_GUIDE_ITEMS}
-      />
+      <div style={{ marginBottom: 16 }}>
+        <LearnMore summary="How to use this workspace">
+          <MentorshipGuideCard
+            title="How To Use This Support Workspace"
+            intro="This workspace is the day-to-day operating area for one mentee. Work from top to bottom when you want the full picture."
+            items={WORKSPACE_GUIDE_ITEMS}
+          />
+        </LearnMore>
+      </div>
 
       {workspace.mentorship && (
         <>

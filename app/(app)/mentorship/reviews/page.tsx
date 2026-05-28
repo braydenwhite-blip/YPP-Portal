@@ -79,8 +79,11 @@ export default async function MonthlyReviewInboxPage() {
         items={REVIEW_INBOX_GUIDE_ITEMS}
       />
 
-      <div style={{ margin: "12px 0 16px" }}>
-        <RatingLegend audience="admin" title="The rating scale on every review" />
+      <div style={{ margin: "12px 0 16px", display: "grid", gap: 8 }}>
+        <p className="muted" style={{ margin: 0, fontSize: "0.78rem", fontWeight: 600 }}>
+          The rating scale on every review
+        </p>
+        <RatingLegend audience="admin" compact />
       </div>
 
       {reviews.length === 0 ? (

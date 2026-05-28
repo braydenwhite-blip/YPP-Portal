@@ -6,6 +6,8 @@ import { getLeadershipContext } from "@/lib/leadership-context";
 import GRDocumentView from "@/components/gr/gr-document-view";
 import { RoleStrip } from "@/components/leadership-pathway/role-strip";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
+import { LearnMore } from "@/components/mentorship/learn-more";
+import { getGrowthConnectLine } from "@/lib/growth-model";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 import Link from "next/link";
 import type { GoalRatingColor } from "@prisma/client";
@@ -256,10 +258,19 @@ export default async function MyGoalsPage() {
         </div>
       )}
 
+      <p
+        className="muted"
+        style={{ margin: "0 0 16px", fontSize: 13, lineHeight: 1.55, maxWidth: "64ch" }}
+      >
+        {getGrowthConnectLine("goals")}
+      </p>
+
       <GRDocumentView document={serialized} isOwner={true} />
 
       <div style={{ marginTop: 20 }}>
-        <RatingLegend audience="mentee" title="What your goal status colors mean" />
+        <LearnMore summary="What do these goal status colors mean?">
+          <RatingLegend audience="mentee" />
+        </LearnMore>
       </div>
     </div>
   );

@@ -12,6 +12,9 @@ import { SupportLine } from "@/components/leadership-pathway/support-line";
 import { NextStagePreview } from "@/components/leadership-pathway/next-stage-preview";
 import { FullPathwayDisclosure } from "@/components/leadership-pathway/full-pathway-disclosure";
 import { StageCard } from "@/components/leadership-pathway/stage-card";
+import { CurrentSupportCard } from "@/components/leadership-pathway/current-support-card";
+import { GrowthModelStrip } from "@/components/leadership-pathway/growth-model-strip";
+import { getGrowthConnectLine } from "@/lib/growth-model";
 
 export const metadata = {
   title: "Leadership Pathway — YPP",
@@ -91,10 +94,22 @@ function PathwayPage({
 
           <SupportLine mentor={primaryMentor} stageId={currentStageId} />
 
+          <CurrentSupportCard mentor={primaryMentor} />
+
           <NextStagePreview
             currentStageId={currentStageId}
             nextStageId={nextStageId}
           />
+
+          <section style={{ display: "grid", gap: 12 }}>
+            <GrowthModelStrip title="How this pathway connects to your day-to-day" />
+            <p
+              className="muted"
+              style={{ margin: 0, fontSize: 13, lineHeight: 1.6, maxWidth: "64ch" }}
+            >
+              {getGrowthConnectLine("pathway")}
+            </p>
+          </section>
 
           <FullPathwayDisclosure defaultOpen={expandedDefault}>
             <div

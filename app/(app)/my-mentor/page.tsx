@@ -5,6 +5,7 @@ import { getLeadershipContext } from "@/lib/leadership-context";
 import { MentorCard } from "@/components/leadership-pathway/mentor-card";
 import { LEADERSHIP_STAGES } from "@/lib/leadership-pathway";
 import { MenteeDashboard } from "@/app/(app)/mentorship/_components/mentee-dashboard";
+import { getGrowthConnectLine } from "@/lib/growth-model";
 import { MyMentorSubnav } from "./_components/my-mentor-subnav";
 
 export const metadata = {
@@ -57,6 +58,16 @@ export default async function MyMentorPage() {
       </div>
 
       <MyMentorSubnav />
+
+      <p
+        className="muted"
+        style={{ margin: "0 0 16px", fontSize: 13, lineHeight: 1.55, maxWidth: "64ch" }}
+      >
+        {getGrowthConnectLine("my-mentor")}{" "}
+        <Link href="/leadership-pathway" style={{ fontWeight: 600 }}>
+          View full Leadership Pathway →
+        </Link>
+      </p>
 
       <div style={{ display: "grid", gap: 24 }}>
         {mentorsOthers && (

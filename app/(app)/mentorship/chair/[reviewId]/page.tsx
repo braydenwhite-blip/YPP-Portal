@@ -11,6 +11,7 @@ import { formatEnum } from "@/lib/format-utils";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 import { getReviewHeadlineState, getReviewStateTonePalette } from "@/lib/mentorship-review-state";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
+import { LearnMore } from "@/components/mentorship/learn-more";
 import ChairActionsPanel from "./chair-actions-panel";
 
 export const metadata = { title: "Approve Review — Mentorship Program" };
@@ -100,16 +101,8 @@ export default async function ChairReviewDetailPage({
         className="card"
         style={{ marginBottom: 16, borderLeft: "4px solid var(--color-primary)", display: "grid", gap: 8 }}
       >
-        <strong style={{ fontSize: "0.95rem" }}>What you&apos;re approving</strong>
+        <strong style={{ fontSize: "0.95rem" }}>Your decision</strong>
         <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.83rem", display: "grid", gap: 4 }}>
-          <li>
-            <strong>{review.mentor.name}</strong>&apos;s monthly review of{" "}
-            <strong>{review.mentee.name}</strong> ({formatEnum(review.mentee.primaryRole)} lane).
-          </li>
-          <li>
-            Overall rating: <strong>{ratingLabel(review.overallRating)}</strong>. This sets the
-            achievement points awarded for the cycle.
-          </li>
           <li>
             <strong>Approve</strong> → points/awards are calculated and the mentor&apos;s summary,
             ratings, and plan of action are released to {review.mentee.name}.
@@ -118,14 +111,23 @@ export default async function ChairReviewDetailPage({
             <strong>Request changes</strong> → it goes back to the mentor; nothing is released and no
             points are awarded yet.
           </li>
-          <li className="muted">
-            The mentee never sees this approval screen, chair notes, or pre-release drafts — only the
-            released summary once you approve.
-          </li>
         </ul>
+        <LearnMore summary="Privacy — what the mentee sees">
+          <p style={{ margin: 0, fontSize: "0.83rem", lineHeight: 1.55 }}>
+            This is <strong>{review.mentor.name}</strong>&apos;s review of{" "}
+            <strong>{review.mentee.name}</strong> ({formatEnum(review.mentee.primaryRole)} lane),
+            rated <strong>{ratingLabel(review.overallRating)}</strong>. The mentee never sees this
+            approval screen, chair notes, or pre-release drafts — only the released summary once you
+            approve.
+          </p>
+        </LearnMore>
       </section>
 
-      <AwardsSummaryPanel projection={projection} menteeName={review.mentee.name} />
+      <div style={{ marginBottom: 16 }}>
+        <LearnMore summary="Points & awards impact" hint="what approving will trigger">
+          <AwardsSummaryPanel projection={projection} menteeName={review.mentee.name} />
+        </LearnMore>
+      </div>
 
       <div className="grid" style={{ gridTemplateColumns: "2fr 1fr", gap: 16 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -240,7 +242,9 @@ export default async function ChairReviewDetailPage({
             releasedToMenteeAt={review.releasedToMenteeAt}
             pointsAwarded={review.pointsAwarded}
           />
-          <RatingLegend audience="admin" title="Rating scale you're approving against" />
+          <LearnMore summary="Rating scale you're approving against">
+            <RatingLegend audience="admin" />
+          </LearnMore>
         </div>
       </div>
     </div>

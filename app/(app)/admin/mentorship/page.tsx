@@ -36,6 +36,7 @@ import {
 import { getMentorEffectivenessScores } from "@/lib/mentor-effectiveness";
 import { getProgramAnalytics } from "@/lib/mentorship-overview-actions";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
+import { ActionSummaryHeader } from "@/components/mentorship/action-summary-header";
 import {
   getAdminMentorshipActionQueue,
   getInstructorMentorshipOpsSummary,
@@ -316,23 +317,28 @@ export default async function AdminMentorshipPage({
     (mentee) => mentee.lane === lane
   );
 
+  const unassignedCount = data.unassignedMentees.length;
+
   return (
     <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Admin · Instructor Mentorship</p>
-          <h1 className="page-title">{ADMIN_MENTORSHIP_PAGE_TITLE}</h1>
-          <p className="page-subtitle">
-            One command center for program health, assignments, capacity,
-            approvals, G&amp;R, committees, and analytics.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/admin/mentorship?tab=assignments" className="button secondary small">
-            Open Assignments →
-          </Link>
-        </div>
-      </div>
+      <ActionSummaryHeader
+        badge="Admin · Instructor Mentorship"
+        title={ADMIN_MENTORSHIP_PAGE_TITLE}
+        purpose="One command center for program health, assignments, capacity, approvals, G&R, committees, and analytics."
+        status={
+          unassignedCount > 0
+            ? { label: `${unassignedCount} mentee(s) awaiting a mentor`, tone: "pending" }
+            : { label: "Every active mentee has a mentor", tone: "success" }
+        }
+        nextAction={{
+          label: "Review what needs attention →",
+          href: "/admin/mentorship?tab=needs-attention",
+        }}
+        secondaryAction={{
+          label: "Open Assignments →",
+          href: "/admin/mentorship?tab=assignments",
+        }}
+      />
 
       {/* Tab bar */}
       <div

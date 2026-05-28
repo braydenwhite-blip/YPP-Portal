@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { getGRAssignedDocuments, getGRGoalChangeQueue } from "@/lib/gr-actions";
+import { ActionSummaryHeader } from "@/components/mentorship/action-summary-header";
 import { GRAdminSubnav } from "./_components/gr-admin-subnav";
 
 export const metadata = { title: "Goals & Resources — Admin Mentorship" };
@@ -24,21 +25,22 @@ export default async function AdminGROverviewPage() {
   const docsWithNoGoals = documents.filter((d) => d._count.goals === 0);
   const pendingChangeDocIds = new Set(goalChanges.map((gc) => gc.documentId));
 
+  const headerStatus =
+    goalChanges.length > 0
+      ? { label: `${goalChanges.length} goal change(s) awaiting review`, tone: "warning" as const }
+      : draftDocs.length > 0
+      ? { label: `${draftDocs.length} draft(s) not yet activated`, tone: "pending" as const }
+      : { label: "All documents healthy", tone: "success" as const };
+
   return (
     <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Admin · Goals & Resources</p>
-          <h1 className="page-title">Goals &amp; Resources</h1>
-          <p className="page-subtitle">
-            Every active G&amp;R document in one place — who owns it, which mentor
-            is connected, what&apos;s active, and what needs admin action.
-          </p>
-        </div>
-        <Link href="/admin/mentorship/gr/assignments" className="button secondary small">
-          Assign a document →
-        </Link>
-      </div>
+      <ActionSummaryHeader
+        badge="Admin · Goals & Resources"
+        title="Goals & Resources"
+        purpose="Manage mentorship goals and resources — who owns each document, which mentor is connected, and what needs admin action."
+        status={headerStatus}
+        nextAction={{ label: "Assign a document →", href: "/admin/mentorship/gr/assignments" }}
+      />
 
       <GRAdminSubnav />
 
