@@ -70,6 +70,7 @@ export default function InterviewSchedulingInlinePanel({
     { id: 3, scheduledAt: "", durationMinutes: "60" },
   ]);
   const [directAt, setDirectAt] = useState("");
+  const [directNotes, setDirectNotes] = useState("");
   const [directPending, startDirectTransition] = useTransition();
   const [directResult, setDirectResult] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -93,6 +94,10 @@ export default function InterviewSchedulingInlinePanel({
       formData.set("applicationId", applicationId);
       formData.set("action", "schedule_interview");
       formData.set("scheduledAt", scheduledAt.toISOString());
+      const notes = directNotes.trim();
+      if (notes) {
+        formData.set("notes", notes);
+      }
       const response = await reviewInstructorApplication(
         { status: "idle", message: "" },
         formData
@@ -101,6 +106,7 @@ export default function InterviewSchedulingInlinePanel({
         setDirectResult({ text: response.message || "Failed to set interview time.", ok: false });
         return;
       }
+      setDirectNotes("");
       setDirectResult({
         text: "Interview scheduled. Open the interview workspace when you're ready to run it.",
         ok: true,
@@ -210,6 +216,17 @@ export default function InterviewSchedulingInlinePanel({
                 className="input"
                 value={directAt}
                 onChange={(event) => setDirectAt(event.target.value)}
+                style={{ minWidth: 220 }}
+              />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 500 }}>Notes (optional)</span>
+              <input
+                type="text"
+                className="input"
+                value={directNotes}
+                onChange={(event) => setDirectNotes(event.target.value)}
+                placeholder="Meeting link, room, or any notes"
                 style={{ minWidth: 220 }}
               />
             </label>
