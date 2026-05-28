@@ -35,6 +35,7 @@ import {
 } from "@/lib/gr-actions";
 import { getMentorEffectivenessScores } from "@/lib/mentor-effectiveness";
 import { getProgramAnalytics } from "@/lib/mentorship-overview-actions";
+import { RatingLegend } from "@/components/mentorship/rating-legend";
 import {
   getAdminMentorshipActionQueue,
   getInstructorMentorshipOpsSummary,
@@ -526,6 +527,14 @@ export default async function AdminMentorshipPage({
                 })}
               </div>
             )}
+            <details style={{ marginTop: 12 }}>
+              <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--color-primary)", fontWeight: 600 }}>
+                What the colors mean &amp; what action each calls for
+              </summary>
+              <div style={{ marginTop: 10 }}>
+                <RatingLegend audience="admin" />
+              </div>
+            </details>
           </div>
 
           {pulseData.overCapacityMentors.length > 0 && (

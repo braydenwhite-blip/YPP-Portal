@@ -2609,6 +2609,60 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/my-mentor/goals",
+    title: "My Goals & Resources",
+    content: {
+      purpose: "This page shows the goals you and your mentor set together, plus the resources picked to help you reach them.",
+      firstStep: "Read your current priorities first, then check any status colors — they show where to focus next, not a grade.",
+      nextStep: "Work on a goal or open a recommended resource; new feedback appears here after each monthly review is shared with you."
+    }
+  },
+  {
+    pattern: "/my-mentor/resources",
+    title: "My Resources",
+    content: {
+      purpose: "This page collects the materials your mentor recommends for where you are right now.",
+      firstStep: "Open the resource that matches what you're working on this week.",
+      nextStep: "If you need something specific that isn't here, ask for it on the Get Help page and your mentor can add it."
+    }
+  },
+  {
+    pattern: "/my-mentor/progress",
+    title: "My Progress",
+    content: {
+      purpose: "This page shows how your goals are trending over time and the encouragement your mentor has shared with you.",
+      firstStep: "Look at your goal trajectory to see how each goal has moved across recent reviews.",
+      nextStep: "Read the released feedback and your next steps, then bring any questions to your mentor or the Get Help page."
+    }
+  },
+  {
+    pattern: "/my-mentor/reflection",
+    title: "Monthly Reflection",
+    content: {
+      purpose: "This page walks you through your monthly self-reflection so your mentor can support you well before your review.",
+      firstStep: "Answer each goal prompt honestly — note what went well and what was hard.",
+      nextStep: "After you submit, your mentor reads it and completes your monthly review, which is then shared back with you."
+    }
+  },
+  {
+    pattern: "/my-mentor/schedule",
+    title: "Schedule",
+    content: {
+      purpose: "This page helps you book and track check-in meetings with your mentor.",
+      firstStep: "Pick an available slot or request a time that works for you.",
+      nextStep: "Once your mentor confirms, the meeting shows here with its status so you always know what's coming up."
+    }
+  },
+  {
+    pattern: "/my-mentor/help",
+    title: "Get Help",
+    content: {
+      purpose: "This page is where you reach out when you're stuck — asking early is a sign of a strong instructor.",
+      firstStep: "Use a quick link to schedule time or review goals, or send your mentor a private question.",
+      nextStep: "Your mentor (and admins, if it needs escalation) will follow up — it's never shown to other instructors or students."
+    }
+  },
+  {
     pattern: "/my-program",
     title: "My Program",
     content: {

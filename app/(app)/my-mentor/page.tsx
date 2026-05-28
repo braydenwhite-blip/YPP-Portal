@@ -5,6 +5,7 @@ import { getLeadershipContext } from "@/lib/leadership-context";
 import { MentorCard } from "@/components/leadership-pathway/mentor-card";
 import { LEADERSHIP_STAGES } from "@/lib/leadership-pathway";
 import { MenteeDashboard } from "@/app/(app)/mentorship/_components/mentee-dashboard";
+import { MyMentorSubnav } from "./_components/my-mentor-subnav";
 
 export const metadata = {
   title: "My Mentor — YPP",
@@ -54,6 +55,8 @@ export default async function MyMentorPage() {
           )}
         </div>
       </div>
+
+      <MyMentorSubnav />
 
       <div style={{ display: "grid", gap: 24 }}>
         {mentorsOthers && (

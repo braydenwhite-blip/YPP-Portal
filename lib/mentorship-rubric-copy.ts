@@ -100,3 +100,53 @@ export function ratingRequiresAdminAttention(
 ): boolean {
   return rating === "BEHIND_SCHEDULE";
 }
+
+/**
+ * Canonical display order for the rubric: strongest → needs-most-support.
+ * Purple (exceptional) → Green (on track) → Yellow (needs support) → Red (serious concern).
+ * Use this everywhere a legend or distribution is rendered so every surface is consistent.
+ */
+export const RATING_ORDER: GoalRatingColor[] = [
+  "ABOVE_AND_BEYOND",
+  "ACHIEVED",
+  "GETTING_STARTED",
+  "BEHIND_SCHEDULE",
+];
+
+export type RatingAudience = "mentee" | "mentor" | "admin";
+
+/**
+ * Returns the right label + description for a given audience, so mentee-facing
+ * surfaces stay supportive while mentor/admin surfaces stay operationally clear.
+ */
+export function getRatingCopyForAudience(
+  rating: GoalRatingColor | string | null | undefined,
+  audience: RatingAudience
+): { label: string; description: string; color: string; background: string; adminAttention: boolean } {
+  const cfg = getGoalRatingCopy(rating);
+  if (audience === "mentee") {
+    return {
+      label: cfg.menteeLabel,
+      description: cfg.menteeDescription,
+      color: cfg.color,
+      background: cfg.background,
+      adminAttention: cfg.adminAttention,
+    };
+  }
+  if (audience === "admin") {
+    return {
+      label: cfg.label,
+      description: cfg.adminDescription,
+      color: cfg.color,
+      background: cfg.background,
+      adminAttention: cfg.adminAttention,
+    };
+  }
+  return {
+    label: cfg.label,
+    description: cfg.mentorDescription,
+    color: cfg.color,
+    background: cfg.background,
+    adminAttention: cfg.adminAttention,
+  };
+}
