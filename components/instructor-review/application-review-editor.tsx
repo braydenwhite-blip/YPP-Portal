@@ -262,7 +262,7 @@ export default function ApplicationReviewEditor({
 
         {moveToInterviewNeedsLead ? (
           <div className="review-editor-warning">
-            Assign a lead interviewer before submitting Move to Interview. The lead will send 3 or more proposed times to the applicant.
+            Assign a lead interviewer before submitting Move to Interview. The lead will send exactly 3 proposed times to the applicant.
           </div>
         ) : null}
 

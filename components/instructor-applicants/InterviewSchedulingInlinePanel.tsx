@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { offerInterviewSlots } from "@/lib/instructor-application-actions";
+import { cleanMeetingDetails, isHttpUrl } from "@/lib/meeting-details";
 
 interface OfferedSlot {
   id: string;
@@ -60,7 +61,6 @@ export default function InterviewSchedulingInlinePanel({
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{ text: string; ok: boolean } | null>(null);
   const [meetingUrl, setMeetingUrl] = useState("");
-  const [nextDraftId, setNextDraftId] = useState(4);
   const [slotDrafts, setSlotDrafts] = useState<SlotDraft[]>([
     { id: 1, scheduledAt: "", durationMinutes: "60" },
     { id: 2, scheduledAt: "", durationMinutes: "60" },
@@ -73,27 +73,19 @@ export default function InterviewSchedulingInlinePanel({
     );
   }
 
-  function addSlotDraft() {
-    if (slotDrafts.length >= 5) return;
-    setSlotDrafts((current) => [
-      ...current,
-      { id: nextDraftId, scheduledAt: "", durationMinutes: "60" },
-    ]);
-    setNextDraftId((current) => current + 1);
-  }
-
-  function removeSlotDraft(id: number) {
-    if (slotDrafts.length <= 3) return;
-    setSlotDrafts((current) => current.filter((slot) => slot.id !== id));
-  }
-
   function handleSendTimes(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const parsedSlots = slotDrafts.map((slot) => ({
       scheduledAt: new Date(slot.scheduledAt),
       durationMinutes: Number(slot.durationMinutes || 60),
-      meetingUrl: meetingUrl.trim(),
+      meetingUrl: cleanMeetingDetails(meetingUrl),
     }));
+    const meetingDetails = cleanMeetingDetails(meetingUrl);
+
+    if (!meetingDetails) {
+      setResult({ text: "Add meeting details before emailing interview times.", ok: false });
+      return;
+    }
 
     if (parsedSlots.some((slot) => Number.isNaN(slot.scheduledAt.getTime()))) {
       setResult({ text: "Fill in a valid date and time for all 3 required rows.", ok: false });
@@ -112,16 +104,6 @@ export default function InterviewSchedulingInlinePanel({
       return;
     }
 
-    try {
-      const url = new URL(meetingUrl.trim());
-      if (url.protocol !== "https:" && url.protocol !== "http:") {
-        throw new Error("Meeting link must start with http:// or https://.");
-      }
-    } catch {
-      setResult({ text: "Add a valid Zoom, Google Meet, or other meeting link.", ok: false });
-      return;
-    }
-
     startTransition(async () => {
       try {
         const response = await offerInterviewSlots(applicationId, parsedSlots);
@@ -135,7 +117,6 @@ export default function InterviewSchedulingInlinePanel({
           { id: 3, scheduledAt: "", durationMinutes: "60" },
         ]);
         setMeetingUrl("");
-        setNextDraftId(4);
       } catch (err) {
         setResult({ text: err instanceof Error ? err.message : "Failed to send times.", ok: false });
       }
@@ -150,7 +131,7 @@ export default function InterviewSchedulingInlinePanel({
     <section id="section-scheduling" className="cockpit-panel cockpit-scheduling-panel">
       <div className="cockpit-panel-header-row">
         <div className="cockpit-section-heading">
-          <span className="cockpit-section-kicker">Lead interviewer proposed times</span>
+          <span className="cockpit-section-kicker">Automatic applicant email</span>
           <h2>Interview Scheduling</h2>
         </div>
         <a
@@ -161,8 +142,9 @@ export default function InterviewSchedulingInlinePanel({
         </a>
       </div>
       <p className="cockpit-scheduler-bridge">
-        <strong>Manual offer.</strong> The lead interviewer chooses 3 to 5 future
-        options, sends them to the applicant, and the applicant picks one.
+        <strong>Automatic email offer.</strong> The assigned lead interviewer chooses
+        exactly 3 future options, the portal emails them to the applicant, and the
+        applicant picks the one that works.
       </p>
 
       {children}
@@ -182,9 +164,13 @@ export default function InterviewSchedulingInlinePanel({
               {slot.meetingUrl ? (
                 <>
                   {" | "}
-                  <a href={slot.meetingUrl} target="_blank" rel="noreferrer" className="cockpit-text-link">
-                    Join link
-                  </a>
+                  {isHttpUrl(slot.meetingUrl) ? (
+                    <a href={slot.meetingUrl} target="_blank" rel="noreferrer" className="cockpit-text-link">
+                      Join link
+                    </a>
+                  ) : (
+                    <span>Meeting details: {slot.meetingUrl}</span>
+                  )}
                 </>
               ) : null}
             </div>
@@ -236,19 +222,19 @@ export default function InterviewSchedulingInlinePanel({
         </p>
       )}
 
-      {/* Lead sends a set of proposed times */}
+      {/* Lead sends exactly three proposed times. */}
       {canPostSlots && (
         <form onSubmit={handleSendTimes} className="cockpit-slot-form">
-          <p>Send proposed interview times</p>
+          <p>Email 3 proposed interview times</p>
           <label className="cockpit-slot-meeting-link">
-            <span>Meeting link</span>
+            <span>Meeting details</span>
             <input
-              type="url"
+              type="text"
               className="input"
               required
               value={meetingUrl}
               onChange={(event) => setMeetingUrl(event.target.value)}
-              placeholder="https://meet.google.com/..."
+              placeholder="Zoom link, Google Meet link, room number, phone call, or TBD"
             />
           </label>
           <div className="cockpit-slot-draft-list">
@@ -281,28 +267,12 @@ export default function InterviewSchedulingInlinePanel({
                     <option value="90">90 min</option>
                   </select>
                 </label>
-                <button
-                  type="button"
-                  className="button outline cockpit-inline-button"
-                  disabled={slotDrafts.length <= 3 || pending}
-                  onClick={() => removeSlotDraft(slot.id)}
-                >
-                  Remove
-                </button>
               </div>
             ))}
           </div>
           <div className="cockpit-slot-form-actions">
-            <button
-              type="button"
-              className="button outline cockpit-inline-button"
-              disabled={slotDrafts.length >= 5 || pending}
-              onClick={addSlotDraft}
-            >
-              Add time
-            </button>
             <button type="submit" className="button cockpit-inline-button" disabled={pending}>
-              {pending ? "Sending..." : "Send times"}
+              {pending ? "Emailing..." : "Email times"}
             </button>
           </div>
           {result && (

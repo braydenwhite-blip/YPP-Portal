@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { runInterviewSchedulingAutomation } from "@/lib/interview-scheduling-actions";
 import { processMentorshipSchedulingReminders } from "@/lib/mentorship-scheduling-actions";
 import { processCollegeAdvisorSchedulingReminders } from "@/lib/college-advisor-scheduling";
+import { processInstructorInterviewReminders } from "@/lib/instructor-interview-reminders";
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -15,16 +16,18 @@ export async function POST(request: NextRequest) {
   const now = new Date();
 
   try {
-    const [, mentorship, collegeAdvisor] = await Promise.all([
+    const [, mentorship, collegeAdvisor, instructorInterviews] = await Promise.all([
       runInterviewSchedulingAutomation(),
       processMentorshipSchedulingReminders(),
       processCollegeAdvisorSchedulingReminders(),
+      processInstructorInterviewReminders(now),
     ]);
 
     return NextResponse.json({
       success: true,
       timestamp: now.toISOString(),
       interview: { processed: true },
+      instructorInterviews,
       mentorship,
       collegeAdvisor,
     });
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   const now = new Date();
   const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const [pendingInterview24, pendingMentorship24, pendingAdvisor24] =
+  const [pendingInterview24, pendingInstructorInterview24, pendingInstructorChoices, pendingMentorship24, pendingAdvisor24] =
     await Promise.all([
       prisma.interviewSchedulingRequest.count({
         where: {
@@ -50,6 +53,26 @@ export async function GET() {
             gt: now,
             lte: in24Hours,
           },
+        },
+      }),
+      prisma.offeredInterviewSlot.count({
+        where: {
+          confirmedAt: { not: null },
+          reminder24SentAt: null,
+          scheduledAt: {
+            gt: now,
+            lte: in24Hours,
+          },
+        },
+      }),
+      prisma.offeredInterviewSlot.count({
+        where: {
+          confirmedAt: null,
+          choiceReminderSentAt: null,
+          createdAt: {
+            lte: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+          },
+          scheduledAt: { gt: now },
         },
       }),
       prisma.mentorshipSession.count({
@@ -80,6 +103,8 @@ export async function GET() {
     status: "ok",
     pending: {
       interview24: pendingInterview24,
+      instructorInterview24: pendingInstructorInterview24,
+      instructorInterviewChoices: pendingInstructorChoices,
       mentorship24: pendingMentorship24,
       advisor24: pendingAdvisor24,
     },

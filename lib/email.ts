@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
+import { isHttpUrl } from "@/lib/meeting-details";
 
 // Initialize Resend client (lazy - only when API key is set)
 let resendClient: Resend | null = null;
@@ -561,6 +562,24 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function renderMeetingDetailsBlock(meetingDetails: string | null | undefined): string {
+  const details = meetingDetails?.trim();
+  if (!details) return "";
+
+  if (isHttpUrl(details)) {
+    return `
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${escapeHtml(details)}" style="background: #16a34a; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Join Interview</a>
+    </div>`;
+  }
+
+  return `
+    <div style="background: #f5f5f4; border-radius: 8px; padding: 14px 16px; margin: 20px 0;">
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Meeting details</p>
+      <p style="margin: 0; color: #1c1917; font-size: 15px; font-weight: 600;">${escapeHtml(details)}</p>
+    </div>`;
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<style[^>]*>.*?<\/style>/gi, "")
@@ -785,10 +804,8 @@ export async function sendInterviewScheduledEmail({
   });
   const meetingBlock = meetingUrl
     ? `
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(meetingUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Join Interview</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">You can also join from your application status page.</p>`
+    ${renderMeetingDetailsBlock(meetingUrl)}
+    <p style="color: #78716c; font-size: 13px;">You can also find the meeting details on your application status page.</p>`
     : `
     <div style="text-align: center; margin: 28px 0;">
       <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
@@ -845,7 +862,7 @@ export async function sendPickYourTimeEmail({
       ${slotRows}
     </ul>
     <p>Log in to the portal and pick the time that works best for you.</p>
-    <p>After you choose a time, your confirmation email and status page will include the meeting link.</p>
+    <p>After you choose a time, your confirmation email and status page will include the meeting details.</p>
     <div style="text-align: center; margin: 28px 0;">
       <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Choose Your Time</a>
     </div>
@@ -871,7 +888,7 @@ export async function sendInterviewTimesDeclinedEmail({
     <h2 style="margin: 0 0 16px; color: #1c1917;">New times needed</h2>
     <p>Hi ${escapeHtml(firstName)},</p>
     <p>${escapeHtml(applicantName)} marked that none of the proposed interview times work.</p>
-    <p>The previous unconfirmed times were cleared. Please send a new set of 3 to 5 future options.</p>
+    <p>The previous unconfirmed times were cleared. Please send a new set of exactly 3 future options.</p>
     <div style="text-align: center; margin: 28px 0;">
       <a href="${escapeHtml(workspaceUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Send New Times</a>
     </div>
@@ -930,11 +947,7 @@ export async function sendInterviewConfirmedEmail({
       <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1c1917;">${escapeHtml(formattedDate)}</p>
       <p style="margin: 8px 0 0; font-size: 13px; color: #78716c;">Duration: ${durationMinutes} minutes</p>
     </div>
-    ${meetingUrl ? `
-    <div style="text-align: center; margin: 24px 0;">
-      <a href="${escapeHtml(meetingUrl)}" style="background: #16a34a; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Join Interview</a>
-    </div>
-    ` : ""}
+    ${renderMeetingDetailsBlock(meetingUrl)}
     <div style="text-align: center; margin: 28px 0;">
       <a href="${detailUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Details</a>
     </div>
@@ -952,6 +965,100 @@ export async function sendInterviewConfirmedEmail({
       },
     ],
   });
+}
+
+export async function sendInterviewChoiceReminderEmail({
+  to,
+  applicantName,
+  slots,
+  statusUrl,
+}: {
+  to: string;
+  applicantName: string;
+  slots: { scheduledAt: Date; durationMinutes: number }[];
+  statusUrl: string;
+}): Promise<EmailResult> {
+  const firstName = applicantName.split(" ")[0] || applicantName;
+  const subject = "Reminder: Pick a Time for Your YPP Interview";
+  const slotRows = slots
+    .map((slot) => {
+      const formatted = slot.scheduledAt.toLocaleString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+      });
+      return `<li style="margin-bottom: 6px;">${escapeHtml(formatted)} (${slot.durationMinutes} min)</li>`;
+    })
+    .join("");
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Choose your interview time, ${escapeHtml(firstName)}</h2>
+    <p>Your lead interviewer sent 3 possible interview times. Please pick the one that works best for you.</p>
+    <ul style="color: #57534e; font-size: 14px; line-height: 1.8; padding-left: 20px;">
+      ${slotRows}
+    </ul>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Pick Your Time</a>
+    </div>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+export async function sendInstructorInterviewReminderEmail({
+  to,
+  recipientName,
+  applicantName,
+  scheduledAt,
+  durationMinutes,
+  meetingDetails,
+  detailUrl,
+  role,
+  windowLabel,
+}: {
+  to: string;
+  recipientName: string | null;
+  applicantName: string;
+  scheduledAt: Date;
+  durationMinutes: number;
+  meetingDetails?: string | null;
+  detailUrl: string;
+  role: "applicant" | "interviewer";
+  windowLabel: "24-hour" | "2-hour";
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const subject =
+    windowLabel === "24-hour"
+      ? "Reminder: Your YPP Interview Is Tomorrow"
+      : "Reminder: Your YPP Interview Starts Soon";
+  const formattedDate = scheduledAt.toLocaleString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+  const body =
+    role === "applicant"
+      ? `Hi ${escapeHtml(firstName)}, this is your ${windowLabel} reminder for your YPP interview.`
+      : `Hi ${escapeHtml(firstName)}, this is your ${windowLabel} reminder that ${escapeHtml(applicantName)} has a YPP interview with you.`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Interview reminder</h2>
+    <p>${body}</p>
+    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+      <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1c1917;">${escapeHtml(formattedDate)}</p>
+      <p style="margin: 8px 0 0; font-size: 13px; color: #78716c;">Duration: ${durationMinutes} minutes</p>
+    </div>
+    ${renderMeetingDetailsBlock(meetingDetails)}
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${detailUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Details</a>
+    </div>
+  `);
+  return sendEmail({ to, subject, html });
 }
 
 // ============================================
@@ -993,7 +1100,10 @@ export function generateIcsContent(params: IcsParams): string {
     `SUMMARY:${icsEscape(title)}`,
     `DESCRIPTION:${icsEscape(description)}`,
   ];
-  if (meetingLink) lines.push(`URL:${meetingLink}`, `LOCATION:${icsEscape(meetingLink)}`);
+  if (meetingLink) {
+    if (isHttpUrl(meetingLink)) lines.push(`URL:${meetingLink}`);
+    lines.push(`LOCATION:${icsEscape(meetingLink)}`);
+  }
   if (organizerEmail) lines.push(`ORGANIZER:MAILTO:${organizerEmail}`);
   if (attendeeEmail) lines.push(`ATTENDEE;RSVP=TRUE:MAILTO:${attendeeEmail}`);
   lines.push("END:VEVENT", "END:VCALENDAR");
@@ -1066,7 +1176,7 @@ export async function sendAvailabilityRequestEmail({
 
   const bodyText = isCp
     ? `YPP chapters are built by people exactly like you — driven, visionary, ready to lead. We've reviewed your application and we want to meet you. The next step is to let us know when you're available so we can lock in a time that works for everyone.`
-    : `This isn't a test — it's a conversation. We want to hear how you think about teaching and get to know you better. Your lead interviewer will send a few proposed times for you to choose from.`;
+    : `This isn't a test — it's a conversation. We want to hear how you think about teaching and get to know you better. Your lead interviewer will send exactly 3 proposed times for you to choose from.`;
 
   const ctaLabel = isCp ? "Submit My Availability" : "View My Application Status";
   const nextStepText = isCp

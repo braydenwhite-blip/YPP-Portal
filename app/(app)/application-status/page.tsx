@@ -14,6 +14,7 @@ import ApplicantEditForm from "./edit-form";
 import Link from "next/link";
 import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
+import { isHttpUrl } from "@/lib/meeting-details";
 import type { WorkshopOutline } from "@/lib/summer-workshop";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
@@ -286,7 +287,7 @@ export default async function ApplicationStatusPage() {
                 {instructorApp.interviewScheduledAt ? (
                   <>
                     <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                      Your interview has been confirmed. Your calendar invite includes the same meeting link shown here. If you need to reschedule, reach out to your lead interviewer.
+                      Your interview has been confirmed. Your calendar invite includes the same meeting details shown here. If you need to reschedule, reach out to your lead interviewer.
                     </p>
                     <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
                       <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
@@ -295,7 +296,7 @@ export default async function ApplicationStatusPage() {
                           hour: "numeric", minute: "2-digit",
                         })}
                       </p>
-                      {confirmedInstructorSlot?.meetingUrl && (
+                      {confirmedInstructorSlot?.meetingUrl && isHttpUrl(confirmedInstructorSlot.meetingUrl) && (
                         <a
                           href={confirmedInstructorSlot.meetingUrl}
                           target="_blank"
@@ -305,6 +306,11 @@ export default async function ApplicationStatusPage() {
                         >
                           Join Interview
                         </a>
+                      )}
+                      {confirmedInstructorSlot?.meetingUrl && !isHttpUrl(confirmedInstructorSlot.meetingUrl) && (
+                        <p style={{ fontSize: 14, color: "var(--muted)", margin: "10px 0 0" }}>
+                          Meeting details: {confirmedInstructorSlot.meetingUrl}
+                        </p>
                       )}
                     </div>
                   </>
@@ -317,7 +323,7 @@ export default async function ApplicationStatusPage() {
                   </>
                 ) : (
                   <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                    Your lead interviewer will propose a few available times shortly. Check back here to pick the time that works best for you.
+                    Your lead interviewer will propose exactly 3 available times shortly. Check back here to pick the time that works best for you.
                   </p>
                 )}
               </>
