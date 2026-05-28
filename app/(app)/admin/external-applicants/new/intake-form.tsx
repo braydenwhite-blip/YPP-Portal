@@ -181,29 +181,59 @@ export default function ExternalApplicantIntakeForm({
         </div>
 
         {!isCP && (
-          <div className="grid two" style={{ gap: 16 }}>
-            <label className="form-row">
-              Application track
-              <select
-                className="input"
-                name="applicationTrack"
-                defaultValue="STANDARD_INSTRUCTOR"
-              >
-                <option value="STANDARD_INSTRUCTOR">Standard Instructor</option>
-                <option value="SUMMER_WORKSHOP_INSTRUCTOR">
-                  Summer Workshop Instructor
-                </option>
-              </select>
-            </label>
-            <label className="form-row">
-              External submitted date (optional)
-              <input
-                className="input"
-                type="datetime-local"
-                name="externalSubmittedAt"
-              />
-            </label>
-          </div>
+          <>
+            <div className="grid two" style={{ gap: 16 }}>
+              <label className="form-row">
+                Application track
+                <select
+                  className="input"
+                  name="applicationTrack"
+                  defaultValue="STANDARD_INSTRUCTOR"
+                >
+                  <option value="STANDARD_INSTRUCTOR">Standard Instructor</option>
+                  <option value="SUMMER_WORKSHOP_INSTRUCTOR">
+                    Summer Workshop Instructor
+                  </option>
+                </select>
+              </label>
+              <label className="form-row">
+                External submitted date (optional)
+                <input
+                  className="input"
+                  type="datetime-local"
+                  name="externalSubmittedAt"
+                />
+              </label>
+            </div>
+
+            <div className="grid two" style={{ gap: 16 }}>
+              <label className="form-row">
+                Interview date &amp; time (optional)
+                <input
+                  className="input"
+                  type="datetime-local"
+                  name="interviewScheduledAt"
+                />
+                <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                  When set, the application is created with the interview already
+                  scheduled.
+                </span>
+              </label>
+              <label className="form-row">
+                Interview meeting link (optional)
+                <input
+                  className="input"
+                  type="text"
+                  name="interviewMeetingUrl"
+                  placeholder="zoom.us/j/... (https:// added automatically)"
+                />
+                <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                  Shown to the applicant on their interview page. Requires an
+                  interview time.
+                </span>
+              </label>
+            </div>
+          </>
         )}
 
         {isCP && (
@@ -236,9 +266,9 @@ export default function ExternalApplicantIntakeForm({
             Interview meeting link (optional)
             <input
               className="input"
-              type="url"
+              type="text"
               name="interviewMeetingUrl"
-              placeholder="https://zoom.us/j/..."
+              placeholder="zoom.us/j/... (https:// added automatically)"
             />
           </label>
         )}

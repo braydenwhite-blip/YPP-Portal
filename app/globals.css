@@ -9150,6 +9150,33 @@ a.dash-row:hover {
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
 }
 
+/* Live runner — always-on scratch pad + follow-up notes pinned near the top */
+.live-notepad {
+  border: 1px solid var(--cockpit-line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 60%);
+  padding: 14px 18px 18px;
+  box-shadow: 0 8px 22px rgba(59, 15, 110, 0.06);
+}
+.live-notepad-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.live-notepad-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 880px) {
+  .live-notepad-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Live runner — color legend matching the printed YPP interview guide */
 .live-legend {
   display: flex;
