@@ -784,13 +784,6 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
     },
   });
 
-  if (
-    existingReview?.status === StructuredReviewStatus.SUBMITTED &&
-    !isAdmin(actor)
-  ) {
-    throw new Error("Submitted application reviews are locked. Ask an admin to reopen it if changes are needed.");
-  }
-
   const currentRound = application.interviewRound ?? 1;
   const hasLeadInterviewer = application.interviewerAssignments.some(
     (assignment) =>

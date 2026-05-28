@@ -544,7 +544,7 @@ export default async function ApplicantCockpitPage({
                     courseOutline: application.courseOutline,
                     firstClassPlan: application.firstClassPlan,
                   }}
-                  canEdit={!isReadOnlyReview && reviewWorkspace.myReview?.status !== "SUBMITTED"}
+                  canEdit={!isReadOnlyReview}
                   isLeadReviewer={reviewWorkspace.isLeadReviewer}
                   hasLeadInterviewer={hasLeadInterviewer}
                 />
