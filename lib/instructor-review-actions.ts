@@ -483,10 +483,30 @@ async function syncInterviewQuestionResponses(
   );
   const keptIds = new Set<string>();
 
+  const candidateBankIds = Array.from(
+    new Set(
+      questionResponses
+        .map((question) => question.questionBankId)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+  const validBankIds = new Set<string>();
+  if (candidateBankIds.length > 0) {
+    const banks = await tx.instructorInterviewQuestionBank.findMany({
+      where: { id: { in: candidateBankIds } },
+      select: { id: true },
+    });
+    for (const bank of banks) validBankIds.add(bank.id);
+  }
+
   for (const [index, question] of questionResponses.entries()) {
+    const safeQuestionBankId =
+      question.questionBankId && validBankIds.has(question.questionBankId)
+        ? question.questionBankId
+        : null;
     const matched =
       (question.id ? existingById.get(question.id) : null) ??
-      (question.questionBankId ? existingByQuestionBankId.get(question.questionBankId) : null);
+      (safeQuestionBankId ? existingByQuestionBankId.get(safeQuestionBankId) : null);
     const normalizedStatus = question.status ?? "UNTOUCHED";
     const askedAt =
       normalizedStatus === "ASKED"
@@ -497,7 +517,7 @@ async function syncInterviewQuestionResponses(
         ? question.skippedAt ?? new Date()
         : null;
     const data = {
-      questionBankId: question.questionBankId ?? null,
+      questionBankId: safeQuestionBankId,
       source: question.source === "CUSTOM" ? ("CUSTOM" as const) : ("DEFAULT" as const),
       status: normalizedStatus,
       prompt: question.prompt,
@@ -784,24 +804,12 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
     },
   });
 
-  if (
-    existingReview?.status === StructuredReviewStatus.SUBMITTED &&
-    !isAdmin(actor)
-  ) {
-    throw new Error("Submitted application reviews are locked. Ask an admin to reopen it if changes are needed.");
-  }
-
   const currentRound = application.interviewRound ?? 1;
   const hasLeadInterviewer = application.interviewerAssignments.some(
     (assignment) =>
       assignment.role === "LEAD" &&
       (assignment.round == null || assignment.round === currentRound)
   );
-  const roughPlanMissing =
-    !application.courseIdea?.trim() ||
-    !application.courseOutline?.trim() ||
-    !application.firstClassPlan?.trim();
-
   const submissionWarnings: string[] = [];
   if (intent === "submit") {
     submissionWarnings.push(
@@ -812,9 +820,6 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
     }
     if (isLeadReviewer && !nextStep) {
       submissionWarnings.push("No application next step was chosen — the decision will remain open.");
-    }
-    if (isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && roughPlanMissing) {
-      submissionWarnings.push("Rough class idea, outline, or first-session sketch is incomplete. The applicant may need to provide more information.");
     }
     if (isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && !hasLeadInterviewer) {
       submissionWarnings.push("No lead interviewer is assigned for this interview round yet.");

@@ -109,6 +109,25 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
     return typeof fromLocal === "string" && fromLocal !== "" ? fromLocal : undefined;
   };
 
+  const AVAILABILITY_OPTIONS = [
+    "Weekday mornings",
+    "Weekday afternoons",
+    "After school",
+    "Weekday evenings",
+    "Saturday mornings",
+    "Saturday afternoons",
+    "Sunday mornings",
+    "Sunday afternoons",
+    "School holidays",
+    "Summer",
+    "Flexible",
+  ] as const;
+
+  const [availabilitySlots, setAvailabilitySlots] = useState<string[]>(() => {
+    const raw = get("availability");
+    return raw ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  });
+
   const [hearAbout, setHearAbout] = useState(() => get("hearAboutYPPOption") ?? "");
   const [hearAboutDetail, setHearAboutDetail] = useState(() => get("hearAboutYPPDetail") ?? "");
   // Re-sync the hearAbout state when the local draft loads (after initial mount).
@@ -137,10 +156,12 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
       <div>
         <div style={SECTION_STYLE}>Personal details</div>
 
-        <label className="form-label">
-          Legal name
-          <input className="input" name="legalName" required defaultValue={get("legalName")} />
-        </label>
+        {!isSummerWorkshop && (
+          <label className="form-label">
+            Legal name
+            <input className="input" name="legalName" required defaultValue={get("legalName")} />
+          </label>
+        )}
 
         <label className="form-label">
           Preferred first name
@@ -278,16 +299,30 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
       <div>
         <div style={SECTION_STYLE}>{isSummerWorkshop ? "Workshop application" : "Teaching application"}</div>
 
-        <label className="form-label">
-          Teaching or mentoring experience
-          <textarea
-            className="input"
-            name="teachingExperience"
-            rows={isSummerWorkshop ? 3 : 4}
-            required
-            defaultValue={get("teachingExperience")}
-          />
-        </label>
+        {isSummerWorkshop ? (
+          <label className="form-label">
+            What would you teach?
+            <textarea
+              className="input"
+              name="teachingExperience"
+              rows={2}
+              required
+              placeholder="e.g. A 45-minute intro to public speaking for middle schoolers, with a short practice speech at the end."
+              defaultValue={get("teachingExperience")}
+            />
+          </label>
+        ) : (
+          <label className="form-label">
+            Teaching or mentoring experience
+            <textarea
+              className="input"
+              name="teachingExperience"
+              rows={4}
+              required
+              defaultValue={get("teachingExperience")}
+            />
+          </label>
+        )}
 
         {!isSummerWorkshop && (
           <>
@@ -326,129 +361,22 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
         )}
 
         {isSummerWorkshop && (
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 10,
-              border: "1px solid var(--border)",
-              background: "var(--background)",
-              marginTop: 12,
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
-              Workshop Outline
-            </div>
-            <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
-              Sketch one focused workshop you&apos;d be ready to lead at camp.
-              Give reviewers a clear goal, a strong opening hook, an activity
-              flow, and any space, supply, or safety needs they should plan
-              around.
-            </p>
-
-            <label className="form-label">
-              Workshop title
-              <input
-                className="input"
-                name="workshopTitle"
-                required
-                defaultValue={get("workshopTitle")}
-              />
-            </label>
-
-            <div className="grid two">
-              <label className="form-label">
-                Age range
-                <input
-                  className="input"
-                  name="workshopAgeRange"
-                  required
-                  defaultValue={get("workshopAgeRange")}
-                />
-              </label>
-              <label className="form-label">
-                Duration (minutes)
-                <input
-                  className="input"
-                  name="workshopDurationMinutes"
-                  type="number"
-                  min={15}
-                  max={240}
-                  required
-                  defaultValue={get("workshopDurationMinutes")}
-                />
-              </label>
-            </div>
-
-            <label className="form-label">
-              Learning goals
-              <textarea
-                className="input"
-                name="workshopLearningGoals"
-                rows={3}
-                required
-                defaultValue={get("workshopLearningGoals")}
-              />
-              <span style={HELPER}>One per line.</span>
-            </label>
-
-            <label className="form-label">
-              Activity flow
-              <textarea
-                className="input"
-                name="workshopActivityFlow"
-                rows={4}
-                required
-                defaultValue={get("workshopActivityFlow")}
-              />
-            </label>
-
-            <label className="form-label">
-              Materials needed <span style={{ fontWeight: 400, color: "var(--muted)" }}>(optional)</span>
-              <textarea
-                className="input"
-                name="workshopMaterialsNeeded"
-                rows={2}
-                defaultValue={get("workshopMaterialsNeeded")}
-              />
-              <span style={HELPER}>
-                One per line. Include supplies, space requirements, or any
-                safety considerations.
-              </span>
-            </label>
-
-            <label className="form-label">
-              Engagement hook
-              <textarea
-                className="input"
-                name="workshopEngagementHook"
-                rows={3}
-                required
-                defaultValue={get("workshopEngagementHook")}
-              />
-            </label>
-
-            <label className="form-label">
-              Adapting on the fly
-              <textarea
-                className="input"
-                name="workshopAdaptationNotes"
-                rows={3}
-                required
-                defaultValue={get("workshopAdaptationNotes")}
-              />
-            </label>
+          <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f5f3ff", border: "1px solid #ddd6fe", fontSize: 13, color: "#5b21b6", marginTop: 12 }}>
+            You&apos;ll design your full workshop with us after you&apos;re in. No curriculum needed upfront.
           </div>
         )}
 
-        <label className="form-label">
-          {isSummerWorkshop ? "Optional motivation" : "Optional written motivation"}
-          <textarea
-            className="input"
-            name="motivation"
-            rows={3}
-            defaultValue={get("motivation")}
-          />
-        </label>
+        {!isSummerWorkshop && (
+          <label className="form-label">
+            Optional written motivation
+            <textarea
+              className="input"
+              name="motivation"
+              rows={3}
+              defaultValue={get("motivation")}
+            />
+          </label>
+        )}
       </div>
 
       <hr style={HR} />
@@ -456,49 +384,86 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
       <div>
         <div style={SECTION_STYLE}>Availability</div>
 
-        <label className="form-label">
-          Interview availability
-          <input
-            className="input"
-            name="availability"
-            required
-            defaultValue={get("availability")}
-          />
-        </label>
+        {isSummerWorkshop ? (
+          <>
+            <input type="hidden" name="availability" value={availabilitySlots.join(", ")} />
+            <div className="form-label" style={{ marginBottom: 8 }}>When are you generally free?</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+              {AVAILABILITY_OPTIONS.map((opt) => {
+                const selected = availabilitySlots.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() =>
+                      setAvailabilitySlots((prev) =>
+                        selected ? prev.filter((s) => s !== opt) : [...prev, opt]
+                      )
+                    }
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: 20,
+                      border: selected ? "2px solid #6b21c8" : "1px solid var(--border)",
+                      background: selected ? "#f5f3ff" : "var(--background)",
+                      color: selected ? "#6b21c8" : "var(--foreground)",
+                      fontSize: 13,
+                      fontWeight: selected ? 600 : 400,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <>
+            <label className="form-label">
+              Interview availability
+              <input
+                className="input"
+                name="availability"
+                required
+                defaultValue={get("availability")}
+              />
+            </label>
 
-        <div className="grid two">
-          <label className="form-label">
-            Hours per week you can commit
-            <input
-              className="input"
-              name="hoursPerWeek"
-              type="number"
-              min={1}
-              max={40}
-              required
-              defaultValue={get("hoursPerWeek")}
-            />
-          </label>
-          <label className="form-label">
-            Preferred start date <span style={{ fontWeight: 400, color: "var(--muted)" }}>(optional)</span>
-            <input
-              className="input"
-              name="preferredStartDate"
-              type="date"
-              defaultValue={get("preferredStartDate")}
-            />
-          </label>
-        </div>
+            <div className="grid two">
+              <label className="form-label">
+                Hours per week you can commit
+                <input
+                  className="input"
+                  name="hoursPerWeek"
+                  type="number"
+                  min={1}
+                  max={40}
+                  required
+                  defaultValue={get("hoursPerWeek")}
+                />
+              </label>
+              <label className="form-label">
+                Preferred start date <span style={{ fontWeight: 400, color: "var(--muted)" }}>(optional)</span>
+                <input
+                  className="input"
+                  name="preferredStartDate"
+                  type="date"
+                  defaultValue={get("preferredStartDate")}
+                />
+              </label>
+            </div>
 
-        <label className="form-label">
-          Referral emails <span style={{ fontWeight: 400, color: "var(--muted)" }}>(optional)</span>
-          <textarea
-            className="input"
-            name="referralEmails"
-            rows={3}
-            defaultValue={get("referralEmails")}
-          />
-        </label>
+            <label className="form-label">
+              Referral emails <span style={{ fontWeight: 400, color: "var(--muted)" }}>(optional)</span>
+              <textarea
+                className="input"
+                name="referralEmails"
+                rows={3}
+                defaultValue={get("referralEmails")}
+              />
+            </label>
+          </>
+        )}
       </div>
 
       {state.status === "error" && state.message && (
@@ -508,11 +473,7 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
       )}
 
       <SubmitButton
-        label={
-          isSummerWorkshop
-            ? "Submit Workshop Instructor Re-Application"
-            : "Submit Re-Application"
-        }
+        label={isSummerWorkshop ? "Send it →" : "Submit Re-Application"}
       />
     </form>
   );

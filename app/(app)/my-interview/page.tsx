@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireApplicantPage } from "@/lib/page-guards";
 import AvailabilityForm from "../application-status/availability-form";
 import SlotPickerForm from "../application-status/slot-picker-form";
+import { isHttpUrl } from "@/lib/meeting-details";
 
 export const dynamic = "force-dynamic";
 
@@ -109,7 +110,7 @@ export default async function MyInterviewPage() {
             instructorApp.interviewScheduledAt ? (
               <>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                  Your interview is confirmed. The same meeting link is on your
+                  Your interview is confirmed. The same meeting details are on your
                   calendar invite. To reschedule, reach out to your lead interviewer.
                 </p>
                 <div
@@ -123,7 +124,7 @@ export default async function MyInterviewPage() {
                   <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
                     {formatSlot(instructorApp.interviewScheduledAt)}
                   </p>
-                  {confirmedInstructorSlot?.meetingUrl && (
+                  {confirmedInstructorSlot?.meetingUrl && isHttpUrl(confirmedInstructorSlot.meetingUrl) && (
                     <a
                       href={confirmedInstructorSlot.meetingUrl}
                       target="_blank"
@@ -133,6 +134,11 @@ export default async function MyInterviewPage() {
                     >
                       Join Interview
                     </a>
+                  )}
+                  {confirmedInstructorSlot?.meetingUrl && !isHttpUrl(confirmedInstructorSlot.meetingUrl) && (
+                    <p style={{ fontSize: 14, color: "var(--muted)", margin: "10px 0 0" }}>
+                      Meeting details: {confirmedInstructorSlot.meetingUrl}
+                    </p>
                   )}
                 </div>
               </>
@@ -149,7 +155,7 @@ export default async function MyInterviewPage() {
               </>
             ) : (
               <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                Your lead interviewer will propose a few times shortly. Check back
+                Your lead interviewer will propose exactly 3 times shortly. Check back
                 here to pick the time that works best for you.
               </p>
             )

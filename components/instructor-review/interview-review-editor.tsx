@@ -289,6 +289,9 @@ export default function InterviewReviewEditor({
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [focusMode, setFocusMode] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [scratchPad, setScratchPad] = useState("");
+  const [followUpsPad, setFollowUpsPad] = useState("");
+  const [notepadOpen, setNotepadOpen] = useState(true);
   const timer = useInterviewTimer(false);
   const mountedRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -296,6 +299,40 @@ export default function InterviewReviewEditor({
   const formRef = useRef<HTMLFormElement>(null);
   const questionCardRef = useRef<HTMLElement>(null);
   const initialQuestionRef = useRef<string | null>(null);
+
+  const scratchPadStorageKey = `iv-runner:${applicationId}:scratch`;
+  const followUpsStorageKey = `iv-runner:${applicationId}:followups`;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const savedScratch = window.localStorage.getItem(scratchPadStorageKey);
+      if (savedScratch !== null) setScratchPad(savedScratch);
+      const savedFollowUps = window.localStorage.getItem(followUpsStorageKey);
+      if (savedFollowUps !== null) setFollowUpsPad(savedFollowUps);
+    } catch {
+      // localStorage can throw in private-browsing modes — silently ignore.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicationId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(scratchPadStorageKey, scratchPad);
+    } catch {
+      // ignore
+    }
+  }, [scratchPad, scratchPadStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(followUpsStorageKey, followUpsPad);
+    } catch {
+      // ignore
+    }
+  }, [followUpsPad, followUpsStorageKey]);
 
   useEffect(() => {
     if (initialQuestionRef.current === null) {
@@ -844,6 +881,67 @@ export default function InterviewReviewEditor({
           </div>
         </section>
 
+        <section className="live-notepad" aria-label="Scratch notes">
+          <div className="live-notepad-header">
+            <div>
+              <span className="cockpit-section-kicker">Always-on notes</span>
+              <h3 style={{ margin: "2px 0 0" }}>Scratch pad &amp; follow-ups</h3>
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  fontSize: 12,
+                  color: "var(--muted)",
+                  maxWidth: 640,
+                }}
+              >
+                Free-form notes that stay visible no matter which question you&apos;re on.
+                Saved to this browser only — copy anything important into the per-question
+                notes or category notes before you submit.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="button outline small"
+              onClick={() => setNotepadOpen((open) => !open)}
+              aria-expanded={notepadOpen}
+            >
+              {notepadOpen ? "Hide" : "Show"} notepad
+            </button>
+          </div>
+          {notepadOpen ? (
+            <div className="live-notepad-grid">
+              <label className="form-row">
+                <span style={{ fontWeight: 600 }}>Scratch pad</span>
+                <p className="live-field-hint">
+                  Quick thoughts, quotes, anything you want to remember.
+                </p>
+                <textarea
+                  className="input"
+                  rows={4}
+                  value={scratchPad}
+                  onChange={(event) => setScratchPad(event.target.value)}
+                  placeholder="Free-form notes that aren't tied to a single question..."
+                  disabled={!canEdit}
+                />
+              </label>
+              <label className="form-row">
+                <span style={{ fontWeight: 600 }}>Follow up after the interview</span>
+                <p className="live-field-hint">
+                  Things to circle back on — reference checks, missing answers, prep gaps.
+                </p>
+                <textarea
+                  className="input"
+                  rows={4}
+                  value={followUpsPad}
+                  onChange={(event) => setFollowUpsPad(event.target.value)}
+                  placeholder="• Ask their reference about classroom management&#10;• Confirm summer availability"
+                  disabled={!canEdit}
+                />
+              </label>
+            </div>
+          ) : null}
+        </section>
+
         <section className="live-legend" aria-label="How to use this runner">
           <span className="live-legend-title">How to use</span>
           <span className="live-legend-item">
@@ -1075,9 +1173,11 @@ export default function InterviewReviewEditor({
             {activeBankItem &&
             (asStringArray(activeBankItem.strongSignals).length > 0 ||
               asStringArray(activeBankItem.concernSignals).length > 0) ? (
-              <div className="live-guidance-section">
-                <span className="live-guidance-label">For you only · don&apos;t read aloud</span>
-                <div className="live-guidance-grid">
+              <details className="live-guidance-section live-guidance-collapsible">
+                <summary className="live-guidance-label" style={{ cursor: "pointer" }}>
+                  For you only · don&apos;t read aloud — strong-answer / red-flag cheatsheet
+                </summary>
+                <div className="live-guidance-grid" style={{ marginTop: 8 }}>
                   <div className="is-strong">
                     <h4>Strong answers</h4>
                     <ul>
@@ -1095,7 +1195,7 @@ export default function InterviewReviewEditor({
                     </ul>
                   </div>
                 </div>
-              </div>
+              </details>
             ) : null}
 
             <div className="live-followup-section">
@@ -1156,12 +1256,25 @@ export default function InterviewReviewEditor({
                 rows={7}
                 value={activeQuestion.notes}
                 disabled={!canEdit}
-                onChange={(event) =>
-                  updateQuestion(activeQuestion.localId, (question) => ({
-                    ...question,
-                    notes: event.target.value,
-                  }))
-                }
+                onChange={(event) => {
+                  const value = event.target.value;
+                  const shouldAutoMarkAsked =
+                    activeQuestion.status === "UNTOUCHED" && value.trim().length > 0;
+                  if (shouldAutoMarkAsked) {
+                    const now = new Date().toISOString();
+                    updateQuestion(activeQuestion.localId, (question) => ({
+                      ...question,
+                      notes: value,
+                      status: "ASKED",
+                      askedAt: question.askedAt ?? now,
+                    }));
+                  } else {
+                    updateQuestion(activeQuestion.localId, (question) => ({
+                      ...question,
+                      notes: value,
+                    }));
+                  }
+                }}
                 placeholder={
                   activeBankItem
                     ? asStringArray(activeBankItem.notePrompts).join(" / ") ||

@@ -20,6 +20,7 @@ function LoginPageContent() {
   const archivedError = searchParams.get("error") === "account_archived";
   const supabaseUnavailableError =
     searchParams.get("error") === "supabase_unavailable";
+  const linkInvalidError = searchParams.get("error") === "link_invalid";
 
   const [loginMethod, setLoginMethod] = useState<"password" | "magic">("password");
   const [email, setEmail] = useState("");
@@ -53,8 +54,15 @@ function LoginPageContent() {
       setError(
         "Email-link authentication is unavailable until Supabase public auth is configured."
       );
+      return;
     }
-  }, [archivedError, supabaseUnavailableError]);
+
+    if (linkInvalidError) {
+      setError(
+        "This sign-in link is invalid or has expired. Please request a new one below."
+      );
+    }
+  }, [archivedError, supabaseUnavailableError, linkInvalidError]);
 
   async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

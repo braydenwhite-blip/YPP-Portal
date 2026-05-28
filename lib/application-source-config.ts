@@ -108,7 +108,7 @@ export const MANUAL_EMAIL_KIND_CONFIG: Record<ManualEmailKind, ManualEmailKindDe
   },
   INTERVIEW_CONFIRMATION: {
     label: "Interview confirmation",
-    purpose: "Confirm the chosen interview time and share the meeting link.",
+    purpose: "Confirm the chosen interview time and share the meeting details.",
     stage: "interview",
   },
   INTERVIEW_REMINDER: {
@@ -261,7 +261,7 @@ export function buildManualEmailTemplate(
           `Confirming your ${role} interview:`,
           "",
           `  • When: ${input.interviewDate ?? "[Date and time]"}`,
-          `  • Where: ${input.interviewLink ?? "[Meeting link]"}`,
+          `  • Where: ${input.interviewLink ?? "[Meeting details]"}`,
           "",
           "Reply to this email if anything changes. See you then!",
           "",
@@ -278,7 +278,7 @@ export function buildManualEmailTemplate(
           "",
           `Just a friendly reminder of your ${role} interview ${
             input.interviewDate ? `on ${input.interviewDate}` : "soon"
-          }${input.interviewLink ? ` — meeting link: ${input.interviewLink}` : ""}.`,
+          }${input.interviewLink ? ` — meeting details: ${input.interviewLink}` : ""}.`,
           "",
           "If anything has changed, please reply and let us know.",
           "",

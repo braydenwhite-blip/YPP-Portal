@@ -44,6 +44,7 @@ import { ApplicantWorkflowError } from "@/lib/applicant-workflow-error";
 import { shouldSendAssignmentNotification } from "@/lib/notification-policy";
 import { trackApplicantEvent } from "@/lib/telemetry";
 import { gateApplicantEmail } from "@/lib/applicant-email-gating";
+import { cleanMeetingDetails } from "@/lib/meeting-details";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -1220,14 +1221,14 @@ export async function offerInterviewSlots(
       return { success: false, error: "Only the assigned lead interviewer can send applicant interview times." };
     }
 
-    if (slots.length < 3 || slots.length > 5) {
-      return { success: false, error: "Please provide 3 to 5 proposed interview times." };
+    if (slots.length !== 3) {
+      return { success: false, error: "Please provide exactly 3 proposed interview times." };
     }
 
     const normalizedSlots = slots.map((slot) => ({
       scheduledAt: new Date(slot.scheduledAt),
       durationMinutes: Number(slot.durationMinutes || 60),
-      meetingUrl: String(slot.meetingUrl ?? "").trim(),
+      meetingUrl: cleanMeetingDetails(slot.meetingUrl),
     }));
 
     if (
@@ -1242,15 +1243,8 @@ export async function offerInterviewSlots(
       return { success: false, error: "Every proposed time needs a valid date and duration." };
     }
 
-    for (const slot of normalizedSlots) {
-      try {
-        const url = new URL(slot.meetingUrl);
-        if (url.protocol !== "https:" && url.protocol !== "http:") {
-          throw new Error("Meeting link must be http or https.");
-        }
-      } catch {
-        return { success: false, error: "Add a valid meeting link before sending interview times." };
-      }
+    if (normalizedSlots.some((slot) => !slot.meetingUrl)) {
+      return { success: false, error: "Add meeting details before sending interview times." };
     }
 
     const now = new Date();
@@ -1371,6 +1365,7 @@ export async function offerInterviewSlots(
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/chapter-lead/instructor-applicants");
     revalidatePath("/application-status");
+    revalidatePath("/my-interview");
     return { success: true };
   } catch (error) {
     // Concurrent callers racing to insert the same slots trigger a unique-constraint
@@ -1401,7 +1396,15 @@ export async function selectInterviewSlot(
             applicantId: true,
             source: true,
             applicationTrack: true,
+            interviewRound: true,
             applicant: { select: { name: true, email: true } },
+            interviewerAssignments: {
+              where: { removedAt: null },
+              select: {
+                round: true,
+                interviewer: { select: { name: true, email: true } },
+              },
+            },
           },
         },
         offeredBy: { select: { name: true, email: true } },
@@ -1483,18 +1486,23 @@ export async function selectInterviewSlot(
         }),
     }).catch((err) => console.error("[selectInterviewSlot] applicant email failed:", err));
 
-    // Find all reviewers who offered slots for this application and notify them
-    const reviewerSlots = await prisma.offeredInterviewSlot.findMany({
-      where: { instructorApplicationId: slot.instructorApplicationId },
-      include: { offeredBy: { select: { name: true, email: true } } },
-    });
-    const reviewerEmails = new Set<string>();
-    for (const rs of reviewerSlots) {
-      if (rs.offeredBy.email && !reviewerEmails.has(rs.offeredBy.email)) {
-        reviewerEmails.add(rs.offeredBy.email);
+    // Notify the interviewer side too. This includes the slot sender and any
+    // current-round interviewer assignments so a second interviewer stays in sync.
+    const interviewerEmails = new Set<string>();
+    const interviewers: Array<{ name: string | null; email: string | null }> = [
+      slot.offeredBy,
+    ];
+    const currentRound = slot.instructorApplication.interviewRound ?? 1;
+    for (const assignment of slot.instructorApplication.interviewerAssignments) {
+      if (assignment.round != null && assignment.round !== currentRound) continue;
+      interviewers.push(assignment.interviewer);
+    }
+    for (const interviewer of interviewers) {
+      if (interviewer.email && !interviewerEmails.has(interviewer.email)) {
+        interviewerEmails.add(interviewer.email);
         await sendInterviewConfirmedEmail({
-          to: rs.offeredBy.email,
-          recipientName: rs.offeredBy.name,
+          to: interviewer.email,
+          recipientName: interviewer.name ?? "Interviewer",
           applicantName: applicant.name,
           scheduledAt: slot.scheduledAt,
           durationMinutes: slot.durationMinutes,
@@ -1510,6 +1518,7 @@ export async function selectInterviewSlot(
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/chapter-lead/instructor-applicants");
     revalidatePath("/application-status");
+    revalidatePath("/my-interview");
     return { success: true };
   } catch (error) {
     console.error("[selectInterviewSlot]", error);
@@ -1627,6 +1636,7 @@ export async function requestNewInterviewTimes(
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/chapter-lead/instructor-applicants");
     revalidatePath("/application-status");
+    revalidatePath("/my-interview");
     return { success: true };
   } catch (error) {
     console.error("[requestNewInterviewTimes]", error);

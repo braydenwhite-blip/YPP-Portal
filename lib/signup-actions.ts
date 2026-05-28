@@ -167,28 +167,30 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       const durationMinutesRaw = getString(formData, "workshopDurationMinutes", false);
       const learningGoalsRaw = getString(formData, "workshopLearningGoals", false);
       const materialsRaw = getString(formData, "workshopMaterialsNeeded", false);
-      const workshopOutlinePayload = isSummerWorkshop
-        ? {
-            title: getString(formData, "workshopTitle", false),
-            ageRange: getString(formData, "workshopAgeRange", false),
-            durationMinutes: durationMinutesRaw ? parseInt(durationMinutesRaw, 10) : undefined,
-            learningGoals: learningGoalsRaw
-              ? learningGoalsRaw
-                  .split("\n")
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : [],
-            activityFlow: getString(formData, "workshopActivityFlow", false),
-            materialsNeeded: materialsRaw
-              ? materialsRaw
-                  .split("\n")
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : [],
-            engagementHook: getString(formData, "workshopEngagementHook", false),
-            adaptationNotes: getString(formData, "workshopAdaptationNotes", false),
-          }
-        : undefined;
+      const workshopTitle = getString(formData, "workshopTitle", false);
+      const workshopOutlinePayload =
+        isSummerWorkshop && workshopTitle
+          ? {
+              title: workshopTitle,
+              ageRange: getString(formData, "workshopAgeRange", false),
+              durationMinutes: durationMinutesRaw ? parseInt(durationMinutesRaw, 10) : undefined,
+              learningGoals: learningGoalsRaw
+                ? learningGoalsRaw
+                    .split("\n")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                : [],
+              activityFlow: getString(formData, "workshopActivityFlow", false),
+              materialsNeeded: materialsRaw
+                ? materialsRaw
+                    .split("\n")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                : [],
+              engagementHook: getString(formData, "workshopEngagementHook", false),
+              adaptationNotes: getString(formData, "workshopAdaptationNotes", false),
+            }
+          : undefined;
 
       const sharedPayload = {
         legalName: getString(formData, "legalName", false),
@@ -364,7 +366,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
           motivationVideoUrl: instructorApplicationInput.motivationVideoUrl || null,
           teachingExperience: instructorApplicationInput.teachingExperience,
           availability: instructorApplicationInput.availability,
-          legalName: instructorApplicationInput.legalName,
+          legalName: instructorApplicationInput.legalName || null,
           preferredFirstName: instructorApplicationInput.preferredFirstName,
           phoneNumber: instructorApplicationInput.phoneNumber || null,
           dateOfBirth: instructorApplicationInput.dateOfBirth || null,
@@ -384,7 +386,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
           textbook: instructorApplicationInput.textbook || instructorApplicationInput.courseIdea || null,
           courseOutline: instructorApplicationInput.courseOutline || null,
           firstClassPlan: instructorApplicationInput.firstClassPlan || null,
-          hoursPerWeek: instructorApplicationInput.hoursPerWeek,
+          hoursPerWeek: instructorApplicationInput.hoursPerWeek ?? null,
           preferredStartDate: instructorApplicationInput.preferredStartDate || null,
           applicationTrack,
           instructorSubtype: isSummerWorkshop
@@ -415,7 +417,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
                 actorId: null,
                 payload: { applicationTrack },
               },
-              ...(isSummerWorkshop
+              ...(isSummerWorkshop && "workshopOutline" in instructorApplicationInput && instructorApplicationInput.workshopOutline
                 ? [
                     {
                       kind: SUMMER_WORKSHOP_TIMELINE_KINDS.WORKSHOP_OUTLINE_SUBMITTED,
@@ -572,22 +574,24 @@ export async function submitInstructorApplicationForExistingUser(
     const durationMinutesRaw = getString(formData, "workshopDurationMinutes", false);
     const learningGoalsRaw = getString(formData, "workshopLearningGoals", false);
     const materialsRaw = getString(formData, "workshopMaterialsNeeded", false);
-    const workshopOutlinePayload = isSummerWorkshop
-      ? {
-          title: getString(formData, "workshopTitle", false),
-          ageRange: getString(formData, "workshopAgeRange", false),
-          durationMinutes: durationMinutesRaw ? parseInt(durationMinutesRaw, 10) : undefined,
-          learningGoals: learningGoalsRaw
-            ? learningGoalsRaw.split("\n").map((s) => s.trim()).filter(Boolean)
-            : [],
-          activityFlow: getString(formData, "workshopActivityFlow", false),
-          materialsNeeded: materialsRaw
-            ? materialsRaw.split("\n").map((s) => s.trim()).filter(Boolean)
-            : [],
-          engagementHook: getString(formData, "workshopEngagementHook", false),
-          adaptationNotes: getString(formData, "workshopAdaptationNotes", false),
-        }
-      : undefined;
+    const workshopTitle = getString(formData, "workshopTitle", false);
+    const workshopOutlinePayload =
+      isSummerWorkshop && workshopTitle
+        ? {
+            title: workshopTitle,
+            ageRange: getString(formData, "workshopAgeRange", false),
+            durationMinutes: durationMinutesRaw ? parseInt(durationMinutesRaw, 10) : undefined,
+            learningGoals: learningGoalsRaw
+              ? learningGoalsRaw.split("\n").map((s) => s.trim()).filter(Boolean)
+              : [],
+            activityFlow: getString(formData, "workshopActivityFlow", false),
+            materialsNeeded: materialsRaw
+              ? materialsRaw.split("\n").map((s) => s.trim()).filter(Boolean)
+              : [],
+            engagementHook: getString(formData, "workshopEngagementHook", false),
+            adaptationNotes: getString(formData, "workshopAdaptationNotes", false),
+          }
+        : undefined;
 
     const sharedPayload = {
       legalName: getString(formData, "legalName", false),
@@ -664,7 +668,7 @@ export async function submitInstructorApplicationForExistingUser(
         motivationVideoUrl: input.motivationVideoUrl || null,
         teachingExperience: input.teachingExperience,
         availability: input.availability,
-        legalName: input.legalName,
+        legalName: input.legalName || null,
         preferredFirstName: input.preferredFirstName,
         phoneNumber: input.phoneNumber || null,
         dateOfBirth: input.dateOfBirth || null,
@@ -684,7 +688,7 @@ export async function submitInstructorApplicationForExistingUser(
         textbook: input.textbook || input.courseIdea || null,
         courseOutline: input.courseOutline || null,
         firstClassPlan: input.firstClassPlan || null,
-        hoursPerWeek: input.hoursPerWeek,
+        hoursPerWeek: input.hoursPerWeek ?? null,
         preferredStartDate: input.preferredStartDate || null,
         applicationTrack,
         instructorSubtype: isSummerWorkshop
@@ -715,7 +719,7 @@ export async function submitInstructorApplicationForExistingUser(
               actorId: null,
               payload: { applicationTrack },
             },
-            ...(isSummerWorkshop
+            ...(isSummerWorkshop && workshopOutlinePayload
               ? [
                   {
                     kind: SUMMER_WORKSHOP_TIMELINE_KINDS.WORKSHOP_OUTLINE_SUBMITTED,

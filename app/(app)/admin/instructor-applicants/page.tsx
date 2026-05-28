@@ -296,7 +296,11 @@ export default async function AdminInstructorApplicantsPage({
       interviewerAssignments: (app.interviewerAssignments as Array<{id: string; role: string; interviewer: {id: string; name: string | null}}>) ?? [],
       applicationReviews: (app.applicationReviews as Array<{summary: string | null; nextStep: string | null; overallRating: string | null}>) ?? [],
       chairDecision: app.chairDecision
-        ? { action: app.chairDecision.action as string, decidedAt: (app.chairDecision.decidedAt as Date).toISOString() }
+        ? {
+            action: app.chairDecision.action as string,
+            decidedAt: (app.chairDecision.decidedAt as Date).toISOString(),
+            rationale: (app.chairDecision as { rationale?: string | null }).rationale ?? null,
+          }
         : null,
     };
   }

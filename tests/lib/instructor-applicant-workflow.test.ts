@@ -93,6 +93,7 @@ vi.mock("@/lib/email", () => ({
   sendInterviewConfirmedEmail: vi.fn(),
   sendInstructorPreApprovedEmail: vi.fn(),
   sendInterviewTimesDeclinedEmail: mockSendInterviewTimesDeclinedEmail,
+  sendChairReviewQueuedEmail: vi.fn(),
   generateIcsContent: vi.fn(() => "ICS"),
 }));
 
@@ -200,6 +201,8 @@ describe("Risk 2 — maybeAutoAdvanceAfterInterviewReview", () => {
     mockFindUnique.mockResolvedValueOnce({
       status: "INTERVIEW_SCHEDULED",
       interviewRound: 1,
+      chairQueuedAt: null,
+      applicant: { name: "Bob Applicant", email: "applicant@example.com" },
       interviewerAssignments: [{ interviewerId: "bob", round: 1 }],
       interviewReviews: [{ reviewerId: "bob", status: "SUBMITTED", round: 1, recommendation: "ACCEPT" }],
     });
@@ -484,11 +487,11 @@ describe("manual instructor interview times", () => {
     vi.resetAllMocks();
   });
 
-  function futureSlot(offsetHours: number) {
+  function futureSlot(offsetHours: number, meetingUrl = "https://meet.google.com/ypp-test") {
     return {
       scheduledAt: new Date(Date.now() + offsetHours * 60 * 60 * 1000),
       durationMinutes: 60,
-      meetingUrl: "https://meet.google.com/ypp-test",
+      meetingUrl,
     };
   }
 
@@ -526,7 +529,7 @@ describe("manual instructor interview times", () => {
     });
   }
 
-  it("requires at least 3 and at most 5 proposed times", async () => {
+  it("requires exactly 3 proposed times", async () => {
     await mockLeadSession();
     mockMoveToInterviewApplication();
 
@@ -534,7 +537,24 @@ describe("manual instructor interview times", () => {
     const result = await offerInterviewSlots("app-1", [futureSlot(24), futureSlot(48)]);
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("3 to 5");
+    expect(result.error).toContain("exactly 3");
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects more than 3 proposed times", async () => {
+    await mockLeadSession();
+    mockMoveToInterviewApplication();
+
+    const { offerInterviewSlots } = await import("@/lib/instructor-application-actions");
+    const result = await offerInterviewSlots("app-1", [
+      futureSlot(24),
+      futureSlot(48),
+      futureSlot(72),
+      futureSlot(96),
+    ]);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("exactly 3");
     expect(mockTransaction).not.toHaveBeenCalled();
   });
 
@@ -581,6 +601,40 @@ describe("manual instructor interview times", () => {
       expect.objectContaining({
         to: "applicant@test.com",
         statusUrl: "https://portal.test/application-status",
+      })
+    );
+  });
+
+  it("accepts plain-text meeting details instead of requiring a URL", async () => {
+    await mockLeadSession();
+    mockMoveToInterviewApplication();
+    mockSendPickYourTimeEmail.mockResolvedValue({ success: true });
+
+    mockTransaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        offeredInterviewSlot: {
+          deleteMany: mockOfferedSlotDeleteMany,
+          createMany: mockOfferedSlotCreateMany,
+        },
+        instructorApplication: { update: mockUpdate },
+        instructorApplicationTimelineEvent: { create: mockCreate },
+      };
+      return fn(tx);
+    });
+
+    const { offerInterviewSlots } = await import("@/lib/instructor-application-actions");
+    const result = await offerInterviewSlots("app-1", [
+      futureSlot(24, "Room 204"),
+      futureSlot(48, "Room 204"),
+      futureSlot(72, "Room 204"),
+    ]);
+
+    expect(result.success).toBe(true);
+    expect(mockOfferedSlotCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.arrayContaining([
+          expect.objectContaining({ meetingUrl: "Room 204" }),
+        ]),
       })
     );
   });

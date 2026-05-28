@@ -85,7 +85,7 @@ export default function AvailabilityForm({
     : "Interview times are coming from your lead interviewer";
   const subheading = isCp
     ? "Add up to 5 recurring weekly windows and we'll find the first slot that works for both you and your interviewer."
-    : "You do not need to submit availability windows. Your lead interviewer will send a few proposed times here for you to choose from.";
+    : "You do not need to submit availability windows. Your lead interviewer will send exactly 3 proposed times here for you to choose from.";
   const submitLabel = isCp ? "Find My Interview Time" : "Find My Session Time";
 
   if (!isCp) {

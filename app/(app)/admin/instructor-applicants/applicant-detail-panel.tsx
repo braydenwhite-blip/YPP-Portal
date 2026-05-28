@@ -13,6 +13,7 @@ import {
   preApproveApplication,
   offerInterviewSlots,
 } from "@/lib/instructor-application-actions";
+import { cleanMeetingDetails } from "@/lib/meeting-details";
 
 /* ── Score Bar ─────────────────────────────────────── */
 
@@ -299,8 +300,8 @@ export default function ApplicantDetailPanel({
 
   async function handleOfferSlots() {
     const validSlots = offerSlots.filter((s) => s.date && s.time);
-    if (validSlots.length < 3 || validSlots.length > 5) {
-      showMessage("Add 3 to 5 complete time slots before sending.");
+    if (validSlots.length !== 3) {
+      showMessage("Add exactly 3 complete time slots before emailing.");
       return;
     }
     // Client-side past-date guard — server will also validate, but this gives
@@ -311,19 +312,15 @@ export default function ApplicantDetailPanel({
       showMessage("All proposed times must be in the future.");
       return;
     }
-    try {
-      const url = new URL(offerMeetingUrl.trim());
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        throw new Error("Invalid protocol");
-      }
-    } catch {
-      showMessage("Add a valid meeting link before sending times.");
+    const meetingDetails = cleanMeetingDetails(offerMeetingUrl);
+    if (!meetingDetails) {
+      showMessage("Add meeting details before emailing times.");
       return;
     }
     const slots = validSlots.map((s) => ({
       scheduledAt: new Date(`${s.date}T${s.time}`),
       durationMinutes: s.durationMinutes,
-      meetingUrl: offerMeetingUrl.trim(),
+      meetingUrl: meetingDetails,
     }));
     setOfferSending(true);
     const result = await offerInterviewSlots(app.id, slots);
@@ -697,14 +694,14 @@ export default function ApplicantDetailPanel({
             <div className="slideout-section">
               <div className="slideout-section-title">Propose Interview Times</div>
               <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0, marginBottom: 10 }}>
-                Add 3–5 future times. The applicant will receive an email and pick the one that works for them.
+                Add exactly 3 future times. The applicant will receive an automatic email and pick the one that works for them.
               </p>
               <input
-                type="url"
+                type="text"
                 className="input"
                 value={offerMeetingUrl}
                 onChange={(e) => setOfferMeetingUrl(e.target.value)}
-                placeholder="Meeting link, e.g. https://meet.google.com/..."
+                placeholder="Zoom link, Google Meet link, room number, phone call, or TBD"
                 style={{ marginBottom: 10 }}
               />
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -735,35 +732,17 @@ export default function ApplicantDetailPanel({
                       <option value={60}>60 min</option>
                       <option value={90}>90 min</option>
                     </select>
-                    {offerSlots.length > 3 && (
-                      <button
-                        className="button secondary"
-                        onClick={() => setOfferSlots((prev) => prev.filter((_, idx) => idx !== i))}
-                        style={{ fontSize: 11, padding: "4px 10px", marginBottom: 0 }}
-                      >
-                        Remove
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                {offerSlots.length < 5 && (
-                  <button
-                    className="button secondary"
-                    onClick={() => setOfferSlots((prev) => [...prev, emptySlot()])}
-                    style={{ fontSize: 12 }}
-                  >
-                    + Add Time Slot
-                  </button>
-                )}
                 <button
                   className="button"
                   onClick={handleOfferSlots}
                   disabled={offerSending}
                   style={{ fontSize: 12 }}
                 >
-                  {offerSending ? "Sending..." : "Send Times to Applicant"}
+                  {offerSending ? "Emailing..." : "Email Times to Applicant"}
                 </button>
               </div>
             </div>

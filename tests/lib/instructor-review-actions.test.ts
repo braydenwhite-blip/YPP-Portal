@@ -189,6 +189,9 @@ function installSuccessfulTransactionMock() {
         create: vi.fn().mockResolvedValue({ id: "response-1" }),
         deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
+      instructorInterviewQuestionBank: {
+        findMany: vi.fn().mockResolvedValue([{ id: "qb-1" }]),
+      },
       instructorApplicationReview: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },

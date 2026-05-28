@@ -544,7 +544,7 @@ export default async function ApplicantCockpitPage({
                     courseOutline: application.courseOutline,
                     firstClassPlan: application.firstClassPlan,
                   }}
-                  canEdit={!isReadOnlyReview && reviewWorkspace.myReview?.status !== "SUBMITTED"}
+                  canEdit={!isReadOnlyReview}
                   isLeadReviewer={reviewWorkspace.isLeadReviewer}
                   hasLeadInterviewer={hasLeadInterviewer}
                 />
@@ -672,14 +672,16 @@ export default async function ApplicantCockpitPage({
               </aside>
             )}
 
-            {/* Manual Email Tracking (read-only visible to reviewers/interviewers;
-                editable for admins, chapter leads, hiring chairs) */}
-            <ManualEmailGuidancePanel
-              applicationId={application.id}
-              tasks={manualEmailTasks}
-              suggestedKinds={manualEmailSuggestedKinds}
-              canEdit={canEditManualEmail}
-            />
+            {/* Manual Email Tracking — only shown for non-portal applicants.
+                Portal applicants get emails automatically; no manual tracking needed. */}
+            {application.source && application.source !== "PORTAL" && (
+              <ManualEmailGuidancePanel
+                applicationId={application.id}
+                tasks={manualEmailTasks}
+                suggestedKinds={manualEmailSuggestedKinds}
+                canEdit={canEditManualEmail}
+              />
+            )}
 
             {/* Full Timeline */}
             <section id="section-timeline" className="cockpit-panel">
@@ -698,7 +700,10 @@ export default async function ApplicantCockpitPage({
 
           {/* Sidebar */}
           <ApplicantCockpitSidebar
-            application={application}
+            application={{
+              ...application,
+              applicationTrack: application.applicationTrack as string | null,
+            }}
           />
         </div>
       </div>

@@ -1295,6 +1295,12 @@ model User {
   instructorAssignments             InstructorAssignment[]       @relation("InstructorAssignmentInstructor")
   instructorAssignmentsAssigned     InstructorAssignment[]       @relation("InstructorAssignmentAssignedBy")
 
+  // Instructor Ops V2
+  instructorProfile                 InstructorProfile?
+  instructorNotesAuthored           InstructorNote[]             @relation("InstructorNoteAuthor")
+  instructorTasksAssigned           InstructorTask[]             @relation("InstructorTaskAssignee")
+  instructorSavedViews              InstructorSavedView[]        @relation("InstructorSavedViewOwner")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2039,6 +2045,9 @@ model OfferedInterviewSlot {
   offeredByUserId         String
   offeredBy               User                  @relation("OfferedInterviewSlots", fields: [offeredByUserId], references: [id], onDelete: Cascade)
   confirmedAt             DateTime?
+  choiceReminderSentAt    DateTime?
+  reminder24SentAt        DateTime?
+  reminder2SentAt         DateTime?
 
   createdAt DateTime @default(now())
 
@@ -2048,6 +2057,9 @@ model OfferedInterviewSlot {
   @@unique([instructorApplicationId, scheduledAt])
   @@index([instructorApplicationId])
   @@index([offeredByUserId])
+  @@index([choiceReminderSentAt, createdAt])
+  @@index([reminder24SentAt, scheduledAt])
+  @@index([reminder2SentAt, scheduledAt])
 }
 
 // ============================================
@@ -11859,4 +11871,201 @@ model RegularInstructorAssignment {
   @@index([status])
   @@index([chapterId])
   @@index([role])
+}
+
+// ============================================================
+// INSTRUCTOR OPS V2 — operational layer for admin dashboards
+// ============================================================
+
+/// Top-level lifecycle stage for an instructor inside the platform.
+enum InstructorLifecycleStage {
+  APPLICANT   // still in application funnel
+  ONBOARDING  // approved, completing training / shadow
+  ACTIVE      // teaching in rotation
+  BENCH       // available but not currently assigned
+  PAUSED      // temporary break (school, leave, etc.)
+  ALUMNI      // off-platform; record retained for history
+}
+
+/// One row per instructor — holds operational metadata that doesn't
+/// belong on the enormous User model.  Created lazily on first admin
+/// interaction; a missing row is treated as defaults.
+model InstructorProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  lifecycleStage   InstructorLifecycleStage @default(ACTIVE)
+  stageEnteredAt   DateTime                 @default(now())
+
+  /// Rough weekly capacity the instructor self-reported.
+  weeklyHoursAvail Int?
+  /// Hard cap on concurrent class assignments (default 2).
+  maxConcurrent    Int      @default(2)
+  /// True when admin has flagged this person for leadership development.
+  isLeadershipTrack Boolean @default(false)
+  /// Soft hold — excluded from assignment suggestions while true.
+  isOnHold         Boolean  @default(false)
+
+  /// Cached readiness score 0-100, recomputed nightly.
+  readinessScore   Int?
+  /// Cached reliability score 0-100 (based on no-shows, completions).
+  reliabilityScore Int?
+  lastActiveAt     DateTime?
+
+  notes            InstructorNote[]
+  tasks            InstructorTask[]
+  tags             InstructorTag[]
+  metrics          InstructorMetricSnapshot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lifecycleStage])
+  @@index([isLeadershipTrack])
+  @@index([isOnHold])
+  @@index([readinessScore])
+  @@index([lastActiveAt])
+}
+
+/// Namespace for a tag (used as a prefix when rendering chips).
+enum TagNamespace {
+  SKILL
+  INTEREST
+  LANGUAGE
+  AVAILABILITY
+  TRAIT
+  CERTIFICATION
+  CUSTOM
+}
+
+/// Reusable label that can be attached to any InstructorProfile.
+/// Namespaced so skill:python, language:es, trait:reliable, etc.
+model Tag {
+  id        String       @id @default(cuid())
+  namespace TagNamespace
+  slug      String       // lowercased, hyphenated, e.g. "public-speaking"
+  label     String       // display text, e.g. "Public Speaking"
+  color     String?      // optional hex for chip background
+  isSystem  Boolean      @default(false) // system-managed (auto:idle, etc.)
+
+  instructorTags InstructorTag[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([namespace, slug])
+  @@index([namespace])
+}
+
+/// M:M join between InstructorProfile and Tag.
+model InstructorTag {
+  profileId String
+  tagId     String
+  /// How was it added: manual (admin), imported (bulk), computed (nightly job).
+  source    String   @default("manual")
+  addedAt   DateTime @default(now())
+
+  profile   InstructorProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tag       Tag               @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, tagId])
+  @@index([tagId])
+}
+
+/// Admin-written notes attached to an instructor profile.
+model InstructorNote {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   InstructorProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  authorId  String
+  author    User     @relation("InstructorNoteAuthor", fields: [authorId], references: [id])
+
+  body      String   @db.Text
+  isPinned  Boolean  @default(false)
+  /// Visibility scope: chapter | global | private (author-only).
+  visibility String  @default("global")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId, isPinned, createdAt])
+  @@index([authorId])
+}
+
+enum InstructorTaskKind {
+  CERT_EXPIRING
+  STALLED_STAGE
+  IDLE_30D
+  DECLINED_REPEAT
+  GHOSTING_MENTEE
+  TRAINING_OVERDUE
+  MANUAL
+}
+
+/// Action item linked to an instructor profile. Auto-generated by nightly
+/// jobs or manually created by admins.
+model InstructorTask {
+  id          String             @id @default(cuid())
+  profileId   String
+  profile     InstructorProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  kind        InstructorTaskKind @default(MANUAL)
+  title       String
+  description String?            @db.Text
+  dueAt       DateTime?
+
+  assigneeId  String?
+  assignee    User?              @relation("InstructorTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  resolvedAt  DateTime?
+  resolvedById String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([profileId, resolvedAt])
+  @@index([dueAt])
+  @@index([assigneeId, resolvedAt])
+}
+
+/// Saved filter/sort state for the instructor directory.
+/// Admins can save personal views or share them within their chapter.
+model InstructorSavedView {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation("InstructorSavedViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name      String
+  /// JSON blob: { stage?, chapterId?, tagIds?, search?, sortKey?, sortDir? }
+  filters   Json
+  isShared  Boolean  @default(false)
+  /// Scope: personal | chapter | global
+  scope     String   @default("personal")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([isShared, scope])
+}
+
+/// Weekly metric rollup per instructor, computed by a scheduled job.
+/// Keeps a historical record for trending without bloating the profile.
+model InstructorMetricSnapshot {
+  id             String   @id @default(cuid())
+  profileId      String
+  profile        InstructorProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  weekStart      DateTime // Monday 00:00 UTC of the snapshot week
+  classesTaught  Int      @default(0)
+  hoursTaught    Int      @default(0)
+  noShows        Int      @default(0)
+  ratingAvg      Float?
+  studentsServed Int      @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([profileId, weekStart])
+  @@index([profileId, weekStart])
 }

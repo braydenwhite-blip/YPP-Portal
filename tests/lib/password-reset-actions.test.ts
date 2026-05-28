@@ -51,7 +51,7 @@ describe("password-reset-actions", () => {
     const generateLink = vi.fn().mockResolvedValue({
       data: {
         properties: {
-          action_link: "https://example.supabase.co/auth/v1/verify?token=abc",
+          action_link: "https://example.supabase.co/auth/v1/verify?token=abc", hashed_token: "hash-abc",
         },
       },
       error: null,
@@ -101,7 +101,8 @@ describe("password-reset-actions", () => {
     expect(sendPasswordResetEmail).toHaveBeenCalledWith({
       to: "test@example.com",
       name: "Test User",
-      resetUrl: "https://example.supabase.co/auth/v1/verify?token=abc",
+      resetUrl:
+        "https://youthpassionproject-portal.vercel.app/auth/callback?next=%2Freset-password&token_hash=hash-abc&type=recovery",
     });
   });
 
@@ -109,7 +110,7 @@ describe("password-reset-actions", () => {
     const generateLink = vi.fn().mockResolvedValue({
       data: {
         properties: {
-          action_link: "https://example.supabase.co/auth/v1/verify?token=abc",
+          action_link: "https://example.supabase.co/auth/v1/verify?token=abc", hashed_token: "hash-abc",
         },
       },
       error: null,
@@ -153,7 +154,7 @@ describe("password-reset-actions", () => {
     const generateLink = vi.fn().mockResolvedValue({
       data: {
         properties: {
-          action_link: "https://example.supabase.co/auth/v1/verify?token=abc",
+          action_link: "https://example.supabase.co/auth/v1/verify?token=abc", hashed_token: "hash-abc",
         },
       },
       error: null,
@@ -203,7 +204,7 @@ describe("password-reset-actions", () => {
     const generateLink = vi.fn().mockResolvedValue({
       data: {
         properties: {
-          action_link: "https://example.supabase.co/auth/v1/verify?token=abc",
+          action_link: "https://example.supabase.co/auth/v1/verify?token=abc", hashed_token: "hash-abc",
         },
       },
       error: null,
@@ -257,7 +258,7 @@ describe("password-reset-actions", () => {
           generateLink: vi.fn().mockResolvedValue({
             data: {
               properties: {
-                action_link: "https://example.supabase.co/auth/v1/verify?token=abc",
+                action_link: "https://example.supabase.co/auth/v1/verify?token=abc", hashed_token: "hash-abc",
               },
             },
             error: null,

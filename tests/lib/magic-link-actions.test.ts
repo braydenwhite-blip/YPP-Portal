@@ -55,6 +55,7 @@ describe("magic-link-actions", () => {
       data: {
         properties: {
           action_link: "https://example.supabase.co/auth/v1/verify?type=magiclink&token=abc",
+          hashed_token: "hash-abc",
         },
       },
       error: null,
@@ -105,7 +106,8 @@ describe("magic-link-actions", () => {
     expect(sendMagicLinkEmail).toHaveBeenCalledWith({
       to: "test@example.com",
       name: "Test User",
-      magicUrl: "https://example.supabase.co/auth/v1/verify?type=magiclink&token=abc",
+      magicUrl:
+        "https://youthpassionproject-portal.vercel.app/auth/callback?next=%2Finstructor&token_hash=hash-abc&type=magiclink",
     });
   });
 

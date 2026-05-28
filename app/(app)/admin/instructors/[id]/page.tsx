@@ -1,0 +1,463 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
+import {
+  formatInstructorOpsDate,
+  formatInstructorOpsDateTime,
+  formatInstructorOpsLabel,
+  getInstructorOpsProfile,
+} from "@/lib/instructor-ops";
+import { loadInstructorProfileDetail, listAllTags } from "@/lib/instructor-ops-actions";
+import { TagsEditor, NotesEditor, TasksEditor } from "./profile-editor";
+
+export const dynamic = "force-dynamic";
+
+function asArray(value: unknown): any[] {
+  return Array.isArray(value) ? value : [];
+}
+
+export default async function AdminInstructorProfilePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const session = await getSession();
+  const roles = session?.user?.roles ?? [];
+  if (!roles.includes("ADMIN")) {
+    redirect("/");
+  }
+
+  const [profile, detail, allTags] = await Promise.all([
+    getInstructorOpsProfile(id),
+    loadInstructorProfileDetail(id),
+    listAllTags(),
+  ]);
+  if (!profile) {
+    notFound();
+  }
+
+  const { record, user, readiness } = profile;
+  const instructorApplications = asArray(user.instructorApplications);
+  const classOfferings = asArray(user.classOfferingsInstructed);
+  const courses = asArray(user.courses);
+  const coInstructorAssignments = asArray(user.coInstructorAssignments);
+  const teachingPermissions = asArray(user.teachingPermissions);
+  const instructorCertifications = asArray(user.instructorCertifications);
+  const menteePairs = asArray(user.menteePairs);
+  const mentorPairs = asArray(user.mentorPairs);
+  const instructorGrowthEvents = asArray(user.instructorGrowthEvents);
+  const activeApplication = instructorApplications[0] ?? null;
+  const applicationTimelineEvents = instructorApplications.flatMap((application: any) =>
+    asArray(application.timeline).map((event: any) => ({
+      ...event,
+      applicationId: application.id,
+    }))
+  );
+  const reviewActivity = instructorApplications.flatMap((application: any) => [
+    ...asArray(application.applicationReviews).map((review: any, index: number) => ({
+      id: `${application.id}-app-review-${index}`,
+      title: "Application review",
+      summary: review.summary ?? "No summary recorded.",
+    })),
+    ...asArray(application.interviewReviews).map((review: any, index: number) => ({
+      id: `${application.id}-interview-review-${index}`,
+      title: "Interview review",
+      summary:
+        review.recommendation || review.overallRating
+          ? `${formatInstructorOpsLabel(review.recommendation ?? "Interview")}: ${
+              review.overallRating ?? "No rating"
+            }`
+          : "No summary recorded.",
+    })),
+  ]);
+
+  return (
+    <div className="instructor-ops-page instructor-profile-page">
+      <div className="instructor-profile-hero">
+        <div className="instructor-profile-identity">
+          <div className="instructor-profile-avatar" aria-hidden="true">
+            {record.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- small admin avatar, not page-critical.
+              <img src={record.avatarUrl} alt="" />
+            ) : (
+              record.name.slice(0, 2).toUpperCase()
+            )}
+          </div>
+          <div>
+            <div className="instructor-profile-breadcrumbs">
+              <Link href="/admin/instructors">Pipeline board</Link>
+              <span>/</span>
+              <Link href="/admin/instructors/directory">Directory</Link>
+            </div>
+            <p className="badge">{record.stageLabel}</p>
+            <h1 className="page-title">{record.name}</h1>
+            <p className="page-subtitle">
+              {record.email} | {record.chapterName} | {record.stageDetail}
+            </p>
+          </div>
+        </div>
+        <div className="instructor-profile-actions">
+          {record.application && (
+            <Link href={`/admin/instructor-applicants/${record.application.id}`} className="button secondary">
+              Open application
+            </Link>
+          )}
+          <Link href="/admin/instructors/attention" className="button secondary">
+            Attention inbox
+          </Link>
+          <Link href="/admin/instructors" className="button">
+            Back to board
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid four instructor-ops-metrics">
+        <ProfileMetric label="Stage" value={record.stageLabel} detail={record.currentLoadLabel} />
+        <ProfileMetric
+          label="Assignments"
+          value={String(record.activeAssignmentCount)}
+          detail={`${record.assignmentCount} total`}
+        />
+        <ProfileMetric
+          label="Training"
+          value={`${record.trainingPercent}%`}
+          detail={`${record.trainingCompleted}/${record.trainingTotal} modules`}
+        />
+        <ProfileMetric
+          label="Attention"
+          value={String(record.attentionFlags.length)}
+          detail={record.attentionFlags[0]?.title ?? "No active flags"}
+        />
+      </div>
+
+      <nav className="instructor-profile-tabs" aria-label="Instructor profile sections">
+        <a href="#overview">Overview</a>
+        <a href="#pipeline">Pipeline</a>
+        <a href="#assignments">Assignments</a>
+        <a href="#mentorship">Mentorship</a>
+        <a href="#activity">Notes/Activity</a>
+      </nav>
+
+      <section id="overview" className="card instructor-profile-section">
+        <SectionHeading title="Overview" detail="Identity, contact, tags, categories, and leadership signals." />
+        <div className="instructor-profile-two-column">
+          <InfoGrid
+            items={[
+              ["Email", record.email],
+              ["Phone", record.phone ?? "Not recorded"],
+              ["Chapter", record.chapterName],
+              ["Location", record.chapterLocation ?? user.profile?.city ?? "Not recorded"],
+              ["School", user.profile?.school ?? activeApplication?.schoolName ?? "Not recorded"],
+              ["Roles", record.roles.join(", ") || "None"],
+            ]}
+          />
+          <div>
+            <TagsEditor
+              userId={id}
+              initialTags={detail.tags}
+              allTags={allTags.map((t) => ({
+                id: t.id,
+                namespace: t.namespace,
+                label: t.label,
+                color: t.color,
+              }))}
+            />
+            <div className="instructor-profile-signal-grid" style={{ marginTop: 16 }}>
+              <Signal label="Mentor eligible" value={record.mentorEligible ? "Yes" : "No"} />
+              <Signal label="Workshop eligible" value={record.workshopEligible ? "Yes" : "No"} />
+              <Signal label="Leadership track" value={record.leadershipTrack ? "Yes" : "No"} />
+              <Signal label="Growth tier" value={record.growthTier ? formatInstructorOpsLabel(record.growthTier) : "Not started"} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="pipeline" className="card instructor-profile-section">
+        <SectionHeading title="Pipeline" detail="How this person got to the current board stage." />
+        <div className="instructor-profile-two-column">
+          <div>
+            <h3>Current operations stage</h3>
+            <div className="instructor-profile-stage-card">
+              <span className={`pill ${record.needsAttention ? "pill-attention" : "pill-purple"}`}>
+                {record.stageLabel}
+              </span>
+              <strong>{record.stageDetail}</strong>
+              <span>
+                Latest activity: {formatInstructorOpsDateTime(record.latestActivityAt)}
+              </span>
+            </div>
+
+            <h3 style={{ marginTop: 18 }}>Attention flags</h3>
+            {record.attentionFlags.length === 0 ? (
+              <p className="instructor-profile-muted">No active attention flags.</p>
+            ) : (
+              <div className="instructor-ops-attention-list">
+                {record.attentionFlags.map((flag) => (
+                  <Link key={flag.kind} href={flag.href} className={`instructor-ops-attention-item is-${flag.tone}`}>
+                    <strong>{flag.title}</strong>
+                    <span>{flag.detail}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h3>Readiness and onboarding</h3>
+            <InfoGrid
+              items={[
+                ["Readiness complete", readiness.baseReadinessComplete ? "Yes" : "No"],
+                ["Can request offering approval", readiness.canRequestOfferingApproval ? "Yes" : "No"],
+                ["Training complete", readiness.trainingComplete ? "Yes" : "No"],
+                ["Interview status", formatInstructorOpsLabel(readiness.interviewStatus)],
+                ["Onboarding profile", record.onboardingComplete ? "Complete" : "Incomplete"],
+                ["Subtype", formatInstructorOpsLabel(readiness.instructorSubtype)],
+              ]}
+            />
+            {readiness.missingRequirements.length > 0 && (
+              <div className="instructor-profile-blocker-list">
+                {readiness.missingRequirements.map((requirement) => (
+                  <Link key={requirement.code} href={requirement.href}>
+                    <strong>{requirement.title}</strong>
+                    <span>{requirement.detail}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="instructor-profile-history">
+          <h3>Application history</h3>
+          {instructorApplications.length === 0 ? (
+            <p className="instructor-profile-muted">No instructor application records found.</p>
+          ) : (
+            instructorApplications.map((application: any) => (
+              <Link key={application.id} href={`/admin/instructor-applicants/${application.id}`} className="instructor-profile-history-row">
+                <span>{formatInstructorOpsLabel(application.status)}</span>
+                <strong>{formatInstructorOpsLabel(application.applicationTrack)}</strong>
+                <small>Updated {formatInstructorOpsDate(application.updatedAt)}</small>
+              </Link>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section id="assignments" className="card instructor-profile-section">
+        <SectionHeading title="Assignments" detail="Classes, legacy courses, co-instructor roles, and teaching permissions." />
+        <div className="instructor-profile-assignment-grid">
+          <div>
+            <h3>Class offerings</h3>
+            <div className="instructor-profile-stack">
+              {classOfferings.length === 0 ? (
+                <p className="instructor-profile-muted">No class offerings assigned.</p>
+              ) : (
+                classOfferings.map((offering: any) => (
+                  <Link key={offering.id} href={`/admin/classes/${offering.id}`} className="instructor-profile-assignment-row">
+                    <strong>{offering.title}</strong>
+                    <span>
+                      {formatInstructorOpsLabel(offering.status)} | {offering.template.interestArea}
+                    </span>
+                    <small>
+                      Approval: {formatInstructorOpsLabel(offering.approval?.status ?? "NOT_REQUESTED")}
+                    </small>
+                  </Link>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h3>Courses and co-instructor roles</h3>
+            <div className="instructor-profile-stack">
+              {courses.map((course: any) => (
+                <div key={course.id} className="instructor-profile-assignment-row">
+                  <strong>{course.title}</strong>
+                  <span>{course.interestArea} | {course._count.enrollments} enrollments</span>
+                </div>
+              ))}
+              {coInstructorAssignments.map((assignment: any) => (
+                <div key={assignment.id} className="instructor-profile-assignment-row">
+                  <strong>{assignment.course.title}</strong>
+                  <span>{formatInstructorOpsLabel(assignment.role)} | Co-instructor</span>
+                </div>
+              ))}
+              {courses.length === 0 && coInstructorAssignments.length === 0 && (
+                <p className="instructor-profile-muted">No legacy course assignments found.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="instructor-profile-history">
+          <h3>Teaching permissions and certifications</h3>
+          <div className="instructor-profile-permission-grid">
+            {teachingPermissions.map((permission: any) => (
+              <div key={permission.id} className="instructor-profile-mini-row">
+                <strong>{formatInstructorOpsLabel(permission.level)}</strong>
+                <span>Granted {formatInstructorOpsDate(permission.grantedAt)}</span>
+              </div>
+            ))}
+            {instructorCertifications.map((certification: any) => (
+              <div key={certification.id} className="instructor-profile-mini-row">
+                <strong>{certification.certType}</strong>
+                <span>
+                  {formatInstructorOpsLabel(certification.status)}
+                  {certification.expiresAt ? ` | Expires ${formatInstructorOpsDate(certification.expiresAt)}` : ""}
+                </span>
+              </div>
+            ))}
+            {teachingPermissions.length === 0 && instructorCertifications.length === 0 && (
+              <p className="instructor-profile-muted">No permissions or certifications recorded.</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section id="mentorship" className="card instructor-profile-section">
+        <SectionHeading title="Mentorship" detail="Mentor assignment, mentor capacity, and leadership readiness." />
+        <div className="instructor-profile-two-column">
+          <div>
+            <h3>As mentee</h3>
+            {menteePairs.length === 0 ? (
+              <p className="instructor-profile-muted">No instructor mentor assigned.</p>
+            ) : (
+              <div className="instructor-profile-stack">
+                {menteePairs.map((pair: any) => (
+                  <div key={pair.id} className="instructor-profile-assignment-row">
+                    <strong>{pair.mentor.name}</strong>
+                    <span>{pair.mentor.email}</span>
+                    <small>{formatInstructorOpsLabel(pair.status)} since {formatInstructorOpsDate(pair.startDate)}</small>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <h3>As mentor</h3>
+            {mentorPairs.length === 0 ? (
+              <p className="instructor-profile-muted">No instructor mentees assigned.</p>
+            ) : (
+              <div className="instructor-profile-stack">
+                {mentorPairs.map((pair: any) => (
+                  <div key={pair.id} className="instructor-profile-assignment-row">
+                    <strong>{pair.mentee.name}</strong>
+                    <span>{pair.mentee.email}</span>
+                    <small>{formatInstructorOpsLabel(pair.status)} since {formatInstructorOpsDate(pair.startDate)}</small>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section id="activity" className="card instructor-profile-section">
+        <SectionHeading title="Notes/Activity" detail="Admin notes, open tasks, application events, and growth events." />
+
+        <div className="instructor-profile-activity-grid" style={{ marginBottom: 24 }}>
+          <NotesEditor userId={id} initialNotes={detail.notes} />
+          <TasksEditor userId={id} initialTasks={detail.tasks} />
+        </div>
+
+        <div className="instructor-profile-activity-grid">
+          <div>
+            <h3>Application activity</h3>
+            <div className="instructor-profile-stack">
+              {applicationTimelineEvents.length === 0 ? (
+                <p className="instructor-profile-muted">No application timeline events found.</p>
+              ) : (
+                applicationTimelineEvents.map((event: any) => (
+                  <div key={event.id} className="instructor-profile-activity-row">
+                    <strong>{formatInstructorOpsLabel(event.kind)}</strong>
+                    <span>
+                      {event.actor?.name ? `${event.actor.name} | ` : ""}
+                      {formatInstructorOpsDateTime(event.createdAt)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h3>Review notes and growth</h3>
+            <div className="instructor-profile-stack">
+              {reviewActivity.map((activity: any) => (
+                <div key={activity.id} className="instructor-profile-activity-row">
+                  <strong>{activity.title}</strong>
+                  <span>{activity.summary}</span>
+                </div>
+              ))}
+              {instructorGrowthEvents.map((event: any) => (
+                <div key={event.id} className="instructor-profile-activity-row">
+                  <strong>{event.title}</strong>
+                  <span>
+                    {formatInstructorOpsLabel(event.status)} | {event.xpAmount} XP | {formatInstructorOpsDate(event.occurredAt)}
+                  </span>
+                </div>
+              ))}
+              {reviewActivity.length === 0 && instructorGrowthEvents.length === 0 && (
+                <p className="instructor-profile-muted">No review notes or growth events found.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ProfileMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="card instructor-ops-metric">
+      <span className="kpi" style={{ fontSize: value.length > 8 ? 22 : undefined }}>
+        {value}
+      </span>
+      <span className="kpi-label">{label}</span>
+      <span>{detail}</span>
+    </div>
+  );
+}
+
+function SectionHeading({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="instructor-ops-section-heading">
+      <div>
+        <h2>{title}</h2>
+        <p>{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function InfoGrid({ items }: { items: Array<[string, string]> }) {
+  return (
+    <div className="instructor-profile-info-grid">
+      {items.map(([label, value]) => (
+        <div key={label}>
+          <span>{label}</span>
+          <strong>{value}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Signal({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
