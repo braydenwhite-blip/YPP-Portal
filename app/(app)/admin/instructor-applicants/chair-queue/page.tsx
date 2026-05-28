@@ -113,6 +113,11 @@ export default async function ChairQueuePage() {
             : ""}
           {" "}Open any row to launch the full chair review workspace.
         </p>
+        <div style={{ marginTop: 8 }}>
+          <Link href="/admin/instructor-applicants/activity" className="link">
+            See all reviewer activity →
+          </Link>
+        </div>
       </div>
 
       {applications.length === 0 ? (
