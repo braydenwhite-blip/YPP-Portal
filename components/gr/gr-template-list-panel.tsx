@@ -125,7 +125,7 @@ export default function GRTemplateListPanel({ templates }: { templates: Template
           {filtered.map((t) => (
             <Link
               key={t.id}
-              href={`/admin/mentorship-program/gr-templates/${t.id}`}
+              href={`/admin/mentorship/gr/templates/${t.id}`}
               className="card"
               style={{ padding: "1rem", display: "block", textDecoration: "none", color: "inherit" }}
             >

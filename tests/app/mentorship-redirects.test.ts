@@ -14,6 +14,11 @@ import LegacyMentorFeedbackPage from "@/app/(app)/mentor/feedback/page";
 import LegacyMyProgramGRPage from "@/app/(app)/my-program/gr/page";
 import LegacyMyProgramReflectPage from "@/app/(app)/my-program/reflect/page";
 import LegacyMyProgramSchedulePage from "@/app/(app)/my-program/schedule/page";
+import LegacyMyProgramAwardsPage from "@/app/(app)/my-program/awards/page";
+import LegacyGRTemplatesPage from "@/app/(app)/admin/mentorship-program/gr-templates/page";
+import LegacyGRTemplateDetailPage from "@/app/(app)/admin/mentorship-program/gr-templates/[id]/page";
+import LegacyGRAssignmentsPage from "@/app/(app)/admin/mentorship-program/gr-assignments/page";
+import LegacyGRResourcesPage from "@/app/(app)/admin/mentorship-program/gr-resources/page";
 
 class RedirectError extends Error {
   constructor(public to: string) {
@@ -66,5 +71,21 @@ describe("mentorship legacy route redirects", () => {
     expect(() => LegacyMyProgramGRPage()).toThrow("redirect:/my-mentor/goals");
     expect(() => LegacyMyProgramReflectPage()).toThrow("redirect:/my-mentor/reflection");
     expect(() => LegacyMyProgramSchedulePage()).toThrow("redirect:/my-mentor/schedule");
+    expect(() => LegacyMyProgramAwardsPage()).toThrow("redirect:/my-mentor/awards");
+  });
+
+  it("redirects legacy admin G&R routes to the canonical /admin/mentorship/gr area", async () => {
+    expect(() => LegacyGRTemplatesPage()).toThrow(
+      "redirect:/admin/mentorship/gr/templates"
+    );
+    expect(() => LegacyGRAssignmentsPage()).toThrow(
+      "redirect:/admin/mentorship/gr/assignments"
+    );
+    expect(() => LegacyGRResourcesPage()).toThrow(
+      "redirect:/admin/mentorship/gr/resources"
+    );
+    await expect(
+      LegacyGRTemplateDetailPage({ params: Promise.resolve({ id: "tpl-1" }) })
+    ).rejects.toThrow("redirect:/admin/mentorship/gr/templates/tpl-1");
   });
 });

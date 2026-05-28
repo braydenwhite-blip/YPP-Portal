@@ -402,6 +402,60 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/mentorship/gr",
+    title: "Goals & Resources — Admin",
+    content: {
+      purpose: "This is the canonical admin home for Goals & Resources: every active G&R document with its owner, mentor, status, and what needs action.",
+      firstStep: "Scan the health signals and document table to spot drafts that were never activated, documents with no goals, or pending goal-change proposals.",
+      nextStep: "Open a document for the full detail, or jump to Templates, Assignments, or Resources to make a change."
+    }
+  },
+  {
+    pattern: "/admin/mentorship/gr/[documentId]",
+    title: "G&R Document — Admin",
+    content: {
+      purpose: "This page shows one mentee's Goals & Resources document — owner, connected mentor, active and overdue goals, timeline phases, and what the mentee can currently see.",
+      firstStep: "Review the active goals, overdue flags, and pending goal changes to understand where the relationship stands.",
+      nextStep: "Use Assignments to resolve goal-change proposals, keeping the document accurate without exposing private staff notes."
+    }
+  },
+  {
+    pattern: "/admin/mentorship/gr/assignments",
+    title: "G&R Assignments — Admin",
+    content: {
+      purpose: "This page assigns G&R documents to active mentorships and reviews goal-change proposals from mentors and mentees.",
+      firstStep: "Review the assigned documents and the proposal queue first so you can decide which item needs action right now.",
+      nextStep: "After you assign a document or resolve a proposal, the canonical G&R overview refreshes so the next task is easier to track."
+    }
+  },
+  {
+    pattern: "/admin/mentorship/gr/resources",
+    title: "G&R Resources — Admin",
+    content: {
+      purpose: "This page manages the shared resource library (links and uploads) that mentors attach to G&R documents.",
+      firstStep: "Filter or search the library to find the resource you want to add, edit, or retire.",
+      nextStep: "Save your change and the resource becomes available to link from templates and documents."
+    }
+  },
+  {
+    pattern: "/admin/mentorship/gr/templates",
+    title: "G&R Templates — Admin",
+    content: {
+      purpose: "This page creates and manages the Goals & Responsibilities templates that seed each mentee role's document.",
+      firstStep: "Pick the template that matches the role you want to update, or start a new one.",
+      nextStep: "Open a template to edit its goals, success criteria, and resources before it is assigned to mentees."
+    }
+  },
+  {
+    pattern: "/admin/mentorship/gr/templates/[id]",
+    title: "Edit G&R Template — Admin",
+    content: {
+      purpose: "This page edits one Goals & Responsibilities template — its goals, KPI definitions, success criteria, and linked resources.",
+      firstStep: "Review the current goals and success criteria, then adjust what mentees in this role should focus on.",
+      nextStep: "Publish your changes; existing documents follow the bulk-update policy you choose so nothing breaks unexpectedly."
+    }
+  },
+  {
     pattern: "/admin/mentorship-program",
     title: "Mentorship Command Center — Admin",
     content: {
@@ -414,36 +468,36 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     pattern: "/admin/mentorship-program/gr-assignments",
     title: "G&R Assignments — Admin",
     content: {
-      purpose: "This page helps you manage the g&r assignments — admin and keep the portal data or workflow organized.",
-      firstStep: "Review the current list, board, or settings first so you can decide which item needs action right now.",
-      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
+      purpose: "This legacy route redirects to the canonical G&R assignments page under the admin mentorship command center.",
+      firstStep: "You'll land on /admin/mentorship/gr/assignments automatically.",
+      nextStep: "Assign documents and resolve goal-change proposals from the canonical page so context stays together."
     }
   },
   {
     pattern: "/admin/mentorship-program/gr-resources",
     title: "G&R Resources — Admin",
     content: {
-      purpose: "This page helps you browse the g&r resources — admin and open the resource that fits your next task.",
-      firstStep: "Start with the most relevant section, filter, or card so you can narrow the list before opening anything.",
-      nextStep: "Once you find the right resource, open it and use the linked workspace or material to keep moving forward."
+      purpose: "This legacy route redirects to the canonical G&R resource library under the admin mentorship command center.",
+      firstStep: "You'll land on /admin/mentorship/gr/resources automatically.",
+      nextStep: "Manage shared resources from the canonical page so links and uploads stay in one place."
     }
   },
   {
     pattern: "/admin/mentorship-program/gr-templates",
     title: "G&R Templates — Admin",
     content: {
-      purpose: "This page helps you browse the g&r templates — admin and open the resource that fits your next task.",
-      firstStep: "Start with the most relevant section, filter, or card so you can narrow the list before opening anything.",
-      nextStep: "Once you find the right resource, open it and use the linked workspace or material to keep moving forward."
+      purpose: "This legacy route redirects to the canonical G&R templates page under the admin mentorship command center.",
+      firstStep: "You'll land on /admin/mentorship/gr/templates automatically.",
+      nextStep: "Create or edit templates from the canonical page so versions and assignments stay aligned."
     }
   },
   {
     pattern: "/admin/mentorship-program/gr-templates/[id]",
     title: "Edit G&R Template — Admin",
     content: {
-      purpose: "This page helps you browse the g&r template — admin and open the resource that fits your next task.",
-      firstStep: "Start with the most relevant section, filter, or card so you can narrow the list before opening anything.",
-      nextStep: "Once you find the right resource, open it and use the linked workspace or material to keep moving forward."
+      purpose: "This legacy route redirects to the canonical G&R template editor under the admin mentorship command center.",
+      firstStep: "You'll land on /admin/mentorship/gr/templates/[id] automatically.",
+      nextStep: "Edit the template's goals, criteria, and resources from the canonical page."
     }
   },
   {
@@ -2636,6 +2690,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/my-mentor/awards",
+    title: "My Recognition & Awards",
+    content: {
+      purpose: "This page celebrates your recognition points and award tiers — it's a picture of your consistency and growth, not a grade.",
+      firstStep: "See how many points you've earned and how close you are to the next award tier.",
+      nextStep: "Keep your reflection and check-ins up to date each cycle — that's the surest way to keep growing toward the next award."
+    }
+  },
+  {
     pattern: "/my-mentor/reflection",
     title: "Monthly Reflection",
     content: {
@@ -2682,11 +2745,11 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/my-program/awards",
-    title: "My Awards — My Program",
+    title: "My Awards",
     content: {
-      purpose: "This page brings together the main tools and details for my awards — my program.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+      purpose: "This legacy route redirects to your canonical recognition & awards page under My Mentorship.",
+      firstStep: "You'll land on /my-mentor/awards automatically.",
+      nextStep: "Track your points, tier progress, and recognition from your mentee home."
     }
   },
   {

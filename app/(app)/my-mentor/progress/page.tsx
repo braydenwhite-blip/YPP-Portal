@@ -54,7 +54,7 @@ export default async function MyProgressPage() {
             How far you&apos;ve come — and the feedback your mentor has shared with you.
           </p>
         </div>
-        <Link href="/my-program/awards" className="button secondary small">
+        <Link href="/my-mentor/awards" className="button secondary small">
           Points &amp; Awards →
         </Link>
       </div>

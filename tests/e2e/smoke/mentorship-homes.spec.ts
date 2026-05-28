@@ -58,4 +58,36 @@ test("@smoke legacy /my-program mentee flows redirect into /my-mentor", async ({
 
   await page.goto("/my-program/schedule");
   await expect(page).toHaveURL(/\/my-mentor\/schedule$/);
+
+  await page.goto("/my-program/awards");
+  await expect(page).toHaveURL(/\/my-mentor\/awards$/);
+});
+
+test("@smoke a mentee can open their recognition & awards page", async ({ page }) => {
+  await loginAs(page, "chapterLead");
+  await page.goto("/my-mentor/awards");
+
+  await expect(
+    page.getByRole("heading", { name: "My Recognition & Awards" })
+  ).toBeVisible();
+});
+
+test("@smoke admin can open the canonical Goals & Resources workspace", async ({
+  page,
+}) => {
+  await loginAs(page, "admin");
+  await page.goto("/admin/mentorship/gr");
+
+  await expect(
+    page.getByRole("heading", { name: "Goals & Resources" })
+  ).toBeVisible();
+
+  // The shared admin G&R sub-navigation ties the area together.
+  await expect(
+    page.getByRole("navigation", { name: "Goals & Resources admin sections" })
+  ).toBeVisible();
+
+  // Legacy admin G&R routes redirect into the canonical area.
+  await page.goto("/admin/mentorship-program/gr-templates");
+  await expect(page).toHaveURL(/\/admin\/mentorship\/gr\/templates$/);
 });

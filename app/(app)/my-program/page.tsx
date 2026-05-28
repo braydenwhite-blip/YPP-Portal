@@ -383,7 +383,7 @@ export default async function MyProgramPage({
                   <Link href={hub.programReflection.primaryHref} className="button secondary small">
                     {hub.programReflection.primaryLabel}
                   </Link>
-                  <Link href="/my-program/awards" className="button secondary small">
+                  <Link href="/my-mentor/awards" className="button secondary small">
                     Program Awards
                   </Link>
                 </div>

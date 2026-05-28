@@ -6,8 +6,10 @@ import { projectAwardOutcome } from "@/lib/award-projection";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { POINT_TABLE } from "@/lib/mentorship-point-table";
 import { AwardsSummaryPanel } from "@/components/mentorship/awards-summary-panel";
+import { ReviewStateStrip } from "@/components/mentorship/review-state-strip";
 import { formatEnum } from "@/lib/format-utils";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
+import { getReviewHeadlineState, getReviewStateTonePalette } from "@/lib/mentorship-review-state";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
 import ChairActionsPanel from "./chair-actions-panel";
 
@@ -51,6 +53,13 @@ export default async function ChairReviewDetailPage({
     notFound();
   }
 
+  const headlineState = getReviewHeadlineState({
+    status: review.status,
+    releasedToMenteeAt: review.releasedToMenteeAt,
+    pointsAwarded: review.pointsAwarded,
+  });
+  const headlinePalette = getReviewStateTonePalette(headlineState.tone);
+
   return (
     <div>
       <div className="topbar">
@@ -68,6 +77,23 @@ export default async function ChairReviewDetailPage({
             })}
           </p>
         </div>
+        <span
+          title={headlineState.description}
+          style={{
+            alignSelf: "flex-start",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: headlinePalette.background,
+            color: headlinePalette.color,
+            borderRadius: 999,
+            padding: "0.3rem 0.8rem",
+            fontSize: "0.8rem",
+            fontWeight: 700,
+          }}
+        >
+          {headlineState.label}
+        </span>
       </div>
 
       <section
@@ -208,6 +234,11 @@ export default async function ChairReviewDetailPage({
             menteeName={review.mentee.name ?? "the mentee"}
             bonusPoints={review.bonusPoints}
             bonusReason={review.bonusReason}
+          />
+          <ReviewStateStrip
+            status={review.status}
+            releasedToMenteeAt={review.releasedToMenteeAt}
+            pointsAwarded={review.pointsAwarded}
           />
           <RatingLegend audience="admin" title="Rating scale you're approving against" />
         </div>

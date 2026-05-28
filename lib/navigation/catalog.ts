@@ -513,7 +513,7 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Nominate mentees for Bronze, Silver, Gold, and Lifetime achievement awards.",
     },
     {
-      href: "/my-program/awards",
+      href: "/my-mentor/awards",
       label: "My Awards",
       icon: "🏅",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
