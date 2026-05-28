@@ -17,6 +17,7 @@ interface SidebarTimelineEvent {
 interface Props {
   application: {
     id: string;
+    applicationTrack?: string | null;
     documents: Array<{
       id: string;
       kind: ApplicantDocumentKind;
@@ -49,14 +50,16 @@ export default function ApplicantCockpitSidebar({
 
   return (
     <aside className="applicant-cockpit-sidebar">
-      {/* Documents */}
-      <section id="sidebar-documents">
-        <ApplicantDocumentsPanel
-          applicationId={application.id}
-          documents={application.documents}
-          canUpload
-        />
-      </section>
+      {/* Documents — not applicable for Summer Workshop applicants */}
+      {application.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" && (
+        <section id="sidebar-documents">
+          <ApplicantDocumentsPanel
+            applicationId={application.id}
+            documents={application.documents}
+            canUpload
+          />
+        </section>
+      )}
 
       {/* Timeline preview */}
       <section className="cockpit-sidebar-card">
