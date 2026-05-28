@@ -40,6 +40,7 @@ export default async function ApplyChapterPresidentPage() {
 
   // Fetch chapters for the dropdown
   const chapters = await prisma.chapter.findMany({
+    where: { archivedAt: null },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

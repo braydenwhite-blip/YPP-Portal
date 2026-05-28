@@ -103,6 +103,11 @@ export default async function InterviewerWorkspacePage({
   }
 
   const reviewerNote = application.applicationReviews[0] ?? null;
+  const applicantDisplayName =
+    application.preferredFirstName ||
+    application.legalName ||
+    application.applicant.name ||
+    "Applicant";
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
@@ -111,7 +116,20 @@ export default async function InterviewerWorkspacePage({
           <Link href={`/applications/instructor/${id}`} className="iv-live-topbar-back">
             ← Back to Applicant
           </Link>
-          <span className="iv-live-topbar-title">Live Interview Workspace</span>
+          <span className="iv-live-topbar-title">
+            Live Interview Workspace
+            <span
+              style={{
+                marginLeft: 10,
+                paddingLeft: 10,
+                borderLeft: "1px solid var(--border)",
+                fontWeight: 600,
+                color: "var(--muted)",
+              }}
+            >
+              with {applicantDisplayName}
+            </span>
+          </span>
         </div>
         <div className="iv-live-topbar-right">
           <Link

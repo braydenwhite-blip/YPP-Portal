@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
-import { offerInterviewSlots } from "@/lib/instructor-application-actions";
+import {
+  offerInterviewSlots,
+  reviewInstructorApplication,
+} from "@/lib/instructor-application-actions";
 import { updateInstructorInterviewScheduleAction } from "@/lib/instructor-review-actions";
 import { cleanMeetingDetails, isHttpUrl } from "@/lib/meeting-details";
 
@@ -67,6 +70,44 @@ export default function InterviewSchedulingInlinePanel({
     { id: 2, scheduledAt: "", durationMinutes: "60" },
     { id: 3, scheduledAt: "", durationMinutes: "60" },
   ]);
+  const [directAt, setDirectAt] = useState("");
+  const [directPending, startDirectTransition] = useTransition();
+  const [directResult, setDirectResult] = useState<{ text: string; ok: boolean } | null>(null);
+
+  function handleSetDirect(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!directAt) {
+      setDirectResult({ text: "Pick a date and time first.", ok: false });
+      return;
+    }
+    const scheduledAt = new Date(directAt);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      setDirectResult({ text: "That date/time is not valid.", ok: false });
+      return;
+    }
+    if (scheduledAt <= new Date()) {
+      setDirectResult({ text: "Interview time must be in the future.", ok: false });
+      return;
+    }
+    startDirectTransition(async () => {
+      const formData = new FormData();
+      formData.set("applicationId", applicationId);
+      formData.set("action", "schedule_interview");
+      formData.set("scheduledAt", scheduledAt.toISOString());
+      const response = await reviewInstructorApplication(
+        { status: "idle", message: "" },
+        formData
+      );
+      if (response.status === "error") {
+        setDirectResult({ text: response.message || "Failed to set interview time.", ok: false });
+        return;
+      }
+      setDirectResult({
+        text: "Interview scheduled. Open the interview workspace when you're ready to run it.",
+        ok: true,
+      });
+    });
+  }
 
   function updateSlotDraft(id: number, patch: Partial<SlotDraft>) {
     setSlotDrafts((current) =>
@@ -147,6 +188,48 @@ export default function InterviewSchedulingInlinePanel({
         exactly 3 future options, the portal emails them to the applicant, and the
         applicant picks the one that works.
       </p>
+
+      {canPostSlots && (
+        <form onSubmit={handleSetDirect} className="cockpit-slot-form">
+          <p>
+            <strong>Skip the offer step.</strong> If you and the applicant have
+            already agreed on a time, set it directly here. Status moves to{" "}
+            <em>Interview scheduled</em> and the interview workspace opens up.
+          </p>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 500 }}>Interview time</span>
+              <input
+                type="datetime-local"
+                className="input"
+                value={directAt}
+                onChange={(event) => setDirectAt(event.target.value)}
+                style={{ minWidth: 220 }}
+              />
+            </label>
+            <button
+              type="submit"
+              className="button cockpit-inline-button"
+              disabled={directPending || !directAt}
+              style={{ alignSelf: "end" }}
+            >
+              {directPending ? "Saving..." : "Set interview time"}
+            </button>
+          </div>
+          {directResult && (
+            <p className={directResult.ok ? "cockpit-form-success" : "cockpit-form-error"}>
+              {directResult.text}
+            </p>
+          )}
+        </form>
+      )}
 
       {children}
 

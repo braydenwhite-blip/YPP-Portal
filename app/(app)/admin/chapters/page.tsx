@@ -7,17 +7,25 @@ import { hasRole } from "@/lib/authorization";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
-export default async function AdminChaptersPage() {
+export default async function AdminChaptersPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ archived?: string }>;
+}) {
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {
     redirect("/");
   }
 
+  const sp = (await searchParams) ?? {};
+  const showArchived = sp.archived === "1";
+
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - THIRTY_DAYS_MS);
 
   const chapters = await prisma.chapter.findMany({
+    where: showArchived ? {} : { archivedAt: null },
     include: {
       users: {
         select: {
@@ -80,6 +88,7 @@ export default async function AdminChaptersPage() {
       openPositions: chapter.positions.length,
       activeAnnouncements: chapter.announcements.length,
       createdAt: chapter.createdAt.toISOString(),
+      archivedAt: chapter.archivedAt ? chapter.archivedAt.toISOString() : null,
       health,
       healthReason,
     };
@@ -99,6 +108,15 @@ export default async function AdminChaptersPage() {
         <div>
           <p className="badge">Admin</p>
           <h1 className="page-title">All Chapters</h1>
+        </div>
+        <div>
+          <a
+            href={showArchived ? "/admin/chapters" : "/admin/chapters?archived=1"}
+            className="button secondary"
+            style={{ fontSize: 12, textDecoration: "none" }}
+          >
+            {showArchived ? "Hide archived" : "Show archived"}
+          </a>
         </div>
       </div>
 

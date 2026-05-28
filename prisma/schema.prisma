@@ -768,8 +768,16 @@ model Chapter {
   // Instructor assignment system
   workshopOpportunities WorkshopOpportunity[] @relation("WorkshopOpportunityChapter")
 
+  // Soft-delete / archive. Archiving hides the chapter from active lists and
+  // selection menus but preserves member affiliation so a restore puts every
+  // user back where they were. Hard delete remains available for empty chapters.
+  archivedAt   DateTime?
+  archivedById String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([archivedAt])
 }
 
 model User {

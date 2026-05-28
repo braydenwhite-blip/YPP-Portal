@@ -754,15 +754,59 @@ export async function updateChapter(formData: FormData) {
   revalidatePath(`/admin/chapters/${id}`);
 }
 
+export async function archiveChapter(formData: FormData) {
+  const session = await requireAdmin();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  const id = getString(formData, "id");
+
+  const chapter = await prisma.chapter.findUnique({
+    where: { id },
+    select: { id: true, archivedAt: true },
+  });
+  if (!chapter) throw new Error("Chapter not found.");
+  if (chapter.archivedAt) {
+    // Already archived — make it idempotent so a double-click is a no-op.
+    revalidatePath("/admin/chapters");
+    revalidatePath(`/admin/chapters/${id}`);
+    return;
+  }
+
+  await prisma.chapter.update({
+    where: { id },
+    data: { archivedAt: new Date(), archivedById: session.user.id },
+  });
+
+  revalidatePath("/admin/chapters");
+  revalidatePath("/chapters");
+  revalidatePath(`/admin/chapters/${id}`);
+}
+
+export async function restoreChapter(formData: FormData) {
+  await requireAdmin();
+  const id = getString(formData, "id");
+
+  await prisma.chapter.update({
+    where: { id },
+    data: { archivedAt: null, archivedById: null },
+  });
+
+  revalidatePath("/admin/chapters");
+  revalidatePath("/chapters");
+  revalidatePath(`/admin/chapters/${id}`);
+}
+
 export async function deleteChapter(formData: FormData) {
   await requireAdmin();
 
   const id = getString(formData, "id");
 
-  // Check if chapter has users
+  // Hard delete is reserved for empty chapters — archiving is the safe path
+  // when members are attached because it preserves chapterId on every user.
   const usersCount = await prisma.user.count({ where: { chapterId: id } });
   if (usersCount > 0) {
-    throw new Error("Cannot delete chapter with existing users. Remove users first.");
+    throw new Error(
+      "Cannot permanently delete a chapter with existing members. Use Archive instead."
+    );
   }
 
   // Delete related records atomically in a transaction

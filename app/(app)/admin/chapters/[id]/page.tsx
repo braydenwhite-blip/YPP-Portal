@@ -3,7 +3,12 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { hasRole } from "@/lib/authorization";
-import { updateChapter, deleteChapter } from "@/lib/chapter-actions";
+import {
+  updateChapter,
+  deleteChapter,
+  archiveChapter,
+  restoreChapter,
+} from "@/lib/chapter-actions";
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -151,6 +156,20 @@ export default async function AdminChapterDetailPage({
           <p className="badge">Admin · Chapter</p>
           <h1 className="page-title" style={{ marginBottom: 4 }}>
             {chapter.name}
+            {chapter.archivedAt ? (
+              <span
+                className="pill"
+                style={{
+                  marginLeft: 10,
+                  fontSize: 12,
+                  background: "#fef3c7",
+                  color: "#92400e",
+                  verticalAlign: "middle",
+                }}
+              >
+                Archived
+              </span>
+            ) : null}
           </h1>
           <p style={{ margin: 0, color: "var(--muted)" }}>
             {[chapter.city, chapter.region].filter(Boolean).join(", ") ||
@@ -371,26 +390,68 @@ export default async function AdminChapterDetailPage({
                 Save Changes
               </button>
             </form>
-            <details style={{ marginTop: 16 }}>
+            <details style={{ marginTop: 16 }} open={Boolean(chapter.archivedAt)}>
               <summary
                 style={{ cursor: "pointer", fontSize: 13, color: "#dc2626" }}
               >
                 Danger zone
               </summary>
-              <form action={deleteChapter} style={{ marginTop: 8 }}>
-                <input type="hidden" name="id" value={chapter.id} />
-                <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
-                  Deletion is blocked while members are assigned. Move members
-                  off the chapter first.
-                </p>
-                <button
-                  className="button"
-                  type="submit"
-                  style={{ background: "#dc2626", fontSize: 12 }}
-                >
-                  Delete Chapter
-                </button>
-              </form>
+              {chapter.archivedAt ? (
+                <div style={{ marginTop: 8 }}>
+                  <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
+                    This chapter is archived (
+                    {new Date(chapter.archivedAt).toLocaleDateString()}). It is
+                    hidden from active lists; members still belong to it and
+                    will be restored along with the chapter.
+                  </p>
+                  <form action={restoreChapter}>
+                    <input type="hidden" name="id" value={chapter.id} />
+                    <button className="button" type="submit" style={{ fontSize: 12 }}>
+                      Restore Chapter
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <form action={archiveChapter}>
+                    <input type="hidden" name="id" value={chapter.id} />
+                    <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
+                      Archive hides the chapter from active lists but keeps
+                      every member, course, and event attached so a restore
+                      brings it back exactly as it was. Works even when the
+                      chapter has members.
+                    </p>
+                    <button
+                      className="button"
+                      type="submit"
+                      style={{ background: "#b45309", fontSize: 12 }}
+                    >
+                      Archive Chapter
+                    </button>
+                  </form>
+                  <form action={deleteChapter}>
+                    <input type="hidden" name="id" value={chapter.id} />
+                    <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
+                      Permanent delete wipes the chapter and is only allowed
+                      when no members are assigned. Archive first if you need
+                      to keep the data.
+                    </p>
+                    <button
+                      className="button"
+                      type="submit"
+                      style={{ background: "#dc2626", fontSize: 12 }}
+                      disabled={chapter.users.length > 0}
+                      title={
+                        chapter.users.length > 0
+                          ? "Chapter still has members — archive instead."
+                          : undefined
+                      }
+                    >
+                      Permanently Delete
+                    </button>
+                  </form>
+                </div>
+              )}
             </details>
           </div>
         </div>

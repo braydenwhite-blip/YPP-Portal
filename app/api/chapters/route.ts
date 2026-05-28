@@ -34,6 +34,7 @@ export async function GET() {
   const chapters = await prisma.chapter.findMany({
     where: {
       isPublic: true,
+      archivedAt: null,
       name: { in: APPLICANT_VISIBLE_CHAPTER_NAMES },
     },
     select: { id: true, name: true, city: true, region: true },

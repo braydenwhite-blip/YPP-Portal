@@ -19,6 +19,7 @@ interface ChapterData {
   openPositions: number;
   activeAnnouncements: number;
   createdAt: string;
+  archivedAt: string | null;
   health: "healthy" | "warming" | "at-risk";
   healthReason: string;
 }
@@ -38,13 +39,24 @@ export default function ChapterTable({ chapters }: { chapters: ChapterData[] }) 
       key: "name",
       label: "Chapter",
       render: (item: ChapterData) => (
-        <Link
-          href={`/admin/chapters/${item.id}`}
-          className="link"
-          style={{ fontWeight: 600 }}
-        >
-          {item.name}
-        </Link>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Link
+            href={`/admin/chapters/${item.id}`}
+            className="link"
+            style={{ fontWeight: 600 }}
+          >
+            {item.name}
+          </Link>
+          {item.archivedAt ? (
+            <span
+              className="pill"
+              style={{ background: "#fef3c7", color: "#92400e", fontSize: 10 }}
+              title={`Archived ${new Date(item.archivedAt).toLocaleDateString()}`}
+            >
+              Archived
+            </span>
+          ) : null}
+        </span>
       ),
     },
     {
