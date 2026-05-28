@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { getMyAwardsData } from "@/lib/award-nomination-actions";
 import { TIER_CONFIG } from "@/lib/award-tier-config";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
+import { getGrowthConnectLine } from "@/lib/growth-model";
+import { ActionSummaryHeader } from "@/components/mentorship/action-summary-header";
+import { LearnMore } from "@/components/mentorship/learn-more";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 
 export const metadata = { title: "My Awards — My Mentorship" };
@@ -25,37 +27,29 @@ export default async function MyMentorAwardsPage() {
     (n) => n.status === "PENDING_CHAIR" || n.status === "PENDING_BOARD"
   );
 
+  const statusLabel = currentTier
+    ? `${TIER_CONFIG[currentTier].label} Award · ${totalPoints} points`
+    : tierProgress.nextTier
+    ? `${totalPoints} points · ${tierProgress.pointsNeeded} to ${TIER_CONFIG[tierProgress.nextTier].label}`
+    : `${totalPoints} points`;
+
   return (
     <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">My Mentorship</p>
-          <h1 className="page-title">My Recognition &amp; Awards</h1>
-          <p className="page-subtitle">
-            A celebration of your consistency, growth, and reflection — not a grade.
-          </p>
-        </div>
-        <Link href="/my-mentor/progress" className="button ghost small">
-          ← My Progress
-        </Link>
-      </div>
+      <ActionSummaryHeader
+        badge="My Mentorship"
+        title="My Recognition & Awards"
+        purpose="A celebration of your consistency, growth, and reflection — not a grade."
+        status={{ label: statusLabel, tone: currentTier ? "success" : "info" }}
+        nextAction={
+          tierProgress.nextTier
+            ? { label: "Submit this month's reflection →", href: "/my-mentor/reflection" }
+            : undefined
+        }
+        secondaryAction={{ label: "← My Progress", href: "/my-mentor/progress" }}
+        connects={getGrowthConnectLine("awards")}
+      />
 
       <MyMentorSubnav />
-
-      {/* What this is + why it matters. Encouraging, not punitive. */}
-      <div
-        className="card"
-        style={{ marginBottom: 20, borderLeft: "4px solid var(--ypp-purple-700, #7c3aed)" }}
-      >
-        <strong style={{ fontSize: "0.95rem" }}>How recognition works</strong>
-        <p style={{ margin: "6px 0 0", fontSize: 13, lineHeight: 1.6 }}>
-          Every time your mentor&apos;s monthly review is approved, you earn
-          achievement points that recognize the work you&apos;ve put in — showing
-          up, reflecting honestly, and making progress on your goals. As points
-          add up, you reach award tiers. There&apos;s no penalty for a slower
-          month; points only ever move forward.
-        </p>
-      </div>
 
       {volunteerHoursAwarded > 0 && (
         <div
@@ -305,6 +299,18 @@ export default async function MyMentorAwardsPage() {
             </table>
           </div>
         )}
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <LearnMore summary="How recognition works">
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>
+            Every time your mentor&apos;s monthly review is approved, you earn
+            achievement points that recognize the work you&apos;ve put in — showing
+            up, reflecting honestly, and making progress on your goals. As points
+            add up, you reach award tiers. There&apos;s no penalty for a slower
+            month; points only ever move forward.
+          </p>
+        </LearnMore>
       </div>
     </div>
   );

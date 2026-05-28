@@ -6,6 +6,7 @@ import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 import { GoalTrajectory, type TrajectoryGoal } from "@/components/mentorship/goal-trajectory";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
+import { LearnMore } from "@/components/mentorship/learn-more";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 
 export const metadata = { title: "My Progress — My Mentorship" };
@@ -135,7 +136,9 @@ export default async function MyProgressPage() {
             </section>
           )}
 
-          <RatingLegend audience="mentee" title="What your status colors mean" />
+          <LearnMore summary="What do these status colors mean?">
+            <RatingLegend audience="mentee" />
+          </LearnMore>
         </div>
       )}
     </div>

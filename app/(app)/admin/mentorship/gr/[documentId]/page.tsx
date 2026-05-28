@@ -7,6 +7,8 @@ import {
   getGRTimelineData,
 } from "@/lib/gr-actions";
 import { GRAdminSubnav } from "../_components/gr-admin-subnav";
+import { LearnMore } from "@/components/mentorship/learn-more";
+import { MenteeVisibilityNote } from "@/components/gr/mentee-visibility-note";
 
 export const metadata = { title: "G&R Document — Admin Mentorship" };
 
@@ -101,16 +103,10 @@ export default async function AdminGRDocumentDetailPage({ params }: Props) {
         </div>
       </div>
 
-      <div
-        className="card"
-        style={{ marginBottom: 20, borderLeft: "3px solid var(--color-primary)" }}
-      >
-        <strong style={{ fontSize: "0.9rem" }}>What the mentee can see</strong>
-        <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>
-          The mentee sees their active goals, recommended resources, and any
-          monthly review that a chair has approved and released. Mentor drafts,
-          chair notes, and pre-release feedback stay private to staff.
-        </p>
+      <div style={{ marginBottom: 20 }}>
+        <LearnMore summary="What the mentee can see">
+          <MenteeVisibilityNote />
+        </LearnMore>
       </div>
 
       {/* Timeline phases (reuses getGRTimelineData). */}
