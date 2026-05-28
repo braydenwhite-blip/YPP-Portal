@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { offerInterviewSlots } from "@/lib/instructor-application-actions";
+import { updateInstructorInterviewScheduleAction } from "@/lib/instructor-review-actions";
 import { cleanMeetingDetails, isHttpUrl } from "@/lib/meeting-details";
 
 interface OfferedSlot {
@@ -220,6 +221,46 @@ export default function InterviewSchedulingInlinePanel({
         <p className="cockpit-muted">
           No official applicant time offers have been posted yet.
         </p>
+      )}
+
+      {/* Lead sets a time that was already arranged outside the portal. */}
+      {canPostSlots && (
+        <form action={updateInstructorInterviewScheduleAction} className="cockpit-slot-form">
+          <p>Already arranged a time? Set the interview time directly</p>
+          <input type="hidden" name="applicationId" value={applicationId} />
+          <input
+            type="hidden"
+            name="returnTo"
+            value={`/applications/instructor/${applicationId}#section-scheduling`}
+          />
+          <div className="cockpit-slot-draft-list">
+            <div className="cockpit-slot-draft-row">
+              <label>
+                <span>Interview time</span>
+                <input
+                  type="datetime-local"
+                  name="scheduledAt"
+                  required
+                  className="input"
+                />
+              </label>
+              <label>
+                <span>Notes (optional)</span>
+                <input
+                  type="text"
+                  name="scheduleNotes"
+                  className="input"
+                  placeholder="Meeting link, room, or any notes"
+                />
+              </label>
+            </div>
+          </div>
+          <div className="cockpit-slot-form-actions">
+            <button type="submit" className="button cockpit-inline-button">
+              Set as interview time
+            </button>
+          </div>
+        </form>
       )}
 
       {/* Lead sends exactly three proposed times. */}

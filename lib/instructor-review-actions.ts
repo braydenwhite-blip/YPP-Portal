@@ -817,11 +817,6 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
       assignment.role === "LEAD" &&
       (assignment.round == null || assignment.round === currentRound)
   );
-  const roughPlanMissing =
-    !application.courseIdea?.trim() ||
-    !application.courseOutline?.trim() ||
-    !application.firstClassPlan?.trim();
-
   const submissionWarnings: string[] = [];
   if (intent === "submit") {
     submissionWarnings.push(
@@ -832,9 +827,6 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
     }
     if (isLeadReviewer && !nextStep) {
       submissionWarnings.push("No application next step was chosen — the decision will remain open.");
-    }
-    if (isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && roughPlanMissing) {
-      submissionWarnings.push("Rough class idea, outline, or first-session sketch is incomplete. The applicant may need to provide more information.");
     }
     if (isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && !hasLeadInterviewer) {
       submissionWarnings.push("No lead interviewer is assigned for this interview round yet.");
