@@ -22,6 +22,7 @@ const PEOPLE_SUPPORT_HIDDEN_FOR_ADMIN_PRIMARY = new Set<string>([
   "/my-program",
   "/my-program/gr",
   "/my-program/awards",
+  "/my-mentor/awards",
   "/my-program/achievement-journey",
   "/my-program/certificate",
   "/my-program/schedule",

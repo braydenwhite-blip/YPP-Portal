@@ -986,6 +986,30 @@ export default async function AdminMentorshipPage({
       {/* ── Goals & Resources tab ────────────────── */}
       {tab === "templates" && grData && (
         <div style={{ display: "grid", gap: 24 }}>
+          <section
+            className="card"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+              borderLeft: "3px solid var(--color-primary)",
+            }}
+          >
+            <div>
+              <strong>Need the full G&amp;R workspace?</strong>
+              <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
+                The canonical Goals &amp; Resources area lists every document by
+                owner and mentor, flags stale drafts and overdue goals, and lets
+                you open any single document for detail.
+              </p>
+            </div>
+            <Link href="/admin/mentorship/gr" className="button primary small">
+              Open Goals &amp; Resources →
+            </Link>
+          </section>
+
           <section className="card">
             <div style={{ fontWeight: 700, marginBottom: 12 }}>Role Goal Templates</div>
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>

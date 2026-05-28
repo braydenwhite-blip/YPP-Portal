@@ -275,10 +275,11 @@ export async function nominateForAward(formData: FormData) {
     userId: nomineeId,
     title: `${TIER_CONFIG[tier].emoji} ${TIER_CONFIG[tier].label} Award Nomination`,
     body: `Congratulations! You have been nominated for the ${TIER_CONFIG[tier].label} Achievement Award.`,
-    link: "/my-program/awards",
+    link: "/my-mentor/awards",
   });
 
   revalidatePath("/mentorship/awards");
+  revalidatePath("/my-mentor/awards");
 }
 
 // ============================================
@@ -383,6 +384,7 @@ export async function boardApproveNomination(formData: FormData) {
 
   revalidatePath("/mentorship/awards");
   revalidatePath("/my-program/awards");
+  revalidatePath("/my-mentor/awards");
   revalidatePath("/my-program");
 }
 

@@ -93,6 +93,8 @@ export async function createGRTemplate(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
   return { id: template.id };
 }
 
@@ -147,6 +149,8 @@ export async function updateGRTemplate(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function submitGRTemplateForReview(formData: FormData) {
@@ -159,6 +163,8 @@ export async function submitGRTemplateForReview(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function approveGRTemplate(formData: FormData) {
@@ -179,6 +185,8 @@ export async function approveGRTemplate(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 // ============================================
@@ -198,6 +206,8 @@ export async function addGRTemplateGoal(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function updateGRTemplateGoal(formData: FormData) {
@@ -213,6 +223,8 @@ export async function updateGRTemplateGoal(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function removeGRTemplateGoal(formData: FormData) {
@@ -225,6 +237,8 @@ export async function removeGRTemplateGoal(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 // ============================================
@@ -244,6 +258,8 @@ export async function setGRTemplateSuccessCriteria(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 // ============================================
@@ -260,6 +276,8 @@ export async function addGRTemplateComment(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function resolveGRTemplateComment(formData: FormData) {
@@ -272,6 +290,8 @@ export async function resolveGRTemplateComment(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 // ============================================
@@ -293,6 +313,8 @@ export async function createGRResource(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-resources");
+  revalidatePath("/admin/mentorship/gr/resources");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function updateGRResource(formData: FormData) {
@@ -310,6 +332,8 @@ export async function updateGRResource(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-resources");
+  revalidatePath("/admin/mentorship/gr/resources");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function deleteGRResource(formData: FormData) {
@@ -322,6 +346,8 @@ export async function deleteGRResource(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-resources");
+  revalidatePath("/admin/mentorship/gr/resources");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function linkResourceToTemplate(formData: FormData) {
@@ -336,6 +362,8 @@ export async function linkResourceToTemplate(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function unlinkResourceFromTemplate(formData: FormData) {
@@ -348,6 +376,8 @@ export async function unlinkResourceFromTemplate(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 // ============================================
@@ -427,6 +457,9 @@ export async function assignGRDocument(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-assignments");
+  revalidatePath("/admin/mentorship/gr/assignments");
+  revalidatePath("/admin/mentorship/gr");
+  revalidatePath("/admin/mentorship");
   return { id: document.id };
 }
 
@@ -455,6 +488,9 @@ export async function bulkAssignGRDocuments(formData: FormData) {
   }
 
   revalidatePath("/admin/mentorship-program/gr-assignments");
+  revalidatePath("/admin/mentorship/gr/assignments");
+  revalidatePath("/admin/mentorship/gr");
+  revalidatePath("/admin/mentorship");
   return { assigned: results.length };
 }
 
@@ -476,6 +512,9 @@ export async function activateGRDocument(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-assignments");
+  revalidatePath("/admin/mentorship/gr/assignments");
+  revalidatePath("/admin/mentorship/gr");
+  revalidatePath("/admin/mentorship");
 }
 
 // ============================================
@@ -540,6 +579,9 @@ export async function proposeGRGoalChange(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-assignments");
+  revalidatePath("/admin/mentorship/gr/assignments");
+  revalidatePath("/admin/mentorship/gr");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function reviewGRGoalChange(formData: FormData) {
@@ -608,6 +650,9 @@ export async function reviewGRGoalChange(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-assignments");
+  revalidatePath("/admin/mentorship/gr/assignments");
+  revalidatePath("/admin/mentorship/gr");
+  revalidatePath("/admin/mentorship");
 }
 
 // ============================================
@@ -635,6 +680,8 @@ export async function saveGRPlanOfAction(formData: FormData) {
   });
 
   revalidatePath("/my-program/gr");
+  revalidatePath("/my-mentor/goals");
+  revalidatePath("/my-mentor/progress");
 }
 
 // ============================================
@@ -653,6 +700,8 @@ export async function recordGRKPIValue(formData: FormData) {
   });
 
   revalidatePath("/my-program/gr");
+  revalidatePath("/my-mentor/goals");
+  revalidatePath("/my-mentor/progress");
 }
 
 // ============================================
@@ -672,6 +721,8 @@ export async function addGRKPIDefinition(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-templates");
+  revalidatePath("/admin/mentorship/gr/templates");
+  revalidatePath("/admin/mentorship");
 }
 
 // ============================================
@@ -843,6 +894,8 @@ export async function submitReviewAck(formData: FormData) {
   });
 
   revalidatePath("/my-program/gr");
+  revalidatePath("/my-mentor/goals");
+  revalidatePath("/my-mentor/progress");
 }
 
 // B3: Mentor sends a "please submit your reflection" nudge
@@ -1103,4 +1156,7 @@ export async function applyGRBulkUpdate(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship-program/gr-assignments");
+  revalidatePath("/admin/mentorship/gr/assignments");
+  revalidatePath("/admin/mentorship/gr");
+  revalidatePath("/admin/mentorship");
 }

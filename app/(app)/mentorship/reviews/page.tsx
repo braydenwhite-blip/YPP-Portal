@@ -6,6 +6,7 @@ import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { formatEnum } from "@/lib/format-utils";
 import { getChairQueue } from "@/lib/goal-review-actions";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
+import { getReviewHeadlineState, getReviewStateTonePalette } from "@/lib/mentorship-review-state";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
 
 const REVIEW_INBOX_GUIDE_ITEMS = [
@@ -142,15 +143,19 @@ export default async function MonthlyReviewInboxPage() {
                   >
                     {ratingLabel(review.overallRating)}
                   </span>
-                  <span
-                    className="pill pill-small"
-                    style={{
-                      background: review.status === "CHANGES_REQUESTED" ? "#fff7ed" : "#eff6ff",
-                      color: review.status === "CHANGES_REQUESTED" ? "#c2410c" : "#1d4ed8",
-                    }}
-                  >
-                    {review.status === "CHANGES_REQUESTED" ? "Changes Requested" : "Pending Approval"}
-                  </span>
+                  {(() => {
+                    const state = getReviewHeadlineState({ status: review.status });
+                    const palette = getReviewStateTonePalette(state.tone);
+                    return (
+                      <span
+                        className="pill pill-small"
+                        title={state.description}
+                        style={{ background: palette.background, color: palette.color }}
+                      >
+                        {state.label}
+                      </span>
+                    );
+                  })()}
                   <span style={{ fontSize: 13, color: "var(--muted)" }}>
                     Submitted {new Date(review.submittedAt).toLocaleDateString()}
                   </span>
