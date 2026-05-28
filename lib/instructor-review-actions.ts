@@ -483,10 +483,30 @@ async function syncInterviewQuestionResponses(
   );
   const keptIds = new Set<string>();
 
+  const candidateBankIds = Array.from(
+    new Set(
+      questionResponses
+        .map((question) => question.questionBankId)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+  const validBankIds = new Set<string>();
+  if (candidateBankIds.length > 0) {
+    const banks = await tx.instructorInterviewQuestionBank.findMany({
+      where: { id: { in: candidateBankIds } },
+      select: { id: true },
+    });
+    for (const bank of banks) validBankIds.add(bank.id);
+  }
+
   for (const [index, question] of questionResponses.entries()) {
+    const safeQuestionBankId =
+      question.questionBankId && validBankIds.has(question.questionBankId)
+        ? question.questionBankId
+        : null;
     const matched =
       (question.id ? existingById.get(question.id) : null) ??
-      (question.questionBankId ? existingByQuestionBankId.get(question.questionBankId) : null);
+      (safeQuestionBankId ? existingByQuestionBankId.get(safeQuestionBankId) : null);
     const normalizedStatus = question.status ?? "UNTOUCHED";
     const askedAt =
       normalizedStatus === "ASKED"
@@ -497,7 +517,7 @@ async function syncInterviewQuestionResponses(
         ? question.skippedAt ?? new Date()
         : null;
     const data = {
-      questionBankId: question.questionBankId ?? null,
+      questionBankId: safeQuestionBankId,
       source: question.source === "CUSTOM" ? ("CUSTOM" as const) : ("DEFAULT" as const),
       status: normalizedStatus,
       prompt: question.prompt,
