@@ -8,6 +8,7 @@ import { POINT_TABLE } from "@/lib/mentorship-point-table";
 import { AwardsSummaryPanel } from "@/components/mentorship/awards-summary-panel";
 import { formatEnum } from "@/lib/format-utils";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
+import { RatingLegend } from "@/components/mentorship/rating-legend";
 import ChairActionsPanel from "./chair-actions-panel";
 
 export const metadata = { title: "Approve Review — Mentorship Program" };
@@ -69,15 +70,66 @@ export default async function ChairReviewDetailPage({
         </div>
       </div>
 
+      <section
+        className="card"
+        style={{ marginBottom: 16, borderLeft: "4px solid var(--color-primary)", display: "grid", gap: 8 }}
+      >
+        <strong style={{ fontSize: "0.95rem" }}>What you&apos;re approving</strong>
+        <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.83rem", display: "grid", gap: 4 }}>
+          <li>
+            <strong>{review.mentor.name}</strong>&apos;s monthly review of{" "}
+            <strong>{review.mentee.name}</strong> ({formatEnum(review.mentee.primaryRole)} lane).
+          </li>
+          <li>
+            Overall rating: <strong>{ratingLabel(review.overallRating)}</strong>. This sets the
+            achievement points awarded for the cycle.
+          </li>
+          <li>
+            <strong>Approve</strong> → points/awards are calculated and the mentor&apos;s summary,
+            ratings, and plan of action are released to {review.mentee.name}.
+          </li>
+          <li>
+            <strong>Request changes</strong> → it goes back to the mentor; nothing is released and no
+            points are awarded yet.
+          </li>
+          <li className="muted">
+            The mentee never sees this approval screen, chair notes, or pre-release drafts — only the
+            released summary once you approve.
+          </li>
+        </ul>
+      </section>
+
       <AwardsSummaryPanel projection={projection} menteeName={review.mentee.name} />
 
       <div className="grid" style={{ gridTemplateColumns: "2fr 1fr", gap: 16 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <section className="card">
             <div className="section-title">Overall Rating</div>
-            <p style={{ margin: "8px 0 0", fontSize: "1.05rem", fontWeight: 600 }}>
-              {ratingLabel(review.overallRating)}
-            </p>
+            {(() => {
+              const cfg = getGoalRatingCopy(review.overallRating);
+              return (
+                <div style={{ margin: "8px 0 0", display: "grid", gap: 6 }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      alignSelf: "start",
+                      background: cfg.background,
+                      color: cfg.color,
+                      borderRadius: 999,
+                      padding: "0.25rem 0.7rem",
+                      fontSize: "0.95rem",
+                      fontWeight: 700,
+                    }}
+                  >
+                    <span aria-hidden style={{ width: 10, height: 10, borderRadius: "50%", background: cfg.color }} />
+                    {cfg.shortLabel} — {cfg.label}
+                  </span>
+                  <span className="muted" style={{ fontSize: "0.8rem" }}>{cfg.adminDescription}</span>
+                </div>
+              );
+            })()}
             {review.overallComments && (
               <p style={{ margin: "10px 0 0", whiteSpace: "pre-wrap" }}>
                 {review.overallComments}
@@ -148,7 +200,7 @@ export default async function ChairReviewDetailPage({
           )}
         </div>
 
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <ChairActionsPanel
             reviewId={review.id}
             currentStatus={review.status}
@@ -157,6 +209,7 @@ export default async function ChairReviewDetailPage({
             bonusPoints={review.bonusPoints}
             bonusReason={review.bonusReason}
           />
+          <RatingLegend audience="admin" title="Rating scale you're approving against" />
         </div>
       </div>
     </div>

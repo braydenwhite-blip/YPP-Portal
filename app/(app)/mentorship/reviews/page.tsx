@@ -6,6 +6,7 @@ import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { formatEnum } from "@/lib/format-utils";
 import { getChairQueue } from "@/lib/goal-review-actions";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
+import { RatingLegend } from "@/components/mentorship/rating-legend";
 
 const REVIEW_INBOX_GUIDE_ITEMS = [
   {
@@ -76,6 +77,10 @@ export default async function MonthlyReviewInboxPage() {
         intro="Your inbox shows reviews automatically routed to you based on your chair role — no manual assignment needed."
         items={REVIEW_INBOX_GUIDE_ITEMS}
       />
+
+      <div style={{ margin: "12px 0 16px" }}>
+        <RatingLegend audience="admin" title="The rating scale on every review" />
+      </div>
 
       {reviews.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: "2.5rem" }}>

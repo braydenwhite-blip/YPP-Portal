@@ -11,6 +11,9 @@ import LegacyPrepPacketPage from "@/app/(app)/mentorship-program/chair/prep-pack
 import LegacyAskMentorPage from "@/app/(app)/mentor/ask/page";
 import LegacyMentorResourcesPage from "@/app/(app)/mentor/resources/page";
 import LegacyMentorFeedbackPage from "@/app/(app)/mentor/feedback/page";
+import LegacyMyProgramGRPage from "@/app/(app)/my-program/gr/page";
+import LegacyMyProgramReflectPage from "@/app/(app)/my-program/reflect/page";
+import LegacyMyProgramSchedulePage from "@/app/(app)/my-program/schedule/page";
 
 class RedirectError extends Error {
   constructor(public to: string) {
@@ -57,5 +60,11 @@ describe("mentorship legacy route redirects", () => {
     expect(() => LegacyAskMentorPage()).toThrow("redirect:/mentorship/ask");
     expect(() => LegacyMentorResourcesPage()).toThrow("redirect:/mentorship/resources");
     expect(() => LegacyMentorFeedbackPage()).toThrow("redirect:/mentorship/feedback");
+  });
+
+  it("redirects legacy /my-program mentee flows into the canonical /my-mentor home", () => {
+    expect(() => LegacyMyProgramGRPage()).toThrow("redirect:/my-mentor/goals");
+    expect(() => LegacyMyProgramReflectPage()).toThrow("redirect:/my-mentor/reflection");
+    expect(() => LegacyMyProgramSchedulePage()).toThrow("redirect:/my-mentor/schedule");
   });
 });
