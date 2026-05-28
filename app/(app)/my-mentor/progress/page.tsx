@@ -1,13 +1,24 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { getMyGRDocument } from "@/lib/gr-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
+import { getGrowthConnectLine } from "@/lib/growth-model";
 import { GoalTrajectory, type TrajectoryGoal } from "@/components/mentorship/goal-trajectory";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
 import { LearnMore } from "@/components/mentorship/learn-more";
+import {
+  ActionSummaryHeader,
+  type HeaderStatusTone,
+} from "@/components/mentorship/action-summary-header";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
+
+const RATING_TONE: Record<string, HeaderStatusTone> = {
+  ABOVE_AND_BEYOND: "success",
+  ACHIEVED: "success",
+  GETTING_STARTED: "pending",
+  BEHIND_SCHEDULE: "warning",
+};
 
 export const metadata = { title: "My Progress — My Mentorship" };
 
@@ -45,20 +56,27 @@ export default async function MyProgressPage() {
       )
     : [];
 
+  const latestReleased = releasedReviews[0] ?? null;
+  const statusCfg = latestReleased ? getGoalRatingCopy(latestReleased.overallRating) : null;
+
   return (
     <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">My Mentorship</p>
-          <h1 className="page-title">My Progress</h1>
-          <p className="page-subtitle">
-            How far you&apos;ve come — and the feedback your mentor has shared with you.
-          </p>
-        </div>
-        <Link href="/my-mentor/awards" className="button secondary small">
-          Points &amp; Awards →
-        </Link>
-      </div>
+      <ActionSummaryHeader
+        badge="My Mentorship"
+        title="My Progress"
+        purpose="How far you've come — and the feedback your mentor has shared with you."
+        status={
+          statusCfg
+            ? {
+                label: statusCfg.menteeLabel,
+                tone: RATING_TONE[String(latestReleased?.overallRating)] ?? "info",
+              }
+            : undefined
+        }
+        nextAction={{ label: "Update this month's reflection →", href: "/my-mentor/reflection" }}
+        secondaryAction={{ label: "Points & Awards →", href: "/my-mentor/awards" }}
+        connects={getGrowthConnectLine("progress")}
+      />
 
       <MyMentorSubnav />
 

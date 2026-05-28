@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import {
@@ -7,6 +6,7 @@ import {
   getGRTimelineData,
 } from "@/lib/gr-actions";
 import { GRAdminSubnav } from "../_components/gr-admin-subnav";
+import { ActionSummaryHeader } from "@/components/mentorship/action-summary-header";
 import { LearnMore } from "@/components/mentorship/learn-more";
 import { MenteeVisibilityNote } from "@/components/gr/mentee-visibility-note";
 
@@ -49,26 +49,19 @@ export default async function AdminGRDocumentDetailPage({ params }: Props) {
 
   return (
     <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Admin · Goals & Resources</p>
-          <h1 className="page-title">{row.user.name}</h1>
-          <p className="page-subtitle">
-            {row.template.title} · {row.template.roleType} lane · mentored by{" "}
-            {row.mentorship.mentor.name}
-          </p>
-        </div>
-        <span
-          className={
-            row.status === "ACTIVE"
-              ? "pill pill-small pill-success"
-              : "pill pill-small pill-pending"
-          }
-          style={{ alignSelf: "flex-start" }}
-        >
-          {row.status === "ACTIVE" ? "Active" : "Draft — not activated"}
-        </span>
-      </div>
+      <ActionSummaryHeader
+        badge="Admin · Goals & Resources"
+        title={row.user.name}
+        purpose={`${row.template.title} · ${row.template.roleType} lane · mentored by ${row.mentorship.mentor.name}`}
+        status={{
+          label: row.status === "ACTIVE" ? "Active" : "Draft — not activated",
+          tone: row.status === "ACTIVE" ? "success" : "pending",
+        }}
+        nextAction={{
+          label: "Manage goal-change proposals →",
+          href: "/admin/mentorship/gr/assignments",
+        }}
+      />
 
       <GRAdminSubnav />
 
@@ -181,11 +174,6 @@ export default async function AdminGRDocumentDetailPage({ params }: Props) {
             })}
           </div>
         )}
-        <div style={{ marginTop: 16 }}>
-          <Link href="/admin/mentorship/gr/assignments" className="button ghost small">
-            Manage goal-change proposals →
-          </Link>
-        </div>
       </div>
     </div>
   );
