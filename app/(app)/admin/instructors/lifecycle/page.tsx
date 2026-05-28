@@ -43,7 +43,7 @@ export default async function InstructorLifecycleBoardPage() {
           <Link href="/admin/instructors" className="button secondary">
             ← Ops Hub
           </Link>
-          <Link href="/admin/instructor-mentor-matching" className="button secondary">
+          <Link href="/admin/mentorship?tab=assignments" className="button secondary">
             Mentor matching
           </Link>
           <Link href="/admin/instructor-assignments" className="button">

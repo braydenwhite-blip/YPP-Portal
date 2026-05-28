@@ -68,6 +68,7 @@ const ADMIN_SEGMENT_DOMAIN: Record<string, AdminRouteDomain> = {
 
   // Mentorship domain.
   goals: "MENTORSHIP_ADMIN",
+  "instructor-mentor-matching": "MENTORSHIP_ADMIN",
   "mentor-match": "MENTORSHIP_ADMIN",
   mentorship: "MENTORSHIP_ADMIN",
   "mentorship-program": "MENTORSHIP_ADMIN",

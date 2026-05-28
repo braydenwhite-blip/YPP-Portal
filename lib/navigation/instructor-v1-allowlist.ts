@@ -1,7 +1,7 @@
 import type { NavRole } from "@/lib/navigation/types";
 
 /** Bump when the href set changes so dashboard cache partitions stay correct. */
-export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "6";
+export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "7";
 
 /**
  * Default instructor nav: a dedicated Teach section (workspace, curriculum,
@@ -26,7 +26,7 @@ export const INSTRUCTOR_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/announcements",
   "/notifications",
   "/calendar",
-  "/my-program",
+  "/my-mentor",
   "/leadership-pathway",
   "/messages",
   "/chapters",

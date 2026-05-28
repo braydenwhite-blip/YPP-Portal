@@ -3,8 +3,8 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { getLeadershipContext } from "@/lib/leadership-context";
 import { MentorCard } from "@/components/leadership-pathway/mentor-card";
-import { MenteesOverview } from "@/components/leadership-pathway/mentees-overview";
 import { LEADERSHIP_STAGES } from "@/lib/leadership-pathway";
+import { MenteeDashboard } from "@/app/(app)/mentorship/_components/mentee-dashboard";
 
 export const metadata = {
   title: "My Mentor — YPP",
@@ -27,7 +27,7 @@ export default async function MyMentorPage() {
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>
-          <h1 className="page-title">My Mentor</h1>
+          <h1 className="page-title">My Mentorship</h1>
           {stage && (
             <p
               className="page-subtitle"
@@ -47,34 +47,65 @@ export default async function MyMentorPage() {
           <Link href="/leadership-pathway" className="button secondary small">
             Pathway →
           </Link>
-          {hasMentor && (
+          {mentorsOthers && (
             <Link href="/mentorship" className="button small">
-              Mentorship hub →
+              Mentor Workspace →
             </Link>
           )}
         </div>
       </div>
 
-      <div style={{ display: "grid", gap: 24, maxWidth: 760 }}>
-        {hasMentor && ctx.primaryMentor && (
-          <MentorCard
-            mentor={{
-              name: ctx.primaryMentor.name,
-              email: ctx.primaryMentor.email,
-              phone: ctx.primaryMentor.phone,
-              roleLabel: ctx.primaryMentor.roleLabel,
-              stageId: ctx.primaryMentor.stage?.id ?? null,
-              chapterName: ctx.primaryMentor.chapterName,
-              mentorshipId: ctx.primaryMentor.mentorshipId,
-              trackName: ctx.primaryMentor.trackName,
-              kickoffCompletedAt: ctx.primaryMentor.kickoffCompletedAt,
-              lastSessionAt: ctx.primaryMentor.lastSessionAt,
+      <div style={{ display: "grid", gap: 24 }}>
+        {mentorsOthers && (
+          <div
+            className="card"
+            style={{
+              borderLeft: "4px solid var(--color-primary)",
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 16,
+              alignItems: "center",
+              flexWrap: "wrap",
             }}
-            menteeStageId={ctx.stageId}
-          />
+          >
+            <div>
+              <strong>
+                {hasMentor
+                  ? "You\u2019re also mentoring others."
+                  : "You mentor others in YPP."}
+              </strong>
+              <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
+                Your mentor workspace stays separate so this page can focus on
+                your own support.
+              </p>
+            </div>
+            <Link href="/mentorship" className="button secondary small">
+              Open Mentor Workspace
+            </Link>
+          </div>
         )}
 
-        {!hasMentor && !mentorsOthers && (
+        {hasMentor && ctx.primaryMentor && (
+          <div style={{ maxWidth: 760 }}>
+            <MentorCard
+              mentor={{
+                name: ctx.primaryMentor.name,
+                email: ctx.primaryMentor.email,
+                phone: ctx.primaryMentor.phone,
+                roleLabel: ctx.primaryMentor.roleLabel,
+                stageId: ctx.primaryMentor.stage?.id ?? null,
+                chapterName: ctx.primaryMentor.chapterName,
+                mentorshipId: ctx.primaryMentor.mentorshipId,
+                trackName: ctx.primaryMentor.trackName,
+                kickoffCompletedAt: ctx.primaryMentor.kickoffCompletedAt,
+                lastSessionAt: ctx.primaryMentor.lastSessionAt,
+              }}
+              menteeStageId={ctx.stageId}
+            />
+          </div>
+        )}
+
+        {!hasMentor && (
           <div
             style={{
               padding: "32px 24px",
@@ -102,13 +133,13 @@ export default async function MyMentorPage() {
                 lineHeight: 1.55,
               }}
             >
-              Reach out to chapter leadership to get matched. Until then,
-              the pathway page shows how mentorship flows at YPP.
+              Reach out to chapter leadership to get matched. Until then, the
+              pathway page shows how mentorship flows at YPP.
             </p>
           </div>
         )}
 
-        {mentorsOthers && <MenteesOverview mentees={ctx.mentees} />}
+        {hasMentor && <MenteeDashboard userId={session.user.id} />}
       </div>
     </div>
   );

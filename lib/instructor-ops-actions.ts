@@ -13,7 +13,7 @@ import { requireAdmin } from "@/lib/authorization-helpers";
 const OPS_PATHS = [
   "/admin/instructors",
   "/admin/instructor-assignments",
-  "/admin/instructor-mentor-matching",
+  "/admin/mentorship",
 ];
 
 function revalidateOps() {

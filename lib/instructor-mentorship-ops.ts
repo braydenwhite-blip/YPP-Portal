@@ -577,7 +577,7 @@ export async function getAdminMentorshipActionQueue(): Promise<AdminActionItem[]
       title: `${row.name} needs a mentor`,
       detail: `${row.primaryRole}${row.chapterName ? ` · ${row.chapterName}` : ""} · ${row.reason}`,
       emphasis: "Assign mentor",
-      href: `/admin/mentorship-program?focus=matching&menteeId=${row.id}&supportRole=PRIMARY_MENTOR`,
+      href: `/admin/mentorship?tab=assignments&menteeId=${row.id}&supportRole=PRIMARY_MENTOR`,
       priority: 0,
     });
   }
@@ -625,7 +625,7 @@ export async function getAdminMentorshipActionQueue(): Promise<AdminActionItem[]
       title: `Goal review pending chair approval`,
       detail: `${row.mentee.name} · mentor ${row.mentor.name}`,
       emphasis: "Approve in queue",
-      href: `/admin/mentorship-program?focus=approvals`,
+      href: `/admin/mentorship?tab=approvals`,
       priority: 4,
     });
   }

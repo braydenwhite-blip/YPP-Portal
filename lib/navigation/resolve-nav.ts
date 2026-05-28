@@ -65,6 +65,18 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/chapter/achievements",
   "/chapters/leaderboard",
   "/admin/chapters",
+  "/mentorship/mentees",
+  "/mentorship/reviews",
+  "/mentorship/schedule",
+  "/mentorship/feedback",
+  "/mentorship/ask",
+  "/mentorship/resources",
+  "/mentorship/awards",
+  "/mentorship/chair",
+  "/mentor/feedback",
+  "/mentor/ask",
+  "/mentor/resources",
+  "/mentorship-program/awards",
 ]);
 
 
@@ -318,6 +330,10 @@ function requiresAdminSubtypeFiltering(item: NavLink): boolean {
   );
 }
 
+function isLegacyMenteeMentorshipHref(href: string): boolean {
+  return href === "/my-program" || href.startsWith("/my-program/");
+}
+
 function hasAdminSubtypeAccess(item: NavLink, roles: NavRole[], adminSubtypes: string[]): boolean {
   if (!roles.includes("ADMIN")) return true;
   if (hasNonAdminRoleAccess(item, roles)) return true;
@@ -517,6 +533,9 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       }
       if (input.studentHasChapter && item.href === "/join-chapter") return false;
       if (!hasRoleAccess(item, roles)) return false;
+      if (primaryRole !== "STUDENT" && isLegacyMenteeMentorshipHref(item.href)) {
+        return false;
+      }
       if (item.hideForPrimaryRoles?.includes(primaryRole)) return false;
       if (!hasAwardAccess(item, roles, hasAward)) return false;
       if (!hasFeatureAccess(item, input.enabledFeatureKeys, roles)) return false;

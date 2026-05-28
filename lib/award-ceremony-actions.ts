@@ -132,7 +132,7 @@ export async function issueCertificate(formData: FormData) {
           userId: admin.id,
           title: `${cfg?.emoji ?? ""} ${cfg?.label ?? tier} Tier Achiever: ${user.name}`,
           body: `${user.name} has reached ${cfg?.label ?? tier} tier in the YPP Mentorship Program. Consider recognizing them at the next board meeting.`,
-          link: `/admin/mentorship-program`,
+          link: `/admin/mentorship`,
         })
       )
     );

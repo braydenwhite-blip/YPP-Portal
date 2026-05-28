@@ -327,7 +327,7 @@ describe("getAdminMentorshipActionQueue", () => {
       "STALLED_GOAL",
       "PENDING_REVIEW",
     ]);
-    expect(queue[0].href).toContain("/admin/mentorship-program?focus=matching");
+    expect(queue[0].href).toContain("/admin/mentorship?tab=assignments");
     expect(queue[2].href).toBe(
       "/admin/mentorship/relationships/ms-overdue"
     );

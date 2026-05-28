@@ -83,13 +83,13 @@ export default async function MyProgramPage({
   const recentResources = support?.resources.slice(0, 3) ?? [];
 
   const primaryIsAskMentor =
-    hub.primaryAction.href === "/mentor/ask" || hub.primaryAction.href.startsWith("/mentor/ask?");
+    hub.primaryAction.href === "/mentorship/ask" || hub.primaryAction.href.startsWith("/mentorship/ask?");
   const topbarMentorSecondary =
     hub.flags.hasSupportCircle
-      ? { href: "/mentor/resources" as const, label: "Open Resources" as const }
+      ? { href: "/mentorship/resources" as const, label: "Open Resources" as const }
       : primaryIsAskMentor
-        ? { href: "/mentor/resources" as const, label: "Browse Resources" as const }
-        : { href: "/mentor/ask" as const, label: "Ask A Mentor" as const };
+        ? { href: "/mentorship/resources" as const, label: "Browse Resources" as const }
+        : { href: "/mentorship/ask" as const, label: "Ask A Mentor" as const };
 
   // Surface a dedicated "Open Mentorship" button when the user is an
   // instructor mentor or mentee. The default instructor sidebar does not
@@ -318,10 +318,10 @@ export default async function MyProgramPage({
                 {support.currentReview?.status ? formatEnum(support.currentReview.status) : "No review started yet"}
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-                <Link href="/mentor/resources" className="button secondary small">
+                <Link href="/mentorship/resources" className="button secondary small">
                   Open Resources
                 </Link>
-                <Link href="/mentor/feedback" className="button secondary small">
+                <Link href="/mentorship/feedback" className="button secondary small">
                   Request Feedback
                 </Link>
               </div>
@@ -332,10 +332,10 @@ export default async function MyProgramPage({
                 No active support circle is assigned yet. You can still ask for help, submit reflections, and track recognition here.
               </p>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Link href="/mentor/ask" className="button primary small">
+                <Link href="/mentorship/ask" className="button primary small">
                   Ask A Mentor
                 </Link>
-                <Link href="/mentor/resources" className="button secondary small">
+                <Link href="/mentorship/resources" className="button secondary small">
                   Browse Resources
                 </Link>
               </div>

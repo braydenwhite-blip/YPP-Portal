@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveGoalReview } from "@/lib/goal-review-actions";
 import { sendReflectionNudge } from "@/lib/gr-actions";
+import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 import type { ReviewDraftOutput } from "@/lib/ai/generate-review-draft";
 import { AiCoachingSidebar } from "@/components/mentorship/ai-coaching-sidebar";
 
@@ -66,11 +67,19 @@ type Props = {
 };
 
 const RATINGS: { value: string; label: string; color: string; description: string }[] = [
-  { value: "BEHIND_SCHEDULE", label: "Behind Schedule", color: "#ef4444", description: "No catch-up path this cycle" },
-  { value: "GETTING_STARTED", label: "Getting Started", color: "#f59e0b", description: "Behind but catch-up is possible" },
-  { value: "ACHIEVED", label: "Achieved", color: "#22c55e", description: "Goals completed on schedule" },
-  { value: "ABOVE_AND_BEYOND", label: "Above & Beyond", color: "#6366f1", description: "Significantly exceeds goals" },
-];
+  "BEHIND_SCHEDULE",
+  "GETTING_STARTED",
+  "ACHIEVED",
+  "ABOVE_AND_BEYOND",
+].map((value) => {
+  const copy = getGoalRatingCopy(value);
+  return {
+    value,
+    label: `${copy.shortLabel} - ${copy.label}`,
+    color: copy.color,
+    description: copy.mentorDescription,
+  };
+});
 
 function tierLabel(tier: string | null): string {
   if (!tier) return "No tier yet";

@@ -453,7 +453,7 @@ async function MentorManagementHubCard({
     <HubCard
       title="Mentor Management"
       subtitle="Publish availability and handle custom mentee requests"
-      href="/mentorship-program/schedule"
+      href="/mentorship/schedule"
       hrefLabel="Open Mentor Scheduling"
       accent="#7c3aed"
     >

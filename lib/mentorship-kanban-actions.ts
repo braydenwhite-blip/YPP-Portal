@@ -49,7 +49,7 @@ export async function updateGoalReviewStage(
       },
     });
 
-    revalidatePath("/admin/mentorship-program");
+    revalidatePath("/admin/mentorship");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Failed to update status" };
@@ -86,7 +86,7 @@ export async function updateMonthlyReviewStage(
       },
     });
 
-    revalidatePath("/admin/mentorship-program");
+    revalidatePath("/admin/mentorship");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Failed to update status" };
@@ -112,7 +112,7 @@ export async function updateMenteeMatchingStage(
       };
     }
     // For shortlisting, we don't need a DB change - it's UI-only state
-    revalidatePath("/admin/mentorship-program");
+    revalidatePath("/admin/mentorship");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Failed to update stage" };

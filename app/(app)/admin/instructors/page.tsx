@@ -47,7 +47,7 @@ export default async function AdminInstructorsPage() {
           <Link href="/admin/instructors/lifecycle" className="button secondary">
             Lifecycle board
           </Link>
-          <Link href="/admin/instructor-mentor-matching" className="button secondary">
+          <Link href="/admin/mentorship?tab=assignments" className="button secondary">
             Mentor matching
           </Link>
           <Link href="/admin/instructors/directory" className="button secondary">

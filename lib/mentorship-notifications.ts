@@ -125,7 +125,7 @@ export const emitReviewSubmittedForApproval = safeEmit(async function emitReview
       type: NotificationType.REVIEW_SUBMITTED_FOR_APPROVAL,
       title: `${params.mentorName} submitted a ${label} review for ${params.menteeName}`,
       body: `A monthly review is awaiting your approval.`,
-      link: `/mentorship-program/chair/${params.reviewId}`,
+      link: `/mentorship/chair/${params.reviewId}`,
       dedupKey: `review-submit:${chair.id}:${params.reviewId}`,
     });
   }
@@ -203,7 +203,7 @@ export const notifyChairApprovalBatch = safeEmit(async function notifyChairAppro
     type: NotificationType.GR_CHAIR_APPROVAL_PENDING,
     title: `${params.pendingCount} review${params.pendingCount > 1 ? "s" : ""} awaiting your approval`,
     body: `Chair approval needed for ${params.pendingCount} monthly review${params.pendingCount > 1 ? "s" : ""}. Please approve or request changes.`,
-    link: "/admin/mentorship-program",
+    link: "/admin/mentorship",
     dedupKey: `gr:chair-pending:${params.chairId}:${params.cycleMonthIso.slice(0, 7)}`,
     updateBodyIfExists: true, // always reflect the latest count
   });

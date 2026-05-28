@@ -1,13 +1,8 @@
 "use client";
 
-type GoalRatingColor = "BEHIND_SCHEDULE" | "GETTING_STARTED" | "ACHIEVED" | "ABOVE_AND_BEYOND";
+import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 
-const RATING_CONFIG: Record<GoalRatingColor, { label: string; bg: string; color: string; dot: string }> = {
-  BEHIND_SCHEDULE: { label: "Behind", bg: "#fee2e2", color: "#991b1b", dot: "#ef4444" },
-  GETTING_STARTED: { label: "Getting Started", bg: "#fef9c3", color: "#854d0e", dot: "#eab308" },
-  ACHIEVED: { label: "On Track", bg: "#dcfce7", color: "#166534", dot: "#22c55e" },
-  ABOVE_AND_BEYOND: { label: "Above & Beyond", bg: "#f3e8ff", color: "#6b21a8", dot: "#a855f7" },
-};
+type GoalRatingColor = "BEHIND_SCHEDULE" | "GETTING_STARTED" | "ACHIEVED" | "ABOVE_AND_BEYOND";
 
 interface RatingBadgeProps {
   rating: GoalRatingColor;
@@ -16,7 +11,7 @@ interface RatingBadgeProps {
 }
 
 export default function RatingBadge({ rating, size = "sm", showDot = true }: RatingBadgeProps) {
-  const cfg = RATING_CONFIG[rating] ?? RATING_CONFIG.GETTING_STARTED;
+  const cfg = getGoalRatingCopy(rating);
   const fontSize = size === "md" ? "0.85rem" : "0.75rem";
   const padding = size === "md" ? "0.3rem 0.75rem" : "0.2rem 0.5rem";
 
@@ -26,7 +21,7 @@ export default function RatingBadge({ rating, size = "sm", showDot = true }: Rat
         display: "inline-flex",
         alignItems: "center",
         gap: "0.35rem",
-        background: cfg.bg,
+        background: cfg.background,
         color: cfg.color,
         borderRadius: "999px",
         padding,
@@ -41,12 +36,12 @@ export default function RatingBadge({ rating, size = "sm", showDot = true }: Rat
             width: size === "md" ? "8px" : "6px",
             height: size === "md" ? "8px" : "6px",
             borderRadius: "50%",
-            background: cfg.dot,
+            background: cfg.color,
             flexShrink: 0,
           }}
         />
       )}
-      {cfg.label}
+      {cfg.menteeLabel}
     </span>
   );
 }

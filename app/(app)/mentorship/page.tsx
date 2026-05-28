@@ -5,6 +5,7 @@ import {
   canAccessMentorship,
   getInstructorMentorshipMembership,
 } from "@/lib/mentorship-access";
+import { getLanesForChair } from "@/lib/mentorship-chair-access";
 import { getSimplifiedMentorKanban } from "@/lib/mentorship-kanban-actions";
 import { getMentorshipPendingActionCount } from "@/lib/mentorship-notifications";
 import { getMentorEngagementSnapshot } from "@/lib/mentor-overview";
@@ -16,64 +17,65 @@ import {
   MentorCommandStrip,
   MentorEngagementPanels,
 } from "./_components/mentor-command-center";
-import { MenteeDashboard } from "./_components/mentee-dashboard";
-import { MentorshipTabShell } from "./_components/mentorship-tab-shell";
 import { EmptyStateEditorial } from "./_components/empty-state-editorial";
 
-interface PageProps {
-  searchParams?: Promise<{ view?: string }>;
-}
-
-export default async function MentorshipPage({ searchParams }: PageProps) {
+export default async function MentorshipPage() {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { id: userId, primaryRole, roles = [] } = session.user;
 
   if (!canAccessMentorship(primaryRole ?? "")) {
-    redirect("/my-program?notice=mentorship-not-available");
+    redirect("/");
   }
-
-  const params = (await searchParams) ?? {};
 
   const isAdmin = roles.includes("ADMIN");
   const membership = await getInstructorMentorshipMembership(userId);
   const showMentorSection = membership.isMentor || isAdmin;
-  const showMenteeSection = membership.isMentee;
 
-  // Neither: editorial empty state instead of a generic card.
-  if (!showMenteeSection && !showMentorSection) {
+  if (membership.isMentee && !showMentorSection) {
+    redirect("/my-mentor");
+  }
+
+  if (!showMentorSection) {
     return (
       <div>
         <div className="topbar">
           <div>
             <p className="badge">Mentorship</p>
-            <h1 className="page-title">Your mentorship</h1>
+            <h1 className="page-title">Mentor Workspace</h1>
           </div>
-          <Link href="/leadership-pathway" className="button secondary small">
-            Pathway →
-          </Link>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link href="/my-mentor" className="button secondary small">
+              My Mentor →
+            </Link>
+            <Link href="/leadership-pathway" className="button secondary small">
+              Pathway →
+            </Link>
+          </div>
         </div>
         <EmptyStateEditorial
-          title="Your home base is on the way."
-          body="Once you're paired with a mentor — or assigned to mentor an instructor — this page becomes the place you'll work from each month. Reach out to chapter leadership if you expected to be paired."
+          title="Your mentor workspace is on the way."
+          body="Once you're assigned to mentor an instructor, this becomes the place you'll work from each month. If you're looking for your own mentor, open My Mentor."
           link={{
-            label: "See the leadership pathway",
-            href: "/leadership-pathway",
+            label: "Open My Mentor",
+            href: "/my-mentor",
           }}
         />
       </div>
     );
   }
 
-  const [mentorBlockResult, engagementResult, pendingActionCount] =
+  const [mentorBlockResult, engagementResult, pendingActionCount, chairLanes] =
     await Promise.all([
-      showMentorSection ? getSimplifiedMentorKanban() : Promise.resolve(null),
-      showMentorSection ? getMentorEngagementSnapshot() : Promise.resolve(null),
+      getSimplifiedMentorKanban(),
+      getMentorEngagementSnapshot(),
       getMentorshipPendingActionCount(userId),
+      getLanesForChair(userId, (session.user.adminSubtypes ?? []) as string[]),
     ]);
   const mentorBlock = mentorBlockResult;
   const engagement = engagementResult;
+  const showChairQueue = isAdmin || chairLanes.length > 0;
 
   const allMentorCards = mentorBlock?.columns.flatMap((c) => c.cards) ?? [];
   const pendingReview =
@@ -102,19 +104,16 @@ export default async function MentorshipPage({ searchParams }: PageProps) {
     };
   }
 
-  const subtitle =
-    showMenteeSection && showMentorSection
-      ? "Your mentorship — the people who develop you, and the instructors you develop."
-      : showMenteeSection
-        ? "Your goals, reflections, feedback, and progress with your mentor."
-        : `${menteeCount} instructor mentee${menteeCount === 1 ? "" : "s"} across all cycles.`;
+  const subtitle = `${menteeCount} instructor mentee${
+    menteeCount === 1 ? "" : "s"
+  } across all cycles.`;
 
   return (
     <div>
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>
-          <h1 className="page-title">Your mentorship</h1>
+          <h1 className="page-title">Mentor Workspace</h1>
           <p className="page-subtitle">{subtitle}</p>
           {pendingActionCount > 0 && (
             <Link
@@ -134,6 +133,11 @@ export default async function MentorshipPage({ searchParams }: PageProps) {
           )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {membership.isMentee && (
+            <Link href="/my-mentor" className="button secondary small">
+              My Mentor →
+            </Link>
+          )}
           {isAdmin && (
             <Link href="/admin/mentorship" className="button secondary small">
               Admin Oversight →
@@ -142,21 +146,14 @@ export default async function MentorshipPage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      <MentorshipTabShell
-        requestedView={params.view}
-        showMentee={showMenteeSection}
-        showMentor={showMentorSection}
-        menteeCount={menteeCount}
-        menteeContent={<MenteeDashboard userId={userId} />}
-        mentorContent={
-          <MentorTabContent
-            urgentAlert={urgentAlert}
-            mentorBlock={mentorBlock}
-            engagement={engagement}
-            activeMenteeCount={activeMenteeCount}
-            needsYouCount={needsYouCount}
-          />
-        }
+      <MentorTabContent
+        urgentAlert={urgentAlert}
+        mentorBlock={mentorBlock}
+        engagement={engagement}
+        activeMenteeCount={activeMenteeCount}
+        needsYouCount={needsYouCount}
+        showChairQueue={showChairQueue}
+        isDualRole={membership.isMentee}
       />
     </div>
   );
@@ -168,12 +165,16 @@ function MentorTabContent({
   engagement,
   activeMenteeCount,
   needsYouCount,
+  showChairQueue,
+  isDualRole,
 }: {
   urgentAlert: { tone: "blue" | "amber"; title: string; detail: string } | null;
   mentorBlock: Awaited<ReturnType<typeof getSimplifiedMentorKanban>> | null;
   engagement: Awaited<ReturnType<typeof getMentorEngagementSnapshot>> | null;
   activeMenteeCount: number;
   needsYouCount: number;
+  showChairQueue: boolean;
+  isDualRole: boolean;
 }) {
   if (!mentorBlock || mentorBlock.total === 0) {
     return (
@@ -195,6 +196,31 @@ function MentorTabContent({
 
   return (
     <div style={{ display: "grid", gap: 24 }}>
+      {isDualRole && (
+        <div
+          className="card"
+          style={{
+            borderLeft: "4px solid var(--color-primary)",
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 16,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <strong>You&apos;re also being mentored.</strong>
+            <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
+              Your own goals, released feedback, resources, and check-ins live
+              in My Mentor.
+            </p>
+          </div>
+          <Link href="/my-mentor" className="button secondary small">
+            Open My Mentor
+          </Link>
+        </div>
+      )}
+
       <MentorCommandStrip
         activeMentees={activeMenteeCount}
         needsYou={needsYouCount}
@@ -202,6 +228,8 @@ function MentorTabContent({
         nextSessionAt={engagement?.nextSessionAt ?? null}
         quietCount={engagement?.quietMentees.length ?? 0}
       />
+
+      <MentorWorkspaceLinks showChairQueue={showChairQueue} />
 
       {urgentAlert && (
         <div
@@ -239,5 +267,48 @@ function MentorTabContent({
         />
       )}
     </div>
+  );
+}
+
+function MentorWorkspaceLinks({ showChairQueue }: { showChairQueue: boolean }) {
+  const links = [
+    { href: "/mentorship/mentees", label: "My Mentees" },
+    { href: "/mentorship/reviews", label: "Monthly Reviews" },
+    { href: "/mentorship/schedule", label: "Schedule" },
+    { href: "/mentorship/resources", label: "Resources" },
+    { href: "/mentorship/ask", label: "Ask / Flag" },
+    { href: "/mentorship/feedback", label: "Feedback" },
+    { href: "/mentorship/awards", label: "Awards" },
+    { href: "/mentor/incubator", label: "Project Mentoring" },
+    ...(showChairQueue ? [{ href: "/mentorship/chair", label: "Chair Queue" }] : []),
+  ];
+
+  return (
+    <nav
+      aria-label="Mentor workspace sections"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+        gap: 10,
+      }}
+    >
+      {links.map((link) => (
+        <Link
+          key={link.href}
+          href={link.href}
+          style={{
+            padding: "10px 12px",
+            border: "1px solid var(--border)",
+            background: "var(--surface)",
+            color: "var(--text)",
+            textDecoration: "none",
+            fontWeight: 650,
+            fontSize: 13,
+          }}
+        >
+          {link.label} →
+        </Link>
+      ))}
+    </nav>
   );
 }

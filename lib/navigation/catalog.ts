@@ -414,6 +414,15 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 16,
     },
     {
+      href: "/my-mentor",
+      label: "My Mentor",
+      icon: "🤝",
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
+      searchAliases: ["My Mentorship", "Mentorship", "Mentor"],
+      dashboardDescription: "See your mentor, goals, resources, progress, reflection, and next steps.",
+      dashboardPriority: 4,
+    },
+    {
       href: "/mentorship/mentees",
       label: "My Mentees",
       icon: "👥",
@@ -440,7 +449,7 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 8,
     },
     {
-      href: "/mentor/feedback",
+      href: "/mentorship/feedback",
       label: "Feedback Portal",
       icon: "💬",
       roles: MENTOR_ROLES,
@@ -449,7 +458,7 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 9,
     },
     {
-      href: "/mentor/ask",
+      href: "/mentorship/ask",
       label: "Ask a Mentor",
       icon: "❓",
       roles: MENTOR_ROLES,
@@ -458,7 +467,7 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 10,
     },
     {
-      href: "/mentor/resources",
+      href: "/mentorship/resources",
       label: "Mentor Resources",
       icon: "📚",
       roles: MENTOR_ROLES,
@@ -497,7 +506,7 @@ export const NAV_CATALOG: NavLink[] = [
     // /mentorship/reviews, which already surfaces for ADMIN via MENTOR_ROLES.
     // Two "Chair Queue" entries created a duplicate visible label for admins.
     {
-      href: "/mentorship-program/awards",
+      href: "/mentorship/awards",
       label: "Awards",
       icon: "🏆",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
@@ -1084,30 +1093,13 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "🚨",
       roles: ADMIN_ONLY,
     },
-    { href: "/admin/mentorship-program", label: "Mentorship Command Center", icon: "🎯", roles: ADMIN_ONLY },
     {
-      href: "/admin/mentorship-program/gr-templates",
-      label: "G&R Templates",
-      icon: "📋",
+      href: "/admin/mentorship",
+      label: "Mentorship",
+      icon: "🎯",
       roles: ADMIN_ONLY,
-      featureKey: "GR_SYSTEM",
-      dashboardDescription: "Create and manage G&R templates for each role.",
-    },
-    {
-      href: "/admin/mentorship-program/gr-resources",
-      label: "G&R Resources",
-      icon: "📚",
-      roles: ADMIN_ONLY,
-      featureKey: "GR_SYSTEM",
-      dashboardDescription: "Manage the shared resource library for G&R documents.",
-    },
-    {
-      href: "/admin/mentorship-program/gr-assignments",
-      label: "G&R Assignments",
-      icon: "📝",
-      roles: ADMIN_ONLY,
-      featureKey: "GR_SYSTEM",
-      dashboardDescription: "Assign G&R documents and review goal change proposals.",
+      dashboardDescription: "Oversee mentorship health, assignments, approvals, G&R, committees, and analytics.",
+      dashboardPriority: 6,
     },
     { href: "/admin/alumni", label: "Manage Alumni", icon: "🎓", roles: ADMIN_ONLY },
     { href: "/admin/unlock-approvals", label: "Unlock Approvals", icon: "🔓", roles: ADMIN_ONLY, dashboardDescription: "Review and approve section unlock recommendations from mentors." },

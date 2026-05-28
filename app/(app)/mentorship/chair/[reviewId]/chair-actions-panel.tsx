@@ -50,7 +50,7 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
       try {
         await approveGoalReview(formData);
         setSuccess(`Approved! ${totalPoints} points awarded to ${menteeName}. Review released.`);
-        setTimeout(() => router.push("/mentorship-program/chair"), 1500);
+        setTimeout(() => router.push("/mentorship/chair"), 1500);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to approve");
       }
@@ -68,7 +68,7 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
       try {
         await requestReviewChanges(formData);
         setSuccess("Changes requested. The mentor has been notified.");
-        setTimeout(() => router.push("/mentorship-program/chair"), 1500);
+        setTimeout(() => router.push("/mentorship/chair"), 1500);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to request changes");
       }

@@ -33,5 +33,5 @@ export async function toggleInstructorPathwaySpec(pathwayId: string) {
 
   revalidatePath("/instructor/workspace");
   revalidatePath(`/pathways/${pathwayId}/mentors`);
-  revalidatePath("/admin/mentor-match");
+  revalidatePath("/admin/mentorship");
 }

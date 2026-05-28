@@ -277,7 +277,7 @@ async function sendMentorshipLifecycleEmails(params: {
     meetingLink = null,
     mentor,
     mentee,
-    actionUrlMentor = toAbsoluteAppUrl("/mentorship-program/schedule"),
+    actionUrlMentor = toAbsoluteAppUrl("/mentorship/schedule"),
     actionUrlMentee = toAbsoluteAppUrl("/my-program/schedule"),
     note = null,
   } = params;
@@ -553,7 +553,7 @@ async function notifyMentorshipBooking(params: {
         userId: request.mentorship.mentorId,
         title: "Meeting Rescheduled",
         body: `"${title}" now starts at ${scheduledAt ? formatScheduleDateTime(scheduledAt) : "a new time"}.`,
-        link: "/mentorship-program/schedule",
+        link: "/mentorship/schedule",
       }),
     ]);
   }
@@ -570,7 +570,7 @@ async function notifyMentorshipBooking(params: {
         userId: request.mentorship.mentorId,
         title: "Meeting Cancelled",
         body: `"${title}" was cancelled.`,
-        link: "/mentorship-program/schedule",
+        link: "/mentorship/schedule",
       }),
     ]);
   }
@@ -1153,7 +1153,7 @@ export async function requestMentorMeeting(formData: FormData) {
     userId: mentorship.mentor.id,
     title: "New Meeting Request",
     body: `${mentorship.mentee.name ?? "A mentee"} requested "${title}".`,
-    link: "/mentorship-program/schedule",
+    link: "/mentorship/schedule",
   });
 
   await sendMentorshipLifecycleEmails({
@@ -1167,7 +1167,7 @@ export async function requestMentorMeeting(formData: FormData) {
   });
 
   revalidatePath("/my-program/schedule");
-  revalidatePath("/mentorship-program/schedule");
+  revalidatePath("/mentorship/schedule");
 
   return { success: true, requestId: request.id };
 }
@@ -1209,7 +1209,7 @@ export async function addMentorAvailabilityRule(formData: FormData) {
     throw error;
   }
 
-  revalidatePath("/mentorship-program/schedule");
+  revalidatePath("/mentorship/schedule");
   revalidatePath("/my-program/schedule");
 }
 
@@ -1235,7 +1235,7 @@ export async function removeMentorAvailabilityRule(ruleId: string) {
     throw error;
   }
 
-  revalidatePath("/mentorship-program/schedule");
+  revalidatePath("/mentorship/schedule");
   revalidatePath("/my-program/schedule");
 }
 
@@ -1278,7 +1278,7 @@ export async function addMentorAvailabilityOverride(formData: FormData) {
     throw error;
   }
 
-  revalidatePath("/mentorship-program/schedule");
+  revalidatePath("/mentorship/schedule");
   revalidatePath("/my-program/schedule");
 }
 
@@ -1304,7 +1304,7 @@ export async function deactivateMentorAvailabilityOverride(overrideId: string) {
     throw error;
   }
 
-  revalidatePath("/mentorship-program/schedule");
+  revalidatePath("/mentorship/schedule");
   revalidatePath("/my-program/schedule");
 }
 
@@ -1401,7 +1401,7 @@ export async function bookMentorAvailabilitySlot(formData: FormData) {
   });
 
   revalidatePath("/my-program/schedule");
-  revalidatePath("/mentorship-program/schedule");
+  revalidatePath("/mentorship/schedule");
 }
 
 export async function confirmScheduleRequest(formData: FormData) {
@@ -1488,7 +1488,7 @@ export async function confirmScheduleRequest(formData: FormData) {
   });
 
   revalidatePath("/my-program/schedule");
-  revalidatePath("/mentorship-program/schedule");
+  revalidatePath("/mentorship/schedule");
 }
 
 export async function rescheduleMentorMeeting(formData: FormData) {
@@ -1563,7 +1563,7 @@ export async function rescheduleMentorMeeting(formData: FormData) {
   });
 
   revalidatePath("/my-program/schedule");
-  revalidatePath("/mentorship-program/schedule");
+  revalidatePath("/mentorship/schedule");
 }
 
 export async function declineScheduleRequest(formData: FormData) {
@@ -1595,7 +1595,7 @@ export async function declineScheduleRequest(formData: FormData) {
   });
 
   revalidatePath("/my-program/schedule");
-  revalidatePath("/mentorship-program/schedule");
+  revalidatePath("/mentorship/schedule");
 }
 
 export async function cancelScheduleRequest(formData: FormData) {
@@ -1653,7 +1653,7 @@ export async function cancelScheduleRequest(formData: FormData) {
   });
 
   revalidatePath("/my-program/schedule");
-  revalidatePath("/mentorship-program/schedule");
+  revalidatePath("/mentorship/schedule");
 }
 
 export async function processMentorshipSchedulingReminders() {

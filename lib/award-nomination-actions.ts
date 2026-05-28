@@ -278,7 +278,7 @@ export async function nominateForAward(formData: FormData) {
     link: "/my-program/awards",
   });
 
-  revalidatePath("/mentorship-program/awards");
+  revalidatePath("/mentorship/awards");
 }
 
 // ============================================
@@ -333,7 +333,7 @@ export async function chairApproveNomination(formData: FormData) {
     description: `${nomination.nominee.name} ${nomination.tier} nomination chair-approved → ${newStatus}`,
   });
 
-  revalidatePath("/mentorship-program/awards");
+  revalidatePath("/mentorship/awards");
 }
 
 // ============================================
@@ -381,7 +381,7 @@ export async function boardApproveNomination(formData: FormData) {
     description: `${nomination.nominee.name} ${nomination.tier} award BOARD APPROVED`,
   });
 
-  revalidatePath("/mentorship-program/awards");
+  revalidatePath("/mentorship/awards");
   revalidatePath("/my-program/awards");
   revalidatePath("/my-program");
 }
@@ -414,6 +414,6 @@ export async function rejectNomination(formData: FormData) {
     description: `${nomination.nominee.name} ${nomination.tier} nomination rejected`,
   });
 
-  revalidatePath("/mentorship-program/awards");
+  revalidatePath("/mentorship/awards");
   revalidatePath("/my-program");
 }

@@ -427,7 +427,7 @@ function choosePrimaryAction(input: {
   if (isStudent) {
     return {
       label: "Ask A Mentor",
-      href: "/mentor/ask",
+      href: "/mentorship/ask",
       detail: "Use the commons to get unstuck and start a support thread.",
     };
   }

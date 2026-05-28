@@ -72,7 +72,7 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toContain("/scheduling");
     expect(visibleHrefs).toContain("/announcements");
     expect(visibleHrefs).toContain("/calendar");
-    expect(visibleHrefs).toContain("/my-program");
+    expect(visibleHrefs).toContain("/my-mentor");
     expect(visibleHrefs).toContain("/messages");
     // `/chapters` (Find a Chapter) is consolidated into the Chapter Hub and
     // intentionally hidden from the sidebar — see ALWAYS_HIDDEN_HREFS.
@@ -103,7 +103,9 @@ describe("resolveNavModel", () => {
       instructorFullPortalExplorer: true,
     });
     expect(hrefs(model)).toContain("/interviews");
-    expect(hrefs(model)).toContain("/my-program/awards");
+    expect(hrefs(model)).toContain("/my-mentor");
+    expect(hrefs(model)).not.toContain("/my-program");
+    expect(hrefs(model)).not.toContain("/my-program/awards");
   });
 
   it("unlocks instructor teaching tools only when the feature key is enabled", () => {
@@ -145,6 +147,8 @@ describe("resolveNavModel", () => {
     expect(model.lockedGroups?.has("Projects")).toBe(true);
     expect(model.lockedGroups?.has("Opportunities")).toBe(true);
     expect(model.lockedGroups?.has("People & Support")).toBe(false);
+    expect(visibleHrefs).not.toContain("/mentorship");
+    expect(visibleHrefs).not.toContain("/my-mentor");
   });
 
   it("does not show Interviews in navigation for students (even with full portal explorer)", () => {
@@ -222,6 +226,8 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toContain("/messages");
     expect(visibleHrefs).toContain("/notifications");
     expect(visibleHrefs).not.toContain("/admin");
+    expect(visibleHrefs).not.toContain("/my-mentor");
+    expect(visibleHrefs).not.toContain("/my-program");
     expect(visibleHrefs).not.toContain("/admin/instructor-applicants");
     expect(visibleHrefs).not.toContain("/admin/portal-rollout");
   });
@@ -271,10 +277,13 @@ describe("resolveNavModel", () => {
     const model = resolveNavModel({
       roles: ["ADMIN", "MENTOR"],
       primaryRole: "ADMIN",
+      adminSubtypes: ["MENTORSHIP_ADMIN"],
       pathname: "/",
       enabledFeatureKeys: new Set(),
     });
 
-    expect(hrefs(model)).toContain("/mentorship/reviews");
+    expect(hrefs(model)).toContain("/mentorship");
+    expect(hrefs(model)).toContain("/admin/mentorship");
+    expect(hrefs(model)).not.toContain("/mentorship/reviews");
   });
 });

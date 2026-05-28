@@ -12,9 +12,9 @@ test("@nightly admin can review readiness, mentorship, and legacy compatibility 
     page.getByRole("heading", { name: "Instructor Readiness Command Center" })
   ).toBeVisible();
 
-  await page.goto("/admin/mentorship-program");
+  await page.goto("/admin/mentorship");
   await expect(
-    page.getByRole("heading", { name: "Instructor Mentorship Command Center" })
+    page.getByRole("heading", { name: "Instructor Mentorship Oversight" })
   ).toBeVisible();
 
   await page.goto("/admin/instructor-applicants");

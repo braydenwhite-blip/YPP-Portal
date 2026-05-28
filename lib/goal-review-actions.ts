@@ -20,6 +20,7 @@ import {
   emitReviewApprovedAndReleased,
 } from "@/lib/mentorship-notifications";
 import { ensureReviewGoalRatings } from "@/lib/mentorship-gr-binding";
+import { ratingRequiresAdminAttention } from "@/lib/mentorship-rubric-copy";
 import { insertMilestoneOnce, checkTenureMilestones } from "@/lib/milestones";
 import { logger } from "@/lib/logger";
 
@@ -43,6 +44,52 @@ async function requireAdmin() {
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) throw new Error("Unauthorized");
   return session as typeof session & { user: { id: string } };
+}
+
+async function surfaceAdminAttentionForRedReview(params: {
+  reviewId: string;
+  mentorshipId: string;
+  menteeId: string;
+  menteeName: string | null;
+  requesterId: string;
+  assignedToId: string | null;
+  cycleNumber: number;
+  overallComments: string;
+  planOfAction: string;
+}) {
+  const title = `Red monthly review: ${params.menteeName ?? "mentee"} cycle ${params.cycleNumber}`;
+  const existing = await prisma.mentorshipRequest.findFirst({
+    where: {
+      mentorshipId: params.mentorshipId,
+      menteeId: params.menteeId,
+      kind: "ESCALATION",
+      status: "OPEN",
+      title,
+    },
+    select: { id: true },
+  });
+
+  if (existing) return;
+
+  await prisma.mentorshipRequest.create({
+    data: {
+      mentorshipId: params.mentorshipId,
+      menteeId: params.menteeId,
+      requesterId: params.requesterId,
+      assignedToId: params.assignedToId,
+      kind: "ESCALATION",
+      visibility: "PRIVATE",
+      status: "OPEN",
+      title,
+      details: [
+        `Review ${params.reviewId} was submitted with a red rating.`,
+        params.overallComments ? `Mentor comments: ${params.overallComments}` : null,
+        params.planOfAction ? `Plan of action: ${params.planOfAction}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    },
+  });
 }
 
 function getString(formData: FormData, key: string, required = true): string {
@@ -422,6 +469,25 @@ export async function saveGoalReview(formData: FormData) {
 
   await syncMentorGoalReviewWorkflow(reviewId);
 
+  if (submitForApproval && ratingRequiresAdminAttention(overallRating)) {
+    try {
+      await surfaceAdminAttentionForRedReview({
+        reviewId,
+        mentorshipId: reflection.mentorshipId,
+        menteeId: reflection.mentorship.menteeId,
+        menteeName: reflection.mentee?.name ?? null,
+        requesterId: session.user.id,
+        assignedToId: reflection.mentorship.chairId ?? null,
+        cycleNumber: reflection.cycleNumber,
+        overallComments,
+        planOfAction,
+      });
+      revalidatePath("/admin/mentorship");
+    } catch (err) {
+      logger.warn({ err, reviewId }, "saveGoalReview: failed to surface red review admin attention");
+    }
+  }
+
   // Propose next-month goals via GRGoalChange when submitting for approval.
   // All proposals run inside their own transaction via proposeGRGoalChange;
   // failures are logged but don't roll back the already-committed review.
@@ -494,13 +560,13 @@ export async function saveGoalReview(formData: FormData) {
         userId: reflection.mentorship.chairId,
         title: "Review Pending Your Approval",
         body: `A mentor has submitted a goal review for ${reflection.mentee?.name ?? "a mentee"} and it needs your approval.`,
-        link: "/mentorship-program/chair",
+        link: "/mentorship/chair",
       });
     }
   }
 
   revalidatePath("/mentorship/reviews");
-  revalidatePath("/mentorship-program/reviews");
+  revalidatePath("/mentorship/chair");
 }
 
 // ============================================
@@ -762,7 +828,7 @@ export async function approveGoalReview(formData: FormData) {
   }
 
   revalidatePath("/mentorship/reviews");
-  revalidatePath("/mentorship-program/chair");
+  revalidatePath("/mentorship/chair");
   revalidatePath("/my-program");
 }
 
@@ -802,7 +868,7 @@ export async function createFeedbackRequest(formData: FormData) {
     },
   });
 
-  revalidatePath(`/mentorship-program/quarterly/${reviewId}`);
+  revalidatePath(`/mentorship/quarterly/${reviewId}`);
   return { success: true, token: request.token };
 }
 
@@ -1063,11 +1129,11 @@ export async function requestReviewChanges(formData: FormData) {
     userId: review.mentor.id,
     title: "Review Changes Requested",
     body: `The chair has requested changes on your review for ${review.mentee.name}. Please review the feedback and update.`,
-    link: "/mentorship-program/reviews",
+    link: `/mentorship/reviews/${review.menteeId}`,
   });
 
-  revalidatePath("/mentorship-program/chair");
-  revalidatePath("/mentorship-program/reviews");
+  revalidatePath("/mentorship/chair");
+  revalidatePath("/mentorship/reviews");
 }
 
 // ============================================
@@ -1118,8 +1184,8 @@ export async function bulkApproveReviews(formData: FormData) {
     description: `Bulk approved ${results.filter((r) => r.ok).length}/${reviewIdsRaw.length} reviews`,
   });
 
-  revalidatePath("/mentorship-program/chair");
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/mentorship/chair");
+  revalidatePath("/admin/mentorship");
   return results;
 }
 

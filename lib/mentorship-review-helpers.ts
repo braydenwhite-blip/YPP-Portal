@@ -4,37 +4,34 @@ import {
   ProgressStatus,
   RoleType,
 } from "@prisma/client";
+import { getProgressStatusCopy } from "@/lib/mentorship-rubric-copy";
 
 export const PROGRESS_STATUS_META: Record<
   ProgressStatus,
   { color: string; label: string; description: string; position: number }
 > = {
   BEHIND_SCHEDULE: {
-    color: "#dc2626",
-    label: "Behind Schedule",
-    description:
-      "Incomplete or behind schedule, with no realistic catch-up path.",
+    color: getProgressStatusCopy("BEHIND_SCHEDULE").color,
+    label: getProgressStatusCopy("BEHIND_SCHEDULE").label,
+    description: getProgressStatusCopy("BEHIND_SCHEDULE").adminDescription,
     position: 0,
   },
   GETTING_STARTED: {
-    color: "#eab308",
-    label: "Getting Started",
-    description:
-      "Incomplete or behind schedule, but a catch-up path still exists.",
+    color: getProgressStatusCopy("GETTING_STARTED").color,
+    label: getProgressStatusCopy("GETTING_STARTED").label,
+    description: getProgressStatusCopy("GETTING_STARTED").mentorDescription,
     position: 1,
   },
   ON_TRACK: {
-    color: "#16a34a",
-    label: "Achieved",
-    description:
-      "Complete and on schedule in both quantity and quality.",
+    color: getProgressStatusCopy("ON_TRACK").color,
+    label: getProgressStatusCopy("ON_TRACK").label,
+    description: getProgressStatusCopy("ON_TRACK").mentorDescription,
     position: 2,
   },
   ABOVE_AND_BEYOND: {
-    color: "#6b21c8",
-    label: "Above & Beyond",
-    description:
-      "Exceeds goals in both quantity and quality.",
+    color: getProgressStatusCopy("ABOVE_AND_BEYOND").color,
+    label: getProgressStatusCopy("ABOVE_AND_BEYOND").label,
+    description: getProgressStatusCopy("ABOVE_AND_BEYOND").mentorDescription,
     position: 3,
   },
 };

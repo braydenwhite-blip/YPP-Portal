@@ -40,7 +40,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/instructor/lesson-design-studio",
     "/attendance",
     "/instructor/parent-feedback",
-    "/my-program",
+    "/my-mentor",
     "/scheduling",
     "/messages",
   ],
@@ -51,7 +51,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/goals",
     "/my-program",
     "/positions",
-    "/mentorship",
+    "/admin/mentorship",
     "/attendance",
   ],
   HIRING_CHAIR: [
@@ -77,10 +77,6 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
   MENTOR: [
     "/",
     "/mentorship",
-    "/mentorship/mentees",
-    "/mentorship/schedule",
-    "/mentor/feedback",
-    "/mentor/resources",
     "/office-hours",
     "/messages",
   ],

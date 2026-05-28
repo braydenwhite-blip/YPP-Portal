@@ -206,7 +206,7 @@ export async function createFeedbackRequest(formData: FormData) {
     }
   }
 
-  revalidatePath("/mentor/feedback");
+  revalidatePath("/mentorship/feedback");
   revalidatePath("/mentorship");
 }
 

@@ -184,7 +184,7 @@ function MenteeDetailPanel({
         <div className="slideout-section-title">Actions</div>
         <div className="action-bar">
           <Link
-            href={`/admin/mentorship-program?lane=${lane}&focus=matching&menteeId=${mentee.id}`}
+            href={`/admin/mentorship?tab=assignments&lane=${lane}&menteeId=${mentee.id}`}
             className="button primary small"
           >
             Find Matches

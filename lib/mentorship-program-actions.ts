@@ -336,7 +336,7 @@ export async function assignProgramMentor(formData: FormData) {
     },
   });
 
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function endProgramMentorship(formData: FormData) {
@@ -372,7 +372,7 @@ export async function endProgramMentorship(formData: FormData) {
     description: `Program mentorship ended (${newStatus}): ${mentorship.mentor.name} -> ${mentorship.mentee.name}`,
   });
 
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
 }
 
 function appendNote(existingNote: string | null | undefined, line: string) {
@@ -514,7 +514,7 @@ export async function reassignProgramMentor(formData: FormData) {
   await ensureMentorshipSupportCircle(created.id);
 
   revalidatePath("/admin/mentorship");
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
   revalidatePath(`/admin/mentorship/relationships/${existing.id}`);
   revalidatePath(`/admin/mentorship/relationships/${created.id}`);
   revalidatePath(`/mentorship/mentees/${existing.menteeId}`);
@@ -579,7 +579,7 @@ export async function setProgramMentorshipStatus(formData: FormData) {
   });
 
   revalidatePath("/admin/mentorship");
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
   revalidatePath(`/admin/mentorship/relationships/${mentorshipId}`);
   revalidatePath(`/mentorship/mentees/${existing.menteeId}`);
 }
@@ -618,7 +618,7 @@ export async function assignCommitteeChair(formData: FormData) {
     description: `Mentor Committee Chair assigned: ${user.name} -> ${roleType}`,
   });
 
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function removeCommitteeChair(formData: FormData) {
@@ -643,7 +643,7 @@ export async function removeCommitteeChair(formData: FormData) {
     description: `Mentor Committee Chair removed: ${chair.user.name} (${chair.roleType})`,
   });
 
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function createProgramGoal(formData: FormData) {
@@ -670,7 +670,7 @@ export async function createProgramGoal(formData: FormData) {
     },
   });
 
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function toggleProgramGoal(formData: FormData) {
@@ -683,7 +683,7 @@ export async function toggleProgramGoal(formData: FormData) {
     data: { isActive: !isActive },
   });
 
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function updateProgramGoal(formData: FormData) {
@@ -699,7 +699,7 @@ export async function updateProgramGoal(formData: FormData) {
     data: { title, description: description || null, sortOrder },
   });
 
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
 }
 
 async function getAccessibleMentorship(params: {
@@ -1596,7 +1596,7 @@ export async function createMentorshipTrack(formData: FormData) {
     },
   });
 
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function createMentorCommittee(formData: FormData) {
@@ -1620,7 +1620,7 @@ export async function createMentorCommittee(formData: FormData) {
     },
   });
 
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function addMentorCommitteeMember(formData: FormData) {
@@ -1651,7 +1651,7 @@ export async function addMentorCommitteeMember(formData: FormData) {
     },
   });
 
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function updateMentorshipGovernance(formData: FormData) {
@@ -1721,8 +1721,8 @@ export async function updateMentorshipGovernance(formData: FormData) {
 
   await ensureMentorshipSupportCircle(mentorshipId);
 
-  revalidatePath("/admin/mentorship-program");
-  revalidatePath("/admin/mentor-match");
+  revalidatePath("/admin/mentorship");
+  revalidatePath("/admin/mentorship");
   revalidatePath("/mentorship");
   revalidatePath("/mentorship/mentees");
 }

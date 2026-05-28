@@ -4,6 +4,7 @@ import { getGoalsForMentee } from "@/lib/mentorship-gr-binding";
 import { MENTORSHIP_RESOURCE_TYPE_META } from "@/lib/mentorship-hub";
 import { nextActionForInstructorMentee } from "@/lib/instructor-mentee-next-action";
 import { getLeadershipContext } from "@/lib/leadership-context";
+import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 import { RoleStrip } from "@/components/leadership-pathway/role-strip";
 import { CheckInPanel } from "@/components/mentorship/check-in-panel";
 import { getMentorshipCheckIns } from "@/lib/mentorship-checkin-actions";
@@ -22,20 +23,6 @@ const TIER_THRESHOLDS = [
   { tier: "LIFETIME", pts: 1800, label: "Lifetime", color: "#4c1d95", bg: "#f5f3ff" },
 ] as const;
 
-const RATING_LABEL: Record<string, string> = {
-  BEHIND_SCHEDULE: "Behind",
-  GETTING_STARTED: "Getting started",
-  ACHIEVED: "Achieved",
-  ABOVE_AND_BEYOND: "Above & beyond",
-};
-
-const RATING_COLOR: Record<string, string> = {
-  BEHIND_SCHEDULE: "#ef4444",
-  GETTING_STARTED: "#f59e0b",
-  ACHIEVED: "#22c55e",
-  ABOVE_AND_BEYOND: "#a855f7",
-};
-
 type Props = { userId: string };
 
 async function loadMenteeDashboardData(userId: string) {
@@ -49,7 +36,7 @@ async function loadMenteeDashboardData(userId: string) {
     mentee: { select: { id: true, name: true } },
   } as const;
 
-  const [mentorship, pointSummary, goals, resourcesToMe, resourcesByMe] = await Promise.all([
+  const [mentorship, pointSummary, goals, resourcesToMe] = await Promise.all([
     prisma.mentorship.findFirst({
       where: { menteeId: userId, status: "ACTIVE" },
       select: {
@@ -58,7 +45,7 @@ async function loadMenteeDashboardData(userId: string) {
         kickoffCompletedAt: true,
         mentor: { select: { id: true, name: true, email: true } },
         goalReviews: {
-          where: { status: "APPROVED" },
+          where: { status: "APPROVED", releasedToMenteeAt: { not: null } },
           orderBy: { cycleNumber: "desc" },
           take: 4,
           select: {
@@ -97,20 +84,9 @@ async function loadMenteeDashboardData(userId: string) {
       take: 3,
       select: resourceSelect,
     }),
-    prisma.mentorshipResource.findMany({
-      where: {
-        isPublished: true,
-        createdById: userId,
-        menteeId: { not: null },
-        NOT: { menteeId: userId },
-      },
-      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
-      take: 5,
-      select: resourceSelect,
-    }),
   ]);
 
-  return { mentorship, pointSummary, goals, resourcesToMe, resourcesByMe };
+  return { mentorship, pointSummary, goals, resourcesToMe };
 }
 
 
@@ -157,7 +133,7 @@ function AwardBar({ totalPoints, currentTier }: { totalPoints: number; currentTi
 }
 
 export async function MenteeDashboard({ userId }: Props) {
-  const [{ mentorship, pointSummary, goals, resourcesToMe, resourcesByMe }, leadership] =
+  const [{ mentorship, pointSummary, goals, resourcesToMe }, leadership] =
     await Promise.all([
       loadMenteeDashboardData(userId),
       getLeadershipContext(userId),
@@ -301,14 +277,15 @@ export async function MenteeDashboard({ userId }: Props) {
                 const rating = latestApprovedReview?.goalRatings.find(
                   (gr) => gr.goal?.title === goal.title
                 );
+                const ratingCopy = rating ? getGoalRatingCopy(rating.rating) : null;
                 return (
                   <li
                     key={goal.id}
                     style={{
                       padding: "10px 14px",
                       background: "var(--bg-2)",
-                      borderLeft: rating
-                        ? `3px solid ${RATING_COLOR[rating.rating]}`
+                      borderLeft: ratingCopy
+                        ? `3px solid ${ratingCopy.color}`
                         : "3px solid var(--border)",
                       display: "flex",
                       gap: 10,
@@ -329,15 +306,15 @@ export async function MenteeDashboard({ userId }: Props) {
                           fontSize: 10,
                           padding: "2px 7px",
                           borderRadius: 999,
-                          background: RATING_COLOR[rating.rating] + "22",
-                          color: RATING_COLOR[rating.rating],
+                          background: ratingCopy?.background,
+                          color: ratingCopy?.color,
                           fontWeight: 700,
                           letterSpacing: "0.04em",
                           textTransform: "uppercase",
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {RATING_LABEL[rating.rating]}
+                        {ratingCopy?.menteeLabel}
                       </span>
                     )}
                   </li>
@@ -398,6 +375,9 @@ export async function MenteeDashboard({ userId }: Props) {
                   )}
                 </span>
               </div>
+              {(() => {
+                const ratingCopy = getGoalRatingCopy(latestApprovedReview.overallRating);
+                return (
               <div style={{ marginTop: 10 }}>
                 <span
                   style={{
@@ -405,17 +385,28 @@ export async function MenteeDashboard({ userId }: Props) {
                     fontSize: 11,
                     padding: "3px 10px",
                     borderRadius: 999,
-                    background:
-                      RATING_COLOR[latestApprovedReview.overallRating] + "22",
-                    color: RATING_COLOR[latestApprovedReview.overallRating],
+                    background: ratingCopy.background,
+                    color: ratingCopy.color,
                     fontWeight: 700,
                     letterSpacing: "0.04em",
                     textTransform: "uppercase",
                   }}
                 >
-                  {RATING_LABEL[latestApprovedReview.overallRating]}
+                  {ratingCopy.menteeLabel}
                 </span>
+                <p
+                  style={{
+                    margin: "8px 0 0",
+                    color: "var(--muted)",
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {ratingCopy.menteeDescription}
+                </p>
               </div>
+                );
+              })()}
               {latestApprovedReview.overallComments && (
                 <p
                   style={{
@@ -460,7 +451,7 @@ export async function MenteeDashboard({ userId }: Props) {
                 Resources from your mentor
               </h3>
               <Link
-                href="/mentor/resources"
+                href="/mentorship/resources"
                 style={{ fontSize: 12, color: "var(--muted)", textDecoration: "none" }}
               >
                 Browse all →
@@ -542,109 +533,6 @@ export async function MenteeDashboard({ userId }: Props) {
             )}
           </section>
 
-          {resourcesByMe.length > 0 && (
-            <section
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                padding: "20px 22px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "baseline",
-                  gap: 8,
-                  flexWrap: "wrap",
-                }}
-              >
-                <h3
-                  style={{
-                    margin: 0,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: "var(--muted)",
-                  }}
-                >
-                  Resources you&apos;ve shared as a mentor
-                </h3>
-                <Link
-                  href="/mentor/resources"
-                  style={{ fontSize: 12, color: "var(--muted)", textDecoration: "none" }}
-                >
-                  Manage →
-                </Link>
-              </div>
-              <ul
-                style={{
-                  listStyle: "none",
-                  padding: 0,
-                  margin: "14px 0 0",
-                  display: "grid",
-                  gap: 10,
-                }}
-              >
-                {resourcesByMe.map((resource) => (
-                  <li
-                    key={resource.id}
-                    style={{
-                      padding: "10px 14px",
-                      background: "var(--bg-2)",
-                      borderLeft: "3px solid var(--border)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 8,
-                        alignItems: "baseline",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>
-                        {resource.url ? (
-                          <a
-                            href={resource.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="link"
-                          >
-                            {resource.title}
-                          </a>
-                        ) : (
-                          resource.title
-                        )}
-                      </div>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          padding: "2px 7px",
-                          borderRadius: 999,
-                          background: "var(--surface)",
-                          color: "var(--muted)",
-                          fontWeight: 600,
-                          letterSpacing: "0.04em",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        {MENTORSHIP_RESOURCE_TYPE_META[resource.type]?.label ??
-                          resource.type}
-                      </span>
-                    </div>
-                    {resource.mentee?.name && (
-                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>
-                        Shared with {resource.mentee.name}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </div>
       </div>
 
@@ -707,13 +595,15 @@ export async function MenteeDashboard({ userId }: Props) {
                 gap: 12,
               }}
             >
-              {historyReviews.map((review) => (
+              {historyReviews.map((review) => {
+                const ratingCopy = getGoalRatingCopy(review.overallRating);
+                return (
                 <li
                   key={review.id}
                   style={{
                     padding: "12px 14px",
                     background: "var(--bg-2)",
-                    borderLeft: `3px solid ${RATING_COLOR[review.overallRating]}`,
+                    borderLeft: `3px solid ${ratingCopy.color}`,
                   }}
                 >
                   <div
@@ -736,14 +626,14 @@ export async function MenteeDashboard({ userId }: Props) {
                         fontSize: 10,
                         padding: "2px 7px",
                         borderRadius: 999,
-                        background: RATING_COLOR[review.overallRating] + "22",
-                        color: RATING_COLOR[review.overallRating],
+                        background: ratingCopy.background,
+                        color: ratingCopy.color,
                         fontWeight: 700,
                         letterSpacing: "0.04em",
                         textTransform: "uppercase",
                       }}
                     >
-                      {RATING_LABEL[review.overallRating]}
+                      {ratingCopy.menteeLabel}
                     </span>
                   </div>
                   {review.overallComments && (
@@ -761,7 +651,8 @@ export async function MenteeDashboard({ userId }: Props) {
                     </p>
                   )}
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </details>
         )}
@@ -769,4 +660,3 @@ export async function MenteeDashboard({ userId }: Props) {
     </div>
   );
 }
-

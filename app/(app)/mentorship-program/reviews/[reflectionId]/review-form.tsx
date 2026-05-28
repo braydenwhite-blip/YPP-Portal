@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveGoalReview } from "@/lib/goal-review-actions";
+import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 
 export interface GoalResponse {
   goal: { id: string; title: string; description: string | null };
@@ -63,14 +64,25 @@ interface Props {
   isReadOnly: boolean;
 }
 
-const RATING_OPTIONS = [
-  { value: "BEHIND_SCHEDULE", label: "Behind Schedule", color: "#ef4444", bg: "#fef2f2", description: "Behind timetable with no catch-up possible" },
-  { value: "GETTING_STARTED", label: "Getting Started", color: "#d97706", bg: "#fffbeb", description: "Behind but catch-up is possible" },
-  { value: "ACHIEVED", label: "Achieved", color: "#16a34a", bg: "#f0fdf4", description: "Completed in line with schedule" },
-  { value: "ABOVE_AND_BEYOND", label: "Above & Beyond", color: "#6b21c8", bg: "#faf5ff", description: "Exceeds goals in quantity & quality" },
+const RATING_VALUES = [
+  "BEHIND_SCHEDULE",
+  "GETTING_STARTED",
+  "ACHIEVED",
+  "ABOVE_AND_BEYOND",
 ] as const;
 
-type RatingValue = (typeof RATING_OPTIONS)[number]["value"];
+type RatingValue = (typeof RATING_VALUES)[number];
+
+const RATING_OPTIONS = RATING_VALUES.map((value) => {
+  const copy = getGoalRatingCopy(value);
+  return {
+    value,
+    label: `${copy.shortLabel} - ${copy.label}`,
+    color: copy.color,
+    bg: copy.background,
+    description: copy.mentorDescription,
+  };
+});
 
 function RatingSelector({
   value,
@@ -268,7 +280,7 @@ export default function ReviewForm({
         }
 
         await saveGoalReview(formData);
-        router.push("/mentorship-program/reviews");
+        router.push("/mentorship/reviews");
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to save review");
@@ -590,7 +602,7 @@ export default function ReviewForm({
               <span>Quarterly Fields — completed by full Mentor Committee</span>
               {existingReview?.status === "APPROVED" && (
                 <a
-                  href={`/mentorship-program/quarterly/${existingReview.id}`}
+                  href={`/mentorship/quarterly/${existingReview.id}`}
                   className="button primary small"
                   style={{ fontSize: "0.72rem" }}
                 >

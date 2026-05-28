@@ -3,18 +3,20 @@
  * sequence of colored dots. Pure presentational; no data fetching.
  */
 
-const RATING_META: Record<string, { label: string; color: string; rank: number }> = {
-  BEHIND_SCHEDULE: { label: "Behind", color: "#ef4444", rank: 1 },
-  GETTING_STARTED: { label: "Getting started", color: "#f59e0b", rank: 2 },
-  ACHIEVED: { label: "Achieved", color: "#22c55e", rank: 3 },
-  ABOVE_AND_BEYOND: { label: "Above & beyond", color: "#a855f7", rank: 4 },
+import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
+
+const RATING_RANK: Record<string, number> = {
+  BEHIND_SCHEDULE: 1,
+  GETTING_STARTED: 2,
+  ACHIEVED: 3,
+  ABOVE_AND_BEYOND: 4,
 };
 
 export type TrajectoryPoint = { label: string; rating: string };
 export type TrajectoryGoal = { title: string; points: TrajectoryPoint[] };
 
 function trend(points: TrajectoryPoint[]): "up" | "down" | "flat" {
-  const ranked = points.map((p) => RATING_META[p.rating]?.rank ?? 0).filter(Boolean);
+  const ranked = points.map((p) => RATING_RANK[p.rating] ?? 0).filter(Boolean);
   if (ranked.length < 2) return "flat";
   const delta = ranked[ranked.length - 1] - ranked[0];
   if (delta > 0) return "up";
@@ -89,7 +91,7 @@ export function GoalTrajectory({ goals }: { goals: TrajectoryGoal[] }) {
                 }}
               >
                 {goal.points.map((point, i) => {
-                  const meta = RATING_META[point.rating];
+                  const meta = getGoalRatingCopy(point.rating);
                   return (
                     <div
                       key={`${point.label}-${i}`}
@@ -102,15 +104,15 @@ export function GoalTrajectory({ goals }: { goals: TrajectoryGoal[] }) {
                         />
                       )}
                       <span
-                        title={`${point.label}: ${meta?.label ?? point.rating}`}
+                        title={`${point.label}: ${meta.label}`}
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
                           gap: 6,
                           padding: "3px 9px",
                           borderRadius: 999,
-                          background: (meta?.color ?? "#94a3b8") + "1f",
-                          color: meta?.color ?? "#64748b",
+                          background: meta.background,
+                          color: meta.color,
                           fontSize: 11,
                           fontWeight: 600,
                           whiteSpace: "nowrap",
@@ -122,7 +124,7 @@ export function GoalTrajectory({ goals }: { goals: TrajectoryGoal[] }) {
                             width: 8,
                             height: 8,
                             borderRadius: "50%",
-                            background: meta?.color ?? "#94a3b8",
+                            background: meta.color,
                           }}
                         />
                         {point.label}

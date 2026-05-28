@@ -453,8 +453,8 @@ export async function assignSupportCircleMember(formData: FormData) {
     await ensureMentorshipSupportCircle(mentorshipId);
   }
 
-  revalidatePath("/admin/mentorship-program");
-  revalidatePath("/admin/mentor-match");
+  revalidatePath("/admin/mentorship");
+  revalidatePath("/admin/mentorship");
   revalidatePath("/mentorship");
   revalidatePath(`/mentorship/mentees/${menteeId}`);
   revalidatePath("/my-mentor");
@@ -546,7 +546,7 @@ export async function createMentorshipSession(formData: FormData) {
   revalidatePath(`/mentorship/mentees/${menteeId}`);
   revalidatePath("/my-mentor");
   revalidatePath("/my-program");
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
 }
 
 export async function createMentorshipActionItem(formData: FormData) {
@@ -706,8 +706,8 @@ export async function createMentorshipRequest(formData: FormData) {
   });
 
   revalidatePath("/mentorship");
-  revalidatePath("/mentor/feedback");
-  revalidatePath("/mentor/ask");
+  revalidatePath("/mentorship/feedback");
+  revalidatePath("/mentorship/ask");
   revalidatePath(`/mentorship/mentees/${menteeId}`);
   revalidatePath("/my-mentor");
   revalidatePath("/my-program");
@@ -792,9 +792,9 @@ export async function respondToMentorshipRequest(formData: FormData) {
     });
   }
 
-  revalidatePath("/mentor/feedback");
-  revalidatePath("/mentor/ask");
-  revalidatePath("/mentor/resources");
+  revalidatePath("/mentorship/feedback");
+  revalidatePath("/mentorship/ask");
+  revalidatePath("/mentorship/resources");
   revalidatePath(`/mentorship/mentees/${request.menteeId}`);
   revalidatePath("/mentorship");
 }
@@ -853,8 +853,8 @@ export async function markMentorshipResponseHelpful(responseId: string) {
     });
   }
 
-  revalidatePath("/mentor/feedback");
-  revalidatePath("/mentor/ask");
+  revalidatePath("/mentorship/feedback");
+  revalidatePath("/mentorship/ask");
 }
 
 export async function promoteMentorshipResponseToResource(formData: FormData) {
@@ -916,8 +916,8 @@ export async function promoteMentorshipResponseToResource(formData: FormData) {
     },
   });
 
-  revalidatePath("/mentor/resources");
-  revalidatePath("/mentor/ask");
+  revalidatePath("/mentorship/resources");
+  revalidatePath("/mentorship/ask");
   revalidatePath("/mentorship");
 }
 
@@ -951,7 +951,7 @@ export async function createMentorshipResource(formData: FormData) {
     },
   });
 
-  revalidatePath("/mentor/resources");
+  revalidatePath("/mentorship/resources");
   revalidatePath("/mentorship");
 }
 

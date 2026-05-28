@@ -29,5 +29,5 @@ export async function POST(request: Request) {
   // Create notification for mentors (in production)
   // await createMentorNotification(passionId, feedbackRequest.id);
 
-  redirect("/mentor/feedback");
+  redirect("/mentorship/feedback");
 }

@@ -51,5 +51,5 @@ export async function POST(request: Request) {
     }
   });
 
-  redirect("/mentor/ask");
+  redirect("/mentorship/ask");
 }

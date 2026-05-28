@@ -12,15 +12,33 @@ import GoalReviewsBoard from "@/app/(app)/admin/mentorship-program/goal-reviews-
 import ReviewApprovalsBoard from "@/app/(app)/admin/mentorship-program/review-approvals-board";
 import GoalsPanel from "@/app/(app)/admin/mentorship-program/goals-panel";
 import ChairsPanel from "@/app/(app)/admin/mentorship-program/chairs-panel";
-import { SHOW_STUDENT_MENTORSHIP_LANE } from "@/lib/mentorship-admin-helpers";
-import { FULL_PROGRAM_MENTOR_CAP } from "@/lib/mentorship-canonical";
+import MatchingPanel from "@/app/(app)/admin/mentorship-program/matching-panel";
+import MenteeMatchingBoard from "@/app/(app)/admin/mentorship-program/mentee-matching-board";
+import AnalyticsPanel from "@/app/(app)/admin/mentorship-program/analytics-panel";
+import GRTemplateListPanel from "@/components/gr/gr-template-list-panel";
+import GRResourceLibraryPanel from "@/components/gr/gr-resource-library-panel";
+import GRAssignmentsPanel from "@/components/gr/gr-assignments-panel";
 import {
-  ADMIN_QUEUE_PAGE_SIZE,
+  ADMIN_MENTORSHIP_LANE_META,
+  ADMIN_MENTORSHIP_LANES,
+  SHOW_STUDENT_MENTORSHIP_LANE,
+  parseAdminMentorshipLane,
+  toLaneQueryValue,
+} from "@/lib/mentorship-admin-helpers";
+import { FULL_PROGRAM_MENTOR_CAP } from "@/lib/mentorship-canonical";
+import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
+import {
+  getGRAssignedDocuments,
+  getGRGoalChangeQueue,
+  getGRResourceLibrary,
+  getGRTemplates,
+} from "@/lib/gr-actions";
+import { getMentorEffectivenessScores } from "@/lib/mentor-effectiveness";
+import { getProgramAnalytics } from "@/lib/mentorship-overview-actions";
+import {
   getAdminMentorshipActionQueue,
   getInstructorMentorshipOpsSummary,
   getMentorWorkload,
-  getOverdueCheckInQueue,
-  getStalledGoalQueue,
   getUnassignedInstructorQueue,
 } from "@/lib/instructor-mentorship-ops";
 
@@ -29,37 +47,65 @@ export const ADMIN_MENTORSHIP_PAGE_TITLE = "Instructor Mentorship Oversight";
 export const metadata = { title: "Instructor Mentorship Admin — YPP Portal" };
 
 const TABS = [
-  { key: "pulse", label: "Pulse" },
-  { key: "needs-action", label: "Needs Action" },
-  { key: "unassigned", label: "Unassigned" },
-  { key: "workload", label: "Workload" },
-  { key: "gr", label: "G&R" },
-  { key: "check-ins", label: "Check-ins" },
+  { key: "overview", label: "Overview / Pulse" },
+  { key: "needs-attention", label: "Needs Attention" },
+  { key: "assignments", label: "Assignments" },
+  { key: "capacity", label: "Capacity / Workload" },
   { key: "approvals", label: "Approvals" },
-  { key: "goals", label: "Goals" },
-  { key: "committees", label: "Committees" },
+  { key: "templates", label: "Goals & Resources" },
+  { key: "committees", label: "Committees & Chairs" },
+  { key: "analytics", label: "Analytics" },
 ] as const;
 
 type Tab = (typeof TABS)[number]["key"];
+type SearchParams = {
+  tab?: string;
+  lane?: string;
+  menteeId?: string;
+  supportRole?: string;
+};
+type MatchSupportRole =
+  | "PRIMARY_MENTOR"
+  | "CHAIR"
+  | "SPECIALIST_MENTOR"
+  | "COLLEGE_ADVISOR"
+  | "ALUMNI_ADVISOR";
 
 function parseTab(raw?: string): Tab {
   if (
-    raw === "needs-action" ||
-    raw === "unassigned" ||
-    raw === "workload" ||
-    raw === "gr" ||
-    raw === "check-ins" ||
+    raw === "overview" ||
+    raw === "needs-attention" ||
+    raw === "assignments" ||
+    raw === "capacity" ||
     raw === "approvals" ||
-    raw === "goals" ||
-    raw === "committees"
+    raw === "templates" ||
+    raw === "committees" ||
+    raw === "analytics"
   ) {
     return raw;
   }
-  // "pairings" was folded into "workload" — silently redirect legacy links.
-  if (raw === "pairings") {
-    return "workload";
+  if (raw === "pulse") return "overview";
+  if (raw === "needs-action" || raw === "check-ins") return "needs-attention";
+  if (raw === "unassigned" || raw === "matching" || raw === "pairings") {
+    return "assignments";
   }
-  return "pulse";
+  if (raw === "workload") return "capacity";
+  if (raw === "gr" || raw === "goals") return "templates";
+  return "overview";
+}
+
+function parseSupportRole(raw?: string): MatchSupportRole {
+  if (
+    raw === "PRIMARY_MENTOR" ||
+    raw === "CHAIR" ||
+    raw === "SPECIALIST_MENTOR" ||
+    raw === "COLLEGE_ADVISOR" ||
+    raw === "ALUMNI_ADVISOR"
+  ) {
+    return raw;
+  }
+
+  return "PRIMARY_MENTOR";
 }
 
 // Match the lane filter on `lib/admin-mentorship-command-center.ts`:
@@ -163,35 +209,111 @@ async function getPulseData() {
   };
 }
 
+async function getGRAdminData() {
+  const [templates, resources, documents, goalChanges] = await Promise.all([
+    getGRTemplates(),
+    getGRResourceLibrary(),
+    getGRAssignedDocuments(),
+    getGRGoalChangeQueue(),
+  ]);
+
+  return {
+    templates: templates.map((t) => ({
+      id: t.id,
+      title: t.title,
+      roleType: t.roleType,
+      officerPosition: t.officerPosition,
+      status: t.status,
+      version: t.version,
+      publishedAt: t.publishedAt?.toISOString() ?? null,
+      goalCount: t.goals.length,
+      assignmentCount: t._count.assignments,
+      commentCount: t._count.comments,
+      updatedAt: t.updatedAt.toISOString(),
+    })),
+    resources: resources.map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      url: r.url,
+      isUpload: r.isUpload,
+      tags: r.tags,
+      createdAt: r.createdAt.toISOString(),
+    })),
+    documents: documents.map((d) => ({
+      id: d.id,
+      userName: d.user.name,
+      userEmail: d.user.email,
+      templateTitle: d.template.title,
+      roleType: d.template.roleType,
+      mentorName: d.mentorship.mentor.name,
+      status: d.status,
+      goalCount: d._count.goals,
+      pendingChanges: d._count.goalChanges,
+      createdAt: d.createdAt.toISOString(),
+    })),
+    goalChanges: goalChanges.map((gc) => ({
+      id: gc.id,
+      documentId: gc.documentId,
+      userName: gc.document.user.name,
+      templateTitle: gc.document.template.title,
+      proposedByName: gc.proposedBy.name,
+      changeType: gc.changeType,
+      proposedData: gc.proposedData as Record<string, string>,
+      reason: gc.reason,
+      createdAt: gc.createdAt.toISOString(),
+    })),
+    templateOptions: templates.map((t) => ({
+      id: t.id,
+      title: t.title,
+      roleType: t.roleType,
+      status: t.status,
+    })),
+  };
+}
+
 export default async function AdminMentorshipPage({
   searchParams,
 }: {
-  searchParams: { tab?: string };
+  searchParams: SearchParams;
 }) {
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) redirect("/");
 
   const tab = parseTab(searchParams.tab);
+  const lane = parseAdminMentorshipLane(searchParams.lane);
+  const supportRole = parseSupportRole(searchParams.supportRole);
 
   const [data, goalReviews, monthlyReviews, opsSummary] = await Promise.all([
     getAdminMentorshipCommandCenterData(),
     tab === "approvals" ? getMentorshipGoalReviews() : Promise.resolve([]),
     tab === "approvals" ? getMentorshipMonthlyReviews() : Promise.resolve([]),
-    tab === "pulse" || tab === "needs-action"
+    tab === "overview" || tab === "needs-attention"
       ? getInstructorMentorshipOpsSummary()
       : Promise.resolve(null),
   ]);
 
-  const pulseData = tab === "pulse" ? await getPulseData() : null;
+  const pulseData = tab === "overview" ? await getPulseData() : null;
   const needsActionItems =
-    tab === "needs-action" ? await getAdminMentorshipActionQueue() : null;
+    tab === "needs-attention" ? await getAdminMentorshipActionQueue() : null;
   const unassignedQueue =
-    tab === "unassigned" ? await getUnassignedInstructorQueue() : null;
-  const workloadRows = tab === "workload" ? await getMentorWorkload() : null;
-  const stalledGoals = tab === "gr" ? await getStalledGoalQueue() : null;
-  const overdueCheckIns =
-    tab === "check-ins" ? await getOverdueCheckInQueue() : null;
+    tab === "assignments" ? await getUnassignedInstructorQueue() : null;
+  const workloadRows = tab === "capacity" ? await getMentorWorkload() : null;
+  const grData = tab === "templates" ? await getGRAdminData() : null;
+  const [programAnalytics, mentorScores] =
+    tab === "analytics"
+      ? await Promise.all([getProgramAnalytics(), getMentorEffectivenessScores()])
+      : [null, []];
+
+  const laneMeta = ADMIN_MENTORSHIP_LANE_META[lane];
+  const selectedSummary =
+    data.laneSummaries.find((summary) => summary.lane === lane) ??
+    data.laneSummaries[0];
+  const laneCircles = data.circleSummaries.filter((circle) => circle.lane === lane);
+  const laneUnassigned = data.unassignedMentees.filter(
+    (mentee) => mentee.lane === lane
+  );
 
   return (
     <div>
@@ -200,13 +322,13 @@ export default async function AdminMentorshipPage({
           <p className="badge">Admin · Instructor Mentorship</p>
           <h1 className="page-title">{ADMIN_MENTORSHIP_PAGE_TITLE}</h1>
           <p className="page-subtitle">
-            Program health, approvals, pairings, goals, and committees for the
-            instructor mentorship program.
+            One command center for program health, assignments, capacity,
+            approvals, G&amp;R, committees, and analytics.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/admin/mentorship-program" className="button secondary small">
-            Full Command Center →
+          <Link href="/admin/mentorship?tab=assignments" className="button secondary small">
+            Open Assignments →
           </Link>
         </div>
       </div>
@@ -240,8 +362,8 @@ export default async function AdminMentorshipPage({
         ))}
       </div>
 
-      {/* ── Pulse tab ─────────────────────────────── */}
-      {tab === "pulse" && pulseData && (
+      {/* ── Overview / Pulse tab ─────────────────── */}
+      {tab === "overview" && pulseData && (
         <div>
           <div
             style={{
@@ -351,7 +473,7 @@ export default async function AdminMentorshipPage({
                 check-ins, stalled goals, and pending reviews in priority order.
               </p>
             </div>
-            <Link href="/admin/mentorship?tab=needs-action" className="button primary small">
+            <Link href="/admin/mentorship?tab=needs-attention" className="button primary small">
               Open Needs Action queue →
             </Link>
           </div>
@@ -382,21 +504,22 @@ export default async function AdminMentorshipPage({
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
-                  { key: "BEHIND_SCHEDULE", label: "Red — Behind Schedule", color: "#ef4444" },
-                  { key: "GETTING_STARTED", label: "Yellow — Getting Started", color: "#f59e0b" },
-                  { key: "ACHIEVED", label: "Green — Achieved", color: "#22c55e" },
-                  { key: "ABOVE_AND_BEYOND", label: "Purple — Above & Beyond", color: "#a855f7" },
-                ].map(({ key, label, color }) => {
+                  "BEHIND_SCHEDULE",
+                  "GETTING_STARTED",
+                  "ACHIEVED",
+                  "ABOVE_AND_BEYOND",
+                ].map((key) => {
+                  const ratingCopy = getGoalRatingCopy(key);
                   const count = pulseData.ratingMap[key] ?? 0;
                   const pct = Math.round((count / pulseData.total) * 100);
                   return (
                     <div key={key}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 3 }}>
-                        <span>{label}</span>
+                        <span>{ratingCopy.shortLabel} - {ratingCopy.label}</span>
                         <span style={{ color: "var(--muted)" }}>{count} ({pct}%)</span>
                       </div>
                       <div style={{ height: 6, background: "var(--border)", borderRadius: 999, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 999 }} />
+                        <div style={{ height: "100%", width: `${pct}%`, background: ratingCopy.color, borderRadius: 999 }} />
                       </div>
                     </div>
                   );
@@ -448,8 +571,8 @@ export default async function AdminMentorshipPage({
         </div>
       )}
 
-      {/* ── Needs Action tab ─────────────────────── */}
-      {tab === "needs-action" && needsActionItems && (
+      {/* ── Needs Attention tab ──────────────────── */}
+      {tab === "needs-attention" && needsActionItems && (
         <div>
           <div className="card" style={{ marginBottom: 20 }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>
@@ -515,72 +638,227 @@ export default async function AdminMentorshipPage({
         </div>
       )}
 
-      {/* ── Unassigned instructors tab ──────────── */}
-      {tab === "unassigned" && unassignedQueue && (
-        <div>
+      {/* ── Assignments tab ─────────────────────── */}
+      {tab === "assignments" && unassignedQueue && (
+        <div style={{ display: "grid", gap: 24 }}>
           <div className="card" style={{ marginBottom: 20 }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Mentees waiting for a mentor ({unassignedQueue.length})
+              Assignment board
             </div>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-              Instructors and leadership users with no current mentorship
-              pairing. Use the Assign action to open the matching panel
-              pre-filtered for that mentee.
+              One place for primary mentor gaps, support-circle gaps, and
+              shortlist decisions. The visible lanes still exclude student
+              mentorship until the existing launch gate is enabled.
             </p>
           </div>
-          {unassignedQueue.length === 0 ? (
-            <div
-              style={{
-                padding: 24,
-                borderRadius: "var(--radius-md)",
-                border: "1px dashed var(--border)",
-                color: "var(--muted)",
-                textAlign: "center",
-              }}
-            >
-              Every eligible mentee already has a mentor. Nothing to do here.
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {ADMIN_MENTORSHIP_LANES.map((laneOption) => {
+              const summary =
+                data.laneSummaries.find((item) => item.lane === laneOption) ??
+                selectedSummary;
+              const isSelected = laneOption === lane;
+
+              return (
+                <Link
+                  key={laneOption}
+                  href={`/admin/mentorship?tab=assignments&lane=${toLaneQueryValue(
+                    laneOption
+                  )}`}
+                  className="card"
+                  style={{
+                    textDecoration: "none",
+                    color: "inherit",
+                    border: isSelected
+                      ? "1px solid rgba(59, 130, 246, 0.35)"
+                      : "1px solid var(--border)",
+                    boxShadow: isSelected
+                      ? "0 0 0 3px rgba(59, 130, 246, 0.08)"
+                      : "none",
+                    background: isSelected ? "rgba(59, 130, 246, 0.04)" : "white",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <strong>{ADMIN_MENTORSHIP_LANE_META[laneOption].label}</strong>
+                    {isSelected ? (
+                      <span className="pill pill-small">Current lane</span>
+                    ) : null}
+                  </div>
+                  <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 13 }}>
+                    {ADMIN_MENTORSHIP_LANE_META[laneOption].staffingExpectation}
+                  </p>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: 8,
+                      fontSize: 12,
+                      color: "var(--muted)",
+                    }}
+                  >
+                    <div>
+                      <strong style={{ color: "var(--foreground)" }}>
+                        {summary.activeCircles}
+                      </strong>{" "}
+                      active circles
+                    </div>
+                    <div>
+                      <strong style={{ color: "var(--foreground)" }}>
+                        {summary.peopleNeedingPrimaryMentor}
+                      </strong>{" "}
+                      unstaffed
+                    </div>
+                    <div>
+                      <strong style={{ color: "var(--foreground)" }}>
+                        {summary.staffingGaps}
+                      </strong>{" "}
+                      staffing gaps
+                    </div>
+                    <div>
+                      <strong style={{ color: "var(--foreground)" }}>
+                        {summary.openRequests}
+                      </strong>{" "}
+                      open requests
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          <section>
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="section-title" style={{ marginBottom: 8 }}>
+                {laneMeta.label} overview
+              </div>
+              <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+                Scan who needs a primary mentor, who already has one, and which
+                circles still have coverage gaps.
+              </p>
             </div>
-          ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Mentee</th>
-                  <th>Chapter</th>
-                  <th>Joined</th>
-                  <th>Reason</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {unassignedQueue.map((row) => (
-                  <tr key={row.id}>
-                    <td>
-                      <strong>{row.name}</strong>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                        {row.email}
-                      </div>
-                    </td>
-                    <td>{row.chapterName ?? "—"}</td>
-                    <td>{new Date(row.joinedAt).toLocaleDateString()}</td>
-                    <td>{row.reason}</td>
-                    <td>
-                      <Link
-                        href={`/admin/mentorship-program?focus=matching&menteeId=${row.id}&supportRole=PRIMARY_MENTOR`}
-                        className="button primary small"
-                      >
-                        Assign mentor
-                      </Link>
-                    </td>
+            <MenteeMatchingBoard
+              unassigned={laneUnassigned.map((m) => ({
+                id: m.id,
+                status: "UNASSIGNED",
+                name: m.name,
+                email: m.email,
+                primaryRole: m.primaryRole,
+                lane,
+                chapterName: m.chapterName,
+              }))}
+              matched={laneCircles.map((c) => ({
+                id: c.menteeId,
+                status: "HAS_MENTOR",
+                name: c.menteeName,
+                email: c.menteeEmail,
+                primaryRole: c.menteeRole,
+                lane,
+                chapterName: c.chapterName,
+                mentorName: c.mentorName,
+                mentorshipId: c.mentorshipId,
+                circleGaps: c.missingRoles,
+              }))}
+              lane={toLaneQueryValue(lane)}
+            />
+          </section>
+
+          <section>
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="section-title" style={{ marginBottom: 8 }}>
+                Shortlist matching
+              </div>
+              <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+                Reuses the existing matching logic to compare fit, load, chapter
+                affinity, and support-circle context before approving an assignment.
+              </p>
+            </div>
+            <MatchingPanel
+              key={`${lane}-${supportRole}-${searchParams.menteeId ?? "all"}`}
+              initialLane={lane}
+              initialSupportRole={supportRole}
+              initialMenteeId={searchParams.menteeId}
+              autoRun={Boolean(searchParams.menteeId)}
+            />
+          </section>
+
+          <section>
+            <div className="card" style={{ marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                Mentees waiting for a mentor ({unassignedQueue.length})
+              </div>
+              <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+                Instructors and leadership users with no current mentorship
+                pairing. Use Assign mentor to open the shortlist pre-filtered
+                for that mentee.
+              </p>
+            </div>
+            {unassignedQueue.length === 0 ? (
+              <div
+                style={{
+                  padding: 24,
+                  borderRadius: "var(--radius-md)",
+                  border: "1px dashed var(--border)",
+                  color: "var(--muted)",
+                  textAlign: "center",
+                }}
+              >
+                Every eligible mentee already has a mentor. Nothing to do here.
+              </div>
+            ) : (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Mentee</th>
+                    <th>Chapter</th>
+                    <th>Joined</th>
+                    <th>Reason</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {unassignedQueue.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <strong>{row.name}</strong>
+                        <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                          {row.email}
+                        </div>
+                      </td>
+                      <td>{row.chapterName ?? "—"}</td>
+                      <td>{new Date(row.joinedAt).toLocaleDateString()}</td>
+                      <td>{row.reason}</td>
+                      <td>
+                        <Link
+                          href={`/admin/mentorship?tab=assignments&menteeId=${row.id}&supportRole=PRIMARY_MENTOR`}
+                          className="button primary small"
+                        >
+                          Assign mentor
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
         </div>
       )}
 
-      {/* ── Mentor workload tab ─────────────────── */}
-      {tab === "workload" && workloadRows && (
+      {/* ── Capacity / workload tab ─────────────── */}
+      {tab === "capacity" && workloadRows && (
         <div>
           <div className="card" style={{ marginBottom: 20 }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>
@@ -676,162 +954,6 @@ export default async function AdminMentorshipPage({
         </div>
       )}
 
-      {/* ── G&R oversight tab ──────────────────── */}
-      {tab === "gr" && stalledGoals && (
-        <div>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Stalled or overdue G&amp;R goals ({stalledGoals.length}
-              {stalledGoals.length === ADMIN_QUEUE_PAGE_SIZE ? "+" : ""})
-            </div>
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-              Active goals that are past due, marked blocked, or have not been
-              updated in 30+ days. Sorted by due date.
-              {stalledGoals.length === ADMIN_QUEUE_PAGE_SIZE
-                ? ` Showing the first ${ADMIN_QUEUE_PAGE_SIZE} — resolve these and reload to see more.`
-                : ""}
-            </p>
-          </div>
-          {stalledGoals.length === 0 ? (
-            <div
-              style={{
-                padding: 24,
-                borderRadius: "var(--radius-md)",
-                border: "1px dashed var(--border)",
-                color: "var(--muted)",
-                textAlign: "center",
-              }}
-            >
-              No stalled goals across active instructor mentorships.
-            </div>
-          ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Goal</th>
-                  <th>Mentee</th>
-                  <th>Mentor</th>
-                  <th>Status</th>
-                  <th>Due</th>
-                  <th>Reason</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {stalledGoals.map((row) => (
-                  <tr key={row.goalId}>
-                    <td>
-                      <strong>{row.goalTitle}</strong>
-                    </td>
-                    <td>{row.menteeName}</td>
-                    <td>{row.mentorName}</td>
-                    <td>
-                      <span className="pill pill-small">
-                        {row.progressState.replace(/_/g, " ")}
-                      </span>
-                    </td>
-                    <td>
-                      {row.dueDate
-                        ? new Date(row.dueDate).toLocaleDateString()
-                        : "—"}
-                    </td>
-                    <td>{row.reason}</td>
-                    <td>
-                      <Link
-                        href={`/admin/mentorship/relationships/${row.mentorshipId}`}
-                        className="button secondary small"
-                      >
-                        Open
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {/* ── Check-in oversight tab ─────────────── */}
-      {tab === "check-ins" && overdueCheckIns && (
-        <div>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Overdue check-ins ({overdueCheckIns.length}
-              {overdueCheckIns.length === ADMIN_QUEUE_PAGE_SIZE ? "+" : ""})
-            </div>
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-              Active mentorships with no completed session in the last 30 days
-              and no upcoming scheduled session. Oldest start dates first.
-              {overdueCheckIns.length === ADMIN_QUEUE_PAGE_SIZE
-                ? ` Showing the first ${ADMIN_QUEUE_PAGE_SIZE} — resolve these and reload to see more.`
-                : ""}
-            </p>
-          </div>
-          {overdueCheckIns.length === 0 ? (
-            <div
-              style={{
-                padding: 24,
-                borderRadius: "var(--radius-md)",
-                border: "1px dashed var(--border)",
-                color: "var(--muted)",
-                textAlign: "center",
-              }}
-            >
-              All active mentorships have a recent or upcoming session.
-            </div>
-          ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Mentee</th>
-                  <th>Mentor</th>
-                  <th>Last activity</th>
-                  <th>Days since</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {overdueCheckIns.map((row) => (
-                  <tr key={row.mentorshipId}>
-                    <td>
-                      <strong>{row.menteeName}</strong>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                        {row.menteeRole.replace(/_/g, " ")}
-                      </div>
-                    </td>
-                    <td>{row.mentorName}</td>
-                    <td>
-                      {row.lastActivityAt
-                        ? new Date(row.lastActivityAt).toLocaleDateString()
-                        : "Never"}
-                    </td>
-                    <td
-                      style={{
-                        color:
-                          (row.daysSinceActivity ?? 0) > 60
-                            ? "#ef4444"
-                            : "#d97706",
-                      }}
-                    >
-                      {row.daysSinceActivity ?? "—"}
-                    </td>
-                    <td>
-                      <Link
-                        href={`/admin/mentorship/relationships/${row.mentorshipId}`}
-                        className="button secondary small"
-                      >
-                        Open
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
       {/* ── Approvals tab ─────────────────────────── */}
       {tab === "approvals" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -852,15 +974,48 @@ export default async function AdminMentorshipPage({
         </div>
       )}
 
-      {/* ── Goals tab ─────────────────────────────── */}
-      {tab === "goals" && (
-        <div className="card">
-          <div style={{ fontWeight: 700, marginBottom: 12 }}>Role Goal Templates</div>
-          <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
-            These are the default goals shown to each mentee by role. Mentors can adjust
-            targets monthly; chairs can edit these templates.
-          </p>
-          <GoalsPanel goals={data.goals} />
+      {/* ── Goals & Resources tab ────────────────── */}
+      {tab === "templates" && grData && (
+        <div style={{ display: "grid", gap: 24 }}>
+          <section className="card">
+            <div style={{ fontWeight: 700, marginBottom: 12 }}>Role Goal Templates</div>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
+              Default mentorship-program goals by lane. Mentors can adjust
+              targets monthly; chairs and admins keep the templates aligned.
+            </p>
+            <GoalsPanel goals={data.goals} />
+          </section>
+
+          <section className="card">
+            <div style={{ fontWeight: 700, marginBottom: 12 }}>G&amp;R Templates</div>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
+              Create and manage Goals &amp; Responsibilities templates without
+              leaving the mentorship command center.
+            </p>
+            <GRTemplateListPanel templates={grData.templates} />
+          </section>
+
+          <section className="card">
+            <div style={{ fontWeight: 700, marginBottom: 12 }}>G&amp;R Assignments</div>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
+              Assign G&amp;R documents and review goal-change proposals for
+              active mentorships.
+            </p>
+            <GRAssignmentsPanel
+              documents={grData.documents}
+              goalChanges={grData.goalChanges}
+              templates={grData.templateOptions}
+            />
+          </section>
+
+          <section className="card">
+            <div style={{ fontWeight: 700, marginBottom: 12 }}>G&amp;R Resource Library</div>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
+              Shared resources for G&amp;R documents, templates, and mentor
+              recommendations.
+            </p>
+            <GRResourceLibraryPanel resources={grData.resources} />
+          </section>
         </div>
       )}
 
@@ -873,6 +1028,22 @@ export default async function AdminMentorshipPage({
             they are released to mentees.
           </p>
           <ChairsPanel chairs={data.chairs} eligibleUsers={data.governanceUsers} />
+        </div>
+      )}
+
+      {/* ── Analytics tab ────────────────────────── */}
+      {tab === "analytics" && programAnalytics && (
+        <div>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              Mentorship analytics
+            </div>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+              Program-wide review pipeline, points, tier distribution,
+              nominations, recent approvals, and mentor effectiveness.
+            </p>
+          </div>
+          <AnalyticsPanel analytics={programAnalytics} mentorScores={mentorScores} />
         </div>
       )}
     </div>

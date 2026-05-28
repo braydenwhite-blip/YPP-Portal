@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { formatEnum } from "@/lib/format-utils";
 import { getChairQueue } from "@/lib/goal-review-actions";
+import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 
 const REVIEW_INBOX_GUIDE_ITEMS = [
   {
@@ -31,23 +32,11 @@ const REVIEW_INBOX_GUIDE_ITEMS = [
 ] as const;
 
 function ratingLabel(rating: string): string {
-  const map: Record<string, string> = {
-    BEHIND_SCHEDULE: "Behind Schedule",
-    GETTING_STARTED: "Getting Started",
-    ACHIEVED: "Achieved",
-    ABOVE_AND_BEYOND: "Above & Beyond",
-  };
-  return map[rating] ?? formatEnum(rating);
+  return getGoalRatingCopy(rating).label ?? formatEnum(rating);
 }
 
 function ratingColor(rating: string): string {
-  const map: Record<string, string> = {
-    BEHIND_SCHEDULE: "#ef4444",
-    GETTING_STARTED: "#f59e0b",
-    ACHIEVED: "#22c55e",
-    ABOVE_AND_BEYOND: "#6366f1",
-  };
-  return map[rating] ?? "var(--muted)";
+  return getGoalRatingCopy(rating).color ?? "var(--muted)";
 }
 
 export default async function MonthlyReviewInboxPage() {
@@ -102,7 +91,7 @@ export default async function MonthlyReviewInboxPage() {
           {reviews.map((review) => (
             <Link
               key={review.id}
-              href={`/mentorship-program/chair/${review.id}`}
+              href={`/mentorship/chair/${review.id}`}
               style={{ textDecoration: "none", color: "inherit" }}
             >
               <article

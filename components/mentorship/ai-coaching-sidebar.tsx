@@ -2,13 +2,7 @@
 
 import { useState } from "react";
 import type { ReviewDraftOutput } from "@/lib/ai/generate-review-draft";
-
-const RATING_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  BEHIND_SCHEDULE: { label: "Behind Schedule", color: "#ef4444", bg: "#fef2f2" },
-  GETTING_STARTED: { label: "Getting Started", color: "#d97706", bg: "#fffbeb" },
-  ACHIEVED: { label: "Achieved", color: "#16a34a", bg: "#f0fdf4" },
-  ABOVE_AND_BEYOND: { label: "Above & Beyond", color: "#7c3aed", bg: "#faf5ff" },
-};
+import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 
 interface GoalMeta {
   id: string;
@@ -152,7 +146,7 @@ export function AiCoachingSidebar({
             {goals.map((g) => {
               const comment = draft.perGoalComments?.[g.id];
               const rating = draft.perGoalSuggestedRating?.[g.id];
-              const ratingMeta = rating ? RATING_LABELS[rating] : null;
+              const ratingMeta = rating ? getGoalRatingCopy(rating) : null;
               const applied = appliedGoals.has(g.id);
 
               return (
@@ -175,7 +169,7 @@ export function AiCoachingSidebar({
                             marginTop: 3,
                             padding: "1px 6px",
                             borderRadius: 4,
-                            background: ratingMeta.bg,
+                            background: ratingMeta.background,
                             color: ratingMeta.color,
                             fontSize: "0.72rem",
                             fontWeight: 600,

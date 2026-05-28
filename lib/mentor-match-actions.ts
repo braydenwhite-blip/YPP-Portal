@@ -364,8 +364,8 @@ export async function approveMentorMatch(formData: FormData) {
   assignmentFormData.set("notes", "Created via layered mentor match");
   await assignSupportCircleMember(assignmentFormData);
 
-  revalidatePath("/admin/mentor-match");
-  revalidatePath("/admin/mentorship-program");
+  revalidatePath("/admin/mentorship");
+  revalidatePath("/admin/mentorship");
   revalidatePath("/mentorship");
 }
 

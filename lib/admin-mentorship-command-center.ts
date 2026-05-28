@@ -42,12 +42,6 @@ function getToneClass(
   return "";
 }
 
-export type CommandCenterFocus =
-  | "queue"
-  | "matching"
-  | "staffing"
-  | "governance";
-
 export interface CommandCenterLaneSummary {
   lane: AdminMentorshipLane;
   activeCircles: number;
@@ -382,9 +376,6 @@ export async function getAdminMentorshipCommandCenterData() {
     .filter((circle) => circle.missingRoles.length > 0)
     .map((circle) => {
       const hasChairGap = circle.missingRoles.includes("Committee chair");
-      const actionFocus: CommandCenterFocus = hasChairGap
-        ? "staffing"
-        : "matching";
       const actionLabel = hasChairGap ? "Add support role" : "Find match";
       const supportRole = hasChairGap ? "CHAIR" : "SPECIALIST_MENTOR";
       const laneQuery =
@@ -402,7 +393,7 @@ export async function getAdminMentorshipCommandCenterData() {
         description: `Current mentor: ${circle.mentorName}. Missing ${circle.missingRoles.join(", ")}.`,
         emphasis: circle.missingRoles.join(" · "),
         actionLabel,
-        actionHref: `/admin/mentorship-program?lane=${laneQuery}&focus=${actionFocus}&menteeId=${circle.menteeId}&supportRole=${supportRole}`,
+        actionHref: `/admin/mentorship?tab=assignments&lane=${laneQuery}&menteeId=${circle.menteeId}&supportRole=${supportRole}`,
         priority: hasChairGap ? 2 : 3,
       };
     });
@@ -492,7 +483,7 @@ export async function getAdminMentorshipCommandCenterData() {
       description: `${mentee.primaryRole.replace(/_/g, " ")}${mentee.chapterName ? ` · ${mentee.chapterName}` : ""}.`,
       emphasis: "Primary mentor needed",
       actionLabel: "Find match",
-      actionHref: `/admin/mentorship-program?lane=${laneToQueryValue(mentee.lane)}&focus=matching&menteeId=${mentee.id}&supportRole=PRIMARY_MENTOR`,
+      actionHref: `/admin/mentorship?tab=assignments&lane=${laneToQueryValue(mentee.lane)}&menteeId=${mentee.id}&supportRole=PRIMARY_MENTOR`,
       priority: 0,
     }));
 

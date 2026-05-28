@@ -10,5 +10,5 @@ export default async function AdminMentorMatchPage() {
     redirect("/");
   }
 
-  redirect("/admin/mentorship-program?focus=matching");
+  redirect("/admin/mentorship?tab=assignments");
 }

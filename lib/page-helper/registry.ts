@@ -384,6 +384,24 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/instructor-mentor-matching",
+    title: "Instructor Mentor Matching",
+    content: {
+      purpose: "This legacy page redirects admins to the canonical mentorship assignments board.",
+      firstStep: "Use the assignments tab on the admin mentorship command center to review unassigned instructors.",
+      nextStep: "Complete matching from the canonical board so capacity and workload context stay together."
+    }
+  },
+  {
+    pattern: "/admin/mentorship/relationships/[mentorshipId]",
+    title: "Mentorship Relationship Details",
+    content: {
+      purpose: "This page gives admins a detailed view of one mentorship relationship.",
+      firstStep: "Review the mentor, mentee, sessions, goals, reviews, and support circle together.",
+      nextStep: "Use the available admin actions to adjust the relationship while preserving the mentorship record."
+    }
+  },
+  {
     pattern: "/admin/mentorship-program",
     title: "Mentorship Command Center — Admin",
     content: {
@@ -2255,6 +2273,96 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page brings together the main tools and details for the mentorship.",
       firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+    }
+  },
+  {
+    pattern: "/mentorship/ask",
+    title: "Ask a Mentor",
+    content: {
+      purpose: "This page helps mentors answer shared questions and surface reusable support.",
+      firstStep: "Search first, then open the question that needs a useful mentor response.",
+      nextStep: "After you answer, promote strong reusable guidance into resources when it can help more people."
+    }
+  },
+  {
+    pattern: "/mentorship/awards",
+    title: "Mentorship Awards",
+    content: {
+      purpose: "This page helps mentors and admins manage award nominations using the existing point and tier system.",
+      firstStep: "Review eligible mentees and pending nominations before opening the next decision.",
+      nextStep: "Submit or approve the nomination so achievement progress stays connected to the mentorship record."
+    }
+  },
+  {
+    pattern: "/mentorship/chair",
+    title: "Chair Queue",
+    content: {
+      purpose: "This page shows reviews waiting for chair approval before they are released to mentees.",
+      firstStep: "Open the oldest or highest-concern review first so the mentee receives timely next steps.",
+      nextStep: "Approve the review or return it with clear changes for the mentor."
+    }
+  },
+  {
+    pattern: "/mentorship/chair/[reviewId]",
+    title: "Approve Review",
+    content: {
+      purpose: "This page lets a chair review the mentor's submitted ratings, comments, and plan before release.",
+      firstStep: "Read the self-reflection, goal ratings, and mentor plan together before making a decision.",
+      nextStep: "Approve when it is ready for the mentee, or request changes with specific guidance."
+    }
+  },
+  {
+    pattern: "/mentorship/chair/prep-packet",
+    title: "Committee Prep Packet",
+    content: {
+      purpose: "This page gathers mentorship context for committee review without exposing private chair notes to the mentee.",
+      firstStep: "Review the profile, points, recent reviews, and notes before the committee discussion.",
+      nextStep: "Use the packet to prepare the chair conversation, then return to the chair queue for decisions."
+    }
+  },
+  {
+    pattern: "/mentorship/feedback",
+    title: "Feedback Portal",
+    content: {
+      purpose: "This page helps mentors respond to private feedback requests on mentee work.",
+      firstStep: "Open the newest or most urgent request and review the attached context.",
+      nextStep: "Send a clear response, attach a resource if useful, and close the loop with the mentee."
+    }
+  },
+  {
+    pattern: "/mentorship/mentees/[id]/gr",
+    title: "Mentee Goals & Resources",
+    content: {
+      purpose: "This page helps mentors review a mentee's active goals, resources, and released review context.",
+      firstStep: "Scan current monthly goals and recent released feedback before proposing changes.",
+      nextStep: "Suggest updates through the G&R change flow so admin review remains intact."
+    }
+  },
+  {
+    pattern: "/mentorship/quarterly/[reviewId]",
+    title: "Quarterly Review",
+    content: {
+      purpose: "This page compares the approved reviews in a quarterly cycle and gathers stakeholder feedback.",
+      firstStep: "Review the side-by-side monthly summaries and confirm the quarterly context.",
+      nextStep: "Create or review stakeholder feedback requests before the committee finalizes the cycle."
+    }
+  },
+  {
+    pattern: "/mentorship/resources",
+    title: "Resource Commons",
+    content: {
+      purpose: "This page stores reusable mentorship resources, templates, links, and playbooks.",
+      firstStep: "Search before adding anything new so mentors can reuse what already exists.",
+      nextStep: "Open, publish, or feature the resource that best supports the current mentoring need."
+    }
+  },
+  {
+    pattern: "/mentorship/schedule",
+    title: "Mentor Schedule",
+    content: {
+      purpose: "This page helps mentors manage availability and session requests with mentees.",
+      firstStep: "Review upcoming and pending sessions before changing availability.",
+      nextStep: "Confirm, reschedule, or follow up so the next check-in stays clear."
     }
   },
   {

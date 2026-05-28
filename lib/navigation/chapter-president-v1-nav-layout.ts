@@ -25,6 +25,8 @@ export const CHAPTER_PRESIDENT_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/chapter/student-intake",
   "/interviews",
   "/scheduling",
+  "/mentorship",
+  "/my-mentor",
   "/chapter/invites",
   "/chapter/marketing",
   "/chapter/achievements",
@@ -63,6 +65,8 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/chapter/student-intake": { group: "Recruiting", label: "Student Intake", icon: "🧭" },
   "/interviews": { group: "Recruiting", label: "Interviews", icon: "🎤" },
   "/scheduling": { group: "Recruiting", label: "Scheduling Hub", icon: "🗓" },
+  "/mentorship": { group: "Growth", label: "Mentorship", icon: "🤝" },
+  "/my-mentor": { group: "Growth", label: "My Mentor", icon: "🤝" },
 
   // Growth — momentum, outreach, recognition
   "/chapter/invites": { group: "Growth", label: "Invite Links", icon: "🔗" },
@@ -93,6 +97,8 @@ export const CHAPTER_PRESIDENT_SIDEBAR_LINK_ORDER: string[] = [
   "/chapter/student-intake",
   "/interviews",
   "/scheduling",
+  "/mentorship",
+  "/my-mentor",
   "/chapter/invites",
   "/chapter/marketing",
   "/chapter/achievements",

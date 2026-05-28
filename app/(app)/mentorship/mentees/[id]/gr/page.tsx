@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { hasMentorshipMenteeAccess } from "@/lib/mentorship-access";
 import { prisma } from "@/lib/prisma";
 import { formatEnum } from "@/lib/format-utils";
+import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 import type { GoalRatingColor, GRTimePhase } from "@prisma/client";
 import { ProposeChangeForm } from "./propose-change-form";
 
@@ -26,20 +27,6 @@ const TIME_PHASE_LABELS: Record<GRTimePhase, string> = {
 // Which phases count as "near-term and primary" vs "long-term, collapsed".
 const PRIMARY_PHASES: GRTimePhase[] = ["MONTHLY", "FIRST_MONTH", "FIRST_QUARTER"];
 const LONG_TERM_PHASES: GRTimePhase[] = ["LONG_TERM", "FULL_YEAR"];
-
-const RATING_COLOR: Record<GoalRatingColor, string> = {
-  BEHIND_SCHEDULE: "#ef4444",
-  GETTING_STARTED: "#f59e0b",
-  ACHIEVED: "#22c55e",
-  ABOVE_AND_BEYOND: "#a855f7",
-};
-
-const RATING_LABEL: Record<GoalRatingColor, string> = {
-  BEHIND_SCHEDULE: "Behind",
-  GETTING_STARTED: "Getting Started",
-  ACHIEVED: "Achieved",
-  ABOVE_AND_BEYOND: "Above & Beyond",
-};
 
 const DOC_STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
   DRAFT: { bg: "#f1f5f9", fg: "#475569", label: "Draft" },
@@ -172,7 +159,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
             Back to mentee
           </Link>
           {isAdmin && (
-            <Link href="/admin/mentorship-program/gr-assignments" className="button secondary small">
+            <Link href="/admin/mentorship?tab=templates" className="button secondary small">
               Edit G&amp;R (admin) →
             </Link>
           )}
@@ -196,7 +183,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
             multi-year goals here, along with the latest plan of action.
           </p>
           {isAdmin ? (
-            <Link href="/admin/mentorship-program/gr-assignments" className="button primary">
+            <Link href="/admin/mentorship?tab=templates" className="button primary">
               Assign a G&amp;R template →
             </Link>
           ) : (
@@ -345,8 +332,10 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
           )}
 
           {/* Latest review context */}
-          {latestReview && (
-            <div className="card" style={{ borderLeft: `3px solid ${RATING_COLOR[latestReview.overallRating]}` }}>
+          {latestReview && (() => {
+            const ratingCopy = getGoalRatingCopy(latestReview.overallRating);
+            return (
+            <div className="card" style={{ borderLeft: `3px solid ${ratingCopy.color}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
                 <div style={{ fontWeight: 700 }}>Latest released review</div>
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>
@@ -360,12 +349,12 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
                     fontSize: "0.72rem",
                     padding: "2px 9px",
                     borderRadius: 999,
-                    background: RATING_COLOR[latestReview.overallRating] + "22",
-                    color: RATING_COLOR[latestReview.overallRating],
+                    background: ratingCopy.background,
+                    color: ratingCopy.color,
                     fontWeight: 700,
                   }}
                 >
-                  Overall · {RATING_LABEL[latestReview.overallRating]}
+                  Overall - {ratingCopy.label}
                 </span>
               </div>
               {latestReview.overallComments && (
@@ -379,7 +368,8 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
                 </p>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Propose a G&R change */}
           <details id="propose-change" className="card" style={{ scrollMarginTop: 80 }}>
@@ -459,6 +449,7 @@ function GoalsBlock({
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {goals.map((g) => {
           const r = ratingByGoalId[g.id];
+          const ratingCopy = r ? getGoalRatingCopy(r.rating) : null;
           return (
             <div
               key={g.id}
@@ -466,7 +457,7 @@ function GoalsBlock({
                 padding: "0.7rem 0.9rem",
                 background: "var(--surface-alt)",
                 borderRadius: "var(--radius-md, 8px)",
-                borderLeft: r ? `3px solid ${RATING_COLOR[r.rating]}` : "3px solid var(--border)",
+                borderLeft: ratingCopy ? `3px solid ${ratingCopy.color}` : "3px solid var(--border)",
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", flexWrap: "wrap" }}>
@@ -485,13 +476,13 @@ function GoalsBlock({
                         fontSize: "0.68rem",
                         padding: "2px 7px",
                         borderRadius: 999,
-                        background: RATING_COLOR[r.rating] + "22",
-                        color: RATING_COLOR[r.rating],
+                        background: ratingCopy?.background,
+                        color: ratingCopy?.color,
                         fontWeight: 700,
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {RATING_LABEL[r.rating]}
+                      {ratingCopy?.label}
                     </span>
                   )}
                   <span className="pill" style={{ fontSize: "0.65rem" }}>

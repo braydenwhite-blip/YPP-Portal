@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { bulkApproveReviews, approveGoalReview, requestReviewChanges } from "@/lib/goal-review-actions";
+import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 
 type RatingDistribution = Record<string, number>;
 
@@ -16,19 +17,6 @@ type QueueItem = {
   isOverdue: boolean;
   createdAt: string;
   ratingDistribution: RatingDistribution;
-};
-
-const RATING_COLOR: Record<string, string> = {
-  BEHIND_SCHEDULE: "#ef4444",
-  GETTING_STARTED: "#f59e0b",
-  ACHIEVED: "#22c55e",
-  ABOVE_AND_BEYOND: "#6366f1",
-};
-const RATING_LABEL: Record<string, string> = {
-  BEHIND_SCHEDULE: "Behind",
-  GETTING_STARTED: "Getting Started",
-  ACHIEVED: "Achieved",
-  ABOVE_AND_BEYOND: "Above & Beyond",
 };
 
 interface Props {
@@ -165,8 +153,9 @@ export default function ChairApprovalQueue({ items }: Props) {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {items.map((item) => {
-              const color = RATING_COLOR[item.overallRating] ?? "#6b7280";
-              const label = RATING_LABEL[item.overallRating] ?? item.overallRating;
+              const ratingCopy = getGoalRatingCopy(item.overallRating);
+              const color = ratingCopy.color;
+              const label = ratingCopy.label;
               const isRequestingChanges = requestChangesId === item.id;
               return (
                 <div

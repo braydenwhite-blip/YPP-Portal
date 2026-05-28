@@ -11,6 +11,14 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+export {
+  GOAL_RATING_COPY,
+  PROGRESS_STATUS_COPY,
+  getGoalRatingCopy,
+  getProgressStatusCopy,
+  ratingRequiresAdminAttention,
+  type MentorshipRubricCopy,
+} from "@/lib/mentorship-rubric-copy";
 
 export const FULL_PROGRAM_MENTOR_CAP = 3;
 export const ACHIEVEMENT_LADDER_THRESHOLDS: Array<{

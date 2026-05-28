@@ -18,6 +18,8 @@ const ADMIN_PRIMARY_GROUP_KEEP_HREFS = new Set<string>([
 
 const PEOPLE_SUPPORT_HIDDEN_FOR_ADMIN_PRIMARY = new Set<string>([
   "/peer-recognition",
+  "/my-mentor",
+  "/my-program",
   "/my-program/gr",
   "/my-program/awards",
   "/my-program/achievement-journey",
@@ -29,7 +31,12 @@ const PEOPLE_SUPPORT_HIDDEN_FOR_ADMIN_PRIMARY = new Set<string>([
   "/mentorship-program/schedule",
   "/mentorship/mentees",
   "/mentorship/reviews",
+  "/mentorship/chair",
+  "/mentorship/awards",
   "/mentorship/unlock-sections",
+  "/mentorship/feedback",
+  "/mentorship/ask",
+  "/mentorship/resources",
   "/instructor-growth",
   "/instructor-growth/review",
   "/college-advisor/roadmap",
