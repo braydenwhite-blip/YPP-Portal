@@ -33,6 +33,7 @@ type PipelineCardApp = {
   workshopTitle?: string | null;
   workshopAgeRange?: string | null;
   workshopDurationMinutes?: number | null;
+  chairDecision?: { action: string; rationale?: string | null } | null;
   /**
    * Where the application came from. Defaults to PORTAL when the parent
    * doesn't pass it (legacy callers / archive items missing the field).
@@ -163,17 +164,42 @@ export default function ApplicantPipelineCard({
               </span>
             )}
 
-            <span
-              className={`pill pill-small applicant-card-meta-pill${hasMaterials ? " pill-purple" : " pill-attention"}`}
-              title={hasMaterials ? "Materials ready" : "Materials missing"}
-            >
-              {hasMaterials ? "Materials" : "Missing"}
-            </span>
+            {app.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" && (
+              <span
+                className={`pill pill-small applicant-card-meta-pill${hasMaterials ? " pill-purple" : " pill-attention"}`}
+                title={hasMaterials ? "Materials ready" : "Materials missing"}
+              >
+                {hasMaterials ? "Materials" : "Missing"}
+              </span>
+            )}
           </div>
 
           {app.applicant.chapter && (
             <div className="kanban-card-meta">
               <span className="pill pill-purple pill-small kanban-card-chapter">{app.applicant.chapter.name}</span>
+            </div>
+          )}
+
+          {app.status === "ON_HOLD" && app.chairDecision?.rationale && (
+            <div
+              style={{
+                marginTop: 6,
+                padding: "5px 8px",
+                borderRadius: 6,
+                background: "#fff7ed",
+                border: "1px solid #fed7aa",
+                fontSize: 12,
+                color: "#9a3412",
+                lineHeight: 1.45,
+                overflow: "hidden",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+              }}
+              title={`Hold reason: ${app.chairDecision.rationale}`}
+            >
+              <strong style={{ fontWeight: 600 }}>Hold: </strong>
+              {app.chairDecision.rationale}
             </div>
           )}
 
