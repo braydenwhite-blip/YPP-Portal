@@ -131,6 +131,9 @@ export default async function MentorshipProgramAdminPage({
     <div>
       <div className="topbar">
         <div>
+          <Link href="/admin/mentorship" style={{ fontSize: 13, color: "var(--muted)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 8 }}>
+          ← Instructor Mentorship Oversight
+          </Link>
           <p className="badge">Admin · Instructor Mentorship</p>
           <h1 className="page-title">Instructor Mentorship Command Center</h1>
           <p className="page-subtitle">
@@ -207,6 +210,7 @@ export default async function MentorshipProgramAdminPage({
                   laneOption
                 )}&focus=${focus}`}
                 className="card"
+                scroll={false}
                 style={{
                   textDecoration: "none",
                   color: "inherit",
