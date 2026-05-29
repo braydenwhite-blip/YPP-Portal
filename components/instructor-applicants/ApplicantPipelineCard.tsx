@@ -46,7 +46,11 @@ const STATUS_LABELS: Record<string, string> = {
   UNDER_REVIEW: "Under Review",
   INFO_REQUESTED: "Info Requested",
   PRE_APPROVED: "Pre-Approved",
-  INTERVIEW_SCHEDULED: "Interview Scheduled",
+  // INTERVIEW_SCHEDULED is set the moment an applicant enters the interview
+  // stage, before any time is offered/confirmed. The label is resolved at
+  // render time (see statusLabel below) so we only claim "Interview Scheduled"
+  // once an actual time exists; otherwise the pill reads "Awaiting Time".
+  INTERVIEW_SCHEDULED: "Awaiting Time",
   INTERVIEW_SCHEDULED_READY: "Interview Scheduled",
   INTERVIEW_COMPLETED: "Interview Completed",
   CHAIR_REVIEW: "Chair Review",
@@ -100,7 +104,14 @@ export default function ApplicantPipelineCard({
   const latestRating = app.applicationReviews?.find((review) => review.overallRating)
     ?.overallRating;
   const ratingOption = PROGRESS_RATING_OPTIONS.find((option) => option.value === latestRating);
-  const statusLabel = STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ");
+  const hasInterviewTime = Boolean(app.interviewScheduledAt);
+  // Only claim the interview is scheduled when a real time exists. An app can
+  // sit in INTERVIEW_SCHEDULED with no time yet (interviewScheduledAt === null)
+  // while the lead interviewer is still arranging a time.
+  const statusLabel =
+    app.status === "INTERVIEW_SCHEDULED" && hasInterviewTime
+      ? "Interview Scheduled"
+      : STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ");
   const hasMaterials = Boolean(app.materialsReadyAt);
 
   return (
