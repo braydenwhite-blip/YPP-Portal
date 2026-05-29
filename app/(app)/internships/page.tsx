@@ -5,10 +5,11 @@ import Link from "next/link";
 import { ApplyButton, CreateListingButton } from "./client";
 
 export default async function InternshipsPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: { passionArea?: string; type?: string };
+  searchParams: Promise<{ passionArea?: string; type?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

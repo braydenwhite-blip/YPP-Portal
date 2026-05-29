@@ -14,10 +14,11 @@ import {
 import { normalizeCompetitionPlanningDetails } from "@/lib/instructor-builder-blueprints";
 
 export default async function CompetitionBuilderPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: { id?: string };
+  searchParams: Promise<{ id?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

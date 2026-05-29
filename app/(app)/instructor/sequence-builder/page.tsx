@@ -11,10 +11,11 @@ import { getClassTemplateCapabilities } from "@/lib/class-template-compat";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 
 export default async function SequenceBuilderPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: { id?: string };
+  searchParams: Promise<{ id?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
