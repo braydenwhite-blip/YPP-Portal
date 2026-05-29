@@ -329,6 +329,51 @@ export default async function ApplicantCockpitPage({
     (application.status === "INTERVIEW_SCHEDULED" ||
       leadApplicationReview?.nextStep === "MOVE_TO_INTERVIEW");
 
+  // Surface this interviewer's existing upcoming interview times for *other*
+  // applicants so they can avoid double-booking themselves when sending out
+  // new times for this applicant.
+  let myInterviewCommitments: {
+    id: string;
+    scheduledAt: Date;
+    durationMinutes: number;
+    confirmed: boolean;
+    applicantName: string;
+  }[] = [];
+  if (canSendInterviewTimes) {
+    const otherSlots = await prisma.offeredInterviewSlot.findMany({
+      where: {
+        offeredByUserId: session.user.id,
+        instructorApplicationId: { not: application.id },
+        scheduledAt: { gte: new Date() },
+      },
+      select: {
+        id: true,
+        scheduledAt: true,
+        durationMinutes: true,
+        confirmedAt: true,
+        instructorApplication: {
+          select: {
+            preferredFirstName: true,
+            legalName: true,
+            applicant: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { scheduledAt: "asc" },
+    });
+    myInterviewCommitments = otherSlots.map((slot) => ({
+      id: slot.id,
+      scheduledAt: slot.scheduledAt,
+      durationMinutes: slot.durationMinutes,
+      confirmed: slot.confirmedAt != null,
+      applicantName:
+        slot.instructorApplication.preferredFirstName ||
+        slot.instructorApplication.legalName ||
+        slot.instructorApplication.applicant.name ||
+        "Another applicant",
+    }));
+  }
+
   let reviewWorkspace: Awaited<ReturnType<typeof getInstructorApplicationReviewWorkspace>> | null = null;
   if (actorIsReviewer || actorIsAdmin || isChapterLead(actor)) {
     try {
@@ -575,6 +620,7 @@ export default async function ApplicantCockpitPage({
               offeredSlots={application.offeredSlots}
               availabilityWindows={application.availabilityWindows}
               canPostSlots={canSendInterviewTimes}
+              myCommitments={myInterviewCommitments}
             >
               {canAssignInterviewers && (
                 <div className="cockpit-assignment-panel-grid">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   offerInterviewSlots,
   reviewInstructorApplication,
@@ -25,12 +25,51 @@ interface AvailabilityWindow {
   timezone: string;
 }
 
+/**
+ * An interview time the current interviewer has already sent out (or had
+ * confirmed) for a *different* applicant. Surfaced so the interviewer can
+ * avoid double-booking themselves when proposing new times.
+ */
+interface InterviewCommitment {
+  id: string;
+  scheduledAt: Date;
+  durationMinutes: number;
+  confirmed: boolean;
+  applicantName: string;
+}
+
 interface Props {
   applicationId: string;
   offeredSlots: OfferedSlot[];
   availabilityWindows: AvailabilityWindow[];
   canPostSlots: boolean;
+  /** The interviewer's existing interview times for other applicants. */
+  myCommitments?: InterviewCommitment[];
   children?: ReactNode;
+}
+
+const CONFLICT_WARNING_STYLE: CSSProperties = {
+  marginTop: 6,
+  fontSize: 12,
+  fontWeight: 600,
+  color: "#b45309",
+  background: "rgba(251, 191, 36, 0.12)",
+  border: "1px solid rgba(245, 158, 11, 0.35)",
+  borderRadius: 8,
+  padding: "6px 8px",
+};
+
+function intervalsOverlap(
+  startA: Date,
+  durationA: number,
+  startB: Date,
+  durationB: number
+): boolean {
+  const aStart = startA.getTime();
+  const aEnd = aStart + durationA * 60_000;
+  const bStart = startB.getTime();
+  const bEnd = bStart + durationB * 60_000;
+  return aStart < bEnd && bStart < aEnd;
 }
 
 type SlotDraft = {
@@ -59,6 +98,7 @@ export default function InterviewSchedulingInlinePanel({
   offeredSlots,
   availabilityWindows,
   canPostSlots,
+  myCommitments = [],
   children,
 }: Props) {
   const [pending, startTransition] = useTransition();
@@ -174,6 +214,42 @@ export default function InterviewSchedulingInlinePanel({
   const pending_slots = offeredSlots.filter((s) => !s.confirmedAt);
   const schedulerHref = `/interviews/schedule?panel=calendars&domain=HIRING&applicationId=${encodeURIComponent(applicationId)}&source=instructorApplicant`;
 
+  const sortedCommitments = [...myCommitments].sort(
+    (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+  );
+
+  // Returns the interviewer's other interview times that overlap a proposed time.
+  function conflictsFor(value: string, durationMinutes: number): InterviewCommitment[] {
+    if (!value) return [];
+    const start = new Date(value);
+    if (Number.isNaN(start.getTime())) return [];
+    const duration = Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : 60;
+    return myCommitments.filter((commitment) =>
+      intervalsOverlap(
+        start,
+        duration,
+        new Date(commitment.scheduledAt),
+        commitment.durationMinutes
+      )
+    );
+  }
+
+  function renderConflictNote(conflicts: InterviewCommitment[]): ReactNode {
+    if (conflicts.length === 0) return null;
+    const hasConfirmed = conflicts.some((conflict) => conflict.confirmed);
+    const detail = conflicts
+      .map((conflict) => `${conflict.applicantName} (${formatDt(conflict.scheduledAt)})`)
+      .join(", ");
+    return (
+      <p style={CONFLICT_WARNING_STYLE} role="alert">
+        ⚠ {hasConfirmed
+          ? "Double-booking: this overlaps a confirmed interview"
+          : "This overlaps interview times you already sent out"}
+        : {detail}
+      </p>
+    );
+  }
+
   return (
     <section id="section-scheduling" className="cockpit-panel cockpit-scheduling-panel">
       <div className="cockpit-panel-header-row">
@@ -193,6 +269,30 @@ export default function InterviewSchedulingInlinePanel({
         exactly 3 future options, the portal emails them to the applicant, and the
         applicant picks the one that works.
       </p>
+
+      {canPostSlots && sortedCommitments.length > 0 && (
+        <div className="cockpit-slot-group">
+          <p className="cockpit-slot-title">
+            Your other interview times ({sortedCommitments.length})
+          </p>
+          <p className="cockpit-muted" style={{ marginTop: -2, marginBottom: 8 }}>
+            Times you&apos;ve already sent out or confirmed for other interviews.
+            Check these before proposing new times so you don&apos;t double-book
+            yourself.
+          </p>
+          {sortedCommitments.map((commitment) => (
+            <div key={commitment.id} className="cockpit-slot-card">
+              {formatDt(commitment.scheduledAt)} | {commitment.durationMinutes} min |{" "}
+              {commitment.applicantName}
+              {commitment.confirmed ? (
+                <strong style={{ color: "#047857" }}> · Confirmed</strong>
+              ) : (
+                <span className="cockpit-muted"> · Awaiting confirmation</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {canPostSlots && (
         <form onSubmit={handleSetDirect} className="cockpit-slot-form">
@@ -239,6 +339,7 @@ export default function InterviewSchedulingInlinePanel({
               {directPending ? "Saving..." : "Set interview time"}
             </button>
           </div>
+          {renderConflictNote(conflictsFor(directAt, 60))}
           {directResult && (
             <p className={directResult.ok ? "cockpit-form-success" : "cockpit-form-error"}>
               {directResult.text}
@@ -338,37 +439,46 @@ export default function InterviewSchedulingInlinePanel({
             />
           </label>
           <div className="cockpit-slot-draft-list">
-            {slotDrafts.map((slot, index) => (
-              <div key={slot.id} className="cockpit-slot-draft-row">
-                <label>
-                  <span>Option {index + 1}</span>
-                  <input
-                    type="datetime-local"
-                    required
-                    className="input"
-                    value={slot.scheduledAt}
-                    onChange={(event) =>
-                      updateSlotDraft(slot.id, { scheduledAt: event.target.value })
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Duration</span>
-                  <select
-                    className="input"
-                    value={slot.durationMinutes}
-                    onChange={(event) =>
-                      updateSlotDraft(slot.id, { durationMinutes: event.target.value })
-                    }
-                  >
-                    <option value="30">30 min</option>
-                    <option value="45">45 min</option>
-                    <option value="60">60 min</option>
-                    <option value="90">90 min</option>
-                  </select>
-                </label>
-              </div>
-            ))}
+            {slotDrafts.map((slot, index) => {
+              const conflicts = conflictsFor(
+                slot.scheduledAt,
+                Number(slot.durationMinutes || 60)
+              );
+              return (
+                <div key={slot.id}>
+                  <div className="cockpit-slot-draft-row">
+                    <label>
+                      <span>Option {index + 1}</span>
+                      <input
+                        type="datetime-local"
+                        required
+                        className="input"
+                        value={slot.scheduledAt}
+                        onChange={(event) =>
+                          updateSlotDraft(slot.id, { scheduledAt: event.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Duration</span>
+                      <select
+                        className="input"
+                        value={slot.durationMinutes}
+                        onChange={(event) =>
+                          updateSlotDraft(slot.id, { durationMinutes: event.target.value })
+                        }
+                      >
+                        <option value="30">30 min</option>
+                        <option value="45">45 min</option>
+                        <option value="60">60 min</option>
+                        <option value="90">90 min</option>
+                      </select>
+                    </label>
+                  </div>
+                  {renderConflictNote(conflicts)}
+                </div>
+              );
+            })}
           </div>
           <div className="cockpit-slot-form-actions">
             <button type="submit" className="button cockpit-inline-button" disabled={pending}>
