@@ -6,7 +6,6 @@ import {
   offerInterviewSlots,
   reviewInstructorApplication,
 } from "@/lib/instructor-application-actions";
-import { updateInstructorInterviewScheduleAction } from "@/lib/instructor-review-actions";
 import { cleanMeetingDetails, isHttpUrl } from "@/lib/meeting-details";
 
 interface OfferedSlot {
@@ -71,6 +70,7 @@ export default function InterviewSchedulingInlinePanel({
     { id: 3, scheduledAt: "", durationMinutes: "60" },
   ]);
   const [directAt, setDirectAt] = useState("");
+  const [directNotes, setDirectNotes] = useState("");
   const [directPending, startDirectTransition] = useTransition();
   const [directResult, setDirectResult] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -94,6 +94,10 @@ export default function InterviewSchedulingInlinePanel({
       formData.set("applicationId", applicationId);
       formData.set("action", "schedule_interview");
       formData.set("scheduledAt", scheduledAt.toISOString());
+      const notes = directNotes.trim();
+      if (notes) {
+        formData.set("notes", notes);
+      }
       const response = await reviewInstructorApplication(
         { status: "idle", message: "" },
         formData
@@ -102,6 +106,7 @@ export default function InterviewSchedulingInlinePanel({
         setDirectResult({ text: response.message || "Failed to set interview time.", ok: false });
         return;
       }
+      setDirectNotes("");
       setDirectResult({
         text: "Interview scheduled. Open the interview workspace when you're ready to run it.",
         ok: true,
@@ -214,6 +219,17 @@ export default function InterviewSchedulingInlinePanel({
                 style={{ minWidth: 220 }}
               />
             </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 500 }}>Notes (optional)</span>
+              <input
+                type="text"
+                className="input"
+                value={directNotes}
+                onChange={(event) => setDirectNotes(event.target.value)}
+                placeholder="Meeting link, room, or any notes"
+                style={{ minWidth: 220 }}
+              />
+            </label>
             <button
               type="submit"
               className="button cockpit-inline-button"
@@ -304,46 +320,6 @@ export default function InterviewSchedulingInlinePanel({
         <p className="cockpit-muted">
           No official applicant time offers have been posted yet.
         </p>
-      )}
-
-      {/* Lead sets a time that was already arranged outside the portal. */}
-      {canPostSlots && (
-        <form action={updateInstructorInterviewScheduleAction} className="cockpit-slot-form">
-          <p>Already arranged a time? Set the interview time directly</p>
-          <input type="hidden" name="applicationId" value={applicationId} />
-          <input
-            type="hidden"
-            name="returnTo"
-            value={`/applications/instructor/${applicationId}#section-scheduling`}
-          />
-          <div className="cockpit-slot-draft-list">
-            <div className="cockpit-slot-draft-row">
-              <label>
-                <span>Interview time</span>
-                <input
-                  type="datetime-local"
-                  name="scheduledAt"
-                  required
-                  className="input"
-                />
-              </label>
-              <label>
-                <span>Notes (optional)</span>
-                <input
-                  type="text"
-                  name="scheduleNotes"
-                  className="input"
-                  placeholder="Meeting link, room, or any notes"
-                />
-              </label>
-            </div>
-          </div>
-          <div className="cockpit-slot-form-actions">
-            <button type="submit" className="button cockpit-inline-button">
-              Set as interview time
-            </button>
-          </div>
-        </form>
       )}
 
       {/* Lead sends exactly three proposed times. */}
