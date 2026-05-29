@@ -491,10 +491,16 @@ export default function InstructorSignupPage() {
               </label>
             )}
 
-            <label className="form-label">
-              Preferred first name
-              <input className="input" name="preferredFirstName" placeholder="What should we call you?" required defaultValue={field(d, "preferredFirstName", sf)} />
-            </label>
+            <div className="grid two">
+              <label className="form-label">
+                Preferred first name
+                <input className="input" name="preferredFirstName" placeholder="What should we call you?" required defaultValue={field(d, "preferredFirstName", sf)} />
+              </label>
+              <label className="form-label">
+                Last name
+                <input className="input" name="lastName" placeholder="Your last name" defaultValue={field(d, "lastName", sf)} />
+              </label>
+            </div>
 
             <div className="grid two">
               <label className="form-label">

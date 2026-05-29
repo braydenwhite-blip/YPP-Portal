@@ -41,6 +41,7 @@ interface Props {
     courseOutline: string | null;
     firstClassPlan: string | null;
     preferredFirstName: string | null;
+    lastName: string | null;
     phoneNumber: string | null;
     city: string | null;
     stateProvince: string | null;
@@ -83,14 +84,24 @@ export default function ApplicantEditForm({
         answers stay on file for the review team.
       </p>
 
-      <label className="form-label">
-        Preferred first name
-        <input
-          className="input"
-          name="preferredFirstName"
-          defaultValue={values.preferredFirstName ?? ""}
-        />
-      </label>
+      <div className="grid two">
+        <label className="form-label">
+          Preferred first name
+          <input
+            className="input"
+            name="preferredFirstName"
+            defaultValue={values.preferredFirstName ?? ""}
+          />
+        </label>
+        <label className="form-label">
+          Last name
+          <input
+            className="input"
+            name="lastName"
+            defaultValue={values.lastName ?? ""}
+          />
+        </label>
+      </div>
 
       <label className="form-label">
         Phone number

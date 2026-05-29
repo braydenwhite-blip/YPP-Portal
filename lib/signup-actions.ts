@@ -195,6 +195,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       const sharedPayload = {
         legalName: getString(formData, "legalName", false),
         preferredFirstName: getString(formData, "preferredFirstName", false),
+        lastName: getString(formData, "lastName", false),
         phoneNumber: getString(formData, "phoneNumber", false),
         dateOfBirth: getString(formData, "dateOfBirth", false),
         hearAboutYPP: getString(formData, "hearAboutYPP", false),
@@ -368,6 +369,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
           availability: instructorApplicationInput.availability,
           legalName: instructorApplicationInput.legalName || null,
           preferredFirstName: instructorApplicationInput.preferredFirstName,
+          lastName: instructorApplicationInput.lastName || null,
           phoneNumber: instructorApplicationInput.phoneNumber || null,
           dateOfBirth: instructorApplicationInput.dateOfBirth || null,
           hearAboutYPP: instructorApplicationInput.hearAboutYPP || null,
@@ -596,6 +598,7 @@ export async function submitInstructorApplicationForExistingUser(
     const sharedPayload = {
       legalName: getString(formData, "legalName", false),
       preferredFirstName: getString(formData, "preferredFirstName", false),
+      lastName: getString(formData, "lastName", false),
       phoneNumber: getString(formData, "phoneNumber", false),
       dateOfBirth: getString(formData, "dateOfBirth", false),
       hearAboutYPP: getString(formData, "hearAboutYPP", false),
@@ -670,6 +673,7 @@ export async function submitInstructorApplicationForExistingUser(
         availability: input.availability,
         legalName: input.legalName || null,
         preferredFirstName: input.preferredFirstName,
+        lastName: input.lastName || null,
         phoneNumber: input.phoneNumber || null,
         dateOfBirth: input.dateOfBirth || null,
         hearAboutYPP: input.hearAboutYPP || null,
