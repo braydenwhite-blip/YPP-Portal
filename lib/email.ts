@@ -856,7 +856,7 @@ export async function sendPickYourTimeEmail({
     .join("");
   const html = emailShell(`
     <h2 style="margin: 0 0 16px; color: #1c1917;">Choose your time, ${escapeHtml(firstName)}!</h2>
-    <p>Great news — your lead interviewer would like to schedule your interview. This is a relaxed conversation about your teaching approach, not an exam.</p>
+    <p>Great news — your lead interviewer would like to schedule your interview.</p>
     <p><strong>Proposed times:</strong></p>
     <ul style="color: #57534e; font-size: 14px; line-height: 1.8; padding-left: 20px;">
       ${slotRows}
