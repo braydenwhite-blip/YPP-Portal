@@ -64,6 +64,15 @@ export default function ApplicantQuickDrawer({
   const secondInterviewer = app.interviewerAssignments.find((a) => a.role === "SECOND");
   const leadReview = app.applicationReviews?.[0];
 
+  // An application can sit in INTERVIEW_SCHEDULED with no confirmed time yet
+  // (interviewScheduledAt === null) while a time is still being arranged. Only
+  // claim "Interview Scheduled" once a real time exists; otherwise the field
+  // below ("Not scheduled") would contradict the header pill.
+  const statusLabel =
+    app.status === "INTERVIEW_SCHEDULED" && !app.interviewScheduledAt
+      ? "Awaiting Time"
+      : STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ");
+
   return (
     <>
       <div className="slideout-backdrop" onClick={onClose} aria-hidden="true" />
@@ -85,9 +94,9 @@ export default function ApplicantQuickDrawer({
               )}
               <span
                 className={`status-pill ${app.status.toLowerCase().replace(/_/g, "-")}`}
-                aria-label={`Status: ${STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ")}`}
+                aria-label={`Status: ${statusLabel}`}
               >
-                {STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ")}
+                {statusLabel}
               </span>
               {app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
                 <span
