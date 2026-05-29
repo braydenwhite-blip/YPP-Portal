@@ -812,7 +812,7 @@ export async function sendInterviewScheduledEmail({
     </div>`;
   const html = emailShell(`
     <h2 style="margin: 0 0 16px; color: #1c1917;">Interview scheduled, ${applicantName}!</h2>
-    <p>Great news — your interview with the review team has been scheduled. This is a conversation about your teaching approach — not a test.</p>
+    <p>Great news — your interview with the review team has been scheduled.</p>
     <div style="background: #f5f5f4; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
       <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1c1917;">${formattedDate}</p>
     </div>
