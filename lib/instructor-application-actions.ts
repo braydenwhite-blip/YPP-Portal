@@ -3203,6 +3203,7 @@ export async function archiveUserById(
  */
 const APPLICANT_EDITABLE_FIELDS = [
   "preferredFirstName",
+  "lastName",
   "phoneNumber",
   "city",
   "stateProvince",

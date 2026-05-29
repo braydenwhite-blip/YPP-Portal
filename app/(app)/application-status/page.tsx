@@ -581,6 +581,7 @@ export default async function ApplicationStatusPage() {
                     courseOutline: instructorApp.courseOutline,
                     firstClassPlan: instructorApp.firstClassPlan,
                     preferredFirstName: instructorApp.preferredFirstName,
+                    lastName: instructorApp.lastName,
                     phoneNumber: instructorApp.phoneNumber,
                     city: instructorApp.city,
                     stateProvince: instructorApp.stateProvince,

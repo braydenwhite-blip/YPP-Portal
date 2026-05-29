@@ -1744,6 +1744,7 @@ model InstructorApplication {
   // --- Personal Information ---
   legalName          String?
   preferredFirstName String?
+  lastName           String?
   phoneNumber        String?
   dateOfBirth        String?
   hearAboutYPP       String?
@@ -9334,6 +9335,7 @@ model ChapterPresidentApplication {
   // --- Personal Information ---
   legalName          String?
   preferredFirstName String?
+  lastName           String?
   phoneNumber        String?
   dateOfBirth        String?
   hearAboutYPP       String?

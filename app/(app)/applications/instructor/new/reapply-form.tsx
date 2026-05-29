@@ -163,15 +163,25 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
           </label>
         )}
 
-        <label className="form-label">
-          Preferred first name
-          <input
-            className="input"
-            name="preferredFirstName"
-            required
-            defaultValue={get("preferredFirstName")}
-          />
-        </label>
+        <div className="grid two">
+          <label className="form-label">
+            Preferred first name
+            <input
+              className="input"
+              name="preferredFirstName"
+              required
+              defaultValue={get("preferredFirstName")}
+            />
+          </label>
+          <label className="form-label">
+            Last name
+            <input
+              className="input"
+              name="lastName"
+              defaultValue={get("lastName")}
+            />
+          </label>
+        </div>
 
         <div className="grid two">
           <label className="form-label">
