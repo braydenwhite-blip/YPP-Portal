@@ -10,13 +10,8 @@ import {
   bookInterviewWorkflowSlot,
   cancelInterviewWorkflow,
   confirmInterviewReschedule,
-  createInterviewAvailabilityOverride,
-  createInterviewAvailabilityRule,
-  deactivateInterviewAvailabilityOverride,
-  deactivateInterviewAvailabilityRule,
   requestInterviewReschedule,
-  type InterviewCalendarSlotView,
-  type InterviewCalendarView,
+  type InterviewBookedTime,
   type InterviewSchedulePageData,
   type InterviewWorkflowView,
 } from "@/lib/interview-scheduling-actions";
@@ -87,15 +82,34 @@ const SURFACE_CARD: CSSProperties = {
   boxShadow: "0 1px 3px rgba(15, 23, 42, 0.06)",
 };
 
+const CONFLICT_WARNING_STYLE: CSSProperties = {
+  marginTop: 10,
+  fontSize: 12,
+  fontWeight: 600,
+  color: "#b45309",
+  background: "rgba(251, 191, 36, 0.12)",
+  border: "1px solid rgba(245, 158, 11, 0.35)",
+  borderRadius: 10,
+  padding: "8px 10px",
+};
+
 type FeedbackState =
   | { type: "success"; message: string }
   | { type: "error"; message: string }
   | null;
 
 type Viewer = InterviewSchedulePageData["viewer"];
+type InterviewerOption = InterviewSchedulePageData["interviewerOptions"][number];
 type WorkflowStatusFilter = "ALL" | InterviewWorkflowView["status"];
-type PanelMode = "queue" | "calendars";
 type QueueSectionKey = "attention" | "booked" | "closed";
+
+type SchedulePayload = {
+  interviewerId: string;
+  scheduledAtIso: string;
+  duration: number;
+  meetingLink: string;
+  note: string;
+};
 
 function formatLocalDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, {
@@ -127,23 +141,6 @@ function formatHourAge(hours: number) {
   return `${days.toFixed(days >= 10 ? 0 : 1)}d`;
 }
 
-function formatDayLabel(dayOfWeek: number) {
-  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dayOfWeek] ?? "Day";
-}
-
-function defaultLocalDateTime(offsetHours = 24) {
-  const date = new Date(Date.now() + offsetHours * 60 * 60 * 1000);
-  date.setMinutes(0, 0, 0);
-  const local = new Date(date);
-  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-  return local.toISOString().slice(0, 16);
-}
-
-function scopeLabel(scope: string) {
-  if (scope === "ALL") return "All interview types";
-  return scope === "HIRING" ? "Hiring only" : "Readiness only";
-}
-
 function toneForWorkflow(workflow: InterviewWorkflowView) {
   if (workflow.status === "STALE") return "#ef4444";
   if (workflow.status === "BOOKED") return "#10b981";
@@ -172,6 +169,19 @@ function matchesSearch(workflow: InterviewWorkflowView, search: string) {
     .join(" ")
     .toLowerCase();
   return haystack.includes(search.toLowerCase());
+}
+
+function intervalsOverlap(
+  startA: Date,
+  durationA: number,
+  startB: Date,
+  durationB: number
+): boolean {
+  const aStart = startA.getTime();
+  const aEnd = aStart + durationA * 60_000;
+  const bStart = startB.getTime();
+  const bEnd = bStart + durationB * 60_000;
+  return aStart < bEnd && bStart < aEnd;
 }
 
 function feedbackColors(type: "success" | "error") {
@@ -400,7 +410,7 @@ function WorkflowMiniCard({
         </span>
         <span style={{ display: "grid", gap: 3, fontSize: 12, color: "var(--muted)" }}>
           <span>
-            {workflow.scheduledAt ? formatCompactDateTime(workflow.scheduledAt) : `${workflow.openSlots.length} open slot${workflow.openSlots.length === 1 ? "" : "s"}`}
+            {workflow.scheduledAt ? formatCompactDateTime(workflow.scheduledAt) : "Not scheduled yet"}
           </span>
           <span>
             {workflow.interviewerName ? `With ${workflow.interviewerName}` : workflow.statusLabel}
@@ -449,64 +459,6 @@ function QueueSection({
         </div>
       )}
     </section>
-  );
-}
-
-function SlotButton({
-  slot,
-  isPending,
-  onSelect,
-}: {
-  slot: InterviewCalendarSlotView;
-  isPending: boolean;
-  onSelect: (slot: InterviewCalendarSlotView) => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={isPending}
-      onClick={() => onSelect(slot)}
-      style={{
-        width: "100%",
-        textAlign: "left",
-        padding: "0.9rem",
-        borderRadius: 18,
-        border: "1px solid rgba(59, 130, 246, 0.18)",
-        background: "linear-gradient(180deg, rgba(239,246,255,0.92) 0%, rgba(255,255,255,0.98) 100%)",
-        cursor: isPending ? "wait" : "pointer",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>{formatCompactDateTime(slot.startsAt)}</div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-            {slot.duration} min with {slot.interviewerName}
-          </div>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#1d4ed8" }}>{slot.interviewerRole}</div>
-          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>{slot.timezone}</div>
-        </div>
-      </div>
-      {slot.locationLabel || slot.meetingLink ? (
-        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-          {slot.locationLabel ?? "Video meeting"}
-        </div>
-      ) : null}
-      {slot.warningLabels.length > 0 ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-          {slot.warningLabels.slice(0, 2).map((warning) => (
-            <Pill
-              key={warning}
-              label={warning}
-              background="rgba(245, 158, 11, 0.12)"
-              color="#92400e"
-              border="rgba(245, 158, 11, 0.2)"
-            />
-          ))}
-        </div>
-      ) : null}
-    </button>
   );
 }
 
@@ -574,6 +526,8 @@ function QuickMessageComposer({
 function WorkflowCard({
   viewer,
   workflow,
+  interviewerOptions,
+  bookedTimesByInterviewer,
   isPending,
   activeActionId,
   onBook,
@@ -584,42 +538,89 @@ function WorkflowCard({
 }: {
   viewer: Viewer;
   workflow: InterviewWorkflowView;
+  interviewerOptions: InterviewerOption[];
+  bookedTimesByInterviewer: Record<string, InterviewBookedTime[]>;
   isPending: boolean;
   activeActionId: string | null;
-  onBook: (workflow: InterviewWorkflowView, slot: InterviewCalendarSlotView, note: string) => void;
-  onConfirmReschedule: (workflow: InterviewWorkflowView, slot: InterviewCalendarSlotView, note: string) => void;
+  onBook: (workflow: InterviewWorkflowView, payload: SchedulePayload) => void;
+  onConfirmReschedule: (workflow: InterviewWorkflowView, payload: SchedulePayload) => void;
   onRequestReschedule: (requestId: string, note: string) => void;
   onCancel: (requestId: string, note: string) => void;
   onSendMessage: (conversationId: string, content: string, actionId: string) => void;
 }) {
   const statusStyle = STATUS_STYLES[workflow.status];
   const domainStyle = DOMAIN_STYLES[workflow.domain];
-  const canBookFromOpenSlots =
-    workflow.openSlots.length > 0 &&
-    (workflow.status === "RESCHEDULE_REQUESTED"
-      ? viewer.isReviewer
-      : viewer.isReviewer || viewer.userId === workflow.intervieweeId);
+
+  const isRescheduleMode = workflow.status === "RESCHEDULE_REQUESTED";
+  const canScheduleNew =
+    !isRescheduleMode &&
+    ["UNSCHEDULED", "AWAITING_RESPONSE", "STALE"].includes(workflow.status) &&
+    (viewer.isReviewer || viewer.userId === workflow.intervieweeId);
+  const canConfirmReschedule = isRescheduleMode && viewer.isReviewer && !!workflow.activeRequestId;
+  const showScheduleForm = canScheduleNew || canConfirmReschedule;
+
   const canRequestReschedule =
     !!workflow.activeRequestId &&
+    workflow.status !== "RESCHEDULE_REQUESTED" &&
     (viewer.isReviewer ||
       viewer.userId === workflow.intervieweeId ||
       viewer.userId === workflow.interviewerId);
-  const canConfirmReschedule =
-    viewer.isReviewer &&
-    workflow.status === "RESCHEDULE_REQUESTED" &&
-    !!workflow.activeRequestId &&
-    workflow.openSlots.length > 0;
   const canCancel =
     !!workflow.activeRequestId &&
     (viewer.isReviewer ||
       viewer.userId === workflow.intervieweeId ||
       viewer.userId === workflow.interviewerId);
-  const bookingActionId = `book:${workflow.id}`;
-  const rescheduleActionId = `reschedule:${workflow.id}`;
+
+  const scheduleActionId = isRescheduleMode ? `reschedule:${workflow.id}` : `book:${workflow.id}`;
   const cancelActionId = `cancel:${workflow.id}`;
-  const [bookingNote, setBookingNote] = useState("");
-  const [rescheduleNote, setRescheduleNote] = useState("I need a new interview time.");
+
+  const [interviewerId, setInterviewerId] = useState(
+    workflow.interviewerId ?? interviewerOptions[0]?.id ?? ""
+  );
+  const [scheduledLocal, setScheduledLocal] = useState("");
+  const [duration, setDuration] = useState(String(workflow.duration ?? 60));
+  const [meetingLink, setMeetingLink] = useState(workflow.meetingLink ?? "");
+  const [scheduleNote, setScheduleNote] = useState("");
+  const [rescheduleRequestNote, setRescheduleRequestNote] = useState("I need a new interview time.");
   const [cancelNote, setCancelNote] = useState("Cancelling this interview booking.");
+
+  const commitments = bookedTimesByInterviewer[interviewerId] ?? [];
+  function conflictsFor(localValue: string, durationMinutes: number): InterviewBookedTime[] {
+    if (!localValue) return [];
+    const start = new Date(localValue);
+    if (Number.isNaN(start.getTime())) return [];
+    const dur = Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : 60;
+    return commitments.filter((commitment) => {
+      const commitmentStart = new Date(commitment.scheduledAt);
+      // Don't flag this workflow's own existing booking as a conflict.
+      if (
+        workflow.scheduledAt &&
+        commitmentStart.getTime() === new Date(workflow.scheduledAt).getTime()
+      ) {
+        return false;
+      }
+      return intervalsOverlap(start, dur, commitmentStart, commitment.duration);
+    });
+  }
+  const conflicts = conflictsFor(scheduledLocal, Number(duration || 60));
+
+  function submitSchedule() {
+    if (!interviewerId || !scheduledLocal) return;
+    const parsed = new Date(scheduledLocal);
+    if (Number.isNaN(parsed.getTime())) return;
+    const payload: SchedulePayload = {
+      interviewerId,
+      scheduledAtIso: parsed.toISOString(),
+      duration: Number(duration) || 60,
+      meetingLink: meetingLink.trim(),
+      note: scheduleNote.trim(),
+    };
+    if (isRescheduleMode) {
+      onConfirmReschedule(workflow, payload);
+    } else {
+      onBook(workflow, payload);
+    }
+  }
 
   return (
     <div
@@ -700,7 +701,7 @@ function WorkflowCard({
           <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Interviewer
           </div>
-          <div style={{ fontWeight: 700, marginTop: 4 }}>{workflow.interviewerName ?? "Pick from calendar"}</div>
+          <div style={{ fontWeight: 700, marginTop: 4 }}>{workflow.interviewerName ?? "Unassigned"}</div>
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>{workflow.interviewerRole ?? workflow.ownerName}</div>
         </div>
         <div>
@@ -708,7 +709,7 @@ function WorkflowCard({
             Scheduled time
           </div>
           <div style={{ fontWeight: 700, marginTop: 4 }}>
-            {workflow.scheduledAt ? formatLocalDateTime(workflow.scheduledAt) : "Waiting for booking"}
+            {workflow.scheduledAt ? formatLocalDateTime(workflow.scheduledAt) : "Not scheduled yet"}
           </div>
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
             {workflow.sourceTimezone ? `Source timezone: ${workflow.sourceTimezone}` : "Viewer-local time shown"}
@@ -768,20 +769,6 @@ function WorkflowCard({
         </div>
       ) : null}
 
-      {workflow.warnings.length > 0 ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16, marginLeft: 8 }}>
-          {workflow.warnings.map((warning) => (
-            <Pill
-              key={warning}
-              label={warning}
-              background="rgba(245, 158, 11, 0.12)"
-              color="#92400e"
-              border="rgba(245, 158, 11, 0.2)"
-            />
-          ))}
-        </div>
-      ) : null}
-
       {workflow.note ? (
         <div
           style={{
@@ -799,56 +786,115 @@ function WorkflowCard({
         </div>
       ) : null}
 
-      {canBookFromOpenSlots ? (
-        <div style={{ marginTop: 18, marginLeft: 8 }}>
+      {showScheduleForm ? (
+        <div
+          style={{
+            marginTop: 18,
+            marginLeft: 8,
+            padding: "1rem",
+            borderRadius: 18,
+            background: "rgba(239,246,255,0.6)",
+            border: "1px solid rgba(59, 130, 246, 0.16)",
+          }}
+        >
           <div style={{ fontWeight: 700, fontSize: 15 }}>
-            {workflow.status === "RESCHEDULE_REQUESTED" ? "Pick the replacement time" : "Pick a live calendar slot"}
+            {isRescheduleMode ? "Set the replacement time" : "Schedule this interview"}
           </div>
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 5 }}>
-            Viewer-local times are shown first, with the interviewer&apos;s source timezone attached to every slot.
+            Pick the interviewer and the exact date and time. Times are shown in your local timezone.
           </div>
-
-          <textarea
-            value={workflow.status === "RESCHEDULE_REQUESTED" ? rescheduleNote : bookingNote}
-            onChange={(event) =>
-              workflow.status === "RESCHEDULE_REQUESTED"
-                ? setRescheduleNote(event.target.value)
-                : setBookingNote(event.target.value)
-            }
-            rows={2}
-            className="input"
-            placeholder={
-              workflow.status === "RESCHEDULE_REQUESTED"
-                ? "Add context for the replacement booking..."
-                : "Optional note for the interview thread..."
-            }
-            style={{ width: "100%", boxSizing: "border-box", marginTop: 12 }}
-          />
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
               gap: 10,
               marginTop: 12,
             }}
           >
-            {workflow.openSlots.slice(0, 8).map((slot) => (
-              <SlotButton
-                key={slot.slotKey}
-                slot={slot}
-                isPending={isPending && activeActionId === (workflow.status === "RESCHEDULE_REQUESTED" ? rescheduleActionId : bookingActionId)}
-                onSelect={(selectedSlot) => {
-                  if (workflow.status === "RESCHEDULE_REQUESTED" && canConfirmReschedule) {
-                    onConfirmReschedule(workflow, selectedSlot, rescheduleNote);
-                    return;
-                  }
-
-                  onBook(workflow, selectedSlot, bookingNote);
-                }}
+            <label className="form-row">
+              Interviewer
+              <select
+                className="input"
+                value={interviewerId}
+                onChange={(event) => setInterviewerId(event.target.value)}
+              >
+                <option value="">Select an interviewer</option>
+                {interviewerOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                    {option.chapterName ? ` · ${option.chapterName}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-row">
+              Date &amp; time
+              <input
+                type="datetime-local"
+                className="input"
+                value={scheduledLocal}
+                onChange={(event) => setScheduledLocal(event.target.value)}
               />
-            ))}
+            </label>
+            <label className="form-row">
+              Duration
+              <select
+                className="input"
+                value={duration}
+                onChange={(event) => setDuration(event.target.value)}
+              >
+                <option value="30">30 min</option>
+                <option value="45">45 min</option>
+                <option value="60">60 min</option>
+                <option value="90">90 min</option>
+              </select>
+            </label>
+            <label className="form-row">
+              Meeting link (optional)
+              <input
+                type="url"
+                className="input"
+                value={meetingLink}
+                onChange={(event) => setMeetingLink(event.target.value)}
+                placeholder="https://meet.google.com/..."
+              />
+            </label>
           </div>
+
+          {conflicts.length > 0 ? (
+            <p style={CONFLICT_WARNING_STYLE} role="alert">
+              ⚠ {conflicts.some((conflict) => conflict.confirmed)
+                ? "Double-booking: this overlaps a confirmed interview"
+                : "This overlaps another interview time for this interviewer"}
+              : {conflicts
+                .map((conflict) => `${conflict.label} (${formatCompactDateTime(conflict.scheduledAt)})`)
+                .join(", ")}
+            </p>
+          ) : null}
+
+          <textarea
+            value={scheduleNote}
+            onChange={(event) => setScheduleNote(event.target.value)}
+            rows={2}
+            className="input"
+            placeholder="Optional note for the interview thread..."
+            style={{ width: "100%", boxSizing: "border-box", marginTop: 12 }}
+          />
+
+          <button
+            type="button"
+            className="button"
+            style={{ marginTop: 12 }}
+            disabled={
+              !interviewerId ||
+              !scheduledLocal ||
+              (isPending && activeActionId === scheduleActionId)
+            }
+            onClick={submitSchedule}
+          >
+            {isRescheduleMode ? "Confirm new time" : "Schedule interview"}
+          </button>
         </div>
       ) : null}
 
@@ -873,8 +919,8 @@ function WorkflowCard({
             >
               <div style={{ fontWeight: 700, fontSize: 14 }}>Need a different time?</div>
               <textarea
-                value={rescheduleNote}
-                onChange={(event) => setRescheduleNote(event.target.value)}
+                value={rescheduleRequestNote}
+                onChange={(event) => setRescheduleRequestNote(event.target.value)}
                 rows={3}
                 className="input"
                 style={{ width: "100%", boxSizing: "border-box", marginTop: 10 }}
@@ -883,9 +929,9 @@ function WorkflowCard({
               <button
                 type="button"
                 className="button small"
-                disabled={isPending && activeActionId === rescheduleActionId}
+                disabled={isPending && activeActionId === `reschedule:${workflow.id}`}
                 style={{ marginTop: 10 }}
-                onClick={() => onRequestReschedule(workflow.activeRequestId!, rescheduleNote)}
+                onClick={() => onRequestReschedule(workflow.activeRequestId!, rescheduleRequestNote)}
               >
                 Request reschedule
               </button>
@@ -949,472 +995,6 @@ function WorkflowCard({
   );
 }
 
-function CalendarCard({
-  calendar,
-  isSelected,
-  onSelect,
-}: {
-  calendar: InterviewCalendarView;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      style={{
-        width: "100%",
-        textAlign: "left",
-        borderRadius: 20,
-        padding: "1rem",
-        cursor: "pointer",
-        border: isSelected ? "1px solid rgba(59,130,246,0.3)" : "1px solid rgba(148,163,184,0.16)",
-        background: isSelected
-          ? "linear-gradient(180deg, rgba(239,246,255,0.96) 0%, rgba(255,255,255,0.98) 100%)"
-          : "rgba(255,255,255,0.94)",
-        boxShadow: isSelected ? "0 16px 36px rgba(37, 99, 235, 0.12)" : "none",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <div>
-          <div style={{ fontWeight: 700 }}>{calendar.interviewerName}</div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-            {calendar.interviewerRole}
-            {calendar.chapterName ? ` · ${calendar.chapterName}` : ""}
-          </div>
-        </div>
-        <Pill
-          label={`${calendar.nextOpenSlots.length} open`}
-          background="rgba(16, 185, 129, 0.12)"
-          color="#047857"
-          border="rgba(16, 185, 129, 0.2)"
-        />
-      </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-        <Pill
-          label={`${calendar.rules.length} weekly rule${calendar.rules.length === 1 ? "" : "s"}`}
-          background="rgba(59, 130, 246, 0.12)"
-          color="#1d4ed8"
-          border="rgba(59, 130, 246, 0.2)"
-        />
-        <Pill
-          label={`${calendar.overrides.length} override${calendar.overrides.length === 1 ? "" : "s"}`}
-          background="rgba(244, 114, 182, 0.12)"
-          color="#be185d"
-          border="rgba(244, 114, 182, 0.2)"
-        />
-      </div>
-      {calendar.nextOpenSlots[0] ? (
-        <div style={{ marginTop: 12, fontSize: 12, color: "var(--muted)" }}>
-          Next slot: {formatCompactDateTime(calendar.nextOpenSlots[0].startsAt)}
-        </div>
-      ) : (
-        <div style={{ marginTop: 12, fontSize: 12, color: "var(--muted)" }}>
-          No live slots generated yet
-        </div>
-      )}
-    </button>
-  );
-}
-
-function CalendarManager({
-  viewer,
-  calendars,
-  selectedInterviewerId,
-  onSelectInterviewer,
-  isPending,
-  activeActionId,
-  onCreateRule,
-  onRemoveRule,
-  onCreateOverride,
-  onRemoveOverride,
-}: {
-  viewer: Viewer;
-  calendars: InterviewCalendarView[];
-  selectedInterviewerId: string | null;
-  onSelectInterviewer: (id: string) => void;
-  isPending: boolean;
-  activeActionId: string | null;
-  onCreateRule: (formData: FormData) => void;
-  onRemoveRule: (ruleId: string, actionId: string) => void;
-  onCreateOverride: (formData: FormData) => void;
-  onRemoveOverride: (overrideId: string, actionId: string) => void;
-}) {
-  const selectedCalendar =
-    calendars.find((calendar) => calendar.interviewerId === selectedInterviewerId) ?? calendars[0] ?? null;
-
-  if (!selectedCalendar) {
-    return (
-      <div style={{ ...SURFACE_CARD, padding: "1.2rem" }}>
-        <div style={{ fontWeight: 700 }}>No interviewer calendars yet</div>
-        <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 8 }}>
-          Add your first interviewer calendar to start generating bookable interview times.
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {calendars.map((calendar) => (
-          <CalendarCard
-            key={calendar.interviewerId}
-            calendar={calendar}
-            isSelected={calendar.interviewerId === selectedCalendar.interviewerId}
-            onSelect={() => onSelectInterviewer(calendar.interviewerId)}
-          />
-        ))}
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <div style={{ ...SURFACE_CARD, padding: "1.25rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                Interviewer calendar
-              </div>
-              <h3 style={{ margin: "6px 0 0", fontSize: 24 }}>{selectedCalendar.interviewerName}</h3>
-              <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>
-                {selectedCalendar.interviewerRole}
-                {selectedCalendar.chapterName ? ` · ${selectedCalendar.chapterName}` : ""}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Pill
-                label={`${selectedCalendar.rules.length} weekly rules`}
-                background="rgba(59, 130, 246, 0.12)"
-                color="#1d4ed8"
-              />
-              <Pill
-                label={`${selectedCalendar.nextOpenSlots.length} next slots`}
-                background="rgba(16, 185, 129, 0.12)"
-                color="#047857"
-              />
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 10,
-              marginTop: 18,
-            }}
-          >
-            {selectedCalendar.nextOpenSlots.slice(0, 6).map((slot) => (
-              <div
-                key={slot.slotKey}
-                style={{
-                  borderRadius: 18,
-                  padding: "0.9rem",
-                  border: "1px solid rgba(16, 185, 129, 0.16)",
-                  background: "rgba(240,253,250,0.85)",
-                }}
-              >
-                <div style={{ fontWeight: 700 }}>{formatCompactDateTime(slot.startsAt)}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                  {slot.duration} min · {scopeLabel("ALL")}
-                </div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>{slot.timezone}</div>
-              </div>
-            ))}
-            {selectedCalendar.nextOpenSlots.length === 0 ? (
-              <div
-                style={{
-                  borderRadius: 18,
-                  padding: "1rem",
-                  border: "1px dashed rgba(148,163,184,0.28)",
-                  color: "var(--muted)",
-                  fontSize: 13,
-                }}
-              >
-                No open slots are generating yet. Add a weekly rule or one-off opening below.
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div style={{ ...SURFACE_CARD, padding: "1.25rem" }}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>Weekly availability rules</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>
-            These rules power the shared hiring and readiness booking surface.
-          </div>
-
-          <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-            {selectedCalendar.rules.map((rule) => (
-              <div
-                key={rule.id}
-                style={{
-                  borderRadius: 18,
-                  padding: "0.95rem",
-                  border: "1px solid rgba(59, 130, 246, 0.16)",
-                  background: "rgba(239,246,255,0.88)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 16,
-                  alignItems: "flex-start",
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 700 }}>
-                    {formatDayLabel(rule.dayOfWeek)} · {rule.startTime} to {rule.endTime}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                    {scopeLabel(rule.scope)} · {rule.slotDuration} min · {rule.bufferMinutes} min buffer · {rule.timezone}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                    {rule.locationLabel ?? rule.meetingLink ?? "No default location set"}
-                  </div>
-                </div>
-                {viewer.isReviewer ? (
-                  <button
-                    type="button"
-                    className="button small outline"
-                    disabled={isPending && activeActionId === `rule-remove:${rule.id}`}
-                    onClick={() => onRemoveRule(rule.id, `rule-remove:${rule.id}`)}
-                  >
-                    Remove
-                  </button>
-                ) : null}
-              </div>
-            ))}
-            {selectedCalendar.rules.length === 0 ? (
-              <div style={{ color: "var(--muted)", fontSize: 13 }}>No weekly rules yet.</div>
-            ) : null}
-          </div>
-
-          {viewer.isReviewer ? (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                onCreateRule(new FormData(event.currentTarget));
-                event.currentTarget.reset();
-              }}
-              style={{
-                marginTop: 16,
-                paddingTop: 16,
-                borderTop: "1px solid rgba(148,163,184,0.14)",
-                display: "grid",
-                gap: 12,
-              }}
-            >
-              <input type="hidden" name="interviewerId" value={selectedCalendar.interviewerId} />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
-                <label className="form-row">
-                  Day
-                  <select name="dayOfWeek" className="input" defaultValue="1">
-                    <option value="0">Sunday</option>
-                    <option value="1">Monday</option>
-                    <option value="2">Tuesday</option>
-                    <option value="3">Wednesday</option>
-                    <option value="4">Thursday</option>
-                    <option value="5">Friday</option>
-                    <option value="6">Saturday</option>
-                  </select>
-                </label>
-                <label className="form-row">
-                  Start
-                  <input type="time" name="startTime" className="input" defaultValue="15:00" required />
-                </label>
-                <label className="form-row">
-                  End
-                  <input type="time" name="endTime" className="input" defaultValue="18:00" required />
-                </label>
-                <label className="form-row">
-                  Scope
-                  <select name="scope" className="input" defaultValue="ALL">
-                    <option value="ALL">Hiring + Readiness</option>
-                    <option value="HIRING">Hiring only</option>
-                    <option value="READINESS">Readiness only</option>
-                  </select>
-                </label>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
-                <label className="form-row">
-                  Slot duration
-                  <input type="number" name="slotDuration" className="input" min={15} max={180} defaultValue={30} />
-                </label>
-                <label className="form-row">
-                  Buffer
-                  <input type="number" name="bufferMinutes" className="input" min={0} max={60} defaultValue={10} />
-                </label>
-                <label className="form-row">
-                  Timezone
-                  <input type="text" name="timezone" className="input" defaultValue="America/New_York" />
-                </label>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-                <label className="form-row">
-                  Default meeting link
-                  <input type="url" name="meetingLink" className="input" placeholder="https://meet.google.com/..." />
-                </label>
-                <label className="form-row">
-                  Location label
-                  <input type="text" name="locationLabel" className="input" placeholder="Zoom room or in-person space" />
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                className="button"
-                disabled={isPending && activeActionId === `rule-create:${selectedCalendar.interviewerId}`}
-                onClick={() => void 0}
-              >
-                Add weekly rule
-              </button>
-            </form>
-          ) : null}
-        </div>
-
-        <div style={{ ...SURFACE_CARD, padding: "1.25rem" }}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>Overrides and blackout windows</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>
-            Use open overrides for one-off interview blocks, or blocked overrides for vacations and blackout periods.
-          </div>
-
-          <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-            {selectedCalendar.overrides.map((override) => (
-              <div
-                key={override.id}
-                style={{
-                  borderRadius: 18,
-                  padding: "0.95rem",
-                  border: "1px solid rgba(244, 114, 182, 0.18)",
-                  background: override.type === "OPEN" ? "rgba(240,253,250,0.86)" : "rgba(255,241,242,0.9)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 16,
-                  alignItems: "flex-start",
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 700 }}>
-                    {override.type === "OPEN" ? "Open window" : "Blocked window"} · {formatLocalDateTime(override.startsAt)}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                    Until {formatLocalDateTime(override.endsAt)} · {scopeLabel(override.scope)} · {override.timezone}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                    {override.note ?? override.locationLabel ?? override.meetingLink ?? "No note attached"}
-                  </div>
-                </div>
-                {viewer.isReviewer ? (
-                  <button
-                    type="button"
-                    className="button small outline"
-                    disabled={isPending && activeActionId === `override-remove:${override.id}`}
-                    onClick={() => onRemoveOverride(override.id, `override-remove:${override.id}`)}
-                  >
-                    Remove
-                  </button>
-                ) : null}
-              </div>
-            ))}
-            {selectedCalendar.overrides.length === 0 ? (
-              <div style={{ color: "var(--muted)", fontSize: 13 }}>No overrides yet.</div>
-            ) : null}
-          </div>
-
-          {viewer.isReviewer ? (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                onCreateOverride(new FormData(event.currentTarget));
-                event.currentTarget.reset();
-              }}
-              style={{
-                marginTop: 16,
-                paddingTop: 16,
-                borderTop: "1px solid rgba(148,163,184,0.14)",
-                display: "grid",
-                gap: 12,
-              }}
-            >
-              <input type="hidden" name="interviewerId" value={selectedCalendar.interviewerId} />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
-                <label className="form-row">
-                  Type
-                  <select name="type" className="input" defaultValue="BLOCKED">
-                    <option value="BLOCKED">Blocked</option>
-                    <option value="OPEN">Open extra time</option>
-                  </select>
-                </label>
-                <label className="form-row">
-                  Scope
-                  <select name="scope" className="input" defaultValue="ALL">
-                    <option value="ALL">Hiring + Readiness</option>
-                    <option value="HIRING">Hiring only</option>
-                    <option value="READINESS">Readiness only</option>
-                  </select>
-                </label>
-                <label className="form-row">
-                  Timezone
-                  <input type="text" name="timezone" className="input" defaultValue="America/New_York" />
-                </label>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-                <label className="form-row">
-                  Starts at
-                  <input type="datetime-local" name="startsAt" className="input" defaultValue={defaultLocalDateTime(24)} required />
-                </label>
-                <label className="form-row">
-                  Ends at
-                  <input type="datetime-local" name="endsAt" className="input" defaultValue={defaultLocalDateTime(27)} required />
-                </label>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
-                <label className="form-row">
-                  Slot duration
-                  <input type="number" name="slotDuration" className="input" min={15} max={180} defaultValue={30} />
-                </label>
-                <label className="form-row">
-                  Buffer
-                  <input type="number" name="bufferMinutes" className="input" min={0} max={60} defaultValue={10} />
-                </label>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-                <label className="form-row">
-                  Meeting link
-                  <input type="url" name="meetingLink" className="input" placeholder="https://meet.google.com/..." />
-                </label>
-                <label className="form-row">
-                  Location label
-                  <input type="text" name="locationLabel" className="input" placeholder="Optional location name" />
-                </label>
-              </div>
-
-              <label className="form-row">
-                Note
-                <textarea
-                  name="note"
-                  className="input"
-                  rows={2}
-                  placeholder="Explain the blackout, extra office hours, or special scheduling instructions."
-                />
-              </label>
-
-              <button
-                type="submit"
-                className="button"
-                disabled={isPending && activeActionId === `override-create:${selectedCalendar.interviewerId}`}
-                onClick={() => void 0}
-              >
-                Add override
-              </button>
-            </form>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function InterviewScheduleClient({
   data,
 }: {
@@ -1425,9 +1005,6 @@ export default function InterviewScheduleClient({
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
-  const [panel, setPanel] = useState<PanelMode>(
-    searchParams.get("panel") === "calendars" ? "calendars" : "queue"
-  );
   const [search, setSearch] = useState(searchParams.get("q") ?? "");
   const [domainFilter, setDomainFilter] = useState<"ALL" | "HIRING" | "READINESS">(
     searchParams.get("domain") === "HIRING" || searchParams.get("scope") === "HIRING"
@@ -1442,12 +1019,6 @@ export default function InterviewScheduleClient({
   const [chapterFilter, setChapterFilter] = useState(searchParams.get("chapter") ?? "ALL");
   const [interviewerFilter, setInterviewerFilter] = useState(
     searchParams.get("interviewer") ?? "ALL"
-  );
-  const [selectedInterviewerId, setSelectedInterviewerId] = useState<string | null>(
-    searchParams.get("interviewer") ??
-      data.calendars[0]?.interviewerId ??
-      data.interviewerOptions[0]?.id ??
-      null
   );
   const requestedWorkflowId = searchParams.get("workflow");
   const requestedApplicationId = searchParams.get("applicationId");
@@ -1549,25 +1120,7 @@ export default function InterviewScheduleClient({
     chapterFilter !== "ALL" ||
     interviewerFilter !== "ALL";
 
-  const filteredCalendars = data.calendars.filter((calendar) => {
-    if (chapterFilter !== "ALL" && calendar.chapterId !== chapterFilter) return false;
-    if (interviewerFilter !== "ALL" && calendar.interviewerId !== interviewerFilter) return false;
-    if (deferredSearch) {
-      const haystack = `${calendar.interviewerName} ${calendar.interviewerRole} ${calendar.chapterName ?? ""}`.toLowerCase();
-      if (!haystack.includes(deferredSearch.toLowerCase())) return false;
-    }
-    return true;
-  });
-
-  const selectedCalendarIsVisible = filteredCalendars.some(
-    (calendar) => calendar.interviewerId === selectedInterviewerId
-  );
-  const activeCalendarId = selectedCalendarIsVisible
-    ? selectedInterviewerId
-    : filteredCalendars[0]?.interviewerId ?? null;
-
   function applyFocus(status: WorkflowStatusFilter) {
-    setPanel("queue");
     setStatusFilter(status);
   }
 
@@ -1592,7 +1145,7 @@ export default function InterviewScheduleClient({
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div style={{ maxWidth: 720 }}>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <span className="pill pill-purple" style={{ fontSize: 12 }}>Interview Scheduling OS</span>
+              <span className="pill pill-purple" style={{ fontSize: 12 }}>Interview scheduler</span>
               <span className="pill pill-info" style={{ fontSize: 12 }}>{data.summary.total} active workflows</span>
               {openedFromApplicantWorkspace ? (
                 <span className="pill pill-success" style={{ fontSize: 12 }}>Applicant workspace linked</span>
@@ -1605,30 +1158,16 @@ export default function InterviewScheduleClient({
               ) : null}
             </div>
             <h1 style={{ margin: "10px 0 0", fontSize: 22, lineHeight: 1.25, fontWeight: 700 }}>
-              Shared calendar command center
+              Interview scheduling
             </h1>
             <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)", maxWidth: 640 }}>
               {showInstructorApplicantHandoff
-                ? "Use this calendar scheduler to find open interviewer time. The applicant-specific offer is sent from the workspace slot panel after you choose the time."
-                : "This is the full scheduler behind the workspace Post slot panel. When opened from an applicant workspace, that applicant is selected here so posted slots, calendar options, booking notes, and the interview thread stay together."}
+                ? "Pick an interviewer and a specific date and time for this interview, then return to the workspace slot panel to send the official applicant offer."
+                : "Pick an interview from the queue, choose the interviewer, and set a specific date and time. Each interview is scheduled individually — no availability windows to configure."}
             </p>
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              className={`button small ${panel === "queue" ? "" : "outline"}`}
-              onClick={() => setPanel("queue")}
-            >
-              Workflow queue
-            </button>
-            <button
-              type="button"
-              className={`button small ${panel === "calendars" ? "" : "outline"}`}
-              onClick={() => setPanel("calendars")}
-            >
-              Interviewer calendars
-            </button>
             {data.viewer.isReviewer ? (
               <Link href="/chapter" className="button small outline" style={{ textDecoration: "none" }}>
                 Open Chapter OS
@@ -1652,9 +1191,8 @@ export default function InterviewScheduleClient({
             <strong style={{ color: "var(--text)" }}>
               Opened from an instructor applicant workspace.
             </strong>{" "}
-            This scheduler manages shared interviewer calendars. Pick an
-            interviewer-backed time here, then return to the workspace slot panel
-            to send the official applicant offer.
+            Pick a specific date and time for the interview here, then return to the
+            workspace slot panel to send the official applicant offer.
           </div>
         ) : null}
 
@@ -1794,246 +1332,174 @@ export default function InterviewScheduleClient({
         </div>
       </div>
 
-      {panel === "queue" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))", gap: 20, alignItems: "start" }}>
-          <aside style={{ position: "sticky", top: 20, display: "grid", gap: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))", gap: 20, alignItems: "start" }}>
+        <aside style={{ position: "sticky", top: 20, display: "grid", gap: 18 }}>
+          <QueueSection
+            title="Needs attention"
+            subtitle="Unscheduled, awaiting response, reschedule, and at-risk work."
+            workflows={attentionWorkflows}
+            selectedWorkflowId={selectedWorkflow?.id ?? null}
+            onSelect={setSelectedWorkflowId}
+          />
+          <QueueSection
+            title="Booked soon"
+            subtitle="Confirmed interviews with follow-up actions."
+            workflows={bookedWorkflows}
+            selectedWorkflowId={selectedWorkflow?.id ?? null}
+            onSelect={setSelectedWorkflowId}
+          />
+          {closedWorkflows.length > 0 ? (
             <QueueSection
-              title="Needs attention"
-              subtitle="Unscheduled, awaiting response, reschedule, and at-risk work."
-              workflows={attentionWorkflows}
+              title="Closed out"
+              subtitle="Completed and cancelled interview records."
+              workflows={closedWorkflows}
               selectedWorkflowId={selectedWorkflow?.id ?? null}
               onSelect={setSelectedWorkflowId}
             />
-            <QueueSection
-              title="Booked soon"
-              subtitle="Confirmed interviews with follow-up actions."
-              workflows={bookedWorkflows}
-              selectedWorkflowId={selectedWorkflow?.id ?? null}
-              onSelect={setSelectedWorkflowId}
-            />
-            {closedWorkflows.length > 0 ? (
-              <QueueSection
-                title="Closed out"
-                subtitle="Completed and cancelled interview records."
-                workflows={closedWorkflows}
-                selectedWorkflowId={selectedWorkflow?.id ?? null}
-                onSelect={setSelectedWorkflowId}
-              />
-            ) : null}
-          </aside>
+          ) : null}
+        </aside>
 
-          <section style={{ display: "grid", gap: 18, minWidth: 0 }}>
-            {selectedWorkflow ? (
-              <>
-                <div
-                  style={{
-                    ...SURFACE_CARD,
-                    padding: "1rem 1.1rem",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#475569" }}>
-                      Selected interview
-                    </div>
-                    <div style={{ fontWeight: 800, fontSize: 18, marginTop: 4 }}>
-                      {selectedQueueSection === "attention"
-                        ? "Resolve the next scheduling step"
-                        : selectedQueueSection === "booked"
-                        ? "Keep the booking ready"
-                        : "Review the finished record"}
-                    </div>
+        <section style={{ display: "grid", gap: 18, minWidth: 0 }}>
+          {selectedWorkflow ? (
+            <>
+              <div
+                style={{
+                  ...SURFACE_CARD,
+                  padding: "1rem 1.1rem",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#475569" }}>
+                    Selected interview
                   </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <Link href={selectedWorkflow.detailHref} className="button small outline" style={{ textDecoration: "none" }}>
-                      {selectedWorkflow.domain === "HIRING" ? "Open workspace" : "Open record"}
+                  <div style={{ fontWeight: 800, fontSize: 18, marginTop: 4 }}>
+                    {selectedQueueSection === "attention"
+                      ? "Resolve the next scheduling step"
+                      : selectedQueueSection === "booked"
+                      ? "Keep the booking ready"
+                      : "Review the finished record"}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <Link href={selectedWorkflow.detailHref} className="button small outline" style={{ textDecoration: "none" }}>
+                    {selectedWorkflow.domain === "HIRING" ? "Open workspace" : "Open record"}
+                  </Link>
+                  {selectedWorkflow.conversationId ? (
+                    <Link href={`/messages/${selectedWorkflow.conversationId}`} className="button small outline" style={{ textDecoration: "none" }}>
+                      Open thread
                     </Link>
-                    {selectedWorkflow.conversationId ? (
-                      <Link href={`/messages/${selectedWorkflow.conversationId}`} className="button small outline" style={{ textDecoration: "none" }}>
-                        Open thread
-                      </Link>
-                    ) : null}
-                  </div>
+                  ) : null}
                 </div>
+              </div>
 
-                <WorkflowCard
-                  viewer={data.viewer}
-                  workflow={selectedWorkflow}
-                  isPending={isPending}
-                  activeActionId={activeActionId}
-                  onBook={(workflow, slot, note) =>
-                    runAction(`book:${workflow.id}`, "Interview booked successfully.", async () => {
-                      const formData = new FormData();
-                      formData.set("domain", workflow.domain);
-                      formData.set("workflowId", workflow.workflowId);
-                      formData.set("interviewerId", slot.interviewerId);
-                      formData.set("scheduledAt", slot.startsAt);
-                      formData.set("duration", String(slot.duration));
-                      if (note.trim()) formData.set("note", note.trim());
-                      await bookInterviewWorkflowSlot(formData);
-                    })
-                  }
-                  onConfirmReschedule={(workflow, slot, note) =>
-                    runAction(`reschedule:${workflow.id}`, "Interview reschedule confirmed.", async () => {
-                      const formData = new FormData();
-                      formData.set("requestId", workflow.activeRequestId!);
-                      formData.set("interviewerId", slot.interviewerId);
-                      formData.set("scheduledAt", slot.startsAt);
-                      formData.set("duration", String(slot.duration));
-                      if (note.trim()) formData.set("note", note.trim());
-                      await confirmInterviewReschedule(formData);
-                    })
-                  }
-                  onRequestReschedule={(requestId, note) =>
-                    runAction(`reschedule:${selectedWorkflow.id}`, "Reschedule request sent to the interview thread.", async () => {
-                      const formData = new FormData();
-                      formData.set("requestId", requestId);
-                      if (note.trim()) formData.set("note", note.trim());
-                      await requestInterviewReschedule(formData);
-                    })
-                  }
-                  onCancel={(requestId, note) =>
-                    runAction(`cancel:${selectedWorkflow.id}`, "Interview booking cancelled.", async () => {
-                      const formData = new FormData();
-                      formData.set("requestId", requestId);
-                      if (note.trim()) formData.set("note", note.trim());
-                      await cancelInterviewWorkflow(formData);
-                    })
-                  }
-                  onSendMessage={(conversationId, content, actionId) =>
-                    runAction(actionId, "Message sent to the interview thread.", async () => {
-                      const formData = new FormData();
-                      formData.set("conversationId", conversationId);
-                      formData.set("content", content);
-                      await sendMessage(formData);
-                    })
-                  }
-                />
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
-                  <div style={{ ...SURFACE_CARD, padding: "1.2rem" }}>
-                    <div style={{ fontWeight: 800, fontSize: 16 }}>Calendar radar</div>
-                    <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 6 }}>
-                      Jump to an interviewer calendar when a queue item needs more openings.
-                    </div>
-                    <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-                      {filteredCalendars.slice(0, 3).map((calendar) => (
-                        <button
-                          key={calendar.interviewerId}
-                          type="button"
-                          onClick={() => {
-                            setSelectedInterviewerId(calendar.interviewerId);
-                            setPanel("calendars");
-                          }}
-                          style={{
-                            textAlign: "left",
-                            borderRadius: 16,
-                            padding: "0.85rem",
-                            border: "1px solid rgba(148,163,184,0.16)",
-                            background: "rgba(255,255,255,0.96)",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                            <span>
-                              <span style={{ display: "block", fontWeight: 800 }}>{calendar.interviewerName}</span>
-                              <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                                {calendar.chapterName ?? "Global"} · {calendar.interviewerRole}
-                              </span>
-                            </span>
-                            <span style={{ fontSize: 12, fontWeight: 800, color: "#047857" }}>
-                              {calendar.nextOpenSlots.length} open
-                            </span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                    <button type="button" className="button small outline" style={{ marginTop: 14 }} onClick={() => setPanel("calendars")}>
-                      Open calendar studio
-                    </button>
-                  </div>
-
-                  <div style={{ ...SURFACE_CARD, padding: "1.2rem" }}>
-                    <div style={{ fontWeight: 800, fontSize: 16 }}>Ops pulse</div>
-                    <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
-                      {[
-                        { label: "At risk", value: visibleAtRiskCount, detail: "visible queue items past SLA", color: "#dc2626" },
-                        { label: "Booked soon", value: bookedSoonCount, detail: "confirmed in the next 7 days", color: "#2563eb" },
-                        {
-                          label: "Threads",
-                          value: filteredWorkflows.filter((workflow) => workflow.conversationId).length,
-                          detail: "visible workflows with shared messages",
-                          color: "#7c3aed",
-                        },
-                      ].map((metric) => (
-                        <div
-                          key={metric.label}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            gap: 14,
-                            alignItems: "center",
-                            paddingBottom: 12,
-                            borderBottom: "1px solid rgba(148,163,184,0.14)",
-                          }}
-                        >
-                          <div>
-                            <div style={{ fontSize: 12, fontWeight: 800, color: metric.color }}>{metric.label}</div>
-                            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>{metric.detail}</div>
-                          </div>
-                          <div style={{ fontSize: 26, fontWeight: 900, color: metric.color }}>{metric.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <EmptyPanel
-                title="No interviews match these filters"
-                body="Reset the filters or switch to interviewer calendars to create more bookable time."
+              <WorkflowCard
+                key={selectedWorkflow.id}
+                viewer={data.viewer}
+                workflow={selectedWorkflow}
+                interviewerOptions={data.interviewerOptions}
+                bookedTimesByInterviewer={data.bookedTimesByInterviewer}
+                isPending={isPending}
+                activeActionId={activeActionId}
+                onBook={(workflow, payload) =>
+                  runAction(`book:${workflow.id}`, "Interview booked successfully.", async () => {
+                    const formData = new FormData();
+                    formData.set("domain", workflow.domain);
+                    formData.set("workflowId", workflow.workflowId);
+                    formData.set("interviewerId", payload.interviewerId);
+                    formData.set("scheduledAt", payload.scheduledAtIso);
+                    formData.set("duration", String(payload.duration));
+                    if (payload.meetingLink) formData.set("meetingLink", payload.meetingLink);
+                    if (payload.note) formData.set("note", payload.note);
+                    formData.set("sourceTimezone", Intl.DateTimeFormat().resolvedOptions().timeZone);
+                    await bookInterviewWorkflowSlot(formData);
+                  })
+                }
+                onConfirmReschedule={(workflow, payload) =>
+                  runAction(`reschedule:${workflow.id}`, "Interview reschedule confirmed.", async () => {
+                    const formData = new FormData();
+                    formData.set("requestId", workflow.activeRequestId!);
+                    formData.set("interviewerId", payload.interviewerId);
+                    formData.set("scheduledAt", payload.scheduledAtIso);
+                    formData.set("duration", String(payload.duration));
+                    if (payload.meetingLink) formData.set("meetingLink", payload.meetingLink);
+                    if (payload.note) formData.set("note", payload.note);
+                    formData.set("sourceTimezone", Intl.DateTimeFormat().resolvedOptions().timeZone);
+                    await confirmInterviewReschedule(formData);
+                  })
+                }
+                onRequestReschedule={(requestId, note) =>
+                  runAction(`reschedule:${selectedWorkflow.id}`, "Reschedule request sent to the interview thread.", async () => {
+                    const formData = new FormData();
+                    formData.set("requestId", requestId);
+                    if (note.trim()) formData.set("note", note.trim());
+                    await requestInterviewReschedule(formData);
+                  })
+                }
+                onCancel={(requestId, note) =>
+                  runAction(`cancel:${selectedWorkflow.id}`, "Interview booking cancelled.", async () => {
+                    const formData = new FormData();
+                    formData.set("requestId", requestId);
+                    if (note.trim()) formData.set("note", note.trim());
+                    await cancelInterviewWorkflow(formData);
+                  })
+                }
+                onSendMessage={(conversationId, content, actionId) =>
+                  runAction(actionId, "Message sent to the interview thread.", async () => {
+                    const formData = new FormData();
+                    formData.set("conversationId", conversationId);
+                    formData.set("content", content);
+                    await sendMessage(formData);
+                  })
+                }
               />
-            )}
-          </section>
-        </div>
-      ) : (
-        <CalendarManager
-          viewer={data.viewer}
-          calendars={filteredCalendars}
-          selectedInterviewerId={activeCalendarId}
-          onSelectInterviewer={setSelectedInterviewerId}
-          isPending={isPending}
-          activeActionId={activeActionId}
-          onCreateRule={(formData) =>
-            runAction(`rule-create:${formData.get("interviewerId")}`, "Weekly availability rule added.", async () => {
-              await createInterviewAvailabilityRule(formData);
-            })
-          }
-          onRemoveRule={(ruleId, actionId) =>
-            runAction(actionId, "Weekly availability rule removed.", async () => {
-              const formData = new FormData();
-              formData.set("ruleId", ruleId);
-              await deactivateInterviewAvailabilityRule(formData);
-            })
-          }
-          onCreateOverride={(formData) =>
-            runAction(`override-create:${formData.get("interviewerId")}`, "Availability override added.", async () => {
-              await createInterviewAvailabilityOverride(formData);
-            })
-          }
-          onRemoveOverride={(overrideId, actionId) =>
-            runAction(actionId, "Availability override removed.", async () => {
-              const formData = new FormData();
-              formData.set("overrideId", overrideId);
-              await deactivateInterviewAvailabilityOverride(formData);
-            })
-          }
-        />
-      )}
+
+              <div style={{ ...SURFACE_CARD, padding: "1.2rem" }}>
+                <div style={{ fontWeight: 800, fontSize: 16 }}>Ops pulse</div>
+                <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
+                  {[
+                    { label: "At risk", value: visibleAtRiskCount, detail: "visible queue items past SLA", color: "#dc2626" },
+                    { label: "Booked soon", value: bookedSoonCount, detail: "confirmed in the next 7 days", color: "#2563eb" },
+                    {
+                      label: "Threads",
+                      value: filteredWorkflows.filter((workflow) => workflow.conversationId).length,
+                      detail: "visible workflows with shared messages",
+                      color: "#7c3aed",
+                    },
+                  ].map((metric) => (
+                    <div
+                      key={metric.label}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 14,
+                        alignItems: "center",
+                        paddingBottom: 12,
+                        borderBottom: "1px solid rgba(148,163,184,0.14)",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: metric.color }}>{metric.label}</div>
+                        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>{metric.detail}</div>
+                      </div>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: metric.color }}>{metric.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <EmptyPanel
+              title="No interviews match these filters"
+              body="Reset the filters to see more interviews in the queue."
+            />
+          )}
+        </section>
+      </div>
       </div>
     </main>
   );

@@ -212,7 +212,7 @@ export default function InterviewSchedulingInlinePanel({
 
   const confirmed = offeredSlots.filter((s) => s.confirmedAt);
   const pending_slots = offeredSlots.filter((s) => !s.confirmedAt);
-  const schedulerHref = `/interviews/schedule?panel=calendars&domain=HIRING&applicationId=${encodeURIComponent(applicationId)}&source=instructorApplicant`;
+  const schedulerHref = `/interviews/schedule?domain=HIRING&applicationId=${encodeURIComponent(applicationId)}&source=instructorApplicant`;
 
   const sortedCommitments = [...myCommitments].sort(
     (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
@@ -261,7 +261,7 @@ export default function InterviewSchedulingInlinePanel({
           href={schedulerHref}
           className="button outline cockpit-inline-button"
         >
-          Open interviewer calendars
+          Open scheduler
         </a>
       </div>
       <p className="cockpit-scheduler-bridge">

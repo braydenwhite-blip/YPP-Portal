@@ -5,8 +5,6 @@ import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import {
   ConversationContextType,
-  InterviewAvailabilityOverrideType,
-  InterviewAvailabilityScope,
   InterviewDomain,
   InterviewSchedulingRequestStatus,
   InterviewSlotSource,
@@ -15,14 +13,8 @@ import {
 import { createSystemNotification } from "@/lib/notification-actions";
 import {
   ACTIVE_INTERVIEW_REQUEST_STATUSES,
-  generateInterviewSlots,
   getInterviewRequestAgeBase,
   isInterviewRequestAtRisk,
-  rangesOverlap,
-  type AvailabilityOverrideLike,
-  type AvailabilityRuleLike,
-  type BusyInterval,
-  type WarningInterval,
 } from "@/lib/interview-scheduling-shared";
 import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
@@ -32,9 +24,7 @@ import {
 } from "@/lib/scheduling/calendar";
 import { sendSchedulingLifecycleEmail } from "@/lib/scheduling/email";
 
-const DEFAULT_WINDOW_DAYS = 21;
 const FINAL_APPLICATION_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
-const ACTIVE_SLOT_STATUSES = ["POSTED", "CONFIRMED"] as const;
 
 type SessionUser = Awaited<ReturnType<typeof getSession>> & {
   user: {
@@ -107,20 +97,6 @@ type ReadinessWorkflowRecord = Prisma.InstructorInterviewGateGetPayload<{
   };
 }>;
 
-export interface InterviewCalendarSlotView {
-  slotKey: string;
-  interviewerId: string;
-  interviewerName: string;
-  interviewerRole: string;
-  startsAt: string;
-  endsAt: string;
-  duration: number;
-  timezone: string;
-  meetingLink: string | null;
-  locationLabel: string | null;
-  warningLabels: string[];
-}
-
 export interface InterviewWorkflowView {
   id: string;
   domain: InterviewDomain;
@@ -155,50 +131,14 @@ export interface InterviewWorkflowView {
   activeRequestId: string | null;
   conversationId: string | null;
   warnings: string[];
-  openSlots: InterviewCalendarSlotView[];
   detailHref: string;
 }
 
-export interface InterviewAvailabilityRuleView {
-  id: string;
-  interviewerId: string;
-  chapterId: string | null;
-  scope: InterviewAvailabilityScope;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  timezone: string;
-  slotDuration: number;
-  bufferMinutes: number;
-  meetingLink: string | null;
-  locationLabel: string | null;
-}
-
-export interface InterviewAvailabilityOverrideView {
-  id: string;
-  interviewerId: string;
-  chapterId: string | null;
-  scope: InterviewAvailabilityScope;
-  type: InterviewAvailabilityOverrideType;
-  startsAt: string;
-  endsAt: string;
-  timezone: string;
-  slotDuration: number | null;
-  bufferMinutes: number | null;
-  meetingLink: string | null;
-  locationLabel: string | null;
-  note: string | null;
-}
-
-export interface InterviewCalendarView {
-  interviewerId: string;
-  interviewerName: string;
-  interviewerRole: string;
-  chapterId: string | null;
-  chapterName: string | null;
-  rules: InterviewAvailabilityRuleView[];
-  overrides: InterviewAvailabilityOverrideView[];
-  nextOpenSlots: InterviewCalendarSlotView[];
+export interface InterviewBookedTime {
+  scheduledAt: string;
+  duration: number;
+  label: string;
+  confirmed: boolean;
 }
 
 export interface InterviewSchedulePageData {
@@ -222,7 +162,7 @@ export interface InterviewSchedulePageData {
     atRisk: number;
   };
   workflows: InterviewWorkflowView[];
-  calendars: InterviewCalendarView[];
+  bookedTimesByInterviewer: Record<string, InterviewBookedTime[]>;
   interviewerOptions: InterviewerOption[];
 }
 
@@ -316,10 +256,6 @@ async function getViewerContext(): Promise<ViewerContext> {
       featureKeys.has("INTERVIEWER"),
     isInstructor: roles.includes("INSTRUCTOR"),
   };
-}
-
-function scopeAllowsDomain(scope: InterviewAvailabilityScope, domain: InterviewDomain) {
-  return scope === "ALL" || scope === domain;
 }
 
 function hoursBetween(from: Date, to: Date) {
@@ -742,201 +678,6 @@ async function createThreadMessage(conversationId: string, senderId: string, con
       data: { updatedAt: new Date() },
     }),
   ]);
-}
-
-async function getCalendarResources({
-  chapterIds,
-  interviewerIds,
-  rangeEnd,
-}: {
-  chapterIds: string[];
-  interviewerIds: string[];
-  rangeEnd: Date;
-}) {
-  const [rules, overrides, hiringSlots, readinessSlots, requests, chapterEvents] =
-    await Promise.all([
-      prisma.interviewAvailabilityRule.findMany({
-        where: {
-          isActive: true,
-          interviewerId: { in: interviewerIds.length > 0 ? interviewerIds : ["__none__"] },
-        },
-        include: {
-          interviewer: {
-            select: {
-              id: true,
-              name: true,
-              primaryRole: true,
-              chapter: { select: { id: true, name: true } },
-            },
-          },
-        },
-        orderBy: [{ interviewer: { name: "asc" } }, { dayOfWeek: "asc" }, { startTime: "asc" }],
-      }),
-      prisma.interviewAvailabilityOverride.findMany({
-        where: {
-          isActive: true,
-          interviewerId: { in: interviewerIds.length > 0 ? interviewerIds : ["__none__"] },
-          endsAt: { gte: new Date() },
-        },
-        orderBy: { startsAt: "asc" },
-      }),
-      prisma.interviewSlot.findMany({
-        where: {
-          interviewerId: { in: interviewerIds.length > 0 ? interviewerIds : ["__none__"] },
-          status: { in: [...ACTIVE_SLOT_STATUSES] },
-          scheduledAt: { lte: rangeEnd },
-        },
-        select: {
-          interviewerId: true,
-          scheduledAt: true,
-          duration: true,
-        },
-      }),
-      prisma.instructorInterviewSlot.findMany({
-        where: {
-          createdById: { in: interviewerIds.length > 0 ? interviewerIds : ["__none__"] },
-          status: { in: [...ACTIVE_SLOT_STATUSES] },
-          scheduledAt: { lte: rangeEnd },
-        },
-        select: {
-          createdById: true,
-          scheduledAt: true,
-          duration: true,
-        },
-      }),
-      prisma.interviewSchedulingRequest.findMany({
-        where: {
-          interviewerId: { in: interviewerIds.length > 0 ? interviewerIds : ["__none__"] },
-          status: { in: ACTIVE_INTERVIEW_REQUEST_STATUSES },
-          scheduledAt: { not: null, lte: rangeEnd },
-        },
-        select: {
-          interviewerId: true,
-          scheduledAt: true,
-          duration: true,
-        },
-      }),
-      prisma.event.findMany({
-        where: {
-          chapterId: { in: chapterIds.length > 0 ? chapterIds : ["__none__"] },
-          startDate: { lte: rangeEnd },
-          endDate: { gte: new Date() },
-        },
-        select: {
-          chapterId: true,
-          title: true,
-          startDate: true,
-          endDate: true,
-        },
-      }),
-    ]);
-
-  const busyByInterviewer = new Map<string, BusyInterval[]>();
-  for (const slot of hiringSlots) {
-    if (!slot.interviewerId) continue;
-    const existing = busyByInterviewer.get(slot.interviewerId) ?? [];
-    existing.push({
-      startsAt: slot.scheduledAt,
-      endsAt: new Date(slot.scheduledAt.getTime() + slot.duration * 60_000),
-      label: "Hiring interview",
-    });
-    busyByInterviewer.set(slot.interviewerId, existing);
-  }
-  for (const slot of readinessSlots) {
-    const existing = busyByInterviewer.get(slot.createdById) ?? [];
-    existing.push({
-      startsAt: slot.scheduledAt,
-      endsAt: new Date(slot.scheduledAt.getTime() + slot.duration * 60_000),
-      label: "Readiness interview",
-    });
-    busyByInterviewer.set(slot.createdById, existing);
-  }
-  for (const request of requests) {
-    if (!request.scheduledAt) continue;
-    const existing = busyByInterviewer.get(request.interviewerId) ?? [];
-    existing.push({
-      startsAt: request.scheduledAt,
-      endsAt: new Date(request.scheduledAt.getTime() + request.duration * 60_000),
-      label: "Interview booking",
-    });
-    busyByInterviewer.set(request.interviewerId, existing);
-  }
-
-  const warningsByChapter = new Map<string, WarningInterval[]>();
-  for (const event of chapterEvents) {
-    if (!event.chapterId) continue;
-    const existing = warningsByChapter.get(event.chapterId) ?? [];
-    existing.push({
-      startsAt: event.startDate,
-      endsAt: event.endDate,
-      label: `Chapter event: ${event.title}`,
-    });
-    warningsByChapter.set(event.chapterId, existing);
-  }
-
-  return {
-    rules,
-    overrides,
-    busyByInterviewer,
-    warningsByChapter,
-  };
-}
-
-function toRuleView(rule: Awaited<ReturnType<typeof getCalendarResources>>["rules"][number]): InterviewAvailabilityRuleView {
-  return {
-    id: rule.id,
-    interviewerId: rule.interviewerId,
-    chapterId: rule.chapterId,
-    scope: rule.scope,
-    dayOfWeek: rule.dayOfWeek,
-    startTime: rule.startTime,
-    endTime: rule.endTime,
-    timezone: rule.timezone,
-    slotDuration: rule.slotDuration,
-    bufferMinutes: rule.bufferMinutes,
-    meetingLink: rule.meetingLink,
-    locationLabel: rule.locationLabel,
-  };
-}
-
-function toOverrideView(
-  override: AvailabilityOverrideLike & { chapterId?: string | null }
-): InterviewAvailabilityOverrideView {
-  return {
-    id: override.id,
-    interviewerId: override.interviewerId,
-    chapterId: override.chapterId ?? null,
-    scope: override.scope,
-    type: override.type,
-    startsAt: override.startsAt.toISOString(),
-    endsAt: override.endsAt.toISOString(),
-    timezone: override.timezone,
-    slotDuration: override.slotDuration,
-    bufferMinutes: override.bufferMinutes,
-    meetingLink: override.meetingLink,
-    locationLabel: override.locationLabel,
-    note: override.note,
-  };
-}
-
-function toSlotView(
-  slot: ReturnType<typeof generateInterviewSlots>[number],
-  interviewerName: string,
-  interviewerRole: string
-): InterviewCalendarSlotView {
-  return {
-    slotKey: slot.slotKey,
-    interviewerId: slot.interviewerId,
-    interviewerName,
-    interviewerRole,
-    startsAt: slot.startsAt.toISOString(),
-    endsAt: slot.endsAt.toISOString(),
-    duration: slot.duration,
-    timezone: slot.timezone,
-    meetingLink: slot.meetingLink,
-    locationLabel: slot.locationLabel,
-    warningLabels: slot.warningLabels,
-  };
 }
 
 export async function runInterviewAutomation() {
@@ -1625,18 +1366,10 @@ export async function getInterviewScheduleHubData(): Promise<InterviewScheduleHu
 async function buildWorkflowViewForHiring({
   application,
   viewer,
-  rules,
-  overrides,
-  busyByInterviewer,
-  warningsByChapter,
   interviewerDirectory,
 }: {
   application: HiringWorkflowRecord;
   viewer: ViewerContext;
-  rules: Awaited<ReturnType<typeof getCalendarResources>>["rules"];
-  overrides: Awaited<ReturnType<typeof getCalendarResources>>["overrides"];
-  busyByInterviewer: Map<string, BusyInterval[]>;
-  warningsByChapter: Map<string, WarningInterval[]>;
   interviewerDirectory: Map<string, InterviewerOption>;
 }): Promise<InterviewWorkflowView> {
   const confirmedSlot = application.interviewSlots.find((slot) => slot.status === "CONFIRMED");
@@ -1666,45 +1399,6 @@ async function buildWorkflowViewForHiring({
       confirmedAt: confirmedSlot.confirmedAt,
     });
   }
-
-  const relevantInterviewers = Array.from(
-    new Set(
-      rules
-        .filter(
-          (rule) =>
-            (rule.chapterId ?? rule.interviewer.chapter?.id) === application.position.chapterId &&
-            scopeAllowsDomain(rule.scope, "HIRING")
-        )
-        .map((rule) => rule.interviewerId)
-    )
-  );
-
-  const shouldShowOpenSlots =
-    !completedSlot &&
-    (!confirmedSlot || activeRequest?.status === "RESCHEDULE_REQUESTED");
-
-  const openSlots = shouldShowOpenSlots
-    ? relevantInterviewers.flatMap((interviewerId) => {
-        const calendarOwner = interviewerDirectory.get(interviewerId);
-        if (!calendarOwner) return [];
-        return generateInterviewSlots({
-          interviewerId,
-          domain: "HIRING",
-          rules: rules.filter((rule) => rule.interviewerId === interviewerId) as AvailabilityRuleLike[],
-          overrides: overrides.filter((override) => override.interviewerId === interviewerId) as AvailabilityOverrideLike[],
-          busyIntervals: busyByInterviewer.get(interviewerId) ?? [],
-          warningIntervals: application.position.chapterId
-            ? warningsByChapter.get(application.position.chapterId) ?? []
-            : [],
-          rangeStart: new Date(),
-          days: DEFAULT_WINDOW_DAYS,
-        })
-          .slice(0, 8)
-          .map((slot) =>
-            toSlotView(slot, calendarOwner.name, calendarOwner.primaryRole.replace(/_/g, " "))
-          );
-      })
-    : [];
 
   const ageBase = activeRequest
     ? getInterviewRequestAgeBase({
@@ -1763,8 +1457,7 @@ async function buildWorkflowViewForHiring({
     note: activeRequest?.note ?? null,
     activeRequestId: activeRequest?.id ?? null,
     conversationId: activeRequest?.conversationId ?? null,
-    warnings: openSlots.flatMap((slot) => slot.warningLabels).slice(0, 3),
-    openSlots,
+    warnings: [],
     detailHref: `/applications/${application.id}`,
   };
 }
@@ -1772,18 +1465,10 @@ async function buildWorkflowViewForHiring({
 async function buildWorkflowViewForReadiness({
   gate,
   viewer,
-  rules,
-  overrides,
-  busyByInterviewer,
-  warningsByChapter,
   interviewerDirectory,
 }: {
   gate: ReadinessWorkflowRecord;
   viewer: ViewerContext;
-  rules: Awaited<ReturnType<typeof getCalendarResources>>["rules"];
-  overrides: Awaited<ReturnType<typeof getCalendarResources>>["overrides"];
-  busyByInterviewer: Map<string, BusyInterval[]>;
-  warningsByChapter: Map<string, WarningInterval[]>;
   interviewerDirectory: Map<string, InterviewerOption>;
 }): Promise<InterviewWorkflowView> {
   const confirmedSlot = gate.slots.find((slot) => slot.status === "CONFIRMED");
@@ -1810,42 +1495,6 @@ async function buildWorkflowViewForReadiness({
   }
 
   const chapterId = gate.instructor.chapter?.id ?? gate.instructor.chapterId ?? null;
-  const relevantInterviewers = Array.from(
-    new Set(
-      rules
-        .filter(
-          (rule) =>
-            (rule.chapterId ?? rule.interviewer.chapter?.id) === chapterId &&
-            scopeAllowsDomain(rule.scope, "READINESS")
-        )
-        .map((rule) => rule.interviewerId)
-    )
-  );
-
-  const shouldShowOpenSlots =
-    !completedSlot &&
-    (!confirmedSlot || activeRequest?.status === "RESCHEDULE_REQUESTED");
-
-  const openSlots = shouldShowOpenSlots
-    ? relevantInterviewers.flatMap((interviewerId) => {
-        const calendarOwner = interviewerDirectory.get(interviewerId);
-        if (!calendarOwner) return [];
-        return generateInterviewSlots({
-          interviewerId,
-          domain: "READINESS",
-          rules: rules.filter((rule) => rule.interviewerId === interviewerId) as AvailabilityRuleLike[],
-          overrides: overrides.filter((override) => override.interviewerId === interviewerId) as AvailabilityOverrideLike[],
-          busyIntervals: busyByInterviewer.get(interviewerId) ?? [],
-          warningIntervals: chapterId ? warningsByChapter.get(chapterId) ?? [] : [],
-          rangeStart: new Date(),
-          days: DEFAULT_WINDOW_DAYS,
-        })
-          .slice(0, 8)
-          .map((slot) =>
-            toSlotView(slot, calendarOwner.name, calendarOwner.primaryRole.replace(/_/g, " "))
-          );
-      })
-    : [];
 
   const ageBase = activeRequest
     ? getInterviewRequestAgeBase({
@@ -1904,8 +1553,7 @@ async function buildWorkflowViewForReadiness({
     note: activeRequest?.note ?? null,
     activeRequestId: activeRequest?.id ?? null,
     conversationId: activeRequest?.conversationId ?? null,
-    warnings: openSlots.flatMap((slot) => slot.warningLabels).slice(0, 3),
-    openSlots,
+    warnings: [],
     detailHref: `/interviews?scope=readiness&view=${viewer.isReviewer ? "team" : "mine"}`,
   };
 }
@@ -1925,19 +1573,9 @@ export async function getInterviewScheduleData(): Promise<InterviewSchedulePageD
   }
 
   const now = new Date();
-  const rangeEnd = new Date(now.getTime() + DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
   const interviewerOptions = await getEligibleInterviewers(viewer.chapterId, viewer.isAdmin);
   const interviewerDirectory = new Map(interviewerOptions.map((option) => [option.id, option]));
-
-  const chapterIds = Array.from(
-    new Set(interviewerOptions.map((option) => option.chapterId).filter(Boolean) as string[])
-  );
-  const { rules, overrides, busyByInterviewer, warningsByChapter } = await getCalendarResources({
-    chapterIds,
-    interviewerIds: interviewerOptions.map((option) => option.id),
-    rangeEnd,
-  });
 
   const workflows: InterviewWorkflowView[] = [];
 
@@ -1997,10 +1635,6 @@ export async function getInterviewScheduleData(): Promise<InterviewSchedulePageD
         await buildWorkflowViewForHiring({
           application,
           viewer,
-          rules,
-          overrides,
-          busyByInterviewer,
-          warningsByChapter,
           interviewerDirectory,
         })
       );
@@ -2011,10 +1645,6 @@ export async function getInterviewScheduleData(): Promise<InterviewSchedulePageD
         await buildWorkflowViewForReadiness({
           gate,
           viewer,
-          rules,
-          overrides,
-          busyByInterviewer,
-          warningsByChapter,
           interviewerDirectory,
         })
       );
@@ -2075,10 +1705,6 @@ export async function getInterviewScheduleData(): Promise<InterviewSchedulePageD
         await buildWorkflowViewForHiring({
           application,
           viewer,
-          rules,
-          overrides,
-          busyByInterviewer,
-          warningsByChapter,
           interviewerDirectory,
         })
       );
@@ -2089,10 +1715,6 @@ export async function getInterviewScheduleData(): Promise<InterviewSchedulePageD
         await buildWorkflowViewForReadiness({
           gate,
           viewer,
-          rules,
-          overrides,
-          busyByInterviewer,
-          warningsByChapter,
           interviewerDirectory,
         })
       );
@@ -2105,60 +1727,37 @@ export async function getInterviewScheduleData(): Promise<InterviewSchedulePageD
     return left.status.localeCompare(right.status);
   });
 
-  const calendarsByInterviewer = new Map<string, InterviewCalendarView>();
-  for (const interviewer of interviewerOptions) {
-    calendarsByInterviewer.set(interviewer.id, {
-      interviewerId: interviewer.id,
-      interviewerName: interviewer.name,
-      interviewerRole: interviewer.primaryRole.replace(/_/g, " "),
-      chapterId: interviewer.chapterId,
-      chapterName: interviewer.chapterName,
-      rules: [],
-      overrides: [],
-      nextOpenSlots: [],
+  // Each interviewer's existing upcoming bookings, so the scheduler can warn
+  // about double-booking when a specific time is picked.
+  const bookedTimesByInterviewer: InterviewSchedulePageData["bookedTimesByInterviewer"] = {};
+  if (interviewerOptions.length > 0) {
+    const bookedRequests = await prisma.interviewSchedulingRequest.findMany({
+      where: {
+        interviewerId: { in: interviewerOptions.map((option) => option.id) },
+        status: { in: ["BOOKED", "RESCHEDULE_REQUESTED"] },
+        scheduledAt: { not: null, gte: now },
+      },
+      select: {
+        interviewerId: true,
+        scheduledAt: true,
+        duration: true,
+        status: true,
+        interviewee: { select: { name: true } },
+      },
+      orderBy: { scheduledAt: "asc" },
     });
-  }
 
-  for (const rule of rules) {
-    const owner = interviewerDirectory.get(rule.interviewerId);
-    if (!owner) continue;
-    const current = calendarsByInterviewer.get(rule.interviewerId) ?? {
-      interviewerId: rule.interviewerId,
-      interviewerName: owner.name,
-      interviewerRole: owner.primaryRole.replace(/_/g, " "),
-      chapterId: owner.chapterId,
-      chapterName: owner.chapterName,
-      rules: [],
-      overrides: [],
-      nextOpenSlots: [],
-    };
-    current.rules.push(toRuleView(rule));
-    calendarsByInterviewer.set(rule.interviewerId, current);
-  }
-
-  for (const override of overrides) {
-    const current = calendarsByInterviewer.get(override.interviewerId);
-    if (!current) continue;
-    current.overrides.push(toOverrideView(override));
-  }
-
-  for (const [interviewerId, calendar] of calendarsByInterviewer.entries()) {
-    const owner = interviewerDirectory.get(interviewerId);
-    if (!owner) continue;
-    calendar.nextOpenSlots = generateInterviewSlots({
-      interviewerId,
-      domain: "HIRING",
-      rules: rules.filter((rule) => rule.interviewerId === interviewerId) as AvailabilityRuleLike[],
-      overrides: overrides.filter((override) => override.interviewerId === interviewerId) as AvailabilityOverrideLike[],
-      busyIntervals: busyByInterviewer.get(interviewerId) ?? [],
-      warningIntervals: owner.chapterId ? warningsByChapter.get(owner.chapterId) ?? [] : [],
-      rangeStart: now,
-      days: 14,
-    })
-      .slice(0, 6)
-      .map((slot) =>
-        toSlotView(slot, owner.name, owner.primaryRole.replace(/_/g, " "))
-      );
+    for (const request of bookedRequests) {
+      if (!request.scheduledAt) continue;
+      const list = bookedTimesByInterviewer[request.interviewerId] ?? [];
+      list.push({
+        scheduledAt: request.scheduledAt.toISOString(),
+        duration: request.duration,
+        label: request.interviewee.name ?? "Another interview",
+        confirmed: request.status === "BOOKED",
+      });
+      bookedTimesByInterviewer[request.interviewerId] = list;
+    }
   }
 
   return {
@@ -2182,342 +1781,36 @@ export async function getInterviewScheduleData(): Promise<InterviewSchedulePageD
       atRisk: workflows.filter((workflow) => workflow.isAtRisk).length,
     },
     workflows,
-    calendars: Array.from(calendarsByInterviewer.values()).sort((left, right) =>
-      left.interviewerName.localeCompare(right.interviewerName)
-    ),
+    bookedTimesByInterviewer,
     interviewerOptions,
   };
 }
 
-function ensureViewerCanManageInterviewer(viewer: ViewerContext, interviewer: InterviewerOption) {
-  if (viewer.isAdmin) return;
-  if (!viewer.isReviewer) {
-    throw new Error("Only reviewers can manage interviewer calendars.");
-  }
-  if (!viewer.chapterId || interviewer.chapterId !== viewer.chapterId) {
-    throw new Error("You can only manage interviewer calendars in your own chapter.");
-  }
-}
-
-export async function createInterviewAvailabilityRule(formData: FormData) {
-  const viewer = await getViewerContext();
-  if (!viewer.isReviewer) {
-    throw new Error("Only reviewers can manage interview availability.");
-  }
-
-  const interviewerId = getString(formData, "interviewerId");
-  const interviewer = (await getEligibleInterviewers(viewer.chapterId, viewer.isAdmin)).find(
-    (option) => option.id === interviewerId
-  );
-  if (!interviewer) {
-    throw new Error("Interviewer not found or not eligible.");
-  }
-
-  ensureViewerCanManageInterviewer(viewer, interviewer);
-
-  const dayOfWeek = Number(getString(formData, "dayOfWeek"));
-  if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
-    throw new Error("Day of week must be between 0 (Sunday) and 6 (Saturday).");
-  }
-  const startTime = getString(formData, "startTime");
-  const endTime = getString(formData, "endTime");
-  const timeFormat = /^([01]\d|2[0-3]):[0-5]\d$/;
-  if (!timeFormat.test(startTime) || !timeFormat.test(endTime)) {
-    throw new Error("Start and end time must be in HH:mm format.");
-  }
-  if (startTime >= endTime) {
-    throw new Error("End time must be after start time.");
-  }
-  const timezone = getString(formData, "timezone", false) || "America/New_York";
-  const scope = (getString(formData, "scope", false) || "ALL") as InterviewAvailabilityScope;
-  const slotDuration = getNumber(formData, "slotDuration", 30);
-  const bufferMinutes = getNumber(formData, "bufferMinutes", 10);
-  if (slotDuration <= 0) {
-    throw new Error("Slot duration must be greater than zero.");
-  }
-  if (bufferMinutes < 0) {
-    throw new Error("Buffer minutes cannot be negative.");
-  }
-  const meetingLink = getString(formData, "meetingLink", false) || null;
-  const locationLabel = getString(formData, "locationLabel", false) || null;
-
-  await prisma.interviewAvailabilityRule.create({
-    data: {
-      interviewerId,
-      chapterId: interviewer.chapterId,
-      dayOfWeek,
-      startTime,
-      endTime,
-      timezone,
-      scope,
-      slotDuration,
-      bufferMinutes,
-      meetingLink,
-      locationLabel,
-    },
-  });
-
-  revalidatePath("/interviews/schedule");
-  revalidatePath("/chapter");
-}
-
-export async function deactivateInterviewAvailabilityRule(formData: FormData) {
-  const viewer = await getViewerContext();
-  if (!viewer.isReviewer) {
-    throw new Error("Only reviewers can manage interview availability.");
-  }
-
-  const ruleId = getString(formData, "ruleId");
-  const rule = await prisma.interviewAvailabilityRule.findUnique({
-    where: { id: ruleId },
-    select: {
-      id: true,
-      interviewerId: true,
-      chapterId: true,
-    },
-  });
-  if (!rule) throw new Error("Availability rule not found.");
-
-  const interviewer = {
-    id: rule.interviewerId,
-    name: "",
-    primaryRole: "STAFF",
-    chapterId: rule.chapterId,
-    chapterName: null,
-  } satisfies InterviewerOption;
-  ensureViewerCanManageInterviewer(viewer, interviewer);
-
-  await prisma.interviewAvailabilityRule.update({
-    where: { id: ruleId },
-    data: { isActive: false },
-  });
-
-  revalidatePath("/interviews/schedule");
-  revalidatePath("/chapter");
-}
-
-export async function createInterviewAvailabilityOverride(formData: FormData) {
-  const viewer = await getViewerContext();
-  if (!viewer.isReviewer) {
-    throw new Error("Only reviewers can manage interview availability.");
-  }
-
-  const interviewerId = getString(formData, "interviewerId");
-  const interviewer = (await getEligibleInterviewers(viewer.chapterId, viewer.isAdmin)).find(
-    (option) => option.id === interviewerId
-  );
-  if (!interviewer) {
-    throw new Error("Interviewer not found or not eligible.");
-  }
-
-  ensureViewerCanManageInterviewer(viewer, interviewer);
-
-  const type = (getString(formData, "type") as InterviewAvailabilityOverrideType);
-  const scope = (getString(formData, "scope", false) || "ALL") as InterviewAvailabilityScope;
-  const startsAt = getOptionalDateTime(getString(formData, "startsAt"));
-  const endsAt = getOptionalDateTime(getString(formData, "endsAt"));
-  if (!startsAt || !endsAt) throw new Error("Start and end time are required.");
-  if (startsAt >= endsAt) throw new Error("Override end time must be after the start time.");
-
-  await prisma.interviewAvailabilityOverride.create({
-    data: {
-      interviewerId,
-      chapterId: interviewer.chapterId,
-      type,
-      scope,
-      startsAt,
-      endsAt,
-      timezone: getString(formData, "timezone", false) || "America/New_York",
-      slotDuration: formData.get("slotDuration") ? getNumber(formData, "slotDuration", 30) : null,
-      bufferMinutes: formData.get("bufferMinutes") ? getNumber(formData, "bufferMinutes", 10) : null,
-      meetingLink: getString(formData, "meetingLink", false) || null,
-      locationLabel: getString(formData, "locationLabel", false) || null,
-      note: getString(formData, "note", false) || null,
-    },
-  });
-
-  revalidatePath("/interviews/schedule");
-  revalidatePath("/chapter");
-}
-
-export async function deactivateInterviewAvailabilityOverride(formData: FormData) {
-  const viewer = await getViewerContext();
-  if (!viewer.isReviewer) {
-    throw new Error("Only reviewers can manage interview availability.");
-  }
-
-  const overrideId = getString(formData, "overrideId");
-  const override = await prisma.interviewAvailabilityOverride.findUnique({
-    where: { id: overrideId },
-    select: {
-      id: true,
-      interviewerId: true,
-      chapterId: true,
-    },
-  });
-  if (!override) throw new Error("Availability override not found.");
-
-  const interviewer = {
-    id: override.interviewerId,
-    name: "",
-    primaryRole: "STAFF",
-    chapterId: override.chapterId,
-    chapterName: null,
-  } satisfies InterviewerOption;
-  ensureViewerCanManageInterviewer(viewer, interviewer);
-
-  await prisma.interviewAvailabilityOverride.update({
-    where: { id: overrideId },
-    data: { isActive: false },
-  });
-
-  revalidatePath("/interviews/schedule");
-  revalidatePath("/chapter");
-}
-
-async function resolveInterviewerSlotContext({
+async function resolveDirectBookingContext({
   interviewerId,
-  domain,
-  scheduledAt,
   requestedDuration,
+  meetingLink,
+  sourceTimezone,
 }: {
   interviewerId: string;
-  domain: InterviewDomain;
-  scheduledAt: Date;
   requestedDuration: number;
+  meetingLink: string | null;
+  sourceTimezone: string;
 }): Promise<SlotContext> {
-  const rangeStart = new Date(scheduledAt);
-  rangeStart.setHours(0, 0, 0, 0);
-
-  const rangeEnd = new Date(rangeStart.getTime() + 2 * 24 * 60 * 60 * 1000);
   const interviewer = await prisma.user.findUnique({
     where: { id: interviewerId },
-    select: { chapterId: true },
+    select: { id: true },
   });
-
-  const { rules, overrides } = await getCalendarResources({
-    chapterIds: interviewer?.chapterId ? [interviewer.chapterId] : [],
-    interviewerIds: [interviewerId],
-    rangeEnd,
-  });
-
-  const matchingSlot = generateInterviewSlots({
-    interviewerId,
-    domain,
-    rules: rules.filter((rule) => rule.interviewerId === interviewerId) as AvailabilityRuleLike[],
-    overrides: overrides.filter((override) => override.interviewerId === interviewerId) as AvailabilityOverrideLike[],
-    busyIntervals: [],
-    rangeStart,
-    days: 2,
-  }).find((slot) => slot.startsAt.getTime() === scheduledAt.getTime());
-
-  if (!matchingSlot) {
-    throw new Error("That interview time is no longer inside an active interviewer calendar.");
+  if (!interviewer) {
+    throw new Error("Selected interviewer was not found.");
   }
 
   return {
-    duration: matchingSlot.duration ?? requestedDuration,
-    meetingLink: matchingSlot.meetingLink,
-    locationLabel: matchingSlot.locationLabel,
-    sourceTimezone: matchingSlot.timezone,
+    duration: requestedDuration,
+    meetingLink,
+    locationLabel: null,
+    sourceTimezone,
   };
-}
-
-async function assertNoBookingConflict({
-  interviewerId,
-  intervieweeId,
-  scheduledAt,
-  duration,
-  ignoreRequestId,
-  ignoreApplicationId,
-  ignoreGateId,
-}: {
-  interviewerId: string;
-  intervieweeId: string;
-  scheduledAt: Date;
-  duration: number;
-  ignoreRequestId?: string | null;
-  ignoreApplicationId?: string | null;
-  ignoreGateId?: string | null;
-}) {
-  const endsAt = new Date(scheduledAt.getTime() + duration * 60_000);
-
-  const [
-    interviewerRequests,
-    intervieweeRequests,
-    interviewerHiringSlots,
-    intervieweeHiringSlots,
-    interviewerReadinessSlots,
-    intervieweeReadinessSlots,
-  ] = await Promise.all([
-    prisma.interviewSchedulingRequest.findMany({
-      where: {
-        interviewerId,
-        scheduledAt: { not: null },
-        status: { in: ["BOOKED", "RESCHEDULE_REQUESTED"] },
-        ...(ignoreRequestId ? { id: { not: ignoreRequestId } } : {}),
-      },
-      select: { scheduledAt: true, duration: true },
-    }),
-    prisma.interviewSchedulingRequest.findMany({
-      where: {
-        intervieweeId,
-        scheduledAt: { not: null },
-        status: { in: ["BOOKED", "RESCHEDULE_REQUESTED"] },
-        ...(ignoreRequestId ? { id: { not: ignoreRequestId } } : {}),
-      },
-      select: { scheduledAt: true, duration: true },
-    }),
-    prisma.interviewSlot.findMany({
-      where: {
-        interviewerId,
-        status: "CONFIRMED",
-        ...(ignoreApplicationId ? { applicationId: { not: ignoreApplicationId } } : {}),
-      },
-      select: { scheduledAt: true, duration: true },
-    }),
-    prisma.interviewSlot.findMany({
-      where: {
-        application: { applicantId: intervieweeId },
-        status: "CONFIRMED",
-        ...(ignoreApplicationId ? { applicationId: { not: ignoreApplicationId } } : {}),
-      },
-      select: { scheduledAt: true, duration: true },
-    }),
-    prisma.instructorInterviewSlot.findMany({
-      where: {
-        createdById: interviewerId,
-        status: "CONFIRMED",
-        ...(ignoreGateId ? { gateId: { not: ignoreGateId } } : {}),
-      },
-      select: { scheduledAt: true, duration: true },
-    }),
-    prisma.instructorInterviewSlot.findMany({
-      where: {
-        gate: { instructorId: intervieweeId },
-        status: "CONFIRMED",
-        ...(ignoreGateId ? { gateId: { not: ignoreGateId } } : {}),
-      },
-      select: { scheduledAt: true, duration: true },
-    }),
-  ]);
-
-  const allBusyIntervals = [
-    ...interviewerRequests,
-    ...intervieweeRequests,
-    ...interviewerHiringSlots,
-    ...intervieweeHiringSlots,
-    ...interviewerReadinessSlots,
-    ...intervieweeReadinessSlots,
-  ];
-
-  for (const interval of allBusyIntervals) {
-    if (!interval.scheduledAt) continue;
-    const intervalEndsAt = new Date(interval.scheduledAt.getTime() + interval.duration * 60_000);
-    if (rangesOverlap(scheduledAt, endsAt, interval.scheduledAt, intervalEndsAt)) {
-      throw new Error("That interview time conflicts with an existing booking.");
-    }
-  }
 }
 
 async function syncHiringBooking({
@@ -2640,11 +1933,14 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
   const scheduledAt = getOptionalDateTime(getString(formData, "scheduledAt"));
   const requestedDuration = getNumber(formData, "duration", 30);
   const note = getString(formData, "note", false) || null;
+  const meetingLink = getString(formData, "meetingLink", false) || null;
+  const sourceTimezone = getString(formData, "sourceTimezone", false) || "America/New_York";
 
   if (!scheduledAt) throw new Error("A valid interview time is required.");
   if (scheduledAt.getTime() <= Date.now()) {
     throw new Error("Interview time must be in the future.");
   }
+  if (!interviewerId) throw new Error("Select an interviewer for this interview.");
 
   if (domain === "HIRING") {
     const application = await prisma.application.findUnique({
@@ -2682,18 +1978,11 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
       throw new Error("This application already has an active interview scheduling request.");
     }
 
-    const slotContext = await resolveInterviewerSlotContext({
+    const slotContext = await resolveDirectBookingContext({
       interviewerId,
-      domain,
-      scheduledAt,
       requestedDuration,
-    });
-    await assertNoBookingConflict({
-      interviewerId,
-      intervieweeId: application.applicantId,
-      scheduledAt,
-      duration: slotContext.duration,
-      ignoreApplicationId: workflowId,
+      meetingLink,
+      sourceTimezone,
     });
 
     const request = await prisma.interviewSchedulingRequest.create({
@@ -2816,18 +2105,11 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
       throw new Error("This interview gate already has an active scheduling request.");
     }
 
-    const slotContext = await resolveInterviewerSlotContext({
+    const slotContext = await resolveDirectBookingContext({
       interviewerId,
-      domain,
-      scheduledAt,
       requestedDuration,
-    });
-    await assertNoBookingConflict({
-      interviewerId,
-      intervieweeId: gate.instructorId,
-      scheduledAt,
-      duration: slotContext.duration,
-      ignoreGateId: workflowId,
+      meetingLink,
+      sourceTimezone,
     });
 
     const request = await prisma.interviewSchedulingRequest.create({
@@ -3021,11 +2303,14 @@ export async function confirmInterviewReschedule(formData: FormData) {
   const scheduledAt = getOptionalDateTime(getString(formData, "scheduledAt"));
   const requestedDuration = getNumber(formData, "duration", 30);
   const note = getString(formData, "note", false) || "Interview reschedule confirmed.";
+  const meetingLink = getString(formData, "meetingLink", false) || null;
+  const sourceTimezone = getString(formData, "sourceTimezone", false) || "America/New_York";
 
   if (!scheduledAt) throw new Error("A valid interview time is required.");
   if (scheduledAt.getTime() <= Date.now()) {
     throw new Error("Interview time must be in the future.");
   }
+  if (!interviewerId) throw new Error("Select an interviewer for this interview.");
 
   const request = await prisma.interviewSchedulingRequest.findUnique({
     where: { id: requestId },
@@ -3053,20 +2338,11 @@ export async function confirmInterviewReschedule(formData: FormData) {
     throw new Error("You can only manage interviews for your own chapter.");
   }
 
-  const slotContext = await resolveInterviewerSlotContext({
+  const slotContext = await resolveDirectBookingContext({
     interviewerId,
-    domain: request.domain,
-    scheduledAt,
     requestedDuration,
-  });
-  await assertNoBookingConflict({
-    interviewerId,
-    intervieweeId: request.intervieweeId,
-    scheduledAt,
-    duration: slotContext.duration,
-    ignoreRequestId: request.id,
-    ignoreApplicationId: request.applicationId,
-    ignoreGateId: request.gateId,
+    meetingLink,
+    sourceTimezone,
   });
 
   if (request.domain === "HIRING" && request.applicationId) {
