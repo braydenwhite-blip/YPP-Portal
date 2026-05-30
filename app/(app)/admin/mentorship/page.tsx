@@ -321,24 +321,21 @@ export default async function AdminMentorshipPage({
 
   return (
     <div>
-      <ActionSummaryHeader
-        badge="Admin · Instructor Mentorship"
-        title={ADMIN_MENTORSHIP_PAGE_TITLE}
-        purpose="One command center for program health, assignments, capacity, approvals, G&R, committees, and analytics."
-        status={
-          unassignedCount > 0
-            ? { label: `${unassignedCount} mentee(s) awaiting a mentor`, tone: "pending" }
-            : { label: "Every active mentee has a mentor", tone: "success" }
-        }
-        nextAction={{
-          label: "Review what needs attention →",
-          href: "/admin/mentorship?tab=needs-attention",
-        }}
-        secondaryAction={{
-          label: "Open Assignments →",
-          href: "/admin/mentorship?tab=assignments",
-        }}
-      />
+      <div className="topbar">
+        <div>
+          <p className="badge">Admin · Instructor Mentorship</p>
+          <h1 className="page-title">{ADMIN_MENTORSHIP_PAGE_TITLE}</h1>
+          <p className="page-subtitle">
+            Program health, approvals, pairings, goals, and committees for the
+            instructor mentorship program.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/admin/mentorship-program" className="button secondary small">
+            Full Command Center →
+          </Link>
+        </div>
+      </div>
 
       {/* Tab bar */}
       <div
