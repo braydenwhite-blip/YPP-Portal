@@ -20,24 +20,68 @@ import {
  */
 
 const ACTION_ITEM_INCLUDE = {
-  lead: { select: { id: true, name: true, email: true } },
-  createdBy: { select: { id: true, name: true, email: true } },
-  department: { select: { id: true, name: true } },
+  lead: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      primaryRole: true,
+      profile: { select: { avatarUrl: true } },
+    },
+  },
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      primaryRole: true,
+      profile: { select: { avatarUrl: true } },
+    },
+  },
+  department: { select: { id: true, name: true, slug: true } },
   assignments: {
     select: {
       id: true,
       role: true,
       createdAt: true,
-      user: { select: { id: true, name: true, email: true } },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          primaryRole: true,
+          profile: { select: { avatarUrl: true } },
+        },
+      },
     },
   },
   comments: {
     orderBy: { createdAt: "desc" },
-    include: { author: { select: { id: true, name: true, email: true } } },
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          primaryRole: true,
+          profile: { select: { avatarUrl: true } },
+        },
+      },
+    },
   },
   fileLinks: {
     orderBy: { addedAt: "desc" },
-    include: { addedBy: { select: { id: true, name: true, email: true } } },
+    include: {
+      addedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          primaryRole: true,
+          profile: { select: { avatarUrl: true } },
+        },
+      },
+    },
   },
 } satisfies Prisma.ActionItemInclude;
 

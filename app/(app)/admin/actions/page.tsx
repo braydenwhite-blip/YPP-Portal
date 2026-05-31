@@ -82,12 +82,17 @@ export default async function ActionsIndexPage() {
                     {inputs.length > 0 && ` · Input: ${inputs.length}`}
                   </span>
                 </div>
-                <Link
-                  href={`/admin/actions/${item.id}/edit`}
-                  className="button outline small"
-                >
-                  Edit
-                </Link>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <Link href={`/actions/${item.id}`} className="button small">
+                    Open
+                  </Link>
+                  <Link
+                    href={`/admin/actions/${item.id}/edit`}
+                    className="button outline small"
+                  >
+                    Edit
+                  </Link>
+                </div>
               </div>
             );
           })}

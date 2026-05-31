@@ -10,6 +10,8 @@
 
 import type { InteractiveBeatKind } from "@prisma/client";
 
+export type { InteractiveBeatKind };
+
 /**
  * Audience taxonomy for journey assignment. Maps onto the existing
  * `RoleType` / `AdminSubtype` enums but stays editor-local so the editor
