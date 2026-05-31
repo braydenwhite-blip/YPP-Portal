@@ -4,6 +4,10 @@ import {
   getInstructorReadinessMany,
   type InstructorReadiness,
 } from "@/lib/instructor-readiness";
+import {
+  computeInstructorCompleteness,
+  type InstructorCompleteness,
+} from "@/lib/instructor-completeness";
 
 export type InstructorOpsStage =
   | "APPLICANTS"
@@ -76,6 +80,7 @@ export type InstructorOpsRecord = {
   latestActivityAt: string;
   latestActivityLabel: string;
   profileHref: string;
+  completeness: InstructorCompleteness;
 };
 
 export type InstructorOpsProfile = {
@@ -876,6 +881,23 @@ function buildOpsRecord(user: InstructorOpsUser, readiness: InstructorReadiness)
     attentionFlags,
     activeAssignmentCount,
   });
+  const availabilityTags = getAvailabilityTags(user);
+  const tags = buildTags({ user, readiness, assignmentInterestAreas });
+  const completeness = computeInstructorCompleteness({
+    isInstructor,
+    phone: user.phone,
+    city: user.profile?.city ?? application?.city ?? null,
+    stateProvince: user.profile?.stateProvince ?? application?.stateProvince ?? null,
+    school: user.profile?.school ?? application?.schoolName ?? null,
+    bio: user.profile?.bio ?? null,
+    avatarUrl: user.profile?.avatarUrl ?? null,
+    availabilityTags,
+    availabilityText: application?.availability ?? null,
+    subjectTags: tags,
+    hasActiveMentor: Boolean(mentor),
+    trainingComplete: readiness.trainingComplete,
+    profileHref: `/admin/instructors/${user.id}`,
+  });
   const latestActivityAt = latestDateIso([
     user.updatedAt,
     application?.updatedAt,
@@ -937,8 +959,8 @@ function buildOpsRecord(user: InstructorOpsUser, readiness: InstructorReadiness)
       ),
     leadershipTrack: getLeadershipTrack(user),
     growthTier: user.instructorGrowthProfile?.currentTier ?? null,
-    tags: buildTags({ user, readiness, assignmentInterestAreas }),
-    availabilityTags: getAvailabilityTags(user),
+    tags,
+    availabilityTags,
     attentionFlags,
     needsAttention: attentionFlags.length > 0,
     application: application
@@ -953,6 +975,7 @@ function buildOpsRecord(user: InstructorOpsUser, readiness: InstructorReadiness)
     latestActivityAt,
     latestActivityLabel,
     profileHref: `/admin/instructors/${user.id}`,
+    completeness,
     status: stage,
   };
 }

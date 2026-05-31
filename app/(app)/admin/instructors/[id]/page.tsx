@@ -8,6 +8,10 @@ import {
   getInstructorOpsProfile,
 } from "@/lib/instructor-ops";
 import { loadInstructorProfileDetail, listAllTags } from "@/lib/instructor-ops-actions";
+import {
+  completenessTone,
+  type InstructorCompleteness,
+} from "@/lib/instructor-completeness";
 import { TagsEditor, NotesEditor, TasksEditor } from "./profile-editor";
 
 export const dynamic = "force-dynamic";
@@ -86,9 +90,9 @@ export default async function AdminInstructorProfilePage({
           </div>
           <div>
             <div className="instructor-profile-breadcrumbs">
-              <Link href="/admin/instructors">Pipeline board</Link>
+              <Link href="/admin/instructors">Database</Link>
               <span>/</span>
-              <Link href="/admin/instructors/directory">Directory</Link>
+              <Link href="/admin/instructors/hub">Pipeline hub</Link>
             </div>
             <p className="badge">{record.stageLabel}</p>
             <h1 className="page-title">{record.name}</h1>
@@ -107,7 +111,7 @@ export default async function AdminInstructorProfilePage({
             Attention inbox
           </Link>
           <Link href="/admin/instructors" className="button">
-            Back to board
+            Back to database
           </Link>
         </div>
       </div>
@@ -130,6 +134,8 @@ export default async function AdminInstructorProfilePage({
           detail={record.attentionFlags[0]?.title ?? "No active flags"}
         />
       </div>
+
+      <CompletenessBanner completeness={record.completeness} />
 
       <nav className="instructor-profile-tabs" aria-label="Instructor profile sections">
         <a href="#overview">Overview</a>
@@ -426,6 +432,65 @@ function ProfileMetric({
       <span className="kpi-label">{label}</span>
       <span>{detail}</span>
     </div>
+  );
+}
+
+function CompletenessBanner({
+  completeness,
+}: {
+  completeness: InstructorCompleteness;
+}) {
+  const tone = completenessTone(completeness.score);
+  const palette =
+    tone === "success"
+      ? { bg: "#f0fdf4", border: "#bbf7d0", fg: "#166534" }
+      : tone === "warning"
+        ? { bg: "#fffbeb", border: "#fde68a", fg: "#854d0e" }
+        : { bg: "#fef2f2", border: "#fecaca", fg: "#991b1b" };
+
+  return (
+    <section
+      className="card"
+      style={{
+        background: palette.bg,
+        border: `1px solid ${palette.border}`,
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ fontSize: 28, fontWeight: 700, color: palette.fg, minWidth: 64 }}>
+        {completeness.score}%
+      </div>
+      <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{ fontWeight: 600, color: palette.fg }}>
+          Profile completeness
+        </div>
+        {completeness.missing.length === 0 ? (
+          <div style={{ fontSize: 13, color: palette.fg }}>
+            All tracked fields are on file.
+          </div>
+        ) : (
+          <div style={{ fontSize: 13, color: palette.fg, display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+            <span>Missing:</span>
+            {completeness.missing.map((m) => (
+              <span
+                key={m.code}
+                style={{
+                  padding: "1px 8px",
+                  borderRadius: 9999,
+                  background: "rgba(0,0,0,0.05)",
+                  fontWeight: 600,
+                }}
+              >
+                {m.label}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 

@@ -63,11 +63,11 @@ export default async function InstructorAttentionPage() {
           </p>
         </div>
         <div className="instructor-ops-header-actions">
-          <Link href="/admin/instructors" className="button secondary">
+          <Link href="/admin/instructors/hub" className="button secondary">
             Pipeline hub
           </Link>
-          <Link href="/admin/instructors/directory" className="button">
-            Directory
+          <Link href="/admin/instructors" className="button">
+            Database
           </Link>
         </div>
       </div>

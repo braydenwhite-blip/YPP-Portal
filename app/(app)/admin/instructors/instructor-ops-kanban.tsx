@@ -233,8 +233,8 @@ export default function InstructorOpsKanban({
         }
         toolbarExtra={
           <div className="instructor-ops-kanban-toolbar">
-            <Link href="/admin/instructors/directory" className="button small secondary">
-              Directory
+            <Link href="/admin/instructors" className="button small secondary">
+              Database
             </Link>
             <Link href="/admin/instructors/attention" className="button small">
               Attention inbox
