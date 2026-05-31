@@ -285,6 +285,8 @@ export type InstructorApplicationInput = z.infer<typeof instructorApplicationSch
 // the standard track to keep reviewer cognitive load low.
 
 export const summerWorkshopInstructorApplicationSchema = instructorApplicationSchema.extend({
+  // Phone is required for Summer Workshop so organizers can reach instructors quickly.
+  phoneNumber: z.string().min(7, "Please enter a valid phone number.").max(30, "Phone number should be under 30 characters."),
   // Relax the heaviest essay fields.
   teachingExperience: z
     .string()

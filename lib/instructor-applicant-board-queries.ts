@@ -71,6 +71,7 @@ const PIPELINE_SELECT = {
   legalName: true,
   preferredFirstName: true,
   lastName: true,
+  phoneNumber: true,
   offeredSlots: {
     select: { id: true, scheduledAt: true, confirmedAt: true },
   },
