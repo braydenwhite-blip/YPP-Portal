@@ -41,7 +41,10 @@ export default async function InstructorLifecycleBoardPage() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <Link href="/admin/instructors" className="button secondary">
-            ← Ops Hub
+            ← Database
+          </Link>
+          <Link href="/admin/instructors/hub" className="button secondary">
+            Ops Hub
           </Link>
           <Link href="/admin/mentorship?tab=assignments" className="button secondary">
             Mentor matching
