@@ -95,6 +95,25 @@ export async function getMyActionItems(
 }
 
 /**
+ * All actions the `viewer` is allowed to see, newest first. Officers see every
+ * item (subject to OFFICERS_ONLY visibility); members see only their own. Used
+ * by the lightweight Actions index that hosts the create/edit form routes.
+ */
+export async function listVisibleActionItems(
+  viewer: ActionViewer
+): Promise<ActionItemWithRelations[]> {
+  if (!isActionTrackerEnabled()) return [];
+
+  const items = await prisma.actionItem.findMany({
+    include: ACTION_ITEM_INCLUDE,
+    orderBy: [{ createdAt: "desc" }],
+    take: 200,
+  });
+
+  return items.filter((item) => canViewAction(viewer, toAccessShape(item)));
+}
+
+/**
  * Single action by id, enforcing visibility for `viewer`. Returns null when the
  * action does not exist, the viewer cannot see it, or the feature flag is off —
  * the existing "not found / access denied" convention.
@@ -112,4 +131,41 @@ export async function getActionItemById(
   if (!item) return null;
   if (!canViewAction(viewer, toAccessShape(item))) return null;
   return item;
+}
+
+export type ActionPickerUser = {
+  id: string;
+  name: string | null;
+  email: string;
+  primaryRole: string | null;
+};
+
+/**
+ * Candidate users for the Lead / Executing / Input pickers on the Action form.
+ * Active (non-archived) portal users, name-sorted. Kept broad on purpose: a
+ * Lead/Executor is typically officer-tier, but Input can be requested from
+ * anyone, so we don't pre-filter by role here. Capped for payload sanity.
+ */
+export async function listActionAssignableUsers(): Promise<ActionPickerUser[]> {
+  if (!isActionTrackerEnabled()) return [];
+
+  return prisma.user.findMany({
+    where: { archivedAt: null },
+    select: { id: true, name: true, email: true, primaryRole: true },
+    orderBy: [{ name: "asc" }, { email: "asc" }],
+    take: 500,
+  });
+}
+
+export type ActionDepartmentOption = { id: string; name: string };
+
+/** Active (non-archived) functional departments for the Action form picker. */
+export async function listActionDepartments(): Promise<ActionDepartmentOption[]> {
+  if (!isActionTrackerEnabled()) return [];
+
+  return prisma.department.findMany({
+    where: { archivedAt: null },
+    select: { id: true, name: true },
+    orderBy: [{ name: "asc" }],
+  });
 }
