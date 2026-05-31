@@ -36,6 +36,10 @@ enum AdminSubtype {
   INTAKE_ADMIN
   CONTENT_ADMIN
   COMMUNICATIONS_ADMIN
+  // Co-President & Chief People Officer. Top people-strategy role: owns Action
+  // Items delegation, reviews, and the People Dashboard. Reports to the Board
+  // (represented here by SUPER_ADMIN). Added in the People Strategy layer.
+  CPO
 }
 
 enum WorkflowKind {
