@@ -151,6 +151,50 @@ export async function requireAnyAdminSubtype(
 }
 
 /**
+ * People Strategy tiers, mapped onto the real roles/subtypes in this codebase.
+ * See INTEGRATION_MAP.md → "Role tiers" for the full table.
+ */
+
+/** Roles considered "Officer-tier and above" for the People Strategy layer. */
+export const OFFICER_TIER_ROLES = [
+  "ADMIN",
+  "STAFF",
+  "CHAPTER_PRESIDENT",
+  "HIRING_CHAIR",
+] as const;
+
+/**
+ * CPO guard. The Co-President & Chief People Officer is modelled as the
+ * `CPO` AdminSubtype. The Board has no dedicated role in this codebase, so the
+ * org-owner tier (`SUPER_ADMIN`) stands in for "Board" — it passes too.
+ *
+ * Used by later People Strategy phases (People Dashboard, succession flags).
+ */
+export async function requireCPO(): Promise<SessionUser> {
+  const sessionUser = await requireSessionUser();
+  if (!hasAnyAdminSubtype(sessionUser.adminSubtypes, ["CPO", "SUPER_ADMIN"])) {
+    throw new Error("Unauthorized");
+  }
+  return sessionUser;
+}
+
+/**
+ * Officer guard. Passes for Officer-tier and above: STAFF, Chapter Presidents,
+ * Hiring Chairs, and any ADMIN (which includes Sr. Leadership, the CPO, and the
+ * Board/SUPER_ADMIN since those all carry the ADMIN role).
+ *
+ * Used by later People Strategy phases (Action Items, Officer Meetings,
+ * My Actions / All Actions views).
+ */
+export async function requireOfficer(): Promise<SessionUser> {
+  const sessionUser = await requireSessionUser();
+  if (!hasAnyRole(sessionUser.roles, [...OFFICER_TIER_ROLES])) {
+    throw new Error("Unauthorized");
+  }
+  return sessionUser;
+}
+
+/**
  * Journey Editor access. ADMIN or CONTENT_ADMIN can edit and publish;
  * STAFF can view in read-only mode. Anyone else throws Unauthorized.
  *

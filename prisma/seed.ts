@@ -30,6 +30,7 @@ async function main() {
     throw new Error("SEED_PASSWORD environment variable is required. Set it before running seed.");
   }
   const passwordHash = await bcrypt.hash(seedPassword, 10);
+  const verifiedAt = new Date();
 
   const scarsdale = await findOrCreateChapter({
     name: "Scarsdale",
@@ -61,8 +62,6 @@ async function main() {
     },
   });
 
-  const verifiedAt = new Date();
-
   const adminSubtypeSeeds = [
     { subtype: AdminSubtype.SUPER_ADMIN, isDefaultOwner: true },
     { subtype: AdminSubtype.HIRING_ADMIN, isDefaultOwner: false },
@@ -72,6 +71,8 @@ async function main() {
     { subtype: AdminSubtype.COMMUNICATIONS_ADMIN, isDefaultOwner: false },
   ] as const;
 
+  // Brayden White is the Co-President & Chief People Officer (CPO). The CPO is
+  // modelled as the ADMIN role carrying the CPO AdminSubtype.
   await prisma.user.upsert({
     where: { email: "brayden.white@youthpassionproject.org" },
     create: {
@@ -85,6 +86,9 @@ async function main() {
       roles: {
         create: [{ role: RoleType.ADMIN }, { role: RoleType.INSTRUCTOR }],
       },
+      adminSubtypes: {
+        create: [{ subtype: AdminSubtype.CPO, isDefaultOwner: true }],
+      },
     },
     update: {
       name: "Brayden White",
@@ -96,6 +100,10 @@ async function main() {
       roles: {
         deleteMany: {},
         create: [{ role: RoleType.ADMIN }, { role: RoleType.INSTRUCTOR }],
+      },
+      adminSubtypes: {
+        deleteMany: {},
+        create: [{ subtype: AdminSubtype.CPO, isDefaultOwner: true }],
       },
     },
   });
