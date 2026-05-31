@@ -37,6 +37,20 @@ export const ACTION_COMMENT_TYPE_VALUES: ActionCommentType[] = [
   "INPUT_REQUESTED",
 ];
 
+/** Human-readable labels for the status enum (used by the Action form / table). */
+export const ACTION_STATUS_LABELS: Record<ActionItemStatus, string> = {
+  NOT_STARTED: "Not started",
+  IN_PROGRESS: "In progress",
+  COMPLETE: "Complete",
+  OVERDUE: "Overdue",
+};
+
+/** Human-readable labels for the visibility enum. */
+export const ACTION_VISIBILITY_LABELS: Record<ActionItemVisibility, string> = {
+  ALL_LEADERSHIP: "All leadership",
+  OFFICERS_ONLY: "Officers only",
+};
+
 /** Routes revalidated after an Action Item mutation. */
 export const ACTION_ITEM_PATHS = [
   "/my-actions",
