@@ -1,5 +1,5 @@
 import type {
-  ActionItemAssignmentRole,
+  ActionAssignmentRole,
   ActionItemVisibility,
 } from "@prisma/client";
 
@@ -29,7 +29,7 @@ import {
  * document it"): an OFFICERS_ONLY action is visible ONLY to officer-tier and
  * above (and CPO/Board), even if a non-officer is explicitly assigned to it.
  * Assignment does NOT grant a member access to an OFFICERS_ONLY item — the
- * stricter reading. Normal (LEADERSHIP) actions follow the assignment rule.
+ * stricter reading. ALL_LEADERSHIP actions follow the assignment rule below.
  */
 
 export type ActionViewer = {
@@ -44,7 +44,7 @@ export type ActionAccessShape = {
   leadId: string | null;
   createdById?: string | null;
   visibility: ActionItemVisibility;
-  assignments: Array<{ userId: string; role: ActionItemAssignmentRole }>;
+  assignments: Array<{ userId: string; role: ActionAssignmentRole }>;
 };
 
 /** Officer-tier and above (includes every ADMIN-tier user). */
@@ -71,7 +71,7 @@ export function isAssignedToAction(
 export function hasAssignmentRole(
   user: ActionViewer,
   action: ActionAccessShape,
-  role: ActionItemAssignmentRole
+  role: ActionAssignmentRole
 ): boolean {
   if (role === "LEAD" && action.leadId === user.id) return true;
   return action.assignments.some((a) => a.userId === user.id && a.role === role);
@@ -82,8 +82,8 @@ export function hasAssignmentRole(
  * - CPO / Board: all actions.
  * - OFFICERS_ONLY action: officer-tier and above only (stricter; assignment
  *   does not grant a member access).
- * - LEADERSHIP action: officer-tier sees all; members see only actions where
- *   they are LEAD, EXECUTING, or INPUT.
+ * - ALL_LEADERSHIP action: officer-tier sees all; members see only actions
+ *   where they are LEAD, EXECUTING, or INPUT.
  */
 export function canViewAction(user: ActionViewer, action: ActionAccessShape): boolean {
   if (isCpoOrBoard(user)) return true;

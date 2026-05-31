@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { ActionItemAssignmentRole, Prisma } from "@prisma/client";
+import type { ActionAssignmentRole, ActionCommentType, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser } from "@/lib/authorization";
@@ -35,10 +35,15 @@ import {
  * `action-permissions.ts` on the SERVER-resolved session user — UI checks are
  * never trusted.
  *
- * Role storage decision: a single LEAD is stored on `ActionItem.leadId`
- * (canonical, indexed); EXECUTING and INPUT assignments live in
- * `ActionItemAssignment`. The assignment-role API still accepts "LEAD" and
- * routes it to `leadId`, so callers have one uniform add/remove surface.
+ * Role storage: the single accountable lead lives on `ActionItem.leadId`
+ * (required, denormalized) and is mirrored as an `ActionAssignment` row with
+ * role LEAD; EXECUTING and INPUT assignments live only in `ActionAssignment`.
+ * The assignment-role API accepts "LEAD" and keeps both in sync, giving callers
+ * one uniform add/remove surface.
+ *
+ * Note: `ActionComment.type` only has NOTE / INPUT_REQUESTED in the 02A schema,
+ * so system-style events (status changes, assignment changes, flags) are
+ * recorded as NOTE comments with a descriptive, prefixed body.
  */
 
 function revalidateAll() {
@@ -57,11 +62,10 @@ const ACTION_ACCESS_SELECT = {
   leadId: true,
   createdById: true,
   visibility: true,
-  archivedAt: true,
   assignments: { select: { userId: true, role: true } },
 } satisfies Prisma.ActionItemSelect;
 
-type LoadedAccess = ActionAccessShape & { id: string; archivedAt: Date | null };
+type LoadedAccess = ActionAccessShape & { id: string };
 
 /** Load the access projection for an action, throwing not-found when missing. */
 async function loadAccess(id: string): Promise<LoadedAccess> {
@@ -75,21 +79,19 @@ async function loadAccess(id: string): Promise<LoadedAccess> {
     leadId: item.leadId,
     createdById: item.createdById,
     visibility: item.visibility,
-    archivedAt: item.archivedAt,
     assignments: item.assignments.map((a) => ({ userId: a.userId, role: a.role })),
   };
 }
 
-/** Append a system-style comment (used by status / assignment / flag events). */
+/** Append a system-style NOTE comment (status / assignment / flag events). */
 async function postSystemComment(
   tx: Prisma.TransactionClient,
   actionItemId: string,
   authorId: string,
-  type: "SYSTEM" | "STATUS_CHANGE" | "FLAG",
   body: string
 ) {
-  await tx.actionItemComment.create({
-    data: { actionItemId, authorId, type, body },
+  await tx.actionComment.create({
+    data: { actionItemId, authorId, type: "NOTE", body },
   });
 }
 
@@ -102,14 +104,11 @@ const OptionalText = z
   .max(10_000)
   .optional()
   .transform((v) => (v && v.length > 0 ? v : null));
+const RequiredDateString = z.string().trim().min(1);
 const OptionalDateString = z
   .string()
   .optional()
   .transform((v) => parseDateInput(v ?? ""));
-const OptionalUserId = z
-  .string()
-  .optional()
-  .transform((v) => (v && v.trim() ? v.trim() : null));
 const UserIdList = z
   .array(z.string().trim().min(1))
   .max(50)
@@ -121,15 +120,24 @@ const UserIdList = z
 const CreateActionItemSchema = z.object({
   title: NonEmptyString.max(300),
   description: OptionalText,
+  goalCategory: z
+    .string()
+    .trim()
+    .max(300)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  departmentId: NonEmptyString,
+  leadId: NonEmptyString,
   status: z.enum(ACTION_STATUS_VALUES as [string, ...string[]]).default("NOT_STARTED"),
-  priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).default("NORMAL"),
-  category: z
-    .enum(["INSTRUCTION", "TECHNOLOGY", "COMMUNICATION", "STAFF_MANAGEMENT"])
-    .default("INSTRUCTION"),
-  visibility: z.enum(ACTION_VISIBILITY_VALUES as [string, ...string[]]).default("LEADERSHIP"),
-  dueDate: OptionalDateString,
-  weekStart: OptionalDateString,
-  leadId: OptionalUserId,
+  visibility: z
+    .enum(ACTION_VISIBILITY_VALUES as [string, ...string[]])
+    .default("ALL_LEADERSHIP"),
+  deadlineStart: RequiredDateString,
+  deadlineEnd: OptionalDateString,
+  officerMeetingId: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
   executingUserIds: UserIdList,
   inputUserIds: UserIdList,
 });
@@ -143,8 +151,15 @@ export async function createActionItem(input: CreateActionItemInput) {
 
   const data = CreateActionItemSchema.parse(input);
 
-  const assignmentRows: Array<{ userId: string; role: ActionItemAssignmentRole }> = [
-    ...data.executingUserIds.map((userId) => ({ userId, role: "EXECUTING" as const })),
+  const deadlineStart = parseDateInput(data.deadlineStart);
+  if (!deadlineStart) throw new Error("A valid deadline start date is required");
+
+  // Lead is also represented as a LEAD assignment row; de-dupe executing/input.
+  const assignmentRows: Array<{ userId: string; role: ActionAssignmentRole }> = [
+    { userId: data.leadId, role: "LEAD" },
+    ...data.executingUserIds
+      .filter((id) => id !== data.leadId)
+      .map((userId) => ({ userId, role: "EXECUTING" as const })),
     ...data.inputUserIds.map((userId) => ({ userId, role: "INPUT" as const })),
   ];
 
@@ -152,19 +167,18 @@ export async function createActionItem(input: CreateActionItemInput) {
     data: {
       title: data.title,
       description: data.description,
-      status: data.status as never,
-      priority: data.priority as never,
-      category: data.category as never,
-      visibility: data.visibility as never,
-      dueDate: data.dueDate,
-      weekStart: data.weekStart ? startOfDay(data.weekStart) : null,
+      goalCategory: data.goalCategory,
+      departmentId: data.departmentId,
       leadId: data.leadId,
       createdById: session.id,
-      completedAt: data.status === "COMPLETE" ? new Date() : null,
-      assignments:
-        assignmentRows.length > 0 ? { create: assignmentRows } : undefined,
+      status: data.status as never,
+      visibility: data.visibility as never,
+      deadlineStart,
+      deadlineEnd: data.deadlineEnd,
+      officerMeetingId: data.officerMeetingId,
+      assignments: { create: assignmentRows },
       comments: {
-        create: { authorId: session.id, type: "SYSTEM", body: "Action created" },
+        create: { authorId: session.id, type: "NOTE", body: "Action created" },
       },
     },
     select: { id: true },
@@ -180,15 +194,22 @@ const UpdateActionItemSchema = z.object({
   id: NonEmptyString,
   title: NonEmptyString.max(300).optional(),
   description: OptionalText,
+  goalCategory: z
+    .string()
+    .trim()
+    .max(300)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  departmentId: NonEmptyString.optional(),
   status: z.enum(ACTION_STATUS_VALUES as [string, ...string[]]).optional(),
-  priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
-  category: z
-    .enum(["INSTRUCTION", "TECHNOLOGY", "COMMUNICATION", "STAFF_MANAGEMENT"])
-    .optional(),
   visibility: z.enum(ACTION_VISIBILITY_VALUES as [string, ...string[]]).optional(),
-  dueDate: OptionalDateString,
-  weekStart: OptionalDateString,
-  leadId: OptionalUserId,
+  deadlineStart: OptionalDateString,
+  deadlineEnd: OptionalDateString,
+  leadId: NonEmptyString.optional(),
+  officerMeetingId: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
 });
 
 export type UpdateActionItemInput = z.input<typeof UpdateActionItemSchema>;
@@ -201,21 +222,24 @@ export async function updateActionItem(input: UpdateActionItemInput) {
   const access = await loadAccess(data.id);
   if (!canEditAction(session, access)) throw new Error("Unauthorized");
 
-  // Visibility and lead reassignment are officer-only operations.
+  // Visibility, department, and lead reassignment are officer-only operations.
   const officer = isOfficerTier(session);
   if (data.visibility !== undefined && !officer) throw new Error("Unauthorized");
+  if (data.departmentId !== undefined && !officer) throw new Error("Unauthorized");
   if (data.leadId !== undefined && data.leadId !== access.leadId && !officer) {
     throw new Error("Unauthorized");
   }
 
   const existing = await prisma.actionItem.findUnique({
     where: { id: data.id },
-    select: { status: true },
+    select: { status: true, leadId: true },
   });
   if (!existing) throw new Error("Action item not found");
 
   const newStatus = data.status ?? existing.status;
   const statusChanged = data.status !== undefined && data.status !== existing.status;
+  const leadChanged =
+    data.leadId !== undefined && data.leadId !== existing.leadId;
 
   await prisma.$transaction(async (tx) => {
     await tx.actionItem.update({
@@ -223,28 +247,43 @@ export async function updateActionItem(input: UpdateActionItemInput) {
       data: {
         title: data.title,
         description: data.description,
+        goalCategory: data.goalCategory,
+        departmentId: data.departmentId,
         status: newStatus as never,
-        priority: data.priority as never,
-        category: data.category as never,
         visibility: data.visibility as never,
-        dueDate: data.dueDate,
-        weekStart: data.weekStart ? startOfDay(data.weekStart) : data.weekStart,
+        deadlineStart: data.deadlineStart
+          ? startOfDay(data.deadlineStart)
+          : undefined,
+        deadlineEnd: data.deadlineEnd,
         leadId: data.leadId,
-        completedAt:
-          newStatus === "COMPLETE"
-            ? new Date()
-            : statusChanged
-              ? null
-              : undefined,
+        officerMeetingId: data.officerMeetingId,
       },
     });
+
+    // Keep the LEAD assignment row in sync with the denormalized leadId.
+    if (leadChanged && data.leadId) {
+      await tx.actionAssignment.deleteMany({
+        where: { actionItemId: data.id, role: "LEAD" },
+      });
+      await tx.actionAssignment.upsert({
+        where: {
+          actionItemId_userId_role: {
+            actionItemId: data.id,
+            userId: data.leadId,
+            role: "LEAD",
+          },
+        },
+        create: { actionItemId: data.id, userId: data.leadId, role: "LEAD" },
+        update: {},
+      });
+      await postSystemComment(tx, data.id, session.id, "Lead reassigned");
+    }
 
     if (statusChanged) {
       await postSystemComment(
         tx,
         data.id,
         session.id,
-        "STATUS_CHANGE",
         `Status changed from ${existing.status} to ${newStatus}`
       );
     }
@@ -281,16 +320,12 @@ export async function updateActionStatus(
   await prisma.$transaction(async (tx) => {
     await tx.actionItem.update({
       where: { id: data.id },
-      data: {
-        status: data.status as never,
-        completedAt: data.status === "COMPLETE" ? new Date() : null,
-      },
+      data: { status: data.status as never },
     });
     await postSystemComment(
       tx,
       data.id,
       session.id,
-      "STATUS_CHANGE",
       `Status changed from ${existing.status} to ${data.status}`
     );
   });
@@ -309,7 +344,7 @@ const AssignmentSchema = z.object({
 export async function addActionAssignment(
   actionId: string,
   userId: string,
-  role: ActionItemAssignmentRole
+  role: ActionAssignmentRole
 ) {
   ensureEnabled();
   const session = await requireSessionUser();
@@ -320,32 +355,35 @@ export async function addActionAssignment(
 
   await prisma.$transaction(async (tx) => {
     if (data.role === "LEAD") {
+      // Reassign the single lead: clear the prior LEAD row, point leadId at the
+      // new user, and record the LEAD assignment.
       await tx.actionItem.update({
         where: { id: data.actionId },
         data: { leadId: data.userId },
       });
-    } else {
-      await tx.actionItemAssignment.upsert({
-        where: {
-          actionItemId_userId_role: {
-            actionItemId: data.actionId,
-            userId: data.userId,
-            role: data.role as never,
-          },
-        },
-        create: {
+      await tx.actionAssignment.deleteMany({
+        where: { actionItemId: data.actionId, role: "LEAD" },
+      });
+    }
+    await tx.actionAssignment.upsert({
+      where: {
+        actionItemId_userId_role: {
           actionItemId: data.actionId,
           userId: data.userId,
           role: data.role as never,
         },
-        update: {},
-      });
-    }
+      },
+      create: {
+        actionItemId: data.actionId,
+        userId: data.userId,
+        role: data.role as never,
+      },
+      update: {},
+    });
     await postSystemComment(
       tx,
       data.actionId,
       session.id,
-      "SYSTEM",
       `Assigned ${data.role} role to user ${data.userId}`
     );
   });
@@ -356,7 +394,7 @@ export async function addActionAssignment(
 export async function removeActionAssignment(
   actionId: string,
   userId: string,
-  role: ActionItemAssignmentRole
+  role: ActionAssignmentRole
 ) {
   ensureEnabled();
   const session = await requireSessionUser();
@@ -365,28 +403,27 @@ export async function removeActionAssignment(
 
   const access = await loadAccess(data.actionId);
 
-  await prisma.$transaction(async (tx) => {
-    if (data.role === "LEAD") {
-      if (access.leadId === data.userId) {
-        await tx.actionItem.update({
-          where: { id: data.actionId },
-          data: { leadId: null },
-        });
-      }
-    } else {
-      await tx.actionItemAssignment.deleteMany({
-        where: {
-          actionItemId: data.actionId,
-          userId: data.userId,
-          role: data.role as never,
-        },
-      });
+  // leadId is required, so a lead cannot simply be removed — it must be
+  // replaced via addActionAssignment(..., "LEAD"). Reject to keep state valid.
+  if (data.role === "LEAD") {
+    if (access.leadId === data.userId) {
+      throw new Error("Cannot remove the lead; assign a new lead first");
     }
+    // Stale LEAD row not matching leadId — safe to drop.
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.actionAssignment.deleteMany({
+      where: {
+        actionItemId: data.actionId,
+        userId: data.userId,
+        role: data.role as never,
+      },
+    });
     await postSystemComment(
       tx,
       data.actionId,
       session.id,
-      "SYSTEM",
       `Removed ${data.role} role from user ${data.userId}`
     );
   });
@@ -399,13 +436,13 @@ export async function removeActionAssignment(
 const CommentSchema = z.object({
   actionId: NonEmptyString,
   body: NonEmptyString.max(5000),
-  type: z.enum(ACTION_COMMENT_TYPE_VALUES as [string, ...string[]]).default("COMMENT"),
+  type: z.enum(ACTION_COMMENT_TYPE_VALUES as [string, ...string[]]).default("NOTE"),
 });
 
 export async function addActionComment(
   actionId: string,
   body: string,
-  type: (typeof ACTION_COMMENT_TYPE_VALUES)[number] = "COMMENT"
+  type: ActionCommentType = "NOTE"
 ) {
   ensureEnabled();
   const session = await requireSessionUser();
@@ -414,14 +451,11 @@ export async function addActionComment(
   const access = await loadAccess(data.actionId);
   if (!canViewAction(session, access)) throw new Error("Unauthorized");
 
-  // Only officers may post system-style comment types; members post COMMENT.
-  const finalType = isOfficerTier(session) ? data.type : "COMMENT";
-
-  await prisma.actionItemComment.create({
+  await prisma.actionComment.create({
     data: {
       actionItemId: data.actionId,
       authorId: session.id,
-      type: finalType as never,
+      type: data.type as never,
       body: data.body,
     },
   });
@@ -450,19 +484,18 @@ export async function addActionFileLink(actionId: string, label: string, url: st
   if (!canEditAction(session, access)) throw new Error("Unauthorized");
 
   await prisma.$transaction(async (tx) => {
-    await tx.actionItemFileLink.create({
+    await tx.actionFileLink.create({
       data: {
         actionItemId: data.actionId,
         label: data.label,
         url: data.url,
-        createdById: session.id,
+        addedById: session.id,
       },
     });
     await postSystemComment(
       tx,
       data.actionId,
       session.id,
-      "SYSTEM",
       `Added file link: ${data.label}`
     );
   });
@@ -485,14 +518,13 @@ export async function flagActionToCPO(actionId: string) {
   await prisma.$transaction(async (tx) => {
     await tx.actionItem.update({
       where: { id: actionId },
-      data: { flaggedAt: now, flaggedToCpoAt: now, flaggedById: session.id },
+      data: { flaggedAt: now },
     });
     await postSystemComment(
       tx,
       actionId,
       session.id,
-      "FLAG",
-      "Flagged to CPO for escalation"
+      "⚑ Flagged to CPO for escalation"
     );
   });
 

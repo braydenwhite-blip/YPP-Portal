@@ -22,6 +22,7 @@ import {
 const ACTION_ITEM_INCLUDE = {
   lead: { select: { id: true, name: true, email: true } },
   createdBy: { select: { id: true, name: true, email: true } },
+  department: { select: { id: true, name: true } },
   assignments: {
     select: {
       id: true,
@@ -35,8 +36,8 @@ const ACTION_ITEM_INCLUDE = {
     include: { author: { select: { id: true, name: true, email: true } } },
   },
   fileLinks: {
-    orderBy: { createdAt: "desc" },
-    include: { createdBy: { select: { id: true, name: true, email: true } } },
+    orderBy: { addedAt: "desc" },
+    include: { addedBy: { select: { id: true, name: true, email: true } } },
   },
 } satisfies Prisma.ActionItemInclude;
 
@@ -49,7 +50,11 @@ function toAccessShape(item: {
   leadId: string | null;
   createdById: string | null;
   visibility: ActionAccessShape["visibility"];
-  assignments: Array<{ userId?: string; role: ActionAccessShape["assignments"][number]["role"]; user?: { id: string } }>;
+  assignments: Array<{
+    role: ActionAccessShape["assignments"][number]["role"];
+    user?: { id: string } | null;
+    userId?: string;
+  }>;
 }): ActionAccessShape {
   return {
     leadId: item.leadId,
@@ -76,14 +81,12 @@ export async function getMyActionItems(
 
   const items = await prisma.actionItem.findMany({
     where: {
-      archivedAt: null,
       OR: [{ leadId: userId }, { assignments: { some: { userId } } }],
     },
     include: ACTION_ITEM_INCLUDE,
     orderBy: [
       { status: "asc" },
-      { dueDate: { sort: "asc", nulls: "last" } },
-      { priority: "desc" },
+      { deadlineStart: "asc" },
       { createdAt: "desc" },
     ],
   });

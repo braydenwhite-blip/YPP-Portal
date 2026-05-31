@@ -41,16 +41,16 @@ const board: ActionViewer = {
   adminSubtypes: ["SUPER_ADMIN"],
 };
 
-// Leadership-visibility action where m1 is an INPUT assignee.
+// ALL_LEADERSHIP action where m1 is an INPUT assignee.
 const leadershipMine: ActionAccessShape = {
   leadId: null,
-  visibility: "LEADERSHIP",
+  visibility: "ALL_LEADERSHIP",
   assignments: [{ userId: "m1", role: "INPUT" }],
 };
-// Leadership action m1 is NOT involved in.
+// ALL_LEADERSHIP action m1 is NOT involved in.
 const leadershipNotMine: ActionAccessShape = {
   leadId: "someoneElse",
-  visibility: "LEADERSHIP",
+  visibility: "ALL_LEADERSHIP",
   assignments: [{ userId: "x", role: "EXECUTING" }],
 };
 // Officers-only action where m1 happens to be EXECUTING.
@@ -62,16 +62,16 @@ const officersOnlyMine: ActionAccessShape = {
 // Action where m1 is the lead.
 const leadByMember: ActionAccessShape = {
   leadId: "m1",
-  visibility: "LEADERSHIP",
+  visibility: "ALL_LEADERSHIP",
   assignments: [],
 };
 
 describe("canViewAction", () => {
-  it("lets a member view a LEADERSHIP action they are assigned to", () => {
+  it("lets a member view an ALL_LEADERSHIP action they are assigned to", () => {
     expect(canViewAction(member, leadershipMine)).toBe(true);
   });
 
-  it("hides a LEADERSHIP action from a member who is not assigned", () => {
+  it("hides an ALL_LEADERSHIP action from a member who is not assigned", () => {
     expect(canViewAction(member, leadershipNotMine)).toBe(false);
     expect(canViewAction(otherMember, leadershipMine)).toBe(false);
   });
@@ -80,7 +80,7 @@ describe("canViewAction", () => {
     expect(canViewAction(member, officersOnlyMine)).toBe(false);
   });
 
-  it("lets an officer view all LEADERSHIP and OFFICERS_ONLY actions", () => {
+  it("lets an officer view all ALL_LEADERSHIP and OFFICERS_ONLY actions", () => {
     expect(canViewAction(officer, leadershipMine)).toBe(true);
     expect(canViewAction(officer, leadershipNotMine)).toBe(true);
     expect(canViewAction(officer, officersOnlyMine)).toBe(true);
@@ -113,7 +113,7 @@ describe("canEditAction", () => {
     expect(
       canEditAction(member, {
         leadId: null,
-        visibility: "LEADERSHIP",
+        visibility: "ALL_LEADERSHIP",
         assignments: [{ userId: "m1", role: "EXECUTING" }],
       })
     ).toBe(true);

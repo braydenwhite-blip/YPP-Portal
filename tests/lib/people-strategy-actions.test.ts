@@ -15,7 +15,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
-    actionItemComment: {
+    actionComment: {
       create: vi.fn(),
     },
     $transaction: vi.fn(),
@@ -51,7 +51,7 @@ beforeEach(() => {
     async (cb: (tx: unknown) => Promise<unknown>) =>
       cb({
         actionItem: { update: txActionItemUpdate },
-        actionItemComment: { create: txCommentCreate },
+        actionComment: { create: txCommentCreate },
       })
   );
 });
@@ -61,14 +61,13 @@ afterEach(() => {
 });
 
 describe("flagActionToCPO", () => {
-  it("sets flaggedAt and posts a system-style FLAG comment", async () => {
+  it("sets flaggedAt and posts a system-style comment", async () => {
     sessionAs({ id: "o1", roles: ["STAFF"] });
     (prisma.actionItem.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: "a1",
       leadId: null,
       createdById: "x",
-      visibility: "LEADERSHIP",
-      archivedAt: null,
+      visibility: "ALL_LEADERSHIP",
       assignments: [],
     });
 
@@ -79,12 +78,11 @@ describe("flagActionToCPO", () => {
     const updateArg = txActionItemUpdate.mock.calls[0][0];
     expect(updateArg.where).toEqual({ id: "a1" });
     expect(updateArg.data.flaggedAt).toBeInstanceOf(Date);
-    expect(updateArg.data.flaggedToCpoAt).toBeInstanceOf(Date);
-    expect(updateArg.data.flaggedById).toBe("o1");
 
     expect(txCommentCreate).toHaveBeenCalledTimes(1);
     const commentArg = txCommentCreate.mock.calls[0][0];
-    expect(commentArg.data.type).toBe("FLAG");
+    expect(commentArg.data.type).toBe("NOTE");
+    expect(commentArg.data.body).toContain("Flagged to CPO");
     expect(commentArg.data.actionItemId).toBe("a1");
     expect(commentArg.data.authorId).toBe("o1");
   });
@@ -95,8 +93,7 @@ describe("flagActionToCPO", () => {
       id: "a2",
       leadId: null,
       createdById: "x",
-      visibility: "LEADERSHIP",
-      archivedAt: null,
+      visibility: "ALL_LEADERSHIP",
       assignments: [{ userId: "m1", role: "INPUT" }],
     });
 
@@ -110,8 +107,7 @@ describe("flagActionToCPO", () => {
       id: "a3",
       leadId: "someoneElse",
       createdById: "x",
-      visibility: "LEADERSHIP",
-      archivedAt: null,
+      visibility: "ALL_LEADERSHIP",
       assignments: [],
     });
 
