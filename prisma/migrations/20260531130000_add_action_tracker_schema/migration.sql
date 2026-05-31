@@ -107,10 +107,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS "Department_slug_key" ON "Department"("slug");
 CREATE INDEX IF NOT EXISTS "Department_archivedAt_idx" ON "Department"("archivedAt");
 
 CREATE INDEX IF NOT EXISTS "ActionItem_deadlineStart_idx" ON "ActionItem"("deadlineStart");
+CREATE INDEX IF NOT EXISTS "ActionItem_status_idx" ON "ActionItem"("status");
 CREATE INDEX IF NOT EXISTS "ActionItem_status_deadlineStart_idx" ON "ActionItem"("status", "deadlineStart");
 CREATE INDEX IF NOT EXISTS "ActionItem_departmentId_status_idx" ON "ActionItem"("departmentId", "status");
 CREATE INDEX IF NOT EXISTS "ActionItem_visibility_idx" ON "ActionItem"("visibility");
 CREATE INDEX IF NOT EXISTS "ActionItem_leadId_idx" ON "ActionItem"("leadId");
+CREATE INDEX IF NOT EXISTS "ActionItem_createdById_idx" ON "ActionItem"("createdById");
 CREATE INDEX IF NOT EXISTS "ActionItem_officerMeetingId_idx" ON "ActionItem"("officerMeetingId");
 CREATE INDEX IF NOT EXISTS "ActionItem_flaggedAt_idx" ON "ActionItem"("flaggedAt");
 

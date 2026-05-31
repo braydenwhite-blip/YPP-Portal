@@ -310,7 +310,7 @@ export default function ActionItemForm({
   function validate(): string | null {
     if (!title.trim()) return "Title is required.";
     if (!leadId) return "A Lead is required (exactly one).";
-    if (executingIds.filter((id) => id !== leadId).length === 0) {
+    if (executingIds.length === 0) {
       return "At least one Executing assignee is required.";
     }
     if (!deadlineStart) return "Deadline start is required.";
@@ -335,8 +335,8 @@ export default function ActionItemForm({
       return;
     }
 
-    // Executors that are also the lead are stored implicitly via the LEAD row.
-    const executors = executingIds.filter((id) => id !== leadId);
+    // A lead may also be an executor; the roles are stored as separate rows.
+    const executors = executingIds;
     const hasFileLink = fileLabel.trim() && fileUrl.trim();
 
     startTransition(async () => {
@@ -346,13 +346,13 @@ export default function ActionItemForm({
           await updateActionItem({
             id,
             title: title.trim(),
-            description: description.trim() || undefined,
-            goalCategory: goalCategory.trim() || undefined,
+            description: description.trim(),
+            goalCategory: goalCategory.trim(),
             departmentId: departmentId || undefined,
             status,
             visibility,
             deadlineStart: deadlineStart || undefined,
-            deadlineEnd: deadlineEnd || undefined,
+            deadlineEnd: deadlineEnd || null,
             leadId,
           });
 
@@ -572,7 +572,6 @@ export default function ActionItemForm({
         users={users}
         selected={executingIds}
         onChange={setExecutingIds}
-        excludeIds={leadId ? [leadId] : []}
         emptyHint="No assignable users found."
       />
 

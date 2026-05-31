@@ -363,7 +363,7 @@ export default function ActionDetailCard({
       >
         <div style={{ minWidth: 0 }}>
           <p className="badge" style={{ margin: 0, color: theme.fg, background: "#fff" }}>
-            CORE INSTRUCTION · {item.visibility === "OFFICERS_ONLY" ? "OFFICERS ONLY" : "LEADERSHIP"}
+            {item.departmentName} · {item.visibility === "OFFICERS_ONLY" ? "OFFICERS ONLY" : "LEADERSHIP"}
           </p>
           <h1
             style={{

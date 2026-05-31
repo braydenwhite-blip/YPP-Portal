@@ -12183,10 +12183,12 @@ model ActionItem {
   updatedAt DateTime @updatedAt
 
   @@index([deadlineStart])
+  @@index([status])
   @@index([status, deadlineStart])
   @@index([departmentId, status])
   @@index([visibility])
   @@index([leadId])
+  @@index([createdById])
   @@index([officerMeetingId])
   @@index([flaggedAt])
 }

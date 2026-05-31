@@ -56,7 +56,7 @@ const ACTION_ITEM_INCLUDE = {
     },
   },
   comments: {
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     include: {
       author: {
         select: {
@@ -70,7 +70,7 @@ const ACTION_ITEM_INCLUDE = {
     },
   },
   fileLinks: {
-    orderBy: { addedAt: "desc" },
+    orderBy: [{ addedAt: "desc" }, { id: "desc" }],
     include: {
       addedBy: {
         select: {

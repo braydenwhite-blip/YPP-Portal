@@ -14,9 +14,17 @@ vi.mock("@/lib/prisma", () => ({
     actionItem: {
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
+      create: vi.fn(),
     },
     actionComment: {
       create: vi.fn(),
+    },
+    department: {
+      findUnique: vi.fn(),
+    },
+    user: {
+      count: vi.fn(),
     },
     $transaction: vi.fn(),
   },
@@ -24,7 +32,10 @@ vi.mock("@/lib/prisma", () => ({
 
 import { getSessionUser } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { flagActionToCPO } from "@/lib/people-strategy/action-items-actions";
+import {
+  createActionItem,
+  flagActionToCPO,
+} from "@/lib/people-strategy/action-items-actions";
 
 const mockGetSessionUser = vi.mocked(getSessionUser);
 
@@ -42,15 +53,22 @@ function sessionAs(overrides: { id?: string; roles?: string[]; adminSubtypes?: s
 
 // $transaction invokes the callback with a tx client whose methods we capture.
 const txActionItemUpdate = vi.fn();
+const txActionItemUpdateMany = vi.fn();
+const txActionItemFindUnique = vi.fn();
 const txCommentCreate = vi.fn();
 
 beforeEach(() => {
   process.env.ENABLE_ACTION_TRACKER = "true";
   vi.clearAllMocks();
+  txActionItemUpdateMany.mockResolvedValue({ count: 1 });
   (prisma.$transaction as unknown as ReturnType<typeof vi.fn>).mockImplementation(
     async (cb: (tx: unknown) => Promise<unknown>) =>
       cb({
-        actionItem: { update: txActionItemUpdate },
+        actionItem: {
+          update: txActionItemUpdate,
+          updateMany: txActionItemUpdateMany,
+          findUnique: txActionItemFindUnique,
+        },
         actionComment: { create: txCommentCreate },
       })
   );
@@ -68,15 +86,16 @@ describe("flagActionToCPO", () => {
       leadId: null,
       createdById: "x",
       visibility: "ALL_LEADERSHIP",
+      flaggedAt: null,
       assignments: [],
     });
 
     const result = await flagActionToCPO("a1");
 
     expect(result.flaggedAt).toBeInstanceOf(Date);
-    expect(txActionItemUpdate).toHaveBeenCalledTimes(1);
-    const updateArg = txActionItemUpdate.mock.calls[0][0];
-    expect(updateArg.where).toEqual({ id: "a1" });
+    expect(txActionItemUpdateMany).toHaveBeenCalledTimes(1);
+    const updateArg = txActionItemUpdateMany.mock.calls[0][0];
+    expect(updateArg.where).toEqual({ id: "a1", flaggedAt: null });
     expect(updateArg.data.flaggedAt).toBeInstanceOf(Date);
 
     expect(txCommentCreate).toHaveBeenCalledTimes(1);
@@ -94,11 +113,12 @@ describe("flagActionToCPO", () => {
       leadId: null,
       createdById: "x",
       visibility: "ALL_LEADERSHIP",
+      flaggedAt: null,
       assignments: [{ userId: "m1", role: "INPUT" }],
     });
 
     await expect(flagActionToCPO("a2")).resolves.toHaveProperty("flaggedAt");
-    expect(txActionItemUpdate).toHaveBeenCalledTimes(1);
+    expect(txActionItemUpdateMany).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a member who cannot view the action", async () => {
@@ -108,11 +128,29 @@ describe("flagActionToCPO", () => {
       leadId: "someoneElse",
       createdById: "x",
       visibility: "ALL_LEADERSHIP",
+      flaggedAt: null,
       assignments: [],
     });
 
     await expect(flagActionToCPO("a3")).rejects.toThrow("Unauthorized");
-    expect(txActionItemUpdate).not.toHaveBeenCalled();
+    expect(txActionItemUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("does not post duplicate comments when already flagged", async () => {
+    sessionAs({ id: "o1", roles: ["STAFF"] });
+    const flaggedAt = new Date("2026-05-31T12:00:00.000Z");
+    (prisma.actionItem.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "a4",
+      leadId: null,
+      createdById: "x",
+      visibility: "ALL_LEADERSHIP",
+      flaggedAt,
+      assignments: [],
+    });
+
+    await expect(flagActionToCPO("a4")).resolves.toEqual({ flaggedAt });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(txCommentCreate).not.toHaveBeenCalled();
   });
 
   it("rejects when the feature flag is off", async () => {
@@ -121,5 +159,53 @@ describe("flagActionToCPO", () => {
 
     await expect(flagActionToCPO("a1")).rejects.toThrow("not enabled");
     expect(prisma.actionItem.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("createActionItem", () => {
+  const baseInput = {
+    title: "Launch onboarding",
+    departmentId: "d1",
+    leadId: "u1",
+    deadlineStart: "2026-06-10",
+    executingUserIds: ["u2"],
+    inputUserIds: [],
+  };
+
+  it("rejects a deadline end before the deadline start", async () => {
+    sessionAs({ id: "o1", roles: ["STAFF"] });
+
+    await expect(
+      createActionItem({
+        ...baseInput,
+        deadlineEnd: "2026-06-09",
+      })
+    ).rejects.toThrow("Deadline end cannot be before deadline start");
+    expect(prisma.actionItem.create).not.toHaveBeenCalled();
+  });
+
+  it("allows the lead to also be an executing assignee", async () => {
+    sessionAs({ id: "o1", roles: ["STAFF"] });
+    (prisma.department.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "d1",
+    });
+    (prisma.user.count as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    (prisma.actionItem.create as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "created-action",
+    });
+
+    await expect(
+      createActionItem({
+        ...baseInput,
+        executingUserIds: ["u1"],
+      })
+    ).resolves.toEqual({ id: "created-action" });
+
+    const createArg = (prisma.actionItem.create as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0];
+    expect(createArg.data.assignments.create).toEqual([
+      { userId: "u1", role: "LEAD" },
+      { userId: "u1", role: "EXECUTING" },
+    ]);
   });
 });

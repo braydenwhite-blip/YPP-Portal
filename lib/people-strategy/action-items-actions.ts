@@ -62,10 +62,11 @@ const ACTION_ACCESS_SELECT = {
   leadId: true,
   createdById: true,
   visibility: true,
+  flaggedAt: true,
   assignments: { select: { userId: true, role: true } },
 } satisfies Prisma.ActionItemSelect;
 
-type LoadedAccess = ActionAccessShape & { id: string };
+type LoadedAccess = ActionAccessShape & { id: string; flaggedAt: Date | null };
 
 /** Load the access projection for an action, throwing not-found when missing. */
 async function loadAccess(id: string): Promise<LoadedAccess> {
@@ -79,6 +80,7 @@ async function loadAccess(id: string): Promise<LoadedAccess> {
     leadId: item.leadId,
     createdById: item.createdById,
     visibility: item.visibility,
+    flaggedAt: item.flaggedAt,
     assignments: item.assignments.map((a) => ({ userId: a.userId, role: a.role })),
   };
 }
@@ -98,28 +100,102 @@ async function postSystemComment(
 // --- shared input pieces -----------------------------------------------------
 
 const NonEmptyString = z.string().trim().min(1);
-const OptionalText = z
+const CreateOptionalText = z
   .string()
   .trim()
   .max(10_000)
   .optional()
   .transform((v) => (v && v.length > 0 ? v : null));
-const RequiredDateString = z.string().trim().min(1);
-const OptionalDateString = z
+const UpdateOptionalText = z
   .string()
+  .trim()
+  .max(10_000)
+  .nullable()
   .optional()
-  .transform((v) => parseDateInput(v ?? ""));
+  .transform((v) => {
+    if (v === undefined) return undefined;
+    if (v === null || v.length === 0) return null;
+    return v;
+  });
+const RequiredDateString = z.string().trim().min(1);
+const CreateOptionalDateString = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v, ctx) => {
+    if (!v) return null;
+    const parsed = parseDateInput(v);
+    if (!parsed) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid deadline end date" });
+      return z.NEVER;
+    }
+    return parsed;
+  });
+const UpdateDeadlineStartString = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v, ctx) => {
+    if (v === undefined || v.length === 0) return undefined;
+    const parsed = parseDateInput(v);
+    if (!parsed) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid deadline start date" });
+      return z.NEVER;
+    }
+    return parsed;
+  });
+const UpdateOptionalDateString = z
+  .string()
+  .trim()
+  .nullable()
+  .optional()
+  .transform((v, ctx) => {
+    if (v === undefined) return undefined;
+    if (v === null || v.length === 0) return null;
+    const parsed = parseDateInput(v);
+    if (!parsed) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid deadline end date" });
+      return z.NEVER;
+    }
+    return parsed;
+  });
 const UserIdList = z
   .array(z.string().trim().min(1))
   .max(50)
   .optional()
   .transform((v) => Array.from(new Set(v ?? [])));
 
+function assertDeadlineRange(deadlineStart: Date, deadlineEnd: Date | null | undefined) {
+  if (deadlineEnd && deadlineEnd.getTime() < deadlineStart.getTime()) {
+    throw new Error("Deadline end cannot be before deadline start");
+  }
+}
+
+async function assertDepartmentExists(departmentId: string) {
+  const department = await prisma.department.findUnique({
+    where: { id: departmentId },
+    select: { id: true },
+  });
+  if (!department) throw new Error("Invalid department");
+}
+
+async function assertUsersExist(userIds: string[]) {
+  const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (uniqueIds.length === 0) return;
+
+  const count = await prisma.user.count({
+    where: { id: { in: uniqueIds }, archivedAt: null },
+  });
+  if (count !== uniqueIds.length) {
+    throw new Error("Invalid user assignment");
+  }
+}
+
 // --- createActionItem --------------------------------------------------------
 
 const CreateActionItemSchema = z.object({
   title: NonEmptyString.max(300),
-  description: OptionalText,
+  description: CreateOptionalText,
   goalCategory: z
     .string()
     .trim()
@@ -133,7 +209,7 @@ const CreateActionItemSchema = z.object({
     .enum(ACTION_VISIBILITY_VALUES as [string, ...string[]])
     .default("ALL_LEADERSHIP"),
   deadlineStart: RequiredDateString,
-  deadlineEnd: OptionalDateString,
+  deadlineEnd: CreateOptionalDateString,
   officerMeetingId: z
     .string()
     .optional()
@@ -153,12 +229,19 @@ export async function createActionItem(input: CreateActionItemInput) {
 
   const deadlineStart = parseDateInput(data.deadlineStart);
   if (!deadlineStart) throw new Error("A valid deadline start date is required");
+  assertDeadlineRange(deadlineStart, data.deadlineEnd);
+
+  await assertDepartmentExists(data.departmentId);
+  await assertUsersExist([
+    data.leadId,
+    ...data.executingUserIds,
+    ...data.inputUserIds,
+  ]);
 
   // Lead is also represented as a LEAD assignment row; de-dupe executing/input.
   const assignmentRows: Array<{ userId: string; role: ActionAssignmentRole }> = [
     { userId: data.leadId, role: "LEAD" },
     ...data.executingUserIds
-      .filter((id) => id !== data.leadId)
       .map((userId) => ({ userId, role: "EXECUTING" as const })),
     ...data.inputUserIds.map((userId) => ({ userId, role: "INPUT" as const })),
   ];
@@ -193,23 +276,34 @@ export async function createActionItem(input: CreateActionItemInput) {
 const UpdateActionItemSchema = z.object({
   id: NonEmptyString,
   title: NonEmptyString.max(300).optional(),
-  description: OptionalText,
+  description: UpdateOptionalText,
   goalCategory: z
     .string()
     .trim()
     .max(300)
+    .nullable()
     .optional()
-    .transform((v) => (v && v.length > 0 ? v : null)),
+    .transform((v) => {
+      if (v === undefined) return undefined;
+      if (v === null || v.length === 0) return null;
+      return v;
+    }),
   departmentId: NonEmptyString.optional(),
   status: z.enum(ACTION_STATUS_VALUES as [string, ...string[]]).optional(),
   visibility: z.enum(ACTION_VISIBILITY_VALUES as [string, ...string[]]).optional(),
-  deadlineStart: OptionalDateString,
-  deadlineEnd: OptionalDateString,
+  deadlineStart: UpdateDeadlineStartString,
+  deadlineEnd: UpdateOptionalDateString,
   leadId: NonEmptyString.optional(),
   officerMeetingId: z
     .string()
+    .nullable()
     .optional()
-    .transform((v) => (v && v.trim() ? v.trim() : null)),
+    .transform((v) => {
+      if (v === undefined) return undefined;
+      if (v === null) return null;
+      const trimmed = v.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }),
 });
 
 export type UpdateActionItemInput = z.input<typeof UpdateActionItemSchema>;
@@ -232,11 +326,19 @@ export async function updateActionItem(input: UpdateActionItemInput) {
 
   const existing = await prisma.actionItem.findUnique({
     where: { id: data.id },
-    select: { status: true, leadId: true },
+    select: { status: true, leadId: true, deadlineStart: true, deadlineEnd: true },
   });
   if (!existing) throw new Error("Action item not found");
 
   const newStatus = data.status ?? existing.status;
+  const nextDeadlineStart = data.deadlineStart ?? existing.deadlineStart;
+  const nextDeadlineEnd =
+    data.deadlineEnd !== undefined ? data.deadlineEnd : existing.deadlineEnd;
+  assertDeadlineRange(nextDeadlineStart, nextDeadlineEnd);
+
+  if (data.departmentId !== undefined) await assertDepartmentExists(data.departmentId);
+  if (data.leadId !== undefined) await assertUsersExist([data.leadId]);
+
   const statusChanged = data.status !== undefined && data.status !== existing.status;
   const leadChanged =
     data.leadId !== undefined && data.leadId !== existing.leadId;
@@ -352,6 +454,7 @@ export async function addActionAssignment(
   if (!canAssignAction(session)) throw new Error("Unauthorized");
 
   await loadAccess(data.actionId); // 404 if missing
+  await assertUsersExist([data.userId]);
 
   await prisma.$transaction(async (tx) => {
     if (data.role === "LEAD") {
@@ -513,21 +616,33 @@ export async function flagActionToCPO(actionId: string) {
 
   const access = await loadAccess(actionId);
   if (!canFlagAction(session, access)) throw new Error("Unauthorized");
+  if (access.flaggedAt) return { flaggedAt: access.flaggedAt };
 
   const now = new Date();
+  let flaggedAt = now;
   await prisma.$transaction(async (tx) => {
-    await tx.actionItem.update({
-      where: { id: actionId },
+    const updated = await tx.actionItem.updateMany({
+      where: { id: actionId, flaggedAt: null },
       data: { flaggedAt: now },
     });
-    await postSystemComment(
-      tx,
-      actionId,
-      session.id,
-      "⚑ Flagged to CPO for escalation"
-    );
+
+    if (updated.count > 0) {
+      await postSystemComment(
+        tx,
+        actionId,
+        session.id,
+        "Flagged to CPO for escalation"
+      );
+      return;
+    }
+
+    const current = await tx.actionItem.findUnique({
+      where: { id: actionId },
+      select: { flaggedAt: true },
+    });
+    flaggedAt = current?.flaggedAt ?? now;
   });
 
   revalidateAll();
-  return { flaggedAt: now };
+  return { flaggedAt };
 }
