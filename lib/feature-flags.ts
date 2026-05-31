@@ -15,6 +15,16 @@ export function isNativeInstructorGateEnabled(): boolean {
 }
 
 /**
+ * People Strategy — Action Tracker (Action Items, My Actions, All Actions).
+ * Defaults OFF — set `ENABLE_ACTION_TRACKER=true` to expose the runtime
+ * surfaces. The schema/migration ship regardless of this flag; the flag gates
+ * the feature's pages, server actions, and emails added in later phases.
+ */
+export function isActionTrackerEnabled(): boolean {
+  return process.env.ENABLE_ACTION_TRACKER === "true";
+}
+
+/**
  * TEMPORARY visibility gate: while the regular Instructor program is
  * paused, only the Summer Workshop Instructor pathway should be exposed
  * to end users. Admins always retain access (see `canBypassInstructorGate`).

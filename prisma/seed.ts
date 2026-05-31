@@ -244,6 +244,9 @@ async function main() {
   // ── Leadership Action Center seed ──────────────────────────────────────────
   await seedLeadershipActionCenter();
 
+  // ── Action Tracker (People Strategy) seed ──────────────────────────────────
+  await seedActionTracker();
+
   // ── Instructor Assignment System (Phase 1) seed ────────────────────────────
   await seedInstructorAssignmentDemoData({
     chapterId: scarsdale.id,
@@ -1015,7 +1018,9 @@ async function seedInstructorApplicantWorkflow(
         status: "SUBMITTED",
         overallRating: "ABOVE_AND_BEYOND",
         recommendation: "ACCEPT",
-        summary: "Sam demonstrated excellent subject mastery and a clear passion for teaching. Would be a strong addition to the instructor team.",
+        // NOTE: the `summary` column was dropped in migration
+        // 20260514150000_drop_interview_review_summary; the per-category notes
+        // below carry the review narrative now.
         submittedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
         categories: {
           create: [
@@ -1479,6 +1484,144 @@ async function seedRegularInstructorAssignments(args: {
   }
 
   console.log("Seeded regular instructor assignment demo data.");
+}
+
+async function seedActionTracker() {
+  const existing = await prisma.actionItem.count();
+  if (existing > 0) {
+    console.log("Action Tracker: existing action items present, skipping seed.");
+    return;
+  }
+
+  // Leadership users to attach to the demo items (created earlier in main()).
+  const brayden = await prisma.user.findUnique({
+    where: { email: "brayden.white@youthpassionproject.org" },
+    select: { id: true },
+  });
+  const anthea = await prisma.user.findUnique({
+    where: { email: "anthea.zamir@youthpassionproject.org" },
+    select: { id: true },
+  });
+  const carly = await prisma.user.findUnique({
+    where: { email: "carlygelles@gmail.com" },
+    select: { id: true },
+  });
+
+  if (!brayden || !anthea || !carly) {
+    console.log("Action Tracker: expected seed users missing, skipping seed.");
+    return;
+  }
+
+  // Two functional departments so the All Actions view has cross-department data.
+  const instruction = await prisma.department.upsert({
+    where: { name: "Instruction" },
+    create: { name: "Instruction", slug: "instruction", description: "Curriculum, teaching, and classroom operations." },
+    update: {},
+  });
+  const marketing = await prisma.department.upsert({
+    where: { name: "Marketing" },
+    create: { name: "Marketing", slug: "marketing", description: "Communications, social, and recruitment." },
+    update: {},
+  });
+
+  const now = new Date();
+  const daysFromNow = (n: number) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + n);
+    return d;
+  };
+
+  // 1) In-progress instruction item. Brayden is BOTH lead and an executor
+  //    (same user, two roles), and Anthea is asked for INPUT.
+  const onboarding = await prisma.actionItem.create({
+    data: {
+      title: "Launch fall instructor onboarding",
+      description: "Stand up the fall onboarding cohort: confirm trainers, schedule, and materials.",
+      goalCategory: "Instructor Pipeline",
+      departmentId: instruction.id,
+      status: "IN_PROGRESS",
+      deadlineStart: daysFromNow(-2),
+      deadlineEnd: daysFromNow(12),
+      visibility: "ALL_LEADERSHIP",
+      leadId: brayden.id,
+      createdById: brayden.id,
+      assignments: {
+        create: [
+          { userId: brayden.id, role: "LEAD" },
+          { userId: brayden.id, role: "EXECUTING" },
+          { userId: anthea.id, role: "INPUT" },
+        ],
+      },
+      comments: {
+        create: [
+          {
+            authorId: brayden.id,
+            type: "INPUT_REQUESTED",
+            body: "Anthea — can you confirm the trainer availability before we lock the schedule?",
+          },
+        ],
+      },
+      fileLinks: {
+        create: [
+          {
+            label: "Onboarding run-of-show (draft)",
+            url: "https://docs.youthpassionproject.org/onboarding-fall-draft",
+            addedById: brayden.id,
+          },
+        ],
+      },
+    },
+  });
+
+  // 2) Overdue, flagged marketing item in a second department.
+  await prisma.actionItem.create({
+    data: {
+      title: "Finalize Q3 marketing calendar",
+      description: "Lock the Q3 content calendar and hand off to the social team.",
+      goalCategory: "Brand & Recruitment",
+      departmentId: marketing.id,
+      status: "OVERDUE",
+      deadlineStart: daysFromNow(-14),
+      deadlineEnd: daysFromNow(-3),
+      visibility: "ALL_LEADERSHIP",
+      flaggedAt: now,
+      leadId: anthea.id,
+      createdById: brayden.id,
+      assignments: {
+        create: [
+          { userId: anthea.id, role: "LEAD" },
+          { userId: carly.id, role: "EXECUTING" },
+        ],
+      },
+    },
+  });
+
+  // 3) Officers-only succession prep item (restricted visibility).
+  await prisma.actionItem.create({
+    data: {
+      title: "Prep succession review materials",
+      description: "Assemble the Performance × Potential grid inputs ahead of the officers meeting.",
+      goalCategory: "People Strategy",
+      departmentId: instruction.id,
+      status: "NOT_STARTED",
+      deadlineStart: daysFromNow(5),
+      deadlineEnd: daysFromNow(20),
+      visibility: "OFFICERS_ONLY",
+      leadId: brayden.id,
+      createdById: brayden.id,
+      assignments: {
+        create: [
+          { userId: brayden.id, role: "LEAD" },
+          { userId: anthea.id, role: "EXECUTING" },
+          { userId: carly.id, role: "INPUT" },
+        ],
+      },
+    },
+  });
+
+  console.log(
+    `Action Tracker: seeded 3 action items across 2 departments (incl. one overdue + one officers-only). Anchor item: ${onboarding.id}`
+  );
 }
 
 main()

@@ -1305,6 +1305,13 @@ model User {
   instructorTasksAssigned           InstructorTask[]             @relation("InstructorTaskAssignee")
   instructorSavedViews              InstructorSavedView[]        @relation("InstructorSavedViewOwner")
 
+  // Action Tracker (People Strategy)
+  actionItemsLed                    ActionItem[]                 @relation("ActionItemsLed")
+  actionItemsCreated                ActionItem[]                 @relation("ActionItemsCreated")
+  actionAssignments                 ActionAssignment[]           @relation("ActionAssignments")
+  actionComments                    ActionComment[]              @relation("ActionComments")
+  actionFileLinksAdded              ActionFileLink[]             @relation("ActionFileLinksAdded")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -12074,4 +12081,163 @@ model InstructorMetricSnapshot {
 
   @@unique([profileId, weekStart])
   @@index([profileId, weekStart])
+}
+
+// ============================================
+// ACTION TRACKER (People Strategy)
+// New Action Items layer with explicit Lead / Executing / Input roles,
+// per-item visibility, threaded comments, and file links. Gated at runtime
+// behind ENABLE_ACTION_TRACKER (see lib/feature-flags.ts). Distinct from the
+// older Leadership Action Center (`LeadershipActionItem`), which models the
+// weekly operating spreadsheet rather than role-based People-Strategy
+// ownership. Officer Meetings, server actions, emails, and UI are later
+// phases and intentionally not built here.
+// ============================================
+
+enum ActionItemStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETE
+  OVERDUE
+}
+
+enum ActionItemVisibility {
+  OFFICERS_ONLY
+  ALL_LEADERSHIP
+}
+
+/// Role a user plays on an action item. A single user can hold more than one
+/// role on the same item (e.g. the lead is also an executor).
+enum ActionAssignmentRole {
+  LEAD
+  EXECUTING
+  INPUT
+}
+
+enum ActionCommentType {
+  NOTE
+  INPUT_REQUESTED
+}
+
+/// Minimal functional department (Instruction, Marketing, Technology, …) an
+/// Action Item belongs to. The kickoff's "department" is a *functional* area,
+/// which the geographic `Chapter` model does not represent, so a small
+/// dedicated model is used here (permitted by the task's "otherwise minimal
+/// Department model" fallback). Kept intentionally light for v1.
+model Department {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String?   @unique
+  description String?   @db.Text
+  archivedAt  DateTime?
+
+  actionItems ActionItem[] @relation("DepartmentActionItems")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([archivedAt])
+}
+
+/// One People-Strategy action item. Ownership is expressed through
+/// `ActionAssignment` rows (LEAD / EXECUTING / INPUT); `leadId` is the single
+/// accountable lead denormalized onto the row for fast "My Actions" lookups
+/// and display.
+model ActionItem {
+  id           String  @id @default(cuid())
+  title        String
+  description  String? @db.Text
+  /// Free-text goal category this item ladders up to (kept as a string for
+  /// v1, mirroring the loosely-typed category fields elsewhere in the schema).
+  goalCategory String?
+
+  departmentId String
+  department   Department @relation("DepartmentActionItems", fields: [departmentId], references: [id])
+
+  status        ActionItemStatus     @default(NOT_STARTED)
+  deadlineStart DateTime
+  deadlineEnd   DateTime?
+  visibility    ActionItemVisibility @default(ALL_LEADERSHIP)
+
+  /// Single accountable lead (denormalized; also represented as an
+  /// ActionAssignment row with role LEAD).
+  leadId String
+  lead   User   @relation("ActionItemsLed", fields: [leadId], references: [id])
+
+  /// Optional link to an Officer Meeting added in a later phase. Stored as a
+  /// bare string column for now (no FK) because the OfficerMeeting model does
+  /// not exist yet.
+  officerMeetingId String?
+
+  createdById String
+  createdBy   User   @relation("ActionItemsCreated", fields: [createdById], references: [id])
+
+  /// Set when an item is escalated / flagged for officer attention.
+  flaggedAt DateTime?
+
+  assignments ActionAssignment[] @relation("ActionItemAssignments")
+  comments    ActionComment[]    @relation("ActionItemComments")
+  fileLinks   ActionFileLink[]   @relation("ActionItemFileLinks")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([deadlineStart])
+  @@index([status, deadlineStart])
+  @@index([departmentId, status])
+  @@index([visibility])
+  @@index([leadId])
+  @@index([officerMeetingId])
+  @@index([flaggedAt])
+}
+
+/// Join row assigning a user to an action item in a specific role. The
+/// (actionItemId, userId, role) uniqueness lets one user hold multiple roles
+/// on the same item (e.g. LEAD + EXECUTING) without duplicate rows.
+model ActionAssignment {
+  id           String               @id @default(cuid())
+  actionItemId String
+  actionItem   ActionItem           @relation("ActionItemAssignments", fields: [actionItemId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                 @relation("ActionAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  role         ActionAssignmentRole
+
+  createdAt DateTime @default(now())
+
+  @@unique([actionItemId, userId, role])
+  @@index([userId, role])
+  @@index([actionItemId])
+}
+
+/// Threaded note / input-request on an action item. `type` lets the UI render
+/// a plain note differently from an explicit request for input.
+model ActionComment {
+  id           String            @id @default(cuid())
+  actionItemId String
+  actionItem   ActionItem        @relation("ActionItemComments", fields: [actionItemId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User              @relation("ActionComments", fields: [authorId], references: [id], onDelete: Cascade)
+  body         String            @db.Text
+  type         ActionCommentType @default(NOTE)
+
+  createdAt DateTime @default(now())
+
+  @@index([actionItemId, createdAt])
+  @@index([authorId])
+}
+
+/// External file / document link attached to an action item (reuses existing
+/// upload URLs rather than introducing a new storage model).
+model ActionFileLink {
+  id           String     @id @default(cuid())
+  actionItemId String
+  actionItem   ActionItem @relation("ActionItemFileLinks", fields: [actionItemId], references: [id], onDelete: Cascade)
+  label        String
+  url          String
+  addedById    String
+  addedBy      User       @relation("ActionFileLinksAdded", fields: [addedById], references: [id], onDelete: Cascade)
+  addedAt      DateTime   @default(now())
+
+  @@index([actionItemId])
+  @@index([addedById])
 }

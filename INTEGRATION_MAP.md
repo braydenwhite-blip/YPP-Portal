@@ -458,3 +458,61 @@ Notes:
   (which also admits `CHAPTER_PRESIDENT` and `HIRING_CHAIR`). A later phase
   should reconcile the two — prefer `requireOfficer()` as the single officer
   gate.
+
+---
+
+## ADDENDUM — Action Tracker schema (Phase 1, schema only)
+
+Adds the role-based Action Tracker the kickoff described (Lead / Executing /
+Input), **separate from** the older `LeadershipActionItem` (which models the
+weekly operating spreadsheet and has no distinct "Executing" role — see the
+TOP-LEVEL FINDING above). This phase added **schema + migration + seed only**:
+no UI, server actions, emails, or Officer Meetings.
+
+**New models** (`prisma/schema.prisma`, end of file):
+
+| Model | Purpose |
+| --- | --- |
+| `Department` | Minimal **functional** department (Instruction, Marketing, …). A geographic `Chapter` does not represent a functional area, so a small dedicated model is used — permitted by the task's "otherwise minimal Department model" fallback. `name`/`slug` unique. |
+| `ActionItem` | `title`, `description`, `goalCategory` (string), `departmentId → Department`, `status`, `deadlineStart`, `deadlineEnd?`, `visibility`, `leadId → User`, `officerMeetingId String?` (bare column, no FK — Officer Meetings are a later phase), `createdById → User`, `flaggedAt?`, `createdAt`, `updatedAt`. |
+| `ActionAssignment` | `actionItemId`, `userId`, `role`; `@@unique([actionItemId, userId, role])` so one user can hold LEAD + EXECUTING on the same item. |
+| `ActionComment` | `actionItemId`, `authorId`, `body`, `type`, `createdAt`. |
+| `ActionFileLink` | `actionItemId`, `label`, `url`, `addedById`, `addedAt` (reuses upload URLs; no new storage model). |
+
+**New enums:** `ActionItemStatus` (`NOT_STARTED`, `IN_PROGRESS`, `COMPLETE`,
+`OVERDUE`), `ActionItemVisibility` (`OFFICERS_ONLY`, `ALL_LEADERSHIP`),
+`ActionAssignmentRole` (`LEAD`, `EXECUTING`, `INPUT`), `ActionCommentType`
+(`NOTE`, `INPUT_REQUESTED`).
+
+**User back-relations added:** `actionItemsLed`, `actionItemsCreated`,
+`actionAssignments`, `actionComments`, `actionFileLinksAdded`.
+
+**Indexes:** `ActionItem` on `deadlineStart`, `(status, deadlineStart)`,
+`(departmentId, status)`, `visibility`, `leadId`, `officerMeetingId`,
+`flaggedAt`; `ActionAssignment` on `(userId, role)` (participant / "My Actions"
+queries) + `actionItemId`; `ActionComment` on `(actionItemId, createdAt)` +
+`authorId`; `ActionFileLink` on `actionItemId` + `addedById`.
+
+**Feature flag:** `isActionTrackerEnabled()` in `lib/feature-flags.ts`
+(`ENABLE_ACTION_TRACKER`, default-OFF opt-in). The schema/migration ship
+unconditionally; the flag gates the later runtime surfaces.
+
+**Migration:** `prisma/migrations/20260531130000_add_action_tracker_schema/`
+— idempotent (`CREATE TABLE IF NOT EXISTS`, `CREATE TYPE` in `DO $$` guards,
+FKs in `DO $$` guards), matching the repo convention.
+
+**Seed:** `seedActionTracker()` in `prisma/seed.ts` (called from `main()` after
+`seedLeadershipActionCenter()`; idempotent — skips when `ActionItem` rows
+exist). Seeds 2 departments (Instruction, Marketing) and 3 action items: one
+`IN_PROGRESS` item where Brayden is **both LEAD and EXECUTING** with an Anthea
+`INPUT` assignment (+ one `INPUT_REQUESTED` comment and one file link), one
+**OVERDUE** + flagged Marketing item, and one **OFFICERS_ONLY** succession-prep
+item.
+
+> Incidental pre-existing fix required to run the seed end-to-end: the
+> `seedInstructorApplicantWorkflow` block still set `summary` on
+> `instructorInterviewReview`, a column dropped in migration
+> `20260514150000_drop_interview_review_summary`. That stale line (which threw
+> *before* this phase's seed could run) was removed; the per-category review
+> notes already carry the narrative. Unrelated to the Action Tracker, but the
+> full seed could not complete without it.
