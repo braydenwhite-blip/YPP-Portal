@@ -34,6 +34,8 @@ export async function exportInstructorApplicationsCsv(filters?: {
   if (filters?.search) {
     where.OR = [
       { legalName: { contains: filters.search, mode: "insensitive" } },
+      { lastName: { contains: filters.search, mode: "insensitive" } },
+      { preferredFirstName: { contains: filters.search, mode: "insensitive" } },
       { applicant: { name: { contains: filters.search, mode: "insensitive" } } },
       { applicant: { email: { contains: filters.search, mode: "insensitive" } } },
       { schoolName: { contains: filters.search, mode: "insensitive" } },
@@ -58,6 +60,7 @@ export async function exportInstructorApplicationsCsv(filters?: {
     "Chapter",
     "Legal Name",
     "Preferred First Name",
+    "Last Name",
     "Phone",
     "Date of Birth",
     "City",
@@ -106,6 +109,7 @@ export async function exportInstructorApplicationsCsv(filters?: {
       app.applicant.chapter?.name ?? "",
       app.legalName,
       app.preferredFirstName,
+      app.lastName,
       app.phoneNumber,
       app.dateOfBirth,
       app.city,
@@ -204,6 +208,8 @@ export async function exportCPApplicationsCsv(filters?: {
   if (filters?.search) {
     where.OR = [
       { legalName: { contains: filters.search, mode: "insensitive" } },
+      { lastName: { contains: filters.search, mode: "insensitive" } },
+      { preferredFirstName: { contains: filters.search, mode: "insensitive" } },
       { applicant: { name: { contains: filters.search, mode: "insensitive" } } },
       { applicant: { email: { contains: filters.search, mode: "insensitive" } } },
       { schoolName: { contains: filters.search, mode: "insensitive" } },
@@ -224,7 +230,7 @@ export async function exportCPApplicationsCsv(filters?: {
   const headers = [
     "ID", "Status", "Applied At",
     "Account Name", "Email", "Current Chapter",
-    "Legal Name", "Preferred First Name", "Phone", "Date of Birth",
+    "Legal Name", "Preferred First Name", "Last Name", "Phone", "Date of Birth",
     "City", "State/Province", "ZIP Code", "Country",
     "School Name", "Graduation Year", "GPA", "Class Rank",
     "Target Chapter", "Partner School",
@@ -249,7 +255,7 @@ export async function exportCPApplicationsCsv(filters?: {
     lines.push(row([
       app.id, app.status, app.createdAt.toISOString(),
       app.applicant.name, app.applicant.email, app.applicant.chapter?.name ?? "",
-      app.legalName, app.preferredFirstName, app.phoneNumber, app.dateOfBirth,
+      app.legalName, app.preferredFirstName, app.lastName, app.phoneNumber, app.dateOfBirth,
       app.city, app.stateProvince, app.zipCode, app.country,
       app.schoolName, app.graduationYear, app.gpa, app.classRank,
       app.chapter?.name ?? "", app.partnerSchool,

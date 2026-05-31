@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireChairPage } from "@/lib/page-guards";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import type { ReviewSignalKind, ReviewSignalSentiment } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -43,10 +44,11 @@ const KIND_FILTERS: ReadonlyArray<{ value: "ALL" | ReviewSignalKind; label: stri
 
 function deriveDisplayName(app: {
   preferredFirstName: string | null;
+  lastName: string | null;
   legalName: string | null;
   applicant: { name: string | null } | null;
 }): string {
-  return app.preferredFirstName ?? app.legalName ?? app.applicant?.name ?? "Applicant";
+  return formatApplicantDisplayName(app);
 }
 
 function formatRelative(date: Date): string {
@@ -119,6 +121,7 @@ export default async function ActivityFeedPage({ searchParams }: PageProps) {
         select: {
           id: true,
           preferredFirstName: true,
+          lastName: true,
           legalName: true,
           status: true,
           applicant: {

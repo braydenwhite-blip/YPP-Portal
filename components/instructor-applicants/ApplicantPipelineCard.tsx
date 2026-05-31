@@ -3,6 +3,10 @@ import type { ApplicationSource } from "@prisma/client";
 import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
 import { formatScheduleDateTime } from "@/lib/scheduling/shared";
 import { describeApplicationSource } from "@/lib/application-source-config";
+import {
+  formatApplicantDisplayName,
+  isApplicantLastNameMissing,
+} from "@/lib/applicant-display-name";
 
 type PipelineCardApp = {
   id: string;
@@ -14,6 +18,9 @@ type PipelineCardApp = {
   stuck?: boolean;
   awaitingSlots?: boolean;
   subjectsOfInterest: string | null;
+  legalName?: string | null;
+  preferredFirstName?: string | null;
+  lastName?: string | null;
   applicant: {
     name: string | null;
     email: string;
@@ -105,6 +112,8 @@ export default function ApplicantPipelineCard({
     ?.overallRating;
   const ratingOption = PROGRESS_RATING_OPTIONS.find((option) => option.value === latestRating);
   const hasInterviewTime = Boolean(app.interviewScheduledAt);
+  const displayName = formatApplicantDisplayName(app);
+  const missingLastName = isApplicantLastNameMissing(app);
   // Only claim the interview is scheduled when a real time exists. An app can
   // sit in INTERVIEW_SCHEDULED with no time yet (interviewScheduledAt === null)
   // while the lead interviewer is still arranging a time.
@@ -121,10 +130,10 @@ export default function ApplicantPipelineCard({
       onClick={onClick}
     >
       <div className="applicant-pipeline-card-top">
-        <Avatar name={app.applicant.name} email={app.applicant.email} />
+        <Avatar name={displayName} email={app.applicant.email} />
         <div className="applicant-pipeline-card-title">
           <div className="kanban-card-name">
-            {app.applicant.name ?? app.applicant.email}
+            {displayName}
           </div>
 
           <div className="applicant-card-meta-row">
@@ -135,6 +144,11 @@ export default function ApplicantPipelineCard({
             >
               {statusLabel}
             </span>
+            {missingLastName && (
+              <span className="pill pill-attention pill-small" title="This legacy application is missing an explicit last name.">
+                Missing last name
+              </span>
+            )}
 
             {app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
               <span

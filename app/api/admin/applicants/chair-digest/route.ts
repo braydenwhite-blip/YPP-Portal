@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendChairDigestEmail } from "@/lib/email";
 import { getChairQueue } from "@/lib/instructor-applicant-board-queries";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   const now = Date.now();
   const digestApps = pendingApps.map((a) => ({
-    applicantName: a.preferredFirstName ?? a.legalName ?? a.applicant.name ?? "Applicant",
+    applicantName: formatApplicantDisplayName(a),
     queuedDaysAgo: a.chairQueuedAt
       ? Math.floor((now - new Date(a.chairQueuedAt).getTime()) / 86400000)
       : 0,

@@ -18,6 +18,7 @@ import {
   reviewCPApplicationAction,
   reviewChapterPresidentApplication,
 } from "@/lib/chapter-president-application-actions";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 /* ── Helpers ───────────────────────────────────────── */
 
@@ -307,7 +308,7 @@ export default function CPDetailPanel({
     }
   }
 
-  const displayName = app.legalName || app.applicant.name;
+  const displayName = formatApplicantDisplayName(app);
   const isFinal = app.status === "APPROVED" || app.status === "REJECTED";
   const chapterName = app.chapter?.name || app.applicant.chapter?.name;
 

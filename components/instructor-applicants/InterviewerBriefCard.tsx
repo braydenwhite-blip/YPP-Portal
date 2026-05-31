@@ -1,6 +1,7 @@
 "use client";
 
 import type { WorkshopOutline } from "@/lib/summer-workshop";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 interface Document {
   id: string;
@@ -33,6 +34,7 @@ interface Props {
     firstClassPlan: string | null;
     motivationVideoUrl: string | null;
     preferredFirstName: string | null;
+    lastName: string | null;
     legalName: string | null;
     applicant: { name: string | null };
     /** Optional — present for V1 interview workspace queries. */
@@ -82,11 +84,7 @@ export default function InterviewerBriefCard({
   confirmedSlots,
   reviewerNote,
 }: Props) {
-  const displayName =
-    application.preferredFirstName ??
-    application.legalName ??
-    application.applicant.name ??
-    "Applicant";
+  const displayName = formatApplicantDisplayName(application);
 
   const subjects = (application.subjectsOfInterest ?? "")
     .split(/[,;]+/)

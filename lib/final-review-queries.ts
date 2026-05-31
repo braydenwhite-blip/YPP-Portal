@@ -7,6 +7,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import {
   getChairQueue,
   getChairQueueItem,
@@ -69,6 +70,7 @@ export type SerializedApplicationForReview = {
   courseOutline: string | null;
   firstClassPlan: string | null;
   preferredFirstName: string | null;
+  lastName: string | null;
   legalName: string | null;
   chairQueuedAt: string | null;
   materialsReadyAt: string | null;
@@ -137,15 +139,11 @@ export type ChairDraftSnapshot = {
 
 function deriveDisplayName(app: {
   preferredFirstName: string | null;
+  lastName: string | null;
   legalName: string | null;
   applicant: { name: string | null };
 }): string {
-  return (
-    app.preferredFirstName?.trim() ||
-    app.legalName?.trim() ||
-    app.applicant.name?.trim() ||
-    "Applicant"
-  );
+  return formatApplicantDisplayName(app);
 }
 
 function daysSince(date: Date | string | null): number | null {
@@ -186,6 +184,7 @@ function serializeApplication(
     courseOutline: app.courseOutline,
     firstClassPlan: app.firstClassPlan,
     preferredFirstName: app.preferredFirstName,
+    lastName: app.lastName,
     legalName: app.legalName,
     chairQueuedAt: toIso(app.chairQueuedAt),
     materialsReadyAt: toIso(app.materialsReadyAt),
@@ -325,6 +324,7 @@ export async function getApplicationForFinalReview(
         courseOutline: true,
         firstClassPlan: true,
         preferredFirstName: true,
+        lastName: true,
         legalName: true,
         chairQueuedAt: true,
         materialsReadyAt: true,

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import { InstructorApplicationStatus } from "@prisma/client";
 
 const PENDING_LIMIT = 5;
@@ -35,15 +36,11 @@ export interface HiringChairHomeData {
 
 function deriveDisplayName(app: {
   preferredFirstName: string | null;
+  lastName: string | null;
   legalName: string | null;
   applicant: { name: string | null } | null;
 }): string {
-  return (
-    app.preferredFirstName ??
-    app.legalName ??
-    app.applicant?.name ??
-    "Applicant"
-  );
+  return formatApplicantDisplayName(app);
 }
 
 function daysSince(date: Date | null): number | null {
@@ -81,6 +78,7 @@ export async function getHiringChairHomeData(actorId: string): Promise<HiringCha
           select: {
             id: true,
             preferredFirstName: true,
+            lastName: true,
             legalName: true,
             chairQueuedAt: true,
             applicant: {
@@ -115,6 +113,7 @@ export async function getHiringChairHomeData(actorId: string): Promise<HiringCha
             application: {
               select: {
                 preferredFirstName: true,
+                lastName: true,
                 legalName: true,
                 applicant: {
                   select: { name: true, chapter: { select: { name: true } } },

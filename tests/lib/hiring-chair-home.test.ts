@@ -75,7 +75,7 @@ describe("getHiringChairHomeData", () => {
     expect(data.pending).toHaveLength(1);
     expect(data.pending[0]).toMatchObject({
       id: "app-1",
-      displayName: "Alex",
+      displayName: "Alex Rivera",
       chapterName: "NYC",
       daysInQueue: 4,
     });

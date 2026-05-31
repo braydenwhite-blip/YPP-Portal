@@ -97,6 +97,7 @@ describe("createExternalInstructorApplicant", () => {
     await expect(
       createExternalInstructorApplicant({
         name: "Test",
+        lastName: "Applicant",
         email: "test@example.com",
         source: "GOOGLE_FORMS",
       }),
@@ -108,6 +109,7 @@ describe("createExternalInstructorApplicant", () => {
     await expect(
       createExternalInstructorApplicant({
         name: "Test",
+        lastName: "Applicant",
         email: "test@example.com",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         source: "INVALID" as any,
@@ -117,16 +119,28 @@ describe("createExternalInstructorApplicant", () => {
 
   it("rejects missing name / email", async () => {
     await expect(
-      createExternalInstructorApplicant({ name: "", email: "x@y.com", source: "GOOGLE_FORMS" }),
+      createExternalInstructorApplicant({ name: "", lastName: "Applicant", email: "x@y.com", source: "GOOGLE_FORMS" }),
     ).rejects.toThrow(/name is required/);
     await expect(
-      createExternalInstructorApplicant({ name: "X", email: "", source: "GOOGLE_FORMS" }),
+      createExternalInstructorApplicant({ name: "X", lastName: "Applicant", email: "", source: "GOOGLE_FORMS" }),
     ).rejects.toThrow(/valid applicant email/);
+  });
+
+  it("rejects missing last name", async () => {
+    await expect(
+      createExternalInstructorApplicant({
+        name: "Ada Lovelace",
+        lastName: "",
+        email: "ada@example.com",
+        source: "GOOGLE_FORMS",
+      }),
+    ).rejects.toThrow(/last name is required/);
   });
 
   it("creates a stub user when email is unknown and stamps source on the application", async () => {
     const result = await createExternalInstructorApplicant({
       name: "Ada Lovelace",
+      lastName: "Lovelace",
       email: "Ada@Example.com",
       source: "GOOGLE_FORMS",
       externalResponseUrl: "https://forms.example.com/abc",
@@ -142,6 +156,7 @@ describe("createExternalInstructorApplicant", () => {
     expect(createInstructorApplication).toHaveBeenCalledTimes(1);
     const appArgs = createInstructorApplication.mock.calls[0][0];
     expect(appArgs.data.source).toBe("GOOGLE_FORMS");
+    expect(appArgs.data.lastName).toBe("Lovelace");
     expect(appArgs.data.importedById).toBe("admin-1");
     expect(appArgs.data.externalResponseUrl).toBe("https://forms.example.com/abc");
     expect(appArgs.data.externalAnswersCopy).toBe("Q1: yes");
@@ -169,6 +184,7 @@ describe("createExternalInstructorApplicant", () => {
 
     const result = await createExternalInstructorApplicant({
       name: "Ada Lovelace",
+      lastName: "Lovelace",
       email: "ada@example.com",
       source: "MANUAL_ADMIN_ENTRY",
     });
@@ -192,6 +208,7 @@ describe("createExternalInstructorApplicant", () => {
 
     await createExternalInstructorApplicant({
       name: "Ada",
+      lastName: "Lovelace",
       email: "ada@example.com",
       source: "GOOGLE_FORMS",
       // Try to spoof a different chapter — CP should still be locked to chap-1.
@@ -213,6 +230,7 @@ describe("createExternalInstructorApplicant", () => {
     await expect(
       createExternalInstructorApplicant({
         name: "Ada",
+        lastName: "Lovelace",
         email: "ada@example.com",
         source: "GOOGLE_FORMS",
       }),
@@ -224,6 +242,7 @@ describe("createExternalInstructorApplicant", () => {
     findManualEmailTaskFirst.mockResolvedValue({ id: "existing-task" });
     await createExternalInstructorApplicant({
       name: "Ada",
+      lastName: "Lovelace",
       email: "ada@example.com",
       source: "GOOGLE_FORMS",
     });

@@ -6,6 +6,7 @@ import {
   matchesInterviewState,
 } from "@/lib/interviews/workflow";
 import { isHiringDecisionApproved } from "@/lib/hiring-decision-utils";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import type {
   InterviewCommandCenterData,
   InterviewHubFilters,
@@ -290,6 +291,7 @@ export async function getInterviewCommandCenterData(
             interviewRound: true,
             interviewScheduledAt: true,
             preferredFirstName: true,
+            lastName: true,
             legalName: true,
             applicationTrack: true,
             applicant: {
@@ -318,11 +320,7 @@ export async function getInterviewCommandCenterData(
       const assignment = app.interviewerAssignments[0];
       const isLead = assignment?.role === "LEAD";
       const hasSubmittedReview = app.interviewReviews.length > 0;
-      const displayName =
-        app.preferredFirstName ??
-        app.legalName ??
-        app.applicant.name ??
-        "Applicant";
+      const displayName = formatApplicantDisplayName(app);
       const trackBadge =
         app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" ? " · SW" : "";
 

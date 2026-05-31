@@ -5,6 +5,7 @@ import { getChairQueue } from "@/lib/instructor-applicant-board-queries";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 import { requireChairPage } from "@/lib/page-guards";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import ChairQueueClientWrapper from "./client";
 
 export const dynamic = "force-dynamic";
@@ -36,10 +37,16 @@ function formatDateTime(date: Date): string {
 
 function deriveDisplayName(app: {
   preferredFirstName: string | null;
+  lastName: string | null;
   legalName: string | null;
   applicant: { name: string | null } | null;
 }): string {
-  return app.preferredFirstName ?? app.legalName ?? app.applicant?.name ?? "Applicant";
+  return formatApplicantDisplayName({
+    preferredFirstName: app.preferredFirstName,
+    lastName: app.lastName,
+    legalName: app.legalName,
+    applicant: app.applicant,
+  });
 }
 
 function daysSince(date: Date | null): number | null {
@@ -80,6 +87,7 @@ export default async function ChairQueuePage() {
           application: {
             select: {
               preferredFirstName: true,
+              lastName: true,
               legalName: true,
               applicant: {
                 select: { name: true, chapter: { select: { name: true } } },

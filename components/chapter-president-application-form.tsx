@@ -138,6 +138,11 @@ export default function ChapterPresidentApplicationForm({
         </div>
 
         <div className="form-row">
+          <label>Last Name <span style={{ color: "#dc2626" }}>*</span></label>
+          <input className="input" name="lastName" placeholder="Your last name" required />
+        </div>
+
+        <div className="form-row">
           <label>Phone Number (optional)</label>
           <input className="input" name="phoneNumber" type="tel" placeholder="(555) 123-4567" />
         </div>

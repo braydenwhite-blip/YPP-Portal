@@ -91,6 +91,10 @@ export async function submitChapterPresidentApplication(
     // Personal info
     const legalName = getString(formData, "legalName", false);
     const preferredFirstName = getString(formData, "preferredFirstName", false);
+    const lastName = getString(formData, "lastName");
+    if (lastName.length > 100) {
+      return { status: "error", message: "Last name should be under 100 characters." };
+    }
     const phoneNumber = getString(formData, "phoneNumber", false);
     const dateOfBirth = getString(formData, "dateOfBirth", false);
     const hearAboutYPPRaw = getString(formData, "hearAboutYPP", false);
@@ -197,6 +201,7 @@ export async function submitChapterPresidentApplication(
           availability,
           legalName: legalName || null,
           preferredFirstName: preferredFirstName || null,
+          lastName,
           phoneNumber: phoneNumber || null,
           dateOfBirth: dateOfBirth || null,
           hearAboutYPP: hearAboutYPP || null,

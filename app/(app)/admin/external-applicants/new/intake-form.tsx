@@ -136,6 +136,10 @@ export default function ExternalApplicantIntakeForm({
             <input className="input" name="name" required placeholder="Full name" />
           </label>
           <label className="form-row">
+            Applicant last name <span style={{ color: "#b91c1c" }}>*</span>
+            <input className="input" name="lastName" required placeholder="Last name" />
+          </label>
+          <label className="form-row">
             Applicant email <span style={{ color: "#b91c1c" }}>*</span>
             <input
               className="input"

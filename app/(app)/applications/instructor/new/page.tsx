@@ -40,6 +40,7 @@ export default async function NewInstructorApplicationPage() {
       status: true,
       legalName: true,
       preferredFirstName: true,
+      lastName: true,
       phoneNumber: true,
       dateOfBirth: true,
       hearAboutYPP: true,
@@ -121,6 +122,7 @@ export default async function NewInstructorApplicationPage() {
     ? {
         legalName: latest.legalName,
         preferredFirstName: latest.preferredFirstName,
+        lastName: latest.lastName,
         phoneNumber: latest.phoneNumber,
         dateOfBirth: latest.dateOfBirth,
         hearAboutYPPOption,

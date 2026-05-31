@@ -14,6 +14,7 @@ import {
   offerInterviewSlots,
 } from "@/lib/instructor-application-actions";
 import { cleanMeetingDetails } from "@/lib/meeting-details";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 /* ── Score Bar ─────────────────────────────────────── */
 
@@ -286,7 +287,7 @@ export default function ApplicantDetailPanel({
   }
 
   async function handlePreApprove() {
-    if (!confirm(`Pre-approve ${app.legalName || app.applicant.name}? This will unlock instructor training for them and send a pre-approval email.`)) return;
+    if (!confirm(`Pre-approve ${formatApplicantDisplayName(app)}? This will unlock instructor training for them and send a pre-approval email.`)) return;
     setSaving(true);
     const result = await preApproveApplication(app.id);
     if (result.success) {
@@ -370,7 +371,7 @@ export default function ApplicantDetailPanel({
     showMessage("Interview time set — workspace ready to open.");
   }
 
-  const displayName = app.legalName || app.applicant.name;
+  const displayName = formatApplicantDisplayName(app);
   const deadlineText = formatDeadlineDetail(app);
   const isFinal = app.status === "APPROVED" || app.status === "REJECTED";
   const applicationWorkspaceHref = `/applications/instructor/${app.id}`;

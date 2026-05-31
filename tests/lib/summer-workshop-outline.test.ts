@@ -148,6 +148,7 @@ describe("summerWorkshopInstructorApplicationSchema", () => {
   const baseInstructorPayload = {
     legalName: "Ada Lovelace",
     preferredFirstName: "Ada",
+    lastName: "Lovelace",
     city: "Boston",
     stateProvince: "MA",
     zipCode: "02118",
@@ -173,6 +174,14 @@ describe("summerWorkshopInstructorApplicationSchema", () => {
       baseInstructorPayload
     );
     expect(result.success).toBe(true);
+  });
+
+  it("requires an explicit last name", () => {
+    const result = summerWorkshopInstructorApplicationSchema.safeParse({
+      ...baseInstructorPayload,
+      lastName: "",
+    });
+    expect(result.success).toBe(false);
   });
 
   it("relaxes teaching experience minimum vs the standard schema", () => {

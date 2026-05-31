@@ -199,6 +199,9 @@ export default async function ChapterLeadInstructorApplicantsPage({
       updatedAt: (app.updatedAt as Date | null)?.toISOString() ?? null,
       overdue: app.overdue as boolean | undefined,
       subjectsOfInterest: app.subjectsOfInterest as string | null,
+      legalName: (app.legalName as string | null) ?? null,
+      preferredFirstName: (app.preferredFirstName as string | null) ?? null,
+      lastName: (app.lastName as string | null) ?? null,
       applicant: {
         id: app.applicant.id as string,
         name: app.applicant.name as string | null,
@@ -228,6 +231,9 @@ export default async function ChapterLeadInstructorApplicantsPage({
     archivedAt: app.archivedAt?.toISOString() ?? null,
     updatedAt: app.updatedAt.toISOString(),
     subjectsOfInterest: app.subjectsOfInterest ?? null,
+    legalName: app.legalName ?? null,
+    preferredFirstName: app.preferredFirstName ?? null,
+    lastName: app.lastName ?? null,
     applicant: {
       id: app.applicant.id,
       name: app.applicant.name,

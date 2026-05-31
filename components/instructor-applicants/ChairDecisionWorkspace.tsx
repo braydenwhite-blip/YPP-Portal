@@ -8,6 +8,7 @@ import {
   INITIAL_REVIEW_RATING_OPTIONS,
   INSTRUCTOR_INITIAL_REVIEW_SIGNALS,
 } from "@/lib/instructor-review-config";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import type { ChairDecisionAction } from "@prisma/client";
 
 interface Category {
@@ -36,6 +37,7 @@ interface Application {
   firstClassPlan: string | null;
   materialsReadyAt: Date | string | null;
   preferredFirstName: string | null;
+  lastName: string | null;
   legalName: string | null;
   chairQueuedAt: Date | string | null;
   applicant: {
@@ -97,8 +99,7 @@ export default function ChairDecisionWorkspace({ application, backHref }: Props)
   const [error, setError] = useState<string | null>(null);
   const [staleState, setStaleState] = useState(false);
 
-  const displayName =
-    application.preferredFirstName ?? application.legalName ?? application.applicant.name ?? "Applicant";
+  const displayName = formatApplicantDisplayName(application);
 
   const reviewerNote = application.applicationReviews[0] ?? null;
   const hasReviewerNote = !!reviewerNote?.summary || !!reviewerNote?.notes;

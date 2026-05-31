@@ -6,10 +6,12 @@
 
 import type { CSSProperties } from "react";
 import type { InstructorApplicationStatus } from "@prisma/client";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 export interface ApplicantIdentityProps {
   applicant: { id: string; name: string | null; avatarUrl?: string | null };
   preferredFirstName?: string | null;
+  lastName?: string | null;
   legalName?: string | null;
   status?: InstructorApplicationStatus;
   chapterName?: string | null;
@@ -58,15 +60,16 @@ function initialsFor(name: string | null | undefined): string {
 
 function deriveDisplayName({
   preferredFirstName,
+  lastName,
   legalName,
   applicant,
 }: ApplicantIdentityProps): string {
-  return (
-    preferredFirstName?.trim() ||
-    legalName?.trim() ||
-    applicant.name?.trim() ||
-    "Applicant"
-  );
+  return formatApplicantDisplayName({
+    preferredFirstName,
+    lastName,
+    legalName,
+    applicant,
+  });
 }
 
 export default function ApplicantIdentity(props: ApplicantIdentityProps) {

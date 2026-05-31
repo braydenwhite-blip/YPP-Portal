@@ -8,6 +8,7 @@ import {
 } from "@/components/kanban/kanban-utils";
 import { updateApplicationStage } from "@/lib/instructor-application-actions";
 import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import ApplicantDetailPanel from "./applicant-detail-panel";
 
 /* ── Types ─────────────────────────────────────────── */
@@ -17,6 +18,7 @@ export type InstructorApp = {
   status: string;
   legalName: string | null;
   preferredFirstName: string | null;
+  lastName: string | null;
   applicantId: string;
   applicant: {
     id: string;
@@ -142,7 +144,7 @@ function ApplicantCard({
 }) {
   const deadline = formatInstructorDeadline(app);
   const rec = recommendationInfo(app.decisionRecommendation);
-  const displayName = app.legalName || app.applicant.name;
+  const displayName = formatApplicantDisplayName(app);
   const latestRating = app.applicationReviews?.find((review) => review.overallRating)
     ?.overallRating;
   const ratingOption = PROGRESS_RATING_OPTIONS.find((option) => option.value === latestRating);
@@ -193,7 +195,7 @@ function ApplicantCard({
 /* ── Drag Overlay Card ─────────────────────────────── */
 
 function DragOverlayCard({ app }: { app: InstructorApp }) {
-  const displayName = app.legalName || app.applicant.name;
+  const displayName = formatApplicantDisplayName(app);
   return (
     <div
       className="kanban-card applicant-pipeline-card"
@@ -237,6 +239,8 @@ export default function InstructorKanbanBoard({
       getSearchText={(app) =>
         [
           app.legalName,
+          app.preferredFirstName,
+          app.lastName,
           app.applicant.name,
           app.applicant.email,
           app.applicant.chapter?.name,

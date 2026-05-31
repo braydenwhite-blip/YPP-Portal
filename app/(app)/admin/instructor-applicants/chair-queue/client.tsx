@@ -15,6 +15,7 @@ type QueueItem = {
   materialsReadyAt: Date | null;
   chairQueuedAt: Date | null;
   preferredFirstName: string | null;
+  lastName: string | null;
   legalName: string | null;
   applicant: {
     id: string;

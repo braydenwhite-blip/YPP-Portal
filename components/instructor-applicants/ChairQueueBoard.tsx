@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 interface InterviewReview {
   id: string;
@@ -32,6 +33,7 @@ interface ApplicationRow {
   materialsReadyAt: Date | string | null;
   chairQueuedAt: Date | string | null;
   preferredFirstName: string | null;
+  lastName: string | null;
   legalName: string | null;
   applicant: {
     id: string;
@@ -144,8 +146,7 @@ export default function ChairQueueBoard({ applications }: Props) {
         <div className="chair-queue-list">
           {displayed.map((app) => {
             const days = daysInQueue(app);
-            const displayName =
-              app.preferredFirstName ?? app.legalName ?? app.applicant.name ?? "Applicant";
+            const displayName = formatApplicantDisplayName(app);
             const reviewerRec = app.applicationReviews[0];
             const submittedRecs = new Set(app.interviewReviews.map((review) => review.reviewerId));
             const missingRecommendations = app.interviewerAssignments.filter(

@@ -68,6 +68,9 @@ const PIPELINE_SELECT = {
   isReapplication: true,
   previousApplicationId: true,
   source: true,
+  legalName: true,
+  preferredFirstName: true,
+  lastName: true,
   offeredSlots: {
     select: { id: true, scheduledAt: true, confirmedAt: true },
   },
@@ -340,6 +343,7 @@ const CHAIR_QUEUE_SELECT = {
   firstClassPlan: true,
   preferredFirstName: true,
   legalName: true,
+  lastName: true,
   chairQueuedAt: true,
   materialsReadyAt: true,
   interviewRound: true,
@@ -541,6 +545,9 @@ export async function getArchivedApplications({
         applicationTrack: true,
         instructorSubtype: true,
         workshopOutline: true,
+        legalName: true,
+        preferredFirstName: true,
+        lastName: true,
         applicant: {
           select: { id: true, name: true, chapterId: true, chapter: { select: { name: true } } },
         },

@@ -94,10 +94,11 @@ export default function ApplicantEditForm({
           />
         </label>
         <label className="form-label">
-          Last name
+          Last name *
           <input
             className="input"
             name="lastName"
+            required
             defaultValue={values.lastName ?? ""}
           />
         </label>

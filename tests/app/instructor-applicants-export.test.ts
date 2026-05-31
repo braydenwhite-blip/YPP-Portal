@@ -33,6 +33,7 @@ function makeApp(overrides: Record<string, unknown> = {}) {
     updatedAt: new Date("2025-01-16T10:00:00Z"),
     legalName: "Jane Doe",
     preferredFirstName: "Jane",
+    lastName: "Doe",
     schoolName: "State University",
     graduationYear: 2026,
     interviewRound: 1,
@@ -147,6 +148,7 @@ describe("GET /api/admin/instructor-applicants/export.csv", () => {
         status: "UNDER_REVIEW",
         legalName: "Alice Smith",
         preferredFirstName: "Alice",
+        lastName: "Smith",
         schoolName: "Tech College",
         graduationYear: 2027,
         applicationReviews: [{ id: "r1" }, { id: "r2" }],
@@ -175,12 +177,14 @@ describe("GET /api/admin/instructor-applicants/export.csv", () => {
     expect(lines[0]).toContain("id");
     expect(lines[0]).toContain("status");
     expect(lines[0]).toContain("legalName");
+    expect(lines[0]).toContain("lastName");
     expect(lines[0]).toContain("reviewerName");
 
     // Data row
     expect(lines[1]).toContain("app-123");
     expect(lines[1]).toContain("UNDER_REVIEW");
     expect(lines[1]).toContain("Alice Smith");
+    expect(lines[1]).toContain("Smith");
     expect(lines[1]).toContain("Seattle");
     expect(lines[1]).toContain("Bob Admin");
     expect(lines[1]).toContain("bob@ypp.org");

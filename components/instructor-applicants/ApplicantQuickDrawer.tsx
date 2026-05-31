@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { formatScheduleDateTime } from "@/lib/scheduling/shared";
 import { ArchiveOneButton } from "./ArchiveActions";
+import {
+  formatApplicantDisplayName,
+  isApplicantLastNameMissing,
+} from "@/lib/applicant-display-name";
 
 type DrawerApp = {
   id: string;
@@ -12,6 +16,9 @@ type DrawerApp = {
   updatedAt?: Date | string;
   overdue?: boolean;
   subjectsOfInterest: string | null;
+  legalName?: string | null;
+  preferredFirstName?: string | null;
+  lastName?: string | null;
   applicationTrack?: string;
   workshopTitle?: string | null;
   workshopAgeRange?: string | null;
@@ -63,6 +70,8 @@ export default function ApplicantQuickDrawer({
   const leadInterviewer = app.interviewerAssignments.find((a) => a.role === "LEAD");
   const secondInterviewer = app.interviewerAssignments.find((a) => a.role === "SECOND");
   const leadReview = app.applicationReviews?.[0];
+  const displayName = formatApplicantDisplayName(app);
+  const missingLastName = isApplicantLastNameMissing(app);
 
   // An application can sit in INTERVIEW_SCHEDULED with no confirmed time yet
   // (interviewScheduledAt === null) while a time is still being arranged. Only
@@ -80,13 +89,13 @@ export default function ApplicantQuickDrawer({
         className="slideout-panel applicant-quick-drawer"
         role="dialog"
         aria-modal="true"
-        aria-label={`Applicant detail: ${app.applicant.name ?? app.applicant.email}`}
+        aria-label={`Applicant detail: ${displayName}`}
       >
         {/* Header */}
         <div className="slideout-header applicant-quick-drawer-header">
           <div>
             <div className="applicant-quick-drawer-title">
-              {app.applicant.name ?? app.applicant.email}
+              {displayName}
             </div>
             <div className="applicant-quick-drawer-chips">
               {app.applicant.chapter && (
@@ -98,6 +107,11 @@ export default function ApplicantQuickDrawer({
               >
                 {statusLabel}
               </span>
+              {missingLastName && (
+                <span className="pill pill-attention pill-small" title="This legacy application is missing an explicit last name.">
+                  Missing last name
+                </span>
+              )}
               {app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
                 <span
                   className="pill pill-small"
@@ -256,7 +270,7 @@ export default function ApplicantQuickDrawer({
                   <ArchiveOneButton
                     applicationId={app.id}
                     kind="instructor"
-                    applicantName={app.applicant.name ?? app.applicant.email}
+                    applicantName={displayName}
                     onArchived={onClose}
                   />
                 )}

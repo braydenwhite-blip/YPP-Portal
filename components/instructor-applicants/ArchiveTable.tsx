@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, type ReactNode } from "react";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 type ArchiveApp = {
   id: string;
@@ -8,6 +9,9 @@ type ArchiveApp = {
   archivedAt: Date | string | null;
   updatedAt: Date | string;
   subjectsOfInterest: string | null;
+  legalName?: string | null;
+  preferredFirstName?: string | null;
+  lastName?: string | null;
   applicant: {
     name: string | null;
     email: string;
@@ -51,6 +55,10 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
       const q = search.toLowerCase();
       result = result.filter(
         (a) =>
+          formatApplicantDisplayName(a).toLowerCase().includes(q) ||
+          (a.legalName ?? "").toLowerCase().includes(q) ||
+          (a.preferredFirstName ?? "").toLowerCase().includes(q) ||
+          (a.lastName ?? "").toLowerCase().includes(q) ||
           (a.applicant.name ?? "").toLowerCase().includes(q) ||
           a.applicant.email.toLowerCase().includes(q) ||
           (a.applicant.chapter?.name ?? "").toLowerCase().includes(q)
@@ -65,8 +73,8 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
         av = String(a.archivedAt ?? a.updatedAt);
         bv = String(b.archivedAt ?? b.updatedAt);
       } else if (sortKey === "applicant") {
-        av = (a.applicant.name ?? a.applicant.email).toLowerCase();
-        bv = (b.applicant.name ?? b.applicant.email).toLowerCase();
+        av = formatApplicantDisplayName(a).toLowerCase();
+        bv = formatApplicantDisplayName(b).toLowerCase();
       } else {
         av = a.status;
         bv = b.status;
@@ -144,7 +152,7 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
                 key={app.id}
               >
                 <td className="applicant-archive-name">
-                  {app.applicant.name ?? app.applicant.email}
+                  {formatApplicantDisplayName(app)}
                 </td>
                 <td>
                   {app.applicant.chapter?.name ?? "—"}

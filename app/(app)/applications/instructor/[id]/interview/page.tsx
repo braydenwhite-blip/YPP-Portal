@@ -15,6 +15,7 @@ import {
   saveInstructorInterviewLiveDraftAction,
   saveInstructorInterviewReviewAction,
 } from "@/lib/instructor-review-actions";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,7 @@ export default async function InterviewerWorkspacePage({
       firstClassPlan: true,
       motivationVideoUrl: true,
       preferredFirstName: true,
+      lastName: true,
       legalName: true,
       reviewerId: true,
       applicationTrack: true,
@@ -103,11 +105,7 @@ export default async function InterviewerWorkspacePage({
   }
 
   const reviewerNote = application.applicationReviews[0] ?? null;
-  const applicantDisplayName =
-    application.preferredFirstName ||
-    application.legalName ||
-    application.applicant.name ||
-    "Applicant";
+  const applicantDisplayName = formatApplicantDisplayName(application);
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }}>

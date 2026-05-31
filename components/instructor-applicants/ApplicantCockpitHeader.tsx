@@ -2,6 +2,7 @@
 
 import type { ApplicationSource, InstructorApplicationStatus } from "@prisma/client";
 import ApplicationSourceBadge from "@/components/external-intake/ApplicationSourceBadge";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 interface Step {
   label: string;
@@ -44,6 +45,7 @@ interface Props {
     id: string;
     status: InstructorApplicationStatus;
     preferredFirstName: string | null;
+    lastName: string | null;
     legalName: string | null;
     subjectsOfInterest: string | null;
     schoolName: string | null;
@@ -76,10 +78,7 @@ function initials(name: string): string {
 }
 
 export default function ApplicantCockpitHeader({ application }: Props) {
-  const displayName =
-    application.preferredFirstName && application.legalName
-      ? `${application.preferredFirstName} (${application.legalName})`
-      : application.preferredFirstName ?? application.legalName ?? application.applicant.name ?? "Applicant";
+  const displayName = formatApplicantDisplayName(application);
 
   const subjects = (application.subjectsOfInterest ?? "")
     .split(/[,;]+/)

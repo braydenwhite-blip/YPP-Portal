@@ -42,6 +42,7 @@ import ReviewSubmissionWarningsBanner from "@/components/instructor-applicants/R
 import WorkshopOutlinePanel from "@/components/instructor-applicants/WorkshopOutlinePanel";
 import PromoteToFullInstructorButton from "@/components/instructor-applicants/PromoteToFullInstructorButton";
 import type { PromotionEligibility, WorkshopOutline } from "@/lib/summer-workshop";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,7 @@ async function fetchCockpitData(applicationId: string) {
       promotionEligibility: true,
       legalName: true,
       preferredFirstName: true,
+      lastName: true,
       schoolName: true,
       graduationYear: true,
       subjectsOfInterest: true,
@@ -354,6 +356,7 @@ export default async function ApplicantCockpitPage({
         instructorApplication: {
           select: {
             preferredFirstName: true,
+            lastName: true,
             legalName: true,
             applicant: { select: { name: true } },
           },
@@ -366,11 +369,10 @@ export default async function ApplicantCockpitPage({
       scheduledAt: slot.scheduledAt,
       durationMinutes: slot.durationMinutes,
       confirmed: slot.confirmedAt != null,
-      applicantName:
-        slot.instructorApplication.preferredFirstName ||
-        slot.instructorApplication.legalName ||
-        slot.instructorApplication.applicant.name ||
-        "Another applicant",
+      applicantName: formatApplicantDisplayName({
+        ...slot.instructorApplication,
+        fallback: "Another applicant",
+      }),
     }));
   }
 
@@ -493,6 +495,8 @@ export default async function ApplicantCockpitPage({
               <dl className="cockpit-detail-grid">
                 <dt>Email</dt>
                 <dd>{application.applicant.email}</dd>
+                <dt>Last Name</dt>
+                <dd>{application.lastName ?? "Missing"}</dd>
                 <dt>Teaching Experience</dt>
                 <dd>{application.teachingExperience}</dd>
                 <dt>Availability</dt>
@@ -534,7 +538,7 @@ export default async function ApplicantCockpitPage({
                   </p>
                   <PromoteToFullInstructorButton
                     applicationId={application.id}
-                    applicantName={application.applicant.name ?? application.applicant.email}
+                    applicantName={formatApplicantDisplayName(application)}
                     promotionEligibility={
                       (application.promotionEligibility as PromotionEligibility | null) ?? null
                     }

@@ -61,6 +61,7 @@ import RecommendationBadge from "@/components/instructor-applicants/shared/Recom
 import ReviewerIdentityChip from "@/components/instructor-applicants/shared/ReviewerIdentityChip";
 import { AlertTriangleIcon } from "./cockpit-icons";
 import PromoteToFullInstructorButton from "@/components/instructor-applicants/PromoteToFullInstructorButton";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 export interface FinalReviewCockpitProps {
   application: SerializedApplicationForReview;
@@ -83,12 +84,7 @@ function buildReviewRoute(id: string) {
 }
 
 function deriveDisplayName(app: SerializedApplicationForReview): string {
-  return (
-    app.preferredFirstName?.trim() ||
-    app.legalName?.trim() ||
-    app.applicant.name?.trim() ||
-    "Applicant"
-  );
+  return formatApplicantDisplayName(app);
 }
 
 function CockpitInner({
@@ -349,6 +345,7 @@ function CockpitInner({
           id: application.id,
           status: application.status,
           preferredFirstName: application.preferredFirstName,
+          lastName: application.lastName,
           legalName: application.legalName,
           applicant: { id: application.applicant.id, name: application.applicant.name },
           chapterName: application.applicant.chapter?.name ?? null,

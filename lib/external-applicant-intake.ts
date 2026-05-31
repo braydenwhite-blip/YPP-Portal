@@ -53,6 +53,8 @@ export type ExternalApplicantSource = Extract<
 export interface CreateExternalInstructorApplicantInput {
   /** Required — applicant's display name (or "First Last"). */
   name: string;
+  /** Required — applicant's last name for admin identification. */
+  lastName: string;
   /** Required — applicant's email; used to find or create a portal User. */
   email: string;
   /** Optional — phone number for offline contact. */
@@ -142,8 +144,11 @@ export async function createExternalInstructorApplicant(
   const importedById = session.user.id;
 
   const name = (input.name ?? "").trim();
+  const lastName = (input.lastName ?? "").trim();
   const email = normalizeEmail(input.email ?? "");
   if (!name) throw new Error("Applicant name is required.");
+  if (!lastName) throw new Error("Applicant last name is required.");
+  if (lastName.length > 100) throw new Error("Applicant last name should be under 100 characters.");
   if (!email || !email.includes("@")) throw new Error("A valid applicant email is required.");
   if (input.source !== "GOOGLE_FORMS" && input.source !== "MANUAL_ADMIN_ENTRY") {
     throw new Error("Source must be GOOGLE_FORMS or MANUAL_ADMIN_ENTRY.");
@@ -240,6 +245,7 @@ export async function createExternalInstructorApplicant(
       motivation: input.motivation?.trim() || null,
       teachingExperience: input.teachingExperience?.trim() || "",
       availability: input.availability?.trim() || "",
+      lastName,
       applicationTrack,
       instructorSubtype,
       cohortId: input.cohortId?.trim() || undefined,
@@ -397,6 +403,7 @@ export async function createExternalInstructorApplicantFromForm(
 
     const result = await createExternalInstructorApplicant({
       name: String(formData.get("name") ?? ""),
+      lastName: String(formData.get("lastName") ?? ""),
       email: String(formData.get("email") ?? ""),
       phone: String(formData.get("phone") ?? "") || null,
       source,
@@ -425,6 +432,8 @@ export async function createExternalInstructorApplicantFromForm(
 export interface CreateExternalChapterPresidentApplicantInput {
   /** Required — applicant's display name (or "First Last"). */
   name: string;
+  /** Required — applicant's last name for admin identification. */
+  lastName: string;
   /** Required — applicant's email; used to find or create a portal User. */
   email: string;
   /** Optional — phone number for offline contact. */
@@ -519,8 +528,11 @@ export async function createExternalChapterPresidentApplicant(
   const importedById = session.user.id;
 
   const name = (input.name ?? "").trim();
+  const lastName = (input.lastName ?? "").trim();
   const email = normalizeEmail(input.email ?? "");
   if (!name) throw new Error("Applicant name is required.");
+  if (!lastName) throw new Error("Applicant last name is required.");
+  if (lastName.length > 100) throw new Error("Applicant last name should be under 100 characters.");
   if (!email || !email.includes("@")) throw new Error("A valid applicant email is required.");
   if (input.source !== "GOOGLE_FORMS" && input.source !== "MANUAL_ADMIN_ENTRY") {
     throw new Error("Source must be GOOGLE_FORMS or MANUAL_ADMIN_ENTRY.");
@@ -581,6 +593,7 @@ export async function createExternalChapterPresidentApplicant(
       leadershipExperience: input.leadershipExperience?.trim() || "",
       chapterVision: input.chapterVision?.trim() || "",
       availability: input.availability?.trim() || "",
+      lastName,
       phoneNumber: input.phone?.trim() || null,
       source: input.source,
       importedById,
@@ -638,6 +651,7 @@ export async function createExternalChapterPresidentApplicantFromForm(
 
     const result = await createExternalChapterPresidentApplicant({
       name: String(formData.get("name") ?? ""),
+      lastName: String(formData.get("lastName") ?? ""),
       email: String(formData.get("email") ?? ""),
       phone: String(formData.get("phone") ?? "") || null,
       source,

@@ -55,12 +55,24 @@ export async function importApplicationsFromCSV(formData: FormData): Promise<{
     try {
       const name =
         fieldMapping.name !== undefined ? row[fieldMapping.name] : undefined;
+      const lastName =
+        fieldMapping.lastName !== undefined ? row[fieldMapping.lastName]?.trim() : undefined;
       const email =
         fieldMapping.email !== undefined ? row[fieldMapping.email] : undefined;
 
       if (!email) {
         skipped++;
         errors.push(`Row ${i + 1}: Missing email`);
+        continue;
+      }
+      if (!lastName) {
+        skipped++;
+        errors.push(`Row ${i + 1}: Missing last name`);
+        continue;
+      }
+      if (lastName.length > 100) {
+        skipped++;
+        errors.push(`Row ${i + 1}: Last name should be under 100 characters`);
         continue;
       }
 
@@ -112,6 +124,7 @@ export async function importApplicationsFromCSV(formData: FormData): Promise<{
             motivation: motivation || "",
             teachingExperience: teachingExperience || "",
             availability: availability || "",
+            lastName,
             ...(cohortId ? { cohortId } : {}),
             timeline: defaultInitialReviewer
               ? {
@@ -152,6 +165,7 @@ export async function importApplicationsFromCSV(formData: FormData): Promise<{
             leadershipExperience: leadershipExperience || "",
             chapterVision: chapterVision || "",
             availability: availability || "",
+            lastName,
             ...(cohortId ? { cohortId } : {}),
           },
         });

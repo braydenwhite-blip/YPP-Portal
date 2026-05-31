@@ -115,6 +115,7 @@ function makeApplication(overrides: Record<string, unknown> = {}) {
     firstClassPlan: null,
     legalName: "Alice Smith",
     preferredFirstName: "Alice",
+    lastName: "Smith",
     schoolName: "Test University",
     graduationYear: 2023,
     subjectsOfInterest: null,

@@ -3329,6 +3329,14 @@ export async function editInstructorApplicationFields(
           }
           incoming[field] = n;
         }
+      } else if (field === "lastName") {
+        if (str === "") {
+          return { status: "error", message: "Last name is required." };
+        }
+        if (str.length > 100) {
+          return { status: "error", message: "Last name should be under 100 characters." };
+        }
+        incoming[field] = str;
       } else {
         incoming[field] = str === "" ? null : str;
       }

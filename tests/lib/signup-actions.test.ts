@@ -81,6 +81,7 @@ describe("signUp — validation failure returns fields", () => {
     fd.set("chapterId", "");
     fd.set("legalName", "Test User");
     fd.set("preferredFirstName", "Test");
+    fd.set("lastName", "User");
     fd.set("phoneNumber", "5551234567");
     fd.set("dateOfBirth", "2005-01-01");
     fd.set("hearAboutYPP", "Word of mouth");

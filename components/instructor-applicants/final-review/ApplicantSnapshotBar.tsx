@@ -20,6 +20,7 @@ export interface ApplicantSnapshotBarProps {
     id: string;
     status: InstructorApplicationStatus;
     preferredFirstName: string | null;
+    lastName: string | null;
     legalName: string | null;
     applicant: { id: string; name: string | null };
     chapterName: string | null;
@@ -69,6 +70,7 @@ export default function ApplicantSnapshotBar({
       <ApplicantIdentity
         applicant={application.applicant}
         preferredFirstName={application.preferredFirstName}
+        lastName={application.lastName}
         legalName={application.legalName}
         status={application.status}
         chapterName={application.chapterName}

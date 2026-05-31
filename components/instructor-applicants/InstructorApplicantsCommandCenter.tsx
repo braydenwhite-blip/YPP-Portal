@@ -7,6 +7,7 @@ import ApplicantPipelineCard from "./ApplicantPipelineCard";
 import ApplicantCommandFilters from "./ApplicantCommandFilters";
 import ApplicantQuickDrawer from "./ApplicantQuickDrawer";
 import ArchiveTable from "./ArchiveTable";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 
 type PipelineApp = {
   id: string;
@@ -16,6 +17,9 @@ type PipelineApp = {
   archivedAt: Date | string | null;
   overdue?: boolean;
   subjectsOfInterest: string | null;
+  legalName?: string | null;
+  preferredFirstName?: string | null;
+  lastName?: string | null;
   applicant: {
     id: string;
     name: string | null;
@@ -341,6 +345,10 @@ export default function InstructorApplicantsCommandCenter({
             getSearchText={(item) => {
               const app = pipelineApps.find((a) => a.id === item.id);
               return [
+                app ? formatApplicantDisplayName(app) : "",
+                app?.preferredFirstName ?? "",
+                app?.lastName ?? "",
+                app?.legalName ?? "",
                 app?.applicant.name ?? "",
                 app?.applicant.email ?? "",
                 app?.applicant.chapter?.name ?? "",

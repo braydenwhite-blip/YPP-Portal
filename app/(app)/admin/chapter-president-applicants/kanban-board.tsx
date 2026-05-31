@@ -9,6 +9,7 @@ import {
 // Note: CP model lacks decisionRecommendation and actionDueDate fields
 // (those exist only on InstructorApplication). We handle them as optional.
 import { updateCPApplicationStage } from "@/lib/cp-application-kanban-actions";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import CPDetailPanel from "./cp-detail-panel";
 
 /* ── Types ─────────────────────────────────────────── */
@@ -18,6 +19,7 @@ export type CPApp = {
   status: string;
   legalName: string | null;
   preferredFirstName: string | null;
+  lastName: string | null;
   applicantId: string;
   applicant: {
     id: string;
@@ -148,7 +150,7 @@ function CPApplicantCard({
   ]);
   const deadline = formatCPDeadline(app);
   const rec = recommendationInfo(app.decisionRecommendation ?? null);
-  const displayName = app.legalName || app.applicant.name;
+  const displayName = formatApplicantDisplayName(app);
   const chapterName = app.chapter?.name || app.applicant.chapter?.name;
 
   return (
@@ -204,7 +206,7 @@ function CPApplicantCard({
 /* ── Drag Overlay Card ─────────────────────────────── */
 
 function DragOverlayCard({ app }: { app: CPApp }) {
-  const displayName = app.legalName || app.applicant.name;
+  const displayName = formatApplicantDisplayName(app);
   return (
     <div className="kanban-card" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.15)", width: 264 }}>
       <div className="kanban-card-name">{displayName}</div>
@@ -240,6 +242,8 @@ export default function CPKanbanBoard({
       getSearchText={(app) =>
         [
           app.legalName,
+          app.preferredFirstName,
+          app.lastName,
           app.applicant.name,
           app.applicant.email,
           app.chapter?.name,
