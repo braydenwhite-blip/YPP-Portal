@@ -368,7 +368,7 @@ added to `lib/feature-flags.ts`.
 
 **⚠ Board has no representation.** There is no `BOARD` role or subtype in the
 codebase. `SUPER_ADMIN` is the org-owner tier and stands in for "Board". So
-`requireCPO()` passes for **`CPO` OR `SUPER_ADMIN`**.
+`requireCPO()` passes for **ADMIN users with `CPO` OR `SUPER_ADMIN`**.
 
 ### Changes made
 
@@ -382,7 +382,8 @@ codebase. `SUPER_ADMIN` is the org-owner tier and stands in for "Board". So
 
    export async function requireCPO(): Promise<SessionUser> {
      const sessionUser = await requireSessionUser();
-     if (!hasAnyAdminSubtype(sessionUser.adminSubtypes, ["CPO", "SUPER_ADMIN"])) throw new Error("Unauthorized");
+     const isAdmin = hasRole(sessionUser.roles, "ADMIN", sessionUser.primaryRole);
+     if (!isAdmin || !hasAnyAdminSubtype(sessionUser.adminSubtypes, ["CPO", "SUPER_ADMIN"])) throw new Error("Unauthorized");
      return sessionUser;
    }
 
@@ -392,7 +393,8 @@ codebase. `SUPER_ADMIN` is the org-owner tier and stands in for "Board". So
      return sessionUser;
    }
    ```
-   - `requireCPO()` → People Dashboard + succession flags (CPO or Board only).
+   - `requireCPO()` → People Dashboard + succession flags (ADMIN users with CPO
+     or Board/SUPER_ADMIN subtype only).
    - `requireOfficer()` → Action Items / Officer Meetings / My Actions /
      All Actions (Officer-tier and above). ADMIN-tier users — including the CPO
      and the Board/SUPER_ADMIN, who all carry the `ADMIN` role — pass.
@@ -405,9 +407,9 @@ codebase. `SUPER_ADMIN` is the org-owner tier and stands in for "Board". So
    (`20260323090000_add_chapter_president_role_enum`): `ADD VALUE` in its own
    statement to avoid PostgreSQL 55P04 ("unsafe use of new enum value").
 5. **Seed** — `prisma/seed.ts`: the `brayden.white@youthpassionproject.org`
-   upsert now attaches `adminSubtypes: { create: [{ subtype: AdminSubtype.CPO, isDefaultOwner: true }] }`
-   in **both** `create` and `update` (so an existing Brayden row is upgraded to
-   CPO, and a missing one is created as CPO). He keeps
+   upsert creates the row with `AdminSubtype.CPO` when missing, then separately
+   upserts `UserAdminSubtype(userId, CPO)` for existing rows so Brayden is
+   upgraded to CPO without deleting any other existing admin subtypes. He keeps
    `primaryRole: ADMIN` + roles `[ADMIN, INSTRUCTOR]`.
    - Incidental fix required to run the seed at all: a **pre-existing** TDZ bug
      (`const verifiedAt` was declared *after* the `milo.wald` upsert that

@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | grep -q 'prisma/schema\\.prisma' && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"prisma/schema.prisma was just modified. You MUST create a new migration file in prisma/migrations/ before finishing. Use a timestamp directory name (e.g. 20260323HHMMSS_describe_change) with a migration.sql inside. Follow the existing pattern: use CREATE TABLE IF NOT EXISTS, ADD COLUMN IF NOT EXISTS, and DO $$ BEGIN ... END $$ guards for foreign keys and enums. Never skip this step — missing migrations cause P2021/P2022 errors in production.\"}}' || true",
+            "statusMessage": "Checking for missing Prisma migration..."
+          }
+        ]
+      }
+    ]
+  }
+}

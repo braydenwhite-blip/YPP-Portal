@@ -172,7 +172,11 @@ export const OFFICER_TIER_ROLES = [
  */
 export async function requireCPO(): Promise<SessionUser> {
   const sessionUser = await requireSessionUser();
-  if (!hasAnyAdminSubtype(sessionUser.adminSubtypes, ["CPO", "SUPER_ADMIN"])) {
+  const isAdmin = hasRole(sessionUser.roles, "ADMIN", sessionUser.primaryRole);
+  if (
+    !isAdmin ||
+    !hasAnyAdminSubtype(sessionUser.adminSubtypes, ["CPO", "SUPER_ADMIN"])
+  ) {
     throw new Error("Unauthorized");
   }
   return sessionUser;
