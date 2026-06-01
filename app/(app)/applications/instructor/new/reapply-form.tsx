@@ -186,12 +186,12 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
 
         <div className="grid two">
           <label className="form-label">
-            Phone number{!isSummerWorkshop && <span style={{ fontWeight: 400, color: "var(--muted)" }}> (optional)</span>}
+            Phone number
             <input
               className="input"
               name="phoneNumber"
               type="tel"
-              required={isSummerWorkshop}
+              required
               defaultValue={get("phoneNumber")}
             />
           </label>

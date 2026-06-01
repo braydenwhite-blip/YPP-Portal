@@ -505,7 +505,7 @@ export default function InstructorSignupPage() {
             <div className="grid two">
               <label className="form-label">
                 Phone number
-                <input className="input" name="phoneNumber" type="tel" placeholder="(555) 123-4567" defaultValue={field(d, "phoneNumber", sf)} />
+                <input className="input" name="phoneNumber" type="tel" placeholder="(555) 123-4567" required defaultValue={field(d, "phoneNumber", sf)} />
               </label>
               <label className="form-label">
                 Date of birth

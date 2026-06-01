@@ -67,6 +67,7 @@ async function fetchCockpitData(applicationId: string) {
       legalName: true,
       preferredFirstName: true,
       lastName: true,
+      phoneNumber: true,
       schoolName: true,
       graduationYear: true,
       subjectsOfInterest: true,
@@ -495,6 +496,12 @@ export default async function ApplicantCockpitPage({
               <dl className="cockpit-detail-grid">
                 <dt>Email</dt>
                 <dd>{application.applicant.email}</dd>
+                {application.phoneNumber && (
+                  <>
+                    <dt>Phone</dt>
+                    <dd>{application.phoneNumber}</dd>
+                  </>
+                )}
                 <dt>Last Name</dt>
                 <dd>{application.lastName ?? "Missing"}</dd>
                 <dt>Teaching Experience</dt>
