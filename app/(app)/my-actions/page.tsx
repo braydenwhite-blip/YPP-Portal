@@ -162,7 +162,7 @@ export default async function MyActionsPage() {
     { href: "/my-actions", label: "My Actions", active: true },
   ];
   if (officer) {
-    tabs.push({ href: "/admin/actions", label: "All Actions", active: false });
+    tabs.push({ href: "/all-actions", label: "All Actions", active: false });
   }
 
   return (
