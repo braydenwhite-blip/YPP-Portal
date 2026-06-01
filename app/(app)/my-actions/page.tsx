@@ -10,6 +10,8 @@ import {
 } from "@/lib/people-strategy/action-queries";
 import { isOfficerTier, type ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { ACTION_STATUS_LABELS } from "@/lib/people-strategy/constants";
+import { getMyTeachingClasses } from "@/lib/people-strategy/class-tracker";
+import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
 import {
   effectiveDeadline,
   isActionOverdue,
@@ -140,7 +142,11 @@ export default async function MyActionsPage() {
     adminSubtypes: session.user.adminSubtypes,
   };
 
-  const items = sortByDeadline(await getMyActionItems(viewer.id, viewer));
+  const [rawItems, teachingClasses] = await Promise.all([
+    getMyActionItems(viewer.id, viewer),
+    getMyTeachingClasses(viewer.id),
+  ]);
+  const items = sortByDeadline(rawItems);
   const now = new Date();
   const summary = summarizeMyActions(items, viewer.id, now);
   const officer = isOfficerTier(viewer);
@@ -162,7 +168,7 @@ export default async function MyActionsPage() {
     { href: "/my-actions", label: "My Actions", active: true },
   ];
   if (officer) {
-    tabs.push({ href: "/admin/actions", label: "All Actions", active: false });
+    tabs.push({ href: "/all-actions", label: "All Actions", active: false });
   }
 
   return (
@@ -312,6 +318,23 @@ export default async function MyActionsPage() {
           </div>
         </div>
       )}
+
+      {/* Teaching classes, surfaced alongside action items with a clear "Class"
+          type label. Each row is read-only — class data is owned by the Classes
+          system, not the Action Tracker. */}
+      {teachingClasses.length > 0 ? (
+        <section style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#0f172a" }}>
+            Your Classes
+          </h2>
+          <p style={{ margin: 0, fontSize: 12, color: "#94a3b8" }}>
+            Classes you teach as lead or executing instructor — read-only.
+          </p>
+          {teachingClasses.map((offering) => (
+            <ClassTrackerRow key={offering.id} offering={offering} />
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }

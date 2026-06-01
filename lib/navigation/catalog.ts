@@ -396,6 +396,17 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 5,
     },
     {
+      href: "/all-actions",
+      label: "All Actions",
+      icon: "🗂️",
+      // Officer-tier and above only (mirrors requireOfficer()).
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
+      searchAliases: ["Action Tracker", "Leadership Actions", "All Action Items"],
+      dashboardDescription: "Every leadership action item, grouped by department.",
+      dashboardPriority: 5,
+    },
+    {
       href: "/leadership-pathway",
       label: "Leadership Pathway",
       icon: "🪜",
