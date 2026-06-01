@@ -22,7 +22,7 @@ const TABS: TabDef[] = [
   { key: "my", label: "My Actions", href: "/my-actions" },
   { key: "classes", label: "Classes", href: "/all-actions/classes" },
   { key: "input", label: "Needs My Input" },
-  { key: "meetings", label: "Officer Meetings" },
+  { key: "meetings", label: "Officer Meetings", href: "/officer-meetings" },
   { key: "people", label: "People" },
 ];
 
