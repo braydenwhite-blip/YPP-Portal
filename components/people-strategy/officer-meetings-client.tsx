@@ -15,6 +15,8 @@ import {
   assignActionItemToMeeting,
   createOfficerMeeting,
   deleteMiscUpdate,
+  generateOfficerMeetingAgenda,
+  generateOfficerMeetingSummaryEmail,
   saveMeetingNote,
   setOfficerMeetingStatus,
   unassignActionItemFromMeeting,
@@ -107,22 +109,99 @@ function Pill({ bg, color, children }: { bg: string; color: string; children: Re
   );
 }
 
-/** Disabled "generate" buttons — wired up in Prompt 06B. */
-function GenerateButtons() {
+function GeneratedTextBlock({ label, text }: { label: string; text: string }) {
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      {["Generate agenda", "Generate summary email"].map((label) => (
+    <details style={{ marginTop: 8 }}>
+      <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: ACCENT }}>
+        {label}
+      </summary>
+      <pre
+        style={{
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          fontFamily: "inherit",
+          fontSize: 13,
+          lineHeight: 1.5,
+          color: "#0f172a",
+          background: "#f8fafc",
+          border: "1px solid #e2e8f0",
+          borderRadius: 8,
+          padding: 12,
+          margin: "8px 0 0",
+        }}
+      >
+        {text}
+      </pre>
+    </details>
+  );
+}
+
+/**
+ * Server-side agenda + summary-email generation (Prompt 06B). The agenda can
+ * always be (re)generated; the summary email stays disabled until every linked
+ * action item has discussion notes.
+ */
+function GenerateButtons({ meeting }: { meeting: MeetingDTO }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const missingNotes = meeting.actionItems.filter(
+    (item) => item.discussionNotes.trim().length === 0
+  );
+  const summaryReady = missingNotes.length === 0;
+  const summaryTitle = summaryReady
+    ? "Compose the post-meeting recap email"
+    : `Add discussion notes to all items first (${missingNotes.length} remaining)`;
+
+  function run(action: () => Promise<unknown>) {
+    setError(null);
+    start(async () => {
+      try {
+        await action();
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Generation failed");
+      }
+    });
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <button
-          key={label}
           type="button"
           className="button outline small"
-          disabled
-          title="Coming soon (Prompt 06B)"
-          style={{ opacity: 0.55, cursor: "not-allowed" }}
+          onClick={() => run(() => generateOfficerMeetingAgenda(meeting.id))}
+          disabled={pending}
+          title="Compose the meeting agenda from linked action items"
         >
-          {label}
+          {meeting.agendaText ? "Regenerate agenda" : "Generate agenda"}
         </button>
-      ))}
+        <button
+          type="button"
+          className="button outline small"
+          onClick={() => run(() => generateOfficerMeetingSummaryEmail(meeting.id))}
+          disabled={pending || !summaryReady}
+          title={summaryTitle}
+          style={!summaryReady ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
+        >
+          {meeting.summaryEmailText ? "Regenerate summary email" : "Generate summary email"}
+        </button>
+        {!summaryReady && (
+          <span style={{ fontSize: 12, color: "#94a3b8" }}>
+            Summary email unlocks once all {meeting.actionItems.length} item
+            {meeting.actionItems.length === 1 ? "" : "s"} have discussion notes.
+          </span>
+        )}
+      </div>
+      {error && <span style={{ color: "#dc2626", fontSize: 12 }}>{error}</span>}
+      {meeting.agendaText && (
+        <GeneratedTextBlock label="View generated agenda" text={meeting.agendaText} />
+      )}
+      {meeting.summaryEmailText && (
+        <GeneratedTextBlock label="View generated summary email" text={meeting.summaryEmailText} />
+      )}
     </div>
   );
 }
@@ -529,7 +608,7 @@ function MeetingBlock({
         </div>
       </div>
 
-      <GenerateButtons />
+      <GenerateButtons meeting={meeting} />
 
       {/* Linked action items + editable discussion notes */}
       <div>
