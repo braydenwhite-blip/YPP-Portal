@@ -386,6 +386,16 @@ export const NAV_CATALOG: NavLink[] = [
 
   ...groupLinks("People & Support", 800, [
     {
+      href: "/my-actions",
+      label: "My Actions",
+      icon: "✅",
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR", "INSTRUCTOR", "MENTOR"] as NavRole[],
+      requiresActionTracker: true,
+      searchAliases: ["Action Items", "Action Tracker", "My Action Items"],
+      dashboardDescription: "Everything you lead, are executing, or owe input on — sorted by deadline.",
+      dashboardPriority: 5,
+    },
+    {
       href: "/leadership-pathway",
       label: "Leadership Pathway",
       icon: "🪜",

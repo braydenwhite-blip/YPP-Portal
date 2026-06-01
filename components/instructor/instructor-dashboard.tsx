@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import {
@@ -81,9 +82,12 @@ const PRIORITY_RANK: Record<ActionPriority, number> = {
 export async function InstructorDashboard({
   userId,
   name,
+  topSlot,
 }: {
   userId: string;
   name: string;
+  /** Optional content rendered just under the hero (e.g. People Strategy cards). */
+  topSlot?: ReactNode;
 }) {
   const now = new Date();
   const today = startOfDay(now);
@@ -370,6 +374,8 @@ export async function InstructorDashboard({
           </Link>
         </div>
       </header>
+
+      {topSlot}
 
       {/* KPI strip */}
       <div className="grid four">
