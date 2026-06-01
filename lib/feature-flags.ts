@@ -51,6 +51,18 @@ export function isQuarterlyReviewsEnabled(): boolean {
 }
 
 /**
+ * People Strategy — CPO People Dashboard (`/people`). The succession + people
+ * health table for the CPO / Board (`requireCPO()`), compiling live Action
+ * Tracker, Quarterly Review, and Monthly Check-In data already in the schema.
+ *
+ * Defaults OFF — set `ENABLE_PEOPLE_DASHBOARD=true` to expose the route. With
+ * the flag off the page returns notFound() so its existence is not leaked.
+ */
+export function isPeopleDashboardEnabled(): boolean {
+  return process.env.ENABLE_PEOPLE_DASHBOARD === "true";
+}
+
+/**
  * TEMPORARY visibility gate: while the regular Instructor program is
  * paused, only the Summer Workshop Instructor pathway should be exposed
  * to end users. Admins always retain access (see `canBypassInstructorGate`).
