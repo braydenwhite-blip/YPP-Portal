@@ -1311,6 +1311,7 @@ model User {
   actionAssignments                 ActionAssignment[]           @relation("ActionAssignments")
   actionComments                    ActionComment[]              @relation("ActionComments")
   actionFileLinksAdded              ActionFileLink[]             @relation("ActionFileLinksAdded")
+  actionEmailLogs                   ActionEmailLog[]             @relation("ActionEmailLogRecipient")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -12178,6 +12179,7 @@ model ActionItem {
   assignments ActionAssignment[] @relation("ActionItemAssignments")
   comments    ActionComment[]    @relation("ActionItemComments")
   fileLinks   ActionFileLink[]   @relation("ActionItemFileLinks")
+  emailLogs   ActionEmailLog[]   @relation("ActionItemEmailLogs")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -12242,4 +12244,43 @@ model ActionFileLink {
 
   @@index([actionItemId])
   @@index([addedById])
+}
+
+/// Type of automated Action-Tracker email. Used by `ActionEmailLog` to keep
+/// each deadline notification idempotent (one send per type/item/recipient/
+/// deadline). Gated upstream by ENABLE_ACTION_TRACKER_EMAILS.
+enum ActionEmailType {
+  WEEKLY_DIGEST
+  WARNING_24H
+  DEADLINE_REACHED
+  OVERDUE_LEAD
+}
+
+/// Idempotency ledger for the automated Action-Tracker cron emails (weekly
+/// digest, 24-hour warning, deadline-reached, and the lead overdue notice).
+/// Each row records that a specific email type was sent to a recipient for a
+/// specific action item + deadline; the unique `dedupeKey` guarantees the same
+/// (type, action, recipient, deadline) email is never sent twice, even if a
+/// cron run is retried. Mirrors the `dedupeKey` convention on `Notification`,
+/// but kept separate so the in-app notification feed is not polluted by purely
+/// transactional email bookkeeping.
+model ActionEmailLog {
+  id           String          @id @default(cuid())
+  type         ActionEmailType
+  /// Null for the weekly digest, which is keyed by week rather than one item.
+  actionItemId String?
+  actionItem   ActionItem?     @relation("ActionItemEmailLogs", fields: [actionItemId], references: [id], onDelete: Cascade)
+  recipientId  String
+  recipient    User            @relation("ActionEmailLogRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  /// Deterministic idempotency key:
+  ///   digest:<weekStartYYYY-MM-DD>:<recipientId>
+  ///   warn24:<actionItemId>:<recipientId>:<deadlineYYYY-MM-DD>
+  ///   deadline:<actionItemId>:<recipientId>:<deadlineYYYY-MM-DD>
+  ///   overdue:<actionItemId>:<recipientId>:<deadlineYYYY-MM-DD>
+  dedupeKey    String          @unique
+  sentAt       DateTime        @default(now())
+
+  @@index([recipientId])
+  @@index([actionItemId])
+  @@index([type, sentAt])
 }
