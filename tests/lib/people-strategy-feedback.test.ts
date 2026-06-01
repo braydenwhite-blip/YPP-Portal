@@ -13,8 +13,10 @@ vi.mock("@/lib/public-app-url", () => ({
 }));
 
 const isActionTrackerEmailsEnabled = vi.fn(() => true);
+const isPeopleDashboardEnabled = vi.fn(() => true);
 vi.mock("@/lib/feature-flags", () => ({
   isActionTrackerEmailsEnabled: () => isActionTrackerEmailsEnabled(),
+  isPeopleDashboardEnabled: () => isPeopleDashboardEnabled(),
 }));
 
 const sendFeedbackRequestEmail = vi.fn().mockResolvedValue({ ok: true });
@@ -51,14 +53,19 @@ import {
   sendFeedbackRequest,
   getFeedbackResponsesForSubject,
   getFeedbackRequestForCollaborator,
+  getFeedbackRequestStatusForSubject,
 } from "@/lib/people-strategy/feedback-requests";
-import { submitFeedbackResponse } from "@/lib/people-strategy/feedback-request-actions";
+import {
+  submitFeedbackResponse,
+  requestMonthlyFeedback,
+} from "@/lib/people-strategy/feedback-request-actions";
 
 const MONTH = new Date("2026-06-15T12:00:00Z"); // normalizes to 2026-06-01
 
 beforeEach(() => {
   vi.clearAllMocks();
   isActionTrackerEmailsEnabled.mockReturnValue(true);
+  isPeopleDashboardEnabled.mockReturnValue(true);
   // Default empty sources; individual tests override.
   prismaMock.actionItem.findMany.mockResolvedValue([]);
   prismaMock.mentorship.findMany.mockResolvedValue([]);
@@ -245,5 +252,108 @@ describe("getFeedbackRequestForCollaborator", () => {
 
     const asSubject = await getFeedbackRequestForCollaborator("fr1", "subject");
     expect(asSubject).toBeNull();
+  });
+});
+
+// ── getFeedbackRequestStatusForSubject — non-confidential metadata ───────────
+
+describe("getFeedbackRequestStatusForSubject", () => {
+  it("returns null when the emails flag is off", async () => {
+    isActionTrackerEmailsEnabled.mockReturnValue(false);
+    expect(await getFeedbackRequestStatusForSubject("subject")).toBeNull();
+    expect(prismaMock.feedbackRequest.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns an all-zero status when there are no requests", async () => {
+    prismaMock.feedbackRequest.findMany.mockResolvedValue([]);
+    const status = await getFeedbackRequestStatusForSubject("subject");
+    expect(status).toEqual({
+      total: 0,
+      outstanding: 0,
+      submitted: 0,
+      lastRequestedAt: null,
+      lastRequestedMonth: null,
+      lastSubmittedAt: null,
+    });
+  });
+
+  it("computes counts and the latest requested/submitted dates (no responseBody read)", async () => {
+    prismaMock.feedbackRequest.findMany.mockResolvedValue([
+      {
+        month: new Date("2026-05-01T00:00:00Z"),
+        createdAt: new Date("2026-05-02T00:00:00Z"),
+        submittedAt: new Date("2026-05-10T00:00:00Z"),
+      },
+      {
+        month: new Date("2026-06-01T00:00:00Z"),
+        createdAt: new Date("2026-06-03T00:00:00Z"),
+        submittedAt: null,
+      },
+      {
+        month: new Date("2026-04-01T00:00:00Z"),
+        createdAt: new Date("2026-04-02T00:00:00Z"),
+        submittedAt: new Date("2026-04-09T00:00:00Z"),
+      },
+    ]);
+
+    const status = await getFeedbackRequestStatusForSubject("subject");
+    expect(status).toEqual({
+      total: 3,
+      submitted: 2,
+      outstanding: 1,
+      lastRequestedAt: new Date("2026-06-03T00:00:00Z"),
+      lastRequestedMonth: new Date("2026-06-01T00:00:00Z"),
+      lastSubmittedAt: new Date("2026-05-10T00:00:00Z"),
+    });
+
+    // Must NOT request the confidential response body.
+    const selectArg = prismaMock.feedbackRequest.findMany.mock.calls[0][0].select;
+    expect(selectArg).not.toHaveProperty("responseBody");
+  });
+});
+
+// ── requestMonthlyFeedback action — CPO/Board only, multi-subject ────────────
+
+describe("requestMonthlyFeedback", () => {
+  function stubOneCollaborator() {
+    prismaMock.user.findUnique.mockResolvedValue({ id: "subject", name: "S", email: "s@test.dev" });
+    prismaMock.actionItem.findMany.mockResolvedValue([
+      { lead: { id: "subject", name: "S", email: "s@test.dev" }, assignments: [{ user: { id: "collab1", name: "C", email: "c1@test.dev" } }] },
+    ]);
+    prismaMock.feedbackRequest.createMany.mockResolvedValue({ count: 1 });
+    prismaMock.feedbackRequest.findUnique.mockResolvedValue({ id: "fr-x" });
+  }
+
+  it("requires CPO/Board (rejects when requireCPO throws)", async () => {
+    requireCPO.mockRejectedValue(new Error("Unauthorized"));
+    await expect(requestMonthlyFeedback({ subjectUserIds: ["subject"] })).rejects.toThrow(
+      "Unauthorized"
+    );
+    expect(prismaMock.feedbackRequest.createMany).not.toHaveBeenCalled();
+  });
+
+  it("throws when the dashboard flag is off (before touching prisma)", async () => {
+    isPeopleDashboardEnabled.mockReturnValue(false);
+    await expect(requestMonthlyFeedback({ subjectUserIds: ["subject"] })).rejects.toThrow(
+      "not enabled"
+    );
+    expect(requireCPO).not.toHaveBeenCalled();
+  });
+
+  it("aggregates results across subjects and dedupes ids", async () => {
+    requireCPO.mockResolvedValue({ id: "cpo", roles: ["ADMIN"], adminSubtypes: ["CPO"] });
+    stubOneCollaborator();
+
+    const res = await requestMonthlyFeedback({ subjectUserIds: ["subject", "subject"] });
+    // Deduped to a single subject.
+    expect(res.subjects).toBe(1);
+    expect(res.created).toBe(1);
+    expect(res.emailsSent).toBe(1);
+    expect(sendFeedbackRequestEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an empty selection", async () => {
+    requireCPO.mockResolvedValue({ id: "cpo", roles: ["ADMIN"], adminSubtypes: ["CPO"] });
+    await expect(requestMonthlyFeedback({ subjectUserIds: [] })).rejects.toThrow();
   });
 });

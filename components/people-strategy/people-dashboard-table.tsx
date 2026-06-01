@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { GoalRatingColor } from "@prisma/client";
 
 import { QUARTERLY_REVIEW_DECISION_LABELS } from "@/lib/people-strategy/constants";
 import { GOAL_RATING_ORDER } from "@/lib/people-strategy/constants";
+import { requestMonthlyFeedback } from "@/lib/people-strategy/feedback-request-actions";
 import {
   NO_RATING_COLOR,
   RATING_COLORS,
@@ -165,14 +167,21 @@ const headStyle: React.CSSProperties = {
 export function PeopleDashboardTable({
   rows,
   departments,
+  canRequestFeedback,
 }: {
   rows: PeopleDashboardRow[];
   departments: string[];
+  /** True when ENABLE_PEOPLE_DASHBOARD + ENABLE_ACTION_TRACKER_EMAILS are on. */
+  canRequestFeedback: boolean;
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("");
   const [rating, setRating] = useState("");
   const [successionOnly, setSuccessionOnly] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [isPending, startTransition] = useTransition();
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -189,6 +198,61 @@ export function PeopleDashboardTable({
       return true;
     });
   }, [rows, search, department, rating, successionOnly]);
+
+  // Selection only ever references visible rows, so filtering can't leave a
+  // "ghost" selected id behind the toolbar count.
+  const filteredIds = useMemo(() => filtered.map((r) => r.id), [filtered]);
+  const selectedVisible = useMemo(
+    () => filteredIds.filter((id) => selected.has(id)),
+    [filteredIds, selected]
+  );
+  const allVisibleSelected =
+    filteredIds.length > 0 && selectedVisible.length === filteredIds.length;
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        for (const id of filteredIds) next.delete(id);
+      } else {
+        for (const id of filteredIds) next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function handleRequestFeedback() {
+    const subjectUserIds = selectedVisible;
+    if (subjectUserIds.length === 0) return;
+    setFeedbackMessage(null);
+    startTransition(async () => {
+      try {
+        const result = await requestMonthlyFeedback({ subjectUserIds });
+        setFeedbackMessage(
+          result.created === 0
+            ? `No new requests — collaborators for ${result.subjects} member(s) were already asked this month.`
+            : `Sent ${result.emailsSent} email(s) · ${result.created} new request(s) across ${result.subjects} member(s).`
+        );
+        setSelected(new Set());
+        router.refresh();
+      } catch (err) {
+        setFeedbackMessage(
+          err instanceof Error ? `Could not send: ${err.message}` : "Could not send feedback requests."
+        );
+      }
+    });
+  }
+
+  const successionCount = useMemo(() => rows.filter((r) => r.successor).length, [rows]);
 
   return (
     <div>
@@ -252,13 +316,47 @@ export function PeopleDashboardTable({
           className={successionOnly ? "button small" : "button outline small"}
           aria-pressed={successionOnly}
         >
-          {successionOnly ? "★ Succession View: On" : "Succession View"}
+          {successionOnly ? `★ Succession View: On (${successionCount})` : "Succession View"}
         </button>
+
+        {canRequestFeedback ? (
+          <button
+            type="button"
+            className="button small"
+            onClick={handleRequestFeedback}
+            disabled={isPending || selectedVisible.length === 0}
+            title={
+              selectedVisible.length === 0
+                ? "Select one or more members first"
+                : "Email recent collaborators for confidential monthly feedback"
+            }
+          >
+            {isPending
+              ? "Sending…"
+              : `Request Monthly Feedback${
+                  selectedVisible.length > 0 ? ` (${selectedVisible.length})` : ""
+                }`}
+          </button>
+        ) : null}
 
         <button type="button" className="button outline small" disabled title="Coming soon">
           + Add Member
         </button>
       </div>
+
+      {feedbackMessage ? (
+        <p
+          role="status"
+          style={{
+            margin: "10px 0 0",
+            fontSize: 12,
+            fontWeight: 600,
+            color: feedbackMessage.startsWith("Could not") ? "#b91c1c" : "#047857",
+          }}
+        >
+          {feedbackMessage}
+        </p>
+      ) : null}
 
       {/* Keys */}
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginTop: 12, fontSize: 11, color: "#64748b" }}>
@@ -279,6 +377,25 @@ export function PeopleDashboardTable({
         </div>
       </div>
 
+      {successionOnly ? (
+        <div
+          style={{
+            margin: "12px 0 0",
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#f5f3ff",
+            border: "1px solid #ddd6fe",
+            color: "#5b21b6",
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          ★ Succession View — showing {filtered.length} succession candidate
+          {filtered.length === 1 ? "" : "s"} (latest Quarterly Review flagged On Track / Above &amp;
+          Beyond on both axes). Matrix label and latest decision shown per member.
+        </div>
+      ) : null}
+
       <p style={{ fontSize: 11, color: "#94a3b8", margin: "10px 0 0" }}>
         Showing {filtered.length} of {rows.length} {rows.length === 1 ? "member" : "members"}
       </p>
@@ -288,6 +405,17 @@ export function PeopleDashboardTable({
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 920 }}>
           <thead>
             <tr>
+              {canRequestFeedback ? (
+                <th style={{ ...headStyle, width: 32 }}>
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleAllVisible}
+                    aria-label="Select all visible members"
+                    disabled={filteredIds.length === 0}
+                  />
+                </th>
+              ) : null}
               <th style={headStyle}>Member</th>
               <th style={headStyle}>Dept / Expertise</th>
               <th style={headStyle}>Active Actions &amp; Deadlines</th>
@@ -299,13 +427,23 @@ export function PeopleDashboardTable({
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ ...cellStyle, textAlign: "center", color: "#94a3b8", padding: 24 }}>
+                <td colSpan={canRequestFeedback ? 7 : 6} style={{ ...cellStyle, textAlign: "center", color: "#94a3b8", padding: 24 }}>
                   No members match the current filters.
                 </td>
               </tr>
             ) : (
               filtered.map((row) => (
-                <tr key={row.id}>
+                <tr key={row.id} style={selected.has(row.id) ? { background: "#f5f3ff" } : undefined}>
+                  {canRequestFeedback ? (
+                    <td style={{ ...cellStyle, width: 32 }}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(row.id)}
+                        onChange={() => toggleOne(row.id)}
+                        aria-label={`Select ${row.name || row.email}`}
+                      />
+                    </td>
+                  ) : null}
                   {/* Member */}
                   <td style={cellStyle}>
                     <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
