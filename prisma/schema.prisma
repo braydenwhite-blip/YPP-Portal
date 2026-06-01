@@ -12481,6 +12481,9 @@ model QuarterlyReview {
 
   decision QuarterlyReviewDecision
 
+  /// Optional free-text rationale captured by the reviewer.
+  notes String? @db.Text
+
   /// True when the user lands in the succession quadrant (performance AND
   /// potential both On Track or above). Derived from the two ratings; stored so
   /// the CPO dashboard can filter succession candidates without recomputing.

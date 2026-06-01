@@ -12,6 +12,10 @@ import {
   completenessTone,
   type InstructorCompleteness,
 } from "@/lib/instructor-completeness";
+import { hasAnyAdminSubtype, hasRole } from "@/lib/authorization";
+import { isQuarterlyReviewsEnabled } from "@/lib/feature-flags";
+import { getLatestQuarterlyReview } from "@/lib/people-strategy/quarterly-review-actions";
+import { QuarterlyReviewForm } from "@/components/people-strategy/quarterly-review-form";
 import { TagsEditor, NotesEditor, TasksEditor } from "./profile-editor";
 
 export const dynamic = "force-dynamic";
@@ -32,14 +36,23 @@ export default async function AdminInstructorProfilePage({
     redirect("/");
   }
 
-  const [profile, detail, allTags] = await Promise.all([
+  const quarterlyReviewsEnabled = isQuarterlyReviewsEnabled();
+  const [profile, detail, allTags, latestQuarterlyReview] = await Promise.all([
     getInstructorOpsProfile(id),
     loadInstructorProfileDetail(id),
     listAllTags(),
+    quarterlyReviewsEnabled ? getLatestQuarterlyReview(id) : Promise.resolve(null),
   ]);
   if (!profile) {
     notFound();
   }
+
+  // Quarterly Review submission is leadership-gated (CPO / Board) per the role
+  // hierarchy; non-CPO admins still see the latest review read-only. The server
+  // action re-enforces `requireCPO()` regardless of this UI flag.
+  const canSubmitQuarterlyReview =
+    hasRole(session?.user?.roles, "ADMIN", session?.user?.primaryRole) &&
+    hasAnyAdminSubtype(session?.user?.adminSubtypes, ["CPO", "SUPER_ADMIN"]);
 
   const { record, user, readiness } = profile;
   const instructorApplications = asArray(user.instructorApplications);
@@ -142,6 +155,7 @@ export default async function AdminInstructorProfilePage({
         <a href="#pipeline">Pipeline</a>
         <a href="#assignments">Assignments</a>
         <a href="#mentorship">Mentorship</a>
+        {quarterlyReviewsEnabled && <a href="#quarterly-review">Quarterly Review</a>}
         <a href="#activity">Notes/Activity</a>
       </nav>
 
@@ -358,6 +372,33 @@ export default async function AdminInstructorProfilePage({
           </div>
         </div>
       </section>
+
+      {quarterlyReviewsEnabled && (
+        <section id="quarterly-review" className="card instructor-profile-section">
+          <SectionHeading
+            title="Quarterly Review"
+            detail="Performance x Potential succession placement. The matrix label is computed, never stored."
+          />
+          <QuarterlyReviewForm
+            userId={id}
+            canSubmit={canSubmitQuarterlyReview}
+            latestReview={
+              latestQuarterlyReview
+                ? {
+                    quarter: latestQuarterlyReview.quarter,
+                    performanceRating: latestQuarterlyReview.performanceRating,
+                    potentialRating: latestQuarterlyReview.potentialRating,
+                    decision: latestQuarterlyReview.decision,
+                    notes: latestQuarterlyReview.notes,
+                    successionFlag: latestQuarterlyReview.successionFlag,
+                    matrixLabel: latestQuarterlyReview.matrixLabel,
+                    createdAt: latestQuarterlyReview.createdAt.toISOString(),
+                  }
+                : null
+            }
+          />
+        </section>
+      )}
 
       <section id="activity" className="card instructor-profile-section">
         <SectionHeading title="Notes/Activity" detail="Admin notes, open tasks, application events, and growth events." />

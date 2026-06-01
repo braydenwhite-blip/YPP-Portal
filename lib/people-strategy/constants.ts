@@ -3,6 +3,8 @@ import type {
   ActionCommentType,
   ActionItemStatus,
   ActionItemVisibility,
+  GoalRatingColor,
+  QuarterlyReviewDecision,
 } from "@prisma/client";
 
 /**
@@ -55,3 +57,39 @@ export const ACTION_VISIBILITY_LABELS: Record<ActionItemVisibility, string> = {
 export const ACTION_ITEM_PATHS = [
   "/admin/actions",
 ] as const;
+
+/**
+ * Quarterly Review — decision enum values + labels (ENABLE_QUARTERLY_REVIEWS).
+ * Plain value arrays so server actions can validate input with zod and the
+ * client form can render options without importing the Prisma runtime.
+ */
+export const QUARTERLY_REVIEW_DECISION_VALUES: QuarterlyReviewDecision[] = [
+  "PROMOTION",
+  "ACHIEVEMENT_AWARD",
+  "ROLE_CHANGE",
+  "PIP",
+  "CONTINUATION",
+];
+
+export const QUARTERLY_REVIEW_DECISION_LABELS: Record<
+  QuarterlyReviewDecision,
+  string
+> = {
+  PROMOTION: "Promotion",
+  ACHIEVEMENT_AWARD: "Achievement award",
+  ROLE_CHANGE: "Role change",
+  PIP: "Performance improvement plan",
+  CONTINUATION: "Continuation",
+};
+
+/**
+ * Canonical low→high ordering of the four `GoalRatingColor` levels, reused for
+ * both the Performance and Potential axes of the Quarterly Review matrix. The
+ * labels match `check-in-rating.ts` `RATING_LABELS` (At Risk → Above & Beyond).
+ */
+export const GOAL_RATING_ORDER: GoalRatingColor[] = [
+  "BEHIND_SCHEDULE", // At Risk
+  "GETTING_STARTED", // Needs Attention
+  "ACHIEVED", // On Track
+  "ABOVE_AND_BEYOND", // Above & Beyond
+];
