@@ -25,6 +25,7 @@ import {
   isOfficerTier,
   type ActionAccessShape,
 } from "./action-permissions";
+import { notifyNewActionAssignments } from "./action-emails";
 
 /**
  * People Strategy — Action Item server actions (Prompt 02B).
@@ -267,6 +268,9 @@ export async function createActionItem(input: CreateActionItemInput) {
     select: { id: true },
   });
 
+  // Every assignment row on a brand-new item is genuinely new → notify each.
+  await notifyNewActionAssignments(created.id, assignmentRows);
+
   revalidateAll();
   return { id: created.id };
 }
@@ -343,6 +347,23 @@ export async function updateActionItem(input: UpdateActionItemInput) {
   const leadChanged =
     data.leadId !== undefined && data.leadId !== existing.leadId;
 
+  // A lead change only emails when the incoming lead does not already hold a
+  // LEAD row — keeps "edit an unrelated field" (or no-op re-set) silent.
+  let leadAssignmentIsNew = false;
+  if (leadChanged && data.leadId) {
+    const existingLeadAssignment = await prisma.actionAssignment.findUnique({
+      where: {
+        actionItemId_userId_role: {
+          actionItemId: data.id,
+          userId: data.leadId,
+          role: "LEAD",
+        },
+      },
+      select: { id: true },
+    });
+    leadAssignmentIsNew = !existingLeadAssignment;
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.actionItem.update({
       where: { id: data.id },
@@ -390,6 +411,12 @@ export async function updateActionItem(input: UpdateActionItemInput) {
       );
     }
   });
+
+  if (leadAssignmentIsNew && data.leadId) {
+    await notifyNewActionAssignments(data.id, [
+      { userId: data.leadId, role: "LEAD" },
+    ]);
+  }
 
   revalidateAll();
 }
@@ -456,6 +483,20 @@ export async function addActionAssignment(
   await loadAccess(data.actionId); // 404 if missing
   await assertUsersExist([data.userId]);
 
+  // Only a genuinely-new (actionItem, user, role) row should trigger an email.
+  // An unchanged re-assignment of the same role to the same user is a no-op.
+  const existingAssignment = await prisma.actionAssignment.findUnique({
+    where: {
+      actionItemId_userId_role: {
+        actionItemId: data.actionId,
+        userId: data.userId,
+        role: data.role as never,
+      },
+    },
+    select: { id: true },
+  });
+  const isNewAssignment = !existingAssignment;
+
   await prisma.$transaction(async (tx) => {
     if (data.role === "LEAD") {
       // Reassign the single lead: clear the prior LEAD row, point leadId at the
@@ -490,6 +531,12 @@ export async function addActionAssignment(
       `Assigned ${data.role} role to user ${data.userId}`
     );
   });
+
+  if (isNewAssignment) {
+    await notifyNewActionAssignments(data.actionId, [
+      { userId: data.userId, role: data.role as ActionAssignmentRole },
+    ]);
+  }
 
   revalidateAll();
 }
