@@ -189,6 +189,7 @@ function UserPicker({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search by name or email…"
+        aria-label={`${typeof label === "string" ? label : "User"} search`}
         style={INPUT}
       />
 

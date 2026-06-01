@@ -184,6 +184,18 @@ describe("createActionItem", () => {
     expect(prisma.actionItem.create).not.toHaveBeenCalled();
   });
 
+  it("rejects creation without an executing assignee", async () => {
+    sessionAs({ id: "o1", roles: ["STAFF"] });
+
+    await expect(
+      createActionItem({
+        ...baseInput,
+        executingUserIds: [],
+      })
+    ).rejects.toThrow("At least one Executing assignee is required");
+    expect(prisma.actionItem.create).not.toHaveBeenCalled();
+  });
+
   it("allows the lead to also be an executing assignee", async () => {
     sessionAs({ id: "o1", roles: ["STAFF"] });
     (prisma.department.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({

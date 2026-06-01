@@ -34,8 +34,14 @@ function meetingToDTO(meeting: OfficerMeetingWithRelations): MeetingDTO {
         title: item.title,
         status: item.status,
         deadlineStart: item.deadlineStart.toISOString(),
+        deadlineEnd: item.deadlineEnd ? item.deadlineEnd.toISOString() : null,
+        goalCategory: item.goalCategory,
         departmentName: item.department?.name ?? null,
         leadName: item.lead?.name ?? item.lead?.email ?? null,
+        assignees: item.assignments.map((assignment) => ({
+          role: assignment.role,
+          name: assignment.user.name ?? assignment.user.email ?? "Unknown",
+        })),
         discussionNotes: note?.discussionNotes ?? "",
       };
     }),

@@ -366,7 +366,7 @@ export type DeadlineReachedResult = {
 /**
  * Two responsibilities, run end-of-day:
  *   1. Email assignees (+ Lead) of items whose deadline is today.
- *   2. Any item whose deadline has passed with NO status update (still
+ *   2. Any item whose deadline was before today with NO status update (still
  *      NOT_STARTED) is set to OVERDUE and its Lead notified.
  *
  * Both halves are idempotent: the OVERDUE write moves items off NOT_STARTED so
@@ -420,9 +420,9 @@ export async function runDeadlineReached(now: Date): Promise<DeadlineReachedResu
   }
 
   // ── Part 2: overdue sweep — deadline passed, no status update ──
-  // "No status update" = still NOT_STARTED. Catches today's stragglers at
-  // end of day and any earlier ones still untouched. Idempotent: the update
-  // moves them off NOT_STARTED.
+  // "No status update" = still NOT_STARTED. Only previous-day or older items
+  // are swept so a manual/early cron run never marks a same-day item overdue.
+  // Idempotent: the update moves them off NOT_STARTED.
   let markedOverdue = 0;
   let leadEmailsSent = 0;
 
@@ -430,7 +430,7 @@ export async function runDeadlineReached(now: Date): Promise<DeadlineReachedResu
     if (item.status !== "NOT_STARTED") continue;
     const due = effectiveDeadline(item);
     const dueDay = utcDayStart(due);
-    if (dueDay >= tomorrow) continue; // deadline not yet reached
+    if (dueDay >= today) continue; // same-day and future deadlines are not overdue yet
 
     // Move to OVERDUE only if still NOT_STARTED (race-safe conditional update).
     const updated = await prisma.actionItem.updateMany({

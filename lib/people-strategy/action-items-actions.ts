@@ -231,6 +231,9 @@ export async function createActionItem(input: CreateActionItemInput) {
   const deadlineStart = parseDateInput(data.deadlineStart);
   if (!deadlineStart) throw new Error("A valid deadline start date is required");
   assertDeadlineRange(deadlineStart, data.deadlineEnd);
+  if (data.executingUserIds.length === 0) {
+    throw new Error("At least one Executing assignee is required");
+  }
 
   await assertDepartmentExists(data.departmentId);
   await assertUsersExist([
@@ -560,6 +563,26 @@ export async function removeActionAssignment(
       throw new Error("Cannot remove the lead; assign a new lead first");
     }
     // Stale LEAD row not matching leadId — safe to drop.
+  }
+  if (data.role === "EXECUTING") {
+    const existingAssignment = await prisma.actionAssignment.findUnique({
+      where: {
+        actionItemId_userId_role: {
+          actionItemId: data.actionId,
+          userId: data.userId,
+          role: "EXECUTING",
+        },
+      },
+      select: { id: true },
+    });
+    if (existingAssignment) {
+      const executingCount = await prisma.actionAssignment.count({
+        where: { actionItemId: data.actionId, role: "EXECUTING" },
+      });
+      if (executingCount <= 1) {
+        throw new Error("At least one Executing assignee is required");
+      }
+    }
   }
 
   await prisma.$transaction(async (tx) => {

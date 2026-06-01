@@ -137,7 +137,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
 
   const canEdit = canEditAction(viewer, actionShape);
   const canFlag = canFlagAction(viewer, actionShape);
-  const closeHref = isOfficerTier(viewer) ? "/admin/actions" : "/";
+  const closeHref = isOfficerTier(viewer) ? "/all-actions" : "/my-actions";
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>

@@ -1,15 +1,18 @@
-# INTEGRATION_MAP.md — People Strategy Layer, Phase 1
+# INTEGRATION_MAP.md — People Strategy Layer, through Phase 06A
 
 Audit of the existing YPP Pathways Portal for the **People Strategy** layer
 (Action Items, My Actions / All Actions, Officer Meetings, deadline emails,
-Monthly Check-In + Quarterly Review, CPO People Dashboard).
+Monthly Check-In + Quarterly Review, CPO People Dashboard). Items after
+Officer Meetings are future-phase context, not implemented through Phase 06A.
 
-This phase produced **two** things and nothing else:
+The original Phase 1 produced **two** things:
 
 1. This document (PART A — audit).
 2. The new **CPO** role wired into the auth/role system (PART B).
 
-No feature code (Action Items, dashboards, emails, reviews) was written.
+Later completed phases added the Action Tracker runtime, dashboards, emails,
+Feedback Requests, and Officer Meetings foundation. This map has been amended
+to call out those concrete files and to keep future phases clearly separated.
 
 Every identifier below is quoted as it actually appears in the code, with the
 real file path and line. Where the kickoff description differs from the code,
@@ -466,8 +469,9 @@ Notes:
 Adds the role-based Action Tracker the kickoff described (Lead / Executing /
 Input), **separate from** the older `LeadershipActionItem` (which models the
 weekly operating spreadsheet and has no distinct "Executing" role — see the
-TOP-LEVEL FINDING above). This phase added **schema + migration + seed only**:
-no UI, server actions, emails, or Officer Meetings.
+TOP-LEVEL FINDING above). At the time this addendum was written, this phase
+added **schema + migration + seed only**. Later phase files are mapped in the
+runtime addendum below.
 
 **New models** (`prisma/schema.prisma`, end of file):
 
@@ -516,3 +520,55 @@ item.
 > *before* this phase's seed could run) was removed; the per-category review
 > notes already carry the narrative. Unrelated to the Action Tracker, but the
 > full seed could not complete without it.
+
+---
+
+## ADDENDUM — Runtime files through Phase 06A
+
+**Feature flags:** `lib/feature-flags.ts` exposes
+`isActionTrackerEnabled()` (`ENABLE_ACTION_TRACKER`) and
+`isActionTrackerEmailsEnabled()` (`ENABLE_ACTION_TRACKER_EMAILS`).
+
+**Action Item server actions:** `lib/people-strategy/action-items-actions.ts`
+gates every mutation with `ENABLE_ACTION_TRACKER`, resolves the server session,
+checks `action-permissions.ts`, validates with zod, writes through Prisma, and
+revalidates Action Tracker paths.
+
+**Action Item routes and UI:** detail route
+`app/(app)/actions/[id]/page.tsx`, create/edit routes
+`app/(app)/admin/actions/new/page.tsx` and
+`app/(app)/admin/actions/[id]/edit/page.tsx`, form
+`components/people-strategy/action-item-form.tsx`, detail card
+`components/people-strategy/action-detail-card.tsx`.
+
+**Dashboards:** `/my-actions` is `app/(app)/my-actions/page.tsx` and uses
+`getMyActionItems()` plus `my-actions-selectors.ts`. `/all-actions` is
+`app/(app)/all-actions/page.tsx`, officer-gated with `requireOfficer()`, and
+shares filters/export logic with `action-filters.ts` and
+`app/api/admin/actions/export.csv/route.ts`.
+
+**Classes adapter:** `lib/people-strategy/class-tracker.ts` reads live
+`ClassOffering` and `RegularInstructorAssignment` data; it does not copy class
+data into Action Tracker tables. UI rows live in
+`components/people-strategy/class-tracker-row.tsx`.
+
+**Operational emails:** assignment emails are triggered from
+`lib/people-strategy/action-emails.ts`; cron emails are implemented in
+`lib/people-strategy/action-cron.ts` and routed through
+`app/api/cron/action-weekly-digest/route.ts`,
+`app/api/cron/action-deadline-warning/route.ts`, and
+`app/api/cron/action-deadline-reached/route.ts`, all using the existing
+`CRON_SECRET` bearer pattern and `lib/email.ts`.
+
+**Feedback Requests:** schema is `FeedbackRequest`; creation/read helpers are
+`lib/people-strategy/feedback-requests.ts`, response mutation is
+`lib/people-strategy/feedback-request-actions.ts`, and the collaborator form is
+`app/(app)/people-strategy/feedback/[id]/`.
+
+**Officer Meetings 06A:** schema is `OfficerMeeting`, `MeetingNote`, and
+`MiscUpdate`; actions are in
+`lib/people-strategy/officer-meetings-actions.ts`, queries are in
+`lib/people-strategy/officer-meetings-queries.ts`, and the UI foundation is
+`app/(app)/officer-meetings/page.tsx` plus
+`components/people-strategy/officer-meetings-client.tsx`. Agenda/summary
+buttons are disabled placeholders; no Officer Meeting AI generation is wired.

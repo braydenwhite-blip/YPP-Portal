@@ -12094,8 +12094,8 @@ model InstructorMetricSnapshot {
 // behind ENABLE_ACTION_TRACKER (see lib/feature-flags.ts). Distinct from the
 // older Leadership Action Center (`LeadershipActionItem`), which models the
 // weekly operating spreadsheet rather than role-based People-Strategy
-// ownership. Officer Meetings, server actions, emails, and UI are later
-// phases and intentionally not built here.
+// ownership. Later phases add server actions, emails, UI, Feedback Requests,
+// and Officer Meetings foundation behind the feature flags.
 // ============================================
 
 enum ActionItemStatus {

@@ -181,7 +181,7 @@ describe("runDeadlineWarnings", () => {
 // ── Deadline reached + overdue sweep ────────────────────────────────────────
 
 describe("runDeadlineReached", () => {
-  it("emails assignees for an item due today and marks it overdue at end of day", async () => {
+  it("emails assignees for an item due today without marking it overdue early", async () => {
     const lead = user("lead");
     const exec = user("exec");
     items = [
@@ -202,7 +202,26 @@ describe("runDeadlineReached", () => {
     expect(res.dueToday).toBe(1);
     // one email per distinct recipient (lead + exec)
     expect(sendActionDeadlineReachedEmail).toHaveBeenCalledTimes(2);
-    // no status update → overdue + lead notified
+    // same-day items are not marked overdue until the following day, so an
+    // early/manual cron run cannot close the day before it is actually over.
+    expect(res.markedOverdue).toBe(0);
+    expect(res.leadEmailsSent).toBe(0);
+    expect(sendActionOverdueLeadEmail).not.toHaveBeenCalled();
+    expect(items[0].status).toBe("NOT_STARTED");
+  });
+
+  it("marks a previous-day untouched item overdue and notifies the lead", async () => {
+    items = [
+      makeItem({
+        id: "old",
+        deadline: new Date("2026-05-31T09:00:00Z"),
+        status: "NOT_STARTED",
+      }),
+    ];
+
+    const res = await runDeadlineReached(NOW);
+
+    expect(res.dueToday).toBe(0);
     expect(res.markedOverdue).toBe(1);
     expect(res.leadEmailsSent).toBe(1);
     expect(sendActionOverdueLeadEmail).toHaveBeenCalledTimes(1);
@@ -228,7 +247,7 @@ describe("runDeadlineReached", () => {
     items = [
       makeItem({
         id: "d1",
-        deadline: new Date("2026-06-01T09:00:00Z"),
+        deadline: new Date("2026-05-31T09:00:00Z"),
         status: "NOT_STARTED",
       }),
     ];

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import {
+  formatDueDate,
   formatMonthDayYear,
   formatWeekday,
 } from "@/lib/leadership-action-center/dates";
@@ -17,6 +18,7 @@ import {
   saveMeetingNote,
   setOfficerMeetingStatus,
   unassignActionItemFromMeeting,
+  updateMiscUpdate,
 } from "@/lib/people-strategy/officer-meetings-actions";
 
 export type MeetingActionItemDTO = {
@@ -24,8 +26,11 @@ export type MeetingActionItemDTO = {
   title: string;
   status: keyof typeof ACTION_STATUS_LABELS;
   deadlineStart: string;
+  deadlineEnd: string | null;
+  goalCategory: string | null;
   departmentName: string | null;
   leadName: string | null;
+  assignees: Array<{ role: "LEAD" | "EXECUTING" | "INPUT"; name: string }>;
   discussionNotes: string;
 };
 
@@ -73,6 +78,12 @@ const STATUS_PILL: Record<MeetingDTO["status"], { bg: string; color: string; lab
   SCHEDULED: { bg: "#ede9fe", color: "#5b21b6", label: "Scheduled" },
   COMPLETED: { bg: "#ecfdf5", color: "#047857", label: "Completed" },
   CANCELLED: { bg: "#f1f5f9", color: "#64748b", label: "Cancelled" },
+};
+
+const ASSIGNMENT_LABELS: Record<MeetingActionItemDTO["assignees"][number]["role"], string> = {
+  LEAD: "Lead",
+  EXECUTING: "Executing",
+  INPUT: "Input",
 };
 
 function Pill({ bg, color, children }: { bg: string; color: string; children: React.ReactNode }) {
@@ -129,6 +140,13 @@ function DiscussionNote({
   const [value, setValue] = useState(item.discussionNotes);
   const [pending, start] = useTransition();
   const dirty = value !== item.discussionNotes;
+  const deadline = item.deadlineEnd ?? item.deadlineStart;
+  const assigneeText =
+    item.assignees.length > 0
+      ? item.assignees
+          .map((person) => `${ASSIGNMENT_LABELS[person.role]}: ${person.name}`)
+          .join(" · ")
+      : "No assignees listed";
 
   function save() {
     start(async () => {
@@ -167,14 +185,20 @@ function DiscussionNote({
           Unassign
         </button>
       </div>
-      <div style={{ fontSize: 12, color: "#94a3b8", margin: "2px 0 8px" }}>
-        {item.departmentName ?? "—"} · {ACTION_STATUS_LABELS[item.status]}
+      <div style={{ fontSize: 12, color: "#64748b", margin: "2px 0 8px", lineHeight: 1.5 }}>
+        {item.departmentName ?? "No department"} · {ACTION_STATUS_LABELS[item.status]} · Due{" "}
+        {formatDueDate(new Date(deadline))}
+        {item.goalCategory ? ` · Goal: ${item.goalCategory}` : " · Goal: Uncategorized"}
         {item.leadName ? ` · Lead: ${item.leadName}` : ""}
+      </div>
+      <div style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.5 }}>
+        {assigneeText}
       </div>
       <textarea
         value={value}
         onChange={(e) => setValue(e.target.value)}
         disabled={disabled || pending}
+        aria-label={`Discussion notes for ${item.title}`}
         placeholder="Discussion notes for this item…"
         rows={3}
         style={{
@@ -214,6 +238,8 @@ function MiscUpdates({
 }) {
   const router = useRouter();
   const [body, setBody] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingBody, setEditingBody] = useState("");
   const [pending, start] = useTransition();
 
   function add() {
@@ -228,6 +254,26 @@ function MiscUpdates({
   function remove(id: string) {
     start(async () => {
       await deleteMiscUpdate(id);
+      router.refresh();
+    });
+  }
+
+  function beginEdit(update: MeetingMiscDTO) {
+    setEditingId(update.id);
+    setEditingBody(update.body);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingBody("");
+  }
+
+  function saveEdit(id: string) {
+    if (!editingBody.trim()) return;
+    start(async () => {
+      await updateMiscUpdate({ id, body: editingBody });
+      setEditingId(null);
+      setEditingBody("");
       router.refresh();
     });
   }
@@ -257,20 +303,72 @@ function MiscUpdates({
                 background: "#fff",
               }}
             >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: "#0f172a", whiteSpace: "pre-wrap" }}>{u.body}</div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                {editingId === u.id ? (
+                  <textarea
+                    value={editingBody}
+                    onChange={(e) => setEditingBody(e.target.value)}
+                    disabled={pending}
+                    aria-label="Edit miscellaneous update"
+                    rows={2}
+                    style={{
+                      width: "100%",
+                      fontSize: 13,
+                      padding: 8,
+                      borderRadius: 6,
+                      border: "1px solid #cbd5e1",
+                      resize: "vertical",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                ) : (
+                  <div style={{ fontSize: 13, color: "#0f172a", whiteSpace: "pre-wrap" }}>{u.body}</div>
+                )}
                 <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{u.addedByName}</div>
               </div>
               {!disabled && (
-                <button
-                  type="button"
-                  className="button outline small"
-                  onClick={() => remove(u.id)}
-                  disabled={pending}
-                  aria-label="Delete update"
-                >
-                  ✕
-                </button>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {editingId === u.id ? (
+                    <>
+                      <button
+                        type="button"
+                        className="button small"
+                        onClick={() => saveEdit(u.id)}
+                        disabled={pending || !editingBody.trim()}
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        className="button outline small"
+                        onClick={cancelEdit}
+                        disabled={pending}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="button outline small"
+                        onClick={() => beginEdit(u)}
+                        disabled={pending}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="button outline small"
+                        onClick={() => remove(u.id)}
+                        disabled={pending}
+                        aria-label={`Delete update from ${u.addedByName}`}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </li>
           ))}
@@ -283,6 +381,7 @@ function MiscUpdates({
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Add a miscellaneous update…"
+            aria-label="Add miscellaneous update"
             disabled={pending}
             style={{
               flex: 1,
@@ -331,6 +430,7 @@ function AssignFromTray({
         value={selected}
         onChange={(e) => setSelected(e.target.value)}
         disabled={pending || unassigned.length === 0}
+        aria-label="Link an unassigned action item to this meeting"
         style={{ fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "1px solid #cbd5e1", maxWidth: 320 }}
       >
         <option value="">

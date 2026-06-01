@@ -22,6 +22,13 @@ const MEETING_INCLUDE = {
       meetingNotes: {
         select: { id: true, officerMeetingId: true, discussionNotes: true },
       },
+      assignments: {
+        select: {
+          role: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+      },
     },
     orderBy: [{ deadlineStart: "asc" }, { createdAt: "asc" }],
   },

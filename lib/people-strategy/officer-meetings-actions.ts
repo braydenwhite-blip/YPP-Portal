@@ -137,11 +137,14 @@ export async function assignActionItemToMeeting(
     }),
     prisma.actionItem.findUnique({
       where: { id: data.actionItemId },
-      select: { id: true },
+      select: { id: true, officerMeetingId: true },
     }),
   ]);
   if (!meeting) throw new Error("Meeting not found");
   if (!item) throw new Error("Action item not found");
+  if (item.officerMeetingId && item.officerMeetingId !== data.meetingId) {
+    throw new Error("Action item is already assigned to a meeting. Unassign it first.");
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.actionItem.update({
@@ -213,6 +216,14 @@ export async function saveMeetingNote(input: z.input<typeof NoteSchema>) {
   await requireOfficer();
   const data = NoteSchema.parse(input);
 
+  const linkedItem = await prisma.actionItem.findFirst({
+    where: { id: data.actionItemId, officerMeetingId: data.meetingId },
+    select: { id: true },
+  });
+  if (!linkedItem) {
+    throw new Error("Action item is not assigned to this meeting");
+  }
+
   await prisma.meetingNote.upsert({
     where: {
       officerMeetingId_actionItemId: {
@@ -255,6 +266,24 @@ export async function addMiscUpdate(input: z.input<typeof MiscSchema>) {
       body: data.body,
       addedById: session.id,
     },
+  });
+
+  revalidate();
+}
+
+const UpdateMiscSchema = z.object({
+  id: NonEmptyString,
+  body: NonEmptyString.max(5000),
+});
+
+export async function updateMiscUpdate(input: z.input<typeof UpdateMiscSchema>) {
+  ensureEnabled();
+  await requireOfficer();
+  const data = UpdateMiscSchema.parse(input);
+
+  await prisma.miscUpdate.update({
+    where: { id: data.id },
+    data: { body: data.body },
   });
 
   revalidate();

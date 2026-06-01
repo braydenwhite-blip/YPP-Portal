@@ -18,6 +18,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     actionItem: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       update: vi.fn(),
     },
     meetingNote: {
@@ -26,6 +27,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     miscUpdate: {
       create: vi.fn(),
+      update: vi.fn(),
       delete: vi.fn(),
     },
     $transaction: vi.fn(),
@@ -39,6 +41,7 @@ import {
   assignActionItemToMeeting,
   createOfficerMeeting,
   saveMeetingNote,
+  updateMiscUpdate,
 } from "@/lib/people-strategy/officer-meetings-actions";
 
 const mockGetSessionUser = vi.mocked(getSessionUser);
@@ -114,7 +117,7 @@ describe("assignActionItemToMeeting", () => {
   it("links the item and seeds an empty discussion note", async () => {
     sessionAs(["CHAPTER_PRESIDENT"]);
     fn(prisma.officerMeeting.findUnique).mockResolvedValue({ id: "m1" });
-    fn(prisma.actionItem.findUnique).mockResolvedValue({ id: "a1" });
+    fn(prisma.actionItem.findUnique).mockResolvedValue({ id: "a1", officerMeetingId: null });
 
     await assignActionItemToMeeting({ meetingId: "m1", actionItemId: "a1" });
 
@@ -130,6 +133,17 @@ describe("assignActionItemToMeeting", () => {
     expect(noteArg.create.discussionNotes).toBe("");
   });
 
+  it("rejects moving an already-assigned item without unassigning first", async () => {
+    sessionAs(["STAFF"]);
+    fn(prisma.officerMeeting.findUnique).mockResolvedValue({ id: "m2" });
+    fn(prisma.actionItem.findUnique).mockResolvedValue({ id: "a1", officerMeetingId: "m1" });
+
+    await expect(
+      assignActionItemToMeeting({ meetingId: "m2", actionItemId: "a1" })
+    ).rejects.toThrow("Unassign it first");
+    expect(prisma.actionItem.update).not.toHaveBeenCalled();
+  });
+
   it("denies a member below officer-tier", async () => {
     sessionAs(["INSTRUCTOR"]);
     await expect(
@@ -141,11 +155,22 @@ describe("assignActionItemToMeeting", () => {
 describe("saveMeetingNote", () => {
   it("upserts editable discussion notes", async () => {
     sessionAs(["STAFF"]);
+    fn(prisma.actionItem.findFirst).mockResolvedValue({ id: "a1" });
     await saveMeetingNote({ meetingId: "m1", actionItemId: "a1", discussionNotes: "Discussed" });
 
     const arg = fn(prisma.meetingNote.upsert).mock.calls[0][0];
     expect(arg.update.discussionNotes).toBe("Discussed");
     expect(arg.create.discussionNotes).toBe("Discussed");
+  });
+
+  it("rejects notes for an item not linked to that meeting", async () => {
+    sessionAs(["STAFF"]);
+    fn(prisma.actionItem.findFirst).mockResolvedValue(null);
+
+    await expect(
+      saveMeetingNote({ meetingId: "m1", actionItemId: "a1", discussionNotes: "Nope" })
+    ).rejects.toThrow("not assigned to this meeting");
+    expect(prisma.meetingNote.upsert).not.toHaveBeenCalled();
   });
 });
 
@@ -161,6 +186,17 @@ describe("addMiscUpdate", () => {
       officerMeetingId: "m1",
       body: "Budget approved",
       addedById: "officer-1",
+    });
+  });
+
+  it("edits a miscellaneous update", async () => {
+    sessionAs(["STAFF"]);
+
+    await updateMiscUpdate({ id: "misc-1", body: "Updated note" });
+
+    expect(prisma.miscUpdate.update).toHaveBeenCalledWith({
+      where: { id: "misc-1" },
+      data: { body: "Updated note" },
     });
   });
 

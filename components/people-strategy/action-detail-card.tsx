@@ -554,6 +554,7 @@ export default function ActionDetailCard({
             value={linkLabel}
             onChange={(event) => setLinkLabel(event.target.value)}
             placeholder="Link label"
+            aria-label="File or link label"
             style={FIELD_STYLE}
             disabled={!canEdit}
           />
@@ -562,6 +563,7 @@ export default function ActionDetailCard({
             onChange={(event) => setLinkUrl(event.target.value)}
             placeholder="https://..."
             type="url"
+            aria-label="File or link URL"
             style={FIELD_STYLE}
             disabled={!canEdit}
           />
@@ -643,6 +645,7 @@ export default function ActionDetailCard({
           onChange={(event) => setComment(event.target.value)}
           rows={4}
           placeholder="Write a comment, status note, or input request."
+          aria-label="Action comment"
           style={{ ...FIELD_STYLE, resize: "vertical", minHeight: 96 }}
         />
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
