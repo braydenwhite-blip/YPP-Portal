@@ -1312,6 +1312,8 @@ model User {
   actionComments                    ActionComment[]              @relation("ActionComments")
   actionFileLinksAdded              ActionFileLink[]             @relation("ActionFileLinksAdded")
   actionEmailLogs                   ActionEmailLog[]             @relation("ActionEmailLogRecipient")
+  feedbackRequestsAbout             FeedbackRequest[]            @relation("FeedbackRequestSubject")
+  feedbackRequestsToAnswer          FeedbackRequest[]            @relation("FeedbackRequestCollaborator")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -12283,4 +12285,33 @@ model ActionEmailLog {
   @@index([recipientId])
   @@index([actionItemId])
   @@index([type, sentAt])
+}
+
+/// People Strategy — 360-style monthly feedback request. One row per
+/// (subject member, collaborator, month): a recent collaborator of the subject
+/// is asked to submit confidential feedback about them. `responseBody` is the
+/// collaborator's free-text answer; it is intentionally readable ONLY by the
+/// CPO/Board (`requireCPO()`), never by the subject — so colleagues can be
+/// candid. Gated at runtime by ENABLE_ACTION_TRACKER_EMAILS.
+model FeedbackRequest {
+  id             String    @id @default(cuid())
+  /// The member the feedback is *about*.
+  subjectUserId  String
+  subjectUser    User      @relation("FeedbackRequestSubject", fields: [subjectUserId], references: [id], onDelete: Cascade)
+  /// The collaborator being asked to give feedback.
+  collaboratorId String
+  collaborator   User      @relation("FeedbackRequestCollaborator", fields: [collaboratorId], references: [id], onDelete: Cascade)
+  /// First day of the feedback month (UTC), matching the cycleMonth convention.
+  month          DateTime
+  /// Collaborator's confidential answer. Null until they submit the form.
+  responseBody   String?   @db.Text
+  /// Set when the collaborator submits; null while the request is outstanding.
+  submittedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  /// One outstanding request per (subject, collaborator, month) — makes
+  /// `sendFeedbackRequest` idempotent across re-runs.
+  @@unique([subjectUserId, collaboratorId, month])
+  @@index([subjectUserId, month])
+  @@index([collaboratorId, submittedAt])
 }

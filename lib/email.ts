@@ -888,6 +888,45 @@ export async function sendActionOverdueLeadEmail({
 }
 
 /**
+ * People Strategy — confidential 360 feedback request.
+ *
+ * Sent to a recent collaborator asking them to submit feedback about a subject
+ * member. The link points at the authenticated feedback form; the response is
+ * readable only by the CPO/Board, which the copy makes explicit so colleagues
+ * answer candidly. Thin wrapper over `sendEmail`, like the helpers above.
+ */
+export async function sendFeedbackRequestEmail({
+  to,
+  recipientName,
+  subjectName,
+  monthLabel,
+  formUrl,
+}: {
+  to: string;
+  recipientName: string | null;
+  subjectName: string;
+  monthLabel: string;
+  formUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const subject = `Feedback requested: ${subjectName} (${monthLabel})`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Your feedback has been requested</h2>
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>As someone who has worked closely with <strong>${escapeHtml(subjectName)}</strong>, you're invited to share confidential feedback for <strong>${escapeHtml(monthLabel)}</strong>.</p>
+    <div style="background: #f5f3ff; border-left: 4px solid #7c3aed; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px; color: #5b21b6; font-weight: 600;">This feedback is confidential</p>
+      <p style="margin: 8px 0 0; font-size: 14px; color: #44403c;">Only the Chief People Officer and Board can read your response. ${escapeHtml(subjectName)} will not see what you write, so please be candid and constructive.</p>
+    </div>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(formUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Share Feedback</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">You're receiving this because our records show you recently collaborated with ${escapeHtml(subjectName)} in the YPP Pathways Portal.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+/**
  * Notify admins/chapter presidents of a new instructor applicant
  */
 export async function sendNewApplicationNotification({
