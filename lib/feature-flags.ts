@@ -37,6 +37,20 @@ export function isActionTrackerEmailsEnabled(): boolean {
 }
 
 /**
+ * People Strategy — Monthly Check-Ins & Quarterly Reviews. Compiles a per-user,
+ * per-month CheckIn that REUSES existing data (monthly self-reflection +
+ * mentor goal review) and derives a performance rating from the live
+ * `GoalRatingColor` goal-progress data — it does NOT add a second monthly
+ * performance input.
+ *
+ * Defaults OFF — set `ENABLE_QUARTERLY_REVIEWS=true` to expose the compile
+ * action and its surfaces. The schema/migration ship regardless of the flag.
+ */
+export function isQuarterlyReviewsEnabled(): boolean {
+  return process.env.ENABLE_QUARTERLY_REVIEWS === "true";
+}
+
+/**
  * TEMPORARY visibility gate: while the regular Instructor program is
  * paused, only the Summer Workshop Instructor pathway should be exposed
  * to end users. Admins always retain access (see `canBypassInstructorGate`).

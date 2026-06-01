@@ -40,6 +40,8 @@ import {
   addMiscUpdate,
   assignActionItemToMeeting,
   createOfficerMeeting,
+  generateOfficerMeetingAgenda,
+  generateOfficerMeetingSummaryEmail,
   saveMeetingNote,
   updateMiscUpdate,
 } from "@/lib/people-strategy/officer-meetings-actions";
@@ -206,5 +208,89 @@ describe("addMiscUpdate", () => {
       "Unauthorized"
     );
     expect(prisma.miscUpdate.create).not.toHaveBeenCalled();
+  });
+});
+
+function meetingWithRelations(notes: string) {
+  return {
+    id: "m1",
+    date: new Date("2026-06-15T14:30:00"),
+    status: "SCHEDULED",
+    agendaText: null,
+    summaryEmailText: null,
+    actionItems: [
+      {
+        id: "a1",
+        title: "Launch onboarding revamp",
+        status: "IN_PROGRESS",
+        deadlineStart: new Date("2026-06-20T00:00:00"),
+        deadlineEnd: null,
+        departmentName: undefined,
+        goalCategory: "Retention",
+        department: { id: "d1", name: "People" },
+        lead: { id: "u9", name: "Ada", email: "ada@x.com" },
+        meetingNotes: [
+          { id: "n1", officerMeetingId: "m1", discussionNotes: notes },
+        ],
+        assignments: [
+          { role: "LEAD", user: { id: "u9", name: "Ada", email: "ada@x.com" } },
+        ],
+      },
+    ],
+    miscUpdates: [
+      { id: "x1", body: "Budget approved", addedBy: { id: "u1", name: "CPO", email: null } },
+    ],
+  };
+}
+
+describe("generateOfficerMeetingAgenda", () => {
+  it("composes and stores agendaText", async () => {
+    sessionAs(["STAFF"]);
+    fn(prisma.officerMeeting.findUnique).mockResolvedValue(meetingWithRelations(""));
+
+    const result = await generateOfficerMeetingAgenda("m1");
+
+    expect(result.agendaText).toContain("Officer Meeting Agenda");
+    expect(result.agendaText).toContain("Launch onboarding revamp");
+    const arg = fn(prisma.officerMeeting.update).mock.calls[0][0];
+    expect(arg.where).toEqual({ id: "m1" });
+    expect(arg.data.agendaText).toBe(result.agendaText);
+  });
+
+  it("throws when the meeting is missing", async () => {
+    sessionAs(["STAFF"]);
+    fn(prisma.officerMeeting.findUnique).mockResolvedValue(null);
+    await expect(generateOfficerMeetingAgenda("nope")).rejects.toThrow("Meeting not found");
+  });
+
+  it("denies a member below officer-tier", async () => {
+    sessionAs(["STUDENT"]);
+    await expect(generateOfficerMeetingAgenda("m1")).rejects.toThrow("Unauthorized");
+  });
+});
+
+describe("generateOfficerMeetingSummaryEmail", () => {
+  it("stays disabled until every linked item has discussion notes", async () => {
+    sessionAs(["STAFF"]);
+    fn(prisma.officerMeeting.findUnique).mockResolvedValue(meetingWithRelations(""));
+
+    await expect(generateOfficerMeetingSummaryEmail("m1")).rejects.toThrow(
+      /until every action item has discussion notes/
+    );
+    expect(prisma.officerMeeting.update).not.toHaveBeenCalled();
+  });
+
+  it("composes and stores summaryEmailText once notes are filled", async () => {
+    sessionAs(["STAFF"]);
+    fn(prisma.officerMeeting.findUnique).mockResolvedValue(
+      meetingWithRelations("Shipping next sprint.")
+    );
+
+    const result = await generateOfficerMeetingSummaryEmail("m1");
+
+    expect(result.summaryEmailText).toContain("Officer Meeting Recap");
+    expect(result.summaryEmailText).toContain("Shipping next sprint.");
+    const arg = fn(prisma.officerMeeting.update).mock.calls[0][0];
+    expect(arg.data.summaryEmailText).toBe(result.summaryEmailText);
   });
 });

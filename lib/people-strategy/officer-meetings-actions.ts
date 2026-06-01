@@ -7,17 +7,27 @@ import type { OfficerMeetingStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { getOfficerMeetingById } from "./officer-meetings-queries";
+import {
+  buildOfficerMeetingAgendaFallback,
+  buildOfficerMeetingSummaryFallback,
+  canGenerateSummaryEmail,
+  missingDiscussionNotes,
+  toGenerationInput,
+} from "./officer-meeting-generation";
 
 /**
- * People Strategy — Officer Meetings server actions (Prompt 06A).
+ * People Strategy — Officer Meetings server actions (Prompt 06A / 06B).
  *
  * Follows the existing `lib/*-actions.ts` convention: `"use server"`, a guard
  * first (`requireOfficer()` — throws "Unauthorized" for anyone below officer-
  * tier), zod validation, prisma write, then `revalidatePath`. Every action is
  * gated by ENABLE_ACTION_TRACKER.
  *
- * Agenda + summary-email GENERATION is Prompt 06B; the generate buttons in the
- * UI are stubbed/disabled, so no generate action exists here yet.
+ * Prompt 06B adds deterministic, server-side agenda + summary-email generation
+ * (`generateOfficerMeetingAgenda` / `generateOfficerMeetingSummaryEmail`). The
+ * text is composed by the reusable fallback builders in
+ * `officer-meeting-generation.ts`; no Anthropic API is involved yet.
  */
 
 const MEETINGS_PATH = "/officer-meetings";
@@ -297,4 +307,68 @@ export async function deleteMiscUpdate(id: string) {
   await prisma.miscUpdate.delete({ where: { id } });
 
   revalidate();
+}
+
+// --- deterministic agenda / summary-email generation (Prompt 06B) -----------
+
+async function loadMeetingForGeneration(meetingId: string) {
+  const meeting = await getOfficerMeetingById(meetingId);
+  if (!meeting) throw new Error("Meeting not found");
+  return meeting;
+}
+
+/**
+ * Compose and store the meeting agenda from its linked action items, statuses,
+ * deadlines, assignees, discussion notes and miscellaneous updates. Always
+ * available (the agenda is generated before/while notes are still being
+ * filled). Returns the generated text so the caller can surface it immediately.
+ */
+export async function generateOfficerMeetingAgenda(meetingId: string) {
+  ensureEnabled();
+  await requireOfficer();
+  if (!meetingId) throw new Error("meetingId required");
+
+  const meeting = await loadMeetingForGeneration(meetingId);
+  const agendaText = buildOfficerMeetingAgendaFallback(toGenerationInput(meeting));
+
+  await prisma.officerMeeting.update({
+    where: { id: meetingId },
+    data: { agendaText },
+  });
+
+  revalidate();
+  return { agendaText };
+}
+
+/**
+ * Compose and store the post-meeting summary email. Disabled until EVERY linked
+ * action item has discussion notes — `buildOfficerMeetingSummaryFallback` is the
+ * single source of truth for that rule, and this re-checks it explicitly so the
+ * server enforces the same gate the UI shows.
+ */
+export async function generateOfficerMeetingSummaryEmail(meetingId: string) {
+  ensureEnabled();
+  await requireOfficer();
+  if (!meetingId) throw new Error("meetingId required");
+
+  const meeting = await loadMeetingForGeneration(meetingId);
+  const input = toGenerationInput(meeting);
+
+  if (!canGenerateSummaryEmail(input)) {
+    throw new Error(
+      `Cannot generate the summary email until every action item has discussion notes. Missing: ${missingDiscussionNotes(
+        input
+      ).join(", ")}`
+    );
+  }
+
+  const summaryEmailText = buildOfficerMeetingSummaryFallback(input);
+
+  await prisma.officerMeeting.update({
+    where: { id: meetingId },
+    data: { summaryEmailText },
+  });
+
+  revalidate();
+  return { summaryEmailText };
 }

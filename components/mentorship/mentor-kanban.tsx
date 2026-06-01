@@ -1,5 +1,5 @@
 import { MentorKanbanCard } from "@/components/mentorship/mentor-kanban-card";
-import type { KanbanColumn } from "@/lib/mentorship-kanban-actions";
+import type { SimplifiedKanbanColumn as KanbanColumn } from "@/lib/mentorship-kanban-actions";
 
 type Props = {
   active: KanbanColumn[];

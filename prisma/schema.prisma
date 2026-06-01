@@ -1152,6 +1152,7 @@ model User {
   goalReviewsAuthored                 MentorGoalReview[]       @relation("GoalReviewsAuthored")
   goalReviewsReceived                 MentorGoalReview[]       @relation("GoalReviewsReceived")
   goalReviewsChairApproved            MentorGoalReview[]       @relation("GoalReviewsChairApproved")
+  peopleCheckIns                      CheckIn[]                @relation("UserPeopleCheckIns")
   achievementPointSummary             AchievementPointSummary? @relation("AchievementPointSummary")
   achievementAwardNominations         AwardNomination[]        @relation("AwardNominations")
   achievementAwardNominationsGiven    AwardNomination[]        @relation("AwardNominationsGiven")
@@ -9005,7 +9006,8 @@ model MonthlySelfReflection {
 
   submittedAt DateTime @default(now())
 
-  goalReview MentorGoalReview?
+  goalReview     MentorGoalReview?
+  peopleCheckIns CheckIn[]         @relation("CheckInSelfReflection")
 
   @@unique([mentorshipId, cycleNumber])
   @@index([menteeId])
@@ -9091,6 +9093,7 @@ model MentorGoalReview {
   goalSnapshots  MentorGoalReviewGoalSnapshot[]
   spawnedGRGoals GRDocumentGoal[]               @relation("GRGoalsSpawnedByReview")
   reviewAck      MenteeReviewAck?
+  peopleCheckIns CheckIn[]                      @relation("CheckInMentorGoalReview")
 
   /// Draft next-month goal proposals persisted between form saves. Cleared on submit.
   nextMonthGoalDraftsJson Json?
@@ -12396,4 +12399,52 @@ model MiscUpdate {
 
   @@index([officerMeetingId, createdAt])
   @@index([addedById])
+}
+
+// ============================================
+// People Strategy — Monthly Check-Ins & Quarterly Reviews (ENABLE_QUARTERLY_REVIEWS)
+// A CheckIn is a COMPILATION, not a new data-entry surface: it references the
+// existing monthly self-reflection (`MonthlySelfReflection`) and the mentor's
+// monthly goal review (`MentorGoalReview`), and stores a `performanceRating`
+// DERIVED from the live `GoalRatingColor` goal-progress data (see
+// `lib/people-strategy/check-in-rating.ts`). It deliberately reuses the existing
+// `GoalRatingColor` enum rather than introducing a second monthly rating, and
+// `@@unique([userId, month])` guarantees exactly one check-in per user/month.
+// ============================================
+
+/// One compiled monthly check-in for a user. Behind ENABLE_QUARTERLY_REVIEWS.
+/// Does NOT add a second monthly performance input — it points at the existing
+/// reflection + mentor review and carries a derived `performanceRating`.
+model CheckIn {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("UserPeopleCheckIns", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// First day of the month this check-in covers.
+  month DateTime
+
+  /// Existing monthly reflection this check-in compiles from (if one exists).
+  selfReflectionId String?
+  selfReflection   MonthlySelfReflection? @relation("CheckInSelfReflection", fields: [selfReflectionId], references: [id], onDelete: SetNull)
+
+  /// Existing mentorship feedback/session reference: the mentor's monthly goal
+  /// review, which supplies the goal-progress ratings + written feedback.
+  mentorGoalReviewId String?
+  mentorGoalReview   MentorGoalReview? @relation("CheckInMentorGoalReview", fields: [mentorGoalReviewId], references: [id], onDelete: SetNull)
+
+  /// Performance rating DERIVED from existing goal data (GoalReviewRating /
+  /// MentorGoalReview.overallRating). Null when the user has no goal data yet.
+  performanceRating GoalRatingColor?
+
+  /// Optional compiled narrative assembled from the referenced sources.
+  compiledNotes String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  /// Exactly one check-in per user per month — prevents a duplicate monthly
+  /// rating entry, and lets the compile action upsert idempotently.
+  @@unique([userId, month])
+  @@index([userId])
+  @@index([selfReflectionId])
+  @@index([mentorGoalReviewId])
 }
