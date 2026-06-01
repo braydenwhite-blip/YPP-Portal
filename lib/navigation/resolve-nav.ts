@@ -236,6 +236,8 @@ export interface ResolveNavInput {
   maxCoreItems?: number;
   unlockedSections?: Set<string>;
   enabledFeatureKeys?: Set<string>;
+  /** When true, People Strategy Action Tracker links (e.g. /my-actions) are shown. */
+  actionTrackerEnabled?: boolean;
   /** When true, students see the full nav catalog. Omit/false uses env `STUDENT_FULL_PORTAL_EXPLORER`. */
   studentFullPortalExplorer?: boolean;
   /** When set, hides "Join a chapter" — not needed if the user is already assigned to a chapter. */
@@ -532,6 +534,9 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
         return false;
       }
       if (input.studentHasChapter && item.href === "/join-chapter") return false;
+      // People Strategy Action Tracker links stay fully hidden while the
+      // feature flag is off — for every role, including admins.
+      if (item.requiresActionTracker && !input.actionTrackerEnabled) return false;
       if (!hasRoleAccess(item, roles)) return false;
       if (primaryRole !== "STUDENT" && isLegacyMenteeMentorshipHref(item.href)) {
         return false;

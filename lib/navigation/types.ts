@@ -54,6 +54,13 @@ export interface NavLink {
    * that we do not want to expose to full-track instructors or to applicants.
    */
   requiresSummerWorkshopSubtype?: boolean;
+  /**
+   * When true, this link is only shown while the People Strategy Action Tracker
+   * is enabled (env `ENABLE_ACTION_TRACKER`). Threaded from the server layout —
+   * no per-user feature-gate / admin bypass applies, so the link is fully
+   * hidden for everyone when the flag is off.
+   */
+  requiresActionTracker?: boolean;
   featureKey?: FeatureKey;
   dashboardDescription?: string;
   dashboardBadgeKey?: string;

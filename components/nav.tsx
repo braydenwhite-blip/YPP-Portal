@@ -70,6 +70,7 @@ export default function Nav({
   awardTier,
   badges,
   enabledFeatureKeys,
+  actionTrackerEnabled,
   onNavigate,
   unlockedSections,
   recentlyUnlockedGroups,
@@ -87,6 +88,8 @@ export default function Nav({
   awardTier?: string;
   badges?: NavBadges;
   enabledFeatureKeys?: Set<string>;
+  /** People Strategy Action Tracker enabled (env ENABLE_ACTION_TRACKER). */
+  actionTrackerEnabled?: boolean;
   onNavigate?: () => void;
   unlockedSections?: Set<string>;
   recentlyUnlockedGroups?: Set<string>;
@@ -112,6 +115,7 @@ export default function Nav({
         awardTier,
         pathname,
         enabledFeatureKeys,
+        actionTrackerEnabled,
         unlockedSections,
         studentFullPortalExplorer,
         studentHasChapter,
@@ -124,6 +128,7 @@ export default function Nav({
       adminSubtypes,
       awardTier,
       enabledFeatureKeys,
+      actionTrackerEnabled,
       pathname,
       primaryRole,
       roles,

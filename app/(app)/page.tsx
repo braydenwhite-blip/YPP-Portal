@@ -19,6 +19,8 @@ import type { ActivePathwaySummary } from "@/lib/dashboard/types";
 import StudentDashboard, {
   type StudentHomeNextSession,
 } from "@/components/dashboard/student-dashboard";
+import MyActionsCard from "@/components/people-strategy/my-actions-card";
+import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 
 // Roles that work the hiring pipeline and should land on the applicant board.
 const REVIEWER_ROLES = ["ADMIN", "HIRING_CHAIR", "CHAPTER_PRESIDENT"];
@@ -77,7 +79,15 @@ function PrimaryCard({
   );
 }
 
-function ReviewerHome({ name, gateEnabled }: { name: string; gateEnabled: boolean }) {
+function ReviewerHome({
+  name,
+  gateEnabled,
+  actionsCard,
+}: {
+  name: string;
+  gateEnabled: boolean;
+  actionsCard?: ReactNode;
+}) {
   return (
     <HomeShell
       greeting={name ? `Hi, ${name}.` : "Welcome back."}
@@ -89,6 +99,7 @@ function ReviewerHome({ name, gateEnabled }: { name: string; gateEnabled: boolea
         body="Review instructor applicants and move them through the hiring pipeline."
         cta="Open the board"
       />
+      {actionsCard ? <div style={{ marginTop: 20 }}>{actionsCard}</div> : null}
       {gateEnabled && (
         <div style={{ marginTop: 20 }}>
           <Link
@@ -261,12 +272,33 @@ export default async function OverviewPage() {
     roles.includes("INSTRUCTOR") || session.user.primaryRole === "INSTRUCTOR";
   const name = firstName(session.user.name);
 
+  // Compact People Strategy queue card. The card self-gates on the feature
+  // flag and renders nothing when the viewer has no actions.
+  const actionViewer: ActionViewer = {
+    id: session.user.id,
+    roles,
+    primaryRole: session.user.primaryRole,
+    adminSubtypes: session.user.adminSubtypes,
+  };
+
   if (isReviewer) {
-    return <ReviewerHome name={name} gateEnabled={isPublicGateEnabled()} />;
+    return (
+      <ReviewerHome
+        name={name}
+        gateEnabled={isPublicGateEnabled()}
+        actionsCard={<MyActionsCard viewer={actionViewer} />}
+      />
+    );
   }
 
   if (isInstructor) {
-    return <InstructorDashboard userId={session.user.id} name={name} />;
+    return (
+      <InstructorDashboard
+        userId={session.user.id}
+        name={name}
+        topSlot={<MyActionsCard viewer={actionViewer} />}
+      />
+    );
   }
 
   if (roles.includes("STUDENT")) {

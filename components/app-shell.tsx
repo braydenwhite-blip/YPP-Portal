@@ -16,6 +16,7 @@ export default function AppShell({
   awardTier,
   badges,
   enabledFeatureKeys,
+  actionTrackerEnabled,
   unlockedSections,
   recentlyUnlockedGroups,
   studentFullPortalExplorer,
@@ -34,6 +35,8 @@ export default function AppShell({
   awardTier?: string;
   badges?: NavBadges;
   enabledFeatureKeys?: string[];
+  /** People Strategy Action Tracker enabled (env ENABLE_ACTION_TRACKER). */
+  actionTrackerEnabled?: boolean;
   unlockedSections?: string[];
   recentlyUnlockedGroups?: string[];
   studentFullPortalExplorer?: boolean;
@@ -128,6 +131,7 @@ export default function AppShell({
             awardTier={awardTier}
             badges={badges}
             enabledFeatureKeys={enabledFeatureKeysSet}
+            actionTrackerEnabled={actionTrackerEnabled}
             onNavigate={() => setSidebarOpen(false)}
             unlockedSections={unlockedSectionsSet}
             recentlyUnlockedGroups={recentlyUnlockedGroupsSet}

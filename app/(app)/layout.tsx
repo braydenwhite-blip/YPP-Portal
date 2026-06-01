@@ -22,6 +22,7 @@ import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 import { getChairQueueBadgeCount } from "@/lib/hiring-chair-badge";
+import { isActionTrackerEnabled } from "@/lib/feature-flags";
 
 // Force runtime rendering so `next build` doesn't try to prerender pages that
 // require auth/database access (which can fail in build environments).
@@ -203,6 +204,7 @@ export default async function AppLayout({
       awardTier={awardTier}
       badges={badges}
       enabledFeatureKeys={enabledFeatureKeysArray}
+      actionTrackerEnabled={isActionTrackerEnabled()}
       unlockedSections={unlockedSectionsArray}
       recentlyUnlockedGroups={recentlyUnlockedGroupsArray}
       studentFullPortalExplorer={studentFullPortalExplorer}
