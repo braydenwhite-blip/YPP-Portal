@@ -32,6 +32,7 @@ import {
   ActionStatusDonut,
   DepartmentBars,
 } from "@/components/people-strategy/action-analytics-cards";
+import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Tracker · All Actions" };
@@ -188,54 +189,6 @@ function ActionRow({ item, now }: { item: ActionItemWithRelations; now: Date }) 
   );
 }
 
-/** Tabs across the top of the Action Tracker. Routes not yet built render as
- * disabled placeholders so the layout is complete without dead links. */
-function Tabs() {
-  const tabs: Array<{ label: string; href?: string; active?: boolean }> = [
-    { label: "All Actions", active: true },
-    { label: "My Actions", href: "/my-actions" },
-    { label: "Needs My Input" },
-    { label: "Officer Meetings" },
-    { label: "People" },
-  ];
-
-  return (
-    <div
-      role="tablist"
-      aria-label="Action tracker views"
-      style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}
-    >
-      {tabs.map((tab) => {
-        if (tab.active) {
-          return (
-            <span key={tab.label} className="button small" aria-current="page">
-              {tab.label}
-            </span>
-          );
-        }
-        if (tab.href) {
-          return (
-            <Link key={tab.label} href={tab.href} className="button outline small">
-              {tab.label}
-            </Link>
-          );
-        }
-        return (
-          <span
-            key={tab.label}
-            className="button outline small"
-            aria-disabled="true"
-            title="Coming soon"
-            style={{ opacity: 0.5, pointerEvents: "none", cursor: "default" }}
-          >
-            {tab.label}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
 export default async function AllActionsPage({
   searchParams,
 }: {
@@ -320,7 +273,7 @@ export default async function AllActionsPage({
         </div>
       </div>
 
-      <Tabs />
+      <ActionTrackerTabs active="all" />
 
       <ActionFiltersBar
         departments={departments}
