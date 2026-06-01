@@ -304,6 +304,66 @@ export async function getFeedbackResponsesForSubject(
   }));
 }
 
+export type FeedbackRequestStatus = {
+  /** Total requests ever created for this subject. */
+  total: number;
+  /** Requests still awaiting a response (no `submittedAt`). */
+  outstanding: number;
+  /** Requests that have been answered. */
+  submitted: number;
+  /** When the most recent request was created (the "last requested" timestamp). */
+  lastRequestedAt: Date | null;
+  /** The latest feedback month any request targets. */
+  lastRequestedMonth: Date | null;
+  /** When the most recent response was submitted. */
+  lastSubmittedAt: Date | null;
+};
+
+/**
+ * Lightweight feedback-request STATUS for a subject — counts + last-requested /
+ * last-submitted timestamps only. This deliberately reads NO `responseBody`, so
+ * it is safe to surface to any admin viewing the member detail page (the raw
+ * confidential responses remain gated behind `getFeedbackResponsesForSubject` /
+ * `requireCPO()`). Returns null when the feature flag is off.
+ */
+export async function getFeedbackRequestStatusForSubject(
+  subjectUserId: string
+): Promise<FeedbackRequestStatus | null> {
+  if (!isActionTrackerEmailsEnabled()) return null;
+
+  const rows = await prisma.feedbackRequest.findMany({
+    where: { subjectUserId },
+    select: { month: true, createdAt: true, submittedAt: true },
+  });
+
+  const empty: FeedbackRequestStatus = {
+    total: 0,
+    outstanding: 0,
+    submitted: 0,
+    lastRequestedAt: null,
+    lastRequestedMonth: null,
+    lastSubmittedAt: null,
+  };
+  if (rows.length === 0) return empty;
+
+  const submittedDates = rows
+    .map((r) => r.submittedAt)
+    .filter((d): d is Date => d != null);
+  const maxDate = (dates: Date[]): Date | null =>
+    dates.length === 0
+      ? null
+      : dates.reduce((max, d) => (d.getTime() > max.getTime() ? d : max));
+
+  return {
+    total: rows.length,
+    submitted: submittedDates.length,
+    outstanding: rows.length - submittedDates.length,
+    lastRequestedAt: maxDate(rows.map((r) => r.createdAt)),
+    lastRequestedMonth: maxDate(rows.map((r) => r.month)),
+    lastSubmittedAt: maxDate(submittedDates),
+  };
+}
+
 /** Non-throwing CPO/Board check, for conditional UI (not a security boundary). */
 export function isCpoOrBoard(user: Pick<SessionUser, "roles" | "primaryRole" | "adminSubtypes">): boolean {
   return (

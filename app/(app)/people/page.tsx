@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 
 import { requireCPO } from "@/lib/authorization";
-import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
+import {
+  isActionTrackerEmailsEnabled,
+  isPeopleDashboardEnabled,
+} from "@/lib/feature-flags";
 import {
   collectDepartments,
   loadPeopleDashboard,
@@ -23,6 +26,11 @@ export default async function PeopleDashboardPage() {
 
   const rows = await loadPeopleDashboard();
   const departments = collectDepartments(rows);
+
+  // The Request Monthly Feedback action needs BOTH the dashboard flag (already
+  // checked above) and the emails flag. When emails are off the button is hidden
+  // and the server action refuses regardless.
+  const canRequestFeedback = isActionTrackerEmailsEnabled();
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
@@ -47,14 +55,20 @@ export default async function PeopleDashboardPage() {
             view compiled from the Action Tracker, Quarterly Reviews, and Monthly Check-Ins.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button type="button" className="button outline small" disabled title="Coming soon">
-            Request Monthly Feedback
-          </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "#64748b", maxWidth: 240, textAlign: "right" }}>
+            {canRequestFeedback
+              ? "Select members below, then Request Monthly Feedback. Responses stay CPO/Board-confidential."
+              : "Set ENABLE_ACTION_TRACKER_EMAILS to request monthly feedback."}
+          </span>
         </div>
       </div>
 
-      <PeopleDashboardTable rows={rows} departments={departments} />
+      <PeopleDashboardTable
+        rows={rows}
+        departments={departments}
+        canRequestFeedback={canRequestFeedback}
+      />
     </div>
   );
 }

@@ -20,8 +20,10 @@ import {
 import { getLatestQuarterlyReview } from "@/lib/people-strategy/quarterly-review-actions";
 import { loadMemberPeopleStrategy } from "@/lib/people-strategy/member-people-detail";
 import {
+  getFeedbackRequestStatusForSubject,
   getFeedbackResponsesForSubject,
   isCpoOrBoard,
+  type FeedbackRequestStatus,
   type SubjectFeedbackResponse,
 } from "@/lib/people-strategy/feedback-requests";
 import { QuarterlyReviewForm } from "@/components/people-strategy/quarterly-review-form";
@@ -79,6 +81,12 @@ export default async function AdminInstructorProfilePage({
   if (peopleDashboardEnabled && viewerIsCpoOrBoard) {
     feedbackResponses = await getFeedbackResponsesForSubject(id).catch(() => null);
   }
+
+  // Feedback request STATUS (counts + last requested/submitted dates only — no
+  // response bodies), safe to show to any admin viewing this page. Null when the
+  // emails feature is off.
+  const feedbackStatus: FeedbackRequestStatus | null =
+    peopleDashboardEnabled ? await getFeedbackRequestStatusForSubject(id) : null;
 
   // Quarterly Review submission is leadership-gated (CPO / Board) per the role
   // hierarchy; non-CPO admins still see the latest review read-only. The server
@@ -409,6 +417,7 @@ export default async function AdminInstructorProfilePage({
         <MemberPeopleStrategySection
           data={peopleStrategy}
           feedbackResponses={feedbackResponses}
+          feedbackStatus={feedbackStatus}
           canSeeFeedback={viewerIsCpoOrBoard}
           provisionalEnabled={isProvisionalClockEnabled()}
           quarterlyFormAvailable={quarterlyReviewsEnabled}

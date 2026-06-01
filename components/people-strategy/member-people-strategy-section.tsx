@@ -14,7 +14,20 @@ import type {
   MemberPeopleStrategy,
   MemberQuarterlyEntry,
 } from "@/lib/people-strategy/member-people-detail";
-import type { SubjectFeedbackResponse } from "@/lib/people-strategy/feedback-requests";
+import type {
+  FeedbackRequestStatus,
+  SubjectFeedbackResponse,
+} from "@/lib/people-strategy/feedback-requests";
+
+function formatDate(d: Date | null): string {
+  return d ? d.toLocaleDateString("en-US") : "—";
+}
+
+function formatMonth(d: Date | null): string {
+  return d
+    ? d.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })
+    : "—";
+}
 
 function RatingChip({ rating, prefix }: { rating: GoalRatingColor; prefix?: string }) {
   const c = RATING_COLORS[rating];
@@ -110,6 +123,7 @@ function QuarterlyEntryRow({ entry }: { entry: MemberQuarterlyEntry }) {
 export function MemberPeopleStrategySection({
   data,
   feedbackResponses,
+  feedbackStatus,
   canSeeFeedback,
   provisionalEnabled,
   quarterlyFormAvailable,
@@ -117,6 +131,8 @@ export function MemberPeopleStrategySection({
   data: MemberPeopleStrategy;
   /** Confidential — only populated for CPO/Board. */
   feedbackResponses: SubjectFeedbackResponse[] | null;
+  /** Non-confidential request status (counts + last requested/submitted). */
+  feedbackStatus: FeedbackRequestStatus | null;
   canSeeFeedback: boolean;
   provisionalEnabled: boolean;
   quarterlyFormAvailable: boolean;
@@ -236,6 +252,47 @@ export function MemberPeopleStrategySection({
             : "Provisional 3-month confirmation clock not yet built. Placeholder — enable with ENABLE_PROVISIONAL_CLOCK once the field ships."}
         </p>
       </div>
+
+      {/* Feedback request status — non-confidential metadata (counts + dates). */}
+      {feedbackStatus ? (
+        <div className="instructor-profile-history">
+          <h3>Feedback request status</h3>
+          {feedbackStatus.total === 0 ? (
+            <p className="instructor-profile-muted">
+              No monthly feedback requested yet. Use “Request Monthly Feedback” on the People
+              Dashboard.
+            </p>
+          ) : (
+            <div className="instructor-profile-info-grid">
+              <div>
+                <span>Last requested</span>
+                <strong>
+                  {formatMonth(feedbackStatus.lastRequestedMonth)}
+                  {feedbackStatus.lastRequestedAt
+                    ? ` (sent ${formatDate(feedbackStatus.lastRequestedAt)})`
+                    : ""}
+                </strong>
+              </div>
+              <div>
+                <span>Last submitted</span>
+                <strong>{formatDate(feedbackStatus.lastSubmittedAt)}</strong>
+              </div>
+              <div>
+                <span>Outstanding</span>
+                <strong>
+                  {feedbackStatus.outstanding} of {feedbackStatus.total}
+                </strong>
+              </div>
+              <div>
+                <span>Submitted</span>
+                <strong>
+                  {feedbackStatus.submitted} of {feedbackStatus.total}
+                </strong>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {/* Confidential feedback request responses — CPO/Board only */}
       {canSeeFeedback ? (
