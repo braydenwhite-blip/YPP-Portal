@@ -193,7 +193,7 @@ export const instructorApplicationSchema = z.object({
     .trim()
     .min(1, "Please enter your last name.")
     .max(100, "Last name should be under 100 characters."),
-  phoneNumber: z.string().max(30, "Phone number should be under 30 characters.").optional(),
+  phoneNumber: z.string().min(7, "Please enter a valid phone number.").max(30, "Phone number should be under 30 characters."),
   dateOfBirth: z.string().optional(),
   hearAboutYPP: z.string().max(300, "Response should be under 300 characters.").optional(),
 
