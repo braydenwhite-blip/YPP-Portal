@@ -679,6 +679,254 @@ export async function sendNewAssignmentEmail({
 }
 
 /**
+ * People Strategy — automated Action-Tracker deadline emails.
+ *
+ * These three `sendXxxEmail` wrappers build the subject/html and delegate to
+ * `sendEmail`, exactly like `sendNewAssignmentEmail` above. They are driven by
+ * the deadline cron routes (weekly digest, 24-hour warning, deadline-reached)
+ * and gated upstream by `ENABLE_ACTION_TRACKER_EMAILS`. Idempotency lives in
+ * the caller (`ActionEmailLog`), not here.
+ */
+
+/** One row rendered inside the weekly digest, in any of its three groups. */
+export type ActionDigestItem = {
+  title: string;
+  role: string;
+  department: string;
+  /** Pre-formatted deadline date string. */
+  deadline: string;
+  actionUrl: string;
+};
+
+export type ActionDigestGroups = {
+  overdue: ActionDigestItem[];
+  dueThisWeek: ActionDigestItem[];
+  upcoming: ActionDigestItem[];
+};
+
+function renderDigestItemRow(item: ActionDigestItem, accent: string): string {
+  return `
+    <div style="border-left: 4px solid ${accent}; background: #fafaf9; border-radius: 6px; padding: 12px 16px; margin: 0 0 10px;">
+      <a href="${escapeHtml(item.actionUrl)}" style="color: #1c1917; font-size: 15px; font-weight: 600; text-decoration: none;">${escapeHtml(item.title)}</a>
+      <p style="margin: 6px 0 0; color: #57534e; font-size: 13px;">
+        <strong>Role:</strong> ${escapeHtml(item.role)}
+        &nbsp;·&nbsp; <strong>Dept:</strong> ${escapeHtml(item.department)}
+        &nbsp;·&nbsp; <strong>Due:</strong> ${escapeHtml(item.deadline)}
+      </p>
+    </div>`;
+}
+
+function renderDigestGroup(
+  label: string,
+  items: ActionDigestItem[],
+  accent: string
+): string {
+  if (items.length === 0) return "";
+  const rows = items.map((i) => renderDigestItemRow(i, accent)).join("");
+  return `
+    <p style="margin: 22px 0 10px; color: ${accent}; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;">${escapeHtml(label)} (${items.length})</p>
+    ${rows}`;
+}
+
+export async function sendWeeklyActionDigestEmail({
+  to,
+  recipientName,
+  groups,
+  myActionsUrl,
+}: {
+  to: string;
+  recipientName: string | null;
+  groups: ActionDigestGroups;
+  myActionsUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const total =
+    groups.overdue.length + groups.dueThisWeek.length + groups.upcoming.length;
+  const subject = `Your Weekly Action Digest — ${total} open ${total === 1 ? "item" : "items"}`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Your weekly action digest</h2>
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>Here are your open action items for the week, grouped by urgency.</p>
+    ${renderDigestGroup("Overdue", groups.overdue, "#dc2626")}
+    ${renderDigestGroup("Due this week", groups.dueThisWeek, "#d97706")}
+    ${renderDigestGroup("Upcoming", groups.upcoming, "#2563eb")}
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(myActionsUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Open My Actions</a>
+    </div>
+    <div style="background: #fffbeb; border-left: 4px solid #d97706; border-radius: 8px; padding: 14px 18px; margin: 0 0 8px;">
+      <p style="margin: 0; font-size: 13px; color: #92400e;">Blocked or at risk of slipping? Flag the item to the CPO from its detail page so leadership can help unblock it.</p>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">You're receiving this because you lead or are assigned to open actions in the YPP Pathways Portal.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+export async function sendActionDeadlineWarningEmail({
+  to,
+  recipientName,
+  role,
+  department,
+  actionTitle,
+  deadline,
+  updateStatusUrl,
+  flagToCpoUrl,
+}: {
+  to: string;
+  recipientName: string | null;
+  role: string;
+  department: string;
+  actionTitle: string;
+  deadline: string;
+  updateStatusUrl: string;
+  flagToCpoUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const subject = `Due tomorrow: ${actionTitle}`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">This action is due tomorrow</h2>
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>An action you're assigned to is due <strong>tomorrow</strong>. Please update its status or flag a blocker before the deadline.</p>
+    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Your role</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(role)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Department</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(department)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
+      <p style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 600;">${escapeHtml(deadline)}</p>
+    </div>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(updateStatusUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Update Status</a>
+      <a href="${escapeHtml(flagToCpoUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to CPO</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">The action's Lead has also been notified.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+export async function sendActionDeadlineReachedEmail({
+  to,
+  recipientName,
+  role,
+  department,
+  actionTitle,
+  deadline,
+  updateStatusUrl,
+  flagToCpoUrl,
+}: {
+  to: string;
+  recipientName: string | null;
+  role: string;
+  department: string;
+  actionTitle: string;
+  deadline: string;
+  updateStatusUrl: string;
+  flagToCpoUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const subject = `Due today: ${actionTitle}`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">This action reaches its deadline today</h2>
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>An action you're assigned to is due <strong>today</strong>. If it's done, mark it complete — otherwise update its status or flag a blocker. Items with no status update by end of day are marked <strong>Overdue</strong> and the Lead is notified.</p>
+    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Your role</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(role)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Department</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(department)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
+      <p style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 600;">${escapeHtml(deadline)}</p>
+    </div>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(updateStatusUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Update Status</a>
+      <a href="${escapeHtml(flagToCpoUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to CPO</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">You're receiving this because you're assigned to this action in the YPP Pathways Portal.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+/** Sent to the Lead when an item passes its deadline with no status update. */
+export async function sendActionOverdueLeadEmail({
+  to,
+  recipientName,
+  actionTitle,
+  department,
+  deadline,
+  actionUrl,
+}: {
+  to: string;
+  recipientName: string | null;
+  actionTitle: string;
+  department: string;
+  deadline: string;
+  actionUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const subject = `Action overdue: ${actionTitle}`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">An action you lead is now overdue</h2>
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>An action you're the <strong>Lead</strong> on passed its deadline with no status update and has been marked <strong>Overdue</strong>.</p>
+    <div style="background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Department</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(department)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
+      <p style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 600;">${escapeHtml(deadline)}</p>
+    </div>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(actionUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Review Action</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">As Lead you're accountable for the outcome — follow up with the executors or escalate to the CPO if it's blocked.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+/**
+ * People Strategy — confidential 360 feedback request.
+ *
+ * Sent to a recent collaborator asking them to submit feedback about a subject
+ * member. The link points at the authenticated feedback form; the response is
+ * readable only by the CPO/Board, which the copy makes explicit so colleagues
+ * answer candidly. Thin wrapper over `sendEmail`, like the helpers above.
+ */
+export async function sendFeedbackRequestEmail({
+  to,
+  recipientName,
+  subjectName,
+  monthLabel,
+  formUrl,
+}: {
+  to: string;
+  recipientName: string | null;
+  subjectName: string;
+  monthLabel: string;
+  formUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const subject = `Feedback requested: ${subjectName} (${monthLabel})`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Your feedback has been requested</h2>
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>As someone who has worked closely with <strong>${escapeHtml(subjectName)}</strong>, you're invited to share confidential feedback for <strong>${escapeHtml(monthLabel)}</strong>.</p>
+    <div style="background: #f5f3ff; border-left: 4px solid #7c3aed; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px; color: #5b21b6; font-weight: 600;">This feedback is confidential</p>
+      <p style="margin: 8px 0 0; font-size: 14px; color: #44403c;">Only the Chief People Officer and Board can read your response. ${escapeHtml(subjectName)} will not see what you write, so please be candid and constructive.</p>
+    </div>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(formUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Share Feedback</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">You're receiving this because our records show you recently collaborated with ${escapeHtml(subjectName)} in the YPP Pathways Portal.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+/**
  * Notify admins/chapter presidents of a new instructor applicant
  */
 export async function sendNewApplicationNotification({

@@ -23,6 +23,18 @@
     {
       "path": "/api/admin/applicants/auto-archive",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/action-weekly-digest",
+      "schedule": "0 8 * * 1"
+    },
+    {
+      "path": "/api/cron/action-deadline-warning",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/action-deadline-reached",
+      "schedule": "0 23 * * *"
     }
   ]
 }
