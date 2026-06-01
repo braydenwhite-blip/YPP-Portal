@@ -5,6 +5,7 @@ import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { formatDueDate } from "@/lib/leadership-action-center/dates";
 import {
+  listActionDepartments,
   listVisibleActionItems,
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
@@ -15,8 +16,22 @@ import {
 import {
   effectiveDeadline,
   isActionOverdue,
-  sortByDeadline,
 } from "@/lib/people-strategy/my-actions-selectors";
+import {
+  applyActionFilters,
+  buildActionFilterQuery,
+  hasActiveFilters,
+  parseActionFilters,
+} from "@/lib/people-strategy/action-filters";
+import {
+  summarizeDepartments,
+  summarizeStatuses,
+} from "@/lib/people-strategy/action-analytics";
+import { ActionFiltersBar } from "@/components/people-strategy/action-filters-bar";
+import {
+  ActionStatusDonut,
+  DepartmentBars,
+} from "@/components/people-strategy/action-analytics-cards";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Tracker · All Actions" };
@@ -221,33 +236,11 @@ function Tabs() {
   );
 }
 
-/** Filter row — placeholders only (wired up in a later phase). */
-function FilterRow() {
-  const placeholderStyle: React.CSSProperties = {
-    fontSize: 13,
-    padding: "6px 10px",
-    borderRadius: 8,
-    border: "1px solid #e2e8f0",
-    background: "#f8fafc",
-    color: "#94a3b8",
-  };
-  return (
-    <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-      <select disabled aria-label="Filter by department" style={placeholderStyle}>
-        <option>All departments</option>
-      </select>
-      <select disabled aria-label="Filter by status" style={placeholderStyle}>
-        <option>All statuses</option>
-      </select>
-      <select disabled aria-label="Filter by visibility" style={placeholderStyle}>
-        <option>All visibility</option>
-      </select>
-      <input disabled placeholder="Search actions…" aria-label="Search actions" style={placeholderStyle} />
-    </div>
-  );
-}
-
-export default async function AllActionsPage() {
+export default async function AllActionsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   // Outer gate: with ENABLE_ACTION_TRACKER off the route does not exist.
   if (!isActionTrackerEnabled()) notFound();
 
@@ -258,20 +251,30 @@ export default async function AllActionsPage() {
   const viewer = await requireOfficer().catch(() => null);
   if (!viewer) notFound();
 
-  const items = await listVisibleActionItems(viewer);
+  const params = (await searchParams) ?? {};
+  const filters = parseActionFilters(params);
   const now = new Date();
 
-  // Simple summary counts (no heavier analytics in this phase).
-  const summary = {
-    total: items.length,
-    overdue: items.filter((i) => isActionOverdue(i, now)).length,
-    inProgress: items.filter((i) => i.status === "IN_PROGRESS").length,
-    officersOnly: items.filter((i) => i.visibility === "OFFICERS_ONLY").length,
-    flagged: items.filter((i) => i.flaggedAt != null).length,
-  };
+  const [visible, departments] = await Promise.all([
+    listVisibleActionItems(viewer),
+    listActionDepartments(),
+  ]);
 
-  // Group by department name, departments sorted alphabetically, items within a
-  // group sorted by (overdue-aware) deadline.
+  // ONE filtered set drives everything below: the summary strip, the charts,
+  // the department bars, the grouped list, and the CSV export link.
+  const items = applyActionFilters(visible, filters, now);
+
+  const statusBreakdown = summarizeStatuses(items, now);
+  const departmentBars = summarizeDepartments(items, now);
+  const flaggedCount = items.filter((i) => i.flaggedAt != null).length;
+  const officersOnlyCount = items.filter((i) => i.visibility === "OFFICERS_ONLY").length;
+
+  const exportQuery = buildActionFilterQuery(filters);
+  const exportHref = exportQuery
+    ? `/api/admin/actions/export.csv?${exportQuery}`
+    : "/api/admin/actions/export.csv";
+
+  // Grouped list by department; items keep the deadline sort within each group.
   const groups = new Map<string, ActionItemWithRelations[]>();
   for (const item of items) {
     const key = item.department?.name ?? "Unassigned";
@@ -280,8 +283,10 @@ export default async function AllActionsPage() {
     else groups.set(key, [item]);
   }
   const groupedDepartments = Array.from(groups.entries())
-    .map(([name, deptItems]) => ({ name, items: sortByDeadline(deptItems) }))
+    .map(([name, deptItems]) => ({ name, items: deptItems }))
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  const filtersActive = hasActiveFilters(filters);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
@@ -306,15 +311,9 @@ export default async function AllActionsPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {/* CSV export is a later phase — placeholder, not wired up. */}
-          <span
-            className="button outline small"
-            aria-disabled="true"
-            title="Coming soon"
-            style={{ opacity: 0.5, pointerEvents: "none", cursor: "default" }}
-          >
+          <a href={exportHref} className="button outline small">
             Export CSV
-          </span>
+          </a>
           <Link href="/admin/actions/new" className="button small">
             + New Action
           </Link>
@@ -322,22 +321,39 @@ export default async function AllActionsPage() {
       </div>
 
       <Tabs />
-      <FilterRow />
 
-      {/* Summary strip */}
+      <ActionFiltersBar
+        departments={departments}
+        filters={filters}
+        hasActive={filtersActive}
+      />
+
+      {/* Summary strip — reflects the current filters */}
       <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
-        <StatCard label="Total" value={String(summary.total)} />
-        <StatCard label="Overdue" value={String(summary.overdue)} accent={summary.overdue > 0} />
-        <StatCard label="In Progress" value={String(summary.inProgress)} />
-        <StatCard label="Officers Only" value={String(summary.officersOnly)} />
-        <StatCard label="Flagged" value={String(summary.flagged)} />
+        <StatCard label="Total" value={String(statusBreakdown.total)} />
+        <StatCard
+          label="Overdue"
+          value={String(statusBreakdown.counts.OVERDUE)}
+          accent={statusBreakdown.counts.OVERDUE > 0}
+        />
+        <StatCard label="In Progress" value={String(statusBreakdown.counts.IN_PROGRESS)} />
+        <StatCard label="Officers Only" value={String(officersOnlyCount)} />
+        <StatCard label="Flagged" value={String(flaggedCount)} />
+      </div>
+
+      {/* Analytics: status donut + department mini-bars */}
+      <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
+        <ActionStatusDonut breakdown={statusBreakdown} />
+        <DepartmentBars bars={departmentBars} />
       </div>
 
       {/* Grouped list by department */}
       {items.length === 0 ? (
         <div className="card" style={{ marginTop: 16, padding: 16 }}>
           <p style={{ margin: 0 }}>
-            No action items are visible yet. Create the first one with <strong>+ New Action</strong>.
+            {filtersActive
+              ? "No action items match the current filters."
+              : "No action items are visible yet. Create the first one with + New Action."}
           </p>
         </div>
       ) : (
