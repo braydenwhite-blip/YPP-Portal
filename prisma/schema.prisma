@@ -1311,6 +1311,7 @@ model User {
   actionAssignments                 ActionAssignment[]           @relation("ActionAssignments")
   actionComments                    ActionComment[]              @relation("ActionComments")
   actionFileLinksAdded              ActionFileLink[]             @relation("ActionFileLinksAdded")
+  miscUpdatesAdded                  MiscUpdate[]                 @relation("MiscUpdateAddedBy")
   actionEmailLogs                   ActionEmailLog[]             @relation("ActionEmailLogRecipient")
   feedbackRequestsAbout             FeedbackRequest[]            @relation("FeedbackRequestSubject")
   feedbackRequestsToAnswer          FeedbackRequest[]            @relation("FeedbackRequestCollaborator")
@@ -12167,10 +12168,16 @@ model ActionItem {
   leadId String
   lead   User   @relation("ActionItemsLed", fields: [leadId], references: [id])
 
-  /// Optional link to an Officer Meeting added in a later phase. Stored as a
-  /// bare string column for now (no FK) because the OfficerMeeting model does
-  /// not exist yet.
+  /// Optional link to the Officer Meeting this item is scheduled to be
+  /// discussed at. The scalar FK column predates the OfficerMeeting model
+  /// (it shipped as a bare string); the relation below now backs it. Clearing
+  /// a meeting sets this back to null (SetNull) so items return to the tray.
   officerMeetingId String?
+  officerMeeting   OfficerMeeting? @relation("OfficerMeetingActionItems", fields: [officerMeetingId], references: [id], onDelete: SetNull)
+
+  /// Per-meeting discussion notes captured when this item is linked to a
+  /// meeting (one note row per meeting it has been discussed at).
+  meetingNotes MeetingNote[] @relation("ActionItemMeetingNotes")
 
   createdById String
   createdBy   User   @relation("ActionItemsCreated", fields: [createdById], references: [id])
@@ -12314,4 +12321,79 @@ model FeedbackRequest {
   @@unique([subjectUserId, collaboratorId, month])
   @@index([subjectUserId, month])
   @@index([collaboratorId, submittedAt])
+}
+
+// ============================================
+// People Strategy — Officer Meetings (Prompt 06A)
+// Behind ENABLE_ACTION_TRACKER. Officer-tier and above schedule recurring
+// officer meetings, link Action Items for discussion (with editable per-item
+// discussion notes), and capture miscellaneous updates. Agenda + summary-email
+// generation land in Prompt 06B — `agendaText` / `summaryEmailText` hold the
+// generated output; for now they are written by the (stubbed) generate buttons.
+// ============================================
+
+/// Lifecycle of an officer meeting. SCHEDULED meetings appear in the upcoming
+/// blocks; COMPLETED/CANCELLED drop into the Past Meetings view.
+enum OfficerMeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+/// A single officer meeting. Action Items are linked via
+/// `ActionItem.officerMeetingId`; discussion notes per linked item live in
+/// `MeetingNote`; ad-hoc items live in `MiscUpdate`.
+model OfficerMeeting {
+  id               String               @id @default(cuid())
+  date             DateTime
+  status           OfficerMeetingStatus @default(SCHEDULED)
+  /// Generated agenda text (Prompt 06B). Null until generated.
+  agendaText       String?              @db.Text
+  /// Generated post-meeting summary email body (Prompt 06B). Null until generated.
+  summaryEmailText String?              @db.Text
+
+  actionItems  ActionItem[]  @relation("OfficerMeetingActionItems")
+  notes        MeetingNote[] @relation("OfficerMeetingNotes")
+  miscUpdates  MiscUpdate[]  @relation("OfficerMeetingMiscUpdates")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([status, date])
+}
+
+/// Editable discussion notes for one Action Item at one Officer Meeting. One
+/// row per (meeting, action item) so the same item can carry separate notes if
+/// it is discussed across multiple meetings.
+model MeetingNote {
+  id               String         @id @default(cuid())
+  officerMeetingId String
+  officerMeeting   OfficerMeeting @relation("OfficerMeetingNotes", fields: [officerMeetingId], references: [id], onDelete: Cascade)
+  actionItemId     String
+  actionItem       ActionItem     @relation("ActionItemMeetingNotes", fields: [actionItemId], references: [id], onDelete: Cascade)
+  discussionNotes  String         @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([officerMeetingId, actionItemId])
+  @@index([officerMeetingId])
+  @@index([actionItemId])
+}
+
+/// A miscellaneous (non-Action-Item) update raised at an officer meeting —
+/// announcements, FYIs, and other talking points not tied to a tracked item.
+model MiscUpdate {
+  id               String         @id @default(cuid())
+  officerMeetingId String
+  officerMeeting   OfficerMeeting @relation("OfficerMeetingMiscUpdates", fields: [officerMeetingId], references: [id], onDelete: Cascade)
+  body             String         @db.Text
+  addedById        String
+  addedBy          User           @relation("MiscUpdateAddedBy", fields: [addedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([officerMeetingId, createdAt])
+  @@index([addedById])
 }
