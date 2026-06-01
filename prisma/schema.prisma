@@ -1153,6 +1153,8 @@ model User {
   goalReviewsReceived                 MentorGoalReview[]       @relation("GoalReviewsReceived")
   goalReviewsChairApproved            MentorGoalReview[]       @relation("GoalReviewsChairApproved")
   peopleCheckIns                      CheckIn[]                @relation("UserPeopleCheckIns")
+  quarterlyReviews                    QuarterlyReview[]        @relation("UserQuarterlyReviews")
+  quarterlyReviewsCreated             QuarterlyReview[]        @relation("QuarterlyReviewsCreated")
   achievementPointSummary             AchievementPointSummary? @relation("AchievementPointSummary")
   achievementAwardNominations         AwardNomination[]        @relation("AwardNominations")
   achievementAwardNominationsGiven    AwardNomination[]        @relation("AwardNominationsGiven")
@@ -12447,4 +12449,52 @@ model CheckIn {
   @@index([userId])
   @@index([selfReflectionId])
   @@index([mentorGoalReviewId])
+}
+
+/// Outcome of a Quarterly Review on the Performance x Potential matrix.
+enum QuarterlyReviewDecision {
+  PROMOTION
+  ACHIEVEMENT_AWARD
+  ROLE_CHANGE
+  PIP
+  CONTINUATION
+}
+
+/// People Strategy — Quarterly Review (ENABLE_QUARTERLY_REVIEWS). Places a user
+/// on the 4x4 Performance x Potential succession matrix for a given quarter and
+/// records the resulting decision. Both axes REUSE the live `GoalRatingColor`
+/// enum (At Risk / Needs Attention / On Track / Above & Beyond) rather than
+/// introducing a second rating concept. The matrix LABEL is never persisted —
+/// it is derived purely from the two ratings via `lib/matrix.ts`.
+model QuarterlyReview {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("UserQuarterlyReviews", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The quarter this review covers, e.g. "2026-Q2".
+  quarter String
+
+  /// 4-level performance rating (reuses GoalRatingColor).
+  performanceRating GoalRatingColor
+  /// 4-level potential rating (reuses GoalRatingColor).
+  potentialRating   GoalRatingColor
+
+  decision QuarterlyReviewDecision
+
+  /// True when the user lands in the succession quadrant (performance AND
+  /// potential both On Track or above). Derived from the two ratings; stored so
+  /// the CPO dashboard can filter succession candidates without recomputing.
+  successionFlag Boolean @default(false)
+
+  createdById String
+  createdBy   User   @relation("QuarterlyReviewsCreated", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  /// Exactly one review per user per quarter — lets the compile action upsert
+  /// idempotently and prevents duplicate matrix placements.
+  @@unique([userId, quarter])
+  @@index([userId])
+  @@index([createdById])
+  @@index([successionFlag])
 }
