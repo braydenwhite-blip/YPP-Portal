@@ -63,6 +63,17 @@ export function isPeopleDashboardEnabled(): boolean {
 }
 
 /**
+ * People Strategy — provisional 3-month confirmation clock. The provisional
+ * status field/model is not built yet; this flag gates the placeholder shown on
+ * the member detail People Strategy section until the clock ships.
+ *
+ * Defaults OFF — set `ENABLE_PROVISIONAL_CLOCK=true` to enable once built.
+ */
+export function isProvisionalClockEnabled(): boolean {
+  return process.env.ENABLE_PROVISIONAL_CLOCK === "true";
+}
+
+/**
  * TEMPORARY visibility gate: while the regular Instructor program is
  * paused, only the Summer Workshop Instructor pathway should be exposed
  * to end users. Admins always retain access (see `canBypassInstructorGate`).
