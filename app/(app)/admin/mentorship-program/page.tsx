@@ -1,10 +1,95 @@
+import Link from "next/link";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
-import { getSession } from "@/lib/auth-supabase";
+import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
+import {
+  addMentorCommitteeMember,
+  createMentorCommittee,
+  createMentorshipTrack,
+  updateMentorshipGovernance,
+} from "@/lib/mentorship-program-actions";
+import { assignSupportCircleMember } from "@/lib/mentorship-hub-actions";
+import {
+  ADMIN_MENTORSHIP_LANE_META,
+  ADMIN_MENTORSHIP_LANES,
+  getAdminMentorshipLaneForUser,
+  parseAdminMentorshipLane,
+  toLaneQueryValue,
+} from "@/lib/mentorship-admin-helpers";
+import { getAdminMentorshipCommandCenterData } from "@/lib/admin-mentorship-command-center";
+
+import ChairsPanel from "./chairs-panel";
+import GoalsPanel from "./goals-panel";
+import MatchingPanel from "./matching-panel";
+import GoalReviewsBoard from "./goal-reviews-board";
+import ReviewApprovalsBoard from "./review-approvals-board";
+import MenteeMatchingBoard from "./mentee-matching-board";
+import {
+  getMentorshipGoalReviews,
+  getMentorshipMonthlyReviews,
+} from "@/lib/mentorship-kanban-actions";
+import { getChairQueueEnriched, getReviewCompletionStatus } from "@/lib/goal-review-actions";
+import ChairApprovalQueue from "@/components/gr/chair-approval-queue";
+import ReviewCompletionPanel from "@/components/gr/review-completion-panel";
 
 export const metadata = { title: "Mentorship Command Center — Admin" };
 
-export default async function MentorshipProgramAdminPage() {
+type SearchParams = {
+  lane?: string;
+  focus?: string;
+  menteeId?: string;
+  supportRole?: string;
+};
+
+type MatchSupportRole =
+  | "PRIMARY_MENTOR"
+  | "CHAIR"
+  | "SPECIALIST_MENTOR"
+  | "COLLEGE_ADVISOR"
+  | "ALUMNI_ADVISOR";
+
+function parseFocus(raw?: string) {
+  if (
+    raw === "queue" ||
+    raw === "matching" ||
+    raw === "staffing" ||
+    raw === "governance"
+  ) {
+    return raw;
+  }
+
+  return "queue";
+}
+
+function parseSupportRole(raw?: string): MatchSupportRole {
+  if (
+    raw === "PRIMARY_MENTOR" ||
+    raw === "CHAIR" ||
+    raw === "SPECIALIST_MENTOR" ||
+    raw === "COLLEGE_ADVISOR" ||
+    raw === "ALUMNI_ADVISOR"
+  ) {
+    return raw;
+  }
+
+  return "PRIMARY_MENTOR";
+}
+
+function getFocusCardStyle(isActive: boolean) {
+  return {
+    border: isActive
+      ? "1px solid rgba(59, 130, 246, 0.35)"
+      : "1px solid var(--border)",
+    boxShadow: isActive ? "0 0 0 3px rgba(59, 130, 246, 0.08)" : "none",
+  };
+}
+
+export default async function MentorshipProgramAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
 

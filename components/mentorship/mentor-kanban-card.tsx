@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { DeadlineChip } from "@/components/mentorship/deadline-chip";
-import type { KanbanCard } from "@/lib/mentorship-kanban-actions";
+import type { SimplifiedKanbanCard as KanbanCard } from "@/lib/mentorship-kanban-actions";
 import { formatEnum } from "@/lib/format-utils";
 
 type Props = {
@@ -8,7 +8,7 @@ type Props = {
 };
 
 export function MentorKanbanCard({ card }: Props) {
-  const { menteeId, menteeName, menteePrimaryRole, trackName, cta, softDeadline, completedAt } = card;
+  const { menteeId, menteeName, menteePrimaryRole, cta, softDeadline } = card;
   const variantClass =
     cta.variant === "primary" ? "primary" : cta.variant === "secondary" ? "secondary" : "secondary";
   return (
@@ -34,18 +34,8 @@ export function MentorKanbanCard({ card }: Props) {
             {formatEnum(menteePrimaryRole)}
           </span>
         )}
-        {trackName && (
-          <span
-            className="pill"
-            style={{ fontSize: "0.7rem", background: "#e0f2fe", color: "#0c4a6e" }}
-          >
-            {trackName}
-          </span>
-        )}
       </div>
-      {softDeadline && (
-        <DeadlineChip softDeadline={softDeadline} completedAt={completedAt} />
-      )}
+      {softDeadline && <DeadlineChip softDeadline={softDeadline} />}
       <div style={{ marginTop: 4 }}>
         {cta.disabled || !cta.href ? (
           <span
