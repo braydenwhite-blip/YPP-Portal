@@ -1,4 +1,4 @@
-# INTEGRATION_MAP.md — People Strategy Layer, through Phase 06A
+# INTEGRATION_MAP.md — People Strategy Layer, through Phase 07 (Monthly Check-Ins)
 
 Audit of the existing YPP Pathways Portal for the **People Strategy** layer
 (Action Items, My Actions / All Actions, Officer Meetings, deadline emails,
@@ -572,3 +572,48 @@ data into Action Tracker tables. UI rows live in
 `app/(app)/officer-meetings/page.tsx` plus
 `components/people-strategy/officer-meetings-client.tsx`. Agenda/summary
 buttons are disabled placeholders; no Officer Meeting AI generation is wired.
+
+---
+
+## PART D — Monthly Check-Ins & Quarterly Reviews (Phase 07, `ENABLE_QUARTERLY_REVIEWS`)
+
+A **Monthly Check-In** is a *compilation*, not a new monthly input. It points at
+the data that already exists for a user/month and derives a single performance
+rating from it. **No second monthly performance input is created**, existing
+reflections are not replaced, and mentorship is not replaced.
+
+**Performance axis → live `GoalRatingColor` mapping (authoritative).** The
+kickoff's four levels map onto the live `GoalRatingColor` enum
+(`prisma/schema.prisma`, used by `GoalReviewRating` / `MentorGoalReview`).
+Labels match `lib/people-strategy/check-in-rating.ts` (`RATING_LABELS`):
+
+| Kickoff wording | Documented label | `GoalRatingColor` value | Color / points |
+| --- | --- | --- | --- |
+| Behind Schedule | **At Risk** | `BEHIND_SCHEDULE` | Red — 0 pts |
+| Getting Started | **Needs Attention** | `GETTING_STARTED` | Yellow — 1 pt |
+| On Track | **On Track** | `ACHIEVED` *(live enum; legacy `ProgressStatus.ON_TRACK`)* | Green — 2 pts |
+| Above and Beyond | **Above & Beyond** | `ABOVE_AND_BEYOND` | Purple — 3 pts |
+
+⚠ The live enum names the third level **`ACHIEVED`** (Green), not `ON_TRACK`.
+The check-in reuses `GoalRatingColor` directly — it does **not** introduce a
+second rating enum.
+
+**Schema:** `model CheckIn` (`prisma/schema.prisma`, migration
+`20260601150000_add_people_strategy_check_in`). Fields: `userId`, `month`
+(first of month), `selfReflectionId` → `MonthlySelfReflection` (the existing
+monthly reflection), `mentorGoalReviewId` → `MentorGoalReview` (the existing
+mentorship feedback/goal-review source), `performanceRating GoalRatingColor?`
+(derived), `compiledNotes String?`, `createdAt`.
+`@@unique([userId, month])` guarantees **exactly one check-in per user/month**
+(no duplicate monthly rating entry).
+
+**Rating derivation:** `lib/people-strategy/check-in-rating.ts` —
+`derivePerformanceRating()` prefers `MentorGoalReview.overallRating`, else
+averages the per-goal `GoalReviewRating.rating` values
+(`deriveRatingFromGoalRatings()`). Pure/deterministic.
+
+**Compile action:** `lib/people-strategy/check-in-actions.ts` —
+`compileCheckIn({ userId, month })` reads the existing reflection + mentor
+review for the month, derives the rating, and **upserts** on `(userId, month)`
+so re-compiling refreshes the same row. Gated by `ENABLE_QUARTERLY_REVIEWS`,
+guarded by `requireOfficer()`.
