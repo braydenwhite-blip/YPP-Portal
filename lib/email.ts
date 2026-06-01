@@ -607,6 +607,78 @@ const emailShell = (body: string) => `
 </html>`;
 
 /**
+ * People Strategy — "New Assignment" notification.
+ *
+ * Sent immediately when a user is newly added to an ActionAssignment (LEAD /
+ * EXECUTING / INPUT). Gated upstream by `ENABLE_ACTION_TRACKER_EMAILS`; this
+ * helper only builds the subject/html and delegates to `sendEmail`, exactly
+ * like the other `sendXxxEmail` wrappers in this file.
+ */
+export type ActionAssignmentEmailRole = "LEAD" | "EXECUTING" | "INPUT";
+
+const ACTION_ASSIGNMENT_ROLE_COPY: Record<
+  ActionAssignmentEmailRole,
+  { label: string; explanation: string }
+> = {
+  LEAD: {
+    label: "Lead",
+    explanation: "You are accountable for the outcome and support the executors.",
+  },
+  EXECUTING: {
+    label: "Executing",
+    explanation: "You deliver the work and keep the status updated.",
+  },
+  INPUT: {
+    label: "Input",
+    explanation: "You give feedback or review when requested.",
+  },
+};
+
+export async function sendNewAssignmentEmail({
+  to,
+  recipientName,
+  role,
+  leadName,
+  actionTitle,
+  deadline,
+  actionUrl,
+}: {
+  to: string;
+  recipientName: string | null;
+  role: ActionAssignmentEmailRole;
+  leadName: string;
+  actionTitle: string;
+  deadline: string;
+  actionUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const roleCopy = ACTION_ASSIGNMENT_ROLE_COPY[role];
+  const subject = "You've Been Assigned a New Action";
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">You've been assigned a new action</h2>
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>You've been added to an action item as <strong>${escapeHtml(roleCopy.label)}</strong>.</p>
+    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Lead</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(leadName)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
+      <p style="margin: 0; color: #1c1917; font-size: 15px;">${escapeHtml(deadline)}</p>
+    </div>
+    <div style="background: #f5f3ff; border-left: 4px solid #7c3aed; border-radius: 8px; padding: 16px 20px; margin: 0 0 24px;">
+      <p style="margin: 0; font-size: 14px; color: #5b21b6; font-weight: 600;">Your role — ${escapeHtml(roleCopy.label)}</p>
+      <p style="margin: 8px 0 0; font-size: 14px; color: #44403c;">${escapeHtml(roleCopy.explanation)}</p>
+    </div>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(actionUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Full Action Item</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">You're receiving this because you were assigned to this action in the YPP Pathways Portal.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+/**
  * Notify admins/chapter presidents of a new instructor applicant
  */
 export async function sendNewApplicationNotification({

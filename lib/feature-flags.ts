@@ -25,6 +25,18 @@ export function isActionTrackerEnabled(): boolean {
 }
 
 /**
+ * People Strategy — automated Action Tracker emails (e.g. the "New Assignment"
+ * notification sent when a user is newly added to an ActionAssignment).
+ *
+ * Defaults OFF — set `ENABLE_ACTION_TRACKER_EMAILS=true` to enable sending.
+ * This is an independent kill-switch layered on top of `ENABLE_ACTION_TRACKER`:
+ * the runtime surfaces can be live while assignment emails stay silent.
+ */
+export function isActionTrackerEmailsEnabled(): boolean {
+  return process.env.ENABLE_ACTION_TRACKER_EMAILS === "true";
+}
+
+/**
  * TEMPORARY visibility gate: while the regular Instructor program is
  * paused, only the Summer Workshop Instructor pathway should be exposed
  * to end users. Admins always retain access (see `canBypassInstructorGate`).
