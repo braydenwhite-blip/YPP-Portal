@@ -60,7 +60,7 @@ export function ClassTrackerRow({ offering }: { offering: TrackerClass }) {
           gap: 12,
           marginTop: 8,
           fontSize: 12,
-          color: "var(--gray-400)",
+          color: "#64748b",
           flexWrap: "wrap",
         }}
       >

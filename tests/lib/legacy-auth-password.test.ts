@@ -32,6 +32,8 @@ describe("authenticateLegacyPassword", () => {
       id: "user-1",
       email: "e2e.instructor.blocked.alpha@ypp.test",
       passwordHash: "hashed-password",
+      primaryRole: "INSTRUCTOR",
+      roles: [{ role: "INSTRUCTOR" }],
     } as never);
     bcryptMocks.compare.mockResolvedValue(true);
 
@@ -45,6 +47,8 @@ describe("authenticateLegacyPassword", () => {
       userId: "user-1",
       email: "e2e.instructor.blocked.alpha@ypp.test",
       mode: "LOCAL_PASSWORD_FALLBACK",
+      primaryRole: "INSTRUCTOR",
+      roles: ["INSTRUCTOR"],
     });
   });
 
@@ -71,6 +75,8 @@ describe("authenticateLegacyPassword", () => {
       id: "user-2",
       email: LEGACY_AUTH_BYPASS_EMAILS[0],
       passwordHash: "hashed-password",
+      primaryRole: "ADMIN",
+      roles: [{ role: "ADMIN" }],
     } as never);
     bcryptMocks.compare.mockResolvedValue(true);
 
@@ -84,6 +90,8 @@ describe("authenticateLegacyPassword", () => {
       userId: "user-2",
       email: LEGACY_AUTH_BYPASS_EMAILS[0],
       mode: "BYPASS",
+      primaryRole: "ADMIN",
+      roles: ["ADMIN"],
     });
   });
 });

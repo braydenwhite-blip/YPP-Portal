@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireOfficer } from "@/lib/authorization";
-import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import {
+  isActionTrackerEnabled,
+  isPeopleDashboardEnabled,
+} from "@/lib/feature-flags";
 import { formatDueDate } from "@/lib/leadership-action-center/dates";
 import {
   listActionDepartments,
@@ -14,6 +17,7 @@ import {
   effectiveDeadline,
   isActionOverdue,
 } from "@/lib/people-strategy/my-actions-selectors";
+import { isCpoOrBoard } from "@/lib/people-strategy/action-permissions";
 import {
   applyActionFilters,
   buildActionFilterQuery,
@@ -111,7 +115,7 @@ function ActionRow({ item, now }: { item: ActionItemWithRelations; now: Date }) 
           gap: 12,
           marginTop: 8,
           fontSize: 12,
-          color: "var(--gray-400)",
+          color: "#64748b",
           flexWrap: "wrap",
         }}
       >
@@ -179,6 +183,7 @@ export default async function AllActionsPage({
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const filtersActive = hasActiveFilters(filters);
+  const showPeopleDashboardTab = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
@@ -212,7 +217,7 @@ export default async function AllActionsPage({
         </div>
       </div>
 
-      <ActionTrackerTabs active="all" />
+      <ActionTrackerTabs active="all" showPeople={showPeopleDashboardTab} />
 
       <ActionFiltersBar
         departments={departments}
@@ -263,7 +268,7 @@ export default async function AllActionsPage({
                 <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
                   {group.name}
                 </h2>
-                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>
+                <span style={{ fontSize: 12, color: "#64748b" }}>
                   {group.items.length} {group.items.length === 1 ? "action" : "actions"}
                 </span>
               </div>

@@ -10,6 +10,8 @@ type LegacyPasswordAuthResult =
       userId: string;
       email: string;
       mode: LegacySessionMode;
+      primaryRole: string | null;
+      roles: string[];
     }
   | {
       success: false;
@@ -36,6 +38,8 @@ export async function authenticateLegacyPassword(
       id: true,
       email: true,
       passwordHash: true,
+      primaryRole: true,
+      roles: { select: { role: true } },
     },
   });
 
@@ -52,6 +56,8 @@ export async function authenticateLegacyPassword(
     success: true,
     userId: user.id,
     email: user.email,
+    primaryRole: user.primaryRole,
+    roles: user.roles.map((entry) => entry.role),
     mode:
       legacyBypassEnabled || !localPasswordFallbackEnabled
         ? "BYPASS"

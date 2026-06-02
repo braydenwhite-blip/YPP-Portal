@@ -389,7 +389,19 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/my-actions",
       label: "My Actions",
       icon: "✅",
-      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR", "INSTRUCTOR", "MENTOR"] as NavRole[],
+      // My Actions is per-record guarded server-side and can be used by any
+      // portal user who is assigned as Lead, Executing, or Input.
+      roles: [
+        "ADMIN",
+        "STAFF",
+        "CHAPTER_PRESIDENT",
+        "HIRING_CHAIR",
+        "INSTRUCTOR",
+        "MENTOR",
+        "STUDENT",
+        "PARENT",
+        "APPLICANT",
+      ] as NavRole[],
       requiresActionTracker: true,
       searchAliases: ["Action Items", "Action Tracker", "My Action Items"],
       dashboardDescription: "Everything you lead, are executing, or owe input on — sorted by deadline.",

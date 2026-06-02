@@ -17,15 +17,17 @@ export const metadata = { title: "Edit action · People Strategy" };
 export default async function EditActionPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
+
   // Feature flag: with ENABLE_ACTION_TRACKER off, the route is unreachable.
   if (!isActionTrackerEnabled()) notFound();
 
   const user = await requirePageRoles([...OFFICER_TIER_ROLES]);
 
   const [item, users, departments] = await Promise.all([
-    getActionItemById(params.id, user),
+    getActionItemById(id, user),
     listActionAssignableUsers(),
     listActionDepartments(),
   ]);

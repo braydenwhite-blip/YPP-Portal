@@ -212,7 +212,7 @@ function PeopleColumn({ title, people }: { title: string; people: PersonDTO[] })
       {people.length > 0 ? (
         people.map((person) => <PersonChip key={`${title}-${person.id}`} person={person} />)
       ) : (
-        <span style={{ color: "var(--gray-400)", fontSize: 13 }}>None assigned</span>
+        <span style={{ color: "#64748b", fontSize: 13 }}>None assigned</span>
       )}
     </div>
   );
@@ -358,6 +358,7 @@ export default function ActionDetailCard({
           justifyContent: "space-between",
           alignItems: "flex-start",
           gap: 16,
+          flexWrap: "wrap",
         }}
       >
         <div style={{ minWidth: 0 }}>
@@ -368,7 +369,7 @@ export default function ActionDetailCard({
             {item.title}
           </h1>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "0 0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "0 1 auto", flexWrap: "wrap" }}>
           <Link href={closeHref} className="button outline small" aria-label="Close action detail">
             ×
           </Link>
@@ -396,7 +397,7 @@ export default function ActionDetailCard({
           padding: "18px 20px",
           display: "grid",
           gap: 12,
-          gridTemplateColumns: "minmax(180px, 260px) 1fr",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
           alignItems: "center",
         }}
       >
@@ -477,7 +478,7 @@ export default function ActionDetailCard({
       )}
 
       <Section title="Description">
-        <p style={{ margin: 0, color: item.description ? "var(--text-secondary)" : "var(--gray-400)", lineHeight: 1.6 }}>
+        <p style={{ margin: 0, color: item.description ? "#334155" : "#64748b", lineHeight: 1.6 }}>
           {item.description ?? "No description has been added yet."}
         </p>
       </Section>
@@ -533,7 +534,7 @@ export default function ActionDetailCard({
           />
         </div>
         {item.fileLinks.length === 0 ? (
-          <p style={{ margin: 0, color: "var(--gray-400)", fontSize: 13 }}>No files or links yet.</p>
+          <p style={{ margin: 0, color: "#64748b", fontSize: 13 }}>No files or links yet.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {item.fileLinks.map((file) => (
@@ -637,7 +638,7 @@ export default function ActionDetailCard({
           </button>
         </div>
         {item.comments.length === 0 ? (
-          <p style={{ margin: 0, color: "var(--gray-400)", fontSize: 13 }}>No comments yet.</p>
+          <p style={{ margin: 0, color: "#64748b", fontSize: 13 }}>No comments yet.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
             {item.comments.map((entry) => (

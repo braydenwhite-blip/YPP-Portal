@@ -163,7 +163,7 @@ function GenerateButtons({ meeting }: { meeting: MeetingDTO }) {
           {meeting.summaryEmailText ? "Regenerate summary email" : "Generate summary email"}
         </button>
         {!summaryReady && (
-          <span style={{ fontSize: 12, color: "var(--gray-400)" }}>
+          <span style={{ fontSize: 12, color: "#64748b" }}>
             Summary email unlocks once all {meeting.actionItems.length} item
             {meeting.actionItems.length === 1 ? "" : "s"} have discussion notes.
           </span>
@@ -244,7 +244,7 @@ function DiscussionNote({
         {item.goalCategory ? ` · Goal: ${item.goalCategory}` : " · Goal: Uncategorized"}
         {item.leadName ? ` · Lead: ${item.leadName}` : ""}
       </div>
-      <div style={{ fontSize: 12, color: "var(--gray-400)", margin: "0 0 8px", lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12, color: "#64748b", margin: "0 0 8px", lineHeight: 1.5 }}>
         {assigneeText}
       </div>
       <textarea
@@ -337,7 +337,7 @@ function MiscUpdates({
         Miscellaneous updates
       </div>
       {updates.length === 0 ? (
-        <p style={{ color: "var(--gray-400)", fontSize: 13, fontStyle: "italic", margin: "0 0 8px" }}>
+        <p style={{ color: "#64748b", fontSize: 13, fontStyle: "italic", margin: "0 0 8px" }}>
           No miscellaneous updates yet.
         </p>
       ) : (
@@ -377,7 +377,7 @@ function MiscUpdates({
                 ) : (
                   <div style={{ fontSize: 13, color: "var(--ypp-ink)", whiteSpace: "pre-wrap" }}>{u.body}</div>
                 )}
-                <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 2 }}>{u.addedByName}</div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{u.addedByName}</div>
               </div>
               {!disabled && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -428,7 +428,7 @@ function MiscUpdates({
         </ul>
       )}
       {!disabled && (
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input
             type="text"
             value={body}
@@ -437,7 +437,7 @@ function MiscUpdates({
             aria-label="Add miscellaneous update"
             disabled={pending}
             style={{
-              flex: 1,
+              flex: "1 1 220px",
               fontSize: 13,
               padding: 8,
               borderRadius: "var(--radius-xs)",
@@ -589,7 +589,7 @@ function MeetingBlock({
           Action items for discussion
         </div>
         {meeting.actionItems.length === 0 ? (
-          <p style={{ color: "var(--gray-400)", fontSize: 13, fontStyle: "italic", margin: "0 0 8px" }}>
+          <p style={{ color: "#64748b", fontSize: 13, fontStyle: "italic", margin: "0 0 8px" }}>
             No action items linked yet. Use the picker below to pull items in from the tray.
           </p>
         ) : (
@@ -727,7 +727,7 @@ export default function OfficerMeetingsClient({
         <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
           Unassigned tray
         </h2>
-        <p style={{ margin: 0, fontSize: 12, color: "var(--gray-400)" }}>
+        <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
           Action items not yet assigned to a meeting. Link them from a meeting block above.
         </p>
         {unassigned.length === 0 ? (
@@ -751,7 +751,7 @@ export default function OfficerMeetingsClient({
                 }}
               >
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{item.title}</span>
-                <span style={{ fontSize: 12, color: "var(--gray-400)", whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: 12, color: "#64748b" }}>
                   {item.departmentName ?? "—"} · {ACTION_STATUS_LABELS[item.status]}
                 </span>
               </Link>

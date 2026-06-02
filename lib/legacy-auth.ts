@@ -9,6 +9,8 @@ export type LegacySessionPayload = {
   email: string;
   exp: number;
   mode?: LegacySessionMode;
+  primaryRole?: string | null;
+  roles?: string[];
 };
 
 function getLegacyAuthSecret() {

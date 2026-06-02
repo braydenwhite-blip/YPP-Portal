@@ -19,20 +19,22 @@ function monthLabel(d: Date): string {
 export default async function FeedbackRequestPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
+
   // Feature flag is the outer gate — with the flag off the route doesn't exist.
   if (!isActionTrackerEmailsEnabled()) notFound();
 
   const session = await getSession();
   if (!session?.user?.id) {
-    redirect(`/login?next=/people-strategy/feedback/${params.id}`);
+    redirect(`/login?next=/people-strategy/feedback/${id}`);
   }
 
   // Returns the request ONLY when the viewer is the named collaborator. Anyone
   // else (including the subject) gets a 404 — they can't read it here, and the
   // raw responses are CPO/Board-only via getFeedbackResponsesForSubject().
-  const request = await getFeedbackRequestForCollaborator(params.id, session.user.id);
+  const request = await getFeedbackRequestForCollaborator(id, session.user.id);
   if (!request) notFound();
 
   const subjectName = request.subjectUser.name ?? "your colleague";

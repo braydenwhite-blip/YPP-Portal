@@ -46,7 +46,7 @@ export default function AppShell({
   hiringDemoMode?: boolean;
   /** SUMMER_WORKSHOP keeps the workshop studio + training links visible. */
   instructorSubtype?: string | null;
-  /** Public portal gate is active for this user (no admin/preview bypass). */
+  /** Public portal gate is active for this user after admin/preview bypass checks. */
   publicGateActive?: boolean;
   /** User is browsing in internal preview mode — show the indicator bar. */
   previewModeActive?: boolean;

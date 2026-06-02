@@ -21,6 +21,7 @@ import StudentDashboard, {
 } from "@/components/dashboard/student-dashboard";
 import MyActionsCard from "@/components/people-strategy/my-actions-card";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
+import { canAccessAdminRoute } from "@/lib/admin-capabilities";
 
 // Roles that work the hiring pipeline and should land on the applicant board.
 const REVIEWER_ROLES = ["ADMIN", "HIRING_CHAIR", "CHAPTER_PRESIDENT"];
@@ -125,6 +126,47 @@ function ReviewerHome({
           </p>
         </div>
       )}
+    </HomeShell>
+  );
+}
+
+function AdminHome({
+  name,
+  actionsCard,
+  showApplicationBoard,
+}: {
+  name: string;
+  actionsCard?: ReactNode;
+  showApplicationBoard: boolean;
+}) {
+  return (
+    <HomeShell
+      greeting={name ? `Hi, ${name}.` : "Welcome back."}
+      intro="Your admin tools are available from the sidebar. Start with one of the common workspaces below."
+    >
+      <div style={{ display: "grid", gap: 14 }}>
+        {showApplicationBoard ? (
+          <PrimaryCard
+            href="/admin/instructor-applicants"
+            title="Application board"
+            body="Review instructor applicants, send interview times, and move candidates through the hiring pipeline."
+            cta="Open the board"
+          />
+        ) : null}
+        <PrimaryCard
+          href="/admin/chapters"
+          title="Chapter admin"
+          body="Open chapter-level records and operational tools that are available to every admin."
+          cta="Open chapters"
+        />
+        <PrimaryCard
+          href="/admin/bulk-users"
+          title="User access"
+          body="Manage portal users, roles, and admin access from the bulk user tools."
+          cta="Manage users"
+        />
+      </div>
+      {actionsCard ? <div style={{ marginTop: 20 }}>{actionsCard}</div> : null}
     </HomeShell>
   );
 }
@@ -267,6 +309,7 @@ export default async function OverviewPage() {
   }
 
   const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN") || session.user.primaryRole === "ADMIN";
   const isReviewer = roles.some((role) => REVIEWER_ROLES.includes(role));
   const isInstructor =
     roles.includes("INSTRUCTOR") || session.user.primaryRole === "INSTRUCTOR";
@@ -280,6 +323,20 @@ export default async function OverviewPage() {
     primaryRole: session.user.primaryRole,
     adminSubtypes: session.user.adminSubtypes,
   };
+  const canOpenApplicantBoard =
+    roles.includes("HIRING_CHAIR") ||
+    roles.includes("CHAPTER_PRESIDENT") ||
+    (isAdmin && canAccessAdminRoute(session.user.adminSubtypes, "/admin/instructor-applicants"));
+
+  if (isAdmin) {
+    return (
+      <AdminHome
+        name={name}
+        actionsCard={<MyActionsCard viewer={actionViewer} />}
+        showApplicationBoard={canOpenApplicantBoard}
+      />
+    );
+  }
 
   if (isReviewer) {
     return (

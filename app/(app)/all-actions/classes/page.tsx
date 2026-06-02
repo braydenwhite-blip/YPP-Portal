@@ -1,8 +1,12 @@
 import { notFound } from "next/navigation";
 
 import { requireOfficer } from "@/lib/authorization";
-import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import {
+  isActionTrackerEnabled,
+  isPeopleDashboardEnabled,
+} from "@/lib/feature-flags";
 import { listTrackerClasses, type TrackerClass } from "@/lib/people-strategy/class-tracker";
+import { isCpoOrBoard } from "@/lib/people-strategy/action-permissions";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
 
@@ -19,6 +23,7 @@ export default async function ActionTrackerClassesPage() {
   if (!viewer) notFound();
 
   const classes = await listTrackerClasses();
+  const showPeopleDashboardTab = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
 
   // Group by chapter (the class org unit), mirroring the department grouping on
   // All Actions. Classes keep the soonest-start ordering within each group.
@@ -57,7 +62,7 @@ export default async function ActionTrackerClassesPage() {
         </div>
       </div>
 
-      <ActionTrackerTabs active="classes" />
+      <ActionTrackerTabs active="classes" showPeople={showPeopleDashboardTab} />
 
       <div
         className="card"
@@ -92,7 +97,7 @@ export default async function ActionTrackerClassesPage() {
                 <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
                   {group.name}
                 </h2>
-                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>
+                <span style={{ fontSize: 12, color: "#64748b" }}>
                   {group.items.length} {group.items.length === 1 ? "class" : "classes"}
                 </span>
               </div>

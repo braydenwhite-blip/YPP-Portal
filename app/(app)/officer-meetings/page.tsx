@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 
 import { requireOfficer } from "@/lib/authorization";
-import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import {
+  isActionTrackerEnabled,
+  isPeopleDashboardEnabled,
+} from "@/lib/feature-flags";
+import { isCpoOrBoard } from "@/lib/people-strategy/action-permissions";
 import {
   listPastMeetings,
   listUnassignedActionItems,
@@ -81,6 +85,7 @@ export default async function OfficerMeetingsPage() {
     listPastMeetings(now),
     listUnassignedActionItems(),
   ]);
+  const showPeopleDashboardTab = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
@@ -95,7 +100,7 @@ export default async function OfficerMeetingsPage() {
         </p>
       </div>
 
-      <ActionTrackerTabs active="meetings" />
+      <ActionTrackerTabs active="meetings" showPeople={showPeopleDashboardTab} />
 
       <OfficerMeetingsClient
         upcoming={upcoming.map(meetingToDTO)}

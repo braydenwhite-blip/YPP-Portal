@@ -4,7 +4,7 @@ import {
   canBypassInstructorGate,
   isSummerWorkshopPermittedPath,
 } from "@/lib/feature-flags";
-import { isAllowedPublicPath } from "@/lib/public-gate";
+import { hasPublicGateBypassRole, isAllowedPublicPath } from "@/lib/public-gate";
 
 describe("Summer Workshop route gates", () => {
   it("allows approved Summer Workshop instructors into the training hub and module pages", () => {
@@ -64,5 +64,18 @@ describe("Public portal gate allowlist", () => {
 
   it.each(GATED)("redirects %s behind the public gate", (path) => {
     expect(isAllowedPublicPath(path)).toBe(false);
+  });
+});
+
+describe("Public portal gate role bypass", () => {
+  it("lets admins bypass the public launch gate", () => {
+    expect(hasPublicGateBypassRole({ roles: ["ADMIN"], primaryRole: "ADMIN" })).toBe(true);
+    expect(hasPublicGateBypassRole({ roles: "STUDENT, ADMIN", primaryRole: "STUDENT" })).toBe(true);
+  });
+
+  it("keeps non-admins inside the public launch gate", () => {
+    expect(hasPublicGateBypassRole({ roles: ["APPLICANT"], primaryRole: "APPLICANT" })).toBe(false);
+    expect(hasPublicGateBypassRole({ roles: ["HIRING_CHAIR"], primaryRole: "HIRING_CHAIR" })).toBe(false);
+    expect(hasPublicGateBypassRole(null)).toBe(false);
   });
 });

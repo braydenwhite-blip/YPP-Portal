@@ -76,7 +76,7 @@ export default async function ActionsIndexPage() {
                     {ACTION_VISIBILITY_LABELS[item.visibility]} · Due{" "}
                     {formatDueDate(item.deadlineStart)}
                   </span>
-                  <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                  <span style={{ fontSize: 12, color: "#64748b" }}>
                     Lead: {item.lead?.name ?? item.lead?.email ?? "—"}
                     {executors.length > 0 && ` · Executing: ${executors.length}`}
                     {inputs.length > 0 && ` · Input: ${inputs.length}`}

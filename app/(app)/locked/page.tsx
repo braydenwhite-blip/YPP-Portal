@@ -8,9 +8,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * "Feature Locked / Coming Soon" page shown when a user lands on a
- * portal surface hidden behind the public gate. Everyone — admins
- * included — passes the gate the same way: the preview passcode at
- * /preview.
+ * portal surface hidden behind the public gate. Admins bypass this public
+ * launch gate; teammates without admin access can use the preview passcode
+ * at /preview.
  */
 export default async function LockedPage({
   searchParams,

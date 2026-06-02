@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Detail · People Strategy" };
 
 type PageProps = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 type PersonSource = {
@@ -122,6 +122,8 @@ function toDetailDTO(
 }
 
 export default async function ActionDetailPage({ params }: PageProps) {
+  const { id } = await params;
+
   // Step 1: the feature flag is the outer gate. If it is off, this page does
   // not exist to the app.
   if (!isActionTrackerEnabled()) notFound();
@@ -140,7 +142,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
 
   // Step 3: getActionItemById applies the server-side view guard. It returns
   // null for missing records, unauthorized viewers, and flag-off states.
-  const item = await getActionItemById(params.id, viewer);
+  const item = await getActionItemById(id, viewer);
   if (!item) notFound();
 
   const actionShape = toActionShape(item);

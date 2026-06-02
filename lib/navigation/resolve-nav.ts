@@ -28,7 +28,7 @@ import {
   isRegularInstructorGatedPath,
   isSummerWorkshopPermittedPath,
 } from "@/lib/feature-flags";
-import { isAllowedPublicPath } from "@/lib/public-gate";
+import { hasPublicGateBypassRole, isAllowedPublicPath } from "@/lib/public-gate";
 import {
   applyStudentMinimalSidebarLayout,
   studentMinimalLinkOrderIndex,
@@ -471,6 +471,12 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
   const hiringDemoHrefs = input.hiringDemoMode
     ? hiringDemoHrefsForRole(primaryRole)
     : null;
+  const publicGateApplies =
+    input.publicGateActive === true &&
+    !hasPublicGateBypassRole({
+      primaryRole,
+      roles,
+    });
   const usesUnlockVisibility =
     primaryRole === "INSTRUCTOR" ||
     (input.unlockedSections && (primaryRole === "STUDENT" || primaryRole === "PARENT"));
@@ -509,11 +515,9 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       }
 
       // Public portal gate: hide every nav link that points to a surface
-      // the middleware would redirect to /locked. This applies to every
-      // user, admins included, until they enter preview mode (the layout
-      // passes publicGateActive=false only when a valid preview cookie
-      // is present).
-      if (input.publicGateActive && !isAllowedPublicPath(item.href)) {
+      // the middleware would redirect to /locked. Admins and valid preview
+      // sessions bypass this gate before filtering happens.
+      if (publicGateApplies && !isAllowedPublicPath(item.href)) {
         return false;
       }
 

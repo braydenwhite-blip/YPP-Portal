@@ -100,7 +100,7 @@ function ActionRow({
       </div>
       <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
         <StatusPill status={item.status} />
-        <span style={{ fontSize: 12, color: "var(--gray-400)" }}>{item.department?.name ?? "—"}</span>
+        <span style={{ fontSize: 12, color: "#64748b" }}>{item.department?.name ?? "—"}</span>
       </div>
       {prompt ? (
         <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>
@@ -194,7 +194,7 @@ export default async function MyActionsPage() {
           <p className="page-subtitle">
             Everything you lead, are executing, or owe input on — sorted by deadline.
           </p>
-          <p style={{ fontSize: 12, color: "var(--gray-400)", marginTop: 4 }}>Last updated {lastUpdated}</p>
+          <p style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>Last updated {lastUpdated}</p>
         </div>
         {officer ? (
           <Link href="/admin/actions/new" className="button small">
@@ -241,7 +241,16 @@ export default async function MyActionsPage() {
           </p>
         </div>
       ) : (
-        <div className="ps-main-grid" style={{ marginTop: 16 }}>
+        <div
+          className="my-actions-dashboard-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
+            gap: 16,
+            marginTop: 16,
+            alignItems: "start",
+          }}
+        >
           {/* Left: You Are Executing */}
           <Panel title="You Are Executing">
             {executing.length === 0 ? (
@@ -281,7 +290,7 @@ export default async function MyActionsPage() {
                     <Link
                       key={item.id}
                       href={`/actions/${item.id}`}
-                      className="card"
+                      className="card my-actions-deadline-row"
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
@@ -294,6 +303,7 @@ export default async function MyActionsPage() {
                     >
                       <span style={{ fontSize: 13 }}>{item.title}</span>
                       <span
+                        className="my-actions-deadline-date"
                         style={{
                           fontSize: 12,
                           fontWeight: 600,
@@ -320,7 +330,7 @@ export default async function MyActionsPage() {
           <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
             Your Classes
           </h2>
-          <p style={{ margin: 0, fontSize: 12, color: "var(--gray-400)" }}>
+          <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
             Classes you teach as lead or executing instructor — read-only.
           </p>
           {teachingClasses.map((offering) => (

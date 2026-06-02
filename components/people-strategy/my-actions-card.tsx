@@ -72,7 +72,7 @@ export default async function MyActionsCard({ viewer }: { viewer: ActionViewer }
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {item.title}
               </span>
-              <span style={{ color: overdue ? OVERDUE_ACCENT : "var(--gray-400)", whiteSpace: "nowrap", fontWeight: overdue ? 600 : 400 }}>
+              <span style={{ color: overdue ? OVERDUE_ACCENT : "#64748b", whiteSpace: "nowrap", fontWeight: overdue ? 600 : 400 }}>
                 {formatDueDate(effectiveDeadline(item))}
               </span>
             </div>

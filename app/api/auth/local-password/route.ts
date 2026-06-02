@@ -49,6 +49,8 @@ export async function POST(request: Request) {
     userId: result.userId,
     email: result.email,
     mode: result.mode,
+    primaryRole: result.primaryRole,
+    roles: result.roles,
   });
 
   return NextResponse.json({ success: true });

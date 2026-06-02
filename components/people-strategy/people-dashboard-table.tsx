@@ -23,7 +23,14 @@ const TREND_STYLES: Record<TrendWord, { color: string; label: string }> = {
   Improving: { color: "#047857", label: "Improving ↑" },
   Declining: { color: "#b91c1c", label: "Declining ↓" },
   Stable: { color: "#475569", label: "Stable →" },
-  "Insufficient Data": { color: "#94a3b8", label: "Insufficient Data" },
+  "Insufficient Data": { color: "#64748b", label: "Insufficient Data" },
+};
+
+const RATING_SHORT_LABELS: Record<GoalRatingColor, string> = {
+  BEHIND_SCHEDULE: "Behind",
+  GETTING_STARTED: "Starting",
+  ACHIEVED: "On Track",
+  ABOVE_AND_BEYOND: "Above",
 };
 
 function Initials({ name, email }: { name: string; email: string }) {
@@ -88,7 +95,10 @@ function RatingChip({ rating, prefix }: { rating: GoalRatingColor; prefix: strin
         whiteSpace: "nowrap",
       }}
     >
-      <span style={{ width: 7, height: 7, borderRadius: "50%", background: c.dot }} />
+      <span
+        aria-hidden
+        style={{ width: 7, height: 7, borderRadius: "50%", background: c.dot }}
+      />
       {prefix}: {c.label}
     </span>
   );
@@ -102,7 +112,7 @@ function ActionList({
   emptyLabel: string;
 }) {
   if (actions.length === 0) {
-    return <span style={{ fontSize: 11, color: "#94a3b8" }}>{emptyLabel}</span>;
+    return <span style={{ fontSize: 11, color: "#64748b" }}>{emptyLabel}</span>;
   }
   return (
     <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
@@ -111,13 +121,13 @@ function ActionList({
           <Link href={`/actions/${a.id}`} style={{ color: a.overdue ? "#b91c1c" : "#334155", textDecoration: "none", fontWeight: a.overdue ? 700 : 500 }}>
             {a.title}
           </Link>
-          <span style={{ color: a.overdue ? "#dc2626" : "#94a3b8" }}>
+          <span style={{ color: a.overdue ? "#dc2626" : "#64748b" }}>
             {" · "}{a.overdue ? "Overdue " : "Due "}{a.deadlineLabel}
           </span>
         </li>
       ))}
       {actions.length > 3 ? (
-        <li style={{ fontSize: 10, color: "#94a3b8" }}>+{actions.length - 3} more</li>
+        <li style={{ fontSize: 10, color: "#64748b" }}>+{actions.length - 3} more</li>
       ) : null}
     </ul>
   );
@@ -125,20 +135,47 @@ function ActionList({
 
 function CheckInDots({ dots }: { dots: DashboardCheckInDot[] }) {
   if (dots.length === 0) {
-    return <span style={{ fontSize: 11, color: "#94a3b8" }}>No check-ins</span>;
+    return <span style={{ fontSize: 11, color: "#64748b" }}>No check-ins</span>;
   }
   // Render most-recent on the right (reverse the most-recent-first input).
   const ordered = [...dots].reverse();
   return (
-    <span style={{ display: "inline-flex", gap: 5, alignItems: "center" }}>
+    <span style={{ display: "inline-flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
       {ordered.map((d, i) => {
         const c = d.rating ? RATING_COLORS[d.rating] : NO_RATING_COLOR;
+        const shortLabel = d.rating ? RATING_SHORT_LABELS[d.rating] : "No data";
         return (
           <span
             key={`${d.monthLabel}-${i}`}
+            aria-label={`${d.monthLabel}: ${c.label}`}
             title={`${d.monthLabel}: ${c.label}`}
-            style={{ width: 12, height: 12, borderRadius: "50%", background: c.dot, border: "1px solid rgba(0,0,0,0.06)" }}
-          />
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 6px",
+              borderRadius: 999,
+              background: c.bg,
+              color: c.text,
+              border: "1px solid rgba(15,23,42,0.14)",
+              fontSize: 10,
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: d.rating ? "50%" : 2,
+                background: c.dot,
+                border: "1px solid rgba(15,23,42,0.2)",
+                flexShrink: 0,
+              }}
+            />
+            {d.monthLabel}: {shortLabel}
+          </span>
         );
       })}
     </span>
@@ -339,14 +376,11 @@ export function PeopleDashboardTable({
           </button>
         ) : null}
 
-        <button type="button" className="button outline small" disabled title="Coming soon">
-          + Add Member
-        </button>
       </div>
 
       {feedbackMessage ? (
         <p
-          role="status"
+          role={feedbackMessage.startsWith("Could not") ? "alert" : "status"}
           style={{
             margin: "10px 0 0",
             fontSize: 12,
@@ -370,7 +404,10 @@ export function PeopleDashboardTable({
           <strong style={{ color: "#475569" }}>Ratings key:</strong>
           {GOAL_RATING_ORDER.map((r) => (
             <span key={r} style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
-              <span style={{ width: 9, height: 9, borderRadius: "50%", background: RATING_COLORS[r].dot }} />
+              <span
+                aria-hidden
+                style={{ width: 9, height: 9, borderRadius: "50%", background: RATING_COLORS[r].dot }}
+              />
               {RATING_COLORS[r].label}
             </span>
           ))}
@@ -396,7 +433,7 @@ export function PeopleDashboardTable({
         </div>
       ) : null}
 
-      <p style={{ fontSize: 11, color: "#94a3b8", margin: "10px 0 0" }}>
+      <p style={{ fontSize: 11, color: "#64748b", margin: "10px 0 0" }}>
         Showing {filtered.length} of {rows.length} {rows.length === 1 ? "member" : "members"}
       </p>
 
@@ -427,7 +464,7 @@ export function PeopleDashboardTable({
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={canRequestFeedback ? 7 : 6} style={{ ...cellStyle, textAlign: "center", color: "#94a3b8", padding: 24 }}>
+                <td colSpan={canRequestFeedback ? 7 : 6} style={{ ...cellStyle, textAlign: "center", color: "#64748b", padding: 24 }}>
                   No members match the current filters.
                 </td>
               </tr>
@@ -452,7 +489,7 @@ export function PeopleDashboardTable({
                         <div style={{ fontWeight: 700, fontSize: 13 }}>{row.name || row.email}</div>
                         <div style={{ color: "#64748b" }}>{row.role ?? "—"}</div>
                         {row.mentorName ? (
-                          <div style={{ color: "#94a3b8", fontSize: 11 }}>Mentor: {row.mentorName}</div>
+                          <div style={{ color: "#64748b", fontSize: 11 }}>Mentor: {row.mentorName}</div>
                         ) : null}
                         {row.workloadWarning ? (
                           <div style={{ marginTop: 4, color: "#b45309", fontSize: 11, fontWeight: 600 }}>
@@ -470,7 +507,7 @@ export function PeopleDashboardTable({
                         {row.departments.length > 0 ? row.departments.join(", ") : "—"}
                       </span>
                       {row.expertise.length > 0 ? (
-                        <span style={{ color: "#94a3b8", fontSize: 11 }}>
+                        <span style={{ color: "#64748b", fontSize: 11 }}>
                           {row.expertise.slice(0, 3).join(" · ")}
                         </span>
                       ) : null}
@@ -499,7 +536,7 @@ export function PeopleDashboardTable({
                   <td style={cellStyle}>
                     {row.quarterly ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                        <span style={{ fontSize: 10, color: "#94a3b8" }}>{row.quarterly.quarter}</span>
+                        <span style={{ fontSize: 10, color: "#64748b" }}>{row.quarterly.quarter}</span>
                         <RatingChip rating={row.quarterly.performanceRating} prefix="Perf" />
                         <RatingChip rating={row.quarterly.potentialRating} prefix="Pot" />
                         <span style={{ fontSize: 11, color: "#475569", fontStyle: "italic" }}>
@@ -528,7 +565,7 @@ export function PeopleDashboardTable({
                         ) : null}
                       </div>
                     ) : (
-                      <span style={{ fontSize: 11, color: "#94a3b8" }}>No review yet</span>
+                      <span style={{ fontSize: 11, color: "#64748b" }}>No review yet</span>
                     )}
                   </td>
 

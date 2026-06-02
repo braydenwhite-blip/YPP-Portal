@@ -151,6 +151,37 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).not.toContain("/my-mentor");
   });
 
+  it("hides People Strategy action tracker links when the tracker flag is off", () => {
+    const model = resolveNavModel({
+      roles: ["STAFF"],
+      primaryRole: "STAFF",
+      pathname: "/",
+      actionTrackerEnabled: false,
+    });
+
+    const visibleHrefs = hrefs(model);
+    expect(visibleHrefs).not.toContain("/my-actions");
+    expect(visibleHrefs).not.toContain("/all-actions");
+    expect(visibleHrefs).not.toContain("/officer-meetings");
+  });
+
+  it("shows My Actions to non-officers without exposing Officer-only action views", () => {
+    const model = resolveNavModel({
+      roles: ["STUDENT"],
+      primaryRole: "STUDENT",
+      pathname: "/",
+      unlockedSections: new Set(),
+      enabledFeatureKeys: new Set(),
+      studentFullPortalExplorer: true,
+      actionTrackerEnabled: true,
+    });
+
+    const visibleHrefs = hrefs(model);
+    expect(visibleHrefs).toContain("/my-actions");
+    expect(visibleHrefs).not.toContain("/all-actions");
+    expect(visibleHrefs).not.toContain("/officer-meetings");
+  });
+
   it("does not show Interviews in navigation for students (even with full portal explorer)", () => {
     const model = resolveNavModel({
       roles: ["STUDENT"],
@@ -230,6 +261,22 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).not.toContain("/my-program");
     expect(visibleHrefs).not.toContain("/admin/instructor-applicants");
     expect(visibleHrefs).not.toContain("/admin/portal-rollout");
+  });
+
+  it("does not trim admin navigation when the public gate flag is active", () => {
+    const model = resolveNavModel({
+      roles: ["ADMIN"],
+      adminSubtypes: ["HIRING_ADMIN"],
+      primaryRole: "ADMIN",
+      pathname: "/",
+      enabledFeatureKeys: new Set(),
+      publicGateActive: true,
+    });
+
+    const visibleHrefs = hrefs(model);
+    expect(visibleHrefs).toContain("/admin/bulk-users");
+    expect(visibleHrefs).toContain("/admin/instructor-applicants");
+    expect(visibleHrefs).toContain("/messages");
   });
 
   it("shows only application status for applicants in hiring demo mode", () => {

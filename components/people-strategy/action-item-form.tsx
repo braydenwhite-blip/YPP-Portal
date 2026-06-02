@@ -208,14 +208,16 @@ function UserPicker({
           overflowY: "auto",
           background: "var(--ypp-purple-50)",
         }}
+        role="group"
+        aria-label={`${typeof label === "string" ? label : "User"} options`}
       >
         {available.length === 0 && (
-          <span style={{ fontSize: 13, color: "var(--gray-400)", padding: 4 }}>
+          <span style={{ fontSize: 13, color: "#64748b", padding: 4 }}>
             {emptyHint ?? "No users available."}
           </span>
         )}
         {available.length > 0 && filtered.length === 0 && (
-          <span style={{ fontSize: 13, color: "var(--gray-400)", padding: 4 }}>
+          <span style={{ fontSize: 13, color: "#64748b", padding: 4 }}>
             No matches for “{query}”.
           </span>
         )}
@@ -244,7 +246,7 @@ function UserPicker({
               <span>
                 {u.name ?? u.email}
                 {u.name && (
-                  <span style={{ color: "var(--gray-400)" }}> · {u.email}</span>
+                  <span style={{ color: "#64748b" }}> · {u.email}</span>
                 )}
               </span>
             </label>
@@ -638,6 +640,7 @@ export default function ActionItemForm({
           alignItems: "center",
           gap: 8,
           marginTop: 4,
+          flexWrap: "wrap",
         }}
       >
         <button

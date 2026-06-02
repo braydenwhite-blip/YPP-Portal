@@ -22,6 +22,8 @@ export async function establishLegacySession(input: {
   userId: string;
   email: string;
   mode?: LegacySessionMode;
+  primaryRole?: string | null;
+  roles?: string[];
 }) {
   const cookieStore = await cookies();
   const token = await createLegacySessionToken({
@@ -29,6 +31,8 @@ export async function establishLegacySession(input: {
     email: input.email,
     exp: Date.now() + LEGACY_SESSION_MAX_AGE_SECONDS * 1000,
     mode: input.mode,
+    primaryRole: input.primaryRole ?? null,
+    roles: input.roles ?? [],
   });
 
   cookieStore.set(LEGACY_AUTH_COOKIE_NAME, token, getLegacySessionCookieOptions());
