@@ -57,6 +57,31 @@ function formatRelative(date: Date | null | undefined) {
   return diff >= 0 ? `in ${value}` : `${value} ago`;
 }
 
+function schedulingDetail(task: InterviewTask): string | null {
+  const s = task.schedulingStatus;
+  if (!s) return null;
+
+  if (s.state === "TIMES_SENT") {
+    const parts: string[] = [];
+    if (s.slotCount && s.slotCount > 1) parts.push(`${s.slotCount} times offered`);
+    else parts.push("Time offered");
+    if (s.sentByName) parts.push(`by ${s.sentByName}`);
+    const when = formatRelative(s.sentAt);
+    if (when) parts.push(when);
+    return parts.join(" · ");
+  }
+
+  if (s.state === "AWAITING_TIMES") {
+    return s.sentToName ? `No interview times sent to ${s.sentToName} yet` : null;
+  }
+
+  if (s.state === "CONFIRMED") {
+    return null;
+  }
+
+  return null;
+}
+
 function timestampHelper(task: InterviewTask) {
   const ts = task.timestamps;
   if (!ts) return null;
@@ -260,6 +285,8 @@ export default function InterviewTaskCard({ task }: InterviewTaskCardProps) {
   const helper = timestampHelper(task);
   const hasInlineForm = INLINE_FORM_KINDS.has(task.primaryAction.kind);
   const formId = `iv-task-${task.id}-form`;
+  const scheduling = task.schedulingStatus;
+  const schedulingHelper = schedulingDetail(task);
 
   return (
     <article
@@ -271,11 +298,17 @@ export default function InterviewTaskCard({ task }: InterviewTaskCardProps) {
           <div className="iv-task-card-meta">
             <span className="iv-task-card-domain">{domainLabel(task.domain)}</span>
             <StatusBadge tone={stageTone(task.stage)}>{stageLabel(task.stage)}</StatusBadge>
+            {scheduling ? (
+              <StatusBadge tone={scheduling.tone}>{scheduling.label}</StatusBadge>
+            ) : null}
           </div>
           <h4 id={`${formId}-title`} className="iv-task-card-title">
             {task.title}
           </h4>
           <p className="iv-task-card-subtitle">{task.subtitle}</p>
+          {schedulingHelper ? (
+            <p className="iv-task-card-scheduling">{schedulingHelper}</p>
+          ) : null}
           {helper ? <p className="iv-task-card-helper">{helper}</p> : null}
         </div>
         {!hasInlineForm ? (
