@@ -15,7 +15,9 @@ import {
   ACTION_STATUS_LABELS,
   ACTION_STATUS_VALUES,
 } from "@/lib/people-strategy/constants";
+import { cardRevealVariants } from "@/lib/people-strategy/motion";
 import { Pill } from "@/components/people-strategy/pills";
+import { MotionArea, m, FeedbackBanner } from "@/components/people-strategy/motion";
 
 type PersonDTO = {
   id: string;
@@ -348,7 +350,14 @@ export default function ActionDetailCard({
   }
 
   return (
-    <article className="card" style={{ padding: 0, overflow: "hidden", borderColor: "var(--border)" }}>
+    <MotionArea>
+      <m.article
+        className="card"
+        style={{ padding: 0, overflow: "hidden", borderColor: "var(--border)" }}
+        variants={cardRevealVariants}
+        initial="initial"
+        animate="animate"
+      >
       <div
         style={{
           background: theme.bg,
@@ -376,21 +385,11 @@ export default function ActionDetailCard({
         </div>
       </div>
 
-      {(error || message) && (
-        <div
-          role={error ? "alert" : "status"}
-          style={{
-            margin: "14px 20px 0",
-            borderRadius: "var(--radius-sm)",
-            padding: "9px 11px",
-            background: error ? "var(--error-bg)" : "var(--success-bg)",
-            color: error ? "var(--error-text)" : "var(--success-text)",
-            fontSize: 13,
-          }}
-        >
-          {error ?? message}
-        </div>
-      )}
+      <FeedbackBanner
+        message={error ?? message}
+        tone={error ? "error" : "success"}
+        style={{ margin: "14px 20px 0" }}
+      />
 
       <section
         style={{
@@ -674,7 +673,8 @@ export default function ActionDetailCard({
           </div>
         )}
       </Section>
-    </article>
+      </m.article>
+    </MotionArea>
   );
 }
 

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { resolveEscalation } from "@/lib/people-strategy/action-items-actions";
+import { disclosureVariants, listItemVariants } from "@/lib/people-strategy/motion";
+import { MotionArea, m, AnimatePresence } from "@/components/people-strategy/motion";
 import type {
   EscalationComment,
   EscalationQueueRow,
@@ -62,27 +64,35 @@ function CommentHistory({ comments }: { comments: EscalationComment[] }) {
       >
         {open ? "Hide" : "Show"} comment history ({comments.length})
       </button>
-      {open && (
-        <ul style={{ listStyle: "none", margin: "10px 0 0", padding: 0 }}>
-          {comments.map((c) => (
-            <li
-              key={c.id}
-              style={{
-                borderLeft: "3px solid #e2e8f0",
-                padding: "4px 0 4px 12px",
-                margin: "0 0 8px",
-              }}
-            >
-              <p style={{ margin: 0, fontSize: 13, color: "#1c1917" }}>{c.body}</p>
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "#94a3b8" }}>
-                {c.authorName}
-                {c.type === "INPUT_REQUESTED" ? " · Input requested" : ""} ·{" "}
-                {c.createdAtLabel}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
+      <AnimatePresence initial={false}>
+        {open && (
+          <m.ul
+            variants={disclosureVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            style={{ listStyle: "none", margin: "10px 0 0", padding: 0, overflow: "hidden" }}
+          >
+            {comments.map((c) => (
+              <li
+                key={c.id}
+                style={{
+                  borderLeft: "3px solid #e2e8f0",
+                  padding: "4px 0 4px 12px",
+                  margin: "0 0 8px",
+                }}
+              >
+                <p style={{ margin: 0, fontSize: 13, color: "#1c1917" }}>{c.body}</p>
+                <p style={{ margin: "2px 0 0", fontSize: 11, color: "#94a3b8" }}>
+                  {c.authorName}
+                  {c.type === "INPUT_REQUESTED" ? " · Input requested" : ""} ·{" "}
+                  {c.createdAtLabel}
+                </p>
+              </li>
+            ))}
+          </m.ul>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -105,7 +115,12 @@ function EscalationCard({ row }: { row: EscalationQueueRow }) {
   }
 
   return (
-    <div
+    <m.div
+      layout
+      variants={listItemVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
       style={{
         border: "1px solid #fecaca",
         borderRadius: 12,
@@ -179,18 +194,30 @@ function EscalationCard({ row }: { row: EscalationQueueRow }) {
           >
             {isPending ? "Resolving…" : "Mark resolved"}
           </button>
-          {error && (
-            <p style={{ margin: "6px 0 0", fontSize: 12, color: "#b91c1c" }}>{error}</p>
-          )}
+          <AnimatePresence initial={false}>
+            {error && (
+              <m.p
+                key={error}
+                variants={disclosureVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                style={{ margin: "6px 0 0", fontSize: 12, color: "#b91c1c" }}
+              >
+                {error}
+              </m.p>
+            )}
+          </AnimatePresence>
         </div>
       </div>
       <CommentHistory comments={row.comments} />
-    </div>
+    </m.div>
   );
 }
 
 export function EscalationQueue({ rows }: { rows: EscalationQueueRow[] }) {
   return (
+    <MotionArea>
     <section style={{ margin: "8px 0 32px" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
         <h2 style={{ margin: 0, fontSize: 20, color: "#1c1917" }}>CPO Escalation Queue</h2>
@@ -214,11 +241,14 @@ export function EscalationQueue({ rows }: { rows: EscalationQueueRow[] }) {
         </div>
       ) : (
         <div style={{ marginTop: 12 }}>
-          {rows.map((row) => (
-            <EscalationCard key={row.id} row={row} />
-          ))}
+          <AnimatePresence initial={false}>
+            {rows.map((row) => (
+              <EscalationCard key={row.id} row={row} />
+            ))}
+          </AnimatePresence>
         </div>
       )}
     </section>
+    </MotionArea>
   );
 }
