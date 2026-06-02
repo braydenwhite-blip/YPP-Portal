@@ -23,7 +23,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
   module: {
     title: "Run a Great Session",
     description:
-      "Structure every class so students know where they're going, stay on pace, and leave with something concrete. After this module you can open strong, read the room mid-session, and close with purpose — all inside a 60-minute block.",
+      "Run sessions students can follow — they know where they're going, stay on pace, and leave with something concrete. Every camp and subject runs differently, so this module teaches the jobs a strong session does, not one mandatory format: open with purpose, read the room mid-session, and close so the learning sticks. Adapt the shape to your camp; keep the principles.",
     sortOrder: 2,
     required: true,
     passScorePct: 80,
@@ -44,35 +44,35 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
       kind: "CONCEPT_REVEAL",
       title: "The shape of a strong session",
       prompt:
-        "Every strong YPP session has four parts. Tap each to see what it looks like in practice.",
+        "Strong sessions tend to do four jobs — however you choose to format them. Tap each to see what a good version and a weak version look like in practice.",
       scoringWeight: 0,
       config: {
         panels: [
           {
             id: "opening",
             title: "Opening",
-            body: "The first 5–8 minutes ground students in where they are and where they're headed. Example: 'Last week we solved one-step equations. Today we'll tackle two-step — by the end you'll solve three on your own.'",
+            body: "Ground students in where they are and where they're headed. Good: 'Last week we solved one-step equations. Today we'll tackle two-step — by the end you'll solve three on your own.' Weak: jumping straight into a new problem, so students don't know what today is even for.",
           },
           {
             id: "teaching-block",
             title: "Teaching Block",
-            body: "The main 30–40 minutes of new content or guided practice. Example: model the skill once with think-aloud, then release students to try a parallel problem while you circulate.",
+            body: "The core stretch of new content or guided practice. Good: model the skill once with a think-aloud, then release students to a parallel problem while you circulate. Weak: lecturing the whole block, so nobody gets to try it until they're already lost.",
           },
           {
             id: "check-for-understanding",
             title: "Check for Understanding",
-            body: "A deliberate pause to surface confusion before it compounds. Example: 'Explain the first step back to me in your own words' — then adjust if more than one student stumbles.",
+            body: "A deliberate pause to surface confusion before it compounds. Good: 'Explain the first step back to me in your own words,' then adjust if students stumble. Weak: 'Does that make sense?' — which earns polite nods, not information.",
           },
           {
             id: "closing",
             title: "Closing",
-            body: "The final 5 minutes reinforce the goal and signal what's next. Example: 'You solved two-step equations today. Next session we'll add fractions into the mix — here's a preview problem to try.'",
+            body: "Reinforce the goal and signal what's next. Good: 'You solved two-step equations today. Next session we'll add fractions — here's a preview problem to try.' Weak: stopping mid-activity when the clock runs out, with no recap of what was learned.",
           },
         ],
         correctFeedback: {
           tone: "correct",
-          headline: "Four parts, one strong session.",
-          body: "Opening, teaching block, check for understanding, and closing — use this shape every time to make sessions predictable and effective.",
+          headline: "Four jobs, many possible shapes.",
+          body: "Opening, teaching, checking for understanding, and closing are the jobs a strong session does — not a template you have to copy. Camps and subjects format these differently, and how long each takes will vary. What matters is that each job actually happens.",
         },
       },
     },
@@ -86,7 +86,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
       kind: "SORT_ORDER",
       title: "Order the opening-minutes activities",
       prompt:
-        "Arrange these five opening activities in the strongest order for the first 5–8 minutes of class.",
+        "Arrange these five opening activities into a strong default order. Camps run openings differently — but this sequence works because each step sets up the next.",
       scoringWeight: 15,
       scoringRule: "ordered",
       config: {
@@ -107,8 +107,8 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
         partialCredit: true,
         correctFeedback: {
           tone: "correct",
-          headline: "Exactly right — that's the YPP opening.",
-          body: "Warm up the room, anchor to prior knowledge, name the goal, launch the work, then check whether students are following — in that order.",
+          headline: "Exactly right — a strong default opening.",
+          body: "Warm up the room, anchor to prior knowledge, name the goal, launch the work, then check whether students are following. Reshape it for your camp if you need to — just keep the logic: students need context before they can engage.",
         },
         incorrectFeedback: {
           default: {
@@ -334,8 +334,8 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
         partialCredit: true,
         correctFeedback: {
           tone: "correct",
-          headline: "That's the sequence.",
-          body: "Orient → focus → model → apply → close. The two intro beats front-load context so teaching lands, and closure anchors the learning before students leave.",
+          headline: "That's a sequence that works.",
+          body: "Orient → focus → model → apply → close. The two intro beats front-load context so teaching lands, and closure anchors the learning before students leave. Format it however your camp does — keep the logic in this order.",
         },
         incorrectFeedback: {
           default: {
@@ -442,11 +442,11 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
       kind: "REFLECTION",
       title: "Plan your first 10 minutes",
       prompt:
-        "Describe your first 10 minutes for your own class — name the specific activities you'd run and roughly how long each one takes.",
+        "Describe your first 10 minutes for your own class — name the specific activities you'd run and roughly how long each one takes. There's no required format; plan it the way your camp and subject call for.",
       scoringWeight: 0,
       config: {
         prompt:
-          "Describe your first 10 minutes for your own class — name the specific activities you'd run and roughly how long each one takes.",
+          "Describe your first 10 minutes for your own class — name the specific activities you'd run and roughly how long each one takes. There's no required format; plan it the way your camp and subject call for.",
         minLength: 40,
         maxLength: 500,
         sampleAnswers: [
