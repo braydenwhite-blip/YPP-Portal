@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { createRequire } from "node:module";
+import { TextDecoder, TextEncoder } from "node:util";
 
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
@@ -49,8 +50,8 @@ function loadTsModule(entryPath, cache = new Map()) {
     },
   }).outputText;
 
-  const module = { exports: {} };
-  cache.set(absolutePath, module);
+  const cjsModule = { exports: {} };
+  cache.set(absolutePath, cjsModule);
 
   const dirname = path.dirname(absolutePath);
   const localRequire = (specifier) => {
@@ -63,18 +64,20 @@ function loadTsModule(entryPath, cache = new Map()) {
 
   const script = new vm.Script(output, { filename: absolutePath });
   const context = vm.createContext({
-    module,
-    exports: module.exports,
+    module: cjsModule,
+    exports: cjsModule.exports,
     require: localRequire,
     __dirname: dirname,
     __filename: absolutePath,
     process,
     console,
     global,
+    TextDecoder,
+    TextEncoder,
   });
 
   script.runInContext(context);
-  return module.exports;
+  return cjsModule.exports;
 }
 
 function routeExists(href) {
