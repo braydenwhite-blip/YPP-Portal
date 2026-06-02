@@ -1,3 +1,8 @@
+import {
+  getQaInstructorOnboardingEmail,
+  isQaInstructorOnboardingEnabled,
+} from "@/lib/qa-instructor-onboarding";
+
 export const LEGACY_AUTH_BYPASS_EMAILS = [
   "brayden.white@youthpassionproject.org",
   "anthea.zamir@youthpassionproject.org",
@@ -9,5 +14,10 @@ export const LEGACY_AUTH_BYPASS_EMAILS = [
 
 export function isLegacyAuthBypassEmail(email?: string | null) {
   const norm = (email || "").trim().toLowerCase();
-  return LEGACY_AUTH_BYPASS_EMAILS.includes(norm);
+  const isQaInstructorFixture = norm === getQaInstructorOnboardingEmail();
+  return (
+    LEGACY_AUTH_BYPASS_EMAILS.includes(norm) ||
+    (isQaInstructorFixture &&
+      (typeof window !== "undefined" || isQaInstructorOnboardingEnabled()))
+  );
 }

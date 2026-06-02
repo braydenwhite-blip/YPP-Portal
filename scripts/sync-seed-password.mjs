@@ -15,6 +15,7 @@ const SEEDED_CREDENTIAL_EMAILS = [
   "avery.lin@youthpassionproject.org",
   "jordan.patel@youthpassionproject.org",
   "milo.wald@youthpassionproject.org",
+  "qa.instructor.onboarding@youthpassionproject.org",
 ];
 
 const prisma = new PrismaClient();

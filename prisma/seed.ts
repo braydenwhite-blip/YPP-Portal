@@ -13,6 +13,8 @@ import {
   PassionCategory,
 } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { resetQaInstructorOnboardingFixture } from "../lib/qa-instructor-onboarding-fixture";
+import { isQaInstructorOnboardingEnabled } from "../lib/qa-instructor-onboarding";
 
 const prisma = new PrismaClient();
 
@@ -258,6 +260,21 @@ async function main() {
     instructorId: instructor.id,
     creatorId: instructor.id,
   });
+
+  if (isQaInstructorOnboardingEnabled()) {
+    const qaSummary = await resetQaInstructorOnboardingFixture({
+      prismaClient: prisma,
+      passwordHash,
+      verifiedAt,
+    });
+    console.log(
+      `Seeded QA instructor onboarding fixture for ${qaSummary.instructorEmail}.`
+    );
+  } else {
+    console.log(
+      "QA instructor onboarding fixture skipped. Set ENABLE_QA_INSTRUCTOR_ONBOARDING=true to seed it."
+    );
+  }
 
   const seedAlreadyPresent = await prisma.pathway.findFirst({
     where: { name: SEED_PATHWAY_NAME },

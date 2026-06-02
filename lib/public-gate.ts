@@ -70,6 +70,7 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   // landing on the Summer Workshop CTAs.
   "/onboarding",
   "/instructor-onboarding",
+  "/qa/instructor-onboarding",
 
   // Lightweight personal surfaces. Users still need to be able to sign
   // out, manage their basic profile, and verify email. We deliberately
