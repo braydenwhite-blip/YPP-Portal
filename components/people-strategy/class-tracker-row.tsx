@@ -1,12 +1,10 @@
-import type { ClassOfferingStatus } from "@prisma/client";
-
 import {
   executingInstructors,
   formatClassDateRange,
   formatClassSchedule,
   type TrackerClass,
 } from "@/lib/people-strategy/class-tracker";
-import { Pill, type PillTone } from "@/components/people-strategy/pills";
+import { Pill, StatusPill } from "@/components/people-strategy/pills";
 
 /**
  * Read-only Action Tracker "Class" row. Mirrors the All Actions row layout
@@ -14,22 +12,6 @@ import { Pill, type PillTone } from "@/components/people-strategy/pills";
  * schedule instead of a deadline, and carries no edit/link affordance — class
  * data is owned by the Classes system, not the Action Tracker.
  */
-
-const STATUS_LABELS: Record<ClassOfferingStatus, string> = {
-  DRAFT: "Draft",
-  PUBLISHED: "Published",
-  IN_PROGRESS: "In progress",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-};
-
-const STATUS_TONE: Record<ClassOfferingStatus, PillTone> = {
-  DRAFT: "neutral",
-  PUBLISHED: "info",
-  IN_PROGRESS: "success",
-  COMPLETED: "neutral",
-  CANCELLED: "overdue",
-};
 
 const ROLE_LABELS: Record<string, string> = {
   LEAD: "Lead",
@@ -60,7 +42,7 @@ export function ClassTrackerRow({ offering }: { offering: TrackerClass }) {
 
       {/* Pill row: status, "Class" type label, read-only marker */}
       <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <Pill tone={STATUS_TONE[offering.status]}>{STATUS_LABELS[offering.status]}</Pill>
+        <StatusPill kind="class" status={offering.status} />
         <Pill tone="purple">Class</Pill>
         <Pill tone="neutral">Read-only</Pill>
         {offering.chapter?.name ? (

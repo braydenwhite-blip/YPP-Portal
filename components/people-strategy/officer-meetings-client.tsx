@@ -22,7 +22,7 @@ import {
   unassignActionItemFromMeeting,
   updateMiscUpdate,
 } from "@/lib/people-strategy/officer-meetings-actions";
-import { Pill, type PillTone } from "@/components/people-strategy/pills";
+import { StatusPill } from "@/components/people-strategy/pills";
 
 export type MeetingActionItemDTO = {
   id: string;
@@ -76,12 +76,6 @@ function dayKey(iso: string): string {
   const d = new Date(iso);
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
-
-const STATUS_PILL: Record<MeetingDTO["status"], { tone: PillTone; label: string }> = {
-  SCHEDULED: { tone: "purple", label: "Scheduled" },
-  COMPLETED: { tone: "success", label: "Completed" },
-  CANCELLED: { tone: "neutral", label: "Cancelled" },
-};
 
 const ASSIGNMENT_LABELS: Record<MeetingActionItemDTO["assignees"][number]["role"], string> = {
   LEAD: "Lead",
@@ -517,7 +511,6 @@ function MeetingBlock({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const pill = STATUS_PILL[meeting.status];
   // Cancelled meetings are read-only; scheduled (incl. past-but-not-marked) and
   // completed meetings remain editable so notes can be finished after the fact.
   const readOnly = meeting.status === "CANCELLED";
@@ -554,7 +547,7 @@ function MeetingBlock({
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <Pill tone={pill.tone}>{pill.label}</Pill>
+          <StatusPill kind="meeting" status={meeting.status} />
           {meeting.status !== "COMPLETED" && (
             <button
               type="button"
