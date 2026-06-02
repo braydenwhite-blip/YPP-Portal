@@ -6,7 +6,6 @@ import { isDemoAllowedPathname, isHiringDemoModeEnabled } from "@/lib/hiring-dem
 import {
   LOCKED_PATH,
   PREVIEW_COOKIE_NAME,
-  hasPublicGateBypassRole,
   isAllowedPublicPath,
   isPublicGateEnabled,
   verifyPreviewToken,
@@ -211,23 +210,12 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Public portal gate: redirect any non-allowed surface to /locked unless
-  // the visitor is an admin or presents a valid signed preview cookie.
-  // Admin status comes from Supabase user metadata here; page/server-action
-  // guards still enforce real permissions from Prisma.
+  // Public portal gate: redirect any non-allowed surface to /locked
+  // unless the visitor presents a valid signed preview cookie. This
+  // applies to every authenticated user, admins included — the only
+  // way past the gate is the preview passcode at /preview.
   if (isPublicGateEnabled() && isAuthenticated && pathname !== LOCKED_PATH) {
-    const gateBypassedByRole = hasPublicGateBypassRole({
-      primaryRole:
-        user?.user_metadata?.primaryRole ??
-        user?.app_metadata?.primaryRole ??
-        legacySession?.primaryRole,
-      roles:
-        user?.user_metadata?.roles ??
-        user?.app_metadata?.roles ??
-        legacySession?.roles,
-    });
-
-    if (!gateBypassedByRole && !isAllowedPublicPath(pathname)) {
+    if (!isAllowedPublicPath(pathname)) {
       const previewCookie = request.cookies.get(PREVIEW_COOKIE_NAME)?.value ?? null;
       const previewValid = previewCookie ? await verifyPreviewToken(previewCookie) : false;
       if (!previewValid) {

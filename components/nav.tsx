@@ -101,7 +101,7 @@ export default function Nav({
   hiringDemoMode?: boolean;
   /** SUMMER_WORKSHOP keeps the workshop studio + training links visible. */
   instructorSubtype?: string | null;
-  /** Public portal gate is active for this user after admin/preview bypass checks. */
+  /** Public portal gate is active for this user (no admin/preview bypass). */
   publicGateActive?: boolean;
 }) {
   const pathname = usePathname();

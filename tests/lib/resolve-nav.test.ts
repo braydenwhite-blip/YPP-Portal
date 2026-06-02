@@ -263,7 +263,11 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).not.toContain("/admin/portal-rollout");
   });
 
-  it("does not trim admin navigation when the public gate flag is active", () => {
+  it("trims admin navigation to public-allowed routes when the public gate is active", () => {
+    // The public gate applies to everyone, admins included. Until an admin
+    // enters preview mode the layout passes publicGateActive=true, so only
+    // public-allowed surfaces stay in the sidebar. The instructor applicant
+    // board is on the public allowlist; bulk users and messages are not.
     const model = resolveNavModel({
       roles: ["ADMIN"],
       adminSubtypes: ["HIRING_ADMIN"],
@@ -274,9 +278,9 @@ describe("resolveNavModel", () => {
     });
 
     const visibleHrefs = hrefs(model);
-    expect(visibleHrefs).toContain("/admin/bulk-users");
     expect(visibleHrefs).toContain("/admin/instructor-applicants");
-    expect(visibleHrefs).toContain("/messages");
+    expect(visibleHrefs).not.toContain("/admin/bulk-users");
+    expect(visibleHrefs).not.toContain("/messages");
   });
 
   it("shows only application status for applicants in hiring demo mode", () => {
