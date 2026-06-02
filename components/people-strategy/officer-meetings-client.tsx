@@ -23,6 +23,8 @@ import {
   updateMiscUpdate,
 } from "@/lib/people-strategy/officer-meetings-actions";
 import { StatusPill } from "@/components/people-strategy/pills";
+import { disclosureVariants } from "@/lib/people-strategy/motion";
+import { MotionArea, m, AnimatePresence } from "@/components/people-strategy/motion";
 
 export type MeetingActionItemDTO = {
   id: string;
@@ -169,7 +171,20 @@ function GenerateButtons({ meeting }: { meeting: MeetingDTO }) {
           </span>
         )}
       </div>
-      {error && <span style={{ color: "var(--error-color)", fontSize: 12 }}>{error}</span>}
+      <AnimatePresence initial={false}>
+        {error && (
+          <m.span
+            key={error}
+            variants={disclosureVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            style={{ color: "var(--error-color)", fontSize: 12 }}
+          >
+            {error}
+          </m.span>
+        )}
+      </AnimatePresence>
       {meeting.agendaText && (
         <GeneratedTextBlock label="View generated agenda" text={meeting.agendaText} />
       )}
@@ -632,44 +647,58 @@ function ScheduleForm() {
     });
   }
 
-  if (!open) {
-    return (
-      <button type="button" className="button small" onClick={() => setOpen(true)}>
-        + Schedule new meeting
-      </button>
-    );
-  }
-
   return (
-    <div
-      className="card"
-      style={{ padding: 14, display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}
-    >
-      <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, color: "var(--text-secondary)" }}>
-        Meeting date &amp; time
-        <input
-          type="datetime-local"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          disabled={pending}
-          style={{ fontSize: 13, padding: 8, borderRadius: "var(--radius-xs)", border: "1px solid var(--border)" }}
-        />
-      </label>
-      <button type="button" className="button small" onClick={submit} disabled={pending}>
-        {pending ? "Scheduling…" : "Schedule"}
-      </button>
-      <button
-        type="button"
-        className="button outline small"
-        onClick={() => {
-          setOpen(false);
-          setError(null);
-        }}
-        disabled={pending}
-      >
-        Cancel
-      </button>
-      {error && <span style={{ color: "var(--error-color)", fontSize: 12 }}>{error}</span>}
+    <div>
+      {!open && (
+        <button type="button" className="button small" onClick={() => setOpen(true)}>
+          + Schedule new meeting
+        </button>
+      )}
+      <AnimatePresence initial={false}>
+        {open && (
+          <m.div
+            className="card"
+            variants={disclosureVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            style={{
+              padding: 14,
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-end",
+              flexWrap: "wrap",
+              overflow: "hidden",
+            }}
+          >
+            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, color: "var(--text-secondary)" }}>
+              Meeting date &amp; time
+              <input
+                type="datetime-local"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                disabled={pending}
+                style={{ fontSize: 13, padding: 8, borderRadius: "var(--radius-xs)", border: "1px solid var(--border)" }}
+              />
+            </label>
+            <button type="button" className="button small" onClick={submit} disabled={pending}>
+              {pending ? "Scheduling…" : "Schedule"}
+            </button>
+            <button
+              type="button"
+              className="button outline small"
+              onClick={() => {
+                setOpen(false);
+                setError(null);
+              }}
+              disabled={pending}
+            >
+              Cancel
+            </button>
+            {error && <span style={{ color: "var(--error-color)", fontSize: 12 }}>{error}</span>}
+          </m.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -688,16 +717,17 @@ export default function OfficerMeetingsClient({
   // Group upcoming meetings by calendar day.
   const upcomingGroups = useMemo(() => {
     const groups = new Map<string, MeetingDTO[]>();
-    for (const m of upcoming) {
-      const key = dayKey(m.date);
+    for (const meeting of upcoming) {
+      const key = dayKey(meeting.date);
       const bucket = groups.get(key);
-      if (bucket) bucket.push(m);
-      else groups.set(key, [m]);
+      if (bucket) bucket.push(meeting);
+      else groups.set(key, [meeting]);
     }
     return Array.from(groups.values());
   }, [upcoming]);
 
   return (
+    <MotionArea>
     <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 16 }}>
       <ScheduleForm />
 
@@ -714,8 +744,8 @@ export default function OfficerMeetingsClient({
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4, color: ACCENT }}>
                 {formatWeekday(new Date(group[0].date))}, {formatMonthDayYear(new Date(group[0].date))}
               </div>
-              {group.map((m) => (
-                <MeetingBlock key={m.id} meeting={m} unassigned={unassigned} />
+              {group.map((meeting) => (
+                <MeetingBlock key={meeting.id} meeting={meeting} unassigned={unassigned} />
               ))}
             </div>
           ))
@@ -770,17 +800,29 @@ export default function OfficerMeetingsClient({
         >
           {showPast ? "Hide" : "Show"} past meetings ({past.length})
         </button>
-        {showPast &&
-          (past.length === 0 ? (
-            <div className="card" style={{ padding: 16, color: "var(--muted)", fontSize: 13 }}>
-              No past meetings yet.
-            </div>
-          ) : (
-            past.map((m) => (
-              <MeetingBlock key={m.id} meeting={m} unassigned={unassigned} />
-            ))
-          ))}
+        <AnimatePresence initial={false}>
+          {showPast && (
+            <m.div
+              variants={disclosureVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              style={{ display: "flex", flexDirection: "column", gap: 12, overflow: "hidden" }}
+            >
+              {past.length === 0 ? (
+                <div className="card" style={{ padding: 16, color: "var(--muted)", fontSize: 13 }}>
+                  No past meetings yet.
+                </div>
+              ) : (
+                past.map((meeting) => (
+                  <MeetingBlock key={meeting.id} meeting={meeting} unassigned={unassigned} />
+                ))
+              )}
+            </m.div>
+          )}
+        </AnimatePresence>
       </section>
     </div>
+    </MotionArea>
   );
 }

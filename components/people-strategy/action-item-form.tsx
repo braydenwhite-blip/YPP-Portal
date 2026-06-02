@@ -17,6 +17,7 @@ import {
   removeActionAssignment,
   updateActionItem,
 } from "@/lib/people-strategy/action-items-actions";
+import { MotionArea, FeedbackBanner } from "@/components/people-strategy/motion";
 
 interface UserOption {
   id: string;
@@ -398,21 +399,9 @@ export default function ActionItemForm({
   }
 
   return (
+    <MotionArea>
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {error && (
-        <div
-          style={{
-            background: "var(--error-bg)",
-            color: "var(--error-text)",
-            padding: "8px 12px",
-            borderRadius: "var(--radius-sm)",
-            fontSize: 13,
-          }}
-          role="alert"
-        >
-          {error}
-        </div>
-      )}
+      <FeedbackBanner message={error} tone="error" style={{ padding: "8px 12px" }} />
 
       <div style={FIELD}>
         <label style={LABEL} htmlFor="action-title">
@@ -653,6 +642,7 @@ export default function ActionItemForm({
         </button>
       </div>
     </form>
+    </MotionArea>
   );
 }
 
