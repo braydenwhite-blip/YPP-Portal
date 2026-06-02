@@ -203,7 +203,10 @@ const CreateActionItemSchema = z.object({
     .max(300)
     .optional()
     .transform((v) => (v && v.length > 0 ? v : null)),
-  departmentId: NonEmptyString,
+  departmentId: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
   leadId: NonEmptyString,
   status: z.enum(ACTION_STATUS_VALUES as [string, ...string[]]).default("NOT_STARTED"),
   visibility: z
@@ -235,7 +238,7 @@ export async function createActionItem(input: CreateActionItemInput) {
     throw new Error("At least one Executing assignee is required");
   }
 
-  await assertDepartmentExists(data.departmentId);
+  if (data.departmentId) await assertDepartmentExists(data.departmentId);
   await assertUsersExist([
     data.leadId,
     ...data.executingUserIds,
@@ -295,7 +298,16 @@ const UpdateActionItemSchema = z.object({
       if (v === null || v.length === 0) return null;
       return v;
     }),
-  departmentId: NonEmptyString.optional(),
+  departmentId: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((v) => {
+      if (v === undefined) return undefined;
+      if (v === null) return null;
+      const trimmed = v.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }),
   status: z.enum(ACTION_STATUS_VALUES as [string, ...string[]]).optional(),
   visibility: z.enum(ACTION_VISIBILITY_VALUES as [string, ...string[]]).optional(),
   deadlineStart: UpdateDeadlineStartString,
@@ -343,7 +355,7 @@ export async function updateActionItem(input: UpdateActionItemInput) {
     data.deadlineEnd !== undefined ? data.deadlineEnd : existing.deadlineEnd;
   assertDeadlineRange(nextDeadlineStart, nextDeadlineEnd);
 
-  if (data.departmentId !== undefined) await assertDepartmentExists(data.departmentId);
+  if (data.departmentId) await assertDepartmentExists(data.departmentId);
   if (data.leadId !== undefined) await assertUsersExist([data.leadId]);
 
   const statusChanged = data.status !== undefined && data.status !== existing.status;

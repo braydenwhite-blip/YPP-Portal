@@ -96,7 +96,7 @@ export async function loadBoardRollupList(
   return items.map((item) => ({
     id: item.id,
     title: item.title,
-    departmentName: item.department.name,
+    departmentName: item.department?.name ?? "Unassigned",
     status: item.status,
     statusLabel: ACTION_STATUS_LABELS[item.status],
     deadlineLabel: formatDueDate(item.deadlineEnd ?? item.deadlineStart),

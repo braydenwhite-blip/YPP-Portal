@@ -1524,6 +1524,23 @@ async function seedActionTracker() {
     update: {},
   });
 
+  // Standing functional departments for the Action Tracker picker.
+  await prisma.department.upsert({
+    where: { name: "Instructional Affairs" },
+    create: { name: "Instructional Affairs", slug: "instructional-affairs", description: "Academics — curriculum, teaching, and classroom operations." },
+    update: {},
+  });
+  await prisma.department.upsert({
+    where: { name: "Community & Partnerships" },
+    create: { name: "Community & Partnerships", slug: "community-partnerships", description: "Growth — community building, outreach, and partnerships." },
+    update: {},
+  });
+  await prisma.department.upsert({
+    where: { name: "Platform & Operations" },
+    create: { name: "Platform & Operations", slug: "platform-operations", description: "Operations — platform, logistics, and internal operations." },
+    update: {},
+  });
+
   const now = new Date();
   const daysFromNow = (n: number) => {
     const d = new Date(now);

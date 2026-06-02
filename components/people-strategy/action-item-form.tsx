@@ -326,7 +326,6 @@ export default function ActionItemForm({
     if ((fileLabel.trim() && !fileUrl.trim()) || (!fileLabel.trim() && fileUrl.trim())) {
       return "Provide both a label and a URL for the attachment, or leave both blank.";
     }
-    if (!isEdit && !departmentId) return "Department is required.";
     return null;
   }
 
@@ -373,7 +372,7 @@ export default function ActionItemForm({
             title: title.trim(),
             description: description.trim() || undefined,
             goalCategory: goalCategory.trim() || undefined,
-            departmentId,
+            departmentId: departmentId || undefined,
             leadId,
             status,
             visibility,
@@ -454,7 +453,7 @@ export default function ActionItemForm({
         </div>
         <div style={FIELD}>
           <label style={LABEL} htmlFor="action-department">
-            Department{REQUIRED_MARK}
+            Department
           </label>
           <select
             id="action-department"
@@ -462,7 +461,7 @@ export default function ActionItemForm({
             onChange={(e) => setDepartmentId(e.target.value)}
             style={INPUT}
           >
-            <option value="">— Select a department —</option>
+            <option value="">— No department —</option>
             {departments.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
