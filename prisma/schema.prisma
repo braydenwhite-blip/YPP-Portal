@@ -12169,8 +12169,10 @@ model ActionItem {
   /// v1, mirroring the loosely-typed category fields elsewhere in the schema).
   goalCategory String?
 
-  departmentId String
-  department   Department @relation("DepartmentActionItems", fields: [departmentId], references: [id])
+  /// Functional department this item belongs to. Optional — an item can be
+  /// created before it has been triaged into a department.
+  departmentId String?
+  department   Department? @relation("DepartmentActionItems", fields: [departmentId], references: [id])
 
   status        ActionItemStatus     @default(NOT_STARTED)
   deadlineStart DateTime

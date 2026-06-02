@@ -85,7 +85,7 @@ type LoadedItem = {
   deadlineStart: Date;
   deadlineEnd: Date | null;
   leadId: string;
-  department: { name: string };
+  department: { name: string } | null;
   lead: LoadedRecipient | null;
   assignments: Array<{ role: ActionAssignmentRole; user: LoadedRecipient }>;
 };
@@ -266,7 +266,7 @@ export async function runWeeklyActionDigest(now: Date): Promise<WeeklyDigestResu
       const row: ActionDigestItem = {
         title: item.title,
         role: roleLabel(roles),
-        department: item.department.name,
+        department: item.department?.name ?? "Unassigned",
         deadline: formatDeadlineDate(due),
         actionUrl: toAbsoluteAppUrl(`/actions/${item.id}`),
       };
@@ -353,7 +353,7 @@ export async function runDeadlineWarnings(now: Date): Promise<DeadlineWarningRes
             to: user.email as string,
             recipientName: user.name,
             role: roleLabel(roles),
-            department: item.department.name,
+            department: item.department?.name ?? "Unassigned",
             actionTitle: item.title,
             deadline,
             updateStatusUrl,
@@ -422,7 +422,7 @@ export async function runDeadlineReached(now: Date): Promise<DeadlineReachedResu
             to: user.email as string,
             recipientName: user.name,
             role: roleLabel(roles),
-            department: item.department.name,
+            department: item.department?.name ?? "Unassigned",
             actionTitle: item.title,
             deadline,
             updateStatusUrl,
@@ -465,7 +465,7 @@ export async function runDeadlineReached(now: Date): Promise<DeadlineReachedResu
             to: item.lead!.email as string,
             recipientName: item.lead!.name,
             actionTitle: item.title,
-            department: item.department.name,
+            department: item.department?.name ?? "Unassigned",
             deadline: formatDeadlineDate(due),
             actionUrl: toAbsoluteAppUrl(`/actions/${item.id}`),
           }),
@@ -501,7 +501,7 @@ type EscalationCandidate = {
   deadlineStart: Date;
   deadlineEnd: Date | null;
   resolvedAt: Date | null;
-  department: { name: string };
+  department: { name: string } | null;
   lead: LoadedRecipient | null;
 };
 
@@ -584,7 +584,7 @@ export async function runCpoEscalations(now: Date): Promise<CpoEscalationResult>
             to: cpo.email as string,
             recipientName: cpo.name,
             actionTitle: item.title,
-            department: item.department.name,
+            department: item.department?.name ?? "Unassigned",
             leadName: item.lead?.name ?? null,
             statusLabel: ACTION_STATUS_LABELS[item.status],
             reason,
@@ -636,7 +636,7 @@ type RollupCandidate = {
   boardRolledUpAt: Date | null;
   deadlineStart: Date;
   deadlineEnd: Date | null;
-  department: { name: string };
+  department: { name: string } | null;
   lead: LoadedRecipient | null;
 };
 
@@ -743,7 +743,7 @@ export async function runBoardRollups(now: Date): Promise<BoardRollupResult> {
             to: board.email as string,
             recipientName: board.name,
             actionTitle: item.title,
-            department: item.department.name,
+            department: item.department?.name ?? "Unassigned",
             leadName: item.lead?.name ?? null,
             statusLabel: ACTION_STATUS_LABELS[item.status],
             daysUnresolvedLabel: sinceLabel,
