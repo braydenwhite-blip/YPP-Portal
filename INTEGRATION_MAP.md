@@ -617,3 +617,54 @@ averages the per-goal `GoalReviewRating.rating` values
 review for the month, derives the rating, and **upserts** on `(userId, month)`
 so re-compiling refreshes the same row. Gated by `ENABLE_QUARTERLY_REVIEWS`,
 guarded by `requireOfficer()`.
+
+---
+
+## PART E — CPO Escalation Queue (`ENABLE_ACTION_TRACKER`)
+
+When a flagged or `OVERDUE` action item goes unresolved for **48h+**, it is
+auto-escalated to the CPO/Board. Reuses the existing Action Tracker, the
+`CRON_SECRET` cron pattern, the `lib/email.ts` helper, and the `ActionEmailLog`
+dedupe ledger — no new frameworks.
+
+**Schema:** three nullable timestamps on `model ActionItem`
+(migration `20260601180000_add_action_escalation_state`):
+`escalatedToCpoAt` (the dedupe guard — set once the CPO is notified),
+`resolvedAt` (set when the CPO resolves from the queue), and `boardRolledUpAt`
+(reserved for a later Board roll-up phase). Indexed on `escalatedToCpoAt` /
+`resolvedAt`. `enum ActionEmailType` gains `CPO_ESCALATION`.
+
+**Eligibility rules (pure, shared):** `lib/people-strategy/escalation.ts` —
+`isEscalationEligible` / `escalationSince` / `escalationReason` /
+`formatEscalationAge`. "Older than 48h" is measured from the OLDEST active
+trigger (the flag time and/or the moment the deadline passed). Used by BOTH the
+cron and the queue loader so they agree on the set, age, and reason.
+
+**Cron:** `runCpoEscalations(now)` in
+`lib/people-strategy/action-cron.ts` routed by
+`app/api/cron/action-cpo-escalation/route.ts` (`vercel.json`:
+`"0 7 * * *"`). `CRON_SECRET` bearer auth; gated by `ENABLE_ACTION_TRACKER` +
+`ENABLE_ACTION_TRACKER_EMAILS`. Finds unresolved, not-yet-escalated flagged/
+`OVERDUE` items 48h+ old; notifies each CPO/Board recipient (ADMIN +
+`AdminSubtype` `CPO`/`SUPER_ADMIN`) exactly once via the `sendOnce` /
+`ActionEmailLog` dedupe (key `escalation:<itemId>:<recipientId>`), then marks
+`escalatedToCpoAt` with a race-safe conditional update. Email helper:
+`sendCpoEscalationEmail` in `lib/email.ts`.
+
+**Surfacing to the Lead** is already handled by the existing pipeline — the
+overdue sweep emails the Lead (`OVERDUE_LEAD`) and flagged/overdue items appear
+in the Lead's `/my-actions` view (`my-actions-selectors.ts`).
+
+**CPO Escalation Queue UI:** added to `/people`
+(`app/(app)/people/page.tsx`, behind `ENABLE_ACTION_TRACKER`). Loader
+`lib/people-strategy/escalation-queue.ts` → `loadCpoEscalationQueue()`; client
+section `components/people-strategy/escalation-queue.tsx` shows title, lead,
+executors, deadline/status, flagged/overdue age, full comment history, and a
+**Mark resolved** action. Resolve server action: `resolveEscalation(actionId)`
+in `lib/people-strategy/action-items-actions.ts` — `requireCPO()`, sets
+`resolvedAt` (idempotent conditional update), records a NOTE comment, and
+revalidates `/people`.
+
+**Tests:** `tests/lib/people-strategy-escalation.test.ts` (pure 48h rules) and
+`tests/lib/people-strategy-cpo-escalation.test.ts` (cron: one notification, no
+duplicates, multi-recipient, no-recipient re-fire, emails-off no-op).

@@ -13,8 +13,17 @@ import {
   sendActionDeadlineWarningEmail,
   sendActionDeadlineReachedEmail,
   sendActionOverdueLeadEmail,
+  sendCpoEscalationEmail,
   type ActionDigestItem,
 } from "@/lib/email";
+import { ACTION_STATUS_LABELS } from "./constants";
+import {
+  escalationDeadline,
+  escalationReason,
+  escalationSince,
+  formatEscalationAge,
+  isEscalationEligible,
+} from "./escalation";
 
 /**
  * People Strategy — Action Tracker deadline-email engine.
@@ -465,4 +474,138 @@ export async function runDeadlineReached(now: Date): Promise<DeadlineReachedResu
     "action-cron: deadline reached + overdue sweep"
   );
   return { dueToday, reachedEmailsSent, markedOverdue, leadEmailsSent };
+}
+
+// ── 4. CPO escalation (daily) ───────────────────────────────────────────────
+
+export type CpoEscalationResult = {
+  /** Items eligible (flagged/overdue 48h+, unresolved, not yet escalated). */
+  eligible: number;
+  /** Items newly marked `escalatedToCpoAt` this run. */
+  itemsEscalated: number;
+  /** CPO/Board notification emails actually sent this run. */
+  emailsSent: number;
+};
+
+/** Item projection used by the escalation sweep. */
+type EscalationCandidate = {
+  id: string;
+  title: string;
+  status: ActionItemStatus;
+  flaggedAt: Date | null;
+  deadlineStart: Date;
+  deadlineEnd: Date | null;
+  resolvedAt: Date | null;
+  department: { name: string };
+  lead: LoadedRecipient | null;
+};
+
+/** Unresolved items not yet escalated that are flagged or OVERDUE. */
+async function loadEscalationCandidates(): Promise<EscalationCandidate[]> {
+  return prisma.actionItem.findMany({
+    where: {
+      resolvedAt: null,
+      escalatedToCpoAt: null,
+      OR: [{ flaggedAt: { not: null } }, { status: "OVERDUE" }],
+    },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      flaggedAt: true,
+      deadlineStart: true,
+      deadlineEnd: true,
+      resolvedAt: true,
+      department: { select: { name: true } },
+      lead: { select: { id: true, name: true, email: true } },
+    },
+  }) as unknown as Promise<EscalationCandidate[]>;
+}
+
+/** CPO / Board recipients (ADMIN + AdminSubtype CPO or SUPER_ADMIN) with email. */
+async function loadCpoRecipients(): Promise<LoadedRecipient[]> {
+  return prisma.user.findMany({
+    where: {
+      archivedAt: null,
+      adminSubtypes: { some: { subtype: { in: ["CPO", "SUPER_ADMIN"] } } },
+    },
+    select: { id: true, name: true, email: true },
+  });
+}
+
+/**
+ * Escalate flagged/OVERDUE items that have been unresolved for 48h+ to the CPO.
+ *
+ * For each eligible item the CPO/Board are notified exactly once: `sendOnce`
+ * dedupes per (item, recipient) via `ActionEmailLog`, and the item is then
+ * marked `escalatedToCpoAt` with a race-safe conditional update so retries or
+ * overlapping runs never double-escalate. Items are only marked when at least
+ * one CPO recipient exists, so the escalation re-fires for a later run if no
+ * CPO/Board user is configured yet. No-op unless ENABLE_ACTION_TRACKER_EMAILS.
+ */
+export async function runCpoEscalations(now: Date): Promise<CpoEscalationResult> {
+  if (!isActionTrackerEmailsEnabled())
+    return { eligible: 0, itemsEscalated: 0, emailsSent: 0 };
+
+  const candidates = await loadEscalationCandidates();
+  const eligible = candidates.filter((item) => isEscalationEligible(item, now));
+  if (eligible.length === 0) {
+    logger.info({ eligible: 0 }, "action-cron: cpo escalation");
+    return { eligible: 0, itemsEscalated: 0, emailsSent: 0 };
+  }
+
+  const recipients = (await loadCpoRecipients()).filter((r) => r.email);
+  const queueUrl = toAbsoluteAppUrl("/people");
+
+  let itemsEscalated = 0;
+  let emailsSent = 0;
+
+  for (const item of eligible) {
+    const since = escalationSince(item);
+    if (!since) continue; // defensive; isEscalationEligible already guarantees it
+    const reason = escalationReason(item) ?? "Flagged";
+    const ageLabel = formatEscalationAge(since, now);
+    const deadline = formatDeadlineDate(escalationDeadline(item));
+    const actionUrl = toAbsoluteAppUrl(`/actions/${item.id}`);
+
+    for (const cpo of recipients) {
+      const sent = await sendOnce({
+        dedupeKey: `escalation:${item.id}:${cpo.id}`,
+        type: "CPO_ESCALATION",
+        recipientId: cpo.id,
+        actionItemId: item.id,
+        send: () =>
+          sendCpoEscalationEmail({
+            to: cpo.email as string,
+            recipientName: cpo.name,
+            actionTitle: item.title,
+            department: item.department.name,
+            leadName: item.lead?.name ?? null,
+            statusLabel: ACTION_STATUS_LABELS[item.status],
+            reason,
+            ageLabel,
+            deadline,
+            queueUrl,
+            actionUrl,
+          }),
+      });
+      if (sent) emailsSent++;
+    }
+
+    // Mark escalated once — only when there is someone to notify, so an item
+    // with no configured CPO/Board recipient stays eligible for a later run.
+    if (recipients.length > 0) {
+      const updated = await prisma.actionItem.updateMany({
+        where: { id: item.id, escalatedToCpoAt: null },
+        data: { escalatedToCpoAt: now },
+      });
+      if (updated.count > 0) itemsEscalated++;
+    }
+  }
+
+  logger.info(
+    { eligible: eligible.length, itemsEscalated, emailsSent, recipients: recipients.length },
+    "action-cron: cpo escalation"
+  );
+  return { eligible: eligible.length, itemsEscalated, emailsSent };
 }

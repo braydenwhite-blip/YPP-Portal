@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { ActionAssignmentRole, ActionCommentType, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { requireSessionUser } from "@/lib/authorization";
+import { requireCPO, requireSessionUser } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { parseDateInput, startOfDay } from "@/lib/leadership-action-center/dates";
 
@@ -715,4 +715,39 @@ export async function flagActionToCPO(actionId: string) {
 
   revalidateAll();
   return { flaggedAt };
+}
+
+// --- resolve escalation (CPO) -------------------------------------------------
+
+/**
+ * Resolve a CPO escalation from the /people Escalation Queue. CPO/Board only.
+ * Sets `resolvedAt` (so the item leaves the queue and is never re-escalated)
+ * and records a system comment in the item's history. Idempotent via a
+ * conditional update — resolving an already-resolved item is a no-op.
+ */
+export async function resolveEscalation(actionId: string) {
+  ensureEnabled();
+  const session = await requireCPO();
+  if (!actionId) throw new Error("actionId required");
+
+  const now = new Date();
+  const updated = await prisma.actionItem.updateMany({
+    where: { id: actionId, resolvedAt: null },
+    data: { resolvedAt: now },
+  });
+
+  if (updated.count > 0) {
+    await prisma.actionComment.create({
+      data: {
+        actionItemId: actionId,
+        authorId: session.id,
+        type: "NOTE",
+        body: "Escalation resolved by CPO",
+      },
+    });
+  }
+
+  revalidateAll();
+  revalidatePath("/people");
+  return { ok: true, resolved: updated.count > 0 };
 }

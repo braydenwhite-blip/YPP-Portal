@@ -3,13 +3,16 @@ import { notFound } from "next/navigation";
 import { requireCPO } from "@/lib/authorization";
 import {
   isActionTrackerEmailsEnabled,
+  isActionTrackerEnabled,
   isPeopleDashboardEnabled,
 } from "@/lib/feature-flags";
 import {
   collectDepartments,
   loadPeopleDashboard,
 } from "@/lib/people-strategy/people-dashboard";
+import { loadCpoEscalationQueue } from "@/lib/people-strategy/escalation-queue";
 import { PeopleDashboardTable } from "@/components/people-strategy/people-dashboard-table";
+import { EscalationQueue } from "@/components/people-strategy/escalation-queue";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Tracker · CPO People View" };
@@ -26,6 +29,12 @@ export default async function PeopleDashboardPage() {
 
   const rows = await loadPeopleDashboard();
   const departments = collectDepartments(rows);
+
+  // CPO Escalation Queue — flagged/overdue items unresolved for 48h+. Behind
+  // ENABLE_ACTION_TRACKER; the loader returns [] when the flag is off so the
+  // section simply doesn't render.
+  const showEscalationQueue = isActionTrackerEnabled();
+  const escalations = showEscalationQueue ? await loadCpoEscalationQueue() : [];
 
   // The Request Monthly Feedback action needs BOTH the dashboard flag (already
   // checked above) and the emails flag. When emails are off the button is hidden
@@ -63,6 +72,8 @@ export default async function PeopleDashboardPage() {
           </span>
         </div>
       </div>
+
+      {showEscalationQueue && <EscalationQueue rows={escalations} />}
 
       <PeopleDashboardTable
         rows={rows}

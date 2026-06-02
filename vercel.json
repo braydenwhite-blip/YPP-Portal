@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/action-deadline-reached",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/action-cpo-escalation",
+      "schedule": "0 7 * * *"
     }
   ]
 }

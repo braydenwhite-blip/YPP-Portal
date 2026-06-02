@@ -12190,6 +12190,16 @@ model ActionItem {
   /// Set when an item is escalated / flagged for officer attention.
   flaggedAt DateTime?
 
+  /// People-Strategy escalation state. A flagged or OVERDUE item that goes
+  /// unresolved for 48h+ is escalated to the CPO by the daily escalation cron,
+  /// which sets `escalatedToCpoAt` (the dedupe guard ensuring the CPO is
+  /// notified exactly once). `resolvedAt` is set when the CPO clears the item
+  /// from the Escalation Queue. `boardRolledUpAt` is reserved for a later phase
+  /// that rolls resolved/standing escalations up into a Board summary.
+  escalatedToCpoAt DateTime?
+  resolvedAt       DateTime?
+  boardRolledUpAt  DateTime?
+
   assignments ActionAssignment[] @relation("ActionItemAssignments")
   comments    ActionComment[]    @relation("ActionItemComments")
   fileLinks   ActionFileLink[]   @relation("ActionItemFileLinks")
@@ -12207,6 +12217,8 @@ model ActionItem {
   @@index([createdById])
   @@index([officerMeetingId])
   @@index([flaggedAt])
+  @@index([escalatedToCpoAt])
+  @@index([resolvedAt])
 }
 
 /// Join row assigning a user to an action item in a specific role. The
@@ -12268,6 +12280,7 @@ enum ActionEmailType {
   WARNING_24H
   DEADLINE_REACHED
   OVERDUE_LEAD
+  CPO_ESCALATION
 }
 
 /// Idempotency ledger for the automated Action-Tracker cron emails (weekly
