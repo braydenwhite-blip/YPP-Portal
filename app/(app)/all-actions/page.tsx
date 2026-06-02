@@ -9,10 +9,7 @@ import {
   listVisibleActionItems,
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
-import {
-  ACTION_STATUS_LABELS,
-  ACTION_VISIBILITY_LABELS,
-} from "@/lib/people-strategy/constants";
+import { ACTION_VISIBILITY_LABELS } from "@/lib/people-strategy/constants";
 import {
   effectiveDeadline,
   isActionOverdue,
@@ -33,52 +30,12 @@ import {
   DepartmentBars,
 } from "@/components/people-strategy/action-analytics-cards";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { Pill, StatusPill } from "@/components/people-strategy/pills";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Tracker · All Actions" };
 
-const OVERDUE_ACCENT = "#dc2626";
-
-/** Small rounded pill, used for deadline / status / officer-meeting markers. */
-function Pill({
-  children,
-  bg,
-  color,
-  border,
-}: {
-  children: React.ReactNode;
-  bg?: string;
-  color?: string;
-  border?: string;
-}) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        fontSize: 11,
-        fontWeight: 600,
-        lineHeight: 1.4,
-        padding: "2px 8px",
-        borderRadius: 999,
-        whiteSpace: "nowrap",
-        background: bg ?? "#f1f5f9",
-        color: color ?? "#475569",
-        border: border ? `1px solid ${border}` : "1px solid transparent",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
-  NOT_STARTED: { bg: "#f1f5f9", color: "#475569" },
-  IN_PROGRESS: { bg: "#eff6ff", color: "#1d4ed8" },
-  COMPLETE: { bg: "#ecfdf5", color: "#047857" },
-  OVERDUE: { bg: "#fef2f2", color: "#b91c1c" },
-};
+const OVERDUE_ACCENT = "var(--error-color)";
 
 function StatCard({
   label,
@@ -99,7 +56,7 @@ function StatCard({
         borderLeft: accent ? `3px solid ${OVERDUE_ACCENT}` : undefined,
       }}
     >
-      <p style={{ margin: 0, fontSize: 12, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.4 }}>
+      <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>
         {label}
       </p>
       <p style={{ margin: "6px 0 0", fontSize: 24, fontWeight: 700, color: accent ? OVERDUE_ACCENT : "inherit" }}>
@@ -112,7 +69,6 @@ function StatCard({
 function ActionRow({ item, now }: { item: ActionItemWithRelations; now: Date }) {
   const overdue = isActionOverdue(item, now);
   const due = effectiveDeadline(item);
-  const status = STATUS_STYLES[item.status] ?? STATUS_STYLES.NOT_STARTED;
 
   const executors = item.assignments.filter((a) => a.role === "EXECUTING");
   const inputs = item.assignments.filter((a) => a.role === "INPUT");
@@ -132,11 +88,7 @@ function ActionRow({ item, now }: { item: ActionItemWithRelations; now: Date }) 
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
         <strong style={{ fontSize: 14 }}>{item.title}</strong>
-        <Pill
-          bg={overdue ? "#fef2f2" : "#f8fafc"}
-          color={overdue ? OVERDUE_ACCENT : "#64748b"}
-          border={overdue ? "#fecaca" : "#e2e8f0"}
-        >
+        <Pill tone={overdue ? "overdue" : "neutral"}>
           {overdue ? "Overdue · " : "Due "}
           {formatDueDate(due)}
         </Pill>
@@ -144,24 +96,11 @@ function ActionRow({ item, now }: { item: ActionItemWithRelations; now: Date }) 
 
       {/* Pill row: status, officer-meeting (if any), visibility badge */}
       <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <Pill bg={status.bg} color={status.color}>
-          {ACTION_STATUS_LABELS[item.status]}
-        </Pill>
-        {item.officerMeetingId ? (
-          <Pill bg="#f5f3ff" color="#6d28d9" border="#ddd6fe">
-            📅 Officer meeting
-          </Pill>
-        ) : null}
-        <span
-          className="badge"
-          style={{
-            fontSize: 11,
-            background: item.visibility === "OFFICERS_ONLY" ? "#fffbeb" : "#f1f5f9",
-            color: item.visibility === "OFFICERS_ONLY" ? "#b45309" : "#475569",
-          }}
-        >
+        <StatusPill status={item.status} />
+        {item.officerMeetingId ? <Pill tone="purple">Officer meeting</Pill> : null}
+        <Pill tone={item.visibility === "OFFICERS_ONLY" ? "warning" : "neutral"}>
           {ACTION_VISIBILITY_LABELS[item.visibility]}
-        </span>
+        </Pill>
       </div>
 
       {/* Roles line + comment count */}
@@ -172,7 +111,7 @@ function ActionRow({ item, now }: { item: ActionItemWithRelations; now: Date }) 
           gap: 12,
           marginTop: 8,
           fontSize: 12,
-          color: "#94a3b8",
+          color: "var(--gray-400)",
           flexWrap: "wrap",
         }}
       >
@@ -182,7 +121,7 @@ function ActionRow({ item, now }: { item: ActionItemWithRelations; now: Date }) 
           {inputs.length > 0 ? ` · Input: ${inputs.length}` : ""}
         </span>
         <span style={{ whiteSpace: "nowrap" }}>
-          💬 {item.comments.length} {item.comments.length === 1 ? "comment" : "comments"}
+          {item.comments.length} {item.comments.length === 1 ? "comment" : "comments"}
         </span>
       </div>
     </Link>
@@ -321,10 +260,10 @@ export default async function AllActionsPage({
                   gap: 12,
                 }}
               >
-                <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#0f172a" }}>
+                <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
                   {group.name}
                 </h2>
-                <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>
                   {group.items.length} {group.items.length === 1 ? "action" : "actions"}
                 </span>
               </div>

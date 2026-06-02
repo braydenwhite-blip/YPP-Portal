@@ -140,7 +140,7 @@ export function ActionFiltersBar({
       {hasActive ? (
         <button
           type="button"
-          className="button ghost small"
+          className="button outline small"
           onClick={() => router.push("/all-actions")}
         >
           Clear filters

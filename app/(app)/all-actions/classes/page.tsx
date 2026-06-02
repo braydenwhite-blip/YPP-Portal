@@ -65,8 +65,8 @@ export default async function ActionTrackerClassesPage() {
           marginTop: 16,
           padding: "10px 14px",
           fontSize: 13,
-          color: "#64748b",
-          background: "#f8fafc",
+          color: "var(--muted)",
+          background: "var(--ypp-purple-50)",
         }}
       >
         These rows reflect live <strong>ClassOffering</strong> records and are read-only here. Manage
@@ -89,10 +89,10 @@ export default async function ActionTrackerClassesPage() {
                   gap: 12,
                 }}
               >
-                <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#0f172a" }}>
+                <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
                   {group.name}
                 </h2>
-                <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>
                   {group.items.length} {group.items.length === 1 ? "class" : "classes"}
                 </span>
               </div>

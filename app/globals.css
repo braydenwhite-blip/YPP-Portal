@@ -1572,6 +1572,14 @@ a.portal-brand.portal-brand--link:active {
 .pill.pill-materials-missing { background: #fee2e2; color: #991b1b; }
 .pill.pill-overdue { background: #fee2e2; color: #dc2626; }
 
+/* ── People Strategy / Action Tracker pill tones (token-based) ──
+   New tones that round out the shared .pill set so the Action Tracker
+   surfaces (detail card, my/all actions, classes, meetings) can drop their
+   per-component inline pill reimplementations and reuse one source of truth.
+   pill-info / pill-success / pill-overdue / pill-purple already exist above. */
+.pill.pill-neutral { background: var(--gray-100); color: var(--gray-600); }
+.pill.pill-warning { background: var(--warning-bg); color: var(--warning-text); }
+
 /* ============================================
    GRID SYSTEM
    ============================================ */
@@ -3269,6 +3277,14 @@ select.input {
   transform: none;
 }
 
+/* Keyboard focus ring for every .button (incl. anchor/span buttons), so
+   keyboard users get a clear brand-tinted indicator instead of relying on the
+   UA default. Scoped to :focus-visible so it never shows on mouse click. */
+.button:focus-visible {
+  outline: 2px solid var(--ypp-primary-brand);
+  outline-offset: 2px;
+}
+
 /* ============================================
    SHARED TEACHING-UI UTILITIES
    Foundational classes that replace repeated inline styling
@@ -3334,6 +3350,21 @@ select.input {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+/* People Strategy "My Actions" two-column layout that collapses to a single
+   stacked column on narrow screens instead of squeezing the right column. */
+.ps-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .ps-main-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Progress bar. */

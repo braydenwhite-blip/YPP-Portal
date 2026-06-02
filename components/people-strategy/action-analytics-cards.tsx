@@ -21,11 +21,13 @@ const STATUS_ORDER: ActionItemStatus[] = [
   "OVERDUE",
 ];
 
+// Token-based, matching the shared status-pill tones. Passed to SVG stroke /
+// CSS background — same var() convention as the existing base ring stroke below.
 const STATUS_COLORS: Record<ActionItemStatus, string> = {
-  COMPLETE: "#047857",
-  IN_PROGRESS: "#1d4ed8",
-  NOT_STARTED: "#94a3b8",
-  OVERDUE: "#dc2626",
+  COMPLETE: "var(--success-color)",
+  IN_PROGRESS: "var(--info-text)",
+  NOT_STARTED: "var(--gray-400)",
+  OVERDUE: "var(--error-color)",
 };
 
 // r=34, stroke=8 — same geometry as the existing Member Pulse ring.
@@ -155,7 +157,7 @@ export function DepartmentBars({ bars }: { bars: DepartmentBar[] }) {
                   <span style={{ color: "var(--muted)" }}>
                     {bar.total}
                     {bar.overdue > 0 ? (
-                      <span style={{ color: "#dc2626", fontWeight: 600 }}>
+                      <span style={{ color: "var(--error-color)", fontWeight: 600 }}>
                         {" "}
                         · {bar.overdue} overdue
                       </span>
@@ -185,7 +187,7 @@ export function DepartmentBars({ bars }: { bars: DepartmentBar[] }) {
                         style={{
                           width: `${overduePct}%`,
                           height: "100%",
-                          background: "#dc2626",
+                          background: "var(--error-color)",
                           borderRadius: 999,
                         }}
                       />

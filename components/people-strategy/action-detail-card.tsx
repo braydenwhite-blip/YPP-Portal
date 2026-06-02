@@ -15,6 +15,7 @@ import {
   ACTION_STATUS_LABELS,
   ACTION_STATUS_VALUES,
 } from "@/lib/people-strategy/constants";
+import { Pill } from "@/components/people-strategy/pills";
 
 type PersonDTO = {
   id: string;
@@ -65,17 +66,17 @@ export type ActionDetailDTO = {
 
 const FIELD_STYLE: React.CSSProperties = {
   width: "100%",
-  border: "1px solid #cbd5e1",
-  borderRadius: 8,
-  background: "#fff",
-  color: "#0f172a",
+  border: "1px solid var(--border)",
+  borderRadius: "var(--radius-sm)",
+  background: "var(--surface)",
+  color: "var(--ypp-ink)",
   font: "inherit",
   fontSize: 14,
   padding: "9px 10px",
 };
 
 const TINY_LABEL: React.CSSProperties = {
-  color: "#64748b",
+  color: "var(--muted)",
   fontSize: 11,
   fontWeight: 700,
   letterSpacing: 0,
@@ -144,18 +145,16 @@ function deadlineText(item: ActionDetailDTO): { label: string; overdue: boolean 
   return { label: range, overdue: false };
 }
 
-function departmentTheme(name: string, slug: string | null) {
-  const key = `${slug ?? ""} ${name}`.toLowerCase();
-  if (key.includes("marketing") || key.includes("communication")) {
-    return { bg: "#fff7ed", border: "#fdba74", accent: "#ea580c", fg: "#7c2d12" };
-  }
-  if (key.includes("tech")) {
-    return { bg: "#ecfeff", border: "#67e8f9", accent: "#0891b2", fg: "#164e63" };
-  }
-  if (key.includes("people") || key.includes("staff")) {
-    return { bg: "#f0fdf4", border: "#86efac", accent: "#16a34a", fg: "#14532d" };
-  }
-  return { bg: "#eef2ff", border: "#a5b4fc", accent: "#4f46e5", fg: "#312e81" };
+// Brand-tinted header for every department. The previous version applied an
+// off-brand rainbow (orange/cyan/green/indigo) keyed on the department name;
+// this keeps a single accessible brand tint so the detail card reads as part of
+// the portal's purple system rather than a separate dialect.
+function departmentTheme() {
+  return {
+    bg: "var(--ypp-purple-50)",
+    border: "var(--ypp-purple-200)",
+    fg: "var(--ypp-purple-800)",
+  };
 }
 
 function PersonAvatar({ person }: { person: PersonDTO }) {
@@ -169,9 +168,9 @@ function PersonAvatar({ person }: { person: PersonDTO }) {
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
-        background: "#e0e7ff",
-        color: "#3730a3",
-        border: "1px solid #c7d2fe",
+        background: "var(--ypp-purple-100)",
+        color: "var(--ypp-purple-700)",
+        border: "1px solid var(--ypp-purple-200)",
         fontSize: 12,
         fontWeight: 800,
         flex: "0 0 auto",
@@ -197,10 +196,10 @@ function PersonChip({ person }: { person: PersonDTO }) {
     <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
       <PersonAvatar person={person} />
       <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <strong style={{ fontSize: 13, color: "#0f172a", overflowWrap: "anywhere" }}>
+        <strong style={{ fontSize: 13, color: "var(--ypp-ink)", overflowWrap: "anywhere" }}>
           {personName(person)}
         </strong>
-        <span style={{ color: "#64748b", fontSize: 12 }}>{roleTitle(person.primaryRole)}</span>
+        <span style={{ color: "var(--muted)", fontSize: 12 }}>{roleTitle(person.primaryRole)}</span>
       </span>
     </div>
   );
@@ -213,7 +212,7 @@ function PeopleColumn({ title, people }: { title: string; people: PersonDTO[] })
       {people.length > 0 ? (
         people.map((person) => <PersonChip key={`${title}-${person.id}`} person={person} />)
       ) : (
-        <span style={{ color: "#94a3b8", fontSize: 13 }}>None assigned</span>
+        <span style={{ color: "var(--gray-400)", fontSize: 13 }}>None assigned</span>
       )}
     </div>
   );
@@ -231,7 +230,7 @@ function Section({
   return (
     <section
       style={{
-        borderTop: "1px solid #e2e8f0",
+        borderTop: "1px solid var(--border)",
         padding: "18px 20px",
         display: "flex",
         flexDirection: "column",
@@ -239,7 +238,7 @@ function Section({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 15, color: "#0f172a" }}>{title}</h2>
+        <h2 style={{ margin: 0, fontSize: 15, color: "var(--ypp-ink)" }}>{title}</h2>
         {actions}
       </div>
       {children}
@@ -267,7 +266,7 @@ export default function ActionDetailCard({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const theme = departmentTheme(item.departmentName, item.departmentSlug);
+  const theme = departmentTheme();
   const due = deadlineText(item);
 
   function runMutation(work: () => Promise<void>, success: string) {
@@ -349,7 +348,7 @@ export default function ActionDetailCard({
   }
 
   return (
-    <article className="card" style={{ padding: 0, overflow: "hidden", borderColor: "#dbe3ef" }}>
+    <article className="card" style={{ padding: 0, overflow: "hidden", borderColor: "var(--border)" }}>
       <div
         style={{
           background: theme.bg,
@@ -362,13 +361,13 @@ export default function ActionDetailCard({
         }}
       >
         <div style={{ minWidth: 0 }}>
-          <p className="badge" style={{ margin: 0, color: theme.fg, background: "#fff" }}>
+          <p className="badge" style={{ margin: 0, color: theme.fg, background: "var(--surface)" }}>
             {item.departmentName} · {item.visibility === "OFFICERS_ONLY" ? "OFFICERS ONLY" : "LEADERSHIP"}
           </p>
           <h1
             style={{
               margin: "8px 0 0",
-              color: "#0f172a",
+              color: "var(--ypp-ink)",
               fontSize: 28,
               lineHeight: 1.15,
               overflowWrap: "anywhere",
@@ -397,10 +396,10 @@ export default function ActionDetailCard({
           role={error ? "alert" : "status"}
           style={{
             margin: "14px 20px 0",
-            borderRadius: 8,
+            borderRadius: "var(--radius-sm)",
             padding: "9px 11px",
-            background: error ? "#fee2e2" : "#dcfce7",
-            color: error ? "#991b1b" : "#166534",
+            background: error ? "var(--error-bg)" : "var(--success-bg)",
+            color: error ? "var(--error-text)" : "var(--success-text)",
             fontSize: 13,
           }}
         >
@@ -423,7 +422,7 @@ export default function ActionDetailCard({
             value={status}
             onChange={(event) => handleStatus(event.target.value as ActionItemStatus)}
             disabled={pending || !canEdit}
-            style={{ ...FIELD_STYLE, fontWeight: 700, color: "#1e293b" }}
+            style={{ ...FIELD_STYLE, fontWeight: 700, color: "var(--ypp-ink)" }}
           >
             {ACTION_STATUS_VALUES.map((value) => (
               <option key={value} value={value}>
@@ -432,37 +431,9 @@ export default function ActionDetailCard({
             ))}
           </select>
         </label>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              borderRadius: 999,
-              padding: "6px 11px",
-              background: due.overdue ? "#fee2e2" : "#f1f5f9",
-              color: due.overdue ? "#991b1b" : "#334155",
-              fontSize: 13,
-              fontWeight: 700,
-            }}
-          >
-            {due.label}
-          </span>
-          {item.officerMeetingId && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                borderRadius: 999,
-                padding: "6px 11px",
-                background: "#fef3c7",
-                color: "#92400e",
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
-              Officer meeting linked
-            </span>
-          )}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <Pill tone={due.overdue ? "overdue" : "neutral"}>{due.label}</Pill>
+          {item.officerMeetingId && <Pill tone="purple">Officer meeting linked</Pill>}
         </div>
       </section>
 
@@ -498,10 +469,10 @@ export default function ActionDetailCard({
         <Section title="Officer Meeting">
           <div
             style={{
-              border: "1px solid #fde68a",
-              background: "#fffbeb",
-              color: "#92400e",
-              borderRadius: 8,
+              border: "1px solid var(--warning-border)",
+              background: "var(--warning-bg)",
+              color: "var(--warning-text)",
+              borderRadius: "var(--radius-sm)",
               padding: "12px 14px",
               fontSize: 14,
               display: "flex",
@@ -522,7 +493,7 @@ export default function ActionDetailCard({
       )}
 
       <Section title="Description">
-        <p style={{ margin: 0, color: item.description ? "#334155" : "#94a3b8", lineHeight: 1.6 }}>
+        <p style={{ margin: 0, color: item.description ? "var(--text-secondary)" : "var(--gray-400)", lineHeight: 1.6 }}>
           {item.description ?? "No description has been added yet."}
         </p>
       </Section>
@@ -578,7 +549,7 @@ export default function ActionDetailCard({
           />
         </div>
         {item.fileLinks.length === 0 ? (
-          <p style={{ margin: 0, color: "#94a3b8", fontSize: 13 }}>No files or links yet.</p>
+          <p style={{ margin: 0, color: "var(--gray-400)", fontSize: 13 }}>No files or links yet.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {item.fileLinks.map((file) => (
@@ -589,8 +560,8 @@ export default function ActionDetailCard({
                   justifyContent: "space-between",
                   gap: 12,
                   alignItems: "center",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-sm)",
                   padding: "10px 12px",
                 }}
               >
@@ -598,7 +569,7 @@ export default function ActionDetailCard({
                   <strong style={{ display: "block", fontSize: 14, overflowWrap: "anywhere" }}>
                     {file.label}
                   </strong>
-                  <span style={{ color: "#64748b", fontSize: 12 }}>
+                  <span style={{ color: "var(--muted)", fontSize: 12 }}>
                     Added by {personName(file.addedBy)} · {formatDate(file.addedAt)}
                   </span>
                 </div>
@@ -611,13 +582,13 @@ export default function ActionDetailCard({
         )}
       </Section>
 
-      <Section title="Escalation Policy">
+      <Section title="Escalate to CPO">
         <div
           style={{
-            border: `1px solid ${item.flaggedAt ? "#fcd34d" : "#e2e8f0"}`,
-            background: item.flaggedAt ? "#fffbeb" : "#f8fafc",
-            color: item.flaggedAt ? "#92400e" : "#475569",
-            borderRadius: 8,
+            border: `1px solid ${item.flaggedAt ? "var(--warning-border)" : "var(--border)"}`,
+            background: item.flaggedAt ? "var(--warning-bg)" : "var(--ypp-purple-50)",
+            color: item.flaggedAt ? "var(--warning-text)" : "var(--text-secondary)",
+            borderRadius: "var(--radius-sm)",
             padding: "13px 14px",
             display: "flex",
             justifyContent: "space-between",
@@ -682,17 +653,17 @@ export default function ActionDetailCard({
           </button>
         </div>
         {item.comments.length === 0 ? (
-          <p style={{ margin: 0, color: "#94a3b8", fontSize: 13 }}>No comments yet.</p>
+          <p style={{ margin: 0, color: "var(--gray-400)", fontSize: 13 }}>No comments yet.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
             {item.comments.map((entry) => (
               <div
                 key={entry.id}
                 style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-sm)",
                   padding: "11px 12px",
-                  background: entry.type === "INPUT_REQUESTED" ? "#eff6ff" : "#fff",
+                  background: entry.type === "INPUT_REQUESTED" ? "var(--info-bg)" : "var(--surface)",
                 }}
               >
                 <div
@@ -705,12 +676,12 @@ export default function ActionDetailCard({
                   }}
                 >
                   <PersonChip person={entry.author} />
-                  <span style={{ color: "#64748b", fontSize: 12, flex: "0 0 auto" }}>
+                  <span style={{ color: "var(--muted)", fontSize: 12, flex: "0 0 auto" }}>
                     {entry.type === "INPUT_REQUESTED" ? "Input requested" : "Comment"} ·{" "}
                     {formatDateTime(entry.createdAt)}
                   </span>
                 </div>
-                <p style={{ margin: 0, color: "#334155", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
+                <p style={{ margin: 0, color: "var(--text-secondary)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
                   {entry.body}
                 </p>
               </div>
@@ -726,7 +697,7 @@ function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <span style={TINY_LABEL}>{label}</span>
-      <strong style={{ color: "#0f172a", fontSize: 14, overflowWrap: "anywhere" }}>{value}</strong>
+      <strong style={{ color: "var(--ypp-ink)", fontSize: 14, overflowWrap: "anywhere" }}>{value}</strong>
     </div>
   );
 }
