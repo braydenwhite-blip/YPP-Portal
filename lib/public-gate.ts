@@ -9,13 +9,10 @@
  * is hidden behind this gate so the production deployment feels focused
  * while we keep iterating on the rest of the platform.
  *
- * Two ways past the gate:
- * 1. ADMIN USERS — actual portal admins keep access to the full internal
- *    workspace. Page/server-action guards still enforce every sensitive
- *    permission.
- * 2. INTERNAL PREVIEW MODE — visit /preview, enter the passcode from
- *    `PORTAL_PREVIEW_PASSCODE`, and receive a signed HTTP-only cookie that
- *    unlocks the rest of the portal for ~7 days.
+ * One way past the gate, the same for everyone (admins included):
+ * INTERNAL PREVIEW MODE — visit /preview, enter the passcode from
+ * `PORTAL_PREVIEW_PASSCODE`, and receive a signed HTTP-only cookie that
+ * unlocks the rest of the portal for ~7 days.
  *
  * IMPORTANT: this gate ONLY controls feature visibility / route
  * availability. It does NOT grant admin permissions. Sensitive admin
@@ -114,44 +111,6 @@ export function isPublicGateEnabled(): boolean {
     return false;
   }
   return true;
-}
-
-function normalizeGateRoleValues(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value
-      .map((entry) => (typeof entry === "string" ? entry : null))
-      .filter((entry): entry is string => entry !== null)
-      .map((entry) => entry.trim().toUpperCase())
-      .filter(Boolean);
-  }
-
-  if (typeof value === "string") {
-    return value
-      .split(",")
-      .map((entry) => entry.trim().toUpperCase())
-      .filter(Boolean);
-  }
-
-  return [];
-}
-
-/**
- * Role-level bypass for the public launch gate.
- *
- * This is not an authorization grant. It only decides whether the public
- * feature-visibility gate should hide internal surfaces from a signed-in user.
- * Route layouts and server actions still enforce real permissions.
- */
-export function hasPublicGateBypassRole(input: {
-  primaryRole?: unknown;
-  roles?: unknown;
-} | null | undefined): boolean {
-  if (!input) return false;
-  const roles = new Set([
-    ...normalizeGateRoleValues(input.primaryRole),
-    ...normalizeGateRoleValues(input.roles),
-  ]);
-  return roles.has("ADMIN") || roles.has("SUPER_ADMIN");
 }
 
 export function isAllowedPublicPath(pathname: string): boolean {
