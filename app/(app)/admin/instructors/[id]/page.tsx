@@ -18,7 +18,9 @@ import {
   isQuarterlyReviewsEnabled,
 } from "@/lib/feature-flags";
 import { getLatestQuarterlyReview } from "@/lib/people-strategy/quarterly-review-actions";
+import { loadProvisionalStatus } from "@/lib/people-strategy/provisional";
 import { loadMemberPeopleStrategy } from "@/lib/people-strategy/member-people-detail";
+import { ProvisionalStatusCard } from "@/components/people-strategy/provisional-status-card";
 import {
   getFeedbackRequestStatusForSubject,
   getFeedbackResponsesForSubject,
@@ -50,6 +52,7 @@ export default async function AdminInstructorProfilePage({
 
   const quarterlyReviewsEnabled = isQuarterlyReviewsEnabled();
   const peopleDashboardEnabled = isPeopleDashboardEnabled();
+  const provisionalEnabled = isProvisionalClockEnabled();
 
   // CPO/Board check drives both the Quarterly Review submit affordance and the
   // confidential feedback block. The server actions re-enforce `requireCPO()`.
@@ -87,6 +90,13 @@ export default async function AdminInstructorProfilePage({
   // emails feature is off.
   const feedbackStatus: FeedbackRequestStatus | null =
     peopleDashboardEnabled ? await getFeedbackRequestStatusForSubject(id) : null;
+
+  // Provisional 3-month confirmation clock (ENABLE_PROVISIONAL_CLOCK). Loaded
+  // independently of the People Dashboard so the badge/countdown shows on any
+  // hire's profile. The loader returns a "not provisional" status when off.
+  const provisionalStatus = provisionalEnabled
+    ? await loadProvisionalStatus(id)
+    : null;
 
   // Quarterly Review submission is leadership-gated (CPO / Board) per the role
   // hierarchy; non-CPO admins still see the latest review read-only. The server
@@ -195,6 +205,7 @@ export default async function AdminInstructorProfilePage({
         <a href="#assignments">Assignments</a>
         <a href="#mentorship">Mentorship</a>
         {peopleDashboardEnabled && peopleStrategy && <a href="#people-strategy">People Strategy</a>}
+        {provisionalEnabled && <a href="#provisional">Provisional</a>}
         {quarterlyReviewsEnabled && <a href="#quarterly-review">Quarterly Review</a>}
         <a href="#activity">Notes/Activity</a>
       </nav>
@@ -419,9 +430,32 @@ export default async function AdminInstructorProfilePage({
           feedbackResponses={feedbackResponses}
           feedbackStatus={feedbackStatus}
           canSeeFeedback={viewerIsCpoOrBoard}
-          provisionalEnabled={isProvisionalClockEnabled()}
           quarterlyFormAvailable={quarterlyReviewsEnabled}
         />
+      )}
+
+      {provisionalEnabled && provisionalStatus && (
+        <section id="provisional" className="card instructor-profile-section">
+          <SectionHeading
+            title="Provisional status"
+            detail="3-month confirmation clock for new hires. Confirm at Month 3 via the Quarterly Review workflow to clear provisional status."
+          />
+          <ProvisionalStatusCard
+            userId={id}
+            canConfirm={viewerIsCpoOrBoard}
+            quarterlyFormAvailable={quarterlyReviewsEnabled}
+            status={{
+              isProvisional: provisionalStatus.isProvisional,
+              confirmed: provisionalStatus.confirmed,
+              startDate: provisionalStatus.startDate?.toISOString() ?? null,
+              confirmedAt: provisionalStatus.confirmedAt?.toISOString() ?? null,
+              monthThreeDate: provisionalStatus.monthThreeDate?.toISOString() ?? null,
+              daysRemaining: provisionalStatus.daysRemaining,
+              atMonthThree: provisionalStatus.atMonthThree,
+              percentElapsed: provisionalStatus.percentElapsed,
+            }}
+          />
+        </section>
       )}
 
       {quarterlyReviewsEnabled && (

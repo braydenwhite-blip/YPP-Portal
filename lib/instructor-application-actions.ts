@@ -32,6 +32,10 @@ import {
 } from "@/lib/legacy-application-review";
 import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 import {
+  startProvisionalClock,
+  clearProvisionalClock,
+} from "@/lib/people-strategy/provisional";
+import {
   getHiringActor,
   assertCanManageApplication,
   assertCanAssignInterviewers,
@@ -370,6 +374,9 @@ export async function approveInstructorApplication(
       update: {},
       create: { userId: application.applicantId, role: RoleType.INSTRUCTOR },
     });
+    // People Strategy: start the provisional 3-month confirmation clock for the
+    // new hire (no-op unless ENABLE_PROVISIONAL_CLOCK).
+    await startProvisionalClock(tx, application.applicantId, new Date());
     const existing = await tx.instructorApproval.findFirst({
       where: { instructorId: application.applicantId },
     });
@@ -2394,6 +2401,9 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
           update: {},
           create: { userId: app.applicantId, role: RoleType.INSTRUCTOR },
         });
+        // People Strategy: start the provisional 3-month confirmation clock for
+        // the new hire (no-op unless ENABLE_PROVISIONAL_CLOCK).
+        await startProvisionalClock(tx, app.applicantId, now);
         if (!existingApproval) {
           await tx.instructorApproval.create({
             data: { instructorId: app.applicantId, status: ApprovalStatus.TRAINING_IN_PROGRESS },
@@ -2447,6 +2457,8 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
               where: { id: app.applicantId },
               data: { primaryRole: approvalRollback.previousPrimaryRole },
             });
+            // People Strategy: undo the provisional clock started on approval.
+            await clearProvisionalClock(tx, app.applicantId);
           }
           await tx.instructorApplication.update({
             where: { id: applicationId },
@@ -2910,6 +2922,8 @@ export async function rescindChairDecision(
           where: { id: app.applicantId },
           data: { primaryRole: RoleType.APPLICANT },
         });
+        // People Strategy: clear the provisional clock on rescind.
+        await clearProvisionalClock(tx, app.applicantId);
       }
 
       await tx.instructorApplicationTimelineEvent.create({

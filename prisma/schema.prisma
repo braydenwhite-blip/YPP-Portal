@@ -1319,10 +1319,19 @@ model User {
   feedbackRequestsAbout             FeedbackRequest[]            @relation("FeedbackRequestSubject")
   feedbackRequestsToAnswer          FeedbackRequest[]            @relation("FeedbackRequestCollaborator")
 
+  // People Strategy — provisional 3-month confirmation clock
+  // (ENABLE_PROVISIONAL_CLOCK). `provisionalStart` is set when a hire is
+  // confirmed (the applicant→instructor approval); the Month-3 confirmation
+  // review is due 90 days later. `provisionalConfirmedAt` is set when senior
+  // leadership / Board confirms the hire, which clears the provisional state.
+  provisionalStart       DateTime?
+  provisionalConfirmedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([archivedAt])
+  @@index([provisionalStart])
 }
 
 model TwoFactorRecovery {

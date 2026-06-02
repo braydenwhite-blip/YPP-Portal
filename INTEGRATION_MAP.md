@@ -726,3 +726,54 @@ list (`requireBoard`); non-Board cannot reach `/people/board-rollup`.
 `tests/lib/people-strategy-board-rollup.test.ts` (cron: rolls up once, 7-day
 gate, authorless audit entry, idempotent, emails-off still marks, multi-Board,
 feature-off no-op); `requireBoard` cases in `tests/lib/authorization.test.ts`.
+
+---
+
+## PART G — Provisional 3-month confirmation clock (`ENABLE_PROVISIONAL_CLOCK`)
+
+A newly confirmed hire enters a 90-day provisional period; at Month 3 a
+confirmation decision is surfaced via the EXISTING Quarterly Review workflow,
+and confirming clears the provisional state. Reuses the applicant→hire flow,
+the Quarterly Review form, and `requireCPO()` — no new hire/onboarding or review
+framework.
+
+**Schema:** two nullable timestamps on `model User`
+(migration `20260601200000_add_provisional_clock`): `provisionalStart` (set when
+a hire is confirmed) and `provisionalConfirmedAt` (set when senior leadership /
+Board confirms, clearing provisional state). Index on `provisionalStart`.
+
+**Clock math (pure, shared):** `lib/people-strategy/provisional.ts` —
+`PROVISIONAL_WINDOW_DAYS = 90`, `computeProvisionalStatus(start, confirmedAt,
+now)` → `{ isProvisional, confirmed, monthThreeDate, daysRemaining,
+atMonthThree, percentElapsed, … }`. Same file holds the tx helpers
+`startProvisionalClock` / `clearProvisionalClock` and the loader
+`loadProvisionalStatus`.
+
+**Reuses the applicant→hire flow (no new framework).** The clock starts at the
+SAME points the existing flow grants the INSTRUCTOR role, inside their
+transactions: `approveInstructorApplication` and `chairDecide`
+(`APPROVE` / `APPROVE_WITH_CONDITIONS`) call `startProvisionalClock(tx, …)`. The
+clock is cleared on the two existing role-revocation paths — the chairDecide
+SYNC_ROLLBACK compensator and `rescindChairDecision` — via
+`clearProvisionalClock(tx, …)`. All hooks are single guarded lines; with the
+flag off they are no-ops, so the existing hiring workflow is unchanged.
+
+**Confirmation:** `lib/people-strategy/provisional-actions.ts` →
+`confirmProvisionalHire(userId)` — gated by `ENABLE_PROVISIONAL_CLOCK`, guarded
+by `requireCPO()` (the "senior leadership or Board approval" criterion), sets
+`provisionalConfirmedAt` idempotently (only when currently provisional).
+
+**UI:** new `#provisional` section on the instructor profile
+(`app/(app)/admin/instructors/[id]/page.tsx`), gated solely by
+`isProvisionalClockEnabled()` (independent of the People Dashboard flag).
+`components/people-strategy/provisional-status-card.tsx` shows the **Provisional
+badge + countdown** to the Month-3 review, a progress bar, the **confirmation
+criteria reminder** (green core goals / positive feedback / mentor endorsement /
+senior leadership or Board approval), and — at Month 3 — a banner pointing to the
+adjacent Quarterly Review section plus a CPO/Board **Confirm hire** button. The
+old "not yet built" placeholder in `member-people-strategy-section.tsx` was
+removed (its `provisionalEnabled` prop dropped).
+
+**Tests:** `tests/lib/people-strategy-provisional.test.ts` (90-day window,
+countdown, Month-3 boundary/overdue, confirmed clears provisional, and the
+start/clear tx-helper flag gating).

@@ -125,7 +125,6 @@ export function MemberPeopleStrategySection({
   feedbackResponses,
   feedbackStatus,
   canSeeFeedback,
-  provisionalEnabled,
   quarterlyFormAvailable,
 }: {
   data: MemberPeopleStrategy;
@@ -134,7 +133,6 @@ export function MemberPeopleStrategySection({
   /** Non-confidential request status (counts + last requested/submitted). */
   feedbackStatus: FeedbackRequestStatus | null;
   canSeeFeedback: boolean;
-  provisionalEnabled: boolean;
   quarterlyFormAvailable: boolean;
 }) {
   const { actions, latestQuarterly, quarterlyHistory, checkInHistory, mentor } = data;
@@ -243,15 +241,9 @@ export function MemberPeopleStrategySection({
         )}
       </div>
 
-      {/* Provisional status placeholder (field not yet built) */}
-      <div className="instructor-profile-history">
-        <h3>Provisional status</h3>
-        <p className="instructor-profile-muted">
-          {provisionalEnabled
-            ? "Provisional 3-month confirmation clock is enabled but not yet wired to a data field."
-            : "Provisional 3-month confirmation clock not yet built. Placeholder — enable with ENABLE_PROVISIONAL_CLOCK once the field ships."}
-        </p>
-      </div>
+      {/* Provisional status now lives in its own #provisional section on the
+          instructor profile (ENABLE_PROVISIONAL_CLOCK), independent of the
+          People Dashboard flag. */}
 
       {/* Feedback request status — non-confidential metadata (counts + dates). */}
       {feedbackStatus ? (
