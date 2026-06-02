@@ -238,7 +238,7 @@ function Section({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 15, color: "var(--ypp-ink)" }}>{title}</h2>
+        <h2 className="section-title" style={{ margin: 0 }}>{title}</h2>
         {actions}
       </div>
       {children}
@@ -364,27 +364,11 @@ export default function ActionDetailCard({
           <p className="badge" style={{ margin: 0, color: theme.fg, background: "var(--surface)" }}>
             {item.departmentName} · {item.visibility === "OFFICERS_ONLY" ? "OFFICERS ONLY" : "LEADERSHIP"}
           </p>
-          <h1
-            style={{
-              margin: "8px 0 0",
-              color: "var(--ypp-ink)",
-              fontSize: 28,
-              lineHeight: 1.15,
-              overflowWrap: "anywhere",
-            }}
-          >
+          <h1 className="page-title" style={{ marginTop: 8, overflowWrap: "anywhere" }}>
             {item.title}
           </h1>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "0 0 auto" }}>
-          <button
-            type="button"
-            className="button outline small"
-            onClick={handleFlag}
-            disabled={pending || !canFlag}
-          >
-            Flag to CPO
-          </button>
           <Link href={closeHref} className="button outline small" aria-label="Close action detail">
             ×
           </Link>
