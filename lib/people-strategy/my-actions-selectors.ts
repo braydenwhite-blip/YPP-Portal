@@ -59,7 +59,7 @@ export function needsViewerInput(
   if (ownsAction) return false;
 
   return item.comments.some(
-    (c) => c.type === "INPUT_REQUESTED" && c.author.id !== userId
+    (c) => c.type === "INPUT_REQUESTED" && c.author?.id !== userId
   );
 }
 
@@ -69,7 +69,7 @@ export function latestInputRequest(
   userId: string
 ): ActionItemWithRelations["comments"][number] | null {
   const requests = item.comments.filter(
-    (c) => c.type === "INPUT_REQUESTED" && c.author.id !== userId
+    (c) => c.type === "INPUT_REQUESTED" && c.author?.id !== userId
   );
   return requests.length > 0 ? requests[requests.length - 1] : null;
 }

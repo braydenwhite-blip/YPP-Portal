@@ -6,7 +6,10 @@ import type {
 
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { isActionTrackerEmailsEnabled } from "@/lib/feature-flags";
+import {
+  isActionTrackerEnabled,
+  isActionTrackerEmailsEnabled,
+} from "@/lib/feature-flags";
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
 import {
   sendWeeklyActionDigestEmail,
@@ -14,6 +17,7 @@ import {
   sendActionDeadlineReachedEmail,
   sendActionOverdueLeadEmail,
   sendCpoEscalationEmail,
+  sendBoardEscalationRollupEmail,
   type ActionDigestItem,
 } from "@/lib/email";
 import { ACTION_STATUS_LABELS } from "./constants";
@@ -22,6 +26,7 @@ import {
   escalationReason,
   escalationSince,
   formatEscalationAge,
+  isBoardRollupEligible,
   isEscalationEligible,
 } from "./escalation";
 
@@ -608,4 +613,153 @@ export async function runCpoEscalations(now: Date): Promise<CpoEscalationResult>
     "action-cron: cpo escalation"
   );
   return { eligible: eligible.length, itemsEscalated, emailsSent };
+}
+
+// ── 5. Board roll-up (daily) ────────────────────────────────────────────────
+
+export type BoardRollupResult = {
+  /** CPO-escalated, unresolved, not-yet-rolled-up items past the 7-day threshold. */
+  eligible: number;
+  /** Items newly marked `boardRolledUpAt` this run. */
+  itemsRolledUp: number;
+  /** Board notification emails actually sent this run. */
+  emailsSent: number;
+};
+
+/** Item projection used by the Board roll-up sweep. */
+type RollupCandidate = {
+  id: string;
+  title: string;
+  status: ActionItemStatus;
+  escalatedToCpoAt: Date | null;
+  resolvedAt: Date | null;
+  boardRolledUpAt: Date | null;
+  deadlineStart: Date;
+  deadlineEnd: Date | null;
+  department: { name: string };
+  lead: LoadedRecipient | null;
+};
+
+/** CPO-escalated, unresolved items not yet rolled up to the Board. */
+async function loadRollupCandidates(): Promise<RollupCandidate[]> {
+  return prisma.actionItem.findMany({
+    where: {
+      resolvedAt: null,
+      boardRolledUpAt: null,
+      escalatedToCpoAt: { not: null },
+    },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      escalatedToCpoAt: true,
+      resolvedAt: true,
+      boardRolledUpAt: true,
+      deadlineStart: true,
+      deadlineEnd: true,
+      department: { select: { name: true } },
+      lead: { select: { id: true, name: true, email: true } },
+    },
+  }) as unknown as Promise<RollupCandidate[]>;
+}
+
+/** Board recipients (ADMIN + AdminSubtype SUPER_ADMIN — the Board stand-in). */
+async function loadBoardRecipients(): Promise<LoadedRecipient[]> {
+  return prisma.user.findMany({
+    where: {
+      archivedAt: null,
+      adminSubtypes: { some: { subtype: "SUPER_ADMIN" } },
+    },
+    select: { id: true, name: true, email: true },
+  });
+}
+
+/**
+ * Roll CPO-escalated, unresolved items that are 7+ days past `escalatedToCpoAt`
+ * up to the Board.
+ *
+ * Each item is rolled up exactly once: a race-safe conditional update sets
+ * `boardRolledUpAt` (so retries/overlaps never double-roll), and on the winning
+ * update an authorless system audit comment is written into the item's history.
+ * The marker + audit entry are gated only by ENABLE_ACTION_TRACKER, so the Board
+ * roll-up list populates regardless of email config; the Board notification is
+ * sent additionally when ENABLE_ACTION_TRACKER_EMAILS is on and Board recipients
+ * are discoverable (deduped per item/recipient via `ActionEmailLog`).
+ */
+export async function runBoardRollups(now: Date): Promise<BoardRollupResult> {
+  if (!isActionTrackerEnabled())
+    return { eligible: 0, itemsRolledUp: 0, emailsSent: 0 };
+
+  const candidates = await loadRollupCandidates();
+  const eligible = candidates.filter((item) => isBoardRollupEligible(item, now));
+  if (eligible.length === 0) {
+    logger.info({ eligible: 0 }, "action-cron: board rollup");
+    return { eligible: 0, itemsRolledUp: 0, emailsSent: 0 };
+  }
+
+  const emailsOn = isActionTrackerEmailsEnabled();
+  const recipients = emailsOn
+    ? (await loadBoardRecipients()).filter((r) => r.email)
+    : [];
+  const boardUrl = toAbsoluteAppUrl("/people/board-rollup");
+
+  let itemsRolledUp = 0;
+  let emailsSent = 0;
+
+  for (const item of eligible) {
+    // Mark + audit exactly once (race-safe): only the run that flips
+    // boardRolledUpAt records the roll-up and notifies.
+    const updated = await prisma.actionItem.updateMany({
+      where: { id: item.id, boardRolledUpAt: null, resolvedAt: null },
+      data: { boardRolledUpAt: now },
+    });
+    if (updated.count === 0) continue; // already rolled up / resolved by another run
+    itemsRolledUp++;
+
+    const sinceLabel = item.escalatedToCpoAt
+      ? formatEscalationAge(item.escalatedToCpoAt, now)
+      : "7 days";
+
+    // Authorless (system) audit entry, visible in the item's comment history.
+    await prisma.actionComment.create({
+      data: {
+        actionItemId: item.id,
+        type: "NOTE",
+        body: `Rolled up to the Board — unresolved ${sinceLabel} after CPO escalation.`,
+      },
+    });
+
+    const deadline = formatDeadlineDate(item.deadlineEnd ?? item.deadlineStart);
+    const actionUrl = toAbsoluteAppUrl(`/actions/${item.id}`);
+
+    for (const board of recipients) {
+      const sent = await sendOnce({
+        dedupeKey: `boardrollup:${item.id}:${board.id}`,
+        type: "BOARD_ROLLUP",
+        recipientId: board.id,
+        actionItemId: item.id,
+        send: () =>
+          sendBoardEscalationRollupEmail({
+            to: board.email as string,
+            recipientName: board.name,
+            actionTitle: item.title,
+            department: item.department.name,
+            leadName: item.lead?.name ?? null,
+            statusLabel: ACTION_STATUS_LABELS[item.status],
+            daysUnresolvedLabel: sinceLabel,
+            cpoEscalatedLabel: `${sinceLabel} ago`,
+            deadline,
+            boardUrl,
+            actionUrl,
+          }),
+      });
+      if (sent) emailsSent++;
+    }
+  }
+
+  logger.info(
+    { eligible: eligible.length, itemsRolledUp, emailsSent, recipients: recipients.length },
+    "action-cron: board rollup"
+  );
+  return { eligible: eligible.length, itemsRolledUp, emailsSent };
 }

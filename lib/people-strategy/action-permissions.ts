@@ -58,6 +58,16 @@ export function isCpoOrBoard(user: ActionViewer): boolean {
   return isAdmin && hasAnyAdminSubtype(user.adminSubtypes ?? [], ["CPO", "SUPER_ADMIN"]);
 }
 
+/**
+ * Board only (SUPER_ADMIN stands in for Board). A plain CPO does NOT pass —
+ * mirrors the server-side `requireBoard()` guard for UI affordances (e.g.
+ * showing the Board roll-up link). Authoritative enforcement stays server-side.
+ */
+export function isBoard(user: ActionViewer): boolean {
+  const isAdmin = hasRole(user.roles, "ADMIN", user.primaryRole ?? null);
+  return isAdmin && hasAnyAdminSubtype(user.adminSubtypes ?? [], ["SUPER_ADMIN"]);
+}
+
 /** True when the viewer is the lead or holds any assignment on the action. */
 export function isAssignedToAction(
   user: ActionViewer,

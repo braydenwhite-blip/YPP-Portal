@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BOARD_ROLLUP_THRESHOLD_MS,
   ESCALATION_THRESHOLD_MS,
   escalationReason,
   escalationSince,
   formatEscalationAge,
+  isBoardRollupEligible,
   isEscalationEligible,
+  type BoardRollupItem,
   type EscalationItem,
 } from "@/lib/people-strategy/escalation";
 
@@ -107,6 +110,54 @@ describe("escalationReason", () => {
   });
   it("neither", () => {
     expect(escalationReason(item({}))).toBeNull();
+  });
+});
+
+describe("Board roll-up eligibility (7-day rule)", () => {
+  function rollupItem(over: Partial<BoardRollupItem>): BoardRollupItem {
+    return {
+      escalatedToCpoAt: over.escalatedToCpoAt ?? null,
+      resolvedAt: over.resolvedAt ?? null,
+      boardRolledUpAt: over.boardRolledUpAt ?? null,
+    };
+  }
+
+  it("threshold is exactly 7 days", () => {
+    expect(BOARD_ROLLUP_THRESHOLD_MS).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+
+  it("not eligible until 7 days past CPO escalation", () => {
+    expect(
+      isBoardRollupEligible(rollupItem({ escalatedToCpoAt: hoursAgo(24 * 6) }), NOW)
+    ).toBe(false);
+  });
+
+  it("eligible at 7+ days past CPO escalation", () => {
+    expect(
+      isBoardRollupEligible(rollupItem({ escalatedToCpoAt: hoursAgo(24 * 8) }), NOW)
+    ).toBe(true);
+  });
+
+  it("never eligible if not CPO-escalated", () => {
+    expect(isBoardRollupEligible(rollupItem({ escalatedToCpoAt: null }), NOW)).toBe(false);
+  });
+
+  it("never eligible once resolved", () => {
+    expect(
+      isBoardRollupEligible(
+        rollupItem({ escalatedToCpoAt: hoursAgo(24 * 30), resolvedAt: hoursAgo(1) }),
+        NOW
+      )
+    ).toBe(false);
+  });
+
+  it("never eligible once already rolled up", () => {
+    expect(
+      isBoardRollupEligible(
+        rollupItem({ escalatedToCpoAt: hoursAgo(24 * 30), boardRolledUpAt: hoursAgo(1) }),
+        NOW
+      )
+    ).toBe(false);
   });
 });
 

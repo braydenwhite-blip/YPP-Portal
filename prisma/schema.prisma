@@ -12245,8 +12245,10 @@ model ActionComment {
   id           String            @id @default(cuid())
   actionItemId String
   actionItem   ActionItem        @relation("ActionItemComments", fields: [actionItemId], references: [id], onDelete: Cascade)
-  authorId     String
-  author       User              @relation("ActionComments", fields: [authorId], references: [id], onDelete: Cascade)
+  /// Null for system-authored audit entries (e.g. the Board roll-up record),
+  /// which have no human actor. Human comments always carry an author.
+  authorId     String?
+  author       User?             @relation("ActionComments", fields: [authorId], references: [id], onDelete: Cascade)
   body         String            @db.Text
   type         ActionCommentType @default(NOTE)
 
@@ -12281,6 +12283,7 @@ enum ActionEmailType {
   DEADLINE_REACHED
   OVERDUE_LEAD
   CPO_ESCALATION
+  BOARD_ROLLUP
 }
 
 /// Idempotency ledger for the automated Action-Tracker cron emails (weekly

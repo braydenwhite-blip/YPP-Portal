@@ -668,3 +668,61 @@ revalidates `/people`.
 **Tests:** `tests/lib/people-strategy-escalation.test.ts` (pure 48h rules) and
 `tests/lib/people-strategy-cpo-escalation.test.ts` (cron: one notification, no
 duplicates, multi-recipient, no-recipient re-fire, emails-off no-op).
+
+---
+
+## PART F — Board Escalation Roll-up (`ENABLE_ACTION_TRACKER`)
+
+Extends Part E: a CPO escalation that stays unresolved long enough is rolled up
+to the Board for visibility. Reuses the Part E cron, the `boardRolledUpAt` field
+(already added in `20260601180000`), the email helper, and the `ActionEmailLog`
+ledger — no new frameworks.
+
+**Threshold (documented default).** No product decision existed for *when* an
+unresolved CPO escalation reaches the Board, so the default is **7 days after
+`escalatedToCpoAt`** (`BOARD_ROLLUP_THRESHOLD_MS` in
+`lib/people-strategy/escalation.ts` — the single source of truth). Pure rule:
+`isBoardRollupEligible(item, now)` (CPO-escalated, unresolved, not yet rolled
+up, 7+ days past escalation).
+
+**Board = `SUPER_ADMIN`.** The Board has no dedicated role; `SUPER_ADMIN` stands
+in (Part B). New guard `requireBoard()` (`lib/authorization.ts`) passes ONLY for
+`ADMIN` + `SUPER_ADMIN` — a plain CPO (`CPO` subtype without `SUPER_ADMIN`) does
+**not** pass, so the Board list is locked to non-Board users. Pure mirror for UI
+affordances: `isBoard()` in `action-permissions.ts`.
+
+**Cron:** `runBoardRollups(now)` in `action-cron.ts`, run by the SAME route as
+Part E (`app/api/cron/action-cpo-escalation/route.ts`, now a two-stage
+escalate-then-roll-up cron at `0 7 * * *`). Marks `boardRolledUpAt` once via a
+race-safe conditional update, writes an **authorless system audit comment**
+("Rolled up to the Board …") into the item's history, and notifies each Board
+recipient once (deduped `boardrollup:<itemId>:<recipientId>`). The mark + audit
+are gated only by `ENABLE_ACTION_TRACKER` (so the Board list populates even with
+emails off); the notification additionally needs `ENABLE_ACTION_TRACKER_EMAILS`
+and discoverable Board recipients. Email helper: `sendBoardEscalationRollupEmail`.
+
+**Schema change:** `ActionComment.authorId` is now **nullable** (migration
+`20260601190000_add_board_rollup`) so system/automated audit entries (no human
+actor) can be recorded; human comments still carry an author. Read sites updated
+to render a null author as "System" (`escalation-queue.ts`, `board-rollup.ts`,
+`my-actions-selectors.ts`, and `personDTO` in the action detail page). Same
+migration adds the `BOARD_ROLLUP` `ActionEmailType` value.
+
+**Board-visible list:** route `app/(app)/people/board-rollup/page.tsx`, behind
+`ENABLE_ACTION_TRACKER` + `requireBoard()` (404 for non-Board — server-side
+enforced). Loader `lib/people-strategy/board-rollup.ts` →
+`loadBoardRollupList()`; client list
+`components/people-strategy/board-rollup-list.tsx` shows title, lead, executors,
+deadline/status, CPO age, roll-up time, full comment history (incl. the audit
+entry), and **Mark resolved** (reuses `resolveEscalation()`, which Board passes
+via `requireCPO`). `/people` shows a Board-only link to it (`isBoard(viewer)`).
+
+**Permission split:** CPO sees the CPO queue on `/people` (`requireCPO`); Board
+(SUPER_ADMIN, who also passes `requireCPO`) additionally sees the Board roll-up
+list (`requireBoard`); non-Board cannot reach `/people/board-rollup`.
+
+**Tests:** Board-roll-up rules added to
+`tests/lib/people-strategy-escalation.test.ts`;
+`tests/lib/people-strategy-board-rollup.test.ts` (cron: rolls up once, 7-day
+gate, authorless audit entry, idempotent, emails-off still marks, multi-Board,
+feature-off no-op); `requireBoard` cases in `tests/lib/authorization.test.ts`.

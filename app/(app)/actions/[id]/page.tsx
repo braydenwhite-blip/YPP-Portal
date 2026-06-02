@@ -28,7 +28,18 @@ type PersonSource = {
   profile?: { avatarUrl: string | null } | null;
 };
 
-function personDTO(person: PersonSource) {
+function personDTO(person: PersonSource | null) {
+  // System-authored audit entries (e.g. the Board roll-up record) have no
+  // user; render them as a synthetic "System" person.
+  if (!person) {
+    return {
+      id: "system",
+      name: "System",
+      email: "",
+      primaryRole: null as string | null,
+      avatarUrl: null as string | null,
+    };
+  }
   return {
     id: person.id,
     name: person.name,

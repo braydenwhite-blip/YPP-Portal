@@ -73,6 +73,34 @@ export function isEscalationEligible(item: EscalationItem, now: Date): boolean {
   return now.getTime() - since.getTime() >= ESCALATION_THRESHOLD_MS;
 }
 
+/**
+ * Board roll-up threshold: **7 days after the CPO escalation** (`escalatedToCpoAt`).
+ *
+ * No explicit product decision exists for when an unresolved CPO escalation
+ * should reach the Board, so this is the documented default (per the task
+ * "If no product decision exists, use 7 days after CPO escalation"). It is the
+ * sole source of truth — change it here to retune the cadence.
+ */
+export const BOARD_ROLLUP_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Minimal item shape needed to evaluate Board roll-up state. */
+export type BoardRollupItem = {
+  escalatedToCpoAt: Date | null;
+  resolvedAt: Date | null;
+  boardRolledUpAt: Date | null;
+};
+
+/**
+ * Eligible for Board roll-up: CPO-escalated, still unresolved, not yet rolled
+ * up, and at least 7 days past the CPO escalation.
+ */
+export function isBoardRollupEligible(item: BoardRollupItem, now: Date): boolean {
+  if (item.resolvedAt) return false;
+  if (item.boardRolledUpAt) return false;
+  if (!item.escalatedToCpoAt) return false;
+  return now.getTime() - item.escalatedToCpoAt.getTime() >= BOARD_ROLLUP_THRESHOLD_MS;
+}
+
 /** Human age of an escalation, e.g. "3 days" or "50 hours". */
 export function formatEscalationAge(since: Date, now: Date): string {
   const ms = Math.max(0, now.getTime() - since.getTime());

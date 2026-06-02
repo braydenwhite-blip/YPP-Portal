@@ -949,6 +949,69 @@ export async function sendCpoEscalationEmail({
 }
 
 /**
+ * People Strategy — Board escalation roll-up notice.
+ *
+ * Sent to the Board (SUPER_ADMIN stand-in) when a CPO-escalated action item has
+ * stayed unresolved for 7 days past the CPO escalation and is auto-rolled-up by
+ * the daily escalation cron. One notification per item per recipient —
+ * idempotency is enforced upstream by the `boardRolledUpAt` marker and the
+ * `ActionEmailLog` dedupe key. Thin wrapper over `sendEmail`.
+ */
+export async function sendBoardEscalationRollupEmail({
+  to,
+  recipientName,
+  actionTitle,
+  department,
+  leadName,
+  statusLabel,
+  daysUnresolvedLabel,
+  cpoEscalatedLabel,
+  deadline,
+  boardUrl,
+  actionUrl,
+}: {
+  to: string;
+  recipientName: string | null;
+  actionTitle: string;
+  department: string;
+  leadName: string | null;
+  statusLabel: string;
+  daysUnresolvedLabel: string;
+  cpoEscalatedLabel: string;
+  deadline: string;
+  boardUrl: string;
+  actionUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const subject = `Board roll-up: ${actionTitle}`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">An escalation has reached the Board</h2>
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>The action below was escalated to the CPO <strong>${escapeHtml(cpoEscalatedLabel)}</strong> and has remained unresolved since, so it has been rolled up to the Board for visibility.</p>
+    <div style="background: #fef2f2; border-left: 4px solid #991b1b; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Lead</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(leadName || "Unassigned")}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Department</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(department)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Status</p>
+      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(statusLabel)}</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Unresolved for</p>
+      <p style="margin: 0 0 14px; color: #991b1b; font-size: 15px; font-weight: 600;">${escapeHtml(daysUnresolvedLabel)} since CPO escalation</p>
+      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
+      <p style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 600;">${escapeHtml(deadline)}</p>
+    </div>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(boardUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Open Board Roll-up</a>
+      <a href="${escapeHtml(actionUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">View Action</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">Review the full comment history on the Board roll-up list and direct the CPO on next steps, or mark it resolved.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+/**
  * People Strategy — confidential 360 feedback request.
  *
  * Sent to a recent collaborator asking them to submit feedback about a subject
