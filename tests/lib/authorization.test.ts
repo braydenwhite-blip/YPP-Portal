@@ -9,6 +9,7 @@ import {
   hasAnyRole,
   normalizeRoleList,
   normalizeRoleSet,
+  requireBoard,
   requireCPO,
   requireOfficer,
 } from "@/lib/authorization";
@@ -73,6 +74,21 @@ describe("authorization role helpers", () => {
 
     mockSessionUser({ roles: ["STAFF"], adminSubtypes: ["CPO"] });
     await expect(requireCPO()).rejects.toThrow("Unauthorized");
+  });
+
+  it("allows only Board (ADMIN + SUPER_ADMIN) through requireBoard", async () => {
+    mockSessionUser({ roles: ["ADMIN"], adminSubtypes: ["SUPER_ADMIN"] });
+    await expect(requireBoard()).resolves.toMatchObject({ id: "user_1" });
+  });
+
+  it("blocks a plain CPO and non-admins from requireBoard (Board list is locked)", async () => {
+    // A plain CPO (no SUPER_ADMIN) must NOT reach the Board roll-up list.
+    mockSessionUser({ roles: ["ADMIN"], adminSubtypes: ["CPO"] });
+    await expect(requireBoard()).rejects.toThrow("Unauthorized");
+
+    // SUPER_ADMIN subtype without the ADMIN role does not pass either.
+    mockSessionUser({ roles: ["STAFF"], adminSubtypes: ["SUPER_ADMIN"] });
+    await expect(requireBoard()).rejects.toThrow("Unauthorized");
   });
 
   it("allows officer-tier users through requireOfficer", async () => {

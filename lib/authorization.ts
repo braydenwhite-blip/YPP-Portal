@@ -183,6 +183,22 @@ export async function requireCPO(): Promise<SessionUser> {
 }
 
 /**
+ * Board guard. The Board has no dedicated role in this codebase; the org-owner
+ * tier (`SUPER_ADMIN`) stands in for "Board" (see INTEGRATION_MAP.md → Part B).
+ * Passes ONLY for ADMIN users with the `SUPER_ADMIN` subtype — a plain CPO
+ * (AdminSubtype `CPO` without `SUPER_ADMIN`) does NOT pass, so Board-only
+ * surfaces (the escalation roll-up list) stay invisible to non-Board users.
+ */
+export async function requireBoard(): Promise<SessionUser> {
+  const sessionUser = await requireSessionUser();
+  const isAdmin = hasRole(sessionUser.roles, "ADMIN", sessionUser.primaryRole);
+  if (!isAdmin || !hasAdminSubtype(sessionUser.adminSubtypes, "SUPER_ADMIN")) {
+    throw new Error("Unauthorized");
+  }
+  return sessionUser;
+}
+
+/**
  * Officer guard. Passes for Officer-tier and above: STAFF, Chapter Presidents,
  * Hiring Chairs, and any ADMIN (which includes Sr. Leadership, the CPO, and the
  * Board/SUPER_ADMIN since those all carry the ADMIN role).

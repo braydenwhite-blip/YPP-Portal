@@ -617,3 +617,163 @@ averages the per-goal `GoalReviewRating.rating` values
 review for the month, derives the rating, and **upserts** on `(userId, month)`
 so re-compiling refreshes the same row. Gated by `ENABLE_QUARTERLY_REVIEWS`,
 guarded by `requireOfficer()`.
+
+---
+
+## PART E — CPO Escalation Queue (`ENABLE_ACTION_TRACKER`)
+
+When a flagged or `OVERDUE` action item goes unresolved for **48h+**, it is
+auto-escalated to the CPO/Board. Reuses the existing Action Tracker, the
+`CRON_SECRET` cron pattern, the `lib/email.ts` helper, and the `ActionEmailLog`
+dedupe ledger — no new frameworks.
+
+**Schema:** three nullable timestamps on `model ActionItem`
+(migration `20260601180000_add_action_escalation_state`):
+`escalatedToCpoAt` (the dedupe guard — set once the CPO is notified),
+`resolvedAt` (set when the CPO resolves from the queue), and `boardRolledUpAt`
+(reserved for a later Board roll-up phase). Indexed on `escalatedToCpoAt` /
+`resolvedAt`. `enum ActionEmailType` gains `CPO_ESCALATION`.
+
+**Eligibility rules (pure, shared):** `lib/people-strategy/escalation.ts` —
+`isEscalationEligible` / `escalationSince` / `escalationReason` /
+`formatEscalationAge`. "Older than 48h" is measured from the OLDEST active
+trigger (the flag time and/or the moment the deadline passed). Used by BOTH the
+cron and the queue loader so they agree on the set, age, and reason.
+
+**Cron:** `runCpoEscalations(now)` in
+`lib/people-strategy/action-cron.ts` routed by
+`app/api/cron/action-cpo-escalation/route.ts` (`vercel.json`:
+`"0 7 * * *"`). `CRON_SECRET` bearer auth; gated by `ENABLE_ACTION_TRACKER` +
+`ENABLE_ACTION_TRACKER_EMAILS`. Finds unresolved, not-yet-escalated flagged/
+`OVERDUE` items 48h+ old; notifies each CPO/Board recipient (ADMIN +
+`AdminSubtype` `CPO`/`SUPER_ADMIN`) exactly once via the `sendOnce` /
+`ActionEmailLog` dedupe (key `escalation:<itemId>:<recipientId>`), then marks
+`escalatedToCpoAt` with a race-safe conditional update. Email helper:
+`sendCpoEscalationEmail` in `lib/email.ts`.
+
+**Surfacing to the Lead** is already handled by the existing pipeline — the
+overdue sweep emails the Lead (`OVERDUE_LEAD`) and flagged/overdue items appear
+in the Lead's `/my-actions` view (`my-actions-selectors.ts`).
+
+**CPO Escalation Queue UI:** added to `/people`
+(`app/(app)/people/page.tsx`, behind `ENABLE_ACTION_TRACKER`). Loader
+`lib/people-strategy/escalation-queue.ts` → `loadCpoEscalationQueue()`; client
+section `components/people-strategy/escalation-queue.tsx` shows title, lead,
+executors, deadline/status, flagged/overdue age, full comment history, and a
+**Mark resolved** action. Resolve server action: `resolveEscalation(actionId)`
+in `lib/people-strategy/action-items-actions.ts` — `requireCPO()`, sets
+`resolvedAt` (idempotent conditional update), records a NOTE comment, and
+revalidates `/people`.
+
+**Tests:** `tests/lib/people-strategy-escalation.test.ts` (pure 48h rules) and
+`tests/lib/people-strategy-cpo-escalation.test.ts` (cron: one notification, no
+duplicates, multi-recipient, no-recipient re-fire, emails-off no-op).
+
+---
+
+## PART F — Board Escalation Roll-up (`ENABLE_ACTION_TRACKER`)
+
+Extends Part E: a CPO escalation that stays unresolved long enough is rolled up
+to the Board for visibility. Reuses the Part E cron, the `boardRolledUpAt` field
+(already added in `20260601180000`), the email helper, and the `ActionEmailLog`
+ledger — no new frameworks.
+
+**Threshold (documented default).** No product decision existed for *when* an
+unresolved CPO escalation reaches the Board, so the default is **7 days after
+`escalatedToCpoAt`** (`BOARD_ROLLUP_THRESHOLD_MS` in
+`lib/people-strategy/escalation.ts` — the single source of truth). Pure rule:
+`isBoardRollupEligible(item, now)` (CPO-escalated, unresolved, not yet rolled
+up, 7+ days past escalation).
+
+**Board = `SUPER_ADMIN`.** The Board has no dedicated role; `SUPER_ADMIN` stands
+in (Part B). New guard `requireBoard()` (`lib/authorization.ts`) passes ONLY for
+`ADMIN` + `SUPER_ADMIN` — a plain CPO (`CPO` subtype without `SUPER_ADMIN`) does
+**not** pass, so the Board list is locked to non-Board users. Pure mirror for UI
+affordances: `isBoard()` in `action-permissions.ts`.
+
+**Cron:** `runBoardRollups(now)` in `action-cron.ts`, run by the SAME route as
+Part E (`app/api/cron/action-cpo-escalation/route.ts`, now a two-stage
+escalate-then-roll-up cron at `0 7 * * *`). Marks `boardRolledUpAt` once via a
+race-safe conditional update, writes an **authorless system audit comment**
+("Rolled up to the Board …") into the item's history, and notifies each Board
+recipient once (deduped `boardrollup:<itemId>:<recipientId>`). The mark + audit
+are gated only by `ENABLE_ACTION_TRACKER` (so the Board list populates even with
+emails off); the notification additionally needs `ENABLE_ACTION_TRACKER_EMAILS`
+and discoverable Board recipients. Email helper: `sendBoardEscalationRollupEmail`.
+
+**Schema change:** `ActionComment.authorId` is now **nullable** (migration
+`20260601190000_add_board_rollup`) so system/automated audit entries (no human
+actor) can be recorded; human comments still carry an author. Read sites updated
+to render a null author as "System" (`escalation-queue.ts`, `board-rollup.ts`,
+`my-actions-selectors.ts`, and `personDTO` in the action detail page). Same
+migration adds the `BOARD_ROLLUP` `ActionEmailType` value.
+
+**Board-visible list:** route `app/(app)/people/board-rollup/page.tsx`, behind
+`ENABLE_ACTION_TRACKER` + `requireBoard()` (404 for non-Board — server-side
+enforced). Loader `lib/people-strategy/board-rollup.ts` →
+`loadBoardRollupList()`; client list
+`components/people-strategy/board-rollup-list.tsx` shows title, lead, executors,
+deadline/status, CPO age, roll-up time, full comment history (incl. the audit
+entry), and **Mark resolved** (reuses `resolveEscalation()`, which Board passes
+via `requireCPO`). `/people` shows a Board-only link to it (`isBoard(viewer)`).
+
+**Permission split:** CPO sees the CPO queue on `/people` (`requireCPO`); Board
+(SUPER_ADMIN, who also passes `requireCPO`) additionally sees the Board roll-up
+list (`requireBoard`); non-Board cannot reach `/people/board-rollup`.
+
+**Tests:** Board-roll-up rules added to
+`tests/lib/people-strategy-escalation.test.ts`;
+`tests/lib/people-strategy-board-rollup.test.ts` (cron: rolls up once, 7-day
+gate, authorless audit entry, idempotent, emails-off still marks, multi-Board,
+feature-off no-op); `requireBoard` cases in `tests/lib/authorization.test.ts`.
+
+---
+
+## PART G — Provisional 3-month confirmation clock (`ENABLE_PROVISIONAL_CLOCK`)
+
+A newly confirmed hire enters a 90-day provisional period; at Month 3 a
+confirmation decision is surfaced via the EXISTING Quarterly Review workflow,
+and confirming clears the provisional state. Reuses the applicant→hire flow,
+the Quarterly Review form, and `requireCPO()` — no new hire/onboarding or review
+framework.
+
+**Schema:** two nullable timestamps on `model User`
+(migration `20260601200000_add_provisional_clock`): `provisionalStart` (set when
+a hire is confirmed) and `provisionalConfirmedAt` (set when senior leadership /
+Board confirms, clearing provisional state). Index on `provisionalStart`.
+
+**Clock math (pure, shared):** `lib/people-strategy/provisional.ts` —
+`PROVISIONAL_WINDOW_DAYS = 90`, `computeProvisionalStatus(start, confirmedAt,
+now)` → `{ isProvisional, confirmed, monthThreeDate, daysRemaining,
+atMonthThree, percentElapsed, … }`. Same file holds the tx helpers
+`startProvisionalClock` / `clearProvisionalClock` and the loader
+`loadProvisionalStatus`.
+
+**Reuses the applicant→hire flow (no new framework).** The clock starts at the
+SAME points the existing flow grants the INSTRUCTOR role, inside their
+transactions: `approveInstructorApplication` and `chairDecide`
+(`APPROVE` / `APPROVE_WITH_CONDITIONS`) call `startProvisionalClock(tx, …)`. The
+clock is cleared on the two existing role-revocation paths — the chairDecide
+SYNC_ROLLBACK compensator and `rescindChairDecision` — via
+`clearProvisionalClock(tx, …)`. All hooks are single guarded lines; with the
+flag off they are no-ops, so the existing hiring workflow is unchanged.
+
+**Confirmation:** `lib/people-strategy/provisional-actions.ts` →
+`confirmProvisionalHire(userId)` — gated by `ENABLE_PROVISIONAL_CLOCK`, guarded
+by `requireCPO()` (the "senior leadership or Board approval" criterion), sets
+`provisionalConfirmedAt` idempotently (only when currently provisional).
+
+**UI:** new `#provisional` section on the instructor profile
+(`app/(app)/admin/instructors/[id]/page.tsx`), gated solely by
+`isProvisionalClockEnabled()` (independent of the People Dashboard flag).
+`components/people-strategy/provisional-status-card.tsx` shows the **Provisional
+badge + countdown** to the Month-3 review, a progress bar, the **confirmation
+criteria reminder** (green core goals / positive feedback / mentor endorsement /
+senior leadership or Board approval), and — at Month 3 — a banner pointing to the
+adjacent Quarterly Review section plus a CPO/Board **Confirm hire** button. The
+old "not yet built" placeholder in `member-people-strategy-section.tsx` was
+removed (its `provisionalEnabled` prop dropped).
+
+**Tests:** `tests/lib/people-strategy-provisional.test.ts` (90-day window,
+countdown, Month-3 boundary/overdue, confirmed clears provisional, and the
+start/clear tx-helper flag gating).
