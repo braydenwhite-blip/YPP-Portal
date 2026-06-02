@@ -28,8 +28,9 @@ const TABS: TabDef[] = [
 
 export function ActionTrackerTabs({ active }: { active: ActionTrackerTab }) {
   return (
-    <div
-      role="tablist"
+    // A <nav>, not a tablist: these links navigate between pages rather than
+    // switching panels in place, so tab/tablist ARIA would be dishonest.
+    <nav
       aria-label="Action tracker views"
       style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}
     >
@@ -53,6 +54,9 @@ export function ActionTrackerTabs({ active }: { active: ActionTrackerTab }) {
             key={tab.key}
             className="button outline small"
             aria-disabled="true"
+            // aria-label carries the reason so it isn't title-only (which
+            // keyboard/touch/SR users never get).
+            aria-label={`${tab.label} — coming soon`}
             title="Coming soon"
             style={{ opacity: 0.5, pointerEvents: "none", cursor: "default" }}
           >
@@ -60,6 +64,6 @@ export function ActionTrackerTabs({ active }: { active: ActionTrackerTab }) {
           </span>
         );
       })}
-    </div>
+    </nav>
   );
 }

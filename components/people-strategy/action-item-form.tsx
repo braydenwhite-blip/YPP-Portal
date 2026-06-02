@@ -61,21 +61,21 @@ const FIELD: React.CSSProperties = {
 const LABEL: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
-  color: "#475569",
+  color: "var(--text-secondary)",
   textTransform: "uppercase",
   letterSpacing: 0.4,
 };
 
 const INPUT: React.CSSProperties = {
   padding: "8px 10px",
-  borderRadius: 8,
-  border: "1px solid #cbd5e1",
+  borderRadius: "var(--radius-sm)",
+  border: "1px solid var(--border)",
   fontSize: 14,
-  background: "#fff",
+  background: "var(--surface)",
 };
 
 const REQUIRED_MARK = (
-  <span aria-hidden style={{ color: "#dc2626", marginLeft: 2 }}>
+  <span aria-hidden style={{ color: "var(--error-color)", marginLeft: 2 }}>
     *
   </span>
 );
@@ -156,9 +156,10 @@ function UserPicker({
                 alignItems: "center",
                 gap: 6,
                 padding: "4px 10px",
-                borderRadius: 999,
-                background: "#e0e7ff",
-                border: "1px solid #6366f1",
+                borderRadius: "var(--radius-full)",
+                background: "var(--ypp-purple-100)",
+                border: "1px solid var(--ypp-purple-300)",
+                color: "var(--ypp-purple-800)",
                 fontSize: 12,
               }}
             >
@@ -170,7 +171,7 @@ function UserPicker({
                 style={{
                   border: "none",
                   background: "transparent",
-                  color: "#4338ca",
+                  color: "var(--ypp-purple-700)",
                   cursor: "pointer",
                   fontSize: 14,
                   lineHeight: 1,
@@ -193,28 +194,28 @@ function UserPicker({
         style={INPUT}
       />
 
+      {/* A plain scroll container of native checkboxes/radios — no role="listbox"
+          here, which would be invalid ARIA wrapping native form controls. */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           gap: 2,
           padding: 6,
-          border: "1px solid #cbd5e1",
-          borderRadius: 8,
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-sm)",
           maxHeight: 180,
           overflowY: "auto",
-          background: "#f8fafc",
+          background: "var(--ypp-purple-50)",
         }}
-        role="listbox"
-        aria-multiselectable={!single}
       >
         {available.length === 0 && (
-          <span style={{ fontSize: 13, color: "#94a3b8", padding: 4 }}>
+          <span style={{ fontSize: 13, color: "var(--gray-400)", padding: 4 }}>
             {emptyHint ?? "No users available."}
           </span>
         )}
         {available.length > 0 && filtered.length === 0 && (
-          <span style={{ fontSize: 13, color: "#94a3b8", padding: 4 }}>
+          <span style={{ fontSize: 13, color: "var(--gray-400)", padding: 4 }}>
             No matches for “{query}”.
           </span>
         )}
@@ -228,8 +229,8 @@ function UserPicker({
                 alignItems: "center",
                 gap: 8,
                 padding: "6px 8px",
-                borderRadius: 6,
-                background: checked ? "#e0e7ff" : "transparent",
+                borderRadius: "var(--radius-xs)",
+                background: checked ? "var(--ypp-purple-100)" : "transparent",
                 fontSize: 13,
                 cursor: "pointer",
               }}
@@ -243,7 +244,7 @@ function UserPicker({
               <span>
                 {u.name ?? u.email}
                 {u.name && (
-                  <span style={{ color: "#94a3b8" }}> · {u.email}</span>
+                  <span style={{ color: "var(--gray-400)" }}> · {u.email}</span>
                 )}
               </span>
             </label>
@@ -401,10 +402,10 @@ export default function ActionItemForm({
       {error && (
         <div
           style={{
-            background: "#fee2e2",
-            color: "#991b1b",
+            background: "var(--error-bg)",
+            color: "var(--error-text)",
             padding: "8px 12px",
-            borderRadius: 8,
+            borderRadius: "var(--radius-sm)",
             fontSize: 13,
           }}
           role="alert"
@@ -586,8 +587,8 @@ export default function ActionItemForm({
 
       <fieldset
         style={{
-          border: "1px solid #e2e8f0",
-          borderRadius: 8,
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-sm)",
           padding: 12,
           display: "flex",
           flexDirection: "column",

@@ -22,6 +22,7 @@ import {
   unassignActionItemFromMeeting,
   updateMiscUpdate,
 } from "@/lib/people-strategy/officer-meetings-actions";
+import { StatusPill } from "@/components/people-strategy/pills";
 
 export type MeetingActionItemDTO = {
   id: string;
@@ -62,7 +63,7 @@ export type UnassignedItemDTO = {
   leadName: string | null;
 };
 
-const ACCENT = "#6b21c8";
+const ACCENT = "var(--ypp-primary-brand)";
 
 function formatTime(iso: string): string {
   return new Intl.DateTimeFormat("en-US", {
@@ -76,38 +77,11 @@ function dayKey(iso: string): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-const STATUS_PILL: Record<MeetingDTO["status"], { bg: string; color: string; label: string }> = {
-  SCHEDULED: { bg: "#ede9fe", color: "#5b21b6", label: "Scheduled" },
-  COMPLETED: { bg: "#ecfdf5", color: "#047857", label: "Completed" },
-  CANCELLED: { bg: "#f1f5f9", color: "#64748b", label: "Cancelled" },
-};
-
 const ASSIGNMENT_LABELS: Record<MeetingActionItemDTO["assignees"][number]["role"], string> = {
   LEAD: "Lead",
   EXECUTING: "Executing",
   INPUT: "Input",
 };
-
-function Pill({ bg, color, children }: { bg: string; color: string; children: React.ReactNode }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        fontSize: 11,
-        fontWeight: 600,
-        padding: "2px 8px",
-        borderRadius: 999,
-        background: bg,
-        color,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
 
 function GeneratedTextBlock({ label, text }: { label: string; text: string }) {
   return (
@@ -122,10 +96,10 @@ function GeneratedTextBlock({ label, text }: { label: string; text: string }) {
           fontFamily: "inherit",
           fontSize: 13,
           lineHeight: 1.5,
-          color: "#0f172a",
-          background: "#f8fafc",
-          border: "1px solid #e2e8f0",
-          borderRadius: 8,
+          color: "var(--ypp-ink)",
+          background: "var(--ypp-purple-50)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-sm)",
           padding: 12,
           margin: "8px 0 0",
         }}
@@ -189,13 +163,13 @@ function GenerateButtons({ meeting }: { meeting: MeetingDTO }) {
           {meeting.summaryEmailText ? "Regenerate summary email" : "Generate summary email"}
         </button>
         {!summaryReady && (
-          <span style={{ fontSize: 12, color: "#94a3b8" }}>
+          <span style={{ fontSize: 12, color: "var(--gray-400)" }}>
             Summary email unlocks once all {meeting.actionItems.length} item
             {meeting.actionItems.length === 1 ? "" : "s"} have discussion notes.
           </span>
         )}
       </div>
-      {error && <span style={{ color: "#dc2626", fontSize: 12 }}>{error}</span>}
+      {error && <span style={{ color: "var(--error-color)", fontSize: 12 }}>{error}</span>}
       {meeting.agendaText && (
         <GeneratedTextBlock label="View generated agenda" text={meeting.agendaText} />
       )}
@@ -244,14 +218,14 @@ function DiscussionNote({
   return (
     <div
       style={{
-        border: "1px solid #e2e8f0",
-        borderRadius: 8,
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-sm)",
         padding: "10px 12px",
-        background: "#fff",
+        background: "var(--surface)",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-        <Link href={`/actions/${item.id}`} style={{ fontWeight: 600, fontSize: 14, color: "#0f172a" }}>
+        <Link href={`/actions/${item.id}`} style={{ fontWeight: 600, fontSize: 14, color: "var(--ypp-ink)" }}>
           {item.title}
         </Link>
         <button
@@ -264,13 +238,13 @@ function DiscussionNote({
           Unassign
         </button>
       </div>
-      <div style={{ fontSize: 12, color: "#64748b", margin: "2px 0 8px", lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12, color: "var(--muted)", margin: "2px 0 8px", lineHeight: 1.5 }}>
         {item.departmentName ?? "No department"} · {ACTION_STATUS_LABELS[item.status]} · Due{" "}
         {formatDueDate(new Date(deadline))}
         {item.goalCategory ? ` · Goal: ${item.goalCategory}` : " · Goal: Uncategorized"}
         {item.leadName ? ` · Lead: ${item.leadName}` : ""}
       </div>
-      <div style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 8px", lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12, color: "var(--gray-400)", margin: "0 0 8px", lineHeight: 1.5 }}>
         {assigneeText}
       </div>
       <textarea
@@ -284,8 +258,8 @@ function DiscussionNote({
           width: "100%",
           fontSize: 13,
           padding: 8,
-          borderRadius: 6,
-          border: "1px solid #cbd5e1",
+          borderRadius: "var(--radius-xs)",
+          border: "1px solid var(--border)",
           resize: "vertical",
           boxSizing: "border-box",
         }}
@@ -363,7 +337,7 @@ function MiscUpdates({
         Miscellaneous updates
       </div>
       {updates.length === 0 ? (
-        <p style={{ color: "#94a3b8", fontSize: 13, fontStyle: "italic", margin: "0 0 8px" }}>
+        <p style={{ color: "var(--gray-400)", fontSize: 13, fontStyle: "italic", margin: "0 0 8px" }}>
           No miscellaneous updates yet.
         </p>
       ) : (
@@ -376,10 +350,10 @@ function MiscUpdates({
                 justifyContent: "space-between",
                 gap: 10,
                 padding: "8px 10px",
-                border: "1px solid #e2e8f0",
-                borderRadius: 6,
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-xs)",
                 marginBottom: 6,
-                background: "#fff",
+                background: "var(--surface)",
               }}
             >
               <div style={{ minWidth: 0, flex: 1 }}>
@@ -394,16 +368,16 @@ function MiscUpdates({
                       width: "100%",
                       fontSize: 13,
                       padding: 8,
-                      borderRadius: 6,
-                      border: "1px solid #cbd5e1",
+                      borderRadius: "var(--radius-xs)",
+                      border: "1px solid var(--border)",
                       resize: "vertical",
                       boxSizing: "border-box",
                     }}
                   />
                 ) : (
-                  <div style={{ fontSize: 13, color: "#0f172a", whiteSpace: "pre-wrap" }}>{u.body}</div>
+                  <div style={{ fontSize: 13, color: "var(--ypp-ink)", whiteSpace: "pre-wrap" }}>{u.body}</div>
                 )}
-                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{u.addedByName}</div>
+                <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 2 }}>{u.addedByName}</div>
               </div>
               {!disabled && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -466,8 +440,8 @@ function MiscUpdates({
               flex: 1,
               fontSize: 13,
               padding: 8,
-              borderRadius: 6,
-              border: "1px solid #cbd5e1",
+              borderRadius: "var(--radius-xs)",
+              border: "1px solid var(--border)",
             }}
           />
           <button type="button" className="button small" onClick={add} disabled={pending || !body.trim()}>
@@ -510,7 +484,7 @@ function AssignFromTray({
         onChange={(e) => setSelected(e.target.value)}
         disabled={pending || unassigned.length === 0}
         aria-label="Link an unassigned action item to this meeting"
-        style={{ fontSize: 13, padding: "6px 8px", borderRadius: 6, border: "1px solid #cbd5e1", maxWidth: 320 }}
+        style={{ fontSize: 13, padding: "6px 8px", borderRadius: "var(--radius-xs)", border: "1px solid var(--border)", maxWidth: 320 }}
       >
         <option value="">
           {unassigned.length === 0 ? "No unassigned items" : "Link an action item…"}
@@ -537,7 +511,6 @@ function MeetingBlock({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const pill = STATUS_PILL[meeting.status];
   // Cancelled meetings are read-only; scheduled (incl. past-but-not-marked) and
   // completed meetings remain editable so notes can be finished after the fact.
   const readOnly = meeting.status === "CANCELLED";
@@ -555,8 +528,8 @@ function MeetingBlock({
       style={{
         padding: 16,
         borderTop: `3px solid ${ACCENT}`,
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-md)",
         display: "flex",
         flexDirection: "column",
         gap: 14,
@@ -564,17 +537,17 @@ function MeetingBlock({
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16, color: "#0f172a" }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "var(--ypp-ink)" }}>
             {formatWeekday(new Date(meeting.date))}, {formatMonthDayYear(new Date(meeting.date))}
           </div>
-          <div style={{ fontSize: 13, color: "#64748b" }}>
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>
             {formatTime(meeting.date)} · {meeting.actionItems.length} item
             {meeting.actionItems.length === 1 ? "" : "s"} · {meeting.miscUpdates.length} update
             {meeting.miscUpdates.length === 1 ? "" : "s"}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <Pill bg={pill.bg} color={pill.color}>{pill.label}</Pill>
+          <StatusPill kind="meeting" status={meeting.status} />
           {meeting.status !== "COMPLETED" && (
             <button
               type="button"
@@ -616,7 +589,7 @@ function MeetingBlock({
           Action items for discussion
         </div>
         {meeting.actionItems.length === 0 ? (
-          <p style={{ color: "#94a3b8", fontSize: 13, fontStyle: "italic", margin: "0 0 8px" }}>
+          <p style={{ color: "var(--gray-400)", fontSize: 13, fontStyle: "italic", margin: "0 0 8px" }}>
             No action items linked yet. Use the picker below to pull items in from the tray.
           </p>
         ) : (
@@ -672,14 +645,14 @@ function ScheduleForm() {
       className="card"
       style={{ padding: 14, display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}
     >
-      <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, color: "#475569" }}>
+      <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, color: "var(--text-secondary)" }}>
         Meeting date &amp; time
         <input
           type="datetime-local"
           value={date}
           onChange={(e) => setDate(e.target.value)}
           disabled={pending}
-          style={{ fontSize: 13, padding: 8, borderRadius: 6, border: "1px solid #cbd5e1" }}
+          style={{ fontSize: 13, padding: 8, borderRadius: "var(--radius-xs)", border: "1px solid var(--border)" }}
         />
       </label>
       <button type="button" className="button small" onClick={submit} disabled={pending}>
@@ -696,7 +669,7 @@ function ScheduleForm() {
       >
         Cancel
       </button>
-      {error && <span style={{ color: "#dc2626", fontSize: 12 }}>{error}</span>}
+      {error && <span style={{ color: "var(--error-color)", fontSize: 12 }}>{error}</span>}
     </div>
   );
 }
@@ -730,9 +703,9 @@ export default function OfficerMeetingsClient({
 
       {/* Upcoming, grouped by date */}
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#0f172a" }}>Upcoming meetings</h2>
+        <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>Upcoming meetings</h2>
         {upcomingGroups.length === 0 ? (
-          <div className="card" style={{ padding: 16, color: "#64748b", fontSize: 13 }}>
+          <div className="card" style={{ padding: 16, color: "var(--muted)", fontSize: 13 }}>
             No upcoming meetings scheduled. Use “Schedule new meeting” to add one.
           </div>
         ) : (
@@ -751,15 +724,15 @@ export default function OfficerMeetingsClient({
 
       {/* Unassigned tray */}
       <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#0f172a" }}>
+        <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
           Unassigned tray
         </h2>
-        <p style={{ margin: 0, fontSize: 12, color: "#94a3b8" }}>
+        <p style={{ margin: 0, fontSize: 12, color: "var(--gray-400)" }}>
           Action items not yet assigned to a meeting. Link them from a meeting block above.
         </p>
         {unassigned.length === 0 ? (
-          <div className="card" style={{ padding: 14, color: "#64748b", fontSize: 13 }}>
-            All open action items are assigned to a meeting. 🎉
+          <div className="card" style={{ padding: 14, color: "var(--muted)", fontSize: 13 }}>
+            All open action items are assigned to a meeting.
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -778,7 +751,7 @@ export default function OfficerMeetingsClient({
                 }}
               >
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{item.title}</span>
-                <span style={{ fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: 12, color: "var(--gray-400)", whiteSpace: "nowrap" }}>
                   {item.departmentName ?? "—"} · {ACTION_STATUS_LABELS[item.status]}
                 </span>
               </Link>
@@ -799,7 +772,7 @@ export default function OfficerMeetingsClient({
         </button>
         {showPast &&
           (past.length === 0 ? (
-            <div className="card" style={{ padding: 16, color: "#64748b", fontSize: 13 }}>
+            <div className="card" style={{ padding: 16, color: "var(--muted)", fontSize: 13 }}>
               No past meetings yet.
             </div>
           ) : (

@@ -9,9 +9,9 @@ import {
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
 import { isOfficerTier, type ActionViewer } from "@/lib/people-strategy/action-permissions";
-import { ACTION_STATUS_LABELS } from "@/lib/people-strategy/constants";
 import { getMyTeachingClasses } from "@/lib/people-strategy/class-tracker";
 import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
+import { StatusPill } from "@/components/people-strategy/pills";
 import {
   effectiveDeadline,
   isActionOverdue,
@@ -35,7 +35,7 @@ function formatRole(role: string | null | undefined): string {
     .join(" ");
 }
 
-const OVERDUE_ACCENT = "#dc2626";
+const OVERDUE_ACCENT = "var(--error-color)";
 
 function StatCard({
   label,
@@ -56,7 +56,7 @@ function StatCard({
         borderLeft: accent ? `3px solid ${OVERDUE_ACCENT}` : undefined,
       }}
     >
-      <p style={{ margin: 0, fontSize: 12, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.4 }}>
+      <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>
         {label}
       </p>
       <p style={{ margin: "6px 0 0", fontSize: 24, fontWeight: 700, color: accent ? OVERDUE_ACCENT : "inherit" }}>
@@ -93,16 +93,17 @@ function ActionRow({
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
         <strong style={{ fontSize: 14 }}>{item.title}</strong>
-        <span style={{ fontSize: 12, fontWeight: 600, color: overdue ? OVERDUE_ACCENT : "#64748b", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: overdue ? OVERDUE_ACCENT : "var(--muted)", whiteSpace: "nowrap" }}>
           {overdue ? "Overdue · " : "Due "}
           {formatDueDate(due)}
         </span>
       </div>
-      <span style={{ fontSize: 12, color: "#94a3b8" }}>
-        {item.department?.name ?? "—"} · {ACTION_STATUS_LABELS[item.status]}
-      </span>
+      <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <StatusPill status={item.status} />
+        <span style={{ fontSize: 12, color: "var(--gray-400)" }}>{item.department?.name ?? "—"}</span>
+      </div>
       {prompt ? (
-        <p style={{ margin: "6px 0 0", fontSize: 12, color: "#475569", fontStyle: "italic" }}>
+        <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>
           &ldquo;{prompt}&rdquo;
         </p>
       ) : null}
@@ -113,7 +114,7 @@ function ActionRow({
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#0f172a" }}>{title}</h2>
+      <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>{title}</h2>
       {children}
     </section>
   );
@@ -121,7 +122,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function EmptyNote({ children }: { children: React.ReactNode }) {
   return (
-    <div className="card" style={{ padding: "12px 14px", fontSize: 13, color: "#64748b" }}>
+    <div className="card" style={{ padding: "12px 14px", fontSize: 13, color: "var(--muted)" }}>
       {children}
     </div>
   );
@@ -193,7 +194,7 @@ export default async function MyActionsPage() {
           <p className="page-subtitle">
             Everything you lead, are executing, or owe input on — sorted by deadline.
           </p>
-          <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>Last updated {lastUpdated}</p>
+          <p style={{ fontSize: 12, color: "var(--gray-400)", marginTop: 4 }}>Last updated {lastUpdated}</p>
         </div>
         {officer ? (
           <Link href="/admin/actions/new" className="button small">
@@ -202,9 +203,9 @@ export default async function MyActionsPage() {
         ) : null}
       </div>
 
-      {/* Tabs */}
-      <div
-        role="tablist"
+      {/* Tabs — a <nav>, not a tablist: these links navigate between pages
+          rather than switching panels in place. */}
+      <nav
         aria-label="Action tracker views"
         style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}
       >
@@ -218,7 +219,7 @@ export default async function MyActionsPage() {
             {tab.label}
           </Link>
         ))}
-      </div>
+      </nav>
 
       {/* Stat cards */}
       <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
@@ -240,15 +241,7 @@ export default async function MyActionsPage() {
           </p>
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-            gap: 16,
-            marginTop: 16,
-            alignItems: "start",
-          }}
-        >
+        <div className="ps-main-grid" style={{ marginTop: 16 }}>
           {/* Left: You Are Executing */}
           <Panel title="You Are Executing">
             {executing.length === 0 ? (
@@ -304,7 +297,7 @@ export default async function MyActionsPage() {
                         style={{
                           fontSize: 12,
                           fontWeight: 600,
-                          color: overdue ? OVERDUE_ACCENT : "#64748b",
+                          color: overdue ? OVERDUE_ACCENT : "var(--muted)",
                           whiteSpace: "nowrap",
                         }}
                       >
@@ -324,10 +317,10 @@ export default async function MyActionsPage() {
           system, not the Action Tracker. */}
       {teachingClasses.length > 0 ? (
         <section style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "#0f172a" }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
             Your Classes
           </h2>
-          <p style={{ margin: 0, fontSize: 12, color: "#94a3b8" }}>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--gray-400)" }}>
             Classes you teach as lead or executing instructor — read-only.
           </p>
           {teachingClasses.map((offering) => (

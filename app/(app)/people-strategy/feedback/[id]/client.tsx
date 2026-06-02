@@ -54,7 +54,7 @@ export function FeedbackResponseForm({
       {submittedAt ? (
         <div
           className="card"
-          style={{ padding: "12px 14px", fontSize: 13, color: "#166534", background: "#f0fdf4", borderLeft: "3px solid #16a34a" }}
+          style={{ padding: "12px 14px", fontSize: 13, color: "var(--success-text)", background: "var(--success-bg)", borderLeft: "3px solid var(--success-color)" }}
         >
           Submitted {formatTimestamp(submittedAt)}. You can edit and resubmit while the request is open.
         </div>
@@ -74,8 +74,8 @@ export function FeedbackResponseForm({
         style={{
           width: "100%",
           padding: "12px 14px",
-          borderRadius: 8,
-          border: "1px solid var(--border, #d6d3d1)",
+          borderRadius: "var(--radius-sm)",
+          border: "1px solid var(--border)",
           fontSize: 14,
           fontFamily: "inherit",
           resize: "vertical",
@@ -84,13 +84,13 @@ export function FeedbackResponseForm({
       />
 
       {error ? (
-        <p role="alert" style={{ margin: 0, color: "#b91c1c", fontSize: 13 }}>
+        <p role="alert" style={{ margin: 0, color: "var(--error-text)", fontSize: 13 }}>
           {error}
         </p>
       ) : null}
 
       <div>
-        <button type="submit" className="button" disabled={isPending}>
+        <button type="submit" className="button small" disabled={isPending}>
           {isPending ? "Submitting…" : submittedAt ? "Update Feedback" : "Submit Feedback"}
         </button>
       </div>
