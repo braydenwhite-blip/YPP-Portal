@@ -1,20 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./instructor-onboarding-guide.module.css";
+import OnboardingStepper, { type OnboardingStep } from "./onboarding-stepper";
+import PortalWalkthrough from "./portal-walkthrough";
 
-const sections = [
-  { id: "about", label: "About" },
-  { id: "mission", label: "Mission" },
-  { id: "role", label: "Role" },
-  { id: "community", label: "Community" },
-  { id: "contacts", label: "Contacts" },
-  { id: "portal-walkthrough", label: "Walkthrough" },
-  { id: "first-steps", label: "First Steps" },
-  { id: "training-modules", label: "Training" },
-] as const;
-
-type SectionId = (typeof sections)[number]["id"];
+/* ------------------------------------------------------------------
+   Onboarding copy — kept EXACTLY as written in the original guide.
+   Wording, punctuation, capitalization and existing typos preserved.
+   ------------------------------------------------------------------ */
 
 const coreExpectations = [
   "Deliver organized, engaging classes using approved curriculum that keeps students participating and coming back",
@@ -46,24 +41,65 @@ const firstSteps = [
   "Confirm your first session date with your chapter president",
 ];
 
+/** Real portal destinations each first step points at. */
+const firstStepActions: { href: string; label: string }[] = [
+  { href: "/profile", label: "Open profile" },
+  { href: "/my-courses", label: "Review courses" },
+  { href: "/instructor-training", label: "Open training" },
+  { href: "/chapter", label: "Go to chapter" },
+];
+
+/* ---------------------------- Steps ---------------------------- */
+
+type StepId =
+  | "about"
+  | "mission"
+  | "role"
+  | "community"
+  | "contacts"
+  | "walkthrough"
+  | "first-steps"
+  | "training";
+
 type IconName =
-  | "book"
-  | "calendar"
-  | "check"
-  | "compass"
-  | "message"
   | "spark"
   | "target"
-  | "users";
+  | "book"
+  | "users"
+  | "message"
+  | "compass"
+  | "check"
+  | "calendar";
+
+interface StepDef extends OnboardingStep {
+  id: StepId;
+  eyebrow: string;
+  icon: IconName;
+}
+
+const STEPS: StepDef[] = [
+  { id: "about", label: "About YPP", kicker: "Step 1", eyebrow: "Orientation", icon: "spark" },
+  { id: "mission", label: "Our Mission", kicker: "Step 2", eyebrow: "Why we exist", icon: "target" },
+  { id: "role", label: "Your Role", kicker: "Step 3", eyebrow: "Expectations", icon: "book" },
+  { id: "community", label: "Community", kicker: "Step 4", eyebrow: "Belonging", icon: "users" },
+  { id: "contacts", label: "Contacts", kicker: "Step 5", eyebrow: "Where to get help", icon: "message" },
+  { id: "walkthrough", label: "Walkthrough", kicker: "Step 6", eyebrow: "Guided portal tour", icon: "compass" },
+  { id: "first-steps", label: "First Steps", kicker: "Step 7", eyebrow: "Your action checklist", icon: "check" },
+  { id: "training", label: "Training", kicker: "Step 8", eyebrow: "Before your first session", icon: "calendar" },
+];
+
+const STORAGE_KEY = "ypp.instructor-onboarding.step";
+
+/* ----------------------------- Icon ---------------------------- */
 
 function Icon({ name }: { name: IconName }) {
   const common = {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
     viewBox: "0 0 24 24",
     fill: "none",
     xmlns: "http://www.w3.org/2000/svg",
-    "aria-hidden": true,
+    "aria-hidden": true as const,
   };
 
   switch (name) {
@@ -127,407 +163,375 @@ function Icon({ name }: { name: IconName }) {
   }
 }
 
-function SectionCard({
-  id,
-  icon,
-  children,
-  className,
-}: {
-  id: string;
-  icon?: IconName;
-  children: React.ReactNode;
-  className?: string;
-}) {
+/* ------------------------- Step content ------------------------ */
+
+function AboutStep() {
   return (
-    <section id={id} className={[styles.sectionCard, className].filter(Boolean).join(" ")}>
-      {icon ? (
-        <div className={styles.sectionIcon}>
-          <Icon name={icon} />
+    <div className={styles.body}>
+      <h2 className={styles.stepTitle}>About Youth Passion Project: </h2>
+      <p>
+        Youth Passion Project (YPP) is a student-led educational organization dedicated to connecting young learners with passionate peer instructors across hundreds of subjects.
+      </p>
+      <div className={styles.divider} />
+      <p className={styles.subheading}>Our Numbers</p>
+      <div className={styles.statGrid}>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>3,200+</span>
+          <span className={styles.statLabel}>students served</span>
         </div>
-      ) : null}
-      {children}
-    </section>
+        <div className={styles.statCard}>
+          <span className={styles.statValue}>400+</span>
+          <span className={styles.statLabel}>courses offered</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statLabel}>Instructors and students spanning multiple regions</span>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function ProgressNav({
-  activeSection,
-  scrollProgress,
-}: {
-  activeSection: SectionId;
-  scrollProgress: number;
-}) {
-  const handleClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>, id: string) => {
-    event.preventDefault();
-    const target = document.getElementById(id);
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    target?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
-    window.history.replaceState(null, "", `#${id}`);
-  }, []);
-
+function MissionStep() {
   return (
-    <nav className={styles.progressNav} aria-label="Instructor onboarding sections">
-      <div
-        className={styles.progressRail}
-        style={{ "--guide-progress": `${scrollProgress}%` } as React.CSSProperties}
-        aria-hidden
-      />
-      <p className={styles.progressTitle}>Guide progress</p>
-      <ol className={styles.progressList}>
-        {sections.map((section, index) => (
-          <li key={section.id}>
-            <a
-              href={`#${section.id}`}
-              onClick={(event) => handleClick(event, section.id)}
-              className={activeSection === section.id ? styles.activeProgressLink : undefined}
-              aria-current={activeSection === section.id ? "location" : undefined}
-            >
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              {section.label}
-            </a>
+    <div className={styles.body}>
+      <h2 className={styles.stepTitle}>Our Mission: </h2>
+      <p>
+        To Guide the Stars of Tomorrow. From Student, to Instructor, to Leadership, YPP&apos;s goal is to develop the next generation of educators and leaders from within.
+      </p>
+    </div>
+  );
+}
+
+function RoleStep() {
+  return (
+    <div className={styles.body}>
+      <h2 className={styles.stepTitle}>Your Role as a YPP Instructor: </h2>
+      <p>
+        As a YPP instructor, your core responsibility is to deliver high-quality, engaging instruction to students in your area of expertise. You are representing a standard of excellence that YPP has built across thousands of student interactions.
+      </p>
+      <p className={styles.subheading}>Core Expectactions: </p>
+      <ul className={styles.checkList}>
+        {coreExpectations.map((item) => (
+          <li key={item}>
+            <span className={styles.checkBadge} aria-hidden>
+              <Icon name="check" />
+            </span>
+            {item}
           </li>
         ))}
-      </ol>
-    </nav>
-  );
-}
-
-function Callout({
-  number,
-  label,
-  x,
-  y,
-}: {
-  number: number;
-  label: string;
-  x: number;
-  y: number;
-}) {
-  return (
-    <div className={styles.callout} style={{ left: `${x}%`, top: `${y}%` }}>
-      <span>{number}</span>
-      {label}
+      </ul>
+      <p className={styles.note}>
+        You will receive a mentor who is a Senior or Lead Instructor with past experience at YPP. They will hold a kickoff meeting with you to go over all the aspects of the Instructor role and our expectations.
+      </p>
     </div>
   );
 }
 
-function ScreenshotFrame({
-  title,
-  description,
-  variant,
-  callouts,
-}: {
-  title: string;
-  description: string;
-  variant: "login" | "dashboard" | "materials" | "logging" | "training";
-  callouts: Array<{ number: number; label: string; x: number; y: number }>;
-}) {
+function CommunityStep() {
   return (
-    <figure className={styles.screenshotFrame}>
-      <div className={styles.screenshotHeader}>
-        <div className={styles.windowDots} aria-hidden>
-          <span />
-          <span />
-          <span />
-        </div>
-        <span>{title}</span>
-      </div>
-      <div className={[styles.screenshotCanvas, styles[`screenshotCanvas_${variant}`]].join(" ")}>
-        <div className={styles.mockSidebar} aria-hidden>
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className={styles.mockMain} aria-hidden>
-          <div className={styles.mockTopBar} />
-          <div className={styles.mockHeroLine} />
-          <div className={styles.mockGrid}>
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className={styles.mockWidePanel} />
-        </div>
-        {callouts.map((callout) => (
-          <Callout key={`${title}-${callout.number}`} {...callout} />
-        ))}
-      </div>
-      <figcaption>{description}</figcaption>
-    </figure>
-  );
-}
-
-function PortalWalkthroughFrames() {
-  return (
-    <div className={styles.walkthroughFrames}>
-      <ScreenshotFrame
-        title="Portal login placeholder"
-        description="Swap this frame with a real login screenshot when it is ready."
-        variant="login"
-        callouts={[
-          { number: 1, label: "Complete this", x: 53, y: 42 },
-          { number: 2, label: "Click here", x: 62, y: 67 },
-        ]}
-      />
-      <ScreenshotFrame
-        title="Dashboard placeholder"
-        description="Shows the first portal screen after sign in."
-        variant="dashboard"
-        callouts={[
-          { number: 1, label: "Review this", x: 43, y: 35 },
-          { number: 2, label: "Open this tab", x: 18, y: 47 },
-        ]}
-      />
-      <ScreenshotFrame
-        title="Course materials placeholder"
-        description="Use this frame for curriculum resources and lesson plans."
-        variant="materials"
-        callouts={[
-          { number: 1, label: "Open this tab", x: 19, y: 55 },
-          { number: 2, label: "Click here", x: 67, y: 36 },
-        ]}
-      />
-      <ScreenshotFrame
-        title="Session logging placeholder"
-        description="Use this frame for attendance, covered topics, and notes."
-        variant="logging"
-        callouts={[
-          { number: 1, label: "Complete this", x: 52, y: 49 },
-          { number: 2, label: "Submit log", x: 70, y: 75 },
-        ]}
-      />
-      <ScreenshotFrame
-        title="Training modules placeholder"
-        description="Use this frame for required onboarding videos and readings."
-        variant="training"
-        callouts={[
-          { number: 1, label: "Open this tab", x: 18, y: 64 },
-          { number: 2, label: "Complete this", x: 61, y: 42 },
-        ]}
-      />
+    <div className={styles.body}>
+      <h2 className={styles.stepTitle}>Community &amp; Events</h2>
+      <p>
+        YPP is not just a teaching gig. You are part of a community of student educators who take this seriously, and we expect you to show up for it. Throughout the year we run socials, cross-chapter sessions, end-of-semester showcases, and leadership workshops. Attend them, and when you are ready, help lead them. See what is coming up here:{" "}
+        <a href="https://www.youthpassionproject.org/programs/calendar" target="_blank" rel="noreferrer">
+          https://www.youthpassionproject.org/programs/calendar
+        </a>
+      </p>
     </div>
   );
 }
 
-export default function InstructorOnboardingGuide() {
-  const pageRef = useRef<HTMLDivElement | null>(null);
-  const [activeSection, setActiveSection] = useState<SectionId>(sections[0].id);
-  const [scrollProgress, setScrollProgress] = useState(0);
+/** Map each verbatim contact line to a scannable support card icon + a mailto. */
+function ContactsStep() {
+  const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
 
-  const sectionIds = useMemo(() => sections.map((section) => section.id), []);
+  return (
+    <div className={styles.body}>
+      <h2 className={styles.stepTitle}>Your Points of Contact</h2>
+      <p>
+        YPP is led by an officer team of students from around the country, reporting to a board of directors comprising the organization&apos;s founders, legal representatives, and seasoned advisors. The whole team is here to help you.
+      </p>
+      <div className={styles.contactGrid}>
+        {contactLines.map((line) => {
+          const match = line.match(emailRegex);
+          const email = match?.[1];
+          return (
+            <div key={line} className={styles.contactCard}>
+              <span className={styles.contactIcon} aria-hidden>
+                <Icon name="message" />
+              </span>
+              <p>
+                {email ? (
+                  <>
+                    {line.slice(0, match!.index)}
+                    <a href={`mailto:${email}`}>{email}</a>
+                    {line.slice(match!.index! + email.length)}
+                  </>
+                ) : (
+                  line
+                )}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
+function WalkthroughStep() {
+  return (
+    <div className={styles.body}>
+      <h2 className={styles.stepTitle}>Portal Walkthrough: </h2>
+      <p>
+        You are seeing this in our portal. Assuming you were able to sign up and login, this is what you will see after the onboarding process:
+      </p>
+      <PortalWalkthrough portalItems={portalItems} />
+    </div>
+  );
+}
+
+function FirstStepsStep() {
+  const [done, setDone] = useState<boolean[]>(() => firstSteps.map(() => false));
+  const completed = done.filter(Boolean).length;
+
+  const toggle = (index: number) =>
+    setDone((prev) => prev.map((value, i) => (i === index ? !value : value)));
+
+  return (
+    <div className={styles.body}>
+      <h2 className={styles.stepTitle}>First Steps After Logging In</h2>
+      <div className={styles.taskSummary}>
+        <Icon name="check" />
+        <span>
+          {completed} of {firstSteps.length} complete
+        </span>
+      </div>
+      <ul className={styles.taskList}>
+        {firstSteps.map((step, index) => {
+          const action = firstStepActions[index];
+          return (
+            <li key={step} className={`${styles.taskItem} ${done[index] ? styles.taskDone : ""}`}>
+              <button
+                type="button"
+                className={styles.taskCheck}
+                onClick={() => toggle(index)}
+                aria-pressed={done[index]}
+                aria-label={done[index] ? `Mark "${step}" as not done` : `Mark "${step}" as done`}
+              >
+                <Icon name="check" />
+              </button>
+              <span className={styles.taskLabel}>{step}</span>
+              {action ? (
+                <Link href={action.href} className={styles.taskAction}>
+                  {action.label} →
+                </Link>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function TrainingStep() {
+  return (
+    <div className={styles.body}>
+      <h2 className={styles.stepTitle}>Training Modules</h2>
+      <p>
+        Before your first session, you are required to complete the following training modules available in the portal.
+      </p>
+      <p>
+        These modules will walk you through YPP&apos;s instructional standards, how to structure a session, how to work with students at different levels, and how to use the platform effectively.
+      </p>
+    </div>
+  );
+}
+
+function StepContent({ id }: { id: StepId }) {
+  switch (id) {
+    case "about":
+      return <AboutStep />;
+    case "mission":
+      return <MissionStep />;
+    case "role":
+      return <RoleStep />;
+    case "community":
+      return <CommunityStep />;
+    case "contacts":
+      return <ContactsStep />;
+    case "walkthrough":
+      return <WalkthroughStep />;
+    case "first-steps":
+      return <FirstStepsStep />;
+    case "training":
+      return <TrainingStep />;
+  }
+}
+
+/* -------------------- Parallax (subtle, opt-out) -------------------- */
+
+function useStageParallax(ref: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
     let frame = 0;
 
-    const updateScroll = () => {
-      const page = pageRef.current;
-      if (!page) return;
-
-      const rect = page.getBoundingClientRect();
-      const scrollable = Math.max(page.offsetHeight - window.innerHeight, 1);
-      const distance = Math.min(Math.max(-rect.top, 0), scrollable);
-      const progress = Math.min(Math.max((distance / scrollable) * 100, 0), 100);
-
-      setScrollProgress(progress);
-      if (!reducedMotion.matches) {
-        page.style.setProperty("--parallax-hero", `${Math.min(distance * 0.11, 84)}px`);
-        page.style.setProperty("--parallax-soft", `${Math.min(distance * 0.055, 48)}px`);
-      }
+    const onPointer = (event: PointerEvent) => {
+      const rect = el.getBoundingClientRect();
+      const mx = (event.clientX - rect.left) / rect.width - 0.5;
+      const my = (event.clientY - rect.top) / rect.height - 0.5;
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        el.style.setProperty("--mx", mx.toFixed(3));
+        el.style.setProperty("--my", my.toFixed(3));
+      });
     };
 
     const onScroll = () => {
+      const rect = el.getBoundingClientRect();
+      const offset = rect.top - window.innerHeight / 2;
       window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(updateScroll);
+      frame = window.requestAnimationFrame(() => {
+        el.style.setProperty("--scroll", offset.toFixed(1));
+      });
     };
 
-    updateScroll();
+    el.addEventListener("pointermove", onPointer, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    onScroll();
 
     return () => {
       window.cancelAnimationFrame(frame);
+      el.removeEventListener("pointermove", onPointer);
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
     };
+  }, [ref]);
+}
+
+/* ----------------------------- Page ----------------------------- */
+
+export default function InstructorOnboardingGuide() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [reachedIndex, setReachedIndex] = useState(0);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const headerRef = useRef<HTMLElement | null>(null);
+
+  useStageParallax(stageRef);
+
+  // Restore the furthest step the instructor previously reached.
+  useEffect(() => {
+    try {
+      const saved = Number(window.localStorage.getItem(STORAGE_KEY));
+      if (Number.isInteger(saved) && saved > 0 && saved < STEPS.length) {
+        setActiveIndex(saved);
+        setReachedIndex(saved);
+      }
+    } catch {
+      /* localStorage unavailable — start fresh */
+    }
   }, []);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+  const goTo = useCallback((index: number) => {
+    const next = Math.max(0, Math.min(index, STEPS.length - 1));
+    setActiveIndex(next);
+    setReachedIndex((prev) => Math.max(prev, next));
+    try {
+      window.localStorage.setItem(STORAGE_KEY, String(next));
+    } catch {
+      /* ignore */
+    }
+    // Keep the active step in view, just below the sticky header.
+    const top = (headerRef.current?.offsetTop ?? 0) - 12;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top, behavior: reduced ? "auto" : "smooth" });
+  }, []);
 
-        const nextId = visible?.target.id as SectionId | undefined;
-        if (nextId && sectionIds.includes(nextId)) {
-          setActiveSection(nextId);
-        }
-      },
-      {
-        rootMargin: "-18% 0px -56% 0px",
-        threshold: [0.12, 0.35, 0.6],
-      },
-    );
-
-    sectionIds.forEach((id) => {
-      const node = document.getElementById(id);
-      if (node) observer.observe(node);
-    });
-
-    return () => observer.disconnect();
-  }, [sectionIds]);
+  const step = STEPS[activeIndex];
+  const isFirst = activeIndex === 0;
+  const isLast = activeIndex === STEPS.length - 1;
 
   return (
-    <div ref={pageRef} className={styles.page}>
-      <div className={styles.parallaxBackdrop} aria-hidden>
-        <span className={styles.backdropPlaneOne} />
-        <span className={styles.backdropPlaneTwo} />
-      </div>
-
-      <header className={styles.hero}>
-        <div className={styles.heroContent}>
-          <h1>Youth Passion Project Instructor Onboarding Guide</h1>
-          <div className={styles.heroActions} aria-label="Guide shortcuts">
-            <a href="#about" className={styles.primaryAction}>
-              Start Guide
-            </a>
-            <a href="#portal-walkthrough" className={styles.secondaryAction}>
-              Portal Walkthrough
-            </a>
-          </div>
+    <div className={styles.guide}>
+      <header className={styles.header} ref={headerRef}>
+        <div className={styles.trail}>
+          <span className={styles.trailEyebrow}>Instructor onboarding</span>
+          <span className={styles.trailDivider}>/</span>
+          <span>{step.label}</span>
         </div>
-        <div className={styles.heroVisual} aria-hidden>
-          <div className={styles.heroPanel}>
-            <div className={styles.heroPanelHeader}>
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className={styles.heroPanelBody}>
-              <div />
-              <div />
-              <div />
-            </div>
-          </div>
-          <div className={styles.heroChecklist}>
-            <span />
-            <span />
-            <span />
-          </div>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>Youth Passion Project Instructor Onboarding Guide</h1>
+          <span className={styles.progressMeta}>
+            <strong>
+              Step {activeIndex + 1} of {STEPS.length}
+            </strong>
+          </span>
         </div>
+        <OnboardingStepper
+          steps={STEPS}
+          activeIndex={activeIndex}
+          reachedIndex={reachedIndex}
+          onSelect={goTo}
+        />
       </header>
 
-      <div className={styles.contentGrid}>
-        <div className={styles.mainColumn}>
-          <SectionCard id="about" icon="spark">
-            <h2>About Youth Passion Project: </h2>
-            <p>
-              Youth Passion Project (YPP) is a student-led educational organization dedicated to connecting young learners with passionate peer instructors across hundreds of subjects.
-            </p>
-            <div className={styles.metricsBlock} aria-labelledby="our-numbers-heading">
-              <h3 id="our-numbers-heading">Our Numbers</h3>
-              <div className={styles.metricsGrid}>
-                <p><strong>3,200+</strong> students served</p>
-                <p><strong>400+</strong> courses offered</p>
-                <p>Instructors and students spanning multiple regions</p>
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard id="mission" icon="target" className={styles.missionCard}>
-            <h2>Our Mission: </h2>
-            <p>
-              To Guide the Stars of Tomorrow. From Student, to Instructor, to Leadership, YPP&apos;s goal is to develop the next generation of educators and leaders from within.
-            </p>
-          </SectionCard>
-
-          <SectionCard id="role" icon="book">
-            <h2>Your Role as a YPP Instructor: </h2>
-            <p>
-              As a YPP instructor, your core responsibility is to deliver high-quality, engaging instruction to students in your area of expertise. You are representing a standard of excellence that YPP has built across thousands of student interactions.
-            </p>
-            <div className={styles.expectationsPanel}>
-              <h3>Core Expectactions: </h3>
-              <ul className={styles.expectationsList}>
-                {coreExpectations.map((item) => (
-                  <li key={item}>
-                    <span aria-hidden><Icon name="check" /></span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <p className={styles.mentorNote}>
-              You will receive a mentor who is a Senior or Lead Instructor with past experience at YPP. They will hold a kickoff meeting with you to go over all the aspects of the Instructor role and our expectations.
-            </p>
-          </SectionCard>
-
-          <SectionCard id="community" icon="users">
-            <h2>Community &amp; Events</h2>
-            <p>
-              YPP is not just a teaching gig. You are part of a community of student educators who take this seriously, and we expect you to show up for it. Throughout the year we run socials, cross-chapter sessions, end-of-semester showcases, and leadership workshops. Attend them, and when you are ready, help lead them. See what is coming up here:{" "}
-              <a href="https://www.youthpassionproject.org/programs/calendar" target="_blank" rel="noreferrer">
-                https://www.youthpassionproject.org/programs/calendar
-              </a>
-            </p>
-          </SectionCard>
-
-          <SectionCard id="contacts" icon="message">
-            <h2>Your Points of Contact</h2>
-            <p>
-              YPP is led by an officer team of students from around the country, reporting to a board of directors comprising the organization&apos;s founders, legal representatives, and seasoned advisors. The whole team is here to help you.
-            </p>
-            <ul className={styles.contactList}>
-              {contactLines.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </SectionCard>
-
-          <SectionCard id="portal-walkthrough" icon="compass" className={styles.walkthroughCard}>
-            <h2>Portal Walkthrough: </h2>
-            <p>
-              You are seeing this in our portal. Assuming you were able to sign up and login, this is what you will see after the onboarding process:
-            </p>
-            <div className={styles.portalItemGrid}>
-              {portalItems.map((item, index) => (
-                <div key={item} className={styles.portalItem}>
-                  <span>{index + 1}</span>
-                  <p>{item}</p>
-                </div>
-              ))}
-            </div>
-            <PortalWalkthroughFrames />
-          </SectionCard>
-
-          <SectionCard id="first-steps" icon="check" className={styles.stepsCard}>
-            <h2>First Steps After Logging In</h2>
-            <ol className={styles.stepsList}>
-              {firstSteps.map((step, index) => (
-                <li key={step}>
-                  <span aria-hidden>{index + 1}</span>
-                  <p>{step}</p>
-                </li>
-              ))}
-            </ol>
-          </SectionCard>
-
-          <SectionCard id="training-modules" icon="calendar">
-            <h2>Training Modules</h2>
-            <p>
-              Before your first session, you are required to complete the following training modules available in the portal.
-            </p>
-            <p>
-              These modules will walk you through YPP&apos;s instructional standards, how to structure a session, how to work with students at different levels, and how to use the platform effectively.
-            </p>
-          </SectionCard>
+      <div className={styles.stage} ref={stageRef}>
+        <div className={styles.stageLayers} aria-hidden>
+          <span className={`${styles.orb} ${styles.orbOne}`} />
+          <span className={`${styles.orb} ${styles.orbTwo}`} />
+          <span className={`${styles.plane} ${styles.planeOne}`} />
+          <span className={`${styles.plane} ${styles.planeTwo}`} />
         </div>
 
-        <aside className={styles.sideColumn}>
-          <ProgressNav activeSection={activeSection} scrollProgress={scrollProgress} />
-        </aside>
+        <section
+          key={step.id}
+          className={`${styles.stepCard} ${styles.animateIn}`}
+          aria-labelledby="onboarding-step-eyebrow"
+          aria-live="polite"
+        >
+          <div className={styles.stepHead}>
+            <span className={styles.stepIcon} aria-hidden>
+              <Icon name={step.icon} />
+            </span>
+            <div>
+              <p className={styles.eyebrow} id="onboarding-step-eyebrow">
+                {step.kicker} · {step.eyebrow}
+              </p>
+            </div>
+          </div>
+
+          <StepContent id={step.id} />
+
+          <div className={styles.footerNav}>
+            <span className={styles.footerHint}>
+              {isLast
+                ? "That's the full onboarding journey — jump into the portal below."
+                : `Next up: ${STEPS[activeIndex + 1].label}`}
+            </span>
+            <div className={styles.footerActions}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => goTo(activeIndex - 1)}
+                disabled={isFirst}
+              >
+                Back
+              </button>
+              {isLast ? (
+                <Link href="/instructor-training" className="btn btn-primary">
+                  Go to Training Modules →
+                </Link>
+              ) : (
+                <button type="button" className="btn btn-primary" onClick={() => goTo(activeIndex + 1)}>
+                  Continue →
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
