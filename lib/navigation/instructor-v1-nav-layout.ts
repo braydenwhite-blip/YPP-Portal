@@ -12,6 +12,7 @@ export const INSTRUCTOR_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, string>> =
 
 const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: string }> = {
   "/": { group: "Start Here", label: "Home", icon: "🏠" },
+  "/instructor-onboarding": { group: "Start Here", label: "Onboarding Guide", icon: "🧭" },
   "/instructor/workspace": { group: "Teach", label: "Workspace", icon: "🧩" },
   "/instructor/curriculum-builder": { group: "Teach", label: "Curriculum Builder", icon: "🛠" },
   "/lesson-plans": { group: "Teach", label: "Lesson Plans", icon: "📝" },
@@ -35,6 +36,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
 
 /** Order of links within the instructor minimal sidebar (lower = earlier). */
 export const INSTRUCTOR_SIDEBAR_LINK_ORDER: string[] = [
+  "/instructor-onboarding",
   "/instructor/workspace",
   "/instructor/curriculum-builder",
   "/lesson-plans",

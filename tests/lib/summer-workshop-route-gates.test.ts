@@ -21,6 +21,7 @@ describe("Summer Workshop route gates", () => {
   });
 
   it("public gate allows the training hub but not per-module deep links", () => {
+    expect(isAllowedPublicPath("/instructor-onboarding")).toBe(true);
     expect(isAllowedPublicPath("/instructor-training")).toBe(true);
     expect(isAllowedPublicPath("/training/module-1")).toBe(false);
   });
@@ -32,6 +33,7 @@ describe("Public portal gate allowlist", () => {
     "/login",
     "/signup",
     "/onboarding",
+    "/instructor-onboarding",
     "/applications",
     "/applications/summer-workshop",
     "/application-status",

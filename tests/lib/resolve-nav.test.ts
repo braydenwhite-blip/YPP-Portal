@@ -64,6 +64,7 @@ describe("resolveNavModel", () => {
     }
 
     expect(visibleHrefs).toContain("/");
+    expect(visibleHrefs).toContain("/instructor-onboarding");
     expect(visibleHrefs).toContain("/instructor-training");
     expect(visibleHrefs).toContain("/instructor/lesson-design-studio");
     expect(visibleHrefs).toContain("/attendance");

@@ -69,6 +69,7 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   // Onboarding must be reachable so new users can finish setup before
   // landing on the Summer Workshop CTAs.
   "/onboarding",
+  "/instructor-onboarding",
 
   // Lightweight personal surfaces. Users still need to be able to sign
   // out, manage their basic profile, and verify email. We deliberately

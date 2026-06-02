@@ -51,6 +51,16 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 2,
       coreEligible: true,
     },
+    {
+      href: "/instructor-onboarding",
+      label: "Instructor Onboarding",
+      icon: "🧭",
+      roles: INSTRUCTOR_ROLES,
+      searchAliases: ["Onboarding Guide", "Instructor Guide", "Portal Walkthrough"],
+      dashboardDescription: "Read the instructor onboarding guide and portal walkthrough.",
+      dashboardPriority: 3,
+      coreEligible: true,
+    },
   ]),
 
   ...groupLinks("Family", 100, [

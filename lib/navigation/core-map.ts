@@ -36,6 +36,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
   ],
   INSTRUCTOR: [
     "/",
+    "/instructor-onboarding",
     "/instructor-training",
     "/instructor/lesson-design-studio",
     "/attendance",
