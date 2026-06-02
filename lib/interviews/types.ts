@@ -15,6 +15,38 @@ export type InterviewTaskLink = {
   href: string;
 };
 
+export type InterviewSchedulingTone =
+  | "needs-action"
+  | "scheduled"
+  | "completed"
+  | "blocked"
+  | "info"
+  | "warning"
+  | "neutral";
+
+/**
+ * At-a-glance scheduling state for a candidate/instructor, so the interview
+ * side can instantly tell who has been sent times (and by whom) versus who is
+ * still waiting for the other party to approve a time.
+ */
+export type InterviewSchedulingStatus = {
+  /**
+   * AWAITING_TIMES   – nobody has sent interview times yet.
+   * TIMES_SENT       – times have been sent; waiting for the recipient to pick/confirm.
+   * AWAITING_REVIEWER – recipient shared availability; waiting on the interview team.
+   * CONFIRMED        – a time has been locked in.
+   */
+  state: "AWAITING_TIMES" | "TIMES_SENT" | "AWAITING_REVIEWER" | "CONFIRMED";
+  label: string;
+  tone: InterviewSchedulingTone;
+  /** Who sent the interview times (the interviewer / reviewer who posted them). */
+  sentByName?: string | null;
+  /** Who the times were sent to (the applicant / instructor). */
+  sentToName?: string | null;
+  sentAt?: Date | null;
+  slotCount?: number;
+};
+
 export type InterviewPrimaryAction =
   | {
       kind: "confirm_hiring_slot";
@@ -86,6 +118,7 @@ export type InterviewTask = {
   href: string;
   primaryAction: InterviewPrimaryAction;
   secondaryLinks: InterviewTaskLink[];
+  schedulingStatus?: InterviewSchedulingStatus;
   blockers: string[];
   timestamps?: {
     submittedAt?: Date | null;

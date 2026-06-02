@@ -12267,6 +12267,22 @@ a.dash-row:hover {
   font-variant-numeric: tabular-nums;
 }
 
+.iv-task-card-scheduling {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--iv-warning-ink, var(--muted));
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.iv-task-card-scheduling::before {
+  content: "✉";
+  font-size: 12px;
+  line-height: 1;
+}
+
 .iv-task-card-action {
   flex-shrink: 0;
 }

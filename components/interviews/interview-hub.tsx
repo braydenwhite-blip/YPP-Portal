@@ -14,7 +14,7 @@ type InterviewHubProps = {
   data: InterviewCommandCenterData;
 };
 
-type SectionKey = "needsAction" | "scheduled" | "completed";
+type SectionKey = "needsAction" | "waiting" | "scheduled" | "completed";
 
 const SECTION_META: Record<SectionKey, { kicker: string; title: string; helper: string; emptyTitle: string; emptyHelper: string }> = {
   needsAction: {
@@ -23,6 +23,13 @@ const SECTION_META: Record<SectionKey, { kicker: string; title: string; helper: 
     helper: "Tasks that move forward when you do.",
     emptyTitle: "No actions waiting",
     emptyHelper: "Nothing requires your input right now in this filter.",
+  },
+  waiting: {
+    kicker: "Awaiting the other party",
+    title: "Times Sent · Waiting to Confirm",
+    helper: "Interview times have been sent — waiting on the other person to approve a time.",
+    emptyTitle: "Nobody is waiting to confirm",
+    emptyHelper: "Once you send interview times, candidates waiting to confirm show up here.",
   },
   scheduled: {
     kicker: "On the calendar",
@@ -56,7 +63,17 @@ function Section({
         helper={meta.helper}
         right={
           tasks.length > 0 ? (
-            <StatusBadge tone={sectionKey === "needsAction" ? "needs-action" : sectionKey === "scheduled" ? "scheduled" : "completed"}>
+            <StatusBadge
+              tone={
+                sectionKey === "needsAction"
+                  ? "needs-action"
+                  : sectionKey === "waiting"
+                    ? "warning"
+                    : sectionKey === "scheduled"
+                      ? "scheduled"
+                      : "completed"
+              }
+            >
               {tasks.length}
             </StatusBadge>
           ) : null
@@ -162,7 +179,8 @@ export default function InterviewHub({ data }: InterviewHubProps) {
         canTeamView={data.viewer.canTeamView}
         kpis={data.kpis}
       />
-      <Section sectionKey="needsAction" tasks={data.sections.needsAction.concat(data.sections.blocked)} />
+      <Section sectionKey="needsAction" tasks={data.sections.needsAction} />
+      <Section sectionKey="waiting" tasks={data.sections.blocked} />
       <Section sectionKey="scheduled" tasks={data.sections.scheduled} />
       <Section sectionKey="completed" tasks={data.sections.completed} />
     </div>

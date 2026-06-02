@@ -1,4 +1,9 @@
-import type { InterviewStage, InterviewTask, InterviewTaskAudience } from "@/lib/interviews/types";
+import type {
+  InterviewSchedulingStatus,
+  InterviewStage,
+  InterviewTask,
+  InterviewTaskAudience,
+} from "@/lib/interviews/types";
 
 type HiringSlot = {
   id: string;
@@ -7,6 +12,8 @@ type HiringSlot = {
   confirmedAt?: Date | null;
   completedAt?: Date | null;
   isConfirmed?: boolean;
+  createdAt?: Date | null;
+  postedByName?: string | null;
 };
 
 type HiringNote = {
@@ -32,6 +39,8 @@ type ReadinessSlot = {
   status: string;
   scheduledAt: Date;
   completedAt?: Date | null;
+  createdAt?: Date | null;
+  postedByName?: string | null;
 };
 
 type ReadinessRequest = {
@@ -78,6 +87,57 @@ function findFirstSlot(slots: HiringSlot[], status: string) {
 
 function findFirstReadinessSlot(slots: ReadinessSlot[], status: string) {
   return slots.find((slot) => slot.status === status);
+}
+
+function countByStatus(slots: Array<{ status: string }>, status: string) {
+  return slots.filter((slot) => slot.status === status).length;
+}
+
+/** Times sent, awaiting the recipient to confirm one of them. */
+function timesSentStatus(opts: {
+  sentByName?: string | null;
+  sentToName?: string | null;
+  sentAt?: Date | null;
+  slotCount?: number;
+}): InterviewSchedulingStatus {
+  return {
+    state: "TIMES_SENT",
+    label: "Times sent · awaiting confirmation",
+    tone: "warning",
+    sentByName: opts.sentByName ?? null,
+    sentToName: opts.sentToName ?? null,
+    sentAt: opts.sentAt ?? null,
+    slotCount: opts.slotCount,
+  };
+}
+
+/** Nobody has sent interview times yet — the interview team needs to send them. */
+function awaitingTimesStatus(sentToName?: string | null): InterviewSchedulingStatus {
+  return {
+    state: "AWAITING_TIMES",
+    label: "No times sent yet",
+    tone: "needs-action",
+    sentToName: sentToName ?? null,
+  };
+}
+
+/** Recipient shared availability — waiting on the interview team to pick a time. */
+function awaitingReviewerStatus(label: string): InterviewSchedulingStatus {
+  return {
+    state: "AWAITING_REVIEWER",
+    label,
+    tone: "info",
+  };
+}
+
+/** A time has been locked in. */
+function confirmedStatus(sentAt?: Date | null): InterviewSchedulingStatus {
+  return {
+    state: "CONFIRMED",
+    label: "Time confirmed",
+    tone: "completed",
+    sentAt: sentAt ?? null,
+  };
 }
 
 export function buildHiringInterviewTask(input: HiringTaskInput): InterviewTask {
@@ -264,6 +324,7 @@ export function buildHiringInterviewTask(input: HiringTaskInput): InterviewTask 
         slotId: confirmedSlot.id,
       },
       secondaryLinks: [{ label: "Open Application", href }],
+      schedulingStatus: confirmedStatus(confirmedSlot.confirmedAt ?? confirmedSlot.scheduledAt),
       blockers: [],
       timestamps: {
         submittedAt: input.submittedAt,
@@ -339,6 +400,12 @@ export function buildHiringInterviewTask(input: HiringTaskInput): InterviewTask 
         href,
       },
       secondaryLinks: [{ label: "Open Application", href }],
+      schedulingStatus: timesSentStatus({
+        sentByName: postedSlot.postedByName,
+        sentToName: input.applicantName,
+        sentAt: postedSlot.createdAt,
+        slotCount: countByStatus(input.slots, "POSTED"),
+      }),
       blockers: ["Applicant confirmation pending."],
       timestamps: {
         submittedAt: input.submittedAt,
@@ -364,6 +431,7 @@ export function buildHiringInterviewTask(input: HiringTaskInput): InterviewTask 
       defaultDateTimeLocal: toDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000)),
     },
     secondaryLinks: [{ label: "Open Application", href }],
+    schedulingStatus: awaitingTimesStatus(input.applicantName),
     blockers: [],
     timestamps: {
       submittedAt: input.submittedAt,
@@ -544,9 +612,40 @@ export function buildReadinessInterviewTask(input: ReadinessTaskInput): Intervie
         defaultDateTimeLocal: toDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000)),
       },
       secondaryLinks: [{ label: "Open Interview Hub", href: hubHref }],
+      schedulingStatus: awaitingReviewerStatus("Availability shared · pick a time"),
       blockers: [],
       timestamps: {
         scheduledAt: null,
+      },
+    };
+  }
+
+  if (postedSlot && !confirmedSlot && !completedSlot) {
+    return {
+      id: `readiness-${input.gateId}`,
+      domain: "READINESS",
+      audience: input.audience,
+      stage: "BLOCKED",
+      title: `${input.instructorName} · Interview Scheduling`,
+      subtitle: `${input.chapterName} · Waiting for instructor`,
+      detail: `Posted slot waiting confirmation (${formatDateTime(postedSlot.scheduledAt)}).`,
+      ownerName: input.instructorName,
+      href: hubHref,
+      primaryAction: {
+        kind: "open_details",
+        label: "Open Interview Hub",
+        href: hubHref,
+      },
+      secondaryLinks: [{ label: "Open Interview Hub", href: hubHref }],
+      schedulingStatus: timesSentStatus({
+        sentByName: postedSlot.postedByName,
+        sentToName: input.instructorName,
+        sentAt: postedSlot.createdAt,
+        slotCount: countByStatus(input.slots, "POSTED"),
+      }),
+      blockers: ["Instructor confirmation pending."],
+      timestamps: {
+        scheduledAt: postedSlot.scheduledAt,
       },
     };
   }
@@ -569,6 +668,7 @@ export function buildReadinessInterviewTask(input: ReadinessTaskInput): Intervie
         slotId: confirmedSlot?.id ?? completedSlot?.id,
       },
       secondaryLinks: [{ label: "Open Interview Hub", href: hubHref }],
+      schedulingStatus: confirmedStatus(confirmedSlot?.scheduledAt ?? completedSlot?.scheduledAt),
       blockers: [],
       timestamps: {
         scheduledAt: confirmedSlot?.scheduledAt ?? completedSlot?.scheduledAt ?? null,
@@ -584,6 +684,7 @@ export function buildReadinessInterviewTask(input: ReadinessTaskInput): Intervie
     stage: input.gateStatus === "FAILED" || input.gateStatus === "HOLD" ? "BLOCKED" : "NEEDS_ACTION",
     title: `${input.instructorName} · Interview Scheduling`,
     subtitle: `${input.chapterName} · ${input.gateStatus.replace(/_/g, " ")}`,
+    schedulingStatus: awaitingTimesStatus(input.instructorName),
     detail: "Post multiple interview slot options in one step.",
     ownerName: input.instructorName,
     href: hubHref,

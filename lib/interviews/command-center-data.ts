@@ -228,6 +228,9 @@ export async function getInterviewCommandCenterData(
           },
           interviewSlots: {
             orderBy: { scheduledAt: "asc" },
+            include: {
+              interviewer: { select: { name: true } },
+            },
           },
           interviewNotes: {
             select: {
@@ -253,7 +256,10 @@ export async function getInterviewCommandCenterData(
             chapterName: application.position.chapter?.name || "Global",
             interviewRequired: application.position.interviewRequired,
             submittedAt: application.submittedAt,
-            slots: application.interviewSlots,
+            slots: application.interviewSlots.map((slot) => ({
+              ...slot,
+              postedByName: slot.interviewer?.name ?? null,
+            })),
             notes: application.interviewNotes,
             decisionAccepted: isHiringDecisionApproved(application.decision)
               ? application.decision?.accepted ?? null
@@ -464,6 +470,9 @@ export async function getInterviewCommandCenterData(
               },
               slots: {
                 orderBy: { scheduledAt: "asc" },
+                include: {
+                  createdBy: { select: { name: true } },
+                },
               },
               availabilityRequests: {
                 where: { status: "PENDING" },
@@ -484,7 +493,10 @@ export async function getInterviewCommandCenterData(
             chapterName: gate.instructor.chapter?.name || "No chapter",
             gateStatus: gate.status,
             outcome: gate.outcome,
-            slots: gate.slots,
+            slots: gate.slots.map((slot) => ({
+              ...slot,
+              postedByName: slot.createdBy?.name ?? null,
+            })),
             pendingRequests: gate.availabilityRequests,
             audience: "team",
             viewerRole: "reviewer",
