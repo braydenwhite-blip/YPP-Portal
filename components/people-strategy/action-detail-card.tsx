@@ -387,7 +387,7 @@ export default function ActionDetailCard({
             Flag to CPO
           </button>
           <Link href={closeHref} className="button outline small" aria-label="Close action detail">
-            X
+            ×
           </Link>
         </div>
       </div>
@@ -504,10 +504,19 @@ export default function ActionDetailCard({
               borderRadius: 8,
               padding: "12px 14px",
               fontSize: 14,
-              fontWeight: 600,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
             }}
           >
-            Linked meeting id: {item.officerMeetingId}
+            <span style={{ fontWeight: 600 }}>
+              This action is on an officer meeting agenda for discussion.
+            </span>
+            <Link href="/officer-meetings" className="button outline small">
+              View officer meetings
+            </Link>
           </div>
         </Section>
       )}
@@ -605,9 +614,9 @@ export default function ActionDetailCard({
       <Section title="Escalation Policy">
         <div
           style={{
-            border: "1px solid #fecaca",
-            background: "#fef2f2",
-            color: "#7f1d1d",
+            border: `1px solid ${item.flaggedAt ? "#fcd34d" : "#e2e8f0"}`,
+            background: item.flaggedAt ? "#fffbeb" : "#f8fafc",
+            color: item.flaggedAt ? "#92400e" : "#475569",
             borderRadius: 8,
             padding: "13px 14px",
             display: "flex",
@@ -618,11 +627,12 @@ export default function ActionDetailCard({
           }}
         >
           <span style={{ fontSize: 14, lineHeight: 1.5 }}>
-            Flag this action when progress is blocked, accountability is unclear, or a CPO decision is needed.
-            {item.flaggedAt ? ` Last flagged ${formatDate(item.flaggedAt)}.` : ""}
+            {item.flaggedAt
+              ? `Flagged to the CPO on ${formatDate(item.flaggedAt)}. Re-flag if the situation has changed.`
+              : "Flag this action when progress is blocked, accountability is unclear, or a CPO decision is needed."}
           </span>
           <button type="button" className="button small" onClick={handleFlag} disabled={pending || !canFlag}>
-            Flag to CPO
+            {item.flaggedAt ? "Flag again" : "Flag to CPO"}
           </button>
         </div>
       </Section>
