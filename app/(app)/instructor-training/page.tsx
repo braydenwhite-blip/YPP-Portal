@@ -1,58 +1,13 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import {
-  cancelInterviewAvailabilityRequest,
-  confirmPostedInterviewSlot,
-} from "@/lib/instructor-interview-actions";
-import {
-  buildFallbackInstructorReadiness,
-  getInstructorReadiness,
-} from "@/lib/instructor-readiness";
-import { withPrismaFallback } from "@/lib/prisma-guard";
 import {
   getTrainingAccessRedirect,
   hasApprovedInstructorTrainingAccess,
 } from "@/lib/training-access";
-import {
-  LESSON_DESIGN_STUDIO_MODULE_KEY,
-  READINESS_CHECK_MODULE_KEY,
-  TRACKABLE_REQUIRED_VIDEO_PROVIDERS,
-} from "@/lib/training-constants";
+import { getTrainingHomeModel } from "@/lib/training-home-model";
 import TrainingAcademyShell from "@/components/instructor-training/training-academy-shell";
-import TrainingModuleList, {
-  type ListModule,
-  type ListModuleStatus,
-  type ModuleCluster,
-} from "@/components/instructor-training/training-module-list";
-
-function formatDateTime(value: Date | string | null | undefined) {
-  if (!value) return "-";
-  return new Date(value).toLocaleString();
-}
-
-type ModuleCard = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  module: any;
-  assignment: { status: string } | undefined;
-  latestQuiz: { scorePct: number; attemptedAt: Date } | undefined;
-  /** Interactive-journey progress: beats answered correctly / total scored beats. */
-  journeyProgress: {
-    isInteractive: boolean;
-    correctBeats: number;
-    totalBeats: number;
-    scorePct: number | null;
-    passed: boolean;
-  };
-  videoReady: boolean;
-  quizReady: boolean;
-  fullyComplete: boolean;
-  /** Unified completion percentage for the card progress bar (journey-aware). */
-  progressPct: number;
-  configurationIssue: string | null;
-  estimatedMinutes: number | null;
-};
+import TrainingHome from "@/components/instructor-training/training-home";
 
 export default async function InstructorTrainingPage({
   searchParams,
@@ -63,6 +18,12 @@ export default async function InstructorTrainingPage({
   if (!session?.user?.id) {
     redirect("/login");
   }
+
+  const roles = session.user.roles ?? [];
+  if (!hasApprovedInstructorTrainingAccess(roles)) {
+    redirect(getTrainingAccessRedirect(roles));
+  }
+
   const sp = (await searchParams) ?? {};
   const lockedParamRaw = sp.locked;
   const lockedParam = Array.isArray(lockedParamRaw) ? lockedParamRaw[0] : lockedParamRaw;
@@ -70,584 +31,51 @@ export default async function InstructorTrainingPage({
   const showWorkshopLockedBanner = lockedParam === "workshop-design-studio";
   const showWorkshopClosedBanner = lockedParam === "workshop-design-studio-closed";
 
-  const roles = session.user.roles ?? [];
-  const canAccessTraining = hasApprovedInstructorTrainingAccess(roles);
+  const {
+    model,
+    isSummerWorkshop,
+    wasPromotedFromSummerWorkshop,
+    readinessCheckPassed,
+    readinessCheckModuleId,
+  } = await getTrainingHomeModel(session.user.id);
 
-  if (!canAccessTraining) {
-    redirect(getTrainingAccessRedirect(roles));
-  }
-
-  const isReviewer = roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
-  const reviewerHref = roles.includes("ADMIN")
-    ? "/admin/instructor-readiness"
-    : "/chapter-lead/instructor-readiness";
-
-  const instructorId = session.user.id;
-  const loadInterviewGate = () =>
-    prisma.instructorInterviewGate.upsert({
-      where: { instructorId },
-      create: { instructorId, status: "REQUIRED" },
-      update: {},
-      include: {
-        slots: {
-          orderBy: { scheduledAt: "asc" },
-        },
-        availabilityRequests: {
-          orderBy: { createdAt: "desc" },
-        },
-      },
-    });
-
-  type InterviewGateWithDetails = Awaited<ReturnType<typeof loadInterviewGate>>;
-
-  const fallbackInterviewGate: InterviewGateWithDetails = {
-    id: "fallback-interview-gate",
-    instructorId,
-    status: "REQUIRED",
-    outcome: null,
-    scheduledAt: null,
-    completedAt: null,
-    reviewedById: null,
-    reviewedAt: null,
-    reviewNotes: null,
-    createdAt: new Date(0),
-    updatedAt: new Date(0),
-    slots: [],
-    availabilityRequests: [],
-  };
-
-  // Look up the instructor's subtype (summer workshop vs standard) so we can
-  // route them to the right training path.
-  // Best-effort: if the application can't be loaded, fall back to STANDARD.
-  const instructorSubtype = await withPrismaFallback(
-    "instructor-training:subtype",
-    async () => {
-      // Re-application: prefer the most recent non-terminal row, fall back
-      // to the latest record (which may be a closed prior application).
-      const app = await prisma.instructorApplication.findFirst({
-        where: { applicantId: instructorId },
-        orderBy: { createdAt: "desc" },
-        select: { instructorSubtype: true },
-      });
-      return app?.instructorSubtype ?? "STANDARD";
-    },
-    "STANDARD" as const
-  );
-  const isSummerWorkshopInstructor = instructorSubtype === "SUMMER_WORKSHOP";
-
-  // Promotion signal: STANDARD applicants who already have a workshop
-  // submission row were promoted from SUMMER_WORKSHOP. Surface a one-time
-  // banner explaining that their workshop is preserved and that the LDS
-  // capstone is the next step.
-  const previousWorkshopSubmission =
-    !isSummerWorkshopInstructor
-      ? await withPrismaFallback(
-          "instructor-training:promoted-from-sw",
-          () =>
-            prisma.workshopProposalSubmission.findUnique({
-              where: { authorId: instructorId },
-              select: { id: true, status: true, submittedAt: true },
-            }),
-          null
-        )
-      : null;
-  const wasPromotedFromSummerWorkshop = previousWorkshopSubmission !== null;
-
-  const [
-    modules,
-    assignments,
-    videoProgress,
-    quizAttempts,
-    journeyCompletions,
-    journeyBeatAttempts,
-    interviewGate,
-    readiness,
-    trainingCertificate,
-  ] = await Promise.all([
-    withPrismaFallback(
-      "instructor-training:modules",
-      () =>
-        prisma.trainingModule.findMany({
-          where: { archivedAt: null },
-          orderBy: { sortOrder: "asc" },
-          include: {
-            quizQuestions: {
-              select: { id: true },
-            },
-            interactiveJourney: {
-              select: {
-                id: true,
-                estimatedMinutes: true,
-                beats: {
-                  where: { removedAt: null, scoringWeight: { gt: 0 } },
-                  select: { id: true },
-                },
-              },
-            },
-          },
-        }),
-      []
-    ),
-    withPrismaFallback(
-      "instructor-training:assignments",
-      () =>
-        prisma.trainingAssignment.findMany({
-          where: { userId: instructorId },
-        }),
-      []
-    ),
-    withPrismaFallback(
-      "instructor-training:video-progress",
-      () =>
-        prisma.videoProgress.findMany({
-          where: { userId: instructorId },
-          select: {
-            moduleId: true,
-            watchedSeconds: true,
-            completed: true,
-          },
-        }),
-      []
-    ),
-    withPrismaFallback(
-      "instructor-training:quiz-attempts",
-      () =>
-        prisma.trainingQuizAttempt.findMany({
-          where: { userId: instructorId },
-          orderBy: { attemptedAt: "desc" },
-          select: {
-            moduleId: true,
-            passed: true,
-            scorePct: true,
-            attemptedAt: true,
-          },
-        }),
-      []
-    ),
-    withPrismaFallback(
-      "instructor-training:journey-completions",
-      () =>
-        prisma.interactiveJourneyCompletion.findMany({
-          where: { userId: instructorId },
-          select: {
-            journeyId: true,
-            scorePct: true,
-            passed: true,
-            firstTryCorrectCount: true,
-            visitedBeatCount: true,
-          },
-        }),
-      []
-    ),
-    withPrismaFallback(
-      "instructor-training:journey-beat-attempts",
-      () =>
-        prisma.interactiveBeatAttempt.findMany({
-          where: { userId: instructorId },
-          select: {
-            beatId: true,
-            correct: true,
-            attemptNumber: true,
-            beat: {
-              select: { journeyId: true, scoringWeight: true },
-            },
-          },
-        }),
-      []
-    ),
-    withPrismaFallback(
-      "instructor-training:interview-gate",
-      () => loadInterviewGate(),
-      fallbackInterviewGate
-    ),
-    withPrismaFallback(
-      "instructor-training:readiness",
-      () => getInstructorReadiness(instructorId),
-      buildFallbackInstructorReadiness(instructorId)
-    ),
-    withPrismaFallback(
-      "instructor-training:certificate",
-      () =>
-        prisma.certificate.findFirst({
-          where: {
-            recipientId: instructorId,
-            template: { type: "TRAINING_COMPLETION" },
-          },
-          select: {
-            id: true,
-            certificateNumber: true,
-            issuedAt: true,
-          },
-        }),
-      null
-    ),
-  ]);
-
-  const assignmentByModule = new Map(assignments.map((assignment) => [assignment.moduleId, assignment]));
-  const videoByModule = new Map(videoProgress.map((progress) => [progress.moduleId, progress]));
-
-  const latestQuizByModule = new Map<string, (typeof quizAttempts)[number]>();
-  const passedQuizModuleIds = new Set<string>();
-  for (const attempt of quizAttempts) {
-    if (!latestQuizByModule.has(attempt.moduleId)) {
-      latestQuizByModule.set(attempt.moduleId, attempt);
-    }
-    if (attempt.passed) {
-      passedQuizModuleIds.add(attempt.moduleId);
-    }
-  }
-
-  // Journey progress lookups: keep only the latest correct attempt per beat,
-  // then group by journeyId so we can show "X of Y beats correct" on the card.
-  const journeyCompletionByJourneyId = new Map(
-    journeyCompletions.map((completion) => [completion.journeyId, completion])
-  );
-  const correctBeatsByJourneyId = new Map<string, Set<string>>();
-  for (const attempt of journeyBeatAttempts) {
-    if (!attempt.correct || attempt.beat.scoringWeight <= 0) continue;
-    const journeyId = attempt.beat.journeyId;
-    let beatSet = correctBeatsByJourneyId.get(journeyId);
-    if (!beatSet) {
-      beatSet = new Set<string>();
-      correctBeatsByJourneyId.set(journeyId, beatSet);
-    }
-    beatSet.add(attempt.beatId);
-  }
-
-  // Summer workshop instructors use Workshop Design Studio as their planning
-  // capstone at this stage, so keep the standard Lesson Design Studio module
-  // out of their training feed.
-  const visibleModules = isSummerWorkshopInstructor
-    ? modules.filter((m) => m.contentKey !== LESSON_DESIGN_STUDIO_MODULE_KEY)
-    : modules;
-
-  const moduleCards: ModuleCard[] = visibleModules.map((module) => {
-    const assignment = assignmentByModule.get(module.id);
-    const progress = videoByModule.get(module.id);
-    const latestQuiz = latestQuizByModule.get(module.id);
-
-    const journey = module.interactiveJourney;
-    const isInteractive = journey !== null;
-    const totalScoredBeats = journey?.beats.length ?? 0;
-    const correctBeats = journey
-      ? (correctBeatsByJourneyId.get(journey.id)?.size ?? 0)
-      : 0;
-    const journeyCompletion = journey
-      ? journeyCompletionByJourneyId.get(journey.id)
-      : undefined;
-
-    // Configuration issues — re-derive client-side using the central rules.
-    // INTERACTIVE_JOURNEY modules with a journey row are always actionable.
-    let configurationIssue: string | null = null;
-    if (module.requiresQuiz && module.quizQuestions.length === 0) {
-      configurationIssue = "Quiz is required but no quiz questions are configured for this module.";
-    } else if (
-      module.required &&
-      !isInteractive &&
-      !module.videoUrl &&
-      !module.requiresQuiz &&
-      !module.requiresEvidence
-    ) {
-      configurationIssue = "This required module has no actionable steps configured yet. Ask an admin to set it up.";
-    } else if (
-      module.required &&
-      module.videoUrl &&
-      module.videoProvider &&
-      !TRACKABLE_REQUIRED_VIDEO_PROVIDERS.has(module.videoProvider)
-    ) {
-      configurationIssue = "Required module video provider must be YOUTUBE, VIMEO, or CUSTOM so watch tracking can count.";
-    }
-
-    // Per-channel readiness gates.
-    const videoReady = !module.videoUrl || progress?.completed === true;
-    const quizReady =
-      !module.requiresQuiz ||
-      (module.quizQuestions.length > 0 && passedQuizModuleIds.has(module.id));
-    const journeyReady = !isInteractive || journeyCompletion?.passed === true;
-    const fullyComplete = !configurationIssue && videoReady && quizReady && journeyReady;
-
-    // Unified progress percentage: prefer journey beat-completion when the
-    // module is interactive (no videos in current curriculum), otherwise
-    // fall back to legacy video watch percentage.
-    let progressPct: number;
-    if (fullyComplete) {
-      progressPct = 100;
-    } else if (isInteractive) {
-      progressPct =
-        totalScoredBeats > 0
-          ? Math.min(99, Math.round((correctBeats / totalScoredBeats) * 100))
-          : 0;
-    } else {
-      const videoDuration = module.videoDuration ?? null;
-      progressPct =
-        videoDuration && videoDuration > 0
-          ? Math.min(99, Math.round(((progress?.watchedSeconds ?? 0) / videoDuration) * 100))
-          : (progress?.watchedSeconds ?? 0) > 0
-            ? 30
-            : 0;
-    }
-
-    const estimatedMinutes =
-      journey?.estimatedMinutes ?? module.estimatedMinutes ?? null;
-
-    return {
-      module,
-      assignment,
-      latestQuiz,
-      journeyProgress: {
-        isInteractive,
-        correctBeats,
-        totalBeats: totalScoredBeats,
-        scorePct: journeyCompletion?.scorePct ?? null,
-        passed: journeyCompletion?.passed === true,
-      },
-      videoReady,
-      quizReady,
-      fullyComplete,
-      progressPct,
-      configurationIssue,
-      estimatedMinutes,
-    };
-  });
-  const postedSlots = interviewGate.slots.filter((slot) => slot.status === "POSTED");
-  const confirmedSlot = interviewGate.slots.find((slot) => slot.status === "CONFIRMED");
-  const completedSlot = interviewGate.slots.find((slot) => slot.status === "COMPLETED");
-  const pendingAvailabilityRequests = interviewGate.availabilityRequests.filter(
-    (request) => request.status === "PENDING"
-  );
-
-  // Single source of truth for the LDS gate. `readiness.lessonDesignStudioGate`
-  // is computed inside `buildInstructorReadinessFromSnapshot` and shared with
-  // the server-side hard gate on the LDS route via `getLessonDesignStudioGateStatus`.
-  const ldsGate = readiness.lessonDesignStudioGate;
-  const readinessCheckPassed = ldsGate.unlocked;
-  const readinessCheckModuleId = ldsGate.unlocked
-    ? moduleCards.find((c) => c.module.contentKey === READINESS_CHECK_MODULE_KEY)
-        ?.module.id ?? null
-    : ldsGate.reason === "READINESS_CHECK_REQUIRED"
-      ? ldsGate.readinessCheckModuleId
-      : null;
-
-  const moduleWeight = readiness.requiredModulesCount;
-  const doneModuleWeight = readiness.academyModulesComplete
-    ? moduleWeight
-    : readiness.completedRequiredModules;
-  const totalTrainingWeight = moduleWeight + 1;
-  const doneTrainingWeight = doneModuleWeight + (readiness.studioCapstoneComplete ? 1 : 0);
-  const trainingPct =
-    totalTrainingWeight > 0
-      ? Math.round((doneTrainingWeight / totalTrainingWeight) * 100)
-      : 0;
-
-  // ---- Linear launchpad model: the five academy modules grouped into three
-  // milestone clusters, with the studio capstone as the final gated step.
-  // The list only routes into the existing journey player; it never renders it.
-  const academyCards = moduleCards.filter(
-    (c) => c.module.contentKey !== LESSON_DESIGN_STUDIO_MODULE_KEY
-  );
-  const ldsCard =
-    moduleCards.find((c) => c.module.contentKey === LESSON_DESIGN_STUDIO_MODULE_KEY) ?? null;
-  const firstIncompleteIdx = academyCards.findIndex((c) => !c.fullyComplete);
-
-  const toListModule = (
-    card: ModuleCard,
-    status: ListModuleStatus,
-    opts?: {
-      isCapstone?: boolean;
-      href?: string | null;
-      ctaLabel?: string | null;
-      lockReason?: string | null;
-    }
-  ): ListModule => {
-    const statusLabel = card.fullyComplete
-      ? "Complete"
-      : card.journeyProgress.isInteractive && card.journeyProgress.scorePct !== null
-        ? `Score ${card.journeyProgress.scorePct}%`
-        : null;
-    const defaultCta = card.fullyComplete
-      ? "Review"
-      : card.assignment?.status === "IN_PROGRESS"
-        ? "Continue"
-        : "Start module";
-    return {
-      id: card.module.id,
-      title: card.module.title,
-      description: card.module.description,
-      estimatedMinutes: card.estimatedMinutes,
-      status,
-      statusLabel,
-      statusDone: card.fullyComplete,
-      progressPct: card.progressPct,
-      progressDone: card.fullyComplete,
-      href: opts?.href !== undefined ? opts.href : `/training/${card.module.id}`,
-      ctaLabel: opts?.ctaLabel !== undefined ? opts.ctaLabel : defaultCta,
-      lockReason: opts?.lockReason ?? null,
-      configurationIssue: card.configurationIssue,
-      isCapstone: opts?.isCapstone ?? false,
-    };
-  };
-
-  const academyListModules: ListModule[] = academyCards.map((card, idx) => {
-    const status: ListModuleStatus = card.fullyComplete
-      ? "complete"
-      : idx === firstIncompleteIdx
-        ? "current"
-        : "upcoming";
-    return toListModule(card, status);
-  });
-
-  let capstoneModule: ListModule | null = null;
-  if (ldsCard) {
-    capstoneModule = readinessCheckPassed
-      ? toListModule(ldsCard, ldsCard.fullyComplete ? "complete" : "current", {
-          isCapstone: true,
-          href: "/instructor/lesson-design-studio?entry=training",
-          ctaLabel: "Open Studio",
-        })
-      : toListModule(ldsCard, "locked", {
-          isCapstone: true,
-          href: readinessCheckModuleId ? `/training/${readinessCheckModuleId}` : null,
-          ctaLabel: readinessCheckModuleId ? "Open Readiness Check" : null,
-          lockReason: "Complete the Readiness Check to unlock the Lesson Design Studio.",
-        });
-  }
-
-  const clusterDefs: {
-    id: string;
-    label: string;
-    subtitle: string;
-    take: (i: number) => boolean;
-  }[] = [
-    {
-      id: "standard",
-      label: "The Standard",
-      subtitle: "The YPP standard every session is measured against.",
-      take: (i) => i === 0,
-    },
-    {
-      id: "sessions",
-      label: "Running Sessions",
-      subtitle: "Plan and run sessions students keep coming back to.",
-      take: (i) => i === 1 || i === 2,
-    },
-    {
-      id: "professional",
-      label: "Professional & Ready",
-      subtitle: "Communicate reliably, prove you're ready, then design your first lessons.",
-      take: (i) => i >= 3,
-    },
-  ];
-
-  const clusters: ModuleCluster[] = clusterDefs.map((def, ci) => {
-    const mods = academyListModules.filter((_, i) => def.take(i));
-    if (def.id === "professional" && capstoneModule) mods.push(capstoneModule);
-    return {
-      id: def.id,
-      index: ci + 1,
-      kicker: `Milestone ${ci + 1}`,
-      title: def.label,
-      subtitle: def.subtitle,
-      complete: mods.length > 0 && mods.every((m) => m.status === "complete"),
-      modules: mods,
-    };
-  });
-
-  const milestones = clusters.map((c) => ({
-    id: c.id,
-    label: c.title,
-    kicker: c.kicker,
-    complete: c.complete,
+  const milestones = model.phases.map((p) => ({
+    id: p.id,
+    label: p.title,
+    kicker: p.kicker,
+    complete: p.state === "complete",
   }));
-  const firstOpenCluster = clusters.findIndex((c) => !c.complete);
-  const activeMilestoneIndex =
-    firstOpenCluster === -1 ? clusters.length - 1 : firstOpenCluster;
-  const allListModules = [
-    ...academyListModules,
-    ...(capstoneModule ? [capstoneModule] : []),
-  ];
-  const currentOpenId =
-    allListModules.find((m) => m.status === "current")?.id ?? null;
 
   // `?from=<moduleId>` is set by the journey route's back link, so returning
-  // from a module opens that step and animates its check in.
+  // from a module opens that step, animates its check in, and (if it finished a
+  // phase) fires the phase-complete celebration.
   const fromRaw = sp.from;
   const fromId = Array.isArray(fromRaw) ? fromRaw[0] : fromRaw;
-  const justCompletedId =
-    fromId && allListModules.some((m) => m.id === fromId) ? fromId : null;
+  const allModuleIds = new Set(model.phases.flatMap((p) => p.modules.map((m) => m.id)));
+  const justCompletedId = fromId && allModuleIds.has(fromId) ? fromId : null;
 
-  return (
-    <TrainingAcademyShell
-      milestones={milestones}
-      activeIndex={activeMilestoneIndex}
-      progressPercent={trainingPct}
-      eyebrow="Instructor Pathway · Step 1"
-      title="Instructor Training Academy"
-      railFooter={
-        <div style={{ display: "grid", gap: 10 }}>
-          <Link
-            href="/instructor/workspace?tab=my-pathway"
-            className="link"
-            style={{ fontSize: 13 }}
-          >
-            ← Back to My Pathway
-          </Link>
-          <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
-            Training is the same launchpad, one phase on. Clear all three milestones to
-            unlock your curriculum review.
-          </p>
-        </div>
-      }
-    >
-      <div>
-        <div style={{ marginBottom: 16 }}>
-          <p className="page-subtitle">Work through every required module — short interactive journeys with practice, feedback, and a readiness check — to unlock your curriculum review and offering approval.</p>
-          <p className="page-subtitle" style={{ marginTop: 4, fontWeight: 600 }}>5 short modules · about 35 minutes</p>
-        </div>
-
-      {isSummerWorkshopInstructor && (
-        <div
-          className="card"
-          role="status"
-          style={{
-            marginBottom: 16,
-            borderColor: "#a78bfa",
-            background: "#f5f3ff",
-          }}
-        >
+  const banners = (
+    <>
+      {isSummerWorkshop && (
+        <div className="card" role="status" style={{ borderColor: "#a78bfa", background: "#f5f3ff" }}>
           <p style={{ margin: 0, fontSize: 13, color: "#5b21b6", lineHeight: 1.55 }}>
-            <strong>Summer Workshop Instructor track.</strong>{" "}
-            Complete required training, then propose the focused workshop you&rsquo;ll
-            lead in the{" "}
+            <strong>Summer Workshop Instructor track.</strong> Complete required training, then
+            propose the focused workshop you&rsquo;ll lead in the{" "}
             <Link href="/instructor/workshop-design-studio" className="link">
               Workshop Design Studio
             </Link>
-            . Design your own workshop or pick one from the approved library — both
-            submit into the same review queue. Strong workshop instructors may quickly
-            be considered for full instructor responsibilities and instructor
-            mentorship; the Lesson Design Studio capstone becomes a follow-up if and
-            when that happens.
+            . Strong workshop instructors may be considered for full instructor responsibilities;
+            the Lesson Design Studio capstone becomes a follow-up if and when that happens.
           </p>
         </div>
       )}
 
       {wasPromotedFromSummerWorkshop ? (
-        <div
-          className="card"
-          role="status"
-          style={{
-            marginBottom: 16,
-            borderColor: "#16a34a",
-            background: "#f0fdf4",
-          }}
-        >
+        <div className="card" role="status" style={{ borderColor: "#16a34a", background: "#f0fdf4" }}>
           <p style={{ margin: 0, fontSize: 14, color: "#14532d", lineHeight: 1.55 }}>
-            <strong>Promoted to full Instructor.</strong>{" "}
-            Your existing workshop submission is preserved and reviewers can
-            still see it. The next step on the standard track is the{" "}
-            <Link
-              href="/instructor/lesson-design-studio?entry=training"
-              className="link"
-            >
+            <strong>Promoted to full Instructor.</strong> Your existing workshop submission is
+            preserved. The next step on the standard track is the{" "}
+            <Link href="/instructor/lesson-design-studio?entry=training" className="link">
               Lesson Design Studio capstone
             </Link>
             {" — "}finish that to clear training and unlock offering approval.
@@ -655,26 +83,14 @@ export default async function InstructorTrainingPage({
         </div>
       ) : null}
 
-      {showLdsLockedBanner && !readinessCheckPassed && !isSummerWorkshopInstructor ? (
-        <div
-          className="card"
-          role="status"
-          style={{
-            marginBottom: 16,
-            borderColor: "#f59e0b",
-            background: "#fffbeb",
-          }}
-        >
+      {showLdsLockedBanner && !readinessCheckPassed && !isSummerWorkshop ? (
+        <div className="card" role="status" style={{ borderColor: "#f59e0b", background: "#fffbeb" }}>
           <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
-            <strong>Lesson Design Studio is locked.</strong>{" "}
-            Complete the Readiness Check first
+            <strong>Lesson Design Studio is locked.</strong> Complete the Readiness Check first
             {readinessCheckModuleId ? (
               <>
                 {" — "}
-                <Link
-                  href={`/training/${readinessCheckModuleId}`}
-                  className="link"
-                >
+                <Link href={`/training/${readinessCheckModuleId}`} className="link">
                   open it now
                 </Link>
                 .
@@ -686,26 +102,14 @@ export default async function InstructorTrainingPage({
         </div>
       ) : null}
 
-      {showWorkshopLockedBanner && !readinessCheckPassed && isSummerWorkshopInstructor ? (
-        <div
-          className="card"
-          role="status"
-          style={{
-            marginBottom: 16,
-            borderColor: "#f59e0b",
-            background: "#fffbeb",
-          }}
-        >
+      {showWorkshopLockedBanner && !readinessCheckPassed && isSummerWorkshop ? (
+        <div className="card" role="status" style={{ borderColor: "#f59e0b", background: "#fffbeb" }}>
           <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
-            <strong>Workshop Design Studio is locked.</strong>{" "}
-            Complete the Readiness Check first
+            <strong>Workshop Design Studio is locked.</strong> Complete the Readiness Check first
             {readinessCheckModuleId ? (
               <>
                 {" — "}
-                <Link
-                  href={`/training/${readinessCheckModuleId}`}
-                  className="link"
-                >
+                <Link href={`/training/${readinessCheckModuleId}`} className="link">
                   open it now
                 </Link>
                 .
@@ -718,266 +122,36 @@ export default async function InstructorTrainingPage({
       ) : null}
 
       {showWorkshopClosedBanner ? (
-        <div
-          className="card"
-          role="status"
-          style={{
-            marginBottom: 16,
-            borderColor: "#f59e0b",
-            background: "#fffbeb",
-          }}
-        >
+        <div className="card" role="status" style={{ borderColor: "#f59e0b", background: "#fffbeb" }}>
           <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
-            <strong>Workshop Design Studio is closed.</strong>{" "}
-            The design window is not currently open. We&apos;ll let you know
-            when the studio reopens for the next workshop cycle.
+            <strong>Workshop Design Studio is closed.</strong> The design window is not currently
+            open. We&apos;ll let you know when the studio reopens for the next workshop cycle.
           </p>
         </div>
       ) : null}
+    </>
+  );
 
-      {/* Roadmap progress bar */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>Training Progress</div>
-            <div style={{ marginTop: 4, color: "var(--text-secondary)", fontSize: 13 }}>
-              {readiness.completedRequiredModules} of {readiness.requiredModulesCount} modules complete
-            </div>
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: readiness.trainingComplete ? "#16a34a" : "var(--ypp-purple)" }}>
-            {trainingPct}%
-          </div>
-        </div>
-        <div style={{ marginTop: 10, height: 10, background: "var(--gray-200)", borderRadius: 6, overflow: "hidden" }}>
-          <div style={{ width: `${trainingPct}%`, height: "100%", background: readiness.trainingComplete ? "#16a34a" : "var(--ypp-purple)", borderRadius: 6 }} />
-        </div>
-        {readiness.trainingComplete && (
-          <div style={{ marginTop: 10, fontSize: 13, color: "#16a34a", fontWeight: 600 }}>
-            Training complete — proceed to Step 2: Pass the Curriculum Review
-          </div>
-        )}
-      </div>
-
-      <div className="grid three" style={{ marginBottom: 20 }}>
-        <div className="card">
-          <div className="kpi">{readiness.completedRequiredModules}/{readiness.requiredModulesCount}</div>
-          <div className="kpi-label">Required Modules Complete</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{readiness.interviewStatus.replace(/_/g, " ")}</div>
-          <div className="kpi-label">Curriculum Review</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{readiness.nextAction.title}</div>
-          <div className="kpi-label">Next Required Action</div>
-          <p style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>{readiness.nextAction.detail}</p>
-        </div>
-      </div>
-
-      {isSummerWorkshopInstructor ? (
-        <div
-          className="card"
-          style={{
-            marginBottom: 20,
-            borderColor: readinessCheckPassed ? "#16a34a" : "var(--border)",
-            background: readinessCheckPassed ? "#f0fdf4" : "var(--surface)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "start",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <h3 style={{ marginBottom: 6 }}>Workshop Submission</h3>
-              <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
-                {readinessCheckPassed
-                  ? "Training complete. Design or pick a workshop in the Workshop Design Studio and submit it for review."
-                  : "Unlocks once you finish the Readiness Check. Then design your own workshop or pick one from the approved library."}
-              </p>
-            </div>
-            {readinessCheckPassed ? (
-              <Link
-                href="/instructor/workshop-design-studio"
-                className="button small"
-                style={{ textDecoration: "none", whiteSpace: "nowrap" }}
-              >
-                Open Workshop Studio
-              </Link>
-            ) : (
-              <button
-                type="button"
-                className="button small"
-                disabled
-                aria-disabled="true"
-                style={{ cursor: "not-allowed", whiteSpace: "nowrap" }}
-                title="Complete the Readiness Check to unlock the Workshop Design Studio."
-              >
-                Locked
-              </button>
-            )}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
-          <div>
-            <h3 style={{ marginBottom: 6 }}>Curriculum Review</h3>
-            <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 14 }}>
-              Status: <strong>{interviewGate.status.replace(/_/g, " ")}</strong>
-              {interviewGate.outcome ? ` · Outcome: ${interviewGate.outcome}` : ""}
-              {interviewGate.scheduledAt ? ` · Scheduled: ${formatDateTime(interviewGate.scheduledAt)}` : ""}
-            </p>
-          </div>
-          {isReviewer ? (
-            <a href={reviewerHref} className="button small outline" style={{ textDecoration: "none" }}>
-              Reviewer view
-            </a>
-          ) : null}
-        </div>
-
-        {confirmedSlot ? (
-          <div className="card" style={{ marginTop: 12 }}>
-            <strong>Confirmed Curriculum Review</strong>
-            <p style={{ marginBottom: 0, marginTop: 6 }}>
-              {formatDateTime(confirmedSlot.scheduledAt)} ({confirmedSlot.duration} min)
-            </p>
-            {confirmedSlot.meetingLink ? (
-              <p style={{ marginTop: 8, marginBottom: 0 }}>
-                <a href={confirmedSlot.meetingLink} target="_blank" rel="noreferrer" className="link">
-                  Join meeting link
-                </a>
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
-        {completedSlot ? (
-          <p style={{ marginTop: 12, marginBottom: 0, fontSize: 13, color: "var(--muted)" }}>
-            Most recent completed review: {formatDateTime(completedSlot.completedAt)}
+  return (
+    <TrainingAcademyShell
+      milestones={milestones}
+      activeIndex={model.activePhaseIndex}
+      progressPercent={model.progress.pct}
+      eyebrow="Instructor Launchpad · Training"
+      title="Your Training Journey"
+      railFooter={
+        <div style={{ display: "grid", gap: 10 }}>
+          <Link href="/instructor-onboarding" className="link" style={{ fontSize: 13 }}>
+            ← Back to your launchpad
+          </Link>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
+            Training is your launchpad, one phase on. Clear all three phases to unlock your
+            curriculum review and start teaching.
           </p>
-        ) : null}
-
-        <div style={{ marginTop: 16 }}>
-          <h4 style={{ marginBottom: 8 }}>Posted Review Slots</h4>
-          {postedSlots.length === 0 ? (
-            <p style={{ color: "var(--muted)", marginTop: 0, fontSize: 14 }}>
-              No posted slots right now. Request preferred times below — your chapter lead will post matching slots when available.
-            </p>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {postedSlots.map((slot) => (
-                <div key={slot.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
-                  <p style={{ margin: 0, fontWeight: 600 }}>{formatDateTime(slot.scheduledAt)}</p>
-                  <p style={{ margin: "6px 0 10px", fontSize: 13, color: "var(--muted)" }}>
-                    {slot.duration} minutes{slot.notes ? ` · ${slot.notes}` : ""}
-                  </p>
-                  <form action={confirmPostedInterviewSlot}>
-                    <input type="hidden" name="slotId" value={slot.id} />
-                    <button type="submit" className="button small">Confirm this slot</button>
-                  </form>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
-
-        <div style={{ marginTop: 18 }}>
-          <h4 style={{ marginBottom: 8 }}>Request Preferred Times</h4>
-          <div className="card" style={{ background: "var(--surface-alt)", padding: 16 }}>
-            <p style={{ marginTop: 0, fontSize: 13, color: "var(--muted)" }}>
-              Use the shared review scheduler to request times, confirm slots, and keep your reminder emails in one place.
-            </p>
-            <Link href="/interviews/schedule" className="button small" style={{ textDecoration: "none" }}>
-              Open Review Scheduler
-            </Link>
-          </div>
-
-          {pendingAvailabilityRequests.length > 0 ? (
-            <div style={{ marginTop: 12 }}>
-              <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8 }}>Pending requests</p>
-              <div style={{ display: "grid", gap: 8 }}>
-                {pendingAvailabilityRequests.map((request) => (
-                  <form key={request.id} action={cancelInterviewAvailabilityRequest}>
-                    <input type="hidden" name="requestId" value={request.id} />
-                    <button type="submit" className="button small outline">Cancel request from {formatDateTime(request.createdAt)}</button>
-                  </form>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 8 }}>Offering Approval</h3>
-        <p style={{ marginTop: 0, fontSize: 14, color: "var(--muted)" }}>
-          Each offering now needs approval before it can publish. Training and your curriculum review clear your readiness. Class settings is where you request approval.
-        </p>
-        <div
-          style={{
-            border: "1px solid #bfdbfe",
-            background: "#eff6ff",
-            borderRadius: 10,
-            padding: 12,
-          }}
-        >
-          <p style={{ margin: "0 0 8px", fontWeight: 600 }}>
-            {readiness.canRequestOfferingApproval
-              ? "You are ready to request offering approval."
-              : "Finish readiness requirements before requesting offering approval."}
-          </p>
-          <p style={{ margin: 0, fontSize: 13, color: "#1d4ed8" }}>
-            {readiness.nextAction.detail}
-          </p>
-          <div style={{ marginTop: 12 }}>
-            <Link href="/instructor/class-settings" className="button small" style={{ textDecoration: "none" }}>
-              Open Class Settings
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {trainingCertificate ? (
-        <div className="card" style={{ marginBottom: 20, borderColor: "var(--success, #16a34a)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12 }}>
-            <div>
-              <h3 style={{ marginBottom: 4 }}>Training Certificate Earned</h3>
-              <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
-                Issued {new Date(trainingCertificate.issuedAt).toLocaleDateString()} ·
-                Certificate #{trainingCertificate.certificateNumber}
-              </p>
-            </div>
-            <Link
-              href="/certificates"
-              className="button small"
-              style={{ textDecoration: "none", whiteSpace: "nowrap" }}
-            >
-              View Certificate
-            </Link>
-          </div>
-        </div>
-      ) : null}
-
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ marginBottom: 4 }}>Academy Modules</h3>
-          <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 14 }}>
-            Each module is a short interactive journey: read, practice, get feedback, then pass a check. Follow the path top to bottom — finish a milestone to light up the next.
-          </p>
-          <div style={{ marginTop: 16 }}>
-            <TrainingModuleList
-              clusters={clusters}
-              initialOpenId={justCompletedId ?? currentOpenId}
-              justCompletedId={justCompletedId}
-            />
-          </div>
-        </div>
-      </div>
+      }
+    >
+      <TrainingHome model={model} justCompletedId={justCompletedId} bannersSlot={banners} />
     </TrainingAcademyShell>
   );
 }
