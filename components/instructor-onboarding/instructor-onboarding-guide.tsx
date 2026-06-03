@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import styles from "./instructor-onboarding-guide.module.css";
 import OnboardingStepper, { type OnboardingStep } from "./onboarding-stepper";
-import PortalWalkthrough from "./portal-walkthrough";
+import StaticPortalMap from "./static-portal-map";
 import InstructorProfileForm, {
   type InstructorProfileFormData,
 } from "@/components/onboarding/instructor-profile-form";
@@ -174,6 +174,11 @@ function WelcomeStep() {
       <p className={styles.note}>
         You will receive a mentor who is a Senior or Lead Instructor with past experience at YPP. They will hold a kickoff meeting with you to go over all the aspects of the Instructor role and our expectations.
       </p>
+
+      <div className={styles.divider} />
+
+      <h3 className={styles.sectionHeading}>The lay of the land</h3>
+      <StaticPortalMap />
     </div>
   );
 }
@@ -220,15 +225,40 @@ function TrainingStep() {
   );
 }
 
-/** Step 4 — portal tour placeholder (reuses the guided walkthrough). */
+/** Step 4 — Phase-4 launch into the real, interactive dashboard tour. */
 function TourStep() {
   return (
     <div className={styles.body}>
-      <h2 className={styles.stepTitle}>Portal Walkthrough</h2>
+      <h2 className={styles.stepTitle}>Your guided portal tour</h2>
       <p>
-        You are seeing this in our portal. Here is what you will see after onboarding — the core areas you&apos;ll use every week.
+        You&apos;re cleared to use the portal. When you finish, we&apos;ll drop you on your
+        real dashboard and walk you through it live — spotlighting each area right
+        where you&apos;ll use it. No mockups.
       </p>
-      <PortalWalkthrough portalItems={portalItems} />
+      <div className={styles.tourLaunch}>
+        <p className={styles.note} style={{ border: "none", background: "transparent", padding: 0 }}>
+          The tour stops, in order:
+        </p>
+        <ol className={styles.tourLaunchList}>
+          {portalItems.map((item, index) => {
+            const [title, ...rest] = item.split(" — ");
+            return (
+              <li key={item}>
+                <span aria-hidden>{index + 1}</span>
+                <span>
+                  <strong>{title}</strong>
+                  {rest.length ? ` — ${rest.join(" — ")}` : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+      <p className={styles.note}>
+        Hit <strong>Finish &amp; go to portal</strong> below and the walkthrough starts
+        automatically on your live dashboard. You can replay it anytime by adding
+        <code> ?tour=1</code> to your dashboard URL.
+      </p>
     </div>
   );
 }
@@ -348,7 +378,8 @@ export default function InstructorLaunchpad({
     void (async () => {
       await completeJourneyStep("tour");
       await completeInstructorJourney();
-      router.push("/");
+      // Land on the real dashboard with the interactive Phase-4 tour armed.
+      router.push("/?tour=1");
       router.refresh();
     })();
   }, [markComplete, router]);

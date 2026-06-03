@@ -144,6 +144,13 @@
   --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 
+  /* Launchpad signature easing — the single curve shared by onboarding and
+     training motion (step-in, list expand, stepper fill, spotlight, hero
+     transitions) so the two surfaces move identically. Already used literally
+     by journey.css (xp-toast, feedback-in) and the onboarding stepIn/calloutIn
+     keyframes; tokenized here so there is exactly one source of truth. */
+  --ease-launchpad: cubic-bezier(0.22, 1, 0.36, 1);
+
   /* Sidebar */
   --sidebar-width: 280px;
   --sidebar-collapsed-width: 0px;

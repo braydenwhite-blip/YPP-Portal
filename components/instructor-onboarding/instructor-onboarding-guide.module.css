@@ -204,7 +204,17 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--ypp-purple-500), var(--ypp-purple-700));
-  transition: width var(--transition-slow);
+  /* Width changes (a client-side advance) tween; a fresh mount (navigating
+     back into the launchpad after finishing a module) grows the fill in from
+     the left. Both confirm forward progress on every advance. */
+  transform-origin: left center;
+  transition: width 300ms var(--ease-launchpad);
+  animation: railFillGrow 520ms var(--ease-launchpad) both;
+}
+
+@keyframes railFillGrow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 /* --------------- Persistent Help & community panel --------------- */
@@ -374,7 +384,7 @@
 }
 
 .animateIn {
-  animation: stepIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: stepIn 420ms var(--ease-launchpad) both;
 }
 
 @keyframes stepIn {
@@ -548,16 +558,80 @@
   background: var(--ypp-pink-50);
 }
 
-/* ---------- Portal walkthrough (guided tour) ---------- */
+/* ---------- Static "lay of the land" portal map (Phase 1) ---------- */
 
-.tour {
+.mapWrap {
   display: grid;
-  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
+  gap: 14px;
 }
 
-.tourRail {
+.mapCaption {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mapArea {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--ypp-purple-300);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #fff, var(--ypp-purple-50));
+}
+
+.mapNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background: var(--ypp-purple-100);
+  color: var(--ypp-purple-700);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.mapAreaTitle {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ypp-purple-800);
+}
+
+.mapAreaDesc {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* ---------- Phase-4 tour launch note (real dashboard tour) ---------- */
+
+.tourLaunch {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid var(--ypp-purple-200);
+  border-radius: var(--radius-lg);
+  background: var(--ypp-purple-50);
+}
+
+.tourLaunchList {
   display: grid;
   gap: 8px;
   margin: 0;
@@ -565,271 +639,27 @@
   list-style: none;
 }
 
-.tourStop {
+.tourLaunchList li {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
   align-items: start;
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color var(--transition-base), background var(--transition-base);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
 }
 
-.tourStop:hover {
-  border-color: var(--ypp-purple-200);
-  background: var(--ypp-purple-50);
-}
-
-.tourStop:focus-visible {
-  outline: 2px solid var(--ypp-purple-500);
-  outline-offset: 2px;
-}
-
-.tourStop.tourActive {
-  border-color: var(--ypp-purple-300);
-  background: var(--ypp-purple-50);
-  box-shadow: var(--shadow-xs);
-}
-
-.tourNum {
+.tourLaunchList li span:first-child {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
   border-radius: var(--radius-full);
   background: var(--ypp-purple-100);
   color: var(--ypp-purple-700);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.tourActive .tourNum {
-  background: linear-gradient(135deg, var(--nav-purple-700), var(--ypp-mid));
-  color: #fff;
-}
-
-.tourStopText {
-  min-width: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-.tourStopText strong {
-  display: block;
-  color: var(--text);
-  font-weight: 700;
-}
-
-.tourPreview {
-  display: grid;
-  gap: 14px;
-}
-
-/* polished portal mock frame */
-.frame {
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.frameBar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--ypp-purple-800);
-}
-
-.frameDots {
-  display: inline-flex;
-  gap: 5px;
-}
-
-.frameDots span {
-  width: 9px;
-  height: 9px;
-  border-radius: var(--radius-full);
-  background: var(--ypp-purple-200);
-}
-
-.frameUrl {
-  margin-left: auto;
-  padding: 2px 10px;
-  border-radius: var(--radius-full);
-  background: var(--ypp-purple-50);
-  color: var(--ypp-purple-600);
-  font-size: 11.5px;
-  font-weight: 600;
-}
-
-.frameCanvas {
-  position: relative;
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 14px;
-  min-height: 250px;
-  padding: 16px;
-  background: linear-gradient(135deg, var(--canvas-lavender), #f0fdfa);
-}
-
-.mockSidebar {
-  display: grid;
-  align-content: start;
-  gap: 9px;
-  padding: 12px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.7);
-}
-
-.mockSidebar span {
-  height: 20px;
-  border-radius: var(--radius-xs);
-  background: var(--ypp-purple-100);
-}
-
-.mockSidebar span.mockActive {
-  background: var(--ypp-purple-300);
-}
-
-.mockMain {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.85);
-}
-
-.mockTopline {
-  height: 20px;
-  width: 44%;
-  border-radius: var(--radius-xs);
-  background: var(--ypp-purple-200);
-}
-
-.mockHero {
-  height: 46px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--ypp-purple-100), var(--ypp-pink-100));
-}
-
-.mockTiles {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.mockTiles span {
-  min-height: 48px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: #fff;
-}
-
-.mockWide {
-  height: 52px;
-  border-radius: var(--radius-sm);
-  background: var(--ypp-pink-50);
-  border: 1px solid var(--ypp-pink-100);
-}
-
-.callout {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  max-width: 170px;
-  padding: 6px 11px 6px 6px;
-  border: 1px solid var(--ypp-purple-200);
-  border-radius: var(--radius-full);
-  background: #fff;
-  box-shadow: var(--shadow-md);
-  color: var(--ypp-purple-800);
   font-size: 12px;
   font-weight: 700;
-  white-space: nowrap;
-  transform: translate(-10px, -50%);
-  animation: calloutIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.calloutNum {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--radius-full);
-  background: var(--ypp-pink-500);
-  color: #fff;
-  font-size: 11px;
-}
-
-@keyframes calloutIn {
-  from { opacity: 0; transform: translate(-10px, -50%) scale(0.85); }
-  to { opacity: 1; transform: translate(-10px, -50%) scale(1); }
-}
-
-.tourCaption {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--ypp-purple-50);
-}
-
-.tourCaption p {
-  margin: 0;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.portalItems {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.portalItem {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-@media (max-width: 920px) {
-  .tour {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ---------- Step footer navigation ---------- */
@@ -871,7 +701,9 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--ypp-purple-500), var(--ypp-purple-700));
-  transition: width var(--transition-slow);
+  transform-origin: left center;
+  transition: width 300ms var(--ease-launchpad);
+  animation: railFillGrow 520ms var(--ease-launchpad) both;
 }
 
 .mobileHelp {
@@ -949,15 +781,17 @@
     animation: none;
   }
 
-  .callout {
-    animation: none;
-  }
-
   .railProgressFill,
   .mobileProgressFill,
   .stepDot,
   .stepBtn {
     transition: none !important;
+  }
+
+  .railProgressFill,
+  .mobileProgressFill {
+    animation: none;
+    transform: none;
   }
   }
 }

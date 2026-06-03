@@ -1,0 +1,158 @@
+/* ============================================================
+   GUIDED TOUR — spotlight + coachmark overlay.
+   Dims the whole viewport except a single highlighted region of
+   the REAL page, and anchors a tooltip ("coachmark") to it. Reuses
+   the portal motion vocabulary: --transition-* tokens and the house
+   cubic-bezier(0.22, 1, 0.36, 1) easing.
+   ============================================================ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+/* transparent click-catcher so the page underneath can't be interacted with */
+.catcher {
+  position: absolute;
+  inset: 0;
+  cursor: default;
+}
+
+/* the spotlight cutout — a transparent box with a massive shadow spread
+   that dims everything around it */
+.spotlight {
+  position: fixed;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 0 0 9999px rgba(15, 23, 42, 0.62),
+    0 8px 30px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+  transition:
+    top 300ms var(--ease-launchpad),
+    left 300ms var(--ease-launchpad),
+    width 300ms var(--ease-launchpad),
+    height 300ms var(--ease-launchpad);
+}
+
+/* full-viewport dim used when a target can't be located */
+.dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.62);
+  pointer-events: none;
+}
+
+.coachmark {
+  position: fixed;
+  width: min(330px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg, 0 20px 50px rgba(15, 23, 42, 0.28));
+  pointer-events: auto;
+  animation: coachmarkIn 320ms var(--ease-launchpad) both;
+}
+
+@keyframes coachmarkIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ypp-purple-600);
+}
+
+.dots {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--ypp-purple-200);
+  transition: background 200ms var(--ease-launchpad);
+}
+
+.dotActive {
+  background: var(--ypp-purple-600);
+}
+
+.title {
+  margin: 8px 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ypp-purple-800);
+}
+
+.body {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.skip {
+  border: none;
+  background: none;
+  padding: 6px 2px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.skip:hover {
+  color: var(--text);
+}
+
+.navButtons {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.coachmark :global(.btn):focus-visible,
+.skip:focus-visible {
+  outline: 2px solid var(--ypp-purple-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spotlight {
+    transition: none;
+  }
+
+  .coachmark {
+    animation: none;
+  }
+
+  .dot {
+    transition: none;
+  }
+}
