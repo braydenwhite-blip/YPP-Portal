@@ -116,9 +116,18 @@
   text-align: left;
   cursor: pointer;
   transition:
-    border-color var(--transition-base),
-    background var(--transition-base),
-    box-shadow var(--transition-base);
+    border-color 200ms var(--ease-launchpad),
+    background 200ms var(--ease-launchpad),
+    box-shadow 200ms var(--ease-launchpad),
+    transform 220ms var(--ease-launchpad);
+}
+
+/* forward "hero" lift — the card rises toward the journey player on launch */
+.rowLaunching .row,
+.row.rowLaunching {
+  transform: translateY(-4px) scale(1.015);
+  border-color: var(--ypp-purple-300);
+  box-shadow: 0 14px 36px rgba(107, 33, 200, 0.22);
 }
 
 .row:hover:not(:disabled) {
@@ -166,7 +175,7 @@
   color: var(--muted);
   font-size: 14px;
   font-weight: 700;
-  transition: all var(--transition-base);
+  transition: all 200ms var(--ease-launchpad);
 }
 
 .isCurrent .marker {
@@ -181,17 +190,32 @@
   background: var(--ypp-purple-600);
   color: #fff;
   /* completion pop — runs once when the row mounts in the complete state */
-  animation: trainingCheckPop 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: trainingCheckPop 460ms var(--ease-launchpad) both;
 }
 
 .isLocked .marker {
   background: var(--gray-100, #f3f4f6);
 }
 
+/* return transition — the step the instructor just finished gets a one-time
+   ring pulse as it lands "checked" back on the launchpad. Specificity is
+   raised (.marker.markerJustChecked) so it wins over the blanket
+   `.isComplete .marker` pop. */
+.marker.markerJustChecked {
+  animation:
+    trainingCheckPop 460ms var(--ease-launchpad) both,
+    trainingCheckRing 900ms var(--ease-launchpad) both;
+}
+
 @keyframes trainingCheckPop {
   0% { transform: scale(0.6); opacity: 0; }
   60% { transform: scale(1.12); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes trainingCheckRing {
+  0% { box-shadow: 0 0 0 0 rgba(107, 33, 200, 0.45); }
+  100% { box-shadow: 0 0 0 12px rgba(107, 33, 200, 0); }
 }
 
 /* ---- row title block ---- */
@@ -252,7 +276,7 @@
 }
 
 .chevron {
-  transition: transform var(--transition-base);
+  transition: transform 200ms var(--ease-launchpad);
   color: var(--ypp-purple-500);
 }
 
@@ -266,7 +290,7 @@
   overflow: hidden;
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--transition-slow);
+  transition: grid-template-rows 300ms var(--ease-launchpad);
 }
 
 .bodyOpen {
@@ -310,7 +334,7 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--ypp-purple-500), var(--ypp-purple-700));
-  transition: width var(--transition-slow);
+  transition: width 300ms var(--ease-launchpad);
 }
 
 .progressFill.isDone {
@@ -370,7 +394,13 @@
     transition: none !important;
   }
 
-  .isComplete .marker {
+  .rowLaunching .row,
+  .row.rowLaunching {
+    transform: none;
+  }
+
+  .isComplete .marker,
+  .markerJustChecked {
     animation: none;
   }
 

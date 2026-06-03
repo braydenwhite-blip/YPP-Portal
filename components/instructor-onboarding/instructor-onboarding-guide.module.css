@@ -204,7 +204,17 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--ypp-purple-500), var(--ypp-purple-700));
-  transition: width var(--transition-slow);
+  /* Width changes (a client-side advance) tween; a fresh mount (navigating
+     back into the launchpad after finishing a module) grows the fill in from
+     the left. Both confirm forward progress on every advance. */
+  transform-origin: left center;
+  transition: width 300ms var(--ease-launchpad);
+  animation: railFillGrow 520ms var(--ease-launchpad) both;
+}
+
+@keyframes railFillGrow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 /* --------------- Persistent Help & community panel --------------- */
@@ -374,7 +384,7 @@
 }
 
 .animateIn {
-  animation: stepIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: stepIn 420ms var(--ease-launchpad) both;
 }
 
 @keyframes stepIn {
@@ -691,7 +701,9 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--ypp-purple-500), var(--ypp-purple-700));
-  transition: width var(--transition-slow);
+  transform-origin: left center;
+  transition: width 300ms var(--ease-launchpad);
+  animation: railFillGrow 520ms var(--ease-launchpad) both;
 }
 
 .mobileHelp {
@@ -773,5 +785,11 @@
   .stepDot,
   .stepBtn {
     transition: none !important;
+  }
+
+  .railProgressFill,
+  .mobileProgressFill {
+    animation: none;
+    transform: none;
   }
 }

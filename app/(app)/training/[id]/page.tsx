@@ -104,7 +104,9 @@ export default async function TrainingModulePage({
 
   if (moduleTypePeek?.type === "INTERACTIVE_JOURNEY") {
     // Determine back-link for this user (same as legacy path below).
-    const academyHref = isStudentOnly ? "/student-training" : "/instructor-training";
+    const academyHref = isStudentOnly
+      ? "/student-training"
+      : `/instructor-training?from=${id}`;
     const academyLabel = isStudentOnly ? "Back to student academy" : "Back to academy";
 
     if (!isInteractiveJourneyEnabled()) {

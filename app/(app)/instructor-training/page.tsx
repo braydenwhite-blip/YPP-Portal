@@ -561,10 +561,19 @@ export default async function InstructorTrainingPage({
   const firstOpenCluster = clusters.findIndex((c) => !c.complete);
   const activeMilestoneIndex =
     firstOpenCluster === -1 ? clusters.length - 1 : firstOpenCluster;
+  const allListModules = [
+    ...academyListModules,
+    ...(capstoneModule ? [capstoneModule] : []),
+  ];
   const currentOpenId =
-    [...academyListModules, ...(capstoneModule ? [capstoneModule] : [])].find(
-      (m) => m.status === "current"
-    )?.id ?? null;
+    allListModules.find((m) => m.status === "current")?.id ?? null;
+
+  // `?from=<moduleId>` is set by the journey route's back link, so returning
+  // from a module opens that step and animates its check in.
+  const fromRaw = sp.from;
+  const fromId = Array.isArray(fromRaw) ? fromRaw[0] : fromRaw;
+  const justCompletedId =
+    fromId && allListModules.some((m) => m.id === fromId) ? fromId : null;
 
   return (
     <TrainingAcademyShell
@@ -961,7 +970,11 @@ export default async function InstructorTrainingPage({
             Each module is a short interactive journey: read, practice, get feedback, then pass a check. Follow the path top to bottom — finish a milestone to light up the next.
           </p>
           <div style={{ marginTop: 16 }}>
-            <TrainingModuleList clusters={clusters} initialOpenId={currentOpenId} />
+            <TrainingModuleList
+              clusters={clusters}
+              initialOpenId={justCompletedId ?? currentOpenId}
+              justCompletedId={justCompletedId}
+            />
           </div>
         </div>
       </div>

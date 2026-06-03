@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styles from "./training-academy.module.css";
 
@@ -105,12 +106,30 @@ function stateClass(status: ListModuleStatus): string {
 export default function TrainingModuleList({
   clusters,
   initialOpenId,
+  justCompletedId = null,
 }: {
   clusters: ModuleCluster[];
   /** Module that should be expanded on first paint (usually the current one). */
   initialOpenId: string | null;
+  /** Module the instructor just returned from — its check animates in. */
+  justCompletedId?: string | null;
 }) {
+  const router = useRouter();
   const [openId, setOpenId] = useState<string | null>(initialOpenId);
+  const [launchingId, setLaunchingId] = useState<string | null>(null);
+
+  // Forward "hero" transition: lift the card toward the journey player, then
+  // navigate. Reduced motion skips the lift and lets the link navigate at once.
+  const launch = (event: React.MouseEvent<HTMLAnchorElement>, mod: ListModule) => {
+    if (!mod.href) return;
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) return;
+    event.preventDefault();
+    setLaunchingId(mod.id);
+    window.setTimeout(() => router.push(mod.href as string), 200);
+  };
 
   return (
     <div className={styles.clusters}>
@@ -138,15 +157,25 @@ export default function TrainingModuleList({
               const isLocked = mod.status === "locked";
               const positionNumber = modIdx + 1;
 
+              const justChecked = mod.id === justCompletedId && mod.status === "complete";
+
               return (
-                <li key={mod.id} className={`${styles.item} ${stateClass(mod.status)}`}>
+                <li
+                  key={mod.id}
+                  className={`${styles.item} ${stateClass(mod.status)} ${
+                    launchingId === mod.id ? styles.rowLaunching : ""
+                  }`}
+                >
                   <button
                     type="button"
                     className={`${styles.row} ${isOpen ? styles.rowOpen : ""}`}
                     aria-expanded={isOpen}
                     onClick={() => setOpenId(isOpen ? null : mod.id)}
                   >
-                    <span className={styles.marker} aria-hidden>
+                    <span
+                      className={`${styles.marker} ${justChecked ? styles.markerJustChecked : ""}`}
+                      aria-hidden
+                    >
                       {mod.status === "complete" ? (
                         <CheckMark />
                       ) : isLocked ? (
@@ -227,7 +256,12 @@ export default function TrainingModuleList({
 
                         {mod.href && mod.ctaLabel ? (
                           <div className={styles.bodyActions}>
-                            <Link href={mod.href} className="button small" style={{ textDecoration: "none" }}>
+                            <Link
+                              href={mod.href}
+                              className="button small"
+                              style={{ textDecoration: "none" }}
+                              onClick={(event) => launch(event, mod)}
+                            >
                               {mod.ctaLabel}
                             </Link>
                           </div>
