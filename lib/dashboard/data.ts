@@ -631,8 +631,8 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       },
       {
         id: "instructor_interview_queue",
-        title: "Interview Readiness",
-        description: "Interview gate status before first class publish.",
+        title: "Curriculum Review",
+        description: "Curriculum review status before first class publish.",
         count: interviewBlocked ? 1 : 0,
         href: "/interviews?scope=readiness&view=mine&state=needs_action",
         status: interviewBlocked ? "needs_action" : "healthy",
@@ -652,8 +652,8 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     if (readiness.trainingComplete && !readiness.interviewPassed) {
       nextActions.push({
         id: "instructor-interview",
-        title: "Schedule your readiness interview",
-        detail: "Training complete — book your interview to unlock publishing",
+        title: "Schedule your curriculum review",
+        detail: "Training complete — book your curriculum review to unlock publishing",
         href: "/interviews?scope=readiness&view=mine&state=needs_action",
         urgency: "high" as const,
         ctaLabel: "Schedule",

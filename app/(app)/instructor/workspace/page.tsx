@@ -409,7 +409,7 @@ export default async function InstructorWorkspacePage({
         <div className="card">
           <h3>Readiness Status</h3>
           <p style={{ marginTop: 6, color: "var(--text-secondary)" }}>
-            Publishing your first offering depends on training and interview gate completion.
+            Publishing your first offering depends on training and curriculum review completion.
           </p>
 
           <div className="grid three" style={{ marginTop: 14 }}>
@@ -419,7 +419,7 @@ export default async function InstructorWorkspacePage({
             </div>
             <div>
               <div className="kpi">{readiness.interviewStatus.replace(/_/g, " ")}</div>
-              <div className="kpi-label">Interview Gate</div>
+              <div className="kpi-label">Curriculum Review</div>
             </div>
             <div>
               <div className="kpi">{readiness.baseReadinessComplete ? "Ready" : "Blocked"}</div>
@@ -500,7 +500,7 @@ export default async function InstructorWorkspacePage({
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: 15 }}>Complete Training Academy</div>
                     <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
-                      Finish three video modules, submit Lesson Design Studio, then continue to interview.
+                      Finish three video modules, submit Lesson Design Studio, then continue to your curriculum review.
                     </div>
                   </div>
                   <span className="pill" style={readiness.trainingComplete ? { background: "#dcfce7", color: "#166534" } : { background: "#f0e6ff", color: "#5a1da8" }}>
@@ -513,9 +513,9 @@ export default async function InstructorWorkspacePage({
                     {interviewPassed ? "✓" : "2"}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 15 }}>Pass Interview Readiness</div>
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>Pass Curriculum Review</div>
                     <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
-                      Interview status must be passed or waived before any non-legacy offering can move to approval.
+                      Curriculum review status must be passed or waived before any non-legacy offering can move to approval.
                     </div>
                   </div>
                   <span className="pill" style={interviewPassed ? { background: "#dcfce7", color: "#166534" } : interviewStatus === "SCHEDULED" ? { background: "#fef9c3", color: "#854d0e" } : interviewStatus === "HOLD" || interviewStatus === "FAILED" ? { background: "#fee2e2", color: "#991b1b" } : {}}>
@@ -562,7 +562,7 @@ export default async function InstructorWorkspacePage({
                   <p style={{ marginTop: 6, marginBottom: 0, color: "var(--text-secondary)", fontSize: 14 }}>
                     {readiness.instructorSubtype === "SUMMER_WORKSHOP"
                       ? "Finish required interactive training, then submit a workshop in the Workshop Design Studio — design your own or pick one from the approved library."
-                      : "Finish required interactive training and the Lesson Design Studio capstone to unlock your interview gate and offering approval requests."}
+                      : "Finish required interactive training and the Lesson Design Studio capstone to unlock your curriculum review and offering approval requests."}
                   </p>
                 </div>
                 <span
@@ -592,13 +592,13 @@ export default async function InstructorWorkspacePage({
               </Link>
             </div>
 
-            {/* Interview Gate Card */}
+            {/* Curriculum Review Card */}
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12, flexWrap: "wrap" }}>
                 <div>
-                  <h3 style={{ margin: 0 }}>Step 2 — Pass the Interview Gate</h3>
+                  <h3 style={{ margin: 0 }}>Step 2 — Pass the Curriculum Review</h3>
                   <p style={{ marginTop: 6, marginBottom: 0, color: "var(--text-secondary)", fontSize: 14 }}>
-                    Schedule and complete your instructor interview so your readiness can be marked complete.
+                    Schedule and complete your curriculum review so your readiness can be marked complete.
                   </p>
                 </div>
                 <span
@@ -620,12 +620,12 @@ export default async function InstructorWorkspacePage({
                   className="button secondary"
                   style={{ marginTop: 14, display: "inline-block", textDecoration: "none", fontSize: 14 }}
                 >
-                  {interviewStatus === "SCHEDULED" ? "View Interview Details" : "Schedule Interview"}
+                  {interviewStatus === "SCHEDULED" ? "View Review Details" : "Schedule Review"}
                 </Link>
               )}
               {interviewPassed && (
                 <div style={{ marginTop: 12, padding: 10, background: "#f0fdf4", borderRadius: 8, fontSize: 14, color: "#166534" }}>
-                  Interview complete — you can move into offering approval.
+                  Curriculum review complete — you can move into offering approval.
                 </div>
               )}
             </div>
