@@ -13,6 +13,7 @@ import { serializeBeatForClient } from "@/lib/training-journey/serialize";
 import type { JourneyAttemptSummary } from "@/lib/training-journey/client-contracts";
 import { getBadgeForContentKey } from "@/lib/training-journey/client-contracts";
 import { getCurriculum } from "@/lib/training-curriculum";
+import { goalBadge as goalBadgeFor, GOAL_META, type GoalKey } from "@/lib/training-goals";
 import { JourneyShell } from "./journey-shell";
 import TrainingModuleClient from "./client";
 
@@ -256,6 +257,15 @@ export default async function TrainingModulePage({
       : undefined;
     const showCohortIntro = curriculumDef?.journey.showCohortIntro === true;
 
+    // GOAL accent for the journey intro — sourced from the module's role-framework
+    // key so the lesson reads as part of the Academy roadmap. Welcome / Capstone
+    // nodes have no numbered badge, so they fall back to no accent.
+    const moduleGoalKey = (journeyModule.goalKey as string | null) ?? null;
+    const goalBadgeLabel = goalBadgeFor(moduleGoalKey) || null;
+    const goalOutcome =
+      journeyModule.outcomeStatement ??
+      (moduleGoalKey ? GOAL_META[moduleGoalKey as GoalKey]?.outcome ?? null : null);
+
     return (
       <JourneyShell
         snapshot={{
@@ -272,6 +282,8 @@ export default async function TrainingModulePage({
           resumeBeatSourceKey,
           completion: completionSummary,
           showCohortIntro,
+          goalBadge: goalBadgeLabel,
+          goalOutcome,
         }}
         backHref={academyHref}
         backLabel={academyLabel}

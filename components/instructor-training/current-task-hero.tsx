@@ -91,7 +91,7 @@ export default function CurrentTaskHero({
       <div className={styles.heroBody}>
         <div className={styles.heroText}>
           <p className={styles.heroEyebrow}>
-            {isDone ? "All phases complete" : `${task.phaseKicker} · ${task.phaseTitle}`}
+            {isDone ? "Academy complete" : `${task.phaseKicker} · ${task.phaseTitle}`}
           </p>
           <h2 id="training-current-task" className={styles.heroTitle}>
             {task.title}

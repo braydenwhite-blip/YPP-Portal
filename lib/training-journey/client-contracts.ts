@@ -74,6 +74,11 @@ export type JourneySnapshot = {
    *  student cohort panel. Sourced from CurriculumDefinition.journey on the
    *  server side; defaults to false for legacy modules. */
   showCohortIntro?: boolean;
+  /** YPP role-framework label for this module, e.g. "GOAL 2". Drives the GOAL
+   *  accent on the journey intro so the lesson reads as part of the Academy. */
+  goalBadge?: string | null;
+  /** Instructor-column outcome line shown under the GOAL badge on the intro. */
+  goalOutcome?: string | null;
 };
 
 export type JourneyCompletionSummary = {
