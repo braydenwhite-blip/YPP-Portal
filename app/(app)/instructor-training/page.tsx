@@ -20,6 +20,12 @@ import {
   READINESS_CHECK_MODULE_KEY,
   TRACKABLE_REQUIRED_VIDEO_PROVIDERS,
 } from "@/lib/training-constants";
+import TrainingAcademyShell from "@/components/instructor-training/training-academy-shell";
+import TrainingModuleList, {
+  type ListModule,
+  type ListModuleStatus,
+  type ModuleCluster,
+} from "@/components/instructor-training/training-module-list";
 
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "-";
@@ -47,157 +53,6 @@ type ModuleCard = {
   configurationIssue: string | null;
   estimatedMinutes: number | null;
 };
-
-function KanbanCard({
-  card,
-  readinessCheckPassed,
-  readinessCheckModuleId,
-}: {
-  card: ModuleCard;
-  readinessCheckPassed: boolean;
-  readinessCheckModuleId: string | null;
-}) {
-  const isLDS = card.module.contentKey === LESSON_DESIGN_STUDIO_MODULE_KEY;
-  const ldsLocked = isLDS && !readinessCheckPassed;
-  const isJourney = card.journeyProgress.isInteractive;
-  const cta = ldsLocked
-    ? null
-    : isLDS
-      ? { label: "Open Studio", href: "/instructor/lesson-design-studio?entry=training" }
-      : card.fullyComplete
-        ? { label: "Review", href: `/training/${card.module.id}` }
-        : card.assignment?.status === "IN_PROGRESS"
-          ? { label: "Continue", href: `/training/${card.module.id}` }
-          : { label: "Start module", href: `/training/${card.module.id}` };
-
-  return (
-    <div
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: 10,
-        padding: 12,
-        background: card.fullyComplete ? "#f0fdf4" : "var(--surface)",
-        opacity: ldsLocked ? 0.6 : 1,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-        <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{card.module.title}</p>
-        {card.estimatedMinutes ? (
-          <span style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>
-            {card.estimatedMinutes} min
-          </span>
-        ) : null}
-      </div>
-      <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", lineHeight: 1.45 }}>
-        {card.module.description}
-      </p>
-
-      {/* Progress bar — only for trackable modules (journeys + legacy videos) */}
-      {!isLDS ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-          <div
-            style={{ flex: 1, height: 4, background: "var(--border)", borderRadius: 2 }}
-            role="progressbar"
-            aria-valuenow={card.progressPct}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`${card.module.title} progress`}
-          >
-            <div
-              style={{
-                height: "100%",
-                width: `${card.progressPct}%`,
-                background: card.fullyComplete ? "#16a34a" : "#6366f1",
-                borderRadius: 2,
-                transition: "width 0.3s ease",
-              }}
-            />
-          </div>
-          <span style={{ fontSize: 11, color: "var(--muted)", minWidth: 36, textAlign: "right" }}>
-            {isJourney
-              ? `${card.journeyProgress.correctBeats}/${card.journeyProgress.totalBeats}`
-              : `${card.progressPct}%`}
-          </span>
-        </div>
-      ) : null}
-
-      {/* Status pills */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {ldsLocked ? (
-          <span className="pill pill-small">Complete Readiness Check to unlock</span>
-        ) : null}
-        {card.fullyComplete ? (
-          <span className="pill pill-small pill-success">Complete</span>
-        ) : isJourney && card.journeyProgress.scorePct !== null ? (
-          <span
-            className={`pill pill-small ${card.journeyProgress.passed ? "pill-success" : ""}`}
-            title={card.journeyProgress.passed ? "Journey passed" : "Below pass score — retake to complete"}
-          >
-            Score {card.journeyProgress.scorePct}%
-          </span>
-        ) : null}
-        {card.module.requiresQuiz ? (
-          <span className={`pill pill-small ${card.quizReady ? "pill-success" : ""}`}>
-            Quiz {card.quizReady ? "Passed" : "Required"}
-          </span>
-        ) : null}
-      </div>
-
-      {card.configurationIssue ? (
-        <p style={{ margin: 0, fontSize: 11, color: "#b45309" }} role="status">
-          {card.configurationIssue}
-        </p>
-      ) : null}
-
-      {/* Quiz retake hint when the user attempted but didn't pass */}
-      {card.latestQuiz && !card.quizReady ? (
-        <p style={{ margin: 0, fontSize: 11, color: "#b45309" }}>
-          Last quiz: {card.latestQuiz.scorePct}% · {formatDateTime(card.latestQuiz.attemptedAt)}
-          {" — retake to pass."}
-        </p>
-      ) : card.latestQuiz ? (
-        <p style={{ margin: 0, fontSize: 11, color: "var(--muted)" }}>
-          Quiz: {card.latestQuiz.scorePct}% · {formatDateTime(card.latestQuiz.attemptedAt)}
-        </p>
-      ) : null}
-
-      {/* CTA */}
-      {ldsLocked ? (
-        readinessCheckModuleId ? (
-          <Link
-            href={`/training/${readinessCheckModuleId}`}
-            className="button small"
-            style={{ textDecoration: "none", fontSize: 12 }}
-          >
-            Open Readiness Check
-          </Link>
-        ) : (
-          <button
-            type="button"
-            className="button small"
-            disabled
-            aria-disabled="true"
-            style={{ fontSize: 12, cursor: "not-allowed" }}
-            title="Complete the Readiness Check to unlock the Lesson Design Studio."
-          >
-            Locked
-          </button>
-        )
-      ) : cta ? (
-        <Link
-          href={cta.href}
-          className="button small"
-          style={{ textDecoration: "none", fontSize: 12 }}
-        >
-          {cta.label}
-        </Link>
-      ) : null}
-    </div>
-  );
-}
 
 export default async function InstructorTrainingPage({
   searchParams,
@@ -584,22 +439,161 @@ export default async function InstructorTrainingPage({
       ? Math.round((doneTrainingWeight / totalTrainingWeight) * 100)
       : 0;
 
-  return (
-    <div>
-      <div style={{ marginBottom: 12 }}>
-        <Link href="/instructor/workspace?tab=my-pathway" className="link" style={{ fontSize: 13 }}>
-          ← Back to My Pathway
-        </Link>
-      </div>
+  // ---- Linear launchpad model: the five academy modules grouped into three
+  // milestone clusters, with the studio capstone as the final gated step.
+  // The list only routes into the existing journey player; it never renders it.
+  const academyCards = moduleCards.filter(
+    (c) => c.module.contentKey !== LESSON_DESIGN_STUDIO_MODULE_KEY
+  );
+  const ldsCard =
+    moduleCards.find((c) => c.module.contentKey === LESSON_DESIGN_STUDIO_MODULE_KEY) ?? null;
+  const firstIncompleteIdx = academyCards.findIndex((c) => !c.fullyComplete);
 
-      <div className="topbar">
-        <div>
-          <p className="badge">Step 1 of Your Instructor Pathway</p>
-          <h1 className="page-title">Instructor Training Academy</h1>
+  const toListModule = (
+    card: ModuleCard,
+    status: ListModuleStatus,
+    opts?: {
+      isCapstone?: boolean;
+      href?: string | null;
+      ctaLabel?: string | null;
+      lockReason?: string | null;
+    }
+  ): ListModule => {
+    const statusLabel = card.fullyComplete
+      ? "Complete"
+      : card.journeyProgress.isInteractive && card.journeyProgress.scorePct !== null
+        ? `Score ${card.journeyProgress.scorePct}%`
+        : null;
+    const defaultCta = card.fullyComplete
+      ? "Review"
+      : card.assignment?.status === "IN_PROGRESS"
+        ? "Continue"
+        : "Start module";
+    return {
+      id: card.module.id,
+      title: card.module.title,
+      description: card.module.description,
+      estimatedMinutes: card.estimatedMinutes,
+      status,
+      statusLabel,
+      statusDone: card.fullyComplete,
+      progressPct: card.progressPct,
+      progressDone: card.fullyComplete,
+      href: opts?.href !== undefined ? opts.href : `/training/${card.module.id}`,
+      ctaLabel: opts?.ctaLabel !== undefined ? opts.ctaLabel : defaultCta,
+      lockReason: opts?.lockReason ?? null,
+      configurationIssue: card.configurationIssue,
+      isCapstone: opts?.isCapstone ?? false,
+    };
+  };
+
+  const academyListModules: ListModule[] = academyCards.map((card, idx) => {
+    const status: ListModuleStatus = card.fullyComplete
+      ? "complete"
+      : idx === firstIncompleteIdx
+        ? "current"
+        : "upcoming";
+    return toListModule(card, status);
+  });
+
+  let capstoneModule: ListModule | null = null;
+  if (ldsCard) {
+    capstoneModule = readinessCheckPassed
+      ? toListModule(ldsCard, ldsCard.fullyComplete ? "complete" : "current", {
+          isCapstone: true,
+          href: "/instructor/lesson-design-studio?entry=training",
+          ctaLabel: "Open Studio",
+        })
+      : toListModule(ldsCard, "locked", {
+          isCapstone: true,
+          href: readinessCheckModuleId ? `/training/${readinessCheckModuleId}` : null,
+          ctaLabel: readinessCheckModuleId ? "Open Readiness Check" : null,
+          lockReason: "Complete the Readiness Check to unlock the Lesson Design Studio.",
+        });
+  }
+
+  const clusterDefs: {
+    id: string;
+    label: string;
+    subtitle: string;
+    take: (i: number) => boolean;
+  }[] = [
+    {
+      id: "standard",
+      label: "The Standard",
+      subtitle: "The YPP standard every session is measured against.",
+      take: (i) => i === 0,
+    },
+    {
+      id: "sessions",
+      label: "Running Sessions",
+      subtitle: "Plan and run sessions students keep coming back to.",
+      take: (i) => i === 1 || i === 2,
+    },
+    {
+      id: "professional",
+      label: "Professional & Ready",
+      subtitle: "Communicate reliably, prove you're ready, then design your first lessons.",
+      take: (i) => i >= 3,
+    },
+  ];
+
+  const clusters: ModuleCluster[] = clusterDefs.map((def, ci) => {
+    const mods = academyListModules.filter((_, i) => def.take(i));
+    if (def.id === "professional" && capstoneModule) mods.push(capstoneModule);
+    return {
+      id: def.id,
+      index: ci + 1,
+      kicker: `Milestone ${ci + 1}`,
+      title: def.label,
+      subtitle: def.subtitle,
+      complete: mods.length > 0 && mods.every((m) => m.status === "complete"),
+      modules: mods,
+    };
+  });
+
+  const milestones = clusters.map((c) => ({
+    id: c.id,
+    label: c.title,
+    kicker: c.kicker,
+    complete: c.complete,
+  }));
+  const firstOpenCluster = clusters.findIndex((c) => !c.complete);
+  const activeMilestoneIndex =
+    firstOpenCluster === -1 ? clusters.length - 1 : firstOpenCluster;
+  const currentOpenId =
+    [...academyListModules, ...(capstoneModule ? [capstoneModule] : [])].find(
+      (m) => m.status === "current"
+    )?.id ?? null;
+
+  return (
+    <TrainingAcademyShell
+      milestones={milestones}
+      activeIndex={activeMilestoneIndex}
+      progressPercent={trainingPct}
+      eyebrow="Instructor Pathway · Step 1"
+      title="Instructor Training Academy"
+      railFooter={
+        <div style={{ display: "grid", gap: 10 }}>
+          <Link
+            href="/instructor/workspace?tab=my-pathway"
+            className="link"
+            style={{ fontSize: 13 }}
+          >
+            ← Back to My Pathway
+          </Link>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>
+            Training is the same launchpad, one phase on. Clear all three milestones to
+            unlock your curriculum review.
+          </p>
+        </div>
+      }
+    >
+      <div>
+        <div style={{ marginBottom: 16 }}>
           <p className="page-subtitle">Work through every required module — short interactive journeys with practice, feedback, and a readiness check — to unlock your curriculum review and offering approval.</p>
           <p className="page-subtitle" style={{ marginTop: 4, fontWeight: 600 }}>5 short modules · about 35 minutes</p>
         </div>
-      </div>
 
       {isSummerWorkshopInstructor && (
         <div
@@ -961,98 +955,16 @@ export default async function InstructorTrainingPage({
         </div>
       ) : null}
 
-      <div style={{ marginBottom: 24 }}>
-        <h3 style={{ marginBottom: 4 }}>Academy Modules</h3>
-        <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 14 }}>
-          Each module is an interactive journey: read, practice, get feedback, then pass a short check. Modules unlock the next step in your pathway.
-        </p>
-
-        {/* Kanban columns — collapse to a single column on narrow screens */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 16,
-            marginTop: 16,
-          }}
-        >
-          {(() => {
-            const notStarted = moduleCards.filter(
-              (c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS"
-            );
-            const inProgress = moduleCards.filter(
-              (c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS"
-            );
-            const complete = moduleCards.filter((c) => c.fullyComplete);
-            const firstAvailable = moduleCards.find(
-              (c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS"
-            );
-            const columns: {
-              key: string;
-              label: string;
-              dotColor: string;
-              cards: ModuleCard[];
-              empty: string;
-            }[] = [
-              {
-                key: "not-started",
-                label: "Not Started",
-                dotColor: "var(--border)",
-                cards: notStarted,
-                empty: "Every module is in progress or complete — nice work.",
-              },
-              {
-                key: "in-progress",
-                label: "In Progress",
-                dotColor: "#6366f1",
-                cards: inProgress,
-                empty: firstAvailable
-                  ? `Open "${firstAvailable.module.title}" to begin.`
-                  : "Nothing started yet — pick up Module 1 from the left.",
-              },
-              {
-                key: "complete",
-                label: "Complete",
-                dotColor: "#16a34a",
-                cards: complete,
-                empty: "Finish a module to see it here.",
-              },
-            ];
-            return columns.map((column) => (
-              <div key={column.key}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                  <span
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: "50%",
-                      background: column.dotColor,
-                      display: "inline-block",
-                    }}
-                  />
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>
-                    {column.label} ({column.cards.length})
-                  </span>
-                </div>
-                <div style={{ display: "grid", gap: 10 }}>
-                  {column.cards.length === 0 ? (
-                    <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>{column.empty}</p>
-                  ) : (
-                    column.cards.map((card) => (
-                      <KanbanCard
-                        key={card.module.id}
-                        card={card}
-                        readinessCheckPassed={readinessCheckPassed}
-                        readinessCheckModuleId={readinessCheckModuleId}
-                      />
-                    ))
-                  )}
-                </div>
-              </div>
-            ));
-          })()}
+        <div style={{ marginBottom: 24 }}>
+          <h3 style={{ marginBottom: 4 }}>Academy Modules</h3>
+          <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 14 }}>
+            Each module is a short interactive journey: read, practice, get feedback, then pass a check. Follow the path top to bottom — finish a milestone to light up the next.
+          </p>
+          <div style={{ marginTop: 16 }}>
+            <TrainingModuleList clusters={clusters} initialOpenId={currentOpenId} />
+          </div>
         </div>
       </div>
-    </div>
+    </TrainingAcademyShell>
   );
 }
