@@ -776,6 +776,7 @@
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .animateIn {
     animation: none;
   }
@@ -791,5 +792,6 @@
   .mobileProgressFill {
     animation: none;
     transform: none;
+  }
   }
 }

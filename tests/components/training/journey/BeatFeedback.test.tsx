@@ -15,7 +15,18 @@ import { MotionProvider } from "@/components/training/journey/MotionProvider";
 import type { BeatFeedback as BeatFeedbackType } from "@/lib/training-journey/types";
 
 // Force the reduced-motion path so phase timers fast-resolve and we can
-// snapshot the final DOM in a single render.
+// snapshot the final DOM in a single render. MotionProvider now derives its
+// decision from the in-app motion preference, so mock that resolver.
+vi.mock("@/lib/motion-preference", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/motion-preference")>(
+    "@/lib/motion-preference"
+  );
+  return {
+    ...actual,
+    useResolvedReducedMotion: () => true,
+  };
+});
+
 vi.mock("framer-motion", async () => {
   const actual = await vi.importActual<typeof import("framer-motion")>("framer-motion");
   return {

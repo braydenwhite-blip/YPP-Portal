@@ -216,12 +216,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .room-meters__fill { transition: width 200ms ease; }
   .room-meters__row[data-flash="up"] .room-meters__fill,
   .room-meters__row[data-flash="down"] .room-meters__fill,
   .room-meters__row[data-flash="up-strong"] .room-meters__fill,
   .room-meters__row[data-flash="down-strong"] .room-meters__fill { animation: none; }
   .room-meters__row[data-state="critical"] .room-meters__fill { animation: none; }
+  }
 }
 
 /* ----- Beat shell --------------------------------------------------------- */
@@ -498,7 +500,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .decision-lockin__bullet { animation: none; }
+  }
 }
 
 /* ----- Branching scenario root prompt ------------------------------------- */
@@ -1462,6 +1466,7 @@
    ============================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .scenario-choice__option,
   .branching-scenario__option,
   .multi-select__option,
@@ -1501,5 +1506,6 @@
     20%  { opacity: 1; }
     85%  { opacity: 1; }
     100% { opacity: 0; }
+  }
   }
 }

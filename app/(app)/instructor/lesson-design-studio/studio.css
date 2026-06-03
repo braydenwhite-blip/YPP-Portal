@@ -9760,12 +9760,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .cbs-studio *,
   .cbs-studio *::before,
   .cbs-studio *::after {
     animation: none !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
   }
 }
 
