@@ -9,12 +9,9 @@ import {
   STUDENT_PRIMARY_GOAL_OPTIONS,
 } from "@/lib/student-profile";
 import StudentSteps from "./student-steps";
-import InstructorSteps from "./instructor-steps";
 
 interface OnboardingWizardProps {
   userName: string;
-  primaryRole: string;
-  roles: string[];
   chapterName?: string | null;
   initialStep: number;
   profileData?: {
@@ -29,32 +26,19 @@ interface OnboardingWizardProps {
     primaryGoal?: string | null;
     curriculumUrl?: string | null;
   } | null;
-  instructorNextAction?: {
-    title: string;
-    detail: string;
-    href: string;
-  } | null;
-  /** When "SUMMER_WORKSHOP", the InstructorSteps wizard shows a short
-   *  fast-start welcome panel naming the role and the growth pathway.
-   *  Null / "STANDARD" / non-instructor users skip it. */
-  instructorSubtype?: string | null;
 }
 
+// Student onboarding wizard. The instructor variant was retired in favor of the
+// unified Instructor Launchpad (/instructor-onboarding); instructors are
+// redirected there before they ever reach this component.
 export default function OnboardingWizard({
   userName,
-  primaryRole,
-  roles,
   chapterName,
   initialStep,
   profileData,
-  instructorNextAction,
-  instructorSubtype,
 }: OnboardingWizardProps) {
-  const isInstructor = primaryRole === "INSTRUCTOR" || roles.includes("INSTRUCTOR");
-  const totalSteps = isInstructor ? 5 : 3;
-  const [currentStep, setCurrentStep] = useState(
-    isInstructor ? Math.min(initialStep, totalSteps - 1) : normalizeStudentStep(initialStep)
-  );
+  const totalSteps = 3;
+  const [currentStep, setCurrentStep] = useState(normalizeStudentStep(initialStep));
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
   const [selectedInterests, setSelectedInterests] = useState(() => {
@@ -171,9 +155,7 @@ export default function OnboardingWizard({
     });
   }
 
-  const stepLabels = isInstructor
-    ? ["Welcome", "Your Profile", "Training", "Teaching", "Ready!"]
-    : ["Welcome", "Your Path", "Your Journey"];
+  const stepLabels = ["Welcome", "Your Path", "Your Journey"];
 
   return (
     <div className="onboarding-shell">
@@ -211,41 +193,24 @@ export default function OnboardingWizard({
 
         {/* Step content */}
         <div className="onboarding-content">
-          {isInstructor ? (
-            <InstructorSteps
-              currentStep={currentStep}
-              userName={userName}
-              chapterName={chapterName}
-              profileData={profileData}
-              nextReadinessAction={instructorNextAction}
-              instructorSubtype={instructorSubtype ?? null}
-              formError={formError}
-              onNext={goNext}
-              onBack={goBack}
-              onProfileSave={handleProfileSave}
-              onSkip={handleSkip}
-              isPending={isPending}
-            />
-          ) : (
-            <StudentSteps
-              currentStep={currentStep}
-              userName={userName}
-              chapterName={chapterName}
-              profileData={profileData}
-              selectedInterests={selectedInterests}
-              selectedLearningStyle={selectedLearningStyle}
-              selectedPrimaryGoal={selectedPrimaryGoal}
-              formError={formError}
-              onInterestToggle={handleInterestToggle}
-              onLearningStyleChange={handleLearningStyleChange}
-              onPrimaryGoalChange={handlePrimaryGoalChange}
-              onNext={goNext}
-              onBack={goBack}
-              onProfileSave={handleProfileSave}
-              onSkip={handleSkip}
-              isPending={isPending}
-            />
-          )}
+          <StudentSteps
+            currentStep={currentStep}
+            userName={userName}
+            chapterName={chapterName}
+            profileData={profileData}
+            selectedInterests={selectedInterests}
+            selectedLearningStyle={selectedLearningStyle}
+            selectedPrimaryGoal={selectedPrimaryGoal}
+            formError={formError}
+            onInterestToggle={handleInterestToggle}
+            onLearningStyleChange={handleLearningStyleChange}
+            onPrimaryGoalChange={handlePrimaryGoalChange}
+            onNext={goNext}
+            onBack={goBack}
+            onProfileSave={handleProfileSave}
+            onSkip={handleSkip}
+            isPending={isPending}
+          />
         </div>
       </div>
     </div>

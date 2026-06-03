@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import SessionUnavailablePage from "@/components/session-unavailable-page";
@@ -66,27 +66,51 @@ export default async function AppLayout({
     userId && primaryRole !== "APPLICANT" && !hiringDemoMode,
   );
 
-  const onboardingRow: { completedAt: Date | null } | null = shouldCheckOnboarding
-    ? await prisma.onboardingProgress
-        .findUnique({
-          where: { userId: userId! },
-          select: { completedAt: true },
-        })
-        .catch((e: unknown) => {
-          const isPrismaError = e !== null && typeof e === "object" && "code" in e;
-          if (isPrismaError && (e as { code: string }).code === "P2021") {
-            return null;
-          }
-          throw e;
-        })
-    : { completedAt: new Date() };
+  // The middleware exposes the current path via the `x-pathname` header so the
+  // gate can avoid redirecting a user who is *already* on their onboarding
+  // destination (otherwise the launchpad — which lives inside this (app) layout
+  // — would redirect to itself in an infinite loop).
+  const currentPath = (await headers()).get("x-pathname") ?? "";
+  const onLaunchpad = currentPath.startsWith("/instructor-onboarding");
 
-  if (shouldCheckOnboarding) {
-    if (onboardingRow === null) {
-      redirect("/onboarding");
-    }
-    if (!onboardingRow.completedAt) {
-      redirect("/onboarding");
+  if (shouldCheckOnboarding && !onLaunchpad) {
+    // Treat a missing onboarding table (P2021) on un-migrated environments as
+    // "not blocking" rather than throwing.
+    const handleMissingTable = (e: unknown) => {
+      const isPrismaError = e !== null && typeof e === "object" && "code" in e;
+      if (isPrismaError && (e as { code: string }).code === "P2021") {
+        return null;
+      }
+      throw e;
+    };
+
+    const isInstructor =
+      primaryRole === "INSTRUCTOR" || roles.includes("INSTRUCTOR");
+
+    if (isInstructor) {
+      // Instructors onboard through the unified Instructor Launchpad. The
+      // InstructorJourney row is the source of truth; fall back to a completed
+      // legacy OnboardingProgress so already-onboarded instructors aren't
+      // re-gated before the backfill runs.
+      const [journeyRow, legacyRow] = await Promise.all([
+        prisma.instructorJourney
+          .findUnique({ where: { userId: userId! }, select: { completedAt: true } })
+          .catch(handleMissingTable),
+        prisma.onboardingProgress
+          .findUnique({ where: { userId: userId! }, select: { completedAt: true } })
+          .catch(handleMissingTable),
+      ]);
+      const onboarded = Boolean(journeyRow?.completedAt || legacyRow?.completedAt);
+      if (!onboarded) {
+        redirect("/instructor-onboarding");
+      }
+    } else {
+      const onboardingRow = await prisma.onboardingProgress
+        .findUnique({ where: { userId: userId! }, select: { completedAt: true } })
+        .catch(handleMissingTable);
+      if (onboardingRow === null || !onboardingRow.completedAt) {
+        redirect("/onboarding");
+      }
     }
   }
 
