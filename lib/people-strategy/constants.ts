@@ -55,6 +55,9 @@ export const ACTION_VISIBILITY_LABELS: Record<ActionItemVisibility, string> = {
 
 /** Routes revalidated after an Action Item mutation. */
 export const ACTION_ITEM_PATHS = [
+  "/actions",
+  "/actions/all",
+  "/actions/all/classes",
   "/admin/actions",
 ] as const;
 

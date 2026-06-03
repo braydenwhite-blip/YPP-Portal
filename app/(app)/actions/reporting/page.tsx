@@ -4,10 +4,10 @@ import { appendSearchParams, type RedirectSearchParams } from "@/lib/navigation/
 
 export const dynamic = "force-dynamic";
 
-export default async function LegacyPeopleDashboardRedirect({
+export default async function ActionsReportingRedirect({
   searchParams,
 }: {
   searchParams?: Promise<RedirectSearchParams>;
 }) {
-  redirect(appendSearchParams("/actions/people", await searchParams));
+  redirect(appendSearchParams("/actions/all", await searchParams));
 }

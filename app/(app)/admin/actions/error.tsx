@@ -14,7 +14,7 @@ export default function AdminActionsError({
       error={error}
       reset={reset}
       surface="the admin action tools"
-      backHref="/all-actions"
+      backHref="/actions/all"
     />
   );
 }

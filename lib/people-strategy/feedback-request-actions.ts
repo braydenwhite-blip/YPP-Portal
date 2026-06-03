@@ -79,7 +79,7 @@ export async function requestMonthlyFeedback(
     revalidatePath(`/admin/instructors/${subjectUserId}`);
   }
 
-  revalidatePath("/people");
+  revalidatePath("/actions/people");
 
   return { ok: true, subjects: uniqueIds.length, collaborators, created, emailsSent };
 }

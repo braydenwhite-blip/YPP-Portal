@@ -760,7 +760,7 @@ export async function resolveEscalation(actionId: string) {
   }
 
   revalidateAll();
-  revalidatePath("/people");
-  revalidatePath("/people/board-rollup");
+  revalidatePath("/actions/people");
+  revalidatePath("/actions/people/board-rollup");
   return { ok: true, resolved: updated.count > 0 };
 }

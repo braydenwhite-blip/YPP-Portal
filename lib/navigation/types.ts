@@ -61,6 +61,11 @@ export interface NavLink {
    * hidden for everyone when the flag is off.
    */
   requiresActionTracker?: boolean;
+  /**
+   * Temporary deprecation gate for the older Leadership Action Center nav item.
+   * The underlying routes stay reachable until migration/backfill is complete.
+   */
+  requiresLegacyActionCenterNav?: boolean;
   featureKey?: FeatureKey;
   dashboardDescription?: string;
   dashboardBadgeKey?: string;

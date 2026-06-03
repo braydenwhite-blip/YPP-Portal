@@ -234,7 +234,7 @@ export async function runWeeklyActionDigest(now: Date): Promise<WeeklyDigestResu
   const today = utcDayStart(now);
   const weekEnd = addDays(today, 7); // Mon..Sun inclusive window
   const weekKey = dateKey(today);
-  const myActionsUrl = toAbsoluteAppUrl("/my-actions");
+  const myActionsUrl = toAbsoluteAppUrl("/actions");
 
   const items = await loadOpenItems();
 
@@ -701,7 +701,7 @@ export async function runBoardRollups(now: Date): Promise<BoardRollupResult> {
   const recipients = emailsOn
     ? (await loadBoardRecipients()).filter((r) => r.email)
     : [];
-  const boardUrl = toAbsoluteAppUrl("/people/board-rollup");
+  const boardUrl = toAbsoluteAppUrl("/actions/people/board-rollup");
 
   let itemsRolledUp = 0;
   let emailsSent = 0;

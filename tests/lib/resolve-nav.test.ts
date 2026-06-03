@@ -161,9 +161,9 @@ describe("resolveNavModel", () => {
     });
 
     const visibleHrefs = hrefs(model);
-    expect(visibleHrefs).not.toContain("/my-actions");
-    expect(visibleHrefs).not.toContain("/all-actions");
-    expect(visibleHrefs).not.toContain("/officer-meetings");
+    expect(visibleHrefs).not.toContain("/actions");
+    expect(visibleHrefs).not.toContain("/actions/all");
+    expect(visibleHrefs).not.toContain("/actions/meetings");
   });
 
   it("shows My Actions to non-officers without exposing Officer-only action views", () => {
@@ -178,9 +178,31 @@ describe("resolveNavModel", () => {
     });
 
     const visibleHrefs = hrefs(model);
-    expect(visibleHrefs).toContain("/my-actions");
-    expect(visibleHrefs).not.toContain("/all-actions");
-    expect(visibleHrefs).not.toContain("/officer-meetings");
+    expect(visibleHrefs).toContain("/actions");
+    expect(visibleHrefs).not.toContain("/actions/all");
+    expect(visibleHrefs).not.toContain("/actions/meetings");
+  });
+
+  it("hides the deprecated Leadership Action Center nav entry unless its legacy flag is on", () => {
+    const hidden = resolveNavModel({
+      roles: ["ADMIN"],
+      adminSubtypes: ["SUPER_ADMIN"],
+      primaryRole: "ADMIN",
+      pathname: "/",
+      actionTrackerEnabled: true,
+      legacyActionCenterNavEnabled: false,
+    });
+    expect(hrefs(hidden)).not.toContain("/admin/action-center");
+
+    const visible = resolveNavModel({
+      roles: ["ADMIN"],
+      adminSubtypes: ["SUPER_ADMIN"],
+      primaryRole: "ADMIN",
+      pathname: "/",
+      actionTrackerEnabled: true,
+      legacyActionCenterNavEnabled: true,
+    });
+    expect(hrefs(visible)).toContain("/admin/action-center");
   });
 
   it("does not show Interviews in navigation for students (even with full portal explorer)", () => {

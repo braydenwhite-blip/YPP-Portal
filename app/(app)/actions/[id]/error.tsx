@@ -14,7 +14,7 @@ export default function ActionDetailError({
       error={error}
       reset={reset}
       surface="this action item"
-      backHref="/my-actions"
+      backHref="/actions"
     />
   );
 }

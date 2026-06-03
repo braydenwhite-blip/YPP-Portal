@@ -25,6 +25,15 @@ export function isActionTrackerEnabled(): boolean {
 }
 
 /**
+ * Temporary deprecation gate for the older Leadership Action Center sidebar
+ * entry. The route remains reachable during migration, but the nav should
+ * point people at the newer People Strategy Action Tracker by default.
+ */
+export function isLegacyActionCenterNavEnabled(): boolean {
+  return process.env.ENABLE_LEGACY_ACTION_CENTER_NAV === "true";
+}
+
+/**
  * People Strategy — automated Action Tracker emails (e.g. the "New Assignment"
  * notification sent when a user is newly added to an ActionAssignment).
  *

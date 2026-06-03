@@ -2,7 +2,7 @@
 
 import { PeopleStrategyRouteError } from "@/components/people-strategy/route-error";
 
-export default function PeopleDashboardError({
+export default function AllActionsError({
   error,
   reset,
 }: {
@@ -13,8 +13,8 @@ export default function PeopleDashboardError({
     <PeopleStrategyRouteError
       error={error}
       reset={reset}
-      surface="the People Dashboard"
-      backHref="/all-actions"
+      surface="the Action Tracker"
+      backHref="/actions"
     />
   );
 }

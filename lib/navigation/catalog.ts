@@ -396,7 +396,7 @@ export const NAV_CATALOG: NavLink[] = [
 
   ...groupLinks("People & Support", 800, [
     {
-      href: "/my-actions",
+      href: "/actions",
       label: "My Actions",
       icon: "✅",
       // My Actions is per-record guarded server-side and can be used by any
@@ -418,18 +418,25 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 5,
     },
     {
-      href: "/all-actions",
+      href: "/actions/all",
       label: "All Actions",
       icon: "🗂️",
       // Officer-tier and above only (mirrors requireOfficer()).
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
       requiresActionTracker: true,
-      searchAliases: ["Action Tracker", "Leadership Actions", "All Action Items"],
+      searchAliases: [
+        "Action Tracker",
+        "Leadership Actions",
+        "All Action Items",
+        "Leadership Action Center",
+        "Officer Operations",
+        "Weekly Action Tracker",
+      ],
       dashboardDescription: "Every leadership action item, grouped by department.",
       dashboardPriority: 5,
     },
     {
-      href: "/officer-meetings",
+      href: "/actions/meetings",
       label: "Officer Meetings",
       icon: "📅",
       // Officer-tier and above only (mirrors requireOfficer()).
@@ -1159,17 +1166,18 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/admin/unlock-approvals", label: "Unlock Approvals", icon: "🔓", roles: ADMIN_ONLY, dashboardDescription: "Review and approve section unlock recommendations from mentors." },
     {
       href: "/admin/action-center",
-      label: "Action Center",
+      label: "Legacy Action Center",
       icon: "🎯",
       roles: ["ADMIN", "STAFF"] as NavRole[],
+      requiresLegacyActionCenterNav: true,
       searchAliases: [
         "Leadership Action Center",
         "Officer Operations",
         "Weekly Action Tracker",
-        "Action Items",
+        "Legacy Action Items",
       ],
       dashboardDescription:
-        "Officer operating rhythm: tasks, weekly digest, meetings, and the live tracker that replaces the spreadsheet+email workflow.",
+        "Deprecated legacy tracker retained only during migration to the People Strategy Action Tracker.",
       dashboardPriority: 3,
     },
   ]),

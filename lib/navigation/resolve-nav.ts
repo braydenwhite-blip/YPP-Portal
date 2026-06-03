@@ -238,6 +238,8 @@ export interface ResolveNavInput {
   enabledFeatureKeys?: Set<string>;
   /** When true, People Strategy Action Tracker links (e.g. /my-actions) are shown. */
   actionTrackerEnabled?: boolean;
+  /** When true, show the deprecated Leadership Action Center sidebar entry. */
+  legacyActionCenterNavEnabled?: boolean;
   /** When true, students see the full nav catalog. Omit/false uses env `STUDENT_FULL_PORTAL_EXPLORER`. */
   studentFullPortalExplorer?: boolean;
   /** When set, hides "Join a chapter" — not needed if the user is already assigned to a chapter. */
@@ -400,6 +402,24 @@ function navHrefMatchesPathnameForActive(
   candidateHrefs: readonly string[],
 ): boolean {
   if (pathMatchesHref(pathname, href)) return true;
+  if (href === "/actions" && (pathname === "/my-actions" || pathname.startsWith("/my-actions/"))) {
+    return true;
+  }
+  if (
+    href === "/actions/all" &&
+    (pathname === "/all-actions" ||
+      pathname.startsWith("/all-actions/") ||
+      pathname === "/admin/actions" ||
+      pathname.startsWith("/admin/actions/"))
+  ) {
+    return true;
+  }
+  if (
+    href === "/actions/meetings" &&
+    (pathname === "/officer-meetings" || pathname.startsWith("/officer-meetings/"))
+  ) {
+    return true;
+  }
   if (href === "/my-classes/assignments" && studentAssignmentsHubActive(pathname, candidateHrefs)) {
     return true;
   }
@@ -537,6 +557,7 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       // People Strategy Action Tracker links stay fully hidden while the
       // feature flag is off — for every role, including admins.
       if (item.requiresActionTracker && !input.actionTrackerEnabled) return false;
+      if (item.requiresLegacyActionCenterNav && !input.legacyActionCenterNavEnabled) return false;
       if (!hasRoleAccess(item, roles)) return false;
       if (primaryRole !== "STUDENT" && isLegacyMenteeMentorshipHref(item.href)) {
         return false;

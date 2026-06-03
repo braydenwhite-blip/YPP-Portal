@@ -2,7 +2,7 @@
 
 import { PeopleStrategyRouteError } from "@/components/people-strategy/route-error";
 
-export default function AllActionsError({
+export default function OfficerMeetingsError({
   error,
   reset,
 }: {
@@ -13,8 +13,8 @@ export default function AllActionsError({
     <PeopleStrategyRouteError
       error={error}
       reset={reset}
-      surface="the Action Tracker"
-      backHref="/my-actions"
+      surface="Officer Meetings"
+      backHref="/actions/all"
     />
   );
 }

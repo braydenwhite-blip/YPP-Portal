@@ -32,7 +32,7 @@ export default async function MyActionsCard({ viewer }: { viewer: ActionViewer }
 
   return (
     <Link
-      href="/my-actions"
+      href="/actions"
       className="card"
       style={{ display: "block", padding: "18px 20px", textDecoration: "none", color: "inherit" }}
     >

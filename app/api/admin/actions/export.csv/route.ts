@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * CSV export of the Action Tracker, restricted to the SAME filtered view the
- * officer is looking at on `/all-actions` (the page links here with its current
+ * officer is looking at on `/actions/all` (the page links here with its current
  * query string). Officer-tier and above only.
  */
 export async function GET(req: Request) {

@@ -17,11 +17,11 @@ export type ActionTrackerTab =
 type TabDef = { key: ActionTrackerTab; label: string; href?: string };
 
 const TABS: TabDef[] = [
-  { key: "all", label: "All Actions", href: "/all-actions" },
-  { key: "my", label: "My Actions", href: "/my-actions" },
-  { key: "classes", label: "Classes", href: "/all-actions/classes" },
-  { key: "meetings", label: "Officer Meetings", href: "/officer-meetings" },
-  { key: "people", label: "People Dashboard", href: "/people" },
+  { key: "all", label: "All Actions", href: "/actions/all" },
+  { key: "my", label: "My Actions", href: "/actions" },
+  { key: "classes", label: "Classes", href: "/actions/all/classes" },
+  { key: "meetings", label: "Officer Meetings", href: "/actions/meetings" },
+  { key: "people", label: "People Dashboard", href: "/actions/people" },
 ];
 
 export function ActionTrackerTabs({

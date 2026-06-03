@@ -46,7 +46,7 @@ export function ActionFiltersBar({
     if (value && value !== "ALL") params.set(key, value);
     else params.delete(key);
     const qs = params.toString();
-    router.push(qs ? `/all-actions?${qs}` : "/all-actions");
+    router.push(qs ? `/actions/all?${qs}` : "/actions/all");
   }
 
   function submitSearch(event: React.FormEvent) {
@@ -141,7 +141,7 @@ export function ActionFiltersBar({
         <button
           type="button"
           className="button outline small"
-          onClick={() => router.push("/all-actions")}
+          onClick={() => router.push("/actions/all")}
         >
           Clear filters
         </button>

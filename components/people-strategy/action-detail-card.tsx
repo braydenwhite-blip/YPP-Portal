@@ -469,7 +469,7 @@ export default function ActionDetailCard({
             <span style={{ fontWeight: 600 }}>
               This action is on an officer meeting agenda for discussion.
             </span>
-            <Link href="/officer-meetings" className="button outline small">
+            <Link href="/actions/meetings" className="button outline small">
               View officer meetings
             </Link>
           </div>

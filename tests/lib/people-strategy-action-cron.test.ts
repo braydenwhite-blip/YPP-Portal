@@ -288,7 +288,7 @@ describe("runWeeklyActionDigest", () => {
     expect(arg.groups.upcoming).toHaveLength(1);
     expect(arg.groups.overdue[0].department).toBe("Instruction");
     expect(arg.groups.overdue[0].role).toBe("Lead");
-    expect(arg.myActionsUrl).toContain("/my-actions");
+    expect(arg.myActionsUrl).toContain("/actions");
   });
 
   it("classifies a status=OVERDUE item into the Overdue group regardless of date", async () => {

@@ -46,7 +46,7 @@ export async function confirmProvisionalHire(
   });
 
   revalidatePath(`/admin/instructors/${id}`);
-  revalidatePath("/people");
+  revalidatePath("/actions/people");
 
   if (updated.count === 0) {
     // Either not provisional or already confirmed — return current state.
