@@ -12,12 +12,14 @@ import type { CurriculumDefinition } from "./types";
 export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
   contentKey: "academy_student_situations_003",
   module: {
-    title: "Student Situations",
+    title: "Student & Family Relationships",
     description:
-      "Read the room, name what's happening with a student, and pick the next helpful move that keeps them in learning.",
+      "GOAL 2. Build supportive, trusting relationships with students and families. Read the room, name what's happening with a student, and pick the next helpful move that keeps them in learning — and creates an inclusive, welcoming classroom where every student feels supported.",
     sortOrder: 3,
     required: true,
     passScorePct: 80,
+    goalKey: "GOAL_2",
+    outcomeStatement: "Build supportive, trusting relationships with students and families.",
   },
   journey: {
     estimatedMinutes: 7,
@@ -575,7 +577,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
       sortOrder: 8,
       kind: "CONCEPT_REVEAL",
       title: "Student-support playbook",
-      prompt: "You finished Module 3 — Student Situations.",
+      prompt: "You just finished GOAL 2 — Student & Family Relationships.",
       scoringWeight: 0,
       config: {
         panels: [
@@ -592,7 +594,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
         ],
         correctFeedback: {
           tone: "correct",
-          headline: "Module 3 complete.",
+          headline: "GOAL 2 complete.",
           body: "Steady Hand earned.",
         },
       },

@@ -11,12 +11,14 @@ import type { CurriculumDefinition } from "./types";
 export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
   contentKey: "academy_communication_004",
   module: {
-    title: "Communication & Reliability",
+    title: "Organization, Commitment & Reliability",
     description:
-      "Set the right tone in every parent and admin message, and recover professionally when a commitment slips.",
+      "GOAL 3. Be the instructor everyone can count on: respond within 24 hours, attend 100% of meetings and classes, and arrive prepared and on time. Set the right tone in every parent and admin message, and recover professionally when a commitment slips.",
     sortOrder: 4,
     required: true,
     passScorePct: 80,
+    goalKey: "GOAL_3",
+    outcomeStatement: "Be the instructor everyone can count on.",
   },
   journey: {
     estimatedMinutes: 6,
@@ -603,7 +605,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
       sortOrder: 7,
       kind: "CONCEPT_REVEAL",
       title: "Reliable Pro",
-      prompt: "You finished Module 4 — Communication & Reliability.",
+      prompt: "You just finished GOAL 3 — Organization, Commitment & Reliability.",
       scoringWeight: 0,
       config: {
         panels: [
@@ -614,13 +616,13 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
           },
           {
             id: "next",
-            title: "Keep it up",
-            body: "Every message you send is a vote for your reputation. Lead with the student, respond fast, and no surprises — that's the standard from here on.",
+            title: "What's next",
+            body: "GOAL 4 — YPP Community Involvement — unlocks next. Every message you send is a vote for your reputation: lead with the student, respond fast, and no surprises — that's the standard from here on.",
           },
         ],
         correctFeedback: {
           tone: "correct",
-          headline: "Module 4 complete.",
+          headline: "GOAL 3 complete.",
           body: "Reliable Pro earned.",
         },
       },
