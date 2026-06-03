@@ -596,7 +596,8 @@ export default async function InstructorTrainingPage({
         <div>
           <p className="badge">Step 1 of Your Instructor Pathway</p>
           <h1 className="page-title">Instructor Training Academy</h1>
-          <p className="page-subtitle">Work through every required module — short interactive journeys with practice, feedback, and a readiness check — to unlock the interview gate and offering approval.</p>
+          <p className="page-subtitle">Work through every required module — short interactive journeys with practice, feedback, and a readiness check — to unlock your curriculum review and offering approval.</p>
+          <p className="page-subtitle" style={{ marginTop: 4, fontWeight: 600 }}>5 short modules · about 35 minutes</p>
         </div>
       </div>
 
@@ -749,7 +750,7 @@ export default async function InstructorTrainingPage({
         </div>
         {readiness.trainingComplete && (
           <div style={{ marginTop: 10, fontSize: 13, color: "#16a34a", fontWeight: 600 }}>
-            Training complete — proceed to Step 2: Pass the Interview Gate
+            Training complete — proceed to Step 2: Pass the Curriculum Review
           </div>
         )}
       </div>
@@ -761,7 +762,7 @@ export default async function InstructorTrainingPage({
         </div>
         <div className="card">
           <div className="kpi">{readiness.interviewStatus.replace(/_/g, " ")}</div>
-          <div className="kpi-label">Interview Gate</div>
+          <div className="kpi-label">Curriculum Review</div>
         </div>
         <div className="card">
           <div className="kpi">{readiness.nextAction.title}</div>
@@ -823,7 +824,7 @@ export default async function InstructorTrainingPage({
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
           <div>
-            <h3 style={{ marginBottom: 6 }}>Interview Readiness</h3>
+            <h3 style={{ marginBottom: 6 }}>Curriculum Review</h3>
             <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 14 }}>
               Status: <strong>{interviewGate.status.replace(/_/g, " ")}</strong>
               {interviewGate.outcome ? ` · Outcome: ${interviewGate.outcome}` : ""}
@@ -839,7 +840,7 @@ export default async function InstructorTrainingPage({
 
         {confirmedSlot ? (
           <div className="card" style={{ marginTop: 12 }}>
-            <strong>Confirmed Interview</strong>
+            <strong>Confirmed Curriculum Review</strong>
             <p style={{ marginBottom: 0, marginTop: 6 }}>
               {formatDateTime(confirmedSlot.scheduledAt)} ({confirmedSlot.duration} min)
             </p>
@@ -855,12 +856,12 @@ export default async function InstructorTrainingPage({
 
         {completedSlot ? (
           <p style={{ marginTop: 12, marginBottom: 0, fontSize: 13, color: "var(--muted)" }}>
-            Most recent completed interview: {formatDateTime(completedSlot.completedAt)}
+            Most recent completed review: {formatDateTime(completedSlot.completedAt)}
           </p>
         ) : null}
 
         <div style={{ marginTop: 16 }}>
-          <h4 style={{ marginBottom: 8 }}>Posted Interview Slots</h4>
+          <h4 style={{ marginBottom: 8 }}>Posted Review Slots</h4>
           {postedSlots.length === 0 ? (
             <p style={{ color: "var(--muted)", marginTop: 0, fontSize: 14 }}>
               No posted slots right now. Request preferred times below — your chapter lead will post matching slots when available.
@@ -887,10 +888,10 @@ export default async function InstructorTrainingPage({
           <h4 style={{ marginBottom: 8 }}>Request Preferred Times</h4>
           <div className="card" style={{ background: "var(--surface-alt)", padding: 16 }}>
             <p style={{ marginTop: 0, fontSize: 13, color: "var(--muted)" }}>
-              Use the shared interview scheduler to request times, confirm slots, and keep your reminder emails in one place.
+              Use the shared review scheduler to request times, confirm slots, and keep your reminder emails in one place.
             </p>
             <Link href="/interviews/schedule" className="button small" style={{ textDecoration: "none" }}>
-              Open Interview Scheduler
+              Open Review Scheduler
             </Link>
           </div>
 
@@ -913,7 +914,7 @@ export default async function InstructorTrainingPage({
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 style={{ marginBottom: 8 }}>Offering Approval</h3>
         <p style={{ marginTop: 0, fontSize: 14, color: "var(--muted)" }}>
-          Each offering now needs approval before it can publish. Training and interview clear your readiness. Class settings is where you request approval.
+          Each offering now needs approval before it can publish. Training and your curriculum review clear your readiness. Class settings is where you request approval.
         </p>
         <div
           style={{

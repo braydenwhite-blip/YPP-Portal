@@ -48,7 +48,7 @@ export default async function InstructorCertificationsPage() {
     },
     {
       key: "interview",
-      name: "Interview Readiness",
+      name: "Curriculum Review",
       complete: readiness.interviewPassed,
       detail: readiness.interviewStatus.replace(/_/g, " "),
       color: "#3b82f6",

@@ -129,7 +129,7 @@ export function buildFallbackInstructorReadiness(
     nextAction: {
       title: "Readiness checks unavailable",
       detail:
-        "Training and interview readiness checks are temporarily unavailable.",
+        "Training and curriculum review checks are temporarily unavailable.",
       href: INSTRUCTOR_TOOLS_HREF,
     },
     // When readiness data is unavailable we don't lock the user out of the
@@ -309,11 +309,11 @@ export function buildInstructorReadinessFromSnapshot({
   if (interviewRequired && !interviewPassed) {
     missingRequirements.push({
       code: "INTERVIEW_REQUIRED",
-      title: "Pass readiness interview",
+      title: "Pass curriculum review",
       detail:
         interviewStatus === "FAILED" || interviewStatus === "HOLD"
-          ? "Interview outcome requires follow-up before offering approval can be granted."
-          : "Schedule and complete your readiness interview.",
+          ? "Curriculum review outcome requires follow-up before offering approval can be granted."
+          : "Schedule and complete your curriculum review.",
       href: INSTRUCTOR_TOOLS_HREF,
     });
   }
@@ -346,7 +346,7 @@ export function buildInstructorReadinessFromSnapshot({
       : {
           title: "Ready to request offering approval",
           detail:
-            "Your training and interview requirements are complete. Request offering approval from class settings before publishing.",
+            "Your training and curriculum review requirements are complete. Request offering approval from class settings before publishing.",
           href: INSTRUCTOR_PUBLISH_HREF,
         };
 
@@ -560,7 +560,7 @@ export function assertReadinessAllowsPublish(
 ): void {
   if (!readiness.baseReadinessComplete) {
     throw new Error(
-      "Publishing blocked. Complete academy modules, Lesson Design Studio capstone, and interview readiness first."
+      "Publishing blocked. Complete academy modules, Lesson Design Studio capstone, and curriculum review first."
     );
   }
 }

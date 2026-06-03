@@ -117,7 +117,7 @@ async function getReviewerIdsForInstructor(instructorId: string) {
 
 function assertGateCanSchedule(status: string) {
   if (status === "PASSED" || status === "WAIVED") {
-    throw new Error("Interview is already complete and approved.");
+    throw new Error("Curriculum review is already complete and approved.");
   }
 }
 
@@ -164,7 +164,7 @@ export async function confirmPostedInterviewSlot(formData: FormData) {
   });
 
   if (!slot || slot.gateId !== gate.id) {
-    throw new Error("Interview slot not found");
+    throw new Error("Curriculum review slot not found");
   }
   if (slot.status !== "POSTED") {
     throw new Error("This slot is no longer available");
@@ -182,7 +182,7 @@ export async function confirmPostedInterviewSlot(formData: FormData) {
       select: { id: true },
     });
     if (existingConfirmed) {
-      throw new Error("You already have a confirmed interview slot");
+      throw new Error("You already have a confirmed curriculum review slot");
     }
 
     const claimed = await tx.instructorInterviewSlot.updateMany({
@@ -209,8 +209,8 @@ export async function confirmPostedInterviewSlot(formData: FormData) {
     await createSystemNotification(
       slot.createdById,
       "SYSTEM",
-      "Interview Slot Confirmed",
-      "An instructor confirmed a posted interview slot.",
+      "Curriculum Review Slot Confirmed",
+      "An instructor confirmed a posted curriculum review slot.",
       "/interviews?scope=readiness&view=team&state=needs_action"
     );
   }
@@ -325,7 +325,7 @@ function parseBulkScheduledAtValues(formData: FormData, keys: string[]) {
 
   const deduped = Array.from(new Map(values.map((value) => [value.toISOString(), value])).values());
   if (deduped.length === 0) {
-    throw new Error("Add at least one interview slot.");
+    throw new Error("Add at least one curriculum review slot.");
   }
 
   return deduped;
@@ -388,8 +388,8 @@ export async function submitInterviewAvailabilityRequest(formData: FormData) {
     await createSystemNotification(
       reviewerId,
       "SYSTEM",
-      "New Interview Availability Request",
-      "An instructor submitted preferred interview times.",
+      "New Curriculum Review Availability Request",
+      "An instructor submitted preferred curriculum review times.",
       "/interviews?scope=readiness&view=team&state=needs_action"
     );
   }
@@ -471,8 +471,8 @@ export async function postInterviewSlot(formData: FormData) {
   await createSystemNotification(
     instructorId,
     "SYSTEM",
-    "Interview Slot Available",
-    "A reviewer posted a new interview slot for you.",
+    "Curriculum Review Slot Available",
+    "A reviewer posted a new curriculum review slot for you.",
     "/interviews?scope=readiness&view=mine&state=needs_action"
   );
 
@@ -543,8 +543,8 @@ export async function postInstructorInterviewSlotsBulk(formData: FormData) {
   await createSystemNotification(
     instructorId,
     "SYSTEM",
-    "Interview Slots Available",
-    `${createdCount} interview slot${createdCount > 1 ? "s were" : " was"} posted for you.`,
+    "Curriculum Review Slots Available",
+    `${createdCount} curriculum review slot${createdCount > 1 ? "s were" : " was"} posted for you.`,
     "/interviews?scope=readiness&view=mine&state=needs_action"
   );
 
@@ -591,7 +591,7 @@ export async function acceptInterviewAvailabilityRequest(formData: FormData) {
   });
 
   if (!gate) {
-    throw new Error("Interview gate not found");
+    throw new Error("Curriculum review gate not found");
   }
   assertGateCanSchedule(gate.status);
 
@@ -617,7 +617,7 @@ export async function acceptInterviewAvailabilityRequest(formData: FormData) {
         select: { id: true },
       });
       if (existingConfirmed) {
-        throw new Error("Instructor already has a confirmed interview slot");
+        throw new Error("Instructor already has a confirmed curriculum review slot");
       }
 
       const existingSlot = await tx.instructorInterviewSlot.findUnique({
@@ -693,8 +693,8 @@ export async function acceptInterviewAvailabilityRequest(formData: FormData) {
   await createSystemNotification(
     request.instructorId,
     "SYSTEM",
-    "Interview Request Accepted",
-    "Your preferred interview request was accepted and scheduled.",
+    "Curriculum Review Request Accepted",
+    "Your preferred curriculum review request was accepted and scheduled.",
     "/interviews?scope=readiness&view=mine&state=scheduled"
   );
 
@@ -737,8 +737,8 @@ export async function declineInterviewAvailabilityRequest(formData: FormData) {
   await createSystemNotification(
     request.instructorId,
     "SYSTEM",
-    "Interview Request Declined",
-    "A reviewer declined your interview availability request. Submit new preferred times.",
+    "Curriculum Review Request Declined",
+    "A reviewer declined your curriculum review availability request. Submit new preferred times.",
     "/interviews?scope=readiness&view=mine&state=needs_action"
   );
 
@@ -765,13 +765,13 @@ export async function markInterviewCompleted(formData: FormData) {
   });
 
   if (!slot) {
-    throw new Error("Interview slot not found");
+    throw new Error("Curriculum review slot not found");
   }
 
   await assertReviewerCanManageInstructor(session.user.id, slot.gate.instructorId);
 
   if (slot.gate.status === "PASSED" || slot.gate.status === "WAIVED") {
-    throw new Error("Interview gate is already finalized.");
+    throw new Error("Curriculum review gate is already finalized.");
   }
 
   if (slot.status !== "CONFIRMED") {
@@ -798,8 +798,8 @@ export async function markInterviewCompleted(formData: FormData) {
   await createSystemNotification(
     slot.gate.instructorId,
     "SYSTEM",
-    "Interview Completed",
-    "Your interview was marked completed. A reviewer will post your outcome next.",
+    "Curriculum Review Completed",
+    "Your curriculum review was marked completed. A reviewer will post your outcome next.",
     "/interviews?scope=readiness&view=mine&state=blocked"
   );
 
@@ -827,7 +827,7 @@ async function applyInterviewOutcomeInternal({
   });
 
   if (!gate) {
-    throw new Error("Interview gate not found");
+    throw new Error("Curriculum review gate not found");
   }
 
   await assertReviewerCanManageInstructor(reviewerId, gate.instructorId);
@@ -843,7 +843,7 @@ async function applyInterviewOutcomeInternal({
 
     if (!completedInterview) {
       throw new Error(
-        "Cannot set interview outcome until at least one interview is marked completed."
+        "Cannot set curriculum review outcome until at least one curriculum review is marked completed."
       );
     }
   }
@@ -896,7 +896,7 @@ async function applyInterviewOutcomeInternal({
         status: "DECLINED" as InterviewRequestStatus,
         reviewedById: reviewerId,
         reviewedAt: new Date(),
-        reviewNotes: "Interview gate finalized.",
+        reviewNotes: "Curriculum review gate finalized.",
       },
     });
   }
@@ -904,8 +904,8 @@ async function applyInterviewOutcomeInternal({
   await createSystemNotification(
     gate.instructorId,
     "SYSTEM",
-    "Interview Outcome Posted",
-    `Your interview outcome is ${outcome}. Check your instructor training academy for next steps.`,
+    "Curriculum Review Outcome Posted",
+    `Your curriculum review outcome is ${outcome}. Check your instructor training academy for next steps.`,
     "/interviews?scope=readiness&view=mine&state=completed"
   );
 }
@@ -918,12 +918,12 @@ export async function completeInstructorInterviewAndSetOutcome(formData: FormDat
   let gateId = getString(formData, "gateId", false);
 
   if (!["PASS", "HOLD", "FAIL", "WAIVE"].includes(outcomeRaw)) {
-    throw new Error("Invalid interview outcome");
+    throw new Error("Invalid curriculum review outcome");
   }
 
   const roles = session.user.roles ?? [];
   if (outcomeRaw === "WAIVE" && !roles.includes("ADMIN")) {
-    throw new Error("Only admins can waive interview outcomes");
+    throw new Error("Only admins can waive curriculum review outcomes");
   }
 
   if (slotId) {
@@ -943,13 +943,13 @@ export async function completeInstructorInterviewAndSetOutcome(formData: FormDat
     });
 
     if (!slot) {
-      throw new Error("Interview slot not found");
+      throw new Error("Curriculum review slot not found");
     }
 
     await assertReviewerCanManageInstructor(session.user.id, slot.gate.instructorId);
 
     if (slot.gate.status === "PASSED" || slot.gate.status === "WAIVED") {
-      throw new Error("Interview gate is already finalized.");
+      throw new Error("Curriculum review gate is already finalized.");
     }
 
     if (!gateId) {
@@ -957,7 +957,7 @@ export async function completeInstructorInterviewAndSetOutcome(formData: FormDat
     }
 
     if (slot.gateId !== gateId) {
-      throw new Error("Slot does not match selected interview gate.");
+      throw new Error("Slot does not match selected curriculum review gate.");
     }
 
     if (!["CONFIRMED", "COMPLETED"].includes(slot.status)) {
@@ -985,7 +985,7 @@ export async function completeInstructorInterviewAndSetOutcome(formData: FormDat
   }
 
   if (!gateId) {
-    throw new Error("Missing interview gate reference.");
+    throw new Error("Missing curriculum review gate reference.");
   }
 
   await applyInterviewOutcomeInternal({
@@ -1005,12 +1005,12 @@ export async function setInterviewOutcome(formData: FormData) {
   const reviewNotes = getString(formData, "reviewNotes", false);
 
   if (!["PASS", "HOLD", "FAIL", "WAIVE"].includes(outcomeRaw)) {
-    throw new Error("Invalid interview outcome");
+    throw new Error("Invalid curriculum review outcome");
   }
 
   const roles = session.user.roles ?? [];
   if (outcomeRaw === "WAIVE" && !roles.includes("ADMIN")) {
-    throw new Error("Only admins can waive interview outcomes");
+    throw new Error("Only admins can waive curriculum review outcomes");
   }
 
   await applyInterviewOutcomeInternal({
