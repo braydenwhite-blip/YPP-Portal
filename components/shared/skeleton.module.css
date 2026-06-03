@@ -21,7 +21,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .skeleton {
     animation: none;
+  }
   }
 }

@@ -944,6 +944,7 @@
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .animateIn {
     animation: none;
   }
@@ -957,5 +958,6 @@
   .stepDot,
   .stepBtn {
     transition: none !important;
+  }
   }
 }

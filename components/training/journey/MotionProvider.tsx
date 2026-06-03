@@ -10,8 +10,8 @@
  */
 
 import { createContext, useContext } from "react";
-import { useReducedMotion } from "framer-motion";
 import { VARIANTS, REDUCED_VARIANTS } from "@/lib/training-journey/motion";
+import { useResolvedReducedMotion } from "@/lib/motion-preference";
 
 // ---------------------------------------------------------------------------
 // Context shape
@@ -54,9 +54,9 @@ type MotionProviderProps = {
 };
 
 export function MotionProvider({ children }: MotionProviderProps) {
-  // framer-motion reads prefers-reduced-motion from the OS. Returns true when
-  // the user has enabled the "Reduce motion" accessibility setting.
-  const reduced = useReducedMotion() ?? false;
+  // Resolves the OS "Reduce motion" setting *and* the user's in-app motion
+  // preference — an explicit "Always on" choice overrides the OS setting.
+  const reduced = useResolvedReducedMotion();
 
   const value: JourneyMotionContextValue = {
     variants: reduced ? REDUCED_VARIANTS : VARIANTS,

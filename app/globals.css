@@ -421,6 +421,7 @@ img {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .sidebar-marble-panel {
     animation: none;
   }
@@ -428,6 +429,7 @@ img {
   .sidebar-marble-panel::before,
   .sidebar-marble-panel::after {
     animation: none;
+  }
   }
 }
 
@@ -992,6 +994,7 @@ a.portal-brand.portal-brand--link:active {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .nav.nav--minimal .nav-main-items a,
   .nav.nav--minimal .nav-more-group-items a,
   .nav.nav--minimal .nav-main-items a .nav-icon,
@@ -1013,6 +1016,7 @@ a.portal-brand.portal-brand--link:active {
 
   .nav.nav--minimal .nav-more-group-toggle:hover {
     transform: none;
+  }
   }
 }
 
@@ -3429,8 +3433,10 @@ select.input {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .skeleton::after {
     animation: none;
+  }
   }
 }
 
@@ -5689,8 +5695,10 @@ a.dash-row:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .onboarding-celebrate-badge {
     animation: none;
+  }
   }
 }
 
@@ -6045,6 +6053,7 @@ a.dash-row:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .onboarding-step,
   .onboarding-choice-card,
   .onboarding-progress-fill {
@@ -6054,6 +6063,7 @@ a.dash-row:hover {
 
   .onboarding-choice-card:hover {
     transform: none;
+  }
   }
 }
 
@@ -10749,6 +10759,7 @@ a.dash-row:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .chair-queue-row,
   .chair-queue-tab {
     transition: none;
@@ -10757,6 +10768,7 @@ a.dash-row:hover {
   .chair-queue-row:hover,
   .chair-queue-row:focus-visible {
     transform: none;
+  }
   }
 }
 
@@ -11166,11 +11178,13 @@ a.dash-row:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .cockpit-skel {
     animation: none;
   }
   .final-review-cockpit .save-dot.pulsing {
     animation: none;
+  }
   }
 }
 
@@ -11850,7 +11864,9 @@ a.dash-row:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .iv-save-chip.is-saving .iv-save-chip-dot { animation: none; }
+  }
 }
 
 .iv-timer-chip {
@@ -13264,6 +13280,7 @@ a.dash-row:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .iv-card-interactive,
   .iv-kpi-tile {
     transition: none;
@@ -13283,6 +13300,7 @@ a.dash-row:hover {
   .iv-focus-mode-button,
   .iv-save-chip {
     transition: none;
+  }
   }
 }
 
@@ -14413,9 +14431,11 @@ a.mentor-panel__row:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   a.mentor-stat,
   a.mentor-panel__row {
     transition: none;
+  }
   }
 }
 
@@ -14508,8 +14528,10 @@ a.mentor-panel__row:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .mentor-guide__summary::before {
     transition: none;
+  }
   }
 }
 

@@ -2219,6 +2219,7 @@
 
 /* Prefers-reduced-motion: disable animations */
 @media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) {
   .onboardingCard,
   .levelUpContent,
   .levelUpIcon,
@@ -2231,6 +2232,7 @@
   .xpFill,
   .islandProgressSegment {
     transition: none !important;
+  }
   }
 }
 

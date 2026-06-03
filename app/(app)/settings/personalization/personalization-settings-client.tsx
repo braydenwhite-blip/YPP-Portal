@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import styles from "./personalization-page.module.css";
+import { useMotionPreference } from "@/lib/motion-preference";
 
 export default function PersonalizationSettingsClient() {
+  const [motionPref, setMotionPref] = useMotionPreference();
+
   const [settings, setSettings] = useState({
     dashboardLayout: "default",
     showXPProgress: true,
@@ -118,6 +121,50 @@ export default function PersonalizationSettingsClient() {
               <option value="medium">Medium (720p)</option>
               <option value="low">Low (480p)</option>
             </select>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.prefCard}>
+        <div className={styles.prefCardHead}>
+          <div className={styles.prefIcon} aria-hidden>
+            ✦
+          </div>
+          <div>
+            <h3>Motion &amp; animations</h3>
+            <p className={styles.prefLead}>
+              Control page transitions and animated effects across the portal.
+            </p>
+          </div>
+        </div>
+        <div className={styles.prefCardBody}>
+          <span className={styles.prefLabel}>Animation level</span>
+          <div className={styles.layoutGrid}>
+            {[
+              {
+                value: "system" as const,
+                label: "Follow device",
+                desc: "Match your OS “Reduce motion” setting",
+              },
+              {
+                value: "on" as const,
+                label: "Always on",
+                desc: "Keep full motion even if your device reduces it",
+              },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={motionPref === option.value}
+                onClick={() => setMotionPref(option.value)}
+                className={`${styles.layoutOption} ${
+                  motionPref === option.value ? styles.layoutOptionSelected : ""
+                }`}
+              >
+                <div className={styles.layoutOptionTitle}>{option.label}</div>
+                <div className={styles.layoutOptionDesc}>{option.desc}</div>
+              </button>
+            ))}
           </div>
         </div>
       </div>

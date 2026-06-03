@@ -52,8 +52,15 @@ export default function RootLayout({
 }) {
   const fontVars = `${dmSans.variable} ${playfair.variable} ${nunito.variable} ${lora.variable}`;
 
+  // Apply the saved motion preference before first paint so a forced "always
+  // on" choice never flashes a reduced-motion frame. Mirrors lib/motion-preference.ts.
+  const motionInit = `(function(){try{if(localStorage.getItem('ypp-motion-pref')==='on'){document.documentElement.setAttribute('data-motion','on');}}catch(e){}})();`;
+
   return (
     <html lang="en" className={fontVars}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: motionInit }} />
+      </head>
       <body suppressHydrationWarning>
         {children}
       </body>

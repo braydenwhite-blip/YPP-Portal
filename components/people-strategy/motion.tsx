@@ -10,10 +10,11 @@
  *      1. `LazyMotion` + `domAnimation` loads only the DOM animation feature
  *         bundle (~15kb) instead of the full `motion` runtime, and `strict`
  *         enforces that callers use the lightweight `m.*` components.
- *      2. `MotionConfig reducedMotion="user"` makes EVERY descendant respect
- *         the OS "Reduce motion" setting declaratively — transform/layout
- *         animations are dropped and only opacity is animated. No per-component
- *         `useReducedMotion()` branching required.
+ *      2. `MotionConfig` makes EVERY descendant respect the resolved motion
+ *         decision declaratively — transform/layout animations are dropped and
+ *         only opacity is animated. The decision honors the OS "Reduce motion"
+ *         setting *and* the user's in-app preference (an explicit "Always on"
+ *         choice overrides the OS), with no per-component branching required.
  *  - `FeedbackBanner` is the one animated piece reused across surfaces: inline
  *    success / error feedback that fades + lifts in and out.
  *
@@ -24,6 +25,7 @@
 import { LazyMotion, domAnimation, m, AnimatePresence, MotionConfig } from "framer-motion";
 
 import { feedbackBannerVariants } from "@/lib/people-strategy/motion";
+import { useResolvedReducedMotion } from "@/lib/motion-preference";
 
 export { m, AnimatePresence };
 
@@ -33,9 +35,10 @@ export { m, AnimatePresence };
  * changing flow.
  */
 export function MotionArea({ children }: { children: React.ReactNode }) {
+  const reduced = useResolvedReducedMotion();
   return (
     <LazyMotion features={domAnimation} strict>
-      <MotionConfig reducedMotion="user">
+      <MotionConfig reducedMotion={reduced ? "always" : "never"}>
         <div style={{ display: "contents" }}>{children}</div>
       </MotionConfig>
     </LazyMotion>
