@@ -60,7 +60,7 @@ export default function StudentDashboard({
         {
           done: snapshot.checklist.checkedInAtLeastOnce,
           label: "Check in to a session",
-          hint: "Check in when you attend so your progress stays current.",
+          hint: "Check in when you attend so your progress stays up to date.",
           href: "/my-classes",
         },
       ]
@@ -215,7 +215,7 @@ export default function StudentDashboard({
               Let&apos;s find your first class, {name}.
             </h2>
             <p className={s.heroText}>
-              Explore classes built around what you&apos;re curious about — pick
+              Explore classes built around what you&apos;re curious about. Pick
               one that excites you and you&apos;ll be set up in minutes.
             </p>
             <div className={s.heroActions}>
