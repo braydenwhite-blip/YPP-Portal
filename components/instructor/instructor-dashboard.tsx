@@ -358,7 +358,7 @@ export async function InstructorDashboard({
   return (
     <div className="dash">
       {/* Hero */}
-      <header className="dash-hero">
+      <header className="dash-hero" data-tour="dashboard">
         <div>
           <h1 className="dash-hero-greeting">
             {timeOfDayGreeting(now)}
@@ -463,7 +463,7 @@ export async function InstructorDashboard({
 
       {/* Schedule + classes */}
       <div className="grid two">
-        <section className="card">
+        <section className="card" data-tour="session-logging">
           <div className="dash-section-head">
             <h2>This week</h2>
             <Link href="/scheduling" className="dash-section-link">
@@ -513,7 +513,7 @@ export async function InstructorDashboard({
           )}
         </section>
 
-        <section className="card">
+        <section className="card" data-tour="course-materials">
           <div className="dash-section-head">
             <h2>My classes</h2>
             <Link
@@ -621,7 +621,7 @@ export async function InstructorDashboard({
           )}
         </section>
 
-        <section className="card">
+        <section className="card" data-tour="community">
           <div className="dash-section-head">
             <h2>Your teaching impact</h2>
             <Link href="/instructor-growth" className="dash-section-link">

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { isPublicGateEnabled } from "@/lib/public-gate";
 import { redirect } from "next/navigation";
@@ -8,6 +8,7 @@ import {
   isHiringDemoModeEnabled,
 } from "@/lib/hiring-demo-mode";
 import { InstructorDashboard } from "@/components/instructor/instructor-dashboard";
+import DashboardTourLauncher from "@/components/instructor/dashboard-tour-launcher";
 import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
 import { getMyClassesHubData } from "@/lib/student-class-portal";
 import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
@@ -293,11 +294,16 @@ export default async function OverviewPage() {
 
   if (isInstructor) {
     return (
-      <InstructorDashboard
-        userId={session.user.id}
-        name={name}
-        topSlot={<MyActionsCard viewer={actionViewer} />}
-      />
+      <>
+        <InstructorDashboard
+          userId={session.user.id}
+          name={name}
+          topSlot={<MyActionsCard viewer={actionViewer} />}
+        />
+        <Suspense fallback={null}>
+          <DashboardTourLauncher />
+        </Suspense>
+      </>
     );
   }
 
