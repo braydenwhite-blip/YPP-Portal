@@ -9,6 +9,8 @@ import StaticPortalMap from "./static-portal-map";
 import InstructorProfileForm, {
   type InstructorProfileFormData,
 } from "@/components/onboarding/instructor-profile-form";
+import TrainingHome from "@/components/instructor-training/training-home";
+import type { TrainingHomeModel } from "@/lib/training-phases";
 import {
   saveJourneyStep,
   completeJourneyStep,
@@ -204,23 +206,33 @@ function ProfileStep({
   );
 }
 
-/** Step 3 — training placeholder (links into the real training academy). */
-function TrainingStep() {
+/** Step 3 — training is now lived in-context: the same mission-control journey
+ *  the standalone page renders, embedded directly in the launchpad. */
+function TrainingStep({ trainingModel }: { trainingModel?: TrainingHomeModel | null }) {
+  if (!trainingModel) {
+    return (
+      <div className={styles.body}>
+        <h2 className={styles.stepTitle}>Your Training Journey</h2>
+        <p>
+          Before your first session, you&apos;ll work through a short, guided training journey.
+          It&apos;s temporarily unavailable here — open it on its own page to continue.
+        </p>
+        <Link href="/instructor-training" className="btn btn-secondary">
+          Open Instructor Training →
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.body}>
-      <h2 className={styles.stepTitle}>Training Modules</h2>
+      <h2 className={styles.stepTitle}>Your Training Journey</h2>
       <p>
-        Before your first session, you are required to complete the following training modules available in the portal.
+        Three short phases get you teach-ready: run a great session, prove you&apos;re ready, then
+        design your first lessons. Pick up right where you left off — your progress is saved as you
+        go, and you can finish the launchpad and return here anytime.
       </p>
-      <p>
-        These modules will walk you through YPP&apos;s instructional standards, how to structure a session, how to work with students at different levels, and how to use the platform effectively.
-      </p>
-      <p className={styles.note}>
-        Your assigned modules live on the Instructor Training page. You can track your progress there at any time — continue here to finish the launchpad, then dive in.
-      </p>
-      <Link href="/instructor-training" className="btn btn-secondary">
-        Open Instructor Training →
-      </Link>
+      <TrainingHome model={trainingModel} />
     </div>
   );
 }
@@ -320,11 +332,13 @@ interface InstructorLaunchpadProps {
   userName?: string;
   profileData?: InstructorProfileFormData | null;
   initialJourney: InstructorJourneyState;
+  trainingModel?: TrainingHomeModel | null;
 }
 
 export default function InstructorLaunchpad({
   profileData,
   initialJourney,
+  trainingModel,
 }: InstructorLaunchpadProps) {
   const router = useRouter();
   const [activeIndex, setActiveIndex] = useState(initialJourney.currentStep);
@@ -332,7 +346,9 @@ export default function InstructorLaunchpad({
   const [completed, setCompleted] = useState<boolean[]>(() => [
     initialJourney.welcomeComplete,
     initialJourney.profileComplete,
-    initialJourney.trainingComplete,
+    // Reflect live training progress, not just the one-time journey flag, so the
+    // rail step checks itself the moment training is actually complete.
+    initialJourney.trainingComplete || trainingModel?.progress.trainingComplete === true,
     initialJourney.tourComplete,
   ]);
   const [finishing, setFinishing] = useState(false);
@@ -460,7 +476,7 @@ export default function InstructorLaunchpad({
                 onBack={() => goTo(0)}
               />
             )}
-            {step.id === "training" && <TrainingStep />}
+            {step.id === "training" && <TrainingStep trainingModel={trainingModel} />}
             {step.id === "tour" && <TourStep />}
 
             {/* Profile step owns its own form buttons; others use the footer nav. */}

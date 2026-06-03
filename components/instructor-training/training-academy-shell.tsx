@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, type ReactNode } from "react";
+import { useCallback, useRef, type ReactNode } from "react";
 import shell from "@/components/instructor-onboarding/instructor-onboarding-guide.module.css";
 import OnboardingStepper from "@/components/instructor-onboarding/onboarding-stepper";
+import { TrainingScrollContext } from "./training-scroll-context";
 
 /* ------------------------------------------------------------------
    Training Academy shell.
@@ -39,8 +40,13 @@ export default function TrainingAcademyShell({
   railFooter?: ReactNode;
   children: ReactNode;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   const handleSelect = useCallback(
     (index: number) => {
+      // Only navigate to phases at/below the one the instructor has reached;
+      // locked future phases are non-interactive.
+      if (index > activeIndex) return;
       const target = milestones[index];
       if (!target) return;
       const el = document.getElementById(`milestone-${target.id}`);
@@ -53,7 +59,7 @@ export default function TrainingAcademyShell({
         block: "start",
       });
     },
-    [milestones],
+    [milestones, activeIndex],
   );
 
   return (
@@ -67,7 +73,7 @@ export default function TrainingAcademyShell({
         <OnboardingStepper
           steps={milestones}
           activeIndex={activeIndex}
-          reachedIndex={milestones.length - 1}
+          reachedIndex={activeIndex}
           completed={milestones.map((m) => m.complete)}
           onSelect={handleSelect}
         />
@@ -100,7 +106,11 @@ export default function TrainingAcademyShell({
           </div>
         </header>
 
-        <div className={shell.contentScroll}>{children}</div>
+        <div className={shell.contentScroll} ref={scrollRef}>
+          <TrainingScrollContext.Provider value={scrollRef}>
+            {children}
+          </TrainingScrollContext.Provider>
+        </div>
       </div>
     </div>
   );
