@@ -1,7 +1,7 @@
 /**
  * E2E: Module 1 (The YPP Standard) — happy path.
  *
- * Phase 4 exit criterion: an authorized user can walk through all 8 beats and
+ * Phase 4 exit criterion: an authorized user can walk through all 7 beats and
  * see the completion screen. After the run, the user's TrainingAssignment
  * row should be `COMPLETE` for academy_ypp_standard_001.
  *
@@ -45,20 +45,10 @@ test("@smoke approved instructor completes Module 1 end-to-end", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: /^(start|resume|let.s begin|pick up where you left off|review|walk through it again)$/i }).click();
 
-  // ── Beat 1: CONCEPT_REVEAL — visit all three panels ──────────────────────
-  await expect(
-    page.getByRole("heading", { name: /what ypp expects/i })
-  ).toBeVisible({ timeout: 10_000 });
-  for (const tabName of [/prepare/i, /show up/i, /follow through/i]) {
-    await page.getByRole("tab", { name: tabName }).click();
-  }
-  await page.getByRole("button", { name: /^check$/i }).click();
-  await page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i }).click();
-
-  // ── Beat 2: COMPARE — Recap B is correct ─────────────────────────────────
+  // ── Beat 2: COMPARE — Recap B is correct (now the first in-flow beat) ─────
   await expect(
     page.getByRole("heading", { name: /which recap meets the bar/i })
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 10_000 });
   await page.getByRole("radio", { name: /recap b/i }).click();
   await page.getByRole("button", { name: /^check$/i }).click();
   await page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i }).click();

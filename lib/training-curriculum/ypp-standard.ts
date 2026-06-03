@@ -2,7 +2,7 @@
  * Module 1 — The YPP Standard.
  *
  * Per docs/instructor-training-rebuild.md §4 Module 1.
- * Eight beats ending in a CONCEPT_REVEAL completion trigger.
+ * Seven beats ending in a CONCEPT_REVEAL completion trigger.
  * contentKey: "academy_ypp_standard_001".
  */
 
@@ -13,7 +13,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
   module: {
     title: "The YPP Standard",
     description:
-      "The three expectations — Prepare, Show Up, Follow Through — that every YPP instructor is measured against, and how to apply them.",
+      "You've already seen what we expect — now let's look at what it looks like in practice. Prepare, Show Up, Follow Through: the three pillars every YPP instructor is measured against, applied to real classroom moments.",
     sortOrder: 1,
     required: true,
     passScorePct: 80,
@@ -26,48 +26,16 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
   },
   beats: [
     // -------------------------------------------------------------------------
-    // Beat 1 — CONCEPT_REVEAL (unscored)
-    // -------------------------------------------------------------------------
-    {
-      sourceKey: "ypp-standard/beat-01-what-ypp-expects",
-      sortOrder: 1,
-      kind: "CONCEPT_REVEAL",
-      title: "What YPP expects",
-      prompt:
-        "YPP holds instructors to three expectations. Tap each to see what they mean in practice.",
-      scoringWeight: 0,
-      config: {
-        panels: [
-          {
-            id: "prepare",
-            title: "Prepare",
-            body: "Plan the session before it starts — objectives, timing, materials. Example: you arrive with a one-page lesson plan and the first activity queued up.",
-          },
-          {
-            id: "show-up",
-            title: "Show Up",
-            body: "Be on time, focused, and present for the whole session. Example: you log in five minutes early and put your phone away before the first student joins.",
-          },
-          {
-            id: "follow-through",
-            title: "Follow Through",
-            body: "Close the loop — update parents, log notes, and act on what you learned. Example: within 24 hours you send a short recap to the family and note one student's confusion for next week.",
-          },
-        ],
-        correctFeedback: {
-          tone: "correct",
-          headline: "Got it.",
-          body: "These three expectations are what every YPP instructor is measured against.",
-        },
-      },
-    },
-
-    // -------------------------------------------------------------------------
     // Beat 2 — COMPARE (scored, 10)
+    //
+    // The Prepare / Show Up / Follow Through pillars are introduced on the
+    // module intro (see `module.description`) and applied from here on — the
+    // standalone "What YPP expects" re-statement was removed to avoid repeating
+    // the onboarding guide's Expectations step.
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-02-compare-recaps",
-      sortOrder: 2,
+      sortOrder: 1,
       kind: "COMPARE",
       title: "Which recap meets the bar?",
       prompt:
@@ -113,7 +81,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-03-parent-email",
-      sortOrder: 3,
+      sortOrder: 2,
       kind: "SCENARIO_CHOICE",
       title: "A parent asks for an update",
       prompt:
@@ -214,7 +182,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-04-red-flags",
-      sortOrder: 4,
+      sortOrder: 3,
       kind: "MULTI_SELECT",
       title: "Red flags in a first session",
       prompt:
@@ -284,7 +252,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-05-spot-the-mistake",
-      sortOrder: 5,
+      sortOrder: 4,
       kind: "SPOT_THE_MISTAKE",
       title: "Spot the violation",
       prompt:
@@ -340,7 +308,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-06-late-cancel",
-      sortOrder: 6,
+      sortOrder: 5,
       kind: "SCENARIO_CHOICE",
       title: "A peer cancels last-minute",
       prompt:
@@ -421,7 +389,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-07-reflection",
-      sortOrder: 7,
+      sortOrder: 6,
       kind: "REFLECTION",
       title: "Your hardest expectation",
       prompt:
@@ -449,7 +417,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-08-complete",
-      sortOrder: 8,
+      sortOrder: 7,
       kind: "CONCEPT_REVEAL",
       title: "Standard Bearer",
       prompt: "You just finished Module 1 — The YPP Standard.",
