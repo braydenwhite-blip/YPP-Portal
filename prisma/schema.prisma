@@ -948,6 +948,7 @@ model User {
 
   // Onboarding
   onboarding OnboardingProgress?
+  instructorJourney InstructorJourney?
 
   // XP & Leveling
   xp             Int             @default(0)
@@ -4185,6 +4186,34 @@ model OnboardingProgress {
   completedAt      DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+}
+
+// ============================================
+// INSTRUCTOR JOURNEY (Launchpad — single source of truth)
+// ============================================
+// Unifies the instructor onboarding journey into one record. Replaces the
+// per-instructor reads of OnboardingProgress for the 4-step Instructor
+// Launchpad. Each launchpad step has its own completion timestamp so the
+// onboarding percentage is derived from this one row; training completion is
+// mirrored here when the instructor clears the training step, while the
+// authoritative module-by-module training percent still lives in the
+// readiness/training models.
+model InstructorJourney {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Current launchpad step index (0 = Welcome, 1 = Profile, 2 = Training, 3 = Tour).
+  currentStep         Int       @default(0)
+  welcomeCompletedAt  DateTime?
+  profileCompletedAt  DateTime?
+  trainingCompletedAt DateTime?
+  tourCompletedAt     DateTime?
+  /// Set when the instructor finishes the full launchpad.
+  completedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([completedAt])
 }
 
 // ============================================

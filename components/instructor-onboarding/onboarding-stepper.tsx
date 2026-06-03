@@ -4,7 +4,7 @@ import styles from "./instructor-onboarding-guide.module.css";
 
 export interface OnboardingStep {
   id: string;
-  /** Short label shown in the rail (e.g. "About"). */
+  /** Full label shown in the rail (e.g. "Welcome & your role"). */
   label: string;
   /** Tiny kicker above the label (e.g. "Step 1"). */
   kicker: string;
@@ -15,6 +15,8 @@ interface OnboardingStepperProps {
   activeIndex: number;
   /** Highest step index the user has reached (controls forward navigation). */
   reachedIndex: number;
+  /** Per-step completion (independent of position). */
+  completed: boolean[];
   onSelect: (index: number) => void;
 }
 
@@ -33,24 +35,27 @@ function CheckMark() {
 }
 
 /**
- * Horizontal, portal-native progress stepper. Renders each onboarding
- * section as a numbered step with completed / current / upcoming states,
- * a connector line, and an overall progress bar — so the instructor always
- * knows where they are and what comes next.
+ * Vertical, portal-native progress rail. Renders each launchpad step as a
+ * numbered step with completed / current / upcoming states and full, untruncated
+ * labels stacked vertically — so the instructor always knows where they are and
+ * what comes next. Hidden under 720px (the launchpad swaps in a compact pill).
  */
 export default function OnboardingStepper({
   steps,
   activeIndex,
   reachedIndex,
+  completed,
   onSelect,
 }: OnboardingStepperProps) {
-  const progress = steps.length > 1 ? (activeIndex / (steps.length - 1)) * 100 : 0;
+  const completedCount = completed.filter(Boolean).length;
+  const progress =
+    steps.length > 0 ? (completedCount / steps.length) * 100 : 0;
 
   return (
     <nav className={styles.stepper} aria-label="Onboarding progress">
       <ol className={styles.stepperList}>
         {steps.map((step, index) => {
-          const isComplete = index < activeIndex;
+          const isComplete = completed[index];
           const isActive = index === activeIndex;
           const reachable = index <= reachedIndex;
 

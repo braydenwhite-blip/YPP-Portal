@@ -2,9 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import OnboardingWizard from "@/components/onboarding/onboarding-wizard";
-import { getNextRequiredAction } from "@/lib/instructor-readiness";
 import { normalizeRoleList } from "@/lib/authorization";
-import { getApplicantSubtypeForUser } from "@/lib/workshop-proposal-access";
 
 export default async function OnboardingPage() {
   const session = await getSession();
@@ -61,23 +59,17 @@ export default async function OnboardingPage() {
   }
 
   const roles = normalizeRoleList(user.roles, user.primaryRole);
-  const isInstructor = roles.includes("INSTRUCTOR") || roles.includes("ADMIN");
-  const instructorNextAction = isInstructor
-    ? await getNextRequiredAction(user.id)
-    : null;
-  // Subtype routing — Summer Workshop Instructors get a short fast-start
-  // welcome step in the wizard explaining the focused role, the workshop
-  // proposal next-step, and (non-guaranteed) growth pathway. Standard
-  // (Full Instructor) and non-instructor users skip it.
-  const instructorSubtype = isInstructor
-    ? (await getApplicantSubtypeForUser(user.id))?.instructorSubtype ?? null
-    : null;
+
+  // Instructors now onboard through the unified Instructor Launchpad. Keep this
+  // redirect so old /onboarding bookmarks (and the app-shell gate) land them on
+  // the new 4-step experience instead of the retired instructor wizard.
+  if (roles.includes("INSTRUCTOR")) {
+    redirect("/instructor-onboarding");
+  }
 
   return (
     <OnboardingWizard
       userName={user.name}
-      primaryRole={user.primaryRole}
-      roles={roles}
       chapterName={user.chapter?.name}
       initialStep={onboardingData?.currentStep ?? 0}
       profileData={user.profile ? {
@@ -92,8 +84,6 @@ export default async function OnboardingPage() {
         primaryGoal: user.profile.primaryGoal,
         curriculumUrl: user.profile.curriculumUrl,
       } : null}
-      instructorNextAction={instructorNextAction}
-      instructorSubtype={instructorSubtype}
     />
   );
 }
