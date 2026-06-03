@@ -147,6 +147,8 @@ export function JourneyShell({
           strictMode={snapshot.strictMode}
           passScorePct={snapshot.passScorePct}
           showCohort={snapshot.showCohortIntro === true}
+          goalBadge={snapshot.goalBadge ?? null}
+          goalOutcome={snapshot.goalOutcome ?? null}
           onStart={() => setPhase("player")}
         />
       )}

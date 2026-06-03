@@ -18,6 +18,7 @@
  */
 
 import { READINESS_CHECK_MODULE_KEY } from "@/lib/training-constants";
+import { GOAL_META, goalBadge, type GoalKey } from "@/lib/training-goals";
 
 export type PhaseId = "deliver" | "prove" | "design";
 export type PhaseState = "complete" | "current" | "locked";
@@ -42,6 +43,48 @@ export interface TaskRow {
   lockReason: string | null;
   configurationIssue: string | null;
   isCapstone: boolean;
+  /** YPP role-framework key (WELCOME | GOAL_1…5 | CAPSTONE) — drives the roadmap. */
+  goalKey: string | null;
+  /** Instructor-column one-liner shown on the roadmap card. */
+  outcomeStatement: string | null;
+  /** Latest interactive-journey score, when scored. */
+  scorePct: number | null;
+}
+
+/**
+ * One node on the GOAL roadmap — the GOAL-mirrored replacement for the old
+ * three-phase map. Each section of the Academy (Welcome, GOAL 1–5, the
+ * Readiness Check capstone, and the Lesson Design Studio) is one node, in
+ * sequence. Vocabulary comes from `lib/training-goals.ts` so the roadmap
+ * never drifts from the official role framework.
+ */
+export type GoalNodeKind = "welcome" | "goal" | "capstone" | "studio";
+
+export interface GoalNode {
+  /** Stable id used for the rail anchor (`milestone-<id>`). */
+  id: string;
+  /** Role-framework key or `STUDIO` for the final design node. */
+  key: GoalKey | "STUDIO";
+  kind: GoalNodeKind;
+  /** Roadmap label, e.g. "GOAL 2" / "Welcome" / "Capstone". */
+  badge: string;
+  title: string;
+  /** Instructor-column outcome line. */
+  outcome: string;
+  estimatedMinutes: number | null;
+  state: TaskRowStatus;
+  scorePct: number | null;
+  progressPct: number;
+  href: string | null;
+  ctaLabel: string | null;
+  lockReason: string | null;
+  /** True for the five numbered GOALs — feeds the "5-GOAL coverage" meter. */
+  countsTowardCoverage: boolean;
+}
+
+export interface GoalCoverage {
+  completed: number;
+  total: number;
 }
 
 export interface PhaseView {
@@ -101,6 +144,12 @@ export interface TrainingHomeModel {
   nextTask: NextTaskPreview | null;
   phases: PhaseView[];
   activePhaseIndex: number;
+  /** GOAL-mirrored roadmap nodes, in sequence (Welcome → G1–5 → Capstone → Studio). */
+  goals: GoalNode[];
+  /** Index of the first not-yet-complete roadmap node (for the rail). */
+  activeGoalIndex: number;
+  /** Completed numbered GOALs out of five — the coverage meter. */
+  goalCoverage: GoalCoverage;
   subtype: "STANDARD" | "SUMMER_WORKSHOP";
   readinessHref: string;
 }
@@ -194,7 +243,68 @@ function toRow(
     lockReason: opts?.lockReason ?? null,
     configurationIssue: card.configurationIssue,
     isCapstone: opts?.isCapstone ?? false,
+    goalKey: (card.module.goalKey as string | null | undefined) ?? null,
+    outcomeStatement:
+      (card.module.outcomeStatement as string | null | undefined) ?? null,
+    scorePct: card.journeyProgress.scorePct,
   };
+}
+
+/**
+ * Derive the GOAL roadmap from the ordered task rows. One node per section,
+ * in sequence: Welcome → GOAL 1–5 → Readiness Check (capstone) → Lesson
+ * Design Studio (or the Summer Workshop submission). The Studio/workshop row
+ * carries no `goalKey`, so it's labelled from its `kind` rather than
+ * `GOAL_META`.
+ */
+function buildGoalNodes(orderedRows: TaskRow[]): GoalNode[] {
+  return orderedRows.map((row) => {
+    const goalKey = row.goalKey as GoalKey | null;
+    const meta = goalKey ? GOAL_META[goalKey] : undefined;
+
+    let kind: GoalNodeKind;
+    let key: GoalNode["key"];
+    let badge: string;
+    let outcome: string;
+
+    if (meta) {
+      key = goalKey as GoalKey;
+      kind = goalKey === "WELCOME" ? "welcome" : goalKey === "CAPSTONE" ? "capstone" : "goal";
+      badge = goalBadge(goalKey) || (kind === "welcome" ? "Welcome" : "Capstone");
+      outcome = row.outcomeStatement || meta.outcome;
+    } else if (row.isCapstone) {
+      // Lesson Design Studio / Summer Workshop submission — the final node.
+      key = "STUDIO";
+      kind = "studio";
+      badge = "Capstone";
+      outcome =
+        row.outcomeStatement ||
+        "Design your first lessons and earn approval to teach.";
+    } else {
+      // Defensive fallback for any unframed legacy module.
+      key = "STUDIO";
+      kind = "goal";
+      badge = "";
+      outcome = row.outcomeStatement || row.description;
+    }
+
+    return {
+      id: row.id,
+      key,
+      kind,
+      badge,
+      title: row.title,
+      outcome,
+      estimatedMinutes: row.estimatedMinutes,
+      state: row.status,
+      scorePct: row.scorePct,
+      progressPct: row.progressPct,
+      href: row.href,
+      ctaLabel: row.ctaLabel,
+      lockReason: row.lockReason,
+      countsTowardCoverage: kind === "goal" && Boolean(meta),
+    };
+  });
 }
 
 interface BuildPhasesInput {
@@ -387,6 +497,32 @@ export function buildTrainingPhases(input: BuildPhasesInput): TrainingHomeModel 
     .filter((r) => r.status !== "complete" && r.estimatedMinutes)
     .reduce((sum, r) => sum + (r.estimatedMinutes ?? 0), 0);
 
+  // ---- GOAL roadmap: the GOAL-mirrored view that replaces the phase map. -----
+  const goals = buildGoalNodes(allRows);
+  const firstIncompleteGoal = goals.findIndex((g) => g.state !== "complete");
+  const activeGoalIndex = firstIncompleteGoal === -1 ? Math.max(0, goals.length - 1) : firstIncompleteGoal;
+  const coverageNodes = goals.filter((g) => g.countsTowardCoverage);
+  const goalCoverage: GoalCoverage = {
+    completed: coverageNodes.filter((g) => g.state === "complete").length,
+    total: coverageNodes.length,
+  };
+
+  // Relabel the current/next task framing from "Phase N" to the GOAL the
+  // module belongs to, so the hero and "Next up" speak the role framework.
+  const goalById = new Map(goals.map((g) => [g.id, g]));
+  const currentGoal = currentTask.moduleId ? goalById.get(currentTask.moduleId) : undefined;
+  if (currentGoal) {
+    currentTask.phaseKicker = currentGoal.badge || "Academy";
+    currentTask.phaseTitle = currentGoal.title;
+  } else if (currentTask.kind === "approval") {
+    currentTask.phaseKicker = "Almost there";
+    currentTask.phaseTitle = "Get approved to teach";
+  }
+  if (nextTask) {
+    const nextGoal = nextEntry ? goalById.get(nextEntry.row.id) : undefined;
+    if (nextGoal) nextTask.phaseKicker = nextGoal.badge || "Up next";
+  }
+
   return {
     progress: {
       pct: trainingPct,
@@ -399,6 +535,9 @@ export function buildTrainingPhases(input: BuildPhasesInput): TrainingHomeModel 
     nextTask,
     phases,
     activePhaseIndex,
+    goals,
+    activeGoalIndex,
+    goalCoverage,
     subtype: isSummerWorkshop ? "SUMMER_WORKSHOP" : "STANDARD",
     readinessHref,
   };

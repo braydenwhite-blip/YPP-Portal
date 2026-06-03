@@ -1,0 +1,348 @@
+/* ============================================================
+   INSTRUCTOR ACADEMY — GOAL roadmap
+   The GOAL-mirrored replacement for the old three-phase map. One
+   cohesive Academy signature: a vertical spine of GOAL nodes
+   (Welcome → GOAL 1–5 → Readiness Check → Lesson Design Studio),
+   each a TrainingGoalCard with state, outcome, and an earned badge.
+   Built entirely on the portal design system tokens (globals.css) +
+   the launchpad easing. No hardcoded hex — fully reduced-motion safe.
+   ============================================================ */
+
+/* ----------------------------- Coverage meter ----------------------------- */
+
+.coverage {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--ypp-purple-200);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(100deg, var(--ypp-purple-50), var(--surface) 80%);
+}
+
+.coverageHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.coverageLabel {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ypp-purple-700);
+}
+
+.coverageCount {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ypp-purple-600);
+}
+
+.coverageDots {
+  display: flex;
+  gap: 6px;
+}
+
+.coverageDot {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--ypp-purple-100, #ede9fe);
+  transition: background 240ms var(--ease-launchpad);
+}
+
+.coverageDotOn {
+  background: linear-gradient(90deg, var(--ypp-purple-500, #8b5cf6), var(--ypp-purple-700));
+}
+
+/* ------------------------------- Roadmap -------------------------------- */
+
+.roadmap {
+  display: grid;
+  gap: 0;
+  position: relative;
+}
+
+.node {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 16px;
+  scroll-margin-top: 16px;
+}
+
+/* The connecting spine runs through the marker column. */
+.spine {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.spine::before,
+.spine::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--border);
+}
+.spine::before {
+  top: 0;
+  height: 22px;
+}
+.spine::after {
+  top: 22px;
+  bottom: -2px;
+  height: auto;
+}
+/* No line above the first node or below the last. */
+.node:first-child .spine::before {
+  display: none;
+}
+.node:last-child .spine::after {
+  display: none;
+}
+/* Completed segments tint the spine green so progress reads top-down. */
+.isComplete .spine::before,
+.isComplete .spine::after {
+  background: var(--success-color, #15803d);
+}
+
+.marker {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+  flex-shrink: 0;
+  transition: transform 200ms var(--ease-launchpad), background 200ms var(--ease-launchpad);
+}
+.isCurrent .marker {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--ypp-purple-500, #8b5cf6), var(--ypp-purple-700));
+  color: #fff;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--ypp-purple-600) 32%, transparent);
+}
+.isComplete .marker {
+  border-color: transparent;
+  background: var(--success-color, #15803d);
+  color: #fff;
+}
+.markerJustChecked {
+  animation: roadmapCheckPop 460ms var(--ease-launchpad) both;
+}
+
+/* ------------------------------ Goal card ------------------------------- */
+
+.card {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  transition: border-color 200ms var(--ease-launchpad), box-shadow 200ms var(--ease-launchpad),
+    transform 200ms var(--ease-launchpad);
+}
+.isCurrent .card {
+  border-color: color-mix(in srgb, var(--ypp-purple-600) 40%, var(--border));
+  box-shadow: var(--shadow-sm);
+}
+.isLocked .card {
+  opacity: 0.7;
+  background: var(--surface-alt, #fafafa);
+}
+.cardLaunching {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 38px color-mix(in srgb, var(--ypp-purple-700) 18%, transparent);
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cardHeadText {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cardBadge {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ypp-purple-600);
+}
+.isCapstoneNode .cardBadge,
+.isStudioNode .cardBadge {
+  color: var(--success-color, #15803d);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: clamp(15px, 1.9vw, 17px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text, var(--ypp-ink));
+}
+
+.cardOutcome {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary, var(--muted));
+}
+
+/* State pill — token-based, never raw hex. */
+.statePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.pillCurrent {
+  border-color: transparent;
+  background: var(--ypp-purple-50);
+  color: var(--ypp-purple-700);
+}
+.pillComplete {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--success-color, #15803d) 12%, transparent);
+  color: var(--success-color, #15803d);
+}
+
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.metaChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--surface-alt, #f6f6f9);
+  border: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.lockNote {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.lockIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+/* --------------------------- Goal badge (earned) --------------------------- */
+
+.goalBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-full);
+  background: var(--success-color, #15803d);
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--success-color, #15803d) 30%, transparent);
+}
+.goalBadgePop {
+  animation: roadmapCheckPop 500ms var(--ease-launchpad) both;
+}
+.goalBadgeLabel {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* ------------------------------ Animations ------------------------------ */
+
+@keyframes roadmapCheckPop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.14); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ------------------------------ Responsive ------------------------------ */
+
+@media (max-width: 720px) {
+  .node {
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .marker {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+  .spine::after {
+    top: 18px;
+  }
+  .spine::before {
+    height: 18px;
+  }
+  .cardHead {
+    flex-direction: column;
+  }
+}
+
+/* ---------------------------- Reduced motion ---------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .marker,
+  .coverageDot {
+    transition: none !important;
+  }
+  .cardLaunching {
+    transform: none;
+  }
+  .markerJustChecked,
+  .goalBadgePop {
+    animation: none;
+  }
+}

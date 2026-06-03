@@ -29,6 +29,10 @@ export type JourneyIntroProps = {
   /** When true, shows a "Who's in the room" panel with the recurring cohort
    *  before the start CTA. Used by the simulation-heavy modules. */
   showCohort?: boolean;
+  /** YPP role-framework label, e.g. "GOAL 2" — shown as the GOAL accent. */
+  goalBadge?: string | null;
+  /** Instructor-column outcome line shown under the GOAL accent. */
+  goalOutcome?: string | null;
   onStart: () => void;
 };
 
@@ -64,6 +68,8 @@ export function JourneyIntro({
   strictMode = false,
   passScorePct,
   showCohort = false,
+  goalBadge = null,
+  goalOutcome = null,
   onStart,
 }: JourneyIntroProps) {
   const { variants } = useJourneyMotion();
@@ -94,6 +100,21 @@ export function JourneyIntro({
         animate="visible"
         exit="exit"
       >
+        {goalBadge ? (
+          <p
+            style={{
+              margin: "0 0 6px",
+              fontSize: 11.5,
+              fontWeight: 800,
+              letterSpacing: "0.07em",
+              textTransform: "uppercase",
+              color: "var(--ypp-purple-600)",
+            }}
+          >
+            {goalBadge}
+          </p>
+        ) : null}
+
         <h1
           style={{
             margin: "0 0 12px",
@@ -105,6 +126,20 @@ export function JourneyIntro({
         >
           {title}
         </h1>
+
+        {goalOutcome ? (
+          <p
+            style={{
+              margin: "0 0 16px",
+              fontSize: 14,
+              fontWeight: 600,
+              lineHeight: 1.5,
+              color: "var(--ypp-purple-700)",
+            }}
+          >
+            {goalOutcome}
+          </p>
+        ) : null}
 
         <p style={{ margin: "0 0 20px", lineHeight: 1.65, color: "var(--muted)" }}>
           {description}

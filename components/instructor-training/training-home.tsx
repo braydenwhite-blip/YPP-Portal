@@ -5,14 +5,17 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useState, type ReactNode } from "react";
 import type { TrainingHomeModel } from "@/lib/training-phases";
 import CurrentTaskHero from "./current-task-hero";
-import PhaseMap from "./phase-map";
+import TrainingGoalRoadmap from "./training-goal-roadmap";
+import TrainingCompletionPanel from "./training-completion-panel";
+import roadmap from "./training-roadmap.module.css";
 import styles from "./training-home.module.css";
 
 /**
- * Mission control for instructor training. Shows ONE current task (hero), ONE
- * next-task preview, an overall progress ring, and a compact three-phase map.
- * Used both inside the onboarding launchpad (Step 3) and on the standalone
- * training page, so onboarding and training read as one system.
+ * Mission control for the Instructor Academy. Shows ONE current task (hero), a
+ * next-task preview, an overall progress ring, a 5-GOAL coverage meter, and
+ * the GOAL roadmap (Welcome → GOAL 1–5 → Readiness Check → Lesson Design
+ * Studio). Used both inside the onboarding launchpad (Step 3) and on the
+ * standalone training page, so onboarding and training read as one Academy.
  */
 export default function TrainingHome({
   model,
@@ -26,18 +29,16 @@ export default function TrainingHome({
   bannersSlot?: ReactNode;
 }) {
   const reduced = useReducedMotion() ?? false;
-  const { progress, currentTask, nextTask, phases, readinessHref } = model;
+  const { progress, currentTask, nextTask, goals, goalCoverage, readinessHref } = model;
 
-  // Phase-complete celebration: fire once, only when the module we just
-  // returned from finished its phase. Keyed off the `?from=` return param the
-  // server passes through — never on a plain revisit.
-  const justCompletedPhase = justCompletedId
-    ? phases.find(
-        (p) => p.state === "complete" && p.modules.some((m) => m.id === justCompletedId),
-      )
+  // GOAL-complete celebration: fire once, only when the node we just returned
+  // from is complete. Keyed off the `?from=` return param the server passes
+  // through — never on a plain revisit.
+  const justCompletedGoal = justCompletedId
+    ? goals.find((g) => g.id === justCompletedId && g.state === "complete")
     : undefined;
   const [celebrationDismissed, setCelebrationDismissed] = useState(false);
-  const showCelebration = Boolean(justCompletedPhase) && !celebrationDismissed;
+  const showCelebration = Boolean(justCompletedGoal) && !celebrationDismissed;
 
   const progressLabel = `${progress.completedModules} / ${progress.totalModules}`;
 
@@ -46,7 +47,7 @@ export default function TrainingHome({
       {bannersSlot}
 
       <AnimatePresence>
-        {showCelebration && justCompletedPhase ? (
+        {showCelebration && justCompletedGoal ? (
           <motion.div
             className={styles.celebration}
             role="status"
@@ -61,7 +62,11 @@ export default function TrainingHome({
               </svg>
             </span>
             <span className={styles.celebrationText}>
-              <strong>{justCompletedPhase.kicker} cleared.</strong> {justCompletedPhase.outcome}
+              <strong>
+                {justCompletedGoal.badge ? `${justCompletedGoal.badge} ` : ""}
+                {justCompletedGoal.title} complete.
+              </strong>{" "}
+              {justCompletedGoal.outcome}
             </span>
             <button
               type="button"
@@ -75,45 +80,67 @@ export default function TrainingHome({
         ) : null}
       </AnimatePresence>
 
-      <CurrentTaskHero
-        task={currentTask}
-        progressPct={progress.pct}
-        progressLabel={progressLabel}
-      />
+      {progress.trainingComplete ? (
+        <TrainingCompletionPanel dashboardHref="/" />
+      ) : (
+        <>
+          <CurrentTaskHero
+            task={currentTask}
+            progressPct={progress.pct}
+            progressLabel={progressLabel}
+          />
 
-      <div className={styles.glanceRow}>
-        {nextTask ? (
-          <div className={styles.nextCard}>
-            <span className={styles.nextLabel}>Next up</span>
-            <span className={styles.nextTitle}>{nextTask.title}</span>
-            <span className={styles.nextMeta}>
-              {nextTask.phaseKicker}
-              {nextTask.estimatedMinutes ? ` · ${nextTask.estimatedMinutes} min` : ""}
+          <div className={styles.glanceRow}>
+            {nextTask ? (
+              <div className={styles.nextCard}>
+                <span className={styles.nextLabel}>Next up</span>
+                <span className={styles.nextTitle}>{nextTask.title}</span>
+                <span className={styles.nextMeta}>
+                  {nextTask.phaseKicker}
+                  {nextTask.estimatedMinutes ? ` · ${nextTask.estimatedMinutes} min` : ""}
+                </span>
+              </div>
+            ) : (
+              <div className={styles.nextCard}>
+                <span className={styles.nextLabel}>Next up</span>
+                <span className={styles.nextTitle}>Get approved to teach</span>
+                <span className={styles.nextMeta}>Curriculum review &amp; offering approval</span>
+              </div>
+            )}
+
+            {progress.minutesRemaining ? (
+              <div className={styles.momentumCard}>
+                <span className={styles.momentumValue}>~{progress.minutesRemaining} min</span>
+                <span className={styles.momentumLabel}>to teach-ready</span>
+              </div>
+            ) : null}
+          </div>
+        </>
+      )}
+
+      {/* 5-GOAL coverage meter — how many of the five GOALs you've built. */}
+      {goalCoverage.total > 0 ? (
+        <div className={roadmap.coverage}>
+          <div className={roadmap.coverageHead}>
+            <span className={roadmap.coverageLabel}>5-GOAL coverage</span>
+            <span className={roadmap.coverageCount}>
+              {goalCoverage.completed} of {goalCoverage.total} goals
             </span>
           </div>
-        ) : (
-          <div className={styles.nextCard}>
-            <span className={styles.nextLabel}>Next up</span>
-            <span className={styles.nextTitle}>
-              {progress.trainingComplete ? "You're all done" : "Get approved to teach"}
-            </span>
-            <span className={styles.nextMeta}>Curriculum review &amp; offering approval</span>
+          <div className={roadmap.coverageDots} aria-hidden>
+            {Array.from({ length: goalCoverage.total }).map((_, i) => (
+              <span
+                key={i}
+                className={`${roadmap.coverageDot} ${
+                  i < goalCoverage.completed ? roadmap.coverageDotOn : ""
+                }`}
+              />
+            ))}
           </div>
-        )}
+        </div>
+      ) : null}
 
-        {progress.minutesRemaining ? (
-          <div className={styles.momentumCard}>
-            <span className={styles.momentumValue}>~{progress.minutesRemaining} min</span>
-            <span className={styles.momentumLabel}>to teach-ready</span>
-          </div>
-        ) : null}
-      </div>
-
-      <PhaseMap
-        phases={phases}
-        currentOpenId={currentTask.moduleId}
-        justCompletedId={justCompletedId}
-      />
+      <TrainingGoalRoadmap goals={goals} justCompletedId={justCompletedId} />
 
       <Link href={readinessHref} className={styles.readinessLink}>
         <span>

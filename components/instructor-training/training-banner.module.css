@@ -1,0 +1,51 @@
+/* ============================================================
+   TrainingBanner — token-based status banners for the Academy hub.
+   Three variants (info / success / warning) keyed entirely off the
+   portal design tokens. Replaces the off-system inline-hex banners.
+   ============================================================ */
+
+.banner {
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  background: var(--surface);
+}
+
+.body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary, var(--muted));
+}
+
+.title {
+  font-weight: 700;
+}
+
+/* ---- Info (purple — the Academy signature) ---- */
+.info {
+  border-left-color: var(--ypp-purple-500, #8b5cf6);
+  background: var(--ypp-purple-50);
+}
+.info .title {
+  color: var(--ypp-purple-800);
+}
+
+/* ---- Success (green) ---- */
+.success {
+  border-left-color: var(--success-color, #15803d);
+  background: color-mix(in srgb, var(--success-color, #15803d) 8%, var(--surface));
+}
+.success .title {
+  color: var(--success-color, #15803d);
+}
+
+/* ---- Warning (amber) ---- */
+.warning {
+  border-left-color: var(--warning-color, #d97706);
+  background: color-mix(in srgb, var(--warning-color, #d97706) 9%, var(--surface));
+}
+.warning .title {
+  color: var(--warning-color, #b45309);
+}
