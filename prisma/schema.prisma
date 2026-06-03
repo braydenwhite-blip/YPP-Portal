@@ -1655,6 +1655,15 @@ model TrainingModule {
   required      Boolean            @default(true)
   sortOrder     Int
 
+  /// Maps the module to YPP's official role framework so the Academy roadmap
+  /// can group and label sections by GOAL. One of:
+  /// WELCOME | GOAL_1 | GOAL_2 | GOAL_3 | GOAL_4 | GOAL_5 | CAPSTONE.
+  /// Null for legacy/admin-created modules that predate the framework.
+  goalKey          String?
+  /// One-line "what you'll be able to do" statement drawn from the GOAL's
+  /// Instructor-column competency. Surfaced on the roadmap card.
+  outcomeStatement String?
+
   // Video Integration (Legacy - kept for backwards compatibility)
   videoUrl         String?
   videoProvider    VideoProvider?
@@ -1683,6 +1692,7 @@ model TrainingModule {
   updatedAt           DateTime                     @updatedAt
 
   @@index([archivedAt])
+  @@index([goalKey])
 }
 
 enum VideoProvider {

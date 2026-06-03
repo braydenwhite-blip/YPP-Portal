@@ -15,10 +15,12 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
   module: {
     title: "Readiness Check",
     description:
-      "Final applied check across the YPP standard, session flow, student situations, and communication. Ten beats. One shot per beat. Pass at 80% to unlock the Lesson Design Studio.",
-    sortOrder: 5,
+      "Capstone. A final applied check across all five GOALS — class delivery, student and family relationships, reliability, and your readiness to contribute and grow. Ten beats. One shot per beat. Pass at 80% to unlock the Lesson Design Studio.",
+    sortOrder: 7,
     required: true,
     passScorePct: 80,
+    goalKey: "CAPSTONE",
+    outcomeStatement: "Prove you're ready to teach your first YPP class.",
   },
   journey: {
     estimatedMinutes: 9,
@@ -587,7 +589,7 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
       sortOrder: 10,
       kind: "CONCEPT_REVEAL",
       title: "Ready to teach",
-      prompt: "You finished Module 5 — Readiness Check.",
+      prompt: "You finished the Readiness Check — the Academy capstone.",
       scoringWeight: 0,
       config: {
         panels: [
@@ -604,8 +606,8 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
         ],
         correctFeedback: {
           tone: "correct",
-          headline: "Module 5 complete.",
-          body: "Ready to Teach earned. The capstone is open.",
+          headline: "Readiness Check complete.",
+          body: "Ready to Teach earned. The Lesson Design Studio is open.",
         },
       },
     },

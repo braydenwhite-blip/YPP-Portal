@@ -55,6 +55,14 @@ export type CurriculumModuleMeta = {
   sortOrder: number;
   required: boolean;
   passScorePct: number;
+  /**
+   * Maps the module onto YPP's official role framework (see `lib/training-goals.ts`).
+   * Drives roadmap grouping/labelling. One of:
+   * WELCOME | GOAL_1 | GOAL_2 | GOAL_3 | GOAL_4 | GOAL_5 | CAPSTONE.
+   */
+  goalKey?: string;
+  /** One-line Instructor-column outcome shown on the roadmap card. */
+  outcomeStatement?: string;
 };
 
 export type CurriculumJourneyMeta = {

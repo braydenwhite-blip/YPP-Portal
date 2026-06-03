@@ -21,12 +21,14 @@ import type { CurriculumDefinition } from "./types";
 export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
   contentKey: "academy_run_session_002",
   module: {
-    title: "Run a Great Session",
+    title: "Curriculum & Class Delivery",
     description:
-      "Run sessions students can follow — they know where they're going, stay on pace, and leave with something concrete. Every camp and subject runs differently, so this module teaches the jobs a strong session does, not one mandatory format: open with purpose, read the room mid-session, and close so the learning sticks. Adapt the shape to your camp; keep the principles.",
+      "GOAL 1. Deliver organized, engaging classes that captivate students and keep attendance and participation strong. This module teaches the jobs a great session does — open with purpose, read the room mid-session, and close so the learning sticks — and how to come prepared and adapt to student needs. Every camp and subject runs differently, so keep the principles and adapt the shape to your class.",
     sortOrder: 2,
     required: true,
     passScorePct: 80,
+    goalKey: "GOAL_1",
+    outcomeStatement: "Deliver organized, engaging classes that captivate students.",
   },
   journey: {
     estimatedMinutes: 8,
@@ -469,7 +471,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
       sortOrder: 9,
       kind: "CONCEPT_REVEAL",
       title: "Session Ace",
-      prompt: "You just finished Module 2 — Run a Great Session.",
+      prompt: "You just finished GOAL 1 — Curriculum & Class Delivery.",
       scoringWeight: 0,
       config: {
         panels: [
@@ -481,12 +483,12 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
           {
             id: "next",
             title: "What's next",
-            body: "Module 3 unlocks next. Apply the session shape to your first real class — use the opening plan you drafted in the reflection as your starting point.",
+            body: "GOAL 2 — Student & Family Relationships — unlocks next. Carry the session shape forward — use the opening plan you drafted in the reflection as your starting point.",
           },
         ],
         correctFeedback: {
           tone: "correct",
-          headline: "Module 2 complete.",
+          headline: "GOAL 1 complete.",
           body: "Session Ace earned.",
         },
       },

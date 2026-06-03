@@ -11,12 +11,14 @@ import type { CurriculumDefinition } from "./types";
 export const M1_YPP_STANDARD: CurriculumDefinition = {
   contentKey: "academy_ypp_standard_001",
   module: {
-    title: "The YPP Standard",
+    title: "Welcome to YPP",
     description:
-      "You've already seen what we expect — now let's look at what it looks like in practice. Prepare, Show Up, Follow Through: the three pillars every YPP instructor is measured against, applied to real classroom moments.",
+      "Your job as a YPP instructor is to create engaging, meaningful, high-quality learning experiences that help students explore and develop their passions. This first stop sets the bar — Prepare, Show Up, Follow Through — and shows what excellence looks like in real classroom moments before you start building your own class.",
     sortOrder: 1,
     required: true,
     passScorePct: 80,
+    goalKey: "WELCOME",
+    outcomeStatement: "Know the YPP mission, your role, and where it leads.",
   },
   journey: {
     estimatedMinutes: 6,
@@ -420,7 +422,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
       sortOrder: 7,
       kind: "CONCEPT_REVEAL",
       title: "Standard Bearer",
-      prompt: "You just finished Module 1 — The YPP Standard.",
+      prompt: "You just finished Welcome to YPP.",
       scoringWeight: 0,
       config: {
         panels: [
@@ -432,12 +434,12 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
           {
             id: "next",
             title: "What's next",
-            body: "Module 2 — Run a Great Session — unlocks next. Apply the Standard to the shape of a strong 60 minutes.",
+            body: "GOAL 1 — Curriculum & Class Delivery — unlocks next. Apply the Standard to how you run a strong, engaging class.",
           },
         ],
         correctFeedback: {
           tone: "correct",
-          headline: "Module 1 complete.",
+          headline: "Welcome complete.",
           body: "Standard Bearer earned.",
         },
       },
