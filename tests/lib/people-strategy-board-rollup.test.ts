@@ -136,7 +136,7 @@ function makeItem(over: Partial<FakeItem> & { id: string }): FakeItem {
 }
 
 describe("runBoardRollups", () => {
-  it("rolls up an escalation unresolved 7+ days: marks, audits, notifies once", async () => {
+  it("rolls up an escalation unresolved past the threshold: marks, audits, notifies once", async () => {
     items = [makeItem({ id: "a", escalatedToCpoAt: daysAgo(8) })];
 
     const res = await runBoardRollups(NOW);
@@ -151,8 +151,8 @@ describe("runBoardRollups", () => {
     expect(createdComments[0].body).toMatch(/Rolled up to the Board/i);
   });
 
-  it("does NOT roll up before 7 days past CPO escalation", async () => {
-    items = [makeItem({ id: "b", escalatedToCpoAt: daysAgo(5) })];
+  it("does NOT roll up before the threshold (3 days) past Leadership escalation", async () => {
+    items = [makeItem({ id: "b", escalatedToCpoAt: daysAgo(2) })];
     const res = await runBoardRollups(NOW);
     expect(res.eligible).toBe(0);
     expect(items[0].boardRolledUpAt).toBeNull();

@@ -184,16 +184,30 @@ describe("createActionItem", () => {
     expect(prisma.actionItem.create).not.toHaveBeenCalled();
   });
 
-  it("rejects creation without an executing assignee", async () => {
+  it("treats the Lead as the implicit executor when none is named", async () => {
     sessionAs({ id: "o1", roles: ["STAFF"] });
+    (prisma.department.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "d1",
+    });
+    (prisma.user.count as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    (prisma.actionItem.create as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "created-action",
+    });
 
     await expect(
       createActionItem({
         ...baseInput,
         executingUserIds: [],
       })
-    ).rejects.toThrow("At least one Executing assignee is required");
-    expect(prisma.actionItem.create).not.toHaveBeenCalled();
+    ).resolves.toEqual({ id: "created-action" });
+
+    const createArg = (prisma.actionItem.create as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0];
+    // Lead-only input still produces a LEAD + an implicit EXECUTING row.
+    expect(createArg.data.assignments.create).toEqual([
+      { userId: "u1", role: "LEAD" },
+      { userId: "u1", role: "EXECUTING" },
+    ]);
   });
 
   it("allows the lead to also be an executing assignee", async () => {

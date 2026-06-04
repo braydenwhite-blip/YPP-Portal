@@ -254,21 +254,25 @@ export async function createActionItem(input: CreateActionItemInput) {
   const deadlineStart = parseDateInput(data.deadlineStart);
   if (!deadlineStart) throw new Error("A valid deadline start date is required");
   assertDeadlineRange(deadlineStart, data.deadlineEnd);
-  if (data.executingUserIds.length === 0) {
-    throw new Error("At least one Executing assignee is required");
-  }
+
+  // The Lead implicitly executes the work, so a separate Executing assignee is
+  // optional: when none is named, the Lead becomes the executor. This unblocks
+  // creating an action from just a Title + Lead + Deadline.
+  const executingUserIds =
+    data.executingUserIds.length > 0 ? data.executingUserIds : [data.leadId];
 
   if (data.departmentId) await assertDepartmentExists(data.departmentId);
   await assertUsersExist([
     data.leadId,
-    ...data.executingUserIds,
+    ...executingUserIds,
     ...data.inputUserIds,
   ]);
 
-  // Lead is also represented as a LEAD assignment row; de-dupe executing/input.
+  // Lead is also represented as a LEAD assignment row; the (actionItemId,
+  // userId, role) uniqueness lets the Lead additionally hold an EXECUTING row.
   const assignmentRows: Array<{ userId: string; role: ActionAssignmentRole }> = [
     { userId: data.leadId, role: "LEAD" },
-    ...data.executingUserIds
+    ...executingUserIds
       .map((userId) => ({ userId, role: "EXECUTING" as const })),
     ...data.inputUserIds.map((userId) => ({ userId, role: "INPUT" as const })),
   ];

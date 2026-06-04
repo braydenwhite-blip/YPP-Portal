@@ -14,6 +14,7 @@ import { loadCpoEscalationQueue } from "@/lib/people-strategy/escalation-queue";
 import { isBoard } from "@/lib/people-strategy/action-permissions";
 import { PeopleDashboardTable } from "@/components/people-strategy/people-dashboard-table";
 import { EscalationQueue } from "@/components/people-strategy/escalation-queue";
+import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,16 @@ export default async function PeopleDashboardPage() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
+      {/* Back-link + tabs so the People Dashboard is no longer a navigation
+          trap — every Action Tracker subview can be reached from here. */}
+      <Link
+        href="/actions/all"
+        style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)", textDecoration: "none" }}
+      >
+        ← Action Tracker
+      </Link>
+      <ActionTrackerTabs active="people" showPeople />
+
       {/* Header banner */}
       <div
         className="topbar"
