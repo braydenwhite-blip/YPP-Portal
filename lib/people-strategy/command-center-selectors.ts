@@ -1,3 +1,5 @@
+import type { ActionPriority } from "@prisma/client";
+
 import {
   addDays,
   daysUntil,
@@ -6,6 +8,7 @@ import {
   startOfOperatingWeek,
 } from "@/lib/leadership-action-center/dates";
 
+import { ACTION_PRIORITY_WEIGHT } from "./constants";
 import type { ActionItemWithRelations } from "./action-queries";
 import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
 import {
@@ -42,6 +45,15 @@ function isFlaggedUnresolved(item: ActionItemWithRelations): boolean {
   return item.flaggedAt != null && item.resolvedAt == null;
 }
 
+/**
+ * The completion timestamp: the exact `completedAt` (Phase 7) when present,
+ * else a best-effort fallback to `updatedAt` for rows completed before the
+ * column existed.
+ */
+function completionTime(item: ActionItemWithRelations): Date {
+  return item.completedAt ?? item.updatedAt;
+}
+
 function isEscalatedUnresolved(item: ActionItemWithRelations): boolean {
   return item.escalatedToCpoAt != null && item.resolvedAt == null;
 }
@@ -73,6 +85,7 @@ export interface WeeklyPulse {
   completedThisWeek: number;
   overdue: number;
   flagged: number;
+  blocked: number;
   dueThisWeek: number;
   /** Open items with no one assigned to execute them. */
   unowned: number;
@@ -87,23 +100,26 @@ export function buildWeeklyPulse(
   let completedThisWeek = 0;
   let overdue = 0;
   let flagged = 0;
+  let blocked = 0;
   let dueThisWeek = 0;
   let unowned = 0;
 
   for (const item of items) {
-    const isComplete = item.status === "COMPLETE";
-    if (isComplete) {
-      if (item.updatedAt.getTime() >= weekStart.getTime()) completedThisWeek += 1;
+    if (item.status === "COMPLETE") {
+      if (completionTime(item).getTime() >= weekStart.getTime()) completedThisWeek += 1;
       continue;
     }
+    // DROPPED items are settled — they don't count toward open work.
+    if (item.status === "DROPPED") continue;
     open += 1;
     if (isActionOverdue(item, now)) overdue += 1;
     if (isFlaggedUnresolved(item)) flagged += 1;
+    if (item.status === "BLOCKED") blocked += 1;
     if (isDueThisWeek(effectiveDeadline(item), now)) dueThisWeek += 1;
     if (!item.assignments.some((a) => a.role === "EXECUTING")) unowned += 1;
   }
 
-  return { weekStart, openTotal: open, completedThisWeek, overdue, flagged, dueThisWeek, unowned };
+  return { weekStart, openTotal: open, completedThisWeek, overdue, flagged, blocked, dueThisWeek, unowned };
 }
 
 // ---------------------------------------------------------------------------
@@ -117,6 +133,7 @@ export interface AttentionEntry {
   title: string;
   reason: string;
   severity: AttentionSeverity;
+  priority: ActionPriority;
   ownerName: string;
   departmentName: string | null;
   daysOverdue: number;
@@ -128,6 +145,8 @@ const SEVERITY_RANK: Record<AttentionSeverity, number> = { high: 3, medium: 2, l
 /**
  * Reduce an open item to its single most important attention reason, or null
  * when nothing about it needs leadership's eye. Order = most urgent first.
+ * A blocker that has lingered, an escalation, and a deep-overdue item all
+ * outrank a freshly-blocked or merely-high-priority item.
  */
 function attentionReason(
   item: ActionItemWithRelations,
@@ -144,6 +163,9 @@ function attentionReason(
   if (isFlaggedUnresolved(item)) {
     return { reason: "Flagged, needs review", severity: "high" };
   }
+  if (item.status === "BLOCKED") {
+    return { reason: "Blocked — needs unblocking", severity: "high" };
+  }
   const staleCutoff = addDays(now, -STALE_ACTIVITY_DAYS);
   if (lastActivityAt(item).getTime() < staleCutoff.getTime()) {
     return { reason: `No activity in ${STALE_ACTIVITY_DAYS}+ days`, severity: "medium" };
@@ -153,6 +175,9 @@ function attentionReason(
   }
   if (overdueDays > 0) {
     return { reason: `Overdue ${overdueDays} ${overdueDays === 1 ? "day" : "days"}`, severity: "medium" };
+  }
+  if (item.priority === "URGENT") {
+    return { reason: "Urgent — keep it moving", severity: "medium" };
   }
   if (item.status === "NOT_STARTED" && isDueThisWeek(effectiveDeadline(item), now)) {
     return { reason: "Due this week, not started", severity: "low" };
@@ -166,7 +191,8 @@ export function buildAttentionQueue(
 ): AttentionEntry[] {
   const entries: AttentionEntry[] = [];
   for (const item of items) {
-    if (item.status === "COMPLETE") continue;
+    // Completed and dropped items are settled — never in the queue.
+    if (item.status === "COMPLETE" || item.status === "DROPPED") continue;
     const reason = attentionReason(item, now);
     if (!reason) continue;
     entries.push({
@@ -174,6 +200,7 @@ export function buildAttentionQueue(
       title: item.title,
       reason: reason.reason,
       severity: reason.severity,
+      priority: item.priority,
       ownerName: item.lead?.name ?? item.lead?.email ?? "Unassigned",
       departmentName: item.department?.name ?? null,
       daysOverdue: daysOverdue(item, now),
@@ -181,9 +208,12 @@ export function buildAttentionQueue(
     });
   }
 
+  // Severity first, then priority (urgent rises within a tier), then most
+  // overdue, then a stable title tie-break.
   return entries.sort(
     (a, b) =>
       SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] ||
+      ACTION_PRIORITY_WEIGHT[b.priority] - ACTION_PRIORITY_WEIGHT[a.priority] ||
       b.daysOverdue - a.daysOverdue ||
       a.title.localeCompare(b.title)
   );
@@ -269,16 +299,18 @@ export function buildPersonMomentum(
     }
 
     const complete = item.status === "COMPLETE";
-    const completedRecently = complete && item.updatedAt.getTime() >= windowStart.getTime();
-    const overdue = !complete && isActionOverdue(item, now);
-    const flagged = !complete && isFlaggedUnresolved(item);
+    const dropped = item.status === "DROPPED";
+    const completedRecently = complete && completionTime(item).getTime() >= windowStart.getTime();
+    const overdue = !complete && !dropped && isActionOverdue(item, now);
+    const flagged = !complete && !dropped && isFlaggedUnresolved(item);
     const updatedRecently = item.updatedAt.getTime() >= windowStart.getTime();
 
     for (const user of ownerUsers.values()) {
       const acc = ensure(user);
       if (complete) {
         if (completedRecently) acc.completedRecent += 1;
-      } else {
+      } else if (!dropped) {
+        // Dropped work is settled — it neither counts as open nor penalizes.
         acc.openCount += 1;
         if (overdue) acc.overdue += 1;
         if (flagged) acc.flagged += 1;
@@ -350,9 +382,10 @@ export function buildTeamMomentum(
       teams.set(id, team);
     }
     if (item.status === "COMPLETE") {
-      if (item.updatedAt.getTime() >= weekStart.getTime()) team.completedThisWeek += 1;
+      if (completionTime(item).getTime() >= weekStart.getTime()) team.completedThisWeek += 1;
       continue;
     }
+    if (item.status === "DROPPED") continue;
     team.open += 1;
     if (isActionOverdue(item, now)) team.overdue += 1;
     if (isFlaggedUnresolved(item)) team.flagged += 1;
@@ -389,15 +422,15 @@ export function buildWinLog(
   return items
     .filter(
       (item) =>
-        item.status === "COMPLETE" && item.updatedAt.getTime() >= weekStart.getTime()
+        item.status === "COMPLETE" && completionTime(item).getTime() >= weekStart.getTime()
     )
     .map((item) => ({
       id: item.id,
       title: item.title,
       ownerName: item.lead?.name ?? item.lead?.email ?? "—",
       departmentName: item.department?.name ?? null,
-      completedLabel: formatDueDate(item.updatedAt),
-      completedAt: item.updatedAt,
+      completedLabel: formatDueDate(completionTime(item)),
+      completedAt: completionTime(item),
     }))
     .sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime());
 }

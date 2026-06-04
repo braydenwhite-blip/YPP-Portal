@@ -12157,6 +12157,21 @@ enum ActionItemStatus {
   IN_PROGRESS
   COMPLETE
   OVERDUE
+  /// Work cannot proceed until an external blocker clears (Phase 7).
+  BLOCKED
+  /// Intentionally abandoned / no longer relevant (Phase 7). Keeps the record
+  /// for history without counting against momentum or the overdue sweep.
+  DROPPED
+}
+
+/// Relative urgency of an action item (Phase 7). Ported from the retired
+/// Leadership Action Center's priority concept. Feeds the Command Center
+/// attention queue + momentum weighting.
+enum ActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 enum ActionItemVisibility {
@@ -12215,8 +12230,13 @@ model ActionItem {
   department   Department? @relation("DepartmentActionItems", fields: [departmentId], references: [id])
 
   status        ActionItemStatus     @default(NOT_STARTED)
+  priority      ActionPriority       @default(MEDIUM)
   deadlineStart DateTime
   deadlineEnd   DateTime?
+  /// Set when the item transitions to COMPLETE; cleared if it is reopened. Gives
+  /// the Win Log / pulse / momentum an exact completion timestamp instead of
+  /// approximating with `updatedAt` (Phase 7).
+  completedAt   DateTime?
   visibility    ActionItemVisibility @default(ALL_LEADERSHIP)
 
   /// Single accountable lead (denormalized; also represented as an
@@ -12262,6 +12282,8 @@ model ActionItem {
   @@index([deadlineStart])
   @@index([status])
   @@index([status, deadlineStart])
+  @@index([priority])
+  @@index([completedAt])
   @@index([departmentId, status])
   @@index([visibility])
   @@index([leadId])

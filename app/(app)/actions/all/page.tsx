@@ -34,7 +34,7 @@ import {
   DepartmentBars,
 } from "@/components/people-strategy/action-analytics-cards";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
-import { Pill, StatusPill } from "@/components/people-strategy/pills";
+import { Pill, PriorityPill, StatusPill } from "@/components/people-strategy/pills";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Tracker · All Actions" };
@@ -101,6 +101,7 @@ function ActionRow({ item, now }: { item: ActionItemWithRelations; now: Date }) 
       {/* Pill row: status, officer-meeting (if any), visibility badge */}
       <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
         <StatusPill status={item.status} />
+        <PriorityPill priority={item.priority} hideLow />
         {item.officerMeetingId ? <Pill tone="purple">Officer meeting</Pill> : null}
         <Pill tone={item.visibility === "OFFICERS_ONLY" ? "warning" : "neutral"}>
           {ACTION_VISIBILITY_LABELS[item.visibility]}

@@ -4,8 +4,10 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
+  ACTION_PRIORITY_LABELS,
+  ACTION_PRIORITY_VALUES,
   ACTION_STATUS_LABELS,
-  ACTION_STATUS_VALUES,
+  ACTION_STATUS_SELECTABLE,
   ACTION_VISIBILITY_LABELS,
   ACTION_VISIBILITY_VALUES,
 } from "@/lib/people-strategy/constants";
@@ -38,6 +40,7 @@ export interface ActionItemFormInitial {
   goalCategory?: string | null;
   departmentId?: string | null;
   status?: string;
+  priority?: string;
   visibility?: string;
   deadlineStart?: Date | string | null;
   deadlineEnd?: Date | string | null;
@@ -288,6 +291,7 @@ export default function ActionItemForm({
   const [goalCategory, setGoalCategory] = useState(initial?.goalCategory ?? "");
   const [departmentId, setDepartmentId] = useState(initial?.departmentId ?? "");
   const [status, setStatus] = useState<string>(initial?.status ?? "NOT_STARTED");
+  const [priority, setPriority] = useState<string>(initial?.priority ?? "MEDIUM");
   const [visibility, setVisibility] = useState<string>(
     initial?.visibility ?? "ALL_LEADERSHIP"
   );
@@ -354,6 +358,7 @@ export default function ActionItemForm({
             goalCategory: goalCategory.trim(),
             departmentId: departmentId || undefined,
             status,
+            priority,
             visibility,
             deadlineStart: deadlineStart || undefined,
             deadlineEnd: deadlineEnd || null,
@@ -375,6 +380,7 @@ export default function ActionItemForm({
             departmentId: departmentId || undefined,
             leadId,
             status,
+            priority,
             visibility,
             deadlineStart,
             deadlineEnd: deadlineEnd || undefined,
@@ -488,9 +494,26 @@ export default function ActionItemForm({
             onChange={(e) => setStatus(e.target.value)}
             style={INPUT}
           >
-            {ACTION_STATUS_VALUES.map((s) => (
+            {ACTION_STATUS_SELECTABLE.map((s) => (
               <option key={s} value={s}>
                 {ACTION_STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={FIELD}>
+          <label style={LABEL} htmlFor="action-priority">
+            Priority
+          </label>
+          <select
+            id="action-priority"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            style={INPUT}
+          >
+            {ACTION_PRIORITY_VALUES.map((p) => (
+              <option key={p} value={p}>
+                {ACTION_PRIORITY_LABELS[p]}
               </option>
             ))}
           </select>

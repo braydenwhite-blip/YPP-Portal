@@ -31,8 +31,10 @@ function item(overrides: Partial<ActionItemWithRelations>): ActionItemWithRelati
     goalCategory: null,
     departmentId: "d1",
     status: "IN_PROGRESS",
+    priority: "MEDIUM",
     deadlineStart: new Date("2026-06-10T00:00:00"),
     deadlineEnd: null,
+    completedAt: null,
     visibility: "ALL_LEADERSHIP",
     leadId: "alice",
     officerMeetingId: null,
@@ -61,17 +63,32 @@ describe("daysOverdue", () => {
 });
 
 describe("buildWeeklyPulse", () => {
-  it("counts open, overdue, completed-this-week, and unowned", () => {
+  it("counts open, overdue, completed-this-week, blocked, and unowned", () => {
     const items = [
       item({ deadlineStart: new Date("2026-05-25T00:00:00") }), // overdue, has executor
-      item({ status: "COMPLETE", updatedAt: new Date("2026-06-02T00:00:00") }), // win this week
+      item({ status: "COMPLETE", completedAt: new Date("2026-06-02T00:00:00") }), // win this week
       item({ assignments: [assignment("alice", "LEAD")] }), // open, no executor
+      item({ status: "BLOCKED" }), // blocked, open
+      item({ status: "DROPPED" }), // settled — excluded from open
     ];
     const pulse = buildWeeklyPulse(items, NOW);
-    expect(pulse.openTotal).toBe(2);
+    expect(pulse.openTotal).toBe(3); // overdue + unowned + blocked (dropped excluded)
     expect(pulse.overdue).toBe(1);
     expect(pulse.completedThisWeek).toBe(1);
+    expect(pulse.blocked).toBe(1);
     expect(pulse.unowned).toBe(1);
+  });
+
+  it("uses completedAt (not updatedAt) for the win window", () => {
+    // Completed last week per completedAt, but edited this week — not a this-week win.
+    const items = [
+      item({
+        status: "COMPLETE",
+        completedAt: new Date("2026-05-20T00:00:00"),
+        updatedAt: new Date("2026-06-03T00:00:00"),
+      }),
+    ];
+    expect(buildWeeklyPulse(items, NOW).completedThisWeek).toBe(0);
   });
 });
 
@@ -81,12 +98,23 @@ describe("buildAttentionQueue", () => {
       item({ title: "Stale", updatedAt: new Date("2026-05-01T00:00:00"), comments: [] }), // 30+ days stale
       item({ title: "Way overdue", deadlineStart: new Date("2026-05-20T00:00:00") }), // 15 days overdue
       item({ title: "Flagged", flaggedAt: new Date("2026-06-02T00:00:00") }),
+      item({ title: "Blocked", status: "BLOCKED" }),
     ];
     const queue = buildAttentionQueue(items, NOW);
     expect(queue[0].title).toBe("Way overdue");
     expect(queue[0].severity).toBe("high");
     expect(queue.map((q) => q.title)).toContain("Flagged");
+    expect(queue.find((q) => q.title === "Blocked")?.reason).toMatch(/Blocked/);
     expect(queue.find((q) => q.title === "Stale")?.reason).toMatch(/No activity/);
+  });
+
+  it("ranks higher priority first within the same severity tier", () => {
+    const items = [
+      item({ title: "Low prio stale", priority: "LOW", updatedAt: new Date("2026-05-01T00:00:00"), comments: [] }),
+      item({ title: "Urgent stale", priority: "URGENT", updatedAt: new Date("2026-05-01T00:00:00"), comments: [] }),
+    ];
+    const queue = buildAttentionQueue(items, NOW);
+    expect(queue[0].title).toBe("Urgent stale");
   });
 
   it("excludes completed items", () => {
@@ -98,7 +126,7 @@ describe("buildAttentionQueue", () => {
 describe("buildPersonMomentum", () => {
   it("credits owners for completions and penalizes overdue", () => {
     const items = [
-      item({ leadId: "alice", lead: person("alice"), status: "COMPLETE", updatedAt: new Date("2026-06-02T00:00:00"), assignments: [assignment("alice", "LEAD")] }),
+      item({ leadId: "alice", lead: person("alice"), status: "COMPLETE", completedAt: new Date("2026-06-02T00:00:00"), assignments: [assignment("alice", "LEAD")] }),
       item({ leadId: "carol", lead: person("carol"), deadlineStart: new Date("2026-05-20T00:00:00"), assignments: [assignment("carol", "LEAD")] }),
     ];
     const people = buildPersonMomentum(items, NOW);
@@ -115,7 +143,7 @@ describe("buildTeamMomentum and buildWinLog", () => {
   it("aggregates risk per department and lists weekly wins", () => {
     const items = [
       item({ deadlineStart: new Date("2026-05-20T00:00:00") }), // Instruction, overdue
-      item({ status: "COMPLETE", updatedAt: new Date("2026-06-03T00:00:00"), title: "Shipped" }),
+      item({ status: "COMPLETE", completedAt: new Date("2026-06-03T00:00:00"), title: "Shipped" }),
     ];
     const teams = buildTeamMomentum(items, NOW);
     expect(teams[0].name).toBe("Instruction");

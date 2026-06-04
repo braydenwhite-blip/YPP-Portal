@@ -13,6 +13,7 @@ import {
   ACTION_ASSIGNMENT_ROLE_VALUES,
   ACTION_COMMENT_TYPE_VALUES,
   ACTION_ITEM_PATHS,
+  ACTION_PRIORITY_VALUES,
   ACTION_STATUS_VALUES,
   ACTION_VISIBILITY_VALUES,
 } from "./constants";
@@ -84,6 +85,24 @@ async function loadAccess(id: string): Promise<LoadedAccess> {
     flaggedAt: item.flaggedAt,
     assignments: item.assignments.map((a) => ({ userId: a.userId, role: a.role })),
   };
+}
+
+/**
+ * The `completedAt` value implied by a status transition: stamped when an item
+ * enters COMPLETE, cleared when it leaves COMPLETE (reopened), and left
+ * untouched (undefined → omitted from the update) otherwise. Keeps the exact
+ * completion timestamp the Win Log / pulse / momentum rely on in sync with
+ * status, without a trigger.
+ */
+function completedAtForTransition(
+  previousStatus: string,
+  nextStatus: string,
+  now: Date
+): Date | null | undefined {
+  if (nextStatus === previousStatus) return undefined;
+  if (nextStatus === "COMPLETE") return now;
+  if (previousStatus === "COMPLETE") return null;
+  return undefined;
 }
 
 /** Append a system-style NOTE comment (status / assignment / flag events). */
@@ -209,6 +228,7 @@ const CreateActionItemSchema = z.object({
     .transform((v) => (v && v.trim() ? v.trim() : null)),
   leadId: NonEmptyString,
   status: z.enum(ACTION_STATUS_VALUES as [string, ...string[]]).default("NOT_STARTED"),
+  priority: z.enum(ACTION_PRIORITY_VALUES as [string, ...string[]]).default("MEDIUM"),
   visibility: z
     .enum(ACTION_VISIBILITY_VALUES as [string, ...string[]])
     .default("ALL_LEADERSHIP"),
@@ -262,6 +282,9 @@ export async function createActionItem(input: CreateActionItemInput) {
       leadId: data.leadId,
       createdById: session.id,
       status: data.status as never,
+      priority: data.priority as never,
+      // A rarely-used path, but an item can be created already-complete.
+      completedAt: data.status === "COMPLETE" ? new Date() : null,
       visibility: data.visibility as never,
       deadlineStart,
       deadlineEnd: data.deadlineEnd,
@@ -309,6 +332,7 @@ const UpdateActionItemSchema = z.object({
       return trimmed.length > 0 ? trimmed : null;
     }),
   status: z.enum(ACTION_STATUS_VALUES as [string, ...string[]]).optional(),
+  priority: z.enum(ACTION_PRIORITY_VALUES as [string, ...string[]]).optional(),
   visibility: z.enum(ACTION_VISIBILITY_VALUES as [string, ...string[]]).optional(),
   deadlineStart: UpdateDeadlineStartString,
   deadlineEnd: UpdateOptionalDateString,
@@ -359,6 +383,7 @@ export async function updateActionItem(input: UpdateActionItemInput) {
   if (data.leadId !== undefined) await assertUsersExist([data.leadId]);
 
   const statusChanged = data.status !== undefined && data.status !== existing.status;
+  const completedAt = completedAtForTransition(existing.status, newStatus, new Date());
   const leadChanged =
     data.leadId !== undefined && data.leadId !== existing.leadId;
 
@@ -388,6 +413,8 @@ export async function updateActionItem(input: UpdateActionItemInput) {
         goalCategory: data.goalCategory,
         departmentId: data.departmentId,
         status: newStatus as never,
+        priority: data.priority as never,
+        completedAt,
         visibility: data.visibility as never,
         deadlineStart: data.deadlineStart
           ? startOfDay(data.deadlineStart)
@@ -461,10 +488,12 @@ export async function updateActionStatus(
   if (!existing) throw new Error("Action item not found");
   if (existing.status === data.status) return;
 
+  const completedAt = completedAtForTransition(existing.status, data.status, new Date());
+
   await prisma.$transaction(async (tx) => {
     await tx.actionItem.update({
       where: { id: data.id },
-      data: { status: data.status as never },
+      data: { status: data.status as never, completedAt },
     });
     await postSystemComment(
       tx,

@@ -1,5 +1,10 @@
-import type { ActionItemStatus, ActionItemVisibility } from "@prisma/client";
+import type {
+  ActionItemStatus,
+  ActionItemVisibility,
+  ActionPriority,
+} from "@prisma/client";
 
+import { ACTION_PRIORITY_VALUES, ACTION_PRIORITY_WEIGHT } from "./constants";
 import type { ActionItemWithRelations } from "./action-queries";
 import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
 
@@ -15,14 +20,17 @@ import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
  */
 
 export type ActionStatusFilter = ActionItemStatus | "ALL";
+export type ActionPriorityFilter = ActionPriority | "ALL";
 export type ActionVisibilityFilter = ActionItemVisibility | "ALL";
-export type ActionDeadlineSort = "deadline_asc" | "deadline_desc";
+export type ActionDeadlineSort = "deadline_asc" | "deadline_desc" | "priority_desc";
 
 export type ActionFilters = {
   /** Department id, or "ALL". */
   department: string;
   /** Effective status (computed overdue overrides stored status), or "ALL". */
   status: ActionStatusFilter;
+  /** Priority, or "ALL". */
+  priority: ActionPriorityFilter;
   visibility: ActionVisibilityFilter;
   /** Free-text search over title / description / lead. */
   search: string;
@@ -32,6 +40,7 @@ export type ActionFilters = {
 export const ACTION_FILTER_DEFAULTS: ActionFilters = {
   department: "ALL",
   status: "ALL",
+  priority: "ALL",
   visibility: "ALL",
   search: "",
   sort: "deadline_asc",
@@ -41,6 +50,7 @@ export const ACTION_FILTER_DEFAULTS: ActionFilters = {
 export const ACTION_FILTER_PARAM_KEYS = {
   department: "dept",
   status: "status",
+  priority: "priority",
   visibility: "vis",
   search: "q",
   sort: "sort",
@@ -49,8 +59,10 @@ export const ACTION_FILTER_PARAM_KEYS = {
 const STATUS_VALUES: ActionItemStatus[] = [
   "NOT_STARTED",
   "IN_PROGRESS",
+  "BLOCKED",
   "COMPLETE",
   "OVERDUE",
+  "DROPPED",
 ];
 const VISIBILITY_VALUES: ActionItemVisibility[] = [
   "ALL_LEADERSHIP",
@@ -71,6 +83,7 @@ function firstValue(value: string | string[] | undefined): string | undefined {
  */
 export function parseActionFilters(params: RawParams): ActionFilters {
   const status = firstValue(params[ACTION_FILTER_PARAM_KEYS.status]);
+  const priority = firstValue(params[ACTION_FILTER_PARAM_KEYS.priority]);
   const visibility = firstValue(params[ACTION_FILTER_PARAM_KEYS.visibility]);
   const department = firstValue(params[ACTION_FILTER_PARAM_KEYS.department]);
   const search = firstValue(params[ACTION_FILTER_PARAM_KEYS.search]) ?? "";
@@ -81,11 +94,19 @@ export function parseActionFilters(params: RawParams): ActionFilters {
     status: STATUS_VALUES.includes(status as ActionItemStatus)
       ? (status as ActionItemStatus)
       : "ALL",
+    priority: ACTION_PRIORITY_VALUES.includes(priority as ActionPriority)
+      ? (priority as ActionPriority)
+      : "ALL",
     visibility: VISIBILITY_VALUES.includes(visibility as ActionItemVisibility)
       ? (visibility as ActionItemVisibility)
       : "ALL",
     search: search.trim(),
-    sort: sort === "deadline_desc" ? "deadline_desc" : "deadline_asc",
+    sort:
+      sort === "deadline_desc"
+        ? "deadline_desc"
+        : sort === "priority_desc"
+          ? "priority_desc"
+          : "deadline_asc",
   };
 }
 
@@ -94,6 +115,7 @@ export function hasActiveFilters(filters: ActionFilters): boolean {
   return (
     filters.department !== "ALL" ||
     filters.status !== "ALL" ||
+    filters.priority !== "ALL" ||
     filters.visibility !== "ALL" ||
     filters.search !== ""
   );
@@ -110,9 +132,70 @@ export function effectiveStatus(
   item: ActionItemWithRelations,
   now: Date = new Date()
 ): ActionItemStatus {
+  // Settled states win outright. BLOCKED is preserved over a computed OVERDUE so
+  // "filter by Blocked" still finds a blocked item whose deadline has passed —
+  // the blocker is the more actionable fact.
   if (item.status === "COMPLETE") return "COMPLETE";
+  if (item.status === "DROPPED") return "DROPPED";
+  if (item.status === "BLOCKED") return "BLOCKED";
   if (isActionOverdue(item, now)) return "OVERDUE";
   return item.status;
+}
+
+/**
+ * Richer "Smart Status Bucket" for the My Commitments view + Command Center.
+ * Layered on top of the stored status with two derived buckets the raw enum
+ * cannot express:
+ *   - NEEDS_DECISION — flagged for officer attention and not yet resolved.
+ *   - WAITING        — someone has been asked for input (an INPUT_REQUESTED
+ *                      comment exists) and the item is still open.
+ * Precedence is most-actionable-first.
+ */
+export type SmartBucket =
+  | "DROPPED"
+  | "COMPLETE"
+  | "NEEDS_DECISION"
+  | "BLOCKED"
+  | "OVERDUE"
+  | "WAITING"
+  | "IN_PROGRESS"
+  | "NOT_STARTED";
+
+export const SMART_BUCKET_LABELS: Record<SmartBucket, string> = {
+  NEEDS_DECISION: "Needs decision",
+  BLOCKED: "Blocked",
+  OVERDUE: "Overdue",
+  WAITING: "Waiting on input",
+  IN_PROGRESS: "In progress",
+  NOT_STARTED: "Not started",
+  COMPLETE: "Complete",
+  DROPPED: "Dropped",
+};
+
+/** Most-actionable-first ordering used to sort bucket groups in the UI. */
+export const SMART_BUCKET_ORDER: SmartBucket[] = [
+  "NEEDS_DECISION",
+  "BLOCKED",
+  "OVERDUE",
+  "WAITING",
+  "IN_PROGRESS",
+  "NOT_STARTED",
+  "COMPLETE",
+  "DROPPED",
+];
+
+export function smartBucket(
+  item: ActionItemWithRelations,
+  now: Date = new Date()
+): SmartBucket {
+  if (item.status === "DROPPED") return "DROPPED";
+  if (item.status === "COMPLETE") return "COMPLETE";
+  if (item.flaggedAt != null && item.resolvedAt == null) return "NEEDS_DECISION";
+  if (item.status === "BLOCKED") return "BLOCKED";
+  if (isActionOverdue(item, now)) return "OVERDUE";
+  if (item.comments.some((c) => c.type === "INPUT_REQUESTED")) return "WAITING";
+  if (item.status === "IN_PROGRESS") return "IN_PROGRESS";
+  return "NOT_STARTED";
 }
 
 function matchesSearch(item: ActionItemWithRelations, needle: string): boolean {
@@ -146,12 +229,26 @@ export function applyActionFilters(
     if (filters.status !== "ALL" && effectiveStatus(item, now) !== filters.status) {
       return false;
     }
+    if (filters.priority !== "ALL" && item.priority !== filters.priority) {
+      return false;
+    }
     if (filters.visibility !== "ALL" && item.visibility !== filters.visibility) {
       return false;
     }
     if (!matchesSearch(item, filters.search)) return false;
     return true;
   });
+
+  if (filters.sort === "priority_desc") {
+    return filtered.sort((a, b) => {
+      const diff = ACTION_PRIORITY_WEIGHT[b.priority] - ACTION_PRIORITY_WEIGHT[a.priority];
+      if (diff !== 0) return diff;
+      // Within a priority, soonest deadline first, then a stable title tie-break.
+      const byDeadline = effectiveDeadline(a).getTime() - effectiveDeadline(b).getTime();
+      if (byDeadline !== 0) return byDeadline;
+      return a.title.localeCompare(b.title);
+    });
+  }
 
   const dir = filters.sort === "deadline_desc" ? -1 : 1;
   return filtered.sort((a, b) => {
@@ -170,6 +267,9 @@ export function buildActionFilterQuery(filters: ActionFilters): string {
   }
   if (filters.status !== "ALL") {
     params.set(ACTION_FILTER_PARAM_KEYS.status, filters.status);
+  }
+  if (filters.priority !== "ALL") {
+    params.set(ACTION_FILTER_PARAM_KEYS.priority, filters.priority);
   }
   if (filters.visibility !== "ALL") {
     params.set(ACTION_FILTER_PARAM_KEYS.visibility, filters.visibility);

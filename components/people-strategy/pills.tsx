@@ -1,10 +1,14 @@
 import type {
   ActionItemStatus,
+  ActionPriority,
   ClassOfferingStatus,
   OfficerMeetingStatus,
 } from "@prisma/client";
 
-import { ACTION_STATUS_LABELS } from "@/lib/people-strategy/constants";
+import {
+  ACTION_PRIORITY_LABELS,
+  ACTION_STATUS_LABELS,
+} from "@/lib/people-strategy/constants";
 
 /**
  * Shared pill primitives for the People Strategy / Action Tracker surfaces.
@@ -47,9 +51,34 @@ export function Pill({
 const ACTION_STATUS_TONE: Record<ActionItemStatus, PillTone> = {
   NOT_STARTED: "neutral",
   IN_PROGRESS: "info",
+  BLOCKED: "warning",
   COMPLETE: "success",
   OVERDUE: "overdue",
+  DROPPED: "neutral",
 };
+
+const ACTION_PRIORITY_TONE: Record<ActionPriority, PillTone> = {
+  LOW: "neutral",
+  MEDIUM: "info",
+  HIGH: "warning",
+  URGENT: "overdue",
+};
+
+/**
+ * Priority badge. LOW and MEDIUM are intentionally quiet (LOW renders nothing
+ * by default via `hideLow`, so the common case stays uncluttered); HIGH/URGENT
+ * draw the eye on scannable lists.
+ */
+export function PriorityPill({
+  priority,
+  hideLow = false,
+}: {
+  priority: ActionPriority;
+  hideLow?: boolean;
+}) {
+  if (hideLow && priority === "LOW") return null;
+  return <Pill tone={ACTION_PRIORITY_TONE[priority]}>{ACTION_PRIORITY_LABELS[priority]}</Pill>;
+}
 
 const CLASS_STATUS: Record<ClassOfferingStatus, { tone: PillTone; label: string }> = {
   DRAFT: { tone: "neutral", label: "Draft" },

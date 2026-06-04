@@ -11,7 +11,7 @@ import { loadCommandCenter } from "@/lib/people-strategy/command-center";
 import { isCpoOrBoard } from "@/lib/people-strategy/action-permissions";
 import { MOMENTUM_META } from "@/lib/people-strategy/momentum";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
-import { Pill } from "@/components/people-strategy/pills";
+import { Pill, PriorityPill } from "@/components/people-strategy/pills";
 import {
   FollowUpGenerator,
   type FollowUpCandidate,
@@ -132,6 +132,7 @@ export default async function CommandCenterPage() {
             href="/actions/all?status=OVERDUE"
           />
           <PulseStat label="Due this week" value={data.pulse.dueThisWeek} />
+          <PulseStat label="Blocked" value={data.pulse.blocked} href="/actions/all?status=BLOCKED" />
           <PulseStat label="Flagged" value={data.pulse.flagged} />
           <PulseStat label="No executor" value={data.pulse.unowned} />
           <PulseStat label="Completed this wk" value={data.pulse.completedThisWeek} />
@@ -177,7 +178,10 @@ export default async function CommandCenterPage() {
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
                       <strong style={{ fontSize: 14 }}>{entry.title}</strong>
-                      <Pill tone={SEVERITY_TONE[entry.severity]}>{entry.reason}</Pill>
+                      <span style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                        <PriorityPill priority={entry.priority} hideLow />
+                        <Pill tone={SEVERITY_TONE[entry.severity]}>{entry.reason}</Pill>
+                      </span>
                     </div>
                     <div style={{ marginTop: 6, fontSize: 12, color: "var(--muted)" }}>
                       {entry.ownerName}
