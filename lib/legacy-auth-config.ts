@@ -6,7 +6,7 @@ import {
 export const LEGACY_AUTH_BYPASS_EMAILS = [
   "brayden.white@youthpassionproject.org",
   "anthea.zamir@youthpassionproject.org",
-  "carlygelles@gmail.com",
+  "carly.gelles@youthpassionproject.org",
   "avery.lin@youthpassionproject.org",
   "jordan.patel@youthpassionproject.org",
   "milo.wald@youthpassionproject.org"
