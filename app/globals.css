@@ -14558,3 +14558,242 @@ a.mentor-panel__row:focus-visible {
     text-align: left;
   }
 }
+
+/* ==========================================================================
+   Admin Journey Editor — beat list + structured (JSON-free) config editor
+   Scoped to /admin/journeys. Additive; relies on existing tokens + .btn.
+   ========================================================================== */
+
+.beat-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.beat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.beat-handle {
+  cursor: grab;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 6px;
+  touch-action: none;
+}
+
+.beat-row-body {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+}
+
+.beat-row-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.beat-kind-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ypp-purple-100);
+  color: var(--ypp-purple-800);
+}
+
+.add-beat-form {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 460px;
+}
+
+/* ---- Beat editor modal ---- */
+.beat-editor-modal {
+  width: min(720px, 92vw);
+  max-height: 88vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 16px);
+  padding: 0;
+  background: var(--surface);
+  color: var(--text-primary, inherit);
+}
+
+.beat-editor-modal::backdrop {
+  background: rgba(42, 8, 71, 0.45);
+}
+
+.beat-editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+}
+
+.beat-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.beat-editor-header h2 {
+  margin: 0;
+}
+
+.beat-config-mode-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.beat-config-mode-bar h3 {
+  margin: 0;
+}
+
+/* ---- Structured config form ---- */
+.beat-config {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.beat-config-inline {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.beat-config-inline .form-row {
+  flex: 1;
+  min-width: 140px;
+}
+
+.beat-config-hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+.beat-config-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.beat-config-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.beat-config-row > input {
+  flex: 1;
+}
+
+.beat-config-index {
+  flex: 0 0 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--ypp-purple-100);
+  color: var(--ypp-purple-800);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.beat-config-row-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.beat-config-pairs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.beat-config-pair-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.beat-config-pair-row > input {
+  flex: 1;
+  min-width: 0;
+}
+
+.beat-config-pair-arrow {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.beat-config-feedback {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.beat-config-feedback legend {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 6px;
+  color: var(--text-secondary);
+}
+
+.beat-config-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.beat-config-checkbox input {
+  width: auto;
+}
+
+@media (max-width: 560px) {
+  .beat-config-pair-row {
+    flex-wrap: wrap;
+  }
+  .beat-config-pair-arrow {
+    display: none;
+  }
+}
