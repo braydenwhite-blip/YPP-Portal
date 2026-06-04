@@ -455,6 +455,25 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 5,
     },
     {
+      href: "/actions/responsibility",
+      label: "Responsibility Map",
+      icon: "🗺️",
+      // Officer-tier and above only (mirrors requireOfficer()).
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
+      searchAliases: [
+        "People Risk Radar",
+        "Growth Signals",
+        "Workload",
+        "Overloaded",
+        "Succession",
+        "Who owns what",
+      ],
+      dashboardDescription:
+        "Who owns what, who is overloaded or has capacity, growth signals, and the People Risk Radar.",
+      dashboardPriority: 6,
+    },
+    {
       href: "/actions/meetings",
       label: "Officer Meetings",
       icon: "📅",

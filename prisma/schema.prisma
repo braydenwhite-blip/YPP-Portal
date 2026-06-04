@@ -1319,6 +1319,8 @@ model User {
   actionEmailLogs                   ActionEmailLog[]             @relation("ActionEmailLogRecipient")
   feedbackRequestsAbout             FeedbackRequest[]            @relation("FeedbackRequestSubject")
   feedbackRequestsToAnswer          FeedbackRequest[]            @relation("FeedbackRequestCollaborator")
+  growthTags                        MemberGrowthTag[]            @relation("MemberGrowthTags")
+  growthTagsCreated                 MemberGrowthTag[]            @relation("MemberGrowthTagsCreated")
 
   // People Strategy — provisional 3-month confirmation clock
   // (ENABLE_PROVISIONAL_CLOCK). `provisionalStart` is set when a hire is
@@ -12415,6 +12417,48 @@ model FeedbackRequest {
   @@unique([subjectUserId, collaboratorId, month])
   @@index([subjectUserId, month])
   @@index([collaboratorId, submittedAt])
+}
+
+// ============================================
+// People Strategy — Growth Signals (Phase 8)
+// Lightweight, human-curated tags on a member capturing where they are on the
+// leadership pipeline. Distinct from the Quarterly Review's `successionFlag`
+// (a point-in-time formal decision): these are quick, always-current signals
+// leadership can attach from the Responsibility Map. Officer-tier and above
+// curate them; they feed the People Risk Radar (e.g. a "ready for more" person
+// carrying no current ownership surfaces as an opportunity). Gated behind
+// ENABLE_ACTION_TRACKER alongside the rest of the People Strategy surfaces.
+// ============================================
+
+enum GrowthTag {
+  READY_FOR_MORE
+  NEEDS_TRAINING
+  RELIABLE_EXECUTOR
+  STRONG_COMMUNICATOR
+  POTENTIAL_TEAM_LEAD
+  AT_RISK_OF_DISENGAGING
+}
+
+/// One growth signal attached to a member. Unique per (member, tag) so a tag is
+/// either present or not — toggling is idempotent. `note` is an optional short
+/// rationale; `createdBy` records who attached it for accountability.
+model MemberGrowthTag {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation("MemberGrowthTags", fields: [userId], references: [id], onDelete: Cascade)
+  tag       GrowthTag
+  note      String?   @db.Text
+
+  createdById String
+  createdBy   User   @relation("MemberGrowthTagsCreated", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, tag])
+  @@index([userId])
+  @@index([tag])
+  @@index([createdById])
 }
 
 // ============================================
