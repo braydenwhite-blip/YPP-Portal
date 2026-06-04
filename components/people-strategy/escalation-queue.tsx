@@ -145,7 +145,7 @@ function EscalationCard({ row }: { row: EscalationQueueRow }) {
               {row.ageLabel} without resolution
             </span>
             {row.notified && (
-              <span style={{ fontSize: 11, color: "#64748b" }}>· CPO notified</span>
+              <span style={{ fontSize: 11, color: "#64748b" }}>· Leadership notified</span>
             )}
           </div>
           <Link
@@ -220,7 +220,7 @@ export function EscalationQueue({ rows }: { rows: EscalationQueueRow[] }) {
     <MotionArea>
     <section style={{ margin: "8px 0 32px" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 20, color: "#1c1917" }}>CPO Escalation Queue</h2>
+        <h2 style={{ margin: 0, fontSize: 20, color: "#1c1917" }}>Leadership Escalation Queue</h2>
         <span style={{ fontSize: 13, color: "#64748b" }}>
           Flagged or overdue actions unresolved for 48h+
         </span>

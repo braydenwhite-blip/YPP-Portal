@@ -420,7 +420,7 @@ export default function ActionItemForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           style={INPUT}
-          placeholder="e.g. Launch fall instructor onboarding"
+          placeholder="e.g. Refresh fall curriculum rollout"
         />
       </div>
 

@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
+import { whereActiveMember } from "@/lib/user-role-where";
 import { revalidatePath } from "next/cache";
 import { requireCanMessage } from "@/lib/authorization-helpers";
 import { getPusherServer, isPusherConfigured } from "@/lib/pusher-server";
@@ -412,10 +413,11 @@ export async function getMessageableUsers() {
   const roleTypes = currentUser.roles.map((r) => r.role);
   const isAdmin = roleTypes.includes("ADMIN");
 
-  // Admins can message everyone
+  // Admins can message everyone — except pending applicants, who are User rows
+  // distinguished only by role and should not appear as messaging recipients.
   if (isAdmin) {
     const users = await prisma.user.findMany({
-      where: { id: { not: userId } },
+      where: { id: { not: userId }, ...whereActiveMember() },
       select: {
         id: true,
         name: true,

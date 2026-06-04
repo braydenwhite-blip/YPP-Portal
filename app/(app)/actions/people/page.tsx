@@ -10,6 +10,7 @@ import {
   collectDepartments,
   loadPeopleDashboard,
 } from "@/lib/people-strategy/people-dashboard";
+import { listActionDepartments } from "@/lib/people-strategy/action-queries";
 import { loadCpoEscalationQueue } from "@/lib/people-strategy/escalation-queue";
 import { isBoard } from "@/lib/people-strategy/action-permissions";
 import { PeopleDashboardTable } from "@/components/people-strategy/people-dashboard-table";
@@ -18,30 +19,39 @@ import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-t
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Action Tracker · CPO People View" };
+export const metadata = { title: "Action Tracker · Leadership People View" };
 
 export default async function PeopleDashboardPage() {
   // Outer gate: with ENABLE_PEOPLE_DASHBOARD off the route does not exist.
   if (!isPeopleDashboardEnabled()) notFound();
 
-  // CPO / Board only. requireCPO() throws "Unauthorized" for everyone else
-  // (and unauthenticated requests, which the proxy already redirects). Deny
-  // with a 404 so the route's existence is not leaked to non-CPO users.
+  // Leadership / Board only. requireCPO() throws "Unauthorized" for everyone
+  // else (and unauthenticated requests, which the proxy already redirects).
+  // Deny with a 404 so the route's existence is not leaked to other users.
   const viewer = await requireCPO().catch(() => null);
   if (!viewer) notFound();
 
   const rows = await loadPeopleDashboard();
-  const departments = collectDepartments(rows);
+  // Department filter options come from the Department table (the canonical
+  // standing departments), unioned with any names present on the rows, rather
+  // than being derived purely from free-text on the action items.
+  const standingDepartments = await listActionDepartments();
+  const departments = Array.from(
+    new Set([
+      ...standingDepartments.map((d) => d.name),
+      ...collectDepartments(rows),
+    ])
+  ).sort();
 
-  // CPO Escalation Queue — flagged/overdue items unresolved for 48h+. Behind
-  // ENABLE_ACTION_TRACKER; the loader returns [] when the flag is off so the
-  // section simply doesn't render.
+  // Leadership Escalation Queue — flagged/overdue items unresolved for 48h+.
+  // Behind ENABLE_ACTION_TRACKER; the loader returns [] when the flag is off so
+  // the section simply doesn't render.
   const showEscalationQueue = isActionTrackerEnabled();
   const escalations = showEscalationQueue ? await loadCpoEscalationQueue() : [];
 
   // Board (SUPER_ADMIN) additionally sees a link to the Board Escalation
-  // Roll-up list. A plain CPO does not — the destination route enforces this
-  // server-side via requireBoard(); this only gates the affordance.
+  // Roll-up list. Plain Leadership does not — the destination route enforces
+  // this server-side via requireBoard(); this only gates the affordance.
   const showBoardRollupLink = showEscalationQueue && isBoard(viewer);
 
   // The Request Monthly Feedback action needs BOTH the dashboard flag (already
@@ -73,19 +83,19 @@ export default async function PeopleDashboardPage() {
         }}
       >
         <div>
-          <p className="badge">Action Tracker · CPO View</p>
+          <p className="badge">Action Tracker · Leadership View</p>
           <h1 className="page-title" style={{ marginTop: 8 }}>
             People Dashboard
           </h1>
           <p className="page-subtitle">
-            Full access — <strong>CPO and Board only</strong>. Live succession &amp; people-health
+            Full access — <strong>Leadership and Board only</strong>. Live succession &amp; people-health
             view compiled from the Action Tracker, Quarterly Reviews, and Monthly Check-Ins.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "#64748b", maxWidth: 240, textAlign: "right" }}>
             {canRequestFeedback
-              ? "Select members below, then Request Monthly Feedback. Responses stay CPO/Board-confidential."
+              ? "Select members below, then Request Monthly Feedback. Responses stay Leadership/Board-confidential."
               : "Set ENABLE_ACTION_TRACKER_EMAILS to request monthly feedback."}
           </span>
         </div>

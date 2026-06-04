@@ -302,7 +302,7 @@ export function MemberPeopleStrategySection({
                 borderRadius: 999,
               }}
             >
-              Confidential · CPO/Board only
+              Confidential · Leadership/Board only
             </span>
           </h3>
           {!feedbackResponses || feedbackResponses.length === 0 ? (

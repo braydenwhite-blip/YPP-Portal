@@ -754,7 +754,7 @@ export async function sendWeeklyActionDigestEmail({
       <a href="${escapeHtml(myActionsUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Open My Actions</a>
     </div>
     <div style="background: #fffbeb; border-left: 4px solid #d97706; border-radius: 8px; padding: 14px 18px; margin: 0 0 8px;">
-      <p style="margin: 0; font-size: 13px; color: #92400e;">Blocked or at risk of slipping? Flag the item to the CPO from its detail page so leadership can help unblock it.</p>
+      <p style="margin: 0; font-size: 13px; color: #92400e;">Blocked or at risk of slipping? Flag the item to Leadership from its detail page so leadership can help unblock it.</p>
     </div>
     <p style="color: #78716c; font-size: 13px;">You're receiving this because you lead or are assigned to open actions in the YPP Pathways Portal.</p>
   `);
@@ -798,7 +798,7 @@ export async function sendActionDeadlineWarningEmail({
     </div>
     <div style="text-align: center; margin: 28px 0;">
       <a href="${escapeHtml(updateStatusUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Update Status</a>
-      <a href="${escapeHtml(flagToCpoUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to CPO</a>
+      <a href="${escapeHtml(flagToCpoUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to Leadership</a>
     </div>
     <p style="color: #78716c; font-size: 13px;">The action's Lead has also been notified.</p>
   `);
@@ -842,7 +842,7 @@ export async function sendActionDeadlineReachedEmail({
     </div>
     <div style="text-align: center; margin: 28px 0;">
       <a href="${escapeHtml(updateStatusUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Update Status</a>
-      <a href="${escapeHtml(flagToCpoUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to CPO</a>
+      <a href="${escapeHtml(flagToCpoUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to Leadership</a>
     </div>
     <p style="color: #78716c; font-size: 13px;">You're receiving this because you're assigned to this action in the YPP Pathways Portal.</p>
   `);
@@ -882,7 +882,7 @@ export async function sendActionOverdueLeadEmail({
     <div style="text-align: center; margin: 28px 0;">
       <a href="${escapeHtml(actionUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Review Action</a>
     </div>
-    <p style="color: #78716c; font-size: 13px;">As Lead you're accountable for the outcome — follow up with the executors or escalate to the CPO if it's blocked.</p>
+    <p style="color: #78716c; font-size: 13px;">As Lead you're accountable for the outcome — follow up with the executors or escalate to Leadership if it's blocked.</p>
   `);
   return sendEmail({ to, subject, html });
 }
@@ -926,7 +926,7 @@ export async function sendCpoEscalationEmail({
   const html = emailShell(`
     <h2 style="margin: 0 0 16px; color: #1c1917;">An action needs your attention</h2>
     <p>Hi ${escapeHtml(firstName)},</p>
-    <p>The action below has been <strong>${escapeHtml(reason.toLowerCase())}</strong> for <strong>${escapeHtml(ageLabel)}</strong> without resolution, so it has been escalated to you as CPO.</p>
+    <p>The action below has been <strong>${escapeHtml(reason.toLowerCase())}</strong> for <strong>${escapeHtml(ageLabel)}</strong> without resolution, so it has been escalated to you as Leadership.</p>
     <div style="background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
       <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
       <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
@@ -987,7 +987,7 @@ export async function sendBoardEscalationRollupEmail({
   const html = emailShell(`
     <h2 style="margin: 0 0 16px; color: #1c1917;">An escalation has reached the Board</h2>
     <p>Hi ${escapeHtml(firstName)},</p>
-    <p>The action below was escalated to the CPO <strong>${escapeHtml(cpoEscalatedLabel)}</strong> and has remained unresolved since, so it has been rolled up to the Board for visibility.</p>
+    <p>The action below was escalated to Leadership <strong>${escapeHtml(cpoEscalatedLabel)}</strong> and has remained unresolved since, so it has been rolled up to the Board for visibility.</p>
     <div style="background: #fef2f2; border-left: 4px solid #991b1b; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
       <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
       <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
@@ -998,7 +998,7 @@ export async function sendBoardEscalationRollupEmail({
       <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Status</p>
       <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(statusLabel)}</p>
       <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Unresolved for</p>
-      <p style="margin: 0 0 14px; color: #991b1b; font-size: 15px; font-weight: 600;">${escapeHtml(daysUnresolvedLabel)} since CPO escalation</p>
+      <p style="margin: 0 0 14px; color: #991b1b; font-size: 15px; font-weight: 600;">${escapeHtml(daysUnresolvedLabel)} since Leadership escalation</p>
       <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
       <p style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 600;">${escapeHtml(deadline)}</p>
     </div>
@@ -1006,7 +1006,7 @@ export async function sendBoardEscalationRollupEmail({
       <a href="${escapeHtml(boardUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Open Board Roll-up</a>
       <a href="${escapeHtml(actionUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">View Action</a>
     </div>
-    <p style="color: #78716c; font-size: 13px;">Review the full comment history on the Board roll-up list and direct the CPO on next steps, or mark it resolved.</p>
+    <p style="color: #78716c; font-size: 13px;">Review the full comment history on the Board roll-up list and direct Leadership on next steps, or mark it resolved.</p>
   `);
   return sendEmail({ to, subject, html });
 }
@@ -1040,7 +1040,7 @@ export async function sendFeedbackRequestEmail({
     <p>As someone who has worked closely with <strong>${escapeHtml(subjectName)}</strong>, you're invited to share confidential feedback for <strong>${escapeHtml(monthLabel)}</strong>.</p>
     <div style="background: #f5f3ff; border-left: 4px solid #7c3aed; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
       <p style="margin: 0; font-size: 14px; color: #5b21b6; font-weight: 600;">This feedback is confidential</p>
-      <p style="margin: 8px 0 0; font-size: 14px; color: #44403c;">Only the Chief People Officer and Board can read your response. ${escapeHtml(subjectName)} will not see what you write, so please be candid and constructive.</p>
+      <p style="margin: 8px 0 0; font-size: 14px; color: #44403c;">Only Leadership and the Board can read your response. ${escapeHtml(subjectName)} will not see what you write, so please be candid and constructive.</p>
     </div>
     <div style="text-align: center; margin: 28px 0;">
       <a href="${escapeHtml(formUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Share Feedback</a>

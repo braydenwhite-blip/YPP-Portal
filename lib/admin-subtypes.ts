@@ -19,7 +19,7 @@ export const ADMIN_SUBTYPE_LABELS: Record<AdminSubtypeValue, string> = {
   INTAKE_ADMIN: "Intake Admin",
   CONTENT_ADMIN: "Content Admin",
   COMMUNICATIONS_ADMIN: "Communications Admin",
-  CPO: "Chief People Officer",
+  CPO: "Leadership",
 };
 
 export function normalizeAdminSubtype(

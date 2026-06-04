@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { isRecoverablePrismaError, withPrismaFallback } from "@/lib/prisma-guard";
+import { whereActiveMember } from "@/lib/user-role-where";
 
 type MyChapterHomeChapter = {
   id: string;
@@ -50,14 +51,21 @@ export async function getChapterMembers(search?: string) {
   const members = await prisma.user.findMany({
     where: {
       chapterId: user.chapterId,
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { email: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
+      // Applicants are User rows scoped to a chapter at intake; exclude them so
+      // the member directory shows actual members, not pending applicants.
+      AND: [
+        whereActiveMember(),
+        ...(search
+          ? [
+              {
+                OR: [
+                  { name: { contains: search, mode: "insensitive" as const } },
+                  { email: { contains: search, mode: "insensitive" as const } },
+                ],
+              },
+            ]
+          : []),
+      ],
     },
     select: {
       id: true,
@@ -146,7 +154,7 @@ export async function getMyChapterHomeData() {
     })(),
 
     prisma.user.findMany({
-      where: { chapterId },
+      where: { chapterId, ...whereActiveMember() },
       select: { id: true, name: true, primaryRole: true },
       orderBy: { createdAt: "asc" },
       take: 12,

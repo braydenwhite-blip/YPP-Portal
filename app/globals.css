@@ -77,7 +77,10 @@
   --gray-50: #fafaf9;
 
   /* Core semantic colors */
-  --bg: var(--ypp-blush);
+  /* Neutral off-white canvas (was the lavender --ypp-blush). Keeps #6b21c8 as
+     an accent rather than washing every page in light purple — Phase 2
+     professionalization. The --ypp-blush token still backs purple-tinted chips. */
+  --bg: var(--surface-warm);
   --bg-2: #faf7ff;
   /* Main canvas — soft lavender like dashboard mockups */
   --canvas-lavender: #f3f3fd;
@@ -88,7 +91,7 @@
   --dash-stripe-accent: #6366f1;
   --dash-stripe-success: #059669;
   --surface: #ffffff;
-  --surface-alt: var(--ypp-blush);
+  --surface-alt: var(--gray-50);
   --surface-hover: var(--ypp-purple-100);
   --background: var(--surface);
   --text: var(--ypp-ink);
@@ -183,9 +186,11 @@ body {
   font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
   letter-spacing: -0.01em;
   background: var(--bg);
+  /* Faint warm glows only — the page reads as a neutral professional canvas
+     rather than a lavender wash (Phase 2). */
   background-image:
-    radial-gradient(ellipse 1000px 520px at 12% -8%, rgba(232, 216, 255, 0.85) 0%, transparent 58%),
-    radial-gradient(ellipse 720px 400px at 92% 5%, rgba(243, 236, 255, 0.95) 0%, transparent 52%);
+    radial-gradient(ellipse 1000px 520px at 12% -8%, rgba(232, 216, 255, 0.16) 0%, transparent 58%),
+    radial-gradient(ellipse 720px 400px at 92% 5%, rgba(243, 236, 255, 0.12) 0%, transparent 52%);
   background-attachment: fixed;
   line-height: 1.6;
 }
@@ -335,68 +340,24 @@ img {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background-color: #f2ebfb;
+  /* Phase 2: clean, professional neutral panel. The previous ~15-layer
+     lavender "marble" wash is replaced by a flat off-white surface with a
+     single faint top sheen, so the sidebar reads calm and businesslike while
+     keeping the brand purple for the active item only. */
+  background-color: var(--surface);
   background-image:
-    linear-gradient(
-      122deg,
-      transparent 0% 34%,
-      rgba(212, 184, 255, 0.45) 40%,
-      rgba(236, 220, 255, 0.55) 48%,
-      rgba(212, 184, 255, 0.35) 52%,
-      transparent 58% 100%
-    ),
-    linear-gradient(
-      54deg,
-      transparent 18%,
-      rgba(180, 127, 255, 0.12) 24%,
-      transparent 30% 55%,
-      rgba(232, 216, 255, 0.5) 62%,
-      transparent 68%
-    ),
-    linear-gradient(
-      198deg,
-      transparent 52%,
-      rgba(200, 170, 255, 0.22) 58%,
-      rgba(248, 244, 255, 0.35) 64%,
-      transparent 72%
-    ),
-    linear-gradient(
-      88deg,
-      transparent 72%,
-      rgba(255, 255, 255, 0.35) 78%,
-      rgba(232, 216, 255, 0.3) 82%,
-      transparent 88%
-    ),
-    radial-gradient(ellipse 115% 88% at 10% 20%, rgba(232, 216, 255, 0.98) 0%, transparent 52%),
-    radial-gradient(ellipse 95% 72% at 92% 12%, rgba(212, 184, 255, 0.55) 0%, transparent 48%),
-    radial-gradient(ellipse 70% 58% at 78% 82%, rgba(244, 236, 255, 0.99) 0%, transparent 44%),
-    radial-gradient(ellipse 48% 36% at 32% 92%, rgba(180, 127, 255, 0.22) 0%, transparent 40%),
-    radial-gradient(ellipse 85% 28% at 58% 45%, rgba(255, 255, 255, 0.62) 0%, transparent 36%),
-    radial-gradient(ellipse 52% 68% at 48% 28%, rgba(212, 184, 255, 0.28) 0%, transparent 50%),
-    radial-gradient(ellipse 38% 90% at 88% 58%, rgba(190, 150, 245, 0.2) 0%, transparent 46%),
-    radial-gradient(ellipse 60% 44% at 18% 62%, rgba(255, 255, 255, 0.5) 0%, transparent 46%),
-    radial-gradient(ellipse 42% 38% at 68% 8%, rgba(220, 200, 255, 0.35) 0%, transparent 42%),
-    linear-gradient(
-      163deg,
-      var(--ypp-purple-50) 0%,
-      #faf7ff 32%,
-      var(--ypp-purple-100) 66%,
-      #e8dff5 100%
-    );
-  border: 1px solid rgba(139, 63, 232, 0.14);
+    linear-gradient(180deg, rgba(107, 33, 200, 0.03) 0%, transparent 38%);
+  border: 1px solid var(--border);
   box-shadow: var(--shadow-xs), inset 0 1px 0 rgba(255, 255, 255, 0.78);
   animation: sidebar-marble-panel-in-up 0.55s ease-out 0.06s both;
 }
 
-/* Dashboard-style violet orbs (same language as .overview-hero-orb) */
+/* Phase 2: the drifting violet orbs are retired for a calmer, professional
+   sidebar. Kept as no-ops so the panel structure/animation is undisturbed. */
 .sidebar-marble-panel::before,
 .sidebar-marble-panel::after {
-  content: "";
-  position: absolute;
-  border-radius: 999px;
-  pointer-events: none;
-  filter: blur(1px);
-  z-index: 0;
+  content: none;
+  display: none;
 }
 
 .sidebar-marble-panel::before {

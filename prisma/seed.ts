@@ -1529,25 +1529,17 @@ async function seedActionTracker() {
     return;
   }
 
-  // Two functional departments so the All Actions view has cross-department data.
-  const instruction = await prisma.department.upsert({
-    where: { name: "Instruction" },
-    create: { name: "Instruction", slug: "instruction", description: "Curriculum, teaching, and classroom operations." },
-    update: {},
-  });
-  const marketing = await prisma.department.upsert({
-    where: { name: "Marketing" },
-    create: { name: "Marketing", slug: "marketing", description: "Communications, social, and recruitment." },
-    update: {},
-  });
-
-  // Standing functional departments for the Action Tracker picker.
-  await prisma.department.upsert({
+  // The three standing functional departments — the single source of truth for
+  // the Action Tracker picker. (Previously the seed also created legacy
+  // "Instruction"/"Marketing" rows that the standing set duplicated; the seeded
+  // demo items now attach to these standing departments so the picker stays
+  // clean. The 20260604160000 migration archives any leftover legacy rows.)
+  const instructionalAffairs = await prisma.department.upsert({
     where: { name: "Instructional Affairs" },
     create: { name: "Instructional Affairs", slug: "instructional-affairs", description: "Academics — curriculum, teaching, and classroom operations." },
     update: {},
   });
-  await prisma.department.upsert({
+  const communityPartnerships = await prisma.department.upsert({
     where: { name: "Community & Partnerships" },
     create: { name: "Community & Partnerships", slug: "community-partnerships", description: "Growth — community building, outreach, and partnerships." },
     update: {},
@@ -1567,12 +1559,15 @@ async function seedActionTracker() {
 
   // 1) In-progress instruction item. Brayden is BOTH lead and an executor
   //    (same user, two roles), and Anthea is asked for INPUT.
+  //    NB: instructor *onboarding* is intentionally NOT a tracker item — it runs
+  //    through the dedicated instructor-journey workflow — so this demo item is
+  //    a curriculum-rollout task instead (plan comment #14).
   const onboarding = await prisma.actionItem.create({
     data: {
-      title: "Launch fall instructor onboarding",
-      description: "Stand up the fall onboarding cohort: confirm trainers, schedule, and materials.",
-      goalCategory: "Instructor Pipeline",
-      departmentId: instruction.id,
+      title: "Refresh fall curriculum rollout",
+      description: "Stand up the fall curriculum rollout: confirm leads, schedule, and materials.",
+      goalCategory: "Curriculum",
+      departmentId: instructionalAffairs.id,
       status: "IN_PROGRESS",
       deadlineStart: daysFromNow(-2),
       deadlineEnd: daysFromNow(12),
@@ -1613,7 +1608,7 @@ async function seedActionTracker() {
       title: "Finalize Q3 marketing calendar",
       description: "Lock the Q3 content calendar and hand off to the social team.",
       goalCategory: "Brand & Recruitment",
-      departmentId: marketing.id,
+      departmentId: communityPartnerships.id,
       status: "OVERDUE",
       deadlineStart: daysFromNow(-14),
       deadlineEnd: daysFromNow(-3),
@@ -1636,7 +1631,7 @@ async function seedActionTracker() {
       title: "Prep succession review materials",
       description: "Assemble the Performance × Potential grid inputs ahead of the officers meeting.",
       goalCategory: "People Strategy",
-      departmentId: instruction.id,
+      departmentId: instructionalAffairs.id,
       status: "NOT_STARTED",
       deadlineStart: daysFromNow(5),
       deadlineEnd: daysFromNow(20),
