@@ -14890,3 +14890,178 @@ a.mentor-panel__row:focus-visible {
   border-color: #1f9d55;
   background: rgba(31, 157, 85, 0.22);
 }
+
+/* ============================================
+   PEOPLE STRATEGY / ACTION TRACKER — PROFESSIONAL SURFACE
+   Scoped to /actions/* via the `.ps-page` wrapper
+   (app/(app)/actions/layout.tsx). Neutral canvas, refined typography, a
+   compact command bar, and compact filter controls. YPP purple stays an
+   accent, not the whole page atmosphere.
+   ============================================ */
+
+:root {
+  --ps-canvas: #f5f6f8;        /* neutral page background (replaces lavender) */
+  --ps-surface: #ffffff;       /* cards / controls */
+  --ps-border: rgba(17, 24, 39, 0.10);
+  --ps-border-strong: rgba(17, 24, 39, 0.16);
+  --ps-ink: #15181f;           /* primary text */
+  --ps-ink-soft: #5b6472;      /* secondary text */
+  --ps-accent: var(--ypp-purple-600);
+  --ps-accent-soft: rgba(107, 33, 200, 0.10);
+}
+
+/* Repaint the content canvas neutral ONLY on People Strategy pages. `main`
+   fills the app-shell grid row (min-height:100vh) so there is no lavender
+   gutter below short pages. */
+main:has(.ps-page) {
+  background: var(--ps-canvas);
+}
+
+.ps-page {
+  color: var(--ps-ink);
+}
+
+/* Typography — strong but professional (clean sans, not a display serif).
+   Also retitles any in-scope `.page-title` for sub-views we don't touch. */
+.ps-page .page-title,
+.ps-command-title {
+  font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+  color: var(--ps-ink);
+  margin: 0;
+}
+
+.ps-page .page-subtitle,
+.ps-command-subtitle {
+  color: var(--ps-ink-soft);
+  font-size: 14.5px;
+  line-height: 1.5;
+  margin: 6px 0 0;
+  max-width: 64ch;
+}
+
+/* ---- Command bar ---- */
+.ps-command-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--ps-border);
+}
+
+.ps-command-headings {
+  min-width: 0;
+}
+
+.ps-command-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-nunito), system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ps-accent);
+  margin: 0 0 8px;
+}
+
+.ps-command-meta {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ps-ink-soft);
+}
+
+.ps-command-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* ---- Compact filter row ---- */
+.ps-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.ps-filter {
+  width: auto;            /* size to content instead of stretching full-width */
+  min-width: 0;
+  margin-top: 0;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--ps-ink);
+  background-color: var(--ps-surface);
+  border: 1px solid var(--ps-border-strong);
+  border-radius: var(--radius-sm);
+  max-width: 100%;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  outline: none;
+}
+
+.ps-filter:hover {
+  border-color: var(--gray-400);
+}
+
+.ps-filter:focus {
+  border-color: var(--ps-accent);
+  box-shadow: 0 0 0 3px var(--ps-accent-soft);
+}
+
+/* Self-contained chevron so `.ps-filter` selects don't depend on `.input`. */
+select.ps-filter {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2378716c' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 9px center;
+  background-repeat: no-repeat;
+  background-size: 18px;
+}
+
+.ps-filter-search {
+  display: flex;
+  gap: 6px;
+  flex: 1 1 220px;
+  min-width: 160px;
+}
+
+.ps-filter-search .ps-filter {
+  flex: 1;
+  width: auto;
+}
+
+/* On mobile, every control stacks cleanly to full width. */
+@media (max-width: 640px) {
+  .ps-filter-bar > .ps-filter,
+  .ps-filter-bar > .ps-filter-search {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .ps-filter {
+    width: 100%;
+  }
+}
+
+/* Cards keep a firmer-but-soft edge on the neutral canvas. */
+.ps-page .card {
+  border-color: var(--ps-border);
+}
+
+/* Eyebrow/badge reads as a quiet label, not a loud chip, on the pro surface. */
+.ps-page .badge {
+  background: var(--ps-accent-soft);
+  color: var(--ps-accent);
+}

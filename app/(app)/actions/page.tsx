@@ -11,6 +11,7 @@ import {
 import { isOfficerTier, type ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { getMyTeachingClasses } from "@/lib/people-strategy/class-tracker";
 import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
+import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { PriorityPill, StatusPill } from "@/components/people-strategy/pills";
 import {
   effectiveDeadline,
@@ -176,34 +177,19 @@ export default async function MyActionsPage() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <p className="badge">
-            {session.user.name ?? "You"} · {formatRole(viewer.primaryRole)}
-          </p>
-          <h1 className="page-title" style={{ marginTop: 8 }}>
-            My Actions
-          </h1>
-          <p className="page-subtitle">
-            Everything you lead, are executing, or owe input on — sorted by deadline.
-          </p>
-          <p style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>Last updated {lastUpdated}</p>
-        </div>
-        {officer ? (
-          <Link href="/admin/actions/new" className="button small">
-            + New Action
-          </Link>
-        ) : null}
-      </div>
+      <ActionCommandBar
+        eyebrow={`${session.user.name ?? "You"} · ${formatRole(viewer.primaryRole)}`}
+        title="My Actions"
+        subtitle="Everything you lead, are executing, or owe input on — sorted by deadline."
+        meta={`Last updated ${lastUpdated}`}
+        actions={
+          officer ? (
+            <Link href="/admin/actions/new" className="button small">
+              + New Action
+            </Link>
+          ) : null
+        }
+      />
 
       {/* Tabs — a <nav>, not a tablist: these links navigate between pages
           rather than switching panels in place. */}
