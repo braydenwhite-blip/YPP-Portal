@@ -68,6 +68,7 @@ export default async function EditActionPage({
             goalCategory: item.goalCategory,
             departmentId: item.departmentId,
             status: item.status,
+            priority: item.priority,
             visibility: item.visibility,
             deadlineStart: item.deadlineStart,
             deadlineEnd: item.deadlineEnd,

@@ -192,8 +192,26 @@ export function buildOfficerMeetingAgendaFallback(
     });
   }
 
+  // Commitments — the "promised by whom, due by when" summary that turns the
+  // agenda into a follow-up contract. Only items with an accountable lead.
+  const commitments = meeting.actionItems.filter((item) => item.leadName);
   lines.push("");
-  lines.push(`2. Miscellaneous Updates (${meeting.miscUpdates.length})`);
+  lines.push(`2. Commitments (${commitments.length}) — promised by · due by`);
+  if (commitments.length === 0) {
+    lines.push("   No owned commitments yet.");
+  } else {
+    for (const item of commitments) {
+      lines.push(
+        `   • ${item.title} — ${item.leadName} by ${formatDeadline(
+          item.deadlineStart,
+          item.deadlineEnd
+        )}`
+      );
+    }
+  }
+
+  lines.push("");
+  lines.push(`3. Miscellaneous Updates (${meeting.miscUpdates.length})`);
   if (meeting.miscUpdates.length === 0) {
     lines.push("   No miscellaneous updates.");
   } else {

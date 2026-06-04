@@ -14557,4 +14557,9 @@ a.mentor-panel__row:focus-visible {
     white-space: normal !important;
     text-align: left;
   }
+
+  /* Command Center collapses its two-column layout on phone-width screens. */
+  .command-center-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }

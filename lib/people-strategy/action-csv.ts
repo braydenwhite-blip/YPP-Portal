@@ -1,7 +1,11 @@
 import type { ActionItemWithRelations } from "./action-queries";
 import { effectiveStatus } from "./action-filters";
 import { effectiveDeadline } from "./my-actions-selectors";
-import { ACTION_STATUS_LABELS, ACTION_VISIBILITY_LABELS } from "./constants";
+import {
+  ACTION_PRIORITY_LABELS,
+  ACTION_STATUS_LABELS,
+  ACTION_VISIBILITY_LABELS,
+} from "./constants";
 
 /**
  * People Strategy — Action Tracker CSV serialization.
@@ -48,9 +52,11 @@ const CSV_HEADERS = [
   "Title",
   "Department",
   "Status",
+  "Priority",
   "Visibility",
   "Deadline Start",
   "Deadline End",
+  "Completed",
   "Lead",
   "Executing",
   "Input",
@@ -72,9 +78,11 @@ export function toActionItemsCsv(
         item.title,
         item.department?.name ?? "Unassigned",
         ACTION_STATUS_LABELS[effectiveStatus(item, now)],
+        ACTION_PRIORITY_LABELS[item.priority],
         ACTION_VISIBILITY_LABELS[item.visibility],
         formatDate(item.deadlineStart),
         formatDate(item.deadlineEnd),
+        formatDate(item.completedAt),
         item.lead?.name ?? item.lead?.email ?? "",
         assigneeNames(item, "EXECUTING"),
         assigneeNames(item, "INPUT"),

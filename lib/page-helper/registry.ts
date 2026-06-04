@@ -3732,5 +3732,23 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       firstStep: "Sort or filter to find the assignments closest to a deadline.",
       nextStep: "Open an assignment to grade, leave feedback, or send a reminder."
     }
+  },
+  {
+    pattern: "/actions/command-center",
+    title: "People Strategy Command Center",
+    content: {
+      purpose: "This leadership command center shows what matters this week — the weekly pulse, the attention queue, people momentum, team risk, and wins.",
+      firstStep: "Start with the Leadership Attention Queue: it lists the items that need a look, most urgent first.",
+      nextStep: "Use the Follow-Up Generator to draft a nudge for anything slipping, then check People Momentum for who needs support."
+    }
+  },
+  {
+    pattern: "/actions/responsibility",
+    title: "Responsibility Map",
+    content: {
+      purpose: "This map shows who owns what, who is overloaded or has capacity, and where each person sits on the growth pipeline, plus the People Risk Radar.",
+      firstStep: "Scan the People Risk Radar for anyone who needs attention before it becomes urgent.",
+      nextStep: "Tag people with growth signals (ready for more, needs training, at risk) to keep the radar and pipeline current."
+    }
   }
 ];

@@ -93,6 +93,8 @@ function toDetailDTO(
     departmentName: item.department?.name ?? "Unassigned",
     departmentSlug: item.department?.slug ?? null,
     status: item.status,
+    priority: item.priority,
+    completedAt: item.completedAt ? item.completedAt.toISOString() : null,
     deadlineStart: item.deadlineStart.toISOString(),
     deadlineEnd: item.deadlineEnd ? item.deadlineEnd.toISOString() : null,
     visibility: item.visibility,

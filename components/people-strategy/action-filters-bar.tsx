@@ -8,13 +8,16 @@ import {
   type ActionFilters,
 } from "@/lib/people-strategy/action-filters";
 import {
+  ACTION_PRIORITY_LABELS,
+  ACTION_PRIORITY_VALUES,
   ACTION_STATUS_LABELS,
+  ACTION_STATUS_VALUES,
   ACTION_VISIBILITY_LABELS,
 } from "@/lib/people-strategy/constants";
 
 type DepartmentOption = { id: string; name: string };
 
-const STATUS_OPTIONS = ["NOT_STARTED", "IN_PROGRESS", "COMPLETE", "OVERDUE"] as const;
+const STATUS_OPTIONS = ACTION_STATUS_VALUES;
 const VISIBILITY_OPTIONS = ["ALL_LEADERSHIP", "OFFICERS_ONLY"] as const;
 
 /**
@@ -98,6 +101,21 @@ export function ActionFiltersBar({
 
       <select
         className="input"
+        aria-label="Filter by priority"
+        style={controlStyle}
+        value={filters.priority}
+        onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.priority, e.target.value)}
+      >
+        <option value="ALL">All priorities</option>
+        {ACTION_PRIORITY_VALUES.map((p) => (
+          <option key={p} value={p}>
+            {ACTION_PRIORITY_LABELS[p]}
+          </option>
+        ))}
+      </select>
+
+      <select
+        className="input"
         aria-label="Filter by visibility"
         style={controlStyle}
         value={filters.visibility}
@@ -120,6 +138,7 @@ export function ActionFiltersBar({
       >
         <option value="deadline_asc">Deadline ↑ (soonest)</option>
         <option value="deadline_desc">Deadline ↓ (latest)</option>
+        <option value="priority_desc">Priority (highest)</option>
       </select>
 
       <form onSubmit={submitSearch} style={{ display: "flex", gap: 6, flex: "1 1 200px" }}>

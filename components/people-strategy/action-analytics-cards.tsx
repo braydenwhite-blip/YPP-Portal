@@ -18,7 +18,9 @@ const STATUS_ORDER: ActionItemStatus[] = [
   "COMPLETE",
   "IN_PROGRESS",
   "NOT_STARTED",
+  "BLOCKED",
   "OVERDUE",
+  "DROPPED",
 ];
 
 // Token-based, matching the shared status-pill tones. Passed to SVG stroke /
@@ -27,7 +29,9 @@ const STATUS_COLORS: Record<ActionItemStatus, string> = {
   COMPLETE: "var(--success-color)",
   IN_PROGRESS: "var(--info-text)",
   NOT_STARTED: "var(--gray-400)",
+  BLOCKED: "var(--warning-color)",
   OVERDUE: "var(--error-color)",
+  DROPPED: "var(--gray-300)",
 };
 
 // r=34, stroke=8 — same geometry as the existing Member Pulse ring.

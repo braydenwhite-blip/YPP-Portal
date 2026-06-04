@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ActionCommentType, ActionItemStatus } from "@prisma/client";
+import type { ActionCommentType, ActionItemStatus, ActionPriority } from "@prisma/client";
 
 import {
   addActionComment,
@@ -13,10 +13,10 @@ import {
 } from "@/lib/people-strategy/action-items-actions";
 import {
   ACTION_STATUS_LABELS,
-  ACTION_STATUS_VALUES,
+  ACTION_STATUS_SELECTABLE,
 } from "@/lib/people-strategy/constants";
 import { cardRevealVariants } from "@/lib/people-strategy/motion";
-import { Pill } from "@/components/people-strategy/pills";
+import { Pill, PriorityPill } from "@/components/people-strategy/pills";
 import { MotionArea, m, FeedbackBanner } from "@/components/people-strategy/motion";
 
 type PersonDTO = {
@@ -51,6 +51,8 @@ export type ActionDetailDTO = {
   departmentName: string;
   departmentSlug: string | null;
   status: ActionItemStatus;
+  priority: ActionPriority;
+  completedAt: string | null;
   deadlineStart: string;
   deadlineEnd: string | null;
   visibility: "OFFICERS_ONLY" | "ALL_LEADERSHIP";
@@ -408,7 +410,7 @@ export default function ActionDetailCard({
             disabled={pending || !canEdit}
             style={{ ...FIELD_STYLE, fontWeight: 700, color: "var(--ypp-ink)" }}
           >
-            {ACTION_STATUS_VALUES.map((value) => (
+            {ACTION_STATUS_SELECTABLE.map((value) => (
               <option key={value} value={value}>
                 {ACTION_STATUS_LABELS[value]}
               </option>
@@ -416,6 +418,7 @@ export default function ActionDetailCard({
           </select>
         </label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <PriorityPill priority={item.priority} />
           <Pill tone={due.overdue ? "overdue" : "neutral"}>{due.label}</Pill>
           {item.officerMeetingId && <Pill tone="purple">Officer meeting linked</Pill>}
         </div>

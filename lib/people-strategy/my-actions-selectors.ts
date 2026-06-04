@@ -37,7 +37,8 @@ export function isActionOverdue(
   item: ActionItemWithRelations,
   now: Date = new Date()
 ): boolean {
-  if (item.status === "COMPLETE") return false;
+  // Completed and dropped items are settled — never overdue.
+  if (item.status === "COMPLETE" || item.status === "DROPPED") return false;
   if (item.status === "OVERDUE") return true;
   return effectiveDeadline(item).getTime() < startOfDay(now).getTime();
 }

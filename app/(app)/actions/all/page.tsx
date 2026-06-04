@@ -33,8 +33,10 @@ import {
   ActionStatusDonut,
   DepartmentBars,
 } from "@/components/people-strategy/action-analytics-cards";
+import { listSavedActionViews } from "@/lib/people-strategy/saved-views";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
-import { Pill, StatusPill } from "@/components/people-strategy/pills";
+import { Pill, PriorityPill, StatusPill } from "@/components/people-strategy/pills";
+import { SavedViewsBar } from "@/components/people-strategy/saved-views-bar";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Tracker · All Actions" };
@@ -101,6 +103,7 @@ function ActionRow({ item, now }: { item: ActionItemWithRelations; now: Date }) 
       {/* Pill row: status, officer-meeting (if any), visibility badge */}
       <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
         <StatusPill status={item.status} />
+        <PriorityPill priority={item.priority} hideLow />
         {item.officerMeetingId ? <Pill tone="purple">Officer meeting</Pill> : null}
         <Pill tone={item.visibility === "OFFICERS_ONLY" ? "warning" : "neutral"}>
           {ACTION_VISIBILITY_LABELS[item.visibility]}
@@ -151,9 +154,10 @@ export default async function AllActionsPage({
   const filters = parseActionFilters(params);
   const now = new Date();
 
-  const [visible, departments] = await Promise.all([
+  const [visible, departments, savedViews] = await Promise.all([
     listVisibleActionItems(viewer),
     listActionDepartments(),
+    listSavedActionViews(viewer.id),
   ]);
 
   // ONE filtered set drives everything below: the summary strip, the charts,
@@ -223,6 +227,12 @@ export default async function AllActionsPage({
         departments={departments}
         filters={filters}
         hasActive={filtersActive}
+      />
+
+      <SavedViewsBar
+        views={savedViews}
+        currentQuery={exportQuery}
+        hasActiveFilters={filtersActive}
       />
 
       {/* Summary strip — reflects the current filters */}

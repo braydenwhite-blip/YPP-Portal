@@ -1319,6 +1319,10 @@ model User {
   actionEmailLogs                   ActionEmailLog[]             @relation("ActionEmailLogRecipient")
   feedbackRequestsAbout             FeedbackRequest[]            @relation("FeedbackRequestSubject")
   feedbackRequestsToAnswer          FeedbackRequest[]            @relation("FeedbackRequestCollaborator")
+  growthTags                        MemberGrowthTag[]            @relation("MemberGrowthTags")
+  growthTagsCreated                 MemberGrowthTag[]            @relation("MemberGrowthTagsCreated")
+  actionTemplatesCreated            ActionTemplate[]             @relation("ActionTemplatesCreated")
+  savedActionViews                  SavedActionView[]            @relation("SavedActionViews")
 
   // People Strategy — provisional 3-month confirmation clock
   // (ENABLE_PROVISIONAL_CLOCK). `provisionalStart` is set when a hire is
@@ -12157,6 +12161,21 @@ enum ActionItemStatus {
   IN_PROGRESS
   COMPLETE
   OVERDUE
+  /// Work cannot proceed until an external blocker clears (Phase 7).
+  BLOCKED
+  /// Intentionally abandoned / no longer relevant (Phase 7). Keeps the record
+  /// for history without counting against momentum or the overdue sweep.
+  DROPPED
+}
+
+/// Relative urgency of an action item (Phase 7). Ported from the retired
+/// Leadership Action Center's priority concept. Feeds the Command Center
+/// attention queue + momentum weighting.
+enum ActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 enum ActionItemVisibility {
@@ -12215,8 +12234,13 @@ model ActionItem {
   department   Department? @relation("DepartmentActionItems", fields: [departmentId], references: [id])
 
   status        ActionItemStatus     @default(NOT_STARTED)
+  priority      ActionPriority       @default(MEDIUM)
   deadlineStart DateTime
   deadlineEnd   DateTime?
+  /// Set when the item transitions to COMPLETE; cleared if it is reopened. Gives
+  /// the Win Log / pulse / momentum an exact completion timestamp instead of
+  /// approximating with `updatedAt` (Phase 7).
+  completedAt   DateTime?
   visibility    ActionItemVisibility @default(ALL_LEADERSHIP)
 
   /// Single accountable lead (denormalized; also represented as an
@@ -12262,6 +12286,8 @@ model ActionItem {
   @@index([deadlineStart])
   @@index([status])
   @@index([status, deadlineStart])
+  @@index([priority])
+  @@index([completedAt])
   @@index([departmentId, status])
   @@index([visibility])
   @@index([leadId])
@@ -12393,6 +12419,105 @@ model FeedbackRequest {
   @@unique([subjectUserId, collaboratorId, month])
   @@index([subjectUserId, month])
   @@index([collaboratorId, submittedAt])
+}
+
+// ============================================
+// People Strategy — Growth Signals (Phase 8)
+// Lightweight, human-curated tags on a member capturing where they are on the
+// leadership pipeline. Distinct from the Quarterly Review's `successionFlag`
+// (a point-in-time formal decision): these are quick, always-current signals
+// leadership can attach from the Responsibility Map. Officer-tier and above
+// curate them; they feed the People Risk Radar (e.g. a "ready for more" person
+// carrying no current ownership surfaces as an opportunity). Gated behind
+// ENABLE_ACTION_TRACKER alongside the rest of the People Strategy surfaces.
+// ============================================
+
+enum GrowthTag {
+  READY_FOR_MORE
+  NEEDS_TRAINING
+  RELIABLE_EXECUTOR
+  STRONG_COMMUNICATOR
+  POTENTIAL_TEAM_LEAD
+  AT_RISK_OF_DISENGAGING
+}
+
+/// One growth signal attached to a member. Unique per (member, tag) so a tag is
+/// either present or not — toggling is idempotent. `note` is an optional short
+/// rationale; `createdBy` records who attached it for accountability.
+model MemberGrowthTag {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation("MemberGrowthTags", fields: [userId], references: [id], onDelete: Cascade)
+  tag       GrowthTag
+  note      String?   @db.Text
+
+  createdById String
+  createdBy   User   @relation("MemberGrowthTagsCreated", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, tag])
+  @@index([userId])
+  @@index([tag])
+  @@index([createdById])
+}
+
+// ============================================
+// People Strategy — Action Templates & Saved Views (Phase 9)
+// Templates remove the blank-page tax for recurring YPP leadership tasks; Saved
+// Views persist a user's favourite filter sets on the Action Tracker. Both are
+// gated behind ENABLE_ACTION_TRACKER. Standard templates are seeded (isStandard)
+// so a fresh environment ships with the YPP playbook.
+// ============================================
+
+/// A reusable Action Item template. Pre-fills the new-action form with a
+/// title/description, default priority/visibility, and an optional checklist
+/// (appended into the description). `isStandard` marks the seeded YPP playbook
+/// templates; `deadlineOffsetDays` seeds the deadline N days out from creation.
+model ActionTemplate {
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  /// Short helper text shown in the template gallery.
+  description         String?              @db.Text
+  /// Playbook grouping (e.g. "Hiring", "Instruction") for the gallery.
+  category           String?
+  titleTemplate      String
+  descriptionTemplate String?             @db.Text
+  goalCategory       String?
+  defaultPriority    ActionPriority       @default(MEDIUM)
+  defaultVisibility  ActionItemVisibility @default(ALL_LEADERSHIP)
+  /// Default deadline, in days from creation. Null leaves it blank.
+  deadlineOffsetDays Int?
+  /// Suggested checklist steps, appended into the new item's description.
+  checklist          String[]             @default([])
+  isStandard         Boolean              @default(false)
+  archivedAt         DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("ActionTemplatesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([archivedAt])
+  @@index([category])
+}
+
+/// A user's saved filter set on the Action Tracker (All Actions). `query` is the
+/// serialized filter query string; loading a view just re-applies it.
+model SavedActionView {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("SavedActionViews", fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+  /// Serialized filter query string, e.g. "status=OVERDUE&dept=<id>&sort=priority_desc".
+  query  String
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId])
 }
 
 // ============================================

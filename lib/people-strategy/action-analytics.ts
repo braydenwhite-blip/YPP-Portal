@@ -24,8 +24,10 @@ export function summarizeStatuses(
   const counts: Record<ActionItemStatus, number> = {
     NOT_STARTED: 0,
     IN_PROGRESS: 0,
+    BLOCKED: 0,
     COMPLETE: 0,
     OVERDUE: 0,
+    DROPPED: 0,
   };
   for (const item of items) {
     counts[effectiveStatus(item, now)] += 1;

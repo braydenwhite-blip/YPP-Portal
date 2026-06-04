@@ -3,6 +3,7 @@ import type {
   ActionCommentType,
   ActionItemStatus,
   ActionItemVisibility,
+  ActionPriority,
   GoalRatingColor,
   QuarterlyReviewDecision,
 } from "@prisma/client";
@@ -30,8 +31,22 @@ export const ACTION_VISIBILITY_VALUES: ActionItemVisibility[] = [
 export const ACTION_STATUS_VALUES: ActionItemStatus[] = [
   "NOT_STARTED",
   "IN_PROGRESS",
+  "BLOCKED",
   "COMPLETE",
   "OVERDUE",
+  "DROPPED",
+];
+
+/**
+ * Statuses an officer may set from the form/detail UI. OVERDUE is excluded — it
+ * is a *computed* effective status (a past-due open item), never set by hand.
+ */
+export const ACTION_STATUS_SELECTABLE: ActionItemStatus[] = [
+  "NOT_STARTED",
+  "IN_PROGRESS",
+  "BLOCKED",
+  "COMPLETE",
+  "DROPPED",
 ];
 
 export const ACTION_COMMENT_TYPE_VALUES: ActionCommentType[] = [
@@ -43,8 +58,37 @@ export const ACTION_COMMENT_TYPE_VALUES: ActionCommentType[] = [
 export const ACTION_STATUS_LABELS: Record<ActionItemStatus, string> = {
   NOT_STARTED: "Not started",
   IN_PROGRESS: "In progress",
+  BLOCKED: "Blocked",
   COMPLETE: "Complete",
   OVERDUE: "Overdue",
+  DROPPED: "Dropped",
+};
+
+export const ACTION_PRIORITY_VALUES: ActionPriority[] = [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "URGENT",
+];
+
+/** Human-readable labels for the priority enum. */
+export const ACTION_PRIORITY_LABELS: Record<ActionPriority, string> = {
+  LOW: "Low",
+  MEDIUM: "Medium",
+  HIGH: "High",
+  URGENT: "Urgent",
+};
+
+/**
+ * Numeric weight per priority, used to rank the Command Center attention queue
+ * and to weight momentum. Higher = more urgent. Kept here as the single source
+ * of truth so UI and scoring never drift.
+ */
+export const ACTION_PRIORITY_WEIGHT: Record<ActionPriority, number> = {
+  LOW: 0,
+  MEDIUM: 1,
+  HIGH: 2,
+  URGENT: 3,
 };
 
 /** Human-readable labels for the visibility enum. */
@@ -58,6 +102,8 @@ export const ACTION_ITEM_PATHS = [
   "/actions",
   "/actions/all",
   "/actions/all/classes",
+  "/actions/command-center",
+  "/actions/responsibility",
   "/admin/actions",
 ] as const;
 

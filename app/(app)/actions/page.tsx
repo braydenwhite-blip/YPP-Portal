@@ -11,7 +11,7 @@ import {
 import { isOfficerTier, type ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { getMyTeachingClasses } from "@/lib/people-strategy/class-tracker";
 import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
-import { StatusPill } from "@/components/people-strategy/pills";
+import { PriorityPill, StatusPill } from "@/components/people-strategy/pills";
 import {
   effectiveDeadline,
   isActionOverdue,
@@ -100,6 +100,7 @@ function ActionRow({
       </div>
       <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
         <StatusPill status={item.status} />
+        <PriorityPill priority={item.priority} hideLow />
         <span style={{ fontSize: 12, color: "#64748b" }}>{item.department?.name ?? "—"}</span>
       </div>
       {prompt ? (
@@ -169,6 +170,7 @@ export default async function MyActionsPage() {
     { href: "/actions", label: "My Actions", active: true },
   ];
   if (officer) {
+    tabs.push({ href: "/actions/command-center", label: "Command Center", active: false });
     tabs.push({ href: "/actions/all", label: "All Actions", active: false });
   }
 
