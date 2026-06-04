@@ -32,7 +32,9 @@ export function ActionTrackerTabs({
   active,
   showPeople = false,
 }: {
-  active: ActionTrackerTab;
+  // Optional: on surfaces that are not themselves a tab (the create form, the
+  // detail view) pass no `active` so the full bar renders with nothing current.
+  active?: ActionTrackerTab;
   showPeople?: boolean;
 }) {
   const tabs = TABS.filter((tab) => tab.key !== "people" || showPeople || active === "people");

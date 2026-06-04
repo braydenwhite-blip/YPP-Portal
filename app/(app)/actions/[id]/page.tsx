@@ -4,14 +4,16 @@ import ActionDetailCard, {
   type ActionDetailDTO,
 } from "@/components/people-strategy/action-detail-card";
 import { getSession } from "@/lib/auth-supabase";
-import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
 import { getActionItemById } from "@/lib/people-strategy/action-queries";
 import {
   canEditAction,
   canFlagAction,
+  isCpoOrBoard,
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
+import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Detail · People Strategy" };
@@ -152,10 +154,16 @@ export default async function ActionDetailPage({ params }: PageProps) {
 
   const canEdit = canEditAction(viewer, actionShape);
   const canFlag = canFlagAction(viewer, actionShape);
-  const closeHref = isOfficerTier(viewer) ? "/actions/all" : "/actions";
+  const officer = isOfficerTier(viewer);
+  const closeHref = officer ? "/actions/all" : "/actions";
+  const showPeople = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
+      {/* Persistent tabs so the detail view is reachable-from / returns-to the
+          rest of the tracker (comment #17). Officers only — other viewers reach
+          a detail page solely from My Actions. */}
+      {officer && <ActionTrackerTabs showPeople={showPeople} />}
       <ActionDetailCard
         item={toDetailDTO(item)}
         canEdit={canEdit}

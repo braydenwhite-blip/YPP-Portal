@@ -208,7 +208,7 @@ export default async function AllActionsPage({
             <a href={exportHref} className="button outline small">
               Export CSV
             </a>
-            <Link href="/admin/actions/new" className="button small">
+            <Link href="/actions/new" className="button small">
               + New Action
             </Link>
           </>

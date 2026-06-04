@@ -14860,6 +14860,17 @@ a.mentor-panel__row:focus-visible {
    accent, not the whole page atmosphere.
    ============================================ */
 
+/* Collapsible action-detail sections (comment #18): a clean rotating chevron
+   in place of the inconsistent native <details> disclosure marker. */
+.action-detail-section-summary::-webkit-details-marker { display: none; }
+.action-detail-section-summary .ad-chevron {
+  display: inline-block;
+  transition: transform 150ms ease;
+}
+details[open] > .action-detail-section-summary .ad-chevron {
+  transform: rotate(90deg);
+}
+
 :root {
   --ps-canvas: #f5f6f8;        /* neutral page background (replaces lavender) */
   --ps-surface: #ffffff;       /* cards / controls */

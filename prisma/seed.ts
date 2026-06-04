@@ -157,10 +157,10 @@ async function main() {
   });
 
   const mentor = await prisma.user.upsert({
-    where: { email: "carlygelles@gmail.com" },
+    where: { email: "carly.gelles@youthpassionproject.org" },
     create: {
       name: "Carly Gelles",
-      email: "carlygelles@gmail.com",
+      email: "carly.gelles@youthpassionproject.org",
       phone: "(914)-907-1779",
       passwordHash,
       emailVerified: verifiedAt,
@@ -1520,7 +1520,7 @@ async function seedActionTracker() {
     select: { id: true },
   });
   const carly = await prisma.user.findUnique({
-    where: { email: "carlygelles@gmail.com" },
+    where: { email: "carly.gelles@youthpassionproject.org" },
     select: { id: true },
   });
 
