@@ -108,7 +108,7 @@ export default async function CommandCenterPage() {
           data.consideredCount === 1 ? "action" : "actions"
         } you can see`}
         actions={
-          <Link href="/admin/actions/new" className="button small">
+          <Link href="/actions/new" className="button small">
             + New Action
           </Link>
         }

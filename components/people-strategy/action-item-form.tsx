@@ -295,11 +295,10 @@ export default function ActionItemForm({
   const [visibility, setVisibility] = useState<string>(
     initial?.visibility ?? "ALL_LEADERSHIP"
   );
-  const [deadlineStart, setDeadlineStart] = useState(
-    toDateInputValue(asDate(initial?.deadlineStart))
-  );
-  const [deadlineEnd, setDeadlineEnd] = useState(
-    toDateInputValue(asDate(initial?.deadlineEnd))
+  // One clear Deadline (comment #12). Older items may still carry a start/end
+  // range; seed from the end date when present, else the single deadline.
+  const [deadline, setDeadline] = useState(
+    toDateInputValue(asDate(initial?.deadlineEnd ?? initial?.deadlineStart))
   );
   const [leadIds, setLeadIds] = useState<string[]>(
     initial?.leadId ? [initial.leadId] : []
@@ -320,11 +319,8 @@ export default function ActionItemForm({
     if (!title.trim()) return "Title is required.";
     if (!leadId) return "A Lead is required (exactly one).";
     // Executing is optional: when left empty the Lead is the implicit executor.
-    if (!deadlineStart) return "Deadline start is required.";
+    if (!deadline) return "A Deadline is required.";
     if (!visibility) return "Visibility is required.";
-    if (deadlineEnd && deadlineEnd < deadlineStart) {
-      return "Deadline end cannot be before deadline start.";
-    }
     if ((fileLabel.trim() && !fileUrl.trim()) || (!fileLabel.trim() && fileUrl.trim())) {
       return "Provide both a label and a URL for the attachment, or leave both blank.";
     }
@@ -358,8 +354,10 @@ export default function ActionItemForm({
             status,
             priority,
             visibility,
-            deadlineStart: deadlineStart || undefined,
-            deadlineEnd: deadlineEnd || null,
+            // Single Deadline writes the start column; the legacy end column is
+            // cleared so the item carries one canonical date.
+            deadlineStart: deadline || undefined,
+            deadlineEnd: null,
             leadId,
           });
 
@@ -380,8 +378,8 @@ export default function ActionItemForm({
             status,
             priority,
             visibility,
-            deadlineStart,
-            deadlineEnd: deadlineEnd || undefined,
+            deadlineStart: deadline,
+            deadlineEnd: undefined,
             executingUserIds: executors,
             inputUserIds: inputIds,
           });
@@ -545,27 +543,14 @@ export default function ActionItemForm({
         }}
       >
         <div style={FIELD}>
-          <label style={LABEL} htmlFor="action-deadline-start">
-            Deadline start{REQUIRED_MARK}
+          <label style={LABEL} htmlFor="action-deadline">
+            Deadline{REQUIRED_MARK}
           </label>
           <input
-            id="action-deadline-start"
+            id="action-deadline"
             type="date"
-            value={deadlineStart}
-            onChange={(e) => setDeadlineStart(e.target.value)}
-            style={INPUT}
-          />
-        </div>
-        <div style={FIELD}>
-          <label style={LABEL} htmlFor="action-deadline-end">
-            Deadline end
-          </label>
-          <input
-            id="action-deadline-end"
-            type="date"
-            value={deadlineEnd}
-            min={deadlineStart || undefined}
-            onChange={(e) => setDeadlineEnd(e.target.value)}
+            value={deadline}
+            onChange={(e) => setDeadline(e.target.value)}
             style={INPUT}
           />
         </div>

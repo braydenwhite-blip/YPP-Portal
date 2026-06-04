@@ -136,17 +136,18 @@ function daysUntil(value: string): number {
 }
 
 function deadlineText(item: ActionDetailDTO): { label: string; overdue: boolean } {
-  const days = daysUntil(item.deadlineStart);
-  const range = item.deadlineEnd
-    ? `${formatDate(item.deadlineStart)} - ${formatDate(item.deadlineEnd)}`
-    : formatDate(item.deadlineStart);
+  // One clear deadline (comment #12): the effective due date is the end date
+  // when an older item still carries a range, otherwise the single deadline.
+  const due = item.deadlineEnd ?? item.deadlineStart;
+  const days = daysUntil(due);
+  const date = formatDate(due);
 
   if (item.status !== "COMPLETE" && days < 0) {
-    return { label: `${range} (${Math.abs(days)}d overdue)`, overdue: true };
+    return { label: `${date} (${Math.abs(days)}d overdue)`, overdue: true };
   }
-  if (days === 0) return { label: `${range} (today)`, overdue: false };
-  if (days === 1) return { label: `${range} (tomorrow)`, overdue: false };
-  return { label: range, overdue: false };
+  if (days === 0) return { label: `${date} (today)`, overdue: false };
+  if (days === 1) return { label: `${date} (tomorrow)`, overdue: false };
+  return { label: date, overdue: false };
 }
 
 // Brand-tinted header for every department. The previous version applied an
@@ -222,31 +223,51 @@ function PeopleColumn({ title, people }: { title: string; people: PersonDTO[] })
   );
 }
 
+// Collapsible section built on native <details> so every block can be
+// expanded/collapsed (comment #18). `defaultOpen` controls the initial state —
+// the Officer Meeting block passes `false` so it is collapsed by default.
 function Section({
   title,
   children,
   actions,
+  defaultOpen = true,
 }: {
   title: string;
   children: React.ReactNode;
   actions?: React.ReactNode;
+  defaultOpen?: boolean;
 }) {
   return (
-    <section
+    <details
+      open={defaultOpen}
       style={{
         borderTop: "1px solid var(--border)",
         padding: "18px 20px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <h2 className="section-title" style={{ margin: 0 }}>{title}</h2>
-        {actions}
+      <summary
+        className="action-detail-section-summary"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          cursor: "pointer",
+          listStyle: "none",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <span className="ad-chevron" aria-hidden style={{ color: "var(--muted)", fontSize: 12 }}>
+            ▸
+          </span>
+          <h2 className="section-title" style={{ margin: 0 }}>{title}</h2>
+        </span>
+        {actions ? <span onClick={(e) => e.preventDefault()}>{actions}</span> : null}
+      </summary>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+        {children}
       </div>
-      {children}
-    </section>
+    </details>
   );
 }
 
@@ -381,6 +402,11 @@ export default function ActionDetailCard({
           </h1>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "0 1 auto", flexWrap: "wrap" }}>
+          {canEdit && (
+            <Link href={`/actions/${item.id}/edit`} className="button outline small">
+              Edit
+            </Link>
+          )}
           <Link href={closeHref} className="button outline small" aria-label="Close action detail">
             ×
           </Link>
@@ -453,7 +479,7 @@ export default function ActionDetailCard({
       </Section>
 
       {item.officerMeetingId && (
-        <Section title="Officer Meeting">
+        <Section title="Officer Meeting" defaultOpen={false}>
           <div
             style={{
               border: "1px solid var(--warning-border)",

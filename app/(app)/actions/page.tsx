@@ -2,13 +2,18 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
-import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
 import { formatDueDate, formatDueDateLong } from "@/lib/leadership-action-center/dates";
 import {
   getMyActionItems,
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
-import { isOfficerTier, type ActionViewer } from "@/lib/people-strategy/action-permissions";
+import {
+  isCpoOrBoard,
+  isOfficerTier,
+  type ActionViewer,
+} from "@/lib/people-strategy/action-permissions";
+import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { getMyTeachingClasses } from "@/lib/people-strategy/class-tracker";
 import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
@@ -165,15 +170,10 @@ export default async function MyActionsPage() {
     minute: "2-digit",
   }).format(now);
 
-  // Tabs: only render destinations that exist and the viewer can reach.
-  // "All Actions" is officer-only — non-leadership users never see it.
-  const tabs: Array<{ href: string; label: string; active: boolean }> = [
-    { href: "/actions", label: "My Actions", active: true },
-  ];
-  if (officer) {
-    tabs.push({ href: "/actions/command-center", label: "Command Center", active: false });
-    tabs.push({ href: "/actions/all", label: "All Actions", active: false });
-  }
+  // Officers get the full Action Tracker tab bar (the same one every other
+  // subview shows, so navigation is consistent — comment #17). Non-officers
+  // only have My Actions, so no tab bar is rendered for them.
+  const showPeople = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
@@ -184,30 +184,14 @@ export default async function MyActionsPage() {
         meta={`Last updated ${lastUpdated}`}
         actions={
           officer ? (
-            <Link href="/admin/actions/new" className="button small">
+            <Link href="/actions/new" className="button small">
               + New Action
             </Link>
           ) : null
         }
       />
 
-      {/* Tabs — a <nav>, not a tablist: these links navigate between pages
-          rather than switching panels in place. */}
-      <nav
-        aria-label="Action tracker views"
-        style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}
-      >
-        {tabs.map((tab) => (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            className={tab.active ? "button small" : "button outline small"}
-            aria-current={tab.active ? "page" : undefined}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </nav>
+      {officer && <ActionTrackerTabs active="my" showPeople={showPeople} />}
 
       {/* Stat cards */}
       <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
