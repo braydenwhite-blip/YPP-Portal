@@ -1321,6 +1321,8 @@ model User {
   feedbackRequestsToAnswer          FeedbackRequest[]            @relation("FeedbackRequestCollaborator")
   growthTags                        MemberGrowthTag[]            @relation("MemberGrowthTags")
   growthTagsCreated                 MemberGrowthTag[]            @relation("MemberGrowthTagsCreated")
+  actionTemplatesCreated            ActionTemplate[]             @relation("ActionTemplatesCreated")
+  savedActionViews                  SavedActionView[]            @relation("SavedActionViews")
 
   // People Strategy — provisional 3-month confirmation clock
   // (ENABLE_PROVISIONAL_CLOCK). `provisionalStart` is set when a hire is
@@ -12459,6 +12461,63 @@ model MemberGrowthTag {
   @@index([userId])
   @@index([tag])
   @@index([createdById])
+}
+
+// ============================================
+// People Strategy — Action Templates & Saved Views (Phase 9)
+// Templates remove the blank-page tax for recurring YPP leadership tasks; Saved
+// Views persist a user's favourite filter sets on the Action Tracker. Both are
+// gated behind ENABLE_ACTION_TRACKER. Standard templates are seeded (isStandard)
+// so a fresh environment ships with the YPP playbook.
+// ============================================
+
+/// A reusable Action Item template. Pre-fills the new-action form with a
+/// title/description, default priority/visibility, and an optional checklist
+/// (appended into the description). `isStandard` marks the seeded YPP playbook
+/// templates; `deadlineOffsetDays` seeds the deadline N days out from creation.
+model ActionTemplate {
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  /// Short helper text shown in the template gallery.
+  description         String?              @db.Text
+  /// Playbook grouping (e.g. "Hiring", "Instruction") for the gallery.
+  category           String?
+  titleTemplate      String
+  descriptionTemplate String?             @db.Text
+  goalCategory       String?
+  defaultPriority    ActionPriority       @default(MEDIUM)
+  defaultVisibility  ActionItemVisibility @default(ALL_LEADERSHIP)
+  /// Default deadline, in days from creation. Null leaves it blank.
+  deadlineOffsetDays Int?
+  /// Suggested checklist steps, appended into the new item's description.
+  checklist          String[]             @default([])
+  isStandard         Boolean              @default(false)
+  archivedAt         DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("ActionTemplatesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([archivedAt])
+  @@index([category])
+}
+
+/// A user's saved filter set on the Action Tracker (All Actions). `query` is the
+/// serialized filter query string; loading a view just re-applies it.
+model SavedActionView {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("SavedActionViews", fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+  /// Serialized filter query string, e.g. "status=OVERDUE&dept=<id>&sort=priority_desc".
+  query  String
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId])
 }
 
 // ============================================

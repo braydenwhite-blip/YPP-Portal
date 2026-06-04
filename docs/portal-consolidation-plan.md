@@ -744,9 +744,36 @@ blank-page tax for common YPP tasks.
 - [x] Follow-Up Generator (copyable, 4 tones, editable; nothing sent).
 - [x] Mobile-responsive Command Center grid; design-token styling.
 - [x] Unit tests green; `tsc --noEmit` clean; eslint clean on new files.
-- [ ] Phase 7: `priority`, `BLOCKED`/`DROPPED`, `completedAt`, My Commitments.
-- [ ] Phase 8: Responsibility Map, People Risk Radar, Growth Signals.
-- [ ] Phase 9: Templates, Meeting-to-Action, Saved Views, cross-linking.
+- [x] **Phase 7** — `priority` (LOW/MEDIUM/HIGH/URGENT), `BLOCKED`/`DROPPED`
+      statuses, exact `completedAt`, `smartBucket()` derived buckets, priority
+      filter + priority-desc sort, priority surfaced across the tracker, CSV +
+      status donut updated; Command Center attention/pulse/momentum priority-aware.
+- [x] **Phase 8** — `MemberGrowthTag` model + growth-signal actions, the
+      Responsibility Map (`/actions/responsibility`) with inline growth-tag
+      editor, and the People Risk Radar.
+- [x] **Phase 9** — `ActionTemplate` model + seeded YPP playbook + new-action
+      gallery/prefill; `SavedActionView` model + saved-views bar on All Actions;
+      officer-meeting agenda gains a "Commitments (promised by · due by)" section.
+- [ ] **Phase 9 follow-up (deferred):** true polymorphic cross-linking
+      (`ActionItem.relatedType/relatedId` + per-record "Actions" panels) — needs
+      per-record-type UI wiring across applications/mentorship/classes/chapters,
+      best done as its own change. Per-record file links already cover the
+      lightweight case today.
+
+### Schema changes shipped (Phases 7–9)
+
+| Migration | Adds |
+| --- | --- |
+| `20260604130000_add_action_priority_status_buckets` | `ActionPriority` enum; `ActionItem.priority`, `ActionItem.completedAt` (+ indexes, backfill); `BLOCKED`/`DROPPED` on `ActionItemStatus` |
+| `20260604140000_add_member_growth_tags` | `GrowthTag` enum; `MemberGrowthTag` table |
+| `20260604150000_add_action_templates_and_saved_views` | `ActionTemplate` table (seeded) + `SavedActionView` table |
+
+All migrations are idempotent (guarded enum/type/FK creation, `IF NOT EXISTS`)
+and the Prisma client has been regenerated. **A new field is still needed for
+one honestly-deferred item:** a `readyForReview` flag (or status) would let the
+"Ready for Review" smart bucket be derived rather than omitted; and a
+`User.lastLoginAt` would let the Risk Radar add a true "no recent login" signal
+(today it uses action-activity signals only).
 
 ## Risks and Tradeoffs
 

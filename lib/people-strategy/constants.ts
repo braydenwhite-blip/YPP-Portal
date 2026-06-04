@@ -102,6 +102,8 @@ export const ACTION_ITEM_PATHS = [
   "/actions",
   "/actions/all",
   "/actions/all/classes",
+  "/actions/command-center",
+  "/actions/responsibility",
   "/admin/actions",
 ] as const;
 
