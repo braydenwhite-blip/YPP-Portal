@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getInstructorReadinessMany } from "@/lib/instructor-readiness";
+import { getTrainingEvidenceMany } from "@/lib/training-evidence";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import { requireAdminPage } from "@/lib/page-guards";
+import TrainingEvidenceCard from "@/components/training/training-evidence-card";
 import EvidenceBoard from "./evidence-board";
 import OfferingBoard from "./offering-board";
 import InterviewBoard from "./interview-board";
@@ -132,6 +134,9 @@ export default async function InstructorReadinessPage() {
     ]);
 
   const readinessByInstructor = await getInstructorReadinessMany(
+    instructors.map((instructor) => instructor.id)
+  );
+  const evidenceByInstructor = await getTrainingEvidenceMany(
     instructors.map((instructor) => instructor.id)
   );
   const approvalQueueByInstructor = new Map(
@@ -317,6 +322,10 @@ export default async function InstructorReadinessPage() {
                     Next reviewer action: {readiness?.missingRequirements[0]?.title || "No reviewer action queued"}
                   </p>
                 )}
+
+                {evidenceByInstructor.get(instructor.id) ? (
+                  <TrainingEvidenceCard evidence={evidenceByInstructor.get(instructor.id)!} />
+                ) : null}
               </div>
             );
           })}
