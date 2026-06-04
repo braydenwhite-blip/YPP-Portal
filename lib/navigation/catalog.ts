@@ -1138,6 +1138,15 @@ export const NAV_CATALOG: NavLink[] = [
         "Workshop Assignments",
       ],
     },
+    {
+      href: "/admin/partners",
+      label: "Partners",
+      icon: "🤝",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Manage org/school partners and their Relationship Leads for classes.",
+      dashboardPriority: 9,
+      searchAliases: ["Partner Directory", "Relationship Leads"],
+    },
   ]),
 
   ...groupLinks("Admin Reports", 1300, [

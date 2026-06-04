@@ -15,6 +15,7 @@ import {
 } from "@/lib/instructor-application-actions";
 import { cleanMeetingDetails } from "@/lib/meeting-details";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 /* ── Score Bar ─────────────────────────────────────── */
 
@@ -440,8 +441,7 @@ export default function ApplicantDetailPanel({
           </div>
 
           {/* Contact & Background */}
-          <div className="slideout-section">
-            <div className="slideout-section-title">Contact & Background</div>
+          <CollapsibleSection title="Contact & Background">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
               <div className="slideout-field">
                 <div className="slideout-field-label">Email</div>
@@ -496,11 +496,10 @@ export default function ApplicantDetailPanel({
                 </div>
               )}
             </div>
-          </div>
+          </CollapsibleSection>
 
           {/* Application Materials */}
-          <div className="slideout-section">
-            <div className="slideout-section-title">Application Materials</div>
+          <CollapsibleSection title="Application Materials">
             <div className="slideout-field">
               <div className="slideout-field-label">Teaching Experience</div>
               <div className="slideout-field-value">{app.teachingExperience}</div>
@@ -543,12 +542,11 @@ export default function ApplicantDetailPanel({
                 <div className="slideout-field-value">{app.referralEmails}</div>
               </div>
             )}
-          </div>
+          </CollapsibleSection>
 
           {/* Info Request / Response history */}
           {(app.infoRequest || app.applicantResponse) && (
-            <div className="slideout-section">
-              <div className="slideout-section-title">Info Request History</div>
+            <CollapsibleSection title="Info Request History">
               {app.infoRequest && (
                 <div className="info-block">
                   <div className="info-block-label">Info Requested</div>
@@ -561,7 +559,7 @@ export default function ApplicantDetailPanel({
                   <div className="info-block-value">{app.applicantResponse}</div>
                 </div>
               )}
-            </div>
+            </CollapsibleSection>
           )}
 
           {app.rejectionReason && (

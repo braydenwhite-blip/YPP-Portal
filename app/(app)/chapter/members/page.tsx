@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requirePageRoles } from "@/lib/page-guards";
 import { getChapterMembers } from "@/lib/chapter-member-actions";
+import { PersonLink } from "@/components/people-strategy/person-link";
 import { MemberSearch } from "./member-search";
 
 export const dynamic = "force-dynamic";
@@ -118,7 +119,9 @@ export default async function ChapterMembersPage({
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>
-                            {member.name || "Unnamed member"}
+                            <PersonLink id={member.id} style={{ color: "inherit" }}>
+                              {member.name || "Unnamed member"}
+                            </PersonLink>
                           </p>
                           <a
                             href={`mailto:${member.email}`}

@@ -25,6 +25,7 @@ type PersonSource = {
   name: string | null;
   email: string;
   primaryRole: string | null;
+  title?: string | null;
   profile?: { avatarUrl: string | null } | null;
 };
 
@@ -37,6 +38,7 @@ function personDTO(person: PersonSource | null) {
       name: "System",
       email: "",
       primaryRole: null as string | null,
+      title: null as string | null,
       avatarUrl: null as string | null,
     };
   }
@@ -45,6 +47,7 @@ function personDTO(person: PersonSource | null) {
     name: person.name,
     email: person.email,
     primaryRole: person.primaryRole,
+    title: person.title ?? null,
     avatarUrl: person.profile?.avatarUrl ?? null,
   };
 }

@@ -48,6 +48,13 @@ const TRACKER_CLASS_SELECT = {
   status: true,
   chapter: { select: { id: true, name: true } },
   instructor: { select: { id: true, name: true, email: true } },
+  partner: {
+    select: {
+      id: true,
+      name: true,
+      relationshipLead: { select: { id: true, name: true, email: true } },
+    },
+  },
   regularInstructorAssignments: {
     where: { status: { in: [...ACTIVE_ASSIGNMENT_STATUSES] } },
     orderBy: [{ role: "asc" }, { createdAt: "asc" }],

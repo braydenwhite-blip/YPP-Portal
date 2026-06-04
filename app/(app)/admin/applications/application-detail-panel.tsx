@@ -8,6 +8,7 @@ import {
   isHiringDecisionReturned,
 } from "@/lib/hiring-decision-utils";
 import type { JobApplication } from "./kanban-board";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 /* -- Status pill ------------------------------------------- */
 
@@ -84,8 +85,7 @@ export default function ApplicationDetailPanel({
       <PanelToast message={message} />
 
       {/* Applicant Info */}
-      <div className="slideout-section">
-        <div className="slideout-section-title">Applicant Info</div>
+      <CollapsibleSection title="Applicant Info" defaultOpen>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
           <div className="slideout-field">
             <div className="slideout-field-label">Name</div>
@@ -96,11 +96,10 @@ export default function ApplicationDetailPanel({
             <div className="slideout-field-value">{app.applicant.email}</div>
           </div>
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Position Info */}
-      <div className="slideout-section">
-        <div className="slideout-section-title">Position</div>
+      <CollapsibleSection title="Position">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
           <div className="slideout-field">
             <div className="slideout-field-label">Title</div>
@@ -119,11 +118,10 @@ export default function ApplicationDetailPanel({
             </div>
           </div>
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Timeline */}
-      <div className="slideout-section">
-        <div className="slideout-section-title">Timeline</div>
+      <CollapsibleSection title="Timeline">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
           <div className="slideout-field">
             <div className="slideout-field-label">Submitted</div>
@@ -140,7 +138,7 @@ export default function ApplicationDetailPanel({
             </div>
           </div>
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Interview Slots */}
       {app.interviewSlots.length > 0 && (

@@ -791,6 +791,10 @@ model User {
   phone        String?
   passwordHash String
   primaryRole  RoleType
+  // Human-readable job/role title (e.g. "Lead Instructor", "VP of People").
+  // Optional; when absent, `getUserTitle()` falls back to the admin-subtype
+  // label or a formatted `primaryRole`. Surfaced on profiles and action cards.
+  title        String?
   chapterId    String?
   chapter      Chapter? @relation(fields: [chapterId], references: [id])
 
@@ -1308,6 +1312,9 @@ model User {
   instructorNotesAuthored           InstructorNote[]             @relation("InstructorNoteAuthor")
   instructorTasksAssigned           InstructorTask[]             @relation("InstructorTaskAssignee")
   instructorSavedViews              InstructorSavedView[]        @relation("InstructorSavedViewOwner")
+
+  // Partners (Relationship Lead for org/school partners)
+  partnersAsRelationshipLead        Partner[]                    @relation("PartnerRelationshipLead")
 
   // Action Tracker (People Strategy)
   actionItemsLed                    ActionItem[]                 @relation("ActionItemsLed")
@@ -7078,6 +7085,11 @@ model ClassOffering {
   status                         ClassOfferingStatus @default(DRAFT)
   chapterId                      String?
   chapter                        Chapter?            @relation(fields: [chapterId], references: [id])
+  // Optional org/school Partner behind this class. Carries the Relationship
+  // Lead (Partner.relationshipLead), surfaced on the Action Tracker Classes tab
+  // and the admin class detail alongside the Lead Instructor.
+  partnerId                      String?
+  partner                        Partner?            @relation("PartnerClassOfferings", fields: [partnerId], references: [id])
   semester                       String? // "Spring 2025", "Fall 2025"
   grandfatheredTrainingExemption Boolean             @default(false)
 
@@ -7101,6 +7113,31 @@ model ClassOffering {
   @@index([status])
   @@index([chapterId])
   @@index([pathwayStepId])
+  @@index([partnerId])
+}
+
+/// An external organization or school partner behind one or more classes.
+/// Introduced for the People Strategy "Classes" tab (comment #9): classes must
+/// surface a Partner and a Relationship Lead. Kept as a clean, first-class table
+/// (rather than overloading free-text fields like `partnerSchool`) so the
+/// directory stays tidy and the Relationship Lead is a real `User` relation.
+model Partner {
+  id                 String          @id @default(cuid())
+  name               String          @unique
+  /// Free-text category, e.g. "School", "Nonprofit", "Corporate".
+  type               String?
+  website            String?
+  notes              String?         @db.Text
+  /// The YPP person who owns this partner relationship.
+  relationshipLeadId String?
+  relationshipLead   User?           @relation("PartnerRelationshipLead", fields: [relationshipLeadId], references: [id])
+  classOfferings     ClassOffering[] @relation("PartnerClassOfferings")
+  archivedAt         DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([relationshipLeadId])
+  @@index([archivedAt])
 }
 
 enum ClassOfferingTimelineKind {

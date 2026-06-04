@@ -88,12 +88,14 @@ export async function updateBasicInfo(formData: FormData) {
 
   const name = parseRequiredHumanName(getString(formData, "name"), "Full name");
   const phone = parseOptionalPhone(getString(formData, "phone", false), "phone");
+  const title = getString(formData, "title", false);
 
   await prisma.user.update({
     where: { id: userId },
     data: {
       name,
-      phone: phone || null
+      phone: phone || null,
+      title: title || null
     }
   });
 

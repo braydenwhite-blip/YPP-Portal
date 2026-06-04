@@ -39,6 +39,20 @@ export default function ProfileMain({
               <input type="text" name="name" className="input" defaultValue={user.name} required />
             </div>
             <div className="form-row">
+              <label>Title</label>
+              <input
+                type="text"
+                name="title"
+                className="input"
+                defaultValue={user.title || ""}
+                placeholder="e.g. Lead Instructor, VP of People"
+                maxLength={120}
+              />
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                Shown on your profile and action cards. Leave blank to use your role.
+              </span>
+            </div>
+            <div className="form-row">
               <label>Email</label>
               <input
                 type="email"
