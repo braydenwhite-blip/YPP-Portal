@@ -418,6 +418,25 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 5,
     },
     {
+      href: "/actions/command-center",
+      label: "Command Center",
+      icon: "🎛️",
+      // Officer-tier and above only (mirrors requireOfficer()).
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
+      searchAliases: [
+        "People Strategy",
+        "Weekly Pulse",
+        "Attention Queue",
+        "Momentum",
+        "Leadership Command Center",
+        "People Strategy OS",
+      ],
+      dashboardDescription:
+        "This week's pulse, the attention queue, people momentum, and wins — the People Strategy command center.",
+      dashboardPriority: 6,
+    },
+    {
       href: "/actions/all",
       label: "All Actions",
       icon: "🗂️",

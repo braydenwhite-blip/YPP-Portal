@@ -8,6 +8,7 @@ import Link from "next/link";
  */
 
 export type ActionTrackerTab =
+  | "command"
   | "all"
   | "my"
   | "classes"
@@ -17,6 +18,7 @@ export type ActionTrackerTab =
 type TabDef = { key: ActionTrackerTab; label: string; href?: string };
 
 const TABS: TabDef[] = [
+  { key: "command", label: "Command Center", href: "/actions/command-center" },
   { key: "all", label: "All Actions", href: "/actions/all" },
   { key: "my", label: "My Actions", href: "/actions" },
   { key: "classes", label: "Classes", href: "/actions/all/classes" },

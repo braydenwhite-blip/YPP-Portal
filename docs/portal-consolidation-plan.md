@@ -596,6 +596,158 @@ Phased for **value-early, risk-late**. Each phase is independently shippable.
 
 ---
 
+## Implementation Log & Continued Roadmap (updated 2026-06-04)
+
+> This section continues the plan above — it does not replace it. It records
+> what has actually shipped since the proposal was written, then defines the
+> next concrete phases that turn the Action Tracker into YPP's **People Strategy
+> Operating System**: the daily command surface for who owns what, what is
+> slipping, who is doing great work, and who needs support.
+
+### Completed since the proposal [FACT — verified in working tree]
+
+- **Phase 1 routing is done.** The flagship lives at `app/(app)/actions/*`
+  (`page.tsx` = My Actions, `all/`, `[id]/`, `meetings/`, `people/`,
+  `people/board-rollup/`, `reporting/`). The legacy entries `/my-actions`,
+  `/all-actions`, `/officer-meetings`, `/people`, `/actions/reporting` are now
+  thin `redirect()` shims into the new group. A shared `ActionTrackerTabs`
+  component navigates between surfaces.
+- **Design-token migration done.** People Strategy / Action Tracker UI runs on
+  the YPP CSS-variable design system; statuses render through one shared
+  `StatusPill`; restrained Motion polish is in place with a user motion
+  preference override.
+- **Departments + officer meetings + escalation + board roll-up** are live:
+  optional `Department` on actions, standing departments seeded, CPO escalation
+  queue, and a Board roll-up of unresolved escalations.
+- **People Dashboard** (`/actions/people`) compiles live Quarterly Review,
+  Monthly Check-In, mentorship, and action data into per-person rows with a
+  workload warning and a performance/potential matrix label.
+
+### Shipped in this iteration — the Command Center [FACT]
+
+A new officer-tier surface, `app/(app)/actions/command-center/page.tsx`, gated by
+`ENABLE_ACTION_TRACKER` and `requireOfficer()`. It is **read-only over existing
+data** — no schema change — and composes a single visibility-checked read
+(`listVisibleActionItems`) through new pure selectors:
+
+- `lib/people-strategy/momentum.ts` — transparent momentum scoring
+  (`scoreMomentum`, labels Strong / Steady / Needs Support / At Risk / No
+  Recent Signal) + the **Follow-Up Generator** text drafting (`generateFollowUp`,
+  four tones). Pure, no DB; unit-tested.
+- `lib/people-strategy/command-center-selectors.ts` — `buildWeeklyPulse`,
+  `buildAttentionQueue`, `buildPersonMomentum`, `buildTeamMomentum`,
+  `buildWinLog`, `topContributors`. Pure; unit-tested.
+- `lib/people-strategy/command-center.ts` — the one DB loader, mirroring the
+  People Dashboard loader convention.
+- `components/people-strategy/follow-up-generator.tsx` — client tool that drafts
+  a copyable nudge per tone (nothing is sent).
+
+The page delivers six of the requested capabilities at once: **Command Center
+View**, **Weekly Leadership Pulse**, **Leadership Attention Queue**, **Momentum
+Score**, **Team Risk Radar**, **Win Log**, and the **Follow-Up Generator**. A
+new "Command Center" tab + top-level nav entry (`/actions/command-center`) wire
+it into the tracker. Tests: `tests/lib/people-strategy-momentum.test.ts`,
+`tests/lib/people-strategy-command-center-selectors.test.ts` (12 cases, green;
+`tsc --noEmit` clean; eslint clean).
+
+**Known approximation [ASSUMPTION]:** "completed this week" uses a COMPLETE
+item's `updatedAt` as the completion time (the schema has no `completedAt`).
+Exact in the common case; a dedicated `completedAt` column is in Phase 7 below.
+
+### Phase 7 — Smart Status Buckets, Priority & My Commitments (next, mostly additive)
+
+Turns the four-state status model into the richer buckets leadership actually
+thinks in, and gives every leader a focused "what I owe" view.
+
+- [ ] **Add `priority`** to `ActionItem` (`LOW | MEDIUM | HIGH | URGENT`, default
+      `MEDIUM`) — port the concept from the retired `LeadershipActionPriority`.
+      Additive enum + nullable-with-default column = safe migration.
+- [ ] **Add `BLOCKED` and `DROPPED`** to `ActionItemStatus`, plus a derived
+      **"Waiting on someone"** bucket (already computable from an open INPUT
+      assignment + unresolved `INPUT_REQUESTED` comment) and a **"Needs
+      Leadership Decision"** bucket (an explicit flag, e.g. reuse `flaggedAt`
+      with a reason, or a small `needsDecision` boolean). Surface all buckets in
+      `action-filters.ts` and the filter bar.
+- [ ] **Add `completedAt`** so the Win Log / pulse / momentum stop approximating
+      with `updatedAt`. Backfill from the latest "status → COMPLETE" system
+      comment where present.
+- [ ] **My Commitments view**: promote the existing My Actions page into a
+      sharper personal command view — group by priority and bucket, show meeting
+      source, and add a "needs my decision / my input" lane. (Most data already
+      flows through `my-actions-selectors.ts`.)
+- [ ] Feed `priority` + buckets into the Command Center pulse, attention queue,
+      and momentum weighting.
+
+### Phase 8 — Responsibility Map, Risk Radar & Growth Signals (people-centric)
+
+Makes the human side first-class: who is overloaded, who has disappeared, who is
+ready for more.
+
+- [ ] **Responsibility Map** (`/actions/people` tab or new `/actions/responsibility`):
+      one row per leader → current responsibilities, open/overdue items,
+      teams/initiatives, and an **overloaded / underutilized** read. Build on
+      `buildPersonMomentum` + the People Dashboard loader; surface the existing
+      workload warning here as a planning tool.
+- [ ] **People Risk Radar**: extend the Attention Queue with *person-level*
+      signals — no login/activity in N days (needs `User.lastLoginAt`/session
+      data — confirm availability), repeated missed deadlines, no assigned work,
+      key role with no backup, team with many blocked items.
+- [ ] **Succession / Growth Signals**: lightweight tags
+      (`ready-for-more`, `needs-training`, `reliable-executor`,
+      `strong-communicator`, `potential-team-lead`, `at-risk-of-disengaging`).
+      The Quarterly Review already has a `successionFlag`; generalize it into a
+      small `PersonTag`/`GrowthSignal` model rather than a parallel system.
+- [ ] Connect growth tags ↔ momentum so "high-potential person with no current
+      ownership" auto-surfaces in the Attention Queue.
+
+### Phase 9 — Templates & Meeting-to-Action Workflow (operational backbone)
+
+Closes the loop from a meeting to tracked follow-through, and removes the
+blank-page tax for common YPP tasks.
+
+- [ ] **Action Item Templates** (`ActionTemplate` model): seed YPP playbook
+      templates — onboard new instructor, follow up with applicant, schedule
+      officer meeting, review chapter president, confirm camp partnership, assign
+      instructor to class, collect training completion, check inactive volunteer,
+      prepare leadership meeting agenda. Pre-fill title/description/roles/checklist.
+- [ ] **Meeting-to-Action workflow**: in the Officer Meetings surface, capture
+      decisions → spin up action items inline (promised-by / due-by), then make
+      the tracker the post-meeting follow-up system. Wire the **stubbed**
+      `OfficerMeeting.agendaText`/`summaryEmailText` generators to the Anthropic
+      SDK that is already a dependency.
+- [ ] **Saved views** (`SavedView` model): persisted filter sets per user/role
+      (My overdue, Needs my input, Escalated, By department), shareable by URL.
+- [ ] **Polymorphic cross-linking** (`ActionItem.relatedType/relatedId`): attach
+      an action to an application, mentorship, class, chapter, or member, and
+      render an "Actions" panel on those records.
+
+### New Action Tracker / People Strategy feature ideas (backlog)
+
+- **Momentum trend over time** — snapshot weekly pulse + per-person momentum so
+  the Command Center can show ▲/▼ vs last week (needs a small `PulseSnapshot`).
+- **In-app notification spine** — emit tracker events into the portal
+  `Notification` feed (today the tracker is email + cron only).
+- **Recurring actions** — weekly/monthly auto-spawn from a template.
+- **Bulk operations** on `/actions/all` — multi-select reassign / set deadline /
+  link to meeting / export (build on `lib/bulk-actions.ts`).
+- **Weekly executive briefing email** — render the Command Center pulse as the
+  Monday digest (fold in the Leadership Action Center's weekly-email format
+  before deleting it).
+- **Chapter-scoped Command Center** for Chapter Presidents (chapter-filtered
+  attention queue + momentum).
+
+### Implementation checklist (running)
+
+- [x] Command Center page + nav + tab (`/actions/command-center`).
+- [x] Momentum scoring + labels (pure, tested).
+- [x] Weekly Pulse, Attention Queue, Team Risk Radar, Win Log, Top Contributors.
+- [x] Follow-Up Generator (copyable, 4 tones, editable; nothing sent).
+- [x] Mobile-responsive Command Center grid; design-token styling.
+- [x] Unit tests green; `tsc --noEmit` clean; eslint clean on new files.
+- [ ] Phase 7: `priority`, `BLOCKED`/`DROPPED`, `completedAt`, My Commitments.
+- [ ] Phase 8: Responsibility Map, People Risk Radar, Growth Signals.
+- [ ] Phase 9: Templates, Meeting-to-Action, Saved Views, cross-linking.
+
 ## Risks and Tradeoffs
 
 - **Data migration risk (Leadership Action Center → ActionItem).** Real

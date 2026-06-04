@@ -169,6 +169,7 @@ export default async function MyActionsPage() {
     { href: "/actions", label: "My Actions", active: true },
   ];
   if (officer) {
+    tabs.push({ href: "/actions/command-center", label: "Command Center", active: false });
     tabs.push({ href: "/actions/all", label: "All Actions", active: false });
   }
 
