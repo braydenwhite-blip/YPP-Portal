@@ -1509,3 +1509,52 @@
   }
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * CONTENT_BLOCK — purely instructional beat (teaching content, not a game).
+ * ------------------------------------------------------------------------- */
+.content-block {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.content-block__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.content-block__heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ypp-purple-700, var(--ypp-ink));
+  letter-spacing: -0.01em;
+}
+
+.content-block__body {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ypp-ink);
+}
+
+.content-block__media {
+  margin: 4px 0 0;
+}
+
+.content-block__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1.5px solid var(--ypp-line);
+  border-radius: var(--radius-md);
+}
+
+.content-block__caption {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--ypp-ink-soft, #6b7280);
+  text-align: center;
+}

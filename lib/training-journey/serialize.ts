@@ -43,6 +43,7 @@ type PrismaBeatRow = {
  */
 const SAFE_CONFIG_FIELDS: Record<InteractiveBeatKind, readonly string[]> = {
   CONCEPT_REVEAL: ["panels"],
+  CONTENT_BLOCK: ["sections", "media"],
   SCENARIO_CHOICE: ["options"],
   MULTI_SELECT: ["options", "scoringMode"],
   SORT_ORDER: ["items", "partialCredit"],

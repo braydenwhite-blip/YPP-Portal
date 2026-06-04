@@ -28,17 +28,41 @@ export const M_LONG_TERM_GROWTH: CurriculumDefinition = {
     outcomeStatement: "Grow toward Senior Instructor and Lead Instructor.",
   },
   journey: {
-    estimatedMinutes: 5,
+    estimatedMinutes: 6,
     strictMode: false,
-    version: 1,
+    version: 2,
   },
   beats: [
+    // -------------------------------------------------------------------------
+    // Beat 1 — CONTENT_BLOCK (unscored) — teaching content, not a game.
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "growth/beat-00-the-ladder",
+      sortOrder: 1,
+      kind: "CONTENT_BLOCK",
+      title: "Where you're headed",
+      prompt:
+        "GOAL 5 is about the long game. Here's the path — read through, then continue.",
+      scoringWeight: 0,
+      config: {
+        sections: [
+          { id: "s1", heading: "Long-Term Growth & Increased Involvement", body: "The best instructors never stop improving — they seek feedback, take on more over time, and grow into greater roles. GOAL 5 sets that expectation." },
+          { id: "s2", heading: "The ladder", body: "Instructor → Senior Instructor → Lead Instructor. Each promotion is earned after 2–4 strong months: deliver great classes, contribute beyond your classroom, and help develop others." },
+        ],
+        correctFeedback: {
+          tone: "noted",
+          headline: "Eyes on the path.",
+          body: "Stay open to feedback and keep reaching — that's what moves you up the ladder.",
+        },
+      },
+    },
+
     // -------------------------------------------------------------------------
     // Beat 1 — COMPARE (scored, 10)
     // -------------------------------------------------------------------------
     {
       sourceKey: "growth/beat-01-feedback",
-      sortOrder: 1,
+      sortOrder: 2,
       kind: "COMPARE",
       title: "Getting feedback",
       prompt:
@@ -84,7 +108,7 @@ export const M_LONG_TERM_GROWTH: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "growth/beat-02-toward-senior",
-      sortOrder: 2,
+      sortOrder: 3,
       kind: "MULTI_SELECT",
       title: "Toward Senior Instructor",
       prompt:
@@ -142,7 +166,7 @@ export const M_LONG_TERM_GROWTH: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "growth/beat-03-signs-of-growth",
-      sortOrder: 3,
+      sortOrder: 4,
       kind: "MULTI_SELECT",
       title: "Signs you're growing",
       prompt:
@@ -200,7 +224,7 @@ export const M_LONG_TERM_GROWTH: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "growth/beat-04-reflection",
-      sortOrder: 4,
+      sortOrder: 5,
       kind: "REFLECTION",
       title: "Your 3-month growth goal",
       prompt:
@@ -228,7 +252,7 @@ export const M_LONG_TERM_GROWTH: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "growth/beat-05-complete",
-      sortOrder: 5,
+      sortOrder: 6,
       kind: "CONCEPT_REVEAL",
       title: "Growth Mindset",
       prompt: "You just finished GOAL 5 — Long-Term Growth & Increased Involvement.",

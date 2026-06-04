@@ -1,0 +1,11 @@
+-- Add CONTENT_BLOCK to the InteractiveBeatKind enum.
+--
+-- CONTENT_BLOCK is a purely instructional beat — teaching content presented as
+-- prose (not a game), unscored, that the content pipeline can intersperse with
+-- the interactive kinds. See lib/training-journey/kinds/content-block.ts.
+--
+-- Added in its own migration/transaction so the value is committed before any
+-- later migration or content import references it. PostgreSQL raises 55P04
+-- ("unsafe use of new value of enum type") when a newly added enum value is
+-- used in the same transaction that added it.
+ALTER TYPE "InteractiveBeatKind" ADD VALUE IF NOT EXISTS 'CONTENT_BLOCK';

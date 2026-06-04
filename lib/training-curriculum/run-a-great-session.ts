@@ -37,18 +37,42 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     outcomeStatement: "Deliver organized, engaging classes that captivate students.",
   },
   journey: {
-    estimatedMinutes: 12,
+    estimatedMinutes: 13,
     strictMode: false,
     version: 2,
     showCohortIntro: true,
   },
   beats: [
     // -------------------------------------------------------------------------
+    // Beat 1 — CONTENT_BLOCK (unscored) — teaching content, not a game.
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "run-session/beat-00-what-great-looks-like",
+      sortOrder: 1,
+      kind: "CONTENT_BLOCK",
+      title: "What great delivery looks like",
+      prompt:
+        "GOAL 1 is the core classroom craft. Here's the idea before you practice it — read through, then continue.",
+      scoringWeight: 0,
+      config: {
+        sections: [
+          { id: "s1", heading: "Curriculum & Class Delivery", body: "GOAL 1 is the heart of the job: delivering organized, engaging classes that captivate students using approved curriculum. Great delivery is built before class as much as during it." },
+          { id: "s2", heading: "The four jobs of a session", body: "Strong sessions open with purpose, teach through activity rather than lecture, check for understanding, and close so the learning sticks. You'll practice each of these — plus the design work behind them: clear learning goals, differentiation and age-adaptation, and materials prep." },
+        ],
+        correctFeedback: {
+          tone: "noted",
+          headline: "Now let's practice it.",
+          body: "Keep the four jobs in mind as you work through the activities ahead.",
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
     // Beat 1 — CONCEPT_REVEAL (unscored)
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-01-session-shape",
-      sortOrder: 1,
+      sortOrder: 2,
       kind: "CONCEPT_REVEAL",
       title: "The shape of a strong session",
       prompt:
@@ -90,7 +114,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-02-opening-order",
-      sortOrder: 2,
+      sortOrder: 3,
       kind: "SORT_ORDER",
       title: "Order the opening-minutes activities",
       prompt:
@@ -134,7 +158,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-03-i-dont-get-it",
-      sortOrder: 3,
+      sortOrder: 4,
       kind: "SCENARIO_CHOICE",
       title: "Mid-session: 'I don't get it.'",
       prompt:
@@ -223,7 +247,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-04-pacing-check",
-      sortOrder: 4,
+      sortOrder: 5,
       kind: "FILL_IN_BLANK",
       title: "A good pacing check asks ______.",
       prompt:
@@ -271,7 +295,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-05-compare-questions",
-      sortOrder: 5,
+      sortOrder: 6,
       kind: "COMPARE",
       title: "Which teacher question is stronger?",
       prompt:
@@ -317,7 +341,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-06-lesson-outline-order",
-      sortOrder: 6,
+      sortOrder: 7,
       kind: "SORT_ORDER",
       title: "Rebuild the lesson outline",
       prompt:
@@ -361,7 +385,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-07-class-ahead-of-pace",
-      sortOrder: 7,
+      sortOrder: 8,
       kind: "SCENARIO_CHOICE",
       title: "Class is 15 minutes ahead of pace",
       prompt:
@@ -446,7 +470,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-08-learning-goal",
-      sortOrder: 8,
+      sortOrder: 9,
       kind: "COMPARE",
       title: "Which learning goal is stronger?",
       prompt:
@@ -498,7 +522,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-09-lecture-vs-activity",
-      sortOrder: 9,
+      sortOrder: 10,
       kind: "SPOT_THE_MISTAKE",
       title: "Spot the weak point in this plan",
       prompt:
@@ -563,7 +587,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-10-differentiation",
-      sortOrder: 10,
+      sortOrder: 11,
       kind: "SCENARIO_CHOICE",
       title: "One class, very different students",
       prompt:
@@ -632,7 +656,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-11-materials-prep",
-      sortOrder: 11,
+      sortOrder: 12,
       kind: "MULTI_SELECT",
       title: "Before class starts",
       prompt:
@@ -695,7 +719,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-08-reflection",
-      sortOrder: 12,
+      sortOrder: 13,
       kind: "REFLECTION",
       title: "Plan your first 10 minutes",
       prompt:
@@ -723,7 +747,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-09-complete",
-      sortOrder: 13,
+      sortOrder: 14,
       kind: "CONCEPT_REVEAL",
       title: "Session Ace",
       prompt: "You just finished GOAL 1 — Curriculum & Class Delivery.",

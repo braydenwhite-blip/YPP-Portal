@@ -10896,6 +10896,7 @@ model ApplicantAvailabilityWindow {
 
 enum InteractiveBeatKind {
   CONCEPT_REVEAL
+  CONTENT_BLOCK
   SCENARIO_CHOICE
   MULTI_SELECT
   SORT_ORDER

@@ -21,12 +21,37 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     outcomeStatement: "Know the YPP mission, your role, and where it leads.",
   },
   journey: {
-    estimatedMinutes: 6,
+    estimatedMinutes: 7,
     strictMode: false,
-    version: 1,
+    version: 2,
     showCohortIntro: true,
   },
   beats: [
+    // -------------------------------------------------------------------------
+    // Beat 1 — CONTENT_BLOCK (unscored) — teaching content, not a game.
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "ypp-standard/beat-00-your-role",
+      sortOrder: 1,
+      kind: "CONTENT_BLOCK",
+      title: "Your role at YPP",
+      prompt:
+        "Before the first activity, here's the shape of your whole journey as a YPP instructor. Read through, then continue.",
+      scoringWeight: 0,
+      config: {
+        sections: [
+          { id: "s1", heading: "Your mission", body: "Your job as a YPP instructor is to create engaging, meaningful, high-quality learning experiences that help students explore and develop their passions. Everything in this academy builds toward that one sentence." },
+          { id: "s2", heading: "How the academy works", body: "You'll move through five GOALS — Curriculum & Class Delivery, Student & Family Relationships, Organization & Reliability, Community Involvement, and Long-Term Growth — then prove it in a Readiness Check. These five GOALS are exactly how YPP reviews and grows its instructors." },
+          { id: "s3", heading: "Where it leads", body: "You start as an Instructor. With a few strong months you grow to Senior Instructor, then Lead Instructor — taking on mentorship, events, and program leadership along the way. This is the same ladder your Goals & Resources reviews use." },
+        ],
+        correctFeedback: {
+          tone: "noted",
+          headline: "That's the whole journey.",
+          body: "Mission first, five GOALS, then prove it — and a clear path from Instructor to Lead.",
+        },
+      },
+    },
+
     // -------------------------------------------------------------------------
     // Beat 2 — COMPARE (scored, 10)
     //
@@ -37,7 +62,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-02-compare-recaps",
-      sortOrder: 1,
+      sortOrder: 2,
       kind: "COMPARE",
       title: "Which recap meets the bar?",
       prompt:
@@ -83,7 +108,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-03-parent-email",
-      sortOrder: 2,
+      sortOrder: 3,
       kind: "SCENARIO_CHOICE",
       title: "A parent asks for an update",
       prompt:
@@ -184,7 +209,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-04-red-flags",
-      sortOrder: 3,
+      sortOrder: 4,
       kind: "MULTI_SELECT",
       title: "Red flags in a first session",
       prompt:
@@ -254,7 +279,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-05-spot-the-mistake",
-      sortOrder: 4,
+      sortOrder: 5,
       kind: "SPOT_THE_MISTAKE",
       title: "Spot the violation",
       prompt:
@@ -310,7 +335,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-06-late-cancel",
-      sortOrder: 5,
+      sortOrder: 6,
       kind: "SCENARIO_CHOICE",
       title: "A peer cancels last-minute",
       prompt:
@@ -391,7 +416,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-07-reflection",
-      sortOrder: 6,
+      sortOrder: 7,
       kind: "REFLECTION",
       title: "Your hardest expectation",
       prompt:
@@ -419,7 +444,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "ypp-standard/beat-08-complete",
-      sortOrder: 7,
+      sortOrder: 8,
       kind: "CONCEPT_REVEAL",
       title: "Standard Bearer",
       prompt: "You just finished Welcome to YPP.",

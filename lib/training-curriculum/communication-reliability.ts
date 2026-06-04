@@ -24,12 +24,36 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     outcomeStatement: "Be the instructor everyone can count on.",
   },
   journey: {
-    estimatedMinutes: 8,
+    estimatedMinutes: 9,
     strictMode: false,
     version: 2,
     showCohortIntro: true,
   },
   beats: [
+    // -------------------------------------------------------------------------
+    // Beat 1 — CONTENT_BLOCK (unscored) — teaching content, not a game.
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "comm-reliability/beat-00-reliability",
+      sortOrder: 1,
+      kind: "CONTENT_BLOCK",
+      title: "What makes you trustable",
+      prompt:
+        "GOAL 3 is the reliability your classroom runs on. Here's the bar — read through, then continue.",
+      scoringWeight: 0,
+      config: {
+        sections: [
+          { id: "s1", heading: "Organization, Commitment & Reliability", body: "Families, students, and staff need to know you'll show up prepared, on time, and follow through — every single time. GOAL 3 is what makes you someone YPP can count on." },
+          { id: "s2", heading: "The reliability bar", body: "Respond within 24 hours. Attend 100% of meetings and classes. Arrive prepared. Finish admin on time. Flag problems early. None of it is flashy — all of it builds trust." },
+        ],
+        correctFeedback: {
+          tone: "noted",
+          headline: "That's the standard.",
+          body: "Reliability isn't one big thing — it's many small commitments, kept consistently.",
+        },
+      },
+    },
+
     // -------------------------------------------------------------------------
     // Beat 1 — MULTI_SELECT (scored, 10)
     //
@@ -40,7 +64,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-01-three-rules",
-      sortOrder: 1,
+      sortOrder: 2,
       kind: "MULTI_SELECT",
       title: "Three rules of YPP communication",
       prompt:
@@ -117,7 +141,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-02-late-to-class",
-      sortOrder: 2,
+      sortOrder: 3,
       kind: "MESSAGE_COMPOSER",
       title: "Running late — message to class",
       prompt:
@@ -236,7 +260,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-03-parent-concern",
-      sortOrder: 3,
+      sortOrder: 4,
       kind: "MESSAGE_COMPOSER",
       title: "Parent says: 'My child isn't learning anything'",
       prompt:
@@ -334,7 +358,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-04-proactive-comms",
-      sortOrder: 4,
+      sortOrder: 5,
       kind: "MULTI_SELECT",
       title: "What needs proactive parent communication?",
       prompt:
@@ -397,7 +421,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-05-missed-session",
-      sortOrder: 5,
+      sortOrder: 6,
       kind: "SCENARIO_CHOICE",
       title: "You missed a session — what's first?",
       prompt:
@@ -527,7 +551,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-06-spot-tone",
-      sortOrder: 6,
+      sortOrder: 7,
       kind: "SPOT_THE_MISTAKE",
       title: "Spot the tone problem",
       prompt:
@@ -603,7 +627,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-07-pre-class-prep",
-      sortOrder: 7,
+      sortOrder: 8,
       kind: "SORT_ORDER",
       title: "Order the pre-class routine",
       prompt:
@@ -642,7 +666,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-08-commitments",
-      sortOrder: 8,
+      sortOrder: 9,
       kind: "MULTI_SELECT",
       title: "What reliability means at YPP",
       prompt:
@@ -705,7 +729,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-07-complete",
-      sortOrder: 9,
+      sortOrder: 10,
       kind: "CONCEPT_REVEAL",
       title: "Reliable Pro",
       prompt: "You just finished GOAL 3 — Organization, Commitment & Reliability.",

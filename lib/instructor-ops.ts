@@ -1013,6 +1013,7 @@ export const getInstructorOpsRecords = cache(async (): Promise<InstructorOpsReco
           completedRequiredModules: 0,
           academyModulesComplete: true,
           studioCapstoneComplete: true,
+          studioCapstoneInReview: false,
           trainingComplete: true,
           interviewStatus: user.interviewGate?.status ?? "REQUIRED",
           interviewOutcome: user.interviewGate?.outcome ?? null,

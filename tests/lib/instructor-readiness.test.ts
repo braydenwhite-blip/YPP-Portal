@@ -118,6 +118,63 @@ describe("buildInstructorReadinessFromSnapshot — regression: pre-existing modu
 });
 
 // ---------------------------------------------------------------------------
+// Phase 5 — Studio capstone narrowed to APPROVED + "in review" state
+// ---------------------------------------------------------------------------
+
+describe("buildInstructorReadinessFromSnapshot — Studio capstone (APPROVED)", () => {
+  const base = {
+    instructorId: "i1",
+    featureEnabled: true,
+    interviewRequired: false,
+    requiredModules: [],
+    assignments: [],
+    interviewGate: null,
+    legacyExemptOfferingCount: 0,
+  };
+
+  it("APPROVED capstone (studioCapstoneComplete=true) → trainingComplete, can request approval", () => {
+    const result = buildInstructorReadinessFromSnapshot({
+      ...base,
+      studioCapstoneComplete: true,
+    });
+    expect(result.studioCapstoneComplete).toBe(true);
+    expect(result.studioCapstoneInReview).toBe(false);
+    expect(result.trainingComplete).toBe(true);
+    expect(result.canRequestOfferingApproval).toBe(true);
+    expect(
+      result.missingRequirements.find((r) => r.code.startsWith("STUDIO_CAPSTONE"))
+    ).toBeUndefined();
+  });
+
+  it("SUBMITTED-but-unapproved (in review) → not complete, surfaces STUDIO_CAPSTONE_IN_REVIEW, blocks approval", () => {
+    const result = buildInstructorReadinessFromSnapshot({
+      ...base,
+      studioCapstoneComplete: false,
+      studioCapstoneInReview: true,
+    });
+    expect(result.studioCapstoneInReview).toBe(true);
+    expect(result.trainingComplete).toBe(false);
+    expect(result.canRequestOfferingApproval).toBe(false);
+    const blocker = result.missingRequirements.find((r) =>
+      r.code.startsWith("STUDIO_CAPSTONE")
+    );
+    expect(blocker?.code).toBe("STUDIO_CAPSTONE_IN_REVIEW");
+  });
+
+  it("no draft at all → STUDIO_CAPSTONE_REQUIRED (submit + get approved)", () => {
+    const result = buildInstructorReadinessFromSnapshot({
+      ...base,
+      studioCapstoneComplete: false,
+      studioCapstoneInReview: false,
+    });
+    const blocker = result.missingRequirements.find((r) =>
+      r.code.startsWith("STUDIO_CAPSTONE")
+    );
+    expect(blocker?.code).toBe("STUDIO_CAPSTONE_REQUIRED");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // New-path suite — INTERACTIVE_JOURNEY patch (J1, J2)
 // ---------------------------------------------------------------------------
 

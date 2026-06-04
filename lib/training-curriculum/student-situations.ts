@@ -24,18 +24,42 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     outcomeStatement: "Build supportive, trusting relationships with students and families.",
   },
   journey: {
-    estimatedMinutes: 10,
+    estimatedMinutes: 11,
     strictMode: false,
     version: 2,
     showCohortIntro: true,
   },
   beats: [
     // -------------------------------------------------------------------------
+    // Beat 1 — CONTENT_BLOCK (unscored) — teaching content, not a game.
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "student-situations/beat-00-relationships",
+      sortOrder: 1,
+      kind: "CONTENT_BLOCK",
+      title: "Why relationships come first",
+      prompt:
+        "GOAL 2 is about the people you serve. Here's the core idea — read through, then continue.",
+      scoringWeight: 0,
+      config: {
+        sections: [
+          { id: "s1", heading: "Student & Family Relationships", body: "Students learn best when they feel safe, seen, and supported. Families trust you when you communicate clearly and often. GOAL 2 is how you build both." },
+          { id: "s2", heading: "The support loop", body: "Across every situation you'll use one loop: notice what's happening, choose the smallest helpful move, and keep the student in learning. That same care extends to families through warm, specific updates." },
+        ],
+        correctFeedback: {
+          tone: "noted",
+          headline: "Let's read the room.",
+          body: "Notice, then choose the smallest helpful move, then keep them in learning. Carry it through every scenario.",
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
     // Beat 1 — CONCEPT_REVEAL (unscored)
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-01-support-loop",
-      sortOrder: 1,
+      sortOrder: 2,
       kind: "CONCEPT_REVEAL",
       title: "The student support loop",
       prompt: "Three moves repeat in every situation. Tap each to see what it looks like.",
@@ -73,7 +97,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-02-diagnose",
-      sortOrder: 2,
+      sortOrder: 3,
       kind: "MULTI_SELECT",
       title: "Diagnose what you're seeing",
       prompt: "Pick the signals that should make you pause and check on a student during class.",
@@ -115,7 +139,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-03-confused-shutdown",
-      sortOrder: 3,
+      sortOrder: 4,
       kind: "BRANCHING_SCENARIO",
       title: "Confused student shuts down",
       prompt: "Maya gets a problem wrong, then stops talking. Camera on, no response to your prompt. What do you do first?",
@@ -278,7 +302,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-04-disengaged-present",
-      sortOrder: 4,
+      sortOrder: 5,
       kind: "BRANCHING_SCENARIO",
       title: "Disengaged but present",
       prompt: "Diego is on camera but hasn't spoken in 15 minutes. He nods when prompted but offers nothing. What's your move?",
@@ -434,7 +458,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-05-intervention-ladder",
-      sortOrder: 5,
+      sortOrder: 6,
       kind: "SORT_ORDER",
       title: "Order the intervention ladder",
       prompt: "Arrange these moves from lightest to heaviest when a student starts to disengage.",
@@ -477,7 +501,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-06-checkin-message",
-      sortOrder: 6,
+      sortOrder: 7,
       kind: "MESSAGE_COMPOSER",
       title: "Send a supportive check-in",
       prompt: "Build a private chat message to a student who's gone quiet for two sessions in a row.",
@@ -538,7 +562,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-07-best-actions",
-      sortOrder: 7,
+      sortOrder: 8,
       kind: "MULTI_SELECT",
       title: "Choose the best next actions",
       prompt: "Across the situations you've worked, pick the moves that consistently keep students in learning.",
@@ -576,7 +600,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-08-inclusive",
-      sortOrder: 8,
+      sortOrder: 9,
       kind: "MULTI_SELECT",
       title: "Building an inclusive classroom",
       prompt:
@@ -644,7 +668,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-09-parent-update",
-      sortOrder: 9,
+      sortOrder: 10,
       kind: "MESSAGE_COMPOSER",
       title: "Send a family a weekly update",
       prompt:
@@ -730,7 +754,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-08-complete",
-      sortOrder: 10,
+      sortOrder: 11,
       kind: "CONCEPT_REVEAL",
       title: "Student-support playbook",
       prompt: "You just finished GOAL 2 — Student & Family Relationships.",
