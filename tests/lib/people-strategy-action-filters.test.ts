@@ -51,6 +51,7 @@ describe("parseActionFilters", () => {
     expect(parseActionFilters({})).toEqual({
       department: "ALL",
       status: "ALL",
+      priority: "ALL",
       visibility: "ALL",
       search: "",
       sort: "deadline_asc",
@@ -153,7 +154,14 @@ describe("analytics reflect the filtered set", () => {
   it("summarizeStatuses uses effective status", () => {
     const s = summarizeStatuses(items, NOW);
     expect(s.total).toBe(3);
-    expect(s.counts).toEqual({ NOT_STARTED: 0, IN_PROGRESS: 1, COMPLETE: 1, OVERDUE: 1 });
+    expect(s.counts).toEqual({
+      NOT_STARTED: 0,
+      IN_PROGRESS: 1,
+      BLOCKED: 0,
+      COMPLETE: 1,
+      OVERDUE: 1,
+      DROPPED: 0,
+    });
   });
 
   it("summarizeDepartments counts totals + overdue per department", () => {

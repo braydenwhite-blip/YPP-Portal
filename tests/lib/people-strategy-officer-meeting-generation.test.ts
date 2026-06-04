@@ -55,7 +55,9 @@ describe("buildOfficerMeetingAgendaFallback", () => {
     expect(text).toContain(
       "Discussion notes: Agreed to ship the new flow next sprint."
     );
-    expect(text).toContain("2. Miscellaneous Updates (1)");
+    expect(text).toContain("2. Commitments (1) — promised by · due by");
+    expect(text).toContain("• Launch onboarding revamp — Ada Lovelace by Jun 20, 2026");
+    expect(text).toContain("3. Miscellaneous Updates (1)");
     expect(text).toContain("• Budget approved for Q3 (CPO)");
   });
 
