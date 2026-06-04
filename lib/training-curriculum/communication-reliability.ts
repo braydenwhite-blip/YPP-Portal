@@ -1,8 +1,11 @@
 /**
  * Module 4 — Communication & Reliability.
  *
- * Per docs/instructor-training-rebuild.md §4 Module 4.
- * Seven beats; two MESSAGE_COMPOSER beats (rubric-scored).
+ * GOAL 3 — Organization, Commitment & Reliability.
+ * Two MESSAGE_COMPOSER beats (rubric-scored) on tone and recovery, plus the
+ * Phase 4 reliability core: a pre-class prep SORT_ORDER (prepared & on time)
+ * and a MULTI_SELECT on the wider commitments — 24-hour response, full
+ * meeting/class attendance, on-time admin, and flagging issues early.
  * contentKey: "academy_communication_004".
  */
 
@@ -21,25 +24,47 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     outcomeStatement: "Be the instructor everyone can count on.",
   },
   journey: {
-    estimatedMinutes: 6,
+    estimatedMinutes: 9,
     strictMode: false,
-    version: 1,
+    version: 2,
     showCohortIntro: true,
   },
   beats: [
     // -------------------------------------------------------------------------
+    // Beat 1 — CONTENT_BLOCK (unscored) — teaching content, not a game.
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "comm-reliability/beat-00-reliability",
+      sortOrder: 1,
+      kind: "CONTENT_BLOCK",
+      title: "What makes you trustable",
+      prompt:
+        "GOAL 3 is the reliability your classroom runs on. Here's the bar — read through, then continue.",
+      scoringWeight: 0,
+      config: {
+        sections: [
+          { id: "s1", heading: "Organization, Commitment & Reliability", body: "Families, students, and staff need to know you'll show up prepared, on time, and follow through — every single time. GOAL 3 is what makes you someone YPP can count on." },
+          { id: "s2", heading: "The reliability bar", body: "Respond within 24 hours. Attend 100% of meetings and classes. Arrive prepared. Finish admin on time. Flag problems early. None of it is flashy — all of it builds trust." },
+        ],
+        correctFeedback: {
+          tone: "noted",
+          headline: "That's the standard.",
+          body: "Reliability isn't one big thing — it's many small commitments, kept consistently.",
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
     // Beat 1 — MULTI_SELECT (scored, 10)
     //
-    // Validator constraint: a 7-beat journey may contain at most 1
-    // CONCEPT_REVEAL (floor(7/4) = 1) and the completion beat uses that slot.
-    // Beat 1 therefore teaches the three communication rules via active recall:
-    // the learner picks the three rules from a mixed list of plausible-looking
-    // alternatives. Same concept as the previous CONCEPT_REVEAL opener, but
-    // tests retention rather than just presents it.
+    // Opens with active recall rather than a CONCEPT_REVEAL: the learner picks
+    // the three real communication rules from a mixed list of plausible-looking
+    // alternatives. Tests retention rather than just presenting the rules, and
+    // keeps the single CONCEPT_REVEAL slot for the completion beat.
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-01-three-rules",
-      sortOrder: 1,
+      sortOrder: 2,
       kind: "MULTI_SELECT",
       title: "Three rules of YPP communication",
       prompt:
@@ -116,7 +141,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-02-late-to-class",
-      sortOrder: 2,
+      sortOrder: 3,
       kind: "MESSAGE_COMPOSER",
       title: "Running late — message to class",
       prompt:
@@ -235,7 +260,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-03-parent-concern",
-      sortOrder: 3,
+      sortOrder: 4,
       kind: "MESSAGE_COMPOSER",
       title: "Parent says: 'My child isn't learning anything'",
       prompt:
@@ -333,7 +358,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-04-proactive-comms",
-      sortOrder: 4,
+      sortOrder: 5,
       kind: "MULTI_SELECT",
       title: "What needs proactive parent communication?",
       prompt:
@@ -396,7 +421,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-05-missed-session",
-      sortOrder: 5,
+      sortOrder: 6,
       kind: "SCENARIO_CHOICE",
       title: "You missed a session — what's first?",
       prompt:
@@ -526,7 +551,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-06-spot-tone",
-      sortOrder: 6,
+      sortOrder: 7,
       kind: "SPOT_THE_MISTAKE",
       title: "Spot the tone problem",
       prompt:
@@ -598,11 +623,113 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     },
 
     // -------------------------------------------------------------------------
-    // Beat 7 — CONCEPT_REVEAL (unscored, completion trigger)
+    // Beat 7 — SORT_ORDER (scored, 15)  [Phase 4: prepared & on time]
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "comm-reliability/beat-07-pre-class-prep",
+      sortOrder: 8,
+      kind: "SORT_ORDER",
+      title: "Order the pre-class routine",
+      prompt:
+        "Reliable instructors run the same routine before every class so they start on time and ready. Arrange these five steps into the order that gets you there.",
+      scoringWeight: 15,
+      scoringRule: "ordered",
+      config: {
+        items: [
+          { id: "review-plan", label: "Re-read the lesson plan and today's goal." },
+          { id: "test-materials", label: "Gather and test your materials, slides, and links." },
+          { id: "join-early", label: "Join the class a few minutes early." },
+          { id: "greet", label: "Greet students by name as they arrive." },
+          { id: "start-on-time", label: "Start on time by stating today's goal." },
+        ],
+        correctOrder: ["review-plan", "test-materials", "join-early", "greet", "start-on-time"],
+        partialCredit: true,
+        correctFeedback: {
+          tone: "correct",
+          headline: "That's a reliable pre-class routine.",
+          body: "Plan, then materials, then arrive early, greet, and launch on time. Doing this every class is what 'prepared and on time' actually looks like — and students feel the difference from the first minute.",
+        },
+        incorrectFeedback: {
+          default: {
+            tone: "incorrect",
+            headline: "Prep before you arrive.",
+            body: "Reviewing the plan and testing materials happen before you join. Then arrive early, greet students, and start on time. Front-load the prep so nothing scrambles at the last minute.",
+            hint: "Plan and materials first; arrive, greet, and launch last.",
+          },
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // Beat 8 — MULTI_SELECT (scored, 10)  [Phase 4: commitment, attendance,
+    // admin reliability, proactivity]
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "comm-reliability/beat-08-commitments",
+      sortOrder: 9,
+      kind: "MULTI_SELECT",
+      title: "What reliability means at YPP",
+      prompt:
+        "Being someone YPP can count on is more than answering messages. Select the commitments a reliable instructor holds.",
+      scoringWeight: 10,
+      scoringRule: "threshold",
+      config: {
+        scoringMode: "threshold",
+        minimumCorrect: 3,
+        options: [
+          {
+            id: "respond-24h",
+            label: "Respond to every parent or admin message within 24 hours.",
+            correct: true,
+          },
+          {
+            id: "full-attendance",
+            label: "Treat YPP meetings and classes as required — you're there for all of them.",
+            correct: true,
+          },
+          {
+            id: "admin-on-time",
+            label: "Complete attendance logs and admin tasks on time, every time.",
+            correct: true,
+          },
+          {
+            id: "flag-early",
+            label: "Flag a problem early, before it grows, instead of hoping it resolves itself.",
+            correct: true,
+          },
+          {
+            id: "skip-meetings",
+            label: "Skip the instructor meeting when your class prep is busy that week.",
+            correct: false,
+          },
+          {
+            id: "defer-admin",
+            label: "Leave admin paperwork until someone asks you for it.",
+            correct: false,
+          },
+        ],
+        correctFeedback: {
+          tone: "correct",
+          headline: "That's the reliability bar.",
+          body: "Fast responses, full attendance, on-time admin, and flagging issues early are what make you trustable. Skipping meetings and sitting on paperwork are exactly the gaps that erode it.",
+        },
+        incorrectFeedback: {
+          default: {
+            tone: "incorrect",
+            headline: "Reliability is the whole package.",
+            body: "Responding within 24 hours, showing up to every meeting and class, finishing admin on time, and raising issues early all build trust. Skipping meetings or deferring paperwork quietly tear it down.",
+            hint: "Pick the four commitments; avoid the two that let things slip.",
+          },
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // Beat 9 — CONCEPT_REVEAL (unscored, completion trigger)
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-07-complete",
-      sortOrder: 7,
+      sortOrder: 10,
       kind: "CONCEPT_REVEAL",
       title: "Reliable Pro",
       prompt: "You just finished GOAL 3 — Organization, Commitment & Reliability.",

@@ -23,7 +23,7 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
     outcomeStatement: "Prove you're ready to teach your first YPP class.",
   },
   journey: {
-    estimatedMinutes: 9,
+    estimatedMinutes: 10,
     strictMode: true,
     // v2 (audit pass): tightened FILL_IN_BLANK patterns on the "readiness
     // line" beat so vague answers ("the goal", "the plan") no longer pass.
@@ -31,11 +31,35 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
   },
   beats: [
     // -------------------------------------------------------------------------
+    // Beat 1 — CONTENT_BLOCK (unscored) — teaching content, not a game.
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "readiness-check/beat-00-what-this-checks",
+      sortOrder: 1,
+      kind: "CONTENT_BLOCK",
+      title: "What the Readiness Check measures",
+      prompt:
+        "This is the capstone. Here's what it checks and how it works — read through, then continue.",
+      scoringWeight: 0,
+      config: {
+        sections: [
+          { id: "s1", heading: "Judgment, not memory", body: "This capstone doesn't test recall. It checks judgment: can you apply what you learned across Goals 1–3, and hold the expectations for Goals 4–5, under real classroom pressure?" },
+          { id: "s2", heading: "How it works", body: "You'll face mixed scenarios with one attempt each. Score 80% to prove you're ready and unlock the Lesson Design Studio, where you'll build your first real class." },
+        ],
+        correctFeedback: {
+          tone: "noted",
+          headline: "Let's prove it.",
+          body: "Applied judgment across every GOAL, one attempt each. You've got this.",
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
     // Beat 1 — CONCEPT_REVEAL (unscored)
     // -------------------------------------------------------------------------
     {
       sourceKey: "readiness-check/beat-01-applied-judgment",
-      sortOrder: 1,
+      sortOrder: 2,
       kind: "CONCEPT_REVEAL",
       title: "Readiness is judgment, not memory",
       prompt:
@@ -72,7 +96,7 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "readiness-check/beat-02-ready-signs",
-      sortOrder: 2,
+      sortOrder: 3,
       kind: "MULTI_SELECT",
       title: "Signs you're ready to teach",
       prompt:
@@ -135,7 +159,7 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "readiness-check/beat-03-pre-class-prep",
-      sortOrder: 3,
+      sortOrder: 4,
       kind: "SORT_ORDER",
       title: "Order the pre-class prep sequence",
       prompt:
@@ -179,7 +203,7 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "readiness-check/beat-04-warning-to-action",
-      sortOrder: 4,
+      sortOrder: 5,
       kind: "MATCH_PAIRS",
       title: "Match the warning sign to the response",
       prompt: "Each instructor warning sign has one strongest first response. Match them.",
@@ -226,7 +250,7 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "readiness-check/beat-05-disengaged-mid-class",
-      sortOrder: 5,
+      sortOrder: 6,
       kind: "BRANCHING_SCENARIO",
       title: "Mid-class: a student checks out",
       prompt:
@@ -299,7 +323,7 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "readiness-check/beat-06-late-arrival-message",
-      sortOrder: 6,
+      sortOrder: 7,
       kind: "MESSAGE_COMPOSER",
       title: "Message a parent: class will start late",
       prompt:
@@ -397,7 +421,7 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "readiness-check/beat-07-readiness-line",
-      sortOrder: 7,
+      sortOrder: 8,
       kind: "FILL_IN_BLANK",
       title: "The readiness line",
       prompt:
@@ -450,7 +474,7 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "readiness-check/beat-08-escalate",
-      sortOrder: 8,
+      sortOrder: 9,
       kind: "MULTI_SELECT",
       title: "What gets escalated",
       prompt:
@@ -514,7 +538,7 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "readiness-check/beat-09-last-minute",
-      sortOrder: 9,
+      sortOrder: 10,
       kind: "BRANCHING_SCENARIO",
       title: "Five minutes before class: a wrench",
       prompt:
@@ -586,7 +610,7 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "readiness-check/beat-10-complete",
-      sortOrder: 10,
+      sortOrder: 11,
       kind: "CONCEPT_REVEAL",
       title: "Ready to teach",
       prompt: "You finished the Readiness Check — the Academy capstone.",

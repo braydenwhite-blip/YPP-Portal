@@ -34,12 +34,20 @@ export type InstructorReadiness = {
   academyModulesComplete: boolean;
   /**
    * Capstone gate satisfied. The semantics depend on the subtype:
-   *   * STANDARD       → Lesson Design Studio draft submitted or approved.
+   *   * STANDARD       → Lesson Design Studio draft **APPROVED**. A merely
+   *     SUBMITTED (awaiting review) draft no longer counts as complete —
+   *     see `studioCapstoneInReview` (Phase 5: narrow capstone to APPROVED).
    *   * SUMMER_WORKSHOP → Workshop proposal submitted (any non-DRAFT status).
-   * Renamed from a pure "studioCapstoneComplete" but kept stable so
-   * downstream consumers don't break.
+   * Kept stable as the name `studioCapstoneComplete` so downstream consumers
+   * don't break.
    */
   studioCapstoneComplete: boolean;
+  /**
+   * STANDARD only: the Lesson Design Studio draft is SUBMITTED but not yet
+   * APPROVED — i.e. the capstone is awaiting reviewer sign-off. Always false
+   * for SUMMER_WORKSHOP. Lets UI show "in review" instead of "submit yours".
+   */
+  studioCapstoneInReview: boolean;
   /** Academy modules complete and the subtype-appropriate capstone done. */
   trainingComplete: boolean;
   interviewStatus: string;
@@ -118,6 +126,7 @@ export function buildFallbackInstructorReadiness(
     completedRequiredModules: 0,
     academyModulesComplete: true,
     studioCapstoneComplete: true,
+    studioCapstoneInReview: false,
     trainingComplete: true,
     interviewStatus: "UNAVAILABLE",
     interviewOutcome: null,
@@ -167,6 +176,7 @@ export function buildInstructorReadinessFromSnapshot({
   interviewGate,
   legacyExemptOfferingCount,
   studioCapstoneComplete,
+  studioCapstoneInReview = false,
   instructorSubtype = "STANDARD",
   roles = [],
 }: {
@@ -179,14 +189,16 @@ export function buildInstructorReadinessFromSnapshot({
   legacyExemptOfferingCount: number;
   /**
    * Combined subtype-aware capstone signal:
-   *   * STANDARD applicants — true once a CurriculumDraft is SUBMITTED or
-   *     APPROVED.
+   *   * STANDARD applicants — true once a CurriculumDraft is **APPROVED**
+   *     (Phase 5: a SUBMITTED-but-unapproved draft is "in review", not done).
    *   * SUMMER_WORKSHOP applicants — true once their WorkshopProposalSubmission
    *     leaves DRAFT (i.e. they've clicked Submit at least once).
    * Caller (getInstructorReadinessMany) is responsible for computing this
    * from the right table per applicant.
    */
   studioCapstoneComplete: boolean;
+  /** STANDARD only: draft SUBMITTED but not yet APPROVED. */
+  studioCapstoneInReview?: boolean;
   instructorSubtype?: InstructorSubtype;
   /** Roles for THIS instructor (drives the LDS reviewer-bypass branch). */
   roles?: string[];
@@ -296,12 +308,20 @@ export function buildInstructorReadinessFromSnapshot({
           "Design or pick a workshop in the Workshop Design Studio and submit it for review.",
         href: "/instructor/workshop-design-studio",
       });
+    } else if (studioCapstoneInReview) {
+      missingRequirements.push({
+        code: "STUDIO_CAPSTONE_IN_REVIEW",
+        title: "Lesson Design Studio capstone in review",
+        detail:
+          "Your Lesson Design Studio package is submitted and awaiting reviewer approval. You'll be cleared to request offering approval once it's approved.",
+        href: LESSON_DESIGN_STUDIO_HREF,
+      });
     } else {
       missingRequirements.push({
         code: "STUDIO_CAPSTONE_REQUIRED",
         title: "Submit Lesson Design Studio capstone",
         detail:
-          "Submit or receive approval for a Lesson Design Studio package before requesting offering approval.",
+          "Submit a Lesson Design Studio package and have it approved before requesting offering approval.",
         href: LESSON_DESIGN_STUDIO_HREF,
       });
     }
@@ -358,6 +378,7 @@ export function buildInstructorReadinessFromSnapshot({
     completedRequiredModules,
     academyModulesComplete,
     studioCapstoneComplete,
+    studioCapstoneInReview,
     trainingComplete,
     interviewStatus,
     interviewOutcome,
@@ -436,7 +457,7 @@ export async function getInstructorReadinessMany(
             authorId: { in: uniqueInstructorIds },
             status: { in: ["SUBMITTED", "APPROVED"] },
           },
-          select: { authorId: true },
+          select: { authorId: true, status: true },
         }),
         prisma.userRole.findMany({
           where: { userId: { in: uniqueInstructorIds } },
@@ -473,7 +494,7 @@ export async function getInstructorReadinessMany(
     assignments,
     interviewGates,
     grandfatheredOfferingCounts,
-    submittedOrApprovedDrafts,
+    studioDrafts,
     userRoles,
     applicationSubtypes,
     workshopSubmittedAuthors,
@@ -500,8 +521,14 @@ export async function getInstructorReadinessMany(
     ] as const)
   );
 
-  const instructorsWithSubmittedCapstone = new Set(
-    submittedOrApprovedDrafts.map((draft) => draft.authorId)
+  // Phase 5: the Studio capstone is "complete" only when APPROVED. A SUBMITTED
+  // (but unapproved) draft is "in review" — surfaced separately so the gate
+  // blocks offering approval until a reviewer signs off.
+  const instructorsWithApprovedCapstone = new Set(
+    studioDrafts.filter((draft) => draft.status === "APPROVED").map((d) => d.authorId)
+  );
+  const instructorsWithCapstoneInReview = new Set(
+    studioDrafts.filter((draft) => draft.status === "SUBMITTED").map((d) => d.authorId)
   );
   const instructorsWithSubmittedWorkshop = new Set(
     workshopSubmittedAuthors.map((row) => row.authorId)
@@ -523,11 +550,17 @@ export async function getInstructorReadinessMany(
   for (const instructorId of uniqueInstructorIds) {
     const subtype = subtypeByInstructor.get(instructorId) ?? "STANDARD";
     // Subtype-aware capstone: SW applicants finish via the workshop
-    // submission table; STANDARD applicants finish via CurriculumDraft.
-    const capstoneDone =
-      subtype === "SUMMER_WORKSHOP"
-        ? instructorsWithSubmittedWorkshop.has(instructorId)
-        : instructorsWithSubmittedCapstone.has(instructorId);
+    // submission table (submitted = done); STANDARD applicants finish via an
+    // APPROVED CurriculumDraft. A STANDARD draft that's SUBMITTED but not yet
+    // approved counts as "in review", not complete.
+    const isSummerWorkshop = subtype === "SUMMER_WORKSHOP";
+    const capstoneDone = isSummerWorkshop
+      ? instructorsWithSubmittedWorkshop.has(instructorId)
+      : instructorsWithApprovedCapstone.has(instructorId);
+    const capstoneInReview =
+      !isSummerWorkshop &&
+      !capstoneDone &&
+      instructorsWithCapstoneInReview.has(instructorId);
 
     readinessByInstructor.set(
       instructorId,
@@ -541,6 +574,7 @@ export async function getInstructorReadinessMany(
         legacyExemptOfferingCount:
           legacyExemptOfferingCountByInstructor.get(instructorId) ?? 0,
         studioCapstoneComplete: capstoneDone,
+        studioCapstoneInReview: capstoneInReview,
         instructorSubtype: subtype,
         roles: rolesByInstructor.get(instructorId) ?? [],
       })

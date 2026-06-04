@@ -1,9 +1,11 @@
 /**
  * Module 3 — Student Situations.
  *
- * Per docs/instructor-training-rebuild.md §4 Module 3.
- * Eight beats; teaches how to notice, choose the next helpful move, and
- * keep the student in learning.
+ * GOAL 2 — Student & Family Relationships.
+ * Teaches how to notice, choose the next helpful move, and keep the student
+ * in learning. Phase 4 added the family-relationship half: building an
+ * inclusive, welcoming classroom and writing a warm, specific family update
+ * that grows the relationship (and can advise toward more YPP).
  * contentKey: "academy_student_situations_003".
  */
 
@@ -22,18 +24,42 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     outcomeStatement: "Build supportive, trusting relationships with students and families.",
   },
   journey: {
-    estimatedMinutes: 7,
+    estimatedMinutes: 11,
     strictMode: false,
-    version: 1,
+    version: 2,
     showCohortIntro: true,
   },
   beats: [
+    // -------------------------------------------------------------------------
+    // Beat 1 — CONTENT_BLOCK (unscored) — teaching content, not a game.
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "student-situations/beat-00-relationships",
+      sortOrder: 1,
+      kind: "CONTENT_BLOCK",
+      title: "Why relationships come first",
+      prompt:
+        "GOAL 2 is about the people you serve. Here's the core idea — read through, then continue.",
+      scoringWeight: 0,
+      config: {
+        sections: [
+          { id: "s1", heading: "Student & Family Relationships", body: "Students learn best when they feel safe, seen, and supported. Families trust you when you communicate clearly and often. GOAL 2 is how you build both." },
+          { id: "s2", heading: "The support loop", body: "Across every situation you'll use one loop: notice what's happening, choose the smallest helpful move, and keep the student in learning. That same care extends to families through warm, specific updates." },
+        ],
+        correctFeedback: {
+          tone: "noted",
+          headline: "Let's read the room.",
+          body: "Notice, then choose the smallest helpful move, then keep them in learning. Carry it through every scenario.",
+        },
+      },
+    },
+
     // -------------------------------------------------------------------------
     // Beat 1 — CONCEPT_REVEAL (unscored)
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-01-support-loop",
-      sortOrder: 1,
+      sortOrder: 2,
       kind: "CONCEPT_REVEAL",
       title: "The student support loop",
       prompt: "Three moves repeat in every situation. Tap each to see what it looks like.",
@@ -71,7 +97,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-02-diagnose",
-      sortOrder: 2,
+      sortOrder: 3,
       kind: "MULTI_SELECT",
       title: "Diagnose what you're seeing",
       prompt: "Pick the signals that should make you pause and check on a student during class.",
@@ -113,7 +139,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-03-confused-shutdown",
-      sortOrder: 3,
+      sortOrder: 4,
       kind: "BRANCHING_SCENARIO",
       title: "Confused student shuts down",
       prompt: "Maya gets a problem wrong, then stops talking. Camera on, no response to your prompt. What do you do first?",
@@ -276,7 +302,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-04-disengaged-present",
-      sortOrder: 4,
+      sortOrder: 5,
       kind: "BRANCHING_SCENARIO",
       title: "Disengaged but present",
       prompt: "Diego is on camera but hasn't spoken in 15 minutes. He nods when prompted but offers nothing. What's your move?",
@@ -432,7 +458,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-05-intervention-ladder",
-      sortOrder: 5,
+      sortOrder: 6,
       kind: "SORT_ORDER",
       title: "Order the intervention ladder",
       prompt: "Arrange these moves from lightest to heaviest when a student starts to disengage.",
@@ -475,7 +501,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-06-checkin-message",
-      sortOrder: 6,
+      sortOrder: 7,
       kind: "MESSAGE_COMPOSER",
       title: "Send a supportive check-in",
       prompt: "Build a private chat message to a student who's gone quiet for two sessions in a row.",
@@ -536,7 +562,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-07-best-actions",
-      sortOrder: 7,
+      sortOrder: 8,
       kind: "MULTI_SELECT",
       title: "Choose the best next actions",
       prompt: "Across the situations you've worked, pick the moves that consistently keep students in learning.",
@@ -570,11 +596,165 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     },
 
     // -------------------------------------------------------------------------
-    // Beat 8 — CONCEPT_REVEAL (unscored, completion trigger)
+    // Beat 8 — MULTI_SELECT (scored, 10)  [Phase 4: inclusive classroom]
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "student-situations/beat-08-inclusive",
+      sortOrder: 9,
+      kind: "MULTI_SELECT",
+      title: "Building an inclusive classroom",
+      prompt:
+        "Every student should feel they belong in your class. Select the moves that build an inclusive, welcoming environment for all of them.",
+      scoringWeight: 10,
+      scoringRule: "threshold",
+      config: {
+        scoringMode: "threshold",
+        minimumCorrect: 3,
+        options: [
+          {
+            id: "names",
+            label: "Learn and use every student's name from the first session.",
+            correct: true,
+          },
+          {
+            id: "many-voices",
+            label: "Make sure quieter students get invited in, not just the fastest hands.",
+            correct: true,
+          },
+          {
+            id: "normalize-mistakes",
+            label: "Treat wrong answers as normal parts of learning, not failures.",
+            correct: true,
+          },
+          {
+            id: "vary-access",
+            label: "Offer more than one way to take part — speaking, chat, or sharing work.",
+            correct: true,
+          },
+          {
+            id: "reward-fastest",
+            label: "Let the quickest students carry the discussion so the pace stays high.",
+            correct: false,
+          },
+          {
+            id: "ignore-quiet",
+            label: "Leave quiet students alone so you never put them on the spot.",
+            correct: false,
+          },
+        ],
+        correctFeedback: {
+          tone: "correct",
+          headline: "That's an inclusive room.",
+          body: "Using names, inviting quieter voices, normalizing mistakes, and offering multiple ways to participate tell every student they belong. Letting the fastest dominate or ignoring the quiet ones quietly shrinks the room.",
+        },
+        incorrectFeedback: {
+          default: {
+            tone: "incorrect",
+            headline: "Inclusion is active.",
+            body: "An inclusive classroom deliberately makes room for everyone — names, invitations, safe mistakes, multiple ways in. Leaving it to the fastest students, or leaving quiet ones alone, isn't the same as including them.",
+            hint: "Pick the moves that bring more students in, not the ones that let some drift out.",
+          },
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // Beat 9 — MESSAGE_COMPOSER (scored, 10)  [Phase 4: family relationship +
+    // advising toward more YPP]
+    //
+    // Valid path: open-warm [warm] + spec-named [specific] + invite-open/none.
+    // Banned tags (vague, generic) appear on the weak openers, the vague
+    // observation, and the pushy invitation.
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "student-situations/beat-09-parent-update",
+      sortOrder: 10,
+      kind: "MESSAGE_COMPOSER",
+      title: "Send a family a weekly update",
+      prompt:
+        "Maya had a strong week — she solved her first word problem unprompted. Build a short update to her family that builds the relationship.",
+      scoringWeight: 10,
+      scoringRule: "rubric",
+      config: {
+        snippetPools: [
+          {
+            poolId: "opening",
+            label: "Opening",
+            snippets: [
+              {
+                id: "open-warm",
+                label: "Hi! I wanted to share a great moment from Maya's class this week.",
+                tags: ["warm"],
+              },
+              { id: "open-flat", label: "Weekly update below.", tags: [] },
+              { id: "open-generic", label: "Just checking in as usual.", tags: ["generic"] },
+            ],
+          },
+          {
+            poolId: "specific",
+            label: "What happened",
+            snippets: [
+              {
+                id: "spec-named",
+                label: "Maya solved her first multi-step word problem on her own today — a real milestone for her.",
+                tags: ["specific"],
+              },
+              {
+                id: "spec-vague",
+                label: "Maya is doing well and making good progress overall.",
+                tags: ["vague"],
+              },
+              {
+                id: "spec-generic",
+                label: "We covered the planned material this week.",
+                tags: ["generic"],
+              },
+            ],
+          },
+          {
+            poolId: "invite",
+            label: "Invitation",
+            snippets: [
+              {
+                id: "invite-open",
+                label: "If she's enjoying this, our summer enrichment session could be a great next step — happy to share details.",
+                tags: [],
+              },
+              { id: "invite-none", label: "Let me know if you have any questions!", tags: [] },
+              {
+                id: "invite-demand",
+                label: "You should really sign her up for more classes.",
+                tags: ["generic"],
+              },
+            ],
+          },
+        ],
+        rubric: {
+          requiredTags: ["warm", "specific"],
+          bannedTags: ["vague", "generic"],
+        },
+        correctFeedback: {
+          tone: "correct",
+          headline: "That builds the relationship.",
+          body: "A warm opener and a specific, real moment make a family feel seen — and a genuine, low-pressure invitation to more YPP grows the relationship without pushing. That's how trust turns into a longer journey with you.",
+        },
+        incorrectFeedback: {
+          default: {
+            tone: "incorrect",
+            headline: "Make it warm and specific.",
+            body: "Families remember the specific moment ('solved her first word problem'), not 'making progress.' Open warm, name something real, and if you invite them to more YPP, keep it genuine — never a demand.",
+            hint: "Open warm, name one real moment, and invite without pressure.",
+          },
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // Beat 10 — CONCEPT_REVEAL (unscored, completion trigger)
     // -------------------------------------------------------------------------
     {
       sourceKey: "student-situations/beat-08-complete",
-      sortOrder: 8,
+      sortOrder: 11,
       kind: "CONCEPT_REVEAL",
       title: "Student-support playbook",
       prompt: "You just finished GOAL 2 — Student & Family Relationships.",

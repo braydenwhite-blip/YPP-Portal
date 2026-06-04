@@ -20,6 +20,7 @@ import type { InteractiveBeatKind } from "./types";
 import { INTERACTIVE_BEAT_KINDS } from "./types";
 
 import { CONCEPT_REVEAL_MODULE } from "./kinds/concept-reveal";
+import { CONTENT_BLOCK_MODULE } from "./kinds/content-block";
 import { SCENARIO_CHOICE_MODULE } from "./kinds/scenario-choice";
 import { MULTI_SELECT_MODULE } from "./kinds/multi-select";
 import { SORT_ORDER_MODULE } from "./kinds/sort-order";
@@ -39,6 +40,7 @@ import type { AnyBeatKindModule } from "./types";
  *  variance-friendly `AnyBeatKindModule` storage slot. */
 export const KIND_MODULES: { [K in InteractiveBeatKind]: AnyBeatKindModule } = {
   CONCEPT_REVEAL: CONCEPT_REVEAL_MODULE,
+  CONTENT_BLOCK: CONTENT_BLOCK_MODULE,
   SCENARIO_CHOICE: SCENARIO_CHOICE_MODULE,
   MULTI_SELECT: MULTI_SELECT_MODULE,
   SORT_ORDER: SORT_ORDER_MODULE,

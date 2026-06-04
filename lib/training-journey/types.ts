@@ -14,6 +14,7 @@
 /** Mirrors the `InteractiveBeatKind` enum in prisma/schema.prisma. */
 export type InteractiveBeatKind =
   | "CONCEPT_REVEAL"
+  | "CONTENT_BLOCK"
   | "SCENARIO_CHOICE"
   | "MULTI_SELECT"
   | "SORT_ORDER"
@@ -28,6 +29,7 @@ export type InteractiveBeatKind =
 
 export const INTERACTIVE_BEAT_KINDS: readonly InteractiveBeatKind[] = [
   "CONCEPT_REVEAL",
+  "CONTENT_BLOCK",
   "SCENARIO_CHOICE",
   "MULTI_SELECT",
   "SORT_ORDER",

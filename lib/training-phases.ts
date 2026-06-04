@@ -399,6 +399,9 @@ export function buildTrainingPhases(input: BuildPhasesInput): TrainingHomeModel 
         : "Complete the Readiness Check to unlock the Workshop Design Studio.",
       configurationIssue: null,
       isCapstone: true,
+      goalKey: null,
+      outcomeStatement: null,
+      scorePct: null,
     });
   }
 

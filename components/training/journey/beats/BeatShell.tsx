@@ -22,6 +22,7 @@ import { useId } from "react";
 
 const KIND_LABELS: Record<InteractiveBeatKind, string> = {
   CONCEPT_REVEAL: "Concept",
+  CONTENT_BLOCK: "Lesson",
   SCENARIO_CHOICE: "Scenario",
   MULTI_SELECT: "Multi-select",
   SORT_ORDER: "Sort",

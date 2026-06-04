@@ -26,6 +26,7 @@ import type { ClientBeat, BeatFeedback } from "@/lib/training-journey/types";
 import { BeatShell } from "./BeatShell";
 import { BeatFeedback as BeatFeedbackPanel } from "./BeatFeedback";
 import { ConceptReveal } from "./ConceptReveal";
+import { ContentBlock } from "./ContentBlock";
 import { ScenarioChoice } from "./ScenarioChoice";
 import { MultiSelect } from "./MultiSelect";
 import { SpotTheMistake } from "./SpotTheMistake";
@@ -103,6 +104,19 @@ export function BeatRenderer({
           beat={beat as ClientBeat & { config: unknown }}
           response={currentResponse as { visitedPanelIds: string[] } | null}
           onResponseChange={onResponseChange as (next: { visitedPanelIds: string[] } | null) => void}
+          readOnly={readOnly}
+        />
+      );
+      break;
+
+    case "CONTENT_BLOCK":
+      body = (
+        <ContentBlock
+          beat={beat as ClientBeat & { config: unknown }}
+          response={currentResponse as { acknowledged: true } | null}
+          onResponseChange={
+            onResponseChange as (next: { acknowledged: true } | null) => void
+          }
           readOnly={readOnly}
         />
       );

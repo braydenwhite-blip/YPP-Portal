@@ -28,17 +28,41 @@ export const M_COMMUNITY_INVOLVEMENT: CurriculumDefinition = {
     outcomeStatement: "Strengthen the YPP community you're joining.",
   },
   journey: {
-    estimatedMinutes: 5,
+    estimatedMinutes: 6,
     strictMode: false,
-    version: 1,
+    version: 2,
   },
   beats: [
+    // -------------------------------------------------------------------------
+    // Beat 1 — CONTENT_BLOCK (unscored) — teaching content, not a game.
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "community/beat-00-why-community",
+      sortOrder: 1,
+      kind: "CONTENT_BLOCK",
+      title: "The community you're joining",
+      prompt:
+        "GOAL 4 is about more than your own classes. Here's the idea — read through, then continue.",
+      scoringWeight: 0,
+      config: {
+        sections: [
+          { id: "s1", heading: "YPP Community Involvement", body: "YPP works because instructors show up for each other — not just for their own classes. GOAL 4 sets the expectation that you contribute to a positive, collaborative culture." },
+          { id: "s2", heading: "What it looks like", body: "Welcome new instructors, share what works, show up to events and trainings, and lift up your peers. Contributing beyond your own classroom is also exactly what growing toward Senior Instructor looks like." },
+        ],
+        correctFeedback: {
+          tone: "noted",
+          headline: "Let's make it concrete.",
+          body: "Small, everyday moves build the culture — and your path forward.",
+        },
+      },
+    },
+
     // -------------------------------------------------------------------------
     // Beat 1 — MULTI_SELECT (scored, 10)
     // -------------------------------------------------------------------------
     {
       sourceKey: "community/beat-01-what-counts",
-      sortOrder: 1,
+      sortOrder: 2,
       kind: "MULTI_SELECT",
       title: "What contributing to YPP culture looks like",
       prompt:
@@ -101,7 +125,7 @@ export const M_COMMUNITY_INVOLVEMENT: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "community/beat-02-group-chat",
-      sortOrder: 2,
+      sortOrder: 3,
       kind: "COMPARE",
       title: "Two instructors, one group chat",
       prompt:
@@ -147,7 +171,7 @@ export const M_COMMUNITY_INVOLVEMENT: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "community/beat-03-beyond-minimum",
-      sortOrder: 3,
+      sortOrder: 4,
       kind: "MULTI_SELECT",
       title: "Beyond the minimum",
       prompt:
@@ -205,7 +229,7 @@ export const M_COMMUNITY_INVOLVEMENT: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "community/beat-04-reflection",
-      sortOrder: 4,
+      sortOrder: 5,
       kind: "REFLECTION",
       title: "Your first contribution",
       prompt:
@@ -233,7 +257,7 @@ export const M_COMMUNITY_INVOLVEMENT: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "community/beat-05-complete",
-      sortOrder: 5,
+      sortOrder: 6,
       kind: "CONCEPT_REVEAL",
       title: "Community Builder",
       prompt: "You just finished GOAL 4 — YPP Community Involvement.",

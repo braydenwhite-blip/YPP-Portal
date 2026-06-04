@@ -1,19 +1,25 @@
 /**
  * Module 2 — Run a Great Session.
  *
- * Per docs/instructor-training-rebuild.md §4 Module 2.
- * Nine beats: opening CONCEPT_REVEAL → two SORT_ORDERs, two SCENARIO_CHOICEs,
- * a FILL_IN_BLANK, a COMPARE, a REFLECTION, and a completion CONCEPT_REVEAL.
+ * GOAL 1 — Curriculum & Class Delivery. The deep classroom-craft module.
+ * Phase 4 deepened it to also teach the design skills a great class is built
+ * on: writing observable learning goals, choosing activity over lecture,
+ * differentiation / age-adaptation, and materials prep — alongside the
+ * original session-arc, pacing, and comprehension-check content.
  * contentKey: "academy_run_session_002".
  *
- * Scoring distribution (70 pts total):
- *   Beat 2  SORT_ORDER      15 (partial credit)
- *   Beat 3  SCENARIO_CHOICE 10
- *   Beat 4  FILL_IN_BLANK   10
- *   Beat 5  COMPARE         10
- *   Beat 6  SORT_ORDER      15 (partial credit)
- *   Beat 7  SCENARIO_CHOICE 10
- *   Pass threshold: 80 % → 56 pts
+ * Thirteen beats. Scoring distribution (105 pts total):
+ *   Beat 2   SORT_ORDER       15 (partial credit) — opening order
+ *   Beat 3   SCENARIO_CHOICE  10 — "I don't get it"
+ *   Beat 4   FILL_IN_BLANK    10 — pacing check
+ *   Beat 5   COMPARE          10 — open vs closed question
+ *   Beat 6   SORT_ORDER       15 (partial credit) — lesson outline
+ *   Beat 7   SCENARIO_CHOICE  10 — class ahead of pace
+ *   Beat 8   COMPARE          10 — learning goals
+ *   Beat 9   SPOT_THE_MISTAKE 10 — activity over lecture
+ *   Beat 10  SCENARIO_CHOICE  10 — differentiation & age-adaptation
+ *   Beat 11  MULTI_SELECT     10 — materials & prep
+ *   Pass threshold: 80 % → 84 pts
  */
 
 import type { CurriculumDefinition } from "./types";
@@ -31,18 +37,42 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     outcomeStatement: "Deliver organized, engaging classes that captivate students.",
   },
   journey: {
-    estimatedMinutes: 8,
+    estimatedMinutes: 13,
     strictMode: false,
-    version: 1,
+    version: 2,
     showCohortIntro: true,
   },
   beats: [
+    // -------------------------------------------------------------------------
+    // Beat 1 — CONTENT_BLOCK (unscored) — teaching content, not a game.
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "run-session/beat-00-what-great-looks-like",
+      sortOrder: 1,
+      kind: "CONTENT_BLOCK",
+      title: "What great delivery looks like",
+      prompt:
+        "GOAL 1 is the core classroom craft. Here's the idea before you practice it — read through, then continue.",
+      scoringWeight: 0,
+      config: {
+        sections: [
+          { id: "s1", heading: "Curriculum & Class Delivery", body: "GOAL 1 is the heart of the job: delivering organized, engaging classes that captivate students using approved curriculum. Great delivery is built before class as much as during it." },
+          { id: "s2", heading: "The four jobs of a session", body: "Strong sessions open with purpose, teach through activity rather than lecture, check for understanding, and close so the learning sticks. You'll practice each of these — plus the design work behind them: clear learning goals, differentiation and age-adaptation, and materials prep." },
+        ],
+        correctFeedback: {
+          tone: "noted",
+          headline: "Now let's practice it.",
+          body: "Keep the four jobs in mind as you work through the activities ahead.",
+        },
+      },
+    },
+
     // -------------------------------------------------------------------------
     // Beat 1 — CONCEPT_REVEAL (unscored)
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-01-session-shape",
-      sortOrder: 1,
+      sortOrder: 2,
       kind: "CONCEPT_REVEAL",
       title: "The shape of a strong session",
       prompt:
@@ -84,7 +114,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-02-opening-order",
-      sortOrder: 2,
+      sortOrder: 3,
       kind: "SORT_ORDER",
       title: "Order the opening-minutes activities",
       prompt:
@@ -128,7 +158,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-03-i-dont-get-it",
-      sortOrder: 3,
+      sortOrder: 4,
       kind: "SCENARIO_CHOICE",
       title: "Mid-session: 'I don't get it.'",
       prompt:
@@ -217,7 +247,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-04-pacing-check",
-      sortOrder: 4,
+      sortOrder: 5,
       kind: "FILL_IN_BLANK",
       title: "A good pacing check asks ______.",
       prompt:
@@ -265,7 +295,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-05-compare-questions",
-      sortOrder: 5,
+      sortOrder: 6,
       kind: "COMPARE",
       title: "Which teacher question is stronger?",
       prompt:
@@ -311,7 +341,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-06-lesson-outline-order",
-      sortOrder: 6,
+      sortOrder: 7,
       kind: "SORT_ORDER",
       title: "Rebuild the lesson outline",
       prompt:
@@ -355,7 +385,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-07-class-ahead-of-pace",
-      sortOrder: 7,
+      sortOrder: 8,
       kind: "SCENARIO_CHOICE",
       title: "Class is 15 minutes ahead of pace",
       prompt:
@@ -436,11 +466,260 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     },
 
     // -------------------------------------------------------------------------
-    // Beat 8 — REFLECTION (unscored)
+    // Beat 8 — COMPARE (scored, 10)  [Phase 4: learning goals]
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "run-session/beat-08-learning-goal",
+      sortOrder: 9,
+      kind: "COMPARE",
+      title: "Which learning goal is stronger?",
+      prompt:
+        "Before you plan a session, you name what students will be able to do by the end. Two instructors write the goal for the same fractions lesson. Which goal is stronger?",
+      scoringWeight: 10,
+      scoringRule: "exact",
+      config: {
+        optionA: {
+          id: "A",
+          label: "Goal A",
+          body: "Students will understand fractions better.",
+        },
+        optionB: {
+          id: "B",
+          label: "Goal B",
+          body: "By the end, students can convert an improper fraction to a mixed number and solve three on their own.",
+        },
+        correctOptionId: "B",
+        correctFeedback: {
+          tone: "correct",
+          headline: "Specific and observable wins.",
+          body: "Goal B names exactly what students will do and how you'll know they did it. A goal you can check tells you whether the session worked; 'understand better' can't be seen or measured.",
+        },
+        incorrectFeedback: {
+          A: {
+            tone: "incorrect",
+            headline: "'Understand' can't be observed.",
+            body: "You can't see understanding directly — only what students can do. A strong goal names a concrete action ('convert', 'solve', 'explain') so you and the student know when it's reached.",
+            hint: "Which goal could you actually check by the end of class?",
+          },
+          default: {
+            tone: "incorrect",
+            headline: "Look for the observable goal.",
+            body: "A strong learning goal names a specific thing students can do by the end — something you can watch them do.",
+            hint: "Pick the goal with a concrete, checkable action.",
+          },
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // Beat 9 — SPOT_THE_MISTAKE (scored, 10)  [Phase 4: activity over lecture]
+    //
+    // Passage offsets verified by indexOf (passage length 267):
+    //   "five minutes reviewing last week's homework with the class" → 30..88
+    //   "talk through all six new vocabulary words for thirty minutes
+    //    while students listen and copy down notes"                  → 102..204
+    //   "a quick recap of everything I covered"                      → 229..266
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "run-session/beat-09-lecture-vs-activity",
+      sortOrder: 10,
+      kind: "SPOT_THE_MISTAKE",
+      title: "Spot the weak point in this plan",
+      prompt:
+        "An instructor sketches their session plan. Most of it is fine — but one stretch will lose the room. Click the part that's the problem.",
+      scoringWeight: 10,
+      scoringRule: "exact",
+      config: {
+        passage:
+          "Here is my plan: I will spend five minutes reviewing last week's homework with the class. Then I will talk through all six new vocabulary words for thirty minutes while students listen and copy down notes. At the end I will give a quick recap of everything I covered.",
+        targets: [
+          {
+            id: "opening-review",
+            start: 30,
+            end: 88,
+            label: "five minutes reviewing last week's homework with the class",
+          },
+          {
+            id: "lecture-block",
+            start: 102,
+            end: 204,
+            label:
+              "talk through all six new vocabulary words for thirty minutes while students listen and copy down notes",
+          },
+          {
+            id: "weak-recap",
+            start: 229,
+            end: 266,
+            label: "a quick recap of everything I covered",
+          },
+        ],
+        correctTargetId: "lecture-block",
+        correctFeedback: {
+          tone: "correct",
+          headline: "Thirty minutes of listening loses them.",
+          body: "No one learns vocabulary by watching someone talk for half an hour. Break it up: introduce two or three words, have students use them in a sentence or a quick task, then continue. Activity beats lecture every time.",
+        },
+        incorrectFeedback: {
+          "opening-review": {
+            tone: "incorrect",
+            headline: "The opening is fine.",
+            body: "A short homework review anchors the class to prior work — that's a solid way to open.",
+            hint: "Find the stretch where students do nothing but listen for a long time.",
+          },
+          "weak-recap": {
+            tone: "incorrect",
+            headline: "The recap is weak, but not the main problem.",
+            body: "'What I covered' would be stronger as 'what you can now do' — but the bigger issue is the long passive stretch before it.",
+            hint: "Look for the longest block where students aren't doing anything.",
+          },
+          default: {
+            tone: "incorrect",
+            headline: "Look for the passive stretch.",
+            body: "One part of this plan asks students to sit and listen for a long time with nothing to do. That's where you'll lose them.",
+            hint: "Activity over lecture — find the long lecture.",
+          },
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // Beat 10 — SCENARIO_CHOICE (scored, 10)  [Phase 4: differentiation & age-adaptation]
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "run-session/beat-10-differentiation",
+      sortOrder: 11,
+      kind: "SCENARIO_CHOICE",
+      title: "One class, very different students",
+      prompt:
+        "Your class has Tasha, who races ahead and gets bored, plus Maya and Priya, who need more time and a gentler pace. You're teaching one new skill to all of them. What's your move?",
+      scoringWeight: 10,
+      scoringRule: "exact",
+      config: {
+        options: [
+          {
+            id: "teach-middle",
+            label: "Teach to the middle and hope the others keep up or slow down on their own.",
+          },
+          {
+            id: "teach-fast",
+            label: "Teach at Tasha's pace so no one is bored; the rest can catch up at home.",
+          },
+          {
+            id: "teach-slow",
+            label: "Slow everything to Maya and Priya's pace so no one is ever lost.",
+          },
+          {
+            id: "tiered",
+            label:
+              "Give one core task everyone does, a harder extension for those ready, and a scaffold or hint for those who need it.",
+          },
+        ],
+        correctOptionId: "tiered",
+        correctFeedback: {
+          tone: "correct",
+          headline: "That's differentiation.",
+          body: "One shared goal, different on-ramps. Tasha gets a stretch, Maya and Priya get a scaffold, and everyone works on the same skill. Adapting the task — and your language — to who's in the room is the job.",
+          mentorAside: "Watch the whole room move.",
+          roomDelta: { engagement: 2, clarity: 1 },
+        },
+        incorrectFeedback: {
+          "teach-middle": {
+            tone: "incorrect",
+            headline: "The middle leaves the edges behind.",
+            body: "Teaching to an imaginary average bores your fastest student and loses your slowest. Give the same goal with different levels of support.",
+            hint: "How could everyone work on one skill at their own level?",
+          },
+          "teach-fast": {
+            tone: "incorrect",
+            headline: "Pace for the fastest, lose the rest.",
+            body: "Maya and Priya can't catch up at home on a skill they never got to start in class. Stretch Tasha with an extension — don't leave the others behind.",
+            hint: "Don't trade the room for one student.",
+          },
+          "teach-slow": {
+            tone: "incorrect",
+            headline: "All-slow disengages the ready students.",
+            body: "Pacing everything to the least confident student means Tasha checks out. Support the students who need it without holding the others back.",
+            hint: "Scaffold the ones who need it; extend the ones who don't.",
+          },
+          default: {
+            tone: "incorrect",
+            headline: "Same goal, different support.",
+            body: "Keep one learning goal but vary the task — a stretch for the ready, a scaffold for those who need it.",
+            hint: "Differentiate the task, not the goal.",
+          },
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // Beat 11 — MULTI_SELECT (scored, 10)  [Phase 4: materials & prep]
+    // -------------------------------------------------------------------------
+    {
+      sourceKey: "run-session/beat-11-materials-prep",
+      sortOrder: 12,
+      kind: "MULTI_SELECT",
+      title: "Before class starts",
+      prompt:
+        "Coming prepared is part of delivering a great class. Select what you should have done before students arrive.",
+      scoringWeight: 10,
+      scoringRule: "threshold",
+      config: {
+        scoringMode: "threshold",
+        minimumCorrect: 3,
+        options: [
+          {
+            id: "test-links",
+            label: "Open and test your slides, activity links, and any tools the night before.",
+            correct: true,
+          },
+          {
+            id: "prep-problems",
+            label: "Prepare the specific problems and examples you'll use — with the answers worked out.",
+            correct: true,
+          },
+          {
+            id: "backup-activity",
+            label: "Have a backup activity ready in case tech fails or you finish early.",
+            correct: true,
+          },
+          {
+            id: "restate-goal",
+            label: "Re-read the lesson goal so you can state it in one sentence.",
+            correct: true,
+          },
+          {
+            id: "wing-examples",
+            label: "Plan to search for an example online mid-class if you end up needing one.",
+            correct: false,
+          },
+          {
+            id: "skim-last-minute",
+            label: "Skim the topic for five minutes right before class, since you know the subject.",
+            correct: false,
+          },
+        ],
+        correctFeedback: {
+          tone: "correct",
+          headline: "That's prepared.",
+          body: "Tested materials, worked examples, a backup, and a one-sentence goal mean class starts on time and runs smoothly. Winging examples and last-minute skims are how sessions stall.",
+        },
+        incorrectFeedback: {
+          default: {
+            tone: "incorrect",
+            headline: "Prep happens before class, not during.",
+            body: "Searching for examples mid-class and skimming at the last minute cost you the room's attention. Test your materials, work your examples, and have a backup ready ahead of time.",
+            hint: "Pick the four things you finish before students arrive.",
+          },
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // Beat 12 — REFLECTION (unscored)
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-08-reflection",
-      sortOrder: 8,
+      sortOrder: 13,
       kind: "REFLECTION",
       title: "Plan your first 10 minutes",
       prompt:
@@ -464,11 +743,11 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     },
 
     // -------------------------------------------------------------------------
-    // Beat 9 — CONCEPT_REVEAL (unscored, completion trigger)
+    // Beat 13 — CONCEPT_REVEAL (unscored, completion trigger)
     // -------------------------------------------------------------------------
     {
       sourceKey: "run-session/beat-09-complete",
-      sortOrder: 9,
+      sortOrder: 14,
       kind: "CONCEPT_REVEAL",
       title: "Session Ace",
       prompt: "You just finished GOAL 1 — Curriculum & Class Delivery.",
