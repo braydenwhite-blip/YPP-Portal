@@ -11,6 +11,7 @@ import { loadCommandCenter } from "@/lib/people-strategy/command-center";
 import { isCpoOrBoard } from "@/lib/people-strategy/action-permissions";
 import { MOMENTUM_META } from "@/lib/people-strategy/momentum";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { Pill, PriorityPill } from "@/components/people-strategy/pills";
 import {
   FollowUpGenerator,
@@ -99,24 +100,19 @@ export default async function CommandCenterPage() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 1100 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <p className="badge">People Strategy · Leadership</p>
-          <h1 className="page-title" style={{ marginTop: 8 }}>
-            Command Center
-          </h1>
-          <p className="page-subtitle">
-            What matters this week — who owns what, what&apos;s slipping, and who needs support.
-          </p>
-          <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-            Week of {formatMonthDay(data.weekStart)} · based on {data.consideredCount}{" "}
-            {data.consideredCount === 1 ? "action" : "actions"} you can see
-          </p>
-        </div>
-        <Link href="/admin/actions/new" className="button small">
-          + New Action
-        </Link>
-      </div>
+      <ActionCommandBar
+        eyebrow="People Strategy · Leadership"
+        title="Command Center"
+        subtitle="What matters this week — who owns what, what's slipping, and who needs support."
+        meta={`Week of ${formatMonthDay(data.weekStart)} · based on ${data.consideredCount} ${
+          data.consideredCount === 1 ? "action" : "actions"
+        } you can see`}
+        actions={
+          <Link href="/admin/actions/new" className="button small">
+            + New Action
+          </Link>
+        }
+      />
 
       <ActionTrackerTabs active="command" showPeople={showPeople} />
 

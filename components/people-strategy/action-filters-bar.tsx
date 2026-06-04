@@ -57,22 +57,11 @@ export function ActionFiltersBar({
     pushParam(ACTION_FILTER_PARAM_KEYS.search, search.trim());
   }
 
-  const controlStyle: React.CSSProperties = { fontSize: 13, minWidth: 150 };
-
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        marginTop: 16,
-        flexWrap: "wrap",
-        alignItems: "center",
-      }}
-    >
+    <div className="ps-filter-bar">
       <select
-        className="input"
+        className="ps-filter"
         aria-label="Filter by department"
-        style={controlStyle}
         value={filters.department}
         onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.department, e.target.value)}
       >
@@ -85,9 +74,8 @@ export function ActionFiltersBar({
       </select>
 
       <select
-        className="input"
+        className="ps-filter"
         aria-label="Filter by status"
-        style={controlStyle}
         value={filters.status}
         onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.status, e.target.value)}
       >
@@ -100,9 +88,8 @@ export function ActionFiltersBar({
       </select>
 
       <select
-        className="input"
+        className="ps-filter"
         aria-label="Filter by priority"
-        style={controlStyle}
         value={filters.priority}
         onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.priority, e.target.value)}
       >
@@ -115,9 +102,8 @@ export function ActionFiltersBar({
       </select>
 
       <select
-        className="input"
+        className="ps-filter"
         aria-label="Filter by visibility"
-        style={controlStyle}
         value={filters.visibility}
         onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.visibility, e.target.value)}
       >
@@ -130,9 +116,8 @@ export function ActionFiltersBar({
       </select>
 
       <select
-        className="input"
+        className="ps-filter"
         aria-label="Sort by deadline"
-        style={controlStyle}
         value={filters.sort}
         onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.sort, e.target.value)}
       >
@@ -141,15 +126,14 @@ export function ActionFiltersBar({
         <option value="priority_desc">Priority (highest)</option>
       </select>
 
-      <form onSubmit={submitSearch} style={{ display: "flex", gap: 6, flex: "1 1 200px" }}>
+      <form onSubmit={submitSearch} className="ps-filter-search">
         <input
-          className="input"
+          className="ps-filter"
           type="search"
           placeholder="Search actions…"
           aria-label="Search actions"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, fontSize: 13 }}
         />
         <button type="submit" className="button outline small">
           Search

@@ -35,6 +35,7 @@ import {
 } from "@/components/people-strategy/action-analytics-cards";
 import { listSavedActionViews } from "@/lib/people-strategy/saved-views";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { Pill, PriorityPill, StatusPill } from "@/components/people-strategy/pills";
 import { SavedViewsBar } from "@/components/people-strategy/saved-views-bar";
 
@@ -188,38 +189,31 @@ export default async function AllActionsPage({
 
   const filtersActive = hasActiveFilters(filters);
   const showPeopleDashboardTab = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
+  const lastUpdated = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+    day: "numeric",
+  }).format(now);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
-      {/* Header */}
-      <div
-        className="topbar"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <p className="badge">Admin · People Strategy</p>
-          <h1 className="page-title" style={{ marginTop: 8 }}>
-            Action Tracker
-          </h1>
-          <p className="page-subtitle">
-            Every leadership action item, grouped by department — leads, executors, and input owners at a glance.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <a href={exportHref} className="button outline small">
-            Export CSV
-          </a>
-          <Link href="/admin/actions/new" className="button small">
-            + New Action
-          </Link>
-        </div>
-      </div>
+      <ActionCommandBar
+        eyebrow="Admin · People Strategy"
+        title="Action Tracker"
+        subtitle="Every leadership action item, grouped by department — leads, executors, and input owners at a glance."
+        meta={`${items.length} ${items.length === 1 ? "action" : "actions"} in view · updated ${lastUpdated}`}
+        actions={
+          <>
+            <a href={exportHref} className="button outline small">
+              Export CSV
+            </a>
+            <Link href="/admin/actions/new" className="button small">
+              + New Action
+            </Link>
+          </>
+        }
+      />
 
       <ActionTrackerTabs active="all" showPeople={showPeopleDashboardTab} />
 
