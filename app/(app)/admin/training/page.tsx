@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { getInstructorReadinessMany } from "@/lib/instructor-readiness";
+import { classifyLearnerTriage } from "@/lib/training-triage";
 import TrainingManager from "./training-manager";
 
 export default async function AdminTrainingPage() {
@@ -162,6 +164,14 @@ export default async function AdminTrainingPage() {
 
     const requiredModuleCount = modules.filter((m) => m.required).length;
 
+    // Readiness drives the instructor triage lanes (Passed = academy + Studio
+    // capstone approved; Awaiting Studio review = capstone submitted, not yet
+    // approved). Students have no capstone, so they're triaged from module
+    // completion alone.
+    const readinessByInstructor = await getInstructorReadinessMany(
+      instructors.map((i) => i.id)
+    );
+
     function buildLearnerRows(
       learners: typeof instructors,
       audience: "INSTRUCTOR" | "STUDENT"
@@ -199,6 +209,15 @@ export default async function AdminTrainingPage() {
           .filter((d): d is string => d !== null)
           .sort()
           .pop() ?? null;
+        const readiness =
+          audience === "INSTRUCTOR" ? readinessByInstructor.get(learner.id) : undefined;
+        const triage = classifyLearnerTriage({
+          requiredComplete,
+          requiredModulesCount: requiredModules.length,
+          lastActivity,
+          trainingComplete: readiness?.trainingComplete,
+          studioCapstoneInReview: readiness?.studioCapstoneInReview,
+        });
         return {
           audience,
           userId: learner.id,
@@ -211,6 +230,7 @@ export default async function AdminTrainingPage() {
               ? Math.round((requiredComplete / requiredModules.length) * 100)
               : 0,
           lastActivity,
+          triage,
           modules: perModule,
         };
       });

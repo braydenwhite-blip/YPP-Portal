@@ -1,6 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {
+  TRIAGE_ACCENT,
+  TRIAGE_BUCKETS,
+  TRIAGE_LABEL,
+  type TriageBucket,
+} from "@/lib/training-triage";
 
 export type LearnerModuleProgress = {
   moduleId: string;
@@ -26,10 +32,12 @@ export type LearnerProgressRow = {
   requiredComplete: number;
   completePct: number;
   lastActivity: string | null;
+  triage: TriageBucket;
   modules: LearnerModuleProgress[];
 };
 
 type Audience = "ALL" | "INSTRUCTOR" | "STUDENT";
+type TriageFilter = "ALL" | TriageBucket;
 type SortKey = "name" | "progress" | "activity";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -63,14 +71,33 @@ export default function LearnerProgressView({
   requiredModuleCount: number;
 }) {
   const [audience, setAudience] = useState<Audience>("INSTRUCTOR");
+  const [triageFilter, setTriageFilter] = useState<TriageFilter>("ALL");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("progress");
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+
+  // Triage counts across the current audience (independent of the active
+  // triage filter so the lane chips always show the full breakdown).
+  const triageCounts = useMemo(() => {
+    const counts: Record<TriageBucket, number> = {
+      NOT_STARTED: 0,
+      IN_PROGRESS: 0,
+      STUCK: 0,
+      AWAITING_STUDIO: 0,
+      PASSED: 0,
+    };
+    for (const row of rows) {
+      if (audience !== "ALL" && row.audience !== audience) continue;
+      counts[row.triage] += 1;
+    }
+    return counts;
+  }, [rows, audience]);
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return rows
       .filter((row) => audience === "ALL" || row.audience === audience)
+      .filter((row) => triageFilter === "ALL" || row.triage === triageFilter)
       .filter((row) => {
         if (!needle) return true;
         return (
@@ -89,7 +116,7 @@ export default function LearnerProgressView({
         if (a.completePct !== b.completePct) return a.completePct - b.completePct;
         return a.userName.localeCompare(b.userName);
       });
-  }, [rows, audience, search, sortBy]);
+  }, [rows, audience, triageFilter, search, sortBy]);
 
   const summary = useMemo(() => {
     const total = filtered.length;
@@ -180,6 +207,40 @@ export default function LearnerProgressView({
             <div className="kpi-label">Not started</div>
           </div>
         </div>
+
+        {/* Cohort triage lanes — click to filter to a single bucket */}
+        <div
+          style={{
+            marginTop: 12,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>Triage:</span>
+          <button
+            type="button"
+            onClick={() => setTriageFilter("ALL")}
+            className={`admin-training-tab ${triageFilter === "ALL" ? "active" : ""}`}
+          >
+            All lanes
+          </button>
+          {TRIAGE_BUCKETS.map((bucket) => (
+            <button
+              key={bucket}
+              type="button"
+              onClick={() => setTriageFilter(bucket)}
+              className={`admin-training-tab ${triageFilter === bucket ? "active" : ""}`}
+              style={{ borderColor: TRIAGE_ACCENT[bucket] }}
+            >
+              <span style={{ color: TRIAGE_ACCENT[bucket], fontWeight: 700 }}>
+                {triageCounts[bucket]}
+              </span>{" "}
+              {TRIAGE_LABEL[bucket]}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Empty state */}
@@ -195,7 +256,6 @@ export default function LearnerProgressView({
       <div style={{ display: "grid", gap: 10 }}>
         {filtered.map((row) => {
           const isExpanded = expandedUserId === row.userId;
-          const stalled = row.requiredComplete === 0 && row.requiredModulesCount > 0;
           return (
             <div key={row.userId} className="card" style={{ padding: 0, overflow: "hidden" }}>
               <button
@@ -265,11 +325,23 @@ export default function LearnerProgressView({
                 </div>
 
                 <div style={{ fontSize: 12, color: "var(--muted)", textAlign: "right" }}>
-                  {stalled ? (
-                    <span className="pill pill-small pill-declined">Stalled</span>
-                  ) : (
-                    <>Last: {formatDate(row.lastActivity)}</>
-                  )}
+                  <span
+                    style={{
+                      display: "inline-block",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                      border: `1px solid ${TRIAGE_ACCENT[row.triage]}`,
+                      color: TRIAGE_ACCENT[row.triage],
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {TRIAGE_LABEL[row.triage]}
+                  </span>
+                  <p style={{ margin: "4px 0 0", fontSize: 11 }}>
+                    Last: {formatDate(row.lastActivity)}
+                  </p>
                 </div>
 
                 <div style={{ fontSize: 16, color: "var(--muted)", textAlign: "right" }}>

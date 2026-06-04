@@ -8,8 +8,10 @@ import {
 } from "@/lib/offering-approval-actions";
 import { reviewTrainingEvidence } from "@/lib/training-actions";
 import { getInstructorReadinessMany } from "@/lib/instructor-readiness";
+import { getTrainingEvidenceMany } from "@/lib/training-evidence";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import { getDraftIdFromEvidenceUrl } from "@/lib/training-constants";
+import TrainingEvidenceCard from "@/components/training/training-evidence-card";
 
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "-";
@@ -183,6 +185,9 @@ export default async function ChapterLeadInstructorReadinessPage() {
     ]);
 
   const readinessByInstructor = await getInstructorReadinessMany(
+    instructors.map((instructor) => instructor.id)
+  );
+  const evidenceByInstructor = await getTrainingEvidenceMany(
     instructors.map((instructor) => instructor.id)
   );
   const approvalQueueByInstructor = new Map(
@@ -528,6 +533,10 @@ export default async function ChapterLeadInstructorReadinessPage() {
                     ? `Next reviewer action: ${nextApproval.offering.title} is ${nextApproval.status.replace(/_/g, " ").toLowerCase()} (${formatDate(nextApproval.requestedAt)})`
                     : `Next reviewer action: ${readiness?.missingRequirements[0]?.title || "No reviewer action queued"}`}
                 </p>
+
+                {evidenceByInstructor.get(instructor.id) ? (
+                  <TrainingEvidenceCard evidence={evidenceByInstructor.get(instructor.id)!} />
+                ) : null}
               </div>
             );
           })}
