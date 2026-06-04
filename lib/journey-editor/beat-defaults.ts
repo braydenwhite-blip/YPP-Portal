@@ -1,9 +1,8 @@
 /**
- * Default configs for each `InteractiveBeatKind` supported by the
- * editor's "Add beat" dropdown. Only the kinds that have a dedicated
- * editor pane (Commit 8) are listed here. The other kinds in the
- * `InteractiveBeatKind` enum remain authorable via the TypeScript
- * curriculum sources until their editors land.
+ * Default configs for each `InteractiveBeatKind` offered by the editor's
+ * "Add beat" dropdown. Every kind now has a dedicated visual editor pane
+ * (see `app/(app)/admin/journeys/[id]/beat-config-form.tsx`), so the dropdown
+ * exposes the full kind set.
  *
  * Every default below parses against `BEAT_CONFIG_SCHEMAS[kind]` —
  * tested in tests/lib/journey-editor-beat-defaults.test.ts.
@@ -16,6 +15,15 @@ export const EDITOR_SUPPORTED_KINDS = [
   "SORT_ORDER",
   "FILL_IN_BLANK",
   "MATCH_PAIRS",
+  "CONCEPT_REVEAL",
+  "CONTENT_BLOCK",
+  "SCENARIO_CHOICE",
+  "MULTI_SELECT",
+  "SPOT_THE_MISTAKE",
+  "BRANCHING_SCENARIO",
+  "COMPARE",
+  "HOTSPOT",
+  "MESSAGE_COMPOSER",
 ] as const satisfies readonly InteractiveBeatKind[];
 
 export type EditorSupportedKind = (typeof EDITOR_SUPPORTED_KINDS)[number];
@@ -30,6 +38,12 @@ const FB_INCORRECT = {
   tone: "incorrect",
   headline: "Take another pass",
   body: "Not quite — review the prompt and try again.",
+};
+
+const FB_NOTED = {
+  tone: "noted",
+  headline: "Got it",
+  body: "Keep that in mind as you go.",
 };
 
 interface BeatDefault {
@@ -98,6 +112,133 @@ export const BEAT_DEFAULTS: Record<EditorSupportedKind, BeatDefault> = {
         { leftId: "l3", rightId: "r3" },
       ],
       partialCredit: true,
+      correctFeedback: FB_CORRECT,
+      incorrectFeedback: { default: FB_INCORRECT },
+    },
+  },
+  CONCEPT_REVEAL: {
+    title: "Reveal the concept",
+    prompt: "Tap through each panel.",
+    scoringWeight: 0,
+    config: {
+      panels: [
+        { id: "p1", title: "First idea", body: "Explain the first idea here." },
+        { id: "p2", title: "Second idea", body: "Explain the second idea here." },
+      ],
+      correctFeedback: FB_NOTED,
+    },
+  },
+  CONTENT_BLOCK: {
+    title: "Read this",
+    prompt: "Read the section, then continue.",
+    scoringWeight: 0,
+    config: {
+      sections: [{ id: "s1", body: "Teaching content goes here." }],
+      correctFeedback: FB_NOTED,
+    },
+  },
+  SCENARIO_CHOICE: {
+    title: "What would you do?",
+    prompt: "Pick the best response.",
+    scoringWeight: 10,
+    config: {
+      options: [
+        { id: "o1", label: "First option" },
+        { id: "o2", label: "Second option" },
+        { id: "o3", label: "Third option" },
+      ],
+      correctOptionId: "o1",
+      correctFeedback: FB_CORRECT,
+      incorrectFeedback: { default: FB_INCORRECT },
+    },
+  },
+  MULTI_SELECT: {
+    title: "Select all that apply",
+    prompt: "Choose every correct answer.",
+    scoringWeight: 10,
+    config: {
+      options: [
+        { id: "o1", label: "First option", correct: true },
+        { id: "o2", label: "Second option", correct: true },
+        { id: "o3", label: "Third option", correct: false },
+        { id: "o4", label: "Fourth option", correct: false },
+      ],
+      scoringMode: "all-or-nothing",
+      correctFeedback: FB_CORRECT,
+      incorrectFeedback: { default: FB_INCORRECT },
+    },
+  },
+  SPOT_THE_MISTAKE: {
+    title: "Spot the mistake",
+    prompt: "Click the phrase that is wrong.",
+    scoringWeight: 10,
+    config: {
+      passage: "The instructor ignored the quiet student.",
+      targets: [{ id: "t1", start: 15, end: 22, label: "ignored" }],
+      correctTargetId: "t1",
+      correctFeedback: FB_CORRECT,
+      incorrectFeedback: { default: FB_INCORRECT },
+    },
+  },
+  BRANCHING_SCENARIO: {
+    title: "Choose your path",
+    prompt: "Decide how to respond.",
+    scoringWeight: 10,
+    config: {
+      rootPrompt: "A student is upset. What do you do?",
+      options: [
+        { id: "o1", label: "Acknowledge their feelings", leadsToChildSourceKey: null },
+        { id: "o2", label: "Move on with the lesson", leadsToChildSourceKey: null },
+      ],
+      correctOptionId: null,
+      correctFeedback: FB_CORRECT,
+      incorrectFeedback: { default: FB_INCORRECT },
+    },
+  },
+  COMPARE: {
+    title: "Compare the two",
+    prompt: "Which is the stronger choice?",
+    scoringWeight: 10,
+    config: {
+      optionA: { id: "A", label: "Option A", body: "Describe option A." },
+      optionB: { id: "B", label: "Option B", body: "Describe option B." },
+      correctOptionId: "A",
+      correctFeedback: FB_CORRECT,
+      incorrectFeedback: { default: FB_INCORRECT },
+    },
+  },
+  HOTSPOT: {
+    title: "Find it",
+    prompt: "Click the right spot.",
+    scoringWeight: 10,
+    config: {
+      imageUrl: "https://placehold.co/600x400",
+      regions: [
+        { id: "rg1", label: "Region 1", shape: "rect", x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+      ],
+      correctRegionId: "rg1",
+      correctFeedback: FB_CORRECT,
+      incorrectFeedback: { default: FB_INCORRECT },
+    },
+  },
+  MESSAGE_COMPOSER: {
+    title: "Compose a message",
+    prompt: "Build a message from the snippets.",
+    scoringWeight: 10,
+    config: {
+      snippetPools: [
+        {
+          poolId: "pool1",
+          label: "Opening",
+          minSelections: 1,
+          maxSelections: 1,
+          snippets: [
+            { id: "sn1", label: "Warm greeting", tags: ["warm"] },
+            { id: "sn2", label: "Abrupt greeting", tags: ["dismissive"] },
+          ],
+        },
+      ],
+      rubric: { requiredTags: ["warm"], bannedTags: ["dismissive"] },
       correctFeedback: FB_CORRECT,
       incorrectFeedback: { default: FB_INCORRECT },
     },

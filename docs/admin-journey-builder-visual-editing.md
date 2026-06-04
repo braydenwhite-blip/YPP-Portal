@@ -7,22 +7,38 @@ sort/match steps, and feedback copy — through forms, **without touching JSON**
 
 ## What shipped
 
-1. **Structured, JSON-free beat editor.** The "Edit beat" modal now renders
-   kind-specific form fields instead of a raw JSON textarea for the four
-   editor-supported beat kinds: `REFLECTION`, `SORT_ORDER`, `FILL_IN_BLANK`,
-   `MATCH_PAIRS`.
-   - Reflection: prompt, min/max length, acknowledgement message.
-   - Sort order: add/remove/reorder steps (arranged in their *correct* order;
-     the runtime shuffles for the learner), partial-credit toggle, correct &
-     incorrect feedback.
-   - Fill in the blank: prompt, multiple accepted answers (add/remove),
-     case-sensitivity, optional hint, correct & incorrect feedback.
-   - Match pairs: add/remove matching pairs (left → right), partial-credit
-     toggle, optional hint, correct & incorrect feedback.
-   - **Advanced (JSON)** escape hatch is one click away and is the default for
-     beat kinds that don't have a visual editor yet.
+1. **Structured, JSON-free beat editor for ALL 13 beat kinds.** The "Edit beat"
+   modal renders kind-specific form fields instead of a raw JSON textarea for
+   every `InteractiveBeatKind`:
+   - **Reflection:** prompt, min/max length, acknowledgement message.
+   - **Sort order:** add/remove/reorder steps (arranged in their *correct* order;
+     the runtime shuffles for the learner), partial-credit toggle, feedback.
+   - **Fill in the blank:** prompt, multiple accepted answers (add/remove),
+     case-sensitivity, optional hint, feedback.
+   - **Match pairs:** add/remove matching pairs (left → right), partial-credit
+     toggle, optional hint, feedback.
+   - **Concept reveal:** add/remove/reorder reveal panels (title + body).
+   - **Content block:** add/remove/reorder reading sections (optional heading +
+     body), optional supporting image (URL/alt/caption), takeaway.
+   - **Scenario choice:** add/remove options, mark the one correct option
+     (radio), feedback.
+   - **Multi-select:** add/remove options, tick every correct option, scoring
+     mode (all-or-nothing / threshold + minimum), feedback.
+   - **Spot the mistake:** passage + clickable phrases entered as text (character
+     offsets computed automatically), mark the mistake, hint, feedback.
+   - **Branching scenario:** root prompt, options with optional "leads to beat
+     sourceKey", no-wrong-answer toggle or marked correct option, feedback.
+   - **Compare:** two options (label + body), mark the stronger (A/B), optional
+     required rationale tag, feedback.
+   - **Hotspot:** image URL with a live preview, regions defined as percentages
+     (with overlay boxes), mark the correct region, hint, feedback.
+   - **Message composer:** snippet pools (label, min/max selections, snippets
+     with comma-separated tags) plus required/banned rubric tags, feedback.
+   - **Advanced (JSON)** escape hatch remains one click away for every kind.
    - **Unsaved-changes guard:** closing the modal with edits prompts for
      confirmation.
+   - Admins can also **add** any of the 13 kinds from the Beats tab with
+     schema-valid starter defaults (`EDITOR_SUPPORTED_KINDS` / `BEAT_DEFAULTS`).
 
 2. **Lossless + schema-safe.** Saving converts the form back into a config
    object that is re-validated by `updateDraftBeat()` against the same Zod
@@ -82,13 +98,18 @@ instructors see.
   legacy journeys require removing the legacy `@@unique([journeyId, sourceKey])`
   constraint and cloning beats per version (the deferred "resolver bridge").
   Journeys authored entirely in the editor are unaffected.
-- **Visual editors exist for 4 of the 13 beat kinds.** The rest
-  (`CONCEPT_REVEAL`, `CONTENT_BLOCK`, `SCENARIO_CHOICE`, `MULTI_SELECT`,
-  `SPOT_THE_MISTAKE`, `HOTSPOT`, `BRANCHING_SCENARIO`, `COMPARE`,
-  `MESSAGE_COMPOSER`) remain editable via the Advanced (JSON) panel until their
-  form panes land. Add a new kind by extending `STRUCTURED_BEAT_KINDS` +
-  `beat-config-forms.ts` + `beat-config-form.tsx`, and (to allow *adding* it)
-  `EDITOR_SUPPORTED_KINDS` in `lib/journey-editor/beat-defaults.ts`.
+- **All 13 beat kinds now have a visual editor.** No kind requires the JSON
+  fallback for editing. The Advanced (JSON) panel is retained as an optional
+  power-user escape hatch. To add a future kind, extend `STRUCTURED_BEAT_KINDS`
+  + `beat-config-forms.ts` + the `beat-config-form.tsx` switch, and (to allow
+  *adding* it) `EDITOR_SUPPORTED_KINDS` / `BEAT_DEFAULTS` in
+  `lib/journey-editor/beat-defaults.ts`.
+- **A few advanced sub-fields stay on a friendly-but-simplified surface:**
+  `HOTSPOT` regions are edited as numeric percentages (not drag-on-image),
+  `SPOT_THE_MISTAKE` targets are entered as phrases (offsets computed via the
+  first match in the passage), and `MESSAGE_COMPOSER` tags use comma-separated
+  inputs. Per-option `incorrectFeedback` overrides beyond the `default` entry
+  are preserved on save but edited via the Advanced (JSON) panel.
 - **Assignments tab** is still a placeholder (`setAssignments` action + UI is
   the next editor gap).
 - **Module-level metadata** (title/intro/estimated time) for legacy modules is

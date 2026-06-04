@@ -14797,3 +14797,91 @@ a.mentor-panel__row:focus-visible {
     display: none;
   }
 }
+
+/* --- Journey editor: added structured-form building blocks --- */
+.beat-config-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+}
+
+.beat-config-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.beat-config-card-head > input {
+  flex: 1;
+}
+
+.beat-config-stack {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Correct-answer radio / checkbox affordance at the start of an option row. */
+.beat-config-correct-pick {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.beat-config-correct-pick input {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+.beat-config-legend-pick {
+  width: auto;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* Hotspot image preview with region overlays. */
+.beat-config-hotspot-preview {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.beat-config-hotspot-preview img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.beat-config-hotspot-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--ypp-purple-500);
+  background: rgba(139, 63, 232, 0.18);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.beat-config-hotspot-box.is-correct {
+  border-color: #1f9d55;
+  background: rgba(31, 157, 85, 0.22);
+}
