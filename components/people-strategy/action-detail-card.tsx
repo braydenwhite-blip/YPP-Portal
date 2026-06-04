@@ -311,7 +311,7 @@ export default function ActionDetailCard({
   function handleFlag() {
     runMutation(async () => {
       await flagActionToCPO(item.id);
-    }, "Flag sent to CPO.");
+    }, "Flag sent to Leadership.");
   }
 
   function handleLink() {
@@ -569,7 +569,7 @@ export default function ActionDetailCard({
         )}
       </Section>
 
-      <Section title="Escalate to CPO">
+      <Section title="Escalate to Leadership">
         <div
           style={{
             border: `1px solid ${item.flaggedAt ? "var(--warning-border)" : "var(--border)"}`,
@@ -586,11 +586,11 @@ export default function ActionDetailCard({
         >
           <span style={{ fontSize: 14, lineHeight: 1.5 }}>
             {item.flaggedAt
-              ? `Flagged to the CPO on ${formatDate(item.flaggedAt)}. Re-flag if the situation has changed.`
-              : "Flag this action when progress is blocked, accountability is unclear, or a CPO decision is needed."}
+              ? `Flagged to Leadership on ${formatDate(item.flaggedAt)}. Re-flag if the situation has changed.`
+              : "Flag this action when progress is blocked, accountability is unclear, or a Leadership decision is needed."}
           </span>
           <button type="button" className="button small" onClick={handleFlag} disabled={pending || !canFlag}>
-            {item.flaggedAt ? "Flag again" : "Flag to CPO"}
+            {item.flaggedAt ? "Flag again" : "Flag to Leadership"}
           </button>
         </div>
       </Section>

@@ -39,8 +39,8 @@ export default async function BoardRollupPage() {
             Board Escalation Roll-up
           </h1>
           <p className="page-subtitle">
-            <strong>Board only.</strong> CPO escalations that have remained
-            unresolved for 7+ days after reaching the CPO, with full history.
+            <strong>Board only.</strong> Leadership escalations that have remained
+            unresolved for 7+ days after reaching Leadership, with full history.
           </p>
         </div>
         <Link

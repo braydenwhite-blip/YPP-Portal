@@ -14,8 +14,39 @@ import type { ActionItemStatus } from "@prisma/client";
  * OVERDUE). The oldest trigger drives both eligibility and the displayed age.
  */
 
-/** 48 hours in milliseconds — the escalation threshold. */
-export const ESCALATION_THRESHOLD_MS = 48 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/** Default first-stage (Leadership) escalation threshold, in hours. */
+export const DEFAULT_ESCALATION_HOURS = 48;
+/** Default Board roll-up threshold, in days past the Leadership escalation. */
+export const DEFAULT_BOARD_ROLLUP_DAYS = 3;
+
+/**
+ * Read a positive numeric env override, falling back to `fallback` when the var
+ * is unset, empty, or not a finite positive number. Lets leadership retune the
+ * escalation cadence without a code change.
+ */
+function envPositiveNumber(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw == null || raw.trim() === "") return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/** First-stage escalation threshold in ms (env: `ACTION_ESCALATION_HOURS`). */
+export function escalationThresholdMs(): number {
+  return envPositiveNumber("ACTION_ESCALATION_HOURS", DEFAULT_ESCALATION_HOURS) * HOUR_MS;
+}
+
+/**
+ * The first-stage escalation threshold in milliseconds.
+ *
+ * Resolved from `ACTION_ESCALATION_HOURS` (default 48h) at module load for
+ * back-compatible callers; the predicates below read the env at call time via
+ * `escalationThresholdMs()` so an override always takes effect.
+ */
+export const ESCALATION_THRESHOLD_MS = escalationThresholdMs();
 
 /** Minimal item shape needed to evaluate escalation state. */
 export type EscalationItem = {
@@ -70,18 +101,22 @@ export function isEscalationEligible(item: EscalationItem, now: Date): boolean {
   if (item.resolvedAt) return false;
   const since = escalationSince(item);
   if (!since) return false;
-  return now.getTime() - since.getTime() >= ESCALATION_THRESHOLD_MS;
+  return now.getTime() - since.getTime() >= escalationThresholdMs();
+}
+
+/** Board roll-up threshold in ms (env: `ACTION_BOARD_ROLLUP_DAYS`). */
+export function boardRollupThresholdMs(): number {
+  return envPositiveNumber("ACTION_BOARD_ROLLUP_DAYS", DEFAULT_BOARD_ROLLUP_DAYS) * DAY_MS;
 }
 
 /**
- * Board roll-up threshold: **7 days after the CPO escalation** (`escalatedToCpoAt`).
- *
- * No explicit product decision exists for when an unresolved CPO escalation
- * should reach the Board, so this is the documented default (per the task
- * "If no product decision exists, use 7 days after CPO escalation"). It is the
- * sole source of truth — change it here to retune the cadence.
+ * Board roll-up threshold: a number of days after the Leadership escalation
+ * (`escalatedToCpoAt`). Defaults to **3 days** (down from the original 7) and is
+ * overridable via `ACTION_BOARD_ROLLUP_DAYS` so leadership can tune the cadence
+ * without a deploy. Resolved at module load for back-compat; the predicate below
+ * reads the env at call time via `boardRollupThresholdMs()`.
  */
-export const BOARD_ROLLUP_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
+export const BOARD_ROLLUP_THRESHOLD_MS = boardRollupThresholdMs();
 
 /** Minimal item shape needed to evaluate Board roll-up state. */
 export type BoardRollupItem = {
@@ -98,7 +133,7 @@ export function isBoardRollupEligible(item: BoardRollupItem, now: Date): boolean
   if (item.resolvedAt) return false;
   if (item.boardRolledUpAt) return false;
   if (!item.escalatedToCpoAt) return false;
-  return now.getTime() - item.escalatedToCpoAt.getTime() >= BOARD_ROLLUP_THRESHOLD_MS;
+  return now.getTime() - item.escalatedToCpoAt.getTime() >= boardRollupThresholdMs();
 }
 
 /** Human age of an escalation, e.g. "3 days" or "50 hours". */

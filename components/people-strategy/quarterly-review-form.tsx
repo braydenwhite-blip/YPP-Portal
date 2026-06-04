@@ -229,7 +229,7 @@ export function QuarterlyReviewForm({
         </div>
       ) : (
         <p className="instructor-profile-muted">
-          Only the CPO or Board can record a quarterly review.
+          Only Leadership or the Board can record a quarterly review.
         </p>
       )}
     </div>

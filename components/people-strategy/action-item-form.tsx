@@ -319,9 +319,7 @@ export default function ActionItemForm({
   function validate(): string | null {
     if (!title.trim()) return "Title is required.";
     if (!leadId) return "A Lead is required (exactly one).";
-    if (executingIds.length === 0) {
-      return "At least one Executing assignee is required.";
-    }
+    // Executing is optional: when left empty the Lead is the implicit executor.
     if (!deadlineStart) return "Deadline start is required.";
     if (!visibility) return "Visibility is required.";
     if (deadlineEnd && deadlineEnd < deadlineStart) {
@@ -397,7 +395,9 @@ export default function ActionItemForm({
         if (onSaved) {
           onSaved();
         } else {
-          router.push("/admin/actions");
+          // Return to the canonical Action Tracker list, not the legacy
+          // /admin/actions page, so creation lands the user back in /actions/*.
+          router.push("/actions/all");
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to save the action item.");
@@ -420,7 +420,7 @@ export default function ActionItemForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           style={INPUT}
-          placeholder="e.g. Launch fall instructor onboarding"
+          placeholder="e.g. Refresh fall curriculum rollout"
         />
       </div>
 
@@ -582,8 +582,7 @@ export default function ActionItemForm({
       />
 
       <UserPicker
-        label="Executing (one or more)"
-        required
+        label="Executing (optional — defaults to the Lead)"
         users={users}
         selected={executingIds}
         onChange={setExecutingIds}
@@ -656,7 +655,7 @@ export default function ActionItemForm({
       >
         <button
           type="button"
-          onClick={() => (onCancel ? onCancel() : router.push("/admin/actions"))}
+          onClick={() => (onCancel ? onCancel() : router.push("/actions/all"))}
           className="button outline small"
           disabled={pending}
         >

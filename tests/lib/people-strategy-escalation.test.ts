@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   BOARD_ROLLUP_THRESHOLD_MS,
   ESCALATION_THRESHOLD_MS,
+  boardRollupThresholdMs,
   escalationReason,
   escalationSince,
+  escalationThresholdMs,
   formatEscalationAge,
   isBoardRollupEligible,
   isEscalationEligible,
@@ -96,6 +98,35 @@ describe("escalation eligibility (48h rule)", () => {
   });
 });
 
+describe("configurable thresholds (env overrides)", () => {
+  afterEach(() => {
+    delete process.env.ACTION_ESCALATION_HOURS;
+    delete process.env.ACTION_BOARD_ROLLUP_DAYS;
+  });
+
+  it("defaults match the resolved module constants", () => {
+    expect(escalationThresholdMs()).toBe(ESCALATION_THRESHOLD_MS);
+    expect(boardRollupThresholdMs()).toBe(BOARD_ROLLUP_THRESHOLD_MS);
+  });
+
+  it("ACTION_ESCALATION_HOURS overrides the escalation threshold", () => {
+    process.env.ACTION_ESCALATION_HOURS = "24";
+    expect(escalationThresholdMs()).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("ACTION_BOARD_ROLLUP_DAYS overrides the board roll-up threshold", () => {
+    process.env.ACTION_BOARD_ROLLUP_DAYS = "5";
+    expect(boardRollupThresholdMs()).toBe(5 * 24 * 60 * 60 * 1000);
+  });
+
+  it("ignores invalid (non-positive / non-numeric) overrides", () => {
+    process.env.ACTION_ESCALATION_HOURS = "0";
+    process.env.ACTION_BOARD_ROLLUP_DAYS = "not-a-number";
+    expect(escalationThresholdMs()).toBe(ESCALATION_THRESHOLD_MS);
+    expect(boardRollupThresholdMs()).toBe(BOARD_ROLLUP_THRESHOLD_MS);
+  });
+});
+
 describe("escalationReason", () => {
   it("flagged only", () => {
     expect(escalationReason(item({ flaggedAt: hoursAgo(50) }))).toBe("Flagged");
@@ -113,7 +144,7 @@ describe("escalationReason", () => {
   });
 });
 
-describe("Board roll-up eligibility (7-day rule)", () => {
+describe("Board roll-up eligibility (3-day rule)", () => {
   function rollupItem(over: Partial<BoardRollupItem>): BoardRollupItem {
     return {
       escalatedToCpoAt: over.escalatedToCpoAt ?? null,
@@ -122,19 +153,19 @@ describe("Board roll-up eligibility (7-day rule)", () => {
     };
   }
 
-  it("threshold is exactly 7 days", () => {
-    expect(BOARD_ROLLUP_THRESHOLD_MS).toBe(7 * 24 * 60 * 60 * 1000);
+  it("default threshold is 3 days", () => {
+    expect(BOARD_ROLLUP_THRESHOLD_MS).toBe(3 * 24 * 60 * 60 * 1000);
   });
 
-  it("not eligible until 7 days past CPO escalation", () => {
+  it("not eligible until 3 days past Leadership escalation", () => {
     expect(
-      isBoardRollupEligible(rollupItem({ escalatedToCpoAt: hoursAgo(24 * 6) }), NOW)
+      isBoardRollupEligible(rollupItem({ escalatedToCpoAt: hoursAgo(24 * 2) }), NOW)
     ).toBe(false);
   });
 
-  it("eligible at 7+ days past CPO escalation", () => {
+  it("eligible at 3+ days past Leadership escalation", () => {
     expect(
-      isBoardRollupEligible(rollupItem({ escalatedToCpoAt: hoursAgo(24 * 8) }), NOW)
+      isBoardRollupEligible(rollupItem({ escalatedToCpoAt: hoursAgo(24 * 4) }), NOW)
     ).toBe(true);
   });
 

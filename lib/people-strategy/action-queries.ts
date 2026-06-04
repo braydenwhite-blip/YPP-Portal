@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { whereActiveMember } from "@/lib/user-role-where";
 
 import {
   canViewAction,
@@ -186,15 +187,20 @@ export type ActionPickerUser = {
 
 /**
  * Candidate users for the Lead / Executing / Input pickers on the Action form.
- * Active (non-archived) portal users, name-sorted. Kept broad on purpose: a
+ * Active (non-archived) portal members, name-sorted. Kept broad on purpose: a
  * Lead/Executor is typically officer-tier, but Input can be requested from
- * anyone, so we don't pre-filter by role here. Capped for payload sanity.
+ * anyone, so we don't pre-filter by role beyond excluding applicants. Capped
+ * for payload sanity.
+ *
+ * Applicants are `User` rows distinguished only by role, so they must be
+ * filtered out explicitly (`whereActiveMember`) — otherwise pending applicants
+ * leak into the assignee pickers.
  */
 export async function listActionAssignableUsers(): Promise<ActionPickerUser[]> {
   if (!isActionTrackerEnabled()) return [];
 
   return prisma.user.findMany({
-    where: { archivedAt: null },
+    where: { archivedAt: null, ...whereActiveMember() },
     select: { id: true, name: true, email: true, primaryRole: true },
     orderBy: [{ name: "asc" }, { email: "asc" }],
     take: 500,
