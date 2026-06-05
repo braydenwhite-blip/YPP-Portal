@@ -97,7 +97,7 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
   if (applications.length === 0) {
     return (
       <div className="applicant-archive-empty">
-        No archived applications yet. Applications are archived 30 days after reaching a terminal state.
+        No archived applications yet. Applications are automatically archived 30 days after a final decision is made.
       </div>
     );
   }

@@ -31,7 +31,7 @@ const coreExpectations = [
   "Deliver organized, engaging classes using approved curriculum that keeps students participating and coming back",
   "Build strong, supportive relationships with students and families through professional and responsive communication",
   "Respond to all messages within 24 hours, attend every required meeting, and show up to every class prepared and on time",
-  "Participate actively in the YPP community — events, trainings, and building relationships with fellow instructors go beyond the minimum",
+  "Participate actively in the YPP community through events and trainings, as well as building relationships with fellow instructors to go beyond what is required",
   "Show openness to feedback and a willingness to contribute beyond your core teaching responsibilities when the opportunity arises",
 ];
 
