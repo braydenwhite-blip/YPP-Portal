@@ -7,6 +7,7 @@ import type {
   WinEntry,
 } from "./command-center-selectors";
 import { MOMENTUM_META } from "./momentum";
+import type { PulseMetric, PulseTrend } from "./pulse-trend";
 
 /**
  * People Strategy — Weekly Leadership Briefing (Phase 6).
@@ -30,6 +31,11 @@ export interface LeadershipBriefingInput {
   wins: WinEntry[];
   /** Total visible actions the briefing was composed from. */
   consideredCount: number;
+  /**
+   * Optional week-over-week movement vs the prior persisted snapshot (Phase 7).
+   * Omitted on the first-ever briefing, when there is no prior week to compare.
+   */
+  trend?: PulseTrend | null;
 }
 
 /** How many rows to include per section so the briefing stays scannable. */
@@ -37,8 +43,37 @@ const ATTENTION_LIMIT = 5;
 const SUPPORT_LIMIT = 5;
 const WINS_LIMIT = 5;
 
+/**
+ * The metrics worth calling out as movers, with the direction that is "good".
+ * `completed` rising is good; everything else (overdue, flagged, …) is good when
+ * it falls. `openTotal` is neutral, shown without a value judgment.
+ */
+const TREND_LINE: Array<{ key: PulseMetric; label: string }> = [
+  { key: "overdue", label: "overdue" },
+  { key: "completedThisWeek", label: "completed" },
+  { key: "openTotal", label: "open" },
+  { key: "flagged", label: "flagged" },
+  { key: "blocked", label: "blocked" },
+  { key: "unowned", label: "unowned" },
+];
+
 function pluralize(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+/**
+ * One scannable line of week-over-week movers, e.g. "overdue ↓2 · completed ↑3".
+ * Only metrics that actually changed are shown; returns null when nothing moved.
+ */
+function formatTrendMovers(trend: PulseTrend): string | null {
+  const movers = TREND_LINE.filter(({ key }) => trend.deltas[key] !== 0).map(
+    ({ key, label }) => {
+      const delta = trend.deltas[key];
+      const arrow = delta > 0 ? "↑" : "↓";
+      return `${label} ${arrow}${Math.abs(delta)}`;
+    }
+  );
+  return movers.length > 0 ? movers.join(" · ") : null;
 }
 
 /**
@@ -46,7 +81,8 @@ function pluralize(n: number, word: string): string {
  * short "nothing to report" note so the output is never an empty shell.
  */
 export function buildLeadershipBriefing(input: LeadershipBriefingInput): string {
-  const { weekStart, pulse, attention, needsSupport, wins, consideredCount } = input;
+  const { weekStart, pulse, attention, needsSupport, wins, consideredCount, trend } =
+    input;
 
   const lines: string[] = [];
   lines.push("**People Strategy — Weekly Leadership Briefing**");
@@ -74,6 +110,16 @@ export function buildLeadershipBriefing(input: LeadershipBriefingInput): string 
       `${pulse.completedThisWeek} completed this week`,
     ].join(" · ")
   );
+
+  // Trend — week-over-week movement (Phase 7), when a prior week exists.
+  if (trend) {
+    const movers = formatTrendMovers(trend);
+    lines.push(
+      `Change vs week of ${formatMonthDay(trend.priorWeekStart)}: ${
+        movers ?? "no change"
+      }`
+    );
+  }
 
   // Needs attention — the top of the attention queue.
   lines.push("");

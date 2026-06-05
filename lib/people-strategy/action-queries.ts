@@ -164,6 +164,23 @@ export async function listVisibleActionItems(
 }
 
 /**
+ * Every action item with relations, leadership-wide (no per-viewer scoping).
+ * For trusted server-side leadership summaries — specifically the weekly
+ * Leadership Briefing cron — where the audience (Leadership / Board) can already
+ * see everything, so visibility filtering would be a no-op. Returns [] when the
+ * tracker flag is off. Never call this from a member-facing surface; use
+ * `listVisibleActionItems` there.
+ */
+export async function listAllActionItems(): Promise<ActionItemWithRelations[]> {
+  if (!isActionTrackerEnabled()) return [];
+
+  return prisma.actionItem.findMany({
+    include: ACTION_ITEM_INCLUDE,
+    orderBy: [{ createdAt: "desc" }],
+  });
+}
+
+/**
  * Single action by id, enforcing visibility for `viewer`. Returns null when the
  * action does not exist, the viewer cannot see it, or the feature flag is off —
  * the existing "not found / access denied" convention.

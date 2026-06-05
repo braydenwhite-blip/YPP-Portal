@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 
+import { recordCommandCenterEvent } from "@/lib/people-strategy/command-center-telemetry";
+import { COMMAND_CENTER_EVENTS } from "@/lib/people-strategy/command-center-events";
+
 /**
  * Leadership Briefing card (Phase 6) — shows the pre-composed weekly briefing
  * (built server-side by `buildLeadershipBriefing`) and lets a leader copy it in
@@ -18,6 +21,8 @@ export function LeadershipBriefingCard({ briefing }: { briefing: string }) {
       await navigator.clipboard.writeText(briefing);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      // Adoption telemetry — best-effort, never blocks the copy.
+      void recordCommandCenterEvent(COMMAND_CENTER_EVENTS.briefingCopied);
     } catch {
       // Clipboard can be blocked (permissions / insecure context); revealing the
       // text lets the leader select it manually, so fail quietly.

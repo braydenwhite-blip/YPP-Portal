@@ -55,7 +55,19 @@ export async function loadCommandCenter(
   now: Date = new Date()
 ): Promise<CommandCenterData> {
   const items: ActionItemWithRelations[] = await listVisibleActionItems(viewer);
+  return composeCommandCenter(items, now);
+}
 
+/**
+ * Compose the Command Center signals over an already-loaded item set. Pure aside
+ * from the selectors it calls — no DB, no session — so the same composition can
+ * back both the per-viewer page (`loadCommandCenter`) and the leadership-wide
+ * weekly briefing cron (which loads every item, since Leadership/Board see all).
+ */
+export function composeCommandCenter(
+  items: ActionItemWithRelations[],
+  now: Date = new Date()
+): CommandCenterData {
   const pulse = buildWeeklyPulse(items, now);
   const attention = buildAttentionQueue(items, now);
   const people = buildPersonMomentum(items, now);

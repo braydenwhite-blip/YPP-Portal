@@ -817,6 +817,108 @@ export async function sendWeeklyActionDigestEmail({
   return sendEmail({ to, subject, html });
 }
 
+/**
+ * Render the inline emphasis of the briefing's small markdown subset: `**bold**`
+ * and `_italic_`. HTML is escaped FIRST (escapeHtml leaves `*` and `_` intact),
+ * so user-derived text in the briefing can never inject markup.
+ */
+function renderBriefingInline(text: string): string {
+  return escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/_(.+?)_/g, "<em>$1</em>");
+}
+
+/**
+ * Render the weekly Leadership Briefing markdown (produced by
+ * `buildLeadershipBriefing`) into the light HTML the email body uses. The
+ * builder emits a known, narrow subset — bold-led section headers, `- ` bullets,
+ * a leading italic empty-state note, and plain lines — so a small purpose-built
+ * renderer keeps the markdown the single source of truth (shared with the
+ * copy-to-clipboard control) without pulling in a markdown dependency.
+ */
+function renderBriefingHtml(markdown: string): string {
+  const out: string[] = [];
+  let inList = false;
+  const closeList = () => {
+    if (inList) {
+      out.push("</ul>");
+      inList = false;
+    }
+  };
+
+  for (const raw of markdown.split("\n")) {
+    const line = raw.trimEnd();
+    if (line === "") {
+      closeList();
+      continue;
+    }
+    if (line.startsWith("- ")) {
+      if (!inList) {
+        out.push('<ul style="margin: 6px 0 0; padding-left: 20px;">');
+        inList = true;
+      }
+      out.push(
+        `<li style="margin: 3px 0; color: #1c1917; font-size: 14px;">${renderBriefingInline(line.slice(2))}</li>`
+      );
+      continue;
+    }
+    closeList();
+    if (line.startsWith("**")) {
+      // A bold-led line is a section header (e.g. "**Pulse**", "**Needs attention** (3)").
+      out.push(
+        `<p style="margin: 16px 0 2px; color: #1c1917; font-size: 14px; font-weight: 700;">${renderBriefingInline(line)}</p>`
+      );
+      continue;
+    }
+    out.push(
+      `<p style="margin: 2px 0; color: #57534e; font-size: 13px;">${renderBriefingInline(line)}</p>`
+    );
+  }
+  closeList();
+  return out.join("\n");
+}
+
+/**
+ * People Strategy — weekly Leadership Briefing (Phase 6 delivery).
+ *
+ * Auto-delivers the same shareable briefing that the Command Center "Copy
+ * briefing" control produces, so leadership receives the weekly read without
+ * opening the portal. Replaces the UX the retired legacy weekly digest provided.
+ * The body is rendered from the briefing markdown (single source of truth); the
+ * idempotency / recipient selection is owned upstream by the cron. Gated by
+ * ENABLE_ACTION_TRACKER_EMAILS at the call site, like the other action emails.
+ */
+export async function sendLeadershipBriefingEmail({
+  to,
+  recipientName,
+  weekLabel,
+  briefingMarkdown,
+  commandCenterUrl,
+}: {
+  to: string;
+  recipientName: string | null;
+  /** Pre-formatted "Month Day" of the operating week, e.g. "Jun 1". */
+  weekLabel: string;
+  briefingMarkdown: string;
+  commandCenterUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const subject = `Weekly Leadership Briefing — week of ${weekLabel}`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Weekly Leadership Briefing</h2>
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>Here's this week's People Strategy read — the pulse, what needs attention, who needs support, and the week's wins. The same summary lives on the Command Center, where every item links through.</p>
+    <div style="background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 10px; padding: 18px 22px; margin: 18px 0;">
+      ${renderBriefingHtml(briefingMarkdown)}
+    </div>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(commandCenterUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Open the Command Center</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">You're receiving this because you're part of YPP leadership. It replaces the old weekly action digest with a single shareable read.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
 export async function sendActionDeadlineWarningEmail({
   to,
   recipientName,

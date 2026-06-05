@@ -11,6 +11,7 @@ import {
   isActionTrackerEmailsEnabled,
 } from "@/lib/feature-flags";
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
+import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import {
   sendWeeklyActionDigestEmail,
   sendActionDeadlineWarningEmail,
@@ -18,9 +19,15 @@ import {
   sendActionOverdueLeadEmail,
   sendLeadershipEscalationEmail,
   sendBoardEscalationRollupEmail,
+  sendLeadershipBriefingEmail,
   type ActionDigestItem,
 } from "@/lib/email";
 import { ACTION_STATUS_LABELS } from "./constants";
+import { listAllActionItems } from "./action-queries";
+import { composeCommandCenter } from "./command-center";
+import { buildLeadershipBriefing } from "./leadership-briefing";
+import { buildPulseTrend } from "./pulse-trend";
+import { getPriorPulseSnapshot, recordPulseSnapshot } from "./pulse-snapshot";
 import {
   escalationDeadline,
   escalationReason,
@@ -308,6 +315,78 @@ export async function runWeeklyActionDigest(now: Date): Promise<WeeklyDigestResu
     "action-cron: weekly digest"
   );
   return { recipients: perRecipient.size, emailsSent };
+}
+
+// ── 1b. Weekly Leadership Briefing (Mondays) ───────────────────────────────
+
+export type LeadershipBriefingResult = {
+  recipients: number;
+  emailsSent: number;
+};
+
+/**
+ * Compose the leadership-wide weekly briefing and email it to Leadership once per
+ * week (idempotent per recipient via `ActionEmailLog`). This is the automated
+ * delivery of the same briefing the Command Center "Copy briefing" control shows,
+ * and the replacement for the retired legacy weekly digest's leadership view.
+ *
+ * Alongside delivery it records a `ActionPulseSnapshot` for the week so the
+ * briefing can report week-over-week movement (the prior snapshot is read BEFORE
+ * the upsert, so a same-week re-run still compares against the previous week).
+ * No-op unless ENABLE_ACTION_TRACKER_EMAILS.
+ */
+export async function runWeeklyLeadershipBriefing(
+  now: Date
+): Promise<LeadershipBriefingResult> {
+  if (!isActionTrackerEmailsEnabled()) return { recipients: 0, emailsSent: 0 };
+
+  const items = await listAllActionItems();
+  const data = composeCommandCenter(items, now);
+
+  // Phase 7 — read prior week first, then persist this week, then diff.
+  const prior = await getPriorPulseSnapshot(data.weekStart);
+  await recordPulseSnapshot(data.weekStart, data.pulse, data.consideredCount);
+  const trend = prior ? buildPulseTrend(data.pulse, prior) : null;
+
+  const briefing = buildLeadershipBriefing({
+    weekStart: data.weekStart,
+    pulse: data.pulse,
+    attention: data.attention,
+    needsSupport: data.needsSupport,
+    wins: data.wins,
+    consideredCount: data.consideredCount,
+    trend,
+  });
+
+  const weekKey = dateKey(data.weekStart);
+  const weekLabel = formatMonthDay(data.weekStart);
+  const recipients = (await loadLeadershipRecipients()).filter((r) => r.email);
+  const commandCenterUrl = toAbsoluteAppUrl("/actions/command-center");
+
+  let emailsSent = 0;
+  for (const recipient of recipients) {
+    const sent = await sendOnce({
+      dedupeKey: `briefing:${weekKey}:${recipient.id}`,
+      type: "LEADERSHIP_BRIEFING",
+      recipientId: recipient.id,
+      actionItemId: null,
+      send: () =>
+        sendLeadershipBriefingEmail({
+          to: recipient.email as string,
+          recipientName: recipient.name,
+          weekLabel,
+          briefingMarkdown: briefing,
+          commandCenterUrl,
+        }),
+    });
+    if (sent) emailsSent++;
+  }
+
+  logger.info(
+    { recipients: recipients.length, emailsSent, weekKey, hadPrior: prior != null },
+    "action-cron: weekly leadership briefing"
+  );
+  return { recipients: recipients.length, emailsSent };
 }
 
 // ── 2. 24-hour warning (daily) ─────────────────────────────────────────────

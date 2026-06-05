@@ -14589,6 +14589,23 @@ a.mentor-panel__row:focus-visible {
   }
 }
 
+/* Command Center: stack the two-column layout at tablet width too, so the
+   attention queue and the briefing/radar rail each get full width before they
+   get cramped. */
+@media (max-width: 960px) {
+  .command-center-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Keyboard focus affordance for Command Center cards rendered as links (pulse
+   stats, attention items, wins) — the cards otherwise carry only inline styles. */
+.cc-focusable:focus-visible {
+  outline: 2px solid var(--primary, #6b21c8);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
 /* ==========================================================================
    Admin Journey Editor — beat list + structured (JSON-free) config editor
    Scoped to /admin/journeys. Additive; relies on existing tokens + .btn.
