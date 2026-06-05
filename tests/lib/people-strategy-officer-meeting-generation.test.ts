@@ -58,7 +58,7 @@ describe("buildOfficerMeetingAgendaFallback", () => {
     expect(text).toContain("2. Commitments (1) — promised by · due by");
     expect(text).toContain("• Launch onboarding revamp — Ada Lovelace by Jun 20, 2026");
     expect(text).toContain("3. Miscellaneous Updates (1)");
-    expect(text).toContain("• Budget approved for Q3 (CPO)");
+    expect(text).toContain("• Budget approved for Q3 (LEADERSHIP)");
   });
 
   it("is deterministic — identical input yields identical output", () => {
@@ -118,7 +118,7 @@ describe("buildOfficerMeetingSummaryFallback", () => {
     expect(text).toContain("Action Items Discussed");
     expect(text).toContain("1. Launch onboarding revamp");
     expect(text).toContain("Discussion: Agreed to ship the new flow next sprint.");
-    expect(text).toContain("• Budget approved for Q3 — CPO");
+    expect(text).toContain("• Budget approved for Q3 — LEADERSHIP");
   });
 
   it("is deterministic", () => {
