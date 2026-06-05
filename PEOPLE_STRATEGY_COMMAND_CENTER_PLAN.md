@@ -454,11 +454,16 @@ digest used to provide.
    (`sendLeadershipBriefingEmail`, rendered from the same markdown — single source of truth),
    idempotent per recipient per week through a new `LEADERSHIP_BRIEFING` `ActionEmailLog`
    type (`briefing:<week>:<recipientId>`).
-3. **Accessibility & responsive polish:** the Command Center leans on inline styles and a
-   2-column grid; promote shared classes, verify contrast/focus order, and make it usable on
-   tablet/phone.
-4. **Adoption telemetry:** lightweight event hooks (briefing copied, attention item opened)
-   to learn what leadership actually uses.
+3. **Accessibility & responsive polish:** ✅ (2026-06-05) the Command Center grid now stacks
+   at tablet width (≤960px) as well as phone, interactive cards (pulse stats, attention
+   items, wins) carry a `.cc-focusable` keyboard focus ring, and the pulse trend arrows ship
+   with non-visual `aria-label`s ("overdue down 2 versus last week") rather than colour/glyph
+   alone. Heading order is already h1 (command bar) → h2 (sections).
+4. **Adoption telemetry:** ✅ (2026-06-05) lightweight event hooks reuse the existing
+   `AnalyticsEvent` table (no new schema): a best-effort `recordCommandCenterEvent` server
+   action logs `command_center_briefing_copied` (on a successful briefing copy) and
+   `command_center_attention_item_opened` (via a `TelemetryLink` wrapper on the attention
+   queue), namespaced for easy querying and swallowing its own failures.
 
 ### Phase 7 — Trends & accountability over time (in progress)
 Phases 1–6 made the Command Center a great read of *this* week. Phase 7 adds the missing
@@ -471,11 +476,12 @@ axis — **time** — so leadership can answer "are we getting better or worse?"
    briefing renders the movers — e.g. `Change vs week of May 25: overdue ↓2 · completed ↑3` —
    shown only for metrics that actually moved. History accrues going forward (no backfill is
    possible or claimed); the first week simply has no trend line. Pure + unit-tested.
-2. **On-screen trends:** surface the same deltas on the Command Center Weekly Pulse for
-   Leadership/Board viewers (whose on-screen view is already leadership-wide, so the
-   comparison is apples-to-apples) — deferred from the kickoff to keep the per-viewer
-   visibility scoping clean. `[OPEN]` decide whether scoped officers (chapter president /
-   hiring chair) see a scoped trend or none.
+2. **On-screen trends:** ✅ (2026-06-05) the Weekly Pulse now shows per-metric arrows vs the
+   prior week's snapshot for Leadership/Board viewers, and the on-screen "Copy briefing" for
+   those viewers includes the same trend line as the emailed one. Scoped officers (chapter
+   president / hiring chair) intentionally see **no** delta — their on-screen pulse is a
+   partial item set, so a comparison against the org-wide snapshot would mislead. The trend
+   is gracefully absent until the weekly cron has logged at least one prior week.
 3. **Trend charts & streaks:** a small sparkline of overdue / open / completed over recent
    weeks, plus "N weeks of falling overdue" style streak callouts, once a few weeks of
    snapshots exist.

@@ -25,9 +25,9 @@ import {
 import { ACTION_STATUS_LABELS } from "./constants";
 import { listAllActionItems } from "./action-queries";
 import { composeCommandCenter } from "./command-center";
-import type { WeeklyPulse } from "./command-center-selectors";
 import { buildLeadershipBriefing } from "./leadership-briefing";
-import { buildPulseTrend, type PulseSnapshot } from "./pulse-trend";
+import { buildPulseTrend } from "./pulse-trend";
+import { getPriorPulseSnapshot, recordPulseSnapshot } from "./pulse-snapshot";
 import {
   escalationDeadline,
   escalationReason,
@@ -324,54 +324,6 @@ export type LeadershipBriefingResult = {
   emailsSent: number;
 };
 
-/** Subset of the pulse persisted as a weekly snapshot (Phase 7 trend history). */
-type SnapshotData = Pick<
-  WeeklyPulse,
-  | "openTotal"
-  | "completedThisWeek"
-  | "overdue"
-  | "flagged"
-  | "blocked"
-  | "dueThisWeek"
-  | "unowned"
->;
-
-function snapshotData(pulse: WeeklyPulse): SnapshotData {
-  return {
-    openTotal: pulse.openTotal,
-    completedThisWeek: pulse.completedThisWeek,
-    overdue: pulse.overdue,
-    flagged: pulse.flagged,
-    blocked: pulse.blocked,
-    dueThisWeek: pulse.dueThisWeek,
-    unowned: pulse.unowned,
-  };
-}
-
-/** The most recent snapshot from an *earlier* week, or null on the first run. */
-async function loadPriorPulseSnapshot(weekStart: Date): Promise<PulseSnapshot | null> {
-  const row = await prisma.actionPulseSnapshot.findFirst({
-    where: { weekStart: { lt: weekStart } },
-    orderBy: { weekStart: "desc" },
-  });
-  if (!row) return null;
-  return { weekStart: row.weekStart, ...snapshotData(row) };
-}
-
-/** Persist this week's pulse, idempotent on `weekStart` (re-runs just refresh it). */
-async function upsertPulseSnapshot(
-  weekStart: Date,
-  pulse: WeeklyPulse,
-  consideredCount: number
-): Promise<void> {
-  const data = { ...snapshotData(pulse), consideredCount };
-  await prisma.actionPulseSnapshot.upsert({
-    where: { weekStart },
-    create: { weekStart, ...data },
-    update: data,
-  });
-}
-
 /**
  * Compose the leadership-wide weekly briefing and email it to Leadership once per
  * week (idempotent per recipient via `ActionEmailLog`). This is the automated
@@ -392,8 +344,8 @@ export async function runWeeklyLeadershipBriefing(
   const data = composeCommandCenter(items, now);
 
   // Phase 7 — read prior week first, then persist this week, then diff.
-  const prior = await loadPriorPulseSnapshot(data.weekStart);
-  await upsertPulseSnapshot(data.weekStart, data.pulse, data.consideredCount);
+  const prior = await getPriorPulseSnapshot(data.weekStart);
+  await recordPulseSnapshot(data.weekStart, data.pulse, data.consideredCount);
   const trend = prior ? buildPulseTrend(data.pulse, prior) : null;
 
   const briefing = buildLeadershipBriefing({
