@@ -1,30 +1,38 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Playfair_Display, Nunito, Lora } from "next/font/google";
+import { Inter, Source_Serif_4 } from "next/font/google";
 
-const dmSans = DM_Sans({
+// Professional two-font system. We keep the original CSS variable names
+// (--font-dm-sans / --font-nunito / --font-playfair / --font-lora) so the
+// rest of the design system needs no changes — we simply repoint the
+// casual/editorial faces (DM Sans, Nunito, Playfair, Lora) onto a cleaner,
+// more corporate pairing: Inter for UI text and Source Serif 4 for display.
+
+// Inter: crisp, neutral UI sans — drives all body copy and labels.
+const inter = Inter({
   variable: "--font-dm-sans",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700", "800"],
   display: "swap",
 });
 
-const playfair = Playfair_Display({
+const interLabel = Inter({
+  variable: "--font-nunito",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
+// Source Serif 4: a restrained, professional serif for display headings.
+const sourceSerif = Source_Serif_4({
   variable: "--font-playfair",
   subsets: ["latin"],
-  weight: ["400", "700", "900"],
+  weight: ["400", "600", "700"],
   style: ["normal", "italic"],
   display: "swap",
 });
 
-const nunito = Nunito({
-  variable: "--font-nunito",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
-  display: "swap",
-});
-
-const lora = Lora({
+const sourceSerifAlt = Source_Serif_4({
   variable: "--font-lora",
   subsets: ["latin"],
   weight: ["400", "600", "700"],
@@ -50,7 +58,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const fontVars = `${dmSans.variable} ${playfair.variable} ${nunito.variable} ${lora.variable}`;
+  const fontVars = `${inter.variable} ${sourceSerif.variable} ${interLabel.variable} ${sourceSerifAlt.variable}`;
 
   // Apply the saved motion preference before first paint so a forced "always
   // on" choice never flashes a reduced-motion frame. Mirrors lib/motion-preference.ts.
