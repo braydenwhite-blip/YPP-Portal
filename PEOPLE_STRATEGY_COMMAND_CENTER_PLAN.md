@@ -442,18 +442,46 @@ and `/admin/actions/*` create-edit are folded in and redirected.
 With a single canonical tracker in place, Phase 6 turns the Command Center's signals into
 something leadership can *act on and share*, and replaces the UX the retired legacy weekly
 digest used to provide.
-1. **Shareable weekly Leadership Briefing:** a pure builder
+1. **Shareable weekly Leadership Briefing:** ✅ a pure builder
    (`lib/people-strategy/leadership-briefing.ts`) that composes the existing Command Center
    selectors (pulse, attention queue, needs-support, wins) into a copy-pasteable
    text/markdown summary, surfaced on the Command Center with a one-click "Copy briefing"
-   control. Pure + unit-tested. **(Kicked off in this pass.)**
-2. **Digest delivery:** wire the briefing into the existing `action-weekly-digest` cron so
-   leadership receives it automatically.
+   control. Pure + unit-tested.
+2. **Digest delivery:** ✅ (2026-06-05) the briefing is now auto-delivered. The Monday
+   `action-weekly-digest` cron runs `runWeeklyLeadershipBriefing` after the per-recipient
+   digest: it composes the briefing over **all** items (leadership-wide, via
+   `listAllActionItems` + `composeCommandCenter`) and emails it to Leadership
+   (`sendLeadershipBriefingEmail`, rendered from the same markdown — single source of truth),
+   idempotent per recipient per week through a new `LEADERSHIP_BRIEFING` `ActionEmailLog`
+   type (`briefing:<week>:<recipientId>`).
 3. **Accessibility & responsive polish:** the Command Center leans on inline styles and a
    2-column grid; promote shared classes, verify contrast/focus order, and make it usable on
    tablet/phone.
 4. **Adoption telemetry:** lightweight event hooks (briefing copied, attention item opened)
    to learn what leadership actually uses.
+
+### Phase 7 — Trends & accountability over time (in progress)
+Phases 1–6 made the Command Center a great read of *this* week. Phase 7 adds the missing
+axis — **time** — so leadership can answer "are we getting better or worse?" rather than only
+"what's on fire right now."
+1. **Weekly pulse history + week-over-week trends:** ✅ kickoff (2026-06-05). The weekly
+   briefing cron now records one `ActionPulseSnapshot` per operating week (leadership-wide
+   pulse counts, idempotent on `weekStart`), reads the prior week *before* upserting, and a
+   pure `buildPulseTrend` (`lib/people-strategy/pulse-trend.ts`) diffs the two. The delivered
+   briefing renders the movers — e.g. `Change vs week of May 25: overdue ↓2 · completed ↑3` —
+   shown only for metrics that actually moved. History accrues going forward (no backfill is
+   possible or claimed); the first week simply has no trend line. Pure + unit-tested.
+2. **On-screen trends:** surface the same deltas on the Command Center Weekly Pulse for
+   Leadership/Board viewers (whose on-screen view is already leadership-wide, so the
+   comparison is apples-to-apples) — deferred from the kickoff to keep the per-viewer
+   visibility scoping clean. `[OPEN]` decide whether scoped officers (chapter president /
+   hiring chair) see a scoped trend or none.
+3. **Trend charts & streaks:** a small sparkline of overdue / open / completed over recent
+   weeks, plus "N weeks of falling overdue" style streak callouts, once a few weeks of
+   snapshots exist.
+4. **Per-department & per-person trajectories:** extend the snapshot grain (or add a sibling
+   table) so the briefing and People Dashboard can show which teams/people are trending up or
+   down, not just the org-wide totals.
 
 ---
 

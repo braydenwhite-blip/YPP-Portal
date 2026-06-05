@@ -14,12 +14,16 @@ vi.mock("@/lib/feature-flags", () => ({
 }));
 
 const runWeeklyActionDigest = vi.fn().mockResolvedValue({ recipients: 0, emailsSent: 0 });
+const runWeeklyLeadershipBriefing = vi
+  .fn()
+  .mockResolvedValue({ recipients: 0, emailsSent: 0 });
 const runDeadlineWarnings = vi.fn().mockResolvedValue({ items: 0, emailsSent: 0 });
 const runDeadlineReached = vi
   .fn()
   .mockResolvedValue({ dueToday: 0, reachedEmailsSent: 0, markedOverdue: 0, leadEmailsSent: 0 });
 vi.mock("@/lib/people-strategy/action-cron", () => ({
   runWeeklyActionDigest: (d: Date) => runWeeklyActionDigest(d),
+  runWeeklyLeadershipBriefing: (d: Date) => runWeeklyLeadershipBriefing(d),
   runDeadlineWarnings: (d: Date) => runDeadlineWarnings(d),
   runDeadlineReached: (d: Date) => runDeadlineReached(d),
 }));
@@ -42,6 +46,7 @@ beforeEach(() => {
   process.env.CRON_SECRET = "cron-secret";
   isActionTrackerEmailsEnabled.mockReturnValue(true);
   runWeeklyActionDigest.mockClear();
+  runWeeklyLeadershipBriefing.mockClear();
   runDeadlineWarnings.mockClear();
   runDeadlineReached.mockClear();
 });

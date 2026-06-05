@@ -139,4 +139,77 @@ describe("buildLeadershipBriefing", () => {
     // It should not render the full section scaffolding.
     expect(text).not.toContain("**Pulse**");
   });
+
+  it("omits the trend line when no prior week is provided", () => {
+    const text = buildLeadershipBriefing(input());
+    expect(text).not.toContain("Change vs week of");
+  });
+
+  it("renders week-over-week movers, good and bad, when a trend is provided", () => {
+    const text = buildLeadershipBriefing(
+      input({
+        trend: {
+          priorWeekStart: new Date("2026-05-25T00:00:00.000Z"),
+          deltas: {
+            openTotal: 1,
+            completedThisWeek: 2,
+            overdue: -1,
+            flagged: 0,
+            blocked: 0,
+            dueThisWeek: 3,
+            unowned: 0,
+          },
+        },
+      })
+    );
+    // Movers are shown with direction arrows; unchanged metrics are omitted.
+    expect(text).toContain("Change vs week of May 25:");
+    expect(text).toContain("overdue ↓1");
+    expect(text).toContain("completed ↑2");
+    expect(text).toContain("open ↑1");
+    expect(text).not.toContain("flagged ↑0");
+    expect(text).not.toContain("flagged ↓0");
+  });
+
+  it("says 'no change' when a trend is provided but nothing moved", () => {
+    const text = buildLeadershipBriefing(
+      input({
+        trend: {
+          priorWeekStart: new Date("2026-05-25T00:00:00.000Z"),
+          deltas: {
+            openTotal: 0,
+            completedThisWeek: 0,
+            overdue: 0,
+            flagged: 0,
+            blocked: 0,
+            dueThisWeek: 0,
+            unowned: 0,
+          },
+        },
+      })
+    );
+    expect(text).toContain("Change vs week of May 25: no change");
+  });
+
+  it("does not render a trend on the nothing-to-report short form", () => {
+    const text = buildLeadershipBriefing(
+      input({
+        consideredCount: 0,
+        trend: {
+          priorWeekStart: new Date("2026-05-25T00:00:00.000Z"),
+          deltas: {
+            openTotal: -2,
+            completedThisWeek: 0,
+            overdue: -1,
+            flagged: 0,
+            blocked: 0,
+            dueThisWeek: 0,
+            unowned: 0,
+          },
+        },
+      })
+    );
+    expect(text).toContain("nothing to report");
+    expect(text).not.toContain("Change vs week of");
+  });
 });

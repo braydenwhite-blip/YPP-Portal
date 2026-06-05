@@ -12399,6 +12399,7 @@ enum ActionEmailType {
   OVERDUE_LEAD
   LEADERSHIP_ESCALATION
   BOARD_ROLLUP
+  LEADERSHIP_BRIEFING
 }
 
 /// Idempotency ledger for the automated Action-Tracker cron emails (weekly
@@ -12419,6 +12420,7 @@ model ActionEmailLog {
   recipient    User            @relation("ActionEmailLogRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
   /// Deterministic idempotency key:
   ///   digest:<weekStartYYYY-MM-DD>:<recipientId>
+  ///   briefing:<weekStartYYYY-MM-DD>:<recipientId>
   ///   warn24:<actionItemId>:<recipientId>:<deadlineYYYY-MM-DD>
   ///   deadline:<actionItemId>:<recipientId>:<deadlineYYYY-MM-DD>
   ///   overdue:<actionItemId>:<recipientId>:<deadlineYYYY-MM-DD>
@@ -12428,6 +12430,30 @@ model ActionEmailLog {
   @@index([recipientId])
   @@index([actionItemId])
   @@index([type, sentAt])
+}
+
+/// People Strategy — weekly Command Center pulse snapshot (Phase 7).
+/// One row per operating week (Monday, UTC), written by the weekly Leadership
+/// Briefing cron. It stores the leadership-wide pulse counts so the briefing can
+/// report week-over-week trends ("overdue ↓2 vs last week") without
+/// reconstructing historical state. Additive + low-risk: only the trend builder
+/// reads it, and the unique `weekStart` makes the weekly upsert idempotent.
+model ActionPulseSnapshot {
+  id                String   @id @default(cuid())
+  /// Monday of the operating week this snapshot summarizes (UTC). Unique so the
+  /// weekly cron upserts exactly one row per week, even across retries.
+  weekStart         DateTime @unique
+  openTotal         Int
+  completedThisWeek Int
+  overdue           Int
+  flagged           Int
+  blocked           Int
+  dueThisWeek       Int
+  unowned           Int
+  /// Total visible actions the pulse was composed from (the "based on N" figure).
+  consideredCount   Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 /// People Strategy — 360-style monthly feedback request. One row per
