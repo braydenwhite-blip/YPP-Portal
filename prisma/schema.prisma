@@ -41,6 +41,13 @@ enum AdminSubtype {
   // Board (represented here by SUPER_ADMIN). Added in the People Strategy layer.
   // (Formerly named CPO; renamed to LEADERSHIP in the Phase 5 cleanup.)
   LEADERSHIP
+  // DEPRECATED legacy alias for LEADERSHIP. Kept in the enum so that any client
+  // generated from this schema can still DESERIALIZE the old value, and so a
+  // deployment that runs against a database where the value was not yet renamed
+  // does not 500. Application code normalizes CPO -> LEADERSHIP (see
+  // lib/admin-subtypes.ts). Do NOT write this value. Remove only in a future
+  // "contract" migration once every deployment + row is on LEADERSHIP.
+  CPO
 }
 
 enum WorkflowKind {
@@ -12400,6 +12407,9 @@ enum ActionEmailType {
   LEADERSHIP_ESCALATION
   BOARD_ROLLUP
   LEADERSHIP_BRIEFING
+  // DEPRECATED legacy alias for LEADERSHIP_ESCALATION. Retained so a client can
+  // deserialize the pre-rename value without throwing. Do NOT write this value.
+  CPO_ESCALATION
 }
 
 /// Idempotency ledger for the automated Action-Tracker cron emails (weekly

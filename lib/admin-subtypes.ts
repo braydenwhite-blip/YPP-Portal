@@ -12,6 +12,14 @@ export const ADMIN_SUBTYPE_VALUES = [
 
 export type AdminSubtypeValue = (typeof ADMIN_SUBTYPE_VALUES)[number];
 
+// Legacy enum value -> canonical value. `CPO` was renamed to `LEADERSHIP` in the
+// Phase 5 cleanup. The database enum (and the Prisma client) still carry `CPO`
+// for backward compatibility, so any row or caller that surfaces the old value
+// is mapped onto the canonical `LEADERSHIP` here rather than being dropped.
+const LEGACY_ADMIN_SUBTYPE_ALIASES: Record<string, AdminSubtypeValue> = {
+  CPO: "LEADERSHIP",
+};
+
 export const ADMIN_SUBTYPE_LABELS: Record<AdminSubtypeValue, string> = {
   SUPER_ADMIN: "Super Admin",
   HIRING_ADMIN: "Hiring Admin",
@@ -27,6 +35,9 @@ export function normalizeAdminSubtype(
 ): AdminSubtypeValue | null {
   if (!value) return null;
   const normalized = value.trim().toUpperCase();
+  if (normalized in LEGACY_ADMIN_SUBTYPE_ALIASES) {
+    return LEGACY_ADMIN_SUBTYPE_ALIASES[normalized];
+  }
   return ADMIN_SUBTYPE_VALUES.includes(normalized as AdminSubtypeValue)
     ? (normalized as AdminSubtypeValue)
     : null;
