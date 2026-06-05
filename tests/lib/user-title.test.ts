@@ -20,7 +20,7 @@ describe("getUserTitle", () => {
       getUserTitle({
         title: "VP of People",
         primaryRole: "ADMIN",
-        adminSubtypes: ["CPO"],
+        adminSubtypes: ["LEADERSHIP"],
       })
     ).toBe("VP of People");
   });
@@ -33,7 +33,7 @@ describe("getUserTitle", () => {
 
   it("uses the admin-subtype label when no stored title (CPO → Leadership)", () => {
     expect(
-      getUserTitle({ title: null, primaryRole: "ADMIN", adminSubtypes: ["CPO"] })
+      getUserTitle({ title: null, primaryRole: "ADMIN", adminSubtypes: ["LEADERSHIP"] })
     ).toBe("Leadership");
   });
 

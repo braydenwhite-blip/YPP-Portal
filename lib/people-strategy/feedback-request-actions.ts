@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
-import { requireCPO, requireSessionUser } from "@/lib/authorization";
+import { requireLeadership, requireSessionUser } from "@/lib/authorization";
 import {
   isActionTrackerEmailsEnabled,
   isPeopleDashboardEnabled,
@@ -45,8 +45,8 @@ export type RequestMonthlyFeedbackResult = {
 
 /**
  * Request monthly feedback about one or more subjects from their recent
- * collaborators (the "Request Monthly Feedback" button on the CPO People
- * Dashboard). CPO/Board only — `requireCPO()` enforces the boundary server-side.
+ * collaborators (the "Request Monthly Feedback" button on the Leadership People
+ * Dashboard). Leadership/Board only — `requireLeadership()` enforces the boundary server-side.
  * Gated by BOTH ENABLE_PEOPLE_DASHBOARD and ENABLE_ACTION_TRACKER_EMAILS.
  *
  * Delegates to `sendFeedbackRequest(subjectUserId, month)` per subject for the
@@ -61,7 +61,7 @@ export async function requestMonthlyFeedback(
     throw new Error("Monthly feedback requests are not enabled");
   }
 
-  await requireCPO(); // CPO/Board only — throws "Unauthorized" otherwise
+  await requireLeadership(); // CPO/Board only — throws "Unauthorized" otherwise
 
   const { subjectUserIds } = RequestMonthlyFeedbackSchema.parse(input);
   const uniqueIds = Array.from(new Set(subjectUserIds));

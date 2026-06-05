@@ -16,7 +16,7 @@ import type { ActionViewer } from "./action-permissions";
  *
  * Confidential feedback responses are intentionally NOT loaded here — they are
  * fetched separately through `getFeedbackResponsesForSubject`, which enforces
- * `requireCPO()` so only CPO/Board can read them.
+ * `requireLeadership()` so only Leadership/Board can read them.
  */
 
 /** A subject's active actions grouped by the role they hold on each item. */

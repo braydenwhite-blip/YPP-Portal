@@ -147,7 +147,7 @@ describe("escalationReason", () => {
 describe("Board roll-up eligibility (3-day rule)", () => {
   function rollupItem(over: Partial<BoardRollupItem>): BoardRollupItem {
     return {
-      escalatedToCpoAt: over.escalatedToCpoAt ?? null,
+      escalatedToLeadershipAt: over.escalatedToLeadershipAt ?? null,
       resolvedAt: over.resolvedAt ?? null,
       boardRolledUpAt: over.boardRolledUpAt ?? null,
     };
@@ -159,24 +159,24 @@ describe("Board roll-up eligibility (3-day rule)", () => {
 
   it("not eligible until 3 days past Leadership escalation", () => {
     expect(
-      isBoardRollupEligible(rollupItem({ escalatedToCpoAt: hoursAgo(24 * 2) }), NOW)
+      isBoardRollupEligible(rollupItem({ escalatedToLeadershipAt: hoursAgo(24 * 2) }), NOW)
     ).toBe(false);
   });
 
   it("eligible at 3+ days past Leadership escalation", () => {
     expect(
-      isBoardRollupEligible(rollupItem({ escalatedToCpoAt: hoursAgo(24 * 4) }), NOW)
+      isBoardRollupEligible(rollupItem({ escalatedToLeadershipAt: hoursAgo(24 * 4) }), NOW)
     ).toBe(true);
   });
 
   it("never eligible if not CPO-escalated", () => {
-    expect(isBoardRollupEligible(rollupItem({ escalatedToCpoAt: null }), NOW)).toBe(false);
+    expect(isBoardRollupEligible(rollupItem({ escalatedToLeadershipAt: null }), NOW)).toBe(false);
   });
 
   it("never eligible once resolved", () => {
     expect(
       isBoardRollupEligible(
-        rollupItem({ escalatedToCpoAt: hoursAgo(24 * 30), resolvedAt: hoursAgo(1) }),
+        rollupItem({ escalatedToLeadershipAt: hoursAgo(24 * 30), resolvedAt: hoursAgo(1) }),
         NOW
       )
     ).toBe(false);
@@ -185,7 +185,7 @@ describe("Board roll-up eligibility (3-day rule)", () => {
   it("never eligible once already rolled up", () => {
     expect(
       isBoardRollupEligible(
-        rollupItem({ escalatedToCpoAt: hoursAgo(24 * 30), boardRolledUpAt: hoursAgo(1) }),
+        rollupItem({ escalatedToLeadershipAt: hoursAgo(24 * 30), boardRolledUpAt: hoursAgo(1) }),
         NOW
       )
     ).toBe(false);

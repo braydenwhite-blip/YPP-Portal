@@ -6,7 +6,7 @@ import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-t
 import { OFFICER_TIER_ROLES } from "@/lib/authorization";
 import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
 import { requirePageRoles } from "@/lib/page-guards";
-import { isCpoOrBoard } from "@/lib/people-strategy/action-permissions";
+import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import {
   getActionItemById,
   listActionAssignableUsers,
@@ -44,7 +44,7 @@ export default async function EditActionInTrackerPage({
     .filter((a) => a.role === "INPUT")
     .map((a) => a.user.id);
 
-  const showPeople = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
+  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
 
   return (
     <div className="page-shell">

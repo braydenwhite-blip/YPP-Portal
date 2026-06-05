@@ -183,26 +183,21 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).not.toContain("/actions/meetings");
   });
 
-  it("hides the deprecated Leadership Action Center nav entry unless its legacy flag is on", () => {
-    const hidden = resolveNavModel({
-      roles: ["ADMIN"],
-      adminSubtypes: ["SUPER_ADMIN"],
-      primaryRole: "ADMIN",
-      pathname: "/",
-      actionTrackerEnabled: true,
-      legacyActionCenterNavEnabled: false,
-    });
-    expect(hrefs(hidden)).not.toContain("/admin/action-center");
-
-    const visible = resolveNavModel({
-      roles: ["ADMIN"],
-      adminSubtypes: ["SUPER_ADMIN"],
-      primaryRole: "ADMIN",
-      pathname: "/",
-      actionTrackerEnabled: true,
-      legacyActionCenterNavEnabled: true,
-    });
-    expect(hrefs(visible)).toContain("/admin/action-center");
+  it("never shows the retired Leadership Action Center nav entry (Phase 5 consolidation)", () => {
+    // The legacy entry was removed from the catalog entirely; the People
+    // Strategy Action Tracker (/actions/*) is now the single canonical surface.
+    // It must not appear regardless of the (now-vestigial) legacy flag.
+    for (const legacyActionCenterNavEnabled of [false, true]) {
+      const model = resolveNavModel({
+        roles: ["ADMIN"],
+        adminSubtypes: ["SUPER_ADMIN"],
+        primaryRole: "ADMIN",
+        pathname: "/",
+        actionTrackerEnabled: true,
+        legacyActionCenterNavEnabled,
+      });
+      expect(hrefs(model)).not.toContain("/admin/action-center");
+    }
   });
 
   it("does not show Interviews in navigation for students (even with full portal explorer)", () => {

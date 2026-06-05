@@ -24,10 +24,10 @@ vi.mock("@/lib/email", () => ({
   sendFeedbackRequestEmail: (a: unknown) => sendFeedbackRequestEmail(a),
 }));
 
-const requireCPO = vi.fn();
+const requireLeadership = vi.fn();
 const requireSessionUser = vi.fn();
 vi.mock("@/lib/authorization", () => ({
-  requireCPO: () => requireCPO(),
+  requireLeadership: () => requireLeadership(),
   requireSessionUser: () => requireSessionUser(),
   hasRole: (roles: string[], role: string, primary?: string) =>
     roles.includes(role) || primary === role,
@@ -194,11 +194,11 @@ describe("submitFeedbackResponse", () => {
   });
 });
 
-// ── Read visibility — CPO/Board only ─────────────────────────────────────────
+// ── Read visibility — Leadership/Board only ─────────────────────────────────────────
 
 describe("getFeedbackResponsesForSubject", () => {
-  it("returns raw responses for CPO/Board (requireCPO passes)", async () => {
-    requireCPO.mockResolvedValue({ id: "cpo", roles: ["ADMIN"], adminSubtypes: ["CPO"] });
+  it("returns raw responses for CPO/Board (requireLeadership passes)", async () => {
+    requireLeadership.mockResolvedValue({ id: "cpo", roles: ["ADMIN"], adminSubtypes: ["LEADERSHIP"] });
     prismaMock.feedbackRequest.findMany.mockResolvedValue([
       {
         id: "fr1",
@@ -215,7 +215,7 @@ describe("getFeedbackResponsesForSubject", () => {
   });
 
   it("throws for non-CPO/Board and never queries responses", async () => {
-    requireCPO.mockRejectedValue(new Error("Unauthorized"));
+    requireLeadership.mockRejectedValue(new Error("Unauthorized"));
 
     await expect(getFeedbackResponsesForSubject("subject")).rejects.toThrow("Unauthorized");
     expect(prismaMock.feedbackRequest.findMany).not.toHaveBeenCalled();
@@ -312,7 +312,7 @@ describe("getFeedbackRequestStatusForSubject", () => {
   });
 });
 
-// ── requestMonthlyFeedback action — CPO/Board only, multi-subject ────────────
+// ── requestMonthlyFeedback action — Leadership/Board only, multi-subject ────────────
 
 describe("requestMonthlyFeedback", () => {
   function stubOneCollaborator() {
@@ -324,8 +324,8 @@ describe("requestMonthlyFeedback", () => {
     prismaMock.feedbackRequest.findUnique.mockResolvedValue({ id: "fr-x" });
   }
 
-  it("requires CPO/Board (rejects when requireCPO throws)", async () => {
-    requireCPO.mockRejectedValue(new Error("Unauthorized"));
+  it("requires CPO/Board (rejects when requireLeadership throws)", async () => {
+    requireLeadership.mockRejectedValue(new Error("Unauthorized"));
     await expect(requestMonthlyFeedback({ subjectUserIds: ["subject"] })).rejects.toThrow(
       "Unauthorized"
     );
@@ -337,11 +337,11 @@ describe("requestMonthlyFeedback", () => {
     await expect(requestMonthlyFeedback({ subjectUserIds: ["subject"] })).rejects.toThrow(
       "not enabled"
     );
-    expect(requireCPO).not.toHaveBeenCalled();
+    expect(requireLeadership).not.toHaveBeenCalled();
   });
 
   it("aggregates results across subjects and dedupes ids", async () => {
-    requireCPO.mockResolvedValue({ id: "cpo", roles: ["ADMIN"], adminSubtypes: ["CPO"] });
+    requireLeadership.mockResolvedValue({ id: "cpo", roles: ["ADMIN"], adminSubtypes: ["LEADERSHIP"] });
     stubOneCollaborator();
 
     const res = await requestMonthlyFeedback({ subjectUserIds: ["subject", "subject"] });
@@ -353,7 +353,7 @@ describe("requestMonthlyFeedback", () => {
   });
 
   it("rejects an empty selection", async () => {
-    requireCPO.mockResolvedValue({ id: "cpo", roles: ["ADMIN"], adminSubtypes: ["CPO"] });
+    requireLeadership.mockResolvedValue({ id: "cpo", roles: ["ADMIN"], adminSubtypes: ["LEADERSHIP"] });
     await expect(requestMonthlyFeedback({ subjectUserIds: [] })).rejects.toThrow();
   });
 });

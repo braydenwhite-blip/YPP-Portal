@@ -55,7 +55,7 @@ function completionTime(item: ActionItemWithRelations): Date {
 }
 
 function isEscalatedUnresolved(item: ActionItemWithRelations): boolean {
-  return item.escalatedToCpoAt != null && item.resolvedAt == null;
+  return item.escalatedToLeadershipAt != null && item.resolvedAt == null;
 }
 
 /** Positive number of days overdue (0 when not overdue / no past deadline). */
@@ -155,7 +155,7 @@ function attentionReason(
   const overdueDays = daysOverdue(item, now);
 
   if (isEscalatedUnresolved(item)) {
-    return { reason: "Escalated to CPO, unresolved", severity: "high" };
+    return { reason: "Escalated to Leadership, unresolved", severity: "high" };
   }
   if (overdueDays >= 7) {
     return { reason: `Overdue ${overdueDays} days`, severity: "high" };

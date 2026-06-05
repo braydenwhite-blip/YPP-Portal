@@ -7,7 +7,7 @@ import {
   isPeopleDashboardEnabled,
 } from "@/lib/feature-flags";
 import { loadResponsibilityMap } from "@/lib/people-strategy/responsibility";
-import { isCpoOrBoard } from "@/lib/people-strategy/action-permissions";
+import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import { MOMENTUM_META } from "@/lib/people-strategy/momentum";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { Pill } from "@/components/people-strategy/pills";
@@ -31,7 +31,7 @@ export default async function ResponsibilityMapPage() {
 
   const now = new Date();
   const { rows, risks } = await loadResponsibilityMap(viewer, now);
-  const showPeople = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
+  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1100 }}>

@@ -73,8 +73,8 @@ async function main() {
     { subtype: AdminSubtype.COMMUNICATIONS_ADMIN, isDefaultOwner: false },
   ] as const;
 
-  // Brayden White is the Co-President & Chief People Officer (CPO). The CPO is
-  // modelled as the ADMIN role carrying the CPO AdminSubtype.
+  // Brayden White is the Co-President & Chief People Officer (Leadership). The Leadership is
+  // modelled as the ADMIN role carrying the Leadership AdminSubtype.
   const brayden = await prisma.user.upsert({
     where: { email: "brayden.white@youthpassionproject.org" },
     create: {
@@ -89,7 +89,7 @@ async function main() {
         create: [{ role: RoleType.ADMIN }, { role: RoleType.INSTRUCTOR }],
       },
       adminSubtypes: {
-        create: [{ subtype: AdminSubtype.CPO, isDefaultOwner: true }],
+        create: [{ subtype: AdminSubtype.LEADERSHIP, isDefaultOwner: true }],
       },
     },
     update: {
@@ -110,12 +110,12 @@ async function main() {
     where: {
       userId_subtype: {
         userId: brayden.id,
-        subtype: AdminSubtype.CPO,
+        subtype: AdminSubtype.LEADERSHIP,
       },
     },
     create: {
       userId: brayden.id,
-      subtype: AdminSubtype.CPO,
+      subtype: AdminSubtype.LEADERSHIP,
       isDefaultOwner: true,
     },
     update: {

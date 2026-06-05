@@ -238,7 +238,7 @@ function meetingWithRelations(notes: string) {
       },
     ],
     miscUpdates: [
-      { id: "x1", body: "Budget approved", addedBy: { id: "u1", name: "CPO", email: null } },
+      { id: "x1", body: "Budget approved", addedBy: { id: "u1", name: "LEADERSHIP", email: null } },
     ],
   };
 }

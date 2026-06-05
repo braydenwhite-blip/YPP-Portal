@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { GoalRatingColor, QuarterlyReviewDecision } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { requireCPO } from "@/lib/authorization";
+import { requireLeadership } from "@/lib/authorization";
 import { isQuarterlyReviewsEnabled } from "@/lib/feature-flags";
 import { getMatrixLabel, isSuccessionCandidate } from "@/lib/matrix";
 import {
@@ -18,7 +18,7 @@ import {
  *
  * Follows the `lib/*-actions.ts` convention: `"use server"`, a guard first,
  * zod validation, prisma write, then `revalidatePath`. Gated to leadership via
- * `requireCPO()` — only the CPO (`AdminSubtype.CPO`) and the Board stand-in
+ * `requireLeadership()` — only the Leadership (`AdminSubtype.LEADERSHIP`) and the Board stand-in
  * (`SUPER_ADMIN`) may place a user on the succession matrix.
  *
  * `successionFlag` is COMPUTED from the two ratings (`isSuccessionCandidate`)
@@ -79,7 +79,7 @@ export async function submitQuarterlyReview(
   input: SubmitQuarterlyReviewInput
 ): Promise<SavedQuarterlyReview> {
   ensureEnabled();
-  const reviewer = await requireCPO();
+  const reviewer = await requireLeadership();
 
   const { userId, quarter, performanceRating, potentialRating, decision, notes } =
     SubmitSchema.parse(input);

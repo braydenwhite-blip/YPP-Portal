@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { ActionAssignmentRole, ActionCommentType, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { requireCPO, requireSessionUser } from "@/lib/authorization";
+import { requireLeadership, requireSessionUser } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { parseDateInput, startOfDay } from "@/lib/leadership-action-center/dates";
 
@@ -722,9 +722,9 @@ export async function addActionFileLink(actionId: string, label: string, url: st
   return { ok: true };
 }
 
-// --- flag to CPO -------------------------------------------------------------
+// --- flag to Leadership -------------------------------------------------------------
 
-export async function flagActionToCPO(actionId: string) {
+export async function flagActionToLeadership(actionId: string) {
   ensureEnabled();
   const session = await requireSessionUser();
   if (!actionId) throw new Error("actionId required");
@@ -746,7 +746,7 @@ export async function flagActionToCPO(actionId: string) {
         tx,
         actionId,
         session.id,
-        "Flagged to CPO for escalation"
+        "Flagged to Leadership for escalation"
       );
       return;
     }
@@ -762,17 +762,17 @@ export async function flagActionToCPO(actionId: string) {
   return { flaggedAt };
 }
 
-// --- resolve escalation (CPO) -------------------------------------------------
+// --- resolve escalation (Leadership) -------------------------------------------------
 
 /**
- * Resolve a CPO escalation from the /people Escalation Queue. CPO/Board only.
+ * Resolve a Leadership escalation from the /people Escalation Queue. Leadership/Board only.
  * Sets `resolvedAt` (so the item leaves the queue and is never re-escalated)
  * and records a system comment in the item's history. Idempotent via a
  * conditional update — resolving an already-resolved item is a no-op.
  */
 export async function resolveEscalation(actionId: string) {
   ensureEnabled();
-  const session = await requireCPO();
+  const session = await requireLeadership();
   if (!actionId) throw new Error("actionId required");
 
   const now = new Date();
@@ -787,7 +787,7 @@ export async function resolveEscalation(actionId: string) {
         actionItemId: actionId,
         authorId: session.id,
         type: "NOTE",
-        body: "Escalation resolved by CPO",
+        body: "Escalation resolved by Leadership",
       },
     });
   }

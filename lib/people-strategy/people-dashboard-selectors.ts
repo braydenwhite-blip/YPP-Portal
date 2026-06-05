@@ -3,7 +3,7 @@ import type { ActionItemStatus, GoalRatingColor } from "@prisma/client";
 import { RATING_POINTS, RATING_LABELS } from "./check-in-rating";
 
 /**
- * People Strategy — CPO People Dashboard (`/people`) pure selectors.
+ * People Strategy — Leadership People Dashboard (`/people`) pure selectors.
  *
  * Everything here is pure (no Prisma runtime, no I/O, no clock unless passed
  * in) so the dashboard's row computations are deterministic and unit-testable.
@@ -130,7 +130,7 @@ export const WORKLOAD_ACTIVE_THRESHOLD = 5;
 /**
  * A reasonable workload warning. Flags a person when they carry a lot of active
  * work (lead + executing combined) or when any active item is overdue, so the
- * CPO can spot over-loaded or slipping people at a glance. Returns null when
+ * Leadership can spot over-loaded or slipping people at a glance. Returns null when
  * there is nothing to warn about.
  */
 export function workloadWarning(

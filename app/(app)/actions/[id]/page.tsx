@@ -9,7 +9,7 @@ import { getActionItemById } from "@/lib/people-strategy/action-queries";
 import {
   canEditAction,
   canFlagAction,
-  isCpoOrBoard,
+  isLeadershipOrBoard,
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
@@ -159,7 +159,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
   const canFlag = canFlagAction(viewer, actionShape);
   const officer = isOfficerTier(viewer);
   const closeHref = officer ? "/actions/all" : "/actions";
-  const showPeople = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
+  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>

@@ -7,7 +7,7 @@ export const ADMIN_SUBTYPE_VALUES = [
   "INTAKE_ADMIN",
   "CONTENT_ADMIN",
   "COMMUNICATIONS_ADMIN",
-  "CPO",
+  "LEADERSHIP",
 ] as const satisfies readonly AdminSubtype[];
 
 export type AdminSubtypeValue = (typeof ADMIN_SUBTYPE_VALUES)[number];
@@ -19,7 +19,7 @@ export const ADMIN_SUBTYPE_LABELS: Record<AdminSubtypeValue, string> = {
   INTAKE_ADMIN: "Intake Admin",
   CONTENT_ADMIN: "Content Admin",
   COMMUNICATIONS_ADMIN: "Communications Admin",
-  CPO: "Leadership",
+  LEADERSHIP: "Leadership",
 };
 
 export function normalizeAdminSubtype(

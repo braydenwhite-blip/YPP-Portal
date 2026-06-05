@@ -9,7 +9,7 @@ import {
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
 import {
-  isCpoOrBoard,
+  isLeadershipOrBoard,
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
@@ -173,7 +173,7 @@ export default async function MyActionsPage() {
   // Officers get the full Action Tracker tab bar (the same one every other
   // subview shows, so navigation is consistent — comment #17). Non-officers
   // only have My Actions, so no tab bar is rendered for them.
-  const showPeople = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
+  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>

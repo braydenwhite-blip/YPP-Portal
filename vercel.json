@@ -37,7 +37,7 @@
       "schedule": "0 23 * * *"
     },
     {
-      "path": "/api/cron/action-cpo-escalation",
+      "path": "/api/cron/action-leadership-escalation",
       "schedule": "0 7 * * *"
     }
   ]

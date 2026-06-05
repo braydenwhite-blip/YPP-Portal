@@ -6,7 +6,7 @@ import {
   isPeopleDashboardEnabled,
 } from "@/lib/feature-flags";
 import { listTrackerClasses, type TrackerClass } from "@/lib/people-strategy/class-tracker";
-import { isCpoOrBoard } from "@/lib/people-strategy/action-permissions";
+import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
 
@@ -23,7 +23,7 @@ export default async function ActionTrackerClassesPage() {
   if (!viewer) notFound();
 
   const classes = await listTrackerClasses();
-  const showPeopleDashboardTab = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
+  const showPeopleDashboardTab = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
   // Only admins can open the editable admin class detail; for other officer-tier
   // viewers the rows stay read-only (no deep-link) rather than bouncing them.
   const canManageClasses = viewer.roles.includes("ADMIN");

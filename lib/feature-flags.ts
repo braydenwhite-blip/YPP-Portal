@@ -60,8 +60,8 @@ export function isQuarterlyReviewsEnabled(): boolean {
 }
 
 /**
- * People Strategy — CPO People Dashboard (`/people`). The succession + people
- * health table for the CPO / Board (`requireCPO()`), compiling live Action
+ * People Strategy — Leadership People Dashboard (`/people`). The succession + people
+ * health table for the Leadership / Board (`requireLeadership()`), compiling live Action
  * Tracker, Quarterly Review, and Monthly Check-In data already in the schema.
  *
  * Defaults OFF — set `ENABLE_PEOPLE_DASHBOARD=true` to expose the route. With

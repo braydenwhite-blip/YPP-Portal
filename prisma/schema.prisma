@@ -36,10 +36,11 @@ enum AdminSubtype {
   INTAKE_ADMIN
   CONTENT_ADMIN
   COMMUNICATIONS_ADMIN
-  // Co-President & Chief People Officer. Top people-strategy role: owns Action
-  // Items delegation, reviews, and the People Dashboard. Reports to the Board
-  // (represented here by SUPER_ADMIN). Added in the People Strategy layer.
-  CPO
+  // Leadership (Co-President / People Lead). Top people-strategy role: owns
+  // Action Items delegation, reviews, and the People Dashboard. Reports to the
+  // Board (represented here by SUPER_ADMIN). Added in the People Strategy layer.
+  // (Formerly named CPO; renamed to LEADERSHIP in the Phase 5 cleanup.)
+  LEADERSHIP
 }
 
 enum WorkflowKind {
@@ -12303,12 +12304,12 @@ model ActionItem {
   flaggedAt DateTime?
 
   /// People-Strategy escalation state. A flagged or OVERDUE item that goes
-  /// unresolved for 48h+ is escalated to the CPO by the daily escalation cron,
-  /// which sets `escalatedToCpoAt` (the dedupe guard ensuring the CPO is
-  /// notified exactly once). `resolvedAt` is set when the CPO clears the item
-  /// from the Escalation Queue. `boardRolledUpAt` is reserved for a later phase
-  /// that rolls resolved/standing escalations up into a Board summary.
-  escalatedToCpoAt DateTime?
+  /// unresolved for 48h+ is escalated to Leadership by the daily escalation
+  /// cron, which sets `escalatedToLeadershipAt` (the dedupe guard ensuring
+  /// Leadership is notified exactly once). `resolvedAt` is set when Leadership
+  /// clears the item from the Escalation Queue. `boardRolledUpAt` is reserved
+  /// for a later phase that rolls escalations up into a Board summary.
+  escalatedToLeadershipAt DateTime?
   resolvedAt       DateTime?
   boardRolledUpAt  DateTime?
 
@@ -12331,7 +12332,7 @@ model ActionItem {
   @@index([createdById])
   @@index([officerMeetingId])
   @@index([flaggedAt])
-  @@index([escalatedToCpoAt])
+  @@index([escalatedToLeadershipAt])
   @@index([resolvedAt])
 }
 
@@ -12396,7 +12397,7 @@ enum ActionEmailType {
   WARNING_24H
   DEADLINE_REACHED
   OVERDUE_LEAD
-  CPO_ESCALATION
+  LEADERSHIP_ESCALATION
   BOARD_ROLLUP
 }
 

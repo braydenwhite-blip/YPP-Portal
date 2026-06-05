@@ -114,7 +114,7 @@ function QuarterlyEntryRow({ entry }: { entry: MemberQuarterlyEntry }) {
  * People Strategy section for the existing member detail route. Renders the
  * subject's active actions by role, quarterly review history, monthly check-in
  * history, mentor info, a provisional-status placeholder, and — only for
- * CPO/Board — the confidential feedback request responses.
+ * Leadership/Board — the confidential feedback request responses.
  *
  * The Quarterly Review submission form (Prompt 07C) is NOT duplicated here; it
  * lives in its own `#quarterly-review` section on the same page (gated by
@@ -128,7 +128,7 @@ export function MemberPeopleStrategySection({
   quarterlyFormAvailable,
 }: {
   data: MemberPeopleStrategy;
-  /** Confidential — only populated for CPO/Board. */
+  /** Confidential — only populated for Leadership/Board. */
   feedbackResponses: SubjectFeedbackResponse[] | null;
   /** Non-confidential request status (counts + last requested/submitted). */
   feedbackStatus: FeedbackRequestStatus | null;
@@ -286,7 +286,7 @@ export function MemberPeopleStrategySection({
         </div>
       ) : null}
 
-      {/* Confidential feedback request responses — CPO/Board only */}
+      {/* Confidential feedback request responses — Leadership/Board only */}
       {canSeeFeedback ? (
         <div className="instructor-profile-history">
           <h3>

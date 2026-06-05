@@ -16,7 +16,7 @@ import {
   sendActionDeadlineWarningEmail,
   sendActionDeadlineReachedEmail,
   sendActionOverdueLeadEmail,
-  sendCpoEscalationEmail,
+  sendLeadershipEscalationEmail,
   sendBoardEscalationRollupEmail,
   type ActionDigestItem,
 } from "@/lib/email";
@@ -338,7 +338,7 @@ export async function runDeadlineWarnings(now: Date): Promise<DeadlineWarningRes
 
     const dKey = dateKey(due);
     const updateStatusUrl = toAbsoluteAppUrl(`/actions/${item.id}`);
-    const flagToCpoUrl = toAbsoluteAppUrl(`/actions/${item.id}#flag-to-cpo`);
+    const flagToLeadershipUrl = toAbsoluteAppUrl(`/actions/${item.id}#flag-to-leadership`);
     const deadline = formatDeadlineDate(due);
 
     for (const { user, roles } of recipientsFor(item).values()) {
@@ -357,7 +357,7 @@ export async function runDeadlineWarnings(now: Date): Promise<DeadlineWarningRes
             actionTitle: item.title,
             deadline,
             updateStatusUrl,
-            flagToCpoUrl,
+            flagToLeadershipUrl,
           }),
       });
       if (sent) emailsSent++;
@@ -407,7 +407,7 @@ export async function runDeadlineReached(now: Date): Promise<DeadlineReachedResu
 
     const dKey = dateKey(due);
     const updateStatusUrl = toAbsoluteAppUrl(`/actions/${item.id}`);
-    const flagToCpoUrl = toAbsoluteAppUrl(`/actions/${item.id}#flag-to-cpo`);
+    const flagToLeadershipUrl = toAbsoluteAppUrl(`/actions/${item.id}#flag-to-leadership`);
     const deadline = formatDeadlineDate(due);
 
     for (const { user, roles } of recipientsFor(item).values()) {
@@ -426,7 +426,7 @@ export async function runDeadlineReached(now: Date): Promise<DeadlineReachedResu
             actionTitle: item.title,
             deadline,
             updateStatusUrl,
-            flagToCpoUrl,
+            flagToLeadershipUrl,
           }),
       });
       if (sent) reachedEmailsSent++;
@@ -481,14 +481,14 @@ export async function runDeadlineReached(now: Date): Promise<DeadlineReachedResu
   return { dueToday, reachedEmailsSent, markedOverdue, leadEmailsSent };
 }
 
-// ── 4. CPO escalation (daily) ───────────────────────────────────────────────
+// ── 4. Leadership escalation (daily) ───────────────────────────────────────────────
 
-export type CpoEscalationResult = {
+export type LeadershipEscalationResult = {
   /** Items eligible (flagged/overdue 48h+, unresolved, not yet escalated). */
   eligible: number;
-  /** Items newly marked `escalatedToCpoAt` this run. */
+  /** Items newly marked `escalatedToLeadershipAt` this run. */
   itemsEscalated: number;
-  /** CPO/Board notification emails actually sent this run. */
+  /** Leadership/Board notification emails actually sent this run. */
   emailsSent: number;
 };
 
@@ -510,7 +510,7 @@ async function loadEscalationCandidates(): Promise<EscalationCandidate[]> {
   return prisma.actionItem.findMany({
     where: {
       resolvedAt: null,
-      escalatedToCpoAt: null,
+      escalatedToLeadershipAt: null,
       OR: [{ flaggedAt: { not: null } }, { status: "OVERDUE" }],
     },
     select: {
@@ -527,39 +527,39 @@ async function loadEscalationCandidates(): Promise<EscalationCandidate[]> {
   }) as unknown as Promise<EscalationCandidate[]>;
 }
 
-/** CPO / Board recipients (ADMIN + AdminSubtype CPO or SUPER_ADMIN) with email. */
-async function loadCpoRecipients(): Promise<LoadedRecipient[]> {
+/** Leadership / Board recipients (ADMIN + AdminSubtype Leadership or SUPER_ADMIN) with email. */
+async function loadLeadershipRecipients(): Promise<LoadedRecipient[]> {
   return prisma.user.findMany({
     where: {
       archivedAt: null,
-      adminSubtypes: { some: { subtype: { in: ["CPO", "SUPER_ADMIN"] } } },
+      adminSubtypes: { some: { subtype: { in: ["LEADERSHIP", "SUPER_ADMIN"] } } },
     },
     select: { id: true, name: true, email: true },
   });
 }
 
 /**
- * Escalate flagged/OVERDUE items that have been unresolved for 48h+ to the CPO.
+ * Escalate flagged/OVERDUE items that have been unresolved for 48h+ to the Leadership.
  *
- * For each eligible item the CPO/Board are notified exactly once: `sendOnce`
+ * For each eligible item the Leadership/Board are notified exactly once: `sendOnce`
  * dedupes per (item, recipient) via `ActionEmailLog`, and the item is then
- * marked `escalatedToCpoAt` with a race-safe conditional update so retries or
+ * marked `escalatedToLeadershipAt` with a race-safe conditional update so retries or
  * overlapping runs never double-escalate. Items are only marked when at least
- * one CPO recipient exists, so the escalation re-fires for a later run if no
- * CPO/Board user is configured yet. No-op unless ENABLE_ACTION_TRACKER_EMAILS.
+ * one Leadership recipient exists, so the escalation re-fires for a later run if no
+ * Leadership/Board user is configured yet. No-op unless ENABLE_ACTION_TRACKER_EMAILS.
  */
-export async function runCpoEscalations(now: Date): Promise<CpoEscalationResult> {
+export async function runLeadershipEscalations(now: Date): Promise<LeadershipEscalationResult> {
   if (!isActionTrackerEmailsEnabled())
     return { eligible: 0, itemsEscalated: 0, emailsSent: 0 };
 
   const candidates = await loadEscalationCandidates();
   const eligible = candidates.filter((item) => isEscalationEligible(item, now));
   if (eligible.length === 0) {
-    logger.info({ eligible: 0 }, "action-cron: cpo escalation");
+    logger.info({ eligible: 0 }, "action-cron: leadership escalation");
     return { eligible: 0, itemsEscalated: 0, emailsSent: 0 };
   }
 
-  const recipients = (await loadCpoRecipients()).filter((r) => r.email);
+  const recipients = (await loadLeadershipRecipients()).filter((r) => r.email);
   const queueUrl = toAbsoluteAppUrl("/people");
 
   let itemsEscalated = 0;
@@ -573,16 +573,16 @@ export async function runCpoEscalations(now: Date): Promise<CpoEscalationResult>
     const deadline = formatDeadlineDate(escalationDeadline(item));
     const actionUrl = toAbsoluteAppUrl(`/actions/${item.id}`);
 
-    for (const cpo of recipients) {
+    for (const recipient of recipients) {
       const sent = await sendOnce({
-        dedupeKey: `escalation:${item.id}:${cpo.id}`,
-        type: "CPO_ESCALATION",
-        recipientId: cpo.id,
+        dedupeKey: `escalation:${item.id}:${recipient.id}`,
+        type: "LEADERSHIP_ESCALATION",
+        recipientId: recipient.id,
         actionItemId: item.id,
         send: () =>
-          sendCpoEscalationEmail({
-            to: cpo.email as string,
-            recipientName: cpo.name,
+          sendLeadershipEscalationEmail({
+            to: recipient.email as string,
+            recipientName: recipient.name,
             actionTitle: item.title,
             department: item.department?.name ?? "Unassigned",
             leadName: item.lead?.name ?? null,
@@ -598,11 +598,11 @@ export async function runCpoEscalations(now: Date): Promise<CpoEscalationResult>
     }
 
     // Mark escalated once — only when there is someone to notify, so an item
-    // with no configured CPO/Board recipient stays eligible for a later run.
+    // with no configured Leadership/Board recipient stays eligible for a later run.
     if (recipients.length > 0) {
       const updated = await prisma.actionItem.updateMany({
-        where: { id: item.id, escalatedToCpoAt: null },
-        data: { escalatedToCpoAt: now },
+        where: { id: item.id, escalatedToLeadershipAt: null },
+        data: { escalatedToLeadershipAt: now },
       });
       if (updated.count > 0) itemsEscalated++;
     }
@@ -610,7 +610,7 @@ export async function runCpoEscalations(now: Date): Promise<CpoEscalationResult>
 
   logger.info(
     { eligible: eligible.length, itemsEscalated, emailsSent, recipients: recipients.length },
-    "action-cron: cpo escalation"
+    "action-cron: leadership escalation"
   );
   return { eligible: eligible.length, itemsEscalated, emailsSent };
 }
@@ -618,7 +618,7 @@ export async function runCpoEscalations(now: Date): Promise<CpoEscalationResult>
 // ── 5. Board roll-up (daily) ────────────────────────────────────────────────
 
 export type BoardRollupResult = {
-  /** CPO-escalated, unresolved, not-yet-rolled-up items past the 7-day threshold. */
+  /** Leadership-escalated, unresolved, not-yet-rolled-up items past the 7-day threshold. */
   eligible: number;
   /** Items newly marked `boardRolledUpAt` this run. */
   itemsRolledUp: number;
@@ -631,7 +631,7 @@ type RollupCandidate = {
   id: string;
   title: string;
   status: ActionItemStatus;
-  escalatedToCpoAt: Date | null;
+  escalatedToLeadershipAt: Date | null;
   resolvedAt: Date | null;
   boardRolledUpAt: Date | null;
   deadlineStart: Date;
@@ -640,19 +640,19 @@ type RollupCandidate = {
   lead: LoadedRecipient | null;
 };
 
-/** CPO-escalated, unresolved items not yet rolled up to the Board. */
+/** Leadership-escalated, unresolved items not yet rolled up to the Board. */
 async function loadRollupCandidates(): Promise<RollupCandidate[]> {
   return prisma.actionItem.findMany({
     where: {
       resolvedAt: null,
       boardRolledUpAt: null,
-      escalatedToCpoAt: { not: null },
+      escalatedToLeadershipAt: { not: null },
     },
     select: {
       id: true,
       title: true,
       status: true,
-      escalatedToCpoAt: true,
+      escalatedToLeadershipAt: true,
       resolvedAt: true,
       boardRolledUpAt: true,
       deadlineStart: true,
@@ -675,7 +675,7 @@ async function loadBoardRecipients(): Promise<LoadedRecipient[]> {
 }
 
 /**
- * Roll CPO-escalated, unresolved items that are 7+ days past `escalatedToCpoAt`
+ * Roll Leadership-escalated, unresolved items that are 7+ days past `escalatedToLeadershipAt`
  * up to the Board.
  *
  * Each item is rolled up exactly once: a race-safe conditional update sets
@@ -716,8 +716,8 @@ export async function runBoardRollups(now: Date): Promise<BoardRollupResult> {
     if (updated.count === 0) continue; // already rolled up / resolved by another run
     itemsRolledUp++;
 
-    const sinceLabel = item.escalatedToCpoAt
-      ? formatEscalationAge(item.escalatedToCpoAt, now)
+    const sinceLabel = item.escalatedToLeadershipAt
+      ? formatEscalationAge(item.escalatedToLeadershipAt, now)
       : "7 days";
 
     // Authorless (system) audit entry, visible in the item's comment history.
@@ -725,7 +725,7 @@ export async function runBoardRollups(now: Date): Promise<BoardRollupResult> {
       data: {
         actionItemId: item.id,
         type: "NOTE",
-        body: `Rolled up to the Board — unresolved ${sinceLabel} after CPO escalation.`,
+        body: `Rolled up to the Board — unresolved ${sinceLabel} after Leadership escalation.`,
       },
     });
 
@@ -747,7 +747,7 @@ export async function runBoardRollups(now: Date): Promise<BoardRollupResult> {
             leadName: item.lead?.name ?? null,
             statusLabel: ACTION_STATUS_LABELS[item.status],
             daysUnresolvedLabel: sinceLabel,
-            cpoEscalatedLabel: `${sinceLabel} ago`,
+            leadershipEscalatedLabel: `${sinceLabel} ago`,
             deadline,
             boardUrl,
             actionUrl,

@@ -17,7 +17,7 @@ import {
   effectiveDeadline,
   isActionOverdue,
 } from "@/lib/people-strategy/my-actions-selectors";
-import { isCpoOrBoard } from "@/lib/people-strategy/action-permissions";
+import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import {
   applyActionFilters,
   buildActionFilterQuery,
@@ -188,7 +188,7 @@ export default async function AllActionsPage({
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const filtersActive = hasActiveFilters(filters);
-  const showPeopleDashboardTab = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
+  const showPeopleDashboardTab = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
   const lastUpdated = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",

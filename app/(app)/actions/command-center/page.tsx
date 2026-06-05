@@ -8,7 +8,8 @@ import {
 } from "@/lib/feature-flags";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import { loadCommandCenter } from "@/lib/people-strategy/command-center";
-import { isCpoOrBoard } from "@/lib/people-strategy/action-permissions";
+import { buildLeadershipBriefing } from "@/lib/people-strategy/leadership-briefing";
+import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import { MOMENTUM_META } from "@/lib/people-strategy/momentum";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
@@ -17,6 +18,7 @@ import {
   FollowUpGenerator,
   type FollowUpCandidate,
 } from "@/components/people-strategy/follow-up-generator";
+import { LeadershipBriefingCard } from "@/components/people-strategy/leadership-briefing-card";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Command Center · People Strategy" };
@@ -84,7 +86,16 @@ export default async function CommandCenterPage() {
 
   const now = new Date();
   const data = await loadCommandCenter(viewer, now);
-  const showPeople = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
+  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
+
+  const briefing = buildLeadershipBriefing({
+    weekStart: data.weekStart,
+    pulse: data.pulse,
+    attention: data.attention,
+    needsSupport: data.needsSupport,
+    wins: data.wins,
+    consideredCount: data.consideredCount,
+  });
 
   const topAttention = data.attention.slice(0, 8);
   const followUpCandidates: FollowUpCandidate[] = data.attention
@@ -234,6 +245,12 @@ export default async function CommandCenterPage() {
 
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 24, minWidth: 0 }}>
+          {/* Weekly Leadership Briefing */}
+          <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <SectionHeader title="Weekly Briefing" hint="Copy & share" />
+            <LeadershipBriefingCard briefing={briefing} />
+          </section>
+
           {/* Follow-Up Generator */}
           <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <SectionHeader title="Follow-Up Generator" hint="Draft a nudge" />
