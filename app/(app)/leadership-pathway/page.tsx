@@ -22,6 +22,10 @@ export default async function LeadershipPathwayPage() {
     primaryRole: ctx?.user.primaryRole ?? session.user.primaryRole ?? null,
   });
 
+  const mentor = ctx?.primaryMentor
+    ? { name: ctx.primaryMentor.name, role: ctx.primaryMentor.roleLabel }
+    : null;
+
   return (
     <GrowthDashboard
       userId={session.user.id}
@@ -29,6 +33,7 @@ export default async function LeadershipPathwayPage() {
       isAdmin={isAdmin}
       initialTrackId={trackId}
       initialRoleId={roleId}
+      mentor={mentor}
     />
   );
 }

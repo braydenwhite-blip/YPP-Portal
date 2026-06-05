@@ -182,6 +182,62 @@ function computeReadiness(track: TrackConfig, statuses: Record<string, StatusLev
   return { pct, verdict, above, onOrAbove, atRisk, total };
 }
 
+interface PromotionGate {
+  label: string;
+  met: boolean;
+}
+
+function computePromotionGates(
+  track: TrackConfig,
+  statuses: Record<string, StatusLevelId>,
+  evidenceCount: number
+): PromotionGate[] {
+  const r = computeReadiness(track, statuses);
+  const half = Math.ceil(track.competencies.length / 2);
+  return [
+    { label: "No competency is At Risk", met: r.atRisk === 0 },
+    {
+      label: "Every competency is at least On Track",
+      met: r.onOrAbove === r.total,
+    },
+    {
+      label: `At least ${half} competencies Above & Beyond`,
+      met: r.above >= half,
+    },
+    { label: "At least 3 pieces of evidence logged", met: evidenceCount >= 3 },
+  ];
+}
+
+/** Smart, sorted "what to do next" suggestions from the weakest areas. */
+function computeRecommendations(
+  track: TrackConfig,
+  statuses: Record<string, StatusLevelId>
+): Array<{ id: string; title: string; line: string; status: StatusLevelId }> {
+  const rank: Record<StatusLevelId, number> = {
+    AT_RISK: 0,
+    NEEDS_ATTENTION: 1,
+    ON_TRACK: 2,
+    ABOVE_AND_BEYOND: 3,
+  };
+  const recs = track.competencies
+    .map((c) => ({ c, status: statuses[c.id] ?? "ON_TRACK" }))
+    .sort((a, b) => rank[a.status] - rank[b.status])
+    .slice(0, 3)
+    .map(({ c, status }) => {
+      let line: string;
+      if (status === "AT_RISK")
+        line = `Urgent: close the major gaps in "${c.shortTitle}". Pair with your mentor this week.`;
+      else if (status === "NEEDS_ATTENTION")
+        line = `Tighten up "${c.shortTitle}" — meet every bullet to move it to On Track.`;
+      else if (status === "ON_TRACK")
+        line = `Stretch "${c.shortTitle}" toward Above & Beyond to strengthen your promotion case.`;
+      else
+        line = `Keep sustaining your Above & Beyond work in "${c.shortTitle}" — log the evidence.`;
+      return { id: c.id, title: c.title, line, status };
+    });
+  return recs;
+}
+
 /* ------------------------------------------------------------------ *
  * Main dashboard
  * ------------------------------------------------------------------ */
@@ -192,6 +248,7 @@ export interface GrowthDashboardProps {
   isAdmin: boolean;
   initialTrackId: TrackId;
   initialRoleId: string;
+  mentor?: { name: string; role: string } | null;
 }
 
 export function GrowthDashboard({
@@ -200,6 +257,7 @@ export function GrowthDashboard({
   isAdmin,
   initialTrackId,
   initialRoleId,
+  mentor = null,
 }: GrowthDashboardProps) {
   const [trackId, setTrackId] = useState<TrackId>(initialTrackId);
   const [roleId, setRoleId] = useState<string>(initialRoleId);
@@ -281,6 +339,37 @@ export function GrowthDashboard({
   const removeEvidence = (id: string) =>
     persist({ ...state, evidence: state.evidence.filter((e) => e.id !== id) });
 
+  const evidenceCount = state.evidence.filter(
+    (e) => !e.id.startsWith("seed-")
+  ).length;
+
+  const gates = useMemo(
+    () => computePromotionGates(track, state.statuses, evidenceCount),
+    [track, state.statuses, evidenceCount]
+  );
+  const recommendations = useMemo(
+    () => computeRecommendations(track, state.statuses),
+    [track, state.statuses]
+  );
+
+  const [evidencePreset, setEvidencePreset] = useState<string | null>(null);
+  const focusEvidence = (competencyId: string) => {
+    setOpenCompetency(null);
+    setEvidencePreset(competencyId);
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() =>
+        document
+          .getElementById("gp-evidence-anchor")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" })
+      );
+    }
+  };
+
+  const resetTrack = () => {
+    const fresh = seedState(track, userName);
+    persist(fresh);
+  };
+
   return (
     <div className="gp-root">
       {/* ── Hero ───────────────────────────────────────────── */}
@@ -295,20 +384,53 @@ export function GrowthDashboard({
             leadership growth at YPP.
           </p>
 
-          <div className="gp-trackswitch" role="tablist" aria-label="Pathway track">
-            {TRACK_ORDER.map((tid) => (
+          <div className="gp-hero__controls">
+            <div className="gp-trackswitch" role="tablist" aria-label="Pathway track">
+              {TRACK_ORDER.map((tid) => (
+                <button
+                  key={tid}
+                  role="tab"
+                  aria-selected={tid === trackId}
+                  className={`gp-trackswitch__btn ${tid === trackId ? "is-active" : ""}`}
+                  onClick={() => switchTrack(tid)}
+                >
+                  {TRACKS[tid].label}
+                </button>
+              ))}
+            </div>
+            <div className="gp-hero__tools">
               <button
-                key={tid}
-                role="tab"
-                aria-selected={tid === trackId}
-                className={`gp-trackswitch__btn ${tid === trackId ? "is-active" : ""}`}
-                onClick={() => switchTrack(tid)}
+                className="gp-hero__tool"
+                onClick={() => window.print()}
+                title="Print or export your growth summary"
               >
-                {TRACKS[tid].label}
+                ⎙ Export
               </button>
-            ))}
+              {isAdmin && (
+                <button
+                  className="gp-hero__tool"
+                  onClick={resetTrack}
+                  title="Reset ratings, notes and evidence for this track"
+                >
+                  ↺ Reset
+                </button>
+              )}
+            </div>
           </div>
         </div>
+      </section>
+
+      {/* ── Mission banner ─────────────────────────────────── */}
+      <section className="gp-mission">
+        <span className="gp-mission__label">Role mission</span>
+        <p className="gp-mission__text">{track.mission}</p>
+        {mentor && (
+          <p className="gp-mission__support">
+            <span aria-hidden>🤝</span> Supported by{" "}
+            <strong>{mentor.name}</strong>
+            <span className="gp-mission__support-role"> · {mentor.role}</span>
+          </p>
+        )}
       </section>
 
       {/* ── Role cards row ─────────────────────────────────── */}
@@ -341,6 +463,58 @@ export function GrowthDashboard({
         />
       </section>
 
+      {/* ── Promotion readiness + recommendations ──────────── */}
+      <section className="gp-section">
+        <div className="gp-section__head">
+          <h2 className="gp-section__title">Promotion readiness</h2>
+          <p className="gp-section__sub">
+            {nextRole
+              ? `What it takes to be ready for ${nextRole.label}.`
+              : "Stewardship checkpoints at the top of the pathway."}
+          </p>
+        </div>
+        <div className="gp-readyrow">
+          <div className="gp-gates">
+            <div className="gp-gates__head">
+              <span className={`gp-readiness__badge gp-tone--${readiness.verdict.tone}`}>
+                {readiness.verdict.label}
+              </span>
+              <span className="gp-gates__count">
+                {gates.filter((g) => g.met).length}/{gates.length} criteria met
+              </span>
+            </div>
+            <ul className="gp-gates__list">
+              {gates.map((g, i) => (
+                <li key={i} className={`gp-gate ${g.met ? "is-met" : ""}`}>
+                  <span className="gp-gate__check" aria-hidden>
+                    {g.met ? "✓" : ""}
+                  </span>
+                  <span>{g.label}</span>
+                </li>
+              ))}
+            </ul>
+            {nextRole?.promotionWindow && (
+              <p className="gp-gates__window">{nextRole.promotionWindow}</p>
+            )}
+          </div>
+
+          <div className="gp-recs">
+            <h3 className="gp-recs__title">What to focus on next</h3>
+            <ul className="gp-recs__list">
+              {recommendations.map((r) => (
+                <li key={r.id} className="gp-rec">
+                  <span className={`gp-rec__dot gp-tone--${STATUS_LEVELS[r.status].tone}`} aria-hidden />
+                  <div>
+                    <strong>{r.title}</strong>
+                    <p>{r.line}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* ── Competency cards ───────────────────────────────── */}
       <section className="gp-section">
         <div className="gp-section__head">
@@ -366,13 +540,15 @@ export function GrowthDashboard({
       </section>
 
       {/* ── Evidence + Admin ───────────────────────────────── */}
-      <div className="gp-lower">
+      <div className="gp-lower" id="gp-evidence-anchor">
         <EvidenceFeed
           track={track}
           evidence={state.evidence}
           onAdd={addEvidence}
           onRemove={removeEvidence}
           hydrated={hydrated}
+          presetTag={evidencePreset}
+          onPresetApplied={() => setEvidencePreset(null)}
         />
         <StatusLegend />
       </div>
@@ -400,6 +576,7 @@ export function GrowthDashboard({
           currentRoleId={role.id}
           status={state.statuses[openCompetency] ?? "ON_TRACK"}
           onClose={() => setOpenCompetency(null)}
+          onLogEvidence={focusEvidence}
         />
       )}
     </div>
@@ -659,12 +836,14 @@ function CompetencyDrawer({
   currentRoleId,
   status,
   onClose,
+  onLogEvidence,
 }: {
   track: TrackConfig;
   competency: PathwayCompetency;
   currentRoleId: string;
   status: StatusLevelId;
   onClose: () => void;
+  onLogEvidence: (competencyId: string) => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -705,6 +884,12 @@ function CompetencyDrawer({
         <div className="gp-drawer__statusrow">
           <span className="gp-drawer__statuslbl">Your current status</span>
           <StatusPill status={status} />
+          <button
+            className="gp-btn gp-btn--soft gp-drawer__logbtn"
+            onClick={() => onLogEvidence(competency.id)}
+          >
+            + Log evidence
+          </button>
         </div>
 
         <div className="gp-drawer__cols">
@@ -747,15 +932,28 @@ function EvidenceFeed({
   onAdd,
   onRemove,
   hydrated,
+  presetTag = null,
+  onPresetApplied,
 }: {
   track: TrackConfig;
   evidence: EvidenceItem[];
   onAdd: (text: string, competencyId: string | null) => void;
   onRemove: (id: string) => void;
   hydrated: boolean;
+  presetTag?: string | null;
+  onPresetApplied?: () => void;
 }) {
   const [text, setText] = useState("");
   const [tag, setTag] = useState<string>("");
+
+  // Pre-select a growth area when the drawer asks to log evidence for one.
+  useEffect(() => {
+    if (presetTag) {
+      setTag(presetTag);
+      onPresetApplied?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetTag]);
 
   const compName = (id: string | null) =>
     id ? track.competencies.find((c) => c.id === id)?.shortTitle ?? null : null;

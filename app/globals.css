@@ -16088,3 +16088,164 @@ select.ps-filter {
   .gp-admin__seg { grid-template-columns: repeat(2, 1fr); }
   .gp-drawer__panel { width: 100vw; padding: 20px 16px 36px; }
 }
+
+/* ── Growth Pathway: enhancements (mission, toolbar, gates, recs) ── */
+.gp-hero__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+.gp-hero__tools { display: flex; gap: 8px; }
+.gp-hero__tool {
+  appearance: none;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: var(--radius-full);
+  padding: 8px 15px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: background var(--transition-fast);
+}
+.gp-hero__tool:hover { background: rgba(255, 255, 255, 0.24); }
+
+.gp-mission {
+  position: relative;
+  background: linear-gradient(135deg, var(--ypp-purple-50), var(--ypp-pink-50));
+  border: 1px solid var(--ypp-purple-100);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+}
+.gp-mission__label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ypp-purple-600);
+}
+.gp-mission__text {
+  margin: 8px 0 0;
+  font-family: var(--font-lora), Georgia, serif;
+  font-size: 16px;
+  line-height: 1.62;
+  color: var(--text-secondary);
+  max-width: 92ch;
+}
+.gp-mission__support {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.gp-mission__support strong { color: var(--ypp-purple-700); }
+.gp-mission__support-role { color: var(--muted); }
+
+/* readiness + recommendations row */
+.gp-readyrow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+.gp-gates,
+.gp-recs {
+  background: var(--surface);
+  border: 1px solid var(--ypp-line);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-xs);
+}
+.gp-gates__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.gp-gates__count { font-size: 12px; font-weight: 700; color: var(--muted); }
+.gp-gates__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.gp-gate {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 11px;
+  align-items: center;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.gp-gate.is-met { color: var(--text); }
+.gp-gate__check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--gray-200);
+}
+.gp-gate.is-met .gp-gate__check { background: #16a34a; }
+.gp-gates__window {
+  margin: 14px 0 0;
+  padding-top: 13px;
+  border-top: 1px dashed var(--ypp-line);
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.gp-recs__title {
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ypp-purple-700);
+  margin: 0 0 14px;
+}
+.gp-recs__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 13px; }
+.gp-rec { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; }
+.gp-rec__dot {
+  margin-top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gp-tone, var(--ypp-purple-500));
+}
+.gp-rec strong { font-size: 13.5px; color: var(--ypp-purple-800); }
+.gp-rec p { margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
+
+.gp-drawer__logbtn { margin-left: auto; }
+
+/* ── Print / export ── */
+@media print {
+  .gp-hero__tools,
+  .gp-trackswitch,
+  .gp-ladder__btn:hover .gp-ladder__node,
+  .gp-comp__more,
+  .gp-drawer,
+  .gp-admin__bar,
+  .gp-evidence__composer { display: none !important; }
+  .gp-root { gap: 20px; max-width: 100%; }
+  .gp-hero {
+    color: #1a0533;
+    background: #fff !important;
+    border: 1px solid #ddd;
+    box-shadow: none;
+  }
+  .gp-hero__eyebrow,
+  .gp-hero__lede { color: #444; background: transparent; }
+  .gp-hero__title { color: var(--ypp-purple-800); }
+  .gp-card, .gp-comp, .gp-gates, .gp-recs, .gp-legend__list {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
+
+@media (max-width: 900px) {
+  .gp-readyrow { grid-template-columns: 1fr; }
+}
