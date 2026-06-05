@@ -18,6 +18,15 @@ describe("admin subtype helpers", () => {
     ).toEqual(["CONTENT_ADMIN", "SUPER_ADMIN"]);
   });
 
+  it("maps the legacy CPO value onto LEADERSHIP", () => {
+    expect(normalizeAdminSubtypes(["CPO"])).toEqual(["LEADERSHIP"]);
+    expect(normalizeAdminSubtypes(["cpo"])).toEqual(["LEADERSHIP"]);
+    // A row carrying both the legacy and renamed value collapses to one.
+    expect(normalizeAdminSubtypes(["CPO", "LEADERSHIP"])).toEqual([
+      "LEADERSHIP",
+    ]);
+  });
+
   it("detects super admins and content access correctly", () => {
     expect(isSuperAdmin(["SUPER_ADMIN"])).toBe(true);
     expect(canAccessContentAdmin(["CONTENT_ADMIN"])).toBe(true);
