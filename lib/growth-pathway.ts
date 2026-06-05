@@ -121,6 +121,8 @@ export interface TrackConfig {
   tagline: string;
   /** Short word used in toggles / chips ("Teaching", "Leadership"). */
   chip: string;
+  /** The overarching mission statement for everyone on this track. */
+  mission: string;
   /** The main, sequential ladder rungs. */
   roles: PathwayRole[];
   /** Roles that run alongside the ladder rather than on it. */
@@ -377,6 +379,8 @@ export const TRACKS: Record<TrackId, TrackConfig> = {
     tagline:
       "How instructors grow at YPP — from the classroom to organization-wide teaching leadership.",
     chip: "Teaching",
+    mission:
+      "YPP Instructors create engaging, meaningful, high-quality learning experiences that help students explore and develop their passions. They shape the YPP experience through excellent teaching and family relationships, professionalism, and active contribution to the broader community — growing over time as leaders, collaborators, and ambassadors for YPP's mission and culture.",
     roles: INSTRUCTOR_ROLES,
     parallelRoles: [],
     competencies: INSTRUCTOR_COMPETENCIES,
@@ -387,6 +391,8 @@ export const TRACKS: Record<TrackId, TrackConfig> = {
     tagline:
       "How leaders grow at YPP — from owning your area to stewarding the whole organization.",
     chip: "Leadership",
+    mission:
+      "YPP leaders own outcomes and deliver sustained impact — producing measurable results, driving new ideas, communicating reliably, developing the people around them, and building the systems and relationships that carry YPP's mission well beyond any single program cycle.",
     roles: LEADERSHIP_ROLES,
     parallelRoles: LEADERSHIP_PARALLEL_ROLES,
     competencies: LEADERSHIP_COMPETENCIES,
