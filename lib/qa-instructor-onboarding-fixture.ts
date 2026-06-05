@@ -227,7 +227,7 @@ export async function resetQaInstructorOnboardingFixture(
   });
 
   // Reset the unified Instructor Launchpad journey so the QA instructor lands on
-  // a fresh 4-step launchpad (instructors now gate on InstructorJourney).
+  // a fresh 5-step launchpad (instructors now gate on InstructorJourney).
   await db.instructorJourney.upsert({
     where: { userId: instructor.id },
     create: {
@@ -236,6 +236,7 @@ export async function resetQaInstructorOnboardingFixture(
       welcomeCompletedAt: null,
       profileCompletedAt: null,
       trainingCompletedAt: null,
+      communityCompletedAt: null,
       tourCompletedAt: null,
       completedAt: null,
     },
@@ -244,6 +245,7 @@ export async function resetQaInstructorOnboardingFixture(
       welcomeCompletedAt: null,
       profileCompletedAt: null,
       trainingCompletedAt: null,
+      communityCompletedAt: null,
       tourCompletedAt: null,
       completedAt: null,
     },

@@ -1,13 +1,12 @@
 /* ============================================================
-   INSTRUCTOR LAUNCHPAD — portal-native 4-step onboarding
+   INSTRUCTOR LAUNCHPAD — portal-native 5-step onboarding
    Built on the portal design system (globals.css):
    --ypp-* colors, --radius-*, --shadow-*, .card / .btn idioms.
 
-   Layout: fixed left vertical rail (stepper + persistent Help &
-   community panel) + a right pane with a fixed header and an
-   independently scrollable content area, so the experience always
-   fits the viewport. Under 720px the rail collapses to a compact
-   "Step X of 4" pill with a thin progress bar.
+   Layout: fixed left vertical rail (stepper) + a right pane with a
+   fixed header and an independently scrollable content area, so the
+   experience always fits the viewport. Under 720px the rail collapses
+   to a compact "Step X of 5" pill with a thin progress bar.
    ============================================================ */
 
 .launchpad {
@@ -217,44 +216,7 @@
   to { transform: scaleX(1); }
 }
 
-/* --------------- Persistent Help & community panel --------------- */
-
-.helpPanel {
-  display: grid;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--ypp-purple-50);
-}
-
-.railHelp {
-  margin-top: auto;
-}
-
-.helpHead {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.helpIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-md);
-  color: var(--ypp-purple-700);
-  background: var(--ypp-purple-100);
-}
-
-.helpTitle {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--ypp-purple-800);
-}
+/* --------------- Help & community step sections --------------- */
 
 .helpSection {
   display: grid;
@@ -287,12 +249,6 @@
   color: var(--text-secondary);
 }
 
-.helpPanel a {
-  color: var(--ypp-purple-700);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
 
 /* ------------------- Right pane (header + scroll) ------------------- */
 
@@ -558,68 +514,6 @@
   background: var(--ypp-pink-50);
 }
 
-/* ---------- Static "lay of the land" portal map (Phase 1) ---------- */
-
-.mapWrap {
-  display: grid;
-  gap: 14px;
-}
-
-.mapCaption {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-.map {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.mapArea {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--ypp-purple-300);
-  border-radius: var(--radius-md);
-  background: linear-gradient(180deg, #fff, var(--ypp-purple-50));
-}
-
-.mapNum {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-full);
-  background: var(--ypp-purple-100);
-  color: var(--ypp-purple-700);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.mapAreaTitle {
-  margin: 0 0 4px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ypp-purple-800);
-}
-
-.mapAreaDesc {
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
 /* ---------- Phase-4 tour launch note (real dashboard tour) ---------- */
 
 .tourLaunch {
@@ -706,13 +600,6 @@
   animation: railFillGrow 520ms var(--ease-launchpad) both;
 }
 
-.mobileHelp {
-  display: none;
-  max-width: 640px;
-  margin: 0 auto;
-  width: 100%;
-}
-
 /* ---------- Responsive: collapse rail under 720px ---------- */
 
 @media (max-width: 720px) {
@@ -749,10 +636,6 @@
     font-size: 13px;
     font-weight: 700;
     color: var(--ypp-purple-800);
-  }
-
-  .mobileHelp {
-    display: grid;
   }
 
   .mainHeader {

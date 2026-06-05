@@ -14,6 +14,7 @@ type StepStamp =
   | { welcomeCompletedAt: Date }
   | { profileCompletedAt: Date }
   | { trainingCompletedAt: Date }
+  | { communityCompletedAt: Date }
   | { tourCompletedAt: Date };
 
 function stampFor(key: JourneyStepKey, at: Date): StepStamp {
@@ -24,6 +25,8 @@ function stampFor(key: JourneyStepKey, at: Date): StepStamp {
       return { profileCompletedAt: at };
     case "training":
       return { trainingCompletedAt: at };
+    case "community":
+      return { communityCompletedAt: at };
     case "tour":
       return { tourCompletedAt: at };
   }
@@ -34,6 +37,7 @@ function isStamped(
     welcomeCompletedAt: Date | null;
     profileCompletedAt: Date | null;
     trainingCompletedAt: Date | null;
+    communityCompletedAt: Date | null;
     tourCompletedAt: Date | null;
   } | null,
   key: JourneyStepKey,
@@ -46,6 +50,8 @@ function isStamped(
       return Boolean(row.profileCompletedAt);
     case "training":
       return Boolean(row.trainingCompletedAt);
+    case "community":
+      return Boolean(row.communityCompletedAt);
     case "tour":
       return Boolean(row.tourCompletedAt);
   }
@@ -72,7 +78,7 @@ export async function saveJourneyStep(step: number) {
 
 /**
  * Mark a launchpad step complete (idempotent) and optionally advance the
- * current step. When all four steps are complete, stamp `completedAt` once and
+ * current step. When all five steps are complete, stamp `completedAt` once and
  * award onboarding XP a single time.
  */
 export async function completeJourneyStep(key: JourneyStepKey, nextStep?: number) {
@@ -92,6 +98,7 @@ export async function completeJourneyStep(key: JourneyStepKey, nextStep?: number
         welcomeCompletedAt: true,
         profileCompletedAt: true,
         trainingCompletedAt: true,
+        communityCompletedAt: true,
         tourCompletedAt: true,
         completedAt: true,
       },
@@ -115,6 +122,7 @@ export async function completeJourneyStep(key: JourneyStepKey, nextStep?: number
       row.welcomeCompletedAt &&
       row.profileCompletedAt &&
       row.trainingCompletedAt &&
+      row.communityCompletedAt &&
       row.tourCompletedAt;
 
     if (allDone && !row.completedAt) {
@@ -161,6 +169,7 @@ export async function completeInstructorJourney() {
         welcomeCompletedAt: now,
         profileCompletedAt: now,
         trainingCompletedAt: now,
+        communityCompletedAt: now,
         tourCompletedAt: now,
         completedAt: now,
       },
@@ -168,6 +177,7 @@ export async function completeInstructorJourney() {
         welcomeCompletedAt: existing?.welcomeCompletedAt ?? now,
         profileCompletedAt: existing?.profileCompletedAt ?? now,
         trainingCompletedAt: existing?.trainingCompletedAt ?? now,
+        communityCompletedAt: existing?.communityCompletedAt ?? now,
         tourCompletedAt: existing?.tourCompletedAt ?? now,
         completedAt: existing?.completedAt ?? now,
       },

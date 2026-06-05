@@ -9,6 +9,9 @@ export interface InstructorProfileFormData {
   school?: string | null;
   interests?: string[];
   curriculumUrl?: string | null;
+  city?: string | null;
+  stateProvince?: string | null;
+  dateOfBirth?: string | null;
 }
 
 interface InstructorProfileFormProps {
@@ -88,6 +91,41 @@ export default function InstructorProfileForm({
           className="input"
           placeholder="e.g. Lincoln High School, Community Center"
           defaultValue={profileData?.school ?? ""}
+        />
+      </div>
+
+      {/* Standard contact / location info — prefilled from the application when
+          we already have it, so instructors only fill the gaps. */}
+      <div className="form-row">
+        <label htmlFor="city">City</label>
+        <input
+          id="city"
+          name="city"
+          className="input"
+          placeholder="e.g. Boston"
+          defaultValue={profileData?.city ?? ""}
+        />
+      </div>
+
+      <div className="form-row">
+        <label htmlFor="stateProvince">State / Province</label>
+        <input
+          id="stateProvince"
+          name="stateProvince"
+          className="input"
+          placeholder="e.g. MA"
+          defaultValue={profileData?.stateProvince ?? ""}
+        />
+      </div>
+
+      <div className="form-row">
+        <label htmlFor="dateOfBirth">Date of Birth</label>
+        <input
+          id="dateOfBirth"
+          name="dateOfBirth"
+          type="date"
+          className="input"
+          defaultValue={profileData?.dateOfBirth ?? ""}
         />
       </div>
 

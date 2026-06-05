@@ -37,7 +37,7 @@ Next.js (App Router) + React + TypeScript, Prisma/Postgres, Framer Motion, a tok
 ### Existing components
 - `components/instructor-training/`: `training-academy-shell.tsx`, `training-home.tsx` (+ `.module.css`), `current-task-hero.tsx`, `phase-map.tsx`, `phase-module-rows.tsx`, `progress-ring.tsx`, `parallax-layer.tsx`, `training-scroll-context.tsx`, `training-academy.module.css`.
 - `components/training/journey/`: `JourneyPlayer.tsx`, `JourneyIntro.tsx`, `JourneyProgress.tsx`, `JourneyComplete.tsx`, `ConfettiBurst.tsx`, `RoomMeters.tsx`, `MotionProvider.tsx`, `journey.css`, and **12 beat kinds** under `beats/` (ConceptReveal, ScenarioChoice, BranchingScenario, MultiSelect, SortOrder, MatchPairs, SpotTheMistake, FillInBlank, Reflection, Compare, Hotspot, MessageComposer) + `BeatRenderer/BeatShell/BeatActions/BeatFeedback`.
-- `components/instructor-onboarding/`: `instructor-onboarding-guide.tsx`, `onboarding-stepper.tsx`, `static-portal-map.tsx`.
+- `components/instructor-onboarding/`: `instructor-onboarding-guide.tsx`, `onboarding-stepper.tsx`.
 
 ### Existing data/curriculum
 - **5 curriculum modules** authored in `lib/training-curriculum/` and registered in `index.ts`:

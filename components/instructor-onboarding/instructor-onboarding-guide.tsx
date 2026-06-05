@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import styles from "./instructor-onboarding-guide.module.css";
 import OnboardingStepper, { type OnboardingStep } from "./onboarding-stepper";
-import StaticPortalMap from "./static-portal-map";
 import InstructorProfileForm, {
   type InstructorProfileFormData,
 } from "@/components/onboarding/instructor-profile-form";
@@ -65,7 +64,8 @@ const STEPS: StepDef[] = [
   { id: "welcome", label: "Welcome & your role", kicker: "Step 1", eyebrow: "Orientation + expectations", icon: "spark" },
   { id: "profile", label: "Profile", kicker: "Step 2", eyebrow: "Tell us about you", icon: "user" },
   { id: "training", label: "Training", kicker: "Step 3", eyebrow: "Before your first session", icon: "calendar" },
-  { id: "tour", label: "Portal tour", kicker: "Step 4", eyebrow: "Guided portal tour", icon: "compass" },
+  { id: "community", label: "Help & community", kicker: "Step 4", eyebrow: "Where to get support", icon: "message" },
+  { id: "tour", label: "Portal tour", kicker: "Step 5", eyebrow: "Guided portal tour", icon: "compass" },
 ];
 
 /* ----------------------------- Icon ---------------------------- */
@@ -176,11 +176,6 @@ function WelcomeStep() {
       <p className={styles.note}>
         You will receive a mentor who is a Senior or Lead Instructor with past experience at YPP. They will hold a kickoff meeting with you to go over all the aspects of the Instructor role and our expectations.
       </p>
-
-      <div className={styles.divider} />
-
-      <h3 className={styles.sectionHeading}>The lay of the land</h3>
-      <StaticPortalMap />
     </div>
   );
 }
@@ -275,19 +270,21 @@ function TourStep() {
   );
 }
 
-/* -------------------- Persistent Help & community -------------------- */
+/* -------------------- Step 4 — Help & community -------------------- */
 
-function HelpPanel({ className }: { className?: string }) {
+/** Step 4 — getting support: who to contact and how to show up for the
+ *  community. Previously a persistent side panel; now a first-class step so
+ *  every instructor reads it before being dropped into the portal. */
+function CommunityStep() {
   const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
 
   return (
-    <aside className={`${styles.helpPanel} ${className ?? ""}`} aria-label="Help and community">
-      <div className={styles.helpHead}>
-        <span className={styles.helpIcon} aria-hidden>
-          <Icon name="message" />
-        </span>
-        <h2 className={styles.helpTitle}>Help &amp; community</h2>
-      </div>
+    <div className={styles.body}>
+      <h2 className={styles.stepTitle}>Help &amp; community</h2>
+      <p>
+        You are never doing this alone. Here is how to get unstuck quickly, and
+        how to plug into the wider YPP community.
+      </p>
 
       <div className={styles.helpSection}>
         <p className={styles.helpLead}>Community &amp; events</p>
@@ -322,7 +319,7 @@ function HelpPanel({ className }: { className?: string }) {
           })}
         </ul>
       </div>
-    </aside>
+    </div>
   );
 }
 
@@ -349,6 +346,7 @@ export default function InstructorLaunchpad({
     // Reflect live training progress, not just the one-time journey flag, so the
     // rail step checks itself the moment training is actually complete.
     initialJourney.trainingComplete || trainingModel?.progress.trainingComplete === true,
+    initialJourney.communityComplete,
     initialJourney.tourComplete,
   ]);
   const [finishing, setFinishing] = useState(false);
@@ -418,7 +416,6 @@ export default function InstructorLaunchpad({
           completed={completed}
           onSelect={goTo}
         />
-        <HelpPanel className={styles.railHelp} />
       </aside>
 
       {/* ---------- Right pane: fixed header + scrollable content ---------- */}
@@ -477,6 +474,7 @@ export default function InstructorLaunchpad({
               />
             )}
             {step.id === "training" && <TrainingStep trainingModel={trainingModel} />}
+            {step.id === "community" && <CommunityStep />}
             {step.id === "tour" && <TourStep />}
 
             {/* Profile step owns its own form buttons; others use the footer nav. */}
@@ -514,9 +512,6 @@ export default function InstructorLaunchpad({
               </div>
             )}
           </section>
-
-          {/* Help panel also rendered inline for mobile, where the rail is hidden. */}
-          <HelpPanel className={styles.mobileHelp} />
         </div>
       </div>
     </div>
