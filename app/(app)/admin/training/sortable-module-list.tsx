@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
   DndContext,
@@ -364,6 +365,11 @@ function SortableModuleCard({
             >
               Full editor
             </button>
+            {mod.type === "INTERACTIVE_JOURNEY" && (
+              <Link className="button small" href={`/admin/training/${mod.id}/content`}>
+                Edit content
+              </Link>
+            )}
             <form action={cloneTrainingModule} style={{ display: "inline" }}>
               <input type="hidden" name="moduleId" value={mod.id} />
               <button className="button small outline" type="submit">Duplicate</button>
