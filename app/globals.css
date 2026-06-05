@@ -8491,6 +8491,70 @@ a.dash-row:hover {
   background: rgba(255, 255, 255, 0.72);
 }
 
+/* Generic collapsed-by-default disclosure section (CollapsibleSection). Used to
+   tame long review/profile pages (comment #15). */
+.collapsible-section {
+  border: 1px solid var(--border, #e7e5e4);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  overflow: hidden;
+}
+
+.collapsible-section + .collapsible-section {
+  margin-top: 10px;
+}
+
+.collapsible-section-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+}
+
+.collapsible-section-summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible-section-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--ypp-ink, #1c1917);
+  font-size: 14px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.collapsible-section-meta {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--muted, #78716c);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collapsible-section-caret {
+  flex: 0 0 auto;
+  color: var(--muted, #78716c);
+  font-size: 12px;
+  transition: transform 0.15s ease;
+}
+
+.collapsible-section[open] .collapsible-section-caret {
+  transform: rotate(180deg);
+}
+
+.collapsible-section-body {
+  border-top: 1px solid var(--border, #e7e5e4);
+  padding: 14px 16px;
+}
+
 .application-review-editor {
   gap: 14px;
 }

@@ -14,6 +14,9 @@ import {
   adminReassignInstructor,
 } from "@/lib/admin-class-operations";
 import { getOfferingTimeline } from "@/lib/class-offering-timeline";
+import { listPartnerOptions } from "@/lib/partners-queries";
+import { setClassPartner } from "@/lib/partners-actions";
+import { PersonLink } from "@/components/people-strategy/person-link";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +32,10 @@ export default async function AdminClassDetailPage({
   }
 
   const { id } = await params;
-  const [detail, timeline] = await Promise.all([
+  const [detail, timeline, partnerOptions] = await Promise.all([
     getAdminClassDetail(id),
     getOfferingTimeline(id, 25),
+    listPartnerOptions(),
   ]);
   if (!detail) notFound();
 
@@ -139,6 +143,59 @@ export default async function AdminClassDetailPage({
               The new user must have the INSTRUCTOR role. Reassignment does not
               re-validate readiness — use only when the original instructor is
               unreachable.
+            </p>
+          </Section>
+
+          <Section title="Partner">
+            {detail.partner ? (
+              <p style={{ margin: 0 }}>
+                <strong>{detail.partner.name}</strong>
+                {detail.partner.relationshipLead ? (
+                  <>
+                    {" · Relationship Lead: "}
+                    <PersonLink
+                      id={detail.partner.relationshipLead.id}
+                      style={{ color: "var(--ypp-purple)", fontWeight: 600 }}
+                    >
+                      {detail.partner.relationshipLead.name ||
+                        detail.partner.relationshipLead.email}
+                    </PersonLink>
+                  </>
+                ) : (
+                  " · No Relationship Lead"
+                )}
+              </p>
+            ) : (
+              <p style={{ margin: 0, color: "var(--text-secondary)" }}>No partner assigned.</p>
+            )}
+            <form action={setClassPartner} style={inlineForm}>
+              <input type="hidden" name="offeringId" value={detail.id} />
+              <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                Assign partner
+              </label>
+              <select
+                name="partnerId"
+                className="input"
+                defaultValue={detail.partner?.id ?? ""}
+                style={{ fontSize: 12 }}
+              >
+                <option value="">— No partner —</option>
+                {partnerOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+              <button type="submit" className="button" style={{ fontSize: 12 }}>
+                Save partner
+              </button>
+            </form>
+            <p style={{ marginTop: 4, fontSize: 11, color: "var(--text-secondary)" }}>
+              Manage the partner directory and Relationship Leads under{" "}
+              <Link href="/admin/partners" style={{ color: "var(--ypp-purple)" }}>
+                Admin · Partners
+              </Link>
+              .
             </p>
           </Section>
 

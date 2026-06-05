@@ -18,12 +18,15 @@ import {
 import { cardRevealVariants } from "@/lib/people-strategy/motion";
 import { Pill, PriorityPill } from "@/components/people-strategy/pills";
 import { MotionArea, m, FeedbackBanner } from "@/components/people-strategy/motion";
+import { getUserTitle } from "@/lib/user-title";
+import { PersonLink } from "@/components/people-strategy/person-link";
 
 type PersonDTO = {
   id: string;
   name: string | null;
   email: string;
   primaryRole: string | null;
+  title: string | null;
   avatarUrl: string | null;
 };
 
@@ -98,15 +101,6 @@ function initials(person: PersonDTO): string {
 
 function personName(person: PersonDTO): string {
   return person.name?.trim() || person.email;
-}
-
-function roleTitle(role: string | null): string {
-  if (!role) return "Portal user";
-  return role
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }
 
 function formatDate(value: string | null): string {
@@ -201,10 +195,13 @@ function PersonChip({ person }: { person: PersonDTO }) {
     <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
       <PersonAvatar person={person} />
       <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <strong style={{ fontSize: 13, color: "var(--ypp-ink)", overflowWrap: "anywhere" }}>
+        <PersonLink
+          id={person.id}
+          style={{ fontSize: 13, fontWeight: 700, color: "var(--ypp-ink)", overflowWrap: "anywhere" }}
+        >
           {personName(person)}
-        </strong>
-        <span style={{ color: "var(--muted)", fontSize: 12 }}>{roleTitle(person.primaryRole)}</span>
+        </PersonLink>
+        <span style={{ color: "var(--muted)", fontSize: 12 }}>{getUserTitle(person)}</span>
       </span>
     </div>
   );

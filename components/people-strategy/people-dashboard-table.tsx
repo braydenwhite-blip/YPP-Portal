@@ -18,6 +18,7 @@ import type {
   DashboardCheckInDot,
   PeopleDashboardRow,
 } from "@/lib/people-strategy/people-dashboard";
+import { PersonLink } from "@/components/people-strategy/person-link";
 
 const TREND_STYLES: Record<TrendWord, { color: string; label: string }> = {
   Improving: { color: "#047857", label: "Improving ↑" },
@@ -486,7 +487,11 @@ export function PeopleDashboardTable({
                     <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                       <Avatar row={row} />
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 13 }}>{row.name || row.email}</div>
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>
+                          <PersonLink id={row.id} style={{ color: "inherit" }}>
+                            {row.name || row.email}
+                          </PersonLink>
+                        </div>
                         <div style={{ color: "#64748b" }}>{row.role ?? "—"}</div>
                         {row.mentorName ? (
                           <div style={{ color: "#64748b", fontSize: 11 }}>Mentor: {row.mentorName}</div>

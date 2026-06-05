@@ -762,6 +762,13 @@ export async function getAdminClassDetail(offeringId: string) {
         select: { id: true, name: true, email: true, chapterId: true },
       },
       chapter: { select: { id: true, name: true, city: true, region: true } },
+      partner: {
+        select: {
+          id: true,
+          name: true,
+          relationshipLead: { select: { id: true, name: true, email: true } },
+        },
+      },
       template: true,
       approval: true,
       sessions: { orderBy: { sessionNumber: "asc" } },

@@ -24,6 +24,9 @@ export default async function ActionTrackerClassesPage() {
 
   const classes = await listTrackerClasses();
   const showPeopleDashboardTab = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
+  // Only admins can open the editable admin class detail; for other officer-tier
+  // viewers the rows stay read-only (no deep-link) rather than bouncing them.
+  const canManageClasses = viewer.roles.includes("ADMIN");
 
   // Group by chapter (the class org unit), mirroring the department grouping on
   // All Actions. Classes keep the soonest-start ordering within each group.
@@ -102,7 +105,11 @@ export default async function ActionTrackerClassesPage() {
                 </span>
               </div>
               {group.items.map((offering) => (
-                <ClassTrackerRow key={offering.id} offering={offering} />
+                <ClassTrackerRow
+                  key={offering.id}
+                  offering={offering}
+                  detailHref={canManageClasses ? `/admin/classes/${offering.id}` : null}
+                />
               ))}
             </section>
           ))}
