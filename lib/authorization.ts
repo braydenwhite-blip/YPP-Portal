@@ -164,18 +164,18 @@ export const OFFICER_TIER_ROLES = [
 ] as const;
 
 /**
- * CPO guard. The Co-President & Chief People Officer is modelled as the
- * `CPO` AdminSubtype. The Board has no dedicated role in this codebase, so the
+ * Leadership guard. The Co-President & Chief People Officer is modelled as the
+ * `Leadership` AdminSubtype. The Board has no dedicated role in this codebase, so the
  * org-owner tier (`SUPER_ADMIN`) stands in for "Board" — it passes too.
  *
  * Used by later People Strategy phases (People Dashboard, succession flags).
  */
-export async function requireCPO(): Promise<SessionUser> {
+export async function requireLeadership(): Promise<SessionUser> {
   const sessionUser = await requireSessionUser();
   const isAdmin = hasRole(sessionUser.roles, "ADMIN", sessionUser.primaryRole);
   if (
     !isAdmin ||
-    !hasAnyAdminSubtype(sessionUser.adminSubtypes, ["CPO", "SUPER_ADMIN"])
+    !hasAnyAdminSubtype(sessionUser.adminSubtypes, ["LEADERSHIP", "SUPER_ADMIN"])
   ) {
     throw new Error("Unauthorized");
   }
@@ -185,8 +185,8 @@ export async function requireCPO(): Promise<SessionUser> {
 /**
  * Board guard. The Board has no dedicated role in this codebase; the org-owner
  * tier (`SUPER_ADMIN`) stands in for "Board" (see INTEGRATION_MAP.md → Part B).
- * Passes ONLY for ADMIN users with the `SUPER_ADMIN` subtype — a plain CPO
- * (AdminSubtype `CPO` without `SUPER_ADMIN`) does NOT pass, so Board-only
+ * Passes ONLY for ADMIN users with the `SUPER_ADMIN` subtype — a plain Leadership
+ * (AdminSubtype `Leadership` without `SUPER_ADMIN`) does NOT pass, so Board-only
  * surfaces (the escalation roll-up list) stay invisible to non-Board users.
  */
 export async function requireBoard(): Promise<SessionUser> {
@@ -200,7 +200,7 @@ export async function requireBoard(): Promise<SessionUser> {
 
 /**
  * Officer guard. Passes for Officer-tier and above: STAFF, Chapter Presidents,
- * Hiring Chairs, and any ADMIN (which includes Sr. Leadership, the CPO, and the
+ * Hiring Chairs, and any ADMIN (which includes Sr. Leadership, the Leadership, and the
  * Board/SUPER_ADMIN since those all carry the ADMIN role).
  *
  * Used by later People Strategy phases (Action Items, Officer Meetings,

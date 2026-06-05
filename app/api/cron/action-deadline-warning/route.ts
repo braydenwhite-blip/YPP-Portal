@@ -12,7 +12,7 @@ export const maxDuration = 60;
  * 24-Hour Warning cron — People Strategy Action Tracker.
  *
  * Schedule (UTC): `0 8 * * *` (daily). Emails every assignee (and the Lead) of
- * items whose deadline is exactly tomorrow, with Update Status + Flag to CPO
+ * items whose deadline is exactly tomorrow, with Update Status + Flag to Leadership
  * links. Idempotent per (item, recipient, deadline) via `ActionEmailLog`.
  *
  * Auth: Vercel-to-route cron secret (CRON_SECRET bearer header), checked first.

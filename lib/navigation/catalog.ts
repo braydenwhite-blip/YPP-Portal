@@ -1211,21 +1211,10 @@ export const NAV_CATALOG: NavLink[] = [
     },
     { href: "/admin/alumni", label: "Manage Alumni", icon: "🎓", roles: ADMIN_ONLY },
     { href: "/admin/unlock-approvals", label: "Unlock Approvals", icon: "🔓", roles: ADMIN_ONLY, dashboardDescription: "Review and approve section unlock recommendations from mentors." },
-    {
-      href: "/admin/action-center",
-      label: "Legacy Action Center",
-      icon: "🎯",
-      roles: ["ADMIN", "STAFF"] as NavRole[],
-      requiresLegacyActionCenterNav: true,
-      searchAliases: [
-        "Leadership Action Center",
-        "Officer Operations",
-        "Weekly Action Tracker",
-        "Legacy Action Items",
-      ],
-      dashboardDescription:
-        "Deprecated legacy tracker retained only during migration to the People Strategy Action Tracker.",
-      dashboardPriority: 3,
-    },
+    // The legacy "Action Center" sidebar entry was retired in the Phase 5
+    // consolidation — the People Strategy Action Tracker (/actions/*) is now the
+    // single canonical surface. The old /admin/action-center pages remain
+    // reachable by direct URL until the leadership data is migrated across (see
+    // scripts/migrate-leadership-action-items.ts).
   ]),
 ];

@@ -61,7 +61,7 @@ afterEach(() => {
 
 describe("submitQuarterlyReview", () => {
   it("computes successionFlag=true and returns the Clear Successor matrix label for Above & Beyond x Above & Beyond", async () => {
-    sessionAs(["ADMIN"], ["CPO"]);
+    sessionAs(["ADMIN"], ["LEADERSHIP"]);
 
     const result = await submitQuarterlyReview({
       userId: "u1",
@@ -146,7 +146,7 @@ describe("submitQuarterlyReview", () => {
 
   it("throws when the feature flag is off", async () => {
     delete process.env.ENABLE_QUARTERLY_REVIEWS;
-    sessionAs(["ADMIN"], ["CPO"]);
+    sessionAs(["ADMIN"], ["LEADERSHIP"]);
     await expect(
       submitQuarterlyReview({
         userId: "u1",

@@ -34,7 +34,7 @@ import { getSessionUser } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
   createActionItem,
-  flagActionToCPO,
+  flagActionToLeadership,
 } from "@/lib/people-strategy/action-items-actions";
 
 const mockGetSessionUser = vi.mocked(getSessionUser);
@@ -78,7 +78,7 @@ afterEach(() => {
   delete process.env.ENABLE_ACTION_TRACKER;
 });
 
-describe("flagActionToCPO", () => {
+describe("flagActionToLeadership", () => {
   it("sets flaggedAt and posts a system-style comment", async () => {
     sessionAs({ id: "o1", roles: ["STAFF"] });
     (prisma.actionItem.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -90,7 +90,7 @@ describe("flagActionToCPO", () => {
       assignments: [],
     });
 
-    const result = await flagActionToCPO("a1");
+    const result = await flagActionToLeadership("a1");
 
     expect(result.flaggedAt).toBeInstanceOf(Date);
     expect(txActionItemUpdateMany).toHaveBeenCalledTimes(1);
@@ -101,7 +101,7 @@ describe("flagActionToCPO", () => {
     expect(txCommentCreate).toHaveBeenCalledTimes(1);
     const commentArg = txCommentCreate.mock.calls[0][0];
     expect(commentArg.data.type).toBe("NOTE");
-    expect(commentArg.data.body).toContain("Flagged to CPO");
+    expect(commentArg.data.body).toContain("Flagged to Leadership");
     expect(commentArg.data.actionItemId).toBe("a1");
     expect(commentArg.data.authorId).toBe("o1");
   });
@@ -117,7 +117,7 @@ describe("flagActionToCPO", () => {
       assignments: [{ userId: "m1", role: "INPUT" }],
     });
 
-    await expect(flagActionToCPO("a2")).resolves.toHaveProperty("flaggedAt");
+    await expect(flagActionToLeadership("a2")).resolves.toHaveProperty("flaggedAt");
     expect(txActionItemUpdateMany).toHaveBeenCalledTimes(1);
   });
 
@@ -132,7 +132,7 @@ describe("flagActionToCPO", () => {
       assignments: [],
     });
 
-    await expect(flagActionToCPO("a3")).rejects.toThrow("Unauthorized");
+    await expect(flagActionToLeadership("a3")).rejects.toThrow("Unauthorized");
     expect(txActionItemUpdateMany).not.toHaveBeenCalled();
   });
 
@@ -148,7 +148,7 @@ describe("flagActionToCPO", () => {
       assignments: [],
     });
 
-    await expect(flagActionToCPO("a4")).resolves.toEqual({ flaggedAt });
+    await expect(flagActionToLeadership("a4")).resolves.toEqual({ flaggedAt });
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(txCommentCreate).not.toHaveBeenCalled();
   });
@@ -157,7 +157,7 @@ describe("flagActionToCPO", () => {
     delete process.env.ENABLE_ACTION_TRACKER;
     sessionAs({ id: "o1", roles: ["STAFF"] });
 
-    await expect(flagActionToCPO("a1")).rejects.toThrow("not enabled");
+    await expect(flagActionToLeadership("a1")).rejects.toThrow("not enabled");
     expect(prisma.actionItem.findUnique).not.toHaveBeenCalled();
   });
 });

@@ -14,13 +14,13 @@ import {
 } from "./escalation";
 
 /**
- * People Strategy — CPO Escalation Queue (`/people`) data loader.
+ * People Strategy — Leadership Escalation Queue (`/people`) data loader.
  *
  * Reads LIVE Action Tracker data and returns the flagged / OVERDUE items that
  * have been unresolved for 48h+ — the same set the escalation cron notifies on
  * — as fully display-ready, serializable rows (mirroring the read-query
  * convention in `people-dashboard.ts`). The full comment history travels with
- * each row so the CPO can review it inline. Gated by ENABLE_ACTION_TRACKER;
+ * each row so the Leadership can review it inline. Gated by ENABLE_ACTION_TRACKER;
  * returns an empty list when the feature is off.
  */
 
@@ -44,7 +44,7 @@ export interface EscalationQueueRow {
   executors: Array<{ name: string | null; email: string | null }>;
   reason: EscalationReason;
   ageLabel: string;
-  /** True once the escalation cron has notified the CPO for this item. */
+  /** True once the escalation cron has notified the Leadership for this item. */
   notified: boolean;
   comments: EscalationComment[];
 }
@@ -58,10 +58,10 @@ const COMMENT_DATE_FORMAT: Intl.DateTimeFormatOptions = {
 };
 
 /**
- * Load the CPO Escalation Queue rows: unresolved, flagged-or-OVERDUE items
+ * Load the Leadership Escalation Queue rows: unresolved, flagged-or-OVERDUE items
  * whose oldest trigger is 48h+ old, oldest (most urgent) first.
  */
-export async function loadCpoEscalationQueue(
+export async function loadLeadershipEscalationQueue(
   now: Date = new Date()
 ): Promise<EscalationQueueRow[]> {
   if (!isActionTrackerEnabled()) return [];
@@ -79,7 +79,7 @@ export async function loadCpoEscalationQueue(
       deadlineStart: true,
       deadlineEnd: true,
       resolvedAt: true,
-      escalatedToCpoAt: true,
+      escalatedToLeadershipAt: true,
       department: { select: { name: true } },
       lead: { select: { name: true, email: true } },
       assignments: {
@@ -121,7 +121,7 @@ export async function loadCpoEscalationQueue(
         })),
         reason: escalationReason(item) ?? "Flagged",
         ageLabel: since ? formatEscalationAge(since, now) : "",
-        notified: item.escalatedToCpoAt != null,
+        notified: item.escalatedToLeadershipAt != null,
         comments: item.comments.map((c) => ({
           id: c.id,
           authorName: c.author?.name ?? c.author?.email ?? "System",

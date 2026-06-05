@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
-import { requireCPO } from "@/lib/authorization";
+import { requireLeadership } from "@/lib/authorization";
 import { isProvisionalClockEnabled } from "@/lib/feature-flags";
 
 /**
@@ -13,7 +13,7 @@ import { isProvisionalClockEnabled } from "@/lib/feature-flags";
  * The Month-3 confirmation decision is recorded through the existing Quarterly
  * Review form/workflow; this action is the final "confirm the hire" step that
  * clears the provisional state. Gated to senior leadership / Board via
- * `requireCPO()` (the same guard the Quarterly Review submission uses), matching
+ * `requireLeadership()` (the same guard the Quarterly Review submission uses), matching
  * the confirmation criterion "senior leadership or Board approval".
  *
  * Idempotent: only flips `provisionalConfirmedAt` when the user is currently
@@ -35,7 +35,7 @@ export async function confirmProvisionalHire(
   if (!isProvisionalClockEnabled()) {
     throw new Error("Provisional clock is not enabled");
   }
-  await requireCPO();
+  await requireLeadership();
   const { userId: id } = ConfirmSchema.parse({ userId });
 
   const now = new Date();

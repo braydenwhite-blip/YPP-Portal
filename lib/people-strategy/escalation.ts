@@ -1,11 +1,11 @@
 import type { ActionItemStatus } from "@prisma/client";
 
 /**
- * People Strategy — CPO escalation rules (pure, no DB / no session).
+ * People Strategy — Leadership escalation rules (pure, no DB / no session).
  *
  * A flagged or OVERDUE action item that has gone unresolved for 48h+ is
- * escalated to the CPO. These predicates are shared by the daily escalation
- * cron (`action-cron.ts`, authoritative send + mark) and the CPO Escalation
+ * escalated to the Leadership. These predicates are shared by the daily escalation
+ * cron (`action-cron.ts`, authoritative send + mark) and the Leadership Escalation
  * Queue loader (`escalation-queue.ts`, what the /people view shows) so both
  * agree on exactly which items qualify, how old they are, and why.
  *
@@ -94,7 +94,7 @@ export function escalationReason(item: EscalationItem): EscalationReason | null 
 }
 
 /**
- * Eligible for CPO escalation: not yet resolved and the oldest active trigger
+ * Eligible for Leadership escalation: not yet resolved and the oldest active trigger
  * is at least 48h old.
  */
 export function isEscalationEligible(item: EscalationItem, now: Date): boolean {
@@ -111,7 +111,7 @@ export function boardRollupThresholdMs(): number {
 
 /**
  * Board roll-up threshold: a number of days after the Leadership escalation
- * (`escalatedToCpoAt`). Defaults to **3 days** (down from the original 7) and is
+ * (`escalatedToLeadershipAt`). Defaults to **3 days** (down from the original 7) and is
  * overridable via `ACTION_BOARD_ROLLUP_DAYS` so leadership can tune the cadence
  * without a deploy. Resolved at module load for back-compat; the predicate below
  * reads the env at call time via `boardRollupThresholdMs()`.
@@ -120,20 +120,20 @@ export const BOARD_ROLLUP_THRESHOLD_MS = boardRollupThresholdMs();
 
 /** Minimal item shape needed to evaluate Board roll-up state. */
 export type BoardRollupItem = {
-  escalatedToCpoAt: Date | null;
+  escalatedToLeadershipAt: Date | null;
   resolvedAt: Date | null;
   boardRolledUpAt: Date | null;
 };
 
 /**
- * Eligible for Board roll-up: CPO-escalated, still unresolved, not yet rolled
- * up, and at least 7 days past the CPO escalation.
+ * Eligible for Board roll-up: Leadership-escalated, still unresolved, not yet rolled
+ * up, and at least 7 days past the Leadership escalation.
  */
 export function isBoardRollupEligible(item: BoardRollupItem, now: Date): boolean {
   if (item.resolvedAt) return false;
   if (item.boardRolledUpAt) return false;
-  if (!item.escalatedToCpoAt) return false;
-  return now.getTime() - item.escalatedToCpoAt.getTime() >= boardRollupThresholdMs();
+  if (!item.escalatedToLeadershipAt) return false;
+  return now.getTime() - item.escalatedToLeadershipAt.getTime() >= boardRollupThresholdMs();
 }
 
 /** Human age of an escalation, e.g. "3 days" or "50 hours". */

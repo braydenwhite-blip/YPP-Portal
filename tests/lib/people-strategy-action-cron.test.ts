@@ -145,7 +145,7 @@ describe("runDeadlineWarnings", () => {
     const arg = sendActionDeadlineWarningEmail.mock.calls[0][0];
     expect(arg.role).toBe("Lead + Executing");
     expect(arg.updateStatusUrl).toContain("/actions/a1");
-    expect(arg.flagToCpoUrl).toContain("flag-to-cpo");
+    expect(arg.flagToLeadershipUrl).toContain("flag-to-leadership");
   });
 
   it("does not warn for items due today or later than tomorrow", async () => {

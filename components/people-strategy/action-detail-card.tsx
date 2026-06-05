@@ -8,7 +8,7 @@ import type { ActionCommentType, ActionItemStatus, ActionPriority } from "@prism
 import {
   addActionComment,
   addActionFileLink,
-  flagActionToCPO,
+  flagActionToLeadership,
   updateActionStatus,
 } from "@/lib/people-strategy/action-items-actions";
 import {
@@ -328,7 +328,7 @@ export default function ActionDetailCard({
 
   function handleFlag() {
     runMutation(async () => {
-      await flagActionToCPO(item.id);
+      await flagActionToLeadership(item.id);
     }, "Flag sent to Leadership.");
   }
 

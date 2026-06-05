@@ -113,7 +113,7 @@ function RollupCard({ row }: { row: BoardRollupRow }) {
               Board roll-up
             </span>
             <span style={{ fontSize: 12, color: "#991b1b", fontWeight: 600 }}>
-              {row.cpoAgeLabel} unresolved at Leadership
+              {row.leadershipAgeLabel} unresolved at Leadership
             </span>
             <span style={{ fontSize: 11, color: "#64748b" }}>
               · rolled up {row.rolledUpAtLabel}

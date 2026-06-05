@@ -10,7 +10,7 @@ import {
   normalizeRoleList,
   normalizeRoleSet,
   requireBoard,
-  requireCPO,
+  requireLeadership,
   requireOfficer,
 } from "@/lib/authorization";
 
@@ -60,20 +60,20 @@ describe("authorization role helpers", () => {
     ).toEqual(["CHAPTER_PRESIDENT", "INSTRUCTOR"]);
   });
 
-  it("allows CPO and board-equivalent admins through requireCPO", async () => {
-    mockSessionUser({ roles: ["ADMIN"], adminSubtypes: ["CPO"] });
-    await expect(requireCPO()).resolves.toMatchObject({ id: "user_1" });
+  it("allows CPO and board-equivalent admins through requireLeadership", async () => {
+    mockSessionUser({ roles: ["ADMIN"], adminSubtypes: ["LEADERSHIP"] });
+    await expect(requireLeadership()).resolves.toMatchObject({ id: "user_1" });
 
     mockSessionUser({ roles: ["ADMIN"], adminSubtypes: ["SUPER_ADMIN"] });
-    await expect(requireCPO()).resolves.toMatchObject({ id: "user_1" });
+    await expect(requireLeadership()).resolves.toMatchObject({ id: "user_1" });
   });
 
   it("blocks non-CPO admins and non-admin users with a stray CPO subtype", async () => {
     mockSessionUser({ roles: ["ADMIN"], adminSubtypes: ["HIRING_ADMIN"] });
-    await expect(requireCPO()).rejects.toThrow("Unauthorized");
+    await expect(requireLeadership()).rejects.toThrow("Unauthorized");
 
-    mockSessionUser({ roles: ["STAFF"], adminSubtypes: ["CPO"] });
-    await expect(requireCPO()).rejects.toThrow("Unauthorized");
+    mockSessionUser({ roles: ["STAFF"], adminSubtypes: ["LEADERSHIP"] });
+    await expect(requireLeadership()).rejects.toThrow("Unauthorized");
   });
 
   it("allows only Board (ADMIN + SUPER_ADMIN) through requireBoard", async () => {
@@ -82,8 +82,8 @@ describe("authorization role helpers", () => {
   });
 
   it("blocks a plain CPO and non-admins from requireBoard (Board list is locked)", async () => {
-    // A plain CPO (no SUPER_ADMIN) must NOT reach the Board roll-up list.
-    mockSessionUser({ roles: ["ADMIN"], adminSubtypes: ["CPO"] });
+    // A plain Leadership (no SUPER_ADMIN) must NOT reach the Board roll-up list.
+    mockSessionUser({ roles: ["ADMIN"], adminSubtypes: ["LEADERSHIP"] });
     await expect(requireBoard()).rejects.toThrow("Unauthorized");
 
     // SUPER_ADMIN subtype without the ADMIN role does not pass either.

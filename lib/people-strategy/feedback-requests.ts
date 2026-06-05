@@ -3,7 +3,7 @@ import type { RegularInstructorAssignmentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { isActionTrackerEmailsEnabled } from "@/lib/feature-flags";
-import { requireCPO, hasRole, hasAnyAdminSubtype } from "@/lib/authorization";
+import { requireLeadership, hasRole, hasAnyAdminSubtype } from "@/lib/authorization";
 import type { SessionUser } from "@/lib/auth-supabase";
 import { sendFeedbackRequestEmail } from "@/lib/email";
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
@@ -17,8 +17,8 @@ import { toAbsoluteAppUrl } from "@/lib/public-app-url";
  * `FeedbackRequest` row per collaborator for that month, and emails them a link
  * to the confidential form.
  *
- * Reads of `responseBody` are CPO/Board-only (`getFeedbackResponsesForSubject`
- * calls `requireCPO()`); the subject can never read raw responses. The whole
+ * Reads of `responseBody` are Leadership/Board-only (`getFeedbackResponsesForSubject`
+ * calls `requireLeadership()`); the subject can never read raw responses. The whole
  * surface is gated by ENABLE_ACTION_TRACKER_EMAILS.
  */
 
@@ -269,16 +269,16 @@ export type SubjectFeedbackResponse = {
 };
 
 /**
- * All feedback responses about a subject — CONFIDENTIAL. Calls `requireCPO()`
- * first, so only ADMIN users with the CPO or SUPER_ADMIN (Board) subtype can
+ * All feedback responses about a subject — CONFIDENTIAL. Calls `requireLeadership()`
+ * first, so only ADMIN users with the Leadership or SUPER_ADMIN (Board) subtype can
  * read raw `responseBody`. The subject themselves cannot read these unless they
- * are also CPO/Board. Throws "Unauthorized" otherwise.
+ * are also Leadership/Board. Throws "Unauthorized" otherwise.
  */
 export async function getFeedbackResponsesForSubject(
   subjectUserId: string,
   month?: Date
 ): Promise<SubjectFeedbackResponse[]> {
-  await requireCPO(); // throws Unauthorized for non-CPO/Board
+  await requireLeadership(); // throws Unauthorized for non-CPO/Board
 
   const rows = await prisma.feedbackRequest.findMany({
     where: {
@@ -324,7 +324,7 @@ export type FeedbackRequestStatus = {
  * last-submitted timestamps only. This deliberately reads NO `responseBody`, so
  * it is safe to surface to any admin viewing the member detail page (the raw
  * confidential responses remain gated behind `getFeedbackResponsesForSubject` /
- * `requireCPO()`). Returns null when the feature flag is off.
+ * `requireLeadership()`). Returns null when the feature flag is off.
  */
 export async function getFeedbackRequestStatusForSubject(
   subjectUserId: string
@@ -364,10 +364,10 @@ export async function getFeedbackRequestStatusForSubject(
   };
 }
 
-/** Non-throwing CPO/Board check, for conditional UI (not a security boundary). */
-export function isCpoOrBoard(user: Pick<SessionUser, "roles" | "primaryRole" | "adminSubtypes">): boolean {
+/** Non-throwing Leadership/Board check, for conditional UI (not a security boundary). */
+export function isLeadershipOrBoard(user: Pick<SessionUser, "roles" | "primaryRole" | "adminSubtypes">): boolean {
   return (
     hasRole(user.roles, "ADMIN", user.primaryRole) &&
-    hasAnyAdminSubtype(user.adminSubtypes, ["CPO", "SUPER_ADMIN"])
+    hasAnyAdminSubtype(user.adminSubtypes, ["LEADERSHIP", "SUPER_ADMIN"])
   );
 }

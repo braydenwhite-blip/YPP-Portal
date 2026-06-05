@@ -15,7 +15,7 @@ import {
  *
  * Resolution order (first hit wins):
  *   1. stored `title` (admin/self-edited free text),
- *   2. the admin-subtype label (e.g. CPO → "Leadership", "Hiring Admin"),
+ *   2. the admin-subtype label (e.g. Leadership → "Leadership", "Hiring Admin"),
  *   3. a formatted `primaryRole` ("CHAPTER_PRESIDENT" → "Chapter President").
  */
 
@@ -47,7 +47,7 @@ function adminSubtypeLabel(
   // the first declared subtype — keeps the label deterministic.
   const ordered: AdminSubtypeValue[] = [
     "SUPER_ADMIN",
-    "CPO",
+    "LEADERSHIP",
     ...normalized,
   ];
   const pick = ordered.find((s) => normalized.includes(s)) ?? normalized[0];

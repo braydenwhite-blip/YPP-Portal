@@ -33,7 +33,7 @@ export default async function FeedbackRequestPage({
 
   // Returns the request ONLY when the viewer is the named collaborator. Anyone
   // else (including the subject) gets a 404 — they can't read it here, and the
-  // raw responses are CPO/Board-only via getFeedbackResponsesForSubject().
+  // raw responses are Leadership/Board-only via getFeedbackResponsesForSubject().
   const request = await getFeedbackRequestForCollaborator(id, session.user.id);
   if (!request) notFound();
 

@@ -417,17 +417,43 @@ and `/admin/actions/*` create-edit are folded in and redirected.
    reorder logically (identity → status → decision controls → history) across the
    applicant slideouts, Final Review cockpit, canonical detail, and instructor profile.
 
-### Phase 5 — Best-in-class intelligence (and deep cleanup)
+### Phase 5 — Best-in-class intelligence (and deep cleanup) — ✅ Done (2026-06-05)
 1. **Command Center insights:** unified "what needs attention" feed (overdue, escalated,
    unowned high-priority, at-risk people from Growth Signals + Risk Radar), per-person
-   workload balancing, momentum/win-log trends.
+   workload balancing, momentum/win-log trends. ✅ shipped in the Command Center build.
 2. **Templates & saved views** surfaced in the new create flow (`ActionTemplate`,
-   `SavedActionView` already exist).
+   `SavedActionView` already exist). ✅ template gallery + saved views live at `/actions/new`.
 3. **Consolidate trackers:** migrate `LeadershipActionItem` + `LeadershipMeeting` into the
-   `ActionItem`/`OfficerMeeting` family; retire `/admin/action-center`.
-4. **Optional internal CPO rename (comment #1, categories a/c/d):** enum value, column
-   `escalatedToCpoAt`, cron path, `requireCPO`/`isCpoOrBoard` — with migrations + route
-   redirects + `vercel.json` cron update.
+   `ActionItem`/`OfficerMeeting` family; retire `/admin/action-center`. ✅ legacy nav entry
+   removed; `/admin/actions*` redirect into `/actions/*`; the data move ships as a safe,
+   reversible operator script (`scripts/migrate-leadership-action-items.ts`, dry-run by
+   default, additive + idempotent, archives originals) rather than a blind deploy-time
+   backfill — chosen because the new `ActionItem` requires non-null `leadId`/`createdById`
+   that the legacy rows allow to be null, so the mapping must be reviewed against real data.
+4. **Internal CPO rename (comment #1, categories a/c/d):** ✅ `AdminSubtype.CPO → LEADERSHIP`,
+   `ActionEmailType.CPO_ESCALATION → LEADERSHIP_ESCALATION`, column
+   `escalatedToCpoAt → escalatedToLeadershipAt` (all via in-place Postgres `RENAME` — no
+   backfill needed), cron path `action-cpo-escalation → action-leadership-escalation`
+   (old path kept as a back-compat shim) + `vercel.json`, and the identifiers
+   `requireCPO → requireLeadership`, `isCpoOrBoard → isLeadershipOrBoard`,
+   `flagActionToCPO → flagActionToLeadership`, etc.
+
+### Phase 6 — Leadership Briefing & adoption (next horizon)
+With a single canonical tracker in place, Phase 6 turns the Command Center's signals into
+something leadership can *act on and share*, and replaces the UX the retired legacy weekly
+digest used to provide.
+1. **Shareable weekly Leadership Briefing:** a pure builder
+   (`lib/people-strategy/leadership-briefing.ts`) that composes the existing Command Center
+   selectors (pulse, attention queue, needs-support, wins) into a copy-pasteable
+   text/markdown summary, surfaced on the Command Center with a one-click "Copy briefing"
+   control. Pure + unit-tested. **(Kicked off in this pass.)**
+2. **Digest delivery:** wire the briefing into the existing `action-weekly-digest` cron so
+   leadership receives it automatically.
+3. **Accessibility & responsive polish:** the Command Center leans on inline styles and a
+   2-column grid; promote shared classes, verify contrast/focus order, and make it usable on
+   tablet/phone.
+4. **Adoption telemetry:** lightweight event hooks (briefing copied, attention item opened)
+   to learn what leadership actually uses.
 
 ---
 

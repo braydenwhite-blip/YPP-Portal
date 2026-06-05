@@ -33,7 +33,7 @@ function item(overrides: Partial<ActionItemWithRelations>): ActionItemWithRelati
     leadId: "alice",
     officerMeetingId: null,
     flaggedAt: null,
-    escalatedToCpoAt: null,
+    escalatedToLeadershipAt: null,
     resolvedAt: null,
     boardRolledUpAt: null,
     createdById: "alice",

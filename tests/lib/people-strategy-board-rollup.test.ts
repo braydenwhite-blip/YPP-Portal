@@ -23,7 +23,7 @@ vi.mock("@/lib/email", () => ({
   sendActionDeadlineWarningEmail: vi.fn(),
   sendActionDeadlineReachedEmail: vi.fn(),
   sendActionOverdueLeadEmail: vi.fn(),
-  sendCpoEscalationEmail: vi.fn(),
+  sendLeadershipEscalationEmail: vi.fn(),
   sendBoardEscalationRollupEmail: (a: unknown) => sendBoardEscalationRollupEmail(a),
 }));
 
@@ -32,7 +32,7 @@ type FakeItem = {
   id: string;
   title: string;
   status: string;
-  escalatedToCpoAt: Date | null;
+  escalatedToLeadershipAt: Date | null;
   resolvedAt: Date | null;
   boardRolledUpAt: Date | null;
   deadlineStart: Date;
@@ -54,7 +54,7 @@ vi.mock("@/lib/prisma", () => ({
         return items.filter((i) => {
           if (w.resolvedAt === null && i.resolvedAt !== null) return false;
           if (w.boardRolledUpAt === null && i.boardRolledUpAt !== null) return false;
-          if (w.escalatedToCpoAt?.not === null && i.escalatedToCpoAt === null) return false;
+          if (w.escalatedToLeadershipAt?.not === null && i.escalatedToLeadershipAt === null) return false;
           return true;
         });
       }),
@@ -125,7 +125,7 @@ function makeItem(over: Partial<FakeItem> & { id: string }): FakeItem {
     id: over.id,
     title: over.title ?? `Item ${over.id}`,
     status: over.status ?? "OVERDUE",
-    escalatedToCpoAt: over.escalatedToCpoAt ?? null,
+    escalatedToLeadershipAt: over.escalatedToLeadershipAt ?? null,
     resolvedAt: over.resolvedAt ?? null,
     boardRolledUpAt: over.boardRolledUpAt ?? null,
     deadlineStart: over.deadlineStart ?? daysAgo(10),
@@ -137,7 +137,7 @@ function makeItem(over: Partial<FakeItem> & { id: string }): FakeItem {
 
 describe("runBoardRollups", () => {
   it("rolls up an escalation unresolved past the threshold: marks, audits, notifies once", async () => {
-    items = [makeItem({ id: "a", escalatedToCpoAt: daysAgo(8) })];
+    items = [makeItem({ id: "a", escalatedToLeadershipAt: daysAgo(8) })];
 
     const res = await runBoardRollups(NOW);
 
@@ -152,7 +152,7 @@ describe("runBoardRollups", () => {
   });
 
   it("does NOT roll up before the threshold (3 days) past Leadership escalation", async () => {
-    items = [makeItem({ id: "b", escalatedToCpoAt: daysAgo(2) })];
+    items = [makeItem({ id: "b", escalatedToLeadershipAt: daysAgo(2) })];
     const res = await runBoardRollups(NOW);
     expect(res.eligible).toBe(0);
     expect(items[0].boardRolledUpAt).toBeNull();
@@ -160,13 +160,13 @@ describe("runBoardRollups", () => {
   });
 
   it("never rolls up a non-escalated item", async () => {
-    items = [makeItem({ id: "c", escalatedToCpoAt: null })];
+    items = [makeItem({ id: "c", escalatedToLeadershipAt: null })];
     const res = await runBoardRollups(NOW);
     expect(res.eligible).toBe(0);
   });
 
   it("rolls up exactly once across repeated runs (idempotent)", async () => {
-    items = [makeItem({ id: "d", escalatedToCpoAt: daysAgo(8) })];
+    items = [makeItem({ id: "d", escalatedToLeadershipAt: daysAgo(8) })];
 
     await runBoardRollups(NOW);
     sendBoardEscalationRollupEmail.mockClear();
@@ -179,7 +179,7 @@ describe("runBoardRollups", () => {
 
   it("still marks + audits when emails are off (Board list populates); no email", async () => {
     isActionTrackerEmailsEnabled.mockReturnValue(false);
-    items = [makeItem({ id: "e", escalatedToCpoAt: daysAgo(8) })];
+    items = [makeItem({ id: "e", escalatedToLeadershipAt: daysAgo(8) })];
 
     const res = await runBoardRollups(NOW);
 
@@ -195,7 +195,7 @@ describe("runBoardRollups", () => {
       { id: "b1", name: "B1", email: "b1@test.dev" },
       { id: "b2", name: "B2", email: "b2@test.dev" },
     ];
-    items = [makeItem({ id: "f", escalatedToCpoAt: daysAgo(8) })];
+    items = [makeItem({ id: "f", escalatedToLeadershipAt: daysAgo(8) })];
 
     const res = await runBoardRollups(NOW);
     expect(res.emailsSent).toBe(2);
@@ -204,7 +204,7 @@ describe("runBoardRollups", () => {
 
   it("is a no-op when the Action Tracker feature is off", async () => {
     isActionTrackerEnabled.mockReturnValue(false);
-    items = [makeItem({ id: "g", escalatedToCpoAt: daysAgo(8) })];
+    items = [makeItem({ id: "g", escalatedToLeadershipAt: daysAgo(8) })];
 
     const res = await runBoardRollups(NOW);
     expect(res).toEqual({ eligible: 0, itemsRolledUp: 0, emailsSent: 0 });

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { requireCPO } from "@/lib/authorization";
+import { requireLeadership } from "@/lib/authorization";
 import {
   isActionTrackerEmailsEnabled,
   isActionTrackerEnabled,
@@ -11,7 +11,7 @@ import {
   loadPeopleDashboard,
 } from "@/lib/people-strategy/people-dashboard";
 import { listActionDepartments } from "@/lib/people-strategy/action-queries";
-import { loadCpoEscalationQueue } from "@/lib/people-strategy/escalation-queue";
+import { loadLeadershipEscalationQueue } from "@/lib/people-strategy/escalation-queue";
 import { isBoard } from "@/lib/people-strategy/action-permissions";
 import { PeopleDashboardTable } from "@/components/people-strategy/people-dashboard-table";
 import { EscalationQueue } from "@/components/people-strategy/escalation-queue";
@@ -25,10 +25,10 @@ export default async function PeopleDashboardPage() {
   // Outer gate: with ENABLE_PEOPLE_DASHBOARD off the route does not exist.
   if (!isPeopleDashboardEnabled()) notFound();
 
-  // Leadership / Board only. requireCPO() throws "Unauthorized" for everyone
+  // Leadership / Board only. requireLeadership() throws "Unauthorized" for everyone
   // else (and unauthenticated requests, which the proxy already redirects).
   // Deny with a 404 so the route's existence is not leaked to other users.
-  const viewer = await requireCPO().catch(() => null);
+  const viewer = await requireLeadership().catch(() => null);
   if (!viewer) notFound();
 
   const rows = await loadPeopleDashboard();
@@ -47,7 +47,7 @@ export default async function PeopleDashboardPage() {
   // Behind ENABLE_ACTION_TRACKER; the loader returns [] when the flag is off so
   // the section simply doesn't render.
   const showEscalationQueue = isActionTrackerEnabled();
-  const escalations = showEscalationQueue ? await loadCpoEscalationQueue() : [];
+  const escalations = showEscalationQueue ? await loadLeadershipEscalationQueue() : [];
 
   // Board (SUPER_ADMIN) additionally sees a link to the Board Escalation
   // Roll-up list. Plain Leadership does not — the destination route enforces

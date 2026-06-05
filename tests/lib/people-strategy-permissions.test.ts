@@ -32,7 +32,7 @@ const cpo: ActionViewer = {
   id: "c1",
   roles: ["ADMIN"],
   primaryRole: "ADMIN",
-  adminSubtypes: ["CPO"],
+  adminSubtypes: ["LEADERSHIP"],
 };
 const board: ActionViewer = {
   id: "b1",

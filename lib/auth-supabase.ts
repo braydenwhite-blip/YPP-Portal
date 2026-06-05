@@ -171,7 +171,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   // the UI (sidebar, role label, and default dashboard) even when the stored
   // `primaryRole` column is a stale lower role — e.g. an account created as a
   // STUDENT and later promoted to ADMIN without that column being updated.
-  // SUPER_ADMIN / CPO / Board all carry the ADMIN role, so a single ADMIN
+  // SUPER_ADMIN / Leadership / Board all carry the ADMIN role, so a single ADMIN
   // check covers every admin tier here.
   const primaryRole = roles.includes("ADMIN")
     ? "ADMIN"

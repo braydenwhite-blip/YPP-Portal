@@ -22,12 +22,12 @@ import {
  *   - Member            → any non-officer role (STUDENT, INSTRUCTOR, …)
  *   - Officer-tier+     → OFFICER_TIER_ROLES (ADMIN, STAFF, CHAPTER_PRESIDENT,
  *                         HIRING_CHAIR). All ADMIN-tier users (Sr. Leadership,
- *                         CPO, Board/SUPER_ADMIN) carry ADMIN and pass.
- *   - CPO / Board       → ADMIN + AdminSubtype CPO or SUPER_ADMIN.
+ *                         Leadership, Board/SUPER_ADMIN) carry ADMIN and pass.
+ *   - Leadership / Board       → ADMIN + AdminSubtype Leadership or SUPER_ADMIN.
  *
  * VISIBILITY DECISION (kickoff: "If ambiguous, choose stricter access and
  * document it"): an OFFICERS_ONLY action is visible ONLY to officer-tier and
- * above (and CPO/Board), even if a non-officer is explicitly assigned to it.
+ * above (and Leadership/Board), even if a non-officer is explicitly assigned to it.
  * Assignment does NOT grant a member access to an OFFICERS_ONLY item — the
  * stricter reading. ALL_LEADERSHIP actions follow the assignment rule below.
  */
@@ -52,14 +52,14 @@ export function isOfficerTier(user: ActionViewer): boolean {
   return hasAnyRole(user.roles, [...OFFICER_TIER_ROLES], user.primaryRole ?? null);
 }
 
-/** CPO or Board (SUPER_ADMIN stands in for Board). Both can view everything. */
-export function isCpoOrBoard(user: ActionViewer): boolean {
+/** Leadership or Board (SUPER_ADMIN stands in for Board). Both can view everything. */
+export function isLeadershipOrBoard(user: ActionViewer): boolean {
   const isAdmin = hasRole(user.roles, "ADMIN", user.primaryRole ?? null);
-  return isAdmin && hasAnyAdminSubtype(user.adminSubtypes ?? [], ["CPO", "SUPER_ADMIN"]);
+  return isAdmin && hasAnyAdminSubtype(user.adminSubtypes ?? [], ["LEADERSHIP", "SUPER_ADMIN"]);
 }
 
 /**
- * Board only (SUPER_ADMIN stands in for Board). A plain CPO does NOT pass —
+ * Board only (SUPER_ADMIN stands in for Board). A plain Leadership does NOT pass —
  * mirrors the server-side `requireBoard()` guard for UI affordances (e.g.
  * showing the Board roll-up link). Authoritative enforcement stays server-side.
  */
@@ -89,14 +89,14 @@ export function hasAssignmentRole(
 
 /**
  * Who can SEE an action.
- * - CPO / Board: all actions.
+ * - Leadership / Board: all actions.
  * - OFFICERS_ONLY action: officer-tier and above only (stricter; assignment
  *   does not grant a member access).
  * - ALL_LEADERSHIP action: officer-tier sees all; members see only actions
  *   where they are LEAD, EXECUTING, or INPUT.
  */
 export function canViewAction(user: ActionViewer, action: ActionAccessShape): boolean {
-  if (isCpoOrBoard(user)) return true;
+  if (isLeadershipOrBoard(user)) return true;
 
   const officer = isOfficerTier(user);
 
@@ -131,7 +131,7 @@ export function canAssignAction(user: ActionViewer): boolean {
 }
 
 /**
- * Who can FLAG an action to the CPO (escalation). Anyone who can view it —
+ * Who can FLAG an action to the Leadership (escalation). Anyone who can view it —
  * members escalate their own actions; officers escalate anything they see.
  */
 export function canFlagAction(user: ActionViewer, action: ActionAccessShape): boolean {

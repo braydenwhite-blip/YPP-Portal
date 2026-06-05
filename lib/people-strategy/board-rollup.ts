@@ -36,8 +36,8 @@ export interface BoardRollupRow {
   leadName: string | null;
   leadEmail: string | null;
   executors: Array<{ name: string | null; email: string | null }>;
-  /** How long the item sat at the CPO before being rolled up, e.g. "8 days". */
-  cpoAgeLabel: string;
+  /** How long the item sat at the Leadership before being rolled up, e.g. "8 days". */
+  leadershipAgeLabel: string;
   rolledUpAtLabel: string;
   comments: BoardRollupComment[];
 }
@@ -69,7 +69,7 @@ export async function loadBoardRollupList(
       id: true,
       title: true,
       status: true,
-      escalatedToCpoAt: true,
+      escalatedToLeadershipAt: true,
       boardRolledUpAt: true,
       deadlineStart: true,
       deadlineEnd: true,
@@ -106,8 +106,8 @@ export async function loadBoardRollupList(
       name: a.user.name,
       email: a.user.email,
     })),
-    cpoAgeLabel: item.escalatedToCpoAt
-      ? formatEscalationAge(item.escalatedToCpoAt, now)
+    leadershipAgeLabel: item.escalatedToLeadershipAt
+      ? formatEscalationAge(item.escalatedToLeadershipAt, now)
       : "",
     rolledUpAtLabel: item.boardRolledUpAt
       ? item.boardRolledUpAt.toLocaleString("en-US", DATE_FORMAT)

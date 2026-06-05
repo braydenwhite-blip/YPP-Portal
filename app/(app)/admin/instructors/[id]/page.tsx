@@ -24,7 +24,7 @@ import { ProvisionalStatusCard } from "@/components/people-strategy/provisional-
 import {
   getFeedbackRequestStatusForSubject,
   getFeedbackResponsesForSubject,
-  isCpoOrBoard,
+  isLeadershipOrBoard,
   type FeedbackRequestStatus,
   type SubjectFeedbackResponse,
 } from "@/lib/people-strategy/feedback-requests";
@@ -54,9 +54,9 @@ export default async function AdminInstructorProfilePage({
   const peopleDashboardEnabled = isPeopleDashboardEnabled();
   const provisionalEnabled = isProvisionalClockEnabled();
 
-  // CPO/Board check drives both the Quarterly Review submit affordance and the
-  // confidential feedback block. The server actions re-enforce `requireCPO()`.
-  const viewerIsCpoOrBoard = session?.user ? isCpoOrBoard(session.user) : false;
+  // Leadership/Board check drives both the Quarterly Review submit affordance and the
+  // confidential feedback block. The server actions re-enforce `requireLeadership()`.
+  const viewerIsLeadershipOrBoard = session?.user ? isLeadershipOrBoard(session.user) : false;
 
   const [profile, detail, allTags, latestQuarterlyReview, peopleStrategy] =
     await Promise.all([
@@ -77,11 +77,11 @@ export default async function AdminInstructorProfilePage({
     notFound();
   }
 
-  // Confidential feedback responses — ONLY for CPO/Board. The loader enforces
-  // `requireCPO()` itself; the guard + catch here keep the page resilient for
-  // non-CPO admins (who see everything else but not this block).
+  // Confidential feedback responses — ONLY for Leadership/Board. The loader enforces
+  // `requireLeadership()` itself; the guard + catch here keep the page resilient for
+  // non-Leadership admins (who see everything else but not this block).
   let feedbackResponses: SubjectFeedbackResponse[] | null = null;
-  if (peopleDashboardEnabled && viewerIsCpoOrBoard) {
+  if (peopleDashboardEnabled && viewerIsLeadershipOrBoard) {
     feedbackResponses = await getFeedbackResponsesForSubject(id).catch(() => null);
   }
 
@@ -98,10 +98,10 @@ export default async function AdminInstructorProfilePage({
     ? await loadProvisionalStatus(id)
     : null;
 
-  // Quarterly Review submission is leadership-gated (CPO / Board) per the role
-  // hierarchy; non-CPO admins still see the latest review read-only. The server
-  // action re-enforces `requireCPO()` regardless of this UI flag.
-  const canSubmitQuarterlyReview = viewerIsCpoOrBoard;
+  // Quarterly Review submission is leadership-gated (Leadership / Board) per the role
+  // hierarchy; non-Leadership admins still see the latest review read-only. The server
+  // action re-enforces `requireLeadership()` regardless of this UI flag.
+  const canSubmitQuarterlyReview = viewerIsLeadershipOrBoard;
 
   const { record, user, readiness } = profile;
   const instructorApplications = asArray(user.instructorApplications);
@@ -429,7 +429,7 @@ export default async function AdminInstructorProfilePage({
           data={peopleStrategy}
           feedbackResponses={feedbackResponses}
           feedbackStatus={feedbackStatus}
-          canSeeFeedback={viewerIsCpoOrBoard}
+          canSeeFeedback={viewerIsLeadershipOrBoard}
           quarterlyFormAvailable={quarterlyReviewsEnabled}
         />
       )}
@@ -442,7 +442,7 @@ export default async function AdminInstructorProfilePage({
           />
           <ProvisionalStatusCard
             userId={id}
-            canConfirm={viewerIsCpoOrBoard}
+            canConfirm={viewerIsLeadershipOrBoard}
             quarterlyFormAvailable={quarterlyReviewsEnabled}
             status={{
               isProvisional: provisionalStatus.isProvisional,

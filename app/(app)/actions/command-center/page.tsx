@@ -8,7 +8,7 @@ import {
 } from "@/lib/feature-flags";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import { loadCommandCenter } from "@/lib/people-strategy/command-center";
-import { isCpoOrBoard } from "@/lib/people-strategy/action-permissions";
+import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import { MOMENTUM_META } from "@/lib/people-strategy/momentum";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
@@ -84,7 +84,7 @@ export default async function CommandCenterPage() {
 
   const now = new Date();
   const data = await loadCommandCenter(viewer, now);
-  const showPeople = isPeopleDashboardEnabled() && isCpoOrBoard(viewer);
+  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
 
   const topAttention = data.attention.slice(0, 8);
   const followUpCandidates: FollowUpCandidate[] = data.attention

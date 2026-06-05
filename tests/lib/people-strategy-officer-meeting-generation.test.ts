@@ -32,7 +32,7 @@ function meeting(
         discussionNotes: "Agreed to ship the new flow next sprint.",
       },
     ],
-    miscUpdates: [{ body: "Budget approved for Q3", addedByName: "CPO" }],
+    miscUpdates: [{ body: "Budget approved for Q3", addedByName: "LEADERSHIP" }],
     ...overrides,
   };
 }

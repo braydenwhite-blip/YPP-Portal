@@ -769,7 +769,7 @@ export async function sendActionDeadlineWarningEmail({
   actionTitle,
   deadline,
   updateStatusUrl,
-  flagToCpoUrl,
+  flagToLeadershipUrl,
 }: {
   to: string;
   recipientName: string | null;
@@ -778,7 +778,7 @@ export async function sendActionDeadlineWarningEmail({
   actionTitle: string;
   deadline: string;
   updateStatusUrl: string;
-  flagToCpoUrl: string;
+  flagToLeadershipUrl: string;
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
   const subject = `Due tomorrow: ${actionTitle}`;
@@ -798,7 +798,7 @@ export async function sendActionDeadlineWarningEmail({
     </div>
     <div style="text-align: center; margin: 28px 0;">
       <a href="${escapeHtml(updateStatusUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Update Status</a>
-      <a href="${escapeHtml(flagToCpoUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to Leadership</a>
+      <a href="${escapeHtml(flagToLeadershipUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to Leadership</a>
     </div>
     <p style="color: #78716c; font-size: 13px;">The action's Lead has also been notified.</p>
   `);
@@ -813,7 +813,7 @@ export async function sendActionDeadlineReachedEmail({
   actionTitle,
   deadline,
   updateStatusUrl,
-  flagToCpoUrl,
+  flagToLeadershipUrl,
 }: {
   to: string;
   recipientName: string | null;
@@ -822,7 +822,7 @@ export async function sendActionDeadlineReachedEmail({
   actionTitle: string;
   deadline: string;
   updateStatusUrl: string;
-  flagToCpoUrl: string;
+  flagToLeadershipUrl: string;
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
   const subject = `Due today: ${actionTitle}`;
@@ -842,7 +842,7 @@ export async function sendActionDeadlineReachedEmail({
     </div>
     <div style="text-align: center; margin: 28px 0;">
       <a href="${escapeHtml(updateStatusUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Update Status</a>
-      <a href="${escapeHtml(flagToCpoUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to Leadership</a>
+      <a href="${escapeHtml(flagToLeadershipUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to Leadership</a>
     </div>
     <p style="color: #78716c; font-size: 13px;">You're receiving this because you're assigned to this action in the YPP Pathways Portal.</p>
   `);
@@ -888,15 +888,15 @@ export async function sendActionOverdueLeadEmail({
 }
 
 /**
- * People Strategy — CPO escalation notice.
+ * People Strategy — Leadership escalation notice.
  *
- * Sent to the CPO / Board when a flagged or OVERDUE action item has gone
+ * Sent to the Leadership / Board when a flagged or OVERDUE action item has gone
  * unresolved for 48h+ and is auto-escalated by the daily escalation cron. One
  * notification per item per recipient — idempotency is enforced upstream by the
- * `escalatedToCpoAt` marker and the `ActionEmailLog` dedupe key, so this helper
+ * `escalatedToLeadershipAt` marker and the `ActionEmailLog` dedupe key, so this helper
  * is only ever called once per escalation. Thin wrapper over `sendEmail`.
  */
-export async function sendCpoEscalationEmail({
+export async function sendLeadershipEscalationEmail({
   to,
   recipientName,
   actionTitle,
@@ -951,8 +951,8 @@ export async function sendCpoEscalationEmail({
 /**
  * People Strategy — Board escalation roll-up notice.
  *
- * Sent to the Board (SUPER_ADMIN stand-in) when a CPO-escalated action item has
- * stayed unresolved for 7 days past the CPO escalation and is auto-rolled-up by
+ * Sent to the Board (SUPER_ADMIN stand-in) when a Leadership-escalated action item has
+ * stayed unresolved for 7 days past the Leadership escalation and is auto-rolled-up by
  * the daily escalation cron. One notification per item per recipient —
  * idempotency is enforced upstream by the `boardRolledUpAt` marker and the
  * `ActionEmailLog` dedupe key. Thin wrapper over `sendEmail`.
@@ -965,7 +965,7 @@ export async function sendBoardEscalationRollupEmail({
   leadName,
   statusLabel,
   daysUnresolvedLabel,
-  cpoEscalatedLabel,
+  leadershipEscalatedLabel,
   deadline,
   boardUrl,
   actionUrl,
@@ -977,7 +977,7 @@ export async function sendBoardEscalationRollupEmail({
   leadName: string | null;
   statusLabel: string;
   daysUnresolvedLabel: string;
-  cpoEscalatedLabel: string;
+  leadershipEscalatedLabel: string;
   deadline: string;
   boardUrl: string;
   actionUrl: string;
@@ -987,7 +987,7 @@ export async function sendBoardEscalationRollupEmail({
   const html = emailShell(`
     <h2 style="margin: 0 0 16px; color: #1c1917;">An escalation has reached the Board</h2>
     <p>Hi ${escapeHtml(firstName)},</p>
-    <p>The action below was escalated to Leadership <strong>${escapeHtml(cpoEscalatedLabel)}</strong> and has remained unresolved since, so it has been rolled up to the Board for visibility.</p>
+    <p>The action below was escalated to Leadership <strong>${escapeHtml(leadershipEscalatedLabel)}</strong> and has remained unresolved since, so it has been rolled up to the Board for visibility.</p>
     <div style="background: #fef2f2; border-left: 4px solid #991b1b; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
       <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
       <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
@@ -1016,7 +1016,7 @@ export async function sendBoardEscalationRollupEmail({
  *
  * Sent to a recent collaborator asking them to submit feedback about a subject
  * member. The link points at the authenticated feedback form; the response is
- * readable only by the CPO/Board, which the copy makes explicit so colleagues
+ * readable only by the Leadership/Board, which the copy makes explicit so colleagues
  * answer candidly. Thin wrapper over `sendEmail`, like the helpers above.
  */
 export async function sendFeedbackRequestEmail({

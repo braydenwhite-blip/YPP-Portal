@@ -14,7 +14,7 @@ export default async function BoardRollupPage() {
   if (!isActionTrackerEnabled()) notFound();
 
   // Board only. requireBoard() throws "Unauthorized" for everyone else —
-  // including a plain CPO (CPO subtype without SUPER_ADMIN). Deny with a 404 so
+  // including a plain Leadership (Leadership subtype without SUPER_ADMIN). Deny with a 404 so
   // the route's existence is not leaked to non-Board users.
   const viewer = await requireBoard().catch(() => null);
   if (!viewer) notFound();

@@ -16,7 +16,7 @@ import {
 } from "./people-dashboard-selectors";
 
 /**
- * People Strategy — CPO People Dashboard (`/people`) data loader.
+ * People Strategy — Leadership People Dashboard (`/people`) data loader.
  *
  * Reads LIVE Action Tracker / Quarterly Review / Monthly Check-In data already
  * in the schema and reduces each person to a fully display-ready, serializable
