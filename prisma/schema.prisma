@@ -4231,11 +4231,12 @@ model InstructorJourney {
   id                  String    @id @default(cuid())
   userId              String    @unique
   user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// Current launchpad step index (0 = Welcome, 1 = Profile, 2 = Training, 3 = Tour).
+  /// Current launchpad step index (0 = Welcome, 1 = Profile, 2 = Training, 3 = Help & Community, 4 = Tour).
   currentStep         Int       @default(0)
   welcomeCompletedAt  DateTime?
   profileCompletedAt  DateTime?
   trainingCompletedAt DateTime?
+  communityCompletedAt DateTime?
   tourCompletedAt     DateTime?
   /// Set when the instructor finishes the full launchpad.
   completedAt         DateTime?

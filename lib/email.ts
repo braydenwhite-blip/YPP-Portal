@@ -59,6 +59,49 @@ function getDefaultFrom(): string {
   return "Youth Passion Project <noreply@youthpassionproject.org>";
 }
 
+/**
+ * Reply-To address used on outbound mail. A real, monitored Reply-To (e.g. a
+ * support inbox) is a positive deliverability signal — mailbox providers treat
+ * mail that can be replied to as more legitimate than no-reply-only senders.
+ */
+function getReplyTo(): string | undefined {
+  const replyTo = process.env.EMAIL_REPLY_TO?.trim();
+  return replyTo || undefined;
+}
+
+/**
+ * Build standard bulk-sender deliverability headers. `List-Unsubscribe` (and the
+ * one-click `List-Unsubscribe-Post`) are required by Gmail/Yahoo bulk-sender
+ * rules and strongly reduce spam-foldering. We add the one-click POST header
+ * only when an HTTPS unsubscribe endpoint is configured; a `mailto:` alone is
+ * still a valid List-Unsubscribe target on its own.
+ *
+ * Configure via env:
+ *   EMAIL_UNSUBSCRIBE_URL    — HTTPS endpoint that handles one-click POST
+ *   EMAIL_UNSUBSCRIBE_MAILTO — fallback/secondary mailto target (address only)
+ */
+function buildDeliverabilityHeaders(
+  extra?: Record<string, string>,
+): Record<string, string> {
+  const headers: Record<string, string> = {};
+
+  const url = process.env.EMAIL_UNSUBSCRIBE_URL?.trim();
+  const mailto = process.env.EMAIL_UNSUBSCRIBE_MAILTO?.trim();
+  const targets: string[] = [];
+  if (url && isHttpUrl(url)) targets.push(`<${url}>`);
+  if (mailto) targets.push(`<mailto:${mailto}>`);
+
+  if (targets.length > 0) {
+    headers["List-Unsubscribe"] = targets.join(", ");
+    // One-click only makes sense against an HTTPS endpoint that accepts POST.
+    if (url && isHttpUrl(url)) {
+      headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+    }
+  }
+
+  return { ...headers, ...extra };
+}
+
 function isSmtpConfigured(): boolean {
   return !!(
     process.env.SMTP_HOST?.trim() &&
@@ -103,18 +146,27 @@ export async function sendEmail({
   subject,
   html,
   text,
-  attachments
+  attachments,
+  replyTo,
+  headers
 }: {
   to: string | string[];
   subject: string;
   html: string;
   text?: string;
   attachments?: EmailAttachment[];
+  /** Override the default Reply-To (falls back to EMAIL_REPLY_TO). */
+  replyTo?: string;
+  /** Extra SMTP/MIME headers, merged over the standard deliverability set. */
+  headers?: Record<string, string>;
 }): Promise<EmailResult> {
   const provider = getEmailProvider();
   const from = getDefaultFrom();
   const toList = Array.isArray(to) ? to.join(", ") : to;
   const textBody = text || stripHtml(html);
+  const effectiveReplyTo = replyTo ?? getReplyTo();
+  const effectiveHeaders = buildDeliverabilityHeaders(headers);
+  const hasHeaders = Object.keys(effectiveHeaders).length > 0;
   const normalizedAttachments = attachments?.map((attachment) => ({
     filename: attachment.filename,
     content: attachment.content,
@@ -144,6 +196,8 @@ export async function sendEmail({
         html,
         text: textBody,
         attachments: normalizedAttachments,
+        ...(effectiveReplyTo ? { replyTo: effectiveReplyTo } : {}),
+        ...(hasHeaders ? { headers: effectiveHeaders } : {}),
       });
       return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -167,6 +221,8 @@ export async function sendEmail({
         html,
         text: textBody,
         attachments: normalizedAttachments as any,
+        ...(effectiveReplyTo ? { replyTo: effectiveReplyTo } : {}),
+        ...(hasHeaders ? { headers: effectiveHeaders } : {}),
       });
 
       if (result.error) {

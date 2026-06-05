@@ -73,6 +73,18 @@ export async function saveOnboardingProfile(formData: FormData) {
   const parentPhone = formData.has("parentPhone")
     ? parseOptionalPhone((formData.get("parentPhone") as string | null) ?? "", "parent phone")
     : undefined;
+  // Standard contact / location info. Instructors fill any of these that the
+  // application did not already capture; only fields present in the form are
+  // touched, so a partial form never clears data we already hold.
+  const city = formData.has("city")
+    ? ((formData.get("city") as string | null)?.trim() || null)
+    : undefined;
+  const stateProvince = formData.has("stateProvince")
+    ? ((formData.get("stateProvince") as string | null)?.trim() || null)
+    : undefined;
+  const dateOfBirth = formData.has("dateOfBirth")
+    ? ((formData.get("dateOfBirth") as string | null)?.trim() || null)
+    : undefined;
   const curriculumUrl = formData.get("curriculumUrl") as string | null;
 
   await prisma.userProfile.upsert({
@@ -87,6 +99,9 @@ export async function saveOnboardingProfile(formData: FormData) {
       primaryGoal: primaryGoal ?? null,
       parentEmail: parentEmail ?? null,
       parentPhone: parentPhone ?? null,
+      city: city ?? null,
+      stateProvince: stateProvince ?? null,
+      dateOfBirth: dateOfBirth ?? null,
       curriculumUrl: curriculumUrl || null,
     },
     update: {
@@ -98,6 +113,9 @@ export async function saveOnboardingProfile(formData: FormData) {
       primaryGoal,
       parentEmail,
       parentPhone,
+      city,
+      stateProvince,
+      dateOfBirth,
       curriculumUrl: curriculumUrl || undefined,
     },
   });

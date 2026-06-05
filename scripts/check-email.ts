@@ -48,17 +48,41 @@ async function main() {
     console.log("- Sender address looks real. Resend still requires that domain to be verified.");
   }
 
-  console.log("\nStep 3: Extra reminder.");
+  console.log("\nStep 3: Checking spam-prevention settings.");
+  const replyTo = process.env.EMAIL_REPLY_TO?.trim();
+  const unsubUrl = process.env.EMAIL_UNSUBSCRIBE_URL?.trim();
+  const unsubMailto = process.env.EMAIL_UNSUBSCRIBE_MAILTO?.trim();
+  if (replyTo) {
+    console.log(`- Good: Reply-To is set (${replyTo}).`);
+  } else {
+    console.log("- Tip: set EMAIL_REPLY_TO to a monitored inbox (helps deliverability).");
+  }
+  if (unsubUrl || unsubMailto) {
+    console.log("- Good: a List-Unsubscribe target is configured.");
+    if (!unsubUrl) {
+      console.log("  (Add EMAIL_UNSUBSCRIBE_URL too for Gmail/Yahoo one-click unsubscribe.)");
+    }
+  } else {
+    console.log(
+      "- Tip: set EMAIL_UNSUBSCRIBE_MAILTO and/or EMAIL_UNSUBSCRIBE_URL — Gmail/Yahoo require List-Unsubscribe for bulk mail.",
+    );
+  }
+  console.log(
+    "- Biggest factor: verify your domain and add SPF + DKIM + DMARC DNS records.",
+  );
+  console.log("  See docs/EMAIL_DELIVERABILITY.md for the full checklist.");
+
+  console.log("\nStep 4: Extra reminder.");
   console.log("- Password reset emails now use this app's email service.");
   console.log("- Real recipient delivery in Resend still needs a verified sender domain or SMTP.");
 
   if (!sendTo) {
-    console.log("\nStep 4: No live email test was sent.");
+    console.log("\nStep 5: No live email test was sent.");
     console.log("- Run: npm run email:check -- --send-to you@example.com");
     return;
   }
 
-  console.log(`\nStep 4: Sending a live test email to ${sendTo}.`);
+  console.log(`\nStep 5: Sending a live test email to ${sendTo}.`);
   const result = await sendEmail({
     to: sendTo,
     subject: "YPP email diagnostic",
