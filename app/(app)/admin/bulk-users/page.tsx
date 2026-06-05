@@ -6,6 +6,7 @@ import { formatAccessLabel } from "@/lib/admin-user-access";
 import {
   ADMIN_SUBTYPE_LABELS,
   ADMIN_SUBTYPE_VALUES,
+  normalizeAdminSubtype,
 } from "@/lib/admin-subtypes";
 import { prisma } from "@/lib/prisma";
 
@@ -481,19 +482,25 @@ export default async function BulkUserManagementPage({
                         {formatAccessLabel(role.role)}
                       </span>
                     ))}
-                    {user.adminSubtypes.map((entry) => (
-                      <span
-                        key={entry.subtype}
-                        className="pill"
-                        style={{
-                          background: entry.isDefaultOwner ? "#ede9fe" : "var(--surface-alt)",
-                          color: entry.isDefaultOwner ? "#6b21a8" : undefined,
-                        }}
-                      >
-                        {ADMIN_SUBTYPE_LABELS[entry.subtype]}
-                        {entry.isDefaultOwner ? " (Default)" : ""}
-                      </span>
-                    ))}
+                    {user.adminSubtypes.map((entry) => {
+                      // entry.subtype is the raw Prisma enum, which still carries
+                      // the legacy `CPO` value — normalize to the canonical
+                      // `LEADERSHIP` before looking up the display label.
+                      const subtype = normalizeAdminSubtype(entry.subtype);
+                      return (
+                        <span
+                          key={entry.subtype}
+                          className="pill"
+                          style={{
+                            background: entry.isDefaultOwner ? "#ede9fe" : "var(--surface-alt)",
+                            color: entry.isDefaultOwner ? "#6b21a8" : undefined,
+                          }}
+                        >
+                          {subtype ? ADMIN_SUBTYPE_LABELS[subtype] : entry.subtype}
+                          {entry.isDefaultOwner ? " (Default)" : ""}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
