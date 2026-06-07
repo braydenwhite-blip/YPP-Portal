@@ -16,7 +16,12 @@ import {
   isProvisionalClockEnabled,
   isPeopleDashboardEnabled,
   isQuarterlyReviewsEnabled,
+  isActionTrackerEnabled,
+  isOperationsHubEnabled,
 } from "@/lib/feature-flags";
+import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { canCreateAction } from "@/lib/people-strategy/action-permissions";
+import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
 import { getLatestQuarterlyReview } from "@/lib/people-strategy/quarterly-review-actions";
 import { loadProvisionalStatus } from "@/lib/people-strategy/provisional";
 import { loadMemberPeopleStrategy } from "@/lib/people-strategy/member-people-detail";
@@ -76,6 +81,20 @@ export default async function AdminInstructorProfilePage({
   if (!profile) {
     notFound();
   }
+
+  // People Strategy Operating System — Action Tracker items linked to this
+  // person. Additive + double-flagged; visibility-filtered for the viewer.
+  const operationsEnabled = isOperationsHubEnabled() && isActionTrackerEnabled();
+  const operationsViewer = {
+    id: session?.user?.id ?? "",
+    roles,
+    primaryRole: session?.user?.primaryRole ?? null,
+    adminSubtypes: session?.user?.adminSubtypes ?? [],
+  };
+  const personActions = operationsEnabled
+    ? await getActionsForEntity("USER", id, operationsViewer)
+    : [];
+  const canCreatePersonAction = canCreateAction(operationsViewer);
 
   // Confidential feedback responses — ONLY for Leadership/Board. The loader enforces
   // `requireLeadership()` itself; the guard + catch here keep the page resilient for
@@ -431,6 +450,17 @@ export default async function AdminInstructorProfilePage({
           feedbackStatus={feedbackStatus}
           canSeeFeedback={viewerIsLeadershipOrBoard}
           quarterlyFormAvailable={quarterlyReviewsEnabled}
+        />
+      )}
+
+      {operationsEnabled && (
+        <LinkedActionsPanel
+          actions={personActions}
+          heading="Linked actions for this person"
+          createHref={`/actions/new?relatedType=USER&relatedId=${id}`}
+          createLabel="Create action for this person"
+          canCreate={canCreatePersonAction}
+          emptyHint="No Action Tracker items are linked to this person yet."
         />
       )}
 
