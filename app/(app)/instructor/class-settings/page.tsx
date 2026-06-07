@@ -8,6 +8,14 @@ import {
   getClassTemplateSelect,
 } from "@/lib/class-template-compat";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
+import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
+import {
+  getActionsForEntity,
+  type ActionItemWithRelations,
+} from "@/lib/people-strategy/action-queries";
+import { canCreateAction } from "@/lib/people-strategy/action-permissions";
+import { getMenteeSupport } from "@/lib/people-strategy/connections";
+import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
 
 export default async function InstructorClassSettingsPage({
   searchParams,
@@ -132,6 +140,28 @@ export default async function InstructorClassSettingsPage({
     ? templates.find((t) => t.id === params.template)
     : null;
 
+  // People Strategy Operating System — class connections, shown only when
+  // managing an existing offering. Double-flagged + additive: the linked-action
+  // read is tracker-gated and visibility-filtered for this viewer, so an
+  // instructor sees only actions they're part of and the "create" CTA appears
+  // only for officer-tier roles (canCreateAction).
+  const operationsEnabled = isOperationsHubEnabled() && isActionTrackerEnabled();
+  const viewer = {
+    id: session.user.id,
+    roles: session.user.roles ?? [],
+    primaryRole: session.user.primaryRole ?? null,
+    adminSubtypes: session.user.adminSubtypes ?? [],
+  };
+  let classLinkedActions: ActionItemWithRelations[] = [];
+  let myMentor: Awaited<ReturnType<typeof getMenteeSupport>> = null;
+  if (operationsEnabled && offering) {
+    [classLinkedActions, myMentor] = await Promise.all([
+      getActionsForEntity("CLASS_OFFERING", offering.id, viewer),
+      getMenteeSupport(session.user.id),
+    ]);
+  }
+  const canCreateTrackerAction = canCreateAction(viewer);
+
   return (
     <div>
       <div className="topbar">
@@ -144,6 +174,37 @@ export default async function InstructorClassSettingsPage({
           </h1>
         </div>
       </div>
+
+      {operationsEnabled && offering && (
+        <div style={{ display: "grid", gap: 16, marginBottom: 16 }}>
+          <section className="card">
+            <h2 className="section-title" style={{ margin: "0 0 10px" }}>
+              Your mentor support
+            </h2>
+            {myMentor ? (
+              <p style={{ margin: 0, fontSize: 13 }}>
+                Your mentor is{" "}
+                <strong>{myMentor.mentor.name ?? myMentor.mentor.email}</strong>. Reach
+                out to them if you need help getting this class ready.
+              </p>
+            ) : (
+              <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                You don&apos;t have an active mentor yet. Your chapter lead can connect
+                you with one.
+              </p>
+            )}
+          </section>
+
+          <LinkedActionsPanel
+            actions={classLinkedActions}
+            heading="Actions for this class"
+            createHref={`/actions/new?relatedType=CLASS_OFFERING&relatedId=${offering.id}`}
+            createLabel="Create action for this class"
+            canCreate={canCreateTrackerAction}
+            emptyHint="No actions are linked to this class yet."
+          />
+        </div>
+      )}
 
       <ClassSettingsClient
         templates={templates.map((t) => ({
