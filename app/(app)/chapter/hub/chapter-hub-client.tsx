@@ -79,7 +79,7 @@ export default function ChapterHubLinks({ links }: { links: HubLinkView[] }) {
         grouped.map(([category, items]) => (
           <section key={category} style={{ marginTop: 24 }}>
             <h2 className="ps-section-title">{category}</h2>
-            <div className="grid two" style={{ marginTop: 12, alignItems: "stretch" }}>
+            <div className="grid two psuite-reveal" style={{ marginTop: 12, alignItems: "stretch" }}>
               {items.map((link) => (
                 <Link
                   key={link.href}

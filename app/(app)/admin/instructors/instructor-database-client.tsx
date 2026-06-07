@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { InstructorOpsRecord, InstructorOpsStage } from "@/lib/instructor-ops";
 import { completenessTone } from "@/lib/instructor-completeness";
@@ -186,6 +186,17 @@ export default function InstructorDatabaseClient({
 
   // Transient action confirmations
   const [toast, setToast] = useState<ToastState>(null);
+
+  // Esc closes the open quick-action menu (click-outside is handled by a
+  // backdrop rendered next to the menu).
+  useEffect(() => {
+    if (!openRowId) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpenRowId(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openRowId]);
 
   function resetFilters() {
     setSearch("");
@@ -864,11 +875,25 @@ function Row({
         </div>
       </td>
       <td style={{ position: "relative" }}>
-        <button type="button" className="button small secondary" onClick={onOpen}>
+        <button
+          type="button"
+          className="button small secondary"
+          onClick={onOpen}
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+        >
           Actions
         </button>
         {isOpen && (
           <div
+            aria-hidden="true"
+            onClick={onOpen}
+            style={{ position: "fixed", inset: 0, zIndex: 45 }}
+          />
+        )}
+        {isOpen && (
+          <div
+            role="menu"
             style={{
               position: "absolute",
               right: 0,

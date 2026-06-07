@@ -54,7 +54,7 @@ export default function ClassOperationsList({
   }
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div className="psuite-reveal" style={{ display: "grid", gap: 12 }}>
       {filtered.map((offering) => (
         <OperationsRow key={offering.id} offering={offering} />
       ))}
@@ -122,7 +122,7 @@ function ProposalQueueView({ proposals }: { proposals: ProposalQueueItem[] }) {
     );
   }
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div className="psuite-reveal" style={{ display: "grid", gap: 12 }}>
       {proposals.map((proposal) => (
         <ProposalRow key={proposal.id} proposal={proposal} />
       ))}
