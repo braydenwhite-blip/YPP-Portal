@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { isOperationsHubEnabled } from "@/lib/feature-flags";
 import { requirePageRoles } from "@/lib/page-guards";
 import { PersonLink } from "@/components/people-strategy/person-link";
+import { StatCard } from "@/components/people-strategy/stat-card";
 import {
   loadOperationsHub,
   type OperationsHubData,
@@ -130,7 +131,7 @@ function Section({
           gap: 8,
         }}
       >
-        <h2 className="section-title" style={{ margin: 0 }}>
+        <h2 className="ps-section-title" style={{ margin: 0 }}>
           {title}
         </h2>
         {typeof count === "number" ? (
@@ -170,19 +171,28 @@ function OfficerView({ hub, now }: { hub: OperationsHubData; now: Date }) {
     <>
       {pulse ? (
         <Section title="This week">
-          <div
-            style={{
-              display: "grid",
-              gap: 10,
-              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-            }}
-          >
-            <Stat label="Open" value={pulse.openTotal} />
-            <Stat label="Overdue" value={pulse.overdue} tone={pulse.overdue > 0 ? "bad" : undefined} />
-            <Stat label="Due this week" value={pulse.dueThisWeek} />
-            <Stat label="Completed" value={pulse.completedThisWeek} tone="ok" />
-            <Stat label="Flagged" value={pulse.flagged} tone={pulse.flagged > 0 ? "warn" : undefined} />
-            <Stat label="Unowned" value={pulse.unowned} tone={pulse.unowned > 0 ? "warn" : undefined} />
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <StatCard label="Open" value={pulse.openTotal} icon="layers" tone="accent" />
+            <StatCard
+              label="Overdue"
+              value={pulse.overdue}
+              icon="alert"
+              tone={pulse.overdue > 0 ? "danger" : "default"}
+            />
+            <StatCard label="Due this week" value={pulse.dueThisWeek} icon="calendar" />
+            <StatCard label="Completed" value={pulse.completedThisWeek} icon="check" tone="success" />
+            <StatCard
+              label="Flagged"
+              value={pulse.flagged}
+              icon="flag"
+              tone={pulse.flagged > 0 ? "warning" : "default"}
+            />
+            <StatCard
+              label="Unowned"
+              value={pulse.unowned}
+              icon="users"
+              tone={pulse.unowned > 0 ? "warning" : "default"}
+            />
           </div>
         </Section>
       ) : null}

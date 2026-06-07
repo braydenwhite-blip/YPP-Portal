@@ -1513,6 +1513,9 @@ a.portal-brand.portal-brand--link:active {
   font-weight: 600;
   background: #fef3c7;
   color: #92400e;
+  /* Hairline edge via inset shadow (not border) so chips read crisp on white
+     without changing their box size anywhere they're used. */
+  box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.05);
 }
 
 .pill.pill-pathway { background: #e0e7ff; color: #3730a3; }
@@ -1579,15 +1582,17 @@ a.portal-brand.portal-brand--link:active {
 
 .card {
   background: var(--surface);
-  border: 1px solid rgba(99, 102, 241, 0.07);
+  border: 1px solid rgba(17, 24, 39, 0.08);
   border-radius: var(--radius-xl);
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  /* Layered soft elevation — two stacked shadows read more premium than a
+     single flat drop. Purely visual: no size/layout impact. */
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
   transition: box-shadow var(--transition-base), border-color var(--transition-base);
 }
 
 .card:hover {
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 10px 22px rgba(16, 24, 40, 0.09), 0 3px 8px rgba(16, 24, 40, 0.05);
 }
 
 .card h3 {
@@ -2717,16 +2722,33 @@ a.portal-brand.portal-brand--link:active {
 }
 
 .stat-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0)),
+    var(--surface);
+  border: 1px solid rgba(17, 24, 39, 0.09);
   border-radius: var(--radius-lg);
   padding: 20px 24px;
-  box-shadow: var(--shadow-xs);
-  transition: all var(--transition-base);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
+  transition: transform var(--transition-base), box-shadow var(--transition-base),
+    border-color var(--transition-base);
+}
+
+/* Brand accent strip across the top of every stat card portal-wide. */
+.stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 52%, #8b3fe8 100%);
+  opacity: 0.9;
 }
 
 .stat-card:hover {
-  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(16, 24, 40, 0.11), 0 5px 12px rgba(16, 24, 40, 0.06);
   border-color: var(--ypp-purple-200);
 }
 
@@ -15820,7 +15842,8 @@ select.ps-select {
   background:
     radial-gradient(120% 140% at 100% 0%, rgba(180, 127, 255, 0.55) 0%, rgba(180, 127, 255, 0) 55%),
     linear-gradient(135deg, var(--ypp-purple-900) 0%, var(--ypp-purple-700) 48%, var(--ypp-purple-500) 100%);
-  box-shadow: var(--shadow-md);
+  /* Deeper brand-tinted elevation so the hero reads as a lifted panel. */
+  box-shadow: 0 22px 48px rgba(59, 15, 110, 0.28), 0 8px 18px rgba(59, 15, 110, 0.18);
 }
 .gp-hero__glow {
   position: absolute;
@@ -15892,10 +15915,15 @@ select.ps-select {
   border: 1px solid var(--ypp-line);
   border-radius: var(--radius-lg);
   padding: 22px;
-  box-shadow: var(--shadow-xs);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
   display: grid;
   gap: 10px;
   align-content: start;
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+.gp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(16, 24, 40, 0.12), 0 6px 14px rgba(16, 24, 40, 0.07);
 }
 .gp-card__eyebrow {
   font-size: 10.5px;
