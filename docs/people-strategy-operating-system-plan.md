@@ -346,3 +346,41 @@ General rules for all phases:
 8. `polish(people-strategy): improve copy, empty states, and mobile layout`
 9. `test(people-strategy): add linked action and hub coverage`
 10. `docs: document shipped integrations and deferred work`
+
+---
+
+## 10. Implementation log
+
+> Kept here so any future session can see exactly what has shipped vs. what is
+> still planned, without re-reading the diff.
+
+### Branch deviation (read first)
+Phases 1 **and** 2 were implemented together in a single session on
+`claude/magical-clarke-y6Lfx` (not the per-phase branches in §9), because the
+session was scoped to "Phase 1 & 2" and pinned to that branch. The work itself
+still respects each phase's **Owns** / **Must NOT touch** boundaries.
+
+### PHASE 1 — Foundation ✅ shipped
+- **Feature flag:** `isOperationsHubEnabled()` (`ENABLE_OPERATIONS_HUB`, default
+  OFF) in `lib/feature-flags.ts`; documented in `.env.example`.
+- **Constants:** `RELATED_ENTITY_TYPE_VALUES` (CLASS_OFFERING / MENTORSHIP /
+  USER / INSTRUCTOR_APPLICATION), `RELATED_ENTITY_TYPE_LABELS`,
+  `isRelatedEntityType`, `relatedEntityTypeLabel`, and the pure validators
+  `parseRelatedEntityRef` / `parseRelatedEntityUpdate` in
+  `lib/people-strategy/constants.ts`. `"/operations"` added to
+  `ACTION_ITEM_PATHS`.
+- **Schema + migration:** `ActionItem.relatedEntityType` / `relatedEntityId`
+  (String, no FK/enum) + composite index; idempotent migration
+  `20260608120000_add_action_related_entity`. `prisma validate` + `generate`
+  pass.
+- **Server actions:** `createActionItem` / `updateActionItem` accept the link
+  with both-or-neither Zod `superRefine`, a write-time `assertRelatedEntityExists`
+  existence check, and intentional clear-vs-unchanged semantics on update.
+- **Read helpers:** `getActionsForEntity` (single) and `getActionsForEntities`
+  (batch, single-query, N+1-safe, visibility-filtered) + `relatedEntityRefKey`
+  in `lib/people-strategy/action-queries.ts`.
+- **Tests:** `people-strategy-related-entity.test.ts` (validators),
+  `people-strategy-action-queries.test.ts` (visibility + batch grouping), and
+  new linked-creation cases in `people-strategy-actions.test.ts`.
+- **Checks:** `tsc --noEmit` clean (0 errors), targeted `vitest` green. Flag OFF
+  ⇒ no behavior change (no UI shipped in this phase).
