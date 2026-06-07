@@ -7,6 +7,7 @@ import {
   effectiveStatus,
   groupActionsByLinkedEntity,
   hasActiveFilters,
+  linkedGroupHeading,
   parseActionFilters,
 } from "@/lib/people-strategy/action-filters";
 import {
@@ -223,5 +224,25 @@ describe("groupActionsByLinkedEntity", () => {
     expect(byKey["none"]).toEqual(["none"]);
     // Unlinked group sorts last.
     expect(groups[groups.length - 1].key).toBe("none");
+  });
+});
+
+describe("linkedGroupHeading", () => {
+  it("uses the entity's own name + type, falls back for dangling links, labels unlinked", () => {
+    const cls = item({ id: "c1a", relatedEntityType: "CLASS_OFFERING", relatedEntityId: "c1" });
+    const mentorship = item({ id: "m1a", relatedEntityType: "MENTORSHIP", relatedEntityId: "m1" });
+    const none = item({ id: "none", relatedEntityType: null, relatedEntityId: null });
+    const byKey = Object.fromEntries(
+      groupActionsByLinkedEntity([cls, mentorship, none]).map((g) => [g.key, g])
+    );
+
+    // Only the class is resolved; the mentorship is a dangling link.
+    const labels = new Map([["CLASS_OFFERING:c1", { label: "Algebra 101", typeLabel: "Class" }]]);
+
+    expect(linkedGroupHeading(byKey["CLASS_OFFERING:c1"], labels)).toBe("Algebra 101 · Class");
+    expect(linkedGroupHeading(byKey["MENTORSHIP:m1"], labels)).toBe(
+      "Mentorship · link no longer available"
+    );
+    expect(linkedGroupHeading(byKey["none"], labels)).toBe("Not linked");
   });
 });

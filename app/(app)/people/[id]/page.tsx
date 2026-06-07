@@ -1,8 +1,15 @@
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
+import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
 import { loadPublicProfile } from "@/lib/people-strategy/public-profile";
-import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
+import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import {
+  canCreateAction,
+  isOfficerTier,
+  type ActionViewer,
+} from "@/lib/people-strategy/action-permissions";
+import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
 import { ProfileBody, activeLabel } from "@/components/people-strategy/profile-body";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +44,15 @@ export default async function PublicProfilePage({ params }: PageProps) {
   // existence of a non-member account).
   const profile = await loadPublicProfile(id, viewer);
   if (!profile) notFound();
+
+  // People Strategy Operating System — Action Tracker items linked to this
+  // person. Additive + double-flagged; an officer-only operating panel (peers
+  // viewing the public profile don't get it), visibility-filtered for the viewer.
+  const showLinkedActions =
+    isOperationsHubEnabled() && isActionTrackerEnabled() && isOfficerTier(viewer);
+  const personActions = showLinkedActions
+    ? await getActionsForEntity("USER", id, viewer)
+    : [];
 
   return (
     <div className="page-shell" style={{ maxWidth: 880 }}>
@@ -96,6 +112,19 @@ export default async function PublicProfilePage({ params }: PageProps) {
       </div>
 
       <ProfileBody profile={profile} />
+
+      {showLinkedActions ? (
+        <div style={{ marginTop: 14 }}>
+          <LinkedActionsPanel
+            actions={personActions}
+            heading="Linked actions"
+            createHref={`/actions/new?relatedType=USER&relatedId=${id}`}
+            createLabel="Create action for this person"
+            canCreate={canCreateAction(viewer)}
+            emptyHint="No Action Tracker items are linked to this person yet."
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

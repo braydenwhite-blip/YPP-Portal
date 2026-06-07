@@ -3,6 +3,7 @@ import type { ActionItemStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { getInstructorReadiness, type InstructorReadiness } from "@/lib/instructor-readiness";
+import { startOfDay } from "@/lib/leadership-action-center/dates";
 
 import {
   type ActionViewer,
@@ -12,6 +13,7 @@ import {
 import {
   getActionsForEntities,
   getMyActionItems,
+  listVisibleActionItems,
   relatedEntityRefKey,
   type ActionItemWithRelations,
 } from "./action-queries";
@@ -22,8 +24,12 @@ import {
   listTrackerClasses,
   type TrackerClass,
 } from "./class-tracker";
-import { loadCommandCenter, type CommandCenterData } from "./command-center";
+import { composeCommandCenter, type CommandCenterData } from "./command-center";
 import { loadMentorshipHealth, type MentorshipHealth } from "./mentorship-health";
+import {
+  listPastMeetings,
+  type OfficerMeetingWithRelations,
+} from "./officer-meetings-queries";
 import {
   getMenteeSupport,
   getMenteeSupportMany,
@@ -192,6 +198,107 @@ export function deriveOpenActions(
   return rows.slice(0, limit);
 }
 
+export type DepartmentSignal = {
+  id: string;
+  name: string;
+  openCount: number;
+  overdueCount: number;
+};
+
+/**
+ * Departments carrying overdue work, worst first — the "which departments have
+ * stuck work?" rollup, built over the polymorphism-free `departmentId` FK (plan
+ * §4: departments use their own FK, not the related-entity link). Settled
+ * (complete/dropped) actions are ignored; only departments with at least one
+ * overdue item are surfaced. Pure over an already-visibility-filtered set.
+ */
+export function deriveDepartmentSignals(
+  actions: ActionItemWithRelations[],
+  now: Date
+): DepartmentSignal[] {
+  const byDept = new Map<string, DepartmentSignal>();
+  for (const action of actions) {
+    const dept = action.department;
+    if (!dept) continue;
+    const status = effectiveStatus(action, now);
+    if (SETTLED_STATUSES.has(status)) continue;
+    let row = byDept.get(dept.id);
+    if (!row) {
+      row = { id: dept.id, name: dept.name, openCount: 0, overdueCount: 0 };
+      byDept.set(dept.id, row);
+    }
+    row.openCount += 1;
+    if (status === "OVERDUE") row.overdueCount += 1;
+  }
+  return Array.from(byDept.values())
+    .filter((d) => d.overdueCount > 0)
+    .sort((a, b) => b.overdueCount - a.overdueCount || b.openCount - a.openCount);
+}
+
+export type OfficerMeetingFollowUp = {
+  id: string;
+  date: Date;
+  openCount: number;
+  overdueCount: number;
+};
+
+/** Minimal meeting shape the follow-up rollup needs (keeps it unit-testable). */
+type MeetingForFollowUp = {
+  id: string;
+  date: Date;
+  actionItems: Array<{
+    status: ActionItemStatus;
+    deadlineStart: Date | null;
+    deadlineEnd: Date | null;
+  }>;
+};
+
+/** Mirror of `effectiveStatus`'s OVERDUE branch for a meeting's lighter rows. */
+function isFollowUpOverdue(
+  item: MeetingForFollowUp["actionItems"][number],
+  now: Date
+): boolean {
+  if (item.status === "COMPLETE" || item.status === "DROPPED") return false;
+  if (item.status === "BLOCKED") return false;
+  if (item.status === "OVERDUE") return true;
+  const deadline = item.deadlineEnd ?? item.deadlineStart;
+  if (!deadline) return false;
+  return deadline.getTime() < startOfDay(now).getTime();
+}
+
+/**
+ * Past officer meetings that still have unresolved follow-up actions — "which
+ * meeting decisions haven't been closed out?". Built over the existing
+ * `officerMeetingId` FK relation (plan §4). A meeting whose items are all
+ * settled drops out; the rest sort most-overdue (then most-open, then most
+ * recent) first. Pure over an already officer-gated meeting set.
+ */
+export function deriveOfficerMeetingFollowUps(
+  meetings: MeetingForFollowUp[],
+  now: Date
+): OfficerMeetingFollowUp[] {
+  const rows: OfficerMeetingFollowUp[] = [];
+  for (const meeting of meetings) {
+    let openCount = 0;
+    let overdueCount = 0;
+    for (const item of meeting.actionItems) {
+      if (item.status === "COMPLETE" || item.status === "DROPPED") continue;
+      openCount += 1;
+      if (isFollowUpOverdue(item, now)) overdueCount += 1;
+    }
+    if (openCount > 0) {
+      rows.push({ id: meeting.id, date: meeting.date, openCount, overdueCount });
+    }
+  }
+  rows.sort(
+    (a, b) =>
+      b.overdueCount - a.overdueCount ||
+      b.openCount - a.openCount ||
+      b.date.getTime() - a.date.getTime()
+  );
+  return rows;
+}
+
 // --- loader ------------------------------------------------------------------
 
 export type OperationsHubRole =
@@ -218,6 +325,8 @@ export type OperationsHubData = {
   classSignals: ClassSignals | null;
   instructorsWithoutMentor: InstructorGap[];
   mentorshipsWithoutActions: MentorshipGap[];
+  departmentSignals: DepartmentSignal[];
+  officerMeetingFollowUps: OfficerMeetingFollowUp[];
   // Personal sections (mentor / instructor / member).
   myMentor: MenteeSupport | null;
   myOpenActions: OpenActionRow[];
@@ -238,6 +347,8 @@ const EMPTY_HUB = (role: OperationsHubRole, now: Date): OperationsHubData => ({
   classSignals: null,
   instructorsWithoutMentor: [],
   mentorshipsWithoutActions: [],
+  departmentSignals: [],
+  officerMeetingFollowUps: [],
   myMentor: null,
   myOpenActions: [],
   myClasses: [],
@@ -326,12 +437,23 @@ export async function loadOperationsHub(
   const officer = role === "officer" || role === "leadership";
 
   if (officer) {
-    const [command, mentorshipHealth, classes, activeMentorships] = await Promise.all([
-      safe(loadCommandCenter(viewer, now), null),
-      safe(loadMentorshipHealth(now), null),
-      safe(listTrackerClasses(), [] as TrackerClass[]),
-      safe(listActiveMentorships(), [] as ActiveMentorshipSummary[]),
-    ]);
+    // One visibility-filtered read of the tracker backs both the command center
+    // (composed purely) AND the department rollup, so we never double-load it.
+    const [items, mentorshipHealth, classes, activeMentorships, pastMeetings] =
+      await Promise.all([
+        safe(listVisibleActionItems(viewer), [] as ActionItemWithRelations[]),
+        safe(loadMentorshipHealth(now), null),
+        safe(listTrackerClasses(), [] as TrackerClass[]),
+        safe(listActiveMentorships(), [] as ActiveMentorshipSummary[]),
+        safe(listPastMeetings(now), [] as OfficerMeetingWithRelations[]),
+      ]);
+
+    let command: CommandCenterData | null = null;
+    try {
+      command = composeCommandCenter(items, now);
+    } catch {
+      command = null;
+    }
 
     const refs: RelatedEntityRef[] = [
       ...classes.map((c) => ({ type: "CLASS_OFFERING" as const, id: c.id })),
@@ -353,6 +475,8 @@ export async function loadOperationsHub(
       actionsByRef
     );
     hub.instructorsWithoutMentor = deriveInstructorsWithoutMentor(classes, supportByUser);
+    hub.departmentSignals = deriveDepartmentSignals(items, now);
+    hub.officerMeetingFollowUps = deriveOfficerMeetingFollowUps(pastMeetings, now);
   } else {
     // Personal operating picture for mentors / instructors / members.
     const [myActions, myMentor] = await Promise.all([
@@ -399,6 +523,8 @@ export function hubHasData(hub: OperationsHubData): boolean {
   }
   if (hub.instructorsWithoutMentor.length) return true;
   if (hub.mentorshipsWithoutActions.length) return true;
+  if (hub.departmentSignals.length) return true;
+  if (hub.officerMeetingFollowUps.length) return true;
   if (hub.myOpenActions.length) return true;
   if (hub.myClasses.length) return true;
   if (hub.myMentees.length) return true;

@@ -446,10 +446,10 @@ still respects each phase's **Owns** / **Must NOT touch** boundaries.
 - **Connections additions:** `getMenteeSupportMany` (batch, N+1-safe) and
   `listActiveMentorships`.
 - **Tests:** `people-strategy-operations-hub.test.ts` (derivations).
-- **Deferred (documented, per plan):** on-page panels for `/people/[id]` and
-  `/profile` (the hub + the `/admin/instructors/[id]` panel cover the same need
-  for now); department / officer-meeting / leadership-pathway hub rollups
-  (their surfaces are not stable enough to wire safely yet).
+- **Deferred at the time (now resolved — see "Deferred-item completion" below):**
+  on-page panels for `/people/[id]` and `/profile`; department / officer-meeting
+  hub rollups. The **leadership-pathway** rollup stays documented-only on purpose
+  (no stable readiness signal exists — see §12).
 
 ### PHASE 4 — Tracker power features, audit, tests, docs ✅ shipped
 - **Action Tracker upgrade:** a `relatedType` filter (`rel` query key) end-to-end
@@ -467,6 +467,45 @@ still respects each phase's **Owns** / **Must NOT touch** boundaries.
 - **Checks:** `tsc --noEmit` clean (0 errors). `validate-nav.mjs` shows only the
   4 pre-existing core-map warnings (identical at base 87c8734); the new
   `/operations` entry adds none (`coreEligible: false`).
+
+### Deferred-item completion (follow-up session) ✅ shipped
+A follow-up session closed out the items Phases 3–4 had explicitly deferred,
+keeping everything additive + double-flagged (`ENABLE_OPERATIONS_HUB` +
+`ENABLE_ACTION_TRACKER`):
+
+- **On-page person panels.** `LinkedActionsPanel` now renders the person's linked
+  Action Tracker items on `/people/[id]` (officer-tier viewers only — peers
+  viewing the public profile don't get an operating panel) and on `/profile`
+  (your own linked actions; shown to officers always, and to anyone who actually
+  has linked actions, so it never adds an empty card). Both reuse the same
+  visibility-filtered `getActionsForEntity("USER", id, viewer)` read and the
+  officer-gated create CTA as the `/admin/instructors/[id]` panel.
+- **Per-entity group-by labels.** "Group by → Linked item" on `/actions/all` now
+  titles each group with the linked entity's OWN name ("Algebra 101 · Class",
+  "Mentor → Mentee · Mentorship"), not just the type ("Class actions"). Backed by
+  a new batch loader `loadRelatedEntityLabels(refs)` (one query per entity TYPE,
+  N+1-safe, dangling links fall back to the type label) and a pure, tested
+  `linkedGroupHeading`. Group headings deep-link to the entity where one exists.
+- **Department + officer-meeting hub rollups.** The officer/leadership Operations
+  Hub gained two sections built over the existing FKs (not the polymorphic link,
+  per §4): "Departments with overdue work" (grouped by `departmentId`, worst
+  first, deep-linking to the filtered tracker) and "Officer meetings needing
+  follow-up" (past meetings with unresolved action items, via `officerMeetingId`
+  / `listPastMeetings`). Both are pure derivations (`deriveDepartmentSignals`,
+  `deriveOfficerMeetingFollowUps`) fed by a SINGLE visibility-filtered tracker
+  read that also composes the command center (no double-load), each `safe()`-wrapped.
+- **Leadership-pathway rollup — intentionally NOT shipped.** The leadership stage
+  is config-inferred (`inferLeadershipStage`) with no persistent "ready for the
+  next step" signal in the data model; the promotion windows are narrative copy,
+  not a gate. Building a "ready for promotion" rollup would mean inventing a
+  readiness heuristic, which violates the program's "never use fake data" rule.
+  Actions continue to link to `USER` with stage context surfaced, exactly as §4
+  prescribes ("LEADERSHIP_PATHWAY — Exclude entirely (document only)").
+- **Tests:** `linkedGroupHeading` cases in `people-strategy-action-filters.test.ts`;
+  `deriveDepartmentSignals` + `deriveOfficerMeetingFollowUps` cases in
+  `people-strategy-operations-hub.test.ts`.
+- **Checks:** `tsc --noEmit` adds zero new errors (only the pre-existing TS5101
+  `baseUrl` deprecation remains); targeted vitest green.
 
 ---
 
@@ -486,6 +525,9 @@ viewer — and run through the pure predicates in `action-permissions.ts`.
 | Instructor panel (`/instructor/class-settings`) | Offering owner or ADMIN | Linked actions visibility-filtered; instructors can view but not create (no officer tier). |
 | Operations Hub (`/operations`) | Broad roles (`requirePageRoles`); role-aware content | `notFound()` if flag off; officer-only data (command center, mentorship health, gap lists) loaded only for officer-tier+; members get only their own scoped data. |
 | Admin instructor panel (`/admin/instructors/[id]`) | ADMIN (page guard) | Person's linked actions visibility-filtered. |
+| Public profile panel (`/people/[id]`) | Officer-tier viewers only (`isOfficerTier`); panel hidden for peers | Person's linked actions visibility-filtered; create CTA via `canCreateAction`; both flags required. |
+| Own-profile panel (`/profile`) | The signed-in user (officers always; others only when they have linked actions) | Self `USER` actions visibility-filtered; create CTA via `canCreateAction`; both flags required. |
+| Department + officer-meeting hub rollups (`/operations`) | Officer-tier+ only (loaded inside the officer branch) | Department rollup derived from the viewer's own visibility-filtered tracker read; meeting rollup from officer-gated `listPastMeetings`. |
 
 No surface trusts URL params for identity, exposes private data through a param,
 or bypasses a server-side permission check. Members never receive officer-wide
@@ -504,8 +546,14 @@ data; the hub's officer sections are gated behind `isOfficerTier`/
   point at the canonical `/actions/new`.
 - **Pre-existing test/nav debt:** 6 vitest files (13 tests) and 4 `validate-nav`
   core-map warnings fail at the base commit too — out of scope for this program.
-- **Next moves:** wire `/people/[id]` + `/profile` hub panels; resolve grouped
-  linked-entity labels (currently grouped by type, not per-entity title); add
-  department / officer-meeting / leadership-pathway hub rollups once those
-  surfaces stabilise; consider per-entity group-by once a batch label loader
-  exists.
+- **Done since (see "Deferred-item completion" in §10):** `/people/[id]` +
+  `/profile` hub panels; per-entity grouped linked-entity labels (batch label
+  loader + clickable group headings); department + officer-meeting hub rollups.
+- **Leadership-pathway rollup stays deferred *by design*:** the stage is
+  config-inferred with no persistent readiness id, and the "ready for next step"
+  notion has no DB signal — surfacing it would require fabricating data. Actions
+  link to `USER` with stage context instead. Revisit only if/when an explicit,
+  persisted promotion-readiness signal is added to the data model.
+- **Next moves:** the polymorphic-link orphan cleanup (a periodic sweep that
+  null-checks `relatedEntityId` against live rows) and the legacy `/actions/*` vs
+  `/my-actions` consolidation both remain open and out of scope here.
