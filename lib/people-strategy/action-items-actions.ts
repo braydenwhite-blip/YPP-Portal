@@ -21,6 +21,10 @@ import {
   type RelatedEntityType,
 } from "./constants";
 import {
+  parseActionType,
+  parseActionTypeUpdate,
+} from "./action-types";
+import {
   canAssignAction,
   canCreateAction,
   canEditAction,
@@ -293,6 +297,9 @@ const CreateActionItemSchema = z.object({
   // are enforced by the pure validator in the superRefine below.
   relatedEntityType: z.string().trim().optional(),
   relatedEntityId: z.string().trim().optional(),
+  // Controlled-vocabulary action type (or empty for untyped). Membership is
+  // enforced by parseActionType in the superRefine below.
+  actionType: z.string().trim().optional(),
 }).superRefine((val, ctx) => {
   const parsed = parseRelatedEntityRef(val);
   if (!parsed.ok) {
@@ -300,6 +307,14 @@ const CreateActionItemSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: parsed.error,
       path: ["relatedEntityType"],
+    });
+  }
+  const parsedType = parseActionType(val.actionType);
+  if (!parsedType.ok) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: parsedType.error,
+      path: ["actionType"],
     });
   }
 });
@@ -336,6 +351,12 @@ export async function createActionItem(input: CreateActionItemInput) {
   const related = parsedRelated.ok ? parsedRelated.ref : null;
   if (related) await assertRelatedEntityExists(related.type, related.id);
 
+  // Normalized action type (null when untyped); `ok` is guaranteed by the
+  // schema superRefine, so a parse failure here would only be a programming
+  // error — fall back to null rather than throw on the happy path.
+  const parsedType = parseActionType(data.actionType);
+  const actionType = parsedType.ok ? parsedType.value : null;
+
   // Lead is also represented as a LEAD assignment row; the (actionItemId,
   // userId, role) uniqueness lets the Lead additionally hold an EXECUTING row.
   const assignmentRows: Array<{ userId: string; role: ActionAssignmentRole }> = [
@@ -350,6 +371,7 @@ export async function createActionItem(input: CreateActionItemInput) {
       title: data.title,
       description: data.description,
       goalCategory: data.goalCategory,
+      actionType,
       departmentId: data.departmentId,
       leadId: data.leadId,
       createdById: session.id,
@@ -426,6 +448,10 @@ const UpdateActionItemSchema = z.object({
   // parseRelatedEntityUpdate). Validity is enforced in the superRefine below.
   relatedEntityType: z.string().trim().nullable().optional(),
   relatedEntityId: z.string().trim().nullable().optional(),
+  // Action type. Omitting it leaves the existing type untouched; sending it
+  // empty intentionally clears it (see parseActionTypeUpdate). Validity is
+  // enforced in the superRefine below.
+  actionType: z.string().trim().nullable().optional(),
 }).superRefine((val, ctx) => {
   const result = parseRelatedEntityUpdate(val);
   if (result.kind === "error") {
@@ -433,6 +459,14 @@ const UpdateActionItemSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: result.error,
       path: ["relatedEntityType"],
+    });
+  }
+  const typeResult = parseActionTypeUpdate(val.actionType ?? undefined);
+  if (typeResult.kind === "error") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: typeResult.error,
+      path: ["actionType"],
     });
   }
 });
@@ -486,6 +520,14 @@ export async function updateActionItem(input: UpdateActionItemInput) {
     relatedEntityId = null;
   }
 
+  // Interpret the action type as a unit: unchanged (omitted), cleared (sent
+  // empty), or set to a known member. The "error" kind is unreachable — the
+  // schema superRefine already rejected it — so it falls through to undefined.
+  const typeUpdate = parseActionTypeUpdate(data.actionType);
+  let actionType: string | null | undefined;
+  if (typeUpdate.kind === "set") actionType = typeUpdate.value;
+  else if (typeUpdate.kind === "clear") actionType = null;
+
   const statusChanged = data.status !== undefined && data.status !== existing.status;
   const completedAt = completedAtForTransition(existing.status, newStatus, new Date());
   const leadChanged =
@@ -515,6 +557,7 @@ export async function updateActionItem(input: UpdateActionItemInput) {
         title: data.title,
         description: data.description,
         goalCategory: data.goalCategory,
+        actionType,
         departmentId: data.departmentId,
         status: newStatus as never,
         priority: data.priority as never,
