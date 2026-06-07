@@ -9,6 +9,11 @@ import {
   type ActionAccessShape,
   type ActionViewer,
 } from "./action-permissions";
+import {
+  isRelatedEntityType,
+  type RelatedEntityRef,
+  type RelatedEntityType,
+} from "./constants";
 
 /**
  * People Strategy — Action Item read queries.
@@ -245,4 +250,93 @@ export async function listActionDepartments(): Promise<ActionDepartmentOption[]>
     select: { id: true, name: true },
     orderBy: [{ name: "asc" }],
   });
+}
+
+// --- related-entity reads (People Strategy Operating System) -----------------
+
+/**
+ * Stable map key for a related-entity ref, shared by the batch loader and its
+ * callers so the `${type}:${id}` format never drifts between producer and
+ * consumer.
+ */
+export function relatedEntityRefKey(type: string, id: string): string {
+  return `${type}:${id}`;
+}
+
+/**
+ * Actions linked to a single related entity (e.g. every action about one class
+ * or one mentorship), newest first, filtered to what `viewer` may see. Returns
+ * [] when the tracker flag is off, the type is not a shipped link type, or the
+ * id is blank — it never throws on a bad ref, mirroring the "fail safe / empty"
+ * convention of the other read helpers so a stale id can't break a page.
+ */
+export async function getActionsForEntity(
+  type: RelatedEntityType,
+  id: string,
+  viewer: ActionViewer
+): Promise<ActionItemWithRelations[]> {
+  if (!isActionTrackerEnabled()) return [];
+  if (!isRelatedEntityType(type)) return [];
+  const trimmedId = id.trim();
+  if (!trimmedId) return [];
+
+  const items = await prisma.actionItem.findMany({
+    where: { relatedEntityType: type, relatedEntityId: trimmedId },
+    include: ACTION_ITEM_INCLUDE,
+    orderBy: [{ createdAt: "desc" }],
+  });
+
+  return items.filter((item) => canViewAction(viewer, toAccessShape(item)));
+}
+
+/**
+ * Batch variant of {@link getActionsForEntity}: loads actions for many related
+ * entities in ONE query and groups them by ref, so a hub listing N classes or
+ * mentorships never fans out into N queries (avoids N+1). Every list is already
+ * visibility-filtered for `viewer`. Each valid ref is present in the returned
+ * Map — with an empty array when it has no visible actions — so callers can
+ * render an empty state without a follow-up lookup. Invalid/blank/duplicate
+ * refs are skipped. Use {@link relatedEntityRefKey} to read entries back.
+ */
+export async function getActionsForEntities(
+  refs: RelatedEntityRef[],
+  viewer: ActionViewer
+): Promise<Map<string, ActionItemWithRelations[]>> {
+  const result = new Map<string, ActionItemWithRelations[]>();
+  if (!isActionTrackerEnabled()) return result;
+
+  // Validate + de-dupe the incoming refs, seeding each with an empty list.
+  const validRefs: Array<{ type: RelatedEntityType; id: string }> = [];
+  for (const ref of refs) {
+    if (!ref || !isRelatedEntityType(ref.type)) continue;
+    const id = ref.id?.trim();
+    if (!id) continue;
+    const key = relatedEntityRefKey(ref.type, id);
+    if (result.has(key)) continue;
+    result.set(key, []);
+    validRefs.push({ type: ref.type, id });
+  }
+  if (validRefs.length === 0) return result;
+
+  const items = await prisma.actionItem.findMany({
+    where: {
+      OR: validRefs.map((ref) => ({
+        relatedEntityType: ref.type,
+        relatedEntityId: ref.id,
+      })),
+    },
+    include: ACTION_ITEM_INCLUDE,
+    orderBy: [{ createdAt: "desc" }],
+  });
+
+  for (const item of items) {
+    if (!item.relatedEntityType || !item.relatedEntityId) continue;
+    if (!canViewAction(viewer, toAccessShape(item))) continue;
+    const list = result.get(
+      relatedEntityRefKey(item.relatedEntityType, item.relatedEntityId)
+    );
+    if (list) list.push(item);
+  }
+
+  return result;
 }

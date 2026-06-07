@@ -25,6 +25,21 @@ export function isActionTrackerEnabled(): boolean {
 }
 
 /**
+ * People Strategy — Operations Hub (`/operations`) and the cross-surface
+ * connection panels that turn the People Strategy area into one connected
+ * operating system (see `docs/people-strategy-operating-system-plan.md`).
+ *
+ * Defaults OFF — set `ENABLE_OPERATIONS_HUB=true` to expose the `/operations`
+ * route, the new cross-surface panels, and the nav entry. With the flag off the
+ * route returns notFound() and every new panel/nav entry is hidden, so existing
+ * users see no behavior change. Tracker-powered features still also require
+ * `ENABLE_ACTION_TRACKER`.
+ */
+export function isOperationsHubEnabled(): boolean {
+  return process.env.ENABLE_OPERATIONS_HUB === "true";
+}
+
+/**
  * Temporary deprecation gate for the older Leadership Action Center sidebar
  * entry. The route remains reachable during migration, but the nav should
  * point people at the newer People Strategy Action Tracker by default.
