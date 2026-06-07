@@ -14298,35 +14298,79 @@ a.dash-row:hover {
 /* ============================================================
    MENTOR HUB — command center
    Stat strip, engagement panels, and roster shared by the mentor
-   workspace at /mentorship and /mentorship/mentees. Flat editorial
-   surfaces matching the mentorship redesign (no card radius).
+   workspace at /mentorship and /mentorship/mentees. Premium elevated
+   surfaces matching the People-Strategy visual language.
    ============================================================ */
+
+/* Scoped ambiance for every /mentorship/* view (see mentorship/layout.tsx):
+   neutral canvas with soft brand glows, like the Action Tracker. */
+main:has(.ms-page) {
+  background:
+    radial-gradient(1100px 460px at 16% -180px, rgba(139, 63, 232, 0.11), transparent 60%),
+    radial-gradient(900px 420px at 100% -140px, rgba(13, 148, 136, 0.06), transparent 55%),
+    #f5f6f8;
+}
+
+/* Gradient, high-contrast page heading on the mentorship surface. */
+.ms-page .page-title {
+  background: linear-gradient(118deg, #240a3f 0%, #6b21c8 58%, #8b3fe8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Crisper card edges + layered depth on the mentorship canvas. */
+.ms-page .card {
+  border-color: rgba(17, 24, 39, 0.1);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
+}
+.ms-page .card:hover {
+  box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08), 0 2px 6px rgba(16, 24, 40, 0.05);
+}
 
 .mentor-stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(166px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 14px;
 }
 
 .mentor-stat {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 15px 17px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--border);
+  gap: 6px;
+  padding: 16px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0)),
+    var(--surface);
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
   text-decoration: none;
   color: inherit;
 }
 
+/* Tone strip across the top — purple by default, amber/red for escalations. */
+.mentor-stat::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 52%, #8b3fe8 100%);
+}
+
 a.mentor-stat {
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 a.mentor-stat:hover {
-  background: var(--ypp-purple-50);
-  border-left-color: var(--ypp-purple-400);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px rgba(16, 24, 40, 0.13), 0 6px 14px rgba(16, 24, 40, 0.07);
+  border-color: rgba(17, 24, 39, 0.16);
 }
 
 a.mentor-stat:focus-visible {
@@ -14334,27 +14378,39 @@ a.mentor-stat:focus-visible {
   outline-offset: 2px;
 }
 
-.mentor-stat--attention { border-left-color: #f59e0b; }
-.mentor-stat--alert { border-left-color: #ef4444; }
+.mentor-stat--attention::before { background: linear-gradient(90deg, #fbbf24, #b45309); }
+.mentor-stat--alert::before { background: linear-gradient(90deg, #fb7185, #dc2626); }
 
 .mentor-stat__label {
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .mentor-stat__value {
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  color: var(--ypp-purple-800);
+  font-size: 31px;
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  background: linear-gradient(118deg, #240a3f 0%, #6b21c8 65%, #8b3fe8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
-.mentor-stat__value--attention { color: #b45309; }
-.mentor-stat__value--alert { color: #b91c1c; }
+.mentor-stat__value--attention {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: #b45309;
+}
+.mentor-stat__value--alert {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: #b91c1c;
+}
 
 .mentor-stat__sub {
   font-size: 12px;
@@ -14371,26 +14427,41 @@ a.mentor-stat:focus-visible {
 
 .mentor-panel {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
   padding: 18px 20px;
 }
 
 .mentor-panel__head {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 4px;
 }
 
+/* Title now reads as a section label with a gradient tick. */
 .mentor-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 800;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ps-ink-soft, #5b6472);
+}
+
+.mentor-panel__title::before {
+  content: "";
+  width: 4px;
+  height: 13px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 52%, #8b3fe8 100%);
+  flex-shrink: 0;
 }
 
 .mentor-panel__hint {
@@ -14413,20 +14484,25 @@ a.mentor-stat:focus-visible {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 10px 13px;
+  padding: 11px 14px;
   background: var(--bg-2);
+  border: 1px solid rgba(17, 24, 39, 0.06);
   border-left: 3px solid var(--border);
+  border-radius: var(--radius-md);
   text-decoration: none;
   color: inherit;
 }
 
 a.mentor-panel__row {
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition: border-color var(--transition-fast), background var(--transition-fast),
+    transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 a.mentor-panel__row:hover {
   border-left-color: var(--ypp-purple-400);
   background: var(--ypp-purple-50);
+  transform: translateX(2px);
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.07);
 }
 
 a.mentor-panel__row:focus-visible {
@@ -14475,7 +14551,10 @@ a.mentor-panel__row:focus-visible {
 .mentor-guide {
   margin-bottom: 24px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
+  overflow: hidden;
 }
 
 .mentor-guide__summary {
@@ -14534,7 +14613,9 @@ a.mentor-panel__row:focus-visible {
 .mentor-guide__item {
   padding: 12px 14px;
   background: var(--bg-2);
-  border-left: 3px solid var(--border);
+  border: 1px solid rgba(17, 24, 39, 0.06);
+  border-left: 3px solid var(--ypp-purple-300);
+  border-radius: var(--radius-md);
 }
 
 .mentor-guide__item-label {
@@ -15398,22 +15479,6 @@ select.ps-filter {
    keep their shape against the card without shouting. */
 .ps-page .pill {
   border: 1px solid rgba(17, 24, 39, 0.05);
-}
-
-/* ---- Primary buttons get the brand gradient on the pro surface ----
-   Scoped to .ps-page so the rest of the portal is untouched. Outline / ghost /
-   secondary / danger keep their own treatment. */
-.ps-page .button:not(.outline):not(.ghost):not(.secondary):not(.danger) {
-  background: var(--ps-accent-gradient);
-  border: none;
-  box-shadow: 0 2px 8px rgba(107, 33, 200, 0.26);
-}
-.ps-page .button:not(.outline):not(.ghost):not(.secondary):not(.danger):hover {
-  box-shadow: var(--ps-accent-glow);
-  transform: translateY(-1px);
-}
-.ps-page .button:not(.outline):not(.ghost):not(.secondary):not(.danger):active {
-  transform: translateY(0);
 }
 
 /* ---- Premium form controls (.ps-form / .ps-field / .ps-input / .ps-select) ----
