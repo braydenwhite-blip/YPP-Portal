@@ -3,6 +3,12 @@
 import { useState } from "react";
 import DataTable from "@/components/data-table";
 import { assignMentorBulk, updateChapterBulk } from "@/lib/bulk-actions";
+import {
+  CertChip,
+  IdentityCell,
+  Meter,
+  SuiteChip,
+} from "@/components/people-strategy/people-suite";
 
 interface Student {
   id: string;
@@ -44,37 +50,70 @@ export default function StudentTable({
   const [bulkChapterId, setBulkChapterId] = useState("");
 
   const columns = [
-    { key: "name", label: "Name" },
-    { key: "email", label: "Email" },
-    { key: "chapter", label: "Chapter" },
+    {
+      key: "name",
+      label: "Student",
+      render: (item: Student) => (
+        <IdentityCell name={item.name} sub={item.email} />
+      )
+    },
+    {
+      key: "chapter",
+      label: "Chapter",
+      render: (item: Student) =>
+        item.chapter && item.chapter !== "None" ? (
+          <SuiteChip>{item.chapter}</SuiteChip>
+        ) : (
+          <SuiteChip muted>No chapter</SuiteChip>
+        )
+    },
     {
       key: "grade",
       label: "Grade",
-      render: (item: Student) => item.grade ? `Grade ${item.grade}` : "—"
+      render: (item: Student) =>
+        item.grade ? (
+          <SuiteChip>Grade {item.grade}</SuiteChip>
+        ) : (
+          <span style={{ color: "var(--gray-400)" }}>—</span>
+        )
     },
     { key: "school", label: "School" },
     {
       key: "enrolledCourses",
-      label: "Enrolled",
-      render: (item: Student) => (
-        <span className="pill">{item.enrolledCourses} courses</span>
-      )
-    },
-    {
-      key: "completedCourses",
-      label: "Completed",
-      render: (item: Student) => (
-        <span className="pill pill-success">{item.completedCourses}</span>
-      )
+      label: "Courses",
+      render: (item: Student) => {
+        const total = item.enrolledCourses + item.completedCourses;
+        return (
+          <Meter
+            value={item.completedCourses}
+            max={total || 1}
+            tone="success"
+            width={140}
+            label={
+              <>
+                <strong style={{ color: "var(--ps-ink)" }}>{item.enrolledCourses}</strong> active ·{" "}
+                {item.completedCourses} done
+              </>
+            }
+          />
+        );
+      }
     },
     {
       key: "certificates",
       label: "Certs",
-      render: (item: Student) => item.certificates > 0 ? (
-        <span className="pill pill-pathway">{item.certificates}</span>
-      ) : "0"
+      render: (item: Student) => <CertChip count={item.certificates} />
     },
-    { key: "mentorName", label: "Mentor" }
+    {
+      key: "mentorName",
+      label: "Mentor",
+      render: (item: Student) =>
+        item.mentorId ? (
+          <SuiteChip>{item.mentorName}</SuiteChip>
+        ) : (
+          <SuiteChip muted>Unassigned</SuiteChip>
+        )
+    }
   ];
 
   const filterOptions = [

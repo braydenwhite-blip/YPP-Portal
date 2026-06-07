@@ -4,6 +4,7 @@ import type {
   SimplifiedKanbanColumn,
 } from "@/lib/mentorship-kanban-actions";
 import { formatEnum } from "@/lib/format-utils";
+import { PeopleAvatar } from "@/components/people-strategy/people-suite";
 import { MentorTagDropdown } from "./mentor-tag-dropdown";
 
 interface MentorPriorityListProps {
@@ -200,7 +201,9 @@ function MentorRow({
         alignItems: "center",
       }}
     >
-      <div style={{ minWidth: 0, display: "grid", gap: 4 }}>
+      <div style={{ minWidth: 0, display: "flex", gap: 12, alignItems: "center" }}>
+        <PeopleAvatar name={card.menteeName} />
+        <div style={{ minWidth: 0, display: "grid", gap: 4 }}>
         <div
           style={{
             display: "flex",
@@ -242,6 +245,7 @@ function MentorRow({
             {reason}
           </div>
         )}
+        </div>
       </div>
 
       <div

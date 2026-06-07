@@ -19,6 +19,7 @@ import type {
   PeopleDashboardRow,
 } from "@/lib/people-strategy/people-dashboard";
 import { PersonLink } from "@/components/people-strategy/person-link";
+import { PeopleAvatar } from "@/components/people-strategy/people-suite";
 
 const TREND_STYLES: Record<TrendWord, { color: string; label: string }> = {
   Improving: { color: "#047857", label: "Improving ↑" },
@@ -34,35 +35,6 @@ const RATING_SHORT_LABELS: Record<GoalRatingColor, string> = {
   ABOVE_AND_BEYOND: "Above",
 };
 
-function Initials({ name, email }: { name: string; email: string }) {
-  const source = name || email;
-  const initials = source
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-  return (
-    <span
-      aria-hidden
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 36,
-        height: 36,
-        borderRadius: "50%",
-        background: "#e2e8f0",
-        color: "#475569",
-        fontSize: 13,
-        fontWeight: 700,
-        flexShrink: 0,
-      }}
-    >
-      {initials || "?"}
-    </span>
-  );
-}
-
 function Avatar({ row }: { row: PeopleDashboardRow }) {
   if (row.avatarUrl) {
     return (
@@ -76,7 +48,7 @@ function Avatar({ row }: { row: PeopleDashboardRow }) {
       />
     );
   }
-  return <Initials name={row.name} email={row.email} />;
+  return <PeopleAvatar name={row.name || row.email} />;
 }
 
 function RatingChip({ rating, prefix }: { rating: GoalRatingColor; prefix: string }) {

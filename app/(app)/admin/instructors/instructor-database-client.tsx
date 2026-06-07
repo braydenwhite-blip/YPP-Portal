@@ -5,6 +5,9 @@ import Link from "next/link";
 import type { InstructorOpsRecord, InstructorOpsStage } from "@/lib/instructor-ops";
 import { completenessTone } from "@/lib/instructor-completeness";
 import type { InstructorLifecycleStage } from "@prisma/client";
+import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
+import { StatCard } from "@/components/people-strategy/stat-card";
+import { IdentityCell, Meter } from "@/components/people-strategy/people-suite";
 import {
   updateInstructorLifecycleStage,
   addTagToInstructor,
@@ -73,12 +76,6 @@ const LIFECYCLE_STAGES: Array<{ value: InstructorLifecycleStage; label: string }
   { value: "PAUSED", label: "Paused" },
   { value: "ALUMNI", label: "Alumni" },
 ];
-
-const TONE_COLORS: Record<"success" | "warning" | "danger", { bg: string; fg: string }> = {
-  success: { bg: "#dcfce7", fg: "#166534" },
-  warning: { bg: "#fef9c3", fg: "#854d0e" },
-  danger: { bg: "#fee2e2", fg: "#991b1b" },
-};
 
 // ── CSV export ─────────────────────────────────────────────────────────────--
 
@@ -426,35 +423,34 @@ export default function InstructorDatabaseClient({
     sortKey === key ? (sortDir === "asc" ? " ↑" : " ↓") : "";
 
   return (
-    <div className="instructor-ops-page instructor-database-page">
-      <div className="topbar">
-        <div>
-          <p className="badge">Admin | Instructor Database</p>
-          <h1 className="page-title">Instructor Database</h1>
-          <p className="page-subtitle">
-            One command center for every instructor: search, filter, sort,
-            spot missing information, and take action without leaving the table.
-          </p>
-        </div>
-        <div className="instructor-ops-header-actions">
-          <Link href="/admin/instructors/hub" className="button secondary">
-            Pipeline hub
-          </Link>
-          <Link href="/admin/instructors/lifecycle" className="button secondary">
-            Lifecycle board
-          </Link>
-          <Link href="/admin/instructors/attention" className="button">
-            Attention inbox
-          </Link>
-        </div>
-      </div>
+    <div className="ps-page psuite instructor-ops-page instructor-database-page">
+      <ActionCommandBar
+        eyebrow="Admin · Instructor Database"
+        title="Instructor Database"
+        subtitle="One command center for every instructor: search, filter, sort, spot missing information, and take action without leaving the table."
+        meta={`${metrics.total} instructors · ${metrics.activeAssignments} active assignments`}
+        actions={
+          <>
+            <Link href="/admin/instructors/hub" className="button secondary">
+              Pipeline hub
+            </Link>
+            <Link href="/admin/instructors/lifecycle" className="button secondary">
+              Lifecycle board
+            </Link>
+            <Link href="/admin/instructors/attention" className="button">
+              Attention inbox
+            </Link>
+          </>
+        }
+      />
 
       {/* KPI strip */}
-      <div className="grid four instructor-ops-metrics" style={{ marginBottom: 16 }}>
-        <KpiCard label="Total instructors" value={metrics.total} />
-        <KpiCard label="Needs attention" value={metrics.attention} tone="danger" />
-        <KpiCard label="Ready / available" value={metrics.ready} tone="success" />
-        <KpiCard label="Active assignments" value={metrics.activeAssignments} tone="info" />
+      <div className="psuite-stat-strip">
+        <StatCard label="Total instructors" value={metrics.total} icon="users" tone="accent" />
+        <StatCard label="Onboarding" value={metrics.onboarding} icon="clock" />
+        <StatCard label="Needs attention" value={metrics.attention} icon="alert" tone={metrics.attention > 0 ? "danger" : "default"} />
+        <StatCard label="Ready / available" value={metrics.ready} icon="check" tone="success" />
+        <StatCard label="Active assignments" value={metrics.activeAssignments} icon="layers" />
       </div>
 
       {/* Filters */}
@@ -591,17 +587,7 @@ export default function InstructorDatabaseClient({
 
       {/* Bulk toolbar */}
       {selectedIds.length > 0 && (
-        <div
-          className="card"
-          style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-            flexWrap: "wrap",
-            marginBottom: 12,
-            background: "#f5f3ff",
-          }}
-        >
+        <div className="psuite-bulkbar">
           <span style={{ fontWeight: 600, fontSize: 13 }}>{selectedIds.length} selected</span>
           <select className="input" value={bulkAction} onChange={(e) => setBulkAction(e.target.value)}>
             <option value="">Choose action…</option>
@@ -699,23 +685,25 @@ export default function InstructorDatabaseClient({
 
 // ── Sub-components ─────────────────────────────────────────────────────────--
 
-function KpiCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone?: "danger" | "success" | "info";
-}) {
-  const color =
-    tone === "danger" ? "#dc2626" : tone === "success" ? "#16a34a" : tone === "info" ? "#2563eb" : "var(--ypp-purple-700)";
-  return (
-    <div className="card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 28, fontWeight: 700, color }}>{value}</div>
-      <div style={{ fontSize: 13, color: "var(--muted)" }}>{label}</div>
-    </div>
-  );
+// Maps an instructor stage label to a People-Suite stage-chip tone.
+function stageToneClass(stageLabel: string, needsAttention: boolean): string {
+  if (needsAttention) return "is-danger";
+  const s = stageLabel.toLowerCase();
+  if (s.includes("attention")) return "is-danger";
+  if (s.includes("paused") || s.includes("bench") || s.includes("alumni")) return "is-neutral";
+  if (s.includes("active") || s.includes("leadership")) return "is-success";
+  if (s.includes("ready")) return "is-success";
+  if (s.includes("onboard") || s.includes("interview") || s.includes("review") || s.includes("applicant"))
+    return "is-warning";
+  return "is-accent";
+}
+
+// Tone for the training-progress meter: green when essentially done, amber on
+// the way, accent at the start.
+function trainingTone(pct: number): "success" | "warning" | "accent" {
+  if (pct >= 90) return "success";
+  if (pct >= 40) return "warning";
+  return "accent";
 }
 
 function Th({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
@@ -749,7 +737,7 @@ function ToggleChip({
 
 function CompletenessChip({ record }: { record: InstructorOpsRecord }) {
   const tone = completenessTone(record.completeness.score);
-  const colors = TONE_COLORS[tone];
+  const meterTone = tone === "success" ? "success" : tone === "warning" ? "warning" : "danger";
   const missing = record.completeness.missing;
   return (
     <span
@@ -758,21 +746,20 @@ function CompletenessChip({ record }: { record: InstructorOpsRecord }) {
           ? `Missing: ${missing.map((m) => m.label).join(", ")}`
           : "Complete profile"
       }
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "2px 8px",
-        borderRadius: 10,
-        fontSize: 11,
-        fontWeight: 600,
-        background: colors.bg,
-        color: colors.fg,
-        whiteSpace: "nowrap",
-      }}
+      style={{ display: "inline-block" }}
     >
-      {record.completeness.score}%
-      {missing.length > 0 && <span style={{ opacity: 0.8 }}>· {missing.length} missing</span>}
+      <Meter
+        value={record.completeness.score}
+        max={100}
+        tone={meterTone}
+        width={120}
+        label={
+          <>
+            <strong style={{ color: "var(--ps-ink)" }}>{record.completeness.score}%</strong>
+            {missing.length > 0 ? ` · ${missing.length} missing` : " · complete"}
+          </>
+        }
+      />
     </span>
   );
 }
@@ -805,26 +792,31 @@ function Row({
   const [stagePick, setStagePick] = useState<InstructorLifecycleStage | "">("");
 
   return (
-    <tr style={{ background: selected ? "#f5f3ff" : undefined }}>
+    <tr className={selected ? "is-selected" : undefined}>
       <td>
         <input type="checkbox" checked={selected} onChange={onToggle} />
       </td>
       <td>
-        <Link href={record.profileHref} style={{ fontWeight: 600 }}>
-          {record.name}
-        </Link>
-        <div style={{ fontSize: 11, color: "var(--muted)" }}>{record.email}</div>
+        <IdentityCell name={record.name} sub={record.email} href={record.profileHref} />
       </td>
       <td style={{ fontSize: 12 }}>{record.chapterName}</td>
       <td>
-        <span className={`pill pill-small ${record.needsAttention ? "pill-attention" : "pill-purple"}`}>
+        <span className={`psuite-stage ${stageToneClass(record.stageLabel, record.needsAttention)}`}>
           {record.stageLabel}
         </span>
       </td>
       <td>
         <span className="pill pill-small">{record.currentLoadLabel}</span>
       </td>
-      <td style={{ fontSize: 12 }}>{record.trainingPercent}%</td>
+      <td>
+        <Meter
+          value={record.trainingPercent}
+          max={100}
+          tone={trainingTone(record.trainingPercent)}
+          width={110}
+          label={<><strong style={{ color: "var(--ps-ink)" }}>{record.trainingPercent}%</strong> trained</>}
+        />
+      </td>
       <td>
         <CompletenessChip record={record} />
       </td>
