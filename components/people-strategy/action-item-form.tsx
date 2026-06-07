@@ -48,6 +48,18 @@ export interface ActionItemFormInitial {
   leadId?: string | null;
   executingUserIds?: string[];
   inputUserIds?: string[];
+  /**
+   * Polymorphic related-entity link, resolved server-side. When present the
+   * form shows a read-only "Linked to …" chip and carries the link through on
+   * create. The link is intentionally NOT editable here — it is set from the
+   * surface the action was started on (a class / mentorship / person page).
+   */
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
+  /** Human label for the chip (e.g. the class title or person name). */
+  relatedEntityLabel?: string | null;
+  /** Type label for the chip (e.g. "Class" / "Mentorship" / "Person"). */
+  relatedEntityTypeLabel?: string | null;
 }
 
 function asDate(value: Date | string | null | undefined): Date | null {
@@ -336,6 +348,14 @@ export default function ActionItemForm({
 
   const leadId = leadIds[0] ?? "";
 
+  // Read-only related-entity link (set from the surface that started the action;
+  // never edited in this form). Only carried through on create.
+  const relatedEntityType = initial?.relatedEntityType ?? null;
+  const relatedEntityId = initial?.relatedEntityId ?? null;
+  const hasRelatedEntity = Boolean(relatedEntityType && relatedEntityId);
+  const relatedTypeLabel = initial?.relatedEntityTypeLabel ?? "Linked item";
+  const relatedLabel = initial?.relatedEntityLabel ?? null;
+
   function validate(): string | null {
     if (!title.trim()) return "Title is required.";
     if (!leadId) return "A Lead is required (exactly one).";
@@ -403,6 +423,9 @@ export default function ActionItemForm({
             deadlineEnd: undefined,
             executingUserIds: executors,
             inputUserIds: inputIds,
+            // Carry the read-only link through; the server re-validates it.
+            relatedEntityType: relatedEntityType ?? undefined,
+            relatedEntityId: relatedEntityId ?? undefined,
           });
 
           if (hasFileLink) {
@@ -428,6 +451,26 @@ export default function ActionItemForm({
     <MotionArea>
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <FeedbackBanner message={error} tone="error" style={{ padding: "8px 12px" }} />
+
+      {hasRelatedEntity && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 12px",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--ypp-purple-300)",
+            background: "var(--ypp-purple-100)",
+            color: "var(--ypp-purple-800)",
+            fontSize: 13,
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>Linked to {relatedTypeLabel}:</span>
+          <span>{relatedLabel ?? "this item"}</span>
+        </div>
+      )}
 
       <div style={FIELD}>
         <label style={LABEL} htmlFor="action-title">
