@@ -278,7 +278,7 @@ export async function getFeedbackResponsesForSubject(
   subjectUserId: string,
   month?: Date
 ): Promise<SubjectFeedbackResponse[]> {
-  await requireLeadership(); // throws Unauthorized for non-CPO/Board
+  await requireLeadership(); // throws Unauthorized for non-Leadership/Board
 
   const rows = await prisma.feedbackRequest.findMany({
     where: {

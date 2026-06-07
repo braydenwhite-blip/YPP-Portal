@@ -11,6 +11,7 @@ import {
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
 import { getMyTeachingClasses } from "@/lib/people-strategy/class-tracker";
+import { getMyMentorshipActionItems } from "@/lib/people-strategy/mentorship-my-actions";
 import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
@@ -93,9 +94,10 @@ export default async function MyActionsPage() {
     adminSubtypes: session.user.adminSubtypes,
   };
 
-  const [rawItems, teachingClasses] = await Promise.all([
+  const [rawItems, teachingClasses, mentorshipActions] = await Promise.all([
     getMyActionItems(viewer.id, viewer),
     getMyTeachingClasses(viewer.id),
+    getMyMentorshipActionItems(viewer.id),
   ]);
   const items = sortByDeadline(rawItems);
   const now = new Date();
@@ -248,6 +250,51 @@ export default async function MyActionsPage() {
           </p>
           {teachingClasses.map((offering) => (
             <ClassTrackerRow key={offering.id} offering={offering} />
+          ))}
+        </section>
+      ) : null}
+
+      {/* Mentorship action items, surfaced from the Mentorship system so a
+          mentor/mentee sees them next to their tracker work (#12). Read-only. */}
+      {mentorshipActions.length > 0 ? (
+        <section style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
+            Mentorship Action Items
+          </h2>
+          <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
+            Open tasks from your mentorship — managed in the Mentorship area.
+          </p>
+          {mentorshipActions.map((m) => (
+            <div
+              key={m.id}
+              className="card"
+              style={{
+                padding: "10px 14px",
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <strong style={{ fontSize: 14 }}>{m.title}</strong>
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+                  {m.role === "owner" ? "Your task" : `For ${m.menteeName ?? "your mentee"}`}
+                </div>
+              </div>
+              {m.dueAt ? (
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--muted)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Due {formatDueDate(m.dueAt)}
+                </span>
+              ) : null}
+            </div>
           ))}
         </section>
       ) : null}
