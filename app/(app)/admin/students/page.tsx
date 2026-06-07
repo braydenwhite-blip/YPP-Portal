@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
+import { StatCard } from "@/components/people-strategy/stat-card";
 import StudentTable from "./student-table";
 
 export default async function AdminStudentsPage() {
@@ -54,17 +56,29 @@ export default async function AdminStudentsPage() {
     };
   });
 
+  const totals = {
+    students: studentData.length,
+    activeEnrollments: studentData.reduce((sum, s) => sum + s.enrolledCourses, 0),
+    completed: studentData.reduce((sum, s) => sum + s.completedCourses, 0),
+    certificates: studentData.reduce((sum, s) => sum + s.certificates, 0),
+    mentored: studentData.filter((s) => s.mentorId).length,
+  };
+
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Admin</p>
-          <h1 className="page-title">All Students</h1>
-        </div>
-        <div>
-          <span className="kpi" style={{ fontSize: 24 }}>{students.length}</span>
-          <span className="kpi-label" style={{ marginLeft: 8 }}>Total Students</span>
-        </div>
+    <div className="ps-page psuite">
+      <ActionCommandBar
+        eyebrow="Admin · Students"
+        title="All Students"
+        subtitle="Every learner across every chapter — search, filter, and manage enrollments, mentors, and achievements in one place."
+        meta={`${totals.students} students · ${chapters.length} chapters`}
+      />
+
+      <div className="psuite-stat-strip">
+        <StatCard label="Total students" value={totals.students} icon="users" tone="accent" />
+        <StatCard label="Active enrollments" value={totals.activeEnrollments} icon="layers" />
+        <StatCard label="Courses completed" value={totals.completed} icon="check" tone="success" />
+        <StatCard label="Certificates earned" value={totals.certificates} icon="target" tone="warning" />
+        <StatCard label="With a mentor" value={totals.mentored} icon="activity" />
       </div>
 
       <div className="card">
