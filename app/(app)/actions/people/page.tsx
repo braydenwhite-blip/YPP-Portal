@@ -12,9 +12,11 @@ import {
 } from "@/lib/people-strategy/people-dashboard";
 import { listActionDepartments } from "@/lib/people-strategy/action-queries";
 import { loadLeadershipEscalationQueue } from "@/lib/people-strategy/escalation-queue";
+import { loadMentorshipHealth } from "@/lib/people-strategy/mentorship-health";
 import { isBoard } from "@/lib/people-strategy/action-permissions";
 import { PeopleDashboardTable } from "@/components/people-strategy/people-dashboard-table";
 import { EscalationQueue } from "@/components/people-strategy/escalation-queue";
+import { MentorshipHealthSection } from "@/components/people-strategy/mentorship-health-section";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import Link from "next/link";
 
@@ -48,6 +50,9 @@ export default async function PeopleDashboardPage() {
   // the section simply doesn't render.
   const showEscalationQueue = isActionTrackerEnabled();
   const escalations = showEscalationQueue ? await loadLeadershipEscalationQueue() : [];
+
+  // Mentorship health roll-up (#12) — read-only over the Mentorship models.
+  const mentorshipHealth = await loadMentorshipHealth();
 
   // Board (SUPER_ADMIN) additionally sees a link to the Board Escalation
   // Roll-up list. Plain Leadership does not — the destination route enforces
@@ -124,6 +129,8 @@ export default async function PeopleDashboardPage() {
       )}
 
       {showEscalationQueue && <EscalationQueue rows={escalations} />}
+
+      <MentorshipHealthSection health={mentorshipHealth} />
 
       <PeopleDashboardTable
         rows={rows}

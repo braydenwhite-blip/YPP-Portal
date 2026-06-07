@@ -10,8 +10,9 @@ import {
   ACTION_STATUS_SELECTABLE,
   ACTION_VISIBILITY_LABELS,
   ACTION_VISIBILITY_VALUES,
+  DEFAULT_ACTION_DEADLINE_DAYS,
 } from "@/lib/people-strategy/constants";
-import { toDateInputValue } from "@/lib/leadership-action-center/dates";
+import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
 import {
   addActionAssignment,
   addActionFileLink,
@@ -265,12 +266,19 @@ export default function ActionItemForm({
   initial,
   users,
   departments,
+  currentUserId,
   onSaved,
   onCancel,
 }: {
   initial?: ActionItemFormInitial;
   users: UserOption[];
   departments: DepartmentOption[];
+  /**
+   * The signed-in creator. On a brand-new action they are pre-selected as Lead
+   * (the most common case), so the form is submittable without hunting for a
+   * name first.
+   */
+  currentUserId?: string | null;
   onSaved?: () => void;
   onCancel?: () => void;
 }) {
@@ -296,12 +304,25 @@ export default function ActionItemForm({
     initial?.visibility ?? "ALL_LEADERSHIP"
   );
   // One clear Deadline (comment #12). Older items may still carry a start/end
-  // range; seed from the end date when present, else the single deadline.
+  // range; seed from the end date when present, else the single deadline. A
+  // brand-new action (no initial date) defaults to a tight, editable target so
+  // the required field is never blank and creation isn't blocked.
+  const initialDeadline = asDate(initial?.deadlineEnd ?? initial?.deadlineStart);
   const [deadline, setDeadline] = useState(
-    toDateInputValue(asDate(initial?.deadlineEnd ?? initial?.deadlineStart))
+    toDateInputValue(
+      initialDeadline ??
+        (isEdit ? null : addDays(new Date(), DEFAULT_ACTION_DEADLINE_DAYS))
+    )
   );
+  // New action → default the Lead to the creator when they're assignable; an
+  // edit keeps its existing lead.
+  const defaultLeadId =
+    initial?.leadId ??
+    (!isEdit && currentUserId && users.some((u) => u.id === currentUserId)
+      ? currentUserId
+      : null);
   const [leadIds, setLeadIds] = useState<string[]>(
-    initial?.leadId ? [initial.leadId] : []
+    defaultLeadId ? [defaultLeadId] : []
   );
   const [executingIds, setExecutingIds] = useState<string[]>(initialExecuting);
   const [inputIds, setInputIds] = useState<string[]>(initialInput);

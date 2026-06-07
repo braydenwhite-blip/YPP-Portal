@@ -814,7 +814,8 @@ async function seedInstructorApplicantWorkflow(
   const chair = await prisma.user.upsert({
     where: { email: "hiring.chair@youthpassionproject.org" },
     create: {
-      name: "Morgan Ellison",
+      name: "Test 1",
+      title: "Hiring Chair",
       email: "hiring.chair@youthpassionproject.org",
       passwordHash,
       emailVerified: verifiedAt,
@@ -823,7 +824,8 @@ async function seedInstructorApplicantWorkflow(
       roles: { create: [{ role: RoleType.HIRING_CHAIR }] },
     },
     update: {
-      name: "Morgan Ellison",
+      name: "Test 1",
+      title: "Hiring Chair",
       passwordHash,
       emailVerified: verifiedAt,
       primaryRole: RoleType.HIRING_CHAIR,
@@ -836,7 +838,8 @@ async function seedInstructorApplicantWorkflow(
   const applicant1 = await prisma.user.upsert({
     where: { email: "demo.applicant.submitted@example.com" },
     create: {
-      name: "Alex Rivera",
+      name: "Test 3",
+      title: "Instructor Applicant",
       email: "demo.applicant.submitted@example.com",
       passwordHash,
       emailVerified: verifiedAt,
@@ -844,13 +847,14 @@ async function seedInstructorApplicantWorkflow(
       chapterId,
       roles: { create: [{ role: RoleType.STUDENT }] },
     },
-    update: { name: "Alex Rivera" },
+    update: { name: "Test 3", title: "Instructor Applicant" },
   });
 
   const applicant2 = await prisma.user.upsert({
     where: { email: "demo.applicant.interview@example.com" },
     create: {
-      name: "Jamie Torres",
+      name: "Test 4",
+      title: "Instructor Applicant",
       email: "demo.applicant.interview@example.com",
       passwordHash,
       emailVerified: verifiedAt,
@@ -858,13 +862,14 @@ async function seedInstructorApplicantWorkflow(
       chapterId,
       roles: { create: [{ role: RoleType.STUDENT }] },
     },
-    update: { name: "Jamie Torres" },
+    update: { name: "Test 4", title: "Instructor Applicant" },
   });
 
   const applicant3 = await prisma.user.upsert({
     where: { email: "demo.applicant.chair@example.com" },
     create: {
-      name: "Sam Nguyen",
+      name: "Test 5",
+      title: "Instructor Applicant",
       email: "demo.applicant.chair@example.com",
       passwordHash,
       emailVerified: verifiedAt,
@@ -872,14 +877,15 @@ async function seedInstructorApplicantWorkflow(
       chapterId,
       roles: { create: [{ role: RoleType.STUDENT }] },
     },
-    update: { name: "Sam Nguyen" },
+    update: { name: "Test 5", title: "Instructor Applicant" },
   });
 
   // Reviewer user
   const reviewer = await prisma.user.upsert({
     where: { email: "demo.reviewer@youthpassionproject.org" },
     create: {
-      name: "Casey Park",
+      name: "Test 2",
+      title: "Application Reviewer",
       email: "demo.reviewer@youthpassionproject.org",
       passwordHash,
       emailVerified: verifiedAt,
@@ -887,7 +893,7 @@ async function seedInstructorApplicantWorkflow(
       chapterId,
       roles: { create: [{ role: RoleType.ADMIN }] },
     },
-    update: { name: "Casey Park" },
+    update: { name: "Test 2", title: "Application Reviewer" },
   });
 
   // Application 1 — SUBMITTED
@@ -1529,24 +1535,36 @@ async function seedActionTracker() {
     return;
   }
 
-  // The three standing functional departments — the single source of truth for
-  // the Action Tracker picker. (Previously the seed also created legacy
-  // "Instruction"/"Marketing" rows that the standing set duplicated; the seeded
-  // demo items now attach to these standing departments so the picker stays
-  // clean. The 20260604160000 migration archives any leftover legacy rows.)
-  const instructionalAffairs = await prisma.department.upsert({
-    where: { name: "Instructional Affairs" },
-    create: { name: "Instructional Affairs", slug: "instructional-affairs", description: "Academics — curriculum, teaching, and classroom operations." },
+  // The five standing functional teams — the single source of truth for the
+  // Action Tracker picker. (Previously the seed created three broader
+  // departments — "Instructional Affairs"/"Community & Partnerships"/"Platform &
+  // Operations" — and, before that, legacy "Instruction"/"Marketing" rows; the
+  // seeded demo items now attach to these standing teams so the picker stays
+  // clean. The 20260607120000 migration remaps existing action items and
+  // archives any leftover legacy rows.)
+  const instruction = await prisma.department.upsert({
+    where: { name: "Instruction" },
+    create: { name: "Instruction", slug: "instruction", description: "Academics — curriculum, teaching, and classroom operations." },
     update: {},
   });
-  const communityPartnerships = await prisma.department.upsert({
-    where: { name: "Community & Partnerships" },
-    create: { name: "Community & Partnerships", slug: "community-partnerships", description: "Growth — community building, outreach, and partnerships." },
+  const partnerships = await prisma.department.upsert({
+    where: { name: "Partnerships" },
+    create: { name: "Partnerships", slug: "partnerships", description: "Growth — community building, outreach, and partnerships." },
     update: {},
   });
   await prisma.department.upsert({
-    where: { name: "Platform & Operations" },
-    create: { name: "Platform & Operations", slug: "platform-operations", description: "Operations — platform, logistics, and internal operations." },
+    where: { name: "Recruitment & Hiring" },
+    create: { name: "Recruitment & Hiring", slug: "recruitment-hiring", description: "Recruitment — sourcing, interviewing, and hiring instructors." },
+    update: {},
+  });
+  await prisma.department.upsert({
+    where: { name: "Mentorship" },
+    create: { name: "Mentorship", slug: "mentorship", description: "Mentorship — pairing, coaching, and instructor growth support." },
+    update: {},
+  });
+  await prisma.department.upsert({
+    where: { name: "Operations" },
+    create: { name: "Operations", slug: "operations", description: "Operations — platform, logistics, and internal operations." },
     update: {},
   });
 
@@ -1562,12 +1580,12 @@ async function seedActionTracker() {
   //    NB: instructor *onboarding* is intentionally NOT a tracker item — it runs
   //    through the dedicated instructor-journey workflow — so this demo item is
   //    a curriculum-rollout task instead (plan comment #14).
-  const onboarding = await prisma.actionItem.create({
+  const curriculumRollout = await prisma.actionItem.create({
     data: {
       title: "Refresh fall curriculum rollout",
       description: "Stand up the fall curriculum rollout: confirm leads, schedule, and materials.",
       goalCategory: "Curriculum",
-      departmentId: instructionalAffairs.id,
+      departmentId: instruction.id,
       status: "IN_PROGRESS",
       deadlineStart: daysFromNow(-2),
       deadlineEnd: daysFromNow(12),
@@ -1593,8 +1611,8 @@ async function seedActionTracker() {
       fileLinks: {
         create: [
           {
-            label: "Onboarding run-of-show (draft)",
-            url: "https://docs.youthpassionproject.org/onboarding-fall-draft",
+            label: "Curriculum rollout run-of-show (draft)",
+            url: "https://docs.youthpassionproject.org/curriculum-rollout-fall-draft",
             addedById: brayden.id,
           },
         ],
@@ -1608,7 +1626,7 @@ async function seedActionTracker() {
       title: "Finalize Q3 marketing calendar",
       description: "Lock the Q3 content calendar and hand off to the social team.",
       goalCategory: "Brand & Recruitment",
-      departmentId: communityPartnerships.id,
+      departmentId: partnerships.id,
       status: "OVERDUE",
       deadlineStart: daysFromNow(-14),
       deadlineEnd: daysFromNow(-3),
@@ -1631,7 +1649,7 @@ async function seedActionTracker() {
       title: "Prep succession review materials",
       description: "Assemble the Performance × Potential grid inputs ahead of the officers meeting.",
       goalCategory: "People Strategy",
-      departmentId: instructionalAffairs.id,
+      departmentId: instruction.id,
       status: "NOT_STARTED",
       deadlineStart: daysFromNow(5),
       deadlineEnd: daysFromNow(20),
@@ -1649,7 +1667,7 @@ async function seedActionTracker() {
   });
 
   console.log(
-    `Action Tracker: seeded 3 action items across 2 departments (incl. one overdue + one officers-only). Anchor item: ${onboarding.id}`
+    `Action Tracker: seeded 3 action items across 2 departments (incl. one overdue + one officers-only). Anchor item: ${curriculumRollout.id}`
   );
 }
 

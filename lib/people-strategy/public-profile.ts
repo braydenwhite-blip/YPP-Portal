@@ -6,6 +6,7 @@ import { getUserTitle } from "@/lib/user-title";
 
 import { getMyActionItems } from "./action-queries";
 import { isOfficerTier, type ActionViewer } from "./action-permissions";
+import { formatClassSchedule, getMyTeachingClasses } from "./class-tracker";
 
 /**
  * People Strategy — read-only public member profile (`/people/[id]`).
@@ -39,6 +40,29 @@ export interface PublicProfileGrowthSignal {
   tag: GrowthTag;
 }
 
+/** A linked person (mentor / mentee) shown on a profile. */
+export interface PublicProfilePerson {
+  id: string;
+  name: string;
+  title: string;
+}
+
+/** A class this person teaches, surfaced from the Classes system. */
+export interface PublicProfileClassRef {
+  id: string;
+  title: string;
+  schedule: string;
+}
+
+/** A public peer kudos this person received. */
+export interface PublicProfileKudos {
+  id: string;
+  category: string;
+  message: string;
+  giverId: string;
+  giverName: string;
+}
+
 export interface PublicProfile {
   id: string;
   name: string;
@@ -48,10 +72,63 @@ export interface PublicProfile {
   bio: string | null;
   avatarUrl: string | null;
   location: string | null;
+  /** Contact details — public per the member-profile design (only performance
+   * data is leadership-gated). */
+  email: string;
+  phone: string | null;
+  school: string | null;
+  /** Whole months since the account was created ("Active — N months"). */
+  monthsActive: number;
+  /** Mentorship links (active pairings only). */
+  mentors: PublicProfilePerson[];
+  mentees: PublicProfilePerson[];
+  classesTaught: PublicProfileClassRef[];
+  /** Public peer recognition received (total + a few most recent). */
+  kudosTotal: number;
+  kudos: PublicProfileKudos[];
   actionsLed: PublicProfileActionRef[];
   actionsExecuting: PublicProfileActionRef[];
   /** Officer-tier viewers only; null when the viewer may not see assessments. */
   growthSignals: PublicProfileGrowthSignal[] | null;
+}
+
+/** User-shape select that powers `getUserTitle`. */
+const TITLE_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  title: true,
+  primaryRole: true,
+  adminSubtypes: { select: { subtype: true } },
+} as const;
+
+type TitleShaped = {
+  id: string;
+  name: string | null;
+  email: string;
+  title: string | null;
+  primaryRole: string | null;
+  adminSubtypes: { subtype: string }[];
+};
+
+function toProfilePerson(user: TitleShaped): PublicProfilePerson {
+  return {
+    id: user.id,
+    name: user.name?.trim() || user.email,
+    title: getUserTitle({
+      title: user.title,
+      primaryRole: user.primaryRole,
+      adminSubtypes: user.adminSubtypes.map((s) => s.subtype),
+    }),
+  };
+}
+
+/** Whole months between `from` and now (floored, never negative). */
+function monthsSince(from: Date, now: Date = new Date()): number {
+  const months =
+    (now.getFullYear() - from.getFullYear()) * 12 +
+    (now.getMonth() - from.getMonth());
+  return Math.max(0, months);
 }
 
 function locationLabel(
@@ -77,18 +154,73 @@ export async function loadPublicProfile(
       id: true,
       name: true,
       email: true,
+      phone: true,
       title: true,
       primaryRole: true,
+      createdAt: true,
       adminSubtypes: { select: { subtype: true } },
       chapter: { select: { name: true } },
       profile: {
-        select: { bio: true, avatarUrl: true, city: true, stateProvince: true },
+        select: {
+          bio: true,
+          avatarUrl: true,
+          city: true,
+          stateProvince: true,
+          school: true,
+        },
+      },
+      // Active mentorships: `menteePairs` are pairings where this person is the
+      // mentee (→ their mentor); `mentorPairs` are where they are the mentor
+      // (→ their mentees).
+      menteePairs: {
+        where: { status: "ACTIVE" },
+        select: { mentor: { select: TITLE_SELECT } },
+      },
+      mentorPairs: {
+        where: { status: "ACTIVE" },
+        select: { mentee: { select: TITLE_SELECT } },
       },
     },
   });
   if (!user) return null;
 
   const viewerIsOfficer = isOfficerTier(viewer);
+
+  // Classes this person teaches (lead or executing instructor) — read-only.
+  const teaching = await getMyTeachingClasses(subjectUserId);
+  const classesTaught = teaching.map((c) => ({
+    id: c.id,
+    title: c.title,
+    schedule: formatClassSchedule(c),
+  }));
+
+  const mentors = user.menteePairs.map((p) => toProfilePerson(p.mentor));
+  const mentees = user.mentorPairs.map((p) => toProfilePerson(p.mentee));
+
+  // Public peer recognition received (a few most recent + a total count).
+  const [kudosRows, kudosTotal] = await Promise.all([
+    prisma.peerKudos.findMany({
+      where: { receiverId: subjectUserId, isPublic: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        category: true,
+        message: true,
+        giver: { select: { id: true, name: true, email: true } },
+      },
+    }),
+    prisma.peerKudos.count({
+      where: { receiverId: subjectUserId, isPublic: true },
+    }),
+  ]);
+  const kudos = kudosRows.map((k) => ({
+    id: k.id,
+    category: k.category,
+    message: k.message,
+    giverId: k.giver.id,
+    giverName: k.giver.name ?? k.giver.email,
+  }));
 
   // Actions the subject owns, filtered to what the viewer is allowed to see.
   const actionItems = await getMyActionItems(subjectUserId, viewer);
@@ -138,6 +270,15 @@ export async function loadPublicProfile(
     bio: user.profile?.bio ?? null,
     avatarUrl: user.profile?.avatarUrl ?? null,
     location: locationLabel(user.profile?.city, user.profile?.stateProvince),
+    email: user.email,
+    phone: user.phone ?? null,
+    school: user.profile?.school ?? null,
+    monthsActive: monthsSince(user.createdAt),
+    mentors,
+    mentees,
+    classesTaught,
+    kudosTotal,
+    kudos,
     actionsLed,
     actionsExecuting,
     growthSignals,

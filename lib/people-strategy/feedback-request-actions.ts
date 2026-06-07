@@ -61,7 +61,7 @@ export async function requestMonthlyFeedback(
     throw new Error("Monthly feedback requests are not enabled");
   }
 
-  await requireLeadership(); // CPO/Board only — throws "Unauthorized" otherwise
+  await requireLeadership(); // Leadership/Board only — throws "Unauthorized" otherwise
 
   const { subjectUserIds } = RequestMonthlyFeedbackSchema.parse(input);
   const uniqueIds = Array.from(new Set(subjectUserIds));

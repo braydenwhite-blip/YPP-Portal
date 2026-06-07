@@ -58,6 +58,7 @@ export interface PeopleDashboardRow {
   role: string | null;
   avatarUrl: string | null;
   mentorName: string | null;
+  mentorId: string | null;
   departments: string[];
   expertise: string[];
   leadActions: DashboardActionView[];
@@ -139,7 +140,7 @@ export async function loadPeopleDashboard(
       profile: { select: { avatarUrl: true, interests: true } },
       menteePairs: {
         where: { status: "ACTIVE" },
-        select: { mentor: { select: { name: true, email: true } } },
+        select: { mentor: { select: { id: true, name: true, email: true } } },
         take: 1,
       },
       actionItemsLed: {
@@ -215,6 +216,7 @@ export async function loadPeopleDashboard(
       role: user.primaryRole,
       avatarUrl: user.profile?.avatarUrl ?? null,
       mentorName: user.menteePairs[0]?.mentor?.name ?? user.menteePairs[0]?.mentor?.email ?? null,
+      mentorId: user.menteePairs[0]?.mentor?.id ?? null,
       departments,
       expertise: user.profile?.interests ?? [],
       leadActions: split.lead.map((a) => toActionView(a, today)),

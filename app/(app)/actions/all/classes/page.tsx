@@ -24,9 +24,6 @@ export default async function ActionTrackerClassesPage() {
 
   const classes = await listTrackerClasses();
   const showPeopleDashboardTab = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
-  // Only admins can open the editable admin class detail; for other officer-tier
-  // viewers the rows stay read-only (no deep-link) rather than bouncing them.
-  const canManageClasses = viewer.roles.includes("ADMIN");
 
   // Group by chapter (the class org unit), mirroring the department grouping on
   // All Actions. Classes keep the soonest-start ordering within each group.
@@ -74,11 +71,11 @@ export default async function ActionTrackerClassesPage() {
           padding: "10px 14px",
           fontSize: 13,
           color: "var(--muted)",
-          background: "var(--ypp-purple-50)",
+          background: "var(--ps-accent-soft)",
         }}
       >
-        These rows reflect live <strong>ClassOffering</strong> records and are read-only here. Manage
-        classes from the Classes area.
+        Click any class to see its partner, relationship lead, and instructors. Rows here are
+        read-only; full editing lives in the Classes area.
       </div>
 
       {classes.length === 0 ? (
@@ -108,7 +105,7 @@ export default async function ActionTrackerClassesPage() {
                 <ClassTrackerRow
                   key={offering.id}
                   offering={offering}
-                  detailHref={canManageClasses ? `/admin/classes/${offering.id}` : null}
+                  detailHref={`/actions/all/classes/${offering.id}`}
                 />
               ))}
             </section>

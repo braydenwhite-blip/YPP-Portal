@@ -149,10 +149,12 @@ function deadlineText(item: ActionDetailDTO): { label: string; overdue: boolean 
 // this keeps a single accessible brand tint so the detail card reads as part of
 // the portal's purple system rather than a separate dialect.
 function departmentTheme() {
+  // Professional, neutral header (#-3): a quiet accent tint on the neutral
+  // canvas rather than a washed-purple band.
   return {
-    bg: "var(--ypp-purple-50)",
-    border: "var(--ypp-purple-200)",
-    fg: "var(--ypp-purple-800)",
+    bg: "var(--ps-surface)",
+    border: "var(--border)",
+    fg: "var(--ps-ink)",
   };
 }
 
@@ -167,9 +169,9 @@ function PersonAvatar({ person }: { person: PersonDTO }) {
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
-        background: "var(--ypp-purple-100)",
-        color: "var(--ypp-purple-700)",
-        border: "1px solid var(--ypp-purple-200)",
+        background: "var(--ps-accent-soft)",
+        color: "var(--ps-accent)",
+        border: "1px solid var(--border)",
         fontSize: 12,
         fontWeight: 800,
         flex: "0 0 auto",
@@ -510,6 +512,7 @@ export default function ActionDetailCard({
 
       <Section
         title="Files & Links"
+        defaultOpen={false}
         actions={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
@@ -592,11 +595,11 @@ export default function ActionDetailCard({
         )}
       </Section>
 
-      <Section title="Escalate to Leadership">
+      <Section title="Escalate to Leadership" defaultOpen={false}>
         <div
           style={{
             border: `1px solid ${item.flaggedAt ? "var(--warning-border)" : "var(--border)"}`,
-            background: item.flaggedAt ? "var(--warning-bg)" : "var(--ypp-purple-50)",
+            background: item.flaggedAt ? "var(--warning-bg)" : "var(--ps-accent-soft)",
             color: item.flaggedAt ? "var(--warning-text)" : "var(--text-secondary)",
             borderRadius: "var(--radius-sm)",
             padding: "13px 14px",
@@ -620,6 +623,7 @@ export default function ActionDetailCard({
 
       <Section
         title="Activity & Comments"
+        defaultOpen={false}
         actions={
           <button
             type="button"

@@ -15059,7 +15059,9 @@ main:has(.ps-page) {
   background-color: var(--ps-surface);
   border: 1px solid var(--ps-border-strong);
   border-radius: var(--radius-sm);
-  max-width: 100%;
+  /* Cap each control so a long option label can't stretch the row; the bar
+     reads as a tidy strip of compact controls rather than wide bars. */
+  max-width: 200px;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   outline: none;
 }
@@ -15087,13 +15089,15 @@ select.ps-filter {
 .ps-filter-search {
   display: flex;
   gap: 6px;
-  flex: 1 1 220px;
+  /* Don't let the search box greedily eat the row — give it a fixed-ish width. */
+  flex: 0 1 260px;
   min-width: 160px;
 }
 
 .ps-filter-search .ps-filter {
   flex: 1;
   width: auto;
+  max-width: 100%;        /* the input fills its own wrapper, ignoring the cap */
 }
 
 /* On mobile, every control stacks cleanly to full width. */
@@ -15105,6 +15109,7 @@ select.ps-filter {
   }
   .ps-filter {
     width: 100%;
+    max-width: none;       /* lift the desktop cap so controls fill the row */
   }
 }
 

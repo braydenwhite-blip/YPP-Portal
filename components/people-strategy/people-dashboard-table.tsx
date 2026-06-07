@@ -494,7 +494,12 @@ export function PeopleDashboardTable({
                         </div>
                         <div style={{ color: "#64748b" }}>{row.role ?? "—"}</div>
                         {row.mentorName ? (
-                          <div style={{ color: "#64748b", fontSize: 11 }}>Mentor: {row.mentorName}</div>
+                          <div style={{ color: "#64748b", fontSize: 11 }}>
+                            Mentor:{" "}
+                            <PersonLink id={row.mentorId} style={{ color: "inherit" }}>
+                              {row.mentorName}
+                            </PersonLink>
+                          </div>
                         ) : null}
                         {row.workloadWarning ? (
                           <div style={{ marginTop: 4, color: "#b45309", fontSize: 11, fontWeight: 600 }}>
