@@ -17,6 +17,11 @@ import { getOfferingTimeline } from "@/lib/class-offering-timeline";
 import { listPartnerOptions } from "@/lib/partners-queries";
 import { setClassPartner } from "@/lib/partners-actions";
 import { PersonLink } from "@/components/people-strategy/person-link";
+import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
+import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { canCreateAction } from "@/lib/people-strategy/action-permissions";
+import { getMenteeSupport } from "@/lib/people-strategy/connections";
+import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +43,25 @@ export default async function AdminClassDetailPage({
     listPartnerOptions(),
   ]);
   if (!detail) notFound();
+
+  // People Strategy Operating System — class connections panel. Additive and
+  // double-flagged: the linked-action reads are tracker-gated, and the whole
+  // panel is hidden unless the Operations Hub flag is on, so existing admins
+  // see no change with the flags off.
+  const operationsEnabled = isOperationsHubEnabled() && isActionTrackerEnabled();
+  const viewer = {
+    id: session?.user?.id ?? "",
+    roles: session?.user?.roles ?? [],
+    primaryRole: session?.user?.primaryRole ?? null,
+    adminSubtypes: session?.user?.adminSubtypes ?? [],
+  };
+  const [linkedActions, leadSupport] = operationsEnabled
+    ? await Promise.all([
+        getActionsForEntity("CLASS_OFFERING", id, viewer),
+        getMenteeSupport(detail.instructor.id),
+      ])
+    : [[], null];
+  const canCreate = canCreateAction(viewer);
 
   const approvalStatus = detail.approval?.status ?? "NOT_REQUESTED";
   const isInReview =
@@ -81,6 +105,40 @@ export default async function AdminClassDetailPage({
 
       <div className="grid two" style={{ gap: 20, alignItems: "start" }}>
         <div style={{ display: "grid", gap: 16 }}>
+          {operationsEnabled && (
+            <Section title="Support & mentor status">
+              {leadSupport ? (
+                <p style={{ margin: 0, fontSize: 13 }}>
+                  Lead instructor{" "}
+                  <strong>{detail.instructor.name ?? detail.instructor.email}</strong>{" "}
+                  is mentored by{" "}
+                  <PersonLink
+                    id={leadSupport.mentor.id}
+                    style={{ color: "var(--ypp-purple)", fontWeight: 600 }}
+                  >
+                    {leadSupport.mentor.name ?? leadSupport.mentor.email}
+                  </PersonLink>
+                  .
+                </p>
+              ) : (
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                  The lead instructor does not have an active mentor yet.
+                </p>
+              )}
+            </Section>
+          )}
+
+          {operationsEnabled && (
+            <LinkedActionsPanel
+              actions={linkedActions}
+              heading="Class actions"
+              createHref={`/actions/new?relatedType=CLASS_OFFERING&relatedId=${detail.id}`}
+              createLabel="Create action for this class"
+              canCreate={canCreate}
+              emptyHint="No actions are linked to this class yet."
+            />
+          )}
+
           <Section title="Status">
             <Row>
               <Cell label="Class status" value={detail.status.replace("_", " ")} />
