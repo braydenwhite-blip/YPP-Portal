@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 interface Column<T> {
   key: string;
@@ -40,6 +40,26 @@ export default function DataTable<T extends { id: string }>({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Power-user nicety: press "/" anywhere on the page to jump to the table
+  // search — unless you're already typing in a field. Standard across
+  // GitHub/Linear/etc., so it reads as expected rather than surprising.
+  useEffect(() => {
+    if (searchKeys.length === 0) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable) {
+        return;
+      }
+      e.preventDefault();
+      searchRef.current?.focus();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [searchKeys.length]);
 
   const filteredData = useMemo(() => {
     let result = [...data];
@@ -132,13 +152,52 @@ export default function DataTable<T extends { id: string }>({
       <div className="data-table-controls">
         <div className="data-table-search-filters">
           {searchKeys.length > 0 && (
-            <input
-              type="text"
-              className="input data-table-search"
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+              <input
+                ref={searchRef}
+                type="text"
+                className="input data-table-search"
+                placeholder="Search…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" && search) {
+                    setSearch("");
+                  }
+                }}
+                style={search ? { paddingRight: 30 } : undefined}
+              />
+              {search && (
+                <button
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => {
+                    setSearch("");
+                    searchRef.current?.focus();
+                  }}
+                  style={{
+                    position: "absolute",
+                    right: 6,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 20,
+                    height: 20,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "none",
+                    borderRadius: "50%",
+                    background: "var(--gray-200)",
+                    color: "var(--gray-600)",
+                    fontSize: 13,
+                    lineHeight: 1,
+                    cursor: "pointer",
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </span>
           )}
           {filterOptions.map((filter) => (
             <select
@@ -237,7 +296,7 @@ export default function DataTable<T extends { id: string }>({
         </tbody>
       </table>
 
-      <div className="data-table-footer">
+      <div className="data-table-footer" aria-live="polite">
         Showing {filteredData.length} of {data.length} records
       </div>
     </div>
