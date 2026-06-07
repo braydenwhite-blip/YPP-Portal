@@ -16,6 +16,9 @@ import {
   ACTION_PRIORITY_VALUES,
   ACTION_STATUS_VALUES,
   ACTION_VISIBILITY_VALUES,
+  parseRelatedEntityRef,
+  parseRelatedEntityUpdate,
+  type RelatedEntityType,
 } from "./constants";
 import {
   canAssignAction,
@@ -199,6 +202,52 @@ async function assertDepartmentExists(departmentId: string) {
   if (!department) throw new Error("Invalid department");
 }
 
+/**
+ * Confirm the polymorphic related-entity link points at a row that still
+ * exists, so a typo'd or stale id never gets persisted. The link has no FK, so
+ * this write-time check is the only guard against orphans (it reduces, but
+ * cannot eliminate, them — a target deleted later still leaves a dangling id,
+ * which the read side tolerates by rendering only entities that still exist).
+ */
+async function assertRelatedEntityExists(
+  type: RelatedEntityType,
+  id: string
+): Promise<void> {
+  let exists = false;
+  switch (type) {
+    case "CLASS_OFFERING":
+      exists = Boolean(
+        await prisma.classOffering.findUnique({ where: { id }, select: { id: true } })
+      );
+      break;
+    case "MENTORSHIP":
+      exists = Boolean(
+        await prisma.mentorship.findUnique({ where: { id }, select: { id: true } })
+      );
+      break;
+    case "USER":
+      exists = Boolean(
+        await prisma.user.findUnique({ where: { id }, select: { id: true } })
+      );
+      break;
+    case "INSTRUCTOR_APPLICATION":
+      exists = Boolean(
+        await prisma.instructorApplication.findUnique({
+          where: { id },
+          select: { id: true },
+        })
+      );
+      break;
+    default: {
+      // Exhaustiveness guard: adding a value to RELATED_ENTITY_TYPE_VALUES
+      // without a case here becomes a compile error.
+      const _exhaustive: never = type;
+      throw new Error(`Unsupported related entity type: ${String(_exhaustive)}`);
+    }
+  }
+  if (!exists) throw new Error("Linked entity not found");
+}
+
 async function assertUsersExist(userIds: string[]) {
   const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
   if (uniqueIds.length === 0) return;
@@ -240,6 +289,19 @@ const CreateActionItemSchema = z.object({
     .transform((v) => (v && v.trim() ? v.trim() : null)),
   executingUserIds: UserIdList,
   inputUserIds: UserIdList,
+  // Polymorphic related-entity link. Both-or-neither + enum membership + trim
+  // are enforced by the pure validator in the superRefine below.
+  relatedEntityType: z.string().trim().optional(),
+  relatedEntityId: z.string().trim().optional(),
+}).superRefine((val, ctx) => {
+  const parsed = parseRelatedEntityRef(val);
+  if (!parsed.ok) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: parsed.error,
+      path: ["relatedEntityType"],
+    });
+  }
 });
 
 export type CreateActionItemInput = z.input<typeof CreateActionItemSchema>;
@@ -268,6 +330,12 @@ export async function createActionItem(input: CreateActionItemInput) {
     ...data.inputUserIds,
   ]);
 
+  // `ok` is guaranteed by the schema's superRefine; re-derive to get the
+  // normalized ref (or null when no link was supplied).
+  const parsedRelated = parseRelatedEntityRef(data);
+  const related = parsedRelated.ok ? parsedRelated.ref : null;
+  if (related) await assertRelatedEntityExists(related.type, related.id);
+
   // Lead is also represented as a LEAD assignment row; the (actionItemId,
   // userId, role) uniqueness lets the Lead additionally hold an EXECUTING row.
   const assignmentRows: Array<{ userId: string; role: ActionAssignmentRole }> = [
@@ -293,6 +361,8 @@ export async function createActionItem(input: CreateActionItemInput) {
       deadlineStart,
       deadlineEnd: data.deadlineEnd,
       officerMeetingId: data.officerMeetingId,
+      relatedEntityType: related?.type ?? null,
+      relatedEntityId: related?.id ?? null,
       assignments: { create: assignmentRows },
       comments: {
         create: { authorId: session.id, type: "NOTE", body: "Action created" },
@@ -351,6 +421,20 @@ const UpdateActionItemSchema = z.object({
       const trimmed = v.trim();
       return trimmed.length > 0 ? trimmed : null;
     }),
+  // Polymorphic related-entity link. Omitting BOTH fields leaves the existing
+  // link untouched; sending them empty intentionally clears it (see
+  // parseRelatedEntityUpdate). Validity is enforced in the superRefine below.
+  relatedEntityType: z.string().trim().nullable().optional(),
+  relatedEntityId: z.string().trim().nullable().optional(),
+}).superRefine((val, ctx) => {
+  const result = parseRelatedEntityUpdate(val);
+  if (result.kind === "error") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: result.error,
+      path: ["relatedEntityType"],
+    });
+  }
 });
 
 export type UpdateActionItemInput = z.input<typeof UpdateActionItemSchema>;
@@ -385,6 +469,22 @@ export async function updateActionItem(input: UpdateActionItemInput) {
 
   if (data.departmentId) await assertDepartmentExists(data.departmentId);
   if (data.leadId !== undefined) await assertUsersExist([data.leadId]);
+
+  // Interpret the related-entity link as a unit: unchanged (both omitted),
+  // intentionally cleared (sent empty), or set to a new, existence-checked ref.
+  // The "error" kind is unreachable here — the schema superRefine already
+  // rejected it — so leaving the fields undefined for it is a safe no-op.
+  const relatedUpdate = parseRelatedEntityUpdate(data);
+  let relatedEntityType: string | null | undefined;
+  let relatedEntityId: string | null | undefined;
+  if (relatedUpdate.kind === "set") {
+    await assertRelatedEntityExists(relatedUpdate.ref.type, relatedUpdate.ref.id);
+    relatedEntityType = relatedUpdate.ref.type;
+    relatedEntityId = relatedUpdate.ref.id;
+  } else if (relatedUpdate.kind === "clear") {
+    relatedEntityType = null;
+    relatedEntityId = null;
+  }
 
   const statusChanged = data.status !== undefined && data.status !== existing.status;
   const completedAt = completedAtForTransition(existing.status, newStatus, new Date());
@@ -426,6 +526,8 @@ export async function updateActionItem(input: UpdateActionItemInput) {
         deadlineEnd: data.deadlineEnd,
         leadId: data.leadId,
         officerMeetingId: data.officerMeetingId,
+        relatedEntityType,
+        relatedEntityId,
       },
     });
 
