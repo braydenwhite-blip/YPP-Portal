@@ -303,6 +303,45 @@ function OfficerView({ hub, now }: { hub: OperationsHubData; now: Date }) {
         </Section>
       ) : null}
 
+      {hub.departmentSignals.length > 0 ? (
+        <Section title="Departments with overdue work" count={hub.departmentSignals.length}>
+          <ul style={LIST}>
+            {hub.departmentSignals.slice(0, 8).map((d) => (
+              <li key={d.id} style={{ borderLeft: "3px solid #991b1b", paddingLeft: 10, fontSize: 13 }}>
+                <Link href={`/actions/all?dept=${d.id}`} style={{ fontWeight: 600, color: "inherit" }}>
+                  {d.name}
+                </Link>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  {d.overdueCount} overdue · {d.openCount} open
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {hub.officerMeetingFollowUps.length > 0 ? (
+        <Section
+          title="Officer meetings needing follow-up"
+          count={hub.officerMeetingFollowUps.length}
+        >
+          <ul style={LIST}>
+            {hub.officerMeetingFollowUps.slice(0, 6).map((m) => (
+              <li key={m.id} style={{ fontSize: 13 }}>
+                <Link href="/officer-meetings" style={{ fontWeight: 600, color: "inherit" }}>
+                  Meeting on {formatMonthDay(m.date)}
+                </Link>
+                <span style={{ color: "var(--text-secondary)" }}>
+                  {" "}
+                  · {m.openCount} open follow-up{m.openCount === 1 ? "" : "s"}
+                  {m.overdueCount > 0 ? ` · ${m.overdueCount} overdue` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
       {health ? (
         <Section title="Mentorship health">
           <div style={{ display: "grid", gap: 12 }}>
