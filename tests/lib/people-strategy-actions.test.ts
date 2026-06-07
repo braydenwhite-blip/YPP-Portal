@@ -25,6 +25,16 @@ vi.mock("@/lib/prisma", () => ({
     },
     user: {
       count: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    classOffering: {
+      findUnique: vi.fn(),
+    },
+    mentorship: {
+      findUnique: vi.fn(),
+    },
+    instructorApplication: {
+      findUnique: vi.fn(),
     },
     $transaction: vi.fn(),
   },
@@ -233,5 +243,88 @@ describe("createActionItem", () => {
       { userId: "u1", role: "LEAD" },
       { userId: "u1", role: "EXECUTING" },
     ]);
+  });
+
+  it("persists a valid related-entity link after checking it exists", async () => {
+    sessionAs({ id: "o1", roles: ["STAFF"] });
+    (prisma.department.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "d1",
+    });
+    (prisma.user.count as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    (prisma.classOffering.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      { id: "class-1" }
+    );
+    (prisma.actionItem.create as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "created-action",
+    });
+
+    await createActionItem({
+      ...baseInput,
+      executingUserIds: [],
+      relatedEntityType: "CLASS_OFFERING",
+      relatedEntityId: "  class-1  ",
+    });
+
+    // The existence check ran against the linked class.
+    expect(prisma.classOffering.findUnique).toHaveBeenCalledWith({
+      where: { id: "class-1" },
+      select: { id: true },
+    });
+    const createArg = (prisma.actionItem.create as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0];
+    expect(createArg.data.relatedEntityType).toBe("CLASS_OFFERING");
+    expect(createArg.data.relatedEntityId).toBe("class-1");
+  });
+
+  it("stores null link fields when no related entity is supplied", async () => {
+    sessionAs({ id: "o1", roles: ["STAFF"] });
+    (prisma.department.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "d1",
+    });
+    (prisma.user.count as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    (prisma.actionItem.create as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "created-action",
+    });
+
+    await createActionItem({ ...baseInput, executingUserIds: [] });
+
+    const createArg = (prisma.actionItem.create as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0];
+    expect(createArg.data.relatedEntityType).toBeNull();
+    expect(createArg.data.relatedEntityId).toBeNull();
+    expect(prisma.classOffering.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects a half-supplied link (type without id) before any write", async () => {
+    sessionAs({ id: "o1", roles: ["STAFF"] });
+
+    await expect(
+      createActionItem({
+        ...baseInput,
+        relatedEntityType: "CLASS_OFFERING",
+      })
+    ).rejects.toThrow();
+    expect(prisma.actionItem.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a link to a non-existent entity", async () => {
+    sessionAs({ id: "o1", roles: ["STAFF"] });
+    (prisma.department.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "d1",
+    });
+    (prisma.user.count as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    (prisma.mentorship.findUnique as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      null
+    );
+
+    await expect(
+      createActionItem({
+        ...baseInput,
+        executingUserIds: [],
+        relatedEntityType: "MENTORSHIP",
+        relatedEntityId: "missing",
+      })
+    ).rejects.toThrow("Linked entity not found");
+    expect(prisma.actionItem.create).not.toHaveBeenCalled();
   });
 });
