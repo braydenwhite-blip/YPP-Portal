@@ -8,6 +8,7 @@ import type { InstructorLifecycleStage } from "@prisma/client";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { StatCard } from "@/components/people-strategy/stat-card";
 import { IdentityCell, Meter } from "@/components/people-strategy/people-suite";
+import { SuiteToast, makeToast, type ToastState } from "@/components/people-strategy/suite-toast";
 import {
   updateInstructorLifecycleStage,
   addTagToInstructor,
@@ -183,6 +184,9 @@ export default function InstructorDatabaseClient({
   // Open quick-action row
   const [openRowId, setOpenRowId] = useState<string | null>(null);
 
+  // Transient action confirmations
+  const [toast, setToast] = useState<ToastState>(null);
+
   function resetFilters() {
     setSearch("");
     setStage("");
@@ -298,11 +302,16 @@ export default function InstructorDatabaseClient({
 
   // ── Quick (single-row) actions ─────────────────────────────────────────────
 
+  const stageLabelOf = (stage: InstructorLifecycleStage) =>
+    LIFECYCLE_STAGES.find((s) => s.value === stage)?.label ?? stage;
+
   function applyStage(userId: string, newStage: InstructorLifecycleStage) {
+    const name = records.find((r) => r.id === userId)?.name ?? "Instructor";
     startTransition(() => {
       updateInstructorLifecycleStage(userId, newStage);
     });
     setOpenRowId(null);
+    setToast(makeToast(`${name} moved to ${stageLabelOf(newStage)}.`));
   }
 
   function applyAddTag(userId: string, tagId: string) {
@@ -319,6 +328,7 @@ export default function InstructorDatabaseClient({
     startTransition(() => {
       addTagToInstructor(userId, tagId);
     });
+    if (t) setToast(makeToast(`Tagged “${t.label}”.`));
   }
 
   function applyHold(userId: string, onHold: boolean) {
@@ -326,6 +336,7 @@ export default function InstructorDatabaseClient({
       bulkSetOnHold([userId], onHold);
     });
     setOpenRowId(null);
+    setToast(makeToast(onHold ? "Instructor put on hold." : "Hold removed."));
   }
 
   function applyNote(userId: string, body: string) {
@@ -334,6 +345,7 @@ export default function InstructorDatabaseClient({
       createInstructorNote({ userId, body: body.trim() });
     });
     setOpenRowId(null);
+    setToast(makeToast("Note added."));
   }
 
   // ── Bulk actions ───────────────────────────────────────────────────────────
@@ -341,28 +353,40 @@ export default function InstructorDatabaseClient({
   function handleBulkApply() {
     if (selectedIds.length === 0 || !bulkAction) return;
     const ids = [...selectedIds];
+    const count = ids.length;
+    const noun = `${count} instructor${count === 1 ? "" : "s"}`;
     startTransition(async () => {
-      if (bulkAction === "stage") {
-        await bulkUpdateLifecycleStage(ids, bulkStage);
-      } else if (bulkAction === "tag" && bulkTagId) {
-        await bulkAddTag(ids, bulkTagId);
-        const t = allTags.find((x) => x.id === bulkTagId);
-        if (t) {
-          setRecords((prev) =>
-            prev.map((r) =>
-              ids.includes(r.id) && !r.tags.includes(t.label)
-                ? { ...r, tags: [...r.tags, t.label] }
-                : r
-            )
-          );
+      try {
+        let message = "";
+        if (bulkAction === "stage") {
+          await bulkUpdateLifecycleStage(ids, bulkStage);
+          message = `Moved ${noun} to ${stageLabelOf(bulkStage)}.`;
+        } else if (bulkAction === "tag" && bulkTagId) {
+          await bulkAddTag(ids, bulkTagId);
+          const t = allTags.find((x) => x.id === bulkTagId);
+          if (t) {
+            setRecords((prev) =>
+              prev.map((r) =>
+                ids.includes(r.id) && !r.tags.includes(t.label)
+                  ? { ...r, tags: [...r.tags, t.label] }
+                  : r
+              )
+            );
+          }
+          message = `Tagged ${noun}${t ? ` with “${t.label}”` : ""}.`;
+        } else if (bulkAction === "hold") {
+          await bulkSetOnHold(ids, true);
+          message = `Put ${noun} on hold.`;
+        } else if (bulkAction === "unhold") {
+          await bulkSetOnHold(ids, false);
+          message = `Removed hold from ${noun}.`;
         }
-      } else if (bulkAction === "hold") {
-        await bulkSetOnHold(ids, true);
-      } else if (bulkAction === "unhold") {
-        await bulkSetOnHold(ids, false);
+        setSelectedIds([]);
+        setBulkAction("");
+        if (message) setToast(makeToast(message));
+      } catch {
+        setToast(makeToast("Bulk update failed. Please try again.", "error"));
       }
-      setSelectedIds([]);
-      setBulkAction("");
     });
   }
 
@@ -679,6 +703,8 @@ export default function InstructorDatabaseClient({
           </tbody>
         </table>
       </div>
+
+      <SuiteToast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   );
 }

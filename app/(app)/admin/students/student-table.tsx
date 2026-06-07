@@ -9,6 +9,7 @@ import {
   Meter,
   SuiteChip,
 } from "@/components/people-strategy/people-suite";
+import { SuiteToast, makeToast, type ToastState } from "@/components/people-strategy/suite-toast";
 
 interface Student {
   id: string;
@@ -48,6 +49,9 @@ export default function StudentTable({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkMentorId, setBulkMentorId] = useState("");
   const [bulkChapterId, setBulkChapterId] = useState("");
+  const [toast, setToast] = useState<ToastState>(null);
+
+  const plural = (n: number) => `${n} student${n === 1 ? "" : "s"}`;
 
   const columns = [
     {
@@ -139,26 +143,47 @@ export default function StudentTable({
 
   const handleBulkAssignMentor = async () => {
     if (!bulkMentorId || selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    const mentorName = mentors.find((m) => m.id === bulkMentorId)?.name ?? "mentor";
     const formData = new FormData();
     formData.append("mentorId", bulkMentorId);
     formData.append("menteeIds", JSON.stringify(selectedIds));
     formData.append("type", "STUDENT");
-    await assignMentorBulk(formData);
-    setSelectedIds([]);
-    setBulkMentorId("");
+    try {
+      await assignMentorBulk(formData);
+      setSelectedIds([]);
+      setBulkMentorId("");
+      setToast(makeToast(`Assigned ${mentorName} to ${plural(count)}.`));
+    } catch {
+      setToast(makeToast("Could not assign mentor. Please try again.", "error"));
+    }
   };
 
   const handleBulkUpdateChapter = async () => {
     if (selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    const chapterName = chapters.find((c) => c.id === bulkChapterId)?.name;
     const formData = new FormData();
     formData.append("chapterId", bulkChapterId);
     formData.append("userIds", JSON.stringify(selectedIds));
-    await updateChapterBulk(formData);
-    setSelectedIds([]);
-    setBulkChapterId("");
+    try {
+      await updateChapterBulk(formData);
+      setSelectedIds([]);
+      setBulkChapterId("");
+      setToast(
+        makeToast(
+          chapterName
+            ? `Moved ${plural(count)} to ${chapterName}.`
+            : `Updated chapter for ${plural(count)}.`,
+        ),
+      );
+    } catch {
+      setToast(makeToast("Could not update chapter. Please try again.", "error"));
+    }
   };
 
   return (
+    <>
     <DataTable
       data={students}
       columns={columns}
@@ -213,5 +238,7 @@ export default function StudentTable({
         </div>
       }
     />
+    <SuiteToast toast={toast} onDismiss={() => setToast(null)} />
+    </>
   );
 }
