@@ -8,7 +8,7 @@ import { CollapsibleSection } from "@/components/ui/collapsible-section";
  * instructors with no mentor. Collapsed by default with a live summary.
  */
 export function MentorshipHealthSection({ health }: { health: MentorshipHealth }) {
-  const { activePairs, atRisk, unmatchedCount, unmatched } = health;
+  const { activePairs, atRisk, unmatchedCount, unmatched, mentorsWithCapacity } = health;
   if (activePairs === 0 && unmatchedCount === 0) return null;
 
   return (
@@ -72,6 +72,30 @@ export function MentorshipHealthSection({ health }: { health: MentorshipHealth }
                   }}
                 >
                   {m.name}
+                </PersonLink>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {mentorsWithCapacity.length > 0 ? (
+          <div style={{ marginTop: 14 }}>
+            <p style={SUBHEAD}>Mentors with open capacity</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {mentorsWithCapacity.map((m) => (
+                <PersonLink
+                  key={m.id}
+                  id={m.id}
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--ypp-ink)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 999,
+                    padding: "4px 10px",
+                  }}
+                >
+                  {m.name} · {m.openSlots} open
                 </PersonLink>
               ))}
             </div>

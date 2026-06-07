@@ -84,7 +84,7 @@ export default function ApplicationDetailPanel({
     >
       <PanelToast message={message} />
 
-      {/* Applicant Info */}
+      {/* Applicant Info — open: who this is. */}
       <CollapsibleSection title="Applicant Info" defaultOpen>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
           <div className="slideout-field">
@@ -98,7 +98,35 @@ export default function ApplicationDetailPanel({
         </div>
       </CollapsibleSection>
 
-      {/* Position Info */}
+      {/* Hiring Decision — open: the decision is what reviewers come here for. */}
+      <CollapsibleSection title="Hiring Decision" defaultOpen>
+        <DecisionDisplay decision={app.decision} />
+        {app.decision?.decidedAt && (
+          <div className="slideout-field" style={{ marginTop: 8 }}>
+            <div className="slideout-field-label">Decided At</div>
+            <div className="slideout-field-value">{formatDate(app.decision.decidedAt)}</div>
+          </div>
+        )}
+      </CollapsibleSection>
+
+      {/* Next Interview — open when there's one coming up. */}
+      {nextSlot && (
+        <CollapsibleSection title="Next Interview" defaultOpen>
+          <div className="slideout-field">
+            <div className="slideout-field-value" style={{ fontWeight: 500 }}>
+              {new Date(nextSlot.scheduledAt).toLocaleString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </div>
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* Position — collapsed. */}
       <CollapsibleSection title="Position">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
           <div className="slideout-field">
@@ -120,30 +148,12 @@ export default function ApplicationDetailPanel({
         </div>
       </CollapsibleSection>
 
-      {/* Timeline */}
-      <CollapsibleSection title="Timeline">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
-          <div className="slideout-field">
-            <div className="slideout-field-label">Submitted</div>
-            <div className="slideout-field-value">{formatDate(app.submittedAt)}</div>
-          </div>
-          <div className="slideout-field">
-            <div className="slideout-field-label">Last Updated</div>
-            <div className="slideout-field-value">{formatDate(app.updatedAt)}</div>
-          </div>
-          <div className="slideout-field">
-            <div className="slideout-field-label">Status</div>
-            <div className="slideout-field-value">
-              <span className={statusPillClass(app.status)}>{statusLabel(app.status)}</span>
-            </div>
-          </div>
-        </div>
-      </CollapsibleSection>
-
-      {/* Interview Slots */}
+      {/* Interview Slots — collapsed. */}
       {app.interviewSlots.length > 0 && (
-        <div className="slideout-section">
-          <div className="slideout-section-title">Interview Slots</div>
+        <CollapsibleSection
+          title="Interview Slots"
+          summary={`${app.interviewSlots.length} scheduled`}
+        >
           {app.interviewSlots.map((slot) => {
             const d = new Date(slot.scheduledAt);
             const isPast = d < new Date();
@@ -182,38 +192,28 @@ export default function ApplicationDetailPanel({
               </div>
             );
           })}
-        </div>
+        </CollapsibleSection>
       )}
 
-      {/* Next Interview */}
-      {nextSlot && (
-        <div className="slideout-section">
-          <div className="slideout-section-title">Next Interview</div>
+      {/* Timeline — collapsed. */}
+      <CollapsibleSection title="Timeline">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
           <div className="slideout-field">
-            <div className="slideout-field-value" style={{ fontWeight: 500 }}>
-              {new Date(nextSlot.scheduledAt).toLocaleString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-              })}
+            <div className="slideout-field-label">Submitted</div>
+            <div className="slideout-field-value">{formatDate(app.submittedAt)}</div>
+          </div>
+          <div className="slideout-field">
+            <div className="slideout-field-label">Last Updated</div>
+            <div className="slideout-field-value">{formatDate(app.updatedAt)}</div>
+          </div>
+          <div className="slideout-field">
+            <div className="slideout-field-label">Status</div>
+            <div className="slideout-field-value">
+              <span className={statusPillClass(app.status)}>{statusLabel(app.status)}</span>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Hiring Decision */}
-      <div className="slideout-section">
-        <div className="slideout-section-title">Hiring Decision</div>
-        <DecisionDisplay decision={app.decision} />
-        {app.decision?.decidedAt && (
-          <div className="slideout-field" style={{ marginTop: 8 }}>
-            <div className="slideout-field-label">Decided At</div>
-            <div className="slideout-field-value">{formatDate(app.decision.decidedAt)}</div>
-          </div>
-        )}
-      </div>
+      </CollapsibleSection>
 
       {/* Link to full detail page */}
       <div className="slideout-section">

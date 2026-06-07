@@ -54,6 +54,15 @@ export interface PublicProfileClassRef {
   schedule: string;
 }
 
+/** A public peer kudos this person received. */
+export interface PublicProfileKudos {
+  id: string;
+  category: string;
+  message: string;
+  giverId: string;
+  giverName: string;
+}
+
 export interface PublicProfile {
   id: string;
   name: string;
@@ -74,6 +83,9 @@ export interface PublicProfile {
   mentors: PublicProfilePerson[];
   mentees: PublicProfilePerson[];
   classesTaught: PublicProfileClassRef[];
+  /** Public peer recognition received (total + a few most recent). */
+  kudosTotal: number;
+  kudos: PublicProfileKudos[];
   actionsLed: PublicProfileActionRef[];
   actionsExecuting: PublicProfileActionRef[];
   /** Officer-tier viewers only; null when the viewer may not see assessments. */
@@ -185,6 +197,31 @@ export async function loadPublicProfile(
   const mentors = user.menteePairs.map((p) => toProfilePerson(p.mentor));
   const mentees = user.mentorPairs.map((p) => toProfilePerson(p.mentee));
 
+  // Public peer recognition received (a few most recent + a total count).
+  const [kudosRows, kudosTotal] = await Promise.all([
+    prisma.peerKudos.findMany({
+      where: { receiverId: subjectUserId, isPublic: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        category: true,
+        message: true,
+        giver: { select: { id: true, name: true, email: true } },
+      },
+    }),
+    prisma.peerKudos.count({
+      where: { receiverId: subjectUserId, isPublic: true },
+    }),
+  ]);
+  const kudos = kudosRows.map((k) => ({
+    id: k.id,
+    category: k.category,
+    message: k.message,
+    giverId: k.giver.id,
+    giverName: k.giver.name ?? k.giver.email,
+  }));
+
   // Actions the subject owns, filtered to what the viewer is allowed to see.
   const actionItems = await getMyActionItems(subjectUserId, viewer);
   const activeItems = actionItems.filter((item) => item.status !== "COMPLETE");
@@ -240,6 +277,8 @@ export async function loadPublicProfile(
     mentors,
     mentees,
     classesTaught,
+    kudosTotal,
+    kudos,
     actionsLed,
     actionsExecuting,
     growthSignals,

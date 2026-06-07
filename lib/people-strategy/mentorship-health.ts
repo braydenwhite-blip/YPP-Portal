@@ -29,11 +29,20 @@ export type MentorshipHealthMember = {
   title: string;
 };
 
+export type MentorWithCapacity = {
+  id: string;
+  name: string;
+  /** Declared mentorCapacity minus current active mentee load. */
+  openSlots: number;
+};
+
 export type MentorshipHealth = {
   activePairs: number;
   atRisk: MentorshipHealthPair[];
   unmatchedCount: number;
   unmatched: MentorshipHealthMember[];
+  /** Mentors with room for more mentees — pairing aid for the unmatched list. */
+  mentorsWithCapacity: MentorWithCapacity[];
 };
 
 function daysSince(date: Date | null, now: Date): number | null {
@@ -110,10 +119,40 @@ export async function loadMentorshipHealth(
     }),
   }));
 
+  // Mentor-match aid: active mentors whose declared capacity exceeds their
+  // current active mentee load, so leadership can place the unmatched.
+  const activeCounts = await prisma.mentorship.groupBy({
+    by: ["mentorId"],
+    where: { status: "ACTIVE" },
+    _count: { _all: true },
+  });
+  const loadByMentor = new Map(
+    activeCounts.map((c) => [c.mentorId, c._count._all])
+  );
+  const capacityUsers = await prisma.user.findMany({
+    where: { archivedAt: null, profile: { mentorCapacity: { gt: 0 } } },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      profile: { select: { mentorCapacity: true } },
+    },
+  });
+  const mentorsWithCapacity: MentorWithCapacity[] = capacityUsers
+    .map((u) => ({
+      id: u.id,
+      name: u.name ?? u.email,
+      openSlots: (u.profile?.mentorCapacity ?? 0) - (loadByMentor.get(u.id) ?? 0),
+    }))
+    .filter((m) => m.openSlots > 0)
+    .sort((a, b) => b.openSlots - a.openSlots)
+    .slice(0, 8);
+
   return {
     activePairs: pairs.length,
     atRisk,
     unmatchedCount: unmatched.length,
     unmatched: unmatched.slice(0, 12),
+    mentorsWithCapacity,
   };
 }

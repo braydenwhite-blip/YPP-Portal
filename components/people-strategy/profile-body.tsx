@@ -31,6 +31,13 @@ export function activeLabel(months: number): string {
   return `Active · ${years} ${years === 1 ? "year" : "years"}+`;
 }
 
+function kudosCategoryLabel(category: string): string {
+  return category
+    .split("_")
+    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export function ProfileBody({ profile }: { profile: PublicProfile }) {
   const totalOwned = profile.actionsLed.length + profile.actionsExecuting.length;
   const contactItems: Array<{ label: string; value: React.ReactNode }> = [];
@@ -91,6 +98,46 @@ export function ProfileBody({ profile }: { profile: PublicProfile }) {
               <PeopleList label="Mentees" people={profile.mentees} />
             ) : null}
           </div>
+        </CollapsibleSection>
+      ) : null}
+
+      {/* Recognition — public peer kudos received. */}
+      {profile.kudosTotal > 0 ? (
+        <CollapsibleSection
+          title="Recognition"
+          summary={`${profile.kudosTotal} ${profile.kudosTotal === 1 ? "kudo" : "kudos"}`}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {profile.kudos.map((k) => (
+              <div key={k.id} style={{ borderLeft: "3px solid var(--ps-accent)", paddingLeft: 10 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.4,
+                    color: "var(--ps-accent)",
+                    fontWeight: 700,
+                  }}
+                >
+                  {kudosCategoryLabel(k.category)}
+                </div>
+                <p style={{ margin: "2px 0", fontSize: 14, color: "var(--ypp-ink)" }}>
+                  &ldquo;{k.message}&rdquo;
+                </p>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                  —{" "}
+                  <PersonLink id={k.giverId} style={{ color: "var(--muted)" }}>
+                    {k.giverName}
+                  </PersonLink>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p style={{ margin: "12px 0 0" }}>
+            <Link href="/peer-recognition" className="button outline small">
+              Give kudos
+            </Link>
+          </p>
         </CollapsibleSection>
       ) : null}
 
