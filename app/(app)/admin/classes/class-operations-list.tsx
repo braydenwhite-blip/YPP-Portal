@@ -2,6 +2,8 @@ import Link from "next/link";
 import type {
   AdminClassOperationsListItem,
 } from "@/lib/admin-class-operations";
+import { Meter, PeopleAvatar } from "@/components/people-strategy/people-suite";
+import { PsIcon } from "@/components/people-strategy/ps-icons";
 
 type ProposalQueueItem = {
   id: string;
@@ -88,18 +90,21 @@ function filterByTab(
 }
 
 function EmptyState({ tab }: { tab: string }) {
-  const messages: Record<string, string> = {
-    operations: "No active classes right now.",
-    ready: "No classes are approved and waiting to publish.",
-    full: "No classes are full or have a waitlist.",
-    logistics: "All classes have their core logistics filled in.",
-    archive: "No cancelled or completed classes yet.",
+  const messages: Record<string, { title: string; text: string }> = {
+    operations: { title: "All quiet on operations", text: "No active classes right now. Approved classes will appear here once they're running." },
+    ready: { title: "Nothing waiting to publish", text: "No classes are approved and waiting to go live." },
+    full: { title: "Plenty of room", text: "No classes are full or carrying a waitlist." },
+    logistics: { title: "Logistics locked in", text: "Every class has its core location and meeting details filled in." },
+    archive: { title: "A clean slate", text: "No cancelled or completed classes yet." },
   };
+  const m = messages[tab] ?? { title: "Nothing here", text: "No classes match this view." };
   return (
     <div className="card">
-      <p style={{ margin: 0, color: "var(--text-secondary)" }}>
-        {messages[tab] ?? "No classes match this view."}
-      </p>
+      <div className="psuite-empty">
+        <span className="psuite-empty-icon"><PsIcon name="layers" /></span>
+        <p className="psuite-empty-title">{m.title}</p>
+        <p className="psuite-empty-text">{m.text}</p>
+      </div>
     </div>
   );
 }
@@ -108,9 +113,11 @@ function ProposalQueueView({ proposals }: { proposals: ProposalQueueItem[] }) {
   if (proposals.length === 0) {
     return (
       <div className="card">
-        <p style={{ margin: 0, color: "var(--text-secondary)" }}>
-          No class proposals awaiting review.
-        </p>
+        <div className="psuite-empty">
+          <span className="psuite-empty-icon"><PsIcon name="inbox" /></span>
+          <p className="psuite-empty-title">Review queue is clear</p>
+          <p className="psuite-empty-text">No class proposals are awaiting review right now.</p>
+        </div>
       </div>
     );
   }
@@ -126,14 +133,22 @@ function ProposalQueueView({ proposals }: { proposals: ProposalQueueItem[] }) {
 function ProposalRow({ proposal }: { proposal: ProposalQueueItem }) {
   const status = proposal.approval?.status ?? "REQUESTED";
   return (
-    <div className="card" style={{ borderLeft: `4px solid ${approvalColor(status)}` }}>
+    <div
+      className="card psuite-class-card"
+      style={{ "--psuite-rail": railFromApproval(status) } as React.CSSProperties}
+    >
       <div style={rowHeader}>
-        <div>
-          <h3 style={{ margin: 0 }}>{proposal.title}</h3>
-          <div style={metaText}>
-            {proposal.instructor?.name ?? "No instructor"} ·{" "}
-            {proposal.chapter?.name ?? "No chapter"} ·{" "}
-            {proposal.template.interestArea} · {proposal.template.difficultyLevel}
+        <div style={{ minWidth: 0 }}>
+          <h3 className="psuite-class-title">{proposal.title}</h3>
+          <div className="psuite-class-meta">
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+              <PeopleAvatar name={proposal.instructor?.name ?? "No instructor"} size="sm" />
+              {proposal.instructor?.name ?? "No instructor"}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span>{proposal.chapter?.name ?? "No chapter"}</span>
+            <span aria-hidden="true">·</span>
+            <span>{proposal.template.interestArea} · {proposal.template.difficultyLevel}</span>
           </div>
         </div>
         <ApprovalBadge status={status} />
@@ -187,19 +202,30 @@ function OperationsRow({ offering }: { offering: AdminClassOperationsListItem })
     flags.startsWithin7Days ||
     flags.full;
 
+  const capacity = offering.capacity || 0;
+  const fillPct = capacity > 0 ? offering.confirmedCount / capacity : 0;
+  const enrollTone =
+    flags.full || fillPct >= 1 ? "danger" : fillPct >= 0.8 ? "warning" : "success";
+
   return (
-    <div className="card" style={hasAttention ? { borderLeft: "4px solid #b45309" } : undefined}>
+    <div
+      className="card psuite-class-card"
+      style={{ "--psuite-rail": railFromStatus(offering.status, hasAttention) } as React.CSSProperties}
+    >
       <div style={rowHeader}>
-        <div>
-          <h3 style={{ margin: 0 }}>
-            <Link href={`/admin/classes/${offering.id}`} style={{ color: "inherit" }}>
-              {offering.title}
-            </Link>
+        <div style={{ minWidth: 0 }}>
+          <h3 className="psuite-class-title">
+            <Link href={`/admin/classes/${offering.id}`}>{offering.title}</Link>
           </h3>
-          <div style={metaText}>
-            {offering.instructor?.name ?? "No instructor"} ·{" "}
-            {offering.chapter?.name ?? "No chapter"} ·{" "}
-            {offering.template?.interestArea ?? "—"}
+          <div className="psuite-class-meta">
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+              <PeopleAvatar name={offering.instructor?.name ?? "No instructor"} size="sm" />
+              {offering.instructor?.name ?? "No instructor"}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span>{offering.chapter?.name ?? "No chapter"}</span>
+            <span aria-hidden="true">·</span>
+            <span>{offering.template?.interestArea ?? "—"}</span>
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
@@ -215,10 +241,6 @@ function OperationsRow({ offering }: { offering: AdminClassOperationsListItem })
         <Pill>
           Starts {offering.startDate.toLocaleDateString()}
         </Pill>
-        <Pill>
-          {offering.confirmedCount}/{offering.capacity} enrolled
-          {offering.waitlistedCount > 0 ? ` · +${offering.waitlistedCount} waitlisted` : ""}
-        </Pill>
         {offering.deliveryMode === "IN_PERSON" && (
           <Pill>{offering.locationName ?? "Location TBD"}</Pill>
         )}
@@ -227,6 +249,24 @@ function OperationsRow({ offering }: { offering: AdminClassOperationsListItem })
         ) : (
           <Pill tone="muted">Enrollment closed</Pill>
         )}
+      </div>
+
+      <div className="psuite-class-enroll">
+        <Meter
+          value={offering.confirmedCount}
+          max={capacity || 1}
+          tone={enrollTone}
+          width={150}
+          label={
+            <>
+              <strong style={{ color: "var(--ps-ink)" }}>
+                {offering.confirmedCount}/{capacity || "∞"}
+              </strong>{" "}
+              enrolled
+              {offering.waitlistedCount > 0 ? ` · +${offering.waitlistedCount} waitlisted` : ""}
+            </>
+          }
+        />
       </div>
 
       {hasAttention && (
@@ -319,6 +359,37 @@ function approvalColor(status: string): string {
   }
 }
 
+// Vertical gradient for the card's left status rail. Attention always wins so a
+// flagged class reads as "needs you" at a glance regardless of its status.
+function railFromStatus(status: string, attention: boolean): string {
+  if (attention) return "linear-gradient(180deg, #fbbf24, #b45309)";
+  switch (status) {
+    case "PUBLISHED":
+      return "linear-gradient(180deg, #4ade80, #15803d)";
+    case "IN_PROGRESS":
+      return "linear-gradient(180deg, #60a5fa, #1e40af)";
+    case "COMPLETED":
+      return "linear-gradient(180deg, #c084fc, #7c3aed)";
+    case "CANCELLED":
+      return "linear-gradient(180deg, #fb7185, #b91c1c)";
+    default:
+      return "linear-gradient(180deg, #d6d3d1, #a8a29e)";
+  }
+}
+
+function railFromApproval(status: string): string {
+  switch (status) {
+    case "APPROVED":
+      return "linear-gradient(180deg, #4ade80, #15803d)";
+    case "CHANGES_REQUESTED":
+      return "linear-gradient(180deg, #fb7185, #dc2626)";
+    case "REJECTED":
+      return "linear-gradient(180deg, #d6d3d1, #a8a29e)";
+    default:
+      return "var(--ps-accent-gradient)";
+  }
+}
+
 function Pill({
   children,
   tone,
@@ -395,12 +466,6 @@ const rowHeader: React.CSSProperties = {
   alignItems: "start",
   justifyContent: "space-between",
   flexWrap: "wrap",
-};
-
-const metaText: React.CSSProperties = {
-  fontSize: 13,
-  color: "var(--text-secondary)",
-  marginTop: 4,
 };
 
 const pillRow: React.CSSProperties = {

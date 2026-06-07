@@ -5,6 +5,8 @@ import {
   getAdminClassOperationsList,
   getAdminProposalQueue,
 } from "@/lib/admin-class-operations";
+import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
+import { StatCard } from "@/components/people-strategy/stat-card";
 import ClassOperationsList from "./class-operations-list";
 
 type SearchParams = { tab?: string; cursor?: string };
@@ -74,48 +76,78 @@ export default async function AdminClassesPage({
     return `?${search.toString()}`;
   }
 
+  const TABS: Array<{ value: string; label: string; count: number }> = [
+    { value: "operations", label: "Operations", count: operations.length },
+    { value: "review", label: "Review queue", count: counts.needsReview + counts.needsRevision },
+    { value: "ready", label: "Ready to publish", count: counts.approvedNotPublished },
+    { value: "full", label: "Full / waitlist", count: counts.full + counts.waitlists },
+    { value: "logistics", label: "Logistics gaps", count: counts.missingLogistics },
+    { value: "archive", label: "Cancelled / completed", count: counts.cancelled + counts.completed },
+  ];
+
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Admin · Class Operations</p>
-          <h1 className="page-title">Class operations</h1>
-          <p className="page-subtitle">
-            Review proposals, finalize logistics, and oversee rosters across every
-            chapter.
-          </p>
-        </div>
+    <div className="ps-page psuite">
+      <ActionCommandBar
+        eyebrow="Admin · Class Operations"
+        title="Class Operations"
+        subtitle="Review proposals, finalize logistics, and oversee rosters across every chapter — one command center for the whole catalog."
+        meta={`${operations.length} classes on this page · ${counts.publishedOpen} open for signup`}
+      />
+
+      <div className="psuite-stat-strip">
+        <StatCard
+          label="Awaiting review"
+          value={counts.needsReview}
+          icon="clock"
+          tone={counts.needsReview > 0 ? "warning" : "default"}
+          href="?tab=review"
+        />
+        <StatCard
+          label="Ready to publish"
+          value={counts.approvedNotPublished}
+          icon="layers"
+          tone="accent"
+          href="?tab=ready"
+        />
+        <StatCard
+          label="Open for signup"
+          value={counts.publishedOpen}
+          icon="check"
+          tone="success"
+          href="?tab=operations"
+        />
+        <StatCard
+          label="Full / waitlist"
+          value={counts.full + counts.waitlists}
+          icon="users"
+          href="?tab=full"
+        />
+        <StatCard
+          label="Logistics gaps"
+          value={counts.missingLogistics}
+          icon="alert"
+          tone={counts.missingLogistics > 0 ? "danger" : "default"}
+          href="?tab=logistics"
+        />
       </div>
 
-      <div className="grid four" style={{ marginBottom: 20 }}>
-        <SummaryCard label="Awaiting review" value={counts.needsReview} accent="#854d0e" href="?tab=review" />
-        <SummaryCard label="Approved, not published" value={counts.approvedNotPublished} accent="#7c2d12" href="?tab=ready" />
-        <SummaryCard label="Open for signup" value={counts.publishedOpen} accent="#166534" href="?tab=operations" />
-        <SummaryCard label="Logistics gaps" value={counts.missingLogistics} accent="#9f1239" href="?tab=operations" />
-      </div>
-
-      <nav style={tabBarStyle}>
-        <TabLink href="?tab=operations" current={tab} value="operations">
-          Operations ({operations.length})
-        </TabLink>
-        <TabLink href="?tab=review" current={tab} value="review">
-          Review queue ({counts.needsReview + counts.needsRevision})
-        </TabLink>
-        <TabLink href="?tab=ready" current={tab} value="ready">
-          Ready to publish ({counts.approvedNotPublished})
-        </TabLink>
-        <TabLink href="?tab=full" current={tab} value="full">
-          Full / waitlist ({counts.full + counts.waitlists})
-        </TabLink>
-        <TabLink href="?tab=logistics" current={tab} value="logistics">
-          Logistics gaps ({counts.missingLogistics})
-        </TabLink>
-        <TabLink href="?tab=archive" current={tab} value="archive">
-          Cancelled / completed ({counts.cancelled + counts.completed})
-        </TabLink>
+      <nav aria-label="Class operations views" className="ps-tabs">
+        {TABS.map((t) =>
+          t.value === tab ? (
+            <span key={t.value} className="ps-tab" aria-current="page">
+              {t.label} ({t.count})
+            </span>
+          ) : (
+            <Link key={t.value} href={tabHref(t.value)} className="ps-tab">
+              {t.label} ({t.count})
+            </Link>
+          ),
+        )}
       </nav>
 
-      <ClassOperationsList tab={tab} operations={operations} proposals={proposals} />
+      <div style={{ marginTop: 18 }}>
+        <ClassOperationsList tab={tab} operations={operations} proposals={proposals} />
+      </div>
 
       {nextPageHref() && tab !== "review" && (
         <div style={{ marginTop: 16, textAlign: "center" }}>
@@ -137,60 +169,3 @@ export default async function AdminClassesPage({
     </div>
   );
 }
-
-function SummaryCard({
-  label,
-  value,
-  accent,
-  href,
-}: {
-  label: string;
-  value: number;
-  accent: string;
-  href: string;
-}) {
-  return (
-    <Link href={href} className="card" style={{ display: "block", textDecoration: "none", color: "inherit" }}>
-      <div className="kpi" style={{ color: accent }}>{value}</div>
-      <div className="kpi-label">{label}</div>
-    </Link>
-  );
-}
-
-function TabLink({
-  href,
-  current,
-  value,
-  children,
-}: {
-  href: string;
-  current: string;
-  value: string;
-  children: React.ReactNode;
-}) {
-  const active = current === value;
-  return (
-    <Link
-      href={href}
-      style={{
-        padding: "8px 14px",
-        borderRadius: 8,
-        textDecoration: "none",
-        fontSize: 13,
-        fontWeight: 600,
-        color: active ? "#fff" : "var(--text-secondary)",
-        background: active ? "var(--ypp-purple, #6b21c8)" : "transparent",
-        border: active ? "none" : "1px solid var(--border)",
-      }}
-    >
-      {children}
-    </Link>
-  );
-}
-
-const tabBarStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 8,
-  flexWrap: "wrap",
-  marginBottom: 20,
-};
