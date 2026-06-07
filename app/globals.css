@@ -17207,6 +17207,27 @@ a.psuite-identity-link:hover {
 .psuite-empty-title { margin: 0; font-size: 15px; font-weight: 700; color: var(--ps-ink); }
 .psuite-empty-text { margin: 0; font-size: 13px; color: var(--muted); max-width: 42ch; }
 
+/* ---- Chapter hub link cards ---- */
+.psuite-hub-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  flex-shrink: 0;
+  font-size: 21px;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--ypp-purple-100), #fff);
+  border: 1px solid rgba(107, 33, 200, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), var(--ps-shadow-sm);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.psuite .psuite-hub-card:hover .psuite-hub-icon {
+  transform: scale(1.06) rotate(-3deg);
+  box-shadow: var(--ps-accent-glow);
+}
+
 /* ---- Selected-row tint + bulk bar on the pro surface ---- */
 .psuite .data-table tbody tr.is-selected,
 .psuite .data-table tbody tr.is-selected:hover {
