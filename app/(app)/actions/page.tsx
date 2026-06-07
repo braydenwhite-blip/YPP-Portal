@@ -4,20 +4,18 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
 import { formatDueDate, formatDueDateLong } from "@/lib/leadership-action-center/dates";
-import {
-  getMyActionItems,
-  type ActionItemWithRelations,
-} from "@/lib/people-strategy/action-queries";
+import { getMyActionItems } from "@/lib/people-strategy/action-queries";
 import {
   isLeadershipOrBoard,
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { getMyTeachingClasses } from "@/lib/people-strategy/class-tracker";
 import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
-import { PriorityPill, StatusPill } from "@/components/people-strategy/pills";
+import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionCard } from "@/components/people-strategy/action-card";
+import { getUserTitle } from "@/lib/user-title";
 import {
   effectiveDeadline,
   isActionOverdue,
@@ -31,15 +29,6 @@ import {
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My Actions · People Strategy" };
-
-function formatRole(role: string | null | undefined): string {
-  if (!role) return "Member";
-  return role
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 const OVERDUE_ACCENT = "var(--error-color)";
 
@@ -69,52 +58,6 @@ function StatCard({
         {value}
       </p>
     </div>
-  );
-}
-
-function ActionRow({
-  item,
-  userId,
-  now,
-  prompt,
-}: {
-  item: ActionItemWithRelations;
-  userId: string;
-  now: Date;
-  prompt?: string | null;
-}) {
-  const overdue = isActionOverdue(item, now);
-  const due = effectiveDeadline(item);
-  return (
-    <Link
-      href={`/actions/${item.id}`}
-      className="card"
-      style={{
-        display: "block",
-        padding: "12px 14px",
-        textDecoration: "none",
-        color: "inherit",
-        borderLeft: overdue ? `3px solid ${OVERDUE_ACCENT}` : "3px solid transparent",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-        <strong style={{ fontSize: 14 }}>{item.title}</strong>
-        <span style={{ fontSize: 12, fontWeight: 600, color: overdue ? OVERDUE_ACCENT : "var(--muted)", whiteSpace: "nowrap" }}>
-          {overdue ? "Overdue · " : "Due "}
-          {formatDueDate(due)}
-        </span>
-      </div>
-      <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
-        <StatusPill status={item.status} />
-        <PriorityPill priority={item.priority} hideLow />
-        <span style={{ fontSize: 12, color: "#64748b" }}>{item.department?.name ?? "—"}</span>
-      </div>
-      {prompt ? (
-        <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>
-          &ldquo;{prompt}&rdquo;
-        </p>
-      ) : null}
-    </Link>
   );
 }
 
@@ -158,6 +101,7 @@ export default async function MyActionsPage() {
   const now = new Date();
   const summary = summarizeMyActions(items, viewer.id, now);
   const officer = isOfficerTier(viewer);
+  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
 
   const executing = selectExecuting(items, viewer.id);
   const needsInput = selectNeedsInput(items, viewer.id);
@@ -170,15 +114,13 @@ export default async function MyActionsPage() {
     minute: "2-digit",
   }).format(now);
 
-  // Officers get the full Action Tracker tab bar (the same one every other
-  // subview shows, so navigation is consistent — comment #17). Non-officers
-  // only have My Actions, so no tab bar is rendered for them.
-  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
-
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
       <ActionCommandBar
-        eyebrow={`${session.user.name ?? "You"} · ${formatRole(viewer.primaryRole)}`}
+        eyebrow={`${session.user.name ?? "You"} · ${getUserTitle({
+          primaryRole: viewer.primaryRole,
+          adminSubtypes: viewer.adminSubtypes,
+        })}`}
         title="My Actions"
         subtitle="Everything you lead, are executing, or owe input on — sorted by deadline."
         meta={`Last updated ${lastUpdated}`}
@@ -229,7 +171,7 @@ export default async function MyActionsPage() {
               <EmptyNote>Nothing assigned to you to execute right now.</EmptyNote>
             ) : (
               executing.map((item) => (
-                <ActionRow key={item.id} item={item} userId={viewer.id} now={now} />
+                <ActionCard key={item.id} item={item} now={now} />
               ))
             )}
           </Panel>
@@ -241,10 +183,9 @@ export default async function MyActionsPage() {
                 <EmptyNote>No one is waiting on your input.</EmptyNote>
               ) : (
                 needsInput.map((item) => (
-                  <ActionRow
+                  <ActionCard
                     key={item.id}
                     item={item}
-                    userId={viewer.id}
                     now={now}
                     prompt={latestInputRequest(item, viewer.id)?.body ?? null}
                   />

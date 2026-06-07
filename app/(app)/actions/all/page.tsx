@@ -6,18 +6,11 @@ import {
   isActionTrackerEnabled,
   isPeopleDashboardEnabled,
 } from "@/lib/feature-flags";
-import { formatDueDate } from "@/lib/leadership-action-center/dates";
 import {
   listActionDepartments,
   listVisibleActionItems,
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
-import { ACTION_VISIBILITY_LABELS } from "@/lib/people-strategy/constants";
-import {
-  effectiveDeadline,
-  isActionOverdue,
-} from "@/lib/people-strategy/my-actions-selectors";
-import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import {
   applyActionFilters,
   buildActionFilterQuery,
@@ -34,10 +27,12 @@ import {
   DepartmentBars,
 } from "@/components/people-strategy/action-analytics-cards";
 import { listSavedActionViews } from "@/lib/people-strategy/saved-views";
+import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
+import { ActionCard } from "@/components/people-strategy/action-card";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
-import { Pill, PriorityPill, StatusPill } from "@/components/people-strategy/pills";
 import { SavedViewsBar } from "@/components/people-strategy/saved-views-bar";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Tracker · All Actions" };
@@ -70,69 +65,6 @@ function StatCard({
         {value}
       </p>
     </div>
-  );
-}
-
-function ActionRow({ item, now }: { item: ActionItemWithRelations; now: Date }) {
-  const overdue = isActionOverdue(item, now);
-  const due = effectiveDeadline(item);
-
-  const executors = item.assignments.filter((a) => a.role === "EXECUTING");
-  const inputs = item.assignments.filter((a) => a.role === "INPUT");
-  const leadName = item.lead?.name ?? item.lead?.email ?? "Unassigned";
-
-  return (
-    <Link
-      href={`/actions/${item.id}`}
-      className="card"
-      style={{
-        display: "block",
-        padding: "12px 14px",
-        textDecoration: "none",
-        color: "inherit",
-        borderLeft: overdue ? `3px solid ${OVERDUE_ACCENT}` : "3px solid transparent",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-        <strong style={{ fontSize: 14 }}>{item.title}</strong>
-        <Pill tone={overdue ? "overdue" : "neutral"}>
-          {overdue ? "Overdue · " : "Due "}
-          {formatDueDate(due)}
-        </Pill>
-      </div>
-
-      {/* Pill row: status, officer-meeting (if any), visibility badge */}
-      <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <StatusPill status={item.status} />
-        <PriorityPill priority={item.priority} hideLow />
-        {item.officerMeetingId ? <Pill tone="purple">Officer meeting</Pill> : null}
-        <Pill tone={item.visibility === "OFFICERS_ONLY" ? "warning" : "neutral"}>
-          {ACTION_VISIBILITY_LABELS[item.visibility]}
-        </Pill>
-      </div>
-
-      {/* Roles line + comment count */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-          marginTop: 8,
-          fontSize: 12,
-          color: "#64748b",
-          flexWrap: "wrap",
-        }}
-      >
-        <span>
-          Lead: {leadName}
-          {executors.length > 0 ? ` · Executing: ${executors.length}` : ""}
-          {inputs.length > 0 ? ` · Input: ${inputs.length}` : ""}
-        </span>
-        <span style={{ whiteSpace: "nowrap" }}>
-          {item.comments.length} {item.comments.length === 1 ? "comment" : "comments"}
-        </span>
-      </div>
-    </Link>
   );
 }
 
@@ -229,23 +161,32 @@ export default async function AllActionsPage({
         hasActiveFilters={filtersActive}
       />
 
-      {/* Summary strip — reflects the current filters */}
-      <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
-        <StatCard label="Total" value={String(statusBreakdown.total)} />
-        <StatCard
-          label="Overdue"
-          value={String(statusBreakdown.counts.OVERDUE)}
-          accent={statusBreakdown.counts.OVERDUE > 0}
-        />
-        <StatCard label="In Progress" value={String(statusBreakdown.counts.IN_PROGRESS)} />
-        <StatCard label="Officers Only" value={String(officersOnlyCount)} />
-        <StatCard label="Flagged" value={String(flaggedCount)} />
-      </div>
+      {/* Overview — collapsed by default so the list is reachable fast (#-3). */}
+      <div style={{ marginTop: 16 }}>
+        <CollapsibleSection
+          title="Overview"
+          summary={`${statusBreakdown.total} in view · ${statusBreakdown.counts.OVERDUE} overdue · ${flaggedCount} flagged`}
+          defaultOpen={false}
+        >
+          {/* Summary strip — reflects the current filters */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <StatCard label="Total" value={String(statusBreakdown.total)} />
+            <StatCard
+              label="Overdue"
+              value={String(statusBreakdown.counts.OVERDUE)}
+              accent={statusBreakdown.counts.OVERDUE > 0}
+            />
+            <StatCard label="In Progress" value={String(statusBreakdown.counts.IN_PROGRESS)} />
+            <StatCard label="Officers Only" value={String(officersOnlyCount)} />
+            <StatCard label="Flagged" value={String(flaggedCount)} />
+          </div>
 
-      {/* Analytics: status donut + department mini-bars */}
-      <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
-        <ActionStatusDonut breakdown={statusBreakdown} />
-        <DepartmentBars bars={departmentBars} />
+          {/* Analytics: status donut + department mini-bars */}
+          <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
+            <ActionStatusDonut breakdown={statusBreakdown} />
+            <DepartmentBars bars={departmentBars} />
+          </div>
+        </CollapsibleSection>
       </div>
 
       {/* Grouped list by department */}
@@ -277,7 +218,7 @@ export default async function AllActionsPage({
                 </span>
               </div>
               {group.items.map((item) => (
-                <ActionRow key={item.id} item={item} now={now} />
+                <ActionCard key={item.id} item={item} now={now} />
               ))}
             </section>
           ))}

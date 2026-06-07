@@ -119,7 +119,12 @@ export default async function NewActionInTrackerPage({
             </Link>
           </p>
         ) : null}
-        <ActionItemForm users={users} departments={departments} initial={initial} />
+        <ActionItemForm
+          users={users}
+          departments={departments}
+          initial={initial}
+          currentUserId={viewer.id}
+        />
       </div>
     </div>
   );

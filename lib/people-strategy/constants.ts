@@ -97,6 +97,13 @@ export const ACTION_VISIBILITY_LABELS: Record<ActionItemVisibility, string> = {
   OFFICERS_ONLY: "Officers only",
 };
 
+/**
+ * Default deadline (days from today) pre-filled when creating a *new* action.
+ * Leadership feedback: a week out felt too far, and a blank required field was
+ * blocking creation — so new items default to a tight, editable 3-day target.
+ */
+export const DEFAULT_ACTION_DEADLINE_DAYS = 3;
+
 /** Routes revalidated after an Action Item mutation. */
 export const ACTION_ITEM_PATHS = [
   "/actions",
