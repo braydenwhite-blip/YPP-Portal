@@ -119,6 +119,16 @@ export async function listTrackerClasses(): Promise<TrackerClass[]> {
   });
 }
 
+/** A single class offering for the read-only tracker detail view. */
+export async function getTrackerClass(id: string): Promise<TrackerClass | null> {
+  if (!isActionTrackerEnabled()) return null;
+
+  return prisma.classOffering.findUnique({
+    where: { id },
+    select: TRACKER_CLASS_SELECT,
+  });
+}
+
 /**
  * Classes the given user teaches — as the lead instructor (`instructorId`) or
  * via an active regular-instructor assignment. Used to surface a teacher's
