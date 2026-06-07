@@ -97,8 +97,12 @@ flag.
 ### Phase D — My Actions urgency buckets + actionable empty states
 
 - Group the viewer's open work into Overdue / Due today / Due this week / Later
-  / No date, via a pure, unit-tested selector.
-- Replace passive empty copy with a clear next step + CTA.
+  via a pure, unit-tested selector (`bucketByUrgency`). There is no "no due
+  date" bucket — every action carries a required deadline — so it is
+  intentionally omitted rather than shipped perpetually empty.
+- Replace passive empty copy with a clear next step + CTA ("Create your first
+  action" on My Actions; a "don't let it go cold" follow-up nudge on each
+  partner).
 
 ## 4. Safety
 

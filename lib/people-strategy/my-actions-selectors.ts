@@ -1,4 +1,4 @@
-import { startOfDay } from "@/lib/leadership-action-center/dates";
+import { addDays, startOfDay } from "@/lib/leadership-action-center/dates";
 
 import type { ActionItemWithRelations } from "./action-queries";
 
@@ -105,6 +105,53 @@ export function selectUpcoming(
   items: ActionItemWithRelations[]
 ): ActionItemWithRelations[] {
   return sortByDeadline(items.filter((item) => item.status !== "COMPLETE"));
+}
+
+export type UrgencyBuckets = {
+  overdue: ActionItemWithRelations[];
+  today: ActionItemWithRelations[];
+  thisWeek: ActionItemWithRelations[];
+  later: ActionItemWithRelations[];
+};
+
+/** Bucket render order + section copy for the "By Deadline" view. */
+export const URGENCY_BUCKET_ORDER: Array<{
+  key: keyof UrgencyBuckets;
+  label: string;
+}> = [
+  { key: "overdue", label: "Overdue" },
+  { key: "today", label: "Due today" },
+  { key: "thisWeek", label: "Due this week" },
+  { key: "later", label: "Later" },
+];
+
+/**
+ * Group the viewer's OPEN actions by deadline urgency: past-due, due today, due
+ * within the next 7 days, and everything further out. Settled (COMPLETE /
+ * DROPPED) items are excluded, and each bucket is deadline-sorted (soonest
+ * first). Pure — `now` is injected — so it unit-tests deterministically. Every
+ * action carries a required deadline, so there is no "no due date" bucket here.
+ */
+export function bucketByUrgency(
+  items: ActionItemWithRelations[],
+  now: Date = new Date()
+): UrgencyBuckets {
+  const todayStart = startOfDay(now).getTime();
+  const weekEnd = startOfDay(addDays(now, 7)).getTime();
+  const buckets: UrgencyBuckets = { overdue: [], today: [], thisWeek: [], later: [] };
+
+  for (const item of sortByDeadline(items)) {
+    if (item.status === "COMPLETE" || item.status === "DROPPED") continue;
+    if (isActionOverdue(item, now)) {
+      buckets.overdue.push(item);
+      continue;
+    }
+    const due = startOfDay(effectiveDeadline(item)).getTime();
+    if (due <= todayStart) buckets.today.push(item);
+    else if (due <= weekEnd) buckets.thisWeek.push(item);
+    else buckets.later.push(item);
+  }
+  return buckets;
 }
 
 export type MyActionsSummary = {
