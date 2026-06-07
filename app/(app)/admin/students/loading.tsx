@@ -3,16 +3,12 @@ import {
   StatStripSkeleton,
   TableSkeleton,
 } from "@/components/people-strategy/suite-skeletons";
-import { Skeleton } from "@/components/shared/skeleton";
 
 export default function Loading() {
   return (
     <div className="ps-page psuite">
       <SuiteHeaderSkeleton />
       <StatStripSkeleton count={5} />
-      <div className="card" style={{ marginBottom: 12 }}>
-        <Skeleton width="100%" height={40} radius={10} style={{ display: "block" }} />
-      </div>
       <TableSkeleton rows={9} />
     </div>
   );
