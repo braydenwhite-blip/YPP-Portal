@@ -66,18 +66,27 @@ export function ActionCard({
   const inputs = item.assignments.filter((a) => a.role === "INPUT");
   const lead = personLabel(item.lead);
 
+  // Left rail color makes the list scannable at a glance: overdue always wins
+  // (red), otherwise the rail carries the priority signal so urgent/high work
+  // stands out without reading every pill.
+  const railColor = overdue
+    ? OVERDUE_ACCENT
+    : item.priority === "URGENT"
+      ? OVERDUE_ACCENT
+      : item.priority === "HIGH"
+        ? "var(--warning-color)"
+        : "transparent";
+
   return (
     <Link
       href={`/actions/${item.id}`}
-      className="card"
+      className="card ps-action-card"
       style={{
         display: "block",
         padding: "12px 14px",
         textDecoration: "none",
         color: "inherit",
-        borderLeft: overdue
-          ? `3px solid ${OVERDUE_ACCENT}`
-          : "3px solid transparent",
+        borderLeft: `3px solid ${railColor}`,
       }}
     >
       <div
@@ -88,7 +97,9 @@ export function ActionCard({
           alignItems: "baseline",
         }}
       >
-        <strong style={{ fontSize: 14 }}>{item.title}</strong>
+        <strong className="ps-action-card-title" style={{ fontSize: 14 }}>
+          {item.title}
+        </strong>
         <Pill tone={overdue ? "overdue" : "neutral"}>
           {overdue ? "Overdue · " : "Due "}
           {formatDueDate(due)}

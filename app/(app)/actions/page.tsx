@@ -16,6 +16,7 @@ import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row"
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ActionCard } from "@/components/people-strategy/action-card";
+import { StatCard } from "@/components/people-strategy/stat-card";
 import { getUserTitle } from "@/lib/user-title";
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import {
@@ -35,34 +36,14 @@ export const metadata = { title: "My Actions · People Strategy" };
 
 const OVERDUE_ACCENT = "var(--error-color)";
 
-function StatCard({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      className="card"
-      style={{
-        padding: "14px 16px",
-        flex: "1 1 150px",
-        minWidth: 140,
-        borderLeft: accent ? `3px solid ${OVERDUE_ACCENT}` : undefined,
-      }}
-    >
-      <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>
-        {label}
-      </p>
-      <p style={{ margin: "6px 0 0", fontSize: 24, fontWeight: 700, color: accent ? OVERDUE_ACCENT : "inherit" }}>
-        {value}
-      </p>
-    </div>
-  );
-}
+// Small colored dot keyed to each urgency bucket, so the "By Deadline" stack
+// reads at a glance before the labels are even parsed.
+const URGENCY_DOT: Record<string, string> = {
+  overdue: "var(--error-color)",
+  today: "var(--warning-color)",
+  thisWeek: "var(--ps-accent)",
+  later: "var(--gray-400)",
+};
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -93,7 +74,7 @@ function DeadlineRow({
   return (
     <Link
       href={`/actions/${item.id}`}
-      className="card my-actions-deadline-row"
+      className="card ps-action-card my-actions-deadline-row"
       style={{
         display: "flex",
         justifyContent: "space-between",
@@ -185,10 +166,14 @@ export default async function MyActionsPage() {
 
       {/* Stat cards */}
       <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
-        <StatCard label="Overdue" value={String(summary.overdue)} accent={summary.overdue > 0} />
-        <StatCard label="In Progress" value={String(summary.inProgress)} />
-        <StatCard label="Executing" value={String(summary.executing)} />
-        <StatCard label="Needs Your Input" value={String(summary.needsInput)} />
+        <StatCard
+          label="Overdue"
+          value={summary.overdue}
+          tone={summary.overdue > 0 ? "danger" : "default"}
+        />
+        <StatCard label="In Progress" value={summary.inProgress} />
+        <StatCard label="Executing" value={summary.executing} />
+        <StatCard label="Needs Your Input" value={summary.needsInput} />
         <StatCard
           label="Next Deadline"
           value={summary.nextDeadline ? formatDueDate(summary.nextDeadline) : "—"}
@@ -274,6 +259,9 @@ export default async function MyActionsPage() {
                     >
                       <p
                         style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
                           margin: "2px 0 0",
                           fontSize: 11,
                           fontWeight: 700,
@@ -282,6 +270,16 @@ export default async function MyActionsPage() {
                           color: isOverdue ? OVERDUE_ACCENT : "var(--muted)",
                         }}
                       >
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: "50%",
+                            background: URGENCY_DOT[key] ?? "var(--gray-400)",
+                            flexShrink: 0,
+                          }}
+                        />
                         {label} · {bucket.length}
                       </p>
                       {bucket.map((item) => (

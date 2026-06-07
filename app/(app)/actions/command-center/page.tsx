@@ -86,7 +86,7 @@ function PulseStat({
 }) {
   const body = (
     <div
-      className="card"
+      className={`card${href ? " ps-action-card" : ""}`}
       style={{
         padding: "14px 16px",
         flex: "1 1 130px",
@@ -242,7 +242,7 @@ export default async function CommandCenterPage() {
                     href={`/actions/${entry.id}`}
                     event={COMMAND_CENTER_EVENTS.attentionItemOpened}
                     eventData={{ actionItemId: entry.id, reason: entry.reason, severity: entry.severity }}
-                    className="card cc-focusable"
+                    className="card ps-action-card cc-focusable"
                     style={{
                       display: "block",
                       padding: "12px 14px",
@@ -392,7 +392,7 @@ export default async function CommandCenterPage() {
                   <Link
                     key={win.id}
                     href={`/actions/${win.id}`}
-                    className="card cc-focusable"
+                    className="card ps-action-card cc-focusable"
                     style={{ display: "block", padding: "10px 14px", textDecoration: "none", color: "inherit", borderLeft: "3px solid var(--success-color, #16a34a)" }}
                   >
                     <div style={{ fontSize: 13, fontWeight: 600 }}>✓ {win.title}</div>

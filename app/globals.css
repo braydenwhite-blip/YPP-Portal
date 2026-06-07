@@ -15124,6 +15124,118 @@ select.ps-filter {
   color: var(--ps-accent);
 }
 
+/* ---- Segmented view nav (.ps-tabs) ----
+   A contained segmented control instead of a loose row of buttons: groups the
+   tracker's views into one clearly-bounded switcher with a filled active pill. */
+.ps-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 16px;
+  padding: 4px;
+  background: var(--ps-surface);
+  border: 1px solid var(--ps-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.ps-tab {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--ps-ink-soft);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 8px 13px;
+  border-radius: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.ps-tab:hover {
+  background: var(--ps-accent-soft);
+  color: var(--ps-accent);
+}
+
+.ps-tab[aria-current="page"] {
+  background: var(--ps-accent);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(107, 33, 200, 0.32);
+  cursor: default;
+}
+
+.ps-tab:focus-visible {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: 2px;
+}
+
+/* ---- Interactive list cards (.ps-action-card) ----
+   The action/deadline rows are whole-card links; give them a clear, premium
+   hover affordance (lift + deeper shadow + accent edge) and an accent title so
+   they read as tappable rather than as static panels. */
+.ps-page .ps-action-card {
+  border-radius: var(--radius-md);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.ps-page .ps-action-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.09);
+  border-color: var(--ps-border-strong);
+}
+
+.ps-page .ps-action-card:focus-visible {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: 2px;
+}
+
+.ps-action-card-title {
+  transition: color var(--transition-fast);
+}
+
+.ps-page .ps-action-card:hover .ps-action-card-title {
+  color: var(--ps-accent);
+}
+
+/* ---- Stat tiles (.ps-stat-card) ----
+   Clickable stat tiles (those wrapped in .ps-stat-link) get the same lift on
+   hover so the overview strip reads as fast navigation, not just decoration. */
+.ps-page .ps-stat-card {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.ps-stat-link {
+  display: block;
+}
+
+.ps-page .ps-stat-link:hover .ps-stat-card {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.09);
+  border-color: var(--ps-border-strong);
+}
+
+.ps-stat-link:focus-visible {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xl);
+}
+
+/* Crisper pills on the white surfaces — a hairline border so soft-tinted chips
+   keep their shape against the card without shouting. */
+.ps-page .pill {
+  border: 1px solid rgba(17, 24, 39, 0.05);
+}
+
 /* ============================================================
    GROWTH PATHWAY DASHBOARD  (.gp-*)
    Redesigned Leadership Pathway — the native growth home for
