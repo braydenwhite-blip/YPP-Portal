@@ -12321,6 +12321,16 @@ model ActionItem {
   resolvedAt       DateTime?
   boardRolledUpAt  DateTime?
 
+  /// Polymorphic link to a related domain entity (CLASS_OFFERING / MENTORSHIP /
+  /// USER / INSTRUCTOR_APPLICATION). String-typed (no FK) to mirror the
+  /// loosely-typed goalCategory field and keep cross-domain linking flexible.
+  /// Validated by a TS union + Zod + a write-time existence check
+  /// (lib/people-strategy/constants.ts). NOTE: department and officer-meeting
+  /// links use the EXISTING departmentId / officerMeetingId FKs, NOT this field,
+  /// to avoid two sources of truth.
+  relatedEntityType String?
+  relatedEntityId   String?
+
   assignments ActionAssignment[] @relation("ActionItemAssignments")
   comments    ActionComment[]    @relation("ActionItemComments")
   fileLinks   ActionFileLink[]   @relation("ActionItemFileLinks")
@@ -12342,6 +12352,7 @@ model ActionItem {
   @@index([flaggedAt])
   @@index([escalatedToLeadershipAt])
   @@index([resolvedAt])
+  @@index([relatedEntityType, relatedEntityId])
 }
 
 /// Join row assigning a user to an action item in a specific role. The
