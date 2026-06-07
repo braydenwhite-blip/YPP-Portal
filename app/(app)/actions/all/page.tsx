@@ -17,6 +17,7 @@ import {
   hasActiveFilters,
   parseActionFilters,
 } from "@/lib/people-strategy/action-filters";
+import { relatedEntityTypeLabel } from "@/lib/people-strategy/constants";
 import {
   summarizeDepartments,
   summarizeStatuses,
@@ -107,17 +108,41 @@ export default async function AllActionsPage({
     ? `/api/admin/actions/export.csv?${exportQuery}`
     : "/api/admin/actions/export.csv";
 
-  // Grouped list by department; items keep the deadline sort within each group.
+  // Group-by toggle: department (default) or linked-entity type. Items keep
+  // the deadline sort within each group.
+  const groupParam = Array.isArray(params.group) ? params.group[0] : params.group;
+  const groupBy: "department" | "linked" = groupParam === "linked" ? "linked" : "department";
+
   const groups = new Map<string, ActionItemWithRelations[]>();
   for (const item of items) {
-    const key = item.department?.name ?? "Unassigned";
+    const key =
+      groupBy === "linked"
+        ? item.relatedEntityType
+          ? `${relatedEntityTypeLabel(item.relatedEntityType)} actions`
+          : "Not linked"
+        : item.department?.name ?? "Unassigned";
     const bucket = groups.get(key);
     if (bucket) bucket.push(item);
     else groups.set(key, [item]);
   }
-  const groupedDepartments = Array.from(groups.entries())
-    .map(([name, deptItems]) => ({ name, items: deptItems }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // Keep the catch-all bucket ("Not linked" / "Unassigned") last.
+  const catchAll = groupBy === "linked" ? "Not linked" : "Unassigned";
+  const displayGroups = Array.from(groups.entries())
+    .map(([name, groupItems]) => ({ name, items: groupItems }))
+    .sort((a, b) => {
+      if (a.name === catchAll) return 1;
+      if (b.name === catchAll) return -1;
+      return a.name.localeCompare(b.name);
+    });
+
+  // Group-toggle links preserve the active filters.
+  const groupToggleHref = (g: "department" | "linked") => {
+    const p = new URLSearchParams(buildActionFilterQuery(filters));
+    if (g === "linked") p.set("group", "linked");
+    else p.delete("group");
+    const qs = p.toString();
+    return qs ? `/actions/all?${qs}` : "/actions/all";
+  };
 
   const filtersActive = hasActiveFilters(filters);
   const showPeopleDashboardTab = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
@@ -200,7 +225,22 @@ export default async function AllActionsPage({
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 16 }}>
-          {groupedDepartments.map((group) => (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+            <span style={{ color: "var(--muted)" }}>Group by:</span>
+            <Link
+              href={groupToggleHref("department")}
+              className={`button outline small${groupBy === "department" ? " primary" : ""}`}
+            >
+              Department
+            </Link>
+            <Link
+              href={groupToggleHref("linked")}
+              className={`button outline small${groupBy === "linked" ? " primary" : ""}`}
+            >
+              Linked item
+            </Link>
+          </div>
+          {displayGroups.map((group) => (
             <section key={group.name} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div
                 style={{

@@ -423,3 +423,89 @@ still respects each phase's **Owns** / **Must NOT touch** boundaries.
 - **Deferred (per plan):** Operations Hub (`/operations`) + nav wiring (Phase 3),
   tracker grouping/filtering by linked entity (Phase 4), instructor-applicant
   on-page panel, and department/officer-meeting/leadership-pathway integrations.
+
+### PHASE 3 — Operations Hub + integrations ✅ shipped
+- **Nav:** `requiresOperationsHub` on `NavItem` + `operationsHubEnabled` threaded
+  layout → app-shell → nav → `resolveNavModel`; an "Operations Hub" catalog entry
+  (`/operations`, `coreEligible: false`, broad People Strategy roles). Hidden for
+  everyone when the flag is off.
+- **Loader:** `lib/people-strategy/operations-hub.ts` — pure, unit-tested
+  derivations (`deriveClassSignals`, `deriveMentorshipsWithoutActions`,
+  `deriveInstructorsWithoutMentor`, `deriveOpenActions`) plus a role-aware
+  `loadOperationsHub(viewer, now)` that composes `loadCommandCenter`,
+  `loadMentorshipHealth`, `listTrackerClasses`, `getActionsForEntities`,
+  `getMenteeSupportMany`, `listActiveMentorships`, `getMyTeachingClasses`,
+  `getInstructorReadiness`. Every subsystem load is wrapped in `safe()` so one
+  empty/failing system degrades to an empty section, never a 500.
+- **Page:** `app/(app)/operations/page.tsx` — `force-dynamic`, `notFound()` when
+  the flag is off, role-tailored (leadership/officer get the full operating
+  picture; mentor → mentees; instructor → classes/readiness; member → next steps
+  + mentor) with a helpful empty state when there is no data.
+- **Cross-surface panel:** linked actions for the person on
+  `/admin/instructors/[id]` (double-flagged, visibility-filtered).
+- **Connections additions:** `getMenteeSupportMany` (batch, N+1-safe) and
+  `listActiveMentorships`.
+- **Tests:** `people-strategy-operations-hub.test.ts` (derivations).
+- **Deferred (documented, per plan):** on-page panels for `/people/[id]` and
+  `/profile` (the hub + the `/admin/instructors/[id]` panel cover the same need
+  for now); department / officer-meeting / leadership-pathway hub rollups
+  (their surfaces are not stable enough to wire safely yet).
+
+### PHASE 4 — Tracker power features, audit, tests, docs ✅ shipped
+- **Action Tracker upgrade:** a `relatedType` filter (`rel` query key) end-to-end
+  — `ActionFilters` field, `parseActionFilters` validation, `applyActionFilters`,
+  `buildActionFilterQuery`, the filter-bar dropdown, and the CSV export — plus a
+  **group-by toggle** on `/actions/all` (Department ↔ Linked item) backed by a
+  pure, tested `groupActionsByLinkedEntity`. The default view (group by
+  department, no rel filter) is unchanged.
+- **Copy:** panels and the hub use plain, student-friendly sentences and clear
+  CTAs ("Create action for this class", "This instructor does not have an active
+  mentor yet", "No actions are linked to this class yet").
+- **Tests:** new `relatedType` filter + grouping cases in
+  `people-strategy-action-filters.test.ts`; derivations, connections, and
+  link-validation suites from Phases 1–3.
+- **Checks:** `tsc --noEmit` clean (0 errors). `validate-nav.mjs` shows only the
+  4 pre-existing core-map warnings (identical at base 87c8734); the new
+  `/operations` entry adds none (`coreEligible: false`).
+
+---
+
+## 11. Permissions audit (Phases 1–4)
+
+All reads/writes resolve a **trusted server `ActionViewer`** (`{ id, roles,
+primaryRole, adminSubtypes }`) from the session — never a client-supplied
+viewer — and run through the pure predicates in `action-permissions.ts`.
+
+| Surface | Who sees it | Enforcement |
+|---|---|---|
+| Linked action **create/update** | Officer-tier+ (`canCreateAction` / `canEditAction`) | Server action re-checks on the session user; both flags required; `assertRelatedEntityExists` validates the link. |
+| `getActionsForEntity` / `getActionsForEntities` | Any viewer, filtered | Every row passes `canViewAction`; OFFICERS_ONLY hidden from non-officers even if linked. |
+| New-action prefill (`/actions/new`) | Officer-tier+ (`requirePageRoles(OFFICER_TIER_ROLES)`) | Related entity resolved server-side; invalid params fail safe. |
+| Class panel (`/admin/classes/[id]`) | ADMIN (page guard) | Linked actions visibility-filtered; create CTA via `canCreateAction`. |
+| Mentee panel (`/mentorship/mentees/[id]`) | Existing workspace access (`getSupportWorkspaceData` + `requireReviewSpineAccess`) | Tracker reads visibility-filtered; create CTA officer-only. |
+| Instructor panel (`/instructor/class-settings`) | Offering owner or ADMIN | Linked actions visibility-filtered; instructors can view but not create (no officer tier). |
+| Operations Hub (`/operations`) | Broad roles (`requirePageRoles`); role-aware content | `notFound()` if flag off; officer-only data (command center, mentorship health, gap lists) loaded only for officer-tier+; members get only their own scoped data. |
+| Admin instructor panel (`/admin/instructors/[id]`) | ADMIN (page guard) | Person's linked actions visibility-filtered. |
+
+No surface trusts URL params for identity, exposes private data through a param,
+or bypasses a server-side permission check. Members never receive officer-wide
+data; the hub's officer sections are gated behind `isOfficerTier`/
+`isLeadershipOrBoard`, not the nav.
+
+---
+
+## 12. Risks, known warts & next moves (post Phases 1–4)
+
+- **Dangling links:** the polymorphic link has no FK. `assertRelatedEntityExists`
+  guards writes; reads render only entities that still exist. A target deleted
+  later leaves a harmless dangling id. Acceptable.
+- **Legacy action surfaces** (`/actions/*` vs `/my-actions` / `/all-actions` /
+  `/admin/actions`) remain documented, **not** merged. All new "Create" CTAs
+  point at the canonical `/actions/new`.
+- **Pre-existing test/nav debt:** 6 vitest files (13 tests) and 4 `validate-nav`
+  core-map warnings fail at the base commit too — out of scope for this program.
+- **Next moves:** wire `/people/[id]` + `/profile` hub panels; resolve grouped
+  linked-entity labels (currently grouped by type, not per-entity title); add
+  department / officer-meeting / leadership-pathway hub rollups once those
+  surfaces stabilise; consider per-entity group-by once a batch label loader
+  exists.

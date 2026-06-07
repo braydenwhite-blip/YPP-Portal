@@ -13,6 +13,8 @@ import {
   ACTION_STATUS_LABELS,
   ACTION_STATUS_VALUES,
   ACTION_VISIBILITY_LABELS,
+  RELATED_ENTITY_TYPE_VALUES,
+  relatedEntityTypeLabel,
 } from "@/lib/people-strategy/constants";
 
 type DepartmentOption = { id: string; name: string };
@@ -111,6 +113,20 @@ export function ActionFiltersBar({
         {VISIBILITY_OPTIONS.map((v) => (
           <option key={v} value={v}>
             {ACTION_VISIBILITY_LABELS[v]}
+          </option>
+        ))}
+      </select>
+
+      <select
+        className="ps-filter"
+        aria-label="Filter by linked item"
+        value={filters.relatedType}
+        onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.relatedType, e.target.value)}
+      >
+        <option value="ALL">All linked items</option>
+        {RELATED_ENTITY_TYPE_VALUES.map((t) => (
+          <option key={t} value={t}>
+            {relatedEntityTypeLabel(t)}
           </option>
         ))}
       </select>

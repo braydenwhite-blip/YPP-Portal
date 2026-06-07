@@ -437,6 +437,38 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
+      href: "/operations",
+      label: "Operations Hub",
+      icon: "🧭",
+      // Secondary surface, not a pinned core link — keep it out of the capped
+      // per-role "core" map (validate-nav enforces those limits).
+      coreEligible: false,
+      // Role-aware page (each role sees a tailored operating picture), so the
+      // nav entry is offered broadly across People Strategy roles; the page
+      // itself filters every panel by permission and feature flag.
+      roles: [
+        "ADMIN",
+        "STAFF",
+        "CHAPTER_PRESIDENT",
+        "HIRING_CHAIR",
+        "INSTRUCTOR",
+        "MENTOR",
+        "STUDENT",
+      ] as NavRole[],
+      requiresOperationsHub: true,
+      searchAliases: [
+        "People Strategy OS",
+        "Operating System",
+        "Operations",
+        "Connections",
+        "Who needs help",
+        "What is overdue",
+      ],
+      dashboardDescription:
+        "One connected operating picture: who needs help, who is responsible, what is overdue, and what to do next.",
+      dashboardPriority: 4,
+    },
+    {
       href: "/actions/all",
       label: "All Actions",
       icon: "🗂️",

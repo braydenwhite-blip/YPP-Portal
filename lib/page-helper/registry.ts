@@ -3750,5 +3750,14 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       firstStep: "Scan the People Risk Radar for anyone who needs attention before it becomes urgent.",
       nextStep: "Tag people with growth signals (ready for more, needs training, at risk) to keep the radar and pipeline current."
     }
+  },
+  {
+    pattern: "/operations",
+    title: "Operations Hub",
+    content: {
+      purpose: "This is the People Strategy operating picture for your role — who needs help, who is responsible, what is overdue, which classes and mentorships need follow-up, and what to do next.",
+      firstStep: "Start at the top: the most urgent items and the people who need support are listed first.",
+      nextStep: "Open anything flagged to see its detail, then create or assign a linked action to move it forward."
+    }
   }
 ];
