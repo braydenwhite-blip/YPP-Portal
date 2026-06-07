@@ -384,3 +384,42 @@ still respects each phase's **Owns** / **Must NOT touch** boundaries.
   new linked-creation cases in `people-strategy-actions.test.ts`.
 - **Checks:** `tsc --noEmit` clean (0 errors), targeted `vitest` green. Flag OFF
   ⇒ no behavior change (no UI shipped in this phase).
+
+### PHASE 2 — Core triangle connections ✅ shipped
+- **Connection loaders** (`lib/people-strategy/connections.ts`):
+  `loadRelatedEntitySummary(type, id)` → `{ label, typeLabel, href }` for the
+  chip + prefill (fails safe to null on a stale/unknown ref), and
+  `getMenteeSupport(userId)` → the active mentorship/mentor for the "who supports
+  this person?" line.
+- **New-action prefill:** `/actions/new?relatedType=CLASS_OFFERING|MENTORSHIP|USER
+  &relatedId=…` resolves the entity server-side, prefills the form, and hides the
+  template gallery (so choosing a template can't drop the link). Invalid/missing
+  params fall back to an unlinked form. INSTRUCTOR_APPLICATION is intentionally
+  not offered as a prefill (panel deferred).
+- **Form:** read-only "Linked to {type}: {label}" chip on
+  `components/people-strategy/action-item-form.tsx`; the link is carried through
+  on create only (edit leaves it unchanged).
+- **Shared UI:** `components/people-strategy/linked-actions-panel.tsx` — a
+  self-contained card listing linked actions (open/overdue counts, status, lead,
+  deadline) with an optional, permission-gated "Create action for this …" CTA.
+- **Panels (all additive + double-flagged `ENABLE_OPERATIONS_HUB` +
+  `ENABLE_ACTION_TRACKER`):**
+  - Admin class detail (`/admin/classes/[id]`): lead-instructor mentor status +
+    linked class actions + "Create action for this class".
+  - Mentee workspace (`/mentorship/mentees/[id]`): GLOBAL Action Tracker items
+    linked to the mentorship/person (de-duped, newest first) — kept distinct from
+    the mentorship's own `MentorshipActionItem` plan — plus teaching classes and
+    instructor readiness.
+  - Instructor class-settings (`/instructor/class-settings?offering=…`): the
+    instructor's own mentor support + the class's linked actions; the create CTA
+    shows only for officer-tier roles (instructors can view but not create
+    tracker actions, per the permission model).
+- **Tests:** `people-strategy-connections.test.ts` (summary + support loaders).
+- **Checks:** `tsc --noEmit` clean (0 errors); full `vitest` suite shows only
+  the 6 pre-existing unrelated failures (verified identical at the base commit
+  87c8734 — `window.matchMedia` jsdom gaps, page-helper registry drift, summer
+  workshop / journey-editor / onboarding). Flag OFF ⇒ all four pages render
+  exactly as before.
+- **Deferred (per plan):** Operations Hub (`/operations`) + nav wiring (Phase 3),
+  tracker grouping/filtering by linked entity (Phase 4), instructor-applicant
+  on-page panel, and department/officer-meeting/leadership-pathway integrations.
