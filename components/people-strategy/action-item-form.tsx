@@ -77,30 +77,8 @@ function asDate(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-const FIELD: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 6,
-};
-
-const LABEL: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 600,
-  color: "var(--text-secondary)",
-  textTransform: "uppercase",
-  letterSpacing: 0.4,
-};
-
-const INPUT: React.CSSProperties = {
-  padding: "8px 10px",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border)",
-  fontSize: 14,
-  background: "var(--surface)",
-};
-
 const REQUIRED_MARK = (
-  <span aria-hidden style={{ color: "var(--error-color)", marginLeft: 2 }}>
+  <span aria-hidden className="ps-required">
     *
   </span>
 );
@@ -165,43 +143,21 @@ function UserPicker({
   }
 
   return (
-    <div style={FIELD}>
-      <span style={LABEL}>
+    <div className="ps-field">
+      <span className="ps-label">
         {label}
         {required && REQUIRED_MARK}
       </span>
 
       {selectedUsers.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 2 }}>
+        <div className="ps-picker-chips">
           {selectedUsers.map((u) => (
-            <span
-              key={u.id}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "4px 10px",
-                borderRadius: "var(--radius-full)",
-                background: "var(--ypp-purple-100)",
-                border: "1px solid var(--ypp-purple-300)",
-                color: "var(--ypp-purple-800)",
-                fontSize: 12,
-              }}
-            >
+            <span key={u.id} className="ps-picker-chip">
               {userLabel(u)}
               <button
                 type="button"
                 onClick={() => toggle(u.id)}
                 aria-label={`Remove ${u.name ?? u.email}`}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  color: "var(--ypp-purple-700)",
-                  cursor: "pointer",
-                  fontSize: 14,
-                  lineHeight: 1,
-                  padding: 0,
-                }}
               >
                 ×
               </button>
@@ -216,63 +172,37 @@ function UserPicker({
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search by name or email…"
         aria-label={`${typeof label === "string" ? label : "User"} search`}
-        style={INPUT}
+        className="ps-input"
       />
 
       {/* A plain scroll container of native checkboxes/radios — no role="listbox"
           here, which would be invalid ARIA wrapping native form controls. */}
       <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 2,
-          padding: 6,
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-sm)",
-          maxHeight: 180,
-          overflowY: "auto",
-          background: "var(--ypp-purple-50)",
-        }}
+        className="ps-picker-list"
         role="group"
         aria-label={`${typeof label === "string" ? label : "User"} options`}
       >
         {available.length === 0 && (
-          <span style={{ fontSize: 13, color: "#64748b", padding: 4 }}>
-            {emptyHint ?? "No users available."}
-          </span>
+          <span className="ps-picker-empty">{emptyHint ?? "No users available."}</span>
         )}
         {available.length > 0 && filtered.length === 0 && (
-          <span style={{ fontSize: 13, color: "#64748b", padding: 4 }}>
-            No matches for “{query}”.
-          </span>
+          <span className="ps-picker-empty">No matches for “{query}”.</span>
         )}
         {filtered.map((u) => {
           const checked = selected.includes(u.id);
           return (
             <label
               key={u.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "6px 8px",
-                borderRadius: "var(--radius-xs)",
-                background: checked ? "var(--ypp-purple-100)" : "transparent",
-                fontSize: 13,
-                cursor: "pointer",
-              }}
+              className={`ps-picker-option${checked ? " is-selected" : ""}`}
             >
               <input
                 type={single ? "radio" : "checkbox"}
                 checked={checked}
                 onChange={() => toggle(u.id)}
-                style={{ margin: 0 }}
               />
               <span>
                 {u.name ?? u.email}
-                {u.name && (
-                  <span style={{ color: "#64748b" }}> · {u.email}</span>
-                )}
+                {u.name && <span style={{ color: "var(--muted)" }}> · {u.email}</span>}
               </span>
             </label>
           );
@@ -478,31 +408,18 @@ export default function ActionItemForm({
 
   return (
     <MotionArea>
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <form onSubmit={handleSubmit} className="ps-form">
       <FeedbackBanner message={error} tone="error" style={{ padding: "8px 12px" }} />
 
       {hasRelatedEntity && (
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 12px",
-            borderRadius: "var(--radius-sm)",
-            border: "1px solid var(--ypp-purple-300)",
-            background: "var(--ypp-purple-100)",
-            color: "var(--ypp-purple-800)",
-            fontSize: 13,
-          }}
-        >
-          <span style={{ fontWeight: 600 }}>Linked to {relatedTypeLabel}:</span>
+        <div className="ps-linked-banner">
+          <span style={{ fontWeight: 700 }}>Linked to {relatedTypeLabel}:</span>
           <span>{relatedLabel ?? "this item"}</span>
         </div>
       )}
 
-      <div style={FIELD}>
-        <label style={LABEL} htmlFor="action-title">
+      <div className="ps-field">
+        <label className="ps-label" htmlFor="action-title">
           Title{REQUIRED_MARK}
         </label>
         <input
@@ -510,13 +427,13 @@ export default function ActionItemForm({
           required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          style={INPUT}
+          className="ps-input"
           placeholder="e.g. Refresh fall curriculum rollout"
         />
       </div>
 
-      <div style={FIELD}>
-        <label style={LABEL} htmlFor="action-description">
+      <div className="ps-field">
+        <label className="ps-label" htmlFor="action-description">
           Description
         </label>
         <textarea
@@ -524,20 +441,20 @@ export default function ActionItemForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          style={{ ...INPUT, fontFamily: "inherit", resize: "vertical" }}
+          className="ps-textarea"
           placeholder="Optional context, scope, and definition of done"
         />
       </div>
 
-      <div style={FIELD}>
-        <label style={LABEL} htmlFor="action-type">
+      <div className="ps-field">
+        <label className="ps-label" htmlFor="action-type">
           Action type
         </label>
         <select
           id="action-type"
           value={actionType}
           onChange={(e) => handleActionTypeChange(e.target.value)}
-          style={INPUT}
+          className="ps-select"
         >
           <option value="">— No type —</option>
           {ACTION_TYPE_VALUES.map((t) => (
@@ -546,47 +463,31 @@ export default function ActionItemForm({
             </option>
           ))}
         </select>
-        {typeGuidance ? (
-          <p
-            style={{
-              margin: "2px 0 0",
-              fontSize: 12,
-              color: "var(--text-secondary)",
-            }}
-          >
-            {typeGuidance}
-          </p>
-        ) : null}
+        {typeGuidance ? <p className="ps-hint">{typeGuidance}</p> : null}
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gap: 12,
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        }}
-      >
-        <div style={FIELD}>
-          <label style={LABEL} htmlFor="action-goal-category">
+      <div className="ps-field-grid">
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-goal-category">
             Goal category
           </label>
           <input
             id="action-goal-category"
             value={goalCategory}
             onChange={(e) => setGoalCategory(e.target.value)}
-            style={INPUT}
+            className="ps-input"
             placeholder="Goal this ladders up to"
           />
         </div>
-        <div style={FIELD}>
-          <label style={LABEL} htmlFor="action-department">
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-department">
             Department
           </label>
           <select
             id="action-department"
             value={departmentId}
             onChange={(e) => setDepartmentId(e.target.value)}
-            style={INPUT}
+            className="ps-select"
           >
             <option value="">— No department —</option>
             {departments.map((d) => (
@@ -598,22 +499,16 @@ export default function ActionItemForm({
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gap: 12,
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        }}
-      >
-        <div style={FIELD}>
-          <label style={LABEL} htmlFor="action-status">
+      <div className="ps-field-grid">
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-status">
             Status
           </label>
           <select
             id="action-status"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            style={INPUT}
+            className="ps-select"
           >
             {ACTION_STATUS_SELECTABLE.map((s) => (
               <option key={s} value={s}>
@@ -622,8 +517,8 @@ export default function ActionItemForm({
             ))}
           </select>
         </div>
-        <div style={FIELD}>
-          <label style={LABEL} htmlFor="action-priority">
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-priority">
             Priority
           </label>
           <select
@@ -633,7 +528,7 @@ export default function ActionItemForm({
               setPriority(e.target.value);
               setPriorityTouched(true);
             }}
-            style={INPUT}
+            className="ps-select"
           >
             {ACTION_PRIORITY_VALUES.map((p) => (
               <option key={p} value={p}>
@@ -642,15 +537,15 @@ export default function ActionItemForm({
             ))}
           </select>
         </div>
-        <div style={FIELD}>
-          <label style={LABEL} htmlFor="action-visibility">
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-visibility">
             Visibility{REQUIRED_MARK}
           </label>
           <select
             id="action-visibility"
             value={visibility}
             onChange={(e) => setVisibility(e.target.value)}
-            style={INPUT}
+            className="ps-select"
           >
             {ACTION_VISIBILITY_VALUES.map((v) => (
               <option key={v} value={v}>
@@ -661,15 +556,9 @@ export default function ActionItemForm({
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gap: 12,
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        }}
-      >
-        <div style={FIELD}>
-          <label style={LABEL} htmlFor="action-deadline">
+      <div className="ps-field-grid">
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-deadline">
             Deadline{REQUIRED_MARK}
           </label>
           <input
@@ -677,7 +566,7 @@ export default function ActionItemForm({
             type="date"
             value={deadline}
             onChange={(e) => setDeadline(e.target.value)}
-            style={INPUT}
+            className="ps-input"
           />
         </div>
       </div>
@@ -708,38 +597,23 @@ export default function ActionItemForm({
         emptyHint="No assignable users found."
       />
 
-      <fieldset
-        style={{
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-sm)",
-          padding: 12,
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-        }}
-      >
-        <legend style={{ ...LABEL, padding: "0 6px" }}>Attachment (optional)</legend>
-        <div
-          style={{
-            display: "grid",
-            gap: 12,
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          }}
-        >
-          <div style={FIELD}>
-            <label style={LABEL} htmlFor="action-file-label">
+      <fieldset className="ps-fieldset">
+        <legend className="ps-label">Attachment (optional)</legend>
+        <div className="ps-field-grid">
+          <div className="ps-field">
+            <label className="ps-label" htmlFor="action-file-label">
               Label
             </label>
             <input
               id="action-file-label"
               value={fileLabel}
               onChange={(e) => setFileLabel(e.target.value)}
-              style={INPUT}
+              className="ps-input"
               placeholder="e.g. Project brief"
             />
           </div>
-          <div style={FIELD}>
-            <label style={LABEL} htmlFor="action-file-url">
+          <div className="ps-field">
+            <label className="ps-label" htmlFor="action-file-url">
               Link (http/https)
             </label>
             <input
@@ -747,7 +621,7 @@ export default function ActionItemForm({
               type="url"
               value={fileUrl}
               onChange={(e) => setFileUrl(e.target.value)}
-              style={INPUT}
+              className="ps-input"
               placeholder="https://…"
             />
           </div>

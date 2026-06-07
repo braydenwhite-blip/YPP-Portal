@@ -17,6 +17,8 @@ import { COMMAND_CENTER_EVENTS } from "@/lib/people-strategy/command-center-even
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { Pill, PriorityPill } from "@/components/people-strategy/pills";
+import { StatCard, type StatTone } from "@/components/people-strategy/stat-card";
+import type { PsIconName } from "@/components/people-strategy/ps-icons";
 import {
   FollowUpGenerator,
   type FollowUpCandidate,
@@ -72,55 +74,36 @@ function TrendChip({
 function PulseStat({
   label,
   value,
-  accent,
+  tone = "default",
+  icon,
   href,
   delta,
   deltaTone = "neutral",
 }: {
   label: string;
   value: number | string;
-  accent?: boolean;
+  tone?: StatTone;
+  icon?: PsIconName;
   href?: string;
   delta?: number;
   deltaTone?: DeltaTone;
 }) {
-  const body = (
-    <div
-      className={`card${href ? " ps-action-card" : ""}`}
-      style={{
-        padding: "14px 16px",
-        flex: "1 1 130px",
-        minWidth: 120,
-        borderLeft: accent ? "3px solid var(--error-color)" : "3px solid transparent",
-        height: "100%",
-      }}
-    >
-      <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>
-        {label}
-      </p>
-      <p style={{ margin: "6px 0 0", fontSize: 26, fontWeight: 700, color: accent ? "var(--error-color)" : "inherit", display: "flex", alignItems: "baseline" }}>
-        {value}
-        {delta != null ? <TrendChip label={label} delta={delta} tone={deltaTone} /> : null}
-      </p>
-    </div>
-  );
-  return href ? (
-    <Link
+  return (
+    <StatCard
+      label={label}
+      value={value}
+      tone={tone}
+      icon={icon}
       href={href}
-      className="cc-focusable"
-      style={{ textDecoration: "none", color: "inherit", flex: "1 1 130px", minWidth: 120 }}
-    >
-      {body}
-    </Link>
-  ) : (
-    body
+      trend={delta != null ? <TrendChip label={label} delta={delta} tone={deltaTone} /> : undefined}
+    />
   );
 }
 
 function SectionHeader({ title, hint }: { title: string; hint?: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-      <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>{title}</h2>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+      <h2 className="ps-section-title">{title}</h2>
       {hint ? <span style={{ fontSize: 12, color: "var(--muted)" }}>{hint}</span> : null}
     </div>
   );
@@ -194,21 +177,22 @@ export default async function CommandCenterPage() {
               : "A quick executive read on the week"
           }
         />
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <PulseStat label="Open" value={data.pulse.openTotal} href="/actions/all" delta={trend?.deltas.openTotal} deltaTone="neutral" />
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <PulseStat label="Open" value={data.pulse.openTotal} icon="layers" tone="accent" href="/actions/all" delta={trend?.deltas.openTotal} deltaTone="neutral" />
           <PulseStat
             label="Overdue"
             value={data.pulse.overdue}
-            accent={data.pulse.overdue > 0}
+            icon="alert"
+            tone={data.pulse.overdue > 0 ? "danger" : "default"}
             href="/actions/all?status=OVERDUE"
             delta={trend?.deltas.overdue}
             deltaTone="goodDown"
           />
-          <PulseStat label="Due this week" value={data.pulse.dueThisWeek} delta={trend?.deltas.dueThisWeek} deltaTone="neutral" />
-          <PulseStat label="Blocked" value={data.pulse.blocked} href="/actions/all?status=BLOCKED" delta={trend?.deltas.blocked} deltaTone="goodDown" />
-          <PulseStat label="Flagged" value={data.pulse.flagged} delta={trend?.deltas.flagged} deltaTone="goodDown" />
-          <PulseStat label="No executor" value={data.pulse.unowned} delta={trend?.deltas.unowned} deltaTone="goodDown" />
-          <PulseStat label="Completed this wk" value={data.pulse.completedThisWeek} delta={trend?.deltas.completedThisWeek} deltaTone="goodUp" />
+          <PulseStat label="Due this week" value={data.pulse.dueThisWeek} icon="calendar" delta={trend?.deltas.dueThisWeek} deltaTone="neutral" />
+          <PulseStat label="Blocked" value={data.pulse.blocked} icon="clock" tone={data.pulse.blocked > 0 ? "warning" : "default"} href="/actions/all?status=BLOCKED" delta={trend?.deltas.blocked} deltaTone="goodDown" />
+          <PulseStat label="Flagged" value={data.pulse.flagged} icon="flag" delta={trend?.deltas.flagged} deltaTone="goodDown" />
+          <PulseStat label="No executor" value={data.pulse.unowned} icon="users" delta={trend?.deltas.unowned} deltaTone="goodDown" />
+          <PulseStat label="Completed this wk" value={data.pulse.completedThisWeek} icon="check" tone="success" delta={trend?.deltas.completedThisWeek} deltaTone="goodUp" />
         </div>
       </section>
 

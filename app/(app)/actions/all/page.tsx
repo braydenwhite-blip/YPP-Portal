@@ -206,25 +206,28 @@ export default async function AllActionsPage({
         >
           {/* Summary strip — reflects the current filters, and each count drills
               into the matching filter where one exists. */}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <StatCard label="Total" value={statusBreakdown.total} />
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <StatCard label="Total" value={statusBreakdown.total} icon="list" tone="accent" />
             <StatCard
               label="Overdue"
               value={statusBreakdown.counts.OVERDUE}
+              icon="alert"
               tone={statusBreakdown.counts.OVERDUE > 0 ? "danger" : "default"}
               href={statFilterHref("status", "OVERDUE")}
             />
             <StatCard
               label="In Progress"
               value={statusBreakdown.counts.IN_PROGRESS}
+              icon="activity"
               href={statFilterHref("status", "IN_PROGRESS")}
             />
             <StatCard
               label="Officers Only"
               value={officersOnlyCount}
+              icon="eye"
               href={statFilterHref("vis", "OFFICERS_ONLY")}
             />
-            <StatCard label="Flagged" value={flaggedCount} />
+            <StatCard label="Flagged" value={flaggedCount} icon="flag" />
           </div>
 
           {/* Analytics: status donut + department mini-bars */}
@@ -271,7 +274,7 @@ export default async function AllActionsPage({
                   gap: 12,
                 }}
               >
-                <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
+                <h2 className="ps-section-title">
                   {group.href ? (
                     <Link href={group.href} style={{ color: "inherit" }}>
                       {group.name}

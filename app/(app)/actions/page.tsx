@@ -48,7 +48,7 @@ const URGENCY_DOT: Record<string, string> = {
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>{title}</h2>
+      <h2 className="ps-section-title">{title}</h2>
       {children}
     </section>
   );
@@ -165,18 +165,20 @@ export default async function MyActionsPage() {
       {officer && <ActionTrackerTabs active="my" showPeople={showPeople} />}
 
       {/* Stat cards */}
-      <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
         <StatCard
           label="Overdue"
           value={summary.overdue}
+          icon="alert"
           tone={summary.overdue > 0 ? "danger" : "default"}
         />
-        <StatCard label="In Progress" value={summary.inProgress} />
-        <StatCard label="Executing" value={summary.executing} />
-        <StatCard label="Needs Your Input" value={summary.needsInput} />
+        <StatCard label="In Progress" value={summary.inProgress} icon="activity" />
+        <StatCard label="Executing" value={summary.executing} icon="bolt" tone="accent" />
+        <StatCard label="Needs Your Input" value={summary.needsInput} icon="inbox" />
         <StatCard
           label="Next Deadline"
           value={summary.nextDeadline ? formatDueDate(summary.nextDeadline) : "—"}
+          icon="calendar"
         />
       </div>
 
@@ -298,10 +300,8 @@ export default async function MyActionsPage() {
           type label. Each row is read-only — class data is owned by the Classes
           system, not the Action Tracker. */}
       {teachingClasses.length > 0 ? (
-        <section style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
-            Your Classes
-          </h2>
+        <section style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 28 }}>
+          <h2 className="ps-section-title">Your Classes</h2>
           <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
             Classes you teach as lead or executing instructor — read-only.
           </p>
@@ -314,10 +314,8 @@ export default async function MyActionsPage() {
       {/* Mentorship action items, surfaced from the Mentorship system so a
           mentor/mentee sees them next to their tracker work (#12). Read-only. */}
       {mentorshipActions.length > 0 ? (
-        <section style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 24 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
-            Mentorship Action Items
-          </h2>
+        <section style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 28 }}>
+          <h2 className="ps-section-title">Mentorship Action Items</h2>
           <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
             Open tasks from your mentorship — managed in the Mentorship area.
           </p>

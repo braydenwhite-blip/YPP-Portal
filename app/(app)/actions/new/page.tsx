@@ -114,7 +114,7 @@ export default async function NewActionInTrackerPage({
           template never drops the related-entity params. */}
       {!template && !relatedSummary && templates.length > 0 ? (
         <section style={{ marginTop: 16 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 8px", color: "var(--ypp-ink)" }}>
+          <h2 className="ps-section-title" style={{ margin: "0 0 10px" }}>
             Start from a template
           </h2>
           <div
@@ -150,7 +150,7 @@ export default async function NewActionInTrackerPage({
         </section>
       ) : null}
 
-      <div className="card" style={{ marginTop: 16, maxWidth: 720 }}>
+      <div className="ps-form-card" style={{ marginTop: 18, maxWidth: 760 }}>
         {template ? (
           <p style={{ margin: "0 0 12px" }}>
             <Link href="/actions/new" className="button outline small">

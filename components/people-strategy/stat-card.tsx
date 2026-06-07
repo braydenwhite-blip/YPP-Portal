@@ -1,78 +1,56 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
+
+import { PsIcon, type PsIconName } from "@/components/people-strategy/ps-icons";
 
 /**
  * Shared metric tile for the Action Tracker overview strips (My Actions, All
- * Actions). One source of truth so the summary stats look identical everywhere
- * and gain polish (tone-driven accent, optional click-through filter) in one
- * place instead of being re-implemented per page.
+ * Actions, Command Center pulse). One source of truth so the summary stats look
+ * identical everywhere: a tone-keyed gradient strip, a tinted icon chip, a big
+ * number, and an optional hint or trend.
  *
- * `tone` colors the left rail + value; `href` turns the tile into a filter
- * link with a hover lift so leadership can jump straight from "4 overdue" to
- * the filtered list.
+ * `tone` drives the color language; `icon` adds a tinted glyph chip; `href`
+ * turns the tile into a click-through filter with a hover lift; `trend` renders
+ * an inline delta next to the value (used by the Command Center pulse).
  */
 
 export type StatTone = "default" | "danger" | "warning" | "success" | "accent";
-
-const TONE_ACCENT: Record<StatTone, string | undefined> = {
-  default: undefined,
-  danger: "var(--error-color)",
-  warning: "var(--warning-color)",
-  success: "var(--success-color)",
-  accent: "var(--ps-accent)",
-};
 
 export function StatCard({
   label,
   value,
   tone = "default",
+  icon,
   hint,
   href,
+  trend,
 }: {
   label: string;
   value: string | number;
   tone?: StatTone;
+  icon?: PsIconName;
   /** Optional sublabel under the value (e.g. "soonest deadline"). */
   hint?: string;
   /** When set, the tile becomes a click-through filter link. */
   href?: string;
+  /** Optional inline delta/trend node rendered next to the value. */
+  trend?: ReactNode;
 }) {
-  const accent = TONE_ACCENT[tone];
-
   const body = (
-    <div
-      className="card ps-stat-card"
-      style={{
-        padding: "14px 16px",
-        height: "100%",
-        borderLeft: accent ? `3px solid ${accent}` : "3px solid transparent",
-      }}
-    >
-      <p
-        style={{
-          margin: 0,
-          fontSize: 12,
-          color: "var(--muted)",
-          textTransform: "uppercase",
-          letterSpacing: 0.4,
-          fontWeight: 600,
-        }}
-      >
-        {label}
-      </p>
-      <p
-        style={{
-          margin: "6px 0 0",
-          fontSize: 24,
-          fontWeight: 700,
-          lineHeight: 1.1,
-          color: accent ?? "inherit",
-        }}
-      >
+    <div className={`ps-stat-card ps-stat-${tone}`}>
+      <div className="ps-stat-head">
+        <span className="ps-stat-label">{label}</span>
+        {icon ? (
+          <span className="ps-stat-icon">
+            <PsIcon name={icon} />
+          </span>
+        ) : null}
+      </div>
+      <div className="ps-stat-value">
         {value}
-      </p>
-      {hint ? (
-        <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--muted)" }}>{hint}</p>
-      ) : null}
+        {trend ?? null}
+      </div>
+      {hint ? <p className="ps-stat-hint">{hint}</p> : null}
     </div>
   );
 
@@ -88,7 +66,5 @@ export function StatCard({
     );
   }
 
-  return (
-    <div style={{ flex: "1 1 150px", minWidth: 140 }}>{body}</div>
-  );
+  return <div style={{ flex: "1 1 150px", minWidth: 140 }}>{body}</div>;
 }

@@ -14961,13 +14961,25 @@ details[open] > .action-detail-section-summary .ad-chevron {
   --ps-ink-soft: #5b6472;      /* secondary text */
   --ps-accent: var(--ypp-purple-600);
   --ps-accent-soft: rgba(107, 33, 200, 0.10);
+
+  /* Richer visual layer: a brand gradient for heroes/active states, a layered
+     elevation scale, and a brand glow for primary surfaces. */
+  --ps-accent-gradient: linear-gradient(135deg, #5a1da8 0%, #6b21c8 52%, #8b3fe8 100%);
+  --ps-accent-glow: 0 10px 26px rgba(107, 33, 200, 0.22);
+  --ps-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
+  --ps-shadow-md: 0 8px 18px rgba(16, 24, 40, 0.08), 0 2px 6px rgba(16, 24, 40, 0.05);
+  --ps-shadow-lg: 0 18px 40px rgba(16, 24, 40, 0.13), 0 6px 14px rgba(16, 24, 40, 0.07);
 }
 
 /* Repaint the content canvas neutral ONLY on People Strategy pages. `main`
    fills the app-shell grid row (min-height:100vh) so there is no lavender
-   gutter below short pages. */
+   gutter below short pages. Two faint brand glows at the top give the page
+   depth and color without tinting the whole canvas. */
 main:has(.ps-page) {
-  background: var(--ps-canvas);
+  background:
+    radial-gradient(1100px 460px at 16% -180px, rgba(139, 63, 232, 0.11), transparent 60%),
+    radial-gradient(900px 420px at 100% -140px, rgba(13, 148, 136, 0.06), transparent 55%),
+    var(--ps-canvas);
 }
 
 .ps-page {
@@ -14979,12 +14991,18 @@ main:has(.ps-page) {
 .ps-page .page-title,
 .ps-command-title {
   font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
-  font-size: 27px;
+  font-size: 30px;
   font-weight: 800;
-  letter-spacing: -0.025em;
-  line-height: 1.12;
-  color: var(--ps-ink);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   margin: 0;
+  /* Deep→bright brand gradient on the headline — high-contrast (starts near
+     black-purple) so it stays legible while reading premium. */
+  background: linear-gradient(118deg, #240a3f 0%, #6b21c8 58%, #8b3fe8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .ps-page .page-subtitle,
@@ -14996,33 +15014,62 @@ main:has(.ps-page) {
   max-width: 64ch;
 }
 
-/* ---- Command bar ---- */
+/* ---- Command bar (hero) ---- */
 .ps-command-bar {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 20px;
   flex-wrap: wrap;
-  padding-bottom: 18px;
-  margin-bottom: 18px;
+  padding-bottom: 20px;
+  margin-bottom: 22px;
   border-bottom: 1px solid var(--ps-border);
+}
+
+/* Gradient accent rule anchored under the headline — the signature flourish
+   that repeats across every tracker hero. */
+.ps-command-bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 76px;
+  height: 2.5px;
+  border-radius: 3px;
+  background: var(--ps-accent-gradient);
 }
 
 .ps-command-headings {
   min-width: 0;
 }
 
+/* Eyebrow now reads as a small status chip with a glowing brand dot. */
 .ps-command-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   font-family: var(--font-nunito), system-ui, sans-serif;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 800;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--ps-accent);
-  margin: 0 0 8px;
+  margin: 0 0 12px;
+  padding: 5px 12px 5px 10px;
+  background: linear-gradient(135deg, var(--ypp-purple-50), #ffffff);
+  border: 1px solid rgba(107, 33, 200, 0.18);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(107, 33, 200, 0.08);
+}
+
+.ps-command-eyebrow::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ps-accent-gradient);
+  box-shadow: 0 0 0 3px rgba(107, 33, 200, 0.14);
 }
 
 .ps-command-meta {
@@ -15113,9 +15160,15 @@ select.ps-filter {
   }
 }
 
-/* Cards keep a firmer-but-soft edge on the neutral canvas. */
+/* Cards keep a firmer-but-soft edge on the neutral canvas, with layered
+   elevation that deepens on hover for tangible depth. */
 .ps-page .card {
   border-color: var(--ps-border);
+  box-shadow: var(--ps-shadow-sm);
+}
+
+.ps-page .card:hover {
+  box-shadow: var(--ps-shadow-md);
 }
 
 /* Eyebrow/badge reads as a quiet label, not a loud chip, on the pro surface. */
@@ -15166,9 +15219,9 @@ select.ps-filter {
 }
 
 .ps-tab[aria-current="page"] {
-  background: var(--ps-accent);
+  background: var(--ps-accent-gradient);
   color: #fff;
-  box-shadow: 0 1px 2px rgba(107, 33, 200, 0.32);
+  box-shadow: 0 2px 8px rgba(107, 33, 200, 0.32);
   cursor: default;
 }
 
@@ -15188,8 +15241,8 @@ select.ps-filter {
 }
 
 .ps-page .ps-action-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.09);
+  transform: translateY(-2px);
+  box-shadow: var(--ps-shadow-lg);
   border-color: var(--ps-border-strong);
 }
 
@@ -15207,33 +15260,410 @@ select.ps-filter {
 }
 
 /* ---- Stat tiles (.ps-stat-card) ----
-   Clickable stat tiles (those wrapped in .ps-stat-link) get the same lift on
-   hover so the overview strip reads as fast navigation, not just decoration. */
-.ps-page .ps-stat-card {
+   Rich metric tiles: a tone-keyed gradient strip on top, a tinted icon chip,
+   and a big number. Clickable tiles (wrapped in .ps-stat-link) lift on hover so
+   the overview strip reads as fast navigation, not just decoration. */
+.ps-stat-link {
+  display: block;
+  height: 100%;
+}
+
+.ps-stat-card {
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  padding: 16px 16px 15px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0)),
+    var(--ps-surface);
+  border: 1px solid var(--ps-border);
+  box-shadow: var(--ps-shadow-sm);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast),
     border-color var(--transition-fast);
 }
 
-.ps-stat-link {
-  display: block;
+.ps-stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--ps-stat-strip, transparent);
+}
+
+.ps-stat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ps-stat-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ps-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  background: var(--ps-stat-soft, var(--gray-100));
+  color: var(--ps-stat-icon-color, var(--gray-500));
+}
+
+.ps-stat-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ps-stat-value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 29px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ps-stat-ink, var(--ps-ink));
+}
+
+.ps-stat-hint {
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Tone variants set the strip, icon-chip, and (for danger) value colors. */
+.ps-stat-default {
+  --ps-stat-soft: var(--ypp-purple-50);
+  --ps-stat-icon-color: var(--ypp-purple-500);
+}
+.ps-stat-accent {
+  --ps-stat-strip: var(--ps-accent-gradient);
+  --ps-stat-soft: var(--ypp-purple-100);
+  --ps-stat-icon-color: var(--ypp-purple-600);
+}
+.ps-stat-danger {
+  --ps-stat-strip: linear-gradient(90deg, #fb7185, #dc2626);
+  --ps-stat-soft: #fee2e2;
+  --ps-stat-icon-color: #dc2626;
+  --ps-stat-ink: #dc2626;
+}
+.ps-stat-warning {
+  --ps-stat-strip: linear-gradient(90deg, #fbbf24, #b45309);
+  --ps-stat-soft: #fef3c7;
+  --ps-stat-icon-color: #b45309;
+}
+.ps-stat-success {
+  --ps-stat-strip: linear-gradient(90deg, #4ade80, #15803d);
+  --ps-stat-soft: #dcfce7;
+  --ps-stat-icon-color: #15803d;
 }
 
 .ps-page .ps-stat-link:hover .ps-stat-card {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.09);
+  transform: translateY(-2px);
+  box-shadow: var(--ps-shadow-lg);
   border-color: var(--ps-border-strong);
 }
 
 .ps-stat-link:focus-visible {
   outline: 2px solid var(--ps-accent);
-  outline-offset: 2px;
-  border-radius: var(--radius-xl);
+  outline-offset: 3px;
+  border-radius: var(--radius-lg);
+}
+
+/* Clickable stat tiles get an affordance hint: a faint arrow that slides in. */
+.ps-stat-link .ps-stat-label::after {
+  content: "↗";
+  margin-left: 5px;
+  opacity: 0;
+  color: var(--ps-accent);
+  transition: opacity var(--transition-fast);
+}
+.ps-page .ps-stat-link:hover .ps-stat-label::after {
+  opacity: 1;
 }
 
 /* Crisper pills on the white surfaces — a hairline border so soft-tinted chips
    keep their shape against the card without shouting. */
 .ps-page .pill {
   border: 1px solid rgba(17, 24, 39, 0.05);
+}
+
+/* ---- Primary buttons get the brand gradient on the pro surface ----
+   Scoped to .ps-page so the rest of the portal is untouched. Outline / ghost /
+   secondary / danger keep their own treatment. */
+.ps-page .button:not(.outline):not(.ghost):not(.secondary):not(.danger) {
+  background: var(--ps-accent-gradient);
+  border: none;
+  box-shadow: 0 2px 8px rgba(107, 33, 200, 0.26);
+}
+.ps-page .button:not(.outline):not(.ghost):not(.secondary):not(.danger):hover {
+  box-shadow: var(--ps-accent-glow);
+  transform: translateY(-1px);
+}
+.ps-page .button:not(.outline):not(.ghost):not(.secondary):not(.danger):active {
+  transform: translateY(0);
+}
+
+/* ---- Premium form controls (.ps-form / .ps-field / .ps-input / .ps-select) ----
+   Replaces the bare native inputs (and OS double-arrow selects) on the New /
+   Edit Action form with rounded, branded controls and a clear focus ring. */
+.ps-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Elevated form shell with a gradient cap — frames the create/edit experience. */
+.ps-form-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--ps-surface);
+  border: 1px solid var(--ps-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--ps-shadow-md);
+  padding: 26px 24px 24px;
+}
+.ps-form-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--ps-accent-gradient);
+}
+
+.ps-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.ps-field-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.ps-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ps-ink-soft);
+}
+
+.ps-required {
+  color: var(--error-color);
+}
+
+.ps-input,
+.ps-select,
+.ps-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ps-ink);
+  background: var(--ps-surface);
+  border: 1px solid var(--ps-border-strong);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.ps-textarea {
+  min-height: 88px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.ps-input::placeholder,
+.ps-textarea::placeholder {
+  color: var(--gray-400);
+}
+
+.ps-input:hover,
+.ps-select:hover,
+.ps-textarea:hover {
+  border-color: var(--gray-400);
+}
+
+.ps-input:focus,
+.ps-select:focus,
+.ps-textarea:focus {
+  border-color: var(--ps-accent);
+  box-shadow: 0 0 0 3.5px var(--ps-accent-soft);
+  background: #fff;
+}
+
+/* Custom chevron so selects don't show the OS double-arrow. */
+select.ps-select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b21c8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.6' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  background-size: 18px;
+}
+
+.ps-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ps-ink-soft);
+}
+
+.ps-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px dashed var(--ps-border-strong);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(245, 246, 248, 0.55), transparent);
+}
+
+.ps-fieldset > legend {
+  padding: 0 8px;
+}
+
+/* Read-only "linked to …" banner shown on prefilled actions. */
+.ps-linked-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(107, 33, 200, 0.22);
+  background: linear-gradient(135deg, var(--ypp-purple-50), #fff);
+  color: var(--ypp-purple-800);
+  font-size: 13px;
+}
+
+/* ---- Searchable user picker ---- */
+.ps-picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ps-picker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px 5px 12px;
+  border-radius: 999px;
+  background: var(--ps-accent-gradient);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(107, 33, 200, 0.25);
+}
+
+.ps-picker-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.ps-picker-chip button:hover {
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.ps-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 196px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--ps-border-strong);
+  border-radius: 10px;
+  background: var(--ps-surface);
+}
+
+.ps-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.ps-picker-option:hover {
+  background: var(--ps-accent-soft);
+}
+
+.ps-picker-option.is-selected {
+  background: var(--ps-accent-soft);
+  font-weight: 600;
+}
+
+.ps-picker-option input {
+  margin: 0;
+  accent-color: var(--ps-accent);
+}
+
+.ps-picker-empty {
+  padding: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---- Section heading with a gradient tick (.ps-section-title) ----
+   A small brand bar before a section label — used to lift the plain h2s that
+   group lists and panels across the tracker. */
+.ps-section-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ps-ink);
+}
+
+.ps-section-title::before {
+  content: "";
+  width: 4px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--ps-accent-gradient);
+  flex-shrink: 0;
 }
 
 /* ============================================================
