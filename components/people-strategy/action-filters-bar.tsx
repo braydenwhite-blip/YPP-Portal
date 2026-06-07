@@ -16,6 +16,10 @@ import {
   RELATED_ENTITY_TYPE_VALUES,
   relatedEntityTypeLabel,
 } from "@/lib/people-strategy/constants";
+import {
+  ACTION_TYPE_LABELS,
+  ACTION_TYPE_VALUES,
+} from "@/lib/people-strategy/action-types";
 
 type DepartmentOption = { id: string; name: string };
 
@@ -113,6 +117,20 @@ export function ActionFiltersBar({
         {VISIBILITY_OPTIONS.map((v) => (
           <option key={v} value={v}>
             {ACTION_VISIBILITY_LABELS[v]}
+          </option>
+        ))}
+      </select>
+
+      <select
+        className="ps-filter"
+        aria-label="Filter by action type"
+        value={filters.actionType}
+        onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.actionType, e.target.value)}
+      >
+        <option value="ALL">All types</option>
+        {ACTION_TYPE_VALUES.map((t) => (
+          <option key={t} value={t}>
+            {ACTION_TYPE_LABELS[t]}
           </option>
         ))}
       </select>

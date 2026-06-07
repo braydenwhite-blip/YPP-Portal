@@ -3,6 +3,7 @@ import type { ActionTemplate } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { addDays } from "@/lib/leadership-action-center/dates";
+import { actionTypeFromHint } from "@/lib/people-strategy/action-types";
 
 import type { ActionItemFormInitial } from "@/components/people-strategy/action-item-form";
 
@@ -81,6 +82,10 @@ export function templateToFormInitial(
     title: template.titleTemplate,
     description: templateDescription(template),
     goalCategory: template.goalCategory,
+    // Best-effort: seed the Action Type from the template's category so a
+    // "Camp follow-up" template lands as a PARTNERSHIP/FOLLOW_UP action. Falls
+    // back to untyped when the category doesn't map to a known type.
+    actionType: actionTypeFromHint(template.category),
     status: "NOT_STARTED",
     priority: template.defaultPriority,
     visibility: template.defaultVisibility,

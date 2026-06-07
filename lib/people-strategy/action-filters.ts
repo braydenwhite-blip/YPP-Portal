@@ -11,6 +11,7 @@ import {
   relatedEntityTypeLabel,
   type RelatedEntityType,
 } from "./constants";
+import { ACTION_TYPE_VALUES, type ActionType } from "./action-types";
 import type { ActionItemWithRelations } from "./action-queries";
 import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
 
@@ -29,6 +30,7 @@ export type ActionStatusFilter = ActionItemStatus | "ALL";
 export type ActionPriorityFilter = ActionPriority | "ALL";
 export type ActionVisibilityFilter = ActionItemVisibility | "ALL";
 export type ActionRelatedTypeFilter = RelatedEntityType | "ALL";
+export type ActionTypeFilter = ActionType | "ALL";
 export type ActionDeadlineSort = "deadline_asc" | "deadline_desc" | "priority_desc";
 
 export type ActionFilters = {
@@ -41,6 +43,8 @@ export type ActionFilters = {
   visibility: ActionVisibilityFilter;
   /** Linked-entity type (CLASS_OFFERING / MENTORSHIP / USER / …), or "ALL". */
   relatedType: ActionRelatedTypeFilter;
+  /** Action type (OUTREACH / FOLLOW_UP / PARTNERSHIP / …), or "ALL". */
+  actionType: ActionTypeFilter;
   /** Free-text search over title / description / lead. */
   search: string;
   sort: ActionDeadlineSort;
@@ -52,6 +56,7 @@ export const ACTION_FILTER_DEFAULTS: ActionFilters = {
   priority: "ALL",
   visibility: "ALL",
   relatedType: "ALL",
+  actionType: "ALL",
   search: "",
   sort: "deadline_asc",
 };
@@ -63,6 +68,7 @@ export const ACTION_FILTER_PARAM_KEYS = {
   priority: "priority",
   visibility: "vis",
   relatedType: "rel",
+  actionType: "type",
   search: "q",
   sort: "sort",
 } as const;
@@ -98,6 +104,7 @@ export function parseActionFilters(params: RawParams): ActionFilters {
   const visibility = firstValue(params[ACTION_FILTER_PARAM_KEYS.visibility]);
   const department = firstValue(params[ACTION_FILTER_PARAM_KEYS.department]);
   const relatedType = firstValue(params[ACTION_FILTER_PARAM_KEYS.relatedType]);
+  const actionType = firstValue(params[ACTION_FILTER_PARAM_KEYS.actionType]);
   const search = firstValue(params[ACTION_FILTER_PARAM_KEYS.search]) ?? "";
   const sort = firstValue(params[ACTION_FILTER_PARAM_KEYS.sort]);
 
@@ -117,6 +124,11 @@ export function parseActionFilters(params: RawParams): ActionFilters {
     )
       ? (relatedType as RelatedEntityType)
       : "ALL",
+    actionType: (ACTION_TYPE_VALUES as readonly string[]).includes(
+      actionType as ActionType
+    )
+      ? (actionType as ActionType)
+      : "ALL",
     search: search.trim(),
     sort:
       sort === "deadline_desc"
@@ -135,6 +147,7 @@ export function hasActiveFilters(filters: ActionFilters): boolean {
     filters.priority !== "ALL" ||
     filters.visibility !== "ALL" ||
     filters.relatedType !== "ALL" ||
+    filters.actionType !== "ALL" ||
     filters.search !== ""
   );
 }
@@ -259,6 +272,9 @@ export function applyActionFilters(
     ) {
       return false;
     }
+    if (filters.actionType !== "ALL" && item.actionType !== filters.actionType) {
+      return false;
+    }
     if (!matchesSearch(item, filters.search)) return false;
     return true;
   });
@@ -300,6 +316,9 @@ export function buildActionFilterQuery(filters: ActionFilters): string {
   }
   if (filters.relatedType !== "ALL") {
     params.set(ACTION_FILTER_PARAM_KEYS.relatedType, filters.relatedType);
+  }
+  if (filters.actionType !== "ALL") {
+    params.set(ACTION_FILTER_PARAM_KEYS.actionType, filters.actionType);
   }
   if (filters.search) params.set(ACTION_FILTER_PARAM_KEYS.search, filters.search);
   if (filters.sort !== "deadline_asc") {
