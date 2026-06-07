@@ -62,6 +62,13 @@ export interface NavLink {
    */
   requiresActionTracker?: boolean;
   /**
+   * When true, this link is only shown while the People Strategy Operations Hub
+   * is enabled (env `ENABLE_OPERATIONS_HUB`). Threaded from the server layout —
+   * no per-user feature-gate / admin bypass applies, so the link is fully
+   * hidden for everyone when the flag is off.
+   */
+  requiresOperationsHub?: boolean;
+  /**
    * Temporary deprecation gate for the older Leadership Action Center nav item.
    * The underlying routes stay reachable until migration/backfill is complete.
    */

@@ -19,6 +19,7 @@ export default function AppShell({
   badges,
   enabledFeatureKeys,
   actionTrackerEnabled,
+  operationsHubEnabled,
   legacyActionCenterNavEnabled,
   unlockedSections,
   recentlyUnlockedGroups,
@@ -40,6 +41,7 @@ export default function AppShell({
   enabledFeatureKeys?: string[];
   /** People Strategy Action Tracker enabled (env ENABLE_ACTION_TRACKER). */
   actionTrackerEnabled?: boolean;
+  operationsHubEnabled?: boolean;
   /** Deprecated Leadership Action Center nav entry enabled. */
   legacyActionCenterNavEnabled?: boolean;
   unlockedSections?: string[];
@@ -138,6 +140,7 @@ export default function AppShell({
             badges={badges}
             enabledFeatureKeys={enabledFeatureKeysSet}
             actionTrackerEnabled={actionTrackerEnabled}
+            operationsHubEnabled={operationsHubEnabled}
             legacyActionCenterNavEnabled={legacyActionCenterNavEnabled}
             onNavigate={() => setSidebarOpen(false)}
             unlockedSections={unlockedSectionsSet}

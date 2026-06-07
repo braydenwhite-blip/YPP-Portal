@@ -25,6 +25,7 @@ import { getChairQueueBadgeCount } from "@/lib/hiring-chair-badge";
 import {
   isActionTrackerEnabled,
   isLegacyActionCenterNavEnabled,
+  isOperationsHubEnabled,
 } from "@/lib/feature-flags";
 
 // Force runtime rendering so `next build` doesn't try to prerender pages that
@@ -232,6 +233,7 @@ export default async function AppLayout({
       badges={badges}
       enabledFeatureKeys={enabledFeatureKeysArray}
       actionTrackerEnabled={isActionTrackerEnabled()}
+      operationsHubEnabled={isOperationsHubEnabled()}
       legacyActionCenterNavEnabled={isLegacyActionCenterNavEnabled()}
       unlockedSections={unlockedSectionsArray}
       recentlyUnlockedGroups={recentlyUnlockedGroupsArray}
