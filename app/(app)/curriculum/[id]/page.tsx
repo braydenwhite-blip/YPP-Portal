@@ -432,7 +432,7 @@ export default async function ClassDetailPage({
       )}
 
       {/* Prerequisites */}
-      {offering.template.prerequisites.length > 0 && (
+      {(offering.template.prerequisites?.length ?? 0) > 0 && (
         <div className="card" style={{ marginBottom: 24 }}>
           <h3>Prerequisites</h3>
           <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>

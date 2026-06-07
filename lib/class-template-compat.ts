@@ -267,6 +267,7 @@ export function getClassTemplateSelect(options?: {
     description: true,
     interestArea: true,
     difficultyLevel: true,
+    prerequisites: true,
     weeklyTopics: true,
     learningOutcomes: true,
     durationWeeks: true,
