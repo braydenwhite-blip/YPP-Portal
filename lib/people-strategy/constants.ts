@@ -156,8 +156,9 @@ export const GOAL_RATING_ORDER: GoalRatingColor[] = [
  *
  * `ActionItem.relatedEntityType` / `relatedEntityId` let an action point at the
  * domain object it is about (a class, a mentorship, a person, an instructor
- * application). The values below are the ones that ship as FULLY-WIRED link
- * targets. The originally-proposed 7-value list was narrowed after a codebase
+ * application, a partner/school). The values below are the ones that ship as
+ * FULLY-WIRED link targets. The originally-proposed 7-value list was narrowed
+ * after a codebase
  * audit (see `docs/people-strategy-operating-system-plan.md` §4):
  *
  *   - DEPARTMENT and OFFICER_MEETING already have dedicated FK columns on
@@ -175,6 +176,7 @@ export const RELATED_ENTITY_TYPE_VALUES = [
   "MENTORSHIP",
   "USER",
   "INSTRUCTOR_APPLICATION",
+  "PARTNER",
 ] as const;
 
 export type RelatedEntityType = (typeof RELATED_ENTITY_TYPE_VALUES)[number];
@@ -190,6 +192,7 @@ export const RELATED_ENTITY_TYPE_LABELS: Record<string, string> = {
   MENTORSHIP: "Mentorship",
   USER: "Person",
   INSTRUCTOR_APPLICATION: "Instructor Application",
+  PARTNER: "Partner",
   DEPARTMENT: "Department",
   OFFICER_MEETING: "Officer Meeting",
   LEADERSHIP_PATHWAY: "Leadership Pathway",

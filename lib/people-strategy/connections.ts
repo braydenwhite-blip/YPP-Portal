@@ -125,6 +125,22 @@ export async function loadRelatedEntitySummary(
         "Instructor application";
       return { type, id: entityId, label, typeLabel, href: null };
     }
+    case "PARTNER": {
+      const partner = await prisma.partner.findUnique({
+        where: { id: entityId },
+        select: { id: true, name: true },
+      });
+      if (!partner) return null;
+      return {
+        type,
+        id: entityId,
+        label: partner.name,
+        typeLabel,
+        // Partners have no per-row detail page yet; the admin list is the stable
+        // home for the relationship + its lead.
+        href: "/admin/partners",
+      };
+    }
     default: {
       // Exhaustiveness guard: a new RELATED_ENTITY_TYPE_VALUES entry without a
       // case here is a compile error.
@@ -274,6 +290,23 @@ export async function loadRelatedEntityLabels(
               "Instructor application";
             // No deep link — its detail page is a risky redirect proxy (plan §4).
             put({ type: "INSTRUCTOR_APPLICATION", id: app.id, label, typeLabel, href: null });
+          }
+        })
+    );
+  }
+
+  const partnerIds = idsByType.get("PARTNER");
+  if (partnerIds?.size) {
+    const typeLabel = relatedEntityTypeLabel("PARTNER");
+    tasks.push(
+      prisma.partner
+        .findMany({
+          where: { id: { in: [...partnerIds] } },
+          select: { id: true, name: true },
+        })
+        .then((rows) => {
+          for (const p of rows) {
+            put({ type: "PARTNER", id: p.id, label: p.name, typeLabel, href: "/admin/partners" });
           }
         })
     );

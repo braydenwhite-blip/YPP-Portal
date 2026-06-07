@@ -242,6 +242,11 @@ async function assertRelatedEntityExists(
         })
       );
       break;
+    case "PARTNER":
+      exists = Boolean(
+        await prisma.partner.findUnique({ where: { id }, select: { id: true } })
+      );
+      break;
     default: {
       // Exhaustiveness guard: adding a value to RELATED_ENTITY_TYPE_VALUES
       // without a case here becomes a compile error.
