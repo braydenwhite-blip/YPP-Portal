@@ -8,6 +8,7 @@ import {
   ACTION_PRIORITY_VALUES,
   ACTION_PRIORITY_WEIGHT,
   RELATED_ENTITY_TYPE_VALUES,
+  relatedEntityTypeLabel,
   type RelatedEntityType,
 } from "./constants";
 import type { ActionItemWithRelations } from "./action-queries";
@@ -349,4 +350,25 @@ export function groupActionsByLinkedEntity(
     if (b.key === NONE) return -1;
     return 0;
   });
+}
+
+/** Just enough of a resolved entity to title its group. */
+export type LinkedEntityDisplay = { label: string; typeLabel: string };
+
+/**
+ * Human heading for a {@link groupActionsByLinkedEntity} group, using the linked
+ * entity's OWN name plus its type ("Algebra 101 · Class") when it could be
+ * resolved (via a batch label loader). Falls back to the bare type label for a
+ * dangling link whose target no longer exists, and to "Not linked" for the
+ * unlinked bucket. Pure — the page passes in an already-loaded label map, so
+ * this stays unit-testable with a plain Map.
+ */
+export function linkedGroupHeading(
+  group: LinkedEntityGroup,
+  labels: ReadonlyMap<string, LinkedEntityDisplay>
+): string {
+  if (group.relatedType == null || group.relatedId == null) return "Not linked";
+  const display = labels.get(group.key);
+  if (display) return `${display.label} · ${display.typeLabel}`;
+  return `${relatedEntityTypeLabel(group.relatedType)} · link no longer available`;
 }

@@ -14,10 +14,15 @@ import {
 import {
   applyActionFilters,
   buildActionFilterQuery,
+  groupActionsByLinkedEntity,
   hasActiveFilters,
+  linkedGroupHeading,
   parseActionFilters,
 } from "@/lib/people-strategy/action-filters";
-import { relatedEntityTypeLabel } from "@/lib/people-strategy/constants";
+import {
+  loadRelatedEntityLabels,
+  type RelatedEntitySummary,
+} from "@/lib/people-strategy/connections";
 import {
   summarizeDepartments,
   summarizeStatuses,
@@ -108,32 +113,56 @@ export default async function AllActionsPage({
     ? `/api/admin/actions/export.csv?${exportQuery}`
     : "/api/admin/actions/export.csv";
 
-  // Group-by toggle: department (default) or linked-entity type. Items keep
-  // the deadline sort within each group.
+  // Group-by toggle: department (default) or linked entity. Items keep the
+  // deadline sort within each group.
   const groupParam = Array.isArray(params.group) ? params.group[0] : params.group;
   const groupBy: "department" | "linked" = groupParam === "linked" ? "linked" : "department";
 
-  const groups = new Map<string, ActionItemWithRelations[]>();
-  for (const item of items) {
-    const key =
-      groupBy === "linked"
-        ? item.relatedEntityType
-          ? `${relatedEntityTypeLabel(item.relatedEntityType)} actions`
-          : "Not linked"
-        : item.department?.name ?? "Unassigned";
-    const bucket = groups.get(key);
-    if (bucket) bucket.push(item);
-    else groups.set(key, [item]);
+  type DisplayGroup = {
+    name: string;
+    href: string | null;
+    items: ActionItemWithRelations[];
+  };
+  let displayGroups: DisplayGroup[];
+
+  if (groupBy === "linked") {
+    // Group by each linked entity and title the group with that entity's own
+    // name ("Algebra 101 · Class") via one batched label lookup, not per type.
+    const linkedGroups = groupActionsByLinkedEntity(items);
+    const refs = linkedGroups
+      .filter((g) => g.relatedType && g.relatedId)
+      .map((g) => ({ type: g.relatedType!, id: g.relatedId! }));
+    const labels = await loadRelatedEntityLabels(refs).catch(
+      () => new Map<string, RelatedEntitySummary>()
+    );
+    displayGroups = linkedGroups
+      .map((g) => ({
+        name: linkedGroupHeading(g, labels),
+        href: labels.get(g.key)?.href ?? null,
+        items: g.items,
+      }))
+      .sort((a, b) => {
+        if (a.name === "Not linked") return 1;
+        if (b.name === "Not linked") return -1;
+        return a.name.localeCompare(b.name);
+      });
+  } else {
+    const groups = new Map<string, ActionItemWithRelations[]>();
+    for (const item of items) {
+      const key = item.department?.name ?? "Unassigned";
+      const bucket = groups.get(key);
+      if (bucket) bucket.push(item);
+      else groups.set(key, [item]);
+    }
+    // Keep the "Unassigned" catch-all bucket last.
+    displayGroups = Array.from(groups.entries())
+      .map(([name, groupItems]) => ({ name, href: null, items: groupItems }))
+      .sort((a, b) => {
+        if (a.name === "Unassigned") return 1;
+        if (b.name === "Unassigned") return -1;
+        return a.name.localeCompare(b.name);
+      });
   }
-  // Keep the catch-all bucket ("Not linked" / "Unassigned") last.
-  const catchAll = groupBy === "linked" ? "Not linked" : "Unassigned";
-  const displayGroups = Array.from(groups.entries())
-    .map(([name, groupItems]) => ({ name, items: groupItems }))
-    .sort((a, b) => {
-      if (a.name === catchAll) return 1;
-      if (b.name === catchAll) return -1;
-      return a.name.localeCompare(b.name);
-    });
 
   // Group-toggle links preserve the active filters.
   const groupToggleHref = (g: "department" | "linked") => {
@@ -251,7 +280,13 @@ export default async function AllActionsPage({
                 }}
               >
                 <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
-                  {group.name}
+                  {group.href ? (
+                    <Link href={group.href} style={{ color: "inherit" }}>
+                      {group.name}
+                    </Link>
+                  ) : (
+                    group.name
+                  )}
                 </h2>
                 <span style={{ fontSize: 12, color: "#64748b" }}>
                   {group.items.length} {group.items.length === 1 ? "action" : "actions"}

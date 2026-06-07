@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
 
+import { relatedEntityRefKey } from "./action-queries";
 import {
   isRelatedEntityType,
   relatedEntityTypeLabel,
+  type RelatedEntityRef,
   type RelatedEntityType,
 } from "./constants";
 
@@ -130,6 +132,156 @@ export async function loadRelatedEntitySummary(
       return _exhaustive;
     }
   }
+}
+
+/**
+ * Batch variant of {@link loadRelatedEntitySummary}: resolve many polymorphic
+ * refs to their display summaries in ONE query per entity TYPE (so N classes +
+ * M mentorships cost two queries, never N + M). Returns a Map keyed by
+ * {@link relatedEntityRefKey} so callers can title a grouped Action Tracker view
+ * by each linked entity's own name ("Algebra 101 · Class") instead of just its
+ * type. Refs that no longer resolve (a deleted class, a dangling link) are simply
+ * absent from the Map — the caller falls back to the type label — and a query
+ * failure for one type never drops the others (each type settles independently).
+ */
+export async function loadRelatedEntityLabels(
+  refs: RelatedEntityRef[]
+): Promise<Map<string, RelatedEntitySummary>> {
+  const result = new Map<string, RelatedEntitySummary>();
+
+  // Bucket de-duped, trimmed ids by type so each present type costs one query.
+  const idsByType = new Map<RelatedEntityType, Set<string>>();
+  for (const ref of refs) {
+    if (!ref || !isRelatedEntityType(ref.type)) continue;
+    const id = ref.id?.trim();
+    if (!id) continue;
+    let set = idsByType.get(ref.type);
+    if (!set) {
+      set = new Set<string>();
+      idsByType.set(ref.type, set);
+    }
+    set.add(id);
+  }
+  if (idsByType.size === 0) return result;
+
+  const put = (summary: RelatedEntitySummary) => {
+    result.set(relatedEntityRefKey(summary.type, summary.id), summary);
+  };
+
+  const tasks: Array<Promise<unknown>> = [];
+
+  const classIds = idsByType.get("CLASS_OFFERING");
+  if (classIds?.size) {
+    const typeLabel = relatedEntityTypeLabel("CLASS_OFFERING");
+    tasks.push(
+      prisma.classOffering
+        .findMany({
+          where: { id: { in: [...classIds] } },
+          select: { id: true, title: true },
+        })
+        .then((rows) => {
+          for (const c of rows) {
+            put({
+              type: "CLASS_OFFERING",
+              id: c.id,
+              label: c.title,
+              typeLabel,
+              href: `/admin/classes/${c.id}`,
+            });
+          }
+        })
+    );
+  }
+
+  const mentorshipIds = idsByType.get("MENTORSHIP");
+  if (mentorshipIds?.size) {
+    const typeLabel = relatedEntityTypeLabel("MENTORSHIP");
+    tasks.push(
+      prisma.mentorship
+        .findMany({
+          where: { id: { in: [...mentorshipIds] } },
+          select: {
+            id: true,
+            mentor: { select: { name: true, email: true } },
+            mentee: { select: { id: true, name: true, email: true } },
+          },
+        })
+        .then((rows) => {
+          for (const m of rows) {
+            const mentor = m.mentor?.name ?? m.mentor?.email ?? "Mentor";
+            const mentee = m.mentee?.name ?? m.mentee?.email ?? "Mentee";
+            put({
+              type: "MENTORSHIP",
+              id: m.id,
+              label: `${mentor} → ${mentee}`,
+              typeLabel,
+              href: m.mentee?.id ? `/mentorship/mentees/${m.mentee.id}` : null,
+            });
+          }
+        })
+    );
+  }
+
+  const userIds = idsByType.get("USER");
+  if (userIds?.size) {
+    const typeLabel = relatedEntityTypeLabel("USER");
+    tasks.push(
+      prisma.user
+        .findMany({
+          where: { id: { in: [...userIds] } },
+          select: { id: true, name: true, email: true },
+        })
+        .then((rows) => {
+          for (const u of rows) {
+            put({
+              type: "USER",
+              id: u.id,
+              label: u.name ?? u.email ?? "Person",
+              typeLabel,
+              href: `/people/${u.id}`,
+            });
+          }
+        })
+    );
+  }
+
+  const applicationIds = idsByType.get("INSTRUCTOR_APPLICATION");
+  if (applicationIds?.size) {
+    const typeLabel = relatedEntityTypeLabel("INSTRUCTOR_APPLICATION");
+    tasks.push(
+      prisma.instructorApplication
+        .findMany({
+          where: { id: { in: [...applicationIds] } },
+          select: {
+            id: true,
+            legalName: true,
+            preferredFirstName: true,
+            lastName: true,
+            applicant: { select: { name: true, email: true } },
+          },
+        })
+        .then((rows) => {
+          for (const app of rows) {
+            const composed = [app.preferredFirstName, app.lastName]
+              .filter(Boolean)
+              .join(" ")
+              .trim();
+            const label =
+              composed ||
+              app.legalName ||
+              app.applicant?.name ||
+              app.applicant?.email ||
+              "Instructor application";
+            // No deep link — its detail page is a risky redirect proxy (plan §4).
+            put({ type: "INSTRUCTOR_APPLICATION", id: app.id, label, typeLabel, href: null });
+          }
+        })
+    );
+  }
+
+  // One slow/failed type must not blank out the others.
+  await Promise.allSettled(tasks);
+  return result;
 }
 
 /** The active mentor relationship supporting a person, summarised for a panel. */
