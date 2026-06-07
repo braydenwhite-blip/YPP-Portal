@@ -18,6 +18,7 @@ import { PeopleDashboardTable } from "@/components/people-strategy/people-dashbo
 import { EscalationQueue } from "@/components/people-strategy/escalation-queue";
 import { MentorshipHealthSection } from "@/components/people-strategy/mentorship-health-section";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -77,34 +78,25 @@ export default async function PeopleDashboardPage() {
       <ActionTrackerTabs active="people" showPeople />
 
       {/* Header banner */}
-      <div
-        className="topbar"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <p className="badge">Action Tracker · Leadership View</p>
-          <h1 className="page-title" style={{ marginTop: 8 }}>
-            People Dashboard
-          </h1>
-          <p className="page-subtitle">
-            Full access — <strong>Leadership and Board only</strong>. Live succession &amp; people-health
-            view compiled from the Action Tracker, Quarterly Reviews, and Monthly Check-Ins.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ fontSize: 12, color: "#64748b", maxWidth: 240, textAlign: "right" }}>
+      <ActionCommandBar
+        eyebrow="Action Tracker · Leadership View"
+        title="People Dashboard"
+        subtitle={
+          <>
+            Full access — <strong>Leadership and Board only</strong>. Live succession &amp;
+            people-health view compiled from the Action Tracker, Quarterly Reviews, and Monthly
+            Check-Ins.
+          </>
+        }
+        meta={`${rows.length} ${rows.length === 1 ? "member" : "members"} tracked`}
+        actions={
+          <span style={{ fontSize: 12, color: "var(--ps-ink-soft)", maxWidth: 240, textAlign: "right" }}>
             {canRequestFeedback
               ? "Select members below, then Request Monthly Feedback. Responses stay Leadership/Board-confidential."
               : "Set ENABLE_ACTION_TRACKER_EMAILS to request monthly feedback."}
           </span>
-        </div>
-      </div>
+        }
+      />
 
       {showBoardRollupLink && (
         <div
