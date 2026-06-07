@@ -440,6 +440,9 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/operations",
       label: "Operations Hub",
       icon: "🧭",
+      // Secondary surface, not a pinned core link — keep it out of the capped
+      // per-role "core" map (validate-nav enforces those limits).
+      coreEligible: false,
       // Role-aware page (each role sees a tailored operating picture), so the
       // nav entry is offered broadly across People Strategy roles; the page
       // itself filters every panel by permission and feature flag.

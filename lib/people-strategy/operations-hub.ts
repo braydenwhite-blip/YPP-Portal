@@ -105,7 +105,12 @@ export function deriveClassSignals(
   return { withOverdue, withOpen, withNoActions };
 }
 
-export type MentorshipGap = { id: string; mentorName: string; menteeName: string };
+export type MentorshipGap = {
+  id: string;
+  menteeId: string;
+  mentorName: string;
+  menteeName: string;
+};
 
 /**
  * Active mentorships with no linked tracker action — relationships that exist
@@ -119,7 +124,12 @@ export function deriveMentorshipsWithoutActions(
   for (const m of mentorships) {
     const actions = actionsByRef.get(relatedEntityRefKey("MENTORSHIP", m.id)) ?? [];
     if (actions.length === 0) {
-      gaps.push({ id: m.id, mentorName: m.mentorName, menteeName: m.menteeName });
+      gaps.push({
+        id: m.id,
+        menteeId: m.menteeId,
+        mentorName: m.mentorName,
+        menteeName: m.menteeName,
+      });
     }
   }
   return gaps;
