@@ -17246,7 +17246,97 @@ a.psuite-identity-link:hover {
   box-shadow: var(--ps-shadow-sm);
 }
 
+/* ---- Toast (transient action confirmation) ---- */
+.psuite-toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  max-width: min(380px, calc(100vw - 32px));
+  padding: 13px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffffff, #faf7ff);
+  border: 1px solid var(--ps-border);
+  box-shadow: var(--ps-shadow-lg);
+  color: var(--ps-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.psuite-toast::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 14px 0 0 14px;
+  background: var(--psuite-toast-accent, var(--ps-accent-gradient));
+}
+.psuite-toast-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  color: #fff;
+  background: var(--psuite-toast-accent, var(--ps-accent-gradient));
+}
+.psuite-toast-icon svg { width: 17px; height: 17px; }
+.psuite-toast.is-success { --psuite-toast-accent: linear-gradient(135deg, #4ade80, #15803d); }
+.psuite-toast.is-error { --psuite-toast-accent: linear-gradient(135deg, #fb7185, #dc2626); }
+
+/* ============================================================
+   PEOPLE SUITE — MOTION
+   Entrance choreography that clarifies what just loaded, never
+   decorative looping. Entirely gated behind no-preference so the
+   reduced-motion + in-app "reduce" choice get an instant render.
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes psuite-rise {
+    from { opacity: 0; transform: translateY(9px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes psuite-meter-grow {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  @keyframes psuite-toast-in {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Stat tiles and any opted-in list reveal on mount, lightly staggered. */
+  .psuite-stat-strip > *,
+  .psuite-reveal > * {
+    animation: psuite-rise 0.42s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  .psuite-stat-strip > *:nth-child(1), .psuite-reveal > *:nth-child(1) { animation-delay: 0.02s; }
+  .psuite-stat-strip > *:nth-child(2), .psuite-reveal > *:nth-child(2) { animation-delay: 0.06s; }
+  .psuite-stat-strip > *:nth-child(3), .psuite-reveal > *:nth-child(3) { animation-delay: 0.10s; }
+  .psuite-stat-strip > *:nth-child(4), .psuite-reveal > *:nth-child(4) { animation-delay: 0.14s; }
+  .psuite-stat-strip > *:nth-child(5), .psuite-reveal > *:nth-child(5) { animation-delay: 0.18s; }
+  .psuite-stat-strip > *:nth-child(6), .psuite-reveal > *:nth-child(6) { animation-delay: 0.22s; }
+  .psuite-reveal > *:nth-child(7) { animation-delay: 0.26s; }
+  .psuite-reveal > *:nth-child(8) { animation-delay: 0.30s; }
+  .psuite-reveal > *:nth-child(n + 9) { animation-delay: 0.34s; }
+
+  /* Meters glide out from empty on first paint — transform-based so it works
+     regardless of the inline target width. */
+  .psuite-meter-fill {
+    transform-origin: left center;
+    animation: psuite-meter-grow 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+
+  .psuite-toast { animation: psuite-toast-in 0.32s cubic-bezier(0.4, 0, 0.2, 1) both; }
+}
+
 @media (max-width: 720px) {
   .psuite-identity-sub { max-width: 150px; }
   .psuite-class-enroll { gap: 10px; }
+  .psuite-toast { left: 16px; right: 16px; bottom: 16px; max-width: none; }
 }
