@@ -7,6 +7,7 @@ import LogoutButton from "@/components/logout-button";
 import PageHelperFab from "@/components/page-helper-fab";
 import type { PageHelperRole } from "@/lib/page-helper/types";
 import { getUserTitle } from "@/lib/user-title";
+import { ProfileDrawerProvider } from "@/components/people-strategy/profile-drawer";
 
 export default function AppShell({
   children,
@@ -83,6 +84,7 @@ export default function AppShell({
   }, [userName]);
 
   return (
+    <ProfileDrawerProvider>
     <div className="app-shell">
       {/* Mobile menu toggle */}
       <button
@@ -206,5 +208,6 @@ export default function AppShell({
         roles={roles}
       />
     </div>
+    </ProfileDrawerProvider>
   );
 }
