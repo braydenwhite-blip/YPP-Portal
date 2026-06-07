@@ -45,6 +45,12 @@ export function ActionStatusDonut({
 }) {
   const { total, counts } = breakdown;
 
+  // Small gaps between slices for a crisp, modern ring; round the cap when only
+  // one status is present so it reads as a clean arc rather than a full circle.
+  const nonZero = STATUS_ORDER.filter((s) => counts[s] > 0).length;
+  const GAP = nonZero > 1 ? 3 : 0;
+  const cap = nonZero <= 1 ? "round" : "butt";
+
   // Build cumulative arc segments (clockwise from top).
   let offset = 0;
   const segments = STATUS_ORDER.map((status) => {
@@ -53,7 +59,7 @@ export function ActionStatusDonut({
     const segment = {
       status,
       value,
-      length,
+      drawLength: Math.max(length - GAP, 0.0001),
       dashOffset: -offset,
     };
     offset += length;
@@ -62,15 +68,20 @@ export function ActionStatusDonut({
 
   return (
     <div className="card" style={{ flex: "1 1 280px", minWidth: 260 }}>
-      <h2 style={{ margin: 0, fontSize: 16 }}>By Status</h2>
-      <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
+      <h2 className="ps-section-title">By Status</h2>
+      <p style={{ color: "var(--muted)", fontSize: 13, margin: "6px 0 0" }}>
         Reflects the current filters
       </p>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 20, marginTop: 16 }}>
-        <div style={{ position: "relative", width: 96, height: 96 }}>
-          <svg width="96" height="96" viewBox="0 0 80 80">
-            <circle cx="40" cy="40" r={RADIUS} fill="none" stroke="var(--border)" strokeWidth="8" />
+      <div style={{ display: "flex", alignItems: "center", gap: 22, marginTop: 18 }}>
+        <div style={{ position: "relative", width: 108, height: 108, flexShrink: 0 }}>
+          <svg
+            width="108"
+            height="108"
+            viewBox="0 0 80 80"
+            style={{ filter: "drop-shadow(0 3px 6px rgba(16, 24, 40, 0.14))" }}
+          >
+            <circle cx="40" cy="40" r={RADIUS} fill="none" stroke="var(--gray-100)" strokeWidth="9" />
             {total > 0 &&
               segments.map((seg) =>
                 seg.value > 0 ? (
@@ -81,8 +92,9 @@ export function ActionStatusDonut({
                     r={RADIUS}
                     fill="none"
                     stroke={STATUS_COLORS[seg.status]}
-                    strokeWidth="8"
-                    strokeDasharray={`${seg.length} ${CIRCUMFERENCE - seg.length}`}
+                    strokeWidth="9"
+                    strokeLinecap={cap}
+                    strokeDasharray={`${seg.drawLength} ${CIRCUMFERENCE - seg.drawLength}`}
                     strokeDashoffset={seg.dashOffset}
                     transform="rotate(-90 40 40)"
                   />
@@ -98,12 +110,14 @@ export function ActionStatusDonut({
               textAlign: "center",
             }}
           >
-            <span style={{ fontSize: 20, fontWeight: 700 }}>{total}</span>
-            <div style={{ fontSize: 10, color: "var(--muted)" }}>actions</div>
+            <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em" }}>{total}</span>
+            <div style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+              actions
+            </div>
           </div>
         </div>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
           {STATUS_ORDER.map((status) => (
             <div
               key={status}
@@ -113,13 +127,13 @@ export function ActionStatusDonut({
                 style={{
                   width: 10,
                   height: 10,
-                  borderRadius: 3,
+                  borderRadius: "50%",
                   background: STATUS_COLORS[status],
                   flexShrink: 0,
                 }}
               />
-              <span style={{ flex: 1 }}>{ACTION_STATUS_LABELS[status]}</span>
-              <strong>{counts[status]}</strong>
+              <span style={{ flex: 1, color: "var(--ps-ink-soft)" }}>{ACTION_STATUS_LABELS[status]}</span>
+              <strong style={{ fontVariantNumeric: "tabular-nums" }}>{counts[status]}</strong>
             </div>
           ))}
         </div>
@@ -133,8 +147,8 @@ export function DepartmentBars({ bars }: { bars: DepartmentBar[] }) {
 
   return (
     <div className="card" style={{ flex: "1 1 280px", minWidth: 260 }}>
-      <h2 style={{ margin: 0, fontSize: 16 }}>By Department</h2>
-      <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
+      <h2 className="ps-section-title">By Department</h2>
+      <p style={{ color: "var(--muted)", fontSize: 13, margin: "6px 0 0" }}>
         Item count · overdue in red
       </p>
 
@@ -143,7 +157,7 @@ export function DepartmentBars({ bars }: { bars: DepartmentBar[] }) {
           No actions match the current filters.
         </p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 18 }}>
           {bars.map((bar) => {
             const widthPct = (bar.total / maxTotal) * 100;
             const overduePct = bar.total > 0 ? (bar.overdue / bar.total) * 100 : 0;
@@ -154,11 +168,11 @@ export function DepartmentBars({ bars }: { bars: DepartmentBar[] }) {
                     display: "flex",
                     justifyContent: "space-between",
                     fontSize: 13,
-                    marginBottom: 4,
+                    marginBottom: 5,
                   }}
                 >
-                  <span>{bar.name}</span>
-                  <span style={{ color: "var(--muted)" }}>
+                  <span style={{ fontWeight: 600, color: "var(--ps-ink)" }}>{bar.name}</span>
+                  <span style={{ color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>
                     {bar.total}
                     {bar.overdue > 0 ? (
                       <span style={{ color: "var(--error-color)", fontWeight: 600 }}>
@@ -170,19 +184,21 @@ export function DepartmentBars({ bars }: { bars: DepartmentBar[] }) {
                 </div>
                 <div
                   style={{
-                    height: 8,
+                    height: 10,
                     borderRadius: 999,
-                    background: "var(--border)",
+                    background: "var(--gray-100)",
                     overflow: "hidden",
                   }}
                 >
                   <div
                     style={{
-                      width: `${widthPct}%`,
+                      width: `${Math.max(widthPct, 4)}%`,
                       height: "100%",
                       borderRadius: 999,
-                      background: "var(--ypp-purple)",
+                      background: "var(--ps-accent-gradient)",
+                      boxShadow: "0 1px 3px rgba(107, 33, 200, 0.3)",
                       position: "relative",
+                      display: "flex",
                     }}
                   >
                     {/* Overdue portion overlaid at the start of the bar. */}
@@ -191,7 +207,7 @@ export function DepartmentBars({ bars }: { bars: DepartmentBar[] }) {
                         style={{
                           width: `${overduePct}%`,
                           height: "100%",
-                          background: "var(--error-color)",
+                          background: "linear-gradient(90deg, #ef4444, #dc2626)",
                           borderRadius: 999,
                         }}
                       />

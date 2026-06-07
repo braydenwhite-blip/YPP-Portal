@@ -42,21 +42,20 @@ export function ActionTrackerTabs({
   return (
     // A <nav>, not a tablist: these links navigate between pages rather than
     // switching panels in place, so tab/tablist ARIA would be dishonest.
-    <nav
-      aria-label="Action tracker views"
-      style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}
-    >
+    // Rendered as a contained segmented control (.ps-tabs) for a premium,
+    // clearly-grouped nav rather than a loose row of buttons.
+    <nav aria-label="Action tracker views" className="ps-tabs">
       {tabs.map((tab) => {
         if (tab.key === active) {
           return (
-            <span key={tab.key} className="button small" aria-current="page">
+            <span key={tab.key} className="ps-tab" aria-current="page">
               {tab.label}
             </span>
           );
         }
         if (tab.href) {
           return (
-            <Link key={tab.key} href={tab.href} className="button outline small">
+            <Link key={tab.key} href={tab.href} className="ps-tab">
               {tab.label}
             </Link>
           );

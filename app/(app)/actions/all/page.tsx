@@ -35,6 +35,7 @@ import {
 import { listSavedActionViews } from "@/lib/people-strategy/saved-views";
 import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import { ActionCard } from "@/components/people-strategy/action-card";
+import { StatCard } from "@/components/people-strategy/stat-card";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { SavedViewsBar } from "@/components/people-strategy/saved-views-bar";
@@ -42,37 +43,6 @@ import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Tracker · All Actions" };
-
-const OVERDUE_ACCENT = "var(--error-color)";
-
-function StatCard({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      className="card"
-      style={{
-        padding: "14px 16px",
-        flex: "1 1 150px",
-        minWidth: 140,
-        borderLeft: accent ? `3px solid ${OVERDUE_ACCENT}` : undefined,
-      }}
-    >
-      <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>
-        {label}
-      </p>
-      <p style={{ margin: "6px 0 0", fontSize: 24, fontWeight: 700, color: accent ? OVERDUE_ACCENT : "inherit" }}>
-        {value}
-      </p>
-    </div>
-  );
-}
 
 export default async function AllActionsPage({
   searchParams,
@@ -173,6 +143,18 @@ export default async function AllActionsPage({
     return qs ? `/actions/all?${qs}` : "/actions/all";
   };
 
+  // Build a drill-in link from a stat tile: keep the current filters and apply
+  // one more (e.g. clicking "Overdue" filters the list to overdue), so the
+  // overview strip doubles as fast navigation.
+  const statFilterHref = (key: string, value: string) => {
+    const p = new URLSearchParams(buildActionFilterQuery(filters));
+    p.set(key, value);
+    p.delete("group");
+    if (groupBy === "linked") p.set("group", "linked");
+    const qs = p.toString();
+    return qs ? `/actions/all?${qs}` : "/actions/all";
+  };
+
   const filtersActive = hasActiveFilters(filters);
   const showPeopleDashboardTab = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
   const lastUpdated = new Intl.DateTimeFormat("en-US", {
@@ -222,17 +204,30 @@ export default async function AllActionsPage({
           summary={`${statusBreakdown.total} in view · ${statusBreakdown.counts.OVERDUE} overdue · ${flaggedCount} flagged`}
           defaultOpen={false}
         >
-          {/* Summary strip — reflects the current filters */}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <StatCard label="Total" value={String(statusBreakdown.total)} />
+          {/* Summary strip — reflects the current filters, and each count drills
+              into the matching filter where one exists. */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <StatCard label="Total" value={statusBreakdown.total} icon="list" tone="accent" />
             <StatCard
               label="Overdue"
-              value={String(statusBreakdown.counts.OVERDUE)}
-              accent={statusBreakdown.counts.OVERDUE > 0}
+              value={statusBreakdown.counts.OVERDUE}
+              icon="alert"
+              tone={statusBreakdown.counts.OVERDUE > 0 ? "danger" : "default"}
+              href={statFilterHref("status", "OVERDUE")}
             />
-            <StatCard label="In Progress" value={String(statusBreakdown.counts.IN_PROGRESS)} />
-            <StatCard label="Officers Only" value={String(officersOnlyCount)} />
-            <StatCard label="Flagged" value={String(flaggedCount)} />
+            <StatCard
+              label="In Progress"
+              value={statusBreakdown.counts.IN_PROGRESS}
+              icon="activity"
+              href={statFilterHref("status", "IN_PROGRESS")}
+            />
+            <StatCard
+              label="Officers Only"
+              value={officersOnlyCount}
+              icon="eye"
+              href={statFilterHref("vis", "OFFICERS_ONLY")}
+            />
+            <StatCard label="Flagged" value={flaggedCount} icon="flag" />
           </div>
 
           {/* Analytics: status donut + department mini-bars */}
@@ -279,7 +274,7 @@ export default async function AllActionsPage({
                   gap: 12,
                 }}
               >
-                <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "var(--ypp-ink)" }}>
+                <h2 className="ps-section-title">
                   {group.href ? (
                     <Link href={group.href} style={{ color: "inherit" }}>
                       {group.name}
