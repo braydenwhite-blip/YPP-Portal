@@ -5,6 +5,7 @@ import {
   applyActionFilters,
   buildActionFilterQuery,
   effectiveStatus,
+  groupActionsByLinkedEntity,
   hasActiveFilters,
   parseActionFilters,
 } from "@/lib/people-strategy/action-filters";
@@ -53,6 +54,7 @@ describe("parseActionFilters", () => {
       status: "ALL",
       priority: "ALL",
       visibility: "ALL",
+      relatedType: "ALL",
       search: "",
       sort: "deadline_asc",
     });
@@ -176,5 +178,50 @@ describe("analytics reflect the filtered set", () => {
     const filtered = applyActionFilters(items, parseActionFilters({ dept: "d2" }), NOW);
     expect(summarizeStatuses(filtered, NOW).total).toBe(1);
     expect(summarizeDepartments(filtered, NOW)).toHaveLength(1);
+  });
+});
+
+describe("relatedType filter", () => {
+  const classA = item({ id: "ca", relatedEntityType: "CLASS_OFFERING", relatedEntityId: "c1" });
+  const mentorshipA = item({ id: "ma", relatedEntityType: "MENTORSHIP", relatedEntityId: "m1" });
+  const unlinked = item({ id: "ua", relatedEntityType: null, relatedEntityId: null });
+  const all = [classA, mentorshipA, unlinked];
+
+  it("narrows to one linked-entity type", () => {
+    const out = applyActionFilters(all, parseActionFilters({ rel: "CLASS_OFFERING" }), NOW);
+    expect(out.map((i) => i.id)).toEqual(["ca"]);
+  });
+
+  it("ignores an unknown rel value (falls back to ALL)", () => {
+    expect(parseActionFilters({ rel: "NONSENSE" }).relatedType).toBe("ALL");
+    expect(applyActionFilters(all, parseActionFilters({ rel: "NONSENSE" }), NOW)).toHaveLength(3);
+  });
+
+  it("round-trips through the query builder", () => {
+    expect(buildActionFilterQuery(parseActionFilters({ rel: "MENTORSHIP" }))).toContain(
+      "rel=MENTORSHIP"
+    );
+  });
+
+  it("counts toward hasActiveFilters", () => {
+    expect(hasActiveFilters(parseActionFilters({ rel: "USER" }))).toBe(true);
+  });
+});
+
+describe("groupActionsByLinkedEntity", () => {
+  it("groups by ref and keeps unlinked actions last", () => {
+    const c1a = item({ id: "c1a", relatedEntityType: "CLASS_OFFERING", relatedEntityId: "c1" });
+    const c1b = item({ id: "c1b", relatedEntityType: "CLASS_OFFERING", relatedEntityId: "c1" });
+    const m1 = item({ id: "m1a", relatedEntityType: "MENTORSHIP", relatedEntityId: "m1" });
+    const none = item({ id: "none", relatedEntityType: null, relatedEntityId: null });
+
+    const groups = groupActionsByLinkedEntity([c1a, none, m1, c1b]);
+    const byKey = Object.fromEntries(groups.map((g) => [g.key, g.items.map((i) => i.id)]));
+
+    expect(byKey["CLASS_OFFERING:c1"]).toEqual(["c1a", "c1b"]);
+    expect(byKey["MENTORSHIP:m1"]).toEqual(["m1a"]);
+    expect(byKey["none"]).toEqual(["none"]);
+    // Unlinked group sorts last.
+    expect(groups[groups.length - 1].key).toBe("none");
   });
 });

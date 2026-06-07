@@ -4,7 +4,12 @@ import type {
   ActionPriority,
 } from "@prisma/client";
 
-import { ACTION_PRIORITY_VALUES, ACTION_PRIORITY_WEIGHT } from "./constants";
+import {
+  ACTION_PRIORITY_VALUES,
+  ACTION_PRIORITY_WEIGHT,
+  RELATED_ENTITY_TYPE_VALUES,
+  type RelatedEntityType,
+} from "./constants";
 import type { ActionItemWithRelations } from "./action-queries";
 import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
 
@@ -22,6 +27,7 @@ import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
 export type ActionStatusFilter = ActionItemStatus | "ALL";
 export type ActionPriorityFilter = ActionPriority | "ALL";
 export type ActionVisibilityFilter = ActionItemVisibility | "ALL";
+export type ActionRelatedTypeFilter = RelatedEntityType | "ALL";
 export type ActionDeadlineSort = "deadline_asc" | "deadline_desc" | "priority_desc";
 
 export type ActionFilters = {
@@ -32,6 +38,8 @@ export type ActionFilters = {
   /** Priority, or "ALL". */
   priority: ActionPriorityFilter;
   visibility: ActionVisibilityFilter;
+  /** Linked-entity type (CLASS_OFFERING / MENTORSHIP / USER / …), or "ALL". */
+  relatedType: ActionRelatedTypeFilter;
   /** Free-text search over title / description / lead. */
   search: string;
   sort: ActionDeadlineSort;
@@ -42,6 +50,7 @@ export const ACTION_FILTER_DEFAULTS: ActionFilters = {
   status: "ALL",
   priority: "ALL",
   visibility: "ALL",
+  relatedType: "ALL",
   search: "",
   sort: "deadline_asc",
 };
@@ -52,6 +61,7 @@ export const ACTION_FILTER_PARAM_KEYS = {
   status: "status",
   priority: "priority",
   visibility: "vis",
+  relatedType: "rel",
   search: "q",
   sort: "sort",
 } as const;
@@ -86,6 +96,7 @@ export function parseActionFilters(params: RawParams): ActionFilters {
   const priority = firstValue(params[ACTION_FILTER_PARAM_KEYS.priority]);
   const visibility = firstValue(params[ACTION_FILTER_PARAM_KEYS.visibility]);
   const department = firstValue(params[ACTION_FILTER_PARAM_KEYS.department]);
+  const relatedType = firstValue(params[ACTION_FILTER_PARAM_KEYS.relatedType]);
   const search = firstValue(params[ACTION_FILTER_PARAM_KEYS.search]) ?? "";
   const sort = firstValue(params[ACTION_FILTER_PARAM_KEYS.sort]);
 
@@ -99,6 +110,11 @@ export function parseActionFilters(params: RawParams): ActionFilters {
       : "ALL",
     visibility: VISIBILITY_VALUES.includes(visibility as ActionItemVisibility)
       ? (visibility as ActionItemVisibility)
+      : "ALL",
+    relatedType: (RELATED_ENTITY_TYPE_VALUES as readonly string[]).includes(
+      relatedType as RelatedEntityType
+    )
+      ? (relatedType as RelatedEntityType)
       : "ALL",
     search: search.trim(),
     sort:
@@ -117,6 +133,7 @@ export function hasActiveFilters(filters: ActionFilters): boolean {
     filters.status !== "ALL" ||
     filters.priority !== "ALL" ||
     filters.visibility !== "ALL" ||
+    filters.relatedType !== "ALL" ||
     filters.search !== ""
   );
 }
@@ -235,6 +252,12 @@ export function applyActionFilters(
     if (filters.visibility !== "ALL" && item.visibility !== filters.visibility) {
       return false;
     }
+    if (
+      filters.relatedType !== "ALL" &&
+      item.relatedEntityType !== filters.relatedType
+    ) {
+      return false;
+    }
     if (!matchesSearch(item, filters.search)) return false;
     return true;
   });
@@ -274,9 +297,56 @@ export function buildActionFilterQuery(filters: ActionFilters): string {
   if (filters.visibility !== "ALL") {
     params.set(ACTION_FILTER_PARAM_KEYS.visibility, filters.visibility);
   }
+  if (filters.relatedType !== "ALL") {
+    params.set(ACTION_FILTER_PARAM_KEYS.relatedType, filters.relatedType);
+  }
   if (filters.search) params.set(ACTION_FILTER_PARAM_KEYS.search, filters.search);
   if (filters.sort !== "deadline_asc") {
     params.set(ACTION_FILTER_PARAM_KEYS.sort, filters.sort);
   }
   return params.toString();
+}
+
+export type LinkedEntityGroup = {
+  /** `${type}:${id}` for a linked group, or "none" for unlinked actions. */
+  key: string;
+  relatedType: RelatedEntityType | null;
+  relatedId: string | null;
+  items: ActionItemWithRelations[];
+};
+
+/**
+ * Group actions by their linked entity for the Action Tracker "group by linked
+ * entity" view. Actions with no link are collected under a single "unlinked"
+ * group (key "none"), which is always ordered last. Linked groups keep the
+ * order in which they first appear in `items` (so an upstream sort carries
+ * through). Pure — unit-tested alongside the filters.
+ */
+export function groupActionsByLinkedEntity(
+  items: ActionItemWithRelations[]
+): LinkedEntityGroup[] {
+  const NONE = "none";
+  const groups = new Map<string, LinkedEntityGroup>();
+
+  for (const item of items) {
+    const hasLink = Boolean(item.relatedEntityType && item.relatedEntityId);
+    const key = hasLink ? `${item.relatedEntityType}:${item.relatedEntityId}` : NONE;
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        key,
+        relatedType: hasLink ? (item.relatedEntityType as RelatedEntityType) : null,
+        relatedId: hasLink ? item.relatedEntityId : null,
+        items: [],
+      };
+      groups.set(key, group);
+    }
+    group.items.push(item);
+  }
+
+  return Array.from(groups.values()).sort((a, b) => {
+    if (a.key === NONE) return 1;
+    if (b.key === NONE) return -1;
+    return 0;
+  });
 }
