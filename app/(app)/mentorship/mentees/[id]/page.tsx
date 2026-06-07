@@ -24,6 +24,20 @@ import {
   updateMentorshipActionItemStatus,
 } from "@/lib/mentorship-hub-actions";
 import { getCompactRecognitionSnapshot } from "@/lib/my-program-portal";
+import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
+import {
+  getActionsForEntities,
+  type ActionItemWithRelations,
+} from "@/lib/people-strategy/action-queries";
+import { canCreateAction } from "@/lib/people-strategy/action-permissions";
+import type { RelatedEntityRef } from "@/lib/people-strategy/constants";
+import {
+  formatClassDateRange,
+  formatClassSchedule,
+  getMyTeachingClasses,
+} from "@/lib/people-strategy/class-tracker";
+import { getInstructorReadiness } from "@/lib/instructor-readiness";
+import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
 
 const WORKSPACE_GUIDE_ITEMS = [
   {
@@ -124,6 +138,49 @@ export default async function MenteeDetailPage({
     (item) => item.dueAt && item.dueAt.getTime() < Date.now()
   );
 
+  // People Strategy Operating System — cross-team connections for this mentee.
+  // Double-flagged (Operations Hub + Action Tracker, since the loaders are
+  // tracker-gated). Surfaces GLOBAL Action Tracker items linked to this
+  // mentorship/person — kept distinct from the mentorship's own action items
+  // (workspace.actionItems) rendered further down — plus teaching + readiness.
+  const operationsEnabled = isOperationsHubEnabled() && isActionTrackerEnabled();
+  const viewer = {
+    id: session.user.id,
+    roles: session.user.roles ?? [],
+    primaryRole: session.user.primaryRole ?? null,
+    adminSubtypes: session.user.adminSubtypes ?? [],
+  };
+  let linkedTrackerActions: ActionItemWithRelations[] = [];
+  let teachingClasses: Awaited<ReturnType<typeof getMyTeachingClasses>> = [];
+  let readiness: Awaited<ReturnType<typeof getInstructorReadiness>> | null = null;
+  if (operationsEnabled) {
+    const refs: RelatedEntityRef[] = [{ type: "USER", id: workspace.mentee.id }];
+    if (workspace.mentorship) {
+      refs.push({ type: "MENTORSHIP", id: workspace.mentorship.id });
+    }
+    const [actionMap, classes, rdy] = await Promise.all([
+      getActionsForEntities(refs, viewer),
+      getMyTeachingClasses(workspace.mentee.id),
+      getInstructorReadiness(workspace.mentee.id),
+    ]);
+    // Flatten the per-ref map and de-dupe (an action could be linked to both
+    // the mentorship and the person), newest first.
+    const seen = new Set<string>();
+    const flattened: ActionItemWithRelations[] = [];
+    for (const list of actionMap.values()) {
+      for (const action of list) {
+        if (seen.has(action.id)) continue;
+        seen.add(action.id);
+        flattened.push(action);
+      }
+    }
+    flattened.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    linkedTrackerActions = flattened;
+    teachingClasses = classes;
+    readiness = rdy;
+  }
+  const canCreateTrackerAction = canCreateAction(viewer);
+
   return (
     <div>
       <div className="topbar">
@@ -173,6 +230,72 @@ export default async function MenteeDetailPage({
           />
         </LearnMore>
       </div>
+
+      {operationsEnabled && (
+        <div style={{ marginBottom: 16, display: "grid", gap: 16 }}>
+          <LinkedActionsPanel
+            actions={linkedTrackerActions}
+            heading="Action Tracker items (cross-team)"
+            createHref={
+              workspace.mentorship
+                ? `/actions/new?relatedType=MENTORSHIP&relatedId=${workspace.mentorship.id}`
+                : null
+            }
+            createLabel="Create a tracker action for this mentorship"
+            canCreate={canCreateTrackerAction && Boolean(workspace.mentorship)}
+            emptyHint="No Action Tracker items are linked to this mentorship or person yet. The mentorship's own action items appear in the action plan below."
+          />
+
+          {(teachingClasses.length > 0 || (readiness && readiness.featureEnabled)) && (
+            <section className="card">
+              <h2 className="section-title" style={{ margin: "0 0 10px" }}>
+                Teaching &amp; readiness
+              </h2>
+
+              {readiness && readiness.featureEnabled ? (
+                <p style={{ margin: "0 0 10px", fontSize: 13 }}>
+                  {readiness.completedRequiredModules}/{readiness.requiredModulesCount}{" "}
+                  required training modules complete ·{" "}
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      color: readiness.baseReadinessComplete ? "#166534" : "#854d0e",
+                    }}
+                  >
+                    {readiness.baseReadinessComplete ? "Ready to teach" : "Still in training"}
+                  </span>
+                </p>
+              ) : null}
+
+              {teachingClasses.length > 0 ? (
+                <ul
+                  style={{
+                    margin: 0,
+                    padding: 0,
+                    listStyle: "none",
+                    display: "grid",
+                    gap: 8,
+                  }}
+                >
+                  {teachingClasses.map((cls) => (
+                    <li key={cls.id} style={{ fontSize: 13 }}>
+                      <strong>{cls.title}</strong>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {formatClassDateRange(cls)} · {formatClassSchedule(cls)} ·{" "}
+                        {cls.status.replace(/_/g, " ").toLowerCase()}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+                  This person is not the instructor on any active classes right now.
+                </p>
+              )}
+            </section>
+          )}
+        </div>
+      )}
 
       {workspace.mentorship && (
         <>
