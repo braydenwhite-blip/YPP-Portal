@@ -8,7 +8,12 @@ import {
   isActionOverdue,
 } from "@/lib/people-strategy/my-actions-selectors";
 import { getUserTitle } from "@/lib/user-title";
-import { Pill, PriorityPill, StatusPill } from "@/components/people-strategy/pills";
+import {
+  ActionTypePill,
+  Pill,
+  PriorityPill,
+  StatusPill,
+} from "@/components/people-strategy/pills";
 
 /**
  * Shared Action Tracker list card (All Actions + My Actions).
@@ -102,6 +107,7 @@ export function ActionCard({
       >
         <StatusPill status={item.status} />
         <PriorityPill priority={item.priority} hideLow />
+        <ActionTypePill actionType={item.actionType} />
         {item.department ? (
           <span style={{ fontSize: 12, color: "var(--muted)" }}>
             {item.department.name}

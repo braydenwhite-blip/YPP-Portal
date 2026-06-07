@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
+import { addDays } from "@/lib/leadership-action-center/dates";
 import {
+  bucketByUrgency,
   effectiveDeadline,
   isActionOverdue,
   latestInputRequest,
@@ -153,5 +155,42 @@ describe("my-actions selectors", () => {
     expect(selectNeedsInput([onboarding, succession, marketing], "anthea").map((i) => i.id)).toEqual([
       "onboarding",
     ]);
+  });
+});
+
+describe("bucketByUrgency", () => {
+  // Deadlines are derived from NOW via addDays so the day-bucket maths is
+  // timezone-independent (both sides go through the same startOfDay).
+  it("groups open actions into overdue / today / this week / later", () => {
+    const items = [
+      item({ id: "od", deadlineStart: addDays(NOW, -10), deadlineEnd: null }),
+      item({ id: "today", deadlineStart: NOW, deadlineEnd: null }),
+      item({ id: "soon", deadlineStart: addDays(NOW, 3), deadlineEnd: null }),
+      item({ id: "far", deadlineStart: addDays(NOW, 30), deadlineEnd: null }),
+    ];
+    const b = bucketByUrgency(items, NOW);
+    expect(b.overdue.map((i) => i.id)).toEqual(["od"]);
+    expect(b.today.map((i) => i.id)).toEqual(["today"]);
+    expect(b.thisWeek.map((i) => i.id)).toEqual(["soon"]);
+    expect(b.later.map((i) => i.id)).toEqual(["far"]);
+  });
+
+  it("excludes settled (complete / dropped) actions", () => {
+    const items = [
+      item({ id: "done", status: "COMPLETE", deadlineStart: addDays(NOW, -2), deadlineEnd: null }),
+      item({ id: "dropped", status: "DROPPED", deadlineStart: addDays(NOW, -2), deadlineEnd: null }),
+      item({ id: "open", status: "IN_PROGRESS", deadlineStart: addDays(NOW, 2), deadlineEnd: null }),
+    ];
+    const b = bucketByUrgency(items, NOW);
+    const all = [...b.overdue, ...b.today, ...b.thisWeek, ...b.later].map((i) => i.id);
+    expect(all).toEqual(["open"]);
+  });
+
+  it("sorts within a bucket by soonest deadline", () => {
+    const items = [
+      item({ id: "b", deadlineStart: addDays(NOW, 5), deadlineEnd: null }),
+      item({ id: "a", deadlineStart: addDays(NOW, 2), deadlineEnd: null }),
+    ];
+    expect(bucketByUrgency(items, NOW).thisWeek.map((i) => i.id)).toEqual(["a", "b"]);
   });
 });

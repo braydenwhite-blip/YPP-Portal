@@ -12274,6 +12274,13 @@ model ActionItem {
   /// v1, mirroring the loosely-typed category fields elsewhere in the schema).
   goalCategory String?
 
+  /// Controlled-vocabulary KIND of work this action represents (outreach,
+  /// follow-up, instructor onboarding, partnership, …). String-typed (no
+  /// Postgres enum) to mirror `goalCategory` / `relatedEntityType` and keep the
+  /// vocabulary editable without a migration; validated in application code
+  /// (lib/people-strategy/action-types.ts). Null = untyped (renders no badge).
+  actionType String?
+
   /// Functional department this item belongs to. Optional — an item can be
   /// created before it has been triaged into a department.
   departmentId String?
@@ -12343,6 +12350,7 @@ model ActionItem {
   @@index([status])
   @@index([status, deadlineStart])
   @@index([priority])
+  @@index([actionType])
   @@index([completedAt])
   @@index([departmentId, status])
   @@index([visibility])

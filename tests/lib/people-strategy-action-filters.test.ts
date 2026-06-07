@@ -56,6 +56,7 @@ describe("parseActionFilters", () => {
       priority: "ALL",
       visibility: "ALL",
       relatedType: "ALL",
+      actionType: "ALL",
       search: "",
       sort: "deadline_asc",
     });
@@ -78,6 +79,29 @@ describe("parseActionFilters", () => {
 
   it("takes the first value of array params", () => {
     expect(parseActionFilters({ status: ["COMPLETE", "OVERDUE"] }).status).toBe("COMPLETE");
+  });
+});
+
+describe("action type filter", () => {
+  it("parses a known type and ignores junk", () => {
+    expect(parseActionFilters({ type: "PARTNERSHIP" }).actionType).toBe(
+      "PARTNERSHIP"
+    );
+    expect(parseActionFilters({ type: "NONSENSE" }).actionType).toBe("ALL");
+  });
+
+  it("narrows to matching items and round-trips through the query string", () => {
+    const items = [
+      item({ id: "a", actionType: "PARTNERSHIP" }),
+      item({ id: "b", actionType: "OUTREACH" }),
+      item({ id: "c", actionType: null }),
+    ];
+    const filters = parseActionFilters({ type: "PARTNERSHIP" });
+    const result = applyActionFilters(items, filters, NOW);
+    expect(result.map((i) => i.id)).toEqual(["a"]);
+
+    expect(hasActiveFilters(filters)).toBe(true);
+    expect(buildActionFilterQuery(filters)).toContain("type=PARTNERSHIP");
   });
 });
 

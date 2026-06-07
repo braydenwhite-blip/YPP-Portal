@@ -6,6 +6,7 @@ vi.mock("@/lib/prisma", () => ({
     mentorship: { findUnique: vi.fn(), findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
     instructorApplication: { findUnique: vi.fn() },
+    partner: { findUnique: vi.fn() },
   },
 }));
 
@@ -19,6 +20,7 @@ const classFind = prisma.classOffering.findUnique as unknown as ReturnType<typeo
 const mentorshipFind = prisma.mentorship.findUnique as unknown as ReturnType<typeof vi.fn>;
 const mentorshipFirst = prisma.mentorship.findFirst as unknown as ReturnType<typeof vi.fn>;
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
+const partnerFind = prisma.partner.findUnique as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -82,6 +84,22 @@ describe("loadRelatedEntitySummary", () => {
       typeLabel: "Person",
       href: "/people/u1",
     });
+  });
+
+  it("summarises a partner with the admin partners href", async () => {
+    partnerFind.mockResolvedValue({ id: "p1", name: "Beth El" });
+    expect(await loadRelatedEntitySummary("PARTNER", "  p1  ")).toEqual({
+      type: "PARTNER",
+      id: "p1",
+      label: "Beth El",
+      typeLabel: "Partner",
+      href: "/admin/partners",
+    });
+  });
+
+  it("returns null (fails safe) for a partner that no longer exists", async () => {
+    partnerFind.mockResolvedValue(null);
+    expect(await loadRelatedEntitySummary("PARTNER", "gone")).toBeNull();
   });
 });
 

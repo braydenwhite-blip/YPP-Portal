@@ -290,6 +290,38 @@ export async function getActionsForEntity(
 }
 
 /**
+ * Count OPEN (not COMPLETE / DROPPED) actions linked to each of the given
+ * related entities of one type, in a single grouped query — so a list page can
+ * show an "N open actions" hint per row without an N+1. Counts only (no
+ * visibility filtering), so callers must only surface it where a raw count is
+ * non-sensitive (e.g. the admin Partners page). Returns [] / empty when the
+ * tracker flag is off.
+ */
+export async function countOpenActionsByRelatedEntity(
+  type: RelatedEntityType,
+  ids: string[]
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (!isActionTrackerEnabled()) return result;
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  if (uniqueIds.length === 0) return result;
+
+  const groups = await prisma.actionItem.groupBy({
+    by: ["relatedEntityId"],
+    where: {
+      relatedEntityType: type,
+      relatedEntityId: { in: uniqueIds },
+      status: { notIn: ["COMPLETE", "DROPPED"] },
+    },
+    _count: { _all: true },
+  });
+  for (const group of groups) {
+    if (group.relatedEntityId) result.set(group.relatedEntityId, group._count._all);
+  }
+  return result;
+}
+
+/**
  * Batch variant of {@link getActionsForEntity}: loads actions for many related
  * entities in ONE query and groups them by ref, so a hub listing N classes or
  * mentorships never fans out into N queries (avoids N+1). Every list is already

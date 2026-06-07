@@ -9,6 +9,7 @@ import {
   ACTION_PRIORITY_LABELS,
   ACTION_STATUS_LABELS,
 } from "@/lib/people-strategy/constants";
+import { actionTypeLabel } from "@/lib/people-strategy/action-types";
 
 /**
  * Shared pill primitives for the People Strategy / Action Tracker surfaces.
@@ -78,6 +79,16 @@ export function PriorityPill({
 }) {
   if (hideLow && priority === "LOW") return null;
   return <Pill tone={ACTION_PRIORITY_TONE[priority]}>{ACTION_PRIORITY_LABELS[priority]}</Pill>;
+}
+
+/**
+ * Action Type badge. Quiet by design (neutral tone) so it labels the KIND of
+ * work without competing with the status/priority pills; renders nothing for an
+ * untyped action so the common case stays uncluttered.
+ */
+export function ActionTypePill({ actionType }: { actionType: string | null }) {
+  if (!actionType) return null;
+  return <Pill tone="neutral">{actionTypeLabel(actionType)}</Pill>;
 }
 
 const CLASS_STATUS: Record<ClassOfferingStatus, { tone: PillTone; label: string }> = {

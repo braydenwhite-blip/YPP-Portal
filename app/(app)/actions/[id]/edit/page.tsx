@@ -75,6 +75,7 @@ export default async function EditActionInTrackerPage({
             title: item.title,
             description: item.description,
             goalCategory: item.goalCategory,
+            actionType: item.actionType,
             departmentId: item.departmentId,
             status: item.status,
             priority: item.priority,

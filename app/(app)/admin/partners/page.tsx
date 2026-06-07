@@ -13,6 +13,8 @@ import {
   archivePartner,
 } from "@/lib/partners-actions";
 import { PersonLink } from "@/components/people-strategy/person-link";
+import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { countOpenActionsByRelatedEntity } from "@/lib/people-strategy/action-queries";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Partners · Admin" };
@@ -48,6 +50,16 @@ export default async function AdminPartnersPage() {
     listPartners(),
     listRelationshipLeadOptions(),
   ]);
+
+  // Per-partner count of open linked actions, so a relationship lead can see at
+  // a glance which partners have a live next step and which are going cold.
+  const trackerEnabled = isActionTrackerEnabled();
+  const openActionCounts = trackerEnabled
+    ? await countOpenActionsByRelatedEntity(
+        "PARTNER",
+        partners.map((p) => p.id)
+      )
+    : new Map<string, number>();
 
   return (
     <div className="page-shell" style={{ maxWidth: 980 }}>
@@ -143,6 +155,33 @@ export default async function AdminPartnersPage() {
                       </>
                     ) : null}
                   </p>
+                  {trackerEnabled ? (
+                    <p
+                      style={{
+                        margin: "8px 0 0",
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Link
+                        href={`/actions/new?relatedType=PARTNER&relatedId=${partner.id}`}
+                        className="button outline small"
+                      >
+                        + Create action
+                      </Link>
+                      <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {(openActionCounts.get(partner.id) ?? 0) > 0
+                          ? `${openActionCounts.get(partner.id)} open ${
+                              openActionCounts.get(partner.id) === 1
+                                ? "action"
+                                : "actions"
+                            }`
+                          : "No open actions — add a follow-up so this partner doesn't go cold."}
+                      </span>
+                    </p>
+                  ) : null}
                 </div>
               </div>
 

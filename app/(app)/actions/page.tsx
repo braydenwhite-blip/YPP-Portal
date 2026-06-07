@@ -17,15 +17,17 @@ import { ActionCommandBar } from "@/components/people-strategy/action-command-ba
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ActionCard } from "@/components/people-strategy/action-card";
 import { getUserTitle } from "@/lib/user-title";
+import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import {
+  bucketByUrgency,
   effectiveDeadline,
   isActionOverdue,
   latestInputRequest,
   selectExecuting,
   selectNeedsInput,
-  selectUpcoming,
   sortByDeadline,
   summarizeMyActions,
+  URGENCY_BUCKET_ORDER,
 } from "@/lib/people-strategy/my-actions-selectors";
 
 export const dynamic = "force-dynamic";
@@ -79,6 +81,47 @@ function EmptyNote({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Compact deadline row used inside the "By Deadline" urgency buckets. */
+function DeadlineRow({
+  item,
+  now,
+}: {
+  item: ActionItemWithRelations;
+  now: Date;
+}) {
+  const overdue = isActionOverdue(item, now);
+  return (
+    <Link
+      href={`/actions/${item.id}`}
+      className="card my-actions-deadline-row"
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 10,
+        padding: "10px 14px",
+        textDecoration: "none",
+        color: "inherit",
+        borderLeft: overdue
+          ? `3px solid ${OVERDUE_ACCENT}`
+          : "3px solid transparent",
+      }}
+    >
+      <span style={{ fontSize: 13 }}>{item.title}</span>
+      <span
+        className="my-actions-deadline-date"
+        style={{
+          fontSize: 12,
+          fontWeight: 600,
+          color: overdue ? OVERDUE_ACCENT : "var(--muted)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {formatDueDateLong(effectiveDeadline(item))}
+      </span>
+    </Link>
+  );
+}
+
 export default async function MyActionsPage() {
   // Feature flag is the outer gate: with ENABLE_ACTION_TRACKER off the route
   // does not exist to the app (hides route + any link pointing at it).
@@ -107,7 +150,10 @@ export default async function MyActionsPage() {
 
   const executing = selectExecuting(items, viewer.id);
   const needsInput = selectNeedsInput(items, viewer.id);
-  const upcoming = selectUpcoming(items).slice(0, 6);
+  const urgency = bucketByUrgency(items, now);
+  const hasOpenWork = URGENCY_BUCKET_ORDER.some(
+    ({ key }) => urgency[key].length > 0
+  );
 
   const lastUpdated = new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -150,11 +196,29 @@ export default async function MyActionsPage() {
       </div>
 
       {items.length === 0 ? (
-        <div className="card" style={{ marginTop: 16, padding: 16 }}>
+        <div
+          className="card"
+          style={{
+            marginTop: 16,
+            padding: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
           <p style={{ margin: 0 }}>
             You have no action items yet. When you&apos;re assigned as a lead, executor, or input,
             they&apos;ll appear here.
           </p>
+          {officer ? (
+            <Link
+              href="/actions/new"
+              className="button small"
+              style={{ alignSelf: "flex-start" }}
+            >
+              + Create your first action
+            </Link>
+          ) : null}
         </div>
       ) : (
         <div
@@ -195,40 +259,35 @@ export default async function MyActionsPage() {
               )}
             </Panel>
 
-            <Panel title="Your Upcoming Deadlines">
-              {upcoming.length === 0 ? (
-                <EmptyNote>No open deadlines ahead.</EmptyNote>
+            <Panel title="By Deadline">
+              {!hasOpenWork ? (
+                <EmptyNote>No open deadlines ahead — you&apos;re all clear. 🎉</EmptyNote>
               ) : (
-                upcoming.map((item) => {
-                  const overdue = isActionOverdue(item, now);
+                URGENCY_BUCKET_ORDER.map(({ key, label }) => {
+                  const bucket = urgency[key];
+                  if (bucket.length === 0) return null;
+                  const isOverdue = key === "overdue";
                   return (
-                    <Link
-                      key={item.id}
-                      href={`/actions/${item.id}`}
-                      className="card my-actions-deadline-row"
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        padding: "10px 14px",
-                        textDecoration: "none",
-                        color: "inherit",
-                        borderLeft: overdue ? `3px solid ${OVERDUE_ACCENT}` : "3px solid transparent",
-                      }}
+                    <div
+                      key={key}
+                      style={{ display: "flex", flexDirection: "column", gap: 6 }}
                     >
-                      <span style={{ fontSize: 13 }}>{item.title}</span>
-                      <span
-                        className="my-actions-deadline-date"
+                      <p
                         style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: overdue ? OVERDUE_ACCENT : "var(--muted)",
-                          whiteSpace: "nowrap",
+                          margin: "2px 0 0",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: 0.4,
+                          color: isOverdue ? OVERDUE_ACCENT : "var(--muted)",
                         }}
                       >
-                        {formatDueDateLong(effectiveDeadline(item))}
-                      </span>
-                    </Link>
+                        {label} · {bucket.length}
+                      </p>
+                      {bucket.map((item) => (
+                        <DeadlineRow key={item.id} item={item} now={now} />
+                      ))}
+                    </div>
                   );
                 })
               )}

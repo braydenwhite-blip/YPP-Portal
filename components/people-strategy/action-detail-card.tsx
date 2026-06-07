@@ -16,7 +16,8 @@ import {
   ACTION_STATUS_SELECTABLE,
 } from "@/lib/people-strategy/constants";
 import { cardRevealVariants } from "@/lib/people-strategy/motion";
-import { Pill, PriorityPill } from "@/components/people-strategy/pills";
+import { ActionTypePill, Pill, PriorityPill } from "@/components/people-strategy/pills";
+import { actionTypeLabel } from "@/lib/people-strategy/action-types";
 import { MotionArea, m, FeedbackBanner } from "@/components/people-strategy/motion";
 import { getUserTitle } from "@/lib/user-title";
 import { PersonLink } from "@/components/people-strategy/person-link";
@@ -51,6 +52,7 @@ export type ActionDetailDTO = {
   title: string;
   description: string | null;
   goalCategory: string | null;
+  actionType: string | null;
   departmentName: string;
   departmentSlug: string | null;
   status: ActionItemStatus;
@@ -444,6 +446,7 @@ export default function ActionDetailCard({
         </label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <PriorityPill priority={item.priority} />
+          <ActionTypePill actionType={item.actionType} />
           <Pill tone={due.overdue ? "overdue" : "neutral"}>{due.label}</Pill>
           {item.officerMeetingId && <Pill tone="purple">Officer meeting linked</Pill>}
         </div>
@@ -457,6 +460,10 @@ export default function ActionDetailCard({
             gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
           }}
         >
+          <Meta
+            label="Type"
+            value={item.actionType ? actionTypeLabel(item.actionType) : "Untyped"}
+          />
           <Meta label="Goal Category" value={item.goalCategory ?? "Uncategorized"} />
           <Meta label="Department" value={item.departmentName} />
           <Meta label="Deadline" value={due.label} />

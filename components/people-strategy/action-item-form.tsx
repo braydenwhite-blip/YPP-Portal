@@ -12,6 +12,12 @@ import {
   ACTION_VISIBILITY_VALUES,
   DEFAULT_ACTION_DEADLINE_DAYS,
 } from "@/lib/people-strategy/constants";
+import {
+  ACTION_TYPE_GUIDANCE,
+  ACTION_TYPE_LABELS,
+  ACTION_TYPE_VALUES,
+  isActionType,
+} from "@/lib/people-strategy/action-types";
 import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
 import {
   addActionAssignment,
@@ -42,6 +48,8 @@ export interface ActionItemFormInitial {
   departmentId?: string | null;
   status?: string;
   priority?: string;
+  /** Controlled-vocabulary action type (or null/empty for untyped). */
+  actionType?: string | null;
   visibility?: string;
   deadlineStart?: Date | string | null;
   deadlineEnd?: Date | string | null;
@@ -312,6 +320,10 @@ export default function ActionItemForm({
   const [departmentId, setDepartmentId] = useState(initial?.departmentId ?? "");
   const [status, setStatus] = useState<string>(initial?.status ?? "NOT_STARTED");
   const [priority, setPriority] = useState<string>(initial?.priority ?? "MEDIUM");
+  const [actionType, setActionType] = useState<string>(initial?.actionType ?? "");
+  // Track whether the user has deliberately set priority, so a type's suggested
+  // default only nudges a fresh, untouched action and never overrides a choice.
+  const [priorityTouched, setPriorityTouched] = useState(false);
   const [visibility, setVisibility] = useState<string>(
     initial?.visibility ?? "ALL_LEADERSHIP"
   );
@@ -356,6 +368,19 @@ export default function ActionItemForm({
   const relatedTypeLabel = initial?.relatedEntityTypeLabel ?? "Linked item";
   const relatedLabel = initial?.relatedEntityLabel ?? null;
 
+  // When a type is chosen on a brand-new action, nudge priority to the type's
+  // sensible default — but only until the user sets priority themselves.
+  function handleActionTypeChange(next: string) {
+    setActionType(next);
+    if (!isEdit && !priorityTouched && isActionType(next)) {
+      setPriority(ACTION_TYPE_GUIDANCE[next].suggestedPriority);
+    }
+  }
+
+  const typeGuidance = isActionType(actionType)
+    ? ACTION_TYPE_GUIDANCE[actionType].helper
+    : null;
+
   function validate(): string | null {
     if (!title.trim()) return "Title is required.";
     if (!leadId) return "A Lead is required (exactly one).";
@@ -391,6 +416,9 @@ export default function ActionItemForm({
             title: title.trim(),
             description: description.trim(),
             goalCategory: goalCategory.trim(),
+            // Always send the type on edit: a value sets it, an empty string
+            // clears it (interpreted by parseActionTypeUpdate server-side).
+            actionType,
             departmentId: departmentId || undefined,
             status,
             priority,
@@ -414,6 +442,7 @@ export default function ActionItemForm({
             title: title.trim(),
             description: description.trim() || undefined,
             goalCategory: goalCategory.trim() || undefined,
+            actionType: actionType || undefined,
             departmentId: departmentId || undefined,
             leadId,
             status,
@@ -500,6 +529,36 @@ export default function ActionItemForm({
         />
       </div>
 
+      <div style={FIELD}>
+        <label style={LABEL} htmlFor="action-type">
+          Action type
+        </label>
+        <select
+          id="action-type"
+          value={actionType}
+          onChange={(e) => handleActionTypeChange(e.target.value)}
+          style={INPUT}
+        >
+          <option value="">— No type —</option>
+          {ACTION_TYPE_VALUES.map((t) => (
+            <option key={t} value={t}>
+              {ACTION_TYPE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+        {typeGuidance ? (
+          <p
+            style={{
+              margin: "2px 0 0",
+              fontSize: 12,
+              color: "var(--text-secondary)",
+            }}
+          >
+            {typeGuidance}
+          </p>
+        ) : null}
+      </div>
+
       <div
         style={{
           display: "grid",
@@ -570,7 +629,10 @@ export default function ActionItemForm({
           <select
             id="action-priority"
             value={priority}
-            onChange={(e) => setPriority(e.target.value)}
+            onChange={(e) => {
+              setPriority(e.target.value);
+              setPriorityTouched(true);
+            }}
             style={INPUT}
           >
             {ACTION_PRIORITY_VALUES.map((p) => (

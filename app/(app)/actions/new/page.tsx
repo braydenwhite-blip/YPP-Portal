@@ -29,7 +29,12 @@ export const metadata = { title: "New action · Action Tracker" };
  * for this …" CTA. INSTRUCTOR_APPLICATION is a valid link value but its panel
  * is deferred (plan §4), so it is not offered as a prefill here.
  */
-const PREFILLABLE_RELATED_TYPES = new Set(["CLASS_OFFERING", "MENTORSHIP", "USER"]);
+const PREFILLABLE_RELATED_TYPES = new Set([
+  "CLASS_OFFERING",
+  "MENTORSHIP",
+  "USER",
+  "PARTNER",
+]);
 
 export default async function NewActionInTrackerPage({
   searchParams,

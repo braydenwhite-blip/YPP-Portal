@@ -37,6 +37,7 @@ describe("relatedEntityTypeLabel", () => {
     expect(relatedEntityTypeLabel("INSTRUCTOR_APPLICATION")).toBe(
       "Instructor Application"
     );
+    expect(relatedEntityTypeLabel("PARTNER")).toBe("Partner");
     // Retained-but-not-shipped labels are still available.
     expect(relatedEntityTypeLabel("DEPARTMENT")).toBe("Department");
   });

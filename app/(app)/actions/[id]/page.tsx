@@ -95,6 +95,7 @@ function toDetailDTO(
     title: item.title,
     description: item.description,
     goalCategory: item.goalCategory,
+    actionType: item.actionType,
     departmentName: item.department?.name ?? "Unassigned",
     departmentSlug: item.department?.slug ?? null,
     status: item.status,
