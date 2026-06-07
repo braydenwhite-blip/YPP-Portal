@@ -170,3 +170,76 @@ export async function getMenteeSupport(
     status: mentorship.status,
   };
 }
+
+/**
+ * Batch variant of {@link getMenteeSupport}: for a set of user ids, returns a
+ * Map of userId → their active mentor support (most-recently-started wins), so
+ * the Operations Hub can flag "instructors without a mentor" in ONE query
+ * instead of N. Users with no active mentorship are simply absent from the Map.
+ */
+export async function getMenteeSupportMany(
+  userIds: string[]
+): Promise<Map<string, MenteeSupport>> {
+  const result = new Map<string, MenteeSupport>();
+  const ids = Array.from(new Set(userIds.filter(Boolean)));
+  if (ids.length === 0) return result;
+
+  const mentorships = await prisma.mentorship.findMany({
+    where: { menteeId: { in: ids }, status: "ACTIVE" },
+    orderBy: [{ startDate: "desc" }],
+    select: {
+      id: true,
+      type: true,
+      status: true,
+      menteeId: true,
+      mentor: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  // findMany returns newest-first; keep the first (most recent) per mentee.
+  for (const m of mentorships) {
+    if (result.has(m.menteeId)) continue;
+    result.set(m.menteeId, {
+      mentorshipId: m.id,
+      mentor: m.mentor,
+      type: m.type,
+      status: m.status,
+    });
+  }
+  return result;
+}
+
+/** A compact summary of one active mentorship, for hub gap lists. */
+export type ActiveMentorshipSummary = {
+  id: string;
+  mentorId: string;
+  mentorName: string;
+  menteeId: string;
+  menteeName: string;
+};
+
+/**
+ * All active mentorships as compact summaries, soonest-stale first is not
+ * needed here — the hub joins these against linked tracker actions to find
+ * "active mentorships with no execution plan". Capped for payload sanity.
+ */
+export async function listActiveMentorships(): Promise<ActiveMentorshipSummary[]> {
+  const mentorships = await prisma.mentorship.findMany({
+    where: { status: "ACTIVE" },
+    orderBy: [{ startDate: "desc" }],
+    take: 300,
+    select: {
+      id: true,
+      mentor: { select: { id: true, name: true, email: true } },
+      mentee: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  return mentorships.map((m) => ({
+    id: m.id,
+    mentorId: m.mentor.id,
+    mentorName: m.mentor.name ?? m.mentor.email,
+    menteeId: m.mentee.id,
+    menteeName: m.mentee.name ?? m.mentee.email,
+  }));
+}
