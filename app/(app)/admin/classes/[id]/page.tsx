@@ -565,6 +565,9 @@ export default async function AdminClassDetailPage({
               <li>
                 <Link href="/admin/instructor-readiness">Instructor readiness</Link>
               </li>
+              <li>
+                <Link href="/admin/classes/reports">Class reports</Link>
+              </li>
             </ul>
           </Section>
 

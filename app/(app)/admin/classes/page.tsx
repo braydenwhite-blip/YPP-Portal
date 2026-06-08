@@ -92,6 +92,11 @@ export default async function AdminClassesPage({
         title="Class Operations"
         subtitle="Review proposals, finalize logistics, and oversee rosters across every chapter — one command center for the whole catalog."
         meta={`${operations.length} classes on this page · ${counts.publishedOpen} open for signup`}
+        actions={
+          <Link href="/admin/classes/reports" className="button secondary" style={{ fontSize: 13 }}>
+            View reports
+          </Link>
+        }
       />
 
       <div className="psuite-stat-strip">
