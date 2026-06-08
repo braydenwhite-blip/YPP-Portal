@@ -3,18 +3,19 @@ import { redirect } from "next/navigation";
 import { MentorshipType } from "@prisma/client";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { isMentorship2Enabled } from "@/lib/feature-flags";
 import { getAdminMentorshipCommandCenterData } from "@/lib/admin-mentorship-command-center";
 import {
   getMentorshipGoalReviews,
   getMentorshipMonthlyReviews,
 } from "@/lib/mentorship-kanban-actions";
-import GoalReviewsBoard from "@/app/(app)/admin/mentorship-program/goal-reviews-board";
-import ReviewApprovalsBoard from "@/app/(app)/admin/mentorship-program/review-approvals-board";
-import GoalsPanel from "@/app/(app)/admin/mentorship-program/goals-panel";
-import ChairsPanel from "@/app/(app)/admin/mentorship-program/chairs-panel";
-import MatchingPanel from "@/app/(app)/admin/mentorship-program/matching-panel";
-import MenteeMatchingBoard from "@/app/(app)/admin/mentorship-program/mentee-matching-board";
-import AnalyticsPanel from "@/app/(app)/admin/mentorship-program/analytics-panel";
+import GoalReviewsBoard from "@/app/(app)/admin/mentorship/_panels/goal-reviews-board";
+import ReviewApprovalsBoard from "@/app/(app)/admin/mentorship/_panels/review-approvals-board";
+import GoalsPanel from "@/app/(app)/admin/mentorship/_panels/goals-panel";
+import ChairsPanel from "@/app/(app)/admin/mentorship/_panels/chairs-panel";
+import MatchingPanel from "@/app/(app)/admin/mentorship/_panels/matching-panel";
+import MenteeMatchingBoard from "@/app/(app)/admin/mentorship/_panels/mentee-matching-board";
+import AnalyticsPanel from "@/app/(app)/admin/mentorship/_panels/analytics-panel";
 import GRTemplateListPanel from "@/components/gr/gr-template-list-panel";
 import GRResourceLibraryPanel from "@/components/gr/gr-resource-library-panel";
 import GRAssignmentsPanel from "@/components/gr/gr-assignments-panel";
@@ -331,9 +332,14 @@ export default async function AdminMentorshipPage({
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/admin/mentorship-program" className="button secondary small">
-            Full Command Center →
-          </Link>
+          {isMentorship2Enabled() && (
+            <Link
+              href="/admin/mentorship/applications"
+              className="button secondary small"
+            >
+              Applications →
+            </Link>
+          )}
         </div>
       </div>
 
