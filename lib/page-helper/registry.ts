@@ -3788,6 +3788,24 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/actions/meetings",
+    title: "Weekly Command Center",
+    content: {
+      purpose: "This is the weekly operating dashboard for leadership meetings — what is happening this week, what decisions were made, which follow-ups are open or overdue, and which YPP area is falling behind.",
+      firstStep: "Start with Today and the metric cards, then scan Needs Follow-Up for anything overdue.",
+      nextStep: "Open a meeting to log decisions and follow-ups, and convert a follow-up into a tracked Action Tracker item so it does not slip."
+    }
+  },
+  {
+    pattern: "/actions/meetings/[id]",
+    title: "Meeting Workspace",
+    content: {
+      purpose: "This meeting workspace holds everything about one meeting — agenda, notes, decisions, follow-ups, and the action items it generated.",
+      firstStep: "Work through the agenda, marking items discussed or deferred and logging any decisions made.",
+      nextStep: "Add follow-ups with owners and due dates, then convert the important ones into tracked Action Tracker items."
+    }
+  },
+  {
     pattern: "/operations",
     title: "Operations Hub",
     content: {

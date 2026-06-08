@@ -17283,3 +17283,25 @@ a.psuite-identity-link:hover {
 @media (max-width: 720px) {
   .class-card .button.primary { width: 100%; text-align: center; }
 }
+
+/* ============================================
+   Meetings Tracker / Weekly Command Center — responsive grids
+   The dashboard + detail use inline grid styles for the desktop layout; these
+   className hooks collapse them gracefully on smaller screens (mirrors the
+   approved design's breakpoints).
+   ============================================ */
+@media (max-width: 1180px) {
+  .dash-cols { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) !important; }
+}
+@media (max-width: 1000px) {
+  .metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .detail-cols { grid-template-columns: 1fr !important; }
+  .detail-side { flex-direction: row !important; flex-wrap: wrap; }
+  .detail-side > * { flex: 1 1 240px; }
+}
+@media (max-width: 960px) {
+  .dash-cols { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 620px) {
+  .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
