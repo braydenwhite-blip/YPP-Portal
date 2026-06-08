@@ -14,6 +14,8 @@ import {
   adminReassignInstructor,
 } from "@/lib/admin-class-operations";
 import { getOfferingTimeline } from "@/lib/class-offering-timeline";
+import { computePublishReadiness } from "@/lib/class-publish-readiness";
+import { PublishReadinessChecklist } from "@/components/classes/publish-readiness-checklist";
 import { listPartnerOptions } from "@/lib/partners-queries";
 import { setClassPartner } from "@/lib/partners-actions";
 import { PersonLink } from "@/components/people-strategy/person-link";
@@ -68,6 +70,27 @@ export default async function AdminClassDetailPage({
     approvalStatus === "REQUESTED" ||
     approvalStatus === "UNDER_REVIEW" ||
     approvalStatus === "CHANGES_REQUESTED";
+
+  const readiness = computePublishReadiness({
+    title: detail.title,
+    description: detail.template?.description,
+    instructorId: detail.instructorId,
+    startDate: detail.startDate,
+    endDate: detail.endDate,
+    meetingDays: detail.meetingDays,
+    meetingTime: detail.meetingTime,
+    capacity: detail.capacity,
+    targetAgeGroup: detail.template?.targetAgeGroup,
+    deliveryMode: detail.deliveryMode,
+    locationName: detail.locationName,
+    locationAddress: detail.locationAddress,
+    zoomLink: detail.zoomLink,
+    sessionCount: detail._count.sessions,
+    approvalStatus,
+    grandfatheredTrainingExemption: detail.grandfatheredTrainingExemption,
+    editHref: `/instructor/class-settings?offering=${detail.id}`,
+    reviewHref: `/admin/classes/${detail.id}/review`,
+  });
 
   return (
     <div>
@@ -451,6 +474,11 @@ export default async function AdminClassDetailPage({
         </div>
 
         <aside style={{ display: "grid", gap: 16 }}>
+          {detail.status === "DRAFT" && (
+            <Section title="Publish readiness">
+              <PublishReadinessChecklist readiness={readiness} />
+            </Section>
+          )}
           <Section title="Publishing controls">
             {!detail.isApproved && (
               <p style={{ margin: 0, fontSize: 13, color: "#9f1239" }}>
@@ -458,7 +486,7 @@ export default async function AdminClassDetailPage({
                 publishing.
               </p>
             )}
-            {detail.isApproved && detail.status === "DRAFT" && (
+            {detail.isApproved && detail.status === "DRAFT" && readiness.ready && (
               <form action={adminPublishClassOffering} style={stackedForm}>
                 <input type="hidden" name="offeringId" value={detail.id} />
                 <button type="submit" className="button primary" style={{ fontSize: 13 }}>
@@ -468,6 +496,13 @@ export default async function AdminClassDetailPage({
                   Sets status to PUBLISHED and opens enrollment.
                 </p>
               </form>
+            )}
+            {detail.isApproved && detail.status === "DRAFT" && !readiness.ready && (
+              <p style={{ margin: 0, fontSize: 13, color: "#9f1239" }}>
+                Resolve the {readiness.missing.length} item
+                {readiness.missing.length === 1 ? "" : "s"} in the readiness checklist above before
+                publishing.
+              </p>
             )}
             {(detail.status === "PUBLISHED" || detail.status === "IN_PROGRESS") && (
               <>
