@@ -57,6 +57,13 @@ export default async function AdminClassRosterPage({
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <a
+            href={`/api/admin/classes/${offering.id}/roster/export`}
+            className="button secondary"
+            style={{ fontSize: 13 }}
+          >
+            Export CSV
+          </a>
           <Link href={`/admin/classes/${offering.id}`} className="button" style={{ fontSize: 13 }}>
             ← Class detail
           </Link>
