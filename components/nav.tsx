@@ -71,6 +71,7 @@ export default function Nav({
   badges,
   enabledFeatureKeys,
   actionTrackerEnabled,
+  growthOsEnabled,
   operationsHubEnabled,
   legacyActionCenterNavEnabled,
   onNavigate,
@@ -92,6 +93,8 @@ export default function Nav({
   enabledFeatureKeys?: Set<string>;
   /** People Strategy Action Tracker enabled (env ENABLE_ACTION_TRACKER). */
   actionTrackerEnabled?: boolean;
+  /** Student Operating System / Growth Engine enabled (env ENABLE_GROWTH_OS). */
+  growthOsEnabled?: boolean;
   /** People Strategy Operations Hub enabled (env ENABLE_OPERATIONS_HUB). */
   operationsHubEnabled?: boolean;
   /** Deprecated Leadership Action Center nav entry enabled. */
@@ -122,6 +125,7 @@ export default function Nav({
         pathname,
         enabledFeatureKeys,
         actionTrackerEnabled,
+        growthOsEnabled,
         operationsHubEnabled,
         legacyActionCenterNavEnabled,
         unlockedSections,
@@ -137,6 +141,7 @@ export default function Nav({
       awardTier,
       enabledFeatureKeys,
       actionTrackerEnabled,
+      growthOsEnabled,
       operationsHubEnabled,
       legacyActionCenterNavEnabled,
       pathname,

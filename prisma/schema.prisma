@@ -744,7 +744,7 @@ model Chapter {
   marketingGoals                 MarketingGoal[]
   chapterUpdates                 ChapterUpdate[]
   classTemplates                 ClassTemplate[]
-  regularInstructorAssignments   RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsForChapter")
+  regularInstructorAssignments   RegularInstructorAssignment[]   @relation("RegularInstructorAssignmentsForChapter")
   launchTasks                    LaunchTask[]
   mentorshipTracks               MentorshipTrack[]
   rolloutCampaigns               RolloutCampaign[]
@@ -902,14 +902,14 @@ model User {
   profile                                UserProfile?
 
   // Mentorship 2.0 (Action Tracker 3.0, Phase M1)
-  mentorExpertise                        MentorExpertise[]
-  mentorshipApplicationsSubmitted        MentorshipApplication[]         @relation("MentorshipApplicationsSubmitted")
-  mentorshipApplicationsReviewed         MentorshipApplication[]         @relation("MentorshipApplicationsReviewed")
+  mentorExpertise                 MentorExpertise[]
+  mentorshipApplicationsSubmitted MentorshipApplication[] @relation("MentorshipApplicationsSubmitted")
+  mentorshipApplicationsReviewed  MentorshipApplication[] @relation("MentorshipApplicationsReviewed")
 
   // Mentorship 2.0 (Action Tracker 3.0, Phase M2) — match recommendations
-  matchRecommendationsAsMentee           MentorshipMatchRecommendation[] @relation("MatchRecommendationMentees")
-  matchRecommendationsAsMentor           MentorshipMatchRecommendation[] @relation("MatchRecommendationMentors")
-  matchRecommendationsDecided            MentorshipMatchRecommendation[] @relation("MatchRecommendationDeciders")
+  matchRecommendationsAsMentee MentorshipMatchRecommendation[] @relation("MatchRecommendationMentees")
+  matchRecommendationsAsMentor MentorshipMatchRecommendation[] @relation("MatchRecommendationMentors")
+  matchRecommendationsDecided  MentorshipMatchRecommendation[] @relation("MatchRecommendationDeciders")
 
   // Video, Calendar, Parent, Certificate, Analytics relations
   videoProgress                   VideoProgress[]
@@ -969,7 +969,7 @@ model User {
   lessonPlans LessonPlan[]
 
   // Onboarding
-  onboarding OnboardingProgress?
+  onboarding        OnboardingProgress?
   instructorJourney InstructorJourney?
 
   // XP & Leveling
@@ -1088,25 +1088,25 @@ model User {
   bookmarks           Bookmark[]               @relation("Bookmarks")
 
   // Phase 9: Class Management & Scheduling Relations
-  classTemplatesCreated    ClassTemplate[]          @relation("ClassTemplatesCreated")
-  classTemplatesReviewed   ClassTemplate[]          @relation("ClassTemplatesReviewed")
-  classOfferingsInstructed ClassOffering[]          @relation("ClassOfferingsInstructed")
-  regularInstructorAssignments         RegularInstructorAssignment[] @relation("RegularInstructorAssignments")
-  regularInstructorAssignmentsCreated  RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsCreated")
-  regularInstructorAssignmentsUpdated  RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsUpdated")
-  classEnrollments         ClassEnrollment[]        @relation("ClassEnrollments")
-  classAttendanceRecords   ClassAttendanceRecord[]  @relation("ClassAttendanceRecords")
-  classRemindersReceived   ClassReminder[]          @relation("ClassRemindersReceived")
-  classAnnouncements       ClassAnnouncement[]      @relation("ClassAnnouncementsAuthored")
-  ownedChapterPathways     ChapterPathway[]         @relation("ChapterPathwayOwner")
-  pathwayFallbackRequests  PathwayFallbackRequest[] @relation("PathwayFallbackRequestStudent")
-  pathwayFallbackReviews   PathwayFallbackRequest[] @relation("PathwayFallbackReviewedBy")
-  launchTasksCreated       LaunchTask[]             @relation("LaunchTasksCreatedBy")
-  launchTasksUpdated       LaunchTask[]             @relation("LaunchTasksUpdatedBy")
-  rolloutCampaignsCreated  RolloutCampaign[]        @relation("RolloutCampaignsCreatedBy")
-  featureGateRulesTargeted FeatureGateRule[]        @relation("FeatureGateRuleTargetUser")
-  featureGateRulesCreated  FeatureGateRule[]        @relation("FeatureGateRuleCreatedBy")
-  featureGateRulesUpdated  FeatureGateRule[]        @relation("FeatureGateRuleUpdatedBy")
+  classTemplatesCreated               ClassTemplate[]               @relation("ClassTemplatesCreated")
+  classTemplatesReviewed              ClassTemplate[]               @relation("ClassTemplatesReviewed")
+  classOfferingsInstructed            ClassOffering[]               @relation("ClassOfferingsInstructed")
+  regularInstructorAssignments        RegularInstructorAssignment[] @relation("RegularInstructorAssignments")
+  regularInstructorAssignmentsCreated RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsCreated")
+  regularInstructorAssignmentsUpdated RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsUpdated")
+  classEnrollments                    ClassEnrollment[]             @relation("ClassEnrollments")
+  classAttendanceRecords              ClassAttendanceRecord[]       @relation("ClassAttendanceRecords")
+  classRemindersReceived              ClassReminder[]               @relation("ClassRemindersReceived")
+  classAnnouncements                  ClassAnnouncement[]           @relation("ClassAnnouncementsAuthored")
+  ownedChapterPathways                ChapterPathway[]              @relation("ChapterPathwayOwner")
+  pathwayFallbackRequests             PathwayFallbackRequest[]      @relation("PathwayFallbackRequestStudent")
+  pathwayFallbackReviews              PathwayFallbackRequest[]      @relation("PathwayFallbackReviewedBy")
+  launchTasksCreated                  LaunchTask[]                  @relation("LaunchTasksCreatedBy")
+  launchTasksUpdated                  LaunchTask[]                  @relation("LaunchTasksUpdatedBy")
+  rolloutCampaignsCreated             RolloutCampaign[]             @relation("RolloutCampaignsCreatedBy")
+  featureGateRulesTargeted            FeatureGateRule[]             @relation("FeatureGateRuleTargetUser")
+  featureGateRulesCreated             FeatureGateRule[]             @relation("FeatureGateRuleCreatedBy")
+  featureGateRulesUpdated             FeatureGateRule[]             @relation("FeatureGateRuleUpdatedBy")
 
   // Phase 10: Enjoyment-Focused Assignments Relations
   classAssignmentsCreated ClassAssignment[]           @relation("ClassAssignmentsCreated")
@@ -1206,27 +1206,27 @@ model User {
   // Instructor Application Relations
   // One-to-many: a user may have multiple applications over time (re-apply
   // path). The "active" application is the most recent non-terminal row.
-  instructorApplications           InstructorApplication[]               @relation("InstructorApplications")
-  instructorApplicationsReviewed   InstructorApplication[]               @relation("InstructorApplicationReviews")
-  instructorApplicationsAssignedBy InstructorApplication[]               @relation("InstructorApplicationReviewerAssignedBy")
-  instructorApplicationsSubtypeChangedBy InstructorApplication[]         @relation("InstructorApplicationSubtypeChangedBy")
-  instructorApplicationReviews     InstructorApplicationReview[]         @relation("InstructorApplicationStructuredReviews")
-  instructorInterviewReviews       InstructorInterviewReview[]           @relation("InstructorInterviewStructuredReviews")
-  offeredInterviewSlots            OfferedInterviewSlot[]                @relation("OfferedInterviewSlots")
+  instructorApplications                 InstructorApplication[]               @relation("InstructorApplications")
+  instructorApplicationsReviewed         InstructorApplication[]               @relation("InstructorApplicationReviews")
+  instructorApplicationsAssignedBy       InstructorApplication[]               @relation("InstructorApplicationReviewerAssignedBy")
+  instructorApplicationsSubtypeChangedBy InstructorApplication[]               @relation("InstructorApplicationSubtypeChangedBy")
+  instructorApplicationReviews           InstructorApplicationReview[]         @relation("InstructorApplicationStructuredReviews")
+  instructorInterviewReviews             InstructorInterviewReview[]           @relation("InstructorInterviewStructuredReviews")
+  offeredInterviewSlots                  OfferedInterviewSlot[]                @relation("OfferedInterviewSlots")
   // Instructor Applicant Workflow V1 Relations
-  interviewerAssignments           InstructorApplicationInterviewer[]    @relation("InterviewerAssignments")
-  interviewerAssignedByAssignments InstructorApplicationInterviewer[]    @relation("InterviewerAssignedBy")
-  applicantDocumentsUploaded       ApplicantDocument[]                   @relation("ApplicantDocUploader")
-  chairDecisionsMade               InstructorApplicationChairDecision[]  @relation("ChairDecisions")
-  chairDrafts                      InstructorApplicationChairDraft[]     @relation("ChairDrafts")
-  chairDecisionCommitAttempts      ChairDecisionCommitAttempt[]          @relation("ChairDecisionCommitAttempts")
-  reviewSignalsAuthored            ReviewSignal[]                        @relation("ReviewSignalAuthor")
-  reviewSignalsPinned              ReviewSignal[]                        @relation("ReviewSignalPinnedBy")
-  reviewSignalsResolved            ReviewSignal[]                        @relation("ReviewSignalResolvedBy")
-  reviewSignalMentions             ReviewSignalMention[]                 @relation("ReviewSignalMentionedUser")
-  applicantTimelineEvents          InstructorApplicationTimelineEvent[]  @relation("TimelineActor")
-  reviewsLastEdited                InstructorApplicationReview[]         @relation("ReviewLastEditor")
-  reviewRevisionsMade              InstructorApplicationReviewRevision[] @relation("ReviewRevisionEditor")
+  interviewerAssignments                 InstructorApplicationInterviewer[]    @relation("InterviewerAssignments")
+  interviewerAssignedByAssignments       InstructorApplicationInterviewer[]    @relation("InterviewerAssignedBy")
+  applicantDocumentsUploaded             ApplicantDocument[]                   @relation("ApplicantDocUploader")
+  chairDecisionsMade                     InstructorApplicationChairDecision[]  @relation("ChairDecisions")
+  chairDrafts                            InstructorApplicationChairDraft[]     @relation("ChairDrafts")
+  chairDecisionCommitAttempts            ChairDecisionCommitAttempt[]          @relation("ChairDecisionCommitAttempts")
+  reviewSignalsAuthored                  ReviewSignal[]                        @relation("ReviewSignalAuthor")
+  reviewSignalsPinned                    ReviewSignal[]                        @relation("ReviewSignalPinnedBy")
+  reviewSignalsResolved                  ReviewSignal[]                        @relation("ReviewSignalResolvedBy")
+  reviewSignalMentions                   ReviewSignalMention[]                 @relation("ReviewSignalMentionedUser")
+  applicantTimelineEvents                InstructorApplicationTimelineEvent[]  @relation("TimelineActor")
+  reviewsLastEdited                      InstructorApplicationReview[]         @relation("ReviewLastEditor")
+  reviewRevisionsMade                    InstructorApplicationReviewRevision[] @relation("ReviewRevisionEditor")
 
   // Chapter President Application Relations
   chapterPresidentApplication          ChapterPresidentApplication?  @relation("ChapterPresidentApplications")
@@ -1287,6 +1287,16 @@ model User {
   instructorGrowthBadgeAwards     InstructorGrowthBadgeAward[]   @relation("InstructorGrowthBadgeAwards")
   instructorGrowthSemesterStats   InstructorGrowthSemesterStat[] @relation("InstructorGrowthSemesterStats")
 
+  // Student Operating System / Growth Engine (Phase N1)
+  growthProfile        GrowthProfile?        @relation("GrowthProfile")
+  growthVisions        GrowthVision[]        @relation("GrowthVisions")
+  growthGoals          GrowthGoal[]          @relation("GrowthGoals")
+  growthMilestones     GrowthMilestone[]     @relation("GrowthMilestones")
+  growthActions        GrowthAction[]        @relation("GrowthActions")
+  growthAchievements   GrowthAchievement[]   @relation("GrowthAchievements")
+  growthOpportunities  GrowthOpportunity[]   @relation("GrowthOpportunities")
+  growthProgressEvents GrowthProgressEvent[] @relation("GrowthProgressEvents")
+
   // Governance & Risk
   opsRulesCreated OpsRule[] @relation("OpsRulesCreated")
 
@@ -1299,55 +1309,55 @@ model User {
   interactiveJourneyCompletions InteractiveJourneyCompletion[]
 
   // Admin Journey Editor (versioning)
-  journeysCreated               Journey[]               @relation("JourneysCreated")
-  journeyVersionsCreated        JourneyVersion[]        @relation("JourneyVersionsCreated")
-  journeyVersionsPublished      JourneyVersion[]        @relation("JourneyVersionsPublished")
-  journeyAuditLogs              JourneyAuditLog[]       @relation("JourneyAuditLogActor")
+  journeysCreated          Journey[]         @relation("JourneysCreated")
+  journeyVersionsCreated   JourneyVersion[]  @relation("JourneyVersionsCreated")
+  journeyVersionsPublished JourneyVersion[]  @relation("JourneyVersionsPublished")
+  journeyAuditLogs         JourneyAuditLog[] @relation("JourneyAuditLogActor")
 
   // Summer Workshop Instructor pathway
-  workshopProposalTemplatesCreated  WorkshopProposalTemplate[]   @relation("WorkshopProposalTemplatesCreated")
-  workshopProposalTemplatesUpdated  WorkshopProposalTemplate[]   @relation("WorkshopProposalTemplatesUpdated")
-  workshopProposalSubmissions       WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionsAuthored")
+  workshopProposalTemplatesCreated    WorkshopProposalTemplate[]   @relation("WorkshopProposalTemplatesCreated")
+  workshopProposalTemplatesUpdated    WorkshopProposalTemplate[]   @relation("WorkshopProposalTemplatesUpdated")
+  workshopProposalSubmissions         WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionsAuthored")
   workshopProposalSubmissionsReviewed WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionsReviewed")
-  workshopProposalReviews           WorkshopProposalReview[]     @relation("WorkshopProposalReviewsAuthored")
+  workshopProposalReviews             WorkshopProposalReview[]     @relation("WorkshopProposalReviewsAuthored")
 
   // Leadership Action Center
-  leadershipActionItemsOwned        LeadershipActionItem[]        @relation("LeadershipActionItemsOwned")
-  leadershipActionItemsCreated      LeadershipActionItem[]        @relation("LeadershipActionItemsCreated")
-  leadershipActionItemsUpdated      LeadershipActionItem[]        @relation("LeadershipActionItemsUpdated")
-  leadershipActionItemInputRoles    LeadershipActionItemInput[]   @relation("LeadershipActionItemInputUser")
-  leadershipActionItemUpdates       LeadershipActionItemUpdate[]  @relation("LeadershipActionItemUpdateAuthor")
-  leadershipMeetingsOwned           LeadershipMeeting[]           @relation("LeadershipMeetingsOwner")
+  leadershipActionItemsOwned     LeadershipActionItem[]       @relation("LeadershipActionItemsOwned")
+  leadershipActionItemsCreated   LeadershipActionItem[]       @relation("LeadershipActionItemsCreated")
+  leadershipActionItemsUpdated   LeadershipActionItem[]       @relation("LeadershipActionItemsUpdated")
+  leadershipActionItemInputRoles LeadershipActionItemInput[]  @relation("LeadershipActionItemInputUser")
+  leadershipActionItemUpdates    LeadershipActionItemUpdate[] @relation("LeadershipActionItemUpdateAuthor")
+  leadershipMeetingsOwned        LeadershipMeeting[]          @relation("LeadershipMeetingsOwner")
 
   // Instructor-to-camp/workshop assignment system (admin operations layer)
-  workshopOpportunitiesOwned        WorkshopOpportunity[]        @relation("WorkshopOpportunityOwner")
-  workshopOpportunitiesCreated      WorkshopOpportunity[]        @relation("WorkshopOpportunityCreatedBy")
-  instructorAssignments             InstructorAssignment[]       @relation("InstructorAssignmentInstructor")
-  instructorAssignmentsAssigned     InstructorAssignment[]       @relation("InstructorAssignmentAssignedBy")
+  workshopOpportunitiesOwned    WorkshopOpportunity[]  @relation("WorkshopOpportunityOwner")
+  workshopOpportunitiesCreated  WorkshopOpportunity[]  @relation("WorkshopOpportunityCreatedBy")
+  instructorAssignments         InstructorAssignment[] @relation("InstructorAssignmentInstructor")
+  instructorAssignmentsAssigned InstructorAssignment[] @relation("InstructorAssignmentAssignedBy")
 
   // Instructor Ops V2
-  instructorProfile                 InstructorProfile?
-  instructorNotesAuthored           InstructorNote[]             @relation("InstructorNoteAuthor")
-  instructorTasksAssigned           InstructorTask[]             @relation("InstructorTaskAssignee")
-  instructorSavedViews              InstructorSavedView[]        @relation("InstructorSavedViewOwner")
+  instructorProfile       InstructorProfile?
+  instructorNotesAuthored InstructorNote[]      @relation("InstructorNoteAuthor")
+  instructorTasksAssigned InstructorTask[]      @relation("InstructorTaskAssignee")
+  instructorSavedViews    InstructorSavedView[] @relation("InstructorSavedViewOwner")
 
   // Partners (Relationship Lead for org/school partners)
-  partnersAsRelationshipLead        Partner[]                    @relation("PartnerRelationshipLead")
+  partnersAsRelationshipLead Partner[] @relation("PartnerRelationshipLead")
 
   // Action Tracker (People Strategy)
-  actionItemsLed                    ActionItem[]                 @relation("ActionItemsLed")
-  actionItemsCreated                ActionItem[]                 @relation("ActionItemsCreated")
-  actionAssignments                 ActionAssignment[]           @relation("ActionAssignments")
-  actionComments                    ActionComment[]              @relation("ActionComments")
-  actionFileLinksAdded              ActionFileLink[]             @relation("ActionFileLinksAdded")
-  miscUpdatesAdded                  MiscUpdate[]                 @relation("MiscUpdateAddedBy")
-  actionEmailLogs                   ActionEmailLog[]             @relation("ActionEmailLogRecipient")
-  feedbackRequestsAbout             FeedbackRequest[]            @relation("FeedbackRequestSubject")
-  feedbackRequestsToAnswer          FeedbackRequest[]            @relation("FeedbackRequestCollaborator")
-  growthTags                        MemberGrowthTag[]            @relation("MemberGrowthTags")
-  growthTagsCreated                 MemberGrowthTag[]            @relation("MemberGrowthTagsCreated")
-  actionTemplatesCreated            ActionTemplate[]             @relation("ActionTemplatesCreated")
-  savedActionViews                  SavedActionView[]            @relation("SavedActionViews")
+  actionItemsLed           ActionItem[]       @relation("ActionItemsLed")
+  actionItemsCreated       ActionItem[]       @relation("ActionItemsCreated")
+  actionAssignments        ActionAssignment[] @relation("ActionAssignments")
+  actionComments           ActionComment[]    @relation("ActionComments")
+  actionFileLinksAdded     ActionFileLink[]   @relation("ActionFileLinksAdded")
+  miscUpdatesAdded         MiscUpdate[]       @relation("MiscUpdateAddedBy")
+  actionEmailLogs          ActionEmailLog[]   @relation("ActionEmailLogRecipient")
+  feedbackRequestsAbout    FeedbackRequest[]  @relation("FeedbackRequestSubject")
+  feedbackRequestsToAnswer FeedbackRequest[]  @relation("FeedbackRequestCollaborator")
+  growthTags               MemberGrowthTag[]  @relation("MemberGrowthTags")
+  growthTagsCreated        MemberGrowthTag[]  @relation("MemberGrowthTagsCreated")
+  actionTemplatesCreated   ActionTemplate[]   @relation("ActionTemplatesCreated")
+  savedActionViews         SavedActionView[]  @relation("SavedActionViews")
 
   // People Strategy — provisional 3-month confirmation clock
   // (ENABLE_PROVISIONAL_CLOCK). `provisionalStart` is set when a hire is
@@ -1801,10 +1811,10 @@ model InstructorApplication {
   // True when this row was created after a prior closed application from
   // the same applicant. `previousApplicationId` points at the most recent
   // closed application; reviewers can walk the chain via repeated lookups.
-  isReapplication        Boolean  @default(false)
-  previousApplicationId  String?
-  previousApplication    InstructorApplication?  @relation("InstructorApplicationReapplyChain", fields: [previousApplicationId], references: [id])
-  reapplications         InstructorApplication[] @relation("InstructorApplicationReapplyChain")
+  isReapplication       Boolean                 @default(false)
+  previousApplicationId String?
+  previousApplication   InstructorApplication?  @relation("InstructorApplicationReapplyChain", fields: [previousApplicationId], references: [id])
+  reapplications        InstructorApplication[] @relation("InstructorApplicationReapplyChain")
 
   // --- Core application responses ---
   motivation         String? @db.Text
@@ -1908,27 +1918,27 @@ model InstructorApplication {
   // `instructorSubtype` is the post-acceptance subtype on the instructor side.
   // `workshopOutline` is a structured JSON payload required for summer workshop applicants.
   // `promotionEligibility` tracks readiness to be promoted from summer workshop -> standard.
-  applicationTrack       ApplicationTrack  @default(STANDARD_INSTRUCTOR)
-  instructorSubtype      InstructorSubtype @default(STANDARD)
-  workshopOutline        Json?
-  promotionEligibility   Json?
-  subtypeChangedAt       DateTime?
-  subtypeChangedById     String?
-  subtypeChangedBy       User?             @relation("InstructorApplicationSubtypeChangedBy", fields: [subtypeChangedById], references: [id])
+  applicationTrack     ApplicationTrack  @default(STANDARD_INSTRUCTOR)
+  instructorSubtype    InstructorSubtype @default(STANDARD)
+  workshopOutline      Json?
+  promotionEligibility Json?
+  subtypeChangedAt     DateTime?
+  subtypeChangedById   String?
+  subtypeChangedBy     User?             @relation("InstructorApplicationSubtypeChangedBy", fields: [subtypeChangedById], references: [id])
 
   // --- External intake (Google Forms / CSV / manual admin entry) ---
   // `source` defaults to PORTAL so existing rows are unaffected. Non-PORTAL
   // values mark applications that came in through an external channel and
   // are managed internally through the same review workflow.
-  source                 ApplicationSource @default(PORTAL)
-  externalSubmittedAt    DateTime?
-  externalImportedAt     DateTime?
-  externalResponseUrl    String?
-  externalAnswersCopy    String?           @db.Text
-  internalNotes          String?           @db.Text
-  importedById           String?
-  importedBy             User?             @relation("InstructorApplicationImportedBy", fields: [importedById], references: [id])
-  manualEmailTasks       ManualEmailTask[] @relation("ManualEmailTasksInstructorApplication")
+  source              ApplicationSource @default(PORTAL)
+  externalSubmittedAt DateTime?
+  externalImportedAt  DateTime?
+  externalResponseUrl String?
+  externalAnswersCopy String?           @db.Text
+  internalNotes       String?           @db.Text
+  importedById        String?
+  importedBy          User?             @relation("InstructorApplicationImportedBy", fields: [importedById], references: [id])
+  manualEmailTasks    ManualEmailTask[] @relation("ManualEmailTasksInstructorApplication")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2213,19 +2223,19 @@ model InstructorApplicationChairDraft {
 /// idempotency key. Lets the server detect replays after a network drop and
 /// return the prior result instead of double-committing.
 model ChairDecisionCommitAttempt {
-  id                String                @id @default(cuid())
-  idempotencyKey    String                @unique
-  applicationId     String
-  application       InstructorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  chairId           String
-  chair             User                  @relation("ChairDecisionCommitAttempts", fields: [chairId], references: [id], onDelete: Cascade)
-  action            ChairDecisionAction
-  result            String                // "SUCCESS" | "FAILED"
-  decidedAt         DateTime?
-  errorCode         String?
-  errorMessage      String?
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
+  id             String                @id @default(cuid())
+  idempotencyKey String                @unique
+  applicationId  String
+  application    InstructorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  chairId        String
+  chair          User                  @relation("ChairDecisionCommitAttempts", fields: [chairId], references: [id], onDelete: Cascade)
+  action         ChairDecisionAction
+  result         String // "SUCCESS" | "FAILED"
+  decidedAt      DateTime?
+  errorCode      String?
+  errorMessage   String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 
   @@index([applicationId, createdAt])
   @@index([chairId, createdAt])
@@ -2266,27 +2276,27 @@ enum ReviewSignalSentiment {
 /// observations into one stream so the cockpit's feed, pinned rail, and
 /// audit drawer all read from the same shape.
 model ReviewSignal {
-  id              String                  @id @default(cuid())
-  applicationId   String
-  application     InstructorApplication   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  authorId        String
-  author          User                    @relation("ReviewSignalAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  kind            ReviewSignalKind        @default(COMMENT)
-  sentiment       ReviewSignalSentiment?
-  body            String
-  pinned          Boolean                 @default(false)
-  pinnedAt        DateTime?
-  pinnedById      String?
-  pinnedBy        User?                   @relation("ReviewSignalPinnedBy", fields: [pinnedById], references: [id])
-  parentId        String?
-  parent          ReviewSignal?           @relation("ReviewSignalReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies         ReviewSignal[]          @relation("ReviewSignalReplies")
-  mentions        ReviewSignalMention[]   @relation("ReviewSignalMentions")
-  resolvedAt      DateTime?
-  resolvedById    String?
-  resolvedBy      User?                   @relation("ReviewSignalResolvedBy", fields: [resolvedById], references: [id])
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  id            String                 @id @default(cuid())
+  applicationId String
+  application   InstructorApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User                   @relation("ReviewSignalAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  kind          ReviewSignalKind       @default(COMMENT)
+  sentiment     ReviewSignalSentiment?
+  body          String
+  pinned        Boolean                @default(false)
+  pinnedAt      DateTime?
+  pinnedById    String?
+  pinnedBy      User?                  @relation("ReviewSignalPinnedBy", fields: [pinnedById], references: [id])
+  parentId      String?
+  parent        ReviewSignal?          @relation("ReviewSignalReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       ReviewSignal[]         @relation("ReviewSignalReplies")
+  mentions      ReviewSignalMention[]  @relation("ReviewSignalMentions")
+  resolvedAt    DateTime?
+  resolvedById  String?
+  resolvedBy    User?                  @relation("ReviewSignalResolvedBy", fields: [resolvedById], references: [id])
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
 
   @@index([applicationId, createdAt])
   @@index([applicationId, pinned])
@@ -2299,11 +2309,11 @@ model ReviewSignal {
 /// REVIEW_MENTION notification type. Composite primary key prevents
 /// duplicate mentions on the same signal.
 model ReviewSignalMention {
-  signalId    String
-  signal      ReviewSignal @relation("ReviewSignalMentions", fields: [signalId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User         @relation("ReviewSignalMentionedUser", fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime     @default(now())
+  signalId       String
+  signal         ReviewSignal @relation("ReviewSignalMentions", fields: [signalId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation("ReviewSignalMentionedUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
   acknowledgedAt DateTime?
 
   @@id([signalId, userId])
@@ -2955,23 +2965,23 @@ model MentorExpertise {
 /// found missing (today mentees are assigned, never apply). Feeds the matching
 /// queue; `matchedMentorshipId` records the resulting pairing when reviewed.
 model MentorshipApplication {
-  id                 String                 @id @default(cuid())
-  applicantId        String
-  applicant          User                   @relation("MentorshipApplicationsSubmitted", fields: [applicantId], references: [id], onDelete: Cascade)
-  programGroup       MentorshipProgramGroup @default(STUDENT)
-  status             String                 @default("SUBMITTED") // SUBMITTED|UNDER_REVIEW|MATCHED|DECLINED|WITHDRAWN (app-validated)
-  goals              String?
-  interests          String[]
-  preferredExpertise String[] // ExpertiseArea slugs the mentee is seeking
-  availability       String?
-  motivation         String?
-  reviewerId         String?
-  reviewer           User?                  @relation("MentorshipApplicationsReviewed", fields: [reviewerId], references: [id], onDelete: SetNull)
-  reviewNotes        String?
-  matchedMentorshipId String? // app-validated id of the created Mentorship (no FK, mirrors repo convention)
-  decidedAt          DateTime?
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
+  id                   String                          @id @default(cuid())
+  applicantId          String
+  applicant            User                            @relation("MentorshipApplicationsSubmitted", fields: [applicantId], references: [id], onDelete: Cascade)
+  programGroup         MentorshipProgramGroup          @default(STUDENT)
+  status               String                          @default("SUBMITTED") // SUBMITTED|UNDER_REVIEW|MATCHED|DECLINED|WITHDRAWN (app-validated)
+  goals                String?
+  interests            String[]
+  preferredExpertise   String[] // ExpertiseArea slugs the mentee is seeking
+  availability         String?
+  motivation           String?
+  reviewerId           String?
+  reviewer             User?                           @relation("MentorshipApplicationsReviewed", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewNotes          String?
+  matchedMentorshipId  String? // app-validated id of the created Mentorship (no FK, mirrors repo convention)
+  decidedAt            DateTime?
+  createdAt            DateTime                        @default(now())
+  updatedAt            DateTime                        @updatedAt
   matchRecommendations MentorshipMatchRecommendation[]
 
   @@index([status])
@@ -3279,15 +3289,15 @@ model Application {
   archivedAt          DateTime?
 
   // --- External intake (Google Forms / CSV / manual admin entry) ---
-  source              ApplicationSource            @default(PORTAL)
+  source              ApplicationSource @default(PORTAL)
   externalSubmittedAt DateTime?
   externalImportedAt  DateTime?
   externalResponseUrl String?
-  externalAnswersCopy String?                      @db.Text
-  internalNotes       String?                      @db.Text
+  externalAnswersCopy String?           @db.Text
+  internalNotes       String?           @db.Text
   importedById        String?
-  importedBy          User?                        @relation("GenericApplicationImportedBy", fields: [importedById], references: [id])
-  manualEmailTasks    ManualEmailTask[]            @relation("ManualEmailTasksGenericApplication")
+  importedBy          User?             @relation("GenericApplicationImportedBy", fields: [importedById], references: [id])
+  manualEmailTasks    ManualEmailTask[] @relation("ManualEmailTasksGenericApplication")
 
   @@index([positionId, status, submittedAt])
   @@index([source])
@@ -4344,20 +4354,20 @@ model OnboardingProgress {
 // authoritative module-by-module training percent still lives in the
 // readiness/training models.
 model InstructorJourney {
-  id                  String    @id @default(cuid())
-  userId              String    @unique
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Current launchpad step index (0 = Welcome, 1 = Profile, 2 = Training, 3 = Help & Community, 4 = Tour).
-  currentStep         Int       @default(0)
-  welcomeCompletedAt  DateTime?
-  profileCompletedAt  DateTime?
-  trainingCompletedAt DateTime?
+  currentStep          Int       @default(0)
+  welcomeCompletedAt   DateTime?
+  profileCompletedAt   DateTime?
+  trainingCompletedAt  DateTime?
   communityCompletedAt DateTime?
-  tourCompletedAt     DateTime?
+  tourCompletedAt      DateTime?
   /// Set when the instructor finishes the full launchpad.
-  completedAt         DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  completedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@index([completedAt])
 }
@@ -7132,14 +7142,14 @@ model ClassTemplate {
   reviewNotes      String?                    @db.Text
 
   // Meta
-  isPublished Boolean  @default(false)
+  isPublished   Boolean  @default(false)
   // Admin-curated catalog flag — true when this template is part of the
   // Course Library that instructors pick from on /instructor/curriculum-builder.
-  isCatalogItem Boolean @default(false)
-  createdById String
-  createdBy   User     @relation("ClassTemplatesCreated", fields: [createdById], references: [id])
-  chapterId   String?
-  chapter     Chapter? @relation(fields: [chapterId], references: [id])
+  isCatalogItem Boolean  @default(false)
+  createdById   String
+  createdBy     User     @relation("ClassTemplatesCreated", fields: [createdById], references: [id])
+  chapterId     String?
+  chapter       Chapter? @relation(fields: [chapterId], references: [id])
 
   // Set when an instructor picks a course from the library; points at the
   // admin's source template so we can show usage counts and provenance.
@@ -7147,9 +7157,9 @@ model ClassTemplate {
   clonedFrom   ClassTemplate?  @relation("CourseClones", fields: [clonedFromId], references: [id])
   clones       ClassTemplate[] @relation("CourseClones")
 
-  offerings    ClassOffering[]
-  lessonPlans  LessonPlan[]
-  pathwaySteps PathwayStep[]   @relation("ClassTemplateSteps")
+  offerings                    ClassOffering[]
+  lessonPlans                  LessonPlan[]
+  pathwaySteps                 PathwayStep[]                 @relation("ClassTemplateSteps")
   regularInstructorAssignments RegularInstructorAssignment[] @relation("ClassTemplateAssignments")
 
   createdAt DateTime @default(now())
@@ -7182,14 +7192,14 @@ model ClassOffering {
   timezone    String   @default("America/New_York")
 
   // Location (Feature #83)
-  deliveryMode    DeliveryMode @default(VIRTUAL)
-  locationName    String? // Physical location name
-  locationAddress String?
+  deliveryMode        DeliveryMode @default(VIRTUAL)
+  locationName        String? // Physical location name
+  locationAddress     String?
   room                String? // In-person room or studio (e.g. "Studio B")
-  arrivalInstructions String? @db.Text // What students/parents should do on arrival
-  materialsList       String[] @default([]) // Required/recommended materials per session
-  zoomLink        String?
-  meetingId       String? // Zoom/Teams meeting ID
+  arrivalInstructions String?      @db.Text // What students/parents should do on arrival
+  materialsList       String[]     @default([]) // Required/recommended materials per session
+  zoomLink            String?
+  meetingId           String? // Zoom/Teams meeting ID
 
   // Instructor class intro media
   introVideoTitle       String?
@@ -7219,16 +7229,16 @@ model ClassOffering {
   grandfatheredTrainingExemption Boolean             @default(false)
 
   // Relations
-  sessions         ClassSession[]
-  enrollments      ClassEnrollment[]
-  reminders        ClassReminder[]
-  assignments      ClassAssignment[]
-  announcements    ClassAnnouncement[]
-  fallbackRequests PathwayFallbackRequest[]
-  approval         ClassOfferingApproval?
-  timeline         ClassOfferingTimelineEvent[]
-  feedback         ClassFeedback[]
-  outcome          ClassOutcome?
+  sessions                     ClassSession[]
+  enrollments                  ClassEnrollment[]
+  reminders                    ClassReminder[]
+  assignments                  ClassAssignment[]
+  announcements                ClassAnnouncement[]
+  fallbackRequests             PathwayFallbackRequest[]
+  approval                     ClassOfferingApproval?
+  timeline                     ClassOfferingTimelineEvent[]
+  feedback                     ClassFeedback[]
+  outcome                      ClassOutcome?
   regularInstructorAssignments RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsForOffering")
 
   createdAt DateTime @default(now())
@@ -7435,8 +7445,8 @@ model ClassEnrollment {
   // Signup context — what the student told us in the guided fit check at
   // enrollment. Read-only after signup; surfaced to the instructor/admin roster
   // so the people teaching the class know why each student is there.
-  signupGoal       String?  @db.Text
-  signupNote       String?  @db.Text
+  signupGoal String? @db.Text
+  signupNote String? @db.Text
 
   // Waitlist position (if waitlisted)
   waitlistPosition Int?
@@ -11413,17 +11423,17 @@ model InteractiveJourneyCompletion {
 // on in Commit 12. See docs/admin-journey-editor-plan.md §3.
 
 model Journey {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   /// URL-safe stable handle; backfilled from `TrainingModule.contentKey`
   /// when present, otherwise `journey-<id>`.
-  slug        String   @unique
+  slug        String  @unique
   title       String
-  description String?  @db.Text
+  description String? @db.Text
 
-  archivedAt  DateTime?
+  archivedAt DateTime?
 
   createdById String?
-  createdBy   User?    @relation("JourneysCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy   User?   @relation("JourneysCreated", fields: [createdById], references: [id], onDelete: SetNull)
 
   versions        JourneyVersion[]
   assignmentRules JourneyAssignmentRule[]
@@ -11453,13 +11463,13 @@ model JourneyVersion {
   passScorePct     Int     @default(80)
   strictMode       Boolean @default(false)
 
-  notes        String?   @db.Text
-  publishedAt  DateTime?
+  notes         String?   @db.Text
+  publishedAt   DateTime?
   publishedById String?
-  publishedBy   User?    @relation("JourneyVersionsPublished", fields: [publishedById], references: [id], onDelete: SetNull)
+  publishedBy   User?     @relation("JourneyVersionsPublished", fields: [publishedById], references: [id], onDelete: SetNull)
 
-  createdById  String?
-  createdBy    User?    @relation("JourneyVersionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?   @relation("JourneyVersionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
 
   beats       InteractiveBeat[]
   completions InteractiveJourneyCompletion[]
@@ -11510,9 +11520,9 @@ model JourneyAssignmentRule {
 }
 
 model JourneyAuditLog {
-  id               String  @id @default(cuid())
+  id               String          @id @default(cuid())
   journeyId        String
-  journey          Journey @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  journey          Journey         @relation(fields: [journeyId], references: [id], onDelete: Cascade)
   journeyVersionId String?
   journeyVersion   JourneyVersion? @relation(fields: [journeyVersionId], references: [id], onDelete: SetNull)
 
@@ -11520,7 +11530,7 @@ model JourneyAuditLog {
   /// Nullable so system-generated entries (backfills, scheduled jobs)
   /// can be attributed to "system".
   actorId String?
-  actor   User?   @relation("JourneyAuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actor   User?              @relation("JourneyAuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   summary String?
   /// Free-form diff payload — full prior + next state, set by the
@@ -11596,34 +11606,34 @@ enum WorkshopProposalReviewRecommendation {
 /// Admin-curated workshop in the library. Only `APPROVED` rows are visible
 /// to applicants; `DRAFT` and `ARCHIVED` are hidden in the picker.
 model WorkshopProposalTemplate {
-  id                 String                          @id @default(cuid())
+  id                 String                         @id @default(cuid())
   title              String
   category           String
   /// Free-text age range like "Grades 6–8" or "Ages 10–12".
   targetAgeRange     String
   /// Estimated workshop length in minutes. 60 by default.
-  estimatedMinutes   Int                             @default(60)
-  description        String                          @db.Text
+  estimatedMinutes   Int                            @default(60)
+  description        String                         @db.Text
   /// Bullet list rendered as ordered learning objectives.
-  learningObjectives String[]                        @default([])
+  learningObjectives String[]                       @default([])
   /// Free-form activity plan (markdown allowed). Step-by-step facilitation guide.
-  activityPlan       String                          @db.Text
+  activityPlan       String                         @db.Text
   /// Materials checklist; each entry is a single line item.
-  materials          String[]                        @default([])
-  difficulty         WorkshopProposalDifficulty      @default(BEGINNER)
-  tags               String[]                        @default([])
-  status             WorkshopProposalTemplateStatus  @default(DRAFT)
+  materials          String[]                       @default([])
+  difficulty         WorkshopProposalDifficulty     @default(BEGINNER)
+  tags               String[]                       @default([])
+  status             WorkshopProposalTemplateStatus @default(DRAFT)
 
-  createdById        String
-  createdBy          User                            @relation("WorkshopProposalTemplatesCreated", fields: [createdById], references: [id])
-  updatedById        String?
-  updatedBy          User?                           @relation("WorkshopProposalTemplatesUpdated", fields: [updatedById], references: [id])
+  createdById String
+  createdBy   User    @relation("WorkshopProposalTemplatesCreated", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?   @relation("WorkshopProposalTemplatesUpdated", fields: [updatedById], references: [id])
 
-  submissions        WorkshopProposalSubmission[]    @relation("WorkshopProposalSubmissionTemplate")
+  submissions WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionTemplate")
 
-  createdAt          DateTime                        @default(now())
-  updatedAt          DateTime                        @updatedAt
-  archivedAt         DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
 
   @@index([status])
   @@index([category])
@@ -11634,15 +11644,15 @@ model WorkshopProposalTemplate {
 /// template + reflection. One submission per applicant; subsequent revisions
 /// update the same row so the audit trail (reviews, history) stays anchored.
 model WorkshopProposalSubmission {
-  id              String                              @id @default(cuid())
-  authorId        String
-  author          User                                @relation("WorkshopProposalSubmissionsAuthored", fields: [authorId], references: [id])
+  id            String  @id @default(cuid())
+  authorId      String
+  author        User    @relation("WorkshopProposalSubmissionsAuthored", fields: [authorId], references: [id])
   /// Optional pointer to the InstructorApplication for cohort/track context.
   /// Stored loosely (no FK) because the application id may not exist yet
   /// when an applicant resumes a draft.
-  applicationId   String?
+  applicationId String?
 
-  sourceType      WorkshopProposalSourceType
+  sourceType WorkshopProposalSourceType
 
   /// CUSTOM_DESIGN payload. Shape:
   ///   {
@@ -11650,44 +11660,44 @@ model WorkshopProposalSubmission {
   ///     materials[], openingHook, mainActivity, participationPlan,
   ///     wrapUp, backupPlan
   ///   }
-  customWorkshop  Json?
+  customWorkshop Json?
 
   /// TEMPLATE_SELECTION pointer. Snapshotting the template id is enough —
   /// the template is read-fresh at view time so reviewers always see the
   /// current admin copy plus the applicant's reflection.
-  templateId      String?
-  template        WorkshopProposalTemplate?           @relation("WorkshopProposalSubmissionTemplate", fields: [templateId], references: [id], onDelete: SetNull)
+  templateId String?
+  template   WorkshopProposalTemplate? @relation("WorkshopProposalSubmissionTemplate", fields: [templateId], references: [id], onDelete: SetNull)
 
   /// Reflection answers (always required). Shape:
   ///   {
   ///     whyChosen, audienceAdaptation, hardestPart, engagementPlan
   ///   }
-  reflection      Json?
+  reflection Json?
 
-  status          WorkshopProposalSubmissionStatus    @default(DRAFT)
+  status WorkshopProposalSubmissionStatus @default(DRAFT)
 
-  submittedAt     DateTime?
+  submittedAt  DateTime?
   /// Set when ANY reviewer first opens the submission with intent to score.
-  inReviewAt      DateTime?
-  reviewedAt      DateTime?
+  inReviewAt   DateTime?
+  reviewedAt   DateTime?
   /// Latest reviewer who committed a decision. Older decisions stay in
   /// `reviews` for the audit trail.
-  reviewedById    String?
-  reviewedBy      User?                               @relation("WorkshopProposalSubmissionsReviewed", fields: [reviewedById], references: [id])
+  reviewedById String?
+  reviewedBy   User?     @relation("WorkshopProposalSubmissionsReviewed", fields: [reviewedById], references: [id])
 
   /// Applicant-facing feedback summary from the latest committed decision.
-  applicantFeedback String?                           @db.Text
+  applicantFeedback String? @db.Text
   /// Internal-only reviewer notes (not shown to applicant).
-  internalNotes     String?                           @db.Text
+  internalNotes     String? @db.Text
 
-  reviews         WorkshopProposalReview[]            @relation("WorkshopProposalReviewSubmission")
+  reviews WorkshopProposalReview[] @relation("WorkshopProposalReviewSubmission")
 
   /// Camp/workshop assignments using this proposal as curriculum. One proposal
   /// can power multiple assignments (reusable curriculum across opportunities).
-  assignments     InstructorAssignment[]              @relation("WorkshopProposalSubmissionAssignments")
+  assignments InstructorAssignment[] @relation("WorkshopProposalSubmissionAssignments")
 
-  createdAt       DateTime                            @default(now())
-  updatedAt       DateTime                            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([authorId])
   @@index([status])
@@ -11733,13 +11743,13 @@ model ManualEmailTask {
   notes            String?           @db.Text
 
   // --- Status transitions (audit) ---
-  markedSentAt    DateTime?
-  markedSentById  String?
-  markedSentBy    User?     @relation("ManualEmailTasksMarkedSent", fields: [markedSentById], references: [id])
+  markedSentAt   DateTime?
+  markedSentById String?
+  markedSentBy   User?     @relation("ManualEmailTasksMarkedSent", fields: [markedSentById], references: [id])
 
   // --- Creation ---
   createdById String?
-  createdBy   User?    @relation("ManualEmailTasksCreated", fields: [createdById], references: [id])
+  createdBy   User?   @relation("ManualEmailTasksCreated", fields: [createdById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -11755,11 +11765,11 @@ model ManualEmailTask {
 
 /// commits.
 model WorkshopProposalReview {
-  id                       String                                @id @default(cuid())
-  submissionId             String
-  submission               WorkshopProposalSubmission            @relation("WorkshopProposalReviewSubmission", fields: [submissionId], references: [id], onDelete: Cascade)
-  reviewerId               String
-  reviewer                 User                                  @relation("WorkshopProposalReviewsAuthored", fields: [reviewerId], references: [id])
+  id           String                     @id @default(cuid())
+  submissionId String
+  submission   WorkshopProposalSubmission @relation("WorkshopProposalReviewSubmission", fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewerId   String
+  reviewer     User                       @relation("WorkshopProposalReviewsAuthored", fields: [reviewerId], references: [id])
 
   /// 1–5 ratings, nullable so an in-progress draft review can save partial work.
   clarityRating            Int?
@@ -11770,18 +11780,18 @@ model WorkshopProposalReview {
   /// 1–5 alignment with YPP values rating.
   alignmentRating          Int?
 
-  overallRecommendation    WorkshopProposalReviewRecommendation?
+  overallRecommendation WorkshopProposalReviewRecommendation?
 
-  applicantFeedback        String?                               @db.Text
-  internalNote             String?                               @db.Text
+  applicantFeedback String? @db.Text
+  internalNote      String? @db.Text
 
   /// True when the reviewer has clicked "commit decision". Drafts (committed
   /// = false) are ignored when computing submission status.
-  committed                Boolean                               @default(false)
-  committedAt              DateTime?
+  committed   Boolean   @default(false)
+  committedAt DateTime?
 
-  createdAt                DateTime                              @default(now())
-  updatedAt                DateTime                              @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([submissionId])
   @@index([reviewerId])
@@ -11898,13 +11908,13 @@ enum LeadershipActionUpdateKind {
 /// Tasks attach to a meeting so the meeting prep view can surface them and
 /// build a suggested agenda from the live tracker.
 model LeadershipMeeting {
-  id          String                @id @default(cuid())
+  id          String                 @id @default(cuid())
   title       String
-  kind        LeadershipMeetingKind @default(OFFICERS)
+  kind        LeadershipMeetingKind  @default(OFFICERS)
   scheduledAt DateTime?
-  notes       String?               @db.Text
+  notes       String?                @db.Text
   ownerId     String?
-  owner       User?                 @relation("LeadershipMeetingsOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  owner       User?                  @relation("LeadershipMeetingsOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   archivedAt  DateTime?
   actionItems LeadershipActionItem[] @relation("LeadershipActionItemMeeting")
 
@@ -11923,9 +11933,9 @@ model LeadershipMeeting {
 /// `weekStart` is the Monday of the operating week the task is attached to;
 /// the weekly digest groups by this date.
 model LeadershipActionItem {
-  id          String                  @id @default(cuid())
+  id          String                   @id @default(cuid())
   title       String
-  description String?                 @db.Text
+  description String?                  @db.Text
   category    LeadershipActionCategory @default(INSTRUCTION)
   status      LeadershipActionStatus   @default(NOT_STARTED)
   priority    LeadershipActionPriority @default(NORMAL)
@@ -11933,49 +11943,49 @@ model LeadershipActionItem {
   /// Free-text label for the source row (spreadsheet row #, email subject, etc.)
   sourceLabel String?
   /// Free-text notes about how the row was imported.
-  sourceNotes String?                 @db.Text
+  sourceNotes String?                  @db.Text
 
   /// Calendar deadline for the task. Used for due-today / due-this-week
   /// filters and the weekly digest grouping.
-  dueDate     DateTime?
+  dueDate   DateTime?
   /// Monday of the operating week the task belongs to. Optional so backlog
   /// items can exist without a week assignment.
-  weekStart   DateTime?
+  weekStart DateTime?
 
   /// Officer-discussion flag + the meeting it should be discussed at.
   needsOfficerDiscussion Boolean   @default(false)
   officerDiscussionDate  DateTime?
 
   /// Optional link to a structured meeting record (Officers, Tech, etc.).
-  meetingId   String?
-  meeting     LeadershipMeeting? @relation("LeadershipActionItemMeeting", fields: [meetingId], references: [id], onDelete: SetNull)
+  meetingId String?
+  meeting   LeadershipMeeting? @relation("LeadershipActionItemMeeting", fields: [meetingId], references: [id], onDelete: SetNull)
 
   /// Primary owner is a single user (the row in the spreadsheet usually
   /// names one accountable person). Additional owners can be tracked via
   /// the secondaryOwners string list to avoid an extra join table for v1.
-  primaryOwnerId  String?
-  primaryOwner    User?    @relation("LeadershipActionItemsOwned", fields: [primaryOwnerId], references: [id], onDelete: SetNull)
+  primaryOwnerId String?
+  primaryOwner   User?    @relation("LeadershipActionItemsOwned", fields: [primaryOwnerId], references: [id], onDelete: SetNull)
   /// Free-text fallback for owners that are not yet portal users.
-  ownerNames      String[] @default([])
+  ownerNames     String[] @default([])
 
   /// Plain-text "input needed from" fallback when the people are not yet
   /// portal users. Structured `inputNeededFrom` rows below cover users.
   inputNeededNames String[] @default([])
 
   /// Notes / blocker description shown in the table and digest.
-  notes        String? @db.Text
+  notes       String?   @db.Text
   /// True when the task has been completed.
-  completedAt  DateTime?
+  completedAt DateTime?
 
-  createdById  String?
-  createdBy    User?  @relation("LeadershipActionItemsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedById  String?
-  updatedBy    User?  @relation("LeadershipActionItemsUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?   @relation("LeadershipActionItemsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?   @relation("LeadershipActionItemsUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
 
   archivedAt DateTime?
 
-  inputNeededFrom LeadershipActionItemInput[]   @relation("LeadershipActionItemInputItem")
-  updates         LeadershipActionItemUpdate[]  @relation("LeadershipActionItemUpdateItem")
+  inputNeededFrom LeadershipActionItemInput[]  @relation("LeadershipActionItemInputItem")
+  updates         LeadershipActionItemUpdate[] @relation("LeadershipActionItemUpdateItem")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -11993,11 +12003,11 @@ model LeadershipActionItem {
 /// input on it. Kept separate from `inputNeededNames` (free-text fallback)
 /// so structured users can be filtered/notified independently.
 model LeadershipActionItemInput {
-  id           String @id @default(cuid())
+  id           String               @id @default(cuid())
   actionItemId String
   actionItem   LeadershipActionItem @relation("LeadershipActionItemInputItem", fields: [actionItemId], references: [id], onDelete: Cascade)
   userId       String
-  user         User                  @relation("LeadershipActionItemInputUser", fields: [userId], references: [id], onDelete: Cascade)
+  user         User                 @relation("LeadershipActionItemInputUser", fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -12008,11 +12018,11 @@ model LeadershipActionItemInput {
 /// Activity log + comments for an action item. `kind` lets the UI render
 /// human comments differently from system events (status changes, etc.).
 model LeadershipActionItemUpdate {
-  id           String @id @default(cuid())
+  id           String                     @id @default(cuid())
   actionItemId String
-  actionItem   LeadershipActionItem @relation("LeadershipActionItemUpdateItem", fields: [actionItemId], references: [id], onDelete: Cascade)
+  actionItem   LeadershipActionItem       @relation("LeadershipActionItemUpdateItem", fields: [actionItemId], references: [id], onDelete: Cascade)
   authorId     String?
-  author       User?                @relation("LeadershipActionItemUpdateAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  author       User?                      @relation("LeadershipActionItemUpdateAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   kind         LeadershipActionUpdateKind @default(COMMENT)
   body         String                     @db.Text
 
@@ -12055,18 +12065,18 @@ enum AssignmentStatus {
 /// (which is a chapter class series with student enrollment) — opportunities
 /// support multi-instructor staffing, partner contacts, and external programs.
 model WorkshopOpportunity {
-  id              String              @id @default(cuid())
-  title           String
-  partnerName     String?
-  type            OpportunityType     @default(PARTNER_PROGRAM)
-  status          OpportunityStatus   @default(OPEN)
-  urgency         OpportunityUrgency  @default(NORMAL)
+  id          String             @id @default(cuid())
+  title       String
+  partnerName String?
+  type        OpportunityType    @default(PARTNER_PROGRAM)
+  status      OpportunityStatus  @default(OPEN)
+  urgency     OpportunityUrgency @default(NORMAL)
 
   /// Free-text summary shown in the detail drawer. Keep short.
-  description     String?             @db.Text
+  description String? @db.Text
 
   /// Reuses the existing DeliveryMode enum (IN_PERSON | VIRTUAL | HYBRID).
-  deliveryMode    DeliveryMode        @default(IN_PERSON)
+  deliveryMode DeliveryMode @default(IN_PERSON)
 
   /// Location fields are optional so online programs can omit them.
   locationName    String?
@@ -12075,31 +12085,31 @@ model WorkshopOpportunity {
   locationCountry String?
 
   /// Scheduling window. Both nullable so partial info can be drafted.
-  startDate       DateTime?
-  endDate         DateTime?
+  startDate  DateTime?
+  endDate    DateTime?
   /// Deadline by which staffing should be finalized.
-  fillByDate      DateTime?
+  fillByDate DateTime?
 
   /// Number of instructor slots required. Coverage is derived from
   /// `assignments` filtered to active statuses (CONFIRMED / PENDING).
-  slotsNeeded     Int                 @default(1)
+  slotsNeeded Int @default(1)
 
   /// Free-form audience descriptor (e.g. "Grades 6-8", "Ages 10-12").
-  ageGroup        String?
+  ageGroup String?
 
   /// Topic tags used for matching (lowercased on write). E.g. ["physics", "coding"].
-  topicTags       String[]            @default([])
+  topicTags String[] @default([])
 
   /// Optional required teaching level (links to existing CourseLevel enum).
   requiredCourseLevel CourseLevel?
 
   /// Chapter scope (optional). If set, chapter presidents can manage this row.
-  chapterId       String?
-  chapter         Chapter?            @relation("WorkshopOpportunityChapter", fields: [chapterId], references: [id], onDelete: SetNull)
+  chapterId String?
+  chapter   Chapter? @relation("WorkshopOpportunityChapter", fields: [chapterId], references: [id], onDelete: SetNull)
 
   /// Internal admin owner — the person on staff responsible for filling it.
-  ownerId         String?
-  owner           User?               @relation("WorkshopOpportunityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId String?
+  owner   User?   @relation("WorkshopOpportunityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
   /// Partner-facing contact info (kept admin-private).
   partnerContactName  String?
@@ -12107,16 +12117,16 @@ model WorkshopOpportunity {
   partnerContactPhone String?
 
   /// Internal admin notes (never shown to instructors).
-  internalNotes   String?             @db.Text
+  internalNotes String? @db.Text
 
-  createdById     String
-  createdBy       User                @relation("WorkshopOpportunityCreatedBy", fields: [createdById], references: [id])
+  createdById String
+  createdBy   User   @relation("WorkshopOpportunityCreatedBy", fields: [createdById], references: [id])
 
-  assignments     InstructorAssignment[] @relation("InstructorAssignmentOpportunity")
+  assignments InstructorAssignment[] @relation("InstructorAssignmentOpportunity")
 
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  archivedAt      DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
 
   @@index([status])
   @@index([urgency])
@@ -12131,26 +12141,26 @@ model WorkshopOpportunity {
 /// (opportunity, instructor) pair — a single instructor cannot hold two
 /// active slots on the same opportunity.
 model InstructorAssignment {
-  id              String           @id @default(cuid())
+  id String @id @default(cuid())
 
-  opportunityId   String
-  opportunity     WorkshopOpportunity @relation("InstructorAssignmentOpportunity", fields: [opportunityId], references: [id], onDelete: Cascade)
+  opportunityId String
+  opportunity   WorkshopOpportunity @relation("InstructorAssignmentOpportunity", fields: [opportunityId], references: [id], onDelete: Cascade)
 
-  instructorId    String
-  instructor      User             @relation("InstructorAssignmentInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+  instructorId String
+  instructor   User   @relation("InstructorAssignmentInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
 
   /// Optional pointer to the approved WorkshopProposalSubmission the
   /// instructor will teach. Nullable so admins can stage assignments before
   /// curriculum is finalized.
-  proposalId      String?
-  proposal        WorkshopProposalSubmission? @relation("WorkshopProposalSubmissionAssignments", fields: [proposalId], references: [id], onDelete: SetNull)
+  proposalId String?
+  proposal   WorkshopProposalSubmission? @relation("WorkshopProposalSubmissionAssignments", fields: [proposalId], references: [id], onDelete: SetNull)
 
-  role            AssignmentRole   @default(LEAD_INSTRUCTOR)
-  status          AssignmentStatus @default(SUGGESTED)
+  role   AssignmentRole   @default(LEAD_INSTRUCTOR)
+  status AssignmentStatus @default(SUGGESTED)
 
-  assignedById    String?
-  assignedBy      User?            @relation("InstructorAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
-  assignedAt      DateTime         @default(now())
+  assignedById String?
+  assignedBy   User?    @relation("InstructorAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedAt   DateTime @default(now())
 
   instructorConfirmedAt DateTime?
   partnerConfirmedAt    DateTime?
@@ -12160,16 +12170,16 @@ model InstructorAssignment {
 
   /// Override for this assignment when it differs from the parent opportunity
   /// (e.g. one instructor covers a single day of a multi-day camp).
-  startTime       DateTime?
-  endTime         DateTime?
+  startTime DateTime?
+  endTime   DateTime?
 
   /// Internal admin notes (never shown to the instructor).
-  internalNotes   String?          @db.Text
+  internalNotes   String? @db.Text
   /// Instructor-visible notes about expectations / prep.
-  instructorNotes String?          @db.Text
+  instructorNotes String? @db.Text
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([opportunityId, instructorId])
   @@index([instructorId])
@@ -12198,17 +12208,17 @@ enum RegularInstructorAssignmentRole {
 
 /// Lifecycle state for a regular instructor assignment.
 enum RegularInstructorAssignmentStatus {
-  SUGGESTED              // Admin shortlisted via matching, not yet acted on
-  PENDING_REVIEW         // Created, awaiting admin action
-  OFFERED                // Sent to instructor; awaiting their acceptance
-  INSTRUCTOR_CONFIRMED   // Instructor accepted; chapter not yet confirmed
-  CHAPTER_CONFIRMED      // Chapter confirmed; instructor not yet accepted
-  FULLY_CONFIRMED        // Both sides confirmed
-  NEEDS_TRAINING         // Blocked on training requirement
-  NEEDS_CURRICULUM       // Blocked on curriculum review
-  DECLINED               // Instructor declined the offer
-  REMOVED                // Admin removed the assignment
-  COMPLETED              // Class run finished
+  SUGGESTED // Admin shortlisted via matching, not yet acted on
+  PENDING_REVIEW // Created, awaiting admin action
+  OFFERED // Sent to instructor; awaiting their acceptance
+  INSTRUCTOR_CONFIRMED // Instructor accepted; chapter not yet confirmed
+  CHAPTER_CONFIRMED // Chapter confirmed; instructor not yet accepted
+  FULLY_CONFIRMED // Both sides confirmed
+  NEEDS_TRAINING // Blocked on training requirement
+  NEEDS_CURRICULUM // Blocked on curriculum review
+  DECLINED // Instructor declined the offer
+  REMOVED // Admin removed the assignment
+  COMPLETED // Class run finished
 }
 
 model RegularInstructorAssignment {
@@ -12274,33 +12284,33 @@ model RegularInstructorAssignment {
 
 /// Top-level lifecycle stage for an instructor inside the platform.
 enum InstructorLifecycleStage {
-  APPLICANT   // still in application funnel
-  ONBOARDING  // approved, completing training / shadow
-  ACTIVE      // teaching in rotation
-  BENCH       // available but not currently assigned
-  PAUSED      // temporary break (school, leave, etc.)
-  ALUMNI      // off-platform; record retained for history
+  APPLICANT // still in application funnel
+  ONBOARDING // approved, completing training / shadow
+  ACTIVE // teaching in rotation
+  BENCH // available but not currently assigned
+  PAUSED // temporary break (school, leave, etc.)
+  ALUMNI // off-platform; record retained for history
 }
 
 /// One row per instructor — holds operational metadata that doesn't
 /// belong on the enormous User model.  Created lazily on first admin
 /// interaction; a missing row is treated as defaults.
 model InstructorProfile {
-  id               String   @id @default(cuid())
-  userId           String   @unique
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  lifecycleStage   InstructorLifecycleStage @default(ACTIVE)
-  stageEnteredAt   DateTime                 @default(now())
+  lifecycleStage InstructorLifecycleStage @default(ACTIVE)
+  stageEnteredAt DateTime                 @default(now())
 
   /// Rough weekly capacity the instructor self-reported.
-  weeklyHoursAvail Int?
+  weeklyHoursAvail  Int?
   /// Hard cap on concurrent class assignments (default 2).
-  maxConcurrent    Int      @default(2)
+  maxConcurrent     Int     @default(2)
   /// True when admin has flagged this person for leadership development.
   isLeadershipTrack Boolean @default(false)
   /// Soft hold — excluded from assignment suggestions while true.
-  isOnHold         Boolean  @default(false)
+  isOnHold          Boolean @default(false)
 
   /// Cached readiness score 0-100, recomputed nightly.
   readinessScore   Int?
@@ -12308,10 +12318,10 @@ model InstructorProfile {
   reliabilityScore Int?
   lastActiveAt     DateTime?
 
-  notes            InstructorNote[]
-  tasks            InstructorTask[]
-  tags             InstructorTag[]
-  metrics          InstructorMetricSnapshot[]
+  notes   InstructorNote[]
+  tasks   InstructorTask[]
+  tags    InstructorTag[]
+  metrics InstructorMetricSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -12339,9 +12349,9 @@ enum TagNamespace {
 model Tag {
   id        String       @id @default(cuid())
   namespace TagNamespace
-  slug      String       // lowercased, hyphenated, e.g. "public-speaking"
-  label     String       // display text, e.g. "Public Speaking"
-  color     String?      // optional hex for chip background
+  slug      String // lowercased, hyphenated, e.g. "public-speaking"
+  label     String // display text, e.g. "Public Speaking"
+  color     String? // optional hex for chip background
   isSystem  Boolean      @default(false) // system-managed (auto:idle, etc.)
 
   instructorTags InstructorTag[]
@@ -12360,8 +12370,8 @@ model InstructorTag {
   source    String   @default("manual")
   addedAt   DateTime @default(now())
 
-  profile   InstructorProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  tag       Tag               @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  profile InstructorProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tag     Tag               @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([profileId, tagId])
   @@index([tagId])
@@ -12369,15 +12379,15 @@ model InstructorTag {
 
 /// Admin-written notes attached to an instructor profile.
 model InstructorNote {
-  id        String   @id @default(cuid())
+  id        String            @id @default(cuid())
   profileId String
   profile   InstructorProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  authorId  String
-  author    User     @relation("InstructorNoteAuthor", fields: [authorId], references: [id])
+  authorId String
+  author   User   @relation("InstructorNoteAuthor", fields: [authorId], references: [id])
 
-  body      String   @db.Text
-  isPinned  Boolean  @default(false)
+  body       String  @db.Text
+  isPinned   Boolean @default(false)
   /// Visibility scope: chapter | global | private (author-only).
   visibility String  @default("global")
 
@@ -12401,23 +12411,23 @@ enum InstructorTaskKind {
 /// Action item linked to an instructor profile. Auto-generated by nightly
 /// jobs or manually created by admins.
 model InstructorTask {
-  id          String             @id @default(cuid())
-  profileId   String
-  profile     InstructorProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id        String            @id @default(cuid())
+  profileId String
+  profile   InstructorProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   kind        InstructorTaskKind @default(MANUAL)
   title       String
   description String?            @db.Text
   dueAt       DateTime?
 
-  assigneeId  String?
-  assignee    User?              @relation("InstructorTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeId String?
+  assignee   User?   @relation("InstructorTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
-  resolvedAt  DateTime?
+  resolvedAt   DateTime?
   resolvedById String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([profileId, resolvedAt])
   @@index([dueAt])
@@ -12427,16 +12437,16 @@ model InstructorTask {
 /// Saved filter/sort state for the instructor directory.
 /// Admins can save personal views or share them within their chapter.
 model InstructorSavedView {
-  id        String   @id @default(cuid())
-  ownerId   String
-  owner     User     @relation("InstructorSavedViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  ownerId String
+  owner   User   @relation("InstructorSavedViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
-  name      String
+  name     String
   /// JSON blob: { stage?, chapterId?, tagIds?, search?, sortKey?, sortDir? }
-  filters   Json
-  isShared  Boolean  @default(false)
+  filters  Json
+  isShared Boolean @default(false)
   /// Scope: personal | chapter | global
-  scope     String   @default("personal")
+  scope    String  @default("personal")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -12448,9 +12458,9 @@ model InstructorSavedView {
 /// Weekly metric rollup per instructor, computed by a scheduled job.
 /// Keeps a historical record for trending without bloating the profile.
 model InstructorMetricSnapshot {
-  id             String   @id @default(cuid())
-  profileId      String
-  profile        InstructorProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id        String            @id @default(cuid())
+  profileId String
+  profile   InstructorProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   weekStart      DateTime // Monday 00:00 UTC of the snapshot week
   classesTaught  Int      @default(0)
@@ -12599,8 +12609,8 @@ model ActionItem {
   /// clears the item from the Escalation Queue. `boardRolledUpAt` is reserved
   /// for a later phase that rolls escalations up into a Board summary.
   escalatedToLeadershipAt DateTime?
-  resolvedAt       DateTime?
-  boardRolledUpAt  DateTime?
+  resolvedAt              DateTime?
+  boardRolledUpAt         DateTime?
 
   /// Polymorphic link to a related domain entity (CLASS_OFFERING / MENTORSHIP /
   /// USER / INSTRUCTOR_APPLICATION). String-typed (no FK) to mirror the
@@ -12813,11 +12823,11 @@ enum GrowthTag {
 /// either present or not — toggling is idempotent. `note` is an optional short
 /// rationale; `createdBy` records who attached it for accountability.
 model MemberGrowthTag {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation("MemberGrowthTags", fields: [userId], references: [id], onDelete: Cascade)
-  tag       GrowthTag
-  note      String?   @db.Text
+  id     String    @id @default(cuid())
+  userId String
+  user   User      @relation("MemberGrowthTags", fields: [userId], references: [id], onDelete: Cascade)
+  tag    GrowthTag
+  note   String?   @db.Text
 
   createdById String
   createdBy   User   @relation("MemberGrowthTagsCreated", fields: [createdById], references: [id], onDelete: Cascade)
@@ -12849,18 +12859,18 @@ model ActionTemplate {
   /// Short helper text shown in the template gallery.
   description         String?              @db.Text
   /// Playbook grouping (e.g. "Hiring", "Instruction") for the gallery.
-  category           String?
-  titleTemplate      String
-  descriptionTemplate String?             @db.Text
-  goalCategory       String?
-  defaultPriority    ActionPriority       @default(MEDIUM)
-  defaultVisibility  ActionItemVisibility @default(ALL_LEADERSHIP)
+  category            String?
+  titleTemplate       String
+  descriptionTemplate String?              @db.Text
+  goalCategory        String?
+  defaultPriority     ActionPriority       @default(MEDIUM)
+  defaultVisibility   ActionItemVisibility @default(ALL_LEADERSHIP)
   /// Default deadline, in days from creation. Null leaves it blank.
-  deadlineOffsetDays Int?
+  deadlineOffsetDays  Int?
   /// Suggested checklist steps, appended into the new item's description.
-  checklist          String[]             @default([])
-  isStandard         Boolean              @default(false)
-  archivedAt         DateTime?
+  checklist           String[]             @default([])
+  isStandard          Boolean              @default(false)
+  archivedAt          DateTime?
 
   createdById String?
   createdBy   User?   @relation("ActionTemplatesCreated", fields: [createdById], references: [id], onDelete: SetNull)
@@ -12917,9 +12927,9 @@ model OfficerMeeting {
   /// Generated post-meeting summary email body (Prompt 06B). Null until generated.
   summaryEmailText String?              @db.Text
 
-  actionItems  ActionItem[]  @relation("OfficerMeetingActionItems")
-  notes        MeetingNote[] @relation("OfficerMeetingNotes")
-  miscUpdates  MiscUpdate[]  @relation("OfficerMeetingMiscUpdates")
+  actionItems ActionItem[]  @relation("OfficerMeetingActionItems")
+  notes       MeetingNote[] @relation("OfficerMeetingNotes")
+  miscUpdates MiscUpdate[]  @relation("OfficerMeetingMiscUpdates")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -13060,4 +13070,215 @@ model QuarterlyReview {
   @@index([userId])
   @@index([createdById])
   @@index([successionFlag])
+}
+
+// ============================================================================
+// GROWTH — Student Operating System (Action Tracker 3.0, Phase N1)
+//
+// The unified progression engine. Additive only: new Growth* models + two
+// stable enums; the only touch to existing tables is User back-relations
+// (declared in the User model). Runtime stays dark behind ENABLE_GROWTH_OS.
+// Mirrors the InstructorGrowth* conventions (cuid ids, named User relations,
+// dedupeKey idempotency, Json metadata). TEXT vocabularies (action status,
+// achievement category, opportunity kind, event type) are validated in
+// lib/growth/constants.ts, matching the repo's actionType/partner.stage style.
+// ============================================================================
+
+/// The progression track a node/event belongs to. Different tracks, one engine.
+enum GrowthTrack {
+  STUDENT
+  MENTORSHIP
+  INSTRUCTOR
+  LEADERSHIP
+  CHAPTER
+  HIRING
+  ALUMNI
+}
+
+/// Lifecycle status shared by Vision / Goal / Milestone (Actions use a TEXT
+/// status vocabulary because they have a richer set: TODO/IN_PROGRESS/...).
+enum GrowthObjectiveStatus {
+  ACTIVE
+  ACHIEVED
+  ARCHIVED
+}
+
+/// Development profile (NOT demographics). 1:1 with User. The interest/skill
+/// arrays are user-editable and additively merged; the counters are caches the
+/// recompute step writes so dashboards never fan out on page load.
+model GrowthProfile {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  user                 User      @relation("GrowthProfile", fields: [userId], references: [id], onDelete: Cascade)
+  headline             String?
+  careerInterests      String[]  @default([])
+  leadershipInterests  String[]  @default([])
+  impactInterests      String[]  @default([])
+  skills               String[]  @default([])
+  confidenceAreas      String[]  @default([])
+  growthAreas          String[]  @default([])
+  achievementCount     Int       @default(0)
+  completedExperiences Int       @default(0)
+  lastEventAt          DateTime?
+  lastRecomputedAt     DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+/// Top-level "who I'm becoming". Optional: a Goal can stand alone (skip-level).
+model GrowthVision {
+  id          String                @id @default(cuid())
+  userId      String
+  user        User                  @relation("GrowthVisions", fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  track       GrowthTrack           @default(STUDENT)
+  status      GrowthObjectiveStatus @default(ACTIVE)
+  order       Int                   @default(0)
+  goals       GrowthGoal[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([userId, status])
+}
+
+/// A measurable outcome. Holds Milestones and/or direct Actions (skip-level).
+/// `source`/`sourceRef` record provenance (e.g. mentorship + mentorshipId) so
+/// seeded goals are idempotent and the UI can back-link them.
+model GrowthGoal {
+  id          String                @id @default(cuid())
+  userId      String
+  user        User                  @relation("GrowthGoals", fields: [userId], references: [id], onDelete: Cascade)
+  visionId    String?
+  vision      GrowthVision?         @relation(fields: [visionId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  track       GrowthTrack           @default(STUDENT)
+  status      GrowthObjectiveStatus @default(ACTIVE)
+  order       Int                   @default(0)
+  source      String                @default("manual")
+  sourceRef   String?
+  targetDate  DateTime?
+  milestones  GrowthMilestone[]
+  actions     GrowthAction[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([userId, status])
+  @@index([visionId])
+  @@index([source, sourceRef])
+}
+
+/// A checkpoint under a Goal.
+model GrowthMilestone {
+  id          String                @id @default(cuid())
+  userId      String
+  user        User                  @relation("GrowthMilestones", fields: [userId], references: [id], onDelete: Cascade)
+  goalId      String
+  goal        GrowthGoal            @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      GrowthObjectiveStatus @default(ACTIVE)
+  order       Int                   @default(0)
+  source      String                @default("manual")
+  sourceRef   String?
+  achievedAt  DateTime?
+  actions     GrowthAction[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([userId, status])
+  @@index([goalId])
+}
+
+/// The leaf. Attaches to a Milestone, directly to a Goal, or floats (inbox).
+/// `status` is a TEXT vocabulary (TODO | IN_PROGRESS | DONE | BLOCKED | DROPPED).
+model GrowthAction {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation("GrowthActions", fields: [userId], references: [id], onDelete: Cascade)
+  goalId      String?
+  goal        GrowthGoal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  milestoneId String?
+  milestone   GrowthMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  status      String           @default("TODO")
+  order       Int              @default(0)
+  source      String           @default("manual")
+  sourceRef   String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([userId, status])
+  @@index([goalId])
+  @@index([milestoneId])
+}
+
+/// A first-class earned achievement. `key` is the registry key; title/category
+/// are snapshotted so history is stable. Idempotent: one award per (user, key).
+model GrowthAchievement {
+  id            String               @id @default(cuid())
+  userId        String
+  user          User                 @relation("GrowthAchievements", fields: [userId], references: [id], onDelete: Cascade)
+  key           String
+  title         String
+  category      String
+  description   String?
+  sourceEventId String?
+  sourceEvent   GrowthProgressEvent? @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
+  metadata      Json?
+  earnedAt      DateTime             @default(now())
+  createdAt     DateTime             @default(now())
+
+  @@unique([userId, key])
+  @@index([userId, earnedAt])
+  @@index([category])
+}
+
+/// A persisted, deterministic recommendation. `reason` is the WHY shown to the
+/// student. Idempotent per (user, key); a DISMISSED row is not re-suggested.
+model GrowthOpportunity {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("GrowthOpportunities", fields: [userId], references: [id], onDelete: Cascade)
+  key        String
+  kind       String
+  title      String
+  detail     String?
+  href       String?
+  reason     String
+  score      Int      @default(0)
+  status     String   @default("SUGGESTED")
+  metadata   Json?
+  computedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, key])
+  @@index([userId, status])
+}
+
+/// The event log future systems emit into. The Growth Engine consumes these.
+/// Idempotent per (user, dedupeKey) — null dedupeKeys always insert.
+model GrowthProgressEvent {
+  id           String              @id @default(cuid())
+  userId       String
+  user         User                @relation("GrowthProgressEvents", fields: [userId], references: [id], onDelete: Cascade)
+  type         String
+  track        GrowthTrack         @default(STUDENT)
+  title        String
+  description  String?
+  dedupeKey    String?
+  sourceType   String?
+  sourceId     String?
+  metadata     Json?
+  occurredAt   DateTime            @default(now())
+  achievements GrowthAchievement[]
+  createdAt    DateTime            @default(now())
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, occurredAt])
+  @@index([type])
 }

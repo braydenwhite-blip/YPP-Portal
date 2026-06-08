@@ -238,6 +238,8 @@ export interface ResolveNavInput {
   enabledFeatureKeys?: Set<string>;
   /** When true, People Strategy Action Tracker links (e.g. /my-actions) are shown. */
   actionTrackerEnabled?: boolean;
+  /** When true, the Student Operating System link (/my-growth) is shown. */
+  growthOsEnabled?: boolean;
   /** When true, the People Strategy Operations Hub link (/operations) is shown. */
   operationsHubEnabled?: boolean;
   /** When true, show the deprecated Leadership Action Center sidebar entry. */
@@ -559,6 +561,7 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       // People Strategy Action Tracker links stay fully hidden while the
       // feature flag is off — for every role, including admins.
       if (item.requiresActionTracker && !input.actionTrackerEnabled) return false;
+      if (item.requiresGrowthOs && !input.growthOsEnabled) return false;
       if (item.requiresOperationsHub && !input.operationsHubEnabled) return false;
       if (item.requiresLegacyActionCenterNav && !input.legacyActionCenterNavEnabled) return false;
       if (!hasRoleAccess(item, roles)) return false;

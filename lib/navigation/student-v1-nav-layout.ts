@@ -15,6 +15,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/my-classes/assignments": { group: "Learning", label: "Assignments", icon: "📝" },
   "/curriculum": { group: "Learning", label: "Browse classes", icon: "📖" },
   "/pathways": { group: "Learning", label: "Pathways", icon: "🗺" },
+  "/my-growth": { group: "Progress", label: "My Growth", icon: "🌱" },
   "/goals": { group: "Progress", label: "Goals", icon: "🎯" },
   "/pathways/progress": { group: "Progress", label: "Progress", icon: "📈" },
   "/my-program": { group: "Progress", label: "Program hub", icon: "🧭" },

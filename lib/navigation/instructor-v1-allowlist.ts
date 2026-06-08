@@ -1,7 +1,7 @@
 import type { NavRole } from "@/lib/navigation/types";
 
 /** Bump when the href set changes so dashboard cache partitions stay correct. */
-export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "8";
+export const INSTRUCTOR_V1_ALLOWLIST_VERSION = "9";
 
 /**
  * Default instructor nav: a dedicated Teach section (workspace, curriculum,
@@ -28,6 +28,9 @@ export const INSTRUCTOR_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/notifications",
   "/calendar",
   "/my-mentor",
+  // Student Operating System centerpiece (gated by `requiresGrowthOs` in the
+  // catalog, so this only applies when ENABLE_GROWTH_OS is on).
+  "/my-growth",
   "/leadership-pathway",
   "/messages",
   "/chapters",

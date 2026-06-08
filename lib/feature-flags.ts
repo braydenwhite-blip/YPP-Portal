@@ -112,6 +112,22 @@ export function isMentorship2Enabled(): boolean {
 }
 
 /**
+ * Student Operating System / Growth Engine (Action Tracker 3.0, Phase N1). Gates
+ * the unified progression system: the Vision -> Goal -> Milestone -> Action
+ * hierarchy, the Growth Profile, the deterministic Achievement + Opportunity
+ * engines, the `GrowthProgressEvent` ingress, the `/my-growth` student command
+ * center, and the `/admin/growth` dashboard. The schema/migration ship
+ * regardless of this flag.
+ *
+ * Defaults OFF — set `ENABLE_GROWTH_OS=true` to expose the surfaces. With the
+ * flag off, `emitGrowthEvent` is a no-op, the new server actions throw, and the
+ * new pages return notFound(), so existing behavior is byte-for-byte unchanged.
+ */
+export function isGrowthOsEnabled(): boolean {
+  return process.env.ENABLE_GROWTH_OS === "true";
+}
+
+/**
  * Growth — Camp & Partner Pipeline. Upgrades `/admin/partners` from a flat
  * directory into a relationship pipeline (stages, contacts, program needs,
  * follow-ups, instructor matching, and a partner profile at

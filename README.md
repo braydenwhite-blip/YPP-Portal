@@ -130,6 +130,7 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 | `ENABLE_PEOPLE_DASHBOARD` | Enable the CPO/Board People Dashboard and People Strategy member-detail section (`true`/`false`, defaults to off). |
 | `ENABLE_PROVISIONAL_CLOCK` | Enable the provisional 3-month confirmation clock UI when the data field is ready (`true`/`false`, defaults to off). |
 | `ENABLE_MENTORSHIP_2` | Enable Mentorship 2.0 (Action Tracker 3.0, Phase M1): mentor expertise taxonomy, mentee application intake, and the COMPLETE→Alumni transition (`true`/`false`, defaults to off). |
+| `ENABLE_GROWTH_OS` | Enable the Student Operating System / Growth Engine (Action Tracker 3.0, Phase N1): the Vision→Goal→Milestone→Action hierarchy, Growth Profile, deterministic Achievement + Opportunity engines, the `GrowthProgressEvent` ingress, `/my-growth`, and `/admin/growth` (`true`/`false`, defaults to off). |
 | `ANTHROPIC_API_KEY` | Anthropic API key for AI-generated mentor review draft assistance (`lib/ai/generate-review-draft.ts`). |
 | `CRON_SECRET` | Shared secret for cron-protected API routes, including People Strategy routes listed below. Must match `vercel.json`. |
 | `TWILIO_ACCOUNT_SID` | Twilio account SID for SMS delivery. |
