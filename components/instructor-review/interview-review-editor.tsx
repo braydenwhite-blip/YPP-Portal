@@ -734,9 +734,6 @@ export default function InterviewReviewEditor({
         missing.push(`Question prompt (${question.competency || "custom"})`);
         continue;
       }
-      if (question.status === "ASKED" && !question.notes.trim()) {
-        missing.push(`Notes for "${question.prompt.slice(0, 60)}${question.prompt.length > 60 ? "…" : ""}"`);
-      }
     }
 
     return missing;
