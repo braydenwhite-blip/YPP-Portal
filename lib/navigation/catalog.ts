@@ -517,13 +517,22 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/actions/meetings",
-      label: "Officer Meetings",
+      label: "Meetings",
       icon: "📅",
       // Officer-tier and above only (mirrors requireOfficer()).
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
       requiresActionTracker: true,
-      searchAliases: ["Meetings", "Officer Meeting", "Agenda"],
-      dashboardDescription: "Schedule officer meetings, link action items, and capture notes.",
+      searchAliases: [
+        "Meetings",
+        "Weekly Command Center",
+        "Meetings Tracker",
+        "Officer Meeting",
+        "Agenda",
+        "Decisions",
+        "Follow-ups",
+      ],
+      dashboardDescription:
+        "Weekly Command Center: run leadership meetings, log decisions and follow-ups, and turn them into tracked actions.",
       dashboardPriority: 5,
     },
     {

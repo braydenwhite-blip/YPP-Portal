@@ -133,6 +133,8 @@ export interface MeetingCardDTO {
   location: string | null;
   facilitator: PersonDTO | null;
   attendeeCount: number;
+  /** Facilitator + attendee user ids, for the dashboard's owner filter. */
+  participantIds: string[];
   effectiveStatus: EffectiveMeetingStatus;
   agendaCount: number;
   agendaDoneCount: number;
@@ -239,6 +241,10 @@ export function mapMeetingToCardDTO(
     location: m.location,
     facilitator: personDTO(m.facilitator),
     attendeeCount: m.attendees.length,
+    participantIds: [
+      ...(m.facilitatorId ? [m.facilitatorId] : []),
+      ...m.attendees.map((a) => a.userId),
+    ],
     effectiveStatus: computeMeetingStatus(view, now),
     agendaCount: m.agendaItems.length,
     agendaDoneCount: m.agendaItems.filter((a) => a.status !== "OPEN").length,

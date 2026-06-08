@@ -126,6 +126,19 @@
   --info-text: #1e40af;
   --surface-warm: #fbfaf7;
 
+  /* Meetings Tracker / Weekly Command Center — structural tokens the feature's
+     components reference. Additive only; existing tokens (purple scale, surface,
+     border, ink, muted, success/warning-bg) are reused so the command center
+     matches the surrounding Action Tracker surfaces. */
+  --rail: #faf9fd;
+  --chip-bg: #f2f1f7;
+  --chip-border: #e4e2ed;
+  --muted-2: #9a96ac;
+  --success-fg: #166534;
+  --warn-fg: #92400e;
+  --danger-bg: #fef2f2;
+  --danger-fg: #c0322f;
+
   /* Shadows — purple-tinted like marketing site */
   --shadow-xs: 0 1px 3px rgba(15, 23, 42, 0.06);
   --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.08);
