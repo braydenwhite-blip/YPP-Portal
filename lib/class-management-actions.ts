@@ -1352,6 +1352,32 @@ export async function recordClassAttendance(formData: FormData) {
   const status = getString(formData, "status") as "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
   const notes = getString(formData, "notes", false);
 
+  // Load the session's offering up front so we can authorize the caller before
+  // writing anything. An instructor may only record attendance for a class they
+  // teach; admins may record for any class. (Previously this was role-only, so
+  // any instructor could mark attendance for any class.)
+  const classSession = await prisma.classSession.findUnique({
+    where: { id: sessionId },
+    select: {
+      offeringId: true,
+      offering: {
+        select: {
+          instructorId: true,
+        },
+      },
+    },
+  });
+
+  if (!classSession) throw new Error("Session not found");
+
+  const roles = session.user?.roles ?? [];
+  if (
+    classSession.offering.instructorId !== session.user.id &&
+    !roles.includes("ADMIN")
+  ) {
+    throw new Error("Not authorized to record attendance for this class.");
+  }
+
   await prisma.classAttendanceRecord.upsert({
     where: { sessionId_studentId: { sessionId, studentId } },
     create: {
@@ -1366,20 +1392,7 @@ export async function recordClassAttendance(formData: FormData) {
     },
   });
 
-  // Update enrollment attendance count
-  const classSession = await prisma.classSession.findUnique({
-    where: { id: sessionId },
-    select: {
-      offeringId: true,
-      offering: {
-        select: {
-          instructorId: true,
-        },
-      },
-    },
-  });
-
-  if (classSession && status === "PRESENT") {
+  if (status === "PRESENT") {
     const attendedCount = await prisma.classAttendanceRecord.count({
       where: {
         studentId,
@@ -1394,10 +1407,11 @@ export async function recordClassAttendance(formData: FormData) {
     });
   }
 
-  if (classSession?.offering.instructorId) {
+  if (classSession.offering.instructorId) {
     await syncInstructorGrowthSafe(classSession.offering.instructorId);
   }
 
+  revalidatePath(`/curriculum/${classSession.offeringId}`);
   revalidatePath("/instructor/curriculum-builder");
   return { success: true };
 }
@@ -1465,9 +1479,18 @@ export async function markOutcomeAchieved(
 
   const enrollment = await prisma.classEnrollment.findUnique({
     where: { studentId_offeringId: { studentId, offeringId } },
+    include: { offering: { select: { instructorId: true } } },
   });
 
   if (!enrollment) throw new Error("Student not enrolled");
+
+  const roles = session.user?.roles ?? [];
+  if (
+    enrollment.offering.instructorId !== session.user.id &&
+    !roles.includes("ADMIN")
+  ) {
+    throw new Error("Not authorized to update outcomes for this class.");
+  }
 
   const currentOutcomes = enrollment.outcomesAchieved || [];
   if (currentOutcomes.includes(outcome)) {
