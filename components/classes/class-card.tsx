@@ -160,7 +160,7 @@ export function ClassCard({ data }: { data: ClassCardData }) {
       {/* Outcomes */}
       {data.learningOutcomes && data.learningOutcomes.length > 0 ? (
         <div style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>You'll learn to:</div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>You&apos;ll learn to:</div>
           <ul style={{ margin: 0, paddingLeft: 16 }}>
             {data.learningOutcomes.slice(0, 3).map((outcome, i) => (
               <li key={i}>{outcome}</li>

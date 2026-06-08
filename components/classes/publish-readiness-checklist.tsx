@@ -74,7 +74,7 @@ export function PublishReadinessChecklist({
 
       {readiness.ready ? (
         <p style={{ fontSize: 13, color: "#15803d", marginTop: 10, marginBottom: 0 }}>
-          Everything required is in place. You're clear to publish and open enrollment.
+          Everything required is in place. You&apos;re clear to publish and open enrollment.
         </p>
       ) : (
         <ul style={{ listStyle: "none", margin: "10px 0 0", padding: 0 }}>
