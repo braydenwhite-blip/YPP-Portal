@@ -14,6 +14,7 @@ import {
 import { ACTION_TYPE_VALUES, type ActionType } from "./action-types";
 import type { ActionItemWithRelations } from "./action-queries";
 import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
+import { addDays, startOfDay } from "@/lib/leadership-action-center/dates";
 
 /**
  * People Strategy — shared Action Tracker filter + sort logic.
@@ -33,6 +34,58 @@ export type ActionRelatedTypeFilter = RelatedEntityType | "ALL";
 export type ActionTypeFilter = ActionType | "ALL";
 export type ActionDeadlineSort = "deadline_asc" | "deadline_desc" | "priority_desc";
 
+/**
+ * Strategic one-click "view presets" surfaced as chips on the Action Tracker
+ * (and as quick links on the Command Center). Each is a saved *lens* over the
+ * existing filter pipeline — it narrows the same already-visibility-checked
+ * items, so the list, counts, charts, and CSV export all stay in agreement.
+ * Kept as a TEXT vocabulary (no Prisma enum) per house style.
+ */
+export const ACTION_PRESET_VALUES = [
+  "unassigned",
+  "due_soon",
+  "high_priority",
+  "blocked",
+  "waiting",
+] as const;
+export type ActionPreset = (typeof ACTION_PRESET_VALUES)[number];
+export type ActionPresetFilter = ActionPreset | "ALL";
+
+export const ACTION_PRESET_LABELS: Record<ActionPreset, string> = {
+  unassigned: "Unassigned",
+  due_soon: "Due soon",
+  high_priority: "High priority",
+  blocked: "Blocked",
+  waiting: "Waiting",
+};
+
+/** One-line "what this lens shows", used as chip tooltips + a11y descriptions. */
+export const ACTION_PRESET_DESCRIPTIONS: Record<ActionPreset, string> = {
+  unassigned: "Open actions with no lead owner yet",
+  due_soon: "Open actions due within the next 7 days",
+  high_priority: "Open High or Urgent priority actions",
+  blocked: "Actions that are currently blocked",
+  waiting: "Open actions waiting on someone's requested input",
+};
+
+/** Number of days ahead the "Due soon" lens looks (mirrors the urgency buckets). */
+export const ACTION_DUE_SOON_DAYS = 7;
+
+export type ActionPresetMeta = {
+  value: ActionPreset;
+  label: string;
+  description: string;
+};
+
+/** Ordered preset metadata for rendering chip rows on either surface. */
+export const ACTION_PRESETS: readonly ActionPresetMeta[] = ACTION_PRESET_VALUES.map(
+  (value) => ({
+    value,
+    label: ACTION_PRESET_LABELS[value],
+    description: ACTION_PRESET_DESCRIPTIONS[value],
+  })
+);
+
 export type ActionFilters = {
   /** Department id, or "ALL". */
   department: string;
@@ -48,6 +101,8 @@ export type ActionFilters = {
   /** Free-text search over title / description / lead. */
   search: string;
   sort: ActionDeadlineSort;
+  /** Strategic one-click view preset (Unassigned / Due soon / …), or "ALL". */
+  preset: ActionPresetFilter;
 };
 
 export const ACTION_FILTER_DEFAULTS: ActionFilters = {
@@ -59,6 +114,7 @@ export const ACTION_FILTER_DEFAULTS: ActionFilters = {
   actionType: "ALL",
   search: "",
   sort: "deadline_asc",
+  preset: "ALL",
 };
 
 /** Query-string keys used on `/all-actions` and the export route. */
@@ -71,6 +127,7 @@ export const ACTION_FILTER_PARAM_KEYS = {
   actionType: "type",
   search: "q",
   sort: "sort",
+  preset: "preset",
 } as const;
 
 const STATUS_VALUES: ActionItemStatus[] = [
@@ -107,6 +164,7 @@ export function parseActionFilters(params: RawParams): ActionFilters {
   const actionType = firstValue(params[ACTION_FILTER_PARAM_KEYS.actionType]);
   const search = firstValue(params[ACTION_FILTER_PARAM_KEYS.search]) ?? "";
   const sort = firstValue(params[ACTION_FILTER_PARAM_KEYS.sort]);
+  const preset = firstValue(params[ACTION_FILTER_PARAM_KEYS.preset]);
 
   return {
     department: department && department.trim() ? department.trim() : "ALL",
@@ -136,6 +194,11 @@ export function parseActionFilters(params: RawParams): ActionFilters {
         : sort === "priority_desc"
           ? "priority_desc"
           : "deadline_asc",
+    preset: (ACTION_PRESET_VALUES as readonly string[]).includes(
+      preset as ActionPreset
+    )
+      ? (preset as ActionPreset)
+      : "ALL",
   };
 }
 
@@ -148,6 +211,7 @@ export function hasActiveFilters(filters: ActionFilters): boolean {
     filters.visibility !== "ALL" ||
     filters.relatedType !== "ALL" ||
     filters.actionType !== "ALL" ||
+    filters.preset !== "ALL" ||
     filters.search !== ""
   );
 }
@@ -229,6 +293,69 @@ export function smartBucket(
   return "NOT_STARTED";
 }
 
+/**
+ * Does an item belong to a strategic preset lens? Pure and composable: it is
+ * AND-ed on top of the granular filters in {@link applyActionFilters}, so a
+ * preset can be combined with (e.g.) a department filter. Each lens is a
+ * "needs attention" read, so settled work (COMPLETE / DROPPED) is excluded by
+ * every preset. "ALL" matches everything (no preset active).
+ */
+export function matchesActionPreset(
+  item: ActionItemWithRelations,
+  preset: ActionPresetFilter,
+  now: Date = new Date()
+): boolean {
+  if (preset === "ALL") return true;
+  if (item.status === "COMPLETE" || item.status === "DROPPED") return false;
+
+  switch (preset) {
+    case "unassigned":
+      // No lead owner — surfaces work that still needs someone to own it.
+      return item.leadId == null;
+    case "due_soon": {
+      // Open and landing within the next 7 days, but not yet overdue (overdue
+      // has its own lens). Mirrors the "due today + this week" urgency buckets.
+      if (isActionOverdue(item, now)) return false;
+      const due = startOfDay(effectiveDeadline(item)).getTime();
+      const windowEnd = startOfDay(addDays(now, ACTION_DUE_SOON_DAYS)).getTime();
+      return due <= windowEnd;
+    }
+    case "high_priority":
+      return ACTION_PRIORITY_WEIGHT[item.priority] >= ACTION_PRIORITY_WEIGHT.HIGH;
+    case "blocked":
+      return effectiveStatus(item, now) === "BLOCKED";
+    case "waiting":
+      return smartBucket(item, now) === "WAITING";
+    default:
+      return true;
+  }
+}
+
+/** Count how many items fall into each preset lens (for the chip badges). */
+export function countActionPresets(
+  items: ActionItemWithRelations[],
+  now: Date = new Date()
+): Record<ActionPreset, number> {
+  const counts: Record<ActionPreset, number> = {
+    unassigned: 0,
+    due_soon: 0,
+    high_priority: 0,
+    blocked: 0,
+    waiting: 0,
+  };
+  for (const item of items) {
+    for (const preset of ACTION_PRESET_VALUES) {
+      if (matchesActionPreset(item, preset, now)) counts[preset] += 1;
+    }
+  }
+  return counts;
+}
+
+/** Canonical Action Tracker URL for a strategic preset on its own (no other filters). */
+export function actionPresetHref(preset: ActionPreset): string {
+  return `/actions/all?${ACTION_FILTER_PARAM_KEYS.preset}=${preset}`;
+}
+
 function matchesSearch(item: ActionItemWithRelations, needle: string): boolean {
   if (!needle) return true;
   const haystack = [
@@ -275,6 +402,7 @@ export function applyActionFilters(
     if (filters.actionType !== "ALL" && item.actionType !== filters.actionType) {
       return false;
     }
+    if (!matchesActionPreset(item, filters.preset, now)) return false;
     if (!matchesSearch(item, filters.search)) return false;
     return true;
   });
@@ -302,6 +430,9 @@ export function applyActionFilters(
 /** Serialize filters back to a query string (omitting defaults). */
 export function buildActionFilterQuery(filters: ActionFilters): string {
   const params = new URLSearchParams();
+  if (filters.preset !== "ALL") {
+    params.set(ACTION_FILTER_PARAM_KEYS.preset, filters.preset);
+  }
   if (filters.department !== "ALL") {
     params.set(ACTION_FILTER_PARAM_KEYS.department, filters.department);
   }

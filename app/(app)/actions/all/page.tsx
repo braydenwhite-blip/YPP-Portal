@@ -12,8 +12,11 @@ import {
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
 import {
+  ACTION_FILTER_PARAM_KEYS,
+  ACTION_PRESETS,
   applyActionFilters,
   buildActionFilterQuery,
+  countActionPresets,
   groupActionsByLinkedEntity,
   hasActiveFilters,
   linkedGroupHeading,
@@ -39,6 +42,10 @@ import { StatCard } from "@/components/people-strategy/stat-card";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { SavedViewsBar } from "@/components/people-strategy/saved-views-bar";
+import {
+  ActionPresetChips,
+  type ActionPresetChip,
+} from "@/components/people-strategy/action-preset-chips";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const dynamic = "force-dynamic";
@@ -155,6 +162,32 @@ export default async function AllActionsPage({
     return qs ? `/actions/all?${qs}` : "/actions/all";
   };
 
+  // Strategic view-preset chips (Phase 2). Counts reflect the OTHER active
+  // filters (everything except the preset itself) so each chip shows how many
+  // actions that lens holds in the current context; clicking toggles the preset
+  // while preserving the rest of the view (department, search, group, …).
+  const presetCountBase =
+    filters.preset === "ALL"
+      ? items
+      : applyActionFilters(visible, { ...filters, preset: "ALL" }, now);
+  const presetCounts = countActionPresets(presetCountBase, now);
+  const presetChips: ActionPresetChip[] = ACTION_PRESETS.map((preset) => {
+    const active = filters.preset === preset.value;
+    const p = new URLSearchParams(buildActionFilterQuery(filters));
+    if (active) p.delete(ACTION_FILTER_PARAM_KEYS.preset);
+    else p.set(ACTION_FILTER_PARAM_KEYS.preset, preset.value);
+    if (groupBy === "linked") p.set("group", "linked");
+    const qs = p.toString();
+    return {
+      value: preset.value,
+      label: preset.label,
+      description: preset.description,
+      href: qs ? `/actions/all?${qs}` : "/actions/all",
+      active,
+      count: presetCounts[preset.value],
+    };
+  });
+
   const filtersActive = hasActiveFilters(filters);
   const showPeopleDashboardTab = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
   const lastUpdated = new Intl.DateTimeFormat("en-US", {
@@ -190,6 +223,8 @@ export default async function AllActionsPage({
         filters={filters}
         hasActive={filtersActive}
       />
+
+      <ActionPresetChips chips={presetChips} />
 
       <SavedViewsBar
         views={savedViews}

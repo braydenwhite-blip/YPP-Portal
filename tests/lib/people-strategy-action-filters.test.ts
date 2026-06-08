@@ -2,15 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import {
+  ACTION_PRESETS,
+  actionPresetHref,
   applyActionFilters,
   buildActionFilterQuery,
+  countActionPresets,
   effectiveStatus,
   groupActionsByLinkedEntity,
   hasActiveFilters,
   linkedGroupHeading,
+  matchesActionPreset,
   parseActionFilters,
 } from "@/lib/people-strategy/action-filters";
 import {
+  summarizeCompletion,
   summarizeDepartments,
   summarizeStatuses,
 } from "@/lib/people-strategy/action-analytics";
@@ -19,6 +24,11 @@ const NOW = new Date("2026-06-01T12:00:00Z");
 
 function person(id: string) {
   return { id, name: id, email: `${id}@x.org`, primaryRole: "ADMIN", profile: null };
+}
+
+type Comment = ActionItemWithRelations["comments"][number];
+function comment(type: Comment["type"], authorId = "asker"): Comment {
+  return { id: `c-${authorId}`, body: "ask", type, createdAt: NOW, author: person(authorId) } as Comment;
 }
 
 function item(overrides: Partial<ActionItemWithRelations>): ActionItemWithRelations {
@@ -59,6 +69,7 @@ describe("parseActionFilters", () => {
       actionType: "ALL",
       search: "",
       sort: "deadline_asc",
+      preset: "ALL",
     });
   });
 
@@ -268,5 +279,147 @@ describe("linkedGroupHeading", () => {
       "Mentorship · link no longer available"
     );
     expect(linkedGroupHeading(byKey["none"], labels)).toBe("Not linked");
+  });
+});
+
+describe("summarizeCompletion", () => {
+  const items = [
+    item({ id: "a", status: "COMPLETE", deadlineStart: new Date("2026-06-20T00:00:00Z") }),
+    item({ id: "b", status: "IN_PROGRESS", deadlineStart: new Date("2026-06-20T00:00:00Z") }),
+    item({ id: "c", status: "IN_PROGRESS", deadlineStart: new Date("2026-05-01T00:00:00Z") }), // overdue
+    item({ id: "d", status: "BLOCKED", deadlineStart: new Date("2026-06-20T00:00:00Z") }),
+    item({ id: "e", status: "DROPPED", deadlineStart: new Date("2026-06-20T00:00:00Z") }),
+  ];
+
+  it("counts completed/open/overdue/blocked and excludes dropped from the rate", () => {
+    const c = summarizeCompletion(items, NOW);
+    expect(c.total).toBe(5);
+    expect(c.completed).toBe(1);
+    expect(c.dropped).toBe(1);
+    expect(c.open).toBe(3); // b, c, d
+    expect(c.overdue).toBe(1); // c
+    expect(c.blocked).toBe(1); // d
+    expect(c.completionRate).toBeCloseTo(0.25); // 1 completed / (5 - 1 dropped)
+    expect(c.overdueRate).toBeCloseTo(1 / 3); // 1 overdue / 3 open
+  });
+
+  it("is safe on an empty set", () => {
+    expect(summarizeCompletion([], NOW)).toMatchObject({
+      total: 0,
+      completed: 0,
+      completionRate: 0,
+      overdueRate: 0,
+    });
+  });
+});
+
+describe("strategic presets", () => {
+  it("parses a known preset and ignores junk", () => {
+    expect(parseActionFilters({ preset: "blocked" }).preset).toBe("blocked");
+    expect(parseActionFilters({ preset: "NONSENSE" }).preset).toBe("ALL");
+  });
+
+  it("counts toward hasActiveFilters and round-trips through the query string", () => {
+    const filters = parseActionFilters({ preset: "waiting" });
+    expect(hasActiveFilters(filters)).toBe(true);
+    const qs = buildActionFilterQuery(filters);
+    expect(qs).toContain("preset=waiting");
+    expect(
+      parseActionFilters(Object.fromEntries(new URLSearchParams(qs))).preset
+    ).toBe("waiting");
+  });
+
+  it("ACTION_PRESETS / actionPresetHref expose all five lenses", () => {
+    expect(ACTION_PRESETS.map((p) => p.value)).toEqual([
+      "unassigned",
+      "due_soon",
+      "high_priority",
+      "blocked",
+      "waiting",
+    ]);
+    expect(actionPresetHref("blocked")).toBe("/actions/all?preset=blocked");
+  });
+
+  it("ALL matches everything; every preset excludes settled work", () => {
+    const open = item({ id: "open", leadId: null });
+    const done = item({ id: "done", leadId: null, status: "COMPLETE" });
+    const dropped = item({ id: "dropped", leadId: null, status: "DROPPED" });
+    expect(matchesActionPreset(open, "ALL", NOW)).toBe(true);
+    for (const { value } of ACTION_PRESETS) {
+      expect(matchesActionPreset(done, value, NOW)).toBe(false);
+      expect(matchesActionPreset(dropped, value, NOW)).toBe(false);
+    }
+  });
+
+  it("unassigned = open with no lead owner", () => {
+    expect(matchesActionPreset(item({ leadId: null }), "unassigned", NOW)).toBe(true);
+    expect(matchesActionPreset(item({ leadId: "lead" }), "unassigned", NOW)).toBe(false);
+  });
+
+  it("due_soon = open, within 7 days, not overdue", () => {
+    const soon = item({ deadlineStart: new Date("2026-06-04T12:00:00Z") });
+    const far = item({ deadlineStart: new Date("2026-06-20T12:00:00Z") });
+    const overdue = item({ deadlineStart: new Date("2026-05-01T12:00:00Z") });
+    expect(matchesActionPreset(soon, "due_soon", NOW)).toBe(true);
+    expect(matchesActionPreset(far, "due_soon", NOW)).toBe(false);
+    expect(matchesActionPreset(overdue, "due_soon", NOW)).toBe(false);
+  });
+
+  it("high_priority = HIGH or URGENT", () => {
+    expect(matchesActionPreset(item({ priority: "URGENT" }), "high_priority", NOW)).toBe(true);
+    expect(matchesActionPreset(item({ priority: "HIGH" }), "high_priority", NOW)).toBe(true);
+    expect(matchesActionPreset(item({ priority: "MEDIUM" }), "high_priority", NOW)).toBe(false);
+    expect(matchesActionPreset(item({ priority: "LOW" }), "high_priority", NOW)).toBe(false);
+  });
+
+  it("blocked = blocked even when past due", () => {
+    const blocked = item({ status: "BLOCKED", deadlineStart: new Date("2026-05-01T12:00:00Z") });
+    expect(matchesActionPreset(blocked, "blocked", NOW)).toBe(true);
+    expect(matchesActionPreset(item({ status: "IN_PROGRESS" }), "blocked", NOW)).toBe(false);
+  });
+
+  it("waiting = open with an unresolved INPUT_REQUESTED comment", () => {
+    const waiting = item({ status: "IN_PROGRESS", comments: [comment("INPUT_REQUESTED")] });
+    expect(matchesActionPreset(waiting, "waiting", NOW)).toBe(true);
+    // A blocker outranks waiting in the smart-bucket precedence.
+    const blockedWaiting = item({ status: "BLOCKED", comments: [comment("INPUT_REQUESTED")] });
+    expect(matchesActionPreset(blockedWaiting, "waiting", NOW)).toBe(false);
+    expect(matchesActionPreset(item({ comments: [comment("NOTE")] }), "waiting", NOW)).toBe(false);
+  });
+
+  it("applyActionFilters AND-composes a preset with the granular filters", () => {
+    const items = [
+      item({ id: "a", departmentId: "d1", status: "BLOCKED" }),
+      item({ id: "b", departmentId: "d2", status: "BLOCKED" }),
+      item({ id: "c", departmentId: "d1", status: "IN_PROGRESS" }),
+    ];
+    expect(
+      applyActionFilters(items, parseActionFilters({ preset: "blocked" }), NOW)
+        .map((i) => i.id)
+        .sort()
+    ).toEqual(["a", "b"]);
+    expect(
+      applyActionFilters(items, parseActionFilters({ preset: "blocked", dept: "d1" }), NOW).map(
+        (i) => i.id
+      )
+    ).toEqual(["a"]);
+  });
+
+  it("countActionPresets tallies each lens and skips settled work", () => {
+    const items = [
+      item({ id: "u", leadId: null }),
+      item({ id: "s", deadlineStart: new Date("2026-06-04T12:00:00Z") }),
+      item({ id: "h", priority: "HIGH" }),
+      item({ id: "b", status: "BLOCKED" }),
+      item({ id: "w", comments: [comment("INPUT_REQUESTED")] }),
+      item({ id: "done", leadId: null, status: "COMPLETE" }),
+    ];
+    expect(countActionPresets(items, NOW)).toEqual({
+      unassigned: 1,
+      due_soon: 1,
+      high_priority: 1,
+      blocked: 1,
+      waiting: 1,
+    });
   });
 });

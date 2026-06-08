@@ -7,6 +7,13 @@ import {
   reassignProgramMentor,
   setProgramMentorshipStatus,
 } from "@/lib/mentorship-program-actions";
+import {
+  isActionTrackerEnabled,
+  isOperationsHubEnabled,
+} from "@/lib/feature-flags";
+import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { canCreateAction } from "@/lib/people-strategy/action-permissions";
+import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
 
 export const metadata = {
   title: "Instructor mentorship relationship — Admin",
@@ -116,6 +123,20 @@ export default async function AdminMentorshipRelationshipDetailPage({
     select: { id: true, name: true, email: true, primaryRole: true },
     orderBy: { name: "asc" },
   });
+
+  // Phase 7 connective tissue — cross-team Action Tracker items linked to this
+  // mentorship (parity with the mentee workspace). Behind the same operations +
+  // tracker flags; MENTORSHIP is already a resolved polymorphic link type.
+  const operationsEnabled = isOperationsHubEnabled() && isActionTrackerEnabled();
+  const viewer = {
+    id: session?.user?.id ?? "",
+    roles: session?.user?.roles ?? [],
+    primaryRole: session?.user?.primaryRole ?? null,
+    adminSubtypes: session?.user?.adminSubtypes ?? [],
+  };
+  const linkedActions = operationsEnabled
+    ? await getActionsForEntity("MENTORSHIP", mentorship.id, viewer)
+    : [];
 
   const now = new Date();
   const staleSessionCutoff = new Date(
@@ -483,6 +504,19 @@ export default async function AdminMentorshipRelationshipDetailPage({
           </ul>
         )}
       </div>
+
+      {operationsEnabled ? (
+        <div style={{ marginTop: 16 }}>
+          <LinkedActionsPanel
+            actions={linkedActions}
+            heading="Linked actions"
+            createHref={`/actions/new?relatedType=MENTORSHIP&relatedId=${mentorship.id}`}
+            createLabel="Create action for this mentorship"
+            canCreate={canCreateAction(viewer)}
+            emptyHint="No Action Tracker items are linked to this mentorship yet."
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

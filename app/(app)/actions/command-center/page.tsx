@@ -12,10 +12,18 @@ import { buildLeadershipBriefing } from "@/lib/people-strategy/leadership-briefi
 import { getPriorPulseSnapshot } from "@/lib/people-strategy/pulse-snapshot";
 import { buildPulseTrend, type PulseTrend } from "@/lib/people-strategy/pulse-trend";
 import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
+import {
+  ACTION_PRESETS,
+  actionPresetHref,
+} from "@/lib/people-strategy/action-filters";
 import { MOMENTUM_META } from "@/lib/people-strategy/momentum";
 import { COMMAND_CENTER_EVENTS } from "@/lib/people-strategy/command-center-events";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
+import {
+  ActionPresetChips,
+  type ActionPresetChip,
+} from "@/components/people-strategy/action-preset-chips";
 import { Pill, PriorityPill } from "@/components/people-strategy/pills";
 import { StatCard, type StatTone } from "@/components/people-strategy/stat-card";
 import type { PsIconName } from "@/components/people-strategy/ps-icons";
@@ -149,6 +157,15 @@ export default async function CommandCenterPage() {
       daysOverdue: a.daysOverdue,
     }));
 
+  // Phase 1 connective tissue — one shared strategic vocabulary with the Action
+  // Tracker. These jump straight into the matching preset lens on /actions/all.
+  const presetChips: ActionPresetChip[] = ACTION_PRESETS.map((preset) => ({
+    value: preset.value,
+    label: preset.label,
+    description: preset.description,
+    href: actionPresetHref(preset.value),
+  }));
+
   return (
     <div className="page-shell" style={{ maxWidth: 1100 }}>
       <ActionCommandBar
@@ -159,9 +176,14 @@ export default async function CommandCenterPage() {
           data.consideredCount === 1 ? "action" : "actions"
         } you can see`}
         actions={
-          <Link href="/actions/new" className="button small">
-            + New Action
-          </Link>
+          <>
+            <Link href="/actions/completion-report" className="button outline small">
+              Completion report
+            </Link>
+            <Link href="/actions/new" className="button small">
+              + New Action
+            </Link>
+          </>
         }
       />
 
@@ -194,6 +216,7 @@ export default async function CommandCenterPage() {
           <PulseStat label="No executor" value={data.pulse.unowned} icon="users" delta={trend?.deltas.unowned} deltaTone="goodDown" />
           <PulseStat label="Completed this wk" value={data.pulse.completedThisWeek} icon="check" tone="success" delta={trend?.deltas.completedThisWeek} deltaTone="goodUp" />
         </div>
+        <ActionPresetChips chips={presetChips} label="Jump to a strategic view" />
       </section>
 
       <div

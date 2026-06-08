@@ -66,3 +66,58 @@ export function summarizeDepartments(
     (a, b) => b.total - a.total || a.name.localeCompare(b.name)
   );
 }
+
+export type CompletionSummary = {
+  total: number;
+  completed: number;
+  dropped: number;
+  /** Open = not settled (not COMPLETE / DROPPED): not-started, in-progress, blocked, overdue. */
+  open: number;
+  overdue: number;
+  blocked: number;
+  /** Completed as a share of all non-dropped work (0–1). */
+  completionRate: number;
+  /** Overdue as a share of open work (0–1). */
+  overdueRate: number;
+};
+
+/**
+ * Headline completion metrics for the Action Completion Report. Pure over an
+ * already-visibility-filtered set, using the same effective-status rule as the
+ * rest of the tracker so the report agrees with the list, the donut, and the
+ * CSV export. Dropped work is excluded from the completion-rate denominator
+ * (it was deliberately abandoned, not "incomplete").
+ */
+export function summarizeCompletion(
+  items: ActionItemWithRelations[],
+  now: Date = new Date()
+): CompletionSummary {
+  let completed = 0;
+  let dropped = 0;
+  let open = 0;
+  let overdue = 0;
+  let blocked = 0;
+  for (const item of items) {
+    const status = effectiveStatus(item, now);
+    if (status === "COMPLETE") {
+      completed += 1;
+    } else if (status === "DROPPED") {
+      dropped += 1;
+    } else {
+      open += 1;
+      if (status === "OVERDUE") overdue += 1;
+      if (status === "BLOCKED") blocked += 1;
+    }
+  }
+  const considered = items.length - dropped;
+  return {
+    total: items.length,
+    completed,
+    dropped,
+    open,
+    overdue,
+    blocked,
+    completionRate: considered > 0 ? completed / considered : 0,
+    overdueRate: open > 0 ? overdue / open : 0,
+  };
+}

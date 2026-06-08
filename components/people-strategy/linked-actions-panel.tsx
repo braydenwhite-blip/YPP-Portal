@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import type { ActionItemStatus } from "@prisma/client";
 
-import { effectiveStatus } from "@/lib/people-strategy/action-filters";
+import { effectiveStatus, smartBucket } from "@/lib/people-strategy/action-filters";
 import { effectiveDeadline } from "@/lib/people-strategy/my-actions-selectors";
 import { ACTION_STATUS_LABELS } from "@/lib/people-strategy/constants";
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
@@ -56,6 +56,10 @@ export function LinkedActionsPanel({
   }));
   const openCount = withStatus.filter((a) => !SETTLED.has(a.status)).length;
   const overdueCount = withStatus.filter((a) => a.status === "OVERDUE").length;
+  // Strategic attention signals (shared Action Tracker vocabulary): only shown
+  // when present, so existing surfaces gain a richer read without disruption.
+  const blockedCount = withStatus.filter((a) => a.status === "BLOCKED").length;
+  const waitingCount = actions.filter((a) => smartBucket(a, now) === "WAITING").length;
   const shown = withStatus.slice(0, limit);
   const remaining = withStatus.length - shown.length;
 
@@ -77,6 +81,8 @@ export function LinkedActionsPanel({
           <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
             {openCount} open
             {overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}
+            {blockedCount > 0 ? ` · ${blockedCount} blocked` : ""}
+            {waitingCount > 0 ? ` · ${waitingCount} waiting` : ""}
           </span>
         ) : null}
       </div>
