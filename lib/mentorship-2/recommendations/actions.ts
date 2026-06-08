@@ -19,6 +19,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOfficer } from "@/lib/authorization";
 import { isMentorship2Enabled } from "@/lib/feature-flags";
+import { onMentorMatched } from "@/lib/growth/integrations";
 import {
   ACTIVE_RECOMMENDATION_STATUSES,
   canTransitionRecommendation,
@@ -333,5 +334,11 @@ export async function approveRecommendation(
   revalidateApplication(application.id);
   revalidatePath("/mentorship");
   revalidatePath("/my-mentor");
+
+  // Growth Engine (Phase N1): seed the mentee's Vision -> Goal -> Milestone ->
+  // Action hierarchy from the M2 bridge and emit MENTOR_MATCHED. Flag-gated +
+  // best-effort — never breaks the match flow.
+  await onMentorMatched(rec.menteeUserId, result.mentorship.id);
+
   return result;
 }

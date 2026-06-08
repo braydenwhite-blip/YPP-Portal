@@ -18,6 +18,7 @@ import {
   OFFICER_TIER_ROLES,
 } from "@/lib/authorization";
 import { isMentorship2Enabled } from "@/lib/feature-flags";
+import { onMentorshipCompleted } from "@/lib/growth/integrations";
 
 function ensureEnabled() {
   if (!isMentorship2Enabled()) {
@@ -101,5 +102,10 @@ export async function completeMentorshipToAlumni(
 
   revalidatePath(`/mentorship/mentees/${mentorship.menteeId}`);
   revalidatePath("/mentorship");
+
+  // Growth Engine (Phase N1): a completed mentorship is a graduation milestone.
+  // Flag-gated + best-effort, so it never affects the Alumni transition.
+  await onMentorshipCompleted(mentorship.menteeId, mentorship.id);
+
   return result;
 }
