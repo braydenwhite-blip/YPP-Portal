@@ -906,6 +906,11 @@ model User {
   mentorshipApplicationsSubmitted        MentorshipApplication[]         @relation("MentorshipApplicationsSubmitted")
   mentorshipApplicationsReviewed         MentorshipApplication[]         @relation("MentorshipApplicationsReviewed")
 
+  // Mentorship 2.0 (Action Tracker 3.0, Phase M2) — match recommendations
+  matchRecommendationsAsMentee           MentorshipMatchRecommendation[] @relation("MatchRecommendationMentees")
+  matchRecommendationsAsMentor           MentorshipMatchRecommendation[] @relation("MatchRecommendationMentors")
+  matchRecommendationsDecided            MentorshipMatchRecommendation[] @relation("MatchRecommendationDeciders")
+
   // Video, Calendar, Parent, Certificate, Analytics relations
   videoProgress                   VideoProgress[]
   eventRsvps                      EventRsvp[]
@@ -2967,9 +2972,47 @@ model MentorshipApplication {
   decidedAt          DateTime?
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
+  matchRecommendations MentorshipMatchRecommendation[]
 
   @@index([status])
   @@index([applicantId])
+}
+
+/// Mentorship 2.0 (Action Tracker 3.0, Phase M2) — a scored, explainable mentor
+/// suggestion for a MentorshipApplication. One application fans out to many
+/// SUGGESTED rows; at most one becomes APPROVED and drives the canonical
+/// Mentorship pair (the losing siblings are auto-SUPERSEDED). `scoreBreakdownJson`
+/// stores the matching engine's per-factor breakdown so admins can inspect *why*
+/// a mentor was recommended — no opaque "AI match". `status` is a TEXT vocabulary
+/// validated in app code (lib/mentorship-2/constants.ts), matching the repo's
+/// actionType / partner.stage convention. Additive + flag-gated at runtime by
+/// ENABLE_MENTORSHIP_2.
+model MentorshipMatchRecommendation {
+  id                      String                @id @default(cuid())
+  mentorshipApplicationId String
+  application             MentorshipApplication @relation(fields: [mentorshipApplicationId], references: [id], onDelete: Cascade)
+  menteeUserId            String
+  mentee                  User                  @relation("MatchRecommendationMentees", fields: [menteeUserId], references: [id], onDelete: Cascade)
+  mentorUserId            String
+  mentor                  User                  @relation("MatchRecommendationMentors", fields: [mentorUserId], references: [id], onDelete: Cascade)
+  score                   Int                   @default(0)
+  scoreBreakdownJson      Json                  @default("{}")
+  status                  String                @default("SUGGESTED") // SUGGESTED|SHORTLISTED|APPROVED|REJECTED|HELD|SUPERSEDED (app-validated)
+  adminNote               String?
+  decidedAt               DateTime?
+  decidedByUserId         String?
+  decidedBy               User?                 @relation("MatchRecommendationDeciders", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  // Idempotent regeneration: re-running the engine upserts on this pair rather
+  // than creating duplicate suggestions for the same application/mentor.
+  @@unique([mentorshipApplicationId, mentorUserId])
+  @@index([mentorshipApplicationId])
+  @@index([menteeUserId])
+  @@index([mentorUserId])
+  @@index([status])
+  @@index([score])
 }
 
 model MentorshipRequest {
