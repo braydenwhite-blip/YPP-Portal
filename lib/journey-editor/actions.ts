@@ -48,12 +48,13 @@ type GranularAction =
   | "REORDER_BEATS"
   | "UPDATE_BEAT"
   | "SET_GATES"
+  | "SET_ASSIGNMENTS"
   | "PUBLISH"
   | "ROLLBACK";
 
 const ACTION_TO_ENUM: Record<
   GranularAction,
-  "CREATE" | "UPDATE" | "PUBLISH" | "ROLLBACK" | "GATE_CHANGE"
+  "CREATE" | "UPDATE" | "PUBLISH" | "ROLLBACK" | "GATE_CHANGE" | "ASSIGNMENT_CHANGE"
 > = {
   CREATE: "CREATE",
   UPDATE_META: "UPDATE",
@@ -63,6 +64,7 @@ const ACTION_TO_ENUM: Record<
   REORDER_BEATS: "UPDATE",
   UPDATE_BEAT: "UPDATE",
   SET_GATES: "GATE_CHANGE",
+  SET_ASSIGNMENTS: "ASSIGNMENT_CHANGE",
   PUBLISH: "PUBLISH",
   ROLLBACK: "ROLLBACK",
 };
@@ -742,5 +744,75 @@ export async function rollbackToVersion(input: z.infer<typeof RollbackToVersionI
 
     revalidatePath("/admin/journeys");
     revalidatePath(`/admin/journeys/${target.journeyId}`);
+  });
+}
+
+// --- Commit 13: audience assignments -----------------------------------------
+
+const AssignmentInput = z.object({
+  audience: z.enum([
+    "STUDENT",
+    "INSTRUCTOR",
+    "CHAPTER_PRESIDENT",
+    "LEADERSHIP",
+    "SUMMER_WORKSHOP_INSTRUCTOR",
+    "MENTOR",
+  ]),
+  autoEnroll: z.boolean(),
+});
+
+const SetAssignmentsInput = z.object({
+  journeyId: z.string().min(1),
+  assignments: z.array(AssignmentInput),
+});
+
+/**
+ * Replace a journey's audience assignment rules (one rule per audience, enforced
+ * by the `@@unique([journeyId, audience])` constraint). Journey-scoped (not
+ * version-scoped) and consumed by `validateAssignmentsForPublish` at publish
+ * time. Mirrors `setGates`: editor-gated, transactional, audit-logged.
+ */
+export async function setAssignments(input: z.infer<typeof SetAssignmentsInput>) {
+  const editor = await requireJourneyEditor();
+  if (!editor.canPublish) throw new Error("Unauthorized.");
+  const parsed = SetAssignmentsInput.parse(input);
+
+  // One rule per audience — keep the first occurrence so the unique constraint
+  // can never be violated even if a caller sends a duplicate.
+  const seen = new Set<string>();
+  const unique = parsed.assignments.filter((a) => {
+    if (seen.has(a.audience)) return false;
+    seen.add(a.audience);
+    return true;
+  });
+
+  await prisma.$transaction(async (tx) => {
+    const journey = await tx.journey.findUnique({
+      where: { id: parsed.journeyId },
+      select: { id: true },
+    });
+    if (!journey) throw new Error("Journey not found.");
+
+    await tx.journeyAssignmentRule.deleteMany({ where: { journeyId: parsed.journeyId } });
+    if (unique.length > 0) {
+      await tx.journeyAssignmentRule.createMany({
+        data: unique.map((a) => ({
+          journeyId: parsed.journeyId,
+          audience: a.audience,
+          autoEnroll: a.autoEnroll,
+        })),
+      });
+    }
+
+    await tx.journeyAuditLog.create({
+      data: {
+        journeyId: parsed.journeyId,
+        actorId: editor.id,
+        action: ACTION_TO_ENUM.SET_ASSIGNMENTS,
+        diff: auditDiff("SET_ASSIGNMENTS", { count: unique.length }),
+      },
+    });
+
+    revalidatePath(`/admin/journeys/${parsed.journeyId}`);
   });
 }

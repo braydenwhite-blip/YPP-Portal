@@ -12,6 +12,7 @@ import {
 import { BeatsTab, type BeatRow } from "./beats-tab";
 import { GatesTab, type GateRow } from "./gates-tab";
 import { PreviewTab } from "./preview-tab";
+import { AssignmentsTab } from "./assignments-tab";
 
 type Tab = "overview" | "beats" | "gates" | "preview" | "assignments" | "versions";
 
@@ -109,7 +110,11 @@ export function JourneyEditorShell(props: JourneyEditorShellProps) {
           />
         ) : null}
         {tab === "assignments" ? (
-          <PlaceholderPanel label="Audience assignment editor — Commit 13." />
+          <AssignmentsTab
+            journeyId={props.journey.id}
+            assignments={props.assignments}
+            canEdit={props.canPublish}
+          />
         ) : null}
         {tab === "versions" ? (
           <VersionsTab
@@ -359,10 +364,3 @@ function VersionsTab(props: {
   );
 }
 
-function PlaceholderPanel({ label }: { label: string }) {
-  return (
-    <div className="card">
-      <p className="muted">{label}</p>
-    </div>
-  );
-}
