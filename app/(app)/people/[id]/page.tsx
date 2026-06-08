@@ -9,7 +9,10 @@ import {
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
+import { getLeadershipContext } from "@/lib/leadership-context";
+import type { LeadershipStage } from "@/lib/leadership-pathway";
 import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
+import { LeadershipStageContext } from "@/components/people-strategy/leadership-stage-context";
 import { ProfileBody, activeLabel } from "@/components/people-strategy/profile-body";
 
 export const dynamic = "force-dynamic";
@@ -50,9 +53,23 @@ export default async function PublicProfilePage({ params }: PageProps) {
   // viewing the public profile don't get it), visibility-filtered for the viewer.
   const showLinkedActions =
     isOperationsHubEnabled() && isActionTrackerEnabled() && isOfficerTier(viewer);
-  const personActions = showLinkedActions
-    ? await getActionsForEntity("USER", id, viewer)
-    : [];
+
+  // Phase 6 connective tissue — surface where this person sits on the Leadership
+  // Pathway as context next to their linked actions (the team's prescribed
+  // pattern: actions link to USER, the stage is shown as context). Loaded only
+  // for the officer operating view, in parallel with the linked actions.
+  let personActions: Awaited<ReturnType<typeof getActionsForEntity>> = [];
+  let leadershipStage: LeadershipStage | null = null;
+  let leadershipNextStage: LeadershipStage | null = null;
+  if (showLinkedActions) {
+    const [actions, context] = await Promise.all([
+      getActionsForEntity("USER", id, viewer),
+      getLeadershipContext(id),
+    ]);
+    personActions = actions;
+    leadershipStage = context?.stage ?? null;
+    leadershipNextStage = context?.nextStage ?? null;
+  }
 
   return (
     <div className="page-shell" style={{ maxWidth: 880 }}>
@@ -114,7 +131,8 @@ export default async function PublicProfilePage({ params }: PageProps) {
       <ProfileBody profile={profile} />
 
       {showLinkedActions ? (
-        <div style={{ marginTop: 14 }}>
+        <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+          <LeadershipStageContext stage={leadershipStage} nextStage={leadershipNextStage} />
           <LinkedActionsPanel
             actions={personActions}
             heading="Linked actions"
