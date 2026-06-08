@@ -98,6 +98,22 @@ export function isProvisionalClockEnabled(): boolean {
 }
 
 /**
+ * Growth — Camp & Partner Pipeline. Upgrades `/admin/partners` from a flat
+ * directory into a relationship pipeline (stages, contacts, program needs,
+ * follow-ups, instructor matching, and a partner profile at
+ * `/admin/partners/[id]`). The schema/migration ship regardless of the flag.
+ *
+ * Defaults OFF — set `ENABLE_PARTNER_PIPELINE=true` to expose the pipeline board
+ * and partner profile. With the flag off, `/admin/partners` renders the original
+ * simple list and `/admin/partners/[id]` returns notFound(), so existing users
+ * see no behavior change. Action-linked affordances also require
+ * `ENABLE_ACTION_TRACKER`.
+ */
+export function isPartnerPipelineEnabled(): boolean {
+  return process.env.ENABLE_PARTNER_PIPELINE === "true";
+}
+
+/**
  * TEMPORARY visibility gate: while the regular Instructor program is
  * paused, only the Summer Workshop Instructor pathway should be exposed
  * to end users. Admins always retain access (see `canBypassInstructorGate`).

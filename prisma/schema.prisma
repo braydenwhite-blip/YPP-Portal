@@ -7145,8 +7145,61 @@ model Partner {
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
+  // --- Partner Pipeline (Phase 4 — YPP Operating System pass) -----------------
+  // Turns the bare directory into a relationship pipeline. `stage`, `priority`
+  // and `partnerType` are TEXT vocabularies validated in app code
+  // (lib/partners-constants.ts), mirroring the repo's `actionType` /
+  // `relatedEntityType` convention — no Postgres enums, vocabulary stays
+  // editable without a migration. All fields are nullable/defaulted so existing
+  // rows are unaffected and the feature stays dark until ENABLE_PARTNER_PIPELINE.
+  /// Pipeline stage, e.g. NOT_STARTED, REACHED_OUT, MEETING_SCHEDULED, ACTIVE…
+  stage                 String?       @default("NOT_STARTED")
+  /// LOW | MEDIUM | HIGH | URGENT.
+  priority              String?       @default("MEDIUM")
+  /// Structured partner type, e.g. CAMP, SCHOOL, COMMUNITY_CENTER, NONPROFIT…
+  partnerType           String?
+  /// How this partner came to YPP (referral, inbound, outreach list…).
+  source                String?
+  contactName           String?
+  contactTitle          String?
+  contactEmail          String?
+  contactPhone          String?
+  location              String?
+  lastContactedAt       DateTime?
+  nextFollowUpAt        DateTime?
+  meetingDate           DateTime?
+  /// Program needs (free text; matched against instructor tags).
+  requestedSubjects     String?
+  requestedAgeGroups    String?
+  requestedDates        String?
+  programFormat         String?
+  expectedStudents      Int?
+  instructorCountNeeded Int?
+  constraints           String?       @db.Text
+  outcome               String?       @db.Text
+  pipelineNotes         PartnerNote[]
+
   @@index([relationshipLeadId])
   @@index([archivedAt])
+  @@index([stage])
+  @@index([nextFollowUpAt])
+}
+
+/// Append-only notes / touchpoints / timeline for a Partner relationship.
+/// `authorId` is intentionally FK-less (resolved to a name in app code) to
+/// mirror the repo's no-FK convention for loosely-coupled references and to
+/// avoid adding a back-relation to the large `User` model.
+model PartnerNote {
+  id        String   @id @default(cuid())
+  partnerId String
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  authorId  String?
+  /// Touchpoint kind: NOTE | FOLLOW_UP | MEETING | CONCERN | WIN | DECISION | OUTCOME | STAGE_CHANGE.
+  kind      String   @default("NOTE")
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([partnerId, createdAt])
 }
 
 enum ClassOfferingTimelineKind {
