@@ -1359,6 +1359,13 @@ model User {
   actionTemplatesCreated   ActionTemplate[]   @relation("ActionTemplatesCreated")
   savedActionViews         SavedActionView[]  @relation("SavedActionViews")
 
+  // Meetings Tracker / Weekly Command Center (People Strategy)
+  meetingsFacilitated      OfficerMeeting[]    @relation("OfficerMeetingFacilitator")
+  meetingAttendances       MeetingAttendee[]   @relation("MeetingAttendeeUser")
+  meetingAgendaItemsOwned  MeetingAgendaItem[] @relation("MeetingAgendaItemOwner")
+  meetingDecisionsMade     MeetingDecision[]   @relation("MeetingDecisionDecidedBy")
+  meetingFollowUpsOwned    MeetingFollowUp[]   @relation("MeetingFollowUpOwner")
+
   // People Strategy — provisional 3-month confirmation clock
   // (ENABLE_PROVISIONAL_CLOCK). `provisionalStart` is set when a hire is
   // confirmed (the applicant→instructor approval); the Month-3 confirmation
@@ -12627,6 +12634,12 @@ model ActionItem {
   fileLinks   ActionFileLink[]   @relation("ActionItemFileLinks")
   emailLogs   ActionEmailLog[]   @relation("ActionItemEmailLogs")
 
+  /// Back-relations from the Meetings Tracker: an action can be the one a meeting
+  /// agenda item / decision / follow-up was converted into or linked to.
+  convertedFromAgendaItems MeetingAgendaItem[] @relation("AgendaItemConvertedAction")
+  linkedFromDecisions      MeetingDecision[]   @relation("DecisionLinkedAction")
+  linkedFromFollowUps      MeetingFollowUp[]   @relation("FollowUpLinkedAction")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -12915,11 +12928,16 @@ enum OfficerMeetingStatus {
   CANCELLED
 }
 
-/// A single officer meeting. Action Items are linked via
-/// `ActionItem.officerMeetingId`; discussion notes per linked item live in
-/// `MeetingNote`; ad-hoc items live in `MiscUpdate`.
+/// A single officer meeting — the meeting entity behind the Weekly Command
+/// Center. Action Items are linked via `ActionItem.officerMeetingId`; discussion
+/// notes per linked item live in `MeetingNote`; ad-hoc items live in
+/// `MiscUpdate`. The Command Center (Meetings Tracker) layer adds the richer,
+/// all-optional fields below plus the `MeetingAgendaItem` / `MeetingDecision` /
+/// `MeetingFollowUp` / `MeetingAttendee` relations. Every new column is optional
+/// or defaulted so the original Officer-Meetings surface keeps working unchanged.
 model OfficerMeeting {
   id               String               @id @default(cuid())
+  /// Meeting START datetime (kept as the original `date` column for back-compat).
   date             DateTime
   status           OfficerMeetingStatus @default(SCHEDULED)
   /// Generated agenda text (Prompt 06B). Null until generated.
@@ -12927,15 +12945,173 @@ model OfficerMeeting {
   /// Generated post-meeting summary email body (Prompt 06B). Null until generated.
   summaryEmailText String?              @db.Text
 
-  actionItems ActionItem[]  @relation("OfficerMeetingActionItems")
-  notes       MeetingNote[] @relation("OfficerMeetingNotes")
-  miscUpdates MiscUpdate[]  @relation("OfficerMeetingMiscUpdates")
+  // --- Weekly Command Center fields (all additive / optional) ---
+  /// Human title (e.g. "Weekly Leadership Sync"). Null falls back to a generated
+  /// "Officer Meeting · <date>" label so legacy rows still render.
+  title           String?
+  /// What the meeting is for — shown under the title on the detail workspace.
+  purpose         String?   @db.Text
+  /// YPP operating category/area (LEADERSHIP / CLASSES / MENTORSHIP / …). String-
+  /// typed (no Postgres enum) to mirror `ActionItem.actionType`; validated in
+  /// application code (lib/people-strategy/meeting-categories.ts). Null = Other.
+  category        String?
+  /// Reuses the shared ActionPriority enum so meetings and actions speak one
+  /// priority vocabulary.
+  priority        ActionPriority @default(MEDIUM)
+  /// Meeting end datetime (paired with `date` as the start). Null = open-ended.
+  endTime         DateTime?
+  /// Cadence label: NONE / WEEKLY / BIWEEKLY / MONTHLY (string for flexibility).
+  recurrence      String?
+  /// Where it happens (Zoom link, room, …).
+  location        String?
+  /// Free-text meeting notes / summary (distinct from the generated agendaText).
+  notesText       String?   @db.Text
+
+  /// Optional facilitator / owner who runs the meeting.
+  facilitatorId String?
+  facilitator   User?   @relation("OfficerMeetingFacilitator", fields: [facilitatorId], references: [id], onDelete: SetNull)
+
+  /// Polymorphic link to a related domain entity (CLASS_OFFERING / MENTORSHIP /
+  /// USER / INSTRUCTOR_APPLICATION / PARTNER …), mirroring ActionItem. Validated
+  /// in application code. NOTE: the YPP *area* lives in `category`; this is for a
+  /// concrete linked record.
+  relatedEntityType String?
+  relatedEntityId   String?
+
+  actionItems  ActionItem[]        @relation("OfficerMeetingActionItems")
+  notes        MeetingNote[]       @relation("OfficerMeetingNotes")
+  miscUpdates  MiscUpdate[]        @relation("OfficerMeetingMiscUpdates")
+  attendees    MeetingAttendee[]   @relation("OfficerMeetingAttendees")
+  agendaItems  MeetingAgendaItem[] @relation("OfficerMeetingAgendaItems")
+  decisions    MeetingDecision[]   @relation("OfficerMeetingDecisions")
+  followUps    MeetingFollowUp[]   @relation("OfficerMeetingFollowUps")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([date])
   @@index([status, date])
+  @@index([category])
+  @@index([facilitatorId])
+  @@index([relatedEntityType, relatedEntityId])
+}
+
+/// Join row: a user invited to / attending an officer meeting. Unique per
+/// (meeting, user) so adding the same attendee twice is idempotent.
+model MeetingAttendee {
+  id               String         @id @default(cuid())
+  officerMeetingId String
+  officerMeeting   OfficerMeeting @relation("OfficerMeetingAttendees", fields: [officerMeetingId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User           @relation("MeetingAttendeeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([officerMeetingId, userId])
+  @@index([officerMeetingId])
+  @@index([userId])
+}
+
+/// Status of one agenda item within a meeting. CONVERTED means it became a
+/// tracked Action Item (see `convertedActionId`).
+enum MeetingAgendaStatus {
+  OPEN
+  DISCUSSED
+  DEFERRED
+  CONVERTED
+}
+
+/// One structured agenda line for a meeting — title, optional owner, status, and
+/// short notes. `sortOrder` preserves the agenda order; `convertedActionId`
+/// records the Action Item created when the line is "converted to action".
+model MeetingAgendaItem {
+  id               String              @id @default(cuid())
+  officerMeetingId String
+  officerMeeting   OfficerMeeting      @relation("OfficerMeetingAgendaItems", fields: [officerMeetingId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?             @db.Text
+  status           MeetingAgendaStatus @default(OPEN)
+  notes            String?             @db.Text
+  sortOrder        Int                 @default(0)
+
+  ownerId String?
+  owner   User?   @relation("MeetingAgendaItemOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  /// Set when the agenda item is converted into a tracked Action Item.
+  convertedActionId String?
+  convertedAction   ActionItem? @relation("AgendaItemConvertedAction", fields: [convertedActionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([officerMeetingId, sortOrder])
+  @@index([status])
+  @@index([ownerId])
+}
+
+/// A decision logged at a meeting — the calls leadership made, with optional
+/// rationale and the person who decided. May link to the Action Item that
+/// operationalizes it.
+model MeetingDecision {
+  id               String         @id @default(cuid())
+  officerMeetingId String
+  officerMeeting   OfficerMeeting @relation("OfficerMeetingDecisions", fields: [officerMeetingId], references: [id], onDelete: Cascade)
+  decision         String         @db.Text
+  rationale        String?        @db.Text
+
+  decidedById String?
+  decidedBy   User?   @relation("MeetingDecisionDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  /// Optional Action Item that carries out this decision.
+  linkedActionId String?
+  linkedAction   ActionItem? @relation("DecisionLinkedAction", fields: [linkedActionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([officerMeetingId, createdAt])
+  @@index([decidedById])
+}
+
+/// Stored status of a meeting follow-up. OVERDUE is NOT stored — it is computed
+/// from `dueDate` vs now (mirroring the Action Tracker's computed OVERDUE).
+enum MeetingFollowUpStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// A follow-up commitment coming out of a meeting. The bridge to the Action
+/// Tracker: when a follow-up is "converted to an action", a real `ActionItem`
+/// is created (linked to this meeting) and its id is stored on `linkedActionId`,
+/// so the follow-up and the tracked action stay in sync both ways.
+model MeetingFollowUp {
+  id               String                @id @default(cuid())
+  officerMeetingId String
+  officerMeeting   OfficerMeeting        @relation("OfficerMeetingFollowUps", fields: [officerMeetingId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?               @db.Text
+  status           MeetingFollowUpStatus @default(OPEN)
+  priority         ActionPriority        @default(MEDIUM)
+  dueDate          DateTime?
+  /// YPP area for the follow-up (same vocabulary as OfficerMeeting.category).
+  area             String?
+  completedAt      DateTime?
+
+  ownerId String?
+  owner   User?   @relation("MeetingFollowUpOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  /// The tracked Action Item this follow-up became (null until converted).
+  linkedActionId String?
+  linkedAction   ActionItem? @relation("FollowUpLinkedAction", fields: [linkedActionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([officerMeetingId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([ownerId])
+  @@index([linkedActionId])
 }
 
 /// Editable discussion notes for one Action Item at one Officer Meeting. One
