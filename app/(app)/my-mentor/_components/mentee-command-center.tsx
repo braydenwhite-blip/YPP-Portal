@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { MenteeMentorshipView } from "@/lib/mentorship-2/mentee-dashboard";
+import { createMentorshipActionSeed } from "@/lib/action-tracker-3/mentorship-bridge";
 
 /**
  * The mentee-facing "command center" rendered on /my-mentor when Mentorship 2.0
@@ -93,6 +94,19 @@ function MatchedPanel({ view }: { view: MenteeMentorshipView }) {
   const goalLine =
     view.goals.application || view.goals.careerGoal || view.goals.leadershipGoal;
   const needsKickoff = matched && !matched.kickoffCompletedAt;
+
+  // Action Tracker 3.0 bridge: derive (non-persisted) suggested first steps.
+  const seed = createMentorshipActionSeed({
+    application: {
+      goals: view.goals.application,
+      careerGoal: view.goals.careerGoal,
+      leadershipGoal: view.goals.leadershipGoal,
+      interests: [],
+    },
+    mentorExpertise: matched?.mentorExpertise ?? [],
+    mentorName: matched?.mentorName ?? null,
+  });
+
   return (
     <section
       className="card"
@@ -119,24 +133,22 @@ function MatchedPanel({ view }: { view: MenteeMentorshipView }) {
         </p>
       )}
 
-      {needsKickoff && (
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            padding: "10px 12px",
-            fontSize: 13,
-            lineHeight: 1.6,
-          }}
-        >
-          <strong>Before your first meeting</strong>
-          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-            <li>Review your goals so you can talk through them.</li>
-            <li>Note 1–2 questions you want your mentor&apos;s help with.</li>
-            <li>Check your schedule for a recurring meeting time.</li>
-          </ul>
-        </div>
-      )}
+      <div
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          padding: "10px 12px",
+          fontSize: 13,
+          lineHeight: 1.6,
+        }}
+      >
+        <strong>{needsKickoff ? "Before your first meeting" : "Suggested first steps"}</strong>
+        <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+          {seed.firstSteps.map((step, i) => (
+            <li key={i}>{step}</li>
+          ))}
+        </ul>
+      </div>
 
       <ResourceLinks />
     </section>
