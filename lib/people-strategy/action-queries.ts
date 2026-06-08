@@ -49,6 +49,10 @@ const ACTION_ITEM_INCLUDE = {
     },
   },
   department: { select: { id: true, name: true, slug: true } },
+  // Source meeting (Meetings Tracker): when an action was generated from a
+  // meeting follow-up / agenda item it carries officerMeetingId. Surfaced as a
+  // "Source: Meeting" badge that links back to the Weekly Command Center.
+  officerMeeting: { select: { id: true, title: true, date: true, category: true } },
   assignments: {
     select: {
       id: true,

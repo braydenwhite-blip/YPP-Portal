@@ -105,6 +105,8 @@ function toDetailDTO(
     deadlineEnd: item.deadlineEnd ? item.deadlineEnd.toISOString() : null,
     visibility: item.visibility,
     officerMeetingId: item.officerMeetingId,
+    officerMeetingTitle: item.officerMeeting?.title ?? null,
+    officerMeetingDate: item.officerMeeting?.date ? item.officerMeeting.date.toISOString() : null,
     flaggedAt: item.flaggedAt ? item.flaggedAt.toISOString() : null,
     lead,
     people: {
