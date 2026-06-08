@@ -24,7 +24,12 @@ import {
   updateMentorshipActionItemStatus,
 } from "@/lib/mentorship-hub-actions";
 import { getCompactRecognitionSnapshot } from "@/lib/my-program-portal";
-import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
+import {
+  isActionTrackerEnabled,
+  isOperationsHubEnabled,
+  isMentorship2Enabled,
+} from "@/lib/feature-flags";
+import { GraduateToAlumniButton } from "@/components/mentorship-2/graduate-button";
 import {
   getActionsForEntities,
   type ActionItemWithRelations,
@@ -230,6 +235,22 @@ export default async function MenteeDetailPage({
           />
         </LearnMore>
       </div>
+
+      {isMentorship2Enabled() && workspace.mentorship && (
+        <div className="card" style={{ marginBottom: 16, display: "grid", gap: 8 }}>
+          <h2 className="section-title" style={{ margin: 0 }}>
+            Completion
+          </h2>
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            When this mentorship wraps up, graduate the mentee into the Alumni
+            network so they stay connected and can give back.
+          </p>
+          <GraduateToAlumniButton
+            mentorshipId={workspace.mentorship.id}
+            alreadyComplete={workspace.mentorship.cycleStage === "COMPLETE"}
+          />
+        </div>
+      )}
 
       {operationsEnabled && (
         <div style={{ marginBottom: 16, display: "grid", gap: 16 }}>

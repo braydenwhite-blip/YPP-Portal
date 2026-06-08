@@ -98,6 +98,20 @@ export function isProvisionalClockEnabled(): boolean {
 }
 
 /**
+ * Mentorship 2.0 (Action Tracker 3.0, Phase M1). Gates the mentor expertise
+ * taxonomy editor, mentee application intake, and the COMPLETE -> Alumni
+ * transition surfaces. The schema/migration ship regardless of this flag; the
+ * flag gates the runtime pages and server actions added in this phase.
+ *
+ * Defaults OFF — set `ENABLE_MENTORSHIP_2=true` to expose the surfaces. With the
+ * flag off, the new server actions throw and the new pages return notFound(), so
+ * existing mentorship behavior is unchanged.
+ */
+export function isMentorship2Enabled(): boolean {
+  return process.env.ENABLE_MENTORSHIP_2 === "true";
+}
+
+/**
  * Growth — Camp & Partner Pipeline. Upgrades `/admin/partners` from a flat
  * directory into a relationship pipeline (stages, contacts, program needs,
  * follow-ups, instructor matching, and a partner profile at

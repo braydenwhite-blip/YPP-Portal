@@ -7,6 +7,12 @@ import { LEADERSHIP_STAGES } from "@/lib/leadership-pathway";
 import { MenteeDashboard } from "@/app/(app)/mentorship/_components/mentee-dashboard";
 import { getGrowthConnectLine } from "@/lib/growth-model";
 import { MyMentorSubnav } from "./_components/my-mentor-subnav";
+import { isMentorship2Enabled } from "@/lib/feature-flags";
+import { getOpenApplicationForUser } from "@/lib/mentorship-2/queries";
+import {
+  MENTORSHIP_APPLICATION_STATUS_LABELS,
+  type MentorshipApplicationStatus,
+} from "@/lib/mentorship-2/constants";
 
 export const metadata = {
   title: "My Mentor — YPP",
@@ -23,6 +29,13 @@ export default async function MyMentorPage() {
   const nextStage = ctx.nextStageId ? LEADERSHIP_STAGES[ctx.nextStageId] : null;
   const hasMentor = !!ctx.primaryMentor;
   const mentorsOthers = ctx.mentees.length > 0;
+
+  // Mentorship 2.0 (Phase M1): mentees without a mentor can apply for one.
+  const m2Enabled = isMentorship2Enabled();
+  const openApplication =
+    m2Enabled && !hasMentor
+      ? await getOpenApplicationForUser(session.user.id)
+      : null;
 
   return (
     <div>
@@ -150,6 +163,25 @@ export default async function MyMentorPage() {
               Reach out to chapter leadership to get matched. Until then, the
               pathway page shows how mentorship flows at YPP.
             </p>
+            {m2Enabled && (
+              <div style={{ marginTop: 16 }}>
+                {openApplication ? (
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
+                    Your application is{" "}
+                    {
+                      MENTORSHIP_APPLICATION_STATUS_LABELS[
+                        openApplication.status as MentorshipApplicationStatus
+                      ]
+                    }
+                    {" "}— a program lead will follow up.
+                  </p>
+                ) : (
+                  <Link href="/my-mentor/apply" className="button">
+                    Apply for a mentor →
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         )}
 
