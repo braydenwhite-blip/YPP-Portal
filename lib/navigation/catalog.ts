@@ -208,6 +208,16 @@ export const NAV_CATALOG: NavLink[] = [
 
   ...groupLinks("Progress", 400, [
     {
+      href: "/my-growth",
+      label: "My Growth",
+      icon: "🌱",
+      requiresGrowthOs: true,
+      searchAliases: ["Growth", "Journey", "Student Operating System", "My Journey"],
+      dashboardDescription:
+        "Your unified growth journey — vision, goals, achievements, and what to do next.",
+      dashboardPriority: 2,
+    },
+    {
       href: "/goals",
       label: "My Goals",
       icon: "🎯",

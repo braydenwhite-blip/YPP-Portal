@@ -62,6 +62,13 @@ export interface NavLink {
    */
   requiresActionTracker?: boolean;
   /**
+   * When true, this link is only shown while the Student Operating System /
+   * Growth Engine is enabled (env `ENABLE_GROWTH_OS`). Threaded from the server
+   * layout — the link is fully hidden for everyone when the flag is off, so the
+   * dark-launched `/my-growth` route is never a 404 in the sidebar.
+   */
+  requiresGrowthOs?: boolean;
+  /**
    * When true, this link is only shown while the People Strategy Operations Hub
    * is enabled (env `ENABLE_OPERATIONS_HUB`). Threaded from the server layout —
    * no per-user feature-gate / admin bypass applies, so the link is fully

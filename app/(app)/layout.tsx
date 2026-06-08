@@ -24,6 +24,7 @@ import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 import { getChairQueueBadgeCount } from "@/lib/hiring-chair-badge";
 import {
   isActionTrackerEnabled,
+  isGrowthOsEnabled,
   isLegacyActionCenterNavEnabled,
   isOperationsHubEnabled,
 } from "@/lib/feature-flags";
@@ -233,6 +234,7 @@ export default async function AppLayout({
       badges={badges}
       enabledFeatureKeys={enabledFeatureKeysArray}
       actionTrackerEnabled={isActionTrackerEnabled()}
+      growthOsEnabled={isGrowthOsEnabled()}
       operationsHubEnabled={isOperationsHubEnabled()}
       legacyActionCenterNavEnabled={isLegacyActionCenterNavEnabled()}
       unlockedSections={unlockedSectionsArray}

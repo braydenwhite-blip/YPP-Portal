@@ -1,7 +1,7 @@
 import type { NavRole } from "@/lib/navigation/types";
 
 /** Bump when the href set changes so dashboard cache partitions stay correct. */
-export const STUDENT_V1_ALLOWLIST_VERSION = "5";
+export const STUDENT_V1_ALLOWLIST_VERSION = "6";
 
 /**
  * Default student nav: classes, work, schedule, progress, chapter, account.
@@ -17,6 +17,9 @@ export const STUDENT_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/calendar",
   "/messages",
   "/my-chapter",
+  // Student Operating System centerpiece. The catalog entry is `requiresGrowthOs`,
+  // so this allowlist line only takes effect when ENABLE_GROWTH_OS is on.
+  "/my-growth",
   "/goals",
   "/pathways/progress",
   "/my-program",
