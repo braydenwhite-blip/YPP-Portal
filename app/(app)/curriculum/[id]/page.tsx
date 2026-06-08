@@ -6,10 +6,18 @@ import Link from "next/link";
 import { ClassDetailClient } from "./client";
 import { SessionManager } from "./session-manager";
 import { AnnouncementsPanel } from "./announcements";
+import { InstructorReflectionForm } from "./instructor-reflection";
 import { getStudentClassOpportunityContext } from "@/lib/student-class-portal";
 import { derivePublicClassStatus, formatScheduleSummary } from "@/lib/class-status";
 import { PublicClassStatusBadge } from "@/components/classes/public-class-status-badge";
 import { Meter } from "@/components/people-strategy/people-suite";
+import { StarRating } from "@/components/classes/star-rating";
+import { ClassFeedbackForm } from "@/components/classes/class-feedback-form";
+import {
+  getClassFeedbackSummary,
+  getClassOutcome,
+  getMyClassFeedback,
+} from "@/lib/class-feedback";
 
 function getEmbeddedIntroVideoUrl(videoUrl: string, provider: string | null) {
   if (!provider) return null;
@@ -178,6 +186,20 @@ export default async function ClassDetailPage({
     (spotsLeft <= 0 ||
       (opportunityContext.requiresFallbackApproval &&
         opportunityContext.fallbackRequestStatus !== "APPROVED"));
+
+  // Class feedback + completion-outcome layer. The instructor sees a wrap-up
+  // reflection form plus a read-only summary of student feedback; an enrolled
+  // student whose class has ended sees the post-class feedback form.
+  const classHasEnded =
+    offering.status === "COMPLETED" || new Date(offering.endDate) < new Date();
+  const showStudentFeedback = !isInstructor && isEnrolled && classHasEnded;
+  const [feedbackSummary, classOutcome, myFeedback] = await Promise.all([
+    isInstructor ? getClassFeedbackSummary(id) : Promise.resolve(null),
+    isInstructor ? getClassOutcome(id) : Promise.resolve(null),
+    showStudentFeedback
+      ? getMyClassFeedback(session.user.id, id)
+      : Promise.resolve(null),
+  ]);
 
   return (
     <div>
@@ -441,6 +463,36 @@ export default async function ClassDetailPage({
               No close alternatives are available yet. You can still use the catalog or your pathway view to look for the next best fit.
             </div>
           )}
+        </div>
+      )}
+
+      {/* Post-class feedback (enrolled student, class has ended) */}
+      {showStudentFeedback && (
+        <div
+          className="card"
+          style={{ marginBottom: 24, borderLeft: "4px solid #f59e0b" }}
+        >
+          <h3 style={{ marginTop: 0 }}>
+            {myFeedback ? "Your feedback" : "How was this class?"}
+          </h3>
+          <p style={{ color: "var(--text-secondary)", marginTop: 4, marginBottom: 14 }}>
+            Now that this class has wrapped up, your feedback helps your
+            instructor and the YPP team make the next one even better.
+          </p>
+          <ClassFeedbackForm
+            offeringId={offering.id}
+            defaultRating={myFeedback?.rating ?? 0}
+            defaultLiked={myFeedback?.liked ?? ""}
+            defaultImprove={myFeedback?.improve ?? ""}
+            defaultRecommend={
+              myFeedback?.wouldRecommend == null
+                ? ""
+                : myFeedback.wouldRecommend
+                  ? "yes"
+                  : "no"
+            }
+            submittedAt={myFeedback?.createdAt ?? null}
+          />
         </div>
       )}
 
@@ -819,6 +871,74 @@ export default async function ClassDetailPage({
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Instructor: student feedback summary + wrap-up reflection */}
+      {isInstructor && (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <h3 style={{ marginTop: 0 }}>Class feedback &amp; reflection</h3>
+
+          {feedbackSummary && feedbackSummary.responseCount > 0 ? (
+            <div
+              style={{
+                display: "flex",
+                gap: 24,
+                flexWrap: "wrap",
+                alignItems: "center",
+                padding: "12px 0",
+                borderBottom: "1px solid var(--border-light, #eee)",
+                marginBottom: 16,
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 28, fontWeight: 700 }}>
+                    {feedbackSummary.avgRating.toFixed(1)}
+                  </span>
+                  <StarRating value={Math.round(feedbackSummary.avgRating)} size={18} />
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  {feedbackSummary.responseCount} student
+                  {feedbackSummary.responseCount === 1 ? "" : "s"} rated this class
+                </div>
+              </div>
+              {feedbackSummary.recommendPct !== null && (
+                <div>
+                  <div style={{ fontSize: 28, fontWeight: 700 }}>
+                    {Math.round(feedbackSummary.recommendPct * 100)}%
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    would recommend it
+                  </div>
+                </div>
+              )}
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 220 }}>
+                Individual comments are shared with the YPP team on the admin class
+                page.
+              </div>
+            </div>
+          ) : (
+            <p style={{ color: "var(--text-secondary)", marginTop: 0, marginBottom: 16 }}>
+              No student feedback yet. Students can rate the class once it has
+              wrapped up.
+            </p>
+          )}
+
+          <InstructorReflectionForm
+            offeringId={offering.id}
+            defaultWentWell={classOutcome?.instructorWentWell ?? ""}
+            defaultChallenges={classOutcome?.instructorChallenges ?? ""}
+            defaultStudentImpact={classOutcome?.instructorStudentImpact ?? ""}
+            defaultWouldTeachAgain={
+              classOutcome?.instructorWouldTeachAgain == null
+                ? ""
+                : classOutcome.instructorWouldTeachAgain
+                  ? "yes"
+                  : "no"
+            }
+            reflectedAt={classOutcome?.instructorReflectedAt ?? null}
+          />
         </div>
       )}
 

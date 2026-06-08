@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import {
+  getClassFeedbackReport,
+  type ClassFeedbackReport,
+} from "@/lib/class-feedback";
 
 /**
  * Read-only aggregations for the admin class reports page (/admin/classes/reports).
@@ -63,6 +67,7 @@ export interface ClassReports {
     completedClasses: number;
     totalEnrollments: number;
   }>;
+  feedback: ClassFeedbackReport;
 }
 
 export async function getClassReports(): Promise<ClassReports> {
@@ -76,6 +81,7 @@ export async function getClassReports(): Promise<ClassReports> {
         title: true,
         status: true,
         startDate: true,
+        endDate: true,
         capacity: true,
         enrollmentOpen: true,
         deliveryMode: true,
@@ -200,6 +206,17 @@ export async function getClassReports(): Promise<ClassReports> {
     .filter((i) => i.activeClasses > 0 || i.completedClasses > 0)
     .sort((a, b) => b.activeClasses - a.activeClasses || b.totalEnrollments - a.totalEnrollments);
 
+  const feedback = await getClassFeedbackReport(
+    offerings.map((o) => ({
+      id: o.id,
+      title: o.title,
+      status: o.status,
+      endDate: o.endDate,
+      instructorName: o.instructor?.name || o.instructor?.email || "Unassigned",
+      interestArea: o.template?.interestArea || "Uncategorized",
+    })),
+  );
+
   return {
     generatedAt: now,
     totalClasses: offerings.length,
@@ -217,5 +234,6 @@ export async function getClassReports(): Promise<ClassReports> {
     upcoming,
     subjects,
     instructors,
+    feedback,
   };
 }

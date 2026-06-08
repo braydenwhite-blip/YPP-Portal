@@ -7111,6 +7111,8 @@ model ClassOffering {
   fallbackRequests PathwayFallbackRequest[]
   approval         ClassOfferingApproval?
   timeline         ClassOfferingTimelineEvent[]
+  feedback         ClassFeedback[]
+  outcome          ClassOutcome?
   regularInstructorAssignments RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsForOffering")
 
   createdAt DateTime @default(now())
@@ -7374,6 +7376,103 @@ model ClassReminder {
   @@index([userId])
   @@index([scheduledFor])
   @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Class feedback + completion-outcome layer
+//
+// Post-class signal for the class program, split by who fills it in:
+//   • ClassFeedback — one row per (offering, student): the learner's rating plus
+//     what they liked and what they'd improve. The "feedback" half.
+//   • ClassOutcome  — one row per offering (1:1): the instructor's wrap-up
+//     reflection PLUS the admin's completion outcome and repeat recommendation.
+//     The "completion-outcome" half.
+//
+// Everything is additive and nullable/defaulted, so existing offerings are
+// unaffected and the layer simply stays empty until people start filling it in.
+// User references (studentId / instructorId / recordedById) are intentionally
+// FK-less and resolved to names in app code, mirroring the repo's
+// loosely-coupled-id convention (see PartnerNote) to avoid widening the very
+// large User model with more back-relations.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Admin's verdict on how a completed class actually went.
+enum ClassOutcomeStatus {
+  PENDING // not reviewed yet
+  STRONG // clear success
+  SOLID // met the bar
+  MIXED // uneven — some good, some not
+  UNDERPERFORMED // missed the bar (enrollment, attendance, or quality)
+  DID_NOT_RUN // cancelled / never really happened
+}
+
+/// Should we run this class again? The repeat-recommendation taxonomy that powers
+/// the "repeat these" planning panel on /admin/classes/reports.
+enum ClassRepeatRecommendation {
+  REPEAT_AS_IS // run it again unchanged
+  REPEAT_WITH_TWEAKS // run again with small changes
+  REPEAT_NEW_INSTRUCTOR // good class, needs a different instructor
+  REPEAT_LATER // worth repeating, but not next term
+  NEEDS_REWORK // promising, but needs a real redesign first
+  DO_NOT_REPEAT // retire it
+  UNDECIDED // not decided yet
+}
+
+/// Per-student class feedback. One row per (offering, student).
+model ClassFeedback {
+  id         String        @id @default(cuid())
+  offeringId String
+  offering   ClassOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  studentId  String
+
+  /// 1–5 overall rating.
+  rating         Int
+  /// What the student liked / what worked for them.
+  liked          String?  @db.Text
+  /// What the student would improve.
+  improve        String?  @db.Text
+  /// Would they recommend this class to a friend?
+  wouldRecommend Boolean?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([offeringId, studentId])
+  @@index([offeringId])
+  @@index([studentId])
+  @@index([rating])
+}
+
+/// Per-offering completion outcome: instructor reflection (top) + admin
+/// completion outcome (bottom). 1:1 with ClassOffering.
+model ClassOutcome {
+  id         String        @id @default(cuid())
+  offeringId String        @unique
+  offering   ClassOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+
+  // ── Instructor wrap-up reflection ──────────────────────────────────────
+  instructorId              String?
+  instructorWentWell        String?   @db.Text // what went well
+  instructorChallenges      String?   @db.Text // what was hard / what they'd change
+  instructorStudentImpact   String?   @db.Text // what students got out of it
+  instructorWouldTeachAgain Boolean?
+  instructorReflectedAt     DateTime?
+
+  // ── Admin completion outcome ───────────────────────────────────────────
+  status               ClassOutcomeStatus         @default(PENDING)
+  repeatRecommendation ClassRepeatRecommendation?
+  /// Admin's quick "this got good feedback" flag — drives the reports highlight panel.
+  gotGoodFeedback      Boolean                    @default(false)
+  adminNotes           String?                    @db.Text
+  recordedById         String?
+  recordedAt           DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([repeatRecommendation])
+  @@index([gotGoodFeedback])
 }
 
 model EventReminder {

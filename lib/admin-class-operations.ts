@@ -792,14 +792,22 @@ export async function getAdminClassDetail(offeringId: string) {
   });
   if (!offering) return null;
 
-  const waitlistedCount = await prisma.classEnrollment.count({
-    where: { offeringId, status: "WAITLISTED" },
-  });
+  const [waitlistedCount, feedbackEligibleCount] = await Promise.all([
+    prisma.classEnrollment.count({
+      where: { offeringId, status: "WAITLISTED" },
+    }),
+    // Everyone who actually took the class (still enrolled or completed) — the
+    // denominator for the feedback response rate on the detail page.
+    prisma.classEnrollment.count({
+      where: { offeringId, status: { in: ["ENROLLED", "COMPLETED"] } },
+    }),
+  ]);
 
   return {
     ...offering,
     confirmedCount: offering._count.enrollments,
     waitlistedCount,
+    feedbackEligibleCount,
     isApproved:
       offering.grandfatheredTrainingExemption ||
       offering.approval?.status === "APPROVED",
