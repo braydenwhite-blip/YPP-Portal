@@ -402,6 +402,24 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/mentorship/applications",
+    title: "Mentorship Matching Queue",
+    content: {
+      purpose: "This queue groups mentee applications by stage so you can see who is new, who needs recommendations, who is shortlisted, and who is matched.",
+      firstStep: "Open an application in the 'New' or 'Needs recommendations' group to start matching.",
+      nextStep: "Inside an application, generate scored mentor recommendations and approve the best fit."
+    }
+  },
+  {
+    pattern: "/admin/mentorship/applications/[id]",
+    title: "Application Matching",
+    content: {
+      purpose: "This page shows one mentee's application alongside scored, explained mentor recommendations so you can decide who fits best.",
+      firstStep: "Read what the mentee submitted, then generate recommendations to score the mentor pool.",
+      nextStep: "Shortlist, hold, reject, or approve a recommendation — approving creates the active match and closes the application."
+    }
+  },
+  {
     pattern: "/admin/mentorship/relationships/[mentorshipId]",
     title: "Mentorship Relationship Details",
     content: {
@@ -2336,6 +2354,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page brings together the main tools and details for the mentorship.",
       firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+    }
+  },
+  {
+    pattern: "/mentorship/dashboard",
+    title: "Mentor Dashboard",
+    content: {
+      purpose: "This dashboard shows who you mentor, what each mentee needs, your suggested next action for them, and whether you are at capacity.",
+      firstStep: "Scan your mentees and their suggested next actions, then open the one that needs you most.",
+      nextStep: "Keep your expertise and capacity current so new mentees are matched to you well."
     }
   },
   {
