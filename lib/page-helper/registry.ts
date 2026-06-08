@@ -213,6 +213,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/classes/reports",
+    title: "Class Reports",
+    content: {
+      purpose: "Live, read-only insight into the whole class program — pipeline, enrollment health, subject demand, and instructor teaching load.",
+      firstStep: "Scan the pipeline and enrollment health cards to see what needs attention — classes awaiting review, under-enrolled classes, or seats sitting empty.",
+      nextStep: "Use the 'starting soon' table to fix logistics gaps before classes begin, and the subject/instructor sections to decide what to run again."
+    }
+  },
+  {
     pattern: "/admin/curricula",
     title: "Curriculum Review Queue",
     content: {

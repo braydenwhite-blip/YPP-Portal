@@ -7314,6 +7314,12 @@ model ClassEnrollment {
   outcomesAchieved String[] // IDs of achieved learning outcomes
   instructorNotes  String?  @db.Text
 
+  // Signup context — what the student told us in the guided fit check at
+  // enrollment. Read-only after signup; surfaced to the instructor/admin roster
+  // so the people teaching the class know why each student is there.
+  signupGoal       String?  @db.Text
+  signupNote       String?  @db.Text
+
   // Waitlist position (if waitlisted)
   waitlistPosition Int?
 

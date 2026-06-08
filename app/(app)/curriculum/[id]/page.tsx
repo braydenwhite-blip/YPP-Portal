@@ -7,6 +7,9 @@ import { ClassDetailClient } from "./client";
 import { SessionManager } from "./session-manager";
 import { AnnouncementsPanel } from "./announcements";
 import { getStudentClassOpportunityContext } from "@/lib/student-class-portal";
+import { derivePublicClassStatus, formatScheduleSummary } from "@/lib/class-status";
+import { PublicClassStatusBadge } from "@/components/classes/public-class-status-badge";
+import { Meter } from "@/components/people-strategy/people-suite";
 
 function getEmbeddedIntroVideoUrl(videoUrl: string, provider: string | null) {
   if (!provider) return null;
@@ -140,6 +143,21 @@ export default async function ClassDetailPage({
   const isEnrolled = myEnrollment?.status === "ENROLLED";
   const isWaitlisted = myEnrollment?.status === "WAITLISTED";
   const spotsLeft = offering.capacity - enrolledStudents.length;
+  const publicStatus = derivePublicClassStatus({
+    status: offering.status,
+    enrollmentOpen: offering.enrollmentOpen,
+    capacity: offering.capacity,
+    enrolledCount: enrolledStudents.length,
+    startDate: offering.startDate,
+    endDate: offering.endDate,
+  });
+  const scheduleSummary = formatScheduleSummary({
+    sessionCount: offering.sessions.length,
+    meetingDays: offering.meetingDays,
+    meetingTime: offering.meetingTime,
+    startDate: offering.startDate,
+    endDate: offering.endDate,
+  });
   const upcomingSessions = offering.sessions.filter(
     (s) => new Date(s.date) >= new Date() && !s.isCancelled
   );
@@ -198,6 +216,11 @@ export default async function ClassDetailPage({
               {offering.template.description}
             </p>
 
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
+              <span style={{ color: "#16a34a", fontWeight: 600 }}>Free enrichment class</span>
+              {" · "}taught by a trained YPP student instructor{" · "}supported by YPP
+            </p>
+
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
               <span className="pill" style={{
                 background: learnerFit.accent + "18",
@@ -207,8 +230,10 @@ export default async function ClassDetailPage({
                 {learnerFit.label}
               </span>
               <span className="pill">{offering.template.interestArea}</span>
-              <span className="pill">{offering.deliveryMode.replace("_", " ")}</span>
-              <span className="pill">{offering.status.replace("_", " ")}</span>
+              <span className="pill">
+                {offering.deliveryMode === "VIRTUAL" ? "Online" : offering.deliveryMode === "IN_PERSON" ? "In person" : "Hybrid"}
+              </span>
+              <PublicClassStatusBadge info={publicStatus} />
               {offering.chapter && (
                 <span className="pill">
                   {offering.chapter.city ? `${offering.chapter.name} (${offering.chapter.city})` : offering.chapter.name}
@@ -248,10 +273,7 @@ export default async function ClassDetailPage({
                   {offering.chapter.city ? ` (${offering.chapter.city}${offering.chapter.region ? `, ${offering.chapter.region}` : ""})` : ""}
                 </div>
               ) : null}
-              <div>
-                <strong>Schedule:</strong>{" "}
-                {offering.meetingDays.join(", ")} | {offering.meetingTime}
-              </div>
+              <div><strong>Schedule:</strong> {scheduleSummary}</div>
               <div>
                 <strong>Dates:</strong>{" "}
                 {new Date(offering.startDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
@@ -278,8 +300,16 @@ export default async function ClassDetailPage({
             <div style={{ fontSize: 32, fontWeight: 700, color: "var(--ypp-purple)" }}>
               {enrolledStudents.length} / {offering.capacity}
             </div>
+            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>enrolled</div>
+            <div style={{ marginBottom: 8 }}>
+              <Meter
+                value={enrolledStudents.length}
+                max={Math.max(1, offering.capacity)}
+                tone={publicStatus.status === "FULL_WAITLIST" ? "danger" : publicStatus.status === "ALMOST_FULL" ? "warning" : "success"}
+              />
+            </div>
             <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
-              {spotsLeft > 0 ? `${spotsLeft} spots remaining` : "Class is full"}
+              {publicStatus.helper ?? (spotsLeft > 0 ? `${spotsLeft} spots remaining` : "Class is full")}
             </div>
 
             <ClassDetailClient
@@ -333,6 +363,25 @@ export default async function ClassDetailPage({
                 <div style={{ marginTop: 4, color: "var(--ypp-purple)", fontWeight: 600 }}>
                   {completionPct}% outcomes achieved
                 </div>
+              </div>
+            )}
+
+            {!isInstructor && !isEnrolled && !isWaitlisted && publicStatus.canSignUp && (
+              <div
+                style={{
+                  marginTop: 12,
+                  fontSize: 12,
+                  color: "var(--text-secondary)",
+                  textAlign: "left",
+                  background: "var(--gray-50, #f9fafb)",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                }}
+              >
+                <strong style={{ display: "block", marginBottom: 4 }}>What happens next</strong>
+                {publicStatus.isWaitlist
+                  ? "You'll join the waitlist. We'll move you into the class — and notify you right here — the moment a seat opens."
+                  : "You're enrolled right away. Your schedule and joining details appear in My Classes, and your instructor shares what to prepare before the first session."}
               </div>
             )}
           </div>
@@ -712,7 +761,7 @@ export default async function ClassDetailPage({
               <thead>
                 <tr>
                   <th>Student</th>
-                  <th>Email</th>
+                  <th>Why they signed up</th>
                   <th>Sessions Attended</th>
                   <th>Outcomes Achieved</th>
                   <th>Status</th>
@@ -721,8 +770,21 @@ export default async function ClassDetailPage({
               <tbody>
                 {enrolledStudents.map((enrollment) => (
                   <tr key={enrollment.id}>
-                    <td style={{ fontWeight: 500 }}>{enrollment.student.name}</td>
-                    <td style={{ color: "var(--text-secondary)", fontSize: 13 }}>{enrollment.student.email}</td>
+                    <td style={{ fontWeight: 500 }}>
+                      {enrollment.student.name}
+                      <div style={{ fontWeight: 400, fontSize: 12, color: "var(--text-secondary)" }}>
+                        {enrollment.student.email}
+                      </div>
+                    </td>
+                    <td style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 240 }}>
+                      {enrollment.signupGoal ? <div>🎯 {enrollment.signupGoal}</div> : null}
+                      {enrollment.signupNote ? (
+                        <div style={{ fontStyle: "italic" }}>“{enrollment.signupNote}”</div>
+                      ) : null}
+                      {!enrollment.signupGoal && !enrollment.signupNote ? (
+                        <span style={{ color: "var(--gray-400, #9ca3af)" }}>—</span>
+                      ) : null}
+                    </td>
                     <td>
                       {enrollment.sessionsAttended} / {offering.sessions.length}
                     </td>

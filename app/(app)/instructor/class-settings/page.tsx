@@ -8,6 +8,8 @@ import {
   getClassTemplateSelect,
 } from "@/lib/class-template-compat";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
+import { computePublishReadiness } from "@/lib/class-publish-readiness";
+import { PublishReadinessChecklist } from "@/components/classes/publish-readiness-checklist";
 import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
 import {
   getActionsForEntity,
@@ -162,6 +164,28 @@ export default async function InstructorClassSettingsPage({
   }
   const canCreateTrackerAction = canCreateAction(viewer);
 
+  const offeringReadiness = offering
+    ? computePublishReadiness({
+        title: offering.title,
+        description: offering.template?.description,
+        instructorId: offering.instructorId,
+        startDate: offering.startDate,
+        endDate: offering.endDate,
+        meetingDays: offering.meetingDays,
+        meetingTime: offering.meetingTime,
+        capacity: offering.capacity,
+        deliveryMode: offering.deliveryMode,
+        locationName: offering.locationName,
+        locationAddress: offering.locationAddress,
+        zoomLink: offering.zoomLink,
+        sessionCount: offering.sessions.length,
+        approvalStatus: offering.approval?.status ?? "NOT_REQUESTED",
+        grandfatheredTrainingExemption: offering.grandfatheredTrainingExemption,
+        editHref: `/instructor/class-settings?offering=${offering.id}`,
+        reviewHref: `/instructor/class-settings?offering=${offering.id}`,
+      })
+    : null;
+
   return (
     <div>
       <div className="topbar">
@@ -204,6 +228,18 @@ export default async function InstructorClassSettingsPage({
             emptyHint="No actions are linked to this class yet."
           />
         </div>
+      )}
+
+      {offeringReadiness && (
+        <section className="card" style={{ marginBottom: 16 }}>
+          <h2 className="section-title" style={{ margin: "0 0 4px" }}>
+            Publish readiness
+          </h2>
+          <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--text-secondary)" }}>
+            What this class still needs before it can go live for students.
+          </p>
+          <PublishReadinessChecklist readiness={offeringReadiness} />
+        </section>
       )}
 
       <ClassSettingsClient

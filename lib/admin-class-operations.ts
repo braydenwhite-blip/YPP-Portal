@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/authorization-helpers";
 import { isOfferingPubliclyVisible } from "@/lib/class-visibility";
 import { promoteNextWaitlistedRaceSafe } from "@/lib/class-seat-allocation";
 import { recordOfferingTimeline } from "@/lib/class-offering-timeline";
+import { notifyWaitlistPromotion } from "@/lib/class-notifications";
 
 /**
  * Admin-only class operations.
@@ -327,6 +328,9 @@ export async function adminPromoteFromWaitlist(formData: FormData) {
       summary: "Promoted next waitlisted student to enrolled.",
       payload: { enrollmentId: result.enrollmentId },
     });
+    if (result.enrollmentId) {
+      await notifyWaitlistPromotion(result.enrollmentId);
+    }
   }
   revalidateAdminClassSurfaces(offeringId);
   return { success: true, promoted: result.promoted };
@@ -514,6 +518,11 @@ export async function adminUpdateEnrollmentStatus(formData: FormData) {
       to: nextStatus,
     },
   });
+
+  // Tell the student when an admin moves them off the waitlist into the class.
+  if (enrollment.status === "WAITLISTED" && nextStatus === "ENROLLED") {
+    await notifyWaitlistPromotion(enrollmentId);
+  }
 
   revalidateAdminClassSurfaces(enrollment.offeringId);
   return { success: true };
@@ -824,6 +833,8 @@ export async function getAdminClassRoster(offeringId: string) {
       sessionsAttended: true,
       waitlistPosition: true,
       instructorNotes: true,
+      signupGoal: true,
+      signupNote: true,
       student: {
         select: {
           id: true,

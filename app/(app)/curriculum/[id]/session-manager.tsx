@@ -27,6 +27,14 @@ interface SessionManagerProps {
   enrolledStudents?: Student[];
 }
 
+// Must match the AttendanceStatus enum (PRESENT | ABSENT | LATE | EXCUSED).
+const ATTENDANCE_OPTIONS = [
+  { value: "PRESENT", label: "Present", color: "#16a34a" },
+  { value: "LATE", label: "Late", color: "#d97706" },
+  { value: "ABSENT", label: "Absent", color: "#ef4444" },
+  { value: "EXCUSED", label: "Excused", color: "#6b7280" },
+] as const;
+
 export function SessionManager({ session, offeringId, enrolledStudents }: SessionManagerProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -65,6 +73,12 @@ export function SessionManager({ session, offeringId, enrolledStudents }: Sessio
         setError(e instanceof Error ? e.message : "Failed to save");
       }
     });
+  }
+
+  function markAll(status: string) {
+    const next: Record<string, string> = {};
+    for (const student of enrolledStudents ?? []) next[student.id] = status;
+    setAttendance(next);
   }
 
   function handleSaveAttendance() {
@@ -198,27 +212,49 @@ export function SessionManager({ session, offeringId, enrolledStudents }: Sessio
 
           {activeTab === "attendance" && enrolledStudents && (
             <div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
-                Mark attendance for Session {session.sessionNumber}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  Mark attendance for Session {session.sessionNumber}
+                  {" · "}
+                  <strong>{Object.keys(attendance).length}</strong>/{enrolledStudents.length} marked
+                </div>
+                <button
+                  type="button"
+                  onClick={() => markAll("PRESENT")}
+                  className="button secondary"
+                  style={{ fontSize: 11, padding: "3px 10px" }}
+                >
+                  Mark all present
+                </button>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {enrolledStudents.map((student) => (
-                  <div key={student.id} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 13 }}>
-                    <span style={{ flex: 1, fontWeight: 500 }}>{student.name}</span>
-                    {(["PRESENT", "ABSENT", "TARDY", "EXCUSED"] as const).map((status) => (
-                      <label key={status} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
-                        <input
-                          type="radio"
-                          name={`attendance-${student.id}`}
-                          value={status}
-                          checked={attendance[student.id] === status}
-                          onChange={() => setAttendance((prev) => ({ ...prev, [student.id]: status }))}
-                        />
-                        <span style={{ fontSize: 11, color: status === "PRESENT" ? "#16a34a" : status === "ABSENT" ? "#ef4444" : "var(--text-secondary)" }}>
-                          {status}
-                        </span>
-                      </label>
-                    ))}
+                  <div key={student.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, flexWrap: "wrap" }}>
+                    <span style={{ flex: 1, minWidth: 120, fontWeight: 500 }}>{student.name}</span>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {ATTENDANCE_OPTIONS.map((option) => {
+                        const active = attendance[student.id] === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setAttendance((prev) => ({ ...prev, [student.id]: option.value }))}
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: "3px 9px",
+                              borderRadius: 6,
+                              cursor: "pointer",
+                              border: `1px solid ${active ? option.color : "var(--border)"}`,
+                              background: active ? option.color : "transparent",
+                              color: active ? "#fff" : option.color,
+                            }}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 ))}
               </div>

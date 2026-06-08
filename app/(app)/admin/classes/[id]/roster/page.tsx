@@ -57,6 +57,13 @@ export default async function AdminClassRosterPage({
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <a
+            href={`/api/admin/classes/${offering.id}/roster/export`}
+            className="button secondary"
+            style={{ fontSize: 13 }}
+          >
+            Export CSV
+          </a>
           <Link href={`/admin/classes/${offering.id}`} className="button" style={{ fontSize: 13 }}>
             ← Class detail
           </Link>
@@ -246,6 +253,16 @@ function RosterRow({
         {entry.waitlistPosition != null && (
           <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
             #{entry.waitlistPosition} on waitlist
+          </div>
+        )}
+        {(entry.signupGoal || entry.signupNote) && (
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 3, maxWidth: 260 }}>
+            {entry.signupGoal ? <span title="What the student wants from this class">🎯 {entry.signupGoal}</span> : null}
+            {entry.signupNote ? (
+              <span style={{ display: "block", fontStyle: "italic" }} title="Student's note at signup">
+                “{entry.signupNote}”
+              </span>
+            ) : null}
           </div>
         )}
       </td>

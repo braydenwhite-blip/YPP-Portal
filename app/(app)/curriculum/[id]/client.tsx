@@ -76,7 +76,7 @@ export function ClassDetailClient({
     setLoading(true);
     setFeedback(null);
     try {
-      const result = await enrollInClass(offeringId);
+      const result = await enrollInClass(offeringId, { goal: fitGoal, note: fitNote });
       setShowFitCheck(false);
       setConfirmation({
         status: result.status,
