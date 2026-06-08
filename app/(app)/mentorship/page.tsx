@@ -9,6 +9,7 @@ import { getLanesForChair } from "@/lib/mentorship-chair-access";
 import { getSimplifiedMentorKanban } from "@/lib/mentorship-kanban-actions";
 import { getMentorshipPendingActionCount } from "@/lib/mentorship-notifications";
 import { getMentorEngagementSnapshot } from "@/lib/mentor-overview";
+import { isMentorship2Enabled } from "@/lib/feature-flags";
 import {
   MentorPriorityList,
   mentorCardNeedsAttention,
@@ -133,6 +134,11 @@ export default async function MentorshipPage() {
           )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {isMentorship2Enabled() && (
+            <Link href="/mentorship/dashboard" className="button secondary small">
+              Dashboard →
+            </Link>
+          )}
           {membership.isMentee && (
             <Link href="/my-mentor" className="button secondary small">
               My Mentor →

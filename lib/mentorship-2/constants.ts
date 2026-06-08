@@ -137,3 +137,85 @@ export function expertiseProficiencyWeight(
   // An unscored/claimed-but-unrated expertise still counts as a baseline signal.
   return 1;
 }
+
+// ----------------------------------------------------------------------------
+// Match recommendation status (Phase M2)
+//
+// Status vocabulary for MentorshipMatchRecommendation. TEXT validated here
+// rather than as a Postgres enum, mirroring the application-status convention
+// above. One application fans out to many SUGGESTED rows; at most one becomes
+// APPROVED (the rest are auto-SUPERSEDED).
+// ----------------------------------------------------------------------------
+
+export const MENTORSHIP_RECOMMENDATION_STATUSES = [
+  "SUGGESTED",
+  "SHORTLISTED",
+  "APPROVED",
+  "REJECTED",
+  "HELD",
+  "SUPERSEDED",
+] as const;
+
+export type MentorshipRecommendationStatus =
+  (typeof MENTORSHIP_RECOMMENDATION_STATUSES)[number];
+
+export const MENTORSHIP_RECOMMENDATION_STATUS_LABELS: Record<
+  MentorshipRecommendationStatus,
+  string
+> = {
+  SUGGESTED: "Suggested",
+  SHORTLISTED: "Shortlisted",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  HELD: "Held",
+  SUPERSEDED: "Superseded",
+};
+
+/** Statuses where a recommendation is still in play for the admin to act on. */
+export const ACTIVE_RECOMMENDATION_STATUSES: readonly MentorshipRecommendationStatus[] =
+  ["SUGGESTED", "SHORTLISTED", "HELD"];
+
+/** Statuses representing a recorded decision. */
+export const DECIDED_RECOMMENDATION_STATUSES: readonly MentorshipRecommendationStatus[] =
+  ["APPROVED", "REJECTED", "SUPERSEDED"];
+
+export function isMentorshipRecommendationStatus(
+  value: unknown
+): value is MentorshipRecommendationStatus {
+  return (
+    typeof value === "string" &&
+    (MENTORSHIP_RECOMMENDATION_STATUSES as readonly string[]).includes(value)
+  );
+}
+
+export function isActiveRecommendationStatus(
+  status: MentorshipRecommendationStatus
+): boolean {
+  return ACTIVE_RECOMMENDATION_STATUSES.includes(status);
+}
+
+/**
+ * Allowed status transitions for a recommendation. APPROVED is terminal (undoing
+ * an active match is a deliberate, separate operation, out of M2 scope). REJECTED
+ * and SUPERSEDED can be revived by an admin re-considering or by re-running the
+ * engine. Used by the data layer to reject illegal moves.
+ */
+export const RECOMMENDATION_STATUS_TRANSITIONS: Record<
+  MentorshipRecommendationStatus,
+  readonly MentorshipRecommendationStatus[]
+> = {
+  SUGGESTED: ["SHORTLISTED", "HELD", "REJECTED", "APPROVED", "SUPERSEDED"],
+  SHORTLISTED: ["SUGGESTED", "HELD", "REJECTED", "APPROVED", "SUPERSEDED"],
+  HELD: ["SUGGESTED", "SHORTLISTED", "REJECTED", "APPROVED", "SUPERSEDED"],
+  REJECTED: ["SHORTLISTED", "HELD", "SUGGESTED"],
+  SUPERSEDED: ["SUGGESTED", "SHORTLISTED"],
+  APPROVED: [],
+};
+
+export function canTransitionRecommendation(
+  from: MentorshipRecommendationStatus,
+  to: MentorshipRecommendationStatus
+): boolean {
+  if (from === to) return false;
+  return RECOMMENDATION_STATUS_TRANSITIONS[from].includes(to);
+}
