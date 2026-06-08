@@ -64,12 +64,12 @@ export function EnrollmentConfirmation({
       : "You're signed up!";
 
   const accessLine = isWaitlist
-    ? "We'll email you the moment a seat opens up. Until then, you can browse other open classes."
+    ? "We'll notify you right here the moment a seat opens up. Until then, you can browse other open classes."
     : hasZoomLink
-      ? "Your Zoom link and class materials are in My Classes. We'll also send a session reminder before each class."
+      ? "Your Zoom link and class materials live in My Classes, along with session reminders before each class."
       : hasLocation
-        ? "Class location and any prep details are in My Classes. We'll email a reminder before each session."
-        : "Access details (Zoom link, materials, or location) will appear in My Classes before the first session. We'll email you when they're ready.";
+        ? "Your class location and any prep details live in My Classes, along with session reminders before each class."
+        : "Access details (Zoom link, materials, or location) will appear in My Classes before the first session.";
 
   const donateHref = (() => {
     if (donationUrl === "#" || !donationUrl) return "#";
@@ -113,8 +113,30 @@ export function EnrollmentConfirmation({
           padding: 24,
           boxShadow: "0 25px 60px rgba(0, 0, 0, 0.25)",
           outline: "none",
+          position: "relative",
         }}
       >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            border: "none",
+            background: "var(--gray-100, #f3f4f6)",
+            color: "var(--text-secondary)",
+            fontSize: 18,
+            lineHeight: 1,
+            cursor: "pointer",
+          }}
+        >
+          ×
+        </button>
         <div
           style={{
             display: "inline-flex",
@@ -182,8 +204,7 @@ export function EnrollmentConfirmation({
             {accessLine}
           </p>
           <p style={{ margin: "8px 0 0", color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.5 }}>
-            A confirmation email is on its way. You can always come back through{" "}
-            <strong>My Classes</strong>.
+            Your spot is saved — everything you need is in <strong>My Classes</strong>.
           </p>
         </div>
 
