@@ -8,11 +8,8 @@ import { MenteeDashboard } from "@/app/(app)/mentorship/_components/mentee-dashb
 import { getGrowthConnectLine } from "@/lib/growth-model";
 import { MyMentorSubnav } from "./_components/my-mentor-subnav";
 import { isMentorship2Enabled } from "@/lib/feature-flags";
-import { getOpenApplicationForUser } from "@/lib/mentorship-2/queries";
-import {
-  MENTORSHIP_APPLICATION_STATUS_LABELS,
-  type MentorshipApplicationStatus,
-} from "@/lib/mentorship-2/constants";
+import { getMenteeMentorshipView } from "@/lib/mentorship-2/mentee-dashboard";
+import { MenteeCommandCenter } from "./_components/mentee-command-center";
 
 export const metadata = {
   title: "My Mentor — YPP",
@@ -30,12 +27,12 @@ export default async function MyMentorPage() {
   const hasMentor = !!ctx.primaryMentor;
   const mentorsOthers = ctx.mentees.length > 0;
 
-  // Mentorship 2.0 (Phase M1): mentees without a mentor can apply for one.
+  // Mentorship 2.0 (Phase M2): the canonical mentee command center renders the
+  // student's current lifecycle state (apply → reviewing → matched → alumni).
   const m2Enabled = isMentorship2Enabled();
-  const openApplication =
-    m2Enabled && !hasMentor
-      ? await getOpenApplicationForUser(session.user.id)
-      : null;
+  const menteeView = m2Enabled
+    ? await getMenteeMentorshipView(session.user.id)
+    : null;
 
   return (
     <div>
@@ -132,57 +129,42 @@ export default async function MyMentorPage() {
           </div>
         )}
 
-        {!hasMentor && (
-          <div
-            style={{
-              padding: "32px 24px",
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              textAlign: "center",
-            }}
-          >
-            <h2
+        {m2Enabled && menteeView ? (
+          <MenteeCommandCenter view={menteeView} />
+        ) : (
+          !hasMentor && (
+            <div
               style={{
-                margin: "0 0 6px",
-                fontSize: 18,
-                fontWeight: 700,
-                color: "var(--text)",
+                padding: "32px 24px",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                textAlign: "center",
               }}
             >
-              You&apos;re not yet paired with a mentor.
-            </h2>
-            <p
-              style={{
-                margin: "0 auto",
-                maxWidth: 440,
-                color: "var(--muted)",
-                fontSize: 13,
-                lineHeight: 1.55,
-              }}
-            >
-              Reach out to chapter leadership to get matched. Until then, the
-              pathway page shows how mentorship flows at YPP.
-            </p>
-            {m2Enabled && (
-              <div style={{ marginTop: 16 }}>
-                {openApplication ? (
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
-                    Your application is{" "}
-                    {
-                      MENTORSHIP_APPLICATION_STATUS_LABELS[
-                        openApplication.status as MentorshipApplicationStatus
-                      ]
-                    }
-                    {" "}— a program lead will follow up.
-                  </p>
-                ) : (
-                  <Link href="/my-mentor/apply" className="button">
-                    Apply for a mentor →
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
+              <h2
+                style={{
+                  margin: "0 0 6px",
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: "var(--text)",
+                }}
+              >
+                You&apos;re not yet paired with a mentor.
+              </h2>
+              <p
+                style={{
+                  margin: "0 auto",
+                  maxWidth: 440,
+                  color: "var(--muted)",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                }}
+              >
+                Reach out to chapter leadership to get matched. Until then, the
+                pathway page shows how mentorship flows at YPP.
+              </p>
+            </div>
+          )
         )}
 
         {hasMentor && <MenteeDashboard userId={session.user.id} />}
