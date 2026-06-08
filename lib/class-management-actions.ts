@@ -1242,7 +1242,10 @@ export type EnrollInClassResult = {
   waitlistPosition: number | null;
 };
 
-export async function enrollInClass(offeringId: string): Promise<EnrollInClassResult> {
+export async function enrollInClass(
+  offeringId: string,
+  signup?: { goal?: string; note?: string },
+): Promise<EnrollInClassResult> {
   const session = await requireAuth();
   const studentId = session.user.id;
 
@@ -1301,6 +1304,20 @@ export async function enrollInClass(offeringId: string): Promise<EnrollInClassRe
   // alreadyActive when the student is already ENROLLED or WAITLISTED so we
   // can surface the friendly idempotent response shape callers depend on.
   const result = await takeSeatRaceSafe({ offeringId, studentId });
+
+  // Persist the guided fit-check answers on a fresh enrollment so the people
+  // teaching the class can see why each student is there. Best-effort — a note
+  // write must never fail the enrollment itself.
+  const goal = signup?.goal?.trim();
+  const note = signup?.note?.trim();
+  if (!result.alreadyActive && (goal || note)) {
+    await prisma.classEnrollment
+      .update({
+        where: { id: result.enrollmentId },
+        data: { signupGoal: goal || null, signupNote: note || null },
+      })
+      .catch(() => null);
+  }
 
   revalidateStudentClassSurfaces(offeringId);
   return {

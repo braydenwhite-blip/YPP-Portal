@@ -712,7 +712,7 @@ export default async function ClassDetailPage({
               <thead>
                 <tr>
                   <th>Student</th>
-                  <th>Email</th>
+                  <th>Why they signed up</th>
                   <th>Sessions Attended</th>
                   <th>Outcomes Achieved</th>
                   <th>Status</th>
@@ -721,8 +721,21 @@ export default async function ClassDetailPage({
               <tbody>
                 {enrolledStudents.map((enrollment) => (
                   <tr key={enrollment.id}>
-                    <td style={{ fontWeight: 500 }}>{enrollment.student.name}</td>
-                    <td style={{ color: "var(--text-secondary)", fontSize: 13 }}>{enrollment.student.email}</td>
+                    <td style={{ fontWeight: 500 }}>
+                      {enrollment.student.name}
+                      <div style={{ fontWeight: 400, fontSize: 12, color: "var(--text-secondary)" }}>
+                        {enrollment.student.email}
+                      </div>
+                    </td>
+                    <td style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 240 }}>
+                      {enrollment.signupGoal ? <div>🎯 {enrollment.signupGoal}</div> : null}
+                      {enrollment.signupNote ? (
+                        <div style={{ fontStyle: "italic" }}>“{enrollment.signupNote}”</div>
+                      ) : null}
+                      {!enrollment.signupGoal && !enrollment.signupNote ? (
+                        <span style={{ color: "var(--gray-400, #9ca3af)" }}>—</span>
+                      ) : null}
+                    </td>
                     <td>
                       {enrollment.sessionsAttended} / {offering.sessions.length}
                     </td>

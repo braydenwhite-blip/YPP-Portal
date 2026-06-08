@@ -248,6 +248,16 @@ function RosterRow({
             #{entry.waitlistPosition} on waitlist
           </div>
         )}
+        {(entry.signupGoal || entry.signupNote) && (
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 3, maxWidth: 260 }}>
+            {entry.signupGoal ? <span title="What the student wants from this class">🎯 {entry.signupGoal}</span> : null}
+            {entry.signupNote ? (
+              <span style={{ display: "block", fontStyle: "italic" }} title="Student's note at signup">
+                “{entry.signupNote}”
+              </span>
+            ) : null}
+          </div>
+        )}
       </td>
       <td style={td}>{grade}</td>
       <td style={td}>

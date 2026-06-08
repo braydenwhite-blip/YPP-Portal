@@ -833,6 +833,8 @@ export async function getAdminClassRoster(offeringId: string) {
       sessionsAttended: true,
       waitlistPosition: true,
       instructorNotes: true,
+      signupGoal: true,
+      signupNote: true,
       student: {
         select: {
           id: true,
