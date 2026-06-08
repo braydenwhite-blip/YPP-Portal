@@ -233,3 +233,66 @@ export function partnerStuckReasons(
 
   return reasons;
 }
+
+// --- Pipeline report aggregate ----------------------------------------------
+
+export type PartnerPipelineInput = {
+  stage: string | null;
+  priority: string | null;
+  nextFollowUpAt: Date | null;
+  relationshipLeadId: string | null;
+};
+
+export type PartnerPipelineSummary = {
+  total: number;
+  /** In-flight conversations (active stages). */
+  active: number;
+  /** Won = active partnership or completed. */
+  won: number;
+  /** Parked = paused or not-a-fit. */
+  parked: number;
+  /** Active partners with at least one stuck/cold reason. */
+  stuck: number;
+  byStage: Record<PartnerStage, number>;
+  byPriority: Record<PartnerPriority, number>;
+};
+
+/**
+ * Pure aggregate for the Partnership Report — counts partners by stage and
+ * priority and rolls up active / won / parked / stuck buckets, reusing the same
+ * stage groupings and stuck-detection the board uses so the report and the
+ * board never disagree. Settled (won/parked) partners are never counted stuck.
+ */
+export function summarizePartnerPipeline(
+  partners: PartnerPipelineInput[],
+  now: Date = new Date()
+): PartnerPipelineSummary {
+  const byStage = Object.fromEntries(
+    PARTNER_STAGES.map((s) => [s, 0])
+  ) as Record<PartnerStage, number>;
+  const byPriority = Object.fromEntries(
+    PARTNER_PRIORITIES.map((p) => [p, 0])
+  ) as Record<PartnerPriority, number>;
+
+  let active = 0;
+  let won = 0;
+  let parked = 0;
+  let stuck = 0;
+
+  for (const partner of partners) {
+    const stage = asPartnerStage(partner.stage);
+    byStage[stage] += 1;
+    byPriority[asPartnerPriority(partner.priority)] += 1;
+
+    if (isActivePartnerStage(stage)) {
+      active += 1;
+      if (partnerStuckReasons(partner, now).length > 0) stuck += 1;
+    } else if ((PARTNER_WON_STAGES as readonly string[]).includes(stage)) {
+      won += 1;
+    } else {
+      parked += 1;
+    }
+  }
+
+  return { total: partners.length, active, won, parked, stuck, byStage, byPriority };
+}

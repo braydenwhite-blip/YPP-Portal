@@ -15,6 +15,7 @@ import {
   parseActionFilters,
 } from "@/lib/people-strategy/action-filters";
 import {
+  summarizeCompletion,
   summarizeDepartments,
   summarizeStatuses,
 } from "@/lib/people-strategy/action-analytics";
@@ -278,6 +279,37 @@ describe("linkedGroupHeading", () => {
       "Mentorship · link no longer available"
     );
     expect(linkedGroupHeading(byKey["none"], labels)).toBe("Not linked");
+  });
+});
+
+describe("summarizeCompletion", () => {
+  const items = [
+    item({ id: "a", status: "COMPLETE", deadlineStart: new Date("2026-06-20T00:00:00Z") }),
+    item({ id: "b", status: "IN_PROGRESS", deadlineStart: new Date("2026-06-20T00:00:00Z") }),
+    item({ id: "c", status: "IN_PROGRESS", deadlineStart: new Date("2026-05-01T00:00:00Z") }), // overdue
+    item({ id: "d", status: "BLOCKED", deadlineStart: new Date("2026-06-20T00:00:00Z") }),
+    item({ id: "e", status: "DROPPED", deadlineStart: new Date("2026-06-20T00:00:00Z") }),
+  ];
+
+  it("counts completed/open/overdue/blocked and excludes dropped from the rate", () => {
+    const c = summarizeCompletion(items, NOW);
+    expect(c.total).toBe(5);
+    expect(c.completed).toBe(1);
+    expect(c.dropped).toBe(1);
+    expect(c.open).toBe(3); // b, c, d
+    expect(c.overdue).toBe(1); // c
+    expect(c.blocked).toBe(1); // d
+    expect(c.completionRate).toBeCloseTo(0.25); // 1 completed / (5 - 1 dropped)
+    expect(c.overdueRate).toBeCloseTo(1 / 3); // 1 overdue / 3 open
+  });
+
+  it("is safe on an empty set", () => {
+    expect(summarizeCompletion([], NOW)).toMatchObject({
+      total: 0,
+      completed: 0,
+      completionRate: 0,
+      overdueRate: 0,
+    });
   });
 });
 

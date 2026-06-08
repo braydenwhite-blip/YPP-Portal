@@ -429,14 +429,21 @@ export default async function AdminPartnersPage({
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
-      <p className="badge">Admin · Growth</p>
-      <h1 className="page-title" style={{ marginTop: 8 }}>
-        Partner Pipeline
-      </h1>
-      <p className="page-subtitle">
-        Every camp, school, and organization conversation in one place — who owns it,
-        what stage it&apos;s at, and the next step so nothing goes cold.
-      </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <p className="badge">Admin · Growth</p>
+          <h1 className="page-title" style={{ marginTop: 8 }}>
+            Partner Pipeline
+          </h1>
+          <p className="page-subtitle">
+            Every camp, school, and organization conversation in one place — who owns it,
+            what stage it&apos;s at, and the next step so nothing goes cold.
+          </p>
+        </div>
+        <Link href="/admin/partners/report" className="button outline small" style={{ marginTop: 8 }}>
+          View report
+        </Link>
+      </div>
 
       {/* Snapshot */}
       <div
