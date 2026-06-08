@@ -19,6 +19,7 @@ import { getLegacyLearnerFitCopy } from "@/lib/learner-fit";
 import { syncCurriculumApprovalWorkflow } from "@/lib/workflow";
 import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
 import { publicOfferingWhere } from "@/lib/class-visibility";
+import { notifyWaitlistPromotion } from "@/lib/class-notifications";
 import {
   takeSeatRaceSafe,
   dropAndPromoteRaceSafe,
@@ -1335,7 +1336,10 @@ export async function dropClass(offeringId: string) {
   const session = await requireAuth();
   const studentId = session.user.id;
 
-  await dropAndPromoteRaceSafe({ offeringId, studentId });
+  const { promotedEnrollmentId } = await dropAndPromoteRaceSafe({ offeringId, studentId });
+  if (promotedEnrollmentId) {
+    await notifyWaitlistPromotion(promotedEnrollmentId);
+  }
   revalidateStudentClassSurfaces(offeringId);
   return { success: true };
 }
