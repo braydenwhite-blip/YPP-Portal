@@ -901,6 +901,11 @@ model User {
   collegeAdviseeships                    CollegeAdvisorship[]            @relation("CollegeAdviseeships")
   profile                                UserProfile?
 
+  // Mentorship 2.0 (Action Tracker 3.0, Phase M1)
+  mentorExpertise                        MentorExpertise[]
+  mentorshipApplicationsSubmitted        MentorshipApplication[]         @relation("MentorshipApplicationsSubmitted")
+  mentorshipApplicationsReviewed         MentorshipApplication[]         @relation("MentorshipApplicationsReviewed")
+
   // Video, Calendar, Parent, Certificate, Analytics relations
   videoProgress                   VideoProgress[]
   eventRsvps                      EventRsvp[]
@@ -1530,6 +1535,10 @@ model UserProfile {
   mentorCapacity     Int?
   mentorAvailability String?
   hearAboutYPP       String? // for family signup conversion tracking
+  // Mentorship 2.0 (Action Tracker 3.0, Phase M1): goal signals consumed by the
+  // matching engine (Part C). Additive/nullable — existing rows are unaffected.
+  careerGoal         String?
+  leadershipGoal     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2897,6 +2906,70 @@ model MentorshipActionItem {
   @@index([menteeId, status])
   @@index([ownerId, status])
   @@index([sessionId])
+}
+
+// ============================================
+// MENTORSHIP 2.0 — Expertise taxonomy & mentee application intake
+// (Action Tracker 3.0, Phase M1 — see docs/action-tracker-3.0/)
+// Additive + flag-gated at runtime by ENABLE_MENTORSHIP_2. Status/proficiency
+// vocabularies are TEXT validated in app code (lib/mentorship-2/constants.ts),
+// matching the repo's actionType / partner.stage convention — no Postgres enums,
+// so the vocabulary stays editable without a migration.
+// ============================================
+
+/// A reusable mentor specialization (e.g. "STEM Research", "College Essays").
+/// Closes the audit's "no expertise taxonomy" gap; consumed by the matching
+/// engine in Phase M2.
+model ExpertiseArea {
+  id        String            @id @default(cuid())
+  slug      String            @unique
+  name      String
+  category  String?
+  isActive  Boolean           @default(true)
+  sortOrder Int               @default(0)
+  mentors   MentorExpertise[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+/// Join: a mentor (User) claims an ExpertiseArea with an optional proficiency.
+model MentorExpertise {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expertiseAreaId String
+  expertiseArea   ExpertiseArea @relation(fields: [expertiseAreaId], references: [id], onDelete: Cascade)
+  proficiency     String? // FAMILIAR | PROFICIENT | EXPERT (app-validated)
+  createdAt       DateTime      @default(now())
+
+  @@unique([userId, expertiseAreaId])
+  @@index([expertiseAreaId])
+}
+
+/// Mentee-initiated application for mentorship — the intake stage the audit
+/// found missing (today mentees are assigned, never apply). Feeds the matching
+/// queue; `matchedMentorshipId` records the resulting pairing when reviewed.
+model MentorshipApplication {
+  id                 String                 @id @default(cuid())
+  applicantId        String
+  applicant          User                   @relation("MentorshipApplicationsSubmitted", fields: [applicantId], references: [id], onDelete: Cascade)
+  programGroup       MentorshipProgramGroup @default(STUDENT)
+  status             String                 @default("SUBMITTED") // SUBMITTED|UNDER_REVIEW|MATCHED|DECLINED|WITHDRAWN (app-validated)
+  goals              String?
+  interests          String[]
+  preferredExpertise String[] // ExpertiseArea slugs the mentee is seeking
+  availability       String?
+  motivation         String?
+  reviewerId         String?
+  reviewer           User?                  @relation("MentorshipApplicationsReviewed", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewNotes        String?
+  matchedMentorshipId String? // app-validated id of the created Mentorship (no FK, mirrors repo convention)
+  decidedAt          DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@index([status])
+  @@index([applicantId])
 }
 
 model MentorshipRequest {
