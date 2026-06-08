@@ -62,6 +62,8 @@ export type ActionDetailDTO = {
   deadlineEnd: string | null;
   visibility: "OFFICERS_ONLY" | "ALL_LEADERSHIP";
   officerMeetingId: string | null;
+  officerMeetingTitle?: string | null;
+  officerMeetingDate?: string | null;
   flaggedAt: string | null;
   lead: PersonDTO;
   people: {
@@ -448,7 +450,7 @@ export default function ActionDetailCard({
           <PriorityPill priority={item.priority} />
           <ActionTypePill actionType={item.actionType} />
           <Pill tone={due.overdue ? "overdue" : "neutral"}>{due.label}</Pill>
-          {item.officerMeetingId && <Pill tone="purple">Officer meeting linked</Pill>}
+          {item.officerMeetingId && <Pill tone="purple">Source: Meeting</Pill>}
         </div>
       </section>
 
@@ -485,12 +487,12 @@ export default function ActionDetailCard({
       </Section>
 
       {item.officerMeetingId && (
-        <Section title="Officer Meeting" defaultOpen={false}>
+        <Section title="Source Meeting" defaultOpen>
           <div
             style={{
-              border: "1px solid var(--warning-border)",
-              background: "var(--warning-bg)",
-              color: "var(--warning-text)",
+              border: "1px solid var(--ypp-purple-200)",
+              background: "var(--ypp-purple-50)",
+              color: "var(--ypp-purple-800)",
               borderRadius: "var(--radius-sm)",
               padding: "12px 14px",
               fontSize: 14,
@@ -501,11 +503,24 @@ export default function ActionDetailCard({
               flexWrap: "wrap",
             }}
           >
-            <span style={{ fontWeight: 600 }}>
-              This action is on an officer meeting agenda for discussion.
+            <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ fontWeight: 700 }}>
+                {item.officerMeetingTitle
+                  ? `From: ${item.officerMeetingTitle}`
+                  : "This action came out of a meeting."}
+              </span>
+              {item.officerMeetingDate && (
+                <span style={{ fontSize: 12.5, opacity: 0.85 }}>
+                  {new Intl.DateTimeFormat("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  }).format(new Date(item.officerMeetingDate))}
+                </span>
+              )}
             </span>
-            <Link href="/actions/meetings" className="button outline small">
-              View officer meetings
+            <Link href={`/actions/meetings/${item.officerMeetingId}`} className="button outline small">
+              Open meeting
             </Link>
           </div>
         </Section>

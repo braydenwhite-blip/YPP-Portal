@@ -124,7 +124,13 @@ export function ActionCard({
             {item.department.name}
           </span>
         ) : null}
-        {item.officerMeetingId ? <Pill tone="purple">Officer meeting</Pill> : null}
+        {item.officerMeeting ? (
+          <Pill tone="purple">
+            Source: {item.officerMeeting.title ?? "Meeting"} · {formatDueDate(item.officerMeeting.date)}
+          </Pill>
+        ) : item.officerMeetingId ? (
+          <Pill tone="purple">Source: Meeting</Pill>
+        ) : null}
         <Pill tone={item.visibility === "OFFICERS_ONLY" ? "warning" : "neutral"}>
           {ACTION_VISIBILITY_LABELS[item.visibility]}
         </Pill>

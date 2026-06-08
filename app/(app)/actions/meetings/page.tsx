@@ -1,111 +1,168 @@
 import { notFound } from "next/navigation";
 
 import { requireOfficer } from "@/lib/authorization";
-import {
-  isActionTrackerEnabled,
-  isPeopleDashboardEnabled,
-} from "@/lib/feature-flags";
+import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
+import { startOfDay } from "@/lib/leadership-action-center/dates";
 import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
+import { listActionAssignableUsers } from "@/lib/people-strategy/action-queries";
 import {
-  listPastMeetings,
-  listUnassignedActionItems,
-  listUpcomingMeetings,
-  type OfficerMeetingWithRelations,
-  type UnassignedActionItem,
-} from "@/lib/people-strategy/officer-meetings-queries";
+  computeDashboardMetrics,
+  computeDepartmentPulse,
+  computeFollowUpStatus,
+  weekRangeForOffset,
+} from "@/lib/people-strategy/meetings-status";
+import {
+  listMeetingsInRange,
+  listRecentDecisions,
+  mapMeetingToCardDTO,
+  mapMeetingToView,
+  meetingDisplayTitle,
+} from "@/lib/people-strategy/meetings-queries";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
-import OfficerMeetingsClient, {
-  type MeetingDTO,
-  type UnassignedItemDTO,
-} from "@/components/people-strategy/officer-meetings-client";
+import {
+  WeeklyCommandCenterClient,
+  type FollowQueueRow,
+  type OverdueActionRow,
+  type PulseRow,
+  type RecentDecisionRow,
+} from "@/components/people-strategy/weekly-command-center-client";
+import type { PersonOption } from "@/components/people-strategy/new-meeting-drawer";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Officer Meetings · People Strategy" };
+export const metadata = { title: "Weekly Command Center · Meetings Tracker" };
 
-function meetingToDTO(meeting: OfficerMeetingWithRelations): MeetingDTO {
-  return {
-    id: meeting.id,
-    date: meeting.date.toISOString(),
-    status: meeting.status,
-    agendaText: meeting.agendaText,
-    summaryEmailText: meeting.summaryEmailText,
-    actionItems: meeting.actionItems.map((item) => {
-      const note = item.meetingNotes.find(
-        (n) => n.officerMeetingId === meeting.id
-      );
-      return {
-        id: item.id,
-        title: item.title,
-        status: item.status,
-        deadlineStart: item.deadlineStart.toISOString(),
-        deadlineEnd: item.deadlineEnd ? item.deadlineEnd.toISOString() : null,
-        goalCategory: item.goalCategory,
-        departmentName: item.department?.name ?? null,
-        leadName: item.lead?.name ?? item.lead?.email ?? null,
-        assignees: item.assignments.map((assignment) => ({
-          role: assignment.role,
-          name: assignment.user.name ?? assignment.user.email ?? "Unknown",
-        })),
-        discussionNotes: note?.discussionNotes ?? "",
-      };
-    }),
-    miscUpdates: meeting.miscUpdates.map((u) => ({
-      id: u.id,
-      body: u.body,
-      addedByName: u.addedBy?.name ?? u.addedBy?.email ?? "Unknown",
-      createdAt: u.createdAt.toISOString(),
-    })),
-  };
+function parseWeekOffset(value: string | undefined): number {
+  const n = Number.parseInt(value ?? "", 10);
+  if (Number.isNaN(n)) return 0;
+  // Bound the offset so a hand-edited URL can't wander years away.
+  return Math.max(-52, Math.min(52, n));
 }
 
-function unassignedToDTO(item: UnassignedActionItem): UnassignedItemDTO {
-  return {
-    id: item.id,
-    title: item.title,
-    status: item.status,
-    deadlineStart: item.deadlineStart.toISOString(),
-    departmentName: item.department?.name ?? null,
-    leadName: item.lead?.name ?? item.lead?.email ?? null,
-  };
+function formatWeekLabel(start: Date, end: Date): string {
+  const longFmt = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric" });
+  const startStr = longFmt.format(start);
+  const endStr =
+    start.getMonth() === end.getMonth() ? String(end.getDate()) : longFmt.format(end);
+  return `${startStr} – ${endStr}`;
 }
 
-export default async function OfficerMeetingsPage() {
+function personName(p: { name: string | null; email: string | null }): string {
+  return p.name ?? p.email ?? "Unknown";
+}
+
+export default async function WeeklyCommandCenterPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ week?: string }>;
+}) {
   // Outer gate: with ENABLE_ACTION_TRACKER off the route does not exist.
   if (!isActionTrackerEnabled()) notFound();
 
-  // Officer-tier and above only. requireOfficer() throws "Unauthorized" for
-  // members / instructors below officer — deny with a 404 so the route's
-  // existence is not leaked.
+  // Officer-tier and above only (mirrors requireOfficer()); deny with a 404 so
+  // the route's existence is not leaked to members.
   const viewer = await requireOfficer().catch(() => null);
   if (!viewer) notFound();
 
   const now = new Date();
-  const [upcoming, past, unassigned] = await Promise.all([
-    listUpcomingMeetings(now),
-    listPastMeetings(now),
-    listUnassignedActionItems(),
+  const sp = (await searchParams) ?? {};
+  const weekOffset = parseWeekOffset(sp.week);
+  const { start, end } = weekRangeForOffset(weekOffset, now);
+
+  const [meetings, recentDecisions, assignableUsers] = await Promise.all([
+    listMeetingsInRange(start, end),
+    listRecentDecisions(8),
+    listActionAssignableUsers(),
   ]);
+
+  const views = meetings.map(mapMeetingToView);
+  const cards = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  const metrics = computeDashboardMetrics(views, now);
+  const pulse: PulseRow[] = computeDepartmentPulse(views, now).map((r) => ({
+    area: r.area,
+    open: r.open,
+    overdue: r.overdue,
+  }));
+
+  // Sidebar: open follow-ups across the week, overdue first then soonest-due.
+  const followQueue: FollowQueueRow[] = meetings
+    .flatMap((m) =>
+      m.followUps
+        .filter((f) => f.status !== "COMPLETED")
+        .map((f) => ({
+          id: f.id,
+          title: f.title,
+          ownerName: f.owner ? personName(f.owner) : null,
+          dueISO: f.dueDate ? f.dueDate.toISOString() : null,
+          effectiveStatus: computeFollowUpStatus({ status: f.status, dueDate: f.dueDate }, now),
+          area: f.area ?? m.category ?? null,
+          tracked: !!f.linkedActionId,
+          meetingId: m.id,
+        }))
+    )
+    .sort((a, b) => {
+      const ao = a.effectiveStatus === "overdue" ? 0 : 1;
+      const bo = b.effectiveStatus === "overdue" ? 0 : 1;
+      if (ao !== bo) return ao - bo;
+      if (a.dueISO && b.dueISO) return a.dueISO.localeCompare(b.dueISO);
+      if (a.dueISO) return -1;
+      if (b.dueISO) return 1;
+      return 0;
+    });
+
+  // Sidebar: meeting-generated Action Items that are overdue and still open.
+  const overdueActions: OverdueActionRow[] = meetings
+    .flatMap((m) =>
+      m.actionItems
+        .filter((a) => a.status !== "COMPLETE" && startOfDay(a.deadlineStart) < startOfDay(now))
+        .map((a) => ({
+          id: a.id,
+          title: a.title,
+          ownerName: a.lead ? personName(a.lead) : null,
+          dueISO: a.deadlineStart.toISOString(),
+          meetingId: m.id,
+          meetingTitle: meetingDisplayTitle(m),
+        }))
+    )
+    .sort((a, b) => a.dueISO.localeCompare(b.dueISO));
+
+  const recentDecisionRows: RecentDecisionRow[] = recentDecisions.map((d) => ({
+    id: d.id,
+    text: d.decision,
+    decidedByName: d.decidedBy ? personName(d.decidedBy) : null,
+    dateISO: d.createdAt.toISOString(),
+    meetingId: d.officerMeeting.id,
+    meetingTitle: meetingDisplayTitle(d.officerMeeting),
+  }));
+
+  const people: PersonOption[] = assignableUsers.map((u) => ({
+    id: u.id,
+    name: personName(u),
+  }));
+
+  // Owner filter: just the people who actually facilitate / attend this week.
+  const ownerIds = new Set<string>();
+  for (const m of meetings) {
+    if (m.facilitatorId) ownerIds.add(m.facilitatorId);
+    for (const a of m.attendees) ownerIds.add(a.userId);
+  }
+  const owners: PersonOption[] = people.filter((p) => ownerIds.has(p.id));
+
   const showPeopleDashboardTab = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
 
   return (
-    <div className="page-shell" style={{ maxWidth: 1040 }}>
-      <div>
-        <p className="badge">Admin · People Strategy</p>
-        <h1 className="page-title" style={{ marginTop: 8 }}>
-          Officer Meetings
-        </h1>
-        <p className="page-subtitle">
-          Schedule officer meetings, pull action items in for discussion, capture
-          notes and miscellaneous updates.
-        </p>
-      </div>
-
+    <div className="page-shell" style={{ maxWidth: 1280 }}>
       <ActionTrackerTabs active="meetings" showPeople={showPeopleDashboardTab} />
-
-      <OfficerMeetingsClient
-        upcoming={upcoming.map(meetingToDTO)}
-        past={past.map(meetingToDTO)}
-        unassigned={unassigned.map(unassignedToDTO)}
+      <WeeklyCommandCenterClient
+        meetings={cards}
+        metrics={metrics}
+        followQueue={followQueue}
+        overdueActions={overdueActions}
+        recentDecisions={recentDecisionRows}
+        pulse={pulse}
+        weekLabel={formatWeekLabel(start, end)}
+        weekOffset={weekOffset}
+        people={people}
+        owners={owners}
       />
     </div>
   );
