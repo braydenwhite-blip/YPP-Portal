@@ -17250,3 +17250,23 @@ a.psuite-identity-link:hover {
   .psuite-identity-sub { max-width: 150px; }
   .psuite-class-enroll { gap: 10px; }
 }
+
+/* ===========================================================================
+   CLASS CATALOG CARD — shared ClassCard (components/classes/class-card.tsx)
+   Equal-height grid cells with a subtle lift on hover so the catalog reads as
+   a polished, browseable shelf rather than a stack of boxes.
+   =========================================================================== */
+.class-card {
+  height: 100%;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.class-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(17, 24, 39, 0.10);
+}
+.class-card h3 a:hover {
+  color: var(--ypp-purple, #6b21c8);
+}
+@media (max-width: 720px) {
+  .class-card .button.primary { width: 100%; text-align: center; }
+}
