@@ -36,8 +36,9 @@ CREATE TABLE IF NOT EXISTS "MentorshipMatchRecommendation" (
 );
 
 -- Idempotent regeneration: the engine upserts on (application, mentor) instead of
--- creating duplicate suggestions for the same pair.
-CREATE UNIQUE INDEX IF NOT EXISTS "MentorshipMatchRecommendation_application_mentor_key"
+-- creating duplicate suggestions for the same pair. Index name matches Prisma's
+-- derived name for @@unique([mentorshipApplicationId, mentorUserId]).
+CREATE UNIQUE INDEX IF NOT EXISTS "MentorshipMatchRecommendation_mentorshipApplicationId_mentorUserId_key"
     ON "MentorshipMatchRecommendation"("mentorshipApplicationId", "mentorUserId");
 
 CREATE INDEX IF NOT EXISTS "MentorshipMatchRecommendation_mentorshipApplicationId_idx"

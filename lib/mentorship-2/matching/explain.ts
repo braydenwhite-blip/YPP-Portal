@@ -1,10 +1,15 @@
 /**
  * Mentorship 2.0 (Action Tracker 3.0, Phase M2) — human-readable explanations.
  *
- * Turns a ScoredCandidate's breakdown into prose + strength/risk bullets for the
+ * Turns a match's score breakdown into prose + strength/risk bullets for the
  * admin matching queue. Per the phase rules, admins read *why* a mentor was
- * recommended in plain language — never raw JSON as the primary UI. Pure and
- * defensive: a zero/empty breakdown never throws.
+ * recommended in plain language — never raw JSON as the primary UI.
+ *
+ * The logic operates on a normalized `ExplainContext`. Two entry points adapt to
+ * it: `explainRecommendation`/`recommendation{Strengths,Risks}` for a live
+ * `ScoredCandidate` (used by the engine + tests), and
+ * `explainRecommendationFromContext` for a persisted recommendation rendered from
+ * the DB. Pure and defensive: a zero/empty input never throws.
  */
 
 import type { ScoreBreakdown, ScoredCandidate } from "./types";
@@ -29,77 +34,93 @@ export function matchTierLabel(score: number): string {
   return TIER_LABEL[scoreTier(score)];
 }
 
-function expertiseNames(scored: ScoredCandidate): string[] {
-  return (scored.matchedExpertise ?? []).map((e) => e.name).filter(Boolean);
+/** Everything the explanation logic needs, decoupled from how it was sourced. */
+export interface ExplainContext {
+  score: number;
+  breakdown: ScoreBreakdown;
+  /** Requested areas the mentor covers (drives "Covers …"). */
+  matchedExpertise: { slug: string; name: string }[];
+  /** capacity − activeLoad (0 when capacity undeclared). */
+  openSlots: number;
+  activeLoad: number;
+  capacity: number | null;
+  /** Total declared expertise areas (for the completeness risk detail). */
+  expertiseCount: number;
+  hasAvailability: boolean;
+  mentorName?: string | null;
 }
 
-/** Plain-language reasons this mentor is a good pick. */
-export function recommendationStrengths(scored: ScoredCandidate): string[] {
-  const b = scored.breakdown ?? ({} as ScoreBreakdown);
-  const out: string[] = [];
-  const names = expertiseNames(scored);
+function contextFromScored(scored: ScoredCandidate): ExplainContext {
+  const candidate = scored?.candidate;
+  const breakdown = scored?.breakdown ?? ({} as ScoreBreakdown);
+  const availability = candidate?.availability;
+  return {
+    score: scored?.score ?? breakdown.finalScore ?? 0,
+    breakdown,
+    matchedExpertise: scored?.matchedExpertise ?? [],
+    openSlots: scored?.openSlots ?? 0,
+    activeLoad: candidate?.activeLoad ?? 0,
+    capacity: candidate?.capacity ?? null,
+    expertiseCount: candidate?.expertise?.length ?? 0,
+    hasAvailability: Boolean(availability && String(availability).trim()),
+    mentorName: candidate?.name ?? null,
+  };
+}
 
-  if (names.length > 0) {
-    out.push(`Covers ${formatList(names)}`);
-  }
+// ---- core logic (context-based) -------------------------------------------
+
+function strengthsFromContext(ctx: ExplainContext): string[] {
+  const b = ctx.breakdown ?? ({} as ScoreBreakdown);
+  const out: string[] = [];
+  const names = (ctx.matchedExpertise ?? []).map((e) => e.name).filter(Boolean);
+
+  if (names.length > 0) out.push(`Covers ${formatList(names)}`);
   if ((b.confidence ?? 0) >= 10) {
     out.push("high confidence in those areas");
   } else if ((b.confidence ?? 0) > 0) {
     out.push("some confidence in those areas");
   }
   if ((b.capacity ?? 0) >= 10) {
-    const slots = scored.openSlots;
-    out.push(slots > 0 ? `open capacity (${slots} slot${slots === 1 ? "" : "s"})` : "open capacity");
+    out.push(
+      ctx.openSlots > 0
+        ? `open capacity (${ctx.openSlots} slot${ctx.openSlots === 1 ? "" : "s"})`
+        : "open capacity"
+    );
   }
-  if ((b.goalAlignment ?? 0) >= 8) {
-    out.push("aligns with the mentee's stated goals");
-  }
-  if ((b.availabilityFit ?? 0) > 0) {
-    out.push("overlapping availability");
-  }
+  if ((b.goalAlignment ?? 0) >= 8) out.push("aligns with the mentee's stated goals");
+  if ((b.availabilityFit ?? 0) > 0) out.push("overlapping availability");
   return out;
 }
 
-/** Plain-language risks / weaknesses for this pairing. */
-export function recommendationRisks(scored: ScoredCandidate): string[] {
-  const b = scored.breakdown ?? ({} as ScoreBreakdown);
+function risksFromContext(ctx: ExplainContext): string[] {
+  const b = ctx.breakdown ?? ({} as ScoreBreakdown);
   const out: string[] = [];
-  const candidate = scored.candidate;
 
-  if (expertiseNames(scored).length === 0) {
+  if ((ctx.matchedExpertise ?? []).length === 0) {
     out.push("no overlap with the requested expertise");
   }
-  if ((b.loadPenalty ?? 0) < 0 && candidate) {
-    const load = candidate.activeLoad ?? 0;
+  if ((b.loadPenalty ?? 0) < 0) {
+    const load = ctx.activeLoad ?? 0;
     out.push(`already mentoring ${load} mentee${load === 1 ? "" : "s"}`);
   }
-  if ((b.completenessPenalty ?? 0) < 0 && candidate) {
+  if ((b.completenessPenalty ?? 0) < 0) {
     const missing: string[] = [];
-    if ((candidate.expertise?.length ?? 0) === 0) missing.push("no expertise declared");
-    if (candidate.capacity == null) missing.push("no capacity set");
-    if (!candidate.availability || !candidate.availability.trim())
-      missing.push("no availability set");
+    if ((ctx.expertiseCount ?? 0) === 0) missing.push("no expertise declared");
+    if (ctx.capacity == null) missing.push("no capacity set");
+    if (!ctx.hasAvailability) missing.push("no availability set");
     if (missing.length > 0) out.push(`incomplete profile (${formatList(missing)})`);
-  } else if ((b.capacity ?? 0) === 0 && candidate && candidate.capacity != null) {
+  } else if ((b.capacity ?? 0) === 0 && ctx.capacity != null) {
     out.push("at or over capacity");
   }
   return out;
 }
 
-/**
- * One-line prose explanation, e.g.:
- *   "Strong match (72): covers Sports Business and Leadership Development, high
- *    confidence in those areas, open capacity. Caveat: already mentoring 2 mentees."
- */
-export function explainRecommendation(
-  scored: ScoredCandidate,
-  opts?: { mentorName?: string | null }
-): string {
-  const score = scored.score ?? scored.breakdown?.finalScore ?? 0;
+function proseFromContext(ctx: ExplainContext): string {
+  const score = ctx.score ?? ctx.breakdown?.finalScore ?? 0;
   const tier = matchTierLabel(score);
-  const who = opts?.mentorName ? `${opts.mentorName} — ` : "";
-  const strengths = recommendationStrengths(scored);
-  const risks = recommendationRisks(scored);
+  const who = ctx.mentorName ? `${ctx.mentorName} — ` : "";
+  const strengths = strengthsFromContext(ctx);
+  const risks = risksFromContext(ctx);
 
   let body: string;
   if (strengths.length > 0) {
@@ -110,10 +131,44 @@ export function explainRecommendation(
     body = "no strong signal either way";
   }
 
-  const caveat =
-    risks.length > 0 ? ` Caveat: ${lowerFirst(risks.join("; "))}.` : "";
+  const caveat = risks.length > 0 ? ` Caveat: ${lowerFirst(risks.join("; "))}.` : "";
   return `${who}${tier} (${score}): ${body}.${caveat}`;
 }
+
+// ---- public API: live ScoredCandidate -------------------------------------
+
+export function recommendationStrengths(scored: ScoredCandidate): string[] {
+  return strengthsFromContext(contextFromScored(scored));
+}
+
+export function recommendationRisks(scored: ScoredCandidate): string[] {
+  return risksFromContext(contextFromScored(scored));
+}
+
+export function explainRecommendation(
+  scored: ScoredCandidate,
+  opts?: { mentorName?: string | null }
+): string {
+  const ctx = contextFromScored(scored);
+  if (opts?.mentorName !== undefined) ctx.mentorName = opts.mentorName;
+  return proseFromContext(ctx);
+}
+
+// ---- public API: persisted recommendation ---------------------------------
+
+export function explainRecommendationFromContext(ctx: ExplainContext): {
+  prose: string;
+  strengths: string[];
+  risks: string[];
+} {
+  return {
+    prose: proseFromContext(ctx),
+    strengths: strengthsFromContext(ctx),
+    risks: risksFromContext(ctx),
+  };
+}
+
+// ---- helpers --------------------------------------------------------------
 
 function formatList(items: string[]): string {
   const clean = items.filter(Boolean);
