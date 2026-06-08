@@ -5,6 +5,8 @@ import { getClassReports } from "@/lib/class-reports";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { StatCard } from "@/components/people-strategy/stat-card";
 import { Meter, SuiteChip } from "@/components/people-strategy/people-suite";
+import { StarRating } from "@/components/classes/star-rating";
+import { REPEAT_RECOMMENDATION_LABELS } from "@/lib/class-feedback-constants";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +50,7 @@ export default async function AdminClassReportsPage() {
   if (!roles.includes("ADMIN")) redirect("/");
 
   const reports = await getClassReports();
-  const { pipeline, enrollment, upcoming, subjects, instructors } = reports;
+  const { pipeline, enrollment, upcoming, subjects, instructors, feedback } = reports;
   const maxSubjectEnroll = Math.max(1, ...subjects.map((s) => s.enrollmentCount));
 
   return (
@@ -128,6 +130,15 @@ export default async function AdminClassReportsPage() {
                 tone={enrollment.underEnrolledClasses > 0 ? "warning" : "default"}
               />
               <StatCard label="On waitlists" value={enrollment.totalWaitlisted} icon="clock" />
+              {feedback.avgRating !== null ? (
+                <StatCard
+                  label="Avg satisfaction"
+                  value={`${feedback.avgRating.toFixed(1)}★`}
+                  icon="check"
+                  tone="accent"
+                  hint={`${feedback.totalResponses} response${feedback.totalResponses === 1 ? "" : "s"}`}
+                />
+              ) : null}
             </div>
             {enrollment.totalCapacity > 0 ? (
               <div style={{ marginTop: 14, maxWidth: 460 }}>
@@ -266,6 +277,171 @@ export default async function AdminClassReportsPage() {
                   </div>
                 ))}
               </div>
+            )}
+          </SectionCard>
+
+          {/* 6 — Got good feedback / repeat these */}
+          <SectionCard
+            title="Got good feedback · repeat these"
+            subtitle="Classes worth running again — strong student feedback and the team's repeat calls — plus completed classes still waiting on an outcome."
+          >
+            {feedback.goodFeedback.length === 0 &&
+            feedback.repeatPlan.length === 0 &&
+            feedback.needsOutcomeReview.length === 0 ? (
+              <p style={{ margin: 0, color: "var(--text-secondary)" }}>
+                Nothing here yet. As classes wrap up, the ones students rate highly and
+                the ones the team marks to repeat will surface here.
+              </p>
+            ) : (
+              <>
+                <div className="grid two" style={{ gap: 18, alignItems: "start" }}>
+                  {/* Good feedback */}
+                  <div>
+                    <div className="section-title" style={{ marginBottom: 8 }}>
+                      Got good feedback
+                    </div>
+                    {feedback.goodFeedback.length === 0 ? (
+                      <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                        No standout feedback yet.
+                      </p>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {feedback.goodFeedback.slice(0, 8).map((row) => (
+                          <div
+                            key={row.offeringId}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              gap: 10,
+                              padding: "8px 0",
+                              borderBottom: "1px solid var(--border)",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <Link
+                                href={`/admin/classes/${row.offeringId}`}
+                                style={{ fontWeight: 600, fontSize: 14 }}
+                              >
+                                {row.title}
+                              </Link>
+                              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                                {row.instructorName} · {row.interestArea}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              {row.responseCount > 0 ? (
+                                <>
+                                  <StarRating value={Math.round(row.avgRating)} size={13} />
+                                  <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                                    {row.avgRating.toFixed(1)} ({row.responseCount})
+                                  </span>
+                                </>
+                              ) : (
+                                <SuiteChip>Flagged</SuiteChip>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Repeat plan */}
+                  <div>
+                    <div className="section-title" style={{ marginBottom: 8 }}>
+                      Repeat plan
+                    </div>
+                    {feedback.repeatPlan.length === 0 ? (
+                      <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                        No repeat calls recorded yet. Set one on a class&apos;s detail page.
+                      </p>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {feedback.repeatPlan.slice(0, 8).map((row) => (
+                          <div
+                            key={row.offeringId}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              gap: 10,
+                              padding: "8px 0",
+                              borderBottom: "1px solid var(--border)",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <Link
+                                href={`/admin/classes/${row.offeringId}`}
+                                style={{ fontWeight: 600, fontSize: 14 }}
+                              >
+                                {row.title}
+                              </Link>
+                              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                                {row.instructorName}
+                                {row.responseCount > 0
+                                  ? ` · ${row.avgRating.toFixed(1)}★ (${row.responseCount})`
+                                  : ""}
+                              </div>
+                            </div>
+                            {row.repeatRecommendation ? (
+                              <span
+                                className="pill"
+                                style={{
+                                  background: "#faf5ff",
+                                  color: "#6b21c8",
+                                  fontWeight: 600,
+                                  fontSize: 11,
+                                }}
+                              >
+                                {REPEAT_RECOMMENDATION_LABELS[row.repeatRecommendation]}
+                              </span>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {feedback.needsOutcomeReview.length > 0 ? (
+                  <div
+                    style={{
+                      marginTop: 16,
+                      paddingTop: 14,
+                      borderTop: "1px solid var(--border)",
+                    }}
+                  >
+                    <div className="section-title" style={{ marginBottom: 6 }}>
+                      Needs an outcome ({feedback.needsOutcomeReview.length})
+                    </div>
+                    <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--text-secondary)" }}>
+                      Completed classes with no recorded outcome yet. Record one to close
+                      the loop and feed the repeat plan.
+                    </p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {feedback.needsOutcomeReview.slice(0, 12).map((row) => (
+                        <Link
+                          key={row.offeringId}
+                          href={`/admin/classes/${row.offeringId}`}
+                          className="pill"
+                          style={{
+                            background: "#fffbeb",
+                            color: "#b45309",
+                            fontWeight: 600,
+                            fontSize: 12,
+                            textDecoration: "none",
+                          }}
+                        >
+                          {row.title}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </>
             )}
           </SectionCard>
         </>

@@ -24,6 +24,17 @@ import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import { getMenteeSupport } from "@/lib/people-strategy/connections";
 import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
+import {
+  getClassFeedbackSummary,
+  getClassOutcome,
+  getStudentFeedbackForOffering,
+} from "@/lib/class-feedback";
+import {
+  OUTCOME_STATUS_LABELS,
+  REPEAT_RECOMMENDATION_LABELS,
+} from "@/lib/class-feedback-constants";
+import { StarRating } from "@/components/classes/star-rating";
+import { AdminOutcomeForm } from "./admin-outcome-form";
 
 export const dynamic = "force-dynamic";
 
@@ -39,12 +50,26 @@ export default async function AdminClassDetailPage({
   }
 
   const { id } = await params;
-  const [detail, timeline, partnerOptions] = await Promise.all([
-    getAdminClassDetail(id),
-    getOfferingTimeline(id, 25),
-    listPartnerOptions(),
-  ]);
+  const [detail, timeline, partnerOptions, feedbackSummary, studentFeedback, outcome] =
+    await Promise.all([
+      getAdminClassDetail(id),
+      getOfferingTimeline(id, 25),
+      listPartnerOptions(),
+      getClassFeedbackSummary(id),
+      getStudentFeedbackForOffering(id),
+      getClassOutcome(id),
+    ]);
   if (!detail) notFound();
+
+  // Response rate measures uptake of the feedback prompt against everyone who
+  // actually took the class (enrolled + completed). Guard against >100% if a
+  // student kept feedback after dropping.
+  const feedbackEligible = Math.max(
+    detail.feedbackEligibleCount,
+    feedbackSummary.responseCount,
+  );
+  const responseRate =
+    feedbackEligible > 0 ? feedbackSummary.responseCount / feedbackEligible : null;
 
   // People Strategy Operating System — class connections panel. Additive and
   // double-flagged: the linked-action reads are tracker-gated, and the whole
@@ -440,6 +465,167 @@ export default async function AdminClassDetailPage({
                 Save capacity
               </button>
             </form>
+          </Section>
+
+          <Section title="Feedback & outcome">
+            {feedbackSummary.responseCount > 0 ? (
+              <>
+                <Row>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-secondary)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Avg rating
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 16, fontWeight: 700 }}>
+                        {feedbackSummary.avgRating.toFixed(1)}
+                      </span>
+                      <StarRating
+                        value={Math.round(feedbackSummary.avgRating)}
+                        size={14}
+                      />
+                    </div>
+                  </div>
+                  <Cell
+                    label="Responses"
+                    value={
+                      responseRate !== null
+                        ? `${feedbackSummary.responseCount} · ${Math.round(responseRate * 100)}%`
+                        : String(feedbackSummary.responseCount)
+                    }
+                  />
+                  <Cell
+                    label="Would recommend"
+                    value={
+                      feedbackSummary.recommendPct !== null
+                        ? `${Math.round(feedbackSummary.recommendPct * 100)}%`
+                        : "—"
+                    }
+                    tone={
+                      feedbackSummary.recommendPct !== null &&
+                      feedbackSummary.recommendPct >= 0.7
+                        ? "ok"
+                        : undefined
+                    }
+                  />
+                </Row>
+
+                <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+                  {studentFeedback.map((entry) => (
+                    <div
+                      key={entry.id}
+                      style={{
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        padding: "10px 12px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <strong style={{ fontSize: 13 }}>{entry.studentName}</strong>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <StarRating value={entry.rating} size={13} />
+                          {entry.wouldRecommend != null ? (
+                            <span
+                              className="pill"
+                              style={
+                                entry.wouldRecommend
+                                  ? { background: "#f0fdf4", color: "#166534", fontSize: 11 }
+                                  : { background: "#fef2f2", color: "#991b1b", fontSize: 11 }
+                              }
+                            >
+                              {entry.wouldRecommend ? "Recommends" : "Would not"}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      {entry.liked ? (
+                        <p style={{ margin: "6px 0 0", fontSize: 13 }}>
+                          <span style={{ color: "var(--text-secondary)" }}>Liked: </span>
+                          {entry.liked}
+                        </p>
+                      ) : null}
+                      {entry.improve ? (
+                        <p style={{ margin: "4px 0 0", fontSize: 13 }}>
+                          <span style={{ color: "var(--text-secondary)" }}>Improve: </span>
+                          {entry.improve}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                No student feedback yet. Students are prompted to rate the class in My
+                Classes once it has wrapped up.
+              </p>
+            )}
+
+            <h3 className="section-title" style={{ margin: "18px 0 6px", fontSize: 13 }}>
+              Instructor reflection
+            </h3>
+            {outcome?.hasInstructorReflection ? (
+              <div style={{ display: "grid", gap: 8 }}>
+                {outcome.instructorWentWell ? (
+                  <NoteBlock label="What went well" body={outcome.instructorWentWell} />
+                ) : null}
+                {outcome.instructorChallenges ? (
+                  <NoteBlock
+                    label="What was hard / would change"
+                    body={outcome.instructorChallenges}
+                  />
+                ) : null}
+                {outcome.instructorStudentImpact ? (
+                  <NoteBlock
+                    label="What students got out of it"
+                    body={outcome.instructorStudentImpact}
+                  />
+                ) : null}
+                {outcome.instructorWouldTeachAgain != null ? (
+                  <p style={{ margin: 0, fontSize: 13 }}>
+                    <strong>Would teach again:</strong>{" "}
+                    {outcome.instructorWouldTeachAgain ? "Yes" : "No"}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                The instructor has not added a wrap-up reflection yet.
+              </p>
+            )}
+
+            <h3 className="section-title" style={{ margin: "18px 0 6px", fontSize: 13 }}>
+              Completion outcome
+            </h3>
+            <AdminOutcomeForm
+              offeringId={detail.id}
+              defaultStatus={outcome?.status ?? "PENDING"}
+              defaultRepeat={outcome?.repeatRecommendation ?? ""}
+              defaultGotGoodFeedback={outcome?.gotGoodFeedback ?? false}
+              defaultNotes={outcome?.adminNotes ?? ""}
+              recordedAt={outcome?.recordedAt ?? null}
+            />
+            {outcome && outcome.status !== "PENDING" ? (
+              <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--text-secondary)" }}>
+                Current: {OUTCOME_STATUS_LABELS[outcome.status]}
+                {outcome.repeatRecommendation
+                  ? ` · ${REPEAT_RECOMMENDATION_LABELS[outcome.repeatRecommendation]}`
+                  : ""}
+              </p>
+            ) : null}
           </Section>
 
           {detail.template && (

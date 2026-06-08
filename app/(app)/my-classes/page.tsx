@@ -3,6 +3,8 @@ import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getLearnerFitSummary } from "@/lib/learner-fit";
 import { getMyClassesHubData } from "@/lib/student-class-portal";
+import { getMyClassFeedbackPrompts } from "@/lib/class-feedback";
+import { FeedbackPrompts } from "./feedback-prompt";
 
 const NOTICE_COPY: Record<string, string> = {
   "my-courses-moved":
@@ -25,7 +27,10 @@ export default async function MyClassesPage({
 
   const params = (await searchParams) ?? {};
   const notice = params.notice ? NOTICE_COPY[params.notice] : null;
-  const hub = await getMyClassesHubData(session.user.id);
+  const [hub, feedbackPrompts] = await Promise.all([
+    getMyClassesHubData(session.user.id),
+    getMyClassFeedbackPrompts(session.user.id),
+  ]);
 
   return (
     <div>
@@ -134,6 +139,19 @@ export default async function MyClassesPage({
           </div>
         </div>
       )}
+
+      <FeedbackPrompts
+        prompts={feedbackPrompts.map((prompt) => ({
+          offeringId: prompt.offeringId,
+          title: prompt.title,
+          instructorName: prompt.instructorName,
+          interestArea: prompt.interestArea,
+          endDate: prompt.endDate.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          }),
+        }))}
+      />
 
       {hub.activeClasses.length === 0 && hub.waitlistedClasses.length === 0 ? (
         <div className="card" style={{ marginBottom: 24 }}>
