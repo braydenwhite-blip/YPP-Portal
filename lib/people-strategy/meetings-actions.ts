@@ -371,17 +371,23 @@ export async function convertDecisionToAction(decisionId: string) {
   if (!dec) throw new Error("Decision not found");
   if (dec.linkedActionId) return { id: dec.linkedActionId };
 
+  // The owner the meeting actually chose (the decider, else the facilitator) —
+  // never invented. Used both as the lead and as the prefill's suggestion.
+  const suggestedOwnerId = dec.decidedById ?? dec.officerMeeting.facilitatorId ?? null;
+
   const prefill = buildActionPrefillFromDecision({
     decision: dec.decision,
     rationale: dec.rationale,
     meetingId: dec.officerMeeting.id,
+    decisionId: dec.id,
     meetingTitle: dec.officerMeeting.title,
     meetingCategory: dec.officerMeeting.category,
     relatedEntityType: dec.officerMeeting.relatedEntityType,
     relatedEntityId: dec.officerMeeting.relatedEntityId,
+    suggestedOwnerId,
   });
 
-  const leadId = dec.decidedById ?? dec.officerMeeting.facilitatorId ?? session.id;
+  const leadId = suggestedOwnerId ?? session.id;
   const deadline = addDays(new Date(), prefill.dueInDays ?? DEFAULT_ACTION_DEADLINE_DAYS);
 
   const action = await createActionItem({
@@ -395,6 +401,11 @@ export async function convertDecisionToAction(decisionId: string) {
     goalCategory: prefill.area,
     relatedEntityType: prefill.relatedType,
     relatedEntityId: prefill.relatedId,
+    // Action 4.0: record honest provenance — this action carries out a specific
+    // meeting decision — plus the seeded definition of done.
+    sourceType: prefill.sourceType,
+    sourceId: prefill.sourceId,
+    successDefinition: prefill.successDefinition,
   });
 
   await prisma.meetingDecision.update({

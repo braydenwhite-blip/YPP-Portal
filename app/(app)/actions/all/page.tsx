@@ -38,6 +38,7 @@ import {
 import { listSavedActionViews } from "@/lib/people-strategy/saved-views";
 import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import { ActionCard } from "@/components/people-strategy/action-card";
+import { ActionInboxGroups } from "@/components/people-strategy/action-inbox-groups";
 import { StatCard } from "@/components/people-strategy/stat-card";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
@@ -231,6 +232,11 @@ export default async function AllActionsPage({
         currentQuery={exportQuery}
         hasActiveFilters={filtersActive}
       />
+
+      {/* Operational inbox (Action 4.0) — ranked triage lenses over the full
+          visible board (not the current filter), so the most important work is
+          always one glance away regardless of how the list is filtered. */}
+      <ActionInboxGroups items={visible} now={now} />
 
       {/* Overview — collapsed by default so the list is reachable fast (#-3). */}
       <div style={{ marginTop: 16 }}>

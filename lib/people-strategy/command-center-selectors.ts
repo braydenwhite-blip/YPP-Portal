@@ -66,7 +66,7 @@ export function daysOverdue(item: ActionItemWithRelations, now: Date): number {
 }
 
 /** The most recent timestamp we have any signal of activity on an item. */
-function lastActivityAt(item: ActionItemWithRelations): Date {
+export function lastActivityAt(item: ActionItemWithRelations): Date {
   let latest = item.updatedAt;
   for (const comment of item.comments) {
     if (comment.createdAt.getTime() > latest.getTime()) latest = comment.createdAt;

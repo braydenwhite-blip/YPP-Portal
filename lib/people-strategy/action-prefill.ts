@@ -33,6 +33,21 @@ export type ActionPrefill = {
   priority?: ActionPriority;
   /** Suggested deadline offset in days from "now". */
   dueInDays?: number;
+  // --- Action System 4.0 honest context ---
+  /** How the action came to exist (ACTION_SOURCE_TYPE_VALUES). */
+  sourceType?: string;
+  /** Fine-grained source id (decision id, registry id, …). */
+  sourceId?: string;
+  /** Parent action id for FOLLOW_UP actions. */
+  sourceActionId?: string;
+  /** Explicit strategic-initiative registry id. */
+  strategicInitiativeId?: string;
+  /** Explicit strategic-project registry id. */
+  strategicProjectId?: string;
+  /** A suggested owner (user id) — never invented, only passed from a real source. */
+  suggestedOwnerId?: string;
+  /** A suggested definition of done. */
+  successDefinition?: string;
 };
 
 /** Query-string keys a prefilled `/actions/new` link uses. */
@@ -46,6 +61,13 @@ export const ACTION_PREFILL_PARAM_KEYS = {
   actionType: "type",
   priority: "priority",
   dueInDays: "dueInDays",
+  sourceType: "sourceType",
+  sourceId: "sourceId",
+  sourceActionId: "fromAction",
+  strategicInitiativeId: "initiativeId",
+  strategicProjectId: "projectId",
+  suggestedOwnerId: "owner",
+  successDefinition: "success",
 } as const;
 
 /** Max length of an action title derived from a longer decision / note body. */
@@ -101,10 +123,14 @@ export type DecisionPrefillSource = {
   decision: string;
   rationale?: string | null;
   meetingId: string;
+  /** The MeetingDecision id, stored as the action's fine-grained sourceId. */
+  decisionId?: string | null;
   meetingTitle?: string | null;
   meetingCategory?: string | null;
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
+  /** A real meeting participant suggested as owner — never invented. */
+  suggestedOwnerId?: string | null;
 };
 
 /**
@@ -134,6 +160,13 @@ export function buildActionPrefillFromDecision(src: DecisionPrefillSource): Acti
     title: actionTitleFromDecision(decision),
     description: parts.join("\n\n"),
     sourceMeetingId: src.meetingId,
+    // Action 4.0: this action carries out a specific meeting decision — record
+    // that provenance honestly (source type + the decision id), suggest the
+    // owner the meeting picked (never invented), and seed a definition of done.
+    sourceType: "MEETING_DECISION",
+    sourceId: src.decisionId ?? undefined,
+    suggestedOwnerId: src.suggestedOwnerId ?? undefined,
+    successDefinition: decision ? `Done when this decision is carried out and confirmed.` : undefined,
     area:
       src.meetingCategory && isMeetingCategory(src.meetingCategory)
         ? src.meetingCategory
@@ -163,8 +196,42 @@ export function buildActionPrefillFromEntity(src: EntityActionPrefillSource): Ac
     title: src.title,
     relatedType: src.type,
     relatedId: src.id,
+    sourceType: "ENTITY",
     area: areaForRelatedEntityType(src.type),
     actionType: src.actionType,
+    priority: "MEDIUM",
+    dueInDays: DEFAULT_ACTION_DEADLINE_DAYS,
+  };
+}
+
+export type FollowUpActionPrefillSource = {
+  parentActionId: string;
+  parentTitle?: string | null;
+  /** Inherit the parent's strategic/entity context so the chain stays connected. */
+  relatedType?: RelatedEntityType;
+  relatedId?: string;
+  strategicInitiativeId?: string;
+  strategicProjectId?: string;
+};
+
+/**
+ * Prefill a follow-up to an existing action. Records the parent action id as the
+ * honest source, seeds a "Follow-up: …" title, and inherits the parent's
+ * strategic/entity context so the follow-up chain stays connected.
+ */
+export function buildActionPrefillFromFollowUp(
+  src: FollowUpActionPrefillSource
+): ActionPrefill {
+  const parent = src.parentTitle?.trim();
+  return {
+    title: parent ? `Follow-up: ${parent}` : undefined,
+    sourceType: "FOLLOW_UP",
+    sourceActionId: src.parentActionId,
+    relatedType: src.relatedType,
+    relatedId: src.relatedId,
+    strategicInitiativeId: src.strategicInitiativeId,
+    strategicProjectId: src.strategicProjectId,
+    actionType: "FOLLOW_UP",
     priority: "MEDIUM",
     dueInDays: DEFAULT_ACTION_DEADLINE_DAYS,
   };
@@ -187,6 +254,7 @@ export function buildActionPrefillFromMeeting(src: MeetingActionPrefillSource): 
   return {
     title: src.title,
     sourceMeetingId: src.meetingId,
+    sourceType: "MEETING",
     area:
       src.meetingCategory && isMeetingCategory(src.meetingCategory)
         ? src.meetingCategory
@@ -214,8 +282,68 @@ export function actionPrefillToQuery(prefill: ActionPrefill, base = "/actions/ne
   if (prefill.actionType) params.set(k.actionType, prefill.actionType);
   if (prefill.priority) params.set(k.priority, prefill.priority);
   if (prefill.dueInDays != null) params.set(k.dueInDays, String(prefill.dueInDays));
+  if (prefill.sourceType) params.set(k.sourceType, prefill.sourceType);
+  if (prefill.sourceId) params.set(k.sourceId, prefill.sourceId);
+  if (prefill.sourceActionId) params.set(k.sourceActionId, prefill.sourceActionId);
+  if (prefill.strategicInitiativeId) params.set(k.strategicInitiativeId, prefill.strategicInitiativeId);
+  if (prefill.strategicProjectId) params.set(k.strategicProjectId, prefill.strategicProjectId);
+  if (prefill.suggestedOwnerId) params.set(k.suggestedOwnerId, prefill.suggestedOwnerId);
+  if (prefill.successDefinition) params.set(k.successDefinition, prefill.successDefinition);
   const qs = params.toString();
   return qs ? `${base}?${qs}` : base;
+}
+
+/**
+ * Read a prefill back from a query source (the create page's searchParams). The
+ * inverse of {@link actionPrefillToQuery}, with light coercion (numbers, enum
+ * membership). The page still revalidates everything server-side; this is the
+ * single tested reader so the create surface and its CTAs never drift.
+ */
+export function actionPrefillFromQuery(
+  source: URLSearchParams | Record<string, string | string[] | undefined>
+): ActionPrefill {
+  const get = (key: string): string | undefined => {
+    if (source instanceof URLSearchParams) return source.get(key) ?? undefined;
+    const v = source[key];
+    return Array.isArray(v) ? v[0] : v;
+  };
+  const k = ACTION_PREFILL_PARAM_KEYS;
+  const out: ActionPrefill = {};
+  const title = get(k.title);
+  if (title) out.title = title;
+  const desc = get(k.description);
+  if (desc) out.description = desc;
+  const relatedType = get(k.relatedType);
+  const relatedId = get(k.relatedId);
+  if (relatedType && relatedId && isRelatedEntityType(relatedType)) {
+    out.relatedType = relatedType;
+    out.relatedId = relatedId;
+  }
+  const sourceMeetingId = get(k.sourceMeetingId);
+  if (sourceMeetingId) out.sourceMeetingId = sourceMeetingId;
+  const area = get(k.area);
+  if (area) out.area = area;
+  const priority = get(k.priority);
+  if (priority) out.priority = priority as ActionPriority;
+  const dueInDays = get(k.dueInDays);
+  if (dueInDays != null && dueInDays !== "" && Number.isFinite(Number(dueInDays))) {
+    out.dueInDays = Math.max(0, Math.min(365, Math.round(Number(dueInDays))));
+  }
+  const sourceType = get(k.sourceType);
+  if (sourceType) out.sourceType = sourceType;
+  const sourceId = get(k.sourceId);
+  if (sourceId) out.sourceId = sourceId;
+  const sourceActionId = get(k.sourceActionId);
+  if (sourceActionId) out.sourceActionId = sourceActionId;
+  const initiativeId = get(k.strategicInitiativeId);
+  if (initiativeId) out.strategicInitiativeId = initiativeId;
+  const projectId = get(k.strategicProjectId);
+  if (projectId) out.strategicProjectId = projectId;
+  const owner = get(k.suggestedOwnerId);
+  if (owner) out.suggestedOwnerId = owner;
+  const success = get(k.successDefinition);
+  if (success) out.successDefinition = success;
+  return out;
 }
 
 // --- duplicate detection -----------------------------------------------------

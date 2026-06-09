@@ -76,6 +76,10 @@ export function buildInitiativeActionPrefill(
 ): string {
   const prefill: ActionPrefill = {
     area: initiativePrimaryGoalCategory(def),
+    // Action 4.0: carry an EXPLICIT, registry-valid strategic link + source so
+    // the new action is honestly tied to this initiative (not just keyword-matched).
+    sourceType: "INITIATIVE",
+    strategicInitiativeId: def.id,
     ...overrides,
   };
   return actionPrefillToQuery(prefill);

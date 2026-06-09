@@ -25,6 +25,12 @@ import {
   parseActionTypeUpdate,
 } from "./action-types";
 import {
+  parseActionCompletionOutcome,
+  parseActionSourceType,
+  parseStrategicLink,
+  parseStrategicLinkUpdate,
+} from "./action-source";
+import {
   canAssignAction,
   canCreateAction,
   canEditAction,
@@ -131,6 +137,14 @@ const CreateOptionalText = z
   .string()
   .trim()
   .max(10_000)
+  .optional()
+  .transform((v) => (v && v.length > 0 ? v : null));
+// Optional trimmed scalar that normalizes "" → null (create path). Used for the
+// Action 4.0 source pointers (sourceId / sourceActionId).
+const NullableTrimmed = z
+  .string()
+  .trim()
+  .max(300)
   .optional()
   .transform((v) => (v && v.length > 0 ? v : null));
 const UpdateOptionalText = z
@@ -305,6 +319,20 @@ const CreateActionItemSchema = z.object({
   // Controlled-vocabulary action type (or empty for untyped). Membership is
   // enforced by parseActionType in the superRefine below.
   actionType: z.string().trim().optional(),
+  // --- Action System 4.0 contract (all optional; legacy callers unaffected) ---
+  // Source provenance: how the action came to exist. Membership enforced below.
+  sourceType: z.string().trim().optional(),
+  sourceId: NullableTrimmed,
+  sourceActionId: NullableTrimmed,
+  // Explicit, registry-validated strategic link. Validity enforced below.
+  strategicInitiativeId: z.string().trim().optional(),
+  strategicProjectId: z.string().trim().optional(),
+  // Action quality fields.
+  successDefinition: CreateOptionalText,
+  blockedReason: CreateOptionalText,
+  completionNote: CreateOptionalText,
+  completionOutcome: z.string().trim().optional(),
+  nextFollowUpAt: CreateOptionalDateString,
 }).superRefine((val, ctx) => {
   const parsed = parseRelatedEntityRef(val);
   if (!parsed.ok) {
@@ -320,6 +348,30 @@ const CreateActionItemSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: parsedType.error,
       path: ["actionType"],
+    });
+  }
+  const parsedSource = parseActionSourceType(val.sourceType);
+  if (!parsedSource.ok) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: parsedSource.error,
+      path: ["sourceType"],
+    });
+  }
+  const parsedStrategic = parseStrategicLink(val);
+  if (!parsedStrategic.ok) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: parsedStrategic.error,
+      path: ["strategicProjectId"],
+    });
+  }
+  const parsedOutcome = parseActionCompletionOutcome(val.completionOutcome);
+  if (!parsedOutcome.ok) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: parsedOutcome.error,
+      path: ["completionOutcome"],
     });
   }
 });
@@ -362,6 +414,28 @@ export async function createActionItem(input: CreateActionItemInput) {
   const parsedType = parseActionType(data.actionType);
   const actionType = parsedType.ok ? parsedType.value : null;
 
+  // Action 4.0 contract: source provenance + registry-validated strategic link.
+  // All `ok` outcomes are guaranteed by the schema superRefine above.
+  const parsedSource = parseActionSourceType(data.sourceType);
+  const sourceType = parsedSource.ok ? parsedSource.value : null;
+  const parsedStrategic = parseStrategicLink(data);
+  const strategicLink = parsedStrategic.ok
+    ? parsedStrategic.link
+    : { initiativeId: null, projectId: null };
+  const parsedOutcome = parseActionCompletionOutcome(data.completionOutcome);
+  const completionOutcome = parsedOutcome.ok ? parsedOutcome.value : null;
+
+  // A FOLLOW_UP parent is a self-relation FK; verify it exists so a stale or
+  // hand-edited id degrades to "no parent" instead of a write-time FK error.
+  let sourceActionId = data.sourceActionId;
+  if (sourceActionId) {
+    const parent = await prisma.actionItem.findUnique({
+      where: { id: sourceActionId },
+      select: { id: true },
+    });
+    if (!parent) sourceActionId = null;
+  }
+
   // Lead is also represented as a LEAD assignment row; the (actionItemId,
   // userId, role) uniqueness lets the Lead additionally hold an EXECUTING row.
   const assignmentRows: Array<{ userId: string; role: ActionAssignmentRole }> = [
@@ -390,6 +464,17 @@ export async function createActionItem(input: CreateActionItemInput) {
       officerMeetingId: data.officerMeetingId,
       relatedEntityType: related?.type ?? null,
       relatedEntityId: related?.id ?? null,
+      // Action 4.0 contract
+      sourceType,
+      sourceId: data.sourceId,
+      sourceActionId,
+      strategicInitiativeId: strategicLink.initiativeId,
+      strategicProjectId: strategicLink.projectId,
+      successDefinition: data.successDefinition,
+      blockedReason: data.blockedReason,
+      completionNote: data.completionNote,
+      completionOutcome,
+      nextFollowUpAt: data.nextFollowUpAt,
       assignments: { create: assignmentRows },
       comments: {
         create: { authorId: session.id, type: "NOTE", body: "Action created" },
@@ -457,6 +542,18 @@ const UpdateActionItemSchema = z.object({
   // empty intentionally clears it (see parseActionTypeUpdate). Validity is
   // enforced in the superRefine below.
   actionType: z.string().trim().nullable().optional(),
+  // --- Action System 4.0 contract (all optional; omitting = leave untouched) --
+  sourceType: z.string().trim().nullable().optional(),
+  sourceId: z.string().trim().nullable().optional(),
+  sourceActionId: z.string().trim().nullable().optional(),
+  // Strategic link interpreted as a unit (unchanged / clear / set) below.
+  strategicInitiativeId: z.string().trim().nullable().optional(),
+  strategicProjectId: z.string().trim().nullable().optional(),
+  successDefinition: UpdateOptionalText,
+  blockedReason: UpdateOptionalText,
+  completionNote: UpdateOptionalText,
+  completionOutcome: z.string().trim().nullable().optional(),
+  nextFollowUpAt: UpdateOptionalDateString,
 }).superRefine((val, ctx) => {
   const result = parseRelatedEntityUpdate(val);
   if (result.kind === "error") {
@@ -473,6 +570,34 @@ const UpdateActionItemSchema = z.object({
       message: typeResult.error,
       path: ["actionType"],
     });
+  }
+  if (val.sourceType !== undefined && val.sourceType !== null) {
+    const sourceResult = parseActionSourceType(val.sourceType);
+    if (!sourceResult.ok) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: sourceResult.error,
+        path: ["sourceType"],
+      });
+    }
+  }
+  const strategicResult = parseStrategicLinkUpdate(val);
+  if (strategicResult.kind === "error") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: strategicResult.error,
+      path: ["strategicProjectId"],
+    });
+  }
+  if (val.completionOutcome !== undefined && val.completionOutcome !== null) {
+    const outcomeResult = parseActionCompletionOutcome(val.completionOutcome);
+    if (!outcomeResult.ok) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: outcomeResult.error,
+        path: ["completionOutcome"],
+      });
+    }
   }
 });
 
@@ -533,6 +658,37 @@ export async function updateActionItem(input: UpdateActionItemInput) {
   if (typeUpdate.kind === "set") actionType = typeUpdate.value;
   else if (typeUpdate.kind === "clear") actionType = null;
 
+  // Action 4.0 contract on update. `undefined` (field omitted) → leave the column
+  // untouched; an explicit null/empty → clear; a valid value → set. Validity is
+  // guaranteed by the schema superRefine; the `.ok` narrowing keeps TS happy and
+  // degrades to null on the unreachable failure branch.
+  let sourceType: string | null | undefined;
+  if (data.sourceType !== undefined) {
+    const parsed = parseActionSourceType(data.sourceType);
+    sourceType = parsed.ok ? parsed.value : null;
+  }
+  const sourceId =
+    data.sourceId === undefined ? undefined : data.sourceId || null;
+  const sourceActionId =
+    data.sourceActionId === undefined ? undefined : data.sourceActionId || null;
+
+  const strategicUpdate = parseStrategicLinkUpdate(data);
+  let strategicInitiativeId: string | null | undefined;
+  let strategicProjectId: string | null | undefined;
+  if (strategicUpdate.kind === "set") {
+    strategicInitiativeId = strategicUpdate.link.initiativeId;
+    strategicProjectId = strategicUpdate.link.projectId;
+  } else if (strategicUpdate.kind === "clear") {
+    strategicInitiativeId = null;
+    strategicProjectId = null;
+  }
+
+  let completionOutcome: string | null | undefined;
+  if (data.completionOutcome !== undefined) {
+    const parsed = parseActionCompletionOutcome(data.completionOutcome);
+    completionOutcome = parsed.ok ? parsed.value : null;
+  }
+
   const statusChanged = data.status !== undefined && data.status !== existing.status;
   const completedAt = completedAtForTransition(existing.status, newStatus, new Date());
   const leadChanged =
@@ -576,6 +732,17 @@ export async function updateActionItem(input: UpdateActionItemInput) {
         officerMeetingId: data.officerMeetingId,
         relatedEntityType,
         relatedEntityId,
+        // Action 4.0 contract
+        sourceType,
+        sourceId,
+        sourceActionId,
+        strategicInitiativeId,
+        strategicProjectId,
+        successDefinition: data.successDefinition,
+        blockedReason: data.blockedReason,
+        completionNote: data.completionNote,
+        completionOutcome,
+        nextFollowUpAt: data.nextFollowUpAt,
       },
     });
 

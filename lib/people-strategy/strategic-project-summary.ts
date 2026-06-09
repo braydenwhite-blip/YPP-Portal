@@ -191,6 +191,12 @@ export function buildProjectActionPrefill(
   const prefill: ActionPrefill = {
     area: initiative.match.goalCategories?.[0] ?? initiative.title,
     title: `${def.title}: `,
+    // Action 4.0: carry the EXPLICIT project + parent-initiative registry ids and
+    // source so the new action is honestly linked (the area/title keep the
+    // matcher in agreement, but the stored link is authoritative).
+    sourceType: "PROJECT",
+    strategicProjectId: def.id,
+    strategicInitiativeId: initiative.id,
     ...overrides,
   };
   return actionPrefillToQuery(prefill);

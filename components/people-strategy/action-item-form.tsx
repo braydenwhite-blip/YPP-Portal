@@ -27,6 +27,7 @@ import {
   updateActionItem,
 } from "@/lib/people-strategy/action-items-actions";
 import { MotionArea, FeedbackBanner } from "@/components/people-strategy/motion";
+import { deriveActionQualityWarnings } from "@/lib/people-strategy/action-quality";
 
 interface UserOption {
   id: string;
@@ -74,6 +75,21 @@ export interface ActionItemFormInitial {
    * exactly like the in-meeting converters do. Not user-editable here.
    */
   officerMeetingId?: string | null;
+  // --- Action System 4.0 honest context (carried through on create) ---
+  /** Definition of done — editable; seeded from a source when known. */
+  successDefinition?: string | null;
+  /** Provenance + strategic link, set from the source surface (read-only chips). */
+  sourceType?: string | null;
+  sourceId?: string | null;
+  sourceActionId?: string | null;
+  strategicInitiativeId?: string | null;
+  strategicProjectId?: string | null;
+  /** Server-resolved display copy for the context chips + smart CTA. */
+  sourceHeader?: string | null;
+  sourceLabel?: string | null;
+  strategicLinkLabel?: string | null;
+  /** A real suggested owner (user id) from the source — pre-selected, editable. */
+  suggestedOwnerId?: string | null;
 }
 
 function asDate(value: Date | string | null | undefined): Date | null {
@@ -257,6 +273,9 @@ export default function ActionItemForm({
   const [status, setStatus] = useState<string>(initial?.status ?? "NOT_STARTED");
   const [priority, setPriority] = useState<string>(initial?.priority ?? "MEDIUM");
   const [actionType, setActionType] = useState<string>(initial?.actionType ?? "");
+  const [successDefinition, setSuccessDefinition] = useState(
+    initial?.successDefinition ?? ""
+  );
   // Track whether the user has deliberately set priority, so a type's suggested
   // default only nudges a fresh, untouched action and never overrides a choice.
   const [priorityTouched, setPriorityTouched] = useState(false);
@@ -278,6 +297,11 @@ export default function ActionItemForm({
   // edit keeps its existing lead.
   const defaultLeadId =
     initial?.leadId ??
+    // A real suggested owner from the source (e.g. a meeting participant) wins
+    // over the creator default — never invented, only passed from a source.
+    (!isEdit && initial?.suggestedOwnerId && users.some((u) => u.id === initial.suggestedOwnerId)
+      ? initial.suggestedOwnerId
+      : null) ??
     (!isEdit && currentUserId && users.some((u) => u.id === currentUserId)
       ? currentUserId
       : null);
@@ -316,6 +340,49 @@ export default function ActionItemForm({
   const typeGuidance = isActionType(actionType)
     ? ACTION_TYPE_GUIDANCE[actionType].helper
     : null;
+
+  // --- Action System 4.0: honest context chips, live warnings, smart CTA ---
+  const sourceType = initial?.sourceType ?? null;
+  const sourceLabel = initial?.sourceLabel ?? null;
+  const strategicLinkLabel = initial?.strategicLinkLabel ?? null;
+  const hasStrategicLink = Boolean(
+    initial?.strategicInitiativeId || initial?.strategicProjectId
+  );
+
+  // Live quality warnings, recomputed from the current draft (helpful, not
+  // blocking — they never prevent a save).
+  const warnings = useMemo(
+    () =>
+      deriveActionQualityWarnings({
+        title,
+        hasOwner: Boolean(leadId) || executingIds.length > 0,
+        hasDueDate: Boolean(deadline),
+        successDefinition,
+        status,
+        sourceType,
+        hasStrategicLink,
+      }),
+    [title, leadId, executingIds, deadline, successDefinition, status, sourceType, hasStrategicLink]
+  );
+
+  // Context-aware primary CTA — never a generic "Submit".
+  const createCtaLabel = useMemo(() => {
+    switch (sourceType) {
+      case "FOLLOW_UP":
+        return "Create follow-up";
+      case "MEETING":
+      case "MEETING_DECISION":
+        return "Add meeting follow-up";
+      case "PROJECT":
+        return "Save project action";
+      case "INITIATIVE":
+        return "Save initiative action";
+      case "ENTITY":
+        return "Save linked action";
+      default:
+        return "Create action";
+    }
+  }, [sourceType]);
 
   function validate(): string | null {
     if (!title.trim()) return "Title is required.";
@@ -364,6 +431,8 @@ export default function ActionItemForm({
             deadlineStart: deadline || undefined,
             deadlineEnd: null,
             leadId,
+            // Definition of done is editable on an existing action.
+            successDefinition: successDefinition.trim(),
           });
 
           // Sync EXECUTING / INPUT assignments by diffing against the initial set.
@@ -394,6 +463,14 @@ export default function ActionItemForm({
             // Carry the source meeting through when the action was started from
             // one (a decision / recap prefill); the server re-validates it.
             officerMeetingId: initial?.officerMeetingId ?? undefined,
+            // Action 4.0 honest context — all server-revalidated. Source
+            // provenance + the explicit strategic link travel with the action.
+            sourceType: initial?.sourceType ?? undefined,
+            sourceId: initial?.sourceId ?? undefined,
+            sourceActionId: initial?.sourceActionId ?? undefined,
+            strategicInitiativeId: initial?.strategicInitiativeId ?? undefined,
+            strategicProjectId: initial?.strategicProjectId ?? undefined,
+            successDefinition: successDefinition.trim() || undefined,
           });
 
           if (hasFileLink) {
@@ -427,6 +504,23 @@ export default function ActionItemForm({
         </div>
       )}
 
+      {(sourceLabel || strategicLinkLabel) && (
+        <div className="ps-linked-banner" style={{ flexWrap: "wrap", gap: 12 }}>
+          {sourceLabel ? (
+            <span>
+              <span style={{ fontWeight: 700 }}>Source: </span>
+              {sourceLabel}
+            </span>
+          ) : null}
+          {strategicLinkLabel ? (
+            <span>
+              <span style={{ fontWeight: 700 }}>Strategic: </span>
+              {strategicLinkLabel}
+            </span>
+          ) : null}
+        </div>
+      )}
+
       <div className="ps-field">
         <label className="ps-label" htmlFor="action-title">
           Title{REQUIRED_MARK}
@@ -451,8 +545,25 @@ export default function ActionItemForm({
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
           className="ps-textarea"
-          placeholder="Optional context, scope, and definition of done"
+          placeholder="Optional context, scope, and background"
         />
+      </div>
+
+      <div className="ps-field">
+        <label className="ps-label" htmlFor="action-success">
+          Definition of done
+        </label>
+        <textarea
+          id="action-success"
+          value={successDefinition}
+          onChange={(e) => setSuccessDefinition(e.target.value)}
+          rows={2}
+          className="ps-textarea"
+          placeholder="What specifically has to be true for this to count as done?"
+        />
+        <p className="ps-help" style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
+          A clear finish line keeps the action from drifting.
+        </p>
       </div>
 
       <div className="ps-field">
@@ -637,6 +748,23 @@ export default function ActionItemForm({
         </div>
       </fieldset>
 
+      {warnings.length > 0 && (
+        <div
+          className="card"
+          role="status"
+          style={{ padding: "10px 12px", borderColor: "var(--border)", background: "var(--surface-2, transparent)" }}
+        >
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 700 }}>
+            Make this a stronger action
+          </p>
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 12, color: "var(--muted)" }}>
+            {warnings.map((w) => (
+              <li key={w.code}>{w.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div
         style={{
           display: "flex",
@@ -656,7 +784,7 @@ export default function ActionItemForm({
           Cancel
         </button>
         <button type="submit" className="button small" disabled={pending}>
-          {pending ? "Saving…" : isEdit ? "Save changes" : "Create action"}
+          {pending ? "Saving…" : isEdit ? "Save changes" : createCtaLabel}
         </button>
       </div>
     </form>
