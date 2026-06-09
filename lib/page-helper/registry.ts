@@ -3849,5 +3849,32 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       firstStep: "Work the steps in order, starting with Triage; each step shows only what needs a decision and links to the place to act.",
       nextStep: "Finish at the wrap-up to see what you reviewed and the recommended next review date, then return to the Command Center."
     }
+  },
+  {
+    pattern: "/operations/initiatives",
+    title: "Strategic Initiatives",
+    content: {
+      purpose: "This is the portfolio of YPP's major goals, programs, and campaigns — each initiative with its derived health, momentum, progress, and the single next move, so you see initiatives instead of hundreds of disconnected actions.",
+      firstStep: "Scan the portfolio stats, then work the 'Needs attention' initiatives first — every card shows health, progress, and what to do next.",
+      nextStep: "Open any initiative for its full command center, or open the Strategic Map to see the whole portfolio top-down."
+    }
+  },
+  {
+    pattern: "/operations/initiatives/[initiativeId]",
+    title: "Initiative Command Center",
+    content: {
+      purpose: "This is one initiative's full command center: its health and why, momentum, progress, milestones, the strategic timeline of how it got here, its risks and ownership, and the recommended next moves — all derived from real execution data.",
+      firstStep: "Read the executive summary and health headline, then work the recommended next moves from the top.",
+      nextStep: "Check the milestones and timeline to see what's done and what's slipping, and create a linked action for the next push."
+    }
+  },
+  {
+    pattern: "/operations/strategic-map",
+    title: "Strategic Map",
+    content: {
+      purpose: "This is the executive visualization of the whole portfolio: YPP → operating areas → initiatives → milestones, each node carrying its rolled-up health and progress.",
+      firstStep: "The most-concerning areas are listed first; expand an area to see its initiatives and each initiative to see its milestones.",
+      nextStep: "Click any node to drill straight into its command center and act."
+    }
   }
 ];

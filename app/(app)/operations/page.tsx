@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { isOperationsHubEnabled } from "@/lib/feature-flags";
+import { isOperationsHubEnabled, isStrategicInitiativesEnabled } from "@/lib/feature-flags";
 import { requirePageRoles } from "@/lib/page-guards";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import { StatCard } from "@/components/people-strategy/stat-card";
@@ -88,6 +88,11 @@ export default async function OperationsHubPage() {
             <Link href="/operations/weekly-review" className="button outline" style={{ fontSize: 13 }}>
               Weekly Review
             </Link>
+            {isStrategicInitiativesEnabled() ? (
+              <Link href="/operations/initiatives" className="button outline" style={{ fontSize: 13 }}>
+                Initiatives
+              </Link>
+            ) : null}
           </div>
         ) : null}
       </div>

@@ -24,6 +24,12 @@ operational health read). Gated behind `ENABLE_OPERATIONS_HUB` **and**
 Both are reached from the existing **Operations Hub** (`/operations`) via header
 CTAs, and link to each other and back to the Action / Meetings trackers.
 
+> **Phase II — Strategic Initiatives.** A *strategic* layer now sits above this
+> operational one: major goals, programs, and campaigns with derived health,
+> momentum, progress, risk, milestones, an organizational timeline, and
+> recommended next moves — all config + derivation, no new tables. See
+> [STRATEGIC_INITIATIVES.md](./STRATEGIC_INITIATIVES.md).
+
 ## How it connects
 
 ```
