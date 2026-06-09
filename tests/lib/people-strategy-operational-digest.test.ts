@@ -12,6 +12,7 @@ import { computeOperationalHealth } from "@/lib/people-strategy/operational-cont
 import {
   bucketActionsByUrgency,
   bucketMeetingsByUrgency,
+  deriveAreaHealth,
   deriveOperationalEntities,
   deriveWeeklyOperationalDigest,
   explainOperationalHealth,
@@ -291,6 +292,39 @@ describe("selectStaleEntities", () => {
   });
 });
 
+// --- area health -------------------------------------------------------------
+
+describe("deriveAreaHealth", () => {
+  it("rolls actions + meetings up to operating areas, worst-health first", () => {
+    const actions = [
+      action({ relatedEntityType: "CLASS_OFFERING", relatedEntityId: "cls1", deadlineStart: new Date("2026-05-20T00:00:00") }),
+      action({ relatedEntityType: "CLASS_OFFERING", relatedEntityId: "cls1", deadlineStart: new Date("2026-05-20T00:00:00") }),
+      action({ relatedEntityType: "CLASS_OFFERING", relatedEntityId: "cls1", deadlineStart: new Date("2026-05-20T00:00:00") }),
+      action({ relatedEntityType: "PARTNER", relatedEntityId: "p1" }), // open, not overdue
+    ];
+    const meetings = [
+      meetingCard({ category: "MENTORSHIP", effectiveStatus: "upcoming", startISO: "2026-06-06T18:00:00" }),
+    ];
+    const entities = deriveOperationalEntities({ actions, meetings, decisions: [], labels: new Map(), now: NOW });
+    const rows = deriveAreaHealth({ actions, meetings, entities, now: NOW });
+
+    const classes = rows.find((r) => r.area === "CLASSES");
+    expect(classes?.health.level).toBe("critical");
+    expect(classes?.overdueActions).toBe(3);
+    expect(classes?.criticalEntities).toBe(1);
+    const mentorship = rows.find((r) => r.area === "MENTORSHIP");
+    expect(mentorship?.meetingCount).toBe(1);
+    expect(mentorship?.upcomingMeetings).toBe(1);
+    // Classes (critical) sorts before Partnerships (attention) and Mentorship.
+    expect(rows[0].area).toBe("CLASSES");
+  });
+
+  it("drops areas with no activity", () => {
+    const rows = deriveAreaHealth({ actions: [], meetings: [], entities: [], now: NOW });
+    expect(rows).toEqual([]);
+  });
+});
+
 // --- health explanation ------------------------------------------------------
 
 describe("explainOperationalHealth", () => {
@@ -450,6 +484,8 @@ describe("deriveWeeklyOperationalDigest", () => {
     expect(d.meetingsNeedingFollowThrough.length).toBeGreaterThan(0);
     expect(d.recommendedReviewOrder[0].kind).toBe("class");
     expect(d.recommendedReviewOrder.length).toBeGreaterThan(1);
+    // Area health rolls up the classes area as critical.
+    expect(d.areaHealth.find((r) => r.area === "CLASSES")?.health.level).toBe("critical");
   });
 
   it("respects explicit limits and window", () => {

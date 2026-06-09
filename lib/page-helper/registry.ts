@@ -3831,5 +3831,14 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       firstStep: "Start at the top: the most urgent items and the people who need support are listed first.",
       nextStep: "Open anything flagged to see its detail, then create or assign a linked action to move it forward."
     }
+  },
+  {
+    pattern: "/operations/command-center",
+    title: "Leadership Command Center",
+    content: {
+      purpose: "This is the leadership cockpit that sits above the Action Tracker and Meetings Tracker: what's urgent, what's stuck, what's due, which areas need attention, and what to review first this week.",
+      firstStep: "Scan 'This week at YPP', then work the ranked 'Needs attention' queue from the top — each card explains why it surfaced and links straight to the place to act.",
+      nextStep: "Follow up on meetings without action, convert open decisions into tracked actions, or open the guided Weekly Review to work through everything in order."
+    }
   }
 ];

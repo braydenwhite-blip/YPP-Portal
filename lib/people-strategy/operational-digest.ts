@@ -14,7 +14,7 @@ import { effectiveStatus } from "./action-filters";
 import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
 import { daysOverdue, STALE_ACTIVITY_DAYS } from "./command-center-selectors";
 import type { MeetingCardDTO } from "./meetings-queries";
-import { meetingCategoryLabel } from "./meeting-categories";
+import { isMeetingCategory, meetingCategoryLabel } from "./meeting-categories";
 import {
   areaForRelatedEntityType,
   computeOperationalHealth,
@@ -200,6 +200,19 @@ export type OperationalEntityLite = {
   unresolvedFollowUps: number;
 };
 
+export type AreaHealthRow = {
+  area: OperationalArea;
+  areaLabel: string;
+  health: OperationalHealth;
+  openActions: number;
+  overdueActions: number;
+  meetingCount: number;
+  upcomingMeetings: number;
+  unresolvedFollowUps: number;
+  /** Entities in this area whose health is critical. */
+  criticalEntities: number;
+};
+
 export type OperationalHealthExplanation = {
   /** Reuses the canonical four-step level (healthy → critical). */
   level: OperationalHealthLevel;
@@ -236,6 +249,7 @@ export type WeeklyOperationalDigest = {
   decisionsNeedingAction: DecisionLite[];
   meetingsNeedingFollowThrough: MeetingLite[];
   recentlyCompletedActions: ActionLite[];
+  areaHealth: AreaHealthRow[];
   recommendedReviewOrder: OperationalReviewItem[];
 };
 
@@ -687,6 +701,129 @@ export function selectStaleEntities(
   );
 }
 
+// --- operational health by area ----------------------------------------------
+
+type AreaAccumulator = {
+  openActions: number;
+  overdueActions: number;
+  blockedActions: number;
+  unassignedActions: number;
+  staleActions: number;
+  openFollowUps: number;
+  overdueFollowUps: number;
+  meetingsNeedingFollowUp: number;
+  meetingCount: number;
+  upcomingMeetings: number;
+  criticalEntities: number;
+};
+
+function emptyAreaAccumulator(): AreaAccumulator {
+  return {
+    openActions: 0,
+    overdueActions: 0,
+    blockedActions: 0,
+    unassignedActions: 0,
+    staleActions: 0,
+    openFollowUps: 0,
+    overdueFollowUps: 0,
+    meetingsNeedingFollowUp: 0,
+    meetingCount: 0,
+    upcomingMeetings: 0,
+    criticalEntities: 0,
+  };
+}
+
+/**
+ * Roll the loaded work up to YPP operating AREAS (a meeting's category / an
+ * action's entity area) so the Command Center can show one health read per area
+ * — Classes, Mentorship, Partnerships, … — without a query per area. Actions
+ * contribute through their linked entity's area (department-only actions have no
+ * area, mirroring the area context loader); meetings contribute through their
+ * category. Pure; areas with no activity are dropped, worst-health first.
+ */
+export function deriveAreaHealth(input: {
+  actions: ActionItemWithRelations[];
+  meetings: MeetingCardDTO[];
+  entities: OperationalEntityLite[];
+  now?: Date;
+}): AreaHealthRow[] {
+  const now = input.now ?? new Date();
+  const staleCutoff = addDays(now, -STALE_ACTIVITY_DAYS).getTime();
+  const todayStart = startOfDay(now).getTime();
+  const byArea = new Map<OperationalArea, AreaAccumulator>();
+
+  const ensure = (area: OperationalArea): AreaAccumulator => {
+    let acc = byArea.get(area);
+    if (!acc) {
+      acc = emptyAreaAccumulator();
+      byArea.set(area, acc);
+    }
+    return acc;
+  };
+
+  for (const action of input.actions) {
+    const type = action.relatedEntityType;
+    if (!type || !isRelatedEntityType(type)) continue;
+    const status = effectiveStatus(action, now);
+    if (SETTLED.has(status)) continue;
+    const acc = ensure(areaForRelatedEntityType(type));
+    acc.openActions += 1;
+    if (status === "OVERDUE") acc.overdueActions += 1;
+    if (status === "BLOCKED") acc.blockedActions += 1;
+    if (isUnassigned(action)) acc.unassignedActions += 1;
+    if (action.updatedAt.getTime() < staleCutoff) acc.staleActions += 1;
+  }
+
+  for (const m of input.meetings) {
+    const area: OperationalArea =
+      m.category && isMeetingCategory(m.category) ? m.category : "OTHER";
+    const acc = ensure(area);
+    acc.meetingCount += 1;
+    acc.openFollowUps += m.openFollowUps;
+    acc.overdueFollowUps += m.overdueFollowUps;
+    if (m.effectiveStatus === "needs_follow_up") acc.meetingsNeedingFollowUp += 1;
+    if (m.effectiveStatus !== "canceled" && new Date(m.startISO).getTime() >= todayStart) {
+      acc.upcomingMeetings += 1;
+    }
+  }
+
+  for (const e of input.entities) {
+    if (e.health.level === "critical") ensure(e.area).criticalEntities += 1;
+  }
+
+  const rows: AreaHealthRow[] = [];
+  for (const [area, acc] of byArea) {
+    const health = computeOperationalHealth({
+      openActions: acc.openActions,
+      overdueActions: acc.overdueActions,
+      blockedActions: acc.blockedActions,
+      unassignedActions: acc.unassignedActions,
+      staleActions: acc.staleActions,
+      openFollowUps: acc.openFollowUps,
+      overdueFollowUps: acc.overdueFollowUps,
+      meetingsNeedingFollowUp: acc.meetingsNeedingFollowUp,
+    });
+    rows.push({
+      area,
+      areaLabel: meetingCategoryLabel(area),
+      health,
+      openActions: acc.openActions,
+      overdueActions: acc.overdueActions,
+      meetingCount: acc.meetingCount,
+      upcomingMeetings: acc.upcomingMeetings,
+      unresolvedFollowUps: acc.openFollowUps,
+      criticalEntities: acc.criticalEntities,
+    });
+  }
+
+  return rows.sort(
+    (a, b) =>
+      compareOperationalHealth(a.health, b.health) ||
+      b.overdueActions - a.overdueActions ||
+      a.areaLabel.localeCompare(b.areaLabel)
+  );
+}
+
 // --- D. health explanation ---------------------------------------------------
 
 const LEVEL_WORD: Record<OperationalHealthLevel, string> = {
@@ -1083,6 +1220,13 @@ export function deriveWeeklyOperationalDigest(
 
   const unresolvedFollowUps = input.meetings.reduce((sum, m) => sum + m.openFollowUps, 0);
 
+  const areaHealth = deriveAreaHealth({
+    actions: input.actions,
+    meetings: input.meetings,
+    entities,
+    now,
+  });
+
   const recommendedReviewOrder = rankReviewItems({
     entities,
     meetingsNeedingFollowThrough,
@@ -1126,6 +1270,7 @@ export function deriveWeeklyOperationalDigest(
       limits.meetingsNeedingFollowThrough ?? 6
     ),
     recentlyCompletedActions: sliceOr(recentlyCompletedActions, limits.recentlyCompleted ?? 6),
+    areaHealth,
     recommendedReviewOrder,
   };
 }
