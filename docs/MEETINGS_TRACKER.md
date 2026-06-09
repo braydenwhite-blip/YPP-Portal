@@ -60,6 +60,34 @@ in `lib/people-strategy/meetings-status.ts` (pure, unit-tested):
   the action card shows a `Source: <meeting> · <date>` badge and the action
   detail has a "Source Meeting" panel that deep-links back to the meeting.
 
+## Cross-portal operational context (the nervous system)
+
+Meetings and actions are the two universal operational objects, and they are
+connected to the rest of the portal through one shared layer:
+
+- **Vocabulary bridge** (`lib/people-strategy/operational-context.ts`): the
+  operating **area** (the meeting category — Classes, Mentorship, …) and the
+  concrete **related entity** (`CLASS_OFFERING` / `MENTORSHIP` / `USER` /
+  `INSTRUCTOR_APPLICATION` / `PARTNER`) are joined by `areaForRelatedEntityType`
+  / `primaryEntityTypeForArea`. `computeOperationalHealth` turns raw signal
+  counts into a deterministic `healthy → critical` read.
+- **Unified loader** (`lib/people-strategy/operational-context-queries.ts`):
+  `getOperationalContextForEntity` returns, for one entity, every related
+  meeting + visible action + open follow-up + recent decision + a health read;
+  `getOperationalContextForArea` does the same for a whole area. Meetings link to
+  entities via `OfficerMeeting.relatedEntityType/Id` and are read with
+  `getMeetingsForEntity` (the mirror of `getActionsForEntity`).
+- **Shared UI** (`components/people-strategy/`): `OperationalContextPanel`
+  (`operational-context-panel.tsx`) renders the whole picture as one card and is
+  embedded on the Classes, Instructor, Mentorship, Partner, and Person surfaces;
+  `operational-badges.tsx` / `related-meetings-list.tsx` provide the reusable
+  `RelatedEntityBadge` / `SourceMeetingBadge` / `OperationalHealthBadge` /
+  `RelatedMeetingsList` atoms.
+- **Create-from-context**: entity pages deep-link `?new=1&relatedType&relatedId`
+  into the Weekly Command Center, which auto-opens the New Meeting drawer
+  prefilled and linked to that entity. Actions carry the same link, and the
+  Action Tracker can filter by source (meeting-generated vs manual).
+
 ## Key files
 
 - `lib/people-strategy/meeting-categories.ts` — YPP operating-area vocabulary + tones
