@@ -12,6 +12,7 @@ import {
   type ProjectSummary,
 } from "@/lib/people-strategy/strategic-project-summary";
 import type { StrategicCommandData } from "@/lib/people-strategy/strategic-project-queries";
+import { selectProjectAttentionQueue } from "@/lib/people-strategy/strategic-project-attention";
 import { deriveTouchpointTimeline } from "@/lib/people-strategy/strategic-touchpoint-timeline";
 import {
   ProjectActionIntelligencePanel,
@@ -21,6 +22,7 @@ import {
   ProjectExecutionSpine,
   ProjectReviewCard,
   ProjectStatStrip,
+  StrategicAttentionQueue,
 } from "@/components/people-strategy/strategic-projects";
 import { StrategicCommandSection } from "@/components/people-strategy/strategic-command";
 import { TouchpointTimelineView } from "@/components/people-strategy/touchpoint-timeline";
@@ -66,6 +68,22 @@ describe("ProjectCard", () => {
     expect(screen.getByText("Beth El Pilot")).toBeInTheDocument();
     expect(screen.getByText("Summer Camps 2026")).toBeInTheDocument();
     expect(screen.getByText(/Next:/)).toBeInTheDocument();
+  });
+});
+
+describe("StrategicAttentionQueue", () => {
+  it("renders a ranked row with reason, blocker, and a specific CTA (never a generic View)", () => {
+    const queue = selectProjectAttentionQueue([buildSummary()]);
+    render(<StrategicAttentionQueue items={queue} />);
+    expect(screen.getByText("Beth El Pilot")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Clear blocker" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "View" })).toBeNull();
+    expect(screen.getByText(/Blocker:/)).toBeInTheDocument();
+  });
+
+  it("renders an honest empty state when nothing needs attention", () => {
+    render(<StrategicAttentionQueue items={[]} />);
+    expect(screen.getByText(/No project needs leadership attention right now/)).toBeInTheDocument();
   });
 });
 

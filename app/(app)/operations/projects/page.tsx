@@ -7,11 +7,13 @@ import {
   isOperationsHubEnabled,
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
+import { selectProjectAttentionQueue } from "@/lib/people-strategy/strategic-project-attention";
 import { getStrategicProjectPortfolio } from "@/lib/people-strategy/strategic-project-queries";
 import { CommandCenterSection } from "@/components/people-strategy/command-center-os";
 import {
   ProjectCardGrid,
   ProjectStatStrip,
+  StrategicAttentionQueue,
 } from "@/components/people-strategy/strategic-projects";
 import {
   StrategicStack,
@@ -39,6 +41,7 @@ export default async function StrategicProjectsPage() {
   const now = new Date();
   const data = await getStrategicProjectPortfolio(viewer, { now });
   const stats = data.stats;
+  const attentionQueue = selectProjectAttentionQueue(data.projects);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
@@ -56,6 +59,17 @@ export default async function StrategicProjectsPage() {
           <ProjectStatStrip stats={stats} />
         </CommandCenterSection>
 
+        <CommandCenterSection
+          title="Where to look first"
+          hint={
+            attentionQueue.length > 0
+              ? `${attentionQueue.length} project${attentionQueue.length === 1 ? "" : "s"} ranked by urgency`
+              : "Nothing urgent"
+          }
+        >
+          <StrategicAttentionQueue items={attentionQueue} />
+        </CommandCenterSection>
+
         {data.needingAttention.length > 0 ? (
           <CommandCenterSection title="Needs attention" hint={`${data.needingAttention.length} drifting, at risk, or critical`}>
             <ProjectCardGrid projects={data.needingAttention} />
@@ -71,6 +85,18 @@ export default async function StrategicProjectsPage() {
         {data.unowned.length > 0 ? (
           <CommandCenterSection title="Owner gaps" hint="Unowned or unclear accountability">
             <ProjectCardGrid projects={data.unowned} />
+          </CommandCenterSection>
+        ) : null}
+
+        {data.stale.length > 0 ? (
+          <CommandCenterSection title="Losing momentum" hint="Has tracked work but has gone quiet">
+            <ProjectCardGrid projects={data.stale} />
+          </CommandCenterSection>
+        ) : null}
+
+        {data.fastest.length > 0 ? (
+          <CommandCenterSection title="Accelerating" hint="Momentum is building — keep it fed">
+            <ProjectCardGrid projects={data.fastest} />
           </CommandCenterSection>
         ) : null}
 
