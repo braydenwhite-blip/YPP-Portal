@@ -78,7 +78,43 @@ its `initiativeId` must reference a real initiative; `relatedWorkstreamIds` must
 initiative's workstreams; `match` reuses the keyword/area/actionType vocabulary so it classifies
 real work. Fill the charter for the brief. No DB change, reviewable in a PR.
 
+## Surfaces
+
+| Route | What it is |
+| --- | --- |
+| `/operations/projects` | Project portfolio — stats, needs-attention, blocked, owner gaps, by-initiative, all projects. |
+| `/operations/projects/[projectId]` | Project command center — header, brief, execution spine, touchpoint timeline, action/decision/meeting intelligence, dependencies, review. |
+| `/operations/command-center` | Now leads with the **Strategic Command** cockpit (initiatives + projects + decisions + blockers + recommended moves). |
+| `/operations/portfolio` | Now includes a **Project board** beneath the initiative portfolio. |
+| `/operations/initiatives/[initiativeId]` | Now includes a **Strategic projects** section. |
+| `/actions/[id]` | Now shows the action's **Strategic context** (initiative + project it ladders up to), officer-only. |
+
+## Relationship to actions, meetings, and decisions
+
+A project never stores its work. Its actions, meetings, and decisions are the *same* rows the
+Action Tracker and Meetings Tracker own — classified into the project by the matcher:
+
+- **Actions** drive progress, momentum, ownership, blockers (overdue / blocked = *observed*),
+  and action follow-through. The action detail page shows which project it belongs to.
+- **Meetings** drive meeting coverage, "no follow-up" detection, and the next-meeting
+  recommendation. Each meeting's decisions feed the decision center.
+- **Decisions** drive decision follow-through — a decision with no linked action is surfaced
+  (never hidden), on the project page and in the Command Center decision queue.
+
+To link a *new* action to a project, use the project page's **+ New action** button: it prefills
+the parent initiative's `goalCategory` and seeds the title with the project name, so the
+matcher classifies the created action into both — no schema change.
+
 ## Testing
 Pure unit tests for the registry, health, summary/portfolio, project timeline, touchpoint
-normalization, and the command queue; component tests for the index, detail panels, command
-section, portfolio board, and timeline rendering. All 2.0 tests stay green.
+normalization, strategic context, and the command queue; component tests for the index, detail
+panels, command section, portfolio board, and timeline rendering. All 2.0 tests stay green.
+
+## Validation commands
+- `npx tsc --noEmit` — full typecheck.
+- `npx vitest run tests/lib/people-strategy-strategic-*.test.ts tests/components/strategic-*.test.tsx`
+- `npx eslint <changed files>`
+- `npm run nav:check` — note: the nav validator has **pre-existing** core-map failures on `main`
+  (INSTRUCTOR/HIRING_CHAIR/CHAPTER_PRESIDENT/MENTOR core link counts) unrelated to this work;
+  no nav-catalog routes were added (the strategic sub-pages follow the existing in-page-nav
+  convention).

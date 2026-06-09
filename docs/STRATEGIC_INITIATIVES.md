@@ -1,5 +1,9 @@
 # YPP Execution OS — Strategic Initiatives, Program Intelligence & the Organizational Timeline (Phase II)
 
+> **See also:** [`STRATEGIC_INITIATIVES_3.0.md`](./STRATEGIC_INITIATIVES_3.0.md) — the 3.0 pass
+> adds the **Strategic Project** operating layer, the **Touchpoint Timeline**, the **Strategic
+> Command** cockpit, and `/operations/projects`. It extends (does not rewrite) everything below.
+
 The **Strategic Initiatives** layer sits *above* the Execution OS (Command
 Center + Weekly Review), which itself sits above the Action Tracker and Meetings
 Tracker. The previous pass made the portal **alive** at the operational level
