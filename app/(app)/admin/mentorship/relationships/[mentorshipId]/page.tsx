@@ -14,6 +14,8 @@ import {
 import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
+import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
+import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
 
 export const metadata = {
   title: "Instructor mentorship relationship — Admin",
@@ -520,6 +522,19 @@ export default async function AdminMentorshipRelationshipDetailPage({
             emptyActionsHint="No Action Tracker items are linked to this mentorship yet."
             emptyMeetingsHint="This mentorship hasn't been discussed in a tracked meeting yet."
           />
+          <div style={{ marginTop: 14 }}>
+            <OperationalTimeline
+              events={deriveOperationalTimeline({
+                meetings: opsContext.meetings,
+                actions: opsContext.actions,
+                decisions: opsContext.recentDecisions,
+                followUps: opsContext.openFollowUps,
+              })}
+              compact
+              createActionHref={`/actions/new?relatedType=MENTORSHIP&relatedId=${mentorship.id}`}
+              createMeetingHref={`/actions/meetings?new=1&relatedType=MENTORSHIP&relatedId=${mentorship.id}`}
+            />
+          </div>
         </div>
       ) : null}
     </div>

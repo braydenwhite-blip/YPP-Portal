@@ -24,6 +24,8 @@ import { getOperationalContextForEntity } from "@/lib/people-strategy/operationa
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import { getMenteeSupport } from "@/lib/people-strategy/connections";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
+import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
+import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
 import {
   getClassFeedbackSummary,
   getClassOutcome,
@@ -190,6 +192,20 @@ export default async function AdminClassDetailPage({
               createMeetingHref={`/actions/meetings?new=1&relatedType=CLASS_OFFERING&relatedId=${detail.id}`}
               emptyActionsHint="No open actions are connected to this class yet."
               emptyMeetingsHint="This class hasn't been discussed in a tracked meeting yet."
+            />
+          )}
+
+          {operationsEnabled && opsContext && (
+            <OperationalTimeline
+              events={deriveOperationalTimeline({
+                meetings: opsContext.meetings,
+                actions: opsContext.actions,
+                decisions: opsContext.recentDecisions,
+                followUps: opsContext.openFollowUps,
+              })}
+              compact
+              createActionHref={`/actions/new?relatedType=CLASS_OFFERING&relatedId=${detail.id}`}
+              createMeetingHref={`/actions/meetings?new=1&relatedType=CLASS_OFFERING&relatedId=${detail.id}`}
             />
           )}
 
