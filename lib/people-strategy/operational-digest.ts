@@ -516,6 +516,33 @@ export function bucketMeetingsByUrgency(
   return buckets;
 }
 
+/**
+ * The four triage lists the Weekly Review's first step works through, as
+ * serializable lite shapes. `dueSoon` = due today + due within the week (not yet
+ * overdue). The lists can overlap (an overdue action may also be unassigned) —
+ * each is a distinct lens, exactly like the Command Center pulse counts.
+ */
+export type ActionTriage = {
+  overdue: ActionLite[];
+  blocked: ActionLite[];
+  unassigned: ActionLite[];
+  dueSoon: ActionLite[];
+};
+
+export function deriveActionTriage(
+  actions: ActionItemWithRelations[],
+  now: Date = new Date()
+): ActionTriage {
+  const b = bucketActionsByUrgency(actions, now);
+  const lite = (list: ActionItemWithRelations[]) => list.map((a) => toActionLite(a, now));
+  return {
+    overdue: lite(b.overdue),
+    blocked: lite(b.blocked),
+    unassigned: lite(b.unassigned),
+    dueSoon: lite([...b.dueToday, ...b.dueThisWeek]),
+  };
+}
+
 // --- decisions ---------------------------------------------------------------
 
 export function selectRecentDecisions(

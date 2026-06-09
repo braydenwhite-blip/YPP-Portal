@@ -39,10 +39,12 @@ import {
   type EntityOperationalContext,
 } from "./operational-context-queries";
 import {
+  deriveActionTriage,
   deriveWeeklyOperationalDigest,
   explainOperationalHealth,
   NO_RECENT_MEETING_DAYS,
   RECENT_DECISION_DAYS,
+  type ActionTriage,
   type DigestDecisionInput,
   type OperationalHealthExplanation,
   type WeeklyOperationalDigest,
@@ -168,18 +170,26 @@ function emptyDigest(now: Date): WeeklyOperationalDigest {
 
 // --- A. global leadership digest --------------------------------------------
 
+type DigestInputs = {
+  actions: ActionItemWithRelations[];
+  meetings: MeetingCardDTO[];
+  decisions: DigestDecisionInput[];
+  labels: Map<string, RelatedEntitySummary>;
+};
+
 /**
- * The whole-org weekly operational digest for a leadership viewer. Loads every
- * action the viewer may see, the meetings in the operating window, and the full
- * meeting history of every entity with open work, then derives the digest. Fails
- * safe to an empty digest when the tracker flag is off. Officer-gate the caller.
+ * The single batched read that backs both the whole-org digest and the Weekly
+ * Review: every visible action, the meetings in the operating window, and the
+ * full meeting history of every entity with open work. Returns empty inputs when
+ * the tracker flag is off.
  */
-export async function getWeeklyOperationalDigestForViewer(
+async function loadDigestInputs(
   viewer: ActionViewer,
-  options: DigestQueryOptions = {}
-): Promise<WeeklyOperationalDigest> {
-  const now = options.now ?? new Date();
-  if (!isActionTrackerEnabled()) return emptyDigest(now);
+  now: Date
+): Promise<DigestInputs> {
+  if (!isActionTrackerEnabled()) {
+    return { actions: [], meetings: [], decisions: [], labels: new Map() };
+  }
 
   const [actions, windowMeetings] = await Promise.all([
     listVisibleActionItems(viewer).catch(() => [] as ActionItemWithRelations[]),
@@ -195,8 +205,44 @@ export async function getWeeklyOperationalDigestForViewer(
     refs,
     now
   );
+  return { actions, meetings, decisions, labels };
+}
 
+/**
+ * The whole-org weekly operational digest for a leadership viewer. Loads every
+ * action the viewer may see, the meetings in the operating window, and the full
+ * meeting history of every entity with open work, then derives the digest. Fails
+ * safe to an empty digest when the tracker flag is off. Officer-gate the caller.
+ */
+export async function getWeeklyOperationalDigestForViewer(
+  viewer: ActionViewer,
+  options: DigestQueryOptions = {}
+): Promise<WeeklyOperationalDigest> {
+  const now = options.now ?? new Date();
+  const { actions, meetings, decisions, labels } = await loadDigestInputs(viewer, now);
   return deriveWeeklyOperationalDigest({ actions, meetings, decisions, labels, now });
+}
+
+export type WeeklyReviewData = {
+  digest: WeeklyOperationalDigest;
+  triage: ActionTriage;
+};
+
+/**
+ * The data for the guided Weekly Review: the same digest the Command Center
+ * shows PLUS the triage lists (overdue / blocked / unassigned / due-soon) the
+ * first step works through — all from ONE batched read. Officer-gate the caller.
+ */
+export async function getWeeklyReviewForViewer(
+  viewer: ActionViewer,
+  options: DigestQueryOptions = {}
+): Promise<WeeklyReviewData> {
+  const now = options.now ?? new Date();
+  const { actions, meetings, decisions, labels } = await loadDigestInputs(viewer, now);
+  return {
+    digest: deriveWeeklyOperationalDigest({ actions, meetings, decisions, labels, now }),
+    triage: deriveActionTriage(actions, now),
+  };
 }
 
 // --- B. area-level digest ----------------------------------------------------

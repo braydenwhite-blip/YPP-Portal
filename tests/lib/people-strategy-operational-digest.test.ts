@@ -12,6 +12,7 @@ import { computeOperationalHealth } from "@/lib/people-strategy/operational-cont
 import {
   bucketActionsByUrgency,
   bucketMeetingsByUrgency,
+  deriveActionTriage,
   deriveAreaHealth,
   deriveOperationalEntities,
   deriveWeeklyOperationalDigest,
@@ -191,6 +192,26 @@ describe("bucketMeetingsByUrgency", () => {
       NOW
     );
     expect(b.withoutActions).toHaveLength(0);
+  });
+});
+
+describe("deriveActionTriage", () => {
+  it("produces the four triage lenses as lite shapes", () => {
+    const t = deriveActionTriage(
+      [
+        action({ deadlineStart: new Date("2026-05-20T00:00:00") }), // overdue
+        action({ status: "BLOCKED", deadlineStart: new Date("2026-06-20T00:00:00") }), // blocked, far out
+        action({ assignments: [assignment("alice", "LEAD")], deadlineStart: new Date("2026-06-20T00:00:00") }), // unassigned, far out
+        action({ deadlineStart: new Date("2026-06-04T00:00:00") }), // due soon (today)
+        action({ status: "COMPLETE" }), // settled — excluded everywhere
+      ],
+      NOW
+    );
+    expect(t.overdue).toHaveLength(1);
+    expect(t.blocked).toHaveLength(1);
+    expect(t.unassigned).toHaveLength(1);
+    expect(t.dueSoon).toHaveLength(1);
+    expect(t.overdue[0].href).toMatch(/^\/actions\//);
   });
 });
 
