@@ -34,6 +34,8 @@ function payload(overrides: Record<string, unknown> = {}): any {
     recurrence: "WEEKLY",
     location: "Zoom",
     notesText: "Strong week.",
+    relatedEntityType: "CLASS_OFFERING",
+    relatedEntityId: "cls1",
     facilitator: person("u1", "Brayden White"),
     attendees: [
       { user: person("u1", "Brayden White") },
@@ -94,6 +96,18 @@ describe("mapMeetingToCardDTO", () => {
     expect(dto.openLinkedActions).toBe(1);
     expect(dto.linkedActionCount).toBe(2);
     expect(dto.facilitator?.initials).toBe("BW");
+    // Cross-portal link surfaced on the DTO so a meeting can show its entity.
+    expect(dto.relatedEntityType).toBe("CLASS_OFFERING");
+    expect(dto.relatedEntityId).toBe("cls1");
+  });
+
+  it("leaves the related entity null when the meeting links to nothing", () => {
+    const dto = mapMeetingToCardDTO(
+      payload({ relatedEntityType: null, relatedEntityId: null }),
+      NOW
+    );
+    expect(dto.relatedEntityType).toBeNull();
+    expect(dto.relatedEntityId).toBeNull();
   });
 });
 
