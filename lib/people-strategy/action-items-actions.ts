@@ -425,6 +425,17 @@ export async function createActionItem(input: CreateActionItemInput) {
   const parsedOutcome = parseActionCompletionOutcome(data.completionOutcome);
   const completionOutcome = parsedOutcome.ok ? parsedOutcome.value : null;
 
+  // A FOLLOW_UP parent is a self-relation FK; verify it exists so a stale or
+  // hand-edited id degrades to "no parent" instead of a write-time FK error.
+  let sourceActionId = data.sourceActionId;
+  if (sourceActionId) {
+    const parent = await prisma.actionItem.findUnique({
+      where: { id: sourceActionId },
+      select: { id: true },
+    });
+    if (!parent) sourceActionId = null;
+  }
+
   // Lead is also represented as a LEAD assignment row; the (actionItemId,
   // userId, role) uniqueness lets the Lead additionally hold an EXECUTING row.
   const assignmentRows: Array<{ userId: string; role: ActionAssignmentRole }> = [
@@ -456,7 +467,7 @@ export async function createActionItem(input: CreateActionItemInput) {
       // Action 4.0 contract
       sourceType,
       sourceId: data.sourceId,
-      sourceActionId: data.sourceActionId,
+      sourceActionId,
       strategicInitiativeId: strategicLink.initiativeId,
       strategicProjectId: strategicLink.projectId,
       successDefinition: data.successDefinition,

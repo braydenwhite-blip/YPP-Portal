@@ -24,6 +24,14 @@ import { isMeetingCategory } from "@/lib/people-strategy/meeting-categories";
 import { getMeetingById } from "@/lib/people-strategy/meetings-queries";
 import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
+import { actionPrefillFromQuery } from "@/lib/people-strategy/action-prefill";
+import {
+  ACTION_SOURCE_HEADER,
+  deriveActionSourceLabel,
+  deriveActionStrategicLinkage,
+  isActionSourceType,
+  parseStrategicLink,
+} from "@/lib/people-strategy/action-source";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "New action · Action Tracker" };
@@ -43,18 +51,7 @@ const PREFILLABLE_RELATED_TYPES = new Set([
 export default async function NewActionInTrackerPage({
   searchParams,
 }: {
-  searchParams?: Promise<{
-    template?: string;
-    relatedType?: string;
-    relatedId?: string;
-    title?: string;
-    desc?: string;
-    area?: string;
-    priority?: string;
-    type?: string;
-    dueInDays?: string;
-    fromMeeting?: string;
-  }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   // Feature flag: with ENABLE_ACTION_TRACKER off, the route is unreachable.
   if (!isActionTrackerEnabled()) notFound();
@@ -62,20 +59,28 @@ export default async function NewActionInTrackerPage({
   const viewer = await requirePageRoles([...OFFICER_TIER_ROLES]);
 
   const sp = (await searchParams) ?? {};
-  const templateId = sp.template;
+  const first = (v: string | string[] | undefined): string | undefined =>
+    Array.isArray(v) ? v[0] : v;
+  const templateId = first(sp.template);
+
+  // The honest 4.0 context (source provenance + strategic link + suggestions),
+  // parsed + lightly validated by the one tested reader.
+  const ctx = actionPrefillFromQuery(sp);
 
   // Optional related-entity prefill. Both params must be present and the type
   // must be prefillable; the entity is resolved + existence-checked server-side
   // so an invalid or stale link simply falls back to an unlinked form.
+  const relatedTypeParam = first(sp.relatedType);
+  const relatedIdParam = first(sp.relatedId);
   const relatedPromise =
-    sp.relatedType && sp.relatedId && PREFILLABLE_RELATED_TYPES.has(sp.relatedType)
-      ? loadRelatedEntitySummary(sp.relatedType, sp.relatedId)
+    relatedTypeParam && relatedIdParam && PREFILLABLE_RELATED_TYPES.has(relatedTypeParam)
+      ? loadRelatedEntitySummary(relatedTypeParam, relatedIdParam)
       : Promise.resolve(null);
 
   // Optional source-meeting prefill (a decision / recap CTA). Existence-checked
   // so a hand-edited / stale id falls back to an unlinked form instead of a
   // submit-time FK error.
-  const meetingIdParam = sp.fromMeeting?.trim() || null;
+  const meetingIdParam = first(sp.fromMeeting)?.trim() || null;
   const meetingPromise = meetingIdParam
     ? getMeetingById(meetingIdParam).catch(() => null)
     : Promise.resolve(null);
@@ -93,21 +98,59 @@ export default async function NewActionInTrackerPage({
   // Validated scalar prefill (title / description / area / priority / type / due
   // date). Anything malformed is dropped, so a bad URL never throws or leaks a
   // bogus value into the form.
-  const titleParam = typeof sp.title === "string" ? sp.title.trim().slice(0, 300) : "";
-  const descParam = typeof sp.desc === "string" ? sp.desc.trim().slice(0, 10_000) : "";
+  const titleParam = ctx.title ? ctx.title.slice(0, 300) : "";
+  const descParam = ctx.description ? ctx.description.slice(0, 10_000) : "";
+  const areaRaw = first(sp.area);
   const areaParam =
-    sp.area && isMeetingCategory(sp.area.trim().toUpperCase())
-      ? sp.area.trim().toUpperCase()
+    areaRaw && isMeetingCategory(areaRaw.trim().toUpperCase())
+      ? areaRaw.trim().toUpperCase()
       : null;
   const priorityParam =
-    sp.priority && (ACTION_PRIORITY_VALUES as readonly string[]).includes(sp.priority)
-      ? sp.priority
+    ctx.priority && (ACTION_PRIORITY_VALUES as readonly string[]).includes(ctx.priority)
+      ? ctx.priority
       : null;
-  const typeParam = sp.type && isActionType(sp.type) ? sp.type : null;
-  const dueInDaysRaw = Number.parseInt(sp.dueInDays ?? "", 10);
-  const deadlineStart = Number.isFinite(dueInDaysRaw)
-    ? toDateInputValue(addDays(new Date(), Math.max(0, Math.min(365, dueInDaysRaw))))
-    : null;
+  const typeRaw = first(sp.type);
+  const typeParam = typeRaw && isActionType(typeRaw) ? typeRaw : null;
+  const deadlineStart =
+    ctx.dueInDays != null
+      ? toDateInputValue(addDays(new Date(), ctx.dueInDays))
+      : null;
+
+  // Validate + resolve the EXPLICIT strategic link against the curated registry,
+  // so a bad id degrades to "no link" instead of a misleading chip.
+  const strategicParsed = parseStrategicLink({
+    strategicInitiativeId: ctx.strategicInitiativeId,
+    strategicProjectId: ctx.strategicProjectId,
+  });
+  const strategicLink = strategicParsed.ok
+    ? strategicParsed.link
+    : { initiativeId: null, projectId: null };
+  const linkage = deriveActionStrategicLinkage({
+    strategicInitiativeId: strategicLink.initiativeId,
+    strategicProjectId: strategicLink.projectId,
+  });
+  const strategicLinkLabel =
+    [linkage.initiativeTitle, linkage.projectTitle].filter(Boolean).join(" › ") || null;
+
+  // Resolve the source descriptor for the context-aware header + chip.
+  const sourceTypeParam = isActionSourceType(ctx.sourceType) ? ctx.sourceType : null;
+  const sourceLabel =
+    sourceTypeParam || sourceMeeting || ctx.sourceActionId || relatedSummary
+      ? deriveActionSourceLabel({
+          sourceType: sourceTypeParam,
+          officerMeetingId: sourceMeeting?.id ?? null,
+          sourceActionId: ctx.sourceActionId ?? null,
+          relatedEntityType: relatedSummary?.type ?? null,
+          relatedEntityId: relatedSummary?.id ?? null,
+        })
+      : null;
+  const sourceHeader = sourceTypeParam ? ACTION_SOURCE_HEADER[sourceTypeParam] : null;
+
+  // A suggested owner is honored only when it is a real assignable user.
+  const suggestedOwnerId =
+    ctx.suggestedOwnerId && users.some((u) => u.id === ctx.suggestedOwnerId)
+      ? ctx.suggestedOwnerId
+      : null;
 
   const prefillInitial: ActionItemFormInitial = {
     ...(titleParam ? { title: titleParam } : {}),
@@ -117,6 +160,21 @@ export default async function NewActionInTrackerPage({
     ...(typeParam ? { actionType: typeParam } : {}),
     ...(deadlineStart ? { deadlineStart } : {}),
     ...(sourceMeeting ? { officerMeetingId: sourceMeeting.id } : {}),
+    // --- Action System 4.0 honest context ---
+    ...(sourceTypeParam ? { sourceType: sourceTypeParam } : {}),
+    ...(ctx.sourceId ? { sourceId: ctx.sourceId } : {}),
+    ...(ctx.sourceActionId ? { sourceActionId: ctx.sourceActionId } : {}),
+    ...(strategicLink.initiativeId
+      ? { strategicInitiativeId: strategicLink.initiativeId }
+      : {}),
+    ...(strategicLink.projectId ? { strategicProjectId: strategicLink.projectId } : {}),
+    ...(ctx.successDefinition
+      ? { successDefinition: ctx.successDefinition.slice(0, 10_000) }
+      : {}),
+    ...(suggestedOwnerId ? { suggestedOwnerId } : {}),
+    ...(sourceLabel ? { sourceLabel } : {}),
+    ...(sourceHeader ? { sourceHeader } : {}),
+    ...(strategicLinkLabel ? { strategicLinkLabel } : {}),
   };
   const hasPrefill = Object.keys(prefillInitial).length > 0;
 
@@ -154,14 +212,18 @@ export default async function NewActionInTrackerPage({
         <div>
           <p className="badge">Action Tracker</p>
           <h1 className="page-title" style={{ marginTop: 8 }}>
-            New action item
+            {sourceHeader ?? "New action item"}
           </h1>
           <p className="page-subtitle">
-            {relatedSummary
-              ? `This action will be linked to ${relatedSummary.typeLabel.toLowerCase()} “${relatedSummary.label}.”`
-              : template
-                ? `Pre-filled from the “${template.name}” template — adjust anything before saving.`
-                : "Start from a template below, or fill in the form directly."}
+            {strategicLinkLabel
+              ? `This action ladders up to ${strategicLinkLabel} — it'll show on that strategy view.`
+              : relatedSummary
+                ? `This action will be linked to ${relatedSummary.typeLabel.toLowerCase()} “${relatedSummary.label}.”`
+                : sourceLabel
+                  ? `${sourceLabel} — fill in who owns it and what done means.`
+                  : template
+                    ? `Pre-filled from the “${template.name}” template — adjust anything before saving.`
+                    : "Start from a template below, or fill in the form directly."}
           </p>
         </div>
       </div>
