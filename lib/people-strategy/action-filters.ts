@@ -35,6 +35,17 @@ export type ActionTypeFilter = ActionType | "ALL";
 export type ActionDeadlineSort = "deadline_asc" | "deadline_desc" | "priority_desc";
 
 /**
+ * Where an action came from: generated from a meeting (carries officerMeetingId)
+ * vs. created by hand. Lets leadership separate "what our meetings put on the
+ * team" from ad-hoc work — the core of making meetings + actions feel connected.
+ */
+export type ActionSourceFilter = "ALL" | "meeting" | "manual";
+export const ACTION_SOURCE_LABELS: Record<Exclude<ActionSourceFilter, "ALL">, string> = {
+  meeting: "From a meeting",
+  manual: "Created manually",
+};
+
+/**
  * Strategic one-click "view presets" surfaced as chips on the Action Tracker
  * (and as quick links on the Command Center). Each is a saved *lens* over the
  * existing filter pipeline — it narrows the same already-visibility-checked
@@ -98,6 +109,8 @@ export type ActionFilters = {
   relatedType: ActionRelatedTypeFilter;
   /** Action type (OUTREACH / FOLLOW_UP / PARTNERSHIP / …), or "ALL". */
   actionType: ActionTypeFilter;
+  /** Origin: meeting-generated / manual, or "ALL". */
+  source: ActionSourceFilter;
   /** Free-text search over title / description / lead. */
   search: string;
   sort: ActionDeadlineSort;
@@ -112,6 +125,7 @@ export const ACTION_FILTER_DEFAULTS: ActionFilters = {
   visibility: "ALL",
   relatedType: "ALL",
   actionType: "ALL",
+  source: "ALL",
   search: "",
   sort: "deadline_asc",
   preset: "ALL",
@@ -125,6 +139,7 @@ export const ACTION_FILTER_PARAM_KEYS = {
   visibility: "vis",
   relatedType: "rel",
   actionType: "type",
+  source: "source",
   search: "q",
   sort: "sort",
   preset: "preset",
@@ -162,6 +177,7 @@ export function parseActionFilters(params: RawParams): ActionFilters {
   const department = firstValue(params[ACTION_FILTER_PARAM_KEYS.department]);
   const relatedType = firstValue(params[ACTION_FILTER_PARAM_KEYS.relatedType]);
   const actionType = firstValue(params[ACTION_FILTER_PARAM_KEYS.actionType]);
+  const source = firstValue(params[ACTION_FILTER_PARAM_KEYS.source]);
   const search = firstValue(params[ACTION_FILTER_PARAM_KEYS.search]) ?? "";
   const sort = firstValue(params[ACTION_FILTER_PARAM_KEYS.sort]);
   const preset = firstValue(params[ACTION_FILTER_PARAM_KEYS.preset]);
@@ -187,6 +203,7 @@ export function parseActionFilters(params: RawParams): ActionFilters {
     )
       ? (actionType as ActionType)
       : "ALL",
+    source: source === "meeting" || source === "manual" ? source : "ALL",
     search: search.trim(),
     sort:
       sort === "deadline_desc"
@@ -211,6 +228,7 @@ export function hasActiveFilters(filters: ActionFilters): boolean {
     filters.visibility !== "ALL" ||
     filters.relatedType !== "ALL" ||
     filters.actionType !== "ALL" ||
+    filters.source !== "ALL" ||
     filters.preset !== "ALL" ||
     filters.search !== ""
   );
@@ -402,6 +420,8 @@ export function applyActionFilters(
     if (filters.actionType !== "ALL" && item.actionType !== filters.actionType) {
       return false;
     }
+    if (filters.source === "meeting" && item.officerMeetingId == null) return false;
+    if (filters.source === "manual" && item.officerMeetingId != null) return false;
     if (!matchesActionPreset(item, filters.preset, now)) return false;
     if (!matchesSearch(item, filters.search)) return false;
     return true;
@@ -450,6 +470,9 @@ export function buildActionFilterQuery(filters: ActionFilters): string {
   }
   if (filters.actionType !== "ALL") {
     params.set(ACTION_FILTER_PARAM_KEYS.actionType, filters.actionType);
+  }
+  if (filters.source !== "ALL") {
+    params.set(ACTION_FILTER_PARAM_KEYS.source, filters.source);
   }
   if (filters.search) params.set(ACTION_FILTER_PARAM_KEYS.search, filters.search);
   if (filters.sort !== "deadline_asc") {
