@@ -8,8 +8,10 @@ import {
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { getStrategicInitiativeDossier } from "@/lib/people-strategy/strategic-initiative-queries";
+import { getProjectsForInitiative } from "@/lib/people-strategy/strategic-project-queries";
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
 import { buildInitiativeActionPrefill } from "@/lib/people-strategy/strategic-recommendations";
+import { ProjectCardGrid } from "@/components/people-strategy/strategic-projects";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import {
   CommandCenterSection,
@@ -51,6 +53,7 @@ export async function generateMetadata({
 const NAV_LINKS: Array<{ href: string; label: string }> = [
   { href: "#charter", label: "Architecture" },
   { href: "#workstreams", label: "Workstreams" },
+  { href: "#projects", label: "Projects" },
   { href: "#roadmap", label: "Roadmap" },
   { href: "#milestones", label: "Milestones" },
   { href: "#decisions", label: "Decisions" },
@@ -86,6 +89,7 @@ export default async function StrategicInitiativeDetailPage({
   if (!dossier || !def) notFound();
 
   const summary = dossier.summary;
+  const projects = await getProjectsForInitiative(initiativeId, viewer, { now });
   const newActionHref = buildInitiativeActionPrefill(def);
 
   return (
@@ -140,6 +144,27 @@ export default async function StrategicInitiativeDetailPage({
           hint={`${dossier.workstreams.length} program${dossier.workstreams.length === 1 ? "" : "s"}`}
         >
           <WorkstreamBoard workstreams={dossier.workstreams} />
+        </CommandCenterSection>
+      </section>
+
+      {/* 3.0 — Strategic projects under this initiative */}
+      <section id="projects" style={{ marginTop: 26 }}>
+        <CommandCenterSection
+          title="Strategic projects"
+          hint={
+            projects.length > 0 ? (
+              <Link href="/operations/projects" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
+                {projects.length} project{projects.length === 1 ? "" : "s"} →
+              </Link>
+            ) : (
+              "The concrete bodies of work that move this initiative"
+            )
+          }
+        >
+          <ProjectCardGrid
+            projects={projects}
+            emptyHint="No strategic projects are defined for this initiative yet. Add one in lib/people-strategy/strategic-projects.ts to run it as a tracked project."
+          />
         </CommandCenterSection>
       </section>
 

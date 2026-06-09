@@ -5,7 +5,13 @@ import ActionDetailCard, {
   type RelatedActionLite,
 } from "@/components/people-strategy/action-detail-card";
 import { getSession } from "@/lib/auth-supabase";
-import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
+import {
+  isActionTrackerEnabled,
+  isPeopleDashboardEnabled,
+  isStrategicInitiativesEnabled,
+} from "@/lib/feature-flags";
+import { deriveStrategicContextForAction } from "@/lib/people-strategy/strategic-context";
+import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
 import {
   getActionItemById,
   getActionsForEntity,
@@ -234,6 +240,11 @@ export default async function ActionDetailPage({ params }: PageProps) {
     .slice(0, 6)
     .map((a) => toLiteAction(a, now));
 
+  // Strategic context (3.0): which initiative / project does this action ladder
+  // up to? Pure derivation from the action's own fields — no DB, officer-only.
+  const strategicContext =
+    officer && isStrategicInitiativesEnabled() ? deriveStrategicContextForAction(item) : null;
+
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
       {/* Persistent tabs so the detail view is reachable-from / returns-to the
@@ -248,6 +259,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
         sameEntityActions={sameEntityActions}
         sameMeetingActions={sameMeetingActions}
       />
+      {strategicContext ? <StrategicContextSection context={strategicContext} kind="action" /> : null}
     </div>
   );
 }
