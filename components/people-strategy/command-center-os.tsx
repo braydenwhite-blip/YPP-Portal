@@ -5,6 +5,7 @@ import {
   actionPrefillToQuery,
   buildActionPrefillFromDecision,
 } from "@/lib/people-strategy/action-prefill";
+import { primaryEntityTypeForArea } from "@/lib/people-strategy/operational-context";
 import type {
   ActionLite,
   AreaHealthRow,
@@ -205,6 +206,12 @@ export function LeadershipRhythm() {
 
 // --- area health grid --------------------------------------------------------
 
+/** The filtered Action Tracker view for an area, or null when it has no entity. */
+export function areaDrilldownHref(area: AreaHealthRow["area"]): string | null {
+  const primary = primaryEntityTypeForArea(area);
+  return primary ? `/actions/all?rel=${primary}` : null;
+}
+
 export function AreaHealthGrid({ rows }: { rows: AreaHealthRow[] }) {
   if (rows.length === 0) {
     return <EmptyCard>No area activity yet — meetings and actions will populate this as they come online.</EmptyCard>;
@@ -217,23 +224,41 @@ export function AreaHealthGrid({ rows }: { rows: AreaHealthRow[] }) {
         gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
       }}
     >
-      {rows.map((row) => (
-        <div key={row.area} className="card" style={{ padding: "12px 14px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-            <strong style={{ fontSize: 14 }}>{row.areaLabel}</strong>
-            <OperationalHealthBadge health={row.health} />
+      {rows.map((row) => {
+        const href = areaDrilldownHref(row.area);
+        const inner = (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <strong style={{ fontSize: 14 }}>{row.areaLabel}</strong>
+              <OperationalHealthBadge health={row.health} />
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)", display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <span>{row.openActions} open</span>
+              {row.overdueActions > 0 ? (
+                <span style={{ color: "var(--error-color, #991b1b)" }}>{row.overdueActions} overdue</span>
+              ) : null}
+              <span>{row.meetingCount} mtg</span>
+              {row.upcomingMeetings > 0 ? <span>{row.upcomingMeetings} upcoming</span> : null}
+              {row.unresolvedFollowUps > 0 ? <span>{row.unresolvedFollowUps} follow-up</span> : null}
+            </div>
+          </>
+        );
+        return href ? (
+          <Link
+            key={row.area}
+            href={href}
+            className="card cc-focusable"
+            style={{ padding: "12px 14px", textDecoration: "none", color: "inherit", display: "block" }}
+            title={`Open ${row.areaLabel} actions`}
+          >
+            {inner}
+          </Link>
+        ) : (
+          <div key={row.area} className="card" style={{ padding: "12px 14px" }}>
+            {inner}
           </div>
-          <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)", display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <span>{row.openActions} open</span>
-            {row.overdueActions > 0 ? (
-              <span style={{ color: "var(--error-color, #991b1b)" }}>{row.overdueActions} overdue</span>
-            ) : null}
-            <span>{row.meetingCount} mtg</span>
-            {row.upcomingMeetings > 0 ? <span>{row.upcomingMeetings} upcoming</span> : null}
-            {row.unresolvedFollowUps > 0 ? <span>{row.unresolvedFollowUps} follow-up</span> : null}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

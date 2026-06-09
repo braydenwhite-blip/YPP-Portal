@@ -113,6 +113,18 @@ describe("AreaHealthGrid", () => {
     render(<AreaHealthGrid rows={[]} />);
     expect(screen.getByText(/No area activity yet/i)).toBeInTheDocument();
   });
+
+  it("drills an area with a primary entity into the filtered Action Tracker", () => {
+    const rows: AreaHealthRow[] = [
+      { area: "CLASSES", areaLabel: "Classes", health: computeOperationalHealth({ openActions: 1 }), openActions: 1, overdueActions: 0, meetingCount: 0, upcomingMeetings: 0, unresolvedFollowUps: 0, criticalEntities: 0 },
+      { area: "FINANCE", areaLabel: "Finance", health: computeOperationalHealth({ openActions: 1 }), openActions: 1, overdueActions: 0, meetingCount: 0, upcomingMeetings: 0, unresolvedFollowUps: 0, criticalEntities: 0 },
+    ];
+    render(<AreaHealthGrid rows={rows} />);
+    // Classes has a primary entity → clickable drilldown.
+    expect(screen.getByRole("link", { name: /Classes/ })).toHaveAttribute("href", "/actions/all?rel=CLASS_OFFERING");
+    // Finance has no shipped entity → not a link.
+    expect(screen.queryByRole("link", { name: /Finance/ })).toBeNull();
+  });
 });
 
 describe("MeetingFollowThroughCard", () => {
