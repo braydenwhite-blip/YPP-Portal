@@ -8,6 +8,11 @@ import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { toDateInputValue } from "@/lib/leadership-action-center/dates";
 import { parseMeetingCategory } from "./meeting-categories";
+import {
+  parseRelatedEntityRef,
+  parseRelatedEntityUpdate,
+  type RelatedEntityRef,
+} from "./constants";
 import { createActionItem } from "./action-items-actions";
 
 /**
@@ -71,6 +76,16 @@ function parseCategoryOrThrow(value: string | null | undefined): string | null {
   return parsed.value;
 }
 
+/** Validate the optional meeting → YPP entity link (both-or-neither, known type). */
+function parseRelatedRefOrThrow(
+  type: string | null | undefined,
+  id: string | null | undefined
+): RelatedEntityRef | null {
+  const parsed = parseRelatedEntityRef({ relatedEntityType: type, relatedEntityId: id });
+  if (!parsed.ok) throw new Error(parsed.error);
+  return parsed.ref;
+}
+
 // --- create meeting ----------------------------------------------------------
 
 const CreateMeetingSchema = z.object({
@@ -84,6 +99,8 @@ const CreateMeetingSchema = z.object({
   location: OptionalText,
   recurrence: z.enum(RECURRENCE_VALUES).default("NONE"),
   facilitatorId: OptionalId,
+  relatedEntityType: z.string().trim().optional(),
+  relatedEntityId: z.string().trim().optional(),
   attendeeIds: z.array(z.string().trim().min(1)).optional().default([]),
   agendaTitles: z.array(z.string().trim().min(1)).optional().default([]),
 });
@@ -98,6 +115,7 @@ export async function createMeeting(input: CreateMeetingInput) {
   const start = combineDateTime(data.date, data.startTime);
   const end = data.endTime ? combineDateTime(data.date, data.endTime) : null;
   const category = parseCategoryOrThrow(data.category);
+  const relatedRef = parseRelatedRefOrThrow(data.relatedEntityType, data.relatedEntityId);
 
   const created = await prisma.officerMeeting.create({
     data: {
@@ -110,6 +128,8 @@ export async function createMeeting(input: CreateMeetingInput) {
       location: data.location,
       recurrence: data.recurrence === "NONE" ? null : data.recurrence,
       facilitatorId: data.facilitatorId,
+      relatedEntityType: relatedRef?.type ?? null,
+      relatedEntityId: relatedRef?.id ?? null,
       attendees: data.attendeeIds.length
         ? {
             create: [...new Set(data.attendeeIds)].map((userId) => ({ userId })),
@@ -142,8 +162,22 @@ const UpdateMeetingSchema = z.object({
   location: OptionalText,
   recurrence: z.enum(RECURRENCE_VALUES).optional(),
   facilitatorId: OptionalId,
+  relatedEntityType: z.string().trim().optional(),
+  relatedEntityId: z.string().trim().optional(),
   status: z.enum(MEETING_STATUS_VALUES).optional(),
 });
+
+/** Map the related-entity update interpretation to a Prisma data fragment. */
+function relatedEntityUpdateData(input: {
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+}): { relatedEntityType?: string | null; relatedEntityId?: string | null } {
+  const update = parseRelatedEntityUpdate(input);
+  if (update.kind === "error") throw new Error(update.error);
+  if (update.kind === "unchanged") return {};
+  if (update.kind === "clear") return { relatedEntityType: null, relatedEntityId: null };
+  return { relatedEntityType: update.ref.type, relatedEntityId: update.ref.id };
+}
 
 export async function updateMeeting(input: z.input<typeof UpdateMeetingSchema>) {
   ensureEnabled();
@@ -172,6 +206,10 @@ export async function updateMeeting(input: z.input<typeof UpdateMeetingSchema>) 
             : data.recurrence
           : undefined,
       facilitatorId: data.facilitatorId ?? undefined,
+      ...relatedEntityUpdateData({
+        relatedEntityType: data.relatedEntityType,
+        relatedEntityId: data.relatedEntityId,
+      }),
       status: data.status,
     },
   });

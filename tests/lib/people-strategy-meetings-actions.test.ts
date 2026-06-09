@@ -84,6 +84,39 @@ describe("createMeeting", () => {
   it("requires a title", async () => {
     await expect(createMeeting({ title: "  ", date: "2026-06-12" })).rejects.toBeTruthy();
   });
+
+  it("links the meeting to a YPP entity when both ref fields are supplied", async () => {
+    await createMeeting({
+      title: "Class check-in",
+      date: "2026-06-12",
+      relatedEntityType: "CLASS_OFFERING",
+      relatedEntityId: "cls1",
+    });
+    const arg = officerMeeting.create.mock.calls[0][0];
+    expect(arg.data.relatedEntityType).toBe("CLASS_OFFERING");
+    expect(arg.data.relatedEntityId).toBe("cls1");
+  });
+
+  it("stores no entity link when neither ref field is supplied", async () => {
+    await createMeeting({ title: "Untied", date: "2026-06-12" });
+    const arg = officerMeeting.create.mock.calls[0][0];
+    expect(arg.data.relatedEntityType).toBeNull();
+    expect(arg.data.relatedEntityId).toBeNull();
+  });
+
+  it("rejects a half-specified entity link (type without id)", async () => {
+    await expect(
+      createMeeting({ title: "Bad", date: "2026-06-12", relatedEntityType: "CLASS_OFFERING" })
+    ).rejects.toThrow(/needs both a type and an id/);
+    expect(officerMeeting.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown entity link type", async () => {
+    await expect(
+      createMeeting({ title: "Bad", date: "2026-06-12", relatedEntityType: "WAT", relatedEntityId: "x" })
+    ).rejects.toThrow(/Unknown linked entity type/);
+    expect(officerMeeting.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("convertFollowUpToAction", () => {

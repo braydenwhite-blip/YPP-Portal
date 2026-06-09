@@ -45,13 +45,26 @@ import {
   fmtWeekday,
 } from "./meeting-ui";
 import type { PersonOption } from "./new-meeting-drawer";
+import { RelatedEntityBadge } from "./operational-badges";
+
+/** The portal context a meeting is connected to (resolved server-side). */
+export type MeetingRelatedContext = {
+  entityType: string;
+  entityLabel: string;
+  entityHref: string | null;
+  area: string;
+  openActions: Array<{ id: string; title: string; status: string; leadName: string }>;
+  otherMeetings: Array<{ id: string; title: string; dateISO: string }>;
+};
 
 export function MeetingDetailClient({
   meeting,
   people,
+  relatedContext = null,
 }: {
   meeting: MeetingDetailDTO;
   people: PersonOption[];
+  relatedContext?: MeetingRelatedContext | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -138,6 +151,54 @@ export function MeetingDetailClient({
 
         {/* SIDE */}
         <div className="detail-side" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {relatedContext ? (
+            <Card style={{ padding: "16px 17px" }}>
+              <SectionTitle icon="link">Related portal context</SectionTitle>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <RelatedEntityBadge
+                    type={relatedContext.entityType}
+                    label={relatedContext.entityLabel}
+                    href={relatedContext.entityHref}
+                  />
+                </div>
+                <div>
+                  <TinyLabel>Open actions for this {relatedContext.entityLabel}</TinyLabel>
+                  {relatedContext.openActions.length ? (
+                    <ul style={{ margin: "7px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
+                      {relatedContext.openActions.map((a) => (
+                        <li key={a.id} style={{ fontSize: 12.5, display: "flex", justifyContent: "space-between", gap: 8 }}>
+                          <Link href={`/actions/${a.id}`} style={{ color: "var(--ypp-ink)", fontWeight: 600, textDecoration: "none", minWidth: 0 }}>
+                            {a.title}
+                          </Link>
+                          <span style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{a.leadName}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "var(--muted)" }}>
+                      No open actions linked here yet.
+                    </p>
+                  )}
+                </div>
+                {relatedContext.otherMeetings.length ? (
+                  <div>
+                    <TinyLabel>Other meetings for this {relatedContext.entityLabel}</TinyLabel>
+                    <ul style={{ margin: "7px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
+                      {relatedContext.otherMeetings.map((m) => (
+                        <li key={m.id} style={{ fontSize: 12.5 }}>
+                          <Link href={`/actions/meetings/${m.id}`} style={{ color: "var(--ypp-ink)", fontWeight: 600, textDecoration: "none" }}>
+                            {m.title}
+                          </Link>
+                          <span style={{ color: "var(--muted)" }}> · {fmtWeekday(m.dateISO)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            </Card>
+          ) : null}
           <Card style={{ padding: "16px 17px" }}>
             <SectionTitle icon="calendar">Details</SectionTitle>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

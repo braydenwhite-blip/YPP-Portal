@@ -23,7 +23,7 @@ import {
   dueText,
   fmtDate,
 } from "./meeting-ui";
-import { NewMeetingDrawer, type PersonOption } from "./new-meeting-drawer";
+import { NewMeetingDrawer, type MeetingPrefill, type PersonOption } from "./new-meeting-drawer";
 
 export interface FollowQueueRow {
   id: string;
@@ -90,6 +90,8 @@ export function WeeklyCommandCenterClient({
   weekOffset,
   people,
   owners,
+  meetingPrefill,
+  autoOpenNew = false,
 }: {
   meetings: MeetingCardDTO[];
   metrics: DashboardMetrics;
@@ -101,10 +103,12 @@ export function WeeklyCommandCenterClient({
   weekOffset: number;
   people: PersonOption[];
   owners: PersonOption[];
+  meetingPrefill?: MeetingPrefill;
+  autoOpenNew?: boolean;
 }) {
   const [q, setQ] = useState("");
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const [showNew, setShowNew] = useState(false);
+  const [showNew, setShowNew] = useState(autoOpenNew);
 
   const anyFilter =
     !!q || !!filters.status || !!filters.category || !!filters.owner || filters.overdue || filters.hasActions;
@@ -289,7 +293,9 @@ export function WeeklyCommandCenterClient({
         </>
       )}
 
-      {showNew && <NewMeetingDrawer people={people} onClose={() => setShowNew(false)} />}
+      {showNew && (
+        <NewMeetingDrawer people={people} prefill={meetingPrefill} onClose={() => setShowNew(false)} />
+      )}
     </div>
   );
 }
