@@ -9,6 +9,7 @@ vi.mock("@/lib/prisma", () => ({
     officerMeeting: { create: vi.fn() },
     meetingFollowUp: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
     meetingAgendaItem: { findUnique: vi.fn(), update: vi.fn() },
+    meetingDecision: { findUnique: vi.fn(), update: vi.fn() },
   },
 }));
 
@@ -17,6 +18,7 @@ import { createActionItem } from "@/lib/people-strategy/action-items-actions";
 import { prisma } from "@/lib/prisma";
 import {
   addFollowUp,
+  convertDecisionToAction,
   convertFollowUpToAction,
   createMeeting,
 } from "@/lib/people-strategy/meetings-actions";
@@ -24,6 +26,10 @@ import {
 const officerMeeting = prisma.officerMeeting as unknown as { create: ReturnType<typeof vi.fn> };
 const followUp = prisma.meetingFollowUp as unknown as {
   create: ReturnType<typeof vi.fn>;
+  findUnique: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
+};
+const decision = prisma.meetingDecision as unknown as {
   findUnique: ReturnType<typeof vi.fn>;
   update: ReturnType<typeof vi.fn>;
 };
@@ -35,6 +41,7 @@ beforeEach(() => {
   officerMeeting.create.mockResolvedValue({ id: "m1" });
   followUp.create.mockResolvedValue({ id: "f1" });
   followUp.update.mockResolvedValue({ officerMeetingId: "m1" });
+  decision.update.mockResolvedValue({ officerMeetingId: "m1" });
 });
 
 afterEach(() => vi.clearAllMocks());
@@ -174,6 +181,59 @@ describe("convertFollowUpToAction", () => {
       officerMeeting: { id: "m1", date: new Date(), category: null, facilitatorId: null },
     });
     const res = await convertFollowUpToAction("f3");
+    expect(res).toEqual({ id: "act_existing" });
+    expect(createActionItem).not.toHaveBeenCalled();
+  });
+});
+
+describe("convertDecisionToAction", () => {
+  it("creates a linked, entity-aware action from a decision and stores its id", async () => {
+    decision.findUnique.mockResolvedValue({
+      id: "d1",
+      decision: "Email Lincoln HS about the spring cohort",
+      rationale: "They asked for dates",
+      linkedActionId: null,
+      decidedById: "dec1",
+      officerMeeting: {
+        id: "m1",
+        title: "Partnerships Sync",
+        date: new Date("2026-06-08T18:00:00"),
+        category: "PARTNERSHIPS",
+        facilitatorId: "fac1",
+        relatedEntityType: "PARTNER",
+        relatedEntityId: "p1",
+      },
+    });
+
+    const res = await convertDecisionToAction("d1");
+    expect(res).toEqual({ id: "act_new" });
+
+    const actionArg = vi.mocked(createActionItem).mock.calls[0][0] as Record<string, unknown>;
+    expect(actionArg.title).toBe("Email Lincoln HS about the spring cohort");
+    expect(actionArg.officerMeetingId).toBe("m1");
+    expect(actionArg.leadId).toBe("dec1"); // decidedBy wins for the lead
+    expect(actionArg.relatedEntityType).toBe("PARTNER");
+    expect(actionArg.relatedEntityId).toBe("p1");
+    expect(actionArg.goalCategory).toBe("PARTNERSHIPS");
+    expect(actionArg.actionType).toBe("FOLLOW_UP");
+    expect(actionArg.description).toContain("Rationale: They asked for dates");
+
+    expect(decision.update).toHaveBeenCalledWith({
+      where: { id: "d1" },
+      data: { linkedActionId: "act_new" },
+    });
+  });
+
+  it("is idempotent — an already-linked decision skips creation", async () => {
+    decision.findUnique.mockResolvedValue({
+      id: "d2",
+      decision: "Already done",
+      rationale: null,
+      linkedActionId: "act_existing",
+      decidedById: null,
+      officerMeeting: { id: "m1", title: null, date: new Date(), category: null, facilitatorId: null, relatedEntityType: null, relatedEntityId: null },
+    });
+    const res = await convertDecisionToAction("d2");
     expect(res).toEqual({ id: "act_existing" });
     expect(createActionItem).not.toHaveBeenCalled();
   });

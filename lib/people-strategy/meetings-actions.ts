@@ -6,13 +6,15 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
-import { toDateInputValue } from "@/lib/leadership-action-center/dates";
+import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
 import { parseMeetingCategory } from "./meeting-categories";
 import {
+  DEFAULT_ACTION_DEADLINE_DAYS,
   parseRelatedEntityRef,
   parseRelatedEntityUpdate,
   type RelatedEntityRef,
 } from "./constants";
+import { buildActionPrefillFromDecision } from "./action-prefill";
 import { createActionItem } from "./action-items-actions";
 
 /**
@@ -334,6 +336,74 @@ export async function deleteDecision(id: string) {
     select: { officerMeetingId: true },
   });
   revalidate(dec.officerMeetingId);
+}
+
+/**
+ * Turn a meeting decision into a tracked Action Item — the decision → execution
+ * bridge so calls made in a meeting don't die. Mirrors
+ * {@link convertFollowUpToAction}: creates a real `ActionItem` (via the shared
+ * `createActionItem`) linked to this meeting AND, when the meeting points at a
+ * YPP entity, to that entity, prefilled from the decision text/rationale; then
+ * stores the new action's id back on the decision. Idempotent — a decision that
+ * already has a linked action returns it unchanged.
+ */
+export async function convertDecisionToAction(decisionId: string) {
+  ensureEnabled();
+  const session = await requireOfficer();
+  if (!decisionId) throw new Error("decisionId required");
+
+  const dec = await prisma.meetingDecision.findUnique({
+    where: { id: decisionId },
+    include: {
+      officerMeeting: {
+        select: {
+          id: true,
+          title: true,
+          date: true,
+          category: true,
+          facilitatorId: true,
+          relatedEntityType: true,
+          relatedEntityId: true,
+        },
+      },
+    },
+  });
+  if (!dec) throw new Error("Decision not found");
+  if (dec.linkedActionId) return { id: dec.linkedActionId };
+
+  const prefill = buildActionPrefillFromDecision({
+    decision: dec.decision,
+    rationale: dec.rationale,
+    meetingId: dec.officerMeeting.id,
+    meetingTitle: dec.officerMeeting.title,
+    meetingCategory: dec.officerMeeting.category,
+    relatedEntityType: dec.officerMeeting.relatedEntityType,
+    relatedEntityId: dec.officerMeeting.relatedEntityId,
+  });
+
+  const leadId = dec.decidedById ?? dec.officerMeeting.facilitatorId ?? session.id;
+  const deadline = addDays(new Date(), prefill.dueInDays ?? DEFAULT_ACTION_DEADLINE_DAYS);
+
+  const action = await createActionItem({
+    title: prefill.title ?? dec.decision,
+    description: prefill.description ?? undefined,
+    leadId,
+    priority: prefill.priority ?? "MEDIUM",
+    deadlineStart: toDateInputValue(deadline),
+    officerMeetingId: dec.officerMeeting.id,
+    actionType: prefill.actionType,
+    goalCategory: prefill.area,
+    relatedEntityType: prefill.relatedType,
+    relatedEntityId: prefill.relatedId,
+  });
+
+  await prisma.meetingDecision.update({
+    where: { id: decisionId },
+    data: { linkedActionId: action.id },
+  });
+
+  revalidate(dec.officerMeeting.id);
+  return { id: action.id };
 }
 
 // --- follow-ups --------------------------------------------------------------
