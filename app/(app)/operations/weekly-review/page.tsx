@@ -7,13 +7,18 @@ import {
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { getWeeklyReviewForViewer } from "@/lib/people-strategy/operational-digest-queries";
+import { selectProjectAttentionQueue } from "@/lib/people-strategy/strategic-project-attention";
+import { getStrategicCommandData } from "@/lib/people-strategy/strategic-project-queries";
 import {
   ActionUrgencyList,
+  CommandCenterSection,
   DecisionFollowThroughCard,
   EmptyCard,
   EntityHealthList,
   MeetingFollowThroughCard,
 } from "@/components/people-strategy/command-center-os";
+import { StrategicLeadershipAgenda } from "@/components/people-strategy/strategic-command";
+import { StrategicAttentionQueue } from "@/components/people-strategy/strategic-projects";
 import { StrategicWorkspaceHeader } from "@/components/people-strategy/strategic-workspace-nav";
 import {
   nextReviewDate,
@@ -69,6 +74,23 @@ export default async function WeeklyReviewPage({
   const { digest, triage } = await getWeeklyReviewForViewer(viewer, { now });
   const healthEntities = [...digest.criticalEntities, ...digest.staleEntities];
 
+  // Strategic layer (flag-gated) — leadership reviews strategy before working
+  // the operational triage. Byte-for-byte unchanged when the flag is off.
+  const strategic = isStrategicInitiativesEnabled()
+    ? await getStrategicCommandData(viewer, { now }).catch(() => null)
+    : null;
+  const strategicReviewQueue = strategic
+    ? selectProjectAttentionQueue(
+        [
+          ...strategic.projectsNeedingAttention,
+          ...strategic.blockedProjects,
+          ...strategic.staleProjects,
+          ...strategic.unownedProjects,
+        ],
+        6,
+      )
+    : [];
+
   const triageIds = new Set(
     [...triage.overdue, ...triage.blocked, ...triage.unassigned, ...triage.dueSoon].map((a) => a.id)
   );
@@ -89,7 +111,29 @@ export default async function WeeklyReviewPage({
         subtitle="A guided pass through what needs a decision this week — work the steps in order."
       />
 
-      <div style={{ marginTop: 16 }}>
+      {strategic ? (
+        <section style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+          <CommandCenterSection
+            title="Strategic review agenda"
+            hint="Discuss these before working the triage steps"
+          >
+            <StrategicLeadershipAgenda
+              moves={strategic.recommendedMoves}
+              emptyHint="No strategic decisions are pending this week. Work the operational triage below to keep execution clean."
+            />
+          </CommandCenterSection>
+          {strategicReviewQueue.length > 0 ? (
+            <CommandCenterSection
+              title="Projects to review"
+              hint={`${strategicReviewQueue.length} need a look`}
+            >
+              <StrategicAttentionQueue items={strategicReviewQueue} />
+            </CommandCenterSection>
+          ) : null}
+        </section>
+      ) : null}
+
+      <div style={{ marginTop: 22 }}>
         <WeeklyReviewStepper activeKey={step} counts={counts} />
       </div>
 

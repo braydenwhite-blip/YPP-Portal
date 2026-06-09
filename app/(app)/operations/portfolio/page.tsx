@@ -8,6 +8,7 @@ import {
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { getStrategicPortfolioData } from "@/lib/people-strategy/strategic-initiative-queries";
+import { selectProjectAttentionQueue } from "@/lib/people-strategy/strategic-project-attention";
 import { getStrategicProjectPortfolio } from "@/lib/people-strategy/strategic-project-queries";
 import { CommandCenterSection } from "@/components/people-strategy/command-center-os";
 import {
@@ -22,6 +23,7 @@ import {
 import {
   ProjectCardGrid,
   ProjectStatStrip,
+  StrategicAttentionQueue,
 } from "@/components/people-strategy/strategic-projects";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +48,7 @@ export default async function InitiativePortfolioPage() {
   const data = await getStrategicPortfolioData(viewer, { now });
   const projectData = await getStrategicProjectPortfolio(viewer, { now });
   const stats = data.portfolio.stats;
+  const projectAttentionQueue = selectProjectAttentionQueue(projectData.projects);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
@@ -80,12 +83,12 @@ export default async function InitiativePortfolioPage() {
         >
           <div style={{ display: "grid", gap: 16 }}>
             <ProjectStatStrip stats={projectData.stats} />
-            {projectData.needingAttention.length > 0 ? (
+            {projectAttentionQueue.length > 0 ? (
               <div>
                 <h3 className="ps-section-title" style={{ margin: "0 0 8px", fontSize: 13 }}>
-                  Projects needing attention
+                  Where to look first
                 </h3>
-                <ProjectCardGrid projects={projectData.needingAttention} />
+                <StrategicAttentionQueue items={projectAttentionQueue} />
               </div>
             ) : null}
             <div>

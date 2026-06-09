@@ -25,7 +25,10 @@ import {
   ProjectWhatMattersPanel,
   StrategicAttentionQueue,
 } from "@/components/people-strategy/strategic-projects";
-import { StrategicCommandSection } from "@/components/people-strategy/strategic-command";
+import {
+  StrategicCommandSection,
+  StrategicLeadershipAgenda,
+} from "@/components/people-strategy/strategic-command";
 import { TouchpointTimelineView } from "@/components/people-strategy/touchpoint-timeline";
 
 import { action, decision, emptyLabels, meetingCard, NOW } from "../lib/strategic-helpers";
@@ -210,6 +213,24 @@ describe("TouchpointTimelineView", () => {
     const timeline = deriveTouchpointTimeline({ context: {}, now: NOW });
     render(<TouchpointTimelineView timeline={timeline} emptyHint="Nothing here yet." />);
     expect(screen.getByText("Nothing here yet.")).toBeInTheDocument();
+  });
+});
+
+describe("StrategicLeadershipAgenda", () => {
+  const moves = [
+    { id: "mv1", title: "Unblock Beth El Pilot", detail: "Clear the overdue work", href: "/x", severity: "critical" as const },
+    { id: "mv2", title: "Assign an owner to Mohawk", detail: "No accountable owner", href: "/y", severity: "warning" as const },
+  ];
+
+  it("renders the moves as a numbered, linked agenda", () => {
+    render(<StrategicLeadershipAgenda moves={moves} />);
+    expect(screen.getByRole("link", { name: /Unblock Beth El Pilot/ })).toHaveAttribute("href", "/x");
+    expect(screen.getByText("Assign an owner to Mohawk")).toBeInTheDocument();
+  });
+
+  it("renders an honest empty state with no moves", () => {
+    render(<StrategicLeadershipAgenda moves={[]} />);
+    expect(screen.getByText(/Nothing needs a leadership decision this week/)).toBeInTheDocument();
   });
 });
 
