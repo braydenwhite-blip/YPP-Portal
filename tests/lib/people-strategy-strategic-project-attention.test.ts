@@ -13,6 +13,7 @@ import type { StrategicProjectDef } from "@/lib/people-strategy/strategic-projec
 import {
   deriveProjectAttentionItem,
   deriveProjectCta,
+  deriveProjectStakes,
   selectProjectAttentionQueue,
 } from "@/lib/people-strategy/strategic-project-attention";
 
@@ -65,6 +66,16 @@ describe("deriveProjectCta", () => {
     const cta = deriveProjectCta(overdueSummary());
     expect(cta.label).not.toBe("View");
     expect(cta.label).not.toBe("Details");
+  });
+});
+
+describe("deriveProjectStakes", () => {
+  it("explains that an untracked project is invisible until it has work", () => {
+    expect(deriveProjectStakes(summaryFor(bethEl))).toMatch(/Nothing is tracked yet/);
+  });
+
+  it("warns that overdue work keeps slipping when nothing changes", () => {
+    expect(deriveProjectStakes(overdueSummary())).toMatch(/slipping|slides/);
   });
 });
 

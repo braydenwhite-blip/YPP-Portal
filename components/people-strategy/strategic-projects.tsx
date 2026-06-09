@@ -18,9 +18,11 @@ import type {
   ProjectDependencyView,
   ProjectMeetingIntelligence,
 } from "@/lib/people-strategy/strategic-project-timeline";
-import type {
-  ProjectAttentionItem,
-  ProjectAttentionSeverity,
+import {
+  deriveProjectCta,
+  deriveProjectStakes,
+  type ProjectAttentionItem,
+  type ProjectAttentionSeverity,
 } from "@/lib/people-strategy/strategic-project-attention";
 
 import { EmptyCard } from "./command-center-os";
@@ -382,6 +384,106 @@ export function ProjectHeaderPanel({ project }: { project: ProjectSummary }) {
         <StatCard label="Blocked" value={p.counts.blockedActions} icon="alert" tone={p.counts.blockedActions > 0 ? "warning" : "default"} />
         <StatCard label="Meetings" value={p.counts.meetingCount} icon="calendar" />
         <StatCard label="Decision gaps" value={p.counts.decisionsWithoutAction} icon="check" tone={p.counts.decisionsWithoutAction > 0 ? "warning" : "default"} />
+      </div>
+    </div>
+  );
+}
+
+// --- what matters now --------------------------------------------------------
+
+function WhatMattersFacet({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 11,
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          fontWeight: 700,
+          color: "var(--text-secondary)",
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.5 }}>{children}</div>
+    </div>
+  );
+}
+
+/**
+ * "What matters now" — the single focal panel directly under the project hero.
+ * It answers, in one read: what the project is driving, where it stands, the one
+ * thing that needs to happen next (with its specific CTA), who needs to act, and
+ * what happens if nothing changes. Everything is derived; nothing is invented.
+ */
+export function ProjectWhatMattersPanel({ project }: { project: ProjectSummary }) {
+  const p = project;
+  const cta = deriveProjectCta(p);
+  const stakes = deriveProjectStakes(p);
+  const topMove = p.nextMoves[0];
+  return (
+    <div
+      className="card"
+      style={{ padding: 18, borderLeft: `4px solid ${healthBorder(p.health)}`, display: "grid", gap: 16 }}
+    >
+      <div>
+        <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, lineHeight: 1.5 }}>{p.charter.purpose}</p>
+        <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.55 }}>
+          {p.statusExplanation.headline}
+        </p>
+      </div>
+
+      <div
+        style={{
+          padding: "12px 14px",
+          borderRadius: "var(--radius-md, 12px)",
+          background: "var(--ps-accent-soft, rgba(107, 33, 200, 0.06))",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+              fontWeight: 700,
+              color: "var(--ypp-purple, #6b21c8)",
+            }}
+          >
+            What needs to happen next
+          </div>
+          <div style={{ marginTop: 3, fontSize: 13.5, fontWeight: 600 }}>
+            {topMove ? topMove.title : "Keep the operating cadence — nothing is urgent right now."}
+          </div>
+          {topMove ? (
+            <div style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>{topMove.detail}</div>
+          ) : null}
+        </div>
+        <Link href={cta.href} className="button primary small" style={{ flexShrink: 0 }}>
+          {cta.label}
+        </Link>
+      </div>
+
+      <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+        <WhatMattersFacet label="Who needs to act">
+          {p.owner ? (
+            <strong>{p.owner}</strong>
+          ) : (
+            <span style={{ color: "var(--warning-color, #854d0e)", fontWeight: 600 }}>No owner assigned</span>
+          )}
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{p.ownership.reason}</div>
+        </WhatMattersFacet>
+        <WhatMattersFacet label="If nothing changes">
+          <span style={{ color: "var(--text-secondary)" }}>{stakes}</span>
+        </WhatMattersFacet>
+        <WhatMattersFacet label="What success looks like">
+          <span style={{ color: "var(--text-secondary)" }}>{p.charter.targetOutcome}</span>
+        </WhatMattersFacet>
       </div>
     </div>
   );

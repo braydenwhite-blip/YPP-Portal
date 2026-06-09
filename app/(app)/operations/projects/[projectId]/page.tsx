@@ -23,6 +23,7 @@ import {
   ProjectMeetingIntelligencePanel,
   ProjectNextMovesPanel,
   ProjectReviewCard,
+  ProjectWhatMattersPanel,
 } from "@/components/people-strategy/strategic-projects";
 import { TouchpointTimelineView } from "@/components/people-strategy/touchpoint-timeline";
 
@@ -105,9 +106,19 @@ export default async function StrategicProjectDetailPage({
         ))}
       </nav>
 
-      {/* Header */}
+      {/* What matters now — the focal panel directly under the hero */}
       <section style={{ marginTop: 18 }}>
-        <CommandCenterSection title="Project header" hint={p.statusExplanation.headline}>
+        <CommandCenterSection
+          title="What matters now"
+          hint={p.reviewNeed.needed ? `Review ${p.reviewNeed.urgency}` : "On cadence"}
+        >
+          <ProjectWhatMattersPanel project={p} />
+        </CommandCenterSection>
+      </section>
+
+      {/* Vitals */}
+      <section style={{ marginTop: 26 }}>
+        <CommandCenterSection title="Project vitals" hint="Health · confidence · momentum · ownership · progress">
           <ProjectHeaderPanel project={p} />
         </CommandCenterSection>
       </section>

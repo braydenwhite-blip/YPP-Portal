@@ -78,6 +78,37 @@ export function deriveProjectCta(project: ProjectSummary): ProjectCta {
   return { kind: "open_project", label: CTA_LABELS.open_project, href: project.href };
 }
 
+/**
+ * The honest "what happens if nothing changes" line for a project. Reads the
+ * dominant signal the summary already carries — never invents a consequence the
+ * data does not support.
+ */
+export function deriveProjectStakes(project: ProjectSummary): string {
+  if (!project.hasWork) {
+    return "Nothing is tracked yet, so there is no signal of movement — without a first linked action this project stays invisible to the operating system.";
+  }
+  const criticalBlocker = project.blockers.find(
+    (b) => b.kind === "observed" && b.severity === "critical",
+  );
+  if (project.health.level === "critical" || criticalBlocker) {
+    return "If nothing changes, this project misses its target and puts the work that depends on it at risk.";
+  }
+  if (project.counts.overdueActions > 0) {
+    const n = project.counts.overdueActions;
+    return `If nothing changes, ${n} overdue action${n === 1 ? "" : "s"} keep slipping and the target date slides with them.`;
+  }
+  if (project.ownership.clarity === "unowned" || project.ownership.clarity === "unclear") {
+    return "With no clear owner, the next move has nobody accountable for it — the project drifts by default.";
+  }
+  if (project.momentum.level === "stalled") {
+    return "Momentum has stalled; without a deliberate push the project stays parked where it is.";
+  }
+  if (project.counts.decisionsWithoutAction > 0) {
+    return "Decisions made here will not become outcomes until they are converted into owned action.";
+  }
+  return "On track — the main risk now is losing momentum if it stops getting regular attention.";
+}
+
 export type ProjectAttentionSeverity = "critical" | "warning" | "watch";
 
 export type ProjectAttentionItem = {

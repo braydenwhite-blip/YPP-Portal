@@ -22,6 +22,7 @@ import {
   ProjectExecutionSpine,
   ProjectReviewCard,
   ProjectStatStrip,
+  ProjectWhatMattersPanel,
   StrategicAttentionQueue,
 } from "@/components/people-strategy/strategic-projects";
 import { StrategicCommandSection } from "@/components/people-strategy/strategic-command";
@@ -117,6 +118,17 @@ describe("ProjectStatStrip", () => {
     expect(screen.getByText("Projects")).toBeInTheDocument();
     expect(screen.getByText("Blocked")).toBeInTheDocument();
     expect(screen.getByText("No work yet")).toBeInTheDocument();
+  });
+});
+
+describe("ProjectWhatMattersPanel", () => {
+  it("answers what's next, who acts, and what happens if nothing changes", () => {
+    render(<ProjectWhatMattersPanel project={buildSummary()} />);
+    expect(screen.getByText("What needs to happen next")).toBeInTheDocument();
+    expect(screen.getByText("Who needs to act")).toBeInTheDocument();
+    expect(screen.getByText("If nothing changes")).toBeInTheDocument();
+    expect(screen.getByText("What success looks like")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Clear blocker" })).toBeInTheDocument();
   });
 });
 
