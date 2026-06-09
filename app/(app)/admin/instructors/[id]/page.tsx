@@ -19,9 +19,9 @@ import {
   isActionTrackerEnabled,
   isOperationsHubEnabled,
 } from "@/lib/feature-flags";
-import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
-import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
+import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
 import { getLatestQuarterlyReview } from "@/lib/people-strategy/quarterly-review-actions";
 import { loadProvisionalStatus } from "@/lib/people-strategy/provisional";
 import { loadMemberPeopleStrategy } from "@/lib/people-strategy/member-people-detail";
@@ -91,9 +91,9 @@ export default async function AdminInstructorProfilePage({
     primaryRole: session?.user?.primaryRole ?? null,
     adminSubtypes: session?.user?.adminSubtypes ?? [],
   };
-  const personActions = operationsEnabled
-    ? await getActionsForEntity("USER", id, operationsViewer)
-    : [];
+  const opsContext = operationsEnabled
+    ? await getOperationalContextForEntity("USER", id, operationsViewer)
+    : null;
   const canCreatePersonAction = canCreateAction(operationsViewer);
 
   // Confidential feedback responses — ONLY for Leadership/Board. The loader enforces
@@ -453,14 +453,20 @@ export default async function AdminInstructorProfilePage({
         />
       )}
 
-      {operationsEnabled && (
-        <LinkedActionsPanel
-          actions={personActions}
-          heading="Linked actions for this person"
-          createHref={`/actions/new?relatedType=USER&relatedId=${id}`}
-          createLabel="Create action for this person"
+      {operationsEnabled && opsContext && (
+        <OperationalContextPanel
+          title="Instructor Accountability"
+          subtitle="Meetings & actions about this instructor"
+          health={opsContext.health}
+          meetings={opsContext.meetings}
+          actions={opsContext.actions}
+          openFollowUps={opsContext.openFollowUps}
+          recentDecisions={opsContext.recentDecisions}
           canCreate={canCreatePersonAction}
-          emptyHint="No Action Tracker items are linked to this person yet."
+          createActionHref={`/actions/new?relatedType=USER&relatedId=${id}`}
+          createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
+          emptyActionsHint="No Action Tracker items are linked to this instructor yet."
+          emptyMeetingsHint="This instructor hasn't been the focus of a tracked meeting yet."
         />
       )}
 

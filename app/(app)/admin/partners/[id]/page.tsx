@@ -11,8 +11,8 @@ import {
 import { updatePartner, addPartnerNote } from "@/lib/partners-actions";
 import { matchInstructorsForPartner } from "@/lib/partner-instructor-matching";
 import { PersonLink } from "@/components/people-strategy/person-link";
-import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
-import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
+import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import {
   isActionTrackerEnabled,
@@ -81,7 +81,7 @@ export default async function PartnerProfilePage({
     adminSubtypes: session?.user?.adminSubtypes ?? [],
   };
 
-  const [notes, leads, matchResult, linkedActions] = await Promise.all([
+  const [notes, leads, matchResult, opsContext] = await Promise.all([
     listPartnerNotes(id),
     listRelationshipLeadOptions(),
     matchInstructorsForPartner({
@@ -89,8 +89,8 @@ export default async function PartnerProfilePage({
       requestedAgeGroups: partner.requestedAgeGroups,
     }),
     trackerEnabled
-      ? getActionsForEntity("PARTNER", id, viewer)
-      : Promise.resolve([]),
+      ? getOperationalContextForEntity("PARTNER", id, viewer)
+      : Promise.resolve(null),
   ]);
   const authorNames = await resolveAuthorNames(notes.map((n) => n.authorId));
   const canCreate = canCreateAction(viewer);
@@ -276,15 +276,21 @@ export default async function PartnerProfilePage({
             )}
           </section>
 
-          {/* Related actions */}
-          {trackerEnabled ? (
-            <LinkedActionsPanel
-              actions={linkedActions}
-              heading="Related actions"
-              createHref={`/actions/new?relatedType=PARTNER&relatedId=${partner.id}`}
-              createLabel="Create action for this partner"
+          {/* Partner operations: related meetings + actions */}
+          {trackerEnabled && opsContext ? (
+            <OperationalContextPanel
+              title="Partnership Operations"
+              subtitle={partner.name}
+              health={opsContext.health}
+              meetings={opsContext.meetings}
+              actions={opsContext.actions}
+              openFollowUps={opsContext.openFollowUps}
+              recentDecisions={opsContext.recentDecisions}
               canCreate={canCreate}
-              emptyHint="No actions are linked to this partner yet. Add a follow-up so it doesn't go cold."
+              createActionHref={`/actions/new?relatedType=PARTNER&relatedId=${partner.id}`}
+              createMeetingHref={`/actions/meetings?new=1&relatedType=PARTNER&relatedId=${partner.id}`}
+              emptyActionsHint="No actions are linked to this partner yet. Add a follow-up so it doesn't go cold."
+              emptyMeetingsHint="No outreach meeting has been tracked for this partner yet."
             />
           ) : null}
 

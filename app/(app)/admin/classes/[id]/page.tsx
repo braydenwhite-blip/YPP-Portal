@@ -20,10 +20,10 @@ import { listPartnerOptions } from "@/lib/partners-queries";
 import { setClassPartner } from "@/lib/partners-actions";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
-import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import { getMenteeSupport } from "@/lib/people-strategy/connections";
-import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
+import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
 import {
   getClassFeedbackSummary,
   getClassOutcome,
@@ -82,12 +82,12 @@ export default async function AdminClassDetailPage({
     primaryRole: session?.user?.primaryRole ?? null,
     adminSubtypes: session?.user?.adminSubtypes ?? [],
   };
-  const [linkedActions, leadSupport] = operationsEnabled
+  const [opsContext, leadSupport] = operationsEnabled
     ? await Promise.all([
-        getActionsForEntity("CLASS_OFFERING", id, viewer),
+        getOperationalContextForEntity("CLASS_OFFERING", id, viewer),
         getMenteeSupport(detail.instructor.id),
       ])
-    : [[], null];
+    : [null, null];
   const canCreate = canCreateAction(viewer);
 
   const approvalStatus = detail.approval?.status ?? "NOT_REQUESTED";
@@ -176,14 +176,20 @@ export default async function AdminClassDetailPage({
             </Section>
           )}
 
-          {operationsEnabled && (
-            <LinkedActionsPanel
-              actions={linkedActions}
-              heading="Class actions"
-              createHref={`/actions/new?relatedType=CLASS_OFFERING&relatedId=${detail.id}`}
-              createLabel="Create action for this class"
+          {operationsEnabled && opsContext && (
+            <OperationalContextPanel
+              title="Class Operations"
+              subtitle={detail.title}
+              health={opsContext.health}
+              meetings={opsContext.meetings}
+              actions={opsContext.actions}
+              openFollowUps={opsContext.openFollowUps}
+              recentDecisions={opsContext.recentDecisions}
               canCreate={canCreate}
-              emptyHint="No actions are linked to this class yet."
+              createActionHref={`/actions/new?relatedType=CLASS_OFFERING&relatedId=${detail.id}`}
+              createMeetingHref={`/actions/meetings?new=1&relatedType=CLASS_OFFERING&relatedId=${detail.id}`}
+              emptyActionsHint="No open actions are connected to this class yet."
+              emptyMeetingsHint="This class hasn't been discussed in a tracked meeting yet."
             />
           )}
 
