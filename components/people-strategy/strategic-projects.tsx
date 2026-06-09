@@ -550,7 +550,7 @@ export function ProjectMeetingIntelligencePanel({ intel }: { intel: ProjectMeeti
       {intel.nextMeetingRecommended ? (
         <div className="card" style={{ padding: "10px 14px", borderLeft: "3px solid var(--warning-color, #854d0e)" }}>
           <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
-            There's open work but no recent meeting — recommend scheduling a working session.
+            There&apos;s open work but no recent meeting — recommend scheduling a working session.
           </span>
         </div>
       ) : null}

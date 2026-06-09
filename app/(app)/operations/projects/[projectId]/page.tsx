@@ -163,7 +163,7 @@ export default async function StrategicProjectDetailPage({
           </CommandCenterSection>
           <CommandCenterSection title="Related entities" hint="Classes, partners & people in this work">
             {dossier.relatedEntities.length === 0 ? (
-              <EmptyCard>No specific classes, partners, or people are linked to this project's work yet.</EmptyCard>
+              <EmptyCard>No specific classes, partners, or people are linked to this project&apos;s work yet.</EmptyCard>
             ) : (
               <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
                 {dossier.relatedEntities.map((e) => (
@@ -198,7 +198,7 @@ export default async function StrategicProjectDetailPage({
           hint={`${dossier.decisionCenter.stats.followThroughRate}% follow-through`}
         >
           {dossier.decisionCenter.stats.total === 0 ? (
-            <EmptyCard>No decision history yet. Decisions logged in this project's meetings will appear here.</EmptyCard>
+            <EmptyCard>No decision history yet. Decisions logged in this project&apos;s meetings will appear here.</EmptyCard>
           ) : (
             <DecisionCenterPanel center={dossier.decisionCenter} />
           )}
