@@ -12629,6 +12629,46 @@ model ActionItem {
   relatedEntityType String?
   relatedEntityId   String?
 
+  // --- Action System 4.0 — honest source provenance + strategic linkage ------
+  /// HOW this action came to exist. Controlled vocabulary (MANUAL / MEETING /
+  /// MEETING_DECISION / PROJECT / INITIATIVE / ENTITY / WEEKLY_REVIEW /
+  /// COMMAND_CENTER / FOLLOW_UP), string-typed to mirror actionType /
+  /// relatedEntityType and stay editable without a migration. Validated in
+  /// application code (lib/people-strategy/action-source.ts). Null on legacy
+  /// rows → normalized to a derived source (MEETING when officerMeetingId is set,
+  /// else MANUAL) so old actions still render an honest provenance.
+  sourceType String?
+  /// The id of the source object when it is NOT already captured by a dedicated
+  /// column — a MeetingDecision id, a strategic project/initiative registry id,
+  /// or a free context id. The source MEETING itself stays on officerMeetingId
+  /// (single source of truth); sourceId carries the finer-grained pointer.
+  sourceId   String?
+  /// Action → parent action link for FOLLOW_UP actions ("a follow-up to X").
+  /// Self-relation; SetNull keeps the follow-up if its parent is deleted.
+  sourceActionId String?
+  sourceAction   ActionItem?  @relation("ActionFollowUps", fields: [sourceActionId], references: [id], onDelete: SetNull)
+  followUps      ActionItem[] @relation("ActionFollowUps")
+
+  /// Explicit, user-affirmed strategic link. Initiatives and projects are config
+  /// registries (lib/people-strategy/strategic-initiatives.ts / strategic-projects.ts)
+  /// with stable string ids, so these are validated strings (NOT FKs) — exactly
+  /// like relatedEntityType. When set they are AUTHORITATIVE; when null the
+  /// keyword matcher still SUGGESTS a context, clearly labeled as derived.
+  strategicInitiativeId String?
+  strategicProjectId    String?
+
+  /// Definition of done — what "complete" actually means for this action.
+  successDefinition String? @db.Text
+  /// Why this action is BLOCKED (paired with status = BLOCKED).
+  blockedReason     String? @db.Text
+  /// Captured when the action is completed: the outcome note and a short
+  /// controlled outcome (DELIVERED / PARTIAL / SUPERSEDED / ABANDONED).
+  completionNote    String? @db.Text
+  completionOutcome String?
+  /// The next time this action should be revisited (distinct from the deadline).
+  nextFollowUpAt    DateTime?
+  // ---------------------------------------------------------------------------
+
   assignments ActionAssignment[] @relation("ActionItemAssignments")
   comments    ActionComment[]    @relation("ActionItemComments")
   fileLinks   ActionFileLink[]   @relation("ActionItemFileLinks")
@@ -12658,6 +12698,11 @@ model ActionItem {
   @@index([escalatedToLeadershipAt])
   @@index([resolvedAt])
   @@index([relatedEntityType, relatedEntityId])
+  @@index([sourceType])
+  @@index([sourceActionId])
+  @@index([strategicInitiativeId])
+  @@index([strategicProjectId])
+  @@index([nextFollowUpAt])
 }
 
 /// Join row assigning a user to an action item in a specific role. The
