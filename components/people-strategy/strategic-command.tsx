@@ -1,7 +1,10 @@
 import Link from "next/link";
 
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
-import type { StrategicCommandData } from "@/lib/people-strategy/strategic-project-queries";
+import type {
+  StrategicCommandData,
+  StrategicLeadershipMove,
+} from "@/lib/people-strategy/strategic-project-queries";
 
 import { EmptyCard } from "./command-center-os";
 import { Pill, type PillTone } from "./pills";
@@ -37,6 +40,78 @@ const MOVE_BORDER: Record<string, string> = {
   neutral: "var(--border, #e5e7eb)",
 };
 
+/**
+ * "This week's leadership agenda" — the recommended moves as a numbered,
+ * prioritized script: do these, in this order. Each row carries the reason and
+ * links to the source. Reused by the Command Center cockpit and the Weekly
+ * Review. The moves are derived upstream; this only renders them.
+ */
+export function StrategicLeadershipAgenda({
+  moves,
+  emptyHint,
+}: {
+  moves: StrategicLeadershipMove[];
+  emptyHint?: string;
+}) {
+  if (moves.length === 0) {
+    return (
+      <EmptyCard>
+        {emptyHint ??
+          "Nothing needs a leadership decision this week — keep the operating rhythm. Items surface here from blockers, decisions without follow-through, owner gaps, and stalled projects."}
+      </EmptyCard>
+    );
+  }
+  return (
+    <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+      {moves.map((m, idx) => (
+        <li key={m.id}>
+          <Link
+            href={m.href}
+            className="card ps-action-card cc-focusable"
+            style={{
+              display: "flex",
+              gap: 12,
+              alignItems: "flex-start",
+              padding: "10px 14px",
+              textDecoration: "none",
+              color: "inherit",
+              borderLeft: `3px solid ${MOVE_BORDER[m.severity]}`,
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                flexShrink: 0,
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12.5,
+                fontWeight: 800,
+                color: "#fff",
+                background: MOVE_BORDER[m.severity],
+              }}
+            >
+              {idx + 1}
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                <strong style={{ fontSize: 13.5 }}>{m.title}</strong>
+                <Pill tone={MOVE_TONE[m.severity]}>{m.severity}</Pill>
+              </span>
+              <span style={{ display: "block", marginTop: 2, fontSize: 12.5, color: "var(--text-secondary)" }}>
+                {m.detail}
+              </span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function Lane({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
@@ -71,7 +146,12 @@ export function StrategicCommandSection({ data }: { data: StrategicCommandData }
         ))}
       </div>
 
-      {/* 2 + 3. Critical attention + project board */}
+      {/* 2. This week's leadership agenda — lead with what to do, in order */}
+      <Lane title="This week's leadership agenda" hint="Do these, in order">
+        <StrategicLeadershipAgenda moves={data.recommendedMoves} />
+      </Lane>
+
+      {/* 3 + 4. Critical attention + project board */}
       <div style={{ display: "grid", gap: 18, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
         <Lane title="Initiatives needing attention" hint={`${data.initiativesNeedingAttention.length}`}>
           {data.initiativesNeedingAttention.length === 0 ? (
@@ -140,32 +220,8 @@ export function StrategicCommandSection({ data }: { data: StrategicCommandData }
         </Lane>
       </div>
 
-      {/* 6. This-week agenda: recommended moves + upcoming milestones + owner gaps */}
+      {/* 6. Upcoming milestones + owner gaps */}
       <div style={{ display: "grid", gap: 18, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-        <Lane title="Recommended leadership moves" hint="This week">
-          {data.recommendedMoves.length === 0 ? (
-            <EmptyCard>Nothing urgent — keep the operating rhythm.</EmptyCard>
-          ) : (
-            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
-              {data.recommendedMoves.map((m) => (
-                <li key={m.id}>
-                  <Link
-                    href={m.href}
-                    className="card cc-focusable"
-                    style={{ display: "block", padding: "9px 13px", textDecoration: "none", color: "inherit", borderLeft: `3px solid ${MOVE_BORDER[m.severity]}` }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
-                      <strong style={{ fontSize: 13 }}>{m.title}</strong>
-                      <Pill tone={MOVE_TONE[m.severity]}>{m.severity}</Pill>
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{m.detail}</div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Lane>
-
         <Lane title="Upcoming milestones & owner gaps">
           <div style={{ display: "grid", gap: 8 }}>
             {data.upcomingMilestones.length > 0 ? (

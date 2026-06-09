@@ -18,6 +18,12 @@ import type {
   ProjectDependencyView,
   ProjectMeetingIntelligence,
 } from "@/lib/people-strategy/strategic-project-timeline";
+import {
+  deriveProjectCta,
+  deriveProjectStakes,
+  type ProjectAttentionItem,
+  type ProjectAttentionSeverity,
+} from "@/lib/people-strategy/strategic-project-attention";
 
 import { EmptyCard } from "./command-center-os";
 import { Pill, type PillTone } from "./pills";
@@ -210,6 +216,111 @@ export function ProjectCardGrid({
   );
 }
 
+// --- attention queue ---------------------------------------------------------
+
+const ATTENTION_BORDER: Record<ProjectAttentionSeverity, string> = {
+  critical: "var(--error-color, #991b1b)",
+  warning: "var(--warning-color, #854d0e)",
+  watch: "var(--ypp-purple, #6b21c8)",
+};
+
+const ATTENTION_TONE: Record<ProjectAttentionSeverity, PillTone> = {
+  critical: "overdue",
+  warning: "warning",
+  watch: "info",
+};
+
+/**
+ * Priority attention queue — the "look here first" rows at the top of the
+ * project board. Each numbered row answers, at a glance: why this needs
+ * attention, who owns it, what is blocking it, what the next move is, and a
+ * single specific CTA. The queue is derived (selectProjectAttentionQueue); this
+ * component only renders it.
+ */
+export function StrategicAttentionQueue({
+  items,
+  emptyHint,
+}: {
+  items: ProjectAttentionItem[];
+  emptyHint?: string;
+}) {
+  if (items.length === 0) {
+    return (
+      <EmptyCard>
+        {emptyHint ??
+          "No project needs leadership attention right now — nothing is drifting, at risk, blocked, unowned, or stale. New risks surface here the moment the data shows them."}
+      </EmptyCard>
+    );
+  }
+  return (
+    <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 10 }}>
+      {items.map((item, idx) => {
+        const p = item.project;
+        return (
+          <li
+            key={p.id}
+            className="card"
+            style={{ padding: 14, borderLeft: `4px solid ${ATTENTION_BORDER[item.severity]}` }}
+          >
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  flexShrink: 0,
+                  width: 26,
+                  height: 26,
+                  borderRadius: "50%",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 13,
+                  fontWeight: 800,
+                  color: "#fff",
+                  background: ATTENTION_BORDER[item.severity],
+                }}
+              >
+                {idx + 1}
+              </span>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                  <Link href={p.href} style={{ fontWeight: 700, fontSize: 14.5, color: "inherit", textDecoration: "none" }}>
+                    {p.title}
+                  </Link>
+                  <span style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    {p.hasWork ? <InitiativeHealthBadge health={p.health} /> : <DataStateBadge project={p} />}
+                    <Pill tone={ATTENTION_TONE[item.severity]}>{item.severity}</Pill>
+                  </span>
+                </div>
+                <div style={{ marginTop: 2, fontSize: 12, color: "var(--text-secondary)" }}>
+                  <span style={{ color: "var(--ypp-purple, #6b21c8)", fontWeight: 600 }}>{p.initiativeTitle}</span>
+                  {" · owner "}
+                  {p.owner ?? "unassigned"}
+                </div>
+                <p style={{ margin: "8px 0 0", fontSize: 13, lineHeight: 1.5 }}>{item.reason}</p>
+                {item.blocker ? (
+                  <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "var(--error-color, #991b1b)", lineHeight: 1.5 }}>
+                    <strong>Blocker:</strong> {item.blocker}
+                  </p>
+                ) : null}
+                {item.nextMove ? (
+                  <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    <strong style={{ color: "var(--ypp-purple, #6b21c8)" }}>Next move:</strong> {item.nextMove}
+                  </p>
+                ) : null}
+              </div>
+              <div style={{ alignSelf: "center", flexShrink: 0 }}>
+                <Link href={item.cta.href} className="button primary small">
+                  {item.cta.label}
+                </Link>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export function ProjectMiniRow({ project, note }: { project: ProjectSummary; note?: string }) {
   const p = project;
   return (
@@ -273,6 +384,106 @@ export function ProjectHeaderPanel({ project }: { project: ProjectSummary }) {
         <StatCard label="Blocked" value={p.counts.blockedActions} icon="alert" tone={p.counts.blockedActions > 0 ? "warning" : "default"} />
         <StatCard label="Meetings" value={p.counts.meetingCount} icon="calendar" />
         <StatCard label="Decision gaps" value={p.counts.decisionsWithoutAction} icon="check" tone={p.counts.decisionsWithoutAction > 0 ? "warning" : "default"} />
+      </div>
+    </div>
+  );
+}
+
+// --- what matters now --------------------------------------------------------
+
+function WhatMattersFacet({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 11,
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          fontWeight: 700,
+          color: "var(--text-secondary)",
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.5 }}>{children}</div>
+    </div>
+  );
+}
+
+/**
+ * "What matters now" — the single focal panel directly under the project hero.
+ * It answers, in one read: what the project is driving, where it stands, the one
+ * thing that needs to happen next (with its specific CTA), who needs to act, and
+ * what happens if nothing changes. Everything is derived; nothing is invented.
+ */
+export function ProjectWhatMattersPanel({ project }: { project: ProjectSummary }) {
+  const p = project;
+  const cta = deriveProjectCta(p);
+  const stakes = deriveProjectStakes(p);
+  const topMove = p.nextMoves[0];
+  return (
+    <div
+      className="card"
+      style={{ padding: 18, borderLeft: `4px solid ${healthBorder(p.health)}`, display: "grid", gap: 16 }}
+    >
+      <div>
+        <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, lineHeight: 1.5 }}>{p.charter.purpose}</p>
+        <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.55 }}>
+          {p.statusExplanation.headline}
+        </p>
+      </div>
+
+      <div
+        style={{
+          padding: "12px 14px",
+          borderRadius: "var(--radius-md, 12px)",
+          background: "var(--ps-accent-soft, rgba(107, 33, 200, 0.06))",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+              fontWeight: 700,
+              color: "var(--ypp-purple, #6b21c8)",
+            }}
+          >
+            What needs to happen next
+          </div>
+          <div style={{ marginTop: 3, fontSize: 13.5, fontWeight: 600 }}>
+            {topMove ? topMove.title : "Keep the operating cadence — nothing is urgent right now."}
+          </div>
+          {topMove ? (
+            <div style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>{topMove.detail}</div>
+          ) : null}
+        </div>
+        <Link href={cta.href} className="button primary small" style={{ flexShrink: 0 }}>
+          {cta.label}
+        </Link>
+      </div>
+
+      <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+        <WhatMattersFacet label="Who needs to act">
+          {p.owner ? (
+            <strong>{p.owner}</strong>
+          ) : (
+            <span style={{ color: "var(--warning-color, #854d0e)", fontWeight: 600 }}>No owner assigned</span>
+          )}
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{p.ownership.reason}</div>
+        </WhatMattersFacet>
+        <WhatMattersFacet label="If nothing changes">
+          <span style={{ color: "var(--text-secondary)" }}>{stakes}</span>
+        </WhatMattersFacet>
+        <WhatMattersFacet label="What success looks like">
+          <span style={{ color: "var(--text-secondary)" }}>{p.charter.targetOutcome}</span>
+        </WhatMattersFacet>
       </div>
     </div>
   );

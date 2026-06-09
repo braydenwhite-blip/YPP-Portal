@@ -25,6 +25,7 @@ import {
   OperationalDigestStats,
   RecentlyResolvedList,
 } from "@/components/people-strategy/command-center-os";
+import { StrategicWorkspaceNav } from "@/components/people-strategy/strategic-workspace-nav";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Command Center · Operations" };
@@ -63,30 +64,14 @@ export default async function CommandCenterOsPage() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
-      <CommandCenterHero
-        windowStartISO={digest.window.start.toISOString()}
-        generatedAtISO={digest.generatedAt.toISOString()}
-        consideredCount={consideredCount}
-      />
-
-      <nav style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 4, fontSize: 13 }}>
-        <Link href="/operations" style={{ color: "var(--muted)" }}>Operations Hub</Link>
-        <Link href="/operations/weekly-review" style={{ color: "var(--muted)" }}>Weekly Review</Link>
-        {strategic ? (
-          <Link href="/operations/initiatives" style={{ color: "var(--muted)" }}>Initiatives</Link>
-        ) : null}
-        {strategic ? (
-          <Link href="/operations/projects" style={{ color: "var(--muted)" }}>Projects</Link>
-        ) : null}
-        {strategic ? (
-          <Link href="/operations/portfolio" style={{ color: "var(--muted)" }}>Portfolio</Link>
-        ) : null}
-        {strategic ? (
-          <Link href="/operations/strategic-map" style={{ color: "var(--muted)" }}>Strategic Map</Link>
-        ) : null}
-        <Link href="/actions/command-center" style={{ color: "var(--muted)" }}>Action Tracker</Link>
-        <Link href="/actions/meetings" style={{ color: "var(--muted)" }}>Meetings</Link>
-      </nav>
+      <div className="ps-workspace-header">
+        <CommandCenterHero
+          windowStartISO={digest.window.start.toISOString()}
+          generatedAtISO={digest.generatedAt.toISOString()}
+          consideredCount={consideredCount}
+        />
+        <StrategicWorkspaceNav current="command-center" showStrategic={!!strategic} />
+      </div>
 
       {/* This Week at YPP */}
       <section style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>

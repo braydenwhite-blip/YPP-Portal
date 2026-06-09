@@ -111,7 +111,7 @@ const GROUP_ORDER: TouchpointGroup[] = ["overdue", "upcoming", "current", "recen
 export function TouchpointTimelineView({
   timeline,
   pastLimit = 12,
-  emptyHint = "No touchpoints yet — meetings, actions, and decisions will appear here as they happen.",
+  emptyHint = "No touchpoints yet. Meetings held, actions created or completed, decisions made, milestones reached, and partner follow-ups will appear here as they happen.",
 }: {
   timeline: TouchpointTimeline;
   pastLimit?: number;

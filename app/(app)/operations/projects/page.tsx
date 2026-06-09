@@ -7,13 +7,18 @@ import {
   isOperationsHubEnabled,
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
+import { selectProjectAttentionQueue } from "@/lib/people-strategy/strategic-project-attention";
 import { getStrategicProjectPortfolio } from "@/lib/people-strategy/strategic-project-queries";
-import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { CommandCenterSection } from "@/components/people-strategy/command-center-os";
 import {
   ProjectCardGrid,
   ProjectStatStrip,
+  StrategicAttentionQueue,
 } from "@/components/people-strategy/strategic-projects";
+import {
+  StrategicStack,
+  StrategicWorkspaceHeader,
+} from "@/components/people-strategy/strategic-workspace-nav";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Strategic Projects · Operations" };
@@ -36,70 +41,68 @@ export default async function StrategicProjectsPage() {
   const now = new Date();
   const data = await getStrategicProjectPortfolio(viewer, { now });
   const stats = data.stats;
+  const attentionQueue = selectProjectAttentionQueue(data.projects);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
-      <ActionCommandBar
+      <StrategicWorkspaceHeader
+        current="projects"
+        breadcrumbs={[{ label: "Portfolio", href: "/operations/portfolio" }, { label: "Projects" }]}
         eyebrow="People Strategy · Leadership"
         title="Strategic Projects"
         subtitle="The concrete bodies of work that move each initiative forward — with derived health, confidence, blockers, ownership, and the next move."
         meta={`${stats.total} projects · ${stats.active} active · ${stats.needsAttention} need attention · ${stats.blocked} blocked`}
-        actions={
-          <>
-            <Link href="/operations/initiatives" className="button primary small">
-              Initiatives
-            </Link>
-            <Link href="/operations/portfolio" className="button outline small">
-              Portfolio
-            </Link>
-            <Link href="/operations/command-center" className="button outline small">
-              Command Center
-            </Link>
-          </>
-        }
       />
 
-      <nav style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 4, fontSize: 13 }}>
-        <Link href="/operations" style={{ color: "var(--muted)" }}>Operations Hub</Link>
-        <Link href="/operations/initiatives" style={{ color: "var(--muted)" }}>Initiatives</Link>
-        <Link href="/operations/portfolio" style={{ color: "var(--muted)" }}>Portfolio</Link>
-        <Link href="/operations/command-center" style={{ color: "var(--muted)" }}>Command Center</Link>
-        <Link href="/operations/weekly-review" style={{ color: "var(--muted)" }}>Weekly Review</Link>
-      </nav>
-
-      <section style={{ marginTop: 18 }}>
+      <StrategicStack>
         <CommandCenterSection title="Projects at a glance" hint="Derived from live execution data">
           <ProjectStatStrip stats={stats} />
         </CommandCenterSection>
-      </section>
 
-      {data.needingAttention.length > 0 ? (
-        <section style={{ marginTop: 26 }}>
+        <CommandCenterSection
+          title="Where to look first"
+          hint={
+            attentionQueue.length > 0
+              ? `${attentionQueue.length} project${attentionQueue.length === 1 ? "" : "s"} ranked by urgency`
+              : "Nothing urgent"
+          }
+        >
+          <StrategicAttentionQueue items={attentionQueue} />
+        </CommandCenterSection>
+
+        {data.needingAttention.length > 0 ? (
           <CommandCenterSection title="Needs attention" hint={`${data.needingAttention.length} drifting, at risk, or critical`}>
             <ProjectCardGrid projects={data.needingAttention} />
           </CommandCenterSection>
-        </section>
-      ) : null}
+        ) : null}
 
-      {data.blocked.length > 0 ? (
-        <section style={{ marginTop: 26 }}>
+        {data.blocked.length > 0 ? (
           <CommandCenterSection title="Blocked" hint="Observed or at-risk declared blockers">
             <ProjectCardGrid projects={data.blocked} />
           </CommandCenterSection>
-        </section>
-      ) : null}
+        ) : null}
 
-      {data.unowned.length > 0 ? (
-        <section style={{ marginTop: 26 }}>
+        {data.unowned.length > 0 ? (
           <CommandCenterSection title="Owner gaps" hint="Unowned or unclear accountability">
             <ProjectCardGrid projects={data.unowned} />
           </CommandCenterSection>
-        </section>
-      ) : null}
+        ) : null}
 
-      {data.byInitiative.map((group) => (
-        <section key={group.initiativeId} style={{ marginTop: 26 }}>
+        {data.stale.length > 0 ? (
+          <CommandCenterSection title="Losing momentum" hint="Has tracked work but has gone quiet">
+            <ProjectCardGrid projects={data.stale} />
+          </CommandCenterSection>
+        ) : null}
+
+        {data.fastest.length > 0 ? (
+          <CommandCenterSection title="Accelerating" hint="Momentum is building — keep it fed">
+            <ProjectCardGrid projects={data.fastest} />
+          </CommandCenterSection>
+        ) : null}
+
+        {data.byInitiative.map((group) => (
           <CommandCenterSection
+            key={group.initiativeId}
             title={group.initiativeTitle}
             hint={
               <Link href={group.initiativeHref} style={{ color: "var(--ypp-purple, #6b21c8)" }}>
@@ -109,17 +112,15 @@ export default async function StrategicProjectsPage() {
           >
             <ProjectCardGrid projects={group.projects} />
           </CommandCenterSection>
-        </section>
-      ))}
+        ))}
 
-      <section style={{ marginTop: 26 }}>
         <CommandCenterSection title="All projects" hint="Worst concern first">
           <ProjectCardGrid
             projects={data.projects}
             emptyHint="No projects are configured yet. Add one in lib/people-strategy/strategic-projects.ts."
           />
         </CommandCenterSection>
-      </section>
+      </StrategicStack>
     </div>
   );
 }

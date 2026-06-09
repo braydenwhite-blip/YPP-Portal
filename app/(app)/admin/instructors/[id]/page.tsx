@@ -18,12 +18,15 @@ import {
   isQuarterlyReviewsEnabled,
   isActionTrackerEnabled,
   isOperationsHubEnabled,
+  isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
 import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
 import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
+import { deriveStrategicEntityContext } from "@/lib/people-strategy/strategic-entity-context";
+import { StrategicEntityPanel } from "@/components/people-strategy/strategic-entity-panel";
 import { getLatestQuarterlyReview } from "@/lib/people-strategy/quarterly-review-actions";
 import { loadProvisionalStatus } from "@/lib/people-strategy/provisional";
 import { loadMemberPeopleStrategy } from "@/lib/people-strategy/member-people-detail";
@@ -470,6 +473,17 @@ export default async function AdminInstructorProfilePage({
           emptyActionsHint="No Action Tracker items are linked to this instructor yet."
           emptyMeetingsHint="This instructor hasn't been the focus of a tracked meeting yet."
         />
+      )}
+
+      {operationsEnabled && opsContext && isStrategicInitiativesEnabled() && (
+        <div style={{ marginTop: 14 }}>
+          <StrategicEntityPanel
+            context={deriveStrategicEntityContext({
+              actions: opsContext.actions,
+              meetings: opsContext.meetings,
+            })}
+          />
+        </div>
       )}
 
       {operationsEnabled && opsContext && (
