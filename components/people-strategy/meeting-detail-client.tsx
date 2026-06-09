@@ -16,6 +16,7 @@ import {
   addAgendaItem,
   addDecision,
   convertAgendaItemToAction,
+  convertDecisionToAction,
   convertFollowUpToAction,
   deleteDecision,
   saveMeetingNotes,
@@ -23,6 +24,8 @@ import {
   setFollowUpStatus,
   setMeetingStatus,
 } from "@/lib/people-strategy/meetings-actions";
+import { findSimilarActionTitles } from "@/lib/people-strategy/action-prefill";
+import { meetingOutcomeFromDetail } from "@/lib/people-strategy/meeting-outcome";
 import { AddFollowUpDrawer } from "./meeting-followup-drawer";
 import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
 import { fieldStyle } from "./meeting-form-kit";
@@ -45,7 +48,7 @@ import {
   fmtWeekday,
 } from "./meeting-ui";
 import type { PersonOption } from "./new-meeting-drawer";
-import { RelatedEntityBadge } from "./operational-badges";
+import { MeetingOutcomeBadge, RelatedEntityBadge } from "./operational-badges";
 
 /** The portal context a meeting is connected to (resolved server-side). */
 export type MeetingRelatedContext = {
@@ -125,11 +128,9 @@ export function MeetingDetailClient({
         </div>
         {/* health snapshot */}
         <div style={{ display: "flex", alignItems: "center", padding: "14px 6px", flexWrap: "wrap", rowGap: 12 }}>
-          <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 3 }}>
-            <TinyLabel>Meeting health</TinyLabel>
-            <span style={{ fontSize: 12.5, color: "var(--muted)", fontWeight: 600 }}>
-              {meeting.agendaCount} agenda · {meeting.agendaDoneCount} discussed · {meeting.decisionCount} decisions
-            </span>
+          <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 5 }}>
+            <TinyLabel>Meeting outcome</TinyLabel>
+            <MeetingOutcomeBadge outcome={meetingOutcomeFromDetail(meeting)} withHeadline />
           </div>
           <HealthStat icon="list" value={`${meeting.agendaDoneCount}/${meeting.agendaCount}`} label="Agenda done" />
           <HealthStat icon="checkCircle" value={meeting.decisionCount} label="Decisions" />
@@ -491,7 +492,7 @@ function DecisionsSection({ meeting, people, pending, run }: { meeting: MeetingD
       {meeting.decisions.length ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
           {meeting.decisions.map((d) => (
-            <DecisionCard key={d.id} dec={d} pending={pending} run={run} />
+            <DecisionCard key={d.id} dec={d} linkedActions={meeting.linkedActions} pending={pending} run={run} />
           ))}
         </div>
       ) : (
@@ -501,7 +502,22 @@ function DecisionsSection({ meeting, people, pending, run }: { meeting: MeetingD
   );
 }
 
-function DecisionCard({ dec, pending, run }: { dec: DecisionDTO; pending: boolean; run: RunFn }) {
+function DecisionCard({
+  dec,
+  linkedActions,
+  pending,
+  run,
+}: {
+  dec: DecisionDTO;
+  linkedActions: MeetingDetailDTO["linkedActions"];
+  pending: boolean;
+  run: RunFn;
+}) {
+  // Surface possible existing actions from this meeting so a leader doesn't
+  // create a duplicate of work the meeting already produced.
+  const possibleDuplicates = dec.linkedActionId
+    ? []
+    : findSimilarActionTitles(dec.decision, linkedActions);
   return (
     <div style={{ border: "1px solid var(--border)", borderLeft: "3px solid var(--success-fg)", borderRadius: 12, padding: "14px 16px", background: "var(--surface)" }}>
       <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
@@ -521,12 +537,6 @@ function DecisionCard({ dec, pending, run }: { dec: DecisionDTO; pending: boolea
             <span style={{ fontSize: 12, color: "var(--muted)" }}>
               {dec.decidedBy ? `Decided by ${dec.decidedBy.name}` : "Decision"}
             </span>
-            {dec.linkedActionId && (
-              <Pill tone="purple" style={{ fontSize: 11 }}>
-                <MeetingIcon name="bolt" size={11} />
-                Linked action
-              </Pill>
-            )}
           </div>
         </div>
         <button
@@ -538,6 +548,43 @@ function DecisionCard({ dec, pending, run }: { dec: DecisionDTO; pending: boolea
           <MeetingIcon name="x" size={15} />
         </button>
       </div>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, paddingLeft: 36, marginTop: 10, flexWrap: "wrap" }}>
+        {dec.linkedActionId ? (
+          <Link
+            href={`/actions/${dec.linkedActionId}`}
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 700, color: "var(--ypp-purple-700)", background: "var(--ypp-purple-50)", border: "1px solid var(--ypp-purple-200)", borderRadius: 999, padding: "4px 11px", textDecoration: "none" }}
+          >
+            <MeetingIcon name="link" size={13} />
+            Tracked in Action Tracker
+            <MeetingIcon name="arrowUpR" size={12} />
+          </Link>
+        ) : (
+          <span style={{ fontSize: 12.5, color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <MeetingIcon name="alert" size={13} style={{ color: "var(--warn-fg)" }} />
+            Not yet converted to action
+          </span>
+        )}
+        {!dec.linkedActionId && (
+          <MeetingButton size="sm" variant="outline" icon="bolt" disabled={pending} onClick={() => run(() => convertDecisionToAction(dec.id))}>
+            Create action
+          </MeetingButton>
+        )}
+      </div>
+
+      {possibleDuplicates.length > 0 && (
+        <div style={{ paddingLeft: 36, marginTop: 8, fontSize: 12, color: "var(--muted)" }}>
+          Possible existing action{possibleDuplicates.length === 1 ? "" : "s"} from this meeting:{" "}
+          {possibleDuplicates.slice(0, 2).map((a, i) => (
+            <span key={a.id}>
+              {i > 0 ? ", " : ""}
+              <Link href={`/actions/${a.id}`} style={{ color: "var(--ypp-purple-700)", fontWeight: 600 }}>
+                {a.title}
+              </Link>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

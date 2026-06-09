@@ -80,6 +80,16 @@ export default async function OperationsHubPage() {
           </h1>
           <p className="page-subtitle">{intro.subtitle}</p>
         </div>
+        {hub.isOfficer ? (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <Link href="/operations/command-center" className="button primary" style={{ fontSize: 13 }}>
+              Command Center
+            </Link>
+            <Link href="/operations/weekly-review" className="button outline" style={{ fontSize: 13 }}>
+              Weekly Review
+            </Link>
+          </div>
+        ) : null}
       </div>
 
       {!hub.hasData ? (

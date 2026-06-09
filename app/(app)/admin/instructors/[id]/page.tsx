@@ -22,6 +22,8 @@ import {
 import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
+import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
+import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
 import { getLatestQuarterlyReview } from "@/lib/people-strategy/quarterly-review-actions";
 import { loadProvisionalStatus } from "@/lib/people-strategy/provisional";
 import { loadMemberPeopleStrategy } from "@/lib/people-strategy/member-people-detail";
@@ -467,6 +469,20 @@ export default async function AdminInstructorProfilePage({
           createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
           emptyActionsHint="No Action Tracker items are linked to this instructor yet."
           emptyMeetingsHint="This instructor hasn't been the focus of a tracked meeting yet."
+        />
+      )}
+
+      {operationsEnabled && opsContext && (
+        <OperationalTimeline
+          events={deriveOperationalTimeline({
+            meetings: opsContext.meetings,
+            actions: opsContext.actions,
+            decisions: opsContext.recentDecisions,
+            followUps: opsContext.openFollowUps,
+          })}
+          compact
+          createActionHref={`/actions/new?relatedType=USER&relatedId=${id}`}
+          createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
         />
       )}
 

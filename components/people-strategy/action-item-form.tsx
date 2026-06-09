@@ -68,6 +68,12 @@ export interface ActionItemFormInitial {
   relatedEntityLabel?: string | null;
   /** Type label for the chip (e.g. "Class" / "Mentorship" / "Person"). */
   relatedEntityTypeLabel?: string | null;
+  /**
+   * Source meeting this action was started from (a decision / recap). Carried
+   * through on create so the new action links back to the meeting workspace,
+   * exactly like the in-meeting converters do. Not user-editable here.
+   */
+  officerMeetingId?: string | null;
 }
 
 function asDate(value: Date | string | null | undefined): Date | null {
@@ -385,6 +391,9 @@ export default function ActionItemForm({
             // Carry the read-only link through; the server re-validates it.
             relatedEntityType: relatedEntityType ?? undefined,
             relatedEntityId: relatedEntityId ?? undefined,
+            // Carry the source meeting through when the action was started from
+            // one (a decision / recap prefill); the server re-validates it.
+            officerMeetingId: initial?.officerMeetingId ?? undefined,
           });
 
           if (hasFileLink) {

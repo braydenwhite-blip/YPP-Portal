@@ -8,9 +8,14 @@ import {
   meetingCategoryTone,
 } from "@/lib/people-strategy/meeting-categories";
 import type { OperationalHealth } from "@/lib/people-strategy/operational-context";
+import {
+  meetingOutcomeMeta,
+  type MeetingOutcomeQuality,
+  type MeetingOutcomeTone,
+} from "@/lib/people-strategy/meeting-outcome";
 
 import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
-import { Pill } from "./pills";
+import { Pill, type PillTone } from "./pills";
 
 /**
  * Cross-portal operational badges — the small, reusable visual atoms that make
@@ -148,6 +153,41 @@ export function OperationalHealthBadge({
       </Pill>
       {withReasons && reasons ? (
         <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{reasons}</span>
+      ) : null}
+    </span>
+  );
+}
+
+const OUTCOME_PILL_TONE: Record<MeetingOutcomeTone, PillTone> = {
+  success: "success",
+  info: "info",
+  warning: "warning",
+  overdue: "overdue",
+  neutral: "neutral",
+};
+
+/**
+ * Did this meeting actually produce useful output? A tone-keyed pill (Strong →
+ * Stale) with the deterministic headline as a hover title and (optionally) an
+ * inline reason. Used on the meeting detail sidebar, the Command Center / Weekly
+ * Review follow-through cards, and anywhere a meeting needs an at-a-glance read.
+ */
+export function MeetingOutcomeBadge({
+  outcome,
+  withHeadline = false,
+}: {
+  outcome: MeetingOutcomeQuality;
+  withHeadline?: boolean;
+}) {
+  const m = meetingOutcomeMeta(outcome.level);
+  return (
+    <span
+      title={outcome.headline}
+      style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}
+    >
+      <Pill tone={OUTCOME_PILL_TONE[m.tone]}>{m.label}</Pill>
+      {withHeadline ? (
+        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{outcome.headline}</span>
       ) : null}
     </span>
   );

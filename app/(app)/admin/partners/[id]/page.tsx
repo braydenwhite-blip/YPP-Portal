@@ -12,6 +12,8 @@ import { updatePartner, addPartnerNote } from "@/lib/partners-actions";
 import { matchInstructorsForPartner } from "@/lib/partner-instructor-matching";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
+import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
+import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
 import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import {
@@ -291,6 +293,20 @@ export default async function PartnerProfilePage({
               createMeetingHref={`/actions/meetings?new=1&relatedType=PARTNER&relatedId=${partner.id}`}
               emptyActionsHint="No actions are linked to this partner yet. Add a follow-up so it doesn't go cold."
               emptyMeetingsHint="No outreach meeting has been tracked for this partner yet."
+            />
+          ) : null}
+
+          {trackerEnabled && opsContext ? (
+            <OperationalTimeline
+              events={deriveOperationalTimeline({
+                meetings: opsContext.meetings,
+                actions: opsContext.actions,
+                decisions: opsContext.recentDecisions,
+                followUps: opsContext.openFollowUps,
+              })}
+              compact
+              createActionHref={`/actions/new?relatedType=PARTNER&relatedId=${partner.id}`}
+              createMeetingHref={`/actions/meetings?new=1&relatedType=PARTNER&relatedId=${partner.id}`}
             />
           ) : null}
 

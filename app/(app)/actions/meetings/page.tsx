@@ -19,6 +19,7 @@ import {
   meetingDisplayTitle,
 } from "@/lib/people-strategy/meetings-queries";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
+import { isMeetingCategory } from "@/lib/people-strategy/meeting-categories";
 import {
   areaForRelatedEntityType,
   normalizeRelatedEntityType,
@@ -66,6 +67,9 @@ export default async function WeeklyCommandCenterPage({
     new?: string;
     relatedType?: string;
     relatedId?: string;
+    title?: string;
+    purpose?: string;
+    area?: string;
   }>;
 }) {
   // Outer gate: with ENABLE_ACTION_TRACKER off the route does not exist.
@@ -85,17 +89,34 @@ export default async function WeeklyCommandCenterPage({
   // entity to link, so a meeting is born already connected to that surface.
   const prefillType = normalizeRelatedEntityType(sp.relatedType);
   const prefillId = sp.relatedId?.trim() || null;
+  // Scalar prefill (title / purpose / area) so a digest "schedule a meeting" CTA
+  // can suggest what the meeting is for. Sanitized; an unknown area is dropped.
+  const titleParam = typeof sp.title === "string" ? sp.title.trim().slice(0, 300) : "";
+  const purposeParam = typeof sp.purpose === "string" ? sp.purpose.trim().slice(0, 2000) : "";
+  const areaParam =
+    sp.area && isMeetingCategory(sp.area.trim().toUpperCase())
+      ? sp.area.trim().toUpperCase()
+      : null;
   let meetingPrefill: MeetingPrefill | undefined;
   if (prefillType && prefillId) {
     const summary = await loadRelatedEntitySummary(prefillType, prefillId).catch(() => null);
     if (summary) {
       meetingPrefill = {
-        category: areaForRelatedEntityType(prefillType),
+        category: areaParam ?? areaForRelatedEntityType(prefillType),
         relatedEntityType: prefillType,
         relatedEntityId: prefillId,
         relatedEntityLabel: summary.label,
+        title: titleParam || null,
+        purpose: purposeParam || null,
       };
     }
+  } else if (titleParam || purposeParam || areaParam) {
+    // An issue-driven meeting with no entity link still carries its context.
+    meetingPrefill = {
+      category: areaParam,
+      title: titleParam || null,
+      purpose: purposeParam || null,
+    };
   }
   const autoOpenNew = sp.new === "1" && !!meetingPrefill;
 

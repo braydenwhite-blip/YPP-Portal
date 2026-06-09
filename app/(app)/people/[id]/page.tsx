@@ -15,6 +15,8 @@ import {
 import { getLeadershipContext } from "@/lib/leadership-context";
 import type { LeadershipStage } from "@/lib/leadership-pathway";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
+import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
+import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
 import { LeadershipStageContext } from "@/components/people-strategy/leadership-stage-context";
 import { ProfileBody, activeLabel } from "@/components/people-strategy/profile-body";
 
@@ -149,6 +151,17 @@ export default async function PublicProfilePage({ params }: PageProps) {
             createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
             emptyActionsHint="No Action Tracker items are linked to this person yet."
             emptyMeetingsHint="This person hasn't been the focus of a tracked meeting yet."
+          />
+          <OperationalTimeline
+            events={deriveOperationalTimeline({
+              meetings: opsContext.meetings,
+              actions: opsContext.actions,
+              decisions: opsContext.recentDecisions,
+              followUps: opsContext.openFollowUps,
+            })}
+            compact
+            createActionHref={`/actions/new?relatedType=USER&relatedId=${id}`}
+            createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
           />
         </div>
       ) : null}
