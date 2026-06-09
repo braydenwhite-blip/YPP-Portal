@@ -19,8 +19,14 @@ import { PublishReadinessChecklist } from "@/components/classes/publish-readines
 import { listPartnerOptions } from "@/lib/partners-queries";
 import { setClassPartner } from "@/lib/partners-actions";
 import { PersonLink } from "@/components/people-strategy/person-link";
-import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
+import {
+  isActionTrackerEnabled,
+  isOperationsHubEnabled,
+  isStrategicInitiativesEnabled,
+} from "@/lib/feature-flags";
 import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
+import { deriveStrategicEntityContext } from "@/lib/people-strategy/strategic-entity-context";
+import { StrategicEntityPanel } from "@/components/people-strategy/strategic-entity-panel";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import { getMenteeSupport } from "@/lib/people-strategy/connections";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
@@ -193,6 +199,17 @@ export default async function AdminClassDetailPage({
               emptyActionsHint="No open actions are connected to this class yet."
               emptyMeetingsHint="This class hasn't been discussed in a tracked meeting yet."
             />
+          )}
+
+          {operationsEnabled && opsContext && isStrategicInitiativesEnabled() && (
+            <div style={{ marginTop: 14 }}>
+              <StrategicEntityPanel
+                context={deriveStrategicEntityContext({
+                  actions: opsContext.actions,
+                  meetings: opsContext.meetings,
+                })}
+              />
+            </div>
           )}
 
           {operationsEnabled && opsContext && (

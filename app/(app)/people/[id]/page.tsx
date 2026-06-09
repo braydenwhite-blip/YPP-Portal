@@ -1,7 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
-import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
+import {
+  isActionTrackerEnabled,
+  isOperationsHubEnabled,
+  isStrategicInitiativesEnabled,
+} from "@/lib/feature-flags";
 import { loadPublicProfile } from "@/lib/people-strategy/public-profile";
 import {
   getOperationalContextForEntity,
@@ -17,6 +21,8 @@ import type { LeadershipStage } from "@/lib/leadership-pathway";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
 import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
 import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
+import { deriveStrategicEntityContext } from "@/lib/people-strategy/strategic-entity-context";
+import { StrategicEntityPanel } from "@/components/people-strategy/strategic-entity-panel";
 import { LeadershipStageContext } from "@/components/people-strategy/leadership-stage-context";
 import { ProfileBody, activeLabel } from "@/components/people-strategy/profile-body";
 
@@ -152,6 +158,15 @@ export default async function PublicProfilePage({ params }: PageProps) {
             emptyActionsHint="No Action Tracker items are linked to this person yet."
             emptyMeetingsHint="This person hasn't been the focus of a tracked meeting yet."
           />
+          {isStrategicInitiativesEnabled() ? (
+            <StrategicEntityPanel
+              context={deriveStrategicEntityContext({
+                actions: opsContext.actions,
+                meetings: opsContext.meetings,
+              })}
+              title="Role in strategy"
+            />
+          ) : null}
           <OperationalTimeline
             events={deriveOperationalTimeline({
               meetings: opsContext.meetings,

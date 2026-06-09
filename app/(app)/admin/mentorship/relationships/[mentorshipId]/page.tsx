@@ -10,12 +10,15 @@ import {
 import {
   isActionTrackerEnabled,
   isOperationsHubEnabled,
+  isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
 import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
 import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
+import { deriveStrategicEntityContext } from "@/lib/people-strategy/strategic-entity-context";
+import { StrategicEntityPanel } from "@/components/people-strategy/strategic-entity-panel";
 
 export const metadata = {
   title: "Instructor mentorship relationship — Admin",
@@ -522,6 +525,16 @@ export default async function AdminMentorshipRelationshipDetailPage({
             emptyActionsHint="No Action Tracker items are linked to this mentorship yet."
             emptyMeetingsHint="This mentorship hasn't been discussed in a tracked meeting yet."
           />
+          {isStrategicInitiativesEnabled() ? (
+            <div style={{ marginTop: 14 }}>
+              <StrategicEntityPanel
+                context={deriveStrategicEntityContext({
+                  actions: opsContext.actions,
+                  meetings: opsContext.meetings,
+                })}
+              />
+            </div>
+          ) : null}
           <div style={{ marginTop: 14 }}>
             <OperationalTimeline
               events={deriveOperationalTimeline({

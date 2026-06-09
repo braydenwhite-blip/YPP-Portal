@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 
 import { requireOfficer } from "@/lib/authorization";
-import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { isActionTrackerEnabled, isStrategicInitiativesEnabled } from "@/lib/feature-flags";
+import { deriveStrategicContextForMeeting } from "@/lib/people-strategy/strategic-context";
 import {
   getActionsForEntity,
   listActionAssignableUsers,
@@ -24,6 +25,7 @@ import {
   MeetingDetailClient,
   type MeetingRelatedContext,
 } from "@/components/people-strategy/meeting-detail-client";
+import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
 import type { PersonOption } from "@/components/people-strategy/new-meeting-drawer";
 
 export const dynamic = "force-dynamic";
@@ -98,9 +100,22 @@ export default async function MeetingDetailPage({
     }
   }
 
+  const strategicContext = isStrategicInitiativesEnabled()
+    ? deriveStrategicContextForMeeting({
+        title: detail.title,
+        purpose: detail.purpose,
+        category: detail.category,
+        relatedEntityType: detail.relatedEntityType,
+        relatedEntityId: detail.relatedEntityId,
+      })
+    : null;
+
   return (
     <div className="page-shell" style={{ maxWidth: 1280 }}>
       <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
+      {strategicContext ? (
+        <StrategicContextSection context={strategicContext} kind="meeting" showEmptyState />
+      ) : null}
     </div>
   );
 }

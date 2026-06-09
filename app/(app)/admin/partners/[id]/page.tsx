@@ -19,7 +19,10 @@ import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import {
   isActionTrackerEnabled,
   isPartnerPipelineEnabled,
+  isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
+import { deriveStrategicEntityContext } from "@/lib/people-strategy/strategic-entity-context";
+import { StrategicEntityPanel } from "@/components/people-strategy/strategic-entity-panel";
 import {
   PARTNER_PRIORITIES,
   PARTNER_TYPES,
@@ -294,6 +297,17 @@ export default async function PartnerProfilePage({
               emptyActionsHint="No actions are linked to this partner yet. Add a follow-up so it doesn't go cold."
               emptyMeetingsHint="No outreach meeting has been tracked for this partner yet."
             />
+          ) : null}
+
+          {trackerEnabled && opsContext && isStrategicInitiativesEnabled() ? (
+            <div style={{ marginTop: 14 }}>
+              <StrategicEntityPanel
+                context={deriveStrategicEntityContext({
+                  actions: opsContext.actions,
+                  meetings: opsContext.meetings,
+                })}
+              />
+            </div>
           ) : null}
 
           {trackerEnabled && opsContext ? (

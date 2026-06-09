@@ -14,12 +14,37 @@ import { Pill } from "./pills";
 export function StrategicContextSection({
   context,
   kind = "action",
+  showEmptyState = false,
 }: {
   context: StrategicWorkContext;
   kind?: "action" | "meeting";
+  /**
+   * When the work isn't strategic, render a helpful empty state instead of
+   * nothing. Used on meeting detail (the brief wants meetings to explain the
+   * absence of a strategic link); left off for action lists to avoid noise.
+   */
+  showEmptyState?: boolean;
 }) {
-  if (!context.isStrategic) return null;
   const noun = kind === "meeting" ? "meeting" : "action";
+
+  if (!context.isStrategic) {
+    if (!showEmptyState) return null;
+    return (
+      <section className="card" style={{ padding: 16, marginTop: 16 }}>
+        <h2 className="ps-section-title" style={{ margin: 0 }}>
+          Strategic context
+        </h2>
+        <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+          This {noun} isn&apos;t connected to a strategic project yet. When it produces a decision or
+          action that matches a strategic initiative or project, that connection will appear here.
+        </p>
+      </section>
+    );
+  }
+
+  // Meeting links are inferred from the title / notes / actions, so frame them
+  // honestly as "likely related" rather than confirmed.
+  const ladder = kind === "meeting" ? "likely relates to" : "ladders up to";
 
   return (
     <section className="card" style={{ padding: 16, marginTop: 16 }}>
@@ -32,7 +57,7 @@ export function StrategicContextSection({
 
       {context.primaryInitiative ? (
         <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-          This {noun} ladders up to{" "}
+          This {noun} {ladder}{" "}
           <Link href={context.primaryInitiative.href} style={{ color: "var(--ypp-purple, #6b21c8)", fontWeight: 600 }}>
             {context.primaryInitiative.title}
           </Link>
