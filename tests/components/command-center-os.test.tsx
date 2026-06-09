@@ -187,12 +187,13 @@ describe("DecisionFollowThroughCard", () => {
     href: "/actions/meetings/m1",
   };
 
-  it("builds a prefilled create-action href carrying the decision + meeting", () => {
+  it("builds a fully prefilled create-action href carrying the decision + meeting", () => {
     const href = decisionActionHref(decision);
+    expect(href.startsWith("/actions/new?")).toBe(true);
+    expect(href).toContain("title=Pilot+the+new+onboarding");
     expect(href).toContain("relatedType=PARTNER");
     expect(href).toContain("relatedId=p1");
     expect(href).toContain("fromMeeting=m1");
-    expect(href).toContain("fromDecision=d1");
   });
 
   it("renders the decision with a create-action CTA and open-meeting link", () => {

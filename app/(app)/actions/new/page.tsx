@@ -18,7 +18,11 @@ import {
   listActionTemplates,
   templateToFormInitial,
 } from "@/lib/people-strategy/action-templates";
-import { ACTION_PRIORITY_LABELS } from "@/lib/people-strategy/constants";
+import { ACTION_PRIORITY_LABELS, ACTION_PRIORITY_VALUES } from "@/lib/people-strategy/constants";
+import { isActionType } from "@/lib/people-strategy/action-types";
+import { isMeetingCategory } from "@/lib/people-strategy/meeting-categories";
+import { getMeetingById } from "@/lib/people-strategy/meetings-queries";
+import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +43,18 @@ const PREFILLABLE_RELATED_TYPES = new Set([
 export default async function NewActionInTrackerPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ template?: string; relatedType?: string; relatedId?: string }>;
+  searchParams?: Promise<{
+    template?: string;
+    relatedType?: string;
+    relatedId?: string;
+    title?: string;
+    desc?: string;
+    area?: string;
+    priority?: string;
+    type?: string;
+    dueInDays?: string;
+    fromMeeting?: string;
+  }>;
 }) {
   // Feature flag: with ENABLE_ACTION_TRACKER off, the route is unreachable.
   if (!isActionTrackerEnabled()) notFound();
@@ -57,17 +72,57 @@ export default async function NewActionInTrackerPage({
       ? loadRelatedEntitySummary(sp.relatedType, sp.relatedId)
       : Promise.resolve(null);
 
-  const [users, departments, templates, template, relatedSummary] = await Promise.all([
-    listActionAssignableUsers(),
-    listActionDepartments(),
-    listActionTemplates(),
-    templateId ? getActionTemplate(templateId) : Promise.resolve(null),
-    relatedPromise,
-  ]);
+  // Optional source-meeting prefill (a decision / recap CTA). Existence-checked
+  // so a hand-edited / stale id falls back to an unlinked form instead of a
+  // submit-time FK error.
+  const meetingIdParam = sp.fromMeeting?.trim() || null;
+  const meetingPromise = meetingIdParam
+    ? getMeetingById(meetingIdParam).catch(() => null)
+    : Promise.resolve(null);
+
+  const [users, departments, templates, template, relatedSummary, sourceMeeting] =
+    await Promise.all([
+      listActionAssignableUsers(),
+      listActionDepartments(),
+      listActionTemplates(),
+      templateId ? getActionTemplate(templateId) : Promise.resolve(null),
+      relatedPromise,
+      meetingPromise,
+    ]);
+
+  // Validated scalar prefill (title / description / area / priority / type / due
+  // date). Anything malformed is dropped, so a bad URL never throws or leaks a
+  // bogus value into the form.
+  const titleParam = typeof sp.title === "string" ? sp.title.trim().slice(0, 300) : "";
+  const descParam = typeof sp.desc === "string" ? sp.desc.trim().slice(0, 10_000) : "";
+  const areaParam =
+    sp.area && isMeetingCategory(sp.area.trim().toUpperCase())
+      ? sp.area.trim().toUpperCase()
+      : null;
+  const priorityParam =
+    sp.priority && (ACTION_PRIORITY_VALUES as readonly string[]).includes(sp.priority)
+      ? sp.priority
+      : null;
+  const typeParam = sp.type && isActionType(sp.type) ? sp.type : null;
+  const dueInDaysRaw = Number.parseInt(sp.dueInDays ?? "", 10);
+  const deadlineStart = Number.isFinite(dueInDaysRaw)
+    ? toDateInputValue(addDays(new Date(), Math.max(0, Math.min(365, dueInDaysRaw))))
+    : null;
+
+  const prefillInitial: ActionItemFormInitial = {
+    ...(titleParam ? { title: titleParam } : {}),
+    ...(descParam ? { description: descParam } : {}),
+    ...(areaParam ? { goalCategory: areaParam } : {}),
+    ...(priorityParam ? { priority: priorityParam } : {}),
+    ...(typeParam ? { actionType: typeParam } : {}),
+    ...(deadlineStart ? { deadlineStart } : {}),
+    ...(sourceMeeting ? { officerMeetingId: sourceMeeting.id } : {}),
+  };
+  const hasPrefill = Object.keys(prefillInitial).length > 0;
 
   const templateInitial = template ? templateToFormInitial(template) : undefined;
   const initial: ActionItemFormInitial | undefined =
-    relatedSummary || templateInitial
+    relatedSummary || templateInitial || hasPrefill
       ? {
           ...(templateInitial ?? {}),
           ...(relatedSummary
@@ -78,6 +133,8 @@ export default async function NewActionInTrackerPage({
                 relatedEntityTypeLabel: relatedSummary.typeLabel,
               }
             : {}),
+          // Explicit scalar prefill wins over a template's defaults.
+          ...prefillInitial,
         }
       : undefined;
 

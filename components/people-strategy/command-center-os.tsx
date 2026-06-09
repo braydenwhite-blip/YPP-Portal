@@ -1,6 +1,10 @@
 import Link from "next/link";
 
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
+import {
+  actionPrefillToQuery,
+  buildActionPrefillFromDecision,
+} from "@/lib/people-strategy/action-prefill";
 import type {
   ActionLite,
   AreaHealthRow,
@@ -273,16 +277,21 @@ export function MeetingFollowThroughCard({ meeting }: { meeting: MeetingLite }) 
 
 // --- decision follow-through -------------------------------------------------
 
-/** Where a "Create action from this decision" CTA should land (prefilled). */
+/**
+ * Where a "Create action from this decision" CTA should land — a fully prefilled
+ * `/actions/new` (title, description, source meeting, related entity) via the
+ * shared decision prefill builder, so the form opens ready to save.
+ */
 export function decisionActionHref(decision: DecisionLite): string {
-  const params = new URLSearchParams();
-  if (decision.relatedType && decision.relatedId) {
-    params.set("relatedType", decision.relatedType);
-    params.set("relatedId", decision.relatedId);
-  }
-  params.set("fromMeeting", decision.meetingId);
-  params.set("fromDecision", decision.id);
-  return `/actions/new?${params.toString()}`;
+  return actionPrefillToQuery(
+    buildActionPrefillFromDecision({
+      decision: decision.decision,
+      meetingId: decision.meetingId,
+      meetingTitle: decision.meetingTitle,
+      relatedEntityType: decision.relatedType,
+      relatedEntityId: decision.relatedId,
+    })
+  );
 }
 
 export function DecisionFollowThroughCard({ decision }: { decision: DecisionLite }) {

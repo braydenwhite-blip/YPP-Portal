@@ -30,6 +30,9 @@ export interface MeetingPrefill {
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
   relatedEntityLabel?: string | null;
+  /** Suggested title / purpose when scheduled from a digest issue or entity. */
+  title?: string | null;
+  purpose?: string | null;
 }
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
@@ -62,8 +65,8 @@ export function NewMeetingDrawer({
   const [error, setError] = useState<string | null>(null);
 
   const [tpl, setTpl] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
-  const [purpose, setPurpose] = useState("");
+  const [title, setTitle] = useState(prefill?.title ?? "");
+  const [purpose, setPurpose] = useState(prefill?.purpose ?? "");
   const [category, setCategory] = useState<string>(prefill?.category ?? "LEADERSHIP");
   const [priority, setPriority] = useState<string>("MEDIUM");
   const [date, setDate] = useState(todayISO());

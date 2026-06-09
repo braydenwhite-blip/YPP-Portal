@@ -3,9 +3,11 @@ import type { ActionPriority } from "@prisma/client";
 import {
   DEFAULT_ACTION_DEADLINE_DAYS,
   isRelatedEntityType,
+  relatedEntityTypeLabel,
   type RelatedEntityType,
 } from "./constants";
 import { isMeetingCategory } from "./meeting-categories";
+import { areaForRelatedEntityType } from "./operational-context";
 import { type ActionType } from "./action-types";
 
 /**
@@ -144,6 +146,59 @@ export function buildActionPrefillFromDecision(src: DecisionPrefillSource): Acti
   };
 }
 
+export type EntityActionPrefillSource = {
+  type: RelatedEntityType;
+  id: string;
+  actionType?: ActionType;
+  title?: string;
+};
+
+/**
+ * Prefill an action started from a YPP entity page (a class / mentorship /
+ * person / partner). Carries the entity link and its operating area so the new
+ * action is born connected to where it came from.
+ */
+export function buildActionPrefillFromEntity(src: EntityActionPrefillSource): ActionPrefill {
+  return {
+    title: src.title,
+    relatedType: src.type,
+    relatedId: src.id,
+    area: areaForRelatedEntityType(src.type),
+    actionType: src.actionType,
+    priority: "MEDIUM",
+    dueInDays: DEFAULT_ACTION_DEADLINE_DAYS,
+  };
+}
+
+export type MeetingActionPrefillSource = {
+  meetingId: string;
+  title?: string;
+  meetingCategory?: string | null;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
+};
+
+/** Prefill an action started from a meeting (a recap / follow-through item). */
+export function buildActionPrefillFromMeeting(src: MeetingActionPrefillSource): ActionPrefill {
+  const hasEntity =
+    !!src.relatedEntityType &&
+    isRelatedEntityType(src.relatedEntityType) &&
+    !!src.relatedEntityId;
+  return {
+    title: src.title,
+    sourceMeetingId: src.meetingId,
+    area:
+      src.meetingCategory && isMeetingCategory(src.meetingCategory)
+        ? src.meetingCategory
+        : undefined,
+    actionType: "MEETING_RECAP",
+    priority: "MEDIUM",
+    dueInDays: DEFAULT_ACTION_DEADLINE_DAYS,
+    relatedType: hasEntity ? (src.relatedEntityType as RelatedEntityType) : undefined,
+    relatedId: hasEntity ? (src.relatedEntityId as string) : undefined,
+  };
+}
+
 /** Serialize a prefill to a `/actions/new` href (omitting empty fields). */
 export function actionPrefillToQuery(prefill: ActionPrefill, base = "/actions/new"): string {
   const params = new URLSearchParams();
@@ -236,6 +291,96 @@ export function findDuplicateActionCandidates(
     out.push({ id: action.id, title: action.title, reasons, score });
   }
   return out.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
+}
+
+// --- meeting creation prefill ------------------------------------------------
+
+export type MeetingPrefillSpec = {
+  title?: string;
+  purpose?: string;
+  relatedType?: RelatedEntityType;
+  relatedId?: string;
+  /** Meeting category (operating area). */
+  area?: string;
+};
+
+export const MEETING_PREFILL_PARAM_KEYS = {
+  title: "title",
+  purpose: "purpose",
+  relatedType: "relatedType",
+  relatedId: "relatedId",
+  area: "area",
+} as const;
+
+/** Serialize a meeting prefill to a `/actions/meetings?new=1&…` href. */
+export function meetingPrefillToQuery(
+  prefill: MeetingPrefillSpec,
+  base = "/actions/meetings"
+): string {
+  const params = new URLSearchParams();
+  params.set("new", "1");
+  const k = MEETING_PREFILL_PARAM_KEYS;
+  if (prefill.relatedType && prefill.relatedId) {
+    params.set(k.relatedType, prefill.relatedType);
+    params.set(k.relatedId, prefill.relatedId);
+  }
+  if (prefill.title) params.set(k.title, prefill.title);
+  if (prefill.purpose) params.set(k.purpose, prefill.purpose);
+  if (prefill.area) params.set(k.area, prefill.area);
+  return `${base}?${params.toString()}`;
+}
+
+export type EntityMeetingPrefillSource = {
+  type: RelatedEntityType;
+  id: string;
+  label?: string | null;
+};
+
+/** Prefill a meeting scheduled from a YPP entity page — linked + area-tagged. */
+export function buildMeetingPrefillFromEntity(
+  src: EntityMeetingPrefillSource
+): MeetingPrefillSpec {
+  const label = src.label?.trim();
+  return {
+    relatedType: src.type,
+    relatedId: src.id,
+    area: areaForRelatedEntityType(src.type),
+    title: label ? `${relatedEntityTypeLabel(src.type)} check-in: ${label}` : undefined,
+  };
+}
+
+export type OperationalIssueMeetingSource = {
+  /** The thing that needs a conversation (e.g. an entity label or a problem). */
+  title: string;
+  purpose?: string;
+  relatedType?: string | null;
+  relatedId?: string | null;
+  area?: string | null;
+};
+
+/**
+ * Prefill a meeting scheduled to address an operational issue surfaced by the
+ * digest (a critical entity, a stuck area). Inherits the entity link + area when
+ * known so the meeting lands tagged to the right part of YPP.
+ */
+export function buildMeetingPrefillFromOperationalIssue(
+  src: OperationalIssueMeetingSource
+): MeetingPrefillSpec {
+  const hasEntity =
+    !!src.relatedType && isRelatedEntityType(src.relatedType) && !!src.relatedId;
+  const area =
+    src.area && isMeetingCategory(src.area)
+      ? src.area
+      : hasEntity
+        ? areaForRelatedEntityType(src.relatedType as RelatedEntityType)
+        : undefined;
+  return {
+    title: src.title,
+    purpose: src.purpose,
+    area,
+    relatedType: hasEntity ? (src.relatedType as RelatedEntityType) : undefined,
+    relatedId: hasEntity ? (src.relatedId as string) : undefined,
+  };
 }
 
 /** Lighter title-only variant for surfaces that only have action titles. */

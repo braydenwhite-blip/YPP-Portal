@@ -4,8 +4,13 @@ import {
   actionPrefillToQuery,
   actionTitleFromDecision,
   buildActionPrefillFromDecision,
+  buildActionPrefillFromEntity,
+  buildActionPrefillFromMeeting,
+  buildMeetingPrefillFromEntity,
+  buildMeetingPrefillFromOperationalIssue,
   findDuplicateActionCandidates,
   findSimilarActionTitles,
+  meetingPrefillToQuery,
   titleSimilarity,
   type ExistingActionLite,
 } from "@/lib/people-strategy/action-prefill";
@@ -94,6 +99,68 @@ describe("actionPrefillToQuery", () => {
     expect(href).toContain("relatedType=PARTNER");
     expect(href).toContain("relatedId=p1");
     expect(href).toContain("fromMeeting=m1");
+    expect(href).toContain("area=PARTNERSHIPS");
+  });
+});
+
+describe("buildActionPrefillFromEntity", () => {
+  it("links the entity and infers its operating area", () => {
+    expect(buildActionPrefillFromEntity({ type: "CLASS_OFFERING", id: "cls1" })).toMatchObject({
+      relatedType: "CLASS_OFFERING",
+      relatedId: "cls1",
+      area: "CLASSES",
+      priority: "MEDIUM",
+    });
+    expect(buildActionPrefillFromEntity({ type: "MENTORSHIP", id: "m1" }).area).toBe("MENTORSHIP");
+    expect(buildActionPrefillFromEntity({ type: "USER", id: "u1" }).area).toBe("LEADERSHIP");
+  });
+});
+
+describe("buildActionPrefillFromMeeting", () => {
+  it("carries the source meeting, area, and any related entity", () => {
+    const p = buildActionPrefillFromMeeting({
+      meetingId: "m1",
+      title: "Recap: hire two more instructors",
+      meetingCategory: "INSTRUCTORS",
+      relatedEntityType: "USER",
+      relatedEntityId: "u1",
+    });
+    expect(p.sourceMeetingId).toBe("m1");
+    expect(p.area).toBe("INSTRUCTORS");
+    expect(p.actionType).toBe("MEETING_RECAP");
+    expect(p.relatedType).toBe("USER");
+    expect(p.relatedId).toBe("u1");
+  });
+});
+
+describe("meeting prefill builders", () => {
+  it("builds an entity meeting prefill with a suggested title + area", () => {
+    const p = buildMeetingPrefillFromEntity({ type: "CLASS_OFFERING", id: "cls1", label: "Algebra 101" });
+    expect(p.relatedType).toBe("CLASS_OFFERING");
+    expect(p.relatedId).toBe("cls1");
+    expect(p.area).toBe("CLASSES");
+    expect(p.title).toContain("Algebra 101");
+  });
+
+  it("builds an issue meeting prefill, inheriting the entity area when present", () => {
+    const p = buildMeetingPrefillFromOperationalIssue({
+      title: "Algebra 101 needs attention",
+      relatedType: "CLASS_OFFERING",
+      relatedId: "cls1",
+    });
+    expect(p.title).toBe("Algebra 101 needs attention");
+    expect(p.area).toBe("CLASSES");
+    expect(p.relatedId).toBe("cls1");
+  });
+
+  it("serializes a meeting prefill to an auto-open href", () => {
+    const href = meetingPrefillToQuery(
+      buildMeetingPrefillFromEntity({ type: "PARTNER", id: "p1", label: "Lincoln HS" })
+    );
+    expect(href).toContain("/actions/meetings?");
+    expect(href).toContain("new=1");
+    expect(href).toContain("relatedType=PARTNER");
+    expect(href).toContain("relatedId=p1");
     expect(href).toContain("area=PARTNERSHIPS");
   });
 });
