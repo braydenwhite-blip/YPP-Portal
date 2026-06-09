@@ -13,6 +13,16 @@ import {
 import { deriveStrategicContextForAction } from "@/lib/people-strategy/strategic-context";
 import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
 import {
+  deriveActionNextMove,
+  deriveActionQualityLabels,
+  deriveActionUrgency,
+} from "@/lib/people-strategy/action-intel";
+import {
+  deriveActionSource,
+  deriveActionStrategicLinkage,
+} from "@/lib/people-strategy/action-source";
+import { ActionIntelPanel } from "@/components/people-strategy/action-intel-panel";
+import {
   getActionItemById,
   getActionsForEntity,
   getActionsForMeeting,
@@ -245,6 +255,21 @@ export default async function ActionDetailPage({ params }: PageProps) {
   const strategicContext =
     officer && isStrategicInitiativesEnabled() ? deriveStrategicContextForAction(item) : null;
 
+  // Action System 4.0 — the per-action "mini command center": the next best
+  // move, quality labels, honest source provenance, and the EXPLICIT strategic
+  // linkage (authoritative, distinct from the derived suggestion above).
+  const intel = {
+    nextMove: deriveActionNextMove(item, now),
+    labels: deriveActionQualityLabels(item, now),
+    source: deriveActionSource(item),
+    linkage: deriveActionStrategicLinkage(item),
+    urgency: deriveActionUrgency(item, now),
+  };
+  const intelCtaHref = canEdit ? `/actions/${item.id}/edit` : `/actions/${item.id}`;
+  const meetingHref = item.officerMeetingId
+    ? `/actions/meetings/${item.officerMeetingId}`
+    : null;
+
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
       {/* Persistent tabs so the detail view is reachable-from / returns-to the
@@ -258,6 +283,15 @@ export default async function ActionDetailPage({ params }: PageProps) {
         closeHref={closeHref}
         sameEntityActions={sameEntityActions}
         sameMeetingActions={sameMeetingActions}
+      />
+      <ActionIntelPanel
+        nextMove={intel.nextMove}
+        labels={intel.labels}
+        source={intel.source}
+        linkage={intel.linkage}
+        urgency={intel.urgency}
+        ctaHref={intelCtaHref}
+        meetingHref={meetingHref}
       />
       {strategicContext ? <StrategicContextSection context={strategicContext} kind="action" /> : null}
     </div>

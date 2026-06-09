@@ -217,6 +217,11 @@ describe("convertDecisionToAction", () => {
     expect(actionArg.goalCategory).toBe("PARTNERSHIPS");
     expect(actionArg.actionType).toBe("FOLLOW_UP");
     expect(actionArg.description).toContain("Rationale: They asked for dates");
+    // Action 4.0: the converted action records its honest provenance + a seeded
+    // definition of done, so the meeting → action loop stays accountable.
+    expect(actionArg.sourceType).toBe("MEETING_DECISION");
+    expect(actionArg.sourceId).toBe("d1");
+    expect(actionArg.successDefinition).toBeTruthy();
 
     expect(decision.update).toHaveBeenCalledWith({
       where: { id: "d1" },
