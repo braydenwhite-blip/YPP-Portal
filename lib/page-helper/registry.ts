@@ -3885,5 +3885,23 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       firstStep: "Scan the portfolio board to see which initiatives matter most and which need help, then read the dependency engine to see what is actually holding the portfolio back.",
       nextStep: "Open any initiative for its full command center, or open the Strategic Map to see the portfolio top-down."
     }
+  },
+  {
+    pattern: "/operations/projects",
+    title: "Strategic Projects",
+    content: {
+      purpose: "This is the working portfolio of strategic projects — the concrete bodies of work that move each initiative forward, each with derived health, confidence, blockers, ownership, momentum, and the next move.",
+      firstStep: "Scan the project stats, then work the 'Needs attention' and 'Blocked' projects first — every card shows health, confidence, the blocker, and what to do next.",
+      nextStep: "Open any project for its full command center, or create a linked action to move it forward."
+    }
+  },
+  {
+    pattern: "/operations/projects/[projectId]",
+    title: "Project Command Center",
+    content: {
+      purpose: "This is one project's full command center: its brief (what it is, why it matters, scope), the execution spine, the touchpoint timeline of how it got here, action / decision / meeting intelligence, dependencies, and a weekly review card — all derived from real execution data.",
+      firstStep: "Read the header and brief, then work the recommended next moves from the top — each links straight to where to act.",
+      nextStep: "Check the timeline and action intelligence to see what's moving and what's stuck, and create a linked action for the next push."
+    }
   }
 ];

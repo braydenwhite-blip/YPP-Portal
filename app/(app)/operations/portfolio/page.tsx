@@ -8,6 +8,7 @@ import {
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { getStrategicPortfolioData } from "@/lib/people-strategy/strategic-initiative-queries";
+import { getStrategicProjectPortfolio } from "@/lib/people-strategy/strategic-project-queries";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { CommandCenterSection } from "@/components/people-strategy/command-center-os";
 import { PortfolioStatStrip } from "@/components/people-strategy/strategic-initiatives";
@@ -15,6 +16,10 @@ import {
   DependencyGraphBoard,
   PortfolioBoard,
 } from "@/components/people-strategy/strategic-initiatives-os";
+import {
+  ProjectCardGrid,
+  ProjectStatStrip,
+} from "@/components/people-strategy/strategic-projects";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Initiative Portfolio · Operations" };
@@ -36,6 +41,7 @@ export default async function InitiativePortfolioPage() {
 
   const now = new Date();
   const data = await getStrategicPortfolioData(viewer, { now });
+  const projectData = await getStrategicProjectPortfolio(viewer, { now });
   const stats = data.portfolio.stats;
 
   return (
@@ -79,6 +85,38 @@ export default async function InitiativePortfolioPage() {
       <section style={{ marginTop: 26 }}>
         <CommandCenterSection title="Dependency engine" hint="What is actually holding us back">
           <DependencyGraphBoard graph={data.dependencyGraph} />
+        </CommandCenterSection>
+      </section>
+
+      <section style={{ marginTop: 26 }}>
+        <CommandCenterSection
+          title="Project board"
+          hint={
+            <Link href="/operations/projects" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
+              Open all {projectData.stats.total} projects →
+            </Link>
+          }
+        >
+          <div style={{ display: "grid", gap: 16 }}>
+            <ProjectStatStrip stats={projectData.stats} />
+            {projectData.needingAttention.length > 0 ? (
+              <div>
+                <h3 className="ps-section-title" style={{ margin: "0 0 8px", fontSize: 13 }}>
+                  Projects needing attention
+                </h3>
+                <ProjectCardGrid projects={projectData.needingAttention} />
+              </div>
+            ) : null}
+            <div>
+              <h3 className="ps-section-title" style={{ margin: "0 0 8px", fontSize: 13 }}>
+                All projects
+              </h3>
+              <ProjectCardGrid
+                projects={projectData.projects}
+                emptyHint="No projects are configured yet."
+              />
+            </div>
+          </div>
         </CommandCenterSection>
       </section>
     </div>

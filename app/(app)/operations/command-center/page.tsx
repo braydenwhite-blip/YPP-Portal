@@ -8,8 +8,8 @@ import {
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { getWeeklyOperationalDigestForViewer } from "@/lib/people-strategy/operational-digest-queries";
-import { getStrategicDashboardData } from "@/lib/people-strategy/strategic-initiative-queries";
-import { StrategicInitiativesSection } from "@/components/people-strategy/strategic-initiatives";
+import { getStrategicCommandData } from "@/lib/people-strategy/strategic-project-queries";
+import { StrategicCommandSection } from "@/components/people-strategy/strategic-command";
 import {
   ActionUrgencyList,
   AreaHealthGrid,
@@ -50,7 +50,7 @@ export default async function CommandCenterOsPage() {
   // Strategic layer (Phase II) — only loaded when the flag is on, so the
   // existing Command Center is byte-for-byte unchanged when it is off.
   const strategic = isStrategicInitiativesEnabled()
-    ? await getStrategicDashboardData(viewer, { now }).catch(() => null)
+    ? await getStrategicCommandData(viewer, { now }).catch(() => null)
     : null;
   const consideredCount =
     digest.counts.overdueActions + digest.counts.dueSoonActions + digest.counts.recentlyCompletedActions;
@@ -76,6 +76,9 @@ export default async function CommandCenterOsPage() {
           <Link href="/operations/initiatives" style={{ color: "var(--muted)" }}>Initiatives</Link>
         ) : null}
         {strategic ? (
+          <Link href="/operations/projects" style={{ color: "var(--muted)" }}>Projects</Link>
+        ) : null}
+        {strategic ? (
           <Link href="/operations/portfolio" style={{ color: "var(--muted)" }}>Portfolio</Link>
         ) : null}
         {strategic ? (
@@ -92,25 +95,23 @@ export default async function CommandCenterOsPage() {
         </CommandCenterSection>
       </section>
 
-      {/* Strategic Initiatives (Phase II) — the executive read above actions */}
+      {/* Strategic Command (3.0) — the executive cockpit across initiatives + projects */}
       {strategic ? (
         <section style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
           <CommandCenterSection
-            title="Strategic initiatives"
+            title="Strategic command"
             hint={
-              <Link href="/operations/initiatives" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
-                Open all {strategic.stats.total} →
-              </Link>
+              <span style={{ display: "inline-flex", gap: 10 }}>
+                <Link href="/operations/initiatives" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
+                  {strategic.snapshot.initiatives} initiatives →
+                </Link>
+                <Link href="/operations/projects" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
+                  {strategic.snapshot.projects} projects →
+                </Link>
+              </span>
             }
           >
-            <StrategicInitiativesSection
-              needingAttention={strategic.needingAttention}
-              fastestMoving={strategic.fastestMoving}
-              recentMilestones={strategic.recentMilestones}
-              upcomingMilestones={strategic.upcomingMilestones}
-              strategicRisks={strategic.strategicRisks}
-              leadershipPriorities={strategic.leadershipPriorities}
-            />
+            <StrategicCommandSection data={strategic} />
           </CommandCenterSection>
         </section>
       ) : null}
