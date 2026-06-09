@@ -2,10 +2,24 @@ import { notFound, redirect } from "next/navigation";
 
 import ActionDetailCard, {
   type ActionDetailDTO,
+  type RelatedActionLite,
 } from "@/components/people-strategy/action-detail-card";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
-import { getActionItemById } from "@/lib/people-strategy/action-queries";
+import {
+  getActionItemById,
+  getActionsForEntity,
+  getActionsForMeeting,
+  type ActionItemWithRelations,
+} from "@/lib/people-strategy/action-queries";
+import { effectiveStatus } from "@/lib/people-strategy/action-filters";
+import { effectiveDeadline } from "@/lib/people-strategy/my-actions-selectors";
+import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
+import {
+  areaForRelatedEntityType,
+  operationalAreaLabel,
+} from "@/lib/people-strategy/operational-context";
+import { isRelatedEntityType } from "@/lib/people-strategy/constants";
 import {
   canEditAction,
   canFlagAction,
@@ -107,6 +121,11 @@ function toDetailDTO(
     officerMeetingId: item.officerMeetingId,
     officerMeetingTitle: item.officerMeeting?.title ?? null,
     officerMeetingDate: item.officerMeeting?.date ? item.officerMeeting.date.toISOString() : null,
+    relatedEntityType: item.relatedEntityType,
+    relatedArea:
+      item.relatedEntityType && isRelatedEntityType(item.relatedEntityType)
+        ? operationalAreaLabel(areaForRelatedEntityType(item.relatedEntityType))
+        : null,
     flaggedAt: item.flaggedAt ? item.flaggedAt.toISOString() : null,
     lead,
     people: {
@@ -128,6 +147,16 @@ function toDetailDTO(
       addedAt: file.addedAt.toISOString(),
       addedBy: personDTO(file.addedBy),
     })),
+  };
+}
+
+function toLiteAction(item: ActionItemWithRelations, now: Date): RelatedActionLite {
+  return {
+    id: item.id,
+    title: item.title,
+    status: effectiveStatus(item, now),
+    dueISO: effectiveDeadline(item).toISOString(),
+    leadName: item.lead?.name ?? item.lead?.email ?? "Unassigned",
   };
 }
 
@@ -164,6 +193,47 @@ export default async function ActionDetailPage({ params }: PageProps) {
   const closeHref = officer ? "/actions/all" : "/actions";
   const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
 
+  const now = new Date();
+  const detail = toDetailDTO(item);
+
+  // Cross-portal connective tissue: resolve the linked entity for a real link +
+  // pull the nearby work (same entity / same source meeting) so the action never
+  // reads as an island. Each load fails safe.
+  const hasEntity =
+    item.relatedEntityType != null &&
+    item.relatedEntityId != null &&
+    isRelatedEntityType(item.relatedEntityType);
+
+  const [summary, sameEntityRaw, sameMeetingRaw] = await Promise.all([
+    hasEntity
+      ? loadRelatedEntitySummary(item.relatedEntityType!, item.relatedEntityId!).catch(() => null)
+      : Promise.resolve(null),
+    hasEntity
+      ? getActionsForEntity(item.relatedEntityType as never, item.relatedEntityId!, viewer).catch(
+          () => [] as ActionItemWithRelations[]
+        )
+      : Promise.resolve([] as ActionItemWithRelations[]),
+    item.officerMeetingId
+      ? getActionsForMeeting(item.officerMeetingId, viewer).catch(
+          () => [] as ActionItemWithRelations[]
+        )
+      : Promise.resolve([] as ActionItemWithRelations[]),
+  ]);
+
+  if (summary) {
+    detail.relatedEntityLabel = summary.label;
+    detail.relatedEntityHref = summary.href;
+  }
+
+  const sameEntityActions = sameEntityRaw
+    .filter((a) => a.id !== item.id)
+    .slice(0, 6)
+    .map((a) => toLiteAction(a, now));
+  const sameMeetingActions = sameMeetingRaw
+    .filter((a) => a.id !== item.id)
+    .slice(0, 6)
+    .map((a) => toLiteAction(a, now));
+
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
       {/* Persistent tabs so the detail view is reachable-from / returns-to the
@@ -171,10 +241,12 @@ export default async function ActionDetailPage({ params }: PageProps) {
           a detail page solely from My Actions. */}
       {officer && <ActionTrackerTabs showPeople={showPeople} />}
       <ActionDetailCard
-        item={toDetailDTO(item)}
+        item={detail}
         canEdit={canEdit}
         canFlag={canFlag}
         closeHref={closeHref}
+        sameEntityActions={sameEntityActions}
+        sameMeetingActions={sameMeetingActions}
       />
     </div>
   );

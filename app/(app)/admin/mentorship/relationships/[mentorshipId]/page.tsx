@@ -11,9 +11,9 @@ import {
   isActionTrackerEnabled,
   isOperationsHubEnabled,
 } from "@/lib/feature-flags";
-import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
-import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
+import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
 
 export const metadata = {
   title: "Instructor mentorship relationship — Admin",
@@ -134,9 +134,9 @@ export default async function AdminMentorshipRelationshipDetailPage({
     primaryRole: session?.user?.primaryRole ?? null,
     adminSubtypes: session?.user?.adminSubtypes ?? [],
   };
-  const linkedActions = operationsEnabled
-    ? await getActionsForEntity("MENTORSHIP", mentorship.id, viewer)
-    : [];
+  const opsContext = operationsEnabled
+    ? await getOperationalContextForEntity("MENTORSHIP", mentorship.id, viewer)
+    : null;
 
   const now = new Date();
   const staleSessionCutoff = new Date(
@@ -505,15 +505,20 @@ export default async function AdminMentorshipRelationshipDetailPage({
         )}
       </div>
 
-      {operationsEnabled ? (
+      {operationsEnabled && opsContext ? (
         <div style={{ marginTop: 16 }}>
-          <LinkedActionsPanel
-            actions={linkedActions}
-            heading="Linked actions"
-            createHref={`/actions/new?relatedType=MENTORSHIP&relatedId=${mentorship.id}`}
-            createLabel="Create action for this mentorship"
+          <OperationalContextPanel
+            title="Mentorship Operations"
+            health={opsContext.health}
+            meetings={opsContext.meetings}
+            actions={opsContext.actions}
+            openFollowUps={opsContext.openFollowUps}
+            recentDecisions={opsContext.recentDecisions}
             canCreate={canCreateAction(viewer)}
-            emptyHint="No Action Tracker items are linked to this mentorship yet."
+            createActionHref={`/actions/new?relatedType=MENTORSHIP&relatedId=${mentorship.id}`}
+            createMeetingHref={`/actions/meetings?new=1&relatedType=MENTORSHIP&relatedId=${mentorship.id}`}
+            emptyActionsHint="No Action Tracker items are linked to this mentorship yet."
+            emptyMeetingsHint="This mentorship hasn't been discussed in a tracked meeting yet."
           />
         </div>
       ) : null}

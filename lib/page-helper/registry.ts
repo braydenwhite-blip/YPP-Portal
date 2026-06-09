@@ -3770,6 +3770,24 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/actions/all",
+    title: "Action Tracker",
+    content: {
+      purpose: "Every leadership action across YPP in one place — each card shows its owner, due date, the YPP area and entity it is about, and the meeting it came from.",
+      firstStep: "Use the filters to narrow by area, source (from a meeting vs. created manually), owner, or status, or pick a one-click lens like Overdue or Unassigned.",
+      nextStep: "Open an action to see its connected work — the source meeting, the linked entity, and other actions on the same entity — then assign an owner or due date."
+    }
+  },
+  {
+    pattern: "/actions",
+    title: "My Actions",
+    content: {
+      purpose: "Your action items — what you lead, are executing, or have been asked for input on — with the meeting and YPP area each one connects to.",
+      firstStep: "Work top-down: overdue and due-soon items are surfaced first.",
+      nextStep: "Open an action to update its status, add a comment, or jump to its source meeting and related portal context."
+    }
+  },
+  {
     pattern: "/actions/command-center",
     title: "People Strategy Command Center",
     content: {

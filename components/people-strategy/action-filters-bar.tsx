@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import {
   ACTION_FILTER_PARAM_KEYS,
+  ACTION_SOURCE_LABELS,
   type ActionFilters,
 } from "@/lib/people-strategy/action-filters";
 import {
@@ -147,6 +148,17 @@ export function ActionFiltersBar({
             {relatedEntityTypeLabel(t)}
           </option>
         ))}
+      </select>
+
+      <select
+        className="ps-filter"
+        aria-label="Filter by source"
+        value={filters.source}
+        onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.source, e.target.value)}
+      >
+        <option value="ALL">Any source</option>
+        <option value="meeting">{ACTION_SOURCE_LABELS.meeting}</option>
+        <option value="manual">{ACTION_SOURCE_LABELS.manual}</option>
       </select>
 
       <select

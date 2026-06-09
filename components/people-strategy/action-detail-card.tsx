@@ -21,6 +21,19 @@ import { actionTypeLabel } from "@/lib/people-strategy/action-types";
 import { MotionArea, m, FeedbackBanner } from "@/components/people-strategy/motion";
 import { getUserTitle } from "@/lib/user-title";
 import { PersonLink } from "@/components/people-strategy/person-link";
+import {
+  AreaBadge,
+  RelatedEntityBadge,
+} from "@/components/people-strategy/operational-badges";
+
+/** A nearby action shown as a cross-link (other work on the same entity / meeting). */
+export type RelatedActionLite = {
+  id: string;
+  title: string;
+  status: ActionItemStatus;
+  dueISO: string | null;
+  leadName: string;
+};
 
 type PersonDTO = {
   id: string;
@@ -64,6 +77,11 @@ export type ActionDetailDTO = {
   officerMeetingId: string | null;
   officerMeetingTitle?: string | null;
   officerMeetingDate?: string | null;
+  /** Polymorphic YPP entity this action is about (resolved for display). */
+  relatedEntityType?: string | null;
+  relatedEntityLabel?: string | null;
+  relatedEntityHref?: string | null;
+  relatedArea?: string | null;
   flaggedAt: string | null;
   lead: PersonDTO;
   people: {
@@ -279,11 +297,17 @@ export default function ActionDetailCard({
   canEdit,
   canFlag,
   closeHref,
+  sameEntityActions = [],
+  sameMeetingActions = [],
 }: {
   item: ActionDetailDTO;
   canEdit: boolean;
   canFlag: boolean;
   closeHref: string;
+  /** Other actions about the same YPP entity (excludes this one). */
+  sameEntityActions?: RelatedActionLite[];
+  /** Other actions generated from the same meeting (excludes this one). */
+  sameMeetingActions?: RelatedActionLite[];
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -450,6 +474,14 @@ export default function ActionDetailCard({
           <PriorityPill priority={item.priority} />
           <ActionTypePill actionType={item.actionType} />
           <Pill tone={due.overdue ? "overdue" : "neutral"}>{due.label}</Pill>
+          {item.relatedArea ? <AreaBadge area={item.relatedArea} /> : null}
+          {item.relatedEntityType ? (
+            <RelatedEntityBadge
+              type={item.relatedEntityType}
+              label={item.relatedEntityLabel}
+              href={item.relatedEntityHref}
+            />
+          ) : null}
           {item.officerMeetingId && <Pill tone="purple">Source: Meeting</Pill>}
         </div>
       </section>
@@ -523,6 +555,38 @@ export default function ActionDetailCard({
               Open meeting
             </Link>
           </div>
+        </Section>
+      )}
+
+      {(item.relatedEntityType || sameEntityActions.length > 0 || sameMeetingActions.length > 0) && (
+        <Section title="Connected work" defaultOpen>
+          {item.relatedEntityType ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={TINY_LABEL}>Related to</span>
+              <RelatedEntityBadge
+                type={item.relatedEntityType}
+                label={item.relatedEntityLabel}
+                href={item.relatedEntityHref}
+              />
+              {item.relatedArea ? <AreaBadge area={item.relatedArea} /> : null}
+            </div>
+          ) : null}
+          {sameEntityActions.length > 0 ? (
+            <RelatedActionGroup
+              title={`Other actions about this ${item.relatedEntityType ? "item" : "entity"}`}
+              actions={sameEntityActions}
+            />
+          ) : null}
+          {sameMeetingActions.length > 0 ? (
+            <RelatedActionGroup title="Other actions from this meeting" actions={sameMeetingActions} />
+          ) : null}
+          {!item.relatedEntityType &&
+          sameEntityActions.length === 0 &&
+          sameMeetingActions.length === 0 ? (
+            <p style={{ margin: 0, color: "#64748b", fontSize: 13 }}>
+              No connected meetings or related actions yet.
+            </p>
+          ) : null}
         </Section>
       )}
 
@@ -735,6 +799,46 @@ function Meta({ label, value }: { label: string; value: string }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <span style={TINY_LABEL}>{label}</span>
       <strong style={{ color: "var(--ypp-ink)", fontSize: 14, overflowWrap: "anywhere" }}>{value}</strong>
+    </div>
+  );
+}
+
+const LITE_STATUS_TONE: Record<ActionItemStatus, string> = {
+  NOT_STARTED: "#6b7280",
+  IN_PROGRESS: "#1d4ed8",
+  BLOCKED: "#854d0e",
+  COMPLETE: "#166534",
+  OVERDUE: "#991b1b",
+  DROPPED: "#6b7280",
+};
+
+function RelatedActionGroup({ title, actions }: { title: string; actions: RelatedActionLite[] }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <span style={TINY_LABEL}>{title}</span>
+      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
+        {actions.map((a) => (
+          <li
+            key={a.id}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 10,
+              alignItems: "baseline",
+              borderLeft: `3px solid ${LITE_STATUS_TONE[a.status]}`,
+              paddingLeft: 10,
+            }}
+          >
+            <Link href={`/actions/${a.id}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--ypp-ink)", textDecoration: "none", minWidth: 0 }}>
+              {a.title}
+            </Link>
+            <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>
+              {a.leadName}
+              {a.dueISO ? ` · ${formatDate(a.dueISO)}` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

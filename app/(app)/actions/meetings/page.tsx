@@ -18,6 +18,11 @@ import {
   mapMeetingToView,
   meetingDisplayTitle,
 } from "@/lib/people-strategy/meetings-queries";
+import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
+import {
+  areaForRelatedEntityType,
+  normalizeRelatedEntityType,
+} from "@/lib/people-strategy/operational-context";
 import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
 import {
   WeeklyCommandCenterClient,
@@ -26,7 +31,10 @@ import {
   type PulseRow,
   type RecentDecisionRow,
 } from "@/components/people-strategy/weekly-command-center-client";
-import type { PersonOption } from "@/components/people-strategy/new-meeting-drawer";
+import type {
+  MeetingPrefill,
+  PersonOption,
+} from "@/components/people-strategy/new-meeting-drawer";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Weekly Command Center · Meetings Tracker" };
@@ -53,7 +61,12 @@ function personName(p: { name: string | null; email: string | null }): string {
 export default async function WeeklyCommandCenterPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ week?: string }>;
+  searchParams?: Promise<{
+    week?: string;
+    new?: string;
+    relatedType?: string;
+    relatedId?: string;
+  }>;
 }) {
   // Outer gate: with ENABLE_ACTION_TRACKER off the route does not exist.
   if (!isActionTrackerEnabled()) notFound();
@@ -67,6 +80,24 @@ export default async function WeeklyCommandCenterPage({
   const sp = (await searchParams) ?? {};
   const weekOffset = parseWeekOffset(sp.week);
   const { start, end } = weekRangeForOffset(weekOffset, now);
+
+  // Create-from-context: an entity page can deep-link here with ?new=1 plus the
+  // entity to link, so a meeting is born already connected to that surface.
+  const prefillType = normalizeRelatedEntityType(sp.relatedType);
+  const prefillId = sp.relatedId?.trim() || null;
+  let meetingPrefill: MeetingPrefill | undefined;
+  if (prefillType && prefillId) {
+    const summary = await loadRelatedEntitySummary(prefillType, prefillId).catch(() => null);
+    if (summary) {
+      meetingPrefill = {
+        category: areaForRelatedEntityType(prefillType),
+        relatedEntityType: prefillType,
+        relatedEntityId: prefillId,
+        relatedEntityLabel: summary.label,
+      };
+    }
+  }
+  const autoOpenNew = sp.new === "1" && !!meetingPrefill;
 
   const [meetings, recentDecisions, assignableUsers] = await Promise.all([
     listMeetingsInRange(start, end),
@@ -163,6 +194,8 @@ export default async function WeeklyCommandCenterPage({
         weekOffset={weekOffset}
         people={people}
         owners={owners}
+        meetingPrefill={meetingPrefill}
+        autoOpenNew={autoOpenNew}
       />
     </div>
   );

@@ -14,6 +14,7 @@ import {
   PriorityPill,
   StatusPill,
 } from "@/components/people-strategy/pills";
+import { RelatedEntityBadge } from "@/components/people-strategy/operational-badges";
 
 /**
  * Shared Action Tracker list card (All Actions + My Actions).
@@ -123,6 +124,9 @@ export function ActionCard({
           <span style={{ fontSize: 12, color: "var(--muted)" }}>
             {item.department.name}
           </span>
+        ) : null}
+        {item.relatedEntityType ? (
+          <RelatedEntityBadge type={item.relatedEntityType} />
         ) : null}
         {item.officerMeeting ? (
           <Pill tone="purple">

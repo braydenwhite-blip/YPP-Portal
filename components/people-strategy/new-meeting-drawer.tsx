@@ -20,6 +20,18 @@ export interface PersonOption {
   name: string;
 }
 
+/**
+ * Create-from-context prefill: when "Schedule meeting" is clicked on a class /
+ * mentorship / partner page, that surface passes the area + entity link so the
+ * new meeting is born already connected to the right part of the portal.
+ */
+export interface MeetingPrefill {
+  category?: string | null;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
+  relatedEntityLabel?: string | null;
+}
+
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 const PRIORITY_LABELS: Record<string, string> = { LOW: "Low", MEDIUM: "Normal", HIGH: "High", URGENT: "Urgent" };
 
@@ -39,9 +51,11 @@ function todayISO(): string {
 export function NewMeetingDrawer({
   people,
   onClose,
+  prefill,
 }: {
   people: PersonOption[];
   onClose: () => void;
+  prefill?: MeetingPrefill;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -50,7 +64,7 @@ export function NewMeetingDrawer({
   const [tpl, setTpl] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [purpose, setPurpose] = useState("");
-  const [category, setCategory] = useState<string>("LEADERSHIP");
+  const [category, setCategory] = useState<string>(prefill?.category ?? "LEADERSHIP");
   const [priority, setPriority] = useState<string>("MEDIUM");
   const [date, setDate] = useState(todayISO());
   const [start, setStart] = useState("18:00");
@@ -99,6 +113,8 @@ export function NewMeetingDrawer({
           endTime: end,
           recurrence: recurring ? "WEEKLY" : "NONE",
           facilitatorId: facilitatorId || undefined,
+          relatedEntityType: prefill?.relatedEntityType ?? undefined,
+          relatedEntityId: prefill?.relatedEntityId ?? undefined,
           attendeeIds,
           agendaTitles: agenda,
         });
@@ -143,6 +159,27 @@ export function NewMeetingDrawer({
           {error}
         </div>
       )}
+
+      {prefill?.relatedEntityLabel ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
+            padding: "10px 13px",
+            borderRadius: 11,
+            border: "1px solid var(--ypp-purple-200)",
+            background: "var(--ypp-purple-50)",
+            color: "var(--ypp-purple-800)",
+            fontSize: 13,
+          }}
+        >
+          <MeetingIcon name="link" size={15} />
+          <span>
+            Linking this meeting to <strong>{prefill.relatedEntityLabel}</strong>
+          </span>
+        </div>
+      ) : null}
 
       {/* templates */}
       <div>

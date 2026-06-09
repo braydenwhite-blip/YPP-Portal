@@ -67,10 +67,39 @@ describe("parseActionFilters", () => {
       visibility: "ALL",
       relatedType: "ALL",
       actionType: "ALL",
+      source: "ALL",
       search: "",
       sort: "deadline_asc",
       preset: "ALL",
     });
+  });
+
+  it("parses and round-trips the source filter", () => {
+    expect(parseActionFilters({ source: "meeting" }).source).toBe("meeting");
+    expect(parseActionFilters({ source: "manual" }).source).toBe("manual");
+    expect(parseActionFilters({ source: "junk" }).source).toBe("ALL");
+    expect(buildActionFilterQuery(parseActionFilters({ source: "meeting" }))).toContain(
+      "source=meeting"
+    );
+  });
+
+  it("filters by source (meeting-generated vs manual)", () => {
+    const items = [
+      item({ id: "fromMeeting", officerMeetingId: "m1" }),
+      item({ id: "manual", officerMeetingId: null }),
+    ];
+    const meetingOnly = applyActionFilters(
+      items,
+      parseActionFilters({ source: "meeting" }),
+      NOW
+    );
+    expect(meetingOnly.map((i) => i.id)).toEqual(["fromMeeting"]);
+    const manualOnly = applyActionFilters(
+      items,
+      parseActionFilters({ source: "manual" }),
+      NOW
+    );
+    expect(manualOnly.map((i) => i.id)).toEqual(["manual"]);
   });
 
   it("validates enums and ignores junk", () => {

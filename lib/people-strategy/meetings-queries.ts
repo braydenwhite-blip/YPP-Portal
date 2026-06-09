@@ -2,7 +2,13 @@ import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
-import { meetingCategoryLabel } from "./meeting-categories";
+import { relatedEntityRefKey } from "./action-queries";
+import {
+  isRelatedEntityType,
+  type RelatedEntityRef,
+  type RelatedEntityType,
+} from "./constants";
+import { meetingCategoryLabel, isMeetingCategory } from "./meeting-categories";
 import {
   computeFollowUpStatus,
   computeMeetingStatus,
@@ -143,6 +149,13 @@ export interface MeetingCardDTO {
   overdueFollowUps: number;
   openLinkedActions: number;
   linkedActionCount: number;
+  /**
+   * Polymorphic link to the YPP entity this meeting is about (a class, a
+   * mentorship, …), mirroring `ActionItem.relatedEntityType`. Null for a meeting
+   * that is only tied to an area (its category) or to nothing in particular.
+   */
+  relatedEntityType: string | null;
+  relatedEntityId: string | null;
 }
 
 export interface MeetingDetailDTO extends MeetingCardDTO {
@@ -253,6 +266,8 @@ export function mapMeetingToCardDTO(
     overdueFollowUps: counts.overdueFollowUps,
     openLinkedActions: counts.openLinkedActions,
     linkedActionCount: m.actionItems.length,
+    relatedEntityType: m.relatedEntityType,
+    relatedEntityId: m.relatedEntityId,
   };
 }
 
@@ -328,6 +343,136 @@ export async function getMeetingById(
   return prisma.officerMeeting.findUnique({
     where: { id },
     include: MEETING_INCLUDE,
+  });
+}
+
+// --- related-entity reads (cross-portal nervous system) ---------------------
+
+/**
+ * Meetings linked to a single YPP entity (every meeting about one class, one
+ * mentorship, …), most recent first. The meeting equivalent of
+ * `getActionsForEntity` — it reads the polymorphic `relatedEntityType` /
+ * `relatedEntityId` columns so an entity page can show "this was discussed in
+ * these meetings". Fails safe (returns []) on a bad type, a blank id, or the
+ * tracker flag being off, so a stale link can never break a page. Callers are
+ * officer-gated page guards, so there is no per-viewer visibility model (mirrors
+ * the rest of this module).
+ */
+export async function getMeetingsForEntity(
+  type: RelatedEntityType,
+  id: string,
+  limit = 50
+): Promise<MeetingWithCommandCenter[]> {
+  if (!isActionTrackerEnabled()) return [];
+  if (!isRelatedEntityType(type)) return [];
+  const trimmedId = id.trim();
+  if (!trimmedId) return [];
+
+  return prisma.officerMeeting.findMany({
+    where: { relatedEntityType: type, relatedEntityId: trimmedId },
+    include: MEETING_INCLUDE,
+    orderBy: [{ date: "desc" }],
+    take: limit,
+  });
+}
+
+/**
+ * Batch variant of {@link getMeetingsForEntity}: loads meetings for many entities
+ * in ONE query and groups them by ref (avoids N+1 on a hub listing many classes
+ * or mentorships). Every valid ref is present in the returned Map — with an empty
+ * array when it has no meetings — so callers can render an empty state without a
+ * follow-up lookup. Invalid / blank / duplicate refs are skipped. Use
+ * {@link relatedEntityRefKey} to read entries back.
+ */
+export async function getMeetingsForEntities(
+  refs: RelatedEntityRef[]
+): Promise<Map<string, MeetingWithCommandCenter[]>> {
+  const result = new Map<string, MeetingWithCommandCenter[]>();
+  if (!isActionTrackerEnabled()) return result;
+
+  const validRefs: Array<{ type: RelatedEntityType; id: string }> = [];
+  for (const ref of refs) {
+    if (!ref || !isRelatedEntityType(ref.type)) continue;
+    const id = ref.id?.trim();
+    if (!id) continue;
+    const key = relatedEntityRefKey(ref.type, id);
+    if (result.has(key)) continue;
+    result.set(key, []);
+    validRefs.push({ type: ref.type, id });
+  }
+  if (validRefs.length === 0) return result;
+
+  const meetings = await prisma.officerMeeting.findMany({
+    where: {
+      OR: validRefs.map((ref) => ({
+        relatedEntityType: ref.type,
+        relatedEntityId: ref.id,
+      })),
+    },
+    include: MEETING_INCLUDE,
+    orderBy: [{ date: "desc" }],
+  });
+
+  for (const meeting of meetings) {
+    if (!meeting.relatedEntityType || !meeting.relatedEntityId) continue;
+    const list = result.get(
+      relatedEntityRefKey(meeting.relatedEntityType, meeting.relatedEntityId)
+    );
+    if (list) list.push(meeting);
+  }
+
+  return result;
+}
+
+/**
+ * Count meetings linked to each of the given entities of one type, in a single
+ * grouped query — so a list page can show an "N meetings" hint per row without an
+ * N+1. Returns empty when the tracker flag is off.
+ */
+export async function countMeetingsByRelatedEntity(
+  type: RelatedEntityType,
+  ids: string[]
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (!isActionTrackerEnabled()) return result;
+  if (!isRelatedEntityType(type)) return result;
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  if (uniqueIds.length === 0) return result;
+
+  const groups = await prisma.officerMeeting.groupBy({
+    by: ["relatedEntityId"],
+    where: { relatedEntityType: type, relatedEntityId: { in: uniqueIds } },
+    _count: { _all: true },
+  });
+  for (const group of groups) {
+    if (group.relatedEntityId) result.set(group.relatedEntityId, group._count._all);
+  }
+  return result;
+}
+
+/**
+ * Meetings tagged with one YPP operating area (their `category`), most recent
+ * first. Powers an area pulse / department rollup. Optionally bounded to a date
+ * range. Returns [] for an unknown area or with the tracker off.
+ */
+export async function listMeetingsForArea(
+  area: string,
+  opts: { since?: Date; until?: Date; limit?: number } = {}
+): Promise<MeetingWithCommandCenter[]> {
+  if (!isActionTrackerEnabled()) return [];
+  if (!isMeetingCategory(area)) return [];
+  const where: Prisma.OfficerMeetingWhereInput = { category: area };
+  if (opts.since || opts.until) {
+    where.date = {
+      ...(opts.since ? { gte: opts.since } : {}),
+      ...(opts.until ? { lte: opts.until } : {}),
+    };
+  }
+  return prisma.officerMeeting.findMany({
+    where,
+    include: MEETING_INCLUDE,
+    orderBy: [{ date: "desc" }],
+    take: opts.limit ?? 100,
   });
 }
 

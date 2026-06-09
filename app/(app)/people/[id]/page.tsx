@@ -3,7 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
 import { loadPublicProfile } from "@/lib/people-strategy/public-profile";
-import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import {
+  getOperationalContextForEntity,
+  type EntityOperationalContext,
+} from "@/lib/people-strategy/operational-context-queries";
 import {
   canCreateAction,
   isOfficerTier,
@@ -11,7 +14,7 @@ import {
 } from "@/lib/people-strategy/action-permissions";
 import { getLeadershipContext } from "@/lib/leadership-context";
 import type { LeadershipStage } from "@/lib/leadership-pathway";
-import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
+import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
 import { LeadershipStageContext } from "@/components/people-strategy/leadership-stage-context";
 import { ProfileBody, activeLabel } from "@/components/people-strategy/profile-body";
 
@@ -58,17 +61,17 @@ export default async function PublicProfilePage({ params }: PageProps) {
   // Pathway as context next to their linked actions (the team's prescribed
   // pattern: actions link to USER, the stage is shown as context). Loaded only
   // for the officer operating view, in parallel with the linked actions.
-  let personActions: Awaited<ReturnType<typeof getActionsForEntity>> = [];
+  let opsContext: EntityOperationalContext | null = null;
   let leadershipStage: LeadershipStage | null = null;
   let leadershipNextStage: LeadershipStage | null = null;
   if (showLinkedActions) {
-    const [actions, context] = await Promise.all([
-      getActionsForEntity("USER", id, viewer),
+    const [context, leadership] = await Promise.all([
+      getOperationalContextForEntity("USER", id, viewer),
       getLeadershipContext(id),
     ]);
-    personActions = actions;
-    leadershipStage = context?.stage ?? null;
-    leadershipNextStage = context?.nextStage ?? null;
+    opsContext = context;
+    leadershipStage = leadership?.stage ?? null;
+    leadershipNextStage = leadership?.nextStage ?? null;
   }
 
   return (
@@ -130,16 +133,22 @@ export default async function PublicProfilePage({ params }: PageProps) {
 
       <ProfileBody profile={profile} />
 
-      {showLinkedActions ? (
+      {showLinkedActions && opsContext ? (
         <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
           <LeadershipStageContext stage={leadershipStage} nextStage={leadershipNextStage} />
-          <LinkedActionsPanel
-            actions={personActions}
-            heading="Linked actions"
-            createHref={`/actions/new?relatedType=USER&relatedId=${id}`}
-            createLabel="Create action for this person"
+          <OperationalContextPanel
+            title="Accountability"
+            subtitle={`Meetings & actions for ${profile.name}`}
+            health={opsContext.health}
+            meetings={opsContext.meetings}
+            actions={opsContext.actions}
+            openFollowUps={opsContext.openFollowUps}
+            recentDecisions={opsContext.recentDecisions}
             canCreate={canCreateAction(viewer)}
-            emptyHint="No Action Tracker items are linked to this person yet."
+            createActionHref={`/actions/new?relatedType=USER&relatedId=${id}`}
+            createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
+            emptyActionsHint="No Action Tracker items are linked to this person yet."
+            emptyMeetingsHint="This person hasn't been the focus of a tracked meeting yet."
           />
         </div>
       ) : null}
