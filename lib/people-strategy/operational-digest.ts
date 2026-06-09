@@ -14,6 +14,10 @@ import { effectiveStatus } from "./action-filters";
 import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
 import { daysOverdue, STALE_ACTIVITY_DAYS } from "./command-center-selectors";
 import type { MeetingCardDTO } from "./meetings-queries";
+import {
+  meetingOutcomeFromCard,
+  type MeetingOutcomeQuality,
+} from "./meeting-outcome";
 import { isMeetingCategory, meetingCategoryLabel } from "./meeting-categories";
 import {
   areaForRelatedEntityType,
@@ -140,6 +144,8 @@ export type MeetingLite = {
   recurrence: string | null;
   relatedType: RelatedEntityType | null;
   relatedId: string | null;
+  /** Deterministic operational outcome read (was the meeting useful?). */
+  outcome: MeetingOutcomeQuality;
   href: string;
 };
 
@@ -315,7 +321,7 @@ export function toActionLite(
   };
 }
 
-export function toMeetingLite(m: MeetingCardDTO): MeetingLite {
+export function toMeetingLite(m: MeetingCardDTO, now: Date = new Date()): MeetingLite {
   const relatedType =
     m.relatedEntityType && isRelatedEntityType(m.relatedEntityType)
       ? m.relatedEntityType
@@ -334,6 +340,7 @@ export function toMeetingLite(m: MeetingCardDTO): MeetingLite {
     recurrence: m.recurrence,
     relatedType,
     relatedId: relatedType ? m.relatedEntityId : null,
+    outcome: meetingOutcomeFromCard(m, now),
     href: meetingHref(m.id),
   };
 }
@@ -1215,7 +1222,7 @@ export function deriveWeeklyOperationalDigest(
   pushUnique(actionBuckets.blocked);
   const urgentActions = urgentRaw.map((a) => toActionLite(a, now));
 
-  const upcomingMeetings = meetingBuckets.upcomingThisWeek.map(toMeetingLite);
+  const upcomingMeetings = meetingBuckets.upcomingThisWeek.map((m) => toMeetingLite(m, now));
 
   // Meetings needing follow-through: unresolved follow-ups, decisions with no
   // action, or a meeting that happened and produced no action at all.
@@ -1229,7 +1236,7 @@ export function deriveWeeklyOperationalDigest(
     for (const m of list) {
       if (followThroughSeen.has(m.id)) continue;
       followThroughSeen.add(m.id);
-      meetingsNeedingFollowThrough.push(toMeetingLite(m));
+      meetingsNeedingFollowThrough.push(toMeetingLite(m, now));
     }
   }
 

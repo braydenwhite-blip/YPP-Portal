@@ -116,6 +116,33 @@ describe("AreaHealthGrid", () => {
 });
 
 describe("MeetingFollowThroughCard", () => {
+  it("renders the meeting outcome quality badge", () => {
+    const meeting: MeetingLite = {
+      id: "m2",
+      title: "Strong meeting",
+      startISO: "2026-06-02T18:00:00.000Z",
+      category: "CLASSES",
+      categoryLabel: "Classes",
+      effectiveStatus: "needs_follow_up",
+      openFollowUps: 1,
+      overdueFollowUps: 0,
+      decisionCount: 1,
+      linkedActionCount: 1,
+      recurrence: null,
+      relatedType: null,
+      relatedId: null,
+      outcome: {
+        level: "needs_follow_through",
+        headline: "Needs follow-through on open items.",
+        reasons: ["1 open follow-up"],
+        suggestedNextSteps: ["Close out or convert the open follow-ups into tracked actions."],
+      },
+      href: "/actions/meetings/m2",
+    };
+    render(<MeetingFollowThroughCard meeting={meeting} />);
+    expect(screen.getByText("Needs follow-through")).toBeInTheDocument();
+  });
+
   it("flags a meeting with decisions but no action and links to the workspace", () => {
     const meeting: MeetingLite = {
       id: "m1",
@@ -131,6 +158,12 @@ describe("MeetingFollowThroughCard", () => {
       recurrence: null,
       relatedType: "CLASS_OFFERING",
       relatedId: "cls1",
+      outcome: {
+        level: "needs_follow_through",
+        headline: "Decisions made, but no action assigned.",
+        reasons: ["2 decisions with no linked action"],
+        suggestedNextSteps: ["Convert the decisions into tracked actions so they get done."],
+      },
       href: "/actions/meetings/m1",
     };
     render(<MeetingFollowThroughCard meeting={meeting} />);

@@ -13,7 +13,7 @@ import type {
 } from "@/lib/people-strategy/operational-digest";
 
 import { ActionCommandBar } from "./action-command-bar";
-import { OperationalHealthBadge } from "./operational-badges";
+import { MeetingOutcomeBadge, OperationalHealthBadge } from "./operational-badges";
 import { Pill, type PillTone } from "./pills";
 import { StatCard, type StatTone } from "./stat-card";
 
@@ -249,8 +249,9 @@ export function MeetingFollowThroughCard({ meeting }: { meeting: MeetingLite }) 
         <strong style={{ fontSize: 14, minWidth: 0 }}>{meeting.title}</strong>
         <span style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0 }}>{fmt(meeting.startISO)}</span>
       </div>
-      <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-secondary)", display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-secondary)", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <span>{meeting.categoryLabel}</span>
+        <MeetingOutcomeBadge outcome={meeting.outcome} />
         {meeting.openFollowUps > 0 ? (
           <span>
             {meeting.openFollowUps} open follow-up{meeting.openFollowUps === 1 ? "" : "s"}

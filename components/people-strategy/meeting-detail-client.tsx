@@ -25,6 +25,7 @@ import {
   setMeetingStatus,
 } from "@/lib/people-strategy/meetings-actions";
 import { findSimilarActionTitles } from "@/lib/people-strategy/action-prefill";
+import { meetingOutcomeFromDetail } from "@/lib/people-strategy/meeting-outcome";
 import { AddFollowUpDrawer } from "./meeting-followup-drawer";
 import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
 import { fieldStyle } from "./meeting-form-kit";
@@ -47,7 +48,7 @@ import {
   fmtWeekday,
 } from "./meeting-ui";
 import type { PersonOption } from "./new-meeting-drawer";
-import { RelatedEntityBadge } from "./operational-badges";
+import { MeetingOutcomeBadge, RelatedEntityBadge } from "./operational-badges";
 
 /** The portal context a meeting is connected to (resolved server-side). */
 export type MeetingRelatedContext = {
@@ -127,11 +128,9 @@ export function MeetingDetailClient({
         </div>
         {/* health snapshot */}
         <div style={{ display: "flex", alignItems: "center", padding: "14px 6px", flexWrap: "wrap", rowGap: 12 }}>
-          <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 3 }}>
-            <TinyLabel>Meeting health</TinyLabel>
-            <span style={{ fontSize: 12.5, color: "var(--muted)", fontWeight: 600 }}>
-              {meeting.agendaCount} agenda · {meeting.agendaDoneCount} discussed · {meeting.decisionCount} decisions
-            </span>
+          <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 5 }}>
+            <TinyLabel>Meeting outcome</TinyLabel>
+            <MeetingOutcomeBadge outcome={meetingOutcomeFromDetail(meeting)} withHeadline />
           </div>
           <HealthStat icon="list" value={`${meeting.agendaDoneCount}/${meeting.agendaCount}`} label="Agenda done" />
           <HealthStat icon="checkCircle" value={meeting.decisionCount} label="Decisions" />
