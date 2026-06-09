@@ -477,13 +477,18 @@ export function bucketMeetingsByUrgency(
     }
 
     const happened = meetingHasHappened(m, now);
-    if (happened && start >= recentStart) buckets.recent.push(m);
+    const isRecent = happened && start >= recentStart;
+    if (isRecent) buckets.recent.push(m);
     if (happened) {
-      if (m.linkedActionCount === 0) buckets.withoutActions.push(m);
-      if (m.openFollowUps > 0) buckets.withUnresolvedFollowUps.push(m);
-      if (m.decisionCount > 0 && m.linkedActionCount === 0) {
+      // "Produced no action" only matters for a recent meeting — an ancient
+      // meeting with no linked work is noise, not a follow-through gap.
+      if (isRecent && m.linkedActionCount === 0) buckets.withoutActions.push(m);
+      if (isRecent && m.decisionCount > 0 && m.linkedActionCount === 0) {
         buckets.withDecisionsNoAction.push(m);
       }
+      // Open follow-ups are chased regardless of age — a stale open follow-up is
+      // exactly the stuck work leadership wants surfaced.
+      if (m.openFollowUps > 0) buckets.withUnresolvedFollowUps.push(m);
     }
   }
 
