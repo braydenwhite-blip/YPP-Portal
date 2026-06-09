@@ -206,3 +206,75 @@ tests/lib/people-strategy-strategic-recommendations.test.ts
 tests/lib/people-strategy-strategic-summary-map.test.ts
 tests/components/strategic-initiatives.test.tsx
 ```
+
+---
+
+# Strategic Initiatives 2.0 — the Program Operating System
+
+Phase II made initiatives *dashboards*. **2.0 makes them living organizational
+programs**: every major YPP effort can be run *entirely* inside an initiative.
+Actions feel like atoms; initiatives feel like planets. The same non-negotiable
+rules still hold — **config + derivation, never a migration; no fake analytics;
+everything explainable** — and the whole expansion is pure + unit-tested behind
+the existing `ENABLE_STRATEGIC_INITIATIVES` flag.
+
+The new composition point is the **dossier**
+([`strategic-initiative-dossier.ts`](../lib/people-strategy/strategic-initiative-dossier.ts)):
+it wraps the Phase-II `InitiativeSummary` and adds every 2.0 layer below. The
+detail page renders the dossier; the new `/operations/portfolio` page renders the
+executive read.
+
+| Phase | What it adds | Module |
+| --- | --- | --- |
+| **A — Architecture** | A full charter: mission, purpose, success definition, strategic importance, target outcomes, key metrics, assumptions, constraints, risks, operating areas, leadership owners, stakeholders, historical context, lessons learned, future opportunities. Pure config. | [`strategic-initiative-profile.ts`](../lib/people-strategy/strategic-initiative-profile.ts) |
+| **B — Workstreams** | The primary management unit *inside* an initiative (`Initiative → Workstream → Milestone → Action`). Each workstream declares a matcher and reuses the exact health/momentum/progress/risk/ownership engines on its slice. | [`strategic-workstreams.ts`](../lib/people-strategy/strategic-workstreams.ts) |
+| **C — Decision Center** | Decisions organized by *provable* follow-through (needs follow-through · in motion · followed through · critical) + follow-through rate + history. Reversed/outcome kinds are **reserved, never fabricated**. | [`strategic-decision-center.ts`](../lib/people-strategy/strategic-decision-center.ts) |
+| **D — Knowledge Base** | Institutional memory: overview, background, strategy, playbooks, resources, documents, templates, FAQs, historical notes, retrospectives, future ideas. Config, so leadership turnover never destroys it. | profile module |
+| **E — Roadmaps** | True roadmap views — milestones + targets laid out by **phase** (completed · current · upcoming · at risk · blocked) and **horizon** (overdue · quarter · semester · year · beyond). | [`strategic-roadmap.ts`](../lib/people-strategy/strategic-roadmap.ts) |
+| **F — Scenarios** | Best / expected / risk / stretch cases, each enriched with a deterministic *readiness* read from current health, momentum, and risk. | [`strategic-scenarios.ts`](../lib/people-strategy/strategic-scenarios.ts) |
+| **G — Dependency Engine** | The cross-initiative graph: blocked-by, unlocks, **critical path**, and which dependencies are a *live* bottleneck because the upstream prerequisite is itself unhealthy. Answers "what is actually holding us back?". | [`strategic-dependencies.ts`](../lib/people-strategy/strategic-dependencies.ts) |
+| **H — Operating Reviews** | Weekly / monthly / quarterly reviews — wins, losses, risks, decisions, open questions, milestone progress, capacity, dependency review, recommended priorities — so an initiative is reviewable like a business unit. | [`strategic-operating-reviews.ts`](../lib/people-strategy/strategic-operating-reviews.ts) |
+| **I — Portfolio Management** | The executive layer: most important, highest impact, fastest growing, highest risk, most resource intensive, understaffed, blocked, strategic opportunities, portfolio balance, leadership focus areas. | [`strategic-portfolio.ts`](../lib/people-strategy/strategic-portfolio.ts) |
+| **J — Execution Graph** | The crown jewel: `Initiative → Workstream → Milestone → Decision → Meeting → Action → Outcome`, built **only from real links** (structural containment + provable flow). | [`strategic-execution-graph.ts`](../lib/people-strategy/strategic-execution-graph.ts) |
+
+## New routes
+
+| Route | What it is |
+| --- | --- |
+| `/operations/initiatives/[initiativeId]` | Now the full **living-program command center** — executive summary, architecture, workstreams, roadmap, milestones, timeline, decision center, scenarios, dependencies, operating reviews, knowledge base, and the execution graph. |
+| `/operations/portfolio` | **Initiative Portfolio** (Phase I) — the whole organization from one page, plus the cross-initiative dependency engine (Phase G). |
+
+## Adding the 2.0 narrative to an initiative
+
+The matcher core (workstreams, milestones, `relatedInitiatives`) lives in
+[`strategic-initiatives.ts`](../lib/people-strategy/strategic-initiatives.ts); the
+charter / knowledge base / scenarios / dependencies live in
+[`strategic-initiative-profile.ts`](../lib/people-strategy/strategic-initiative-profile.ts),
+keyed by initiative id. Every profile field is optional and
+`getInitiativeProfile(id)` always returns a fully-defaulted object, so an
+un-authored initiative simply shows clean empty states. Both are one-file,
+no-migration PRs.
+
+## Honesty notes (unchanged rules, applied to 2.0)
+
+- The **Decision Center** only categorizes from real state (`createdAt`,
+  `hasLinkedAction`); it never fabricates "reversed" or measured-outcome history.
+- The **Execution Graph** draws only real links — structural containment and
+  provable flow (a decision recorded at a meeting; a completed action's outcome).
+- **Workstream** health/momentum/risk reuse the *exact* initiative engines on the
+  workstream's slice, so "at risk" means the same thing at every level.
+
+## Testing (2.0)
+
+```
+tests/lib/people-strategy-strategic-profile.test.ts
+tests/lib/people-strategy-strategic-workstreams.test.ts
+tests/lib/people-strategy-strategic-decision-center.test.ts
+tests/lib/people-strategy-strategic-roadmap.test.ts
+tests/lib/people-strategy-strategic-scenarios.test.ts
+tests/lib/people-strategy-strategic-dependencies.test.ts
+tests/lib/people-strategy-strategic-operating-reviews.test.ts
+tests/lib/people-strategy-strategic-portfolio.test.ts
+tests/lib/people-strategy-strategic-execution-graph.test.ts
+tests/components/strategic-initiatives-os.test.tsx
+```

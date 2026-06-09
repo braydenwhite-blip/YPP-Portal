@@ -76,6 +76,9 @@ export default async function CommandCenterOsPage() {
           <Link href="/operations/initiatives" style={{ color: "var(--muted)" }}>Initiatives</Link>
         ) : null}
         {strategic ? (
+          <Link href="/operations/portfolio" style={{ color: "var(--muted)" }}>Portfolio</Link>
+        ) : null}
+        {strategic ? (
           <Link href="/operations/strategic-map" style={{ color: "var(--muted)" }}>Strategic Map</Link>
         ) : null}
         <Link href="/actions/command-center" style={{ color: "var(--muted)" }}>Action Tracker</Link>

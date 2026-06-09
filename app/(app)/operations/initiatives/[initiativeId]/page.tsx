@@ -7,7 +7,7 @@ import {
   isOperationsHubEnabled,
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
-import { getStrategicInitiativeDetail } from "@/lib/people-strategy/strategic-initiative-queries";
+import { getStrategicInitiativeDossier } from "@/lib/people-strategy/strategic-initiative-queries";
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
 import { buildInitiativeActionPrefill } from "@/lib/people-strategy/strategic-recommendations";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
@@ -24,6 +24,17 @@ import {
   RiskPanel,
   StrategicTimelineView,
 } from "@/components/people-strategy/strategic-initiatives";
+import {
+  DependencyPanel,
+  ExecutionGraphView,
+  InitiativeCharterPanel,
+  KnowledgeBasePanel,
+  OperatingReviewTabs,
+  RoadmapView,
+  ScenariosPanel,
+  WorkstreamBoard,
+  DecisionCenterPanel,
+} from "@/components/people-strategy/strategic-initiatives-os";
 
 export const dynamic = "force-dynamic";
 
@@ -37,10 +48,24 @@ export async function generateMetadata({
   return { title: def ? `${def.title} · Initiatives` : "Initiative · Operations" };
 }
 
+const NAV_LINKS: Array<{ href: string; label: string }> = [
+  { href: "#charter", label: "Architecture" },
+  { href: "#workstreams", label: "Workstreams" },
+  { href: "#roadmap", label: "Roadmap" },
+  { href: "#milestones", label: "Milestones" },
+  { href: "#decisions", label: "Decisions" },
+  { href: "#scenarios", label: "Scenarios" },
+  { href: "#dependencies", label: "Dependencies" },
+  { href: "#reviews", label: "Reviews" },
+  { href: "#knowledge", label: "Knowledge" },
+  { href: "#graph", label: "Execution graph" },
+];
+
 /**
- * Strategic Initiative command center — the 10x detail page. It answers the
- * leadership questions: what is this, why does it exist, who owns it, how
- * healthy is it, what has happened, and what is next — all from derived state.
+ * Strategic Initiative command center — the living-program detail page. It runs
+ * the whole initiative as an operating business unit: its architecture (charter),
+ * workstreams, roadmap, decision center, scenarios, dependencies, operating
+ * reviews, knowledge base, and the full execution graph — all derived state.
  */
 export default async function StrategicInitiativeDetailPage({
   params,
@@ -57,9 +82,10 @@ export default async function StrategicInitiativeDetailPage({
   const { initiativeId } = await params;
   const def = getInitiativeDef(initiativeId);
   const now = new Date();
-  const summary = await getStrategicInitiativeDetail(initiativeId, viewer, { now });
-  if (!summary || !def) notFound();
+  const dossier = await getStrategicInitiativeDossier(initiativeId, viewer, { now });
+  if (!dossier || !def) notFound();
 
+  const summary = dossier.summary;
   const newActionHref = buildInitiativeActionPrefill(def);
 
   return (
@@ -76,6 +102,9 @@ export default async function StrategicInitiativeDetailPage({
             <Link href={newActionHref} className="button primary small">
               + New action
             </Link>
+            <Link href="/operations/portfolio" className="button outline small">
+              Portfolio
+            </Link>
             <Link href="/operations/initiatives" className="button outline small">
               All initiatives
             </Link>
@@ -83,18 +112,41 @@ export default async function StrategicInitiativeDetailPage({
         }
       />
 
-      <nav style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 4, fontSize: 13 }}>
+      <nav style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4, fontSize: 13 }}>
         <Link href="/operations/initiatives" style={{ color: "var(--muted)" }}>← Initiatives</Link>
-        <Link href="/operations/strategic-map" style={{ color: "var(--muted)" }}>Strategic Map</Link>
-        <Link href="/operations/command-center" style={{ color: "var(--muted)" }}>Command Center</Link>
-        <a href="#milestones" style={{ color: "var(--muted)" }}>Milestones</a>
-        <a href="#timeline" style={{ color: "var(--muted)" }}>Timeline</a>
+        {NAV_LINKS.map((l) => (
+          <a key={l.href} href={l.href} style={{ color: "var(--muted)" }}>{l.label}</a>
+        ))}
       </nav>
 
       {/* Executive summary */}
       <section style={{ marginTop: 18 }}>
         <CommandCenterSection title="Executive summary" hint={summary.health.label}>
           <InitiativeSummaryPanel initiative={summary} />
+        </CommandCenterSection>
+      </section>
+
+      {/* Phase A — Architecture / charter */}
+      <section id="charter" style={{ marginTop: 26 }}>
+        <CommandCenterSection title="Initiative architecture" hint="Mission · purpose · success · stakeholders">
+          <InitiativeCharterPanel charter={dossier.profile.charter} />
+        </CommandCenterSection>
+      </section>
+
+      {/* Phase B — Workstreams */}
+      <section id="workstreams" style={{ marginTop: 26 }}>
+        <CommandCenterSection
+          title="Workstreams"
+          hint={`${dossier.workstreams.length} program${dossier.workstreams.length === 1 ? "" : "s"}`}
+        >
+          <WorkstreamBoard workstreams={dossier.workstreams} />
+        </CommandCenterSection>
+      </section>
+
+      {/* Phase E — Roadmap */}
+      <section id="roadmap" style={{ marginTop: 26 }}>
+        <CommandCenterSection title="Roadmap" hint="Sequencing by phase and horizon">
+          <RoadmapView roadmap={dossier.roadmap} />
         </CommandCenterSection>
       </section>
 
@@ -108,7 +160,7 @@ export default async function StrategicInitiativeDetailPage({
           alignItems: "start",
         }}
       >
-        {/* Left — milestones + history */}
+        {/* Left — milestones + timeline */}
         <div style={{ display: "flex", flexDirection: "column", gap: 26, minWidth: 0 }}>
           <div id="milestones">
             <CommandCenterSection
@@ -148,6 +200,48 @@ export default async function StrategicInitiativeDetailPage({
           </CommandCenterSection>
         </div>
       </div>
+
+      {/* Phase C — Decision Center */}
+      <section id="decisions" style={{ marginTop: 26 }}>
+        <CommandCenterSection title="Decision center" hint={`${dossier.decisionCenter.stats.followThroughRate}% follow-through`}>
+          <DecisionCenterPanel center={dossier.decisionCenter} />
+        </CommandCenterSection>
+      </section>
+
+      {/* Phase F — Scenarios */}
+      <section id="scenarios" style={{ marginTop: 26 }}>
+        <CommandCenterSection title="Scenarios" hint="Best · expected · stretch · risk">
+          <ScenariosPanel board={dossier.scenarios} />
+        </CommandCenterSection>
+      </section>
+
+      {/* Phase G — Dependencies */}
+      <section id="dependencies" style={{ marginTop: 26 }}>
+        <CommandCenterSection title="Dependencies" hint="What we wait on, what we unblock">
+          <DependencyPanel view={dossier.dependencies} />
+        </CommandCenterSection>
+      </section>
+
+      {/* Phase H — Operating reviews */}
+      <section id="reviews" style={{ marginTop: 26 }}>
+        <CommandCenterSection title="Operating reviews" hint="Weekly · monthly · quarterly">
+          <OperatingReviewTabs reviews={dossier.reviews} />
+        </CommandCenterSection>
+      </section>
+
+      {/* Phase D — Knowledge base */}
+      <section id="knowledge" style={{ marginTop: 26 }}>
+        <CommandCenterSection title="Knowledge base" hint="Institutional memory">
+          <KnowledgeBasePanel kb={dossier.profile.knowledge} />
+        </CommandCenterSection>
+      </section>
+
+      {/* Phase J — Execution graph */}
+      <section id="graph" style={{ marginTop: 26 }}>
+        <CommandCenterSection title="Execution graph" hint="Initiative → workstream → milestone → decision → meeting → action → outcome">
+          <ExecutionGraphView graph={dossier.executionGraph} />
+        </CommandCenterSection>
+      </section>
     </div>
   );
 }

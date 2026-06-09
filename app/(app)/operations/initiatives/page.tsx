@@ -53,7 +53,10 @@ export default async function StrategicInitiativesPage() {
         meta={`${stats.total} initiatives · ${stats.active} active · ${stats.atRisk + stats.critical} need attention`}
         actions={
           <>
-            <Link href="/operations/strategic-map" className="button primary small">
+            <Link href="/operations/portfolio" className="button primary small">
+              Portfolio
+            </Link>
+            <Link href="/operations/strategic-map" className="button outline small">
               Strategic map
             </Link>
             <Link href="/operations/command-center" className="button outline small">
@@ -65,6 +68,7 @@ export default async function StrategicInitiativesPage() {
 
       <nav style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 4, fontSize: 13 }}>
         <Link href="/operations" style={{ color: "var(--muted)" }}>Operations Hub</Link>
+        <Link href="/operations/portfolio" style={{ color: "var(--muted)" }}>Portfolio</Link>
         <Link href="/operations/command-center" style={{ color: "var(--muted)" }}>Command Center</Link>
         <Link href="/operations/strategic-map" style={{ color: "var(--muted)" }}>Strategic Map</Link>
         <Link href="/operations/weekly-review" style={{ color: "var(--muted)" }}>Weekly Review</Link>

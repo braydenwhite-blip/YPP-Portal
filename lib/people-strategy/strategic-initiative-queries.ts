@@ -26,6 +26,20 @@ import {
   type StrategicRisk,
   type UpcomingMilestone,
 } from "./strategic-initiative-summary";
+import {
+  deriveInitiativeDossier,
+  type InitiativeDossier,
+} from "./strategic-initiative-dossier";
+import {
+  deriveDependencyGraph,
+  selectInitiativeDependencies,
+  type DependencyGraph,
+  type DependencyInitiativeInput,
+} from "./strategic-dependencies";
+import {
+  deriveStrategicPortfolio,
+  type StrategicPortfolio,
+} from "./strategic-portfolio";
 import { deriveStrategicMap, type StrategicMap } from "./strategic-map";
 
 /**
@@ -138,6 +152,83 @@ export async function getStrategicMapData(
   const now = options.now ?? new Date();
   const summaries = await getStrategicInitiativesOverview(viewer, options);
   return deriveStrategicMap(summaries, now);
+}
+
+/** Lightweight projection of a summary into a dependency-graph node. */
+function toDependencyInput(s: InitiativeSummary): DependencyInitiativeInput {
+  return {
+    id: s.id,
+    title: s.title,
+    healthLevel: s.health.level,
+    healthLabel: s.health.label,
+    healthTone: s.health.tone,
+    progressPercent: s.progress.percent,
+    status: s.status,
+  };
+}
+
+/**
+ * One initiative's COMPLETE dossier (Strategic Initiatives 2.0) — the summary plus
+ * its workstreams, decision center, roadmap, scenarios, dependency view, operating
+ * reviews, and execution graph. Loads the shared pool once, derives lightweight
+ * summaries for the portfolio dependency graph, and then the full dossier for the
+ * requested initiative. Returns null when the id is unknown. Officer-gate caller.
+ */
+export async function getStrategicInitiativeDossier(
+  initiativeId: string,
+  viewer: ActionViewer,
+  options: StrategicQueryOptions = {}
+): Promise<InitiativeDossier | null> {
+  const def = getInitiativeDef(initiativeId);
+  if (!def) return null;
+  const now = options.now ?? new Date();
+  const pool = await loadPool(viewer, now);
+
+  // Lightweight summaries (no timeline) just to build the cross-initiative graph.
+  const liteSummaries = listInitiativeDefs().map((d) =>
+    deriveInitiativeSummary({
+      def: d,
+      ...classifyInitiativeWork(d, pool),
+      labels: pool.labels,
+      now,
+      limits: { timeline: 0, keyMoments: 0, recommendations: 0 },
+    })
+  );
+  const graph = deriveDependencyGraph({ initiatives: liteSummaries.map(toDependencyInput) });
+  const dependencyView = selectInitiativeDependencies(graph, initiativeId);
+
+  return deriveInitiativeDossier({
+    def,
+    ...classifyInitiativeWork(def, pool),
+    labels: pool.labels,
+    dependencyView,
+    now,
+  });
+}
+
+export type StrategicPortfolioData = {
+  generatedAt: Date;
+  portfolio: StrategicPortfolio;
+  dependencyGraph: DependencyGraph;
+  summaries: InitiativeSummary[];
+};
+
+/**
+ * The full portfolio executive read (Phase I) + the portfolio dependency graph
+ * (Phase G). One batched read; all selections deterministic. Officer-gate caller.
+ */
+export async function getStrategicPortfolioData(
+  viewer: ActionViewer,
+  options: StrategicQueryOptions = {}
+): Promise<StrategicPortfolioData> {
+  const now = options.now ?? new Date();
+  const summaries = await getStrategicInitiativesOverview(viewer, options);
+  return {
+    generatedAt: now,
+    portfolio: deriveStrategicPortfolio(summaries),
+    dependencyGraph: deriveDependencyGraph({ initiatives: summaries.map(toDependencyInput) }),
+    summaries,
+  };
 }
 
 export type StrategicDashboardData = {

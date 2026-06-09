@@ -3876,5 +3876,14 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       firstStep: "The most-concerning areas are listed first; expand an area to see its initiatives and each initiative to see its milestones.",
       nextStep: "Click any node to drill straight into its command center and act."
     }
+  },
+  {
+    pattern: "/operations/portfolio",
+    title: "Initiative Portfolio",
+    content: {
+      purpose: "This is the executive layer: the whole organization from one page — the most important, highest-impact, fastest-growing, highest-risk, most resource-intensive, understaffed, and blocked initiatives, plus where leadership should focus, the strategic opportunities, and the cross-initiative dependency graph.",
+      firstStep: "Scan the portfolio board to see which initiatives matter most and which need help, then read the dependency engine to see what is actually holding the portfolio back.",
+      nextStep: "Open any initiative for its full command center, or open the Strategic Map to see the portfolio top-down."
+    }
   }
 ];

@@ -41,15 +41,21 @@ export default async function StrategicMapPage() {
         subtitle="The whole portfolio top-down — areas, initiatives, and milestones with rolled-up health and progress. Click any node to drill in."
         meta={`${map.totalInitiatives} initiatives across ${map.areas.length} area${map.areas.length === 1 ? "" : "s"}`}
         actions={
-          <Link href="/operations/initiatives" className="button outline small">
-            All initiatives
-          </Link>
+          <>
+            <Link href="/operations/portfolio" className="button outline small">
+              Portfolio
+            </Link>
+            <Link href="/operations/initiatives" className="button outline small">
+              All initiatives
+            </Link>
+          </>
         }
       />
 
       <nav style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 4, fontSize: 13 }}>
         <Link href="/operations" style={{ color: "var(--muted)" }}>Operations Hub</Link>
         <Link href="/operations/initiatives" style={{ color: "var(--muted)" }}>Initiatives</Link>
+        <Link href="/operations/portfolio" style={{ color: "var(--muted)" }}>Portfolio</Link>
         <Link href="/operations/command-center" style={{ color: "var(--muted)" }}>Command Center</Link>
       </nav>
 
