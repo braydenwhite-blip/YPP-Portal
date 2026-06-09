@@ -164,7 +164,39 @@ export type InitiativeMilestoneDef = {
   targetDateISO?: string;
   /** Optional named owner; falls back to the initiative owner / derived owner. */
   owner?: string;
+  /**
+   * The workstream this milestone belongs to (Phase B). When set, the milestone
+   * rolls up under that workstream in the Initiative → Workstream → Milestone →
+   * Action hierarchy; when absent it stays a top-level initiative milestone.
+   */
+  workstreamId?: string;
   /** How this milestone's work is recognised within the initiative's matched set. */
+  match: InitiativeMatch;
+};
+
+/**
+ * A WORKSTREAM (Phase B) — the primary management unit INSIDE an initiative. An
+ * initiative the size of "Summer Camps 2026" is really many parallel programs
+ * (Partnership Development, Curriculum Development, Instructor Recruitment,
+ * Marketing, Operations, Parent Communication, Measurement); a workstream is one
+ * of them. Like the initiative itself it carries no copy of its work — it
+ * declares a deterministic {@link InitiativeMatch} and the derivation layer
+ * classifies the initiative's already-matched work into the workstream, then runs
+ * the SAME health / momentum / progress / risk / ownership engines on that
+ * subset. Workstreams sit between the initiative and its milestones:
+ * Initiative → Workstream → Milestone → Action.
+ */
+export type WorkstreamDef = {
+  id: string;
+  title: string;
+  description?: string;
+  /** The accountable owner of this workstream, when named. Derived when absent. */
+  owner?: string;
+  /** Optional target date (ISO) for the workstream's own timeline + schedule risk. */
+  targetDateISO?: string;
+  /** Display order within the initiative (ascending). */
+  order: number;
+  /** How this workstream's work is recognised within the initiative's matched set. */
   match: InitiativeMatch;
 };
 
@@ -183,8 +215,15 @@ export type StrategicInitiativeDef = {
   targetDateISO?: string;
   /** The deterministic membership rule for the initiative's work. */
   match: InitiativeMatch;
-  /** Major checkpoints, in roadmap order. */
+  /**
+   * The workstreams that organise this initiative's work (Phase B). Optional — an
+   * initiative with none degrades to the flat milestone view it always had.
+   */
+  workstreams?: WorkstreamDef[];
+  /** Major checkpoints, in roadmap order. Tag each with `workstreamId` to nest it. */
   milestones: InitiativeMilestoneDef[];
+  /** Sibling initiatives this one is strategically linked to (ids), for the map + graph. */
+  relatedInitiatives?: string[];
 };
 
 // --- the seeded registry -----------------------------------------------------
@@ -207,18 +246,28 @@ export const STRATEGIC_INITIATIVES: StrategicInitiativeDef[] = [
     area: "CLASSES",
     status: "active",
     priority: "flagship",
+    relatedInitiatives: ["partnership-growth", "instructor-growth", "class-quality"],
     match: {
       areas: ["CLASSES", "PARTNERSHIPS"],
       goalCategories: ["Summer Camps", "Summer Camps 2026", "Camps"],
       keywords: ["summer camp", "camp", "camps"],
     },
+    workstreams: [
+      { id: "partnership-development", title: "Partnership Development", order: 1, description: "Secure the host sites, venues, and sponsors that make camps possible.", match: { keywords: ["partner", "host", "venue", "site", "sponsor", "agreement"] } },
+      { id: "curriculum-development", title: "Curriculum Development", order: 2, description: "Design the camp curriculum, lesson plans, and content.", match: { keywords: ["curriculum", "lesson", "syllabus", "content", "activity"] } },
+      { id: "instructor-recruitment", title: "Instructor Recruitment", order: 3, description: "Recruit, screen, and train the camp instructors and counselors.", match: { keywords: ["instructor", "recruit", "staff", "counselor", "teacher"] } },
+      { id: "marketing", title: "Marketing", order: 4, description: "Promote the camps and drive student enrollment.", match: { keywords: ["marketing", "promote", "flyer", "enroll", "registration", "advertise", "social"] } },
+      { id: "operations", title: "Operations", order: 5, description: "Logistics, scheduling, supplies, and running the pilot + sessions.", match: { keywords: ["logistics", "schedule", "operations", "supplies", "pilot", "run", "trial", "dry run", "first session"] } },
+      { id: "parent-communication", title: "Parent Communication", order: 6, description: "Keep families informed before, during, and after camp.", match: { keywords: ["parent", "family", "communication", "newsletter", "update", "guardian"] } },
+      { id: "measurement", title: "Measurement", order: 7, description: "Collect feedback and measure outcomes to drive the next round.", match: { keywords: ["feedback", "survey", "measure", "data", "outcome", "evaluation", "reflection"] } },
+    ],
     milestones: [
-      { id: "secure-camp-partners", title: "Secure camp partners", order: 1, match: { keywords: ["partner", "host", "venue", "site", "secure"] } },
-      { id: "develop-curriculum", title: "Develop curriculum", order: 2, match: { keywords: ["curriculum", "lesson", "syllabus", "content"] } },
-      { id: "recruit-instructors", title: "Recruit instructors", order: 3, match: { keywords: ["instructor", "recruit", "staff", "counselor"] } },
-      { id: "run-pilot", title: "Run pilot", order: 4, match: { keywords: ["pilot", "trial", "dry run", "first session"] } },
-      { id: "collect-feedback", title: "Collect feedback", order: 5, match: { keywords: ["feedback", "survey", "review", "reflection"] } },
-      { id: "expand-program", title: "Expand program", order: 6, match: { keywords: ["expand", "scale", "roll out", "rollout", "grow"] } },
+      { id: "secure-camp-partners", title: "Secure camp partners", order: 1, workstreamId: "partnership-development", match: { keywords: ["partner", "host", "venue", "site", "secure"] } },
+      { id: "develop-curriculum", title: "Develop curriculum", order: 2, workstreamId: "curriculum-development", match: { keywords: ["curriculum", "lesson", "syllabus", "content"] } },
+      { id: "recruit-instructors", title: "Recruit instructors", order: 3, workstreamId: "instructor-recruitment", match: { keywords: ["instructor", "recruit", "staff", "counselor"] } },
+      { id: "run-pilot", title: "Run pilot", order: 4, workstreamId: "operations", match: { keywords: ["pilot", "trial", "dry run", "first session"] } },
+      { id: "collect-feedback", title: "Collect feedback", order: 5, workstreamId: "measurement", match: { keywords: ["feedback", "survey", "review", "reflection"] } },
+      { id: "expand-program", title: "Expand program", order: 6, workstreamId: "operations", match: { keywords: ["expand", "scale", "roll out", "rollout", "grow"] } },
     ],
   },
   {
@@ -229,6 +278,7 @@ export const STRATEGIC_INITIATIVES: StrategicInitiativeDef[] = [
     area: "INSTRUCTORS",
     status: "active",
     priority: "high",
+    relatedInitiatives: ["summer-camps-2026", "class-quality", "mentorship-3"],
     match: {
       areas: ["INSTRUCTORS", "APPLICATIONS"],
       actionTypes: ["INSTRUCTOR_RECRUITING", "INSTRUCTOR_ONBOARDING", "APPLICATION_REVIEW"],
@@ -236,11 +286,17 @@ export const STRATEGIC_INITIATIVES: StrategicInitiativeDef[] = [
       goalCategories: ["Instructor Growth"],
       keywords: ["instructor", "applicant", "recruit", "onboard"],
     },
+    workstreams: [
+      { id: "recruiting", title: "Recruiting", order: 1, description: "Source and attract instructor candidates.", match: { actionTypes: ["INSTRUCTOR_RECRUITING"], keywords: ["recruit", "source", "outreach", "pipeline"] } },
+      { id: "screening", title: "Screening", order: 2, description: "Review applications and interview candidates.", match: { actionTypes: ["APPLICATION_REVIEW"], keywords: ["review", "interview", "screen", "applicant"] } },
+      { id: "onboarding", title: "Onboarding", order: 3, description: "Train and ready new instructors to teach.", match: { actionTypes: ["INSTRUCTOR_ONBOARDING"], keywords: ["onboard", "training", "ready to teach"] } },
+      { id: "development", title: "Development", order: 4, description: "Coach and grow active instructors.", match: { keywords: ["develop", "mentor", "feedback", "growth", "coaching"] } },
+    ],
     milestones: [
-      { id: "build-pipeline", title: "Build recruiting pipeline", order: 1, match: { keywords: ["recruit", "source", "outreach", "pipeline"] } },
-      { id: "screen-applicants", title: "Screen applicants", order: 2, match: { actionTypes: ["APPLICATION_REVIEW"], keywords: ["review", "interview", "screen", "applicant"] } },
-      { id: "onboard-instructors", title: "Onboard instructors", order: 3, match: { actionTypes: ["INSTRUCTOR_ONBOARDING"], keywords: ["onboard", "training", "ready to teach"] } },
-      { id: "develop-instructors", title: "Develop instructors", order: 4, match: { keywords: ["develop", "mentor", "feedback", "growth"] } },
+      { id: "build-pipeline", title: "Build recruiting pipeline", order: 1, workstreamId: "recruiting", match: { keywords: ["recruit", "source", "outreach", "pipeline"] } },
+      { id: "screen-applicants", title: "Screen applicants", order: 2, workstreamId: "screening", match: { actionTypes: ["APPLICATION_REVIEW"], keywords: ["review", "interview", "screen", "applicant"] } },
+      { id: "onboard-instructors", title: "Onboard instructors", order: 3, workstreamId: "onboarding", match: { actionTypes: ["INSTRUCTOR_ONBOARDING"], keywords: ["onboard", "training", "ready to teach"] } },
+      { id: "develop-instructors", title: "Develop instructors", order: 4, workstreamId: "development", match: { keywords: ["develop", "mentor", "feedback", "growth"] } },
     ],
   },
   {
@@ -251,16 +307,22 @@ export const STRATEGIC_INITIATIVES: StrategicInitiativeDef[] = [
     area: "MENTORSHIP",
     status: "active",
     priority: "high",
+    relatedInitiatives: ["instructor-growth", "leadership-development"],
     match: {
       areas: ["MENTORSHIP"],
       entityTypes: ["MENTORSHIP"],
       goalCategories: ["Mentorship 3.0", "Mentorship"],
       keywords: ["mentor", "mentee", "mentorship", "match"],
     },
+    workstreams: [
+      { id: "matching-ws", title: "Matching", order: 1, description: "Pair mentors and mentees well.", match: { keywords: ["match", "matching", "pair", "assign"] } },
+      { id: "rhythm-ws", title: "Check-in Rhythm", order: 2, description: "Establish a reliable check-in cadence.", match: { keywords: ["check-in", "checkin", "cadence", "rhythm", "meeting", "session"] } },
+      { id: "outcomes-ws", title: "Outcomes", order: 3, description: "Track mentee goals and progress.", match: { keywords: ["outcome", "goal", "progress", "completion", "growth"] } },
+    ],
     milestones: [
-      { id: "matching", title: "Improve matching", order: 1, match: { keywords: ["match", "matching", "pair", "assign"] } },
-      { id: "checkin-rhythm", title: "Establish check-in rhythm", order: 2, match: { keywords: ["check-in", "checkin", "cadence", "rhythm", "meeting"] } },
-      { id: "outcomes", title: "Track outcomes", order: 3, match: { keywords: ["outcome", "goal", "progress", "completion"] } },
+      { id: "matching", title: "Improve matching", order: 1, workstreamId: "matching-ws", match: { keywords: ["match", "matching", "pair", "assign"] } },
+      { id: "checkin-rhythm", title: "Establish check-in rhythm", order: 2, workstreamId: "rhythm-ws", match: { keywords: ["check-in", "checkin", "cadence", "rhythm", "meeting"] } },
+      { id: "outcomes", title: "Track outcomes", order: 3, workstreamId: "outcomes-ws", match: { keywords: ["outcome", "goal", "progress", "completion"] } },
     ],
   },
   {
@@ -291,6 +353,7 @@ export const STRATEGIC_INITIATIVES: StrategicInitiativeDef[] = [
     area: "PARTNERSHIPS",
     status: "active",
     priority: "high",
+    relatedInitiatives: ["summer-camps-2026", "chapter-expansion"],
     match: {
       areas: ["PARTNERSHIPS"],
       actionTypes: ["PARTNERSHIP"],
@@ -298,10 +361,15 @@ export const STRATEGIC_INITIATIVES: StrategicInitiativeDef[] = [
       goalCategories: ["Partnership Growth", "Partnerships"],
       keywords: ["partner", "partnership", "school", "sponsor"],
     },
+    workstreams: [
+      { id: "outreach-ws", title: "Outreach", order: 1, description: "Find and reach prospective partners.", match: { keywords: ["outreach", "reach out", "contact", "intro", "prospect"] } },
+      { id: "agreements-ws", title: "Agreements", order: 2, description: "Negotiate and close partnership agreements.", match: { keywords: ["agreement", "contract", "mou", "sign", "close", "terms"] } },
+      { id: "activation-ws", title: "Activation", order: 3, description: "Launch and run active delivery with partners.", match: { keywords: ["launch", "deliver", "kickoff", "kick off", "active", "onboard"] } },
+    ],
     milestones: [
-      { id: "outreach", title: "Run partner outreach", order: 1, match: { keywords: ["outreach", "reach out", "contact", "intro"] } },
-      { id: "agreements", title: "Close agreements", order: 2, match: { keywords: ["agreement", "contract", "mou", "sign", "close"] } },
-      { id: "activate", title: "Activate delivery", order: 3, match: { keywords: ["launch", "deliver", "kickoff", "kick off", "active"] } },
+      { id: "outreach", title: "Run partner outreach", order: 1, workstreamId: "outreach-ws", match: { keywords: ["outreach", "reach out", "contact", "intro"] } },
+      { id: "agreements", title: "Close agreements", order: 2, workstreamId: "agreements-ws", match: { keywords: ["agreement", "contract", "mou", "sign", "close"] } },
+      { id: "activate", title: "Activate delivery", order: 3, workstreamId: "activation-ws", match: { keywords: ["launch", "deliver", "kickoff", "kick off", "active"] } },
     ],
   },
   {
@@ -427,6 +495,23 @@ export function getMilestoneDef(
   const init = getInitiativeDef(initiativeId);
   if (!init) return null;
   return init.milestones.find((m) => m.id === milestoneId) ?? null;
+}
+
+/** The workstreams of an initiative in display order, or an empty list. */
+export function listWorkstreamDefs(initiativeId: string): WorkstreamDef[] {
+  const init = getInitiativeDef(initiativeId);
+  if (!init || !init.workstreams) return [];
+  return [...init.workstreams].sort((a, b) => a.order - b.order);
+}
+
+/** A workstream definition within an initiative, or null. */
+export function getWorkstreamDef(
+  initiativeId: string,
+  workstreamId: string
+): WorkstreamDef | null {
+  const init = getInitiativeDef(initiativeId);
+  if (!init || !init.workstreams) return null;
+  return init.workstreams.find((w) => w.id === workstreamId) ?? null;
 }
 
 export function initiativeStatusLabel(status: InitiativeStatus): string {
