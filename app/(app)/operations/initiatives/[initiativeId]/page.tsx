@@ -12,11 +12,11 @@ import { getProjectsForInitiative } from "@/lib/people-strategy/strategic-projec
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
 import { buildInitiativeActionPrefill } from "@/lib/people-strategy/strategic-recommendations";
 import { ProjectCardGrid } from "@/components/people-strategy/strategic-projects";
-import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import {
   CommandCenterSection,
   EntityHealthList,
 } from "@/components/people-strategy/command-center-os";
+import { StrategicWorkspaceHeader } from "@/components/people-strategy/strategic-workspace-nav";
 import {
   InitiativeSummaryPanel,
   MilestoneList,
@@ -94,7 +94,13 @@ export default async function StrategicInitiativeDetailPage({
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
-      <ActionCommandBar
+      <StrategicWorkspaceHeader
+        current="initiatives"
+        breadcrumbs={[
+          { label: "Portfolio", href: "/operations/portfolio" },
+          { label: "Initiatives", href: "/operations/initiatives" },
+          { label: summary.title },
+        ]}
         eyebrow={`People Strategy · ${summary.areaLabel}`}
         title={summary.title}
         subtitle={summary.description}
@@ -102,24 +108,17 @@ export default async function StrategicInitiativeDetailPage({
           summary.targetDateISO ? ` · target ${new Date(summary.targetDateISO).toLocaleDateString()}` : ""
         }`}
         actions={
-          <>
-            <Link href={newActionHref} className="button primary small">
-              + New action
-            </Link>
-            <Link href="/operations/portfolio" className="button outline small">
-              Portfolio
-            </Link>
-            <Link href="/operations/initiatives" className="button outline small">
-              All initiatives
-            </Link>
-          </>
+          <Link href={newActionHref} className="button primary small">
+            + New action
+          </Link>
         }
       />
 
-      <nav style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4, fontSize: 13 }}>
-        <Link href="/operations/initiatives" style={{ color: "var(--muted)" }}>← Initiatives</Link>
+      <nav className="ps-anchor-nav" aria-label="On this page">
         {NAV_LINKS.map((l) => (
-          <a key={l.href} href={l.href} style={{ color: "var(--muted)" }}>{l.label}</a>
+          <a key={l.href} href={l.href}>
+            {l.label}
+          </a>
         ))}
       </nav>
 

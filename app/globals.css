@@ -15346,6 +15346,142 @@ select.ps-filter {
   outline-offset: 2px;
 }
 
+/* ---- Strategic workspace switcher (3.5) ----
+   The shared cross-page nav. Reuses the segmented .ps-tabs control but spans the
+   content width and scrolls horizontally on small screens instead of wrapping
+   into a ragged block, so the seven destinations stay one clean switcher. */
+.ps-workspace-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ps-workspace-nav {
+  margin: 0;
+  min-width: 0;
+}
+
+.ps-workspace-nav .ps-tabs {
+  margin-top: 0;
+  width: 100%;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 760px) {
+  .ps-workspace-nav .ps-tabs {
+    width: fit-content;
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+/* ---- Strategic breadcrumbs (3.5) ----
+   Makes the Portfolio -> Initiative -> Project ladder explicit above the title. */
+.ps-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--ps-ink-soft, #64748b);
+}
+
+.ps-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ps-breadcrumbs a {
+  color: var(--ps-ink-soft, #64748b);
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.ps-breadcrumbs a:hover {
+  color: var(--ps-accent, #6b21c8);
+  text-decoration: underline;
+}
+
+.ps-breadcrumbs a:focus-visible {
+  outline: 2px solid var(--ps-accent, #6b21c8);
+  outline-offset: 2px;
+}
+
+.ps-breadcrumbs [aria-current="page"] {
+  color: var(--ps-ink, #0f172a);
+  font-weight: 600;
+}
+
+.ps-crumb-sep {
+  opacity: 0.45;
+}
+
+/* ---- In-page section jump bar (.ps-anchor-nav) ----
+   On long strategic detail pages, a clearly-secondary row of anchor links to
+   the sections below — distinct from the workspace switcher above it (plain
+   muted links, not a segmented control). Scrolls rather than wraps on mobile. */
+.ps-anchor-nav {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 16px;
+  margin: 0 0 4px;
+  padding-bottom: 2px;
+  font-size: 13px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 760px) {
+  .ps-anchor-nav {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+.ps-anchor-nav a {
+  color: var(--ps-ink-soft, #64748b);
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: 4px;
+}
+
+.ps-anchor-nav a:hover {
+  color: var(--ps-accent, #6b21c8);
+  text-decoration: underline;
+}
+
+.ps-anchor-nav a:focus-visible {
+  outline: 2px solid var(--ps-accent, #6b21c8);
+  outline-offset: 2px;
+}
+
+/* ---- Consistent section rhythm (.ps-stack) ----
+   Replaces the per-page `marginTop: 26` on every strategic <section>. */
+.ps-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  margin-top: 22px;
+}
+
+@media (max-width: 640px) {
+  .ps-stack {
+    gap: 20px;
+    margin-top: 18px;
+  }
+}
+
 /* ---- Interactive list cards (.ps-action-card) ----
    The action/deadline rows are whole-card links; give them a clear, premium
    hover affordance (lift + deeper shadow + accent edge) and an accent title so

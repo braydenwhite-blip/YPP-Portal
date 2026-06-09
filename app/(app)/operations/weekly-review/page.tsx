@@ -1,10 +1,12 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireOfficer } from "@/lib/authorization";
-import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
+import {
+  isActionTrackerEnabled,
+  isOperationsHubEnabled,
+  isStrategicInitiativesEnabled,
+} from "@/lib/feature-flags";
 import { getWeeklyReviewForViewer } from "@/lib/people-strategy/operational-digest-queries";
-import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import {
   ActionUrgencyList,
   DecisionFollowThroughCard,
@@ -12,6 +14,7 @@ import {
   EntityHealthList,
   MeetingFollowThroughCard,
 } from "@/components/people-strategy/command-center-os";
+import { StrategicWorkspaceHeader } from "@/components/people-strategy/strategic-workspace-nav";
 import {
   nextReviewDate,
   resolveWeeklyReviewStep,
@@ -78,15 +81,12 @@ export default async function WeeklyReviewPage({
 
   return (
     <div className="page-shell" style={{ maxWidth: 980 }}>
-      <ActionCommandBar
+      <StrategicWorkspaceHeader
+        current="weekly-review"
+        showStrategic={isStrategicInitiativesEnabled()}
         eyebrow="People Strategy · Leadership"
         title="Weekly Review"
         subtitle="A guided pass through what needs a decision this week — work the steps in order."
-        actions={
-          <Link href="/operations/command-center" className="button outline small">
-            Command Center
-          </Link>
-        }
       />
 
       <div style={{ marginTop: 16 }}>
