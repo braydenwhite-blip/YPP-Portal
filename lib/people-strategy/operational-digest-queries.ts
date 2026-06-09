@@ -170,7 +170,7 @@ function emptyDigest(now: Date): WeeklyOperationalDigest {
 
 // --- A. global leadership digest --------------------------------------------
 
-type DigestInputs = {
+export type DigestInputs = {
   actions: ActionItemWithRelations[];
   meetings: MeetingCardDTO[];
   decisions: DigestDecisionInput[];
@@ -182,8 +182,12 @@ type DigestInputs = {
  * Review: every visible action, the meetings in the operating window, and the
  * full meeting history of every entity with open work. Returns empty inputs when
  * the tracker flag is off.
+ *
+ * Exported so the Strategic Initiatives layer can reuse the exact same batched
+ * read (one source of truth, no N+1) and classify the loaded work into
+ * initiatives in memory.
  */
-async function loadDigestInputs(
+export async function loadDigestInputs(
   viewer: ActionViewer,
   now: Date
 ): Promise<DigestInputs> {

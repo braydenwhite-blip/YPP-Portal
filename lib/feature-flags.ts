@@ -40,6 +40,22 @@ export function isOperationsHubEnabled(): boolean {
 }
 
 /**
+ * People Strategy Execution OS — Strategic Initiatives (Phase II). Gates the
+ * `/operations/initiatives`, `/operations/initiatives/[id]`, and
+ * `/operations/strategic-map` routes plus the Command Center's Strategic
+ * Initiatives section. The initiative LAYER is pure config + derivation (no
+ * schema, no migration); this flag only gates the runtime surfaces.
+ *
+ * Defaults OFF — set `ENABLE_STRATEGIC_INITIATIVES=true` to expose them. The
+ * surfaces also require `ENABLE_OPERATIONS_HUB` and `ENABLE_ACTION_TRACKER`
+ * (they derive from tracker data and live under the officer-gated Operations
+ * Hub), so with any of the three off the routes return notFound().
+ */
+export function isStrategicInitiativesEnabled(): boolean {
+  return process.env.ENABLE_STRATEGIC_INITIATIVES === "true";
+}
+
+/**
  * Temporary deprecation gate for the older Leadership Action Center sidebar
  * entry. The route remains reachable during migration, but the nav should
  * point people at the newer People Strategy Action Tracker by default.

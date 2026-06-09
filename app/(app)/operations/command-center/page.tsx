@@ -2,8 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireOfficer } from "@/lib/authorization";
-import { isActionTrackerEnabled, isOperationsHubEnabled } from "@/lib/feature-flags";
+import {
+  isActionTrackerEnabled,
+  isOperationsHubEnabled,
+  isStrategicInitiativesEnabled,
+} from "@/lib/feature-flags";
 import { getWeeklyOperationalDigestForViewer } from "@/lib/people-strategy/operational-digest-queries";
+import { getStrategicDashboardData } from "@/lib/people-strategy/strategic-initiative-queries";
+import { StrategicInitiativesSection } from "@/components/people-strategy/strategic-initiatives";
 import {
   ActionUrgencyList,
   AreaHealthGrid,
@@ -41,6 +47,11 @@ export default async function CommandCenterOsPage() {
 
   const now = new Date();
   const digest = await getWeeklyOperationalDigestForViewer(viewer, { now });
+  // Strategic layer (Phase II) — only loaded when the flag is on, so the
+  // existing Command Center is byte-for-byte unchanged when it is off.
+  const strategic = isStrategicInitiativesEnabled()
+    ? await getStrategicDashboardData(viewer, { now }).catch(() => null)
+    : null;
   const consideredCount =
     digest.counts.overdueActions + digest.counts.dueSoonActions + digest.counts.recentlyCompletedActions;
 
@@ -61,6 +72,12 @@ export default async function CommandCenterOsPage() {
       <nav style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 4, fontSize: 13 }}>
         <Link href="/operations" style={{ color: "var(--muted)" }}>Operations Hub</Link>
         <Link href="/operations/weekly-review" style={{ color: "var(--muted)" }}>Weekly Review</Link>
+        {strategic ? (
+          <Link href="/operations/initiatives" style={{ color: "var(--muted)" }}>Initiatives</Link>
+        ) : null}
+        {strategic ? (
+          <Link href="/operations/strategic-map" style={{ color: "var(--muted)" }}>Strategic Map</Link>
+        ) : null}
         <Link href="/actions/command-center" style={{ color: "var(--muted)" }}>Action Tracker</Link>
         <Link href="/actions/meetings" style={{ color: "var(--muted)" }}>Meetings</Link>
       </nav>
@@ -71,6 +88,29 @@ export default async function CommandCenterOsPage() {
           <OperationalDigestStats counts={digest.counts} />
         </CommandCenterSection>
       </section>
+
+      {/* Strategic Initiatives (Phase II) — the executive read above actions */}
+      {strategic ? (
+        <section style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
+          <CommandCenterSection
+            title="Strategic initiatives"
+            hint={
+              <Link href="/operations/initiatives" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
+                Open all {strategic.stats.total} →
+              </Link>
+            }
+          >
+            <StrategicInitiativesSection
+              needingAttention={strategic.needingAttention}
+              fastestMoving={strategic.fastestMoving}
+              recentMilestones={strategic.recentMilestones}
+              upcomingMilestones={strategic.upcomingMilestones}
+              strategicRisks={strategic.strategicRisks}
+              leadershipPriorities={strategic.leadershipPriorities}
+            />
+          </CommandCenterSection>
+        </section>
+      ) : null}
 
       <div
         className="command-center-grid"
