@@ -128,3 +128,73 @@ blocked dependencies were found."
 4. **One CTA per surface that is specific** ("Clear blocker", "Assign owner"),
    never a generic "View".
 5. **Empty states ship with the component**, not bolted on per page.
+
+## 8. What shipped (reference)
+
+### Navigation (Phase B)
+`components/people-strategy/strategic-workspace-nav.tsx`
+- `StrategicWorkspaceNav({ current?, showStrategic? })` — the segmented
+  `.ps-tabs` switcher (Command Center · Portfolio · Initiatives · Projects ·
+  Weekly Review · Actions · Meetings). `showStrategic={false}` drops the
+  flag-gated destinations so non-strategic surfaces never link to a 404.
+- `StrategicBreadcrumbs({ trail })` — Portfolio → Initiative → Project.
+- `StrategicWorkspaceHeader({ current, breadcrumbs, ...commandBar })` — one
+  header per page (breadcrumbs + command bar + switcher).
+- `StrategicStack` — consistent section rhythm (`.ps-stack`), replacing per-page
+  `marginTop`.
+- Detail pages keep a clearly-secondary `.ps-anchor-nav` in-page jump bar.
+- Applied to all eight operations surfaces (command-center, portfolio,
+  initiatives, initiative detail, projects, project detail, weekly-review,
+  strategic-map).
+
+### Project workspace (Phases C–D)
+`lib/people-strategy/strategic-project-attention.ts` (pure)
+- `deriveProjectCta(project)` → one specific labeled CTA (Clear blocker / Assign
+  owner / Review decisions / Create next action / Review project).
+- `selectProjectAttentionQueue(projects, limit?)` → the ranked "look here first"
+  queue (deduped union of needs-attention / blocked / unowned / stale).
+- `deriveProjectStakes(project)` → the honest "if nothing changes" line.
+
+`components/people-strategy/strategic-projects.tsx`
+- `StrategicAttentionQueue({ items })` — numbered rows (why / owner / blocker /
+  next move / CTA). Used on the project index and inside the portfolio board.
+- `ProjectWhatMattersPanel({ project })` — the focal panel under the project
+  hero (purpose · status · next move + CTA · who acts · stakes · success).
+- The project index now also renders the previously-unused `stale` (Losing
+  momentum) and `fastest` (Accelerating) groups.
+
+### Leadership agenda (Phases E / F / I)
+`components/people-strategy/strategic-command.tsx`
+- `StrategicLeadershipAgenda({ moves })` — the numbered "this week's agenda" from
+  the derived `recommendedMoves`. The Command Center cockpit now leads with it;
+  the Weekly Review shows it (+ a "Projects to review" attention queue) above the
+  operational triage stepper. The Portfolio project board leads with the queue.
+
+### Entity & meeting embeds (Phases G / H)
+`lib/people-strategy/strategic-entity-context.ts` (pure)
+- `deriveStrategicEntityContext({ actions, meetings })` — ladders an entity up to
+  the strategic system from data the page already fetched
+  (`getOperationalContextForEntity`); no new query.
+
+`components/people-strategy/strategic-entity-panel.tsx`
+- `StrategicEntityPanel({ context })` — compact embed (related projects /
+  initiatives / recent activity). Renders nothing when not strategic. Wired into
+  partner, class, instructor, mentorship, and person pages (flag-gated).
+
+`components/people-strategy/strategic-context.tsx`
+- `StrategicContextSection` gains `showEmptyState` and honest "likely relates to"
+  framing for inferred meeting links; surfaced on the meeting detail page.
+
+### Timeline (Phase K)
+`components/people-strategy/touchpoint-timeline.tsx` — one underlying component,
+two variants: `TouchpointTimelineView` (grouped, full — project detail) and
+`EntityTouchpoints` (compact — entity panel). Empty states name the activity that
+would appear.
+
+### Tests (Phase P)
+`tests/components/strategic-workspace-nav.test.tsx`,
+`tests/components/strategic-entity-panel.test.tsx`,
+`tests/components/strategic-context.test.tsx`,
+`tests/lib/people-strategy-strategic-project-attention.test.ts`,
+`tests/lib/people-strategy-strategic-entity-context.test.ts`, plus new cases in
+`tests/components/strategic-projects.test.tsx`.
