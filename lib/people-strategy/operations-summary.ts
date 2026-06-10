@@ -412,9 +412,9 @@ export function deriveOperationsTimeline(input: {
       id: `completed:${action.id}`,
       kind: "action_completed",
       title: action.title,
-      // Completion timestamps aren't carried on ActionLite; the due date is the
-      // closest stable anchor for ordering completed work in the window.
-      occurredAtISO: action.dueISO,
+      // Exact completion time when carried; older fixtures fall back to the due
+      // date as the closest stable anchor.
+      occurredAtISO: action.completedISO ?? action.dueISO,
       detail: action.ownerName ? `Completed — ${action.ownerName}` : "Completed",
       href: action.href,
     });

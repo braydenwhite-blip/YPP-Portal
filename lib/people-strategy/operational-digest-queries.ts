@@ -39,12 +39,10 @@ import {
   type EntityOperationalContext,
 } from "./operational-context-queries";
 import {
-  deriveActionTriage,
   deriveWeeklyOperationalDigest,
   explainOperationalHealth,
   NO_RECENT_MEETING_DAYS,
   RECENT_DECISION_DAYS,
-  type ActionTriage,
   type DigestDecisionInput,
   type OperationalHealthExplanation,
   type WeeklyOperationalDigest,
@@ -65,7 +63,7 @@ import {
  *     officer only ever feeds the digest the actions they may see.
  *   - The meeting reads are NOT per-viewer filtered (the Meetings Tracker is
  *     officer-gated at the page guard), so these loaders MUST only be called from
- *     an officer-gated surface (the Command Center / Weekly Review pages call
+ *     an officer-gated surface (the Command Center / Weekly Execution pages call
  *     `requireOfficer`). Entity-level digests inherit the same gate.
  */
 
@@ -225,28 +223,6 @@ export async function getWeeklyOperationalDigestForViewer(
   const now = options.now ?? new Date();
   const { actions, meetings, decisions, labels } = await loadDigestInputs(viewer, now);
   return deriveWeeklyOperationalDigest({ actions, meetings, decisions, labels, now });
-}
-
-export type WeeklyReviewData = {
-  digest: WeeklyOperationalDigest;
-  triage: ActionTriage;
-};
-
-/**
- * The data for the guided Weekly Review: the same digest the Command Center
- * shows PLUS the triage lists (overdue / blocked / unassigned / due-soon) the
- * first step works through — all from ONE batched read. Officer-gate the caller.
- */
-export async function getWeeklyReviewForViewer(
-  viewer: ActionViewer,
-  options: DigestQueryOptions = {}
-): Promise<WeeklyReviewData> {
-  const now = options.now ?? new Date();
-  const { actions, meetings, decisions, labels } = await loadDigestInputs(viewer, now);
-  return {
-    digest: deriveWeeklyOperationalDigest({ actions, meetings, decisions, labels, now }),
-    triage: deriveActionTriage(actions, now),
-  };
 }
 
 // --- B. area-level digest ----------------------------------------------------

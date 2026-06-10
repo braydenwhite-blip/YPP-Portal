@@ -47,7 +47,6 @@ import {
   getOperationalDigestForArea,
   getOperationalDigestForEntity,
   getWeeklyOperationalDigestForViewer,
-  getWeeklyReviewForViewer,
 } from "@/lib/people-strategy/operational-digest-queries";
 
 const NOW = new Date("2026-06-04T12:00:00");
@@ -209,31 +208,6 @@ describe("getWeeklyOperationalDigestForViewer", () => {
     const d = await getWeeklyOperationalDigestForViewer(VIEWER, { now: NOW });
     expect(d.counts.criticalEntities).toBe(1);
     expect(d.counts.warningEntities).toBe(1);
-  });
-});
-
-describe("getWeeklyReviewForViewer", () => {
-  it("returns the digest plus triage lists from a single load", async () => {
-    vi.mocked(listVisibleActionItems).mockResolvedValue([
-      action({ deadlineStart: new Date("2026-05-20T00:00:00") }), // overdue
-      action({ status: "BLOCKED" }), // blocked
-      action({ assignments: [assignment("alice", "LEAD")] }), // unassigned
-    ]);
-    const { digest, triage } = await getWeeklyReviewForViewer(VIEWER, { now: NOW });
-    expect(digest.counts.overdueActions).toBe(1);
-    expect(triage.overdue).toHaveLength(1);
-    expect(triage.blocked).toHaveLength(1);
-    expect(triage.unassigned).toHaveLength(1);
-    // One batched read backs both — actions loaded exactly once.
-    expect(listVisibleActionItems).toHaveBeenCalledTimes(1);
-  });
-
-  it("is empty when the tracker is off", async () => {
-    vi.mocked(isActionTrackerEnabled).mockReturnValue(false);
-    const { digest, triage } = await getWeeklyReviewForViewer(VIEWER, { now: NOW });
-    expect(digest.counts.overdueActions).toBe(0);
-    expect(triage.overdue).toEqual([]);
-    expect(listVisibleActionItems).not.toHaveBeenCalled();
   });
 });
 

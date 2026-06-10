@@ -6,6 +6,7 @@ import { requirePageRoles } from "@/lib/page-guards";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import {
   loadOperationsHub,
+  resolveOperationsHubRole,
   type OperationsHubData,
 } from "@/lib/people-strategy/operations-hub";
 import {
@@ -65,9 +66,13 @@ export default async function OperationsHubPage() {
   if (!isOperationsHubEnabled()) notFound();
 
   const viewer = await requirePageRoles(OPERATIONS_HUB_ROLES);
-  const hub = await loadOperationsHub(viewer);
-  const intro = ROLE_INTRO[hub.role];
-  const now = hub.now;
+  const role = resolveOperationsHubRole(viewer);
+  const isOfficer = role === "officer" || role === "leadership";
+  // Officers get a pure entry point — no operating data is loaded for them.
+  // Non-officer roles keep their personal operating picture.
+  const hub = isOfficer ? null : await loadOperationsHub(viewer);
+  const intro = ROLE_INTRO[role];
+  const now = hub?.now ?? new Date();
 
   return (
     <div className="page-shell">
@@ -81,7 +86,7 @@ export default async function OperationsHubPage() {
         </div>
       </div>
 
-      {hub.isOfficer ? (
+      {isOfficer || !hub ? (
         <OfficerEntryPoints />
       ) : !hub.hasData ? (
         <section className="card" style={{ marginTop: 16 }}>
@@ -99,8 +104,8 @@ export default async function OperationsHubPage() {
         </section>
       ) : (
         <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
-          {hub.role === "mentor" ? <MentorView hub={hub} /> : null}
-          {hub.role === "instructor" ? <InstructorView hub={hub} now={now} /> : null}
+          {role === "mentor" ? <MentorView hub={hub} /> : null}
+          {role === "instructor" ? <InstructorView hub={hub} now={now} /> : null}
           {/* Personal "my open actions" is useful for every non-officer role. */}
           <MyActionsSection hub={hub} />
           {hub.myMentor ? <MyMentorSection hub={hub} /> : null}

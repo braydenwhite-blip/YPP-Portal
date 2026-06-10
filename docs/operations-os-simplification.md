@@ -56,8 +56,7 @@ views") instead of crowding the workspace nav:
 - `/operations/weekly-review` → `/operations/weekly-execution`. The guided
   stepper and the Weekly Execution OS both ran the same weekly loop from the
   same digest; the unified IA keeps one weekly workflow. The stepper component
-  was removed; `getWeeklyReviewForViewer` remains in the query layer as a
-  legacy helper.
+  and its `getWeeklyReviewForViewer` query helper were removed.
 - `/all-actions` → `/actions/all`, `/my-actions` → `/actions`,
   `/actions/reporting` → `/actions/all` (pre-existing).
 

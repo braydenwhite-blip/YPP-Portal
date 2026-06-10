@@ -100,6 +100,25 @@ function asDate(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+/** One-click deadline presets so common dates never need the date picker. */
+const DEADLINE_PRESETS: Array<{ label: string; days: number }> = [
+  { label: "Today", days: 0 },
+  { label: "Tomorrow", days: 1 },
+  { label: "In 3 days", days: 3 },
+  { label: "Next week", days: 7 },
+  { label: "In 2 weeks", days: 14 },
+];
+
+const COMMUNICATION_AUDIENCES = [
+  "instructor",
+  "applicant",
+  "mentor",
+  "partner",
+  "parent",
+  "officer",
+  "other",
+] as const;
+
 const REQUIRED_MARK = (
   <span aria-hidden className="ps-required">
     *
@@ -346,6 +365,13 @@ export default function ActionItemForm({
   const [fileLabel, setFileLabel] = useState("");
   const [fileUrl, setFileUrl] = useState("");
 
+  // Communication-needed capture. There is no dedicated DB field; checking the
+  // box composes a structured "Communication needed" line into the description
+  // on save, which the operations summary's communication detector picks up.
+  const [communicationNeeded, setCommunicationNeeded] = useState(false);
+  const [communicationAudience, setCommunicationAudience] = useState<string>("instructor");
+  const [communicationContact, setCommunicationContact] = useState("");
+
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -451,6 +477,16 @@ export default function ActionItemForm({
     const executors = executingIds;
     const hasFileLink = fileLabel.trim() && fileUrl.trim();
 
+    // Compose the communication request into the description so it travels
+    // with the action and the operations summary surfaces it under
+    // "Communications needed".
+    const communicationLine = communicationNeeded
+      ? `Communication needed: message ${communicationContact.trim() || `the ${communicationAudience}`} (${communicationAudience}).`
+      : null;
+    const finalDescription = [description.trim(), communicationLine]
+      .filter(Boolean)
+      .join("\n\n");
+
     startTransition(async () => {
       try {
         if (isEdit && initial?.id) {
@@ -458,7 +494,7 @@ export default function ActionItemForm({
           await updateActionItem({
             id,
             title: title.trim(),
-            description: description.trim(),
+            description: finalDescription,
             goalCategory: goalCategory.trim(),
             // Always send the type on edit: a value sets it, an empty string
             // clears it (interpreted by parseActionTypeUpdate server-side).
@@ -490,7 +526,7 @@ export default function ActionItemForm({
         } else {
           const { id } = await createActionItem({
             title: title.trim(),
-            description: description.trim() || undefined,
+            description: finalDescription || undefined,
             goalCategory: goalCategory.trim() || undefined,
             actionType: actionType || undefined,
             departmentId: departmentId || undefined,
@@ -594,6 +630,17 @@ export default function ActionItemForm({
           emptyHint="No assignable users found."
         />
 
+        {currentUserId && users.some((u) => u.id === currentUserId) && leadIds[0] !== currentUserId ? (
+          <button
+            type="button"
+            className="button outline small"
+            style={{ justifySelf: "start" }}
+            onClick={() => setLeadIds([currentUserId])}
+          >
+            Assign me as Lead
+          </button>
+        ) : null}
+
         <UserPicker
           label="Executing (optional — defaults to the Lead)"
           users={users}
@@ -627,6 +674,23 @@ export default function ActionItemForm({
               onChange={(e) => setDeadline(e.target.value)}
               className="ps-input"
             />
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+              {DEADLINE_PRESETS.map((preset) => {
+                const value = toDateInputValue(addDays(new Date(), preset.days));
+                const active = deadline === value;
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => setDeadline(value)}
+                    className={`pill pill-${active ? "purple" : "neutral"} pill-small`}
+                    style={{ cursor: "pointer", border: "1px solid var(--border)" }}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="ps-field">
             <label className="ps-label" htmlFor="action-status">
@@ -740,6 +804,54 @@ export default function ActionItemForm({
             No meeting or related record is attached yet. That is okay for a manual action.
           </p>
         ) : null}
+
+        <div className="ps-field" style={{ display: "grid", gap: 8 }}>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600 }}>
+            <input
+              type="checkbox"
+              checked={communicationNeeded}
+              onChange={(e) => setCommunicationNeeded(e.target.checked)}
+            />
+            This action needs a message to be sent
+          </label>
+          {communicationNeeded ? (
+            <div className="ps-field-grid">
+              <div className="ps-field">
+                <label className="ps-label" htmlFor="action-comm-audience">
+                  Who is it for?
+                </label>
+                <select
+                  id="action-comm-audience"
+                  value={communicationAudience}
+                  onChange={(e) => setCommunicationAudience(e.target.value)}
+                  className="ps-select"
+                >
+                  {COMMUNICATION_AUDIENCES.map((audience) => (
+                    <option key={audience} value={audience}>
+                      {audience[0].toUpperCase() + audience.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="ps-field">
+                <label className="ps-label" htmlFor="action-comm-contact">
+                  Person / group to contact
+                </label>
+                <input
+                  id="action-comm-contact"
+                  value={communicationContact}
+                  onChange={(e) => setCommunicationContact(e.target.value)}
+                  className="ps-input"
+                  placeholder="e.g. Lily, Beth El, applicant families"
+                />
+              </div>
+            </div>
+          ) : null}
+          <p className="ps-help" style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
+            Marked communications surface in the Command Center and Weekly Execution under
+            “Communications needed”. Nothing is sent automatically.
+          </p>
+        </div>
       </FormSection>
 
       <FormSection
@@ -844,6 +956,33 @@ export default function ActionItemForm({
           </div>
         </fieldset>
       </FormSection>
+
+      {/* Live capture summary — reinforces that this is a step in the system,
+          not a random task. */}
+      {title.trim() ? (
+        <p
+          role="status"
+          style={{
+            margin: 0,
+            fontSize: 12.5,
+            color: "var(--text-secondary)",
+            lineHeight: 1.5,
+            padding: "9px 12px",
+            border: "1px dashed var(--border)",
+            borderRadius: 8,
+          }}
+        >
+          <strong style={{ color: "var(--ypp-ink)" }}>You are capturing: </strong>
+          “{title.trim()}”
+          {leadId
+            ? ` — owned by ${users.find((u) => u.id === leadId)?.name ?? users.find((u) => u.id === leadId)?.email ?? "the lead"}`
+            : " — no owner yet"}
+          {deadline ? `, due ${deadline}` : ", no due date yet"}
+          {strategicContextLabel ? `, moving ${strategicContextLabel}` : ""}
+          {sourceLabel ? `, from ${sourceLabel}` : ""}
+          {communicationNeeded ? ` — includes a message to ${communicationContact.trim() || `the ${communicationAudience}`}` : ""}.
+        </p>
+      ) : null}
 
       {warnings.length > 0 && (
         <div

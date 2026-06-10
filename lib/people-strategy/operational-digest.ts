@@ -136,6 +136,8 @@ export type ActionLite = {
   contextSummary: string | null;
   /** Exact creation time, used by weekly recap/new-work summaries when present. */
   createdISO?: string;
+  /** Completion time (exact `completedAt`, else last update) for COMPLETE items. */
+  completedISO?: string;
   href: string;
 };
 
@@ -422,6 +424,7 @@ export function toActionLite(
     nextStep: actionNextStep(item, now),
     contextSummary: actionContextSummary(item, related),
     createdISO: item.createdAt.toISOString(),
+    completedISO: status === "COMPLETE" ? completionTime(item).toISOString() : undefined,
     href: actionHref(item.id),
   };
 }

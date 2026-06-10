@@ -367,7 +367,12 @@ async function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
   }
 }
 
-function resolveRole(viewer: ActionViewer): OperationsHubRole {
+/**
+ * Resolve which operating picture a viewer gets. Exported so the Operations
+ * entry page can branch on role WITHOUT paying for the full hub load — for
+ * officers the page is a simple entry point and loads nothing else.
+ */
+export function resolveOperationsHubRole(viewer: ActionViewer): OperationsHubRole {
   if (isLeadershipOrBoard(viewer)) return "leadership";
   if (isOfficerTier(viewer)) return "officer";
   if (viewer.roles.includes("MENTOR")) return "mentor";
@@ -430,7 +435,7 @@ export async function loadOperationsHub(
   viewer: ActionViewer,
   now: Date = new Date()
 ): Promise<OperationsHubData> {
-  const role = resolveRole(viewer);
+  const role = resolveOperationsHubRole(viewer);
   if (!isActionTrackerEnabled()) return EMPTY_HUB(role, now);
 
   const hub = EMPTY_HUB(role, now);
