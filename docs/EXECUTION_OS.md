@@ -19,16 +19,18 @@ operational health read). Gated behind `ENABLE_OPERATIONS_HUB` **and**
 | Route | What it is |
 | --- | --- |
 | `/operations/command-center` | **Leadership Command Center** — the weekly cockpit: "This week at YPP" stats, a ranked "Needs attention" queue, meetings needing follow-through, decisions to convert into action, operational health by area, critical/drifting entities, due/overdue actions, and a recently-resolved momentum strip. |
-| `/operations/weekly-review` | **Weekly Leadership Review** — a guided, step-driven pass over the same digest (Triage → Meetings → Entity health → Decisions → Wrap-up). The active step lives in `?step=`. |
+| `/operations/weekly-review` | **Weekly Leadership Review** — the older guided, step-driven pass over the same digest (Triage -> Meetings -> Entity health -> Decisions -> Wrap-up). The active step lives in `?step=`. |
+| `/operations/weekly-execution` | **Weekly Execution OS** — the weekly officer meeting workspace: agenda builder, meeting capture, loose-end inbox, communication queue, initiative attention, and recap draft. |
+| `/operations/initiatives` | **Strategic Initiatives** — the portfolio dashboard for YPP's major goals, derived health, milestones, risks, meetings, decisions, and action rollups. |
 
 Both are reached from the existing **Operations Hub** (`/operations`) via header
 CTAs, and link to each other and back to the Action / Meetings trackers.
 
-> **Phase II — Strategic Initiatives.** A *strategic* layer now sits above this
+> **Phase II - Strategic Initiatives.** A *strategic* layer now sits above this
 > operational one: major goals, programs, and campaigns with derived health,
 > momentum, progress, risk, milestones, an organizational timeline, and
-> recommended next moves — all config + derivation, no new tables. See
-> [STRATEGIC_INITIATIVES.md](./STRATEGIC_INITIATIVES.md).
+> recommended next moves - all config + derivation, no new tables. See
+> [Strategic Initiatives OS](./strategic-initiatives-os.md).
 
 ## How it connects
 

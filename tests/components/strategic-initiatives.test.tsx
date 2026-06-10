@@ -10,6 +10,7 @@ import type { StrategicInitiativeDef } from "@/lib/people-strategy/strategic-ini
 import {
   InitiativeCard,
   InitiativeSummaryPanel,
+  InitiativeWeeklyOperatingView,
   MilestoneList,
   ProgressBar,
   RecommendationsList,
@@ -69,6 +70,19 @@ describe("InitiativeSummaryPanel", () => {
     expect(screen.getByText(summary.healthExplanation.headline)).toBeInTheDocument();
     expect(screen.getByText("Open actions")).toBeInTheDocument();
     expect(screen.getByText("Overdue")).toBeInTheDocument();
+  });
+});
+
+describe("InitiativeWeeklyOperatingView", () => {
+  it("shows actions, meetings, decisions, blockers, communication, and timeline", () => {
+    const summary = buildSummary();
+    render(<InitiativeWeeklyOperatingView initiative={summary} />);
+    expect(screen.getByText("Current Focus")).toBeInTheDocument();
+    expect(screen.getByText("Open Actions")).toBeInTheDocument();
+    expect(screen.getByText("Meetings & Decisions")).toBeInTheDocument();
+    expect(screen.getByText("Risks / Blockers")).toBeInTheDocument();
+    expect(screen.getByText("Communication Needed")).toBeInTheDocument();
+    expect(screen.getByText("Timeline")).toBeInTheDocument();
   });
 });
 

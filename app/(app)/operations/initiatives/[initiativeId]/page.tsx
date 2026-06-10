@@ -19,6 +19,7 @@ import {
 import { StrategicWorkspaceHeader } from "@/components/people-strategy/strategic-workspace-nav";
 import {
   InitiativeSummaryPanel,
+  InitiativeWeeklyOperatingView,
   MilestoneList,
   NextStepsPanel,
   OwnershipPanel,
@@ -126,6 +127,12 @@ export default async function StrategicInitiativeDetailPage({
       <section style={{ marginTop: 18 }}>
         <CommandCenterSection title="Executive summary" hint={summary.health.label}>
           <InitiativeSummaryPanel initiative={summary} />
+        </CommandCenterSection>
+      </section>
+
+      <section style={{ marginTop: 26 }}>
+        <CommandCenterSection title="Weekly operating view" hint="Focus · actions · risks · communication">
+          <InitiativeWeeklyOperatingView initiative={summary} />
         </CommandCenterSection>
       </section>
 

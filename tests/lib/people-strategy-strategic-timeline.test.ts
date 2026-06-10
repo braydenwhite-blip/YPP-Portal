@@ -137,6 +137,21 @@ describe("deriveStrategicTimeline", () => {
     expect(tl.keyMoments.some((e) => e.type === "milestone_reached")).toBe(true);
   });
 
+  it("merges action, meeting, and decision events newest-first", () => {
+    const tl = deriveStrategicTimeline({
+      def,
+      actions: [action({ id: "a-open", title: "Draft camp curriculum", createdAt: new Date("2026-05-20") })],
+      meetings: [meetingCard({ id: "m1", title: "Camp partner sync", startISO: new Date("2026-05-25").toISOString() })],
+      decisions: [decision({ id: "d1", decision: "Run a July camp pilot", createdAt: new Date("2026-05-28") })],
+      milestones: [],
+      now: NOW,
+    });
+    const titles = tl.events
+      .filter((event) => ["decision", "meeting", "action_created"].includes(event.type))
+      .map((event) => event.title);
+    expect(titles).toEqual(["Run a July camp pilot", "Camp partner sync", "Draft camp curriculum"]);
+  });
+
   it("merges multiple initiative timelines newest-first", () => {
     const a = deriveTimelineEvents({ def, actions: [action({ title: "Camp x", createdAt: new Date("2026-06-01") })], meetings: [], decisions: [], milestones: [], now: NOW });
     const b = deriveTimelineEvents({ def: { ...def, id: "other", title: "Other" }, actions: [action({ title: "Other y", createdAt: new Date("2026-06-02") })], meetings: [], decisions: [], milestones: [], now: NOW });

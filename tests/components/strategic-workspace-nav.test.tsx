@@ -8,7 +8,7 @@ import {
 } from "@/components/people-strategy/strategic-workspace-nav";
 
 describe("StrategicWorkspaceNav", () => {
-  it("renders the seven workspace destinations with the right hrefs", () => {
+  it("renders the workspace destinations with the right hrefs", () => {
     render(<StrategicWorkspaceNav current="projects" />);
     const nav = screen.getByRole("navigation", { name: "Strategic workspace" });
     const expected: Array<[string, string]> = [
@@ -17,6 +17,7 @@ describe("StrategicWorkspaceNav", () => {
       ["Initiatives", "/operations/initiatives"],
       ["Projects", "/operations/projects"],
       ["Weekly Review", "/operations/weekly-review"],
+      ["Weekly Execution", "/operations/weekly-execution"],
       ["Actions", "/actions/command-center"],
       ["Meetings", "/actions/meetings"],
     ];
@@ -41,6 +42,7 @@ describe("StrategicWorkspaceNav", () => {
     // Always-available destinations stay.
     expect(screen.getByRole("link", { name: "Command Center" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Weekly Review" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Weekly Execution" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Actions" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Meetings" })).toBeInTheDocument();
     // Strategic-only destinations are omitted so they cannot 404.

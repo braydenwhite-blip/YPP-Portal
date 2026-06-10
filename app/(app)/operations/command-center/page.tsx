@@ -8,8 +8,11 @@ import {
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { getWeeklyOperationalDigestForViewer } from "@/lib/people-strategy/operational-digest-queries";
+import { getStrategicDashboardData } from "@/lib/people-strategy/strategic-initiative-queries";
 import { getStrategicCommandData } from "@/lib/people-strategy/strategic-project-queries";
 import { StrategicCommandSection } from "@/components/people-strategy/strategic-command";
+import { InitiativeMiniRow } from "@/components/people-strategy/strategic-initiatives";
+import { StatCard } from "@/components/people-strategy/stat-card";
 import {
   ActionMeetings360Workboard,
   ActionUrgencyList,
@@ -47,9 +50,12 @@ export default async function CommandCenterOsPage() {
   const digest = await getWeeklyOperationalDigestForViewer(viewer, { now });
   // Strategic layer (Phase II) — only loaded when the flag is on, so the
   // existing Command Center is byte-for-byte unchanged when it is off.
-  const strategic = isStrategicInitiativesEnabled()
-    ? await getStrategicCommandData(viewer, { now }).catch(() => null)
-    : null;
+  const [strategic, strategicInitiatives] = isStrategicInitiativesEnabled()
+    ? await Promise.all([
+        getStrategicCommandData(viewer, { now }).catch(() => null),
+        getStrategicDashboardData(viewer, { now }).catch(() => null),
+      ])
+    : [null, null];
   const consideredCount =
     digest.counts.overdueActions + digest.counts.dueSoonActions + digest.counts.recentlyCompletedActions;
 
@@ -94,6 +100,36 @@ export default async function CommandCenterOsPage() {
             }
           >
             <StrategicCommandSection data={strategic} />
+          </CommandCenterSection>
+        </section>
+      ) : null}
+
+      {strategicInitiatives ? (
+        <section style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
+          <CommandCenterSection
+            title="Strategic Initiatives"
+            hint={
+              <Link href="/operations/initiatives" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
+                Open initiatives →
+              </Link>
+            }
+          >
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <StatCard label="Active initiatives" value={strategicInitiatives.stats.active} icon="target" tone="accent" href="/operations/initiatives" />
+                <StatCard label="At risk" value={strategicInitiatives.stats.atRisk + strategicInitiatives.stats.critical} icon="alert" tone={strategicInitiatives.stats.atRisk + strategicInitiatives.stats.critical > 0 ? "warning" : "default"} href="/operations/initiatives" />
+                <StatCard label="Blocked" value={strategicInitiatives.leadershipPriorities.filter((i) => i.counts.blockedActions > 0 || i.health.level === "critical").length} icon="flag" tone="warning" href="/operations/initiatives" />
+                <StatCard label="No owner" value={strategicInitiatives.leadershipPriorities.filter((i) => !i.ownerDeclared).length} icon="users" tone="warning" href="/operations/initiatives" />
+                <StatCard label="Discuss this week" value={strategicInitiatives.needingAttention.length} icon="calendar" tone={strategicInitiatives.needingAttention.length > 0 ? "warning" : "default"} href="/operations/weekly-execution" />
+              </div>
+              {strategicInitiatives.needingAttention.length > 0 ? (
+                <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+                  {strategicInitiatives.needingAttention.slice(0, 5).map((initiative) => (
+                    <InitiativeMiniRow key={initiative.id} initiative={initiative} />
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </CommandCenterSection>
         </section>
       ) : null}

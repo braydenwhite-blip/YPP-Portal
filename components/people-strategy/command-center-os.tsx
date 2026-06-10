@@ -87,8 +87,8 @@ export function CommandCenterHero({
       } you can see`}
       actions={
         <>
-          <Link href="/operations/weekly-review" className="button primary small">
-            Open weekly review
+          <Link href="/operations/weekly-execution" className="button primary small">
+            Run weekly execution meeting
           </Link>
           <Link href="/actions/new" className="button outline small">
             + New action
@@ -185,7 +185,7 @@ export function NeedsAttentionList({
 
 export function LeadershipRhythm() {
   const moves: Array<{ href: string; label: string; primary?: boolean }> = [
-    { href: "/operations/weekly-review", label: "Open weekly review", primary: true },
+    { href: "/operations/weekly-execution", label: "Run weekly execution meeting", primary: true },
     { href: "/actions/all?status=OVERDUE", label: "Review overdue actions" },
     { href: "/actions/meetings", label: "Follow up on meetings" },
     { href: "/actions/meetings?new=1", label: "Schedule a meeting" },
@@ -806,8 +806,8 @@ export function CommandCenterAllClear({
         </p>
       ) : null}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <Link href="/operations/weekly-review" className="button primary small">
-          Run a weekly leadership review
+        <Link href="/operations/weekly-execution" className="button primary small">
+          Run weekly execution meeting
         </Link>
         <Link href="/actions/new" className="button outline small">
           Create an action

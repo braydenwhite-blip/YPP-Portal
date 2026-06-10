@@ -134,6 +134,8 @@ export type ActionLite = {
   latestUpdate: string | null;
   nextStep: string | null;
   contextSummary: string | null;
+  /** Exact creation time, used by weekly recap/new-work summaries when present. */
+  createdISO?: string;
   href: string;
 };
 
@@ -278,6 +280,8 @@ export type OperationalDigestCounts = {
   recentDecisions: number;
   decisionsNeedingAction: number;
   recentlyCompletedActions: number;
+  /** Actions created in the operating week. Optional for older fixtures. */
+  newActionsThisWeek?: number;
 };
 
 export type WeeklyOperationalDigest = {
@@ -294,6 +298,8 @@ export type WeeklyOperationalDigest = {
   unresolvedMeetingFollowUps: MeetingFollowUpLite[];
   meetingsNeedingFollowThrough: MeetingLite[];
   recentlyCompletedActions: ActionLite[];
+  /** Open or completed actions created in the operating week. Optional for older fixtures. */
+  newActionsThisWeek?: ActionLite[];
   areaHealth: AreaHealthRow[];
   recommendedReviewOrder: OperationalReviewItem[];
 };
@@ -415,6 +421,7 @@ export function toActionLite(
     latestUpdate: latestActionUpdate(item),
     nextStep: actionNextStep(item, now),
     contextSummary: actionContextSummary(item, related),
+    createdISO: item.createdAt.toISOString(),
     href: actionHref(item.id),
   };
 }
@@ -1396,6 +1403,13 @@ export function deriveWeeklyOperationalDigest(
   const recentlyCompletedActions = actionBuckets.recentlyCompleted.map((a) =>
     toActionLite(a, now, input.labels)
   );
+  const newActionsThisWeek = input.actions
+    .filter((a) => {
+      const created = a.createdAt.getTime();
+      return created >= window.start.getTime() && created <= window.end.getTime();
+    })
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .map((a) => toActionLite(a, now, input.labels));
 
   const unresolvedFollowUps = input.meetings.reduce((sum, m) => sum + m.openFollowUps, 0);
   const unresolvedMeetingFollowUps = input.meetings
@@ -1458,6 +1472,7 @@ export function deriveWeeklyOperationalDigest(
     recentDecisions: recentDecisions.length,
     decisionsNeedingAction: decisionsNeedingActionRaw.length,
     recentlyCompletedActions: recentlyCompletedActions.length,
+    newActionsThisWeek: newActionsThisWeek.length,
   };
 
   const sliceOr = <T>(list: T[], n: number | undefined): T[] =>
@@ -1485,6 +1500,7 @@ export function deriveWeeklyOperationalDigest(
       limits.meetingsNeedingFollowThrough ?? 6
     ),
     recentlyCompletedActions: sliceOr(recentlyCompletedActions, limits.recentlyCompleted ?? 6),
+    newActionsThisWeek: sliceOr(newActionsThisWeek, limits.recentlyCompleted ?? 6),
     areaHealth,
     recommendedReviewOrder,
   };
