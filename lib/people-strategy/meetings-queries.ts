@@ -150,6 +150,14 @@ export interface MeetingCardDTO {
   openLinkedActions: number;
   linkedActionCount: number;
   /**
+   * Small inline previews for command-center cards. These are optional on the
+   * type so older unit-test fixtures can stay light, but real query mappers
+   * always populate them.
+   */
+  decisionsPreview?: DecisionDTO[];
+  unconvertedFollowUps?: FollowUpDTO[];
+  linkedActionsPreview?: LinkedActionDTO[];
+  /**
    * Polymorphic link to the YPP entity this meeting is about (a class, a
    * mentorship, …), mirroring `ActionItem.relatedEntityType`. Null for a meeting
    * that is only tied to an area (its category) or to nothing in particular.
@@ -240,6 +248,38 @@ export function mapMeetingToCardDTO(
 ): MeetingCardDTO {
   const view = mapMeetingToView(m);
   const counts = cardCounts(m, now);
+  const decisionsPreview = m.decisions.slice(0, 3).map((d) => ({
+    id: d.id,
+    decision: d.decision,
+    rationale: d.rationale,
+    decidedBy: personDTO(d.decidedBy),
+    createdISO: d.createdAt.toISOString(),
+    linkedActionId: d.linkedActionId,
+  }));
+  const unconvertedFollowUps = m.followUps
+    .filter((f) => f.status !== "COMPLETED" && !f.linkedActionId)
+    .slice(0, 4)
+    .map((f) => ({
+      id: f.id,
+      title: f.title,
+      description: f.description,
+      owner: personDTO(f.owner),
+      dueISO: f.dueDate ? f.dueDate.toISOString() : null,
+      effectiveStatus: computeFollowUpStatus({ status: f.status, dueDate: f.dueDate }, now),
+      priority: f.priority,
+      area: f.area,
+      areaLabel: meetingCategoryLabel(f.area),
+      linkedActionId: f.linkedActionId,
+    }));
+  const linkedActionsPreview = m.actionItems.slice(0, 3).map((a) => ({
+    id: a.id,
+    title: a.title,
+    owner: personDTO(a.lead),
+    status: a.status,
+    priority: a.priority,
+    deadlineISO: a.deadlineStart.toISOString(),
+    departmentName: a.department?.name ?? null,
+  }));
   return {
     id: m.id,
     title: meetingDisplayTitle(m),
@@ -266,6 +306,9 @@ export function mapMeetingToCardDTO(
     overdueFollowUps: counts.overdueFollowUps,
     openLinkedActions: counts.openLinkedActions,
     linkedActionCount: m.actionItems.length,
+    decisionsPreview,
+    unconvertedFollowUps,
+    linkedActionsPreview,
     relatedEntityType: m.relatedEntityType,
     relatedEntityId: m.relatedEntityId,
   };

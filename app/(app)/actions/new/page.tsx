@@ -111,10 +111,13 @@ export default async function NewActionInTrackerPage({
       : null;
   const typeRaw = first(sp.type);
   const typeParam = typeRaw && isActionType(typeRaw) ? typeRaw : null;
+  const exactDueDate =
+    ctx.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(ctx.dueDate) ? ctx.dueDate : null;
   const deadlineStart =
-    ctx.dueInDays != null
+    exactDueDate ??
+    (ctx.dueInDays != null
       ? toDateInputValue(addDays(new Date(), ctx.dueInDays))
-      : null;
+      : null);
 
   // Validate + resolve the EXPLICIT strategic link against the curated registry,
   // so a bad id degrades to "no link" instead of a misleading chip.

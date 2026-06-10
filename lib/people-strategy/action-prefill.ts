@@ -33,6 +33,8 @@ export type ActionPrefill = {
   priority?: ActionPriority;
   /** Suggested deadline offset in days from "now". */
   dueInDays?: number;
+  /** Exact suggested deadline for source records that already have one. */
+  dueDate?: string;
   // --- Action System 4.0 honest context ---
   /** How the action came to exist (ACTION_SOURCE_TYPE_VALUES). */
   sourceType?: string;
@@ -61,6 +63,7 @@ export const ACTION_PREFILL_PARAM_KEYS = {
   actionType: "type",
   priority: "priority",
   dueInDays: "dueInDays",
+  dueDate: "due",
   sourceType: "sourceType",
   sourceId: "sourceId",
   sourceActionId: "fromAction",
@@ -267,6 +270,59 @@ export function buildActionPrefillFromMeeting(src: MeetingActionPrefillSource): 
   };
 }
 
+export type MeetingFollowUpActionPrefillSource = {
+  followUpId: string;
+  title: string;
+  description?: string | null;
+  meetingId: string;
+  meetingTitle?: string | null;
+  meetingCategory?: string | null;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
+  suggestedOwnerId?: string | null;
+  dueDate?: string | null;
+};
+
+/** Prefill an action from a meeting follow-up that has not become tracked work. */
+export function buildActionPrefillFromMeetingFollowUp(
+  src: MeetingFollowUpActionPrefillSource
+): ActionPrefill {
+  const title = (src.title ?? "").trim() || "Follow-up from meeting";
+  const description = src.description?.trim();
+  const parts = [`Meeting follow-up: ${title}`];
+  if (description) parts.push(`Context: ${description}`);
+  parts.push(
+    src.meetingTitle && src.meetingTitle.trim()
+      ? `From the follow-up captured in "${src.meetingTitle.trim()}."`
+      : "From a meeting follow-up."
+  );
+
+  const hasEntity =
+    !!src.relatedEntityType &&
+    isRelatedEntityType(src.relatedEntityType) &&
+    !!src.relatedEntityId;
+
+  return {
+    title,
+    description: parts.join("\n\n"),
+    sourceMeetingId: src.meetingId,
+    sourceType: "MEETING",
+    sourceId: src.followUpId,
+    suggestedOwnerId: src.suggestedOwnerId ?? undefined,
+    successDefinition: "Done when this follow-up is completed and confirmed in the meeting record.",
+    area:
+      src.meetingCategory && isMeetingCategory(src.meetingCategory)
+        ? src.meetingCategory
+        : undefined,
+    actionType: "FOLLOW_UP",
+    priority: "MEDIUM",
+    dueDate: src.dueDate ?? undefined,
+    dueInDays: src.dueDate ? undefined : DEFAULT_ACTION_DEADLINE_DAYS,
+    relatedType: hasEntity ? (src.relatedEntityType as RelatedEntityType) : undefined,
+    relatedId: hasEntity ? (src.relatedEntityId as string) : undefined,
+  };
+}
+
 /** Serialize a prefill to a `/actions/new` href (omitting empty fields). */
 export function actionPrefillToQuery(prefill: ActionPrefill, base = "/actions/new"): string {
   const params = new URLSearchParams();
@@ -282,6 +338,7 @@ export function actionPrefillToQuery(prefill: ActionPrefill, base = "/actions/ne
   if (prefill.actionType) params.set(k.actionType, prefill.actionType);
   if (prefill.priority) params.set(k.priority, prefill.priority);
   if (prefill.dueInDays != null) params.set(k.dueInDays, String(prefill.dueInDays));
+  if (prefill.dueDate) params.set(k.dueDate, prefill.dueDate);
   if (prefill.sourceType) params.set(k.sourceType, prefill.sourceType);
   if (prefill.sourceId) params.set(k.sourceId, prefill.sourceId);
   if (prefill.sourceActionId) params.set(k.sourceActionId, prefill.sourceActionId);
@@ -329,6 +386,8 @@ export function actionPrefillFromQuery(
   if (dueInDays != null && dueInDays !== "" && Number.isFinite(Number(dueInDays))) {
     out.dueInDays = Math.max(0, Math.min(365, Math.round(Number(dueInDays))));
   }
+  const dueDate = get(k.dueDate);
+  if (dueDate && /^\d{4}-\d{2}-\d{2}$/.test(dueDate)) out.dueDate = dueDate;
   const sourceType = get(k.sourceType);
   if (sourceType) out.sourceType = sourceType;
   const sourceId = get(k.sourceId);

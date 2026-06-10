@@ -4,17 +4,20 @@ import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import {
   actionPrefillToQuery,
   buildActionPrefillFromDecision,
+  buildActionPrefillFromMeetingFollowUp,
 } from "@/lib/people-strategy/action-prefill";
 import { primaryEntityTypeForArea } from "@/lib/people-strategy/operational-context";
 import type {
   ActionLite,
   AreaHealthRow,
   DecisionLite,
+  MeetingFollowUpLite,
   MeetingLite,
   OperationalDigestCounts,
   OperationalEntityLite,
   OperationalReviewItem,
   OperationalReviewSeverity,
+  WeeklyOperationalDigest,
 } from "@/lib/people-strategy/operational-digest";
 
 import { ActionCommandBar } from "./action-command-bar";
@@ -106,13 +109,17 @@ export function OperationalDigestStats({ counts }: { counts: OperationalDigestCo
     icon: Parameters<typeof StatCard>[0]["icon"];
     href?: string;
   }> = [
+    { label: "Open actions", value: counts.openActions, icon: "list", href: "/actions/all" },
     { label: "Overdue actions", value: counts.overdueActions, tone: counts.overdueActions > 0 ? "danger" : "default", icon: "alert", href: "/actions/all?status=OVERDUE" },
-    { label: "Due soon", value: counts.dueSoonActions, icon: "calendar", href: "/actions/all?preset=due_soon" },
-    { label: "Upcoming meetings", value: counts.upcomingMeetings, icon: "calendar", href: "/actions/meetings" },
-    { label: "Open follow-ups", value: counts.unresolvedFollowUps, tone: counts.unresolvedFollowUps > 0 ? "warning" : "default", icon: "flag" },
-    { label: "Critical areas", value: counts.criticalEntities, tone: counts.criticalEntities > 0 ? "danger" : "default", icon: "target" },
-    { label: "Decisions to convert", value: counts.decisionsNeedingAction, tone: counts.decisionsNeedingAction > 0 ? "warning" : "default", icon: "check" },
-    { label: "Done this week", value: counts.recentlyCompletedActions, tone: "success", icon: "check", href: "/actions/completion-report" },
+    { label: "Due this week", value: counts.dueSoonActions, icon: "calendar", href: "/actions/all?preset=due_soon" },
+    { label: "Blocked items", value: counts.blockedActions, tone: counts.blockedActions > 0 ? "warning" : "default", icon: "flag", href: "/actions/all?status=BLOCKED" },
+    { label: "Meetings this week", value: counts.meetingsThisWeek, icon: "users", href: "/actions/meetings" },
+    {
+      label: "Uncaptured outputs",
+      value: counts.decisionsNeedingAction + counts.unconvertedFollowUps,
+      tone: counts.decisionsNeedingAction + counts.unconvertedFollowUps > 0 ? "warning" : "default",
+      icon: "inbox",
+    },
   ];
   return (
     <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -263,11 +270,219 @@ export function AreaHealthGrid({ rows }: { rows: AreaHealthRow[] }) {
   );
 }
 
+// --- Action + Meetings 360 workboard ----------------------------------------
+
+function WorkboardLane({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      style={{
+        minWidth: 0,
+        border: "1px solid var(--border, #e5e7eb)",
+        borderRadius: 8,
+        padding: 12,
+        background: "var(--surface, #fff)",
+      }}
+    >
+      <h3 style={{ margin: 0, fontSize: 15 }}>{title}</h3>
+      <div style={{ marginTop: 10, display: "grid", gap: 12 }}>{children}</div>
+    </section>
+  );
+}
+
+function WorkboardGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0 }}>
+        {title}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+export function ActionMeetings360Workboard({
+  digest,
+}: {
+  digest: WeeklyOperationalDigest;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 14 }}>
+      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--text-secondary)" }}>
+        Meetings create decisions. Decisions create actions. This page shows what needs follow-up, who owns it,
+        when it is due, and what context created it.
+      </p>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: 14,
+          alignItems: "start",
+        }}
+      >
+        <WorkboardLane title="Needs attention">
+          <WorkboardGroup title="Overdue">
+            <ActionUrgencyList
+              actions={digest.triage.overdue.slice(0, 4)}
+              emptyHint="No overdue actions."
+            />
+          </WorkboardGroup>
+          <WorkboardGroup title="Blocked">
+            <ActionUrgencyList
+              actions={digest.triage.blocked.slice(0, 4)}
+              emptyHint="No blocked actions."
+            />
+          </WorkboardGroup>
+          <WorkboardGroup title="No executor">
+            <ActionUrgencyList
+              actions={digest.triage.unassigned.slice(0, 4)}
+              emptyHint="Everything due this week has an owner."
+            />
+          </WorkboardGroup>
+          <WorkboardGroup title="Unresolved meeting follow-ups">
+            <UnresolvedMeetingFollowUpsList items={digest.unresolvedMeetingFollowUps.slice(0, 4)} />
+          </WorkboardGroup>
+        </WorkboardLane>
+
+        <WorkboardLane title="This week">
+          <WorkboardGroup title="Due soon">
+            <ActionUrgencyList
+              actions={digest.triage.dueSoon.slice(0, 5)}
+              emptyHint="Nothing else is due this week."
+            />
+          </WorkboardGroup>
+          <WorkboardGroup title="Upcoming meetings">
+            <MeetingContextList
+              meetings={digest.upcomingMeetings.slice(0, 4)}
+              emptyHint="No meetings are scheduled for this week."
+            />
+          </WorkboardGroup>
+          <WorkboardGroup title="Prep needed">
+            <NeedsAttentionList
+              items={digest.recommendedReviewOrder.filter((i) => i.kind === "meeting").slice(0, 3)}
+              emptyHint="No meeting prep is currently flagged."
+            />
+          </WorkboardGroup>
+        </WorkboardLane>
+
+        <WorkboardLane title="Recently decided">
+          <WorkboardGroup title="Decisions without action">
+            {digest.decisionsNeedingAction.length === 0 ? (
+              <EmptyCard>No unresolved meeting decisions.</EmptyCard>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {digest.decisionsNeedingAction.slice(0, 3).map((d) => (
+                  <DecisionFollowThroughCard key={d.id} decision={d} compact />
+                ))}
+              </div>
+            )}
+          </WorkboardGroup>
+          <WorkboardGroup title="Recent meetings">
+            <MeetingContextList
+              meetings={digest.recentMeetings.slice(0, 3)}
+              emptyHint="Recently completed meetings will show here."
+            />
+          </WorkboardGroup>
+          <WorkboardGroup title="Completed actions">
+            <RecentlyResolvedList actions={digest.recentlyCompletedActions.slice(0, 4)} />
+          </WorkboardGroup>
+        </WorkboardLane>
+      </div>
+    </div>
+  );
+}
+
+function MeetingContextList({
+  meetings,
+  emptyHint,
+}: {
+  meetings: MeetingLite[];
+  emptyHint: string;
+}) {
+  if (meetings.length === 0) return <EmptyCard>{emptyHint}</EmptyCard>;
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      {meetings.map((meeting) => (
+        <MeetingFollowThroughCard key={meeting.id} meeting={meeting} />
+      ))}
+    </div>
+  );
+}
+
+export function meetingFollowUpActionHref(followUp: MeetingFollowUpLite): string {
+  return actionPrefillToQuery(
+    buildActionPrefillFromMeetingFollowUp({
+      followUpId: followUp.id,
+      title: followUp.title,
+      description: followUp.description,
+      meetingId: followUp.meetingId,
+      meetingTitle: followUp.meetingTitle,
+      meetingCategory: followUp.meetingCategory,
+      relatedEntityType: followUp.relatedType,
+      relatedEntityId: followUp.relatedId,
+      suggestedOwnerId: followUp.ownerId,
+      dueDate: followUp.dueISO ? followUp.dueISO.slice(0, 10) : null,
+    })
+  );
+}
+
+export function UnresolvedMeetingFollowUpsList({
+  items,
+}: {
+  items: MeetingFollowUpLite[];
+}) {
+  if (items.length === 0) {
+    return <EmptyCard>No unresolved meeting follow-ups.</EmptyCard>;
+  }
+  return (
+    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+      {items.map((item) => (
+        <li key={item.id}>
+          <div
+            className="card ps-action-card"
+            style={{ padding: "10px 12px", borderLeft: `3px solid ${SEVERITY_BORDER.watch}` }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
+              <strong style={{ fontSize: 13.5 }}>{item.title}</strong>
+              {item.dueISO ? <span style={{ fontSize: 11, color: "var(--muted)" }}>Due {fmt(item.dueISO)}</span> : null}
+            </div>
+            <div style={{ marginTop: 4, fontSize: 12, color: "var(--text-secondary)", display: "grid", gap: 3 }}>
+              <span>{item.meetingTitle} · {fmt(item.meetingStartISO)}</span>
+              <span>{item.ownerName ?? "No owner suggested"}{item.relatedLabel ? ` · ${item.relatedLabel}` : ""}</span>
+              {item.description ? <span>{item.description}</span> : null}
+            </div>
+            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Link href={meetingFollowUpActionHref(item)} className="button primary small">
+                Create action
+              </Link>
+              <Link href={item.href} className="button outline small">
+                Open meeting
+              </Link>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 // --- meeting follow-through --------------------------------------------------
 
 export function MeetingFollowThroughCard({ meeting }: { meeting: MeetingLite }) {
   const decisionsNoAction = meeting.decisionCount > 0 && meeting.linkedActionCount === 0;
-  const noOutput = meeting.linkedActionCount === 0 && meeting.decisionCount === 0;
+  const meetingHasHappened = meeting.effectiveStatus !== "upcoming";
+  const noOutput = meetingHasHappened && meeting.linkedActionCount === 0 && meeting.decisionCount === 0;
   return (
     <Link
       href={meeting.href}
@@ -280,6 +495,9 @@ export function MeetingFollowThroughCard({ meeting }: { meeting: MeetingLite }) 
       </div>
       <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-secondary)", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <span>{meeting.categoryLabel}</span>
+        {meeting.facilitatorName ? <span>Facilitator: {meeting.facilitatorName}</span> : null}
+        {meeting.attendeeCount > 0 ? <span>{meeting.attendeeCount} attendee{meeting.attendeeCount === 1 ? "" : "s"}</span> : null}
+        {meeting.relatedLabel ? <span>{meeting.relatedLabel}</span> : null}
         <MeetingOutcomeBadge outcome={meeting.outcome} />
         {meeting.openFollowUps > 0 ? (
           <span>
@@ -296,6 +514,24 @@ export function MeetingFollowThroughCard({ meeting }: { meeting: MeetingLite }) 
         ) : null}
         {noOutput ? <Pill tone="neutral">No action came out of this</Pill> : null}
       </div>
+      {meeting.keyDecisions.length > 0 ? (
+        <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+          <strong style={{ color: "var(--text-primary, inherit)" }}>Decisions:</strong>{" "}
+          {meeting.keyDecisions.join(" · ")}
+        </div>
+      ) : null}
+      {meeting.unconvertedFollowUps.length > 0 ? (
+        <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-secondary)" }}>
+          <strong style={{ color: "var(--text-primary, inherit)" }}>Not captured:</strong>{" "}
+          {meeting.unconvertedFollowUps.map((f) => f.title).join(" · ")}
+        </div>
+      ) : null}
+      {meeting.linkedActionTitles.length > 0 ? (
+        <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-secondary)" }}>
+          <strong style={{ color: "var(--text-primary, inherit)" }}>Actions created:</strong>{" "}
+          {meeting.linkedActionTitles.join(" · ")}
+        </div>
+      ) : null}
     </Link>
   );
 }
@@ -319,7 +555,13 @@ export function decisionActionHref(decision: DecisionLite): string {
   );
 }
 
-export function DecisionFollowThroughCard({ decision }: { decision: DecisionLite }) {
+export function DecisionFollowThroughCard({
+  decision,
+  compact = false,
+}: {
+  decision: DecisionLite;
+  compact?: boolean;
+}) {
   return (
     <div className="card" style={{ padding: "12px 14px", borderLeft: `3px solid ${SEVERITY_BORDER.watch}` }}>
       <div style={{ fontSize: 13.5, fontWeight: 600 }}>{decision.decision}</div>
@@ -327,7 +569,7 @@ export function DecisionFollowThroughCard({ decision }: { decision: DecisionLite
         {decision.areaLabel}
         {decision.decidedByName ? ` · decided by ${decision.decidedByName}` : ""} · {fmt(decision.createdISO)}
       </div>
-      <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ marginTop: compact ? 6 : 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <Link href={decisionActionHref(decision)} className="button primary small">
           Create action from decision
         </Link>
@@ -381,8 +623,25 @@ export function ActionUrgencyList({
             </div>
             <div style={{ marginTop: 4, fontSize: 12, color: "var(--text-secondary)" }}>
               {a.ownerName ?? "Unassigned"}
-              {a.unassigned ? " · no owner" : ""}
+              {a.unassigned ? " · no executor" : ""}
+              {a.relatedLabel ? ` · ${a.relatedTypeLabel}: ${a.relatedLabel}` : ""}
+              {a.sourceMeetingTitle ? ` · from ${a.sourceMeetingTitle}` : ""}
             </div>
+            {a.contextSummary ? (
+              <div style={{ marginTop: 4, fontSize: 12, color: "var(--text-secondary)" }}>
+                {a.contextSummary}
+              </div>
+            ) : null}
+            {a.latestUpdate ? (
+              <div style={{ marginTop: 4, fontSize: 12, color: "var(--text-secondary)" }}>
+                Latest: {a.latestUpdate}
+              </div>
+            ) : null}
+            {a.nextStep ? (
+              <div style={{ marginTop: 4, fontSize: 12, color: "var(--text-secondary)" }}>
+                Next: {a.nextStep}
+              </div>
+            ) : null}
           </Link>
         </li>
       ))}

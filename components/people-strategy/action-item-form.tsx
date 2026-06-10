@@ -234,6 +234,28 @@ function UserPicker({
   );
 }
 
+function FormSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="ps-form-section" style={{ display: "grid", gap: 12 }}>
+      <div>
+        <h2 style={{ margin: 0, fontSize: 15 }}>{title}</h2>
+        <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--muted)", lineHeight: 1.45 }}>
+          {description}
+        </p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export default function ActionItemForm({
   initial,
   users,
@@ -497,256 +519,284 @@ export default function ActionItemForm({
     <form onSubmit={handleSubmit} className="ps-form">
       <FeedbackBanner message={error} tone="error" style={{ padding: "8px 12px" }} />
 
-      {hasRelatedEntity && (
-        <div className="ps-linked-banner">
-          <span style={{ fontWeight: 700 }}>Linked to {relatedTypeLabel}:</span>
-          <span>{relatedLabel ?? "this item"}</span>
+      <FormSection
+        title="1. What needs to happen?"
+        description="Write the action in plain language and define the finish line."
+      >
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-title">
+            Title{REQUIRED_MARK}
+          </label>
+          <input
+            id="action-title"
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="ps-input"
+            placeholder="e.g. Refresh fall curriculum rollout"
+          />
         </div>
-      )}
 
-      {(sourceLabel || strategicLinkLabel) && (
-        <div className="ps-linked-banner" style={{ flexWrap: "wrap", gap: 12 }}>
-          {sourceLabel ? (
-            <span>
-              <span style={{ fontWeight: 700 }}>Source: </span>
-              {sourceLabel}
-            </span>
-          ) : null}
-          {strategicLinkLabel ? (
-            <span>
-              <span style={{ fontWeight: 700 }}>Strategic: </span>
-              {strategicLinkLabel}
-            </span>
-          ) : null}
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-success">
+            Next step / definition of done
+          </label>
+          <textarea
+            id="action-success"
+            value={successDefinition}
+            onChange={(e) => setSuccessDefinition(e.target.value)}
+            rows={2}
+            className="ps-textarea"
+            placeholder="What has to happen next, and how will we know it is done?"
+          />
+          <p className="ps-help" style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
+            A clear next step keeps the action from drifting.
+          </p>
         </div>
-      )}
+      </FormSection>
 
-      <div className="ps-field">
-        <label className="ps-label" htmlFor="action-title">
-          Title{REQUIRED_MARK}
-        </label>
-        <input
-          id="action-title"
+      <FormSection
+        title="2. Who owns it?"
+        description="Pick the accountable lead first. Add executors or input people only when needed."
+      >
+        <UserPicker
+          label="Lead (exactly one)"
           required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="ps-input"
-          placeholder="e.g. Refresh fall curriculum rollout"
+          single
+          users={users}
+          selected={leadIds}
+          onChange={setLeadIds}
+          emptyHint="No assignable users found."
         />
-      </div>
 
-      <div className="ps-field">
-        <label className="ps-label" htmlFor="action-description">
-          Description
-        </label>
-        <textarea
-          id="action-description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          className="ps-textarea"
-          placeholder="Optional context, scope, and background"
+        <UserPicker
+          label="Executing (optional — defaults to the Lead)"
+          users={users}
+          selected={executingIds}
+          onChange={setExecutingIds}
+          emptyHint="No assignable users found."
         />
-      </div>
 
-      <div className="ps-field">
-        <label className="ps-label" htmlFor="action-success">
-          Definition of done
-        </label>
-        <textarea
-          id="action-success"
-          value={successDefinition}
-          onChange={(e) => setSuccessDefinition(e.target.value)}
-          rows={2}
-          className="ps-textarea"
-          placeholder="What specifically has to be true for this to count as done?"
+        <UserPicker
+          label="Input (optional)"
+          users={users}
+          selected={inputIds}
+          onChange={setInputIds}
+          emptyHint="No assignable users found."
         />
-        <p className="ps-help" style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
-          A clear finish line keeps the action from drifting.
-        </p>
-      </div>
+      </FormSection>
 
-      <div className="ps-field">
-        <label className="ps-label" htmlFor="action-type">
-          Action type
-        </label>
-        <select
-          id="action-type"
-          value={actionType}
-          onChange={(e) => handleActionTypeChange(e.target.value)}
-          className="ps-select"
-        >
-          <option value="">— No type —</option>
-          {ACTION_TYPE_VALUES.map((t) => (
-            <option key={t} value={t}>
-              {ACTION_TYPE_LABELS[t]}
-            </option>
-          ))}
-        </select>
-        {typeGuidance ? <p className="ps-hint">{typeGuidance}</p> : null}
-      </div>
-
-      <div className="ps-field-grid">
-        <div className="ps-field">
-          <label className="ps-label" htmlFor="action-goal-category">
-            Goal category
-          </label>
-          <input
-            id="action-goal-category"
-            value={goalCategory}
-            onChange={(e) => setGoalCategory(e.target.value)}
-            className="ps-input"
-            placeholder="Goal this ladders up to"
-          />
-        </div>
-        <div className="ps-field">
-          <label className="ps-label" htmlFor="action-department">
-            Department
-          </label>
-          <select
-            id="action-department"
-            value={departmentId}
-            onChange={(e) => setDepartmentId(e.target.value)}
-            className="ps-select"
-          >
-            <option value="">— No department —</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="ps-field-grid">
-        <div className="ps-field">
-          <label className="ps-label" htmlFor="action-status">
-            Status
-          </label>
-          <select
-            id="action-status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="ps-select"
-          >
-            {ACTION_STATUS_SELECTABLE.map((s) => (
-              <option key={s} value={s}>
-                {ACTION_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="ps-field">
-          <label className="ps-label" htmlFor="action-priority">
-            Priority
-          </label>
-          <select
-            id="action-priority"
-            value={priority}
-            onChange={(e) => {
-              setPriority(e.target.value);
-              setPriorityTouched(true);
-            }}
-            className="ps-select"
-          >
-            {ACTION_PRIORITY_VALUES.map((p) => (
-              <option key={p} value={p}>
-                {ACTION_PRIORITY_LABELS[p]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="ps-field">
-          <label className="ps-label" htmlFor="action-visibility">
-            Visibility{REQUIRED_MARK}
-          </label>
-          <select
-            id="action-visibility"
-            value={visibility}
-            onChange={(e) => setVisibility(e.target.value)}
-            className="ps-select"
-          >
-            {ACTION_VISIBILITY_VALUES.map((v) => (
-              <option key={v} value={v}>
-                {ACTION_VISIBILITY_LABELS[v]}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="ps-field-grid">
-        <div className="ps-field">
-          <label className="ps-label" htmlFor="action-deadline">
-            Deadline{REQUIRED_MARK}
-          </label>
-          <input
-            id="action-deadline"
-            type="date"
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value)}
-            className="ps-input"
-          />
-        </div>
-      </div>
-
-      <UserPicker
-        label="Lead (exactly one)"
-        required
-        single
-        users={users}
-        selected={leadIds}
-        onChange={setLeadIds}
-        emptyHint="No assignable users found."
-      />
-
-      <UserPicker
-        label="Executing (optional — defaults to the Lead)"
-        users={users}
-        selected={executingIds}
-        onChange={setExecutingIds}
-        emptyHint="No assignable users found."
-      />
-
-      <UserPicker
-        label="Input (optional)"
-        users={users}
-        selected={inputIds}
-        onChange={setInputIds}
-        emptyHint="No assignable users found."
-      />
-
-      <fieldset className="ps-fieldset">
-        <legend className="ps-label">Attachment (optional)</legend>
+      <FormSection
+        title="3. When is it due?"
+        description="Set the date, status, priority, and visibility so the tracker can place it correctly."
+      >
         <div className="ps-field-grid">
           <div className="ps-field">
-            <label className="ps-label" htmlFor="action-file-label">
-              Label
+            <label className="ps-label" htmlFor="action-deadline">
+              Deadline{REQUIRED_MARK}
             </label>
             <input
-              id="action-file-label"
-              value={fileLabel}
-              onChange={(e) => setFileLabel(e.target.value)}
+              id="action-deadline"
+              type="date"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
               className="ps-input"
-              placeholder="e.g. Project brief"
             />
           </div>
           <div className="ps-field">
-            <label className="ps-label" htmlFor="action-file-url">
-              Link (http/https)
+            <label className="ps-label" htmlFor="action-status">
+              Status
             </label>
-            <input
-              id="action-file-url"
-              type="url"
-              value={fileUrl}
-              onChange={(e) => setFileUrl(e.target.value)}
-              className="ps-input"
-              placeholder="https://…"
-            />
+            <select
+              id="action-status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="ps-select"
+            >
+              {ACTION_STATUS_SELECTABLE.map((s) => (
+                <option key={s} value={s}>
+                  {ACTION_STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="ps-field">
+            <label className="ps-label" htmlFor="action-priority">
+              Priority
+            </label>
+            <select
+              id="action-priority"
+              value={priority}
+              onChange={(e) => {
+                setPriority(e.target.value);
+                setPriorityTouched(true);
+              }}
+              className="ps-select"
+            >
+              {ACTION_PRIORITY_VALUES.map((p) => (
+                <option key={p} value={p}>
+                  {ACTION_PRIORITY_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="ps-field">
+            <label className="ps-label" htmlFor="action-visibility">
+              Visibility{REQUIRED_MARK}
+            </label>
+            <select
+              id="action-visibility"
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value)}
+              className="ps-select"
+            >
+              {ACTION_VISIBILITY_VALUES.map((v) => (
+                <option key={v} value={v}>
+                  {ACTION_VISIBILITY_LABELS[v]}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-      </fieldset>
+      </FormSection>
+
+      <FormSection
+        title="4. Where did this come from?"
+        description="Keep the action tied to its meeting, decision, project, or related YPP record."
+      >
+        {hasRelatedEntity ? (
+          <div className="ps-linked-banner">
+            <span style={{ fontWeight: 700 }}>Linked to {relatedTypeLabel}:</span>
+            <span>{relatedLabel ?? "this item"}</span>
+          </div>
+        ) : null}
+
+        {(sourceLabel || strategicLinkLabel) ? (
+          <div className="ps-linked-banner" style={{ flexWrap: "wrap", gap: 12 }}>
+            {sourceLabel ? (
+              <span>
+                <span style={{ fontWeight: 700 }}>Source: </span>
+                {sourceLabel}
+              </span>
+            ) : null}
+            {strategicLinkLabel ? (
+              <span>
+                <span style={{ fontWeight: 700 }}>Strategic: </span>
+                {strategicLinkLabel}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {!hasRelatedEntity && !sourceLabel && !strategicLinkLabel ? (
+          <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+            No meeting or related record is attached yet. That is okay for a manual action.
+          </p>
+        ) : null}
+      </FormSection>
+
+      <FormSection
+        title="5. What context matters?"
+        description="Add the background, category, department, and any supporting link someone will need later."
+      >
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-description">
+            Description / context
+          </label>
+          <textarea
+            id="action-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className="ps-textarea"
+            placeholder="Optional context, scope, and background"
+          />
+        </div>
+
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-type">
+            Action type
+          </label>
+          <select
+            id="action-type"
+            value={actionType}
+            onChange={(e) => handleActionTypeChange(e.target.value)}
+            className="ps-select"
+          >
+            <option value="">— No type —</option>
+            {ACTION_TYPE_VALUES.map((t) => (
+              <option key={t} value={t}>
+                {ACTION_TYPE_LABELS[t]}
+              </option>
+            ))}
+          </select>
+          {typeGuidance ? <p className="ps-hint">{typeGuidance}</p> : null}
+        </div>
+
+        <div className="ps-field-grid">
+          <div className="ps-field">
+            <label className="ps-label" htmlFor="action-goal-category">
+              Goal category
+            </label>
+            <input
+              id="action-goal-category"
+              value={goalCategory}
+              onChange={(e) => setGoalCategory(e.target.value)}
+              className="ps-input"
+              placeholder="Goal this ladders up to"
+            />
+          </div>
+          <div className="ps-field">
+            <label className="ps-label" htmlFor="action-department">
+              Department
+            </label>
+            <select
+              id="action-department"
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e.target.value)}
+              className="ps-select"
+            >
+              <option value="">— No department —</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <fieldset className="ps-fieldset">
+          <legend className="ps-label">Attachment (optional)</legend>
+          <div className="ps-field-grid">
+            <div className="ps-field">
+              <label className="ps-label" htmlFor="action-file-label">
+                Label
+              </label>
+              <input
+                id="action-file-label"
+                value={fileLabel}
+                onChange={(e) => setFileLabel(e.target.value)}
+                className="ps-input"
+                placeholder="e.g. Project brief"
+              />
+            </div>
+            <div className="ps-field">
+              <label className="ps-label" htmlFor="action-file-url">
+                Link (http/https)
+              </label>
+              <input
+                id="action-file-url"
+                type="url"
+                value={fileUrl}
+                onChange={(e) => setFileUrl(e.target.value)}
+                className="ps-input"
+                placeholder="https://..."
+              />
+            </div>
+          </div>
+        </fieldset>
+      </FormSection>
 
       {warnings.length > 0 && (
         <div

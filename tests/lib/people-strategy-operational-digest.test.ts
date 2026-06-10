@@ -88,6 +88,9 @@ function meetingCard(overrides: Partial<MeetingCardDTO> = {}): MeetingCardDTO {
     overdueFollowUps: 0,
     openLinkedActions: 0,
     linkedActionCount: 0,
+    decisionsPreview: [],
+    unconvertedFollowUps: [],
+    linkedActionsPreview: [],
     relatedEntityType: null,
     relatedEntityId: null,
     ...overrides,
@@ -496,17 +499,62 @@ describe("deriveWeeklyOperationalDigest", () => {
 
     expect(d.counts.criticalEntities).toBe(1);
     expect(d.counts.warningEntities).toBe(1);
+    expect(d.counts.openActions).toBe(5);
     expect(d.counts.overdueActions).toBe(4);
     expect(d.counts.dueTodayActions).toBe(1);
+    expect(d.counts.meetingsThisWeek).toBe(2);
     expect(d.counts.upcomingMeetings).toBe(1);
     expect(d.counts.unresolvedFollowUps).toBe(2);
     expect(d.counts.decisionsNeedingAction).toBe(1);
+    expect(d.triage.overdue).toHaveLength(4);
+    expect(d.triage.dueSoon).toHaveLength(1);
+    expect(d.recentMeetings.length).toBeGreaterThan(0);
     expect(d.criticalEntities[0].label).toBe("Algebra 101");
     expect(d.meetingsNeedingFollowThrough.length).toBeGreaterThan(0);
     expect(d.recommendedReviewOrder[0].kind).toBe("class");
     expect(d.recommendedReviewOrder.length).toBeGreaterThan(1);
     // Area health rolls up the classes area as critical.
     expect(d.areaHealth.find((r) => r.area === "CLASSES")?.health.level).toBe("critical");
+  });
+
+  it("surfaces meeting follow-ups that have not been converted into actions", () => {
+    const d = deriveWeeklyOperationalDigest({
+      actions: [],
+      meetings: [
+        meetingCard({
+          id: "m1",
+          title: "Curriculum sync",
+          relatedEntityType: "CLASS_OFFERING",
+          relatedEntityId: "cls1",
+          openFollowUps: 1,
+          unconvertedFollowUps: [
+            {
+              id: "f1",
+              title: "Confirm STEM scope before emailing the partner",
+              description: "Rockets and planes might be too narrow.",
+              owner: { id: "alice", name: "Alice", initials: "A" },
+              dueISO: "2026-06-07T00:00:00.000Z",
+              effectiveStatus: "open",
+              priority: "HIGH",
+              area: "CLASSES",
+              areaLabel: "Classes",
+              linkedActionId: null,
+            },
+          ],
+        }),
+      ],
+      decisions: [],
+      labels: new Map([classLabel("cls1", "STEM pilot")]),
+      now: NOW,
+    });
+
+    expect(d.counts.unconvertedFollowUps).toBe(1);
+    expect(d.unresolvedMeetingFollowUps[0]).toMatchObject({
+      title: "Confirm STEM scope before emailing the partner",
+      meetingTitle: "Curriculum sync",
+      ownerName: "Alice",
+      relatedLabel: "STEM pilot",
+    });
   });
 
   it("respects explicit limits and window", () => {
@@ -535,8 +583,29 @@ describe("deriveWeeklyOperationalDigest", () => {
 describe("lite mappers", () => {
   it("maps an action to a serializable lite shape", () => {
     const lite = toActionLite(
-      action({ id: "a1", title: "Call partner", relatedEntityType: "PARTNER", relatedEntityId: "p1", officerMeetingId: "m1", deadlineStart: new Date("2026-05-20T00:00:00") }),
-      NOW
+      action({
+        id: "a1",
+        title: "Call partner",
+        description: "Partner needs final schedule.",
+        relatedEntityType: "PARTNER",
+        relatedEntityId: "p1",
+        officerMeetingId: "m1",
+        officerMeeting: { id: "m1", title: "Partner sync", date: new Date("2026-06-01T00:00:00"), category: "PARTNERSHIPS" },
+        deadlineStart: new Date("2026-05-20T00:00:00"),
+        comments: [
+          {
+            id: "c1",
+            body: "Waiting on the partner contact.",
+            type: "NOTE",
+            createdAt: new Date("2026-06-03T00:00:00"),
+            authorId: "alice",
+            actionItemId: "a1",
+            author: { id: "alice", name: "Alice", email: "alice@x.org", primaryRole: "ADMIN", title: null, adminSubtypes: [], profile: null },
+          },
+        ],
+      }),
+      NOW,
+      new Map([["PARTNER:p1", { type: "PARTNER", id: "p1", label: "Lincoln HS", typeLabel: "Partner", href: "/admin/partners/p1" }]])
     );
     expect(lite).toMatchObject({
       id: "a1",
@@ -544,14 +613,57 @@ describe("lite mappers", () => {
       overdue: true,
       relatedType: "PARTNER",
       relatedId: "p1",
+      relatedLabel: "Lincoln HS",
       sourceMeetingId: "m1",
+      sourceMeetingTitle: "Partner sync",
       href: "/actions/a1",
     });
+    expect(lite.latestUpdate).toBe("Waiting on the partner contact.");
+    expect(lite.nextStep).toBe("Partner needs final schedule.");
     expect(lite.daysOverdue).toBeGreaterThan(0);
   });
 
   it("maps a meeting card to a lite shape with a workspace href", () => {
-    const lite = toMeetingLite(meetingCard({ id: "m1", title: "Sync", relatedEntityType: "CLASS_OFFERING", relatedEntityId: "cls1" }));
-    expect(lite).toMatchObject({ id: "m1", title: "Sync", href: "/actions/meetings/m1", relatedType: "CLASS_OFFERING", relatedId: "cls1" });
+    const lite = toMeetingLite(
+      meetingCard({
+        id: "m1",
+        title: "Sync",
+        facilitator: { id: "u1", name: "Alice", initials: "A" },
+        attendeeCount: 2,
+        relatedEntityType: "CLASS_OFFERING",
+        relatedEntityId: "cls1",
+        decisionsPreview: [
+          {
+            id: "d1",
+            decision: "Use broader STEM for the pilot.",
+            rationale: null,
+            decidedBy: null,
+            createdISO: "2026-06-02T00:00:00.000Z",
+            linkedActionId: null,
+          },
+        ],
+        unconvertedFollowUps: [
+          {
+            id: "f1",
+            title: "Confirm before emailing partner",
+            description: null,
+            owner: { id: "u1", name: "Alice", initials: "A" },
+            dueISO: "2026-06-07T00:00:00.000Z",
+            effectiveStatus: "open",
+            priority: "HIGH",
+            area: "CLASSES",
+            areaLabel: "Classes",
+            linkedActionId: null,
+          },
+        ],
+        linkedActionsPreview: [{ id: "a1", title: "Draft options", owner: null, status: "IN_PROGRESS", priority: "MEDIUM", deadlineISO: "2026-06-07T00:00:00.000Z", departmentName: null }],
+      }),
+      NOW,
+      new Map([classLabel("cls1", "STEM pilot")])
+    );
+    expect(lite).toMatchObject({ id: "m1", title: "Sync", href: "/actions/meetings/m1", relatedType: "CLASS_OFFERING", relatedId: "cls1", relatedLabel: "STEM pilot" });
+    expect(lite.keyDecisions).toEqual(["Use broader STEM for the pilot."]);
+    expect(lite.linkedActionTitles).toEqual(["Draft options"]);
+    expect(lite.unconvertedFollowUps[0]).toMatchObject({ title: "Confirm before emailing partner", ownerName: "Alice" });
   });
 });

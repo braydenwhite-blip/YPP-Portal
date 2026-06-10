@@ -50,8 +50,8 @@ describe("ActionItemForm — Action 4.0 creation surface", () => {
     expect(
       screen.getByRole("button", { name: "Save project action" })
     ).toBeInTheDocument();
-    // Definition-of-done field is present.
-    expect(screen.getByLabelText("Definition of done")).toBeInTheDocument();
+    // Next-step / definition-of-done field is present.
+    expect(screen.getByLabelText(/definition of done/i)).toBeInTheDocument();
   });
 
   it("uses a follow-up CTA for a follow-up action", () => {
@@ -64,6 +64,15 @@ describe("ActionItemForm — Action 4.0 creation surface", () => {
       />
     );
     expect(screen.getByRole("button", { name: "Create follow-up" })).toBeInTheDocument();
+  });
+
+  it("renders the simplified five-step creation sections", () => {
+    render(<ActionItemForm users={USERS} departments={[]} currentUserId="u1" />);
+    expect(screen.getByText("1. What needs to happen?")).toBeInTheDocument();
+    expect(screen.getByText("2. Who owns it?")).toBeInTheDocument();
+    expect(screen.getByText("3. When is it due?")).toBeInTheDocument();
+    expect(screen.getByText("4. Where did this come from?")).toBeInTheDocument();
+    expect(screen.getByText("5. What context matters?")).toBeInTheDocument();
   });
 
   it("surfaces live quality warnings for a weak draft", () => {
