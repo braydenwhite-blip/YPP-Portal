@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { isOperationsHubEnabled, isStrategicInitiativesEnabled } from "@/lib/feature-flags";
 import { requirePageRoles } from "@/lib/page-guards";
 import { PersonLink } from "@/components/people-strategy/person-link";
-import { StatCard } from "@/components/people-strategy/stat-card";
 import {
   loadOperationsHub,
   type OperationsHubData,
@@ -33,16 +32,16 @@ const OPERATIONS_HUB_ROLES = [
 
 const ROLE_INTRO: Record<OperationsHubData["role"], { badge: string; title: string; subtitle: string }> = {
   leadership: {
-    badge: "People Strategy",
-    title: "Operations Hub",
+    badge: "YPP Leadership OS",
+    title: "Operations",
     subtitle:
-      "One connected operating picture — who needs help, who is responsible, what is overdue, and what to do next.",
+      "Initiatives are the big goals. Meetings create decisions. Decisions create actions. Actions move initiatives forward. Weekly Execution keeps everything from getting lost.",
   },
   officer: {
-    badge: "People Strategy",
-    title: "Operations Hub",
+    badge: "YPP Leadership OS",
+    title: "Operations",
     subtitle:
-      "Your team's operating picture — open work, classes at risk, mentorship gaps, and people who need support.",
+      "Initiatives are the big goals. Meetings create decisions. Decisions create actions. Actions move initiatives forward. Weekly Execution keeps everything from getting lost.",
   },
   mentor: {
     badge: "People Strategy",
@@ -80,24 +79,11 @@ export default async function OperationsHubPage() {
           </h1>
           <p className="page-subtitle">{intro.subtitle}</p>
         </div>
-        {hub.isOfficer ? (
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <Link href="/operations/command-center" className="button primary" style={{ fontSize: 13 }}>
-              Command Center
-            </Link>
-            <Link href="/operations/weekly-execution" className="button outline" style={{ fontSize: 13 }}>
-              Weekly Execution
-            </Link>
-            {isStrategicInitiativesEnabled() ? (
-              <Link href="/operations/initiatives" className="button outline" style={{ fontSize: 13 }}>
-                Initiatives
-              </Link>
-            ) : null}
-          </div>
-        ) : null}
       </div>
 
-      {!hub.hasData ? (
+      {hub.isOfficer ? (
+        <OfficerEntryPoints />
+      ) : !hub.hasData ? (
         <section className="card" style={{ marginTop: 16 }}>
           <h2 className="section-title" style={{ margin: "0 0 8px" }}>
             Nothing needs your attention right now
@@ -113,14 +99,86 @@ export default async function OperationsHubPage() {
         </section>
       ) : (
         <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
-          {hub.isOfficer ? <OfficerView hub={hub} now={now} /> : null}
           {hub.role === "mentor" ? <MentorView hub={hub} /> : null}
           {hub.role === "instructor" ? <InstructorView hub={hub} now={now} /> : null}
           {/* Personal "my open actions" is useful for every non-officer role. */}
-          {!hub.isOfficer ? <MyActionsSection hub={hub} /> : null}
-          {!hub.isOfficer && hub.myMentor ? <MyMentorSection hub={hub} /> : null}
+          <MyActionsSection hub={hub} />
+          {hub.myMentor ? <MyMentorSection hub={hub} /> : null}
         </div>
       )}
+    </div>
+  );
+}
+
+// --- officer entry point -------------------------------------------------------
+
+/**
+ * The officer view is deliberately NOT another dashboard. The Command Center is
+ * the 360 view; this page only teaches a new officer where to go. Each card is
+ * one destination in the unified leadership OS.
+ */
+const ENTRY_POINTS: Array<{
+  href: string;
+  title: string;
+  description: string;
+  strategicOnly?: boolean;
+}> = [
+  {
+    href: "/operations/command-center",
+    title: "Command Center",
+    description: "See what matters right now — needs attention, this week, recently decided.",
+  },
+  {
+    href: "/operations/weekly-execution",
+    title: "Weekly Execution",
+    description: "Run the officer meeting: build the agenda, capture it, resolve loose ends, draft the recap.",
+  },
+  {
+    href: "/operations/initiatives",
+    title: "Initiatives",
+    description: "Track the big goals and whether they are moving.",
+    strategicOnly: true,
+  },
+  {
+    href: "/actions/all",
+    title: "Actions",
+    description: "Manage the detailed work — every action, owner, and due date.",
+  },
+  {
+    href: "/actions/meetings",
+    title: "Meetings",
+    description: "Review meeting history, decisions, and loose ends.",
+  },
+];
+
+function OfficerEntryPoints() {
+  const showStrategic = isStrategicInitiativesEnabled();
+  const entries = ENTRY_POINTS.filter((entry) => !entry.strategicOnly || showStrategic);
+  return (
+    <div
+      style={{
+        display: "grid",
+        gap: 12,
+        marginTop: 16,
+        gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+      }}
+    >
+      {entries.map((entry) => (
+        <Link
+          key={entry.href}
+          href={entry.href}
+          className="card cc-focusable"
+          style={{ display: "grid", gap: 6, padding: "16px 18px", color: "inherit", textDecoration: "none" }}
+        >
+          <strong style={{ fontSize: 15 }}>{entry.title}</strong>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            {entry.description}
+          </p>
+          <span style={{ fontSize: 12.5, color: "var(--ypp-purple, #6b21c8)", fontWeight: 600 }}>
+            Open →
+          </span>
+        </Link>
+      ))}
     </div>
   );
 }
@@ -171,294 +229,6 @@ const LIST: React.CSSProperties = {
   display: "grid",
   gap: 8,
 };
-
-// --- officer / leadership ----------------------------------------------------
-
-function OfficerView({ hub, now }: { hub: OperationsHubData; now: Date }) {
-  const pulse = hub.command?.pulse;
-  const attention = hub.command?.attention ?? [];
-  const needsSupport = hub.command?.needsSupport ?? [];
-  const wins = hub.command?.wins ?? [];
-  const signals = hub.classSignals;
-  const health = hub.mentorshipHealth;
-
-  return (
-    <>
-      {pulse ? (
-        <Section title="This week">
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <StatCard label="Open" value={pulse.openTotal} icon="layers" tone="accent" />
-            <StatCard
-              label="Overdue"
-              value={pulse.overdue}
-              icon="alert"
-              tone={pulse.overdue > 0 ? "danger" : "default"}
-            />
-            <StatCard label="Due this week" value={pulse.dueThisWeek} icon="calendar" />
-            <StatCard label="Completed" value={pulse.completedThisWeek} icon="check" tone="success" />
-            <StatCard
-              label="Flagged"
-              value={pulse.flagged}
-              icon="flag"
-              tone={pulse.flagged > 0 ? "warning" : "default"}
-            />
-            <StatCard
-              label="Unowned"
-              value={pulse.unowned}
-              icon="users"
-              tone={pulse.unowned > 0 ? "warning" : "default"}
-            />
-          </div>
-        </Section>
-      ) : null}
-
-      {attention.length > 0 ? (
-        <Section title="Needs attention" count={attention.length}>
-          <ul style={LIST}>
-            {attention.slice(0, 6).map((a) => (
-              <li key={a.id} style={{ borderLeft: "3px solid #991b1b", paddingLeft: 10 }}>
-                <Link href={`/actions/${a.id}`} style={{ fontSize: 13, fontWeight: 600, color: "inherit" }}>
-                  {a.title}
-                </Link>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                  {a.reason} · {a.ownerName} · {a.dueLabel}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
-      {needsSupport.length > 0 ? (
-        <Section title="People who need support" count={needsSupport.length}>
-          <ul style={LIST}>
-            {needsSupport.slice(0, 6).map((p) => (
-              <li key={p.id} style={{ fontSize: 13 }}>
-                <PersonLink id={p.id} style={{ fontWeight: 600, color: "var(--ypp-purple)" }}>
-                  {p.name}
-                </PersonLink>
-                <span style={{ color: "var(--text-secondary)" }}>
-                  {" "}
-                  · {p.momentum.factors.openCount} open · {p.momentum.factors.overdue} overdue
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
-      {signals ? (
-        <Section title="Classes">
-          {signals.withOverdue.length === 0 &&
-          signals.withOpen.length === 0 &&
-          signals.withNoActions.length === 0 ? (
-            <Empty>No active classes need attention right now.</Empty>
-          ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {signals.withOverdue.length > 0 ? (
-                <ClassGroup
-                  label="Overdue actions"
-                  tone="#991b1b"
-                  rows={signals.withOverdue.map((c) => ({
-                    id: c.id,
-                    title: c.title,
-                    meta: `${c.overdueCount} overdue · ${c.openCount} open`,
-                  }))}
-                />
-              ) : null}
-              {signals.withOpen.length > 0 ? (
-                <ClassGroup
-                  label="Open actions"
-                  tone="#1d4ed8"
-                  rows={signals.withOpen.map((c) => ({
-                    id: c.id,
-                    title: c.title,
-                    meta: `${c.openCount} open`,
-                  }))}
-                />
-              ) : null}
-              {signals.withNoActions.length > 0 ? (
-                <ClassGroup
-                  label="No action plan yet"
-                  tone="#6b7280"
-                  rows={signals.withNoActions.map((c) => ({
-                    id: c.id,
-                    title: c.title,
-                    meta: "No actions linked",
-                  }))}
-                />
-              ) : null}
-            </div>
-          )}
-        </Section>
-      ) : null}
-
-      {hub.instructorsWithoutMentor.length > 0 ? (
-        <Section title="Instructors without a mentor" count={hub.instructorsWithoutMentor.length}>
-          <ul style={LIST}>
-            {hub.instructorsWithoutMentor.slice(0, 8).map((i) => (
-              <li key={i.id} style={{ fontSize: 13 }}>
-                <PersonLink id={i.id} style={{ fontWeight: 600, color: "var(--ypp-purple)" }}>
-                  {i.name}
-                </PersonLink>
-                <span style={{ color: "var(--text-secondary)" }}> · {i.classTitle}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
-      {hub.mentorshipsWithoutActions.length > 0 ? (
-        <Section
-          title="Mentorships with no action plan"
-          count={hub.mentorshipsWithoutActions.length}
-        >
-          <ul style={LIST}>
-            {hub.mentorshipsWithoutActions.slice(0, 8).map((m) => (
-              <li key={m.id} style={{ fontSize: 13 }}>
-                <Link
-                  href={`/mentorship/mentees/${m.menteeId}`}
-                  style={{ fontWeight: 600, color: "inherit" }}
-                >
-                  {m.mentorName} → {m.menteeName}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
-      {hub.departmentSignals.length > 0 ? (
-        <Section title="Departments with overdue work" count={hub.departmentSignals.length}>
-          <ul style={LIST}>
-            {hub.departmentSignals.slice(0, 8).map((d) => (
-              <li key={d.id} style={{ borderLeft: "3px solid #991b1b", paddingLeft: 10, fontSize: 13 }}>
-                <Link href={`/actions/all?dept=${d.id}`} style={{ fontWeight: 600, color: "inherit" }}>
-                  {d.name}
-                </Link>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                  {d.overdueCount} overdue · {d.openCount} open
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
-      {hub.officerMeetingFollowUps.length > 0 ? (
-        <Section
-          title="Officer meetings needing follow-up"
-          count={hub.officerMeetingFollowUps.length}
-        >
-          <ul style={LIST}>
-            {hub.officerMeetingFollowUps.slice(0, 6).map((m) => (
-              <li key={m.id} style={{ fontSize: 13 }}>
-                <Link href="/officer-meetings" style={{ fontWeight: 600, color: "inherit" }}>
-                  Meeting on {formatMonthDay(m.date)}
-                </Link>
-                <span style={{ color: "var(--text-secondary)" }}>
-                  {" "}
-                  · {m.openCount} open follow-up{m.openCount === 1 ? "" : "s"}
-                  {m.overdueCount > 0 ? ` · ${m.overdueCount} overdue` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
-      {health ? (
-        <Section title="Mentorship health">
-          <div style={{ display: "grid", gap: 12 }}>
-            {health.atRisk.length > 0 ? (
-              <div>
-                <strong style={{ fontSize: 13 }}>At-risk pairs</strong>
-                <ul style={{ ...LIST, marginTop: 6 }}>
-                  {health.atRisk.slice(0, 6).map((p) => (
-                    <li key={p.id} style={{ fontSize: 13 }}>
-                      <Link
-                        href={`/mentorship/mentees/${p.menteeId}`}
-                        style={{ fontWeight: 600, color: "inherit" }}
-                      >
-                        {p.mentorName} → {p.menteeName}
-                      </Link>
-                      <span style={{ color: "var(--text-secondary)" }}> · {p.reason}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {health.unmatched.length > 0 ? (
-              <Empty>
-                {health.unmatchedCount} unmatched ·{" "}
-                {health.mentorsWithCapacity.length} mentor(s) with capacity
-              </Empty>
-            ) : null}
-            {health.atRisk.length === 0 && health.unmatched.length === 0 ? (
-              <Empty>All active mentorships look healthy.</Empty>
-            ) : null}
-          </div>
-        </Section>
-      ) : null}
-
-      {wins.length > 0 ? (
-        <Section title="Recent wins" count={wins.length}>
-          <ul style={LIST}>
-            {wins.slice(0, 5).map((w) => (
-              <li key={w.id} style={{ fontSize: 13 }}>
-                <span style={{ fontWeight: 600 }}>{w.title}</span>
-                <span style={{ color: "var(--text-secondary)" }}>
-                  {" "}
-                  · {w.ownerName} · {w.completedLabel}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-    </>
-  );
-}
-
-function Stat({ label, value, tone }: { label: string; value: number; tone?: "ok" | "warn" | "bad" }) {
-  const palette: Record<string, string> = { ok: "#166534", warn: "#854d0e", bad: "#991b1b" };
-  return (
-    <div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: tone ? palette[tone] : "inherit" }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function ClassGroup({
-  label,
-  tone,
-  rows,
-}: {
-  label: string;
-  tone: string;
-  rows: Array<{ id: string; title: string; meta: string }>;
-}) {
-  return (
-    <div>
-      <strong style={{ fontSize: 13 }}>{label}</strong>
-      <ul style={{ ...LIST, marginTop: 6 }}>
-        {rows.slice(0, 6).map((r) => (
-          <li key={r.id} style={{ borderLeft: `3px solid ${tone}`, paddingLeft: 10, fontSize: 13 }}>
-            <Link href={`/admin/classes/${r.id}`} style={{ fontWeight: 600, color: "inherit" }}>
-              {r.title}
-            </Link>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{r.meta}</div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 // --- mentor ------------------------------------------------------------------
 

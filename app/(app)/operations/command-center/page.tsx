@@ -8,22 +8,19 @@ import {
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { getWeeklyOperationalDigestForViewer } from "@/lib/people-strategy/operational-digest-queries";
-import { getStrategicDashboardData } from "@/lib/people-strategy/strategic-initiative-queries";
-import { getStrategicCommandData } from "@/lib/people-strategy/strategic-project-queries";
-import { StrategicCommandSection } from "@/components/people-strategy/strategic-command";
-import { InitiativeMiniRow } from "@/components/people-strategy/strategic-initiatives";
+import { getStrategicInitiativesOverview } from "@/lib/people-strategy/strategic-initiative-queries";
+import { deriveOperationsSummary } from "@/lib/people-strategy/operations-summary";
 import { StatCard } from "@/components/people-strategy/stat-card";
 import {
-  ActionMeetings360Workboard,
-  ActionUrgencyList,
+  OperationsEmptyState,
+  OperationsItemList,
+  OperationsTimelineList,
+} from "@/components/people-strategy/operations-item-card";
+import {
   AreaHealthGrid,
-  CommandCenterAllClear,
   CommandCenterHero,
   CommandCenterSection,
   EntityHealthList,
-  LeadershipRhythm,
-  OperationalDigestStats,
-  RecentlyResolvedList,
 } from "@/components/people-strategy/command-center-os";
 import { StrategicWorkspaceNav } from "@/components/people-strategy/strategic-workspace-nav";
 
@@ -31,10 +28,12 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Command Center · Operations" };
 
 /**
- * Leadership Command Center — the page a YPP leader opens every week. It sits
- * ABOVE the Action Tracker + Meetings Tracker and answers, from real digest
- * state: what's urgent, what's stuck, what's due, which areas need attention,
- * what to review first, and which decisions never became execution.
+ * Command Center — the main 360 view. It answers one question: what matters
+ * right now? Top snapshot, then Needs Attention, This Week, Recently Decided,
+ * and the top strategic initiatives — all rendered from the ONE shared
+ * operations summary (`operations-summary.ts`) with the ONE shared card, so the
+ * Command Center, Weekly Execution OS, and Initiatives dashboard never disagree
+ * about what "overdue", "loose end", or "at risk" means.
  *
  * Double-gated like the Operations Hub (the tracker reads + the hub flag) and
  * officer-guarded; a scoped officer only ever sees the actions their visibility
@@ -47,23 +46,18 @@ export default async function CommandCenterOsPage() {
   if (!viewer) notFound();
 
   const now = new Date();
-  const digest = await getWeeklyOperationalDigestForViewer(viewer, { now });
-  // Strategic layer (Phase II) — only loaded when the flag is on, so the
-  // existing Command Center is byte-for-byte unchanged when it is off.
-  const [strategic, strategicInitiatives] = isStrategicInitiativesEnabled()
-    ? await Promise.all([
-        getStrategicCommandData(viewer, { now }).catch(() => null),
-        getStrategicDashboardData(viewer, { now }).catch(() => null),
-      ])
-    : [null, null];
+  const showStrategic = isStrategicInitiativesEnabled();
+  const [digest, initiatives] = await Promise.all([
+    getWeeklyOperationalDigestForViewer(viewer, { now }),
+    showStrategic
+      ? getStrategicInitiativesOverview(viewer, { now }).catch(() => [])
+      : Promise.resolve([]),
+  ]);
+
+  const summary = deriveOperationsSummary({ digest, initiatives, now });
+  const snap = summary.snapshot;
   const consideredCount =
     digest.counts.overdueActions + digest.counts.dueSoonActions + digest.counts.recentlyCompletedActions;
-
-  const allClear =
-    digest.recommendedReviewOrder.length === 0 &&
-    digest.counts.overdueActions === 0 &&
-    digest.counts.criticalEntities === 0 &&
-    digest.counts.warningEntities === 0;
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
@@ -73,117 +67,131 @@ export default async function CommandCenterOsPage() {
           generatedAtISO={digest.generatedAt.toISOString()}
           consideredCount={consideredCount}
         />
-        <StrategicWorkspaceNav current="command-center" showStrategic={!!strategic} />
+        <StrategicWorkspaceNav current="command-center" showStrategic={showStrategic} />
       </div>
 
-      {/* This Week at YPP */}
-      <section style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-        <CommandCenterSection title="This week at YPP" hint="A quick executive read across the org">
-          <OperationalDigestStats counts={digest.counts} />
+      {/* Top snapshot — the executive read in one strip. */}
+      <section style={{ marginTop: 18 }}>
+        <CommandCenterSection title="Top snapshot" hint="What matters right now">
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <StatCard label="Open actions" value={snap.openActions} icon="layers" tone="accent" href="/actions/all" />
+            <StatCard label="Overdue" value={snap.overdueActions} icon="alert" tone={snap.overdueActions > 0 ? "danger" : "default"} href="/actions/all?status=OVERDUE" />
+            <StatCard label="Blocked" value={snap.blockedActions} icon="flag" tone={snap.blockedActions > 0 ? "warning" : "default"} href="/actions/all?status=BLOCKED" />
+            <StatCard label="Due this week" value={snap.dueThisWeek} icon="calendar" href="/actions/all?preset=due_soon" />
+            <StatCard label="Loose ends" value={snap.looseEnds} icon="inbox" tone={snap.looseEnds > 0 ? "warning" : "default"} href="/operations/weekly-execution" />
+            <StatCard label="Communications" value={snap.communicationsNeeded} icon="users" tone={snap.communicationsNeeded > 0 ? "warning" : "default"} href="/operations/weekly-execution" />
+            {showStrategic ? (
+              <StatCard label="Initiatives at risk" value={snap.initiativesAtRisk} icon="target" tone={snap.initiativesAtRisk > 0 ? "warning" : "default"} href="/operations/initiatives" />
+            ) : null}
+          </div>
         </CommandCenterSection>
       </section>
 
-      {/* Strategic Command (3.0) — the executive cockpit across initiatives + projects */}
-      {strategic ? (
-        <section style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
-          <CommandCenterSection
-            title="Strategic command"
-            hint={
-              <span style={{ display: "inline-flex", gap: 10 }}>
-                <Link href="/operations/initiatives" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
-                  {strategic.snapshot.initiatives} initiatives →
-                </Link>
-                <Link href="/operations/projects" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
-                  {strategic.snapshot.projects} projects →
-                </Link>
-              </span>
-            }
-          >
-            <StrategicCommandSection data={strategic} />
-          </CommandCenterSection>
-        </section>
-      ) : null}
-
-      {strategicInitiatives ? (
-        <section style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
-          <CommandCenterSection
-            title="Strategic Initiatives"
-            hint={
-              <Link href="/operations/initiatives" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
-                Open initiatives →
-              </Link>
-            }
-          >
-            <div style={{ display: "grid", gap: 14 }}>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <StatCard label="Active initiatives" value={strategicInitiatives.stats.active} icon="target" tone="accent" href="/operations/initiatives" />
-                <StatCard label="At risk" value={strategicInitiatives.stats.atRisk + strategicInitiatives.stats.critical} icon="alert" tone={strategicInitiatives.stats.atRisk + strategicInitiatives.stats.critical > 0 ? "warning" : "default"} href="/operations/initiatives" />
-                <StatCard label="Blocked" value={strategicInitiatives.leadershipPriorities.filter((i) => i.counts.blockedActions > 0 || i.health.level === "critical").length} icon="flag" tone="warning" href="/operations/initiatives" />
-                <StatCard label="No owner" value={strategicInitiatives.leadershipPriorities.filter((i) => !i.ownerDeclared).length} icon="users" tone="warning" href="/operations/initiatives" />
-                <StatCard label="Discuss this week" value={strategicInitiatives.needingAttention.length} icon="calendar" tone={strategicInitiatives.needingAttention.length > 0 ? "warning" : "default"} href="/operations/weekly-execution" />
-              </div>
-              {strategicInitiatives.needingAttention.length > 0 ? (
-                <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-                  {strategicInitiatives.needingAttention.slice(0, 5).map((initiative) => (
-                    <InitiativeMiniRow key={initiative.id} initiative={initiative} />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </CommandCenterSection>
-        </section>
-      ) : null}
-
-      <section style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
-        {allClear ? (
-          <CommandCenterAllClear
-            upcomingMeetings={digest.upcomingMeetings}
-            recentlyCompleted={digest.recentlyCompletedActions}
-          />
-        ) : null}
+      <div className="ps-stack" style={{ marginTop: 26, display: "grid", gap: 26 }}>
         <CommandCenterSection
-          title="Action + Meetings 360"
-          hint={`${digest.counts.decisionsNeedingAction + digest.counts.unconvertedFollowUps} uncaptured`}
+          title="Needs attention"
+          hint="Overdue, blocked, ownerless, loose ends, at-risk initiatives"
         >
-          <ActionMeetings360Workboard digest={digest} />
+          <OperationsItemList
+            items={summary.needsAttention}
+            empty={
+              <OperationsEmptyState title="Nothing needs leadership attention right now.">
+                No overdue or blocked actions, no loose ends, and no initiatives at risk. Open Weekly
+                Execution to plan the week, or review the initiatives below.
+              </OperationsEmptyState>
+            }
+          />
         </CommandCenterSection>
-      </section>
 
-      <div
-        className="command-center-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-          gap: 22,
-          marginTop: 26,
-          alignItems: "start",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 26, minWidth: 0 }}>
-          <CommandCenterSection title="Leadership rhythm">
-            <LeadershipRhythm />
-          </CommandCenterSection>
-
-          <CommandCenterSection title="Critical & drifting" hint="Worst first">
-            <EntityHealthList
-              entities={[...digest.criticalEntities, ...digest.staleEntities].slice(0, 8)}
-              emptyHint="No part of YPP is critical or drifting right now."
+        <div
+          className="command-center-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+            gap: 22,
+            alignItems: "start",
+          }}
+        >
+          <CommandCenterSection title="This week" hint="Due soon, meetings, milestones">
+            <OperationsItemList
+              items={summary.thisWeek}
+              empty={
+                <OperationsEmptyState>
+                  Nothing is due and no meetings are scheduled this week. A quiet week is a good week
+                  to move an initiative forward.
+                </OperationsEmptyState>
+              }
             />
           </CommandCenterSection>
 
-          <CommandCenterSection title="Operational health by area">
-            <AreaHealthGrid rows={digest.areaHealth} />
+          <CommandCenterSection title="Recently decided" hint="Momentum, not just problems">
+            <OperationsItemList
+              items={summary.recentlyDecided}
+              empty={
+                <OperationsEmptyState>
+                  Decisions, completed actions, and meeting outputs will show here as the week
+                  progresses.
+                </OperationsEmptyState>
+              }
+            />
           </CommandCenterSection>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 26, minWidth: 0 }}>
-          <CommandCenterSection title="Due & overdue actions">
-            <ActionUrgencyList actions={digest.urgentActions} />
+        {showStrategic ? (
+          <CommandCenterSection
+            title="Strategic initiatives"
+            hint={
+              <Link href="/operations/initiatives" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
+                All initiatives →
+              </Link>
+            }
+          >
+            <OperationsItemList
+              items={summary.initiativesNeedingAttention}
+              limit={5}
+              columns
+              empty={
+                <OperationsEmptyState title="No initiatives need leadership attention right now.">
+                  Every initiative has an owner, a next step, and no overdue or blocked work. See the
+                  full portfolio under Initiatives.
+                </OperationsEmptyState>
+              }
+            />
+          </CommandCenterSection>
+        ) : null}
+
+        <div
+          className="command-center-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+            gap: 22,
+            alignItems: "start",
+          }}
+        >
+          <CommandCenterSection title="Operational health by area">
+            <AreaHealthGrid rows={digest.areaHealth} />
           </CommandCenterSection>
 
-          <CommandCenterSection title="Recently resolved" hint="Momentum, not just problems">
-            <RecentlyResolvedList actions={digest.recentlyCompletedActions} />
-          </CommandCenterSection>
+          <div style={{ display: "flex", flexDirection: "column", gap: 26, minWidth: 0 }}>
+            <CommandCenterSection title="Critical & drifting" hint="Worst first">
+              <EntityHealthList
+                entities={[...digest.criticalEntities, ...digest.staleEntities].slice(0, 6)}
+                emptyHint="No part of YPP is critical or drifting right now."
+              />
+            </CommandCenterSection>
+
+            <CommandCenterSection title="Recent timeline" hint="Actions, meetings, decisions">
+              <OperationsTimelineList
+                items={summary.recentTimeline}
+                empty={
+                  <OperationsEmptyState>
+                    Recent actions, meetings, and decisions will appear here as work happens.
+                  </OperationsEmptyState>
+                }
+              />
+            </CommandCenterSection>
+          </div>
         </div>
       </div>
     </div>

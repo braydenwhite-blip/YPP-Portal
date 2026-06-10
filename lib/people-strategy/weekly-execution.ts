@@ -129,7 +129,7 @@ const SECTION_TITLES: Record<WeeklyAgendaSectionId, string> = {
   initiatives: "Initiatives needing attention",
   due_this_week: "Due this week",
   decisions_needed: "Decisions needed",
-  follow_ups_not_captured: "Follow-ups not captured",
+  follow_ups_not_captured: "Loose ends from meetings",
   people_partner_issues: "People / partner issues",
   communication_needed: "Communication needed",
 };

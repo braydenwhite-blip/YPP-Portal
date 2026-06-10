@@ -3825,29 +3825,29 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/operations",
-    title: "Operations Hub",
+    title: "Operations",
     content: {
-      purpose: "This is the People Strategy operating picture for your role — who needs help, who is responsible, what is overdue, which classes and mentorships need follow-up, and what to do next.",
-      firstStep: "Start at the top: the most urgent items and the people who need support are listed first.",
-      nextStep: "Open anything flagged to see its detail, then create or assign a linked action to move it forward."
+      purpose: "This is the entry point to the YPP Leadership OS. Initiatives are the big goals, meetings create decisions, decisions create actions, actions move initiatives forward, and Weekly Execution keeps everything from getting lost.",
+      firstStep: "Officers: open the Command Center to see what matters right now. Everyone else: review your open actions and support below.",
+      nextStep: "Use Weekly Execution to run the officer meeting, Initiatives for the big goals, Actions for the detailed work, and Meetings for decisions and loose ends."
     }
   },
   {
     pattern: "/operations/command-center",
     title: "Leadership Command Center",
     content: {
-      purpose: "This is the leadership cockpit that sits above the Action Tracker and Meetings Tracker: what's urgent, what's stuck, what's due, which areas need attention, and what to review first this week.",
-      firstStep: "Scan 'This week at YPP', then work the ranked 'Needs attention' queue from the top — each card explains why it surfaced and links straight to the place to act.",
-      nextStep: "Follow up on meetings without action, convert open decisions into tracked actions, or open the guided Weekly Review to work through everything in order."
+      purpose: "This is the main 360 view of the leadership OS: what needs attention, what happens this week, what was recently decided, and which initiatives are at risk — all from one shared operations summary.",
+      firstStep: "Scan the top snapshot, then work 'Needs attention' from the top — each card explains why it surfaced and links straight to the place to act.",
+      nextStep: "Open Weekly Execution to run the officer meeting, or Initiatives to review the big goals."
     }
   },
   {
     pattern: "/operations/weekly-review",
-    title: "Weekly Leadership Review",
+    title: "Weekly Review (moved)",
     content: {
-      purpose: "This is the guided weekly operating rhythm: triage overdue and unowned actions, follow through on recent meetings, check entity health, and convert decisions into execution — in one ordered pass.",
-      firstStep: "Work the steps in order, starting with Triage; each step shows only what needs a decision and links to the place to act.",
-      nextStep: "Finish at the wrap-up to see what you reviewed and the recommended next review date, then return to the Command Center."
+      purpose: "The guided Weekly Review has been folded into Weekly Execution — one weekly workflow instead of two. This route now redirects there.",
+      firstStep: "You will land on Weekly Execution automatically.",
+      nextStep: "Use Weekly Execution's four stages: build agenda, capture meeting, resolve loose ends, draft recap."
     }
   },
   {

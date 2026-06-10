@@ -38,7 +38,7 @@ import type {
 } from "@/components/people-strategy/new-meeting-drawer";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Weekly Command Center · Meetings Tracker" };
+export const metadata = { title: "Meetings · Operations" };
 
 function parseWeekOffset(value: string | undefined): number {
   const n = Number.parseInt(value ?? "", 10);

@@ -8,28 +8,30 @@ import {
 } from "@/components/people-strategy/strategic-workspace-nav";
 
 describe("StrategicWorkspaceNav", () => {
-  it("renders the workspace destinations with the right hrefs", () => {
-    render(<StrategicWorkspaceNav current="projects" />);
+  it("renders the five unified leadership OS destinations with the right hrefs", () => {
+    render(<StrategicWorkspaceNav current="initiatives" />);
     const nav = screen.getByRole("navigation", { name: "Strategic workspace" });
     const expected: Array<[string, string]> = [
       ["Command Center", "/operations/command-center"],
-      ["Portfolio", "/operations/portfolio"],
-      ["Initiatives", "/operations/initiatives"],
-      ["Projects", "/operations/projects"],
-      ["Weekly Review", "/operations/weekly-review"],
       ["Weekly Execution", "/operations/weekly-execution"],
-      ["Actions", "/actions/command-center"],
+      ["Initiatives", "/operations/initiatives"],
+      ["Actions", "/actions/all"],
       ["Meetings", "/actions/meetings"],
     ];
     for (const [label, href] of expected) {
       expect(within(nav).getByRole("link", { name: label })).toHaveAttribute("href", href);
     }
+    // Secondary / legacy destinations stay out of the primary nav.
+    expect(within(nav).queryByRole("link", { name: "Portfolio" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Projects" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Weekly Review" })).toBeNull();
+    expect(within(nav).getAllByRole("link")).toHaveLength(expected.length);
   });
 
   it("marks only the current destination as the active page", () => {
-    render(<StrategicWorkspaceNav current="projects" />);
-    expect(screen.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Portfolio" })).not.toHaveAttribute("aria-current");
+    render(<StrategicWorkspaceNav current="initiatives" />);
+    expect(screen.getByRole("link", { name: "Initiatives" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Command Center" })).not.toHaveAttribute("aria-current");
   });
 
   it("marks nothing active when current is omitted", () => {
@@ -41,14 +43,11 @@ describe("StrategicWorkspaceNav", () => {
     render(<StrategicWorkspaceNav current="command-center" showStrategic={false} />);
     // Always-available destinations stay.
     expect(screen.getByRole("link", { name: "Command Center" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Weekly Review" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Weekly Execution" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Actions" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Meetings" })).toBeInTheDocument();
-    // Strategic-only destinations are omitted so they cannot 404.
-    expect(screen.queryByRole("link", { name: "Portfolio" })).toBeNull();
+    // The flag-gated initiatives destination is omitted so it cannot 404.
     expect(screen.queryByRole("link", { name: "Initiatives" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Projects" })).toBeNull();
   });
 });
 
@@ -86,12 +85,12 @@ describe("StrategicWorkspaceHeader", () => {
   it("composes breadcrumbs, the title, and the active workspace nav", () => {
     render(
       <StrategicWorkspaceHeader
-        current="projects"
+        current="initiatives"
         breadcrumbs={[
-          { label: "Projects", href: "/operations/projects" },
+          { label: "Initiatives", href: "/operations/initiatives" },
           { label: "Beth El Pilot" },
         ]}
-        eyebrow="People Strategy"
+        eyebrow="YPP Leadership OS"
         title="Beth El Pilot"
         subtitle="A concrete body of work"
       />,
@@ -99,7 +98,7 @@ describe("StrategicWorkspaceHeader", () => {
     expect(screen.getByRole("heading", { name: "Beth El Pilot" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Strategic workspace" });
-    expect(within(nav).getByRole("link", { name: "Projects" })).toHaveAttribute(
+    expect(within(nav).getByRole("link", { name: "Initiatives" })).toHaveAttribute(
       "aria-current",
       "page",
     );

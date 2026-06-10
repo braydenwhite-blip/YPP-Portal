@@ -156,13 +156,13 @@ export function WeeklyCommandCenterClient({
               color: "var(--ypp-purple-600)",
             }}
           >
-            Weekly Operating Rhythm
+            YPP Leadership OS
           </span>
           <h1 style={{ margin: "7px 0 0", fontSize: 30, fontWeight: 800, color: "var(--ypp-ink)", letterSpacing: "-.02em" }}>
-            Weekly Command Center
+            Meetings
           </h1>
           <p style={{ margin: "7px 0 0", fontSize: 14.5, color: "var(--muted)", maxWidth: 560, lineHeight: 1.45 }}>
-            Track this week&rsquo;s meetings, decisions, follow-ups, and action items &mdash; all in one place.
+            Where decisions and loose ends come from &mdash; this week&rsquo;s meetings, decisions, and the actions they created.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

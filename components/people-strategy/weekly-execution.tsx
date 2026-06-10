@@ -2,16 +2,32 @@ import Link from "next/link";
 
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import type {
-  CommunicationNeededItem,
-  InitiativeAttentionItem,
-  MeetingLooseEnd,
   WeeklyExecutionAgendaSection,
   WeeklyExecutionOS,
 } from "@/lib/people-strategy/weekly-execution";
-import { EmptyCard } from "./command-center-os";
+import {
+  communicationToOperationsItem,
+  looseEndToOperationsItem,
+} from "@/lib/people-strategy/operations-summary";
+import {
+  OperationsEmptyState,
+  OperationsItemList,
+} from "./operations-item-card";
 import { WeeklyMeetingCaptureClient } from "./weekly-meeting-capture-client";
-import { Pill, type PillTone } from "./pills";
 import { StatCard, type StatTone } from "./stat-card";
+
+/**
+ * Weekly Execution — the officer meeting workflow, in four stages:
+ *
+ *   1. Build agenda      (before the meeting)
+ *   2. Capture meeting   (during the meeting)
+ *   3. Resolve loose ends (before you leave)
+ *   4. Draft recap       (after the meeting)
+ *
+ * Loose ends and communications render with the shared OperationsItemCard so
+ * they read exactly like the same items on the Command Center — one system,
+ * one vocabulary, one card language.
+ */
 
 type PersonOption = { id: string; name: string };
 
@@ -19,11 +35,13 @@ function fmt(iso: string | null): string {
   return iso ? formatMonthDay(new Date(iso)) : "No date";
 }
 
-function Section({
+function Stage({
+  number,
   title,
   hint,
   children,
 }: {
+  number: number;
   title: string;
   hint?: React.ReactNode;
   children: React.ReactNode;
@@ -32,7 +50,7 @@ function Section({
     <section style={{ display: "grid", gap: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
         <h2 className="ps-section-title" style={{ margin: 0 }}>
-          {title}
+          {number}. {title}
         </h2>
         {hint ? <span style={{ fontSize: 12, color: "var(--muted)" }}>{hint}</span> : null}
       </div>
@@ -95,6 +113,7 @@ function AgendaItemCard({
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12, color: "var(--text-secondary)" }}>
         <span>Owner: {item.owner ?? "TBD"}</span>
         {item.relatedMeetingTitle ? <span>Meeting: {item.relatedMeetingTitle}</span> : null}
+        {item.initiativeTitle ? <span>Initiative: {item.initiativeTitle}</span> : null}
         {item.relatedEntityLabel ? <span>{item.relatedEntityLabel}</span> : null}
       </div>
       <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.45 }}>
@@ -110,127 +129,63 @@ function AgendaItemCard({
 }
 
 export function AgendaBuilder({ sections }: { sections: WeeklyExecutionAgendaSection[] }) {
+  const populated = sections.filter((section) => section.items.length > 0);
+  if (populated.length === 0) {
+    return (
+      <OperationsEmptyState title="No urgent agenda items.">
+        Nothing is overdue, blocked, or unresolved. Review active initiatives or create a new
+        discussion topic for the meeting.
+      </OperationsEmptyState>
+    );
+  }
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      {sections.map((section, idx) => (
+      {populated.map((section, idx) => (
         <div key={section.id} style={{ display: "grid", gap: 8 }}>
           <h3 className="ps-section-title" style={{ margin: 0, fontSize: 14 }}>
             {idx + 1}. {section.title}
+            <span style={{ marginLeft: 8, fontSize: 12, color: "var(--muted)", fontWeight: 400 }}>
+              {section.items.length}
+            </span>
           </h3>
-          {section.items.length > 0 ? (
-            <div style={{ display: "grid", gap: 8 }}>
-              {section.items.map((item) => (
-                <AgendaItemCard key={item.id} item={item} />
-              ))}
-            </div>
-          ) : (
-            <EmptyCard>No items in this section right now.</EmptyCard>
-          )}
+          <div style={{ display: "grid", gap: 8 }}>
+            {section.items.map((item) => (
+              <AgendaItemCard key={item.id} item={item} />
+            ))}
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
-function InitiativeAttentionCard({ item }: { item: InitiativeAttentionItem }) {
+export function LooseEndsSection({ looseEnds }: { looseEnds: WeeklyExecutionOS["looseEnds"] }) {
   return (
-    <Link
-      href={item.href}
-      className="card ps-action-card cc-focusable"
-      style={{ display: "grid", gap: 7, padding: "12px 14px", textDecoration: "none", color: "inherit", borderLeft: "3px solid var(--warning-color, #854d0e)" }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <strong style={{ fontSize: 14 }}>{item.title}</strong>
-        <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <Pill tone="warning">{item.status}</Pill>
-          <Pill tone="neutral">{item.priority}</Pill>
-        </span>
-      </div>
-      <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-        Owner: {item.owner ?? "TBD"}
-        {item.currentMilestone ? ` - Current milestone: ${item.currentMilestone}` : ""}
-      </div>
-      <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.45 }}>{item.why}</p>
-      <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.45 }}>
-        <strong style={{ color: "var(--ypp-ink)" }}>Leadership question: </strong>
-        {item.suggestedDiscussionQuestion}
-      </p>
-    </Link>
+    <OperationsItemList
+      items={looseEnds.map(looseEndToOperationsItem)}
+      empty={
+        <OperationsEmptyState title="No loose ends.">
+          Every meeting output has either been resolved or converted into an action.
+        </OperationsEmptyState>
+      }
+    />
   );
 }
 
-export function InitiativesAttentionSection({ items }: { items: InitiativeAttentionItem[] }) {
-  if (items.length === 0) return <EmptyCard>No strategic initiatives need officer discussion right now.</EmptyCard>;
+export function CommunicationNeededSection({
+  items,
+}: {
+  items: WeeklyExecutionOS["communications"];
+}) {
   return (
-    <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-      {items.slice(0, 6).map((item) => (
-        <InitiativeAttentionCard key={item.id} item={item} />
-      ))}
-    </div>
-  );
-}
-
-const LOOSE_TONE: Record<MeetingLooseEnd["kind"], PillTone> = {
-  decision: "warning",
-  follow_up: "info",
-  missing_owner: "overdue",
-  missing_due_date: "warning",
-  communication: "purple",
-};
-
-function LooseEndCard({ item }: { item: MeetingLooseEnd }) {
-  return (
-    <Link href={item.href} className="card cc-focusable" style={{ display: "block", padding: "11px 13px", color: "inherit", textDecoration: "none" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-        <strong style={{ fontSize: 13.5 }}>{item.title}</strong>
-        <Pill tone={LOOSE_TONE[item.kind]}>{item.kind.replace(/_/g, " ")}</Pill>
-      </div>
-      <div style={{ marginTop: 5, fontSize: 12, color: "var(--text-secondary)" }}>
-        {item.why} {item.meetingTitle ? `- ${item.meetingTitle}` : ""} - Owner: {item.owner ?? "TBD"}
-        {item.dueISO ? ` - Due ${fmt(item.dueISO)}` : ""}
-      </div>
-    </Link>
-  );
-}
-
-export function LooseEndsSection({ looseEnds }: { looseEnds: MeetingLooseEnd[] }) {
-  if (looseEnds.length === 0) {
-    return <EmptyCard>No loose ends are currently surfaced from recent meetings.</EmptyCard>;
-  }
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      {looseEnds.map((item) => (
-        <LooseEndCard key={item.id} item={item} />
-      ))}
-    </div>
-  );
-}
-
-function CommunicationCard({ item }: { item: CommunicationNeededItem }) {
-  return (
-    <Link href={item.href} className="card cc-focusable" style={{ display: "grid", gap: 7, padding: "11px 13px", color: "inherit", textDecoration: "none" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-        <strong style={{ fontSize: 13.5 }}>{item.contactLabel} - {item.title}</strong>
-        <Pill tone="purple">{item.audience}</Pill>
-      </div>
-      <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{item.why}</p>
-      <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.45 }}>
-        <strong style={{ color: "var(--ypp-ink)" }}>Suggested message: </strong>
-        {item.suggestedMessage}
-      </p>
-      <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Owner: {item.owner ?? "TBD"}</div>
-    </Link>
-  );
-}
-
-export function CommunicationNeededSection({ items }: { items: CommunicationNeededItem[] }) {
-  if (items.length === 0) return <EmptyCard>No communication items are currently surfaced.</EmptyCard>;
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      {items.map((item) => (
-        <CommunicationCard key={item.id} item={item} />
-      ))}
-    </div>
+    <OperationsItemList
+      items={items.map(communicationToOperationsItem)}
+      empty={
+        <OperationsEmptyState title="No communications needed.">
+          No communications are waiting to be sent.
+        </OperationsEmptyState>
+      }
+    />
   );
 }
 
@@ -284,35 +239,41 @@ export function WeeklyExecutionOSView({
 }) {
   return (
     <div style={{ display: "grid", gap: 24 }}>
-      <Section title="Top snapshot">
+      <section style={{ display: "grid", gap: 10 }}>
+        <h2 className="ps-section-title" style={{ margin: 0 }}>
+          Top snapshot
+        </h2>
         <Snapshot os={os} />
-      </Section>
+      </section>
 
-      <Section title="Agenda" hint="Before the meeting">
+      <Stage number={1} title="Build agenda" hint="Before the meeting">
         <AgendaBuilder sections={os.agendaSections} />
-      </Section>
+      </Stage>
 
-      <Section title="Initiatives Needing Attention" hint={`${os.initiativesNeedingAttention.length}`}>
-        <InitiativesAttentionSection items={os.initiativesNeedingAttention} />
-      </Section>
-
-      <Section title="Meeting Capture" hint="During the meeting">
+      <Stage number={2} title="Capture meeting" hint="During the meeting">
         <WeeklyMeetingCaptureClient people={people} currentUserId={currentUserId} />
-      </Section>
+      </Stage>
 
-      <div style={{ display: "grid", gap: 22, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", alignItems: "start" }} className="command-center-grid">
-        <Section title="Loose Ends" hint="Before you leave">
-          <LooseEndsSection looseEnds={os.looseEnds} />
-        </Section>
+      <Stage number={3} title="Resolve loose ends" hint="Before you leave the meeting">
+        <div style={{ display: "grid", gap: 22, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", alignItems: "start" }} className="command-center-grid">
+          <div style={{ display: "grid", gap: 8 }}>
+            <h3 className="ps-section-title" style={{ margin: 0, fontSize: 14 }}>
+              Loose ends
+            </h3>
+            <LooseEndsSection looseEnds={os.looseEnds} />
+          </div>
+          <div style={{ display: "grid", gap: 8 }}>
+            <h3 className="ps-section-title" style={{ margin: 0, fontSize: 14 }}>
+              Communications needed
+            </h3>
+            <CommunicationNeededSection items={os.communications} />
+          </div>
+        </div>
+      </Stage>
 
-        <Section title="Communication Needed" hint={`${os.communications.length}`}>
-          <CommunicationNeededSection items={os.communications} />
-        </Section>
-      </div>
-
-      <Section title="Weekly Recap" hint="Copy into Slack or email">
+      <Stage number={4} title="Draft recap" hint="Copy into Slack or email — nothing is sent">
         <WeeklyRecapPanel os={os} />
-      </Section>
+      </Stage>
     </div>
   );
 }
