@@ -6,10 +6,11 @@ import { hasPassionLabBuilderSchema } from "@/lib/schema-compat";
 import { PassionLabProgressClient } from "./client";
 
 type Props = {
-  searchParams: { programId?: string };
+  searchParams: Promise<{ programId?: string }>;
 };
 
-export default async function PassionLabProgressPage({ searchParams }: Props) {
+export default async function PassionLabProgressPage({ searchParams: searchParamsPromise }: Props) {
+  const searchParams = await searchParamsPromise;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

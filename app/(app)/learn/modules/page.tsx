@@ -9,10 +9,11 @@ import {
 import ModuleFilters from "./module-filters";
 
 export default async function LearningModulesPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: { passion?: string; level?: string; q?: string; status?: string };
+  searchParams: Promise<{ passion?: string; level?: string; q?: string; status?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");

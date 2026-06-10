@@ -4,10 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { AuditAction } from "@prisma/client";
 
 export default async function AuditLogPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: { action?: string; search?: string; page?: string };
+  searchParams: Promise<{ action?: string; search?: string; page?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {

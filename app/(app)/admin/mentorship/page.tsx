@@ -278,15 +278,16 @@ async function getGRAdminData() {
 export default async function AdminMentorshipPage({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: Promise<SearchParams>;
 }) {
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) redirect("/");
 
-  const tab = parseTab(searchParams.tab);
-  const lane = parseAdminMentorshipLane(searchParams.lane);
-  const supportRole = parseSupportRole(searchParams.supportRole);
+  const resolvedSearchParams = await searchParams;
+  const tab = parseTab(resolvedSearchParams.tab);
+  const lane = parseAdminMentorshipLane(resolvedSearchParams.lane);
+  const supportRole = parseSupportRole(resolvedSearchParams.supportRole);
 
   const [data, goalReviews, monthlyReviews, opsSummary] = await Promise.all([
     getAdminMentorshipCommandCenterData(),
@@ -804,11 +805,11 @@ export default async function AdminMentorshipPage({
               </p>
             </div>
             <MatchingPanel
-              key={`${lane}-${supportRole}-${searchParams.menteeId ?? "all"}`}
+              key={`${lane}-${supportRole}-${resolvedSearchParams.menteeId ?? "all"}`}
               initialLane={lane}
               initialSupportRole={supportRole}
-              initialMenteeId={searchParams.menteeId}
-              autoRun={Boolean(searchParams.menteeId)}
+              initialMenteeId={resolvedSearchParams.menteeId}
+              autoRun={Boolean(resolvedSearchParams.menteeId)}
             />
           </section>
 

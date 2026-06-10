@@ -5,10 +5,11 @@ import Link from "next/link";
 import { CreateListingForm, RequestItemButton, RespondToRequest } from "./client";
 
 export default async function ResourceExchangePage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: { tab?: string; category?: string; type?: string };
+  searchParams: Promise<{ tab?: string; category?: string; type?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
