@@ -17,6 +17,7 @@ describe("action prefill 4.0 round-trip", () => {
   it("serializes and re-parses the honest context params", () => {
     const href = actionPrefillToQuery({
       title: "Email Beth El coordinator",
+      dueDate: "2026-06-07",
       sourceType: "PROJECT",
       sourceId: "dec_1",
       sourceActionId: "act_parent",
@@ -34,6 +35,7 @@ describe("action prefill 4.0 round-trip", () => {
     expect(parsed.strategicProjectId).toBe("beth-el-pilot");
     expect(parsed.suggestedOwnerId).toBe("user_1");
     expect(parsed.successDefinition).toBe("Reply received");
+    expect(parsed.dueDate).toBe("2026-06-07");
   });
 
   it("clamps dueInDays and validates related-entity membership on parse", () => {

@@ -5,6 +5,7 @@ import {
   actionTitleFromDecision,
   buildActionPrefillFromDecision,
   buildActionPrefillFromEntity,
+  buildActionPrefillFromMeetingFollowUp,
   buildActionPrefillFromMeeting,
   buildMeetingPrefillFromEntity,
   buildMeetingPrefillFromOperationalIssue,
@@ -101,6 +102,14 @@ describe("actionPrefillToQuery", () => {
     expect(href).toContain("fromMeeting=m1");
     expect(href).toContain("area=PARTNERSHIPS");
   });
+
+  it("serializes an exact due date when provided", () => {
+    const href = actionPrefillToQuery({
+      title: "Follow up from meeting",
+      dueDate: "2026-06-07",
+    });
+    expect(href).toContain("due=2026-06-07");
+  });
 });
 
 describe("buildActionPrefillFromEntity", () => {
@@ -130,6 +139,32 @@ describe("buildActionPrefillFromMeeting", () => {
     expect(p.actionType).toBe("MEETING_RECAP");
     expect(p.relatedType).toBe("USER");
     expect(p.relatedId).toBe("u1");
+  });
+});
+
+describe("buildActionPrefillFromMeetingFollowUp", () => {
+  it("carries meeting source, owner, due date, and related entity context", () => {
+    const p = buildActionPrefillFromMeetingFollowUp({
+      followUpId: "f1",
+      title: "Confirm STEM scope before emailing partner",
+      description: "Rockets and planes may be too narrow.",
+      meetingId: "m1",
+      meetingTitle: "Curriculum sync",
+      meetingCategory: "CLASSES",
+      relatedEntityType: "CLASS_OFFERING",
+      relatedEntityId: "cls1",
+      suggestedOwnerId: "u1",
+      dueDate: "2026-06-07",
+    });
+    expect(p.title).toBe("Confirm STEM scope before emailing partner");
+    expect(p.description).toContain("Rockets and planes may be too narrow.");
+    expect(p.sourceMeetingId).toBe("m1");
+    expect(p.sourceType).toBe("MEETING");
+    expect(p.sourceId).toBe("f1");
+    expect(p.suggestedOwnerId).toBe("u1");
+    expect(p.dueDate).toBe("2026-06-07");
+    expect(p.relatedType).toBe("CLASS_OFFERING");
+    expect(p.relatedId).toBe("cls1");
   });
 });
 

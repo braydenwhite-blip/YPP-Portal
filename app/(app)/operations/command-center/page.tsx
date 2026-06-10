@@ -11,17 +11,14 @@ import { getWeeklyOperationalDigestForViewer } from "@/lib/people-strategy/opera
 import { getStrategicCommandData } from "@/lib/people-strategy/strategic-project-queries";
 import { StrategicCommandSection } from "@/components/people-strategy/strategic-command";
 import {
+  ActionMeetings360Workboard,
   ActionUrgencyList,
   AreaHealthGrid,
   CommandCenterAllClear,
   CommandCenterHero,
   CommandCenterSection,
-  DecisionFollowThroughCard,
-  EmptyCard,
   EntityHealthList,
   LeadershipRhythm,
-  MeetingFollowThroughCard,
-  NeedsAttentionList,
   OperationalDigestStats,
   RecentlyResolvedList,
 } from "@/components/people-strategy/command-center-os";
@@ -101,64 +98,31 @@ export default async function CommandCenterOsPage() {
         </section>
       ) : null}
 
+      <section style={{ marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }}>
+        {allClear ? (
+          <CommandCenterAllClear
+            upcomingMeetings={digest.upcomingMeetings}
+            recentlyCompleted={digest.recentlyCompletedActions}
+          />
+        ) : null}
+        <CommandCenterSection
+          title="Action + Meetings 360"
+          hint={`${digest.counts.decisionsNeedingAction + digest.counts.unconvertedFollowUps} uncaptured`}
+        >
+          <ActionMeetings360Workboard digest={digest} />
+        </CommandCenterSection>
+      </section>
+
       <div
         className="command-center-grid"
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
           gap: 22,
           marginTop: 26,
           alignItems: "start",
         }}
       >
-        {/* Left column — what to act on */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 26, minWidth: 0 }}>
-          {allClear ? (
-            <CommandCenterAllClear
-              upcomingMeetings={digest.upcomingMeetings}
-              recentlyCompleted={digest.recentlyCompletedActions}
-            />
-          ) : (
-            <CommandCenterSection
-              title="Needs attention"
-              hint={`${digest.recommendedReviewOrder.length} ranked`}
-            >
-              <NeedsAttentionList items={digest.recommendedReviewOrder} />
-            </CommandCenterSection>
-          )}
-
-          <CommandCenterSection
-            title="Meetings needing follow-through"
-            hint="Open follow-ups, decisions, or no action yet"
-          >
-            {digest.meetingsNeedingFollowThrough.length === 0 ? (
-              <EmptyCard>Every recent meeting has produced action or has no open follow-ups. 🎉</EmptyCard>
-            ) : (
-              <div style={{ display: "grid", gap: 8 }}>
-                {digest.meetingsNeedingFollowThrough.map((m) => (
-                  <MeetingFollowThroughCard key={m.id} meeting={m} />
-                ))}
-              </div>
-            )}
-          </CommandCenterSection>
-
-          <CommandCenterSection
-            title="Decisions to convert into action"
-            hint="Decided recently, not yet owned"
-          >
-            {digest.decisionsNeedingAction.length === 0 ? (
-              <EmptyCard>Every recent decision has a linked action. Decisions are turning into execution. ✅</EmptyCard>
-            ) : (
-              <div style={{ display: "grid", gap: 8 }}>
-                {digest.decisionsNeedingAction.map((d) => (
-                  <DecisionFollowThroughCard key={d.id} decision={d} />
-                ))}
-              </div>
-            )}
-          </CommandCenterSection>
-        </div>
-
-        {/* Right column — the operating picture */}
         <div style={{ display: "flex", flexDirection: "column", gap: 26, minWidth: 0 }}>
           <CommandCenterSection title="Leadership rhythm">
             <LeadershipRhythm />
@@ -174,7 +138,9 @@ export default async function CommandCenterOsPage() {
           <CommandCenterSection title="Operational health by area">
             <AreaHealthGrid rows={digest.areaHealth} />
           </CommandCenterSection>
+        </div>
 
+        <div style={{ display: "flex", flexDirection: "column", gap: 26, minWidth: 0 }}>
           <CommandCenterSection title="Due & overdue actions">
             <ActionUrgencyList actions={digest.urgentActions} />
           </CommandCenterSection>

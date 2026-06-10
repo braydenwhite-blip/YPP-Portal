@@ -69,14 +69,17 @@ describe("WeeklyReviewWrapUp", () => {
     generatedAt: new Date("2026-06-04T00:00:00"),
     window: { start: new Date("2026-06-01"), end: new Date("2026-06-07") },
     counts: {
+      openActions: 3,
       overdueActions: 2,
       dueTodayActions: 0,
       dueSoonActions: 0,
       blockedActions: 1,
       unassignedActions: 0,
+      meetingsThisWeek: 0,
       upcomingMeetings: 0,
       meetingsWithoutActions: 0,
       unresolvedFollowUps: 0,
+      unconvertedFollowUps: 0,
       criticalEntities: 1,
       warningEntities: 0,
       recentDecisions: 0,
@@ -84,10 +87,13 @@ describe("WeeklyReviewWrapUp", () => {
       recentlyCompletedActions: 4,
     },
     urgentActions: [],
+    triage: { overdue: [], blocked: [], unassigned: [], dueSoon: [] },
     upcomingMeetings: [],
+    recentMeetings: [],
     staleEntities: [],
     criticalEntities: [],
     decisionsNeedingAction: [],
+    unresolvedMeetingFollowUps: [],
     meetingsNeedingFollowThrough: [],
     recentlyCompletedActions: [],
     areaHealth: [],
@@ -97,7 +103,7 @@ describe("WeeklyReviewWrapUp", () => {
 
   it("summarizes the review and recommends a next date", () => {
     render(
-      <WeeklyReviewWrapUp digest={emptyDigest} triage={triage} nextReviewISO="2026-06-11T00:00:00.000Z" />
+      <WeeklyReviewWrapUp digest={emptyDigest} triage={triage} nextReviewISO="2026-06-11T12:00:00.000Z" />
     );
     expect(screen.getByText(/still need a decision/i)).toBeInTheDocument();
     expect(screen.getByText(/Jun 11, 2026/)).toBeInTheDocument();

@@ -126,7 +126,14 @@ export type ActionLite = {
   unassigned: boolean;
   relatedType: RelatedEntityType | null;
   relatedId: string | null;
+  relatedLabel: string | null;
+  relatedTypeLabel: string | null;
   sourceMeetingId: string | null;
+  sourceMeetingTitle: string | null;
+  sourceMeetingStartISO: string | null;
+  latestUpdate: string | null;
+  nextStep: string | null;
+  contextSummary: string | null;
   href: string;
 };
 
@@ -141,11 +148,37 @@ export type MeetingLite = {
   overdueFollowUps: number;
   decisionCount: number;
   linkedActionCount: number;
+  facilitatorName: string | null;
+  attendeeCount: number;
   recurrence: string | null;
   relatedType: RelatedEntityType | null;
   relatedId: string | null;
+  relatedLabel: string | null;
+  keyDecisions: string[];
+  linkedActionTitles: string[];
+  unconvertedFollowUps: MeetingFollowUpLite[];
   /** Deterministic operational outcome read (was the meeting useful?). */
   outcome: MeetingOutcomeQuality;
+  href: string;
+};
+
+export type MeetingFollowUpLite = {
+  id: string;
+  title: string;
+  description: string | null;
+  meetingId: string;
+  meetingTitle: string;
+  meetingStartISO: string;
+  meetingCategory: string | null;
+  ownerName: string | null;
+  ownerId: string | null;
+  dueISO: string | null;
+  priority: ActionPriority;
+  status: string;
+  areaLabel: string;
+  relatedType: RelatedEntityType | null;
+  relatedId: string | null;
+  relatedLabel: string | null;
   href: string;
 };
 
@@ -229,14 +262,17 @@ export type OperationalHealthExplanation = {
 };
 
 export type OperationalDigestCounts = {
+  openActions: number;
   overdueActions: number;
   dueTodayActions: number;
   dueSoonActions: number;
   blockedActions: number;
   unassignedActions: number;
+  meetingsThisWeek: number;
   upcomingMeetings: number;
   meetingsWithoutActions: number;
   unresolvedFollowUps: number;
+  unconvertedFollowUps: number;
   criticalEntities: number;
   warningEntities: number;
   recentDecisions: number;
@@ -249,10 +285,13 @@ export type WeeklyOperationalDigest = {
   window: { start: Date; end: Date };
   counts: OperationalDigestCounts;
   urgentActions: ActionLite[];
+  triage: ActionTriage;
   upcomingMeetings: MeetingLite[];
+  recentMeetings: MeetingLite[];
   staleEntities: OperationalEntityLite[];
   criticalEntities: OperationalEntityLite[];
   decisionsNeedingAction: DecisionLite[];
+  unresolvedMeetingFollowUps: MeetingFollowUpLite[];
   meetingsNeedingFollowThrough: MeetingLite[];
   recentlyCompletedActions: ActionLite[];
   areaHealth: AreaHealthRow[];
@@ -292,17 +331,69 @@ function plural(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
+function snippet(value: string | null | undefined, max = 150): string | null {
+  const text = value?.replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1).trimEnd()}…`;
+}
+
+function summaryForRef(
+  type: RelatedEntityType | null,
+  id: string | null,
+  labels?: ReadonlyMap<string, RelatedEntitySummary>
+): RelatedEntitySummary | null {
+  if (!type || !id || !labels) return null;
+  return labels.get(relatedRefKey(type, id)) ?? null;
+}
+
+function latestActionUpdate(item: ActionItemWithRelations): string | null {
+  const latest = [...item.comments].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+  )[0];
+  return snippet(latest?.body);
+}
+
+function actionNextStep(item: ActionItemWithRelations, now: Date): string | null {
+  const status = effectiveStatus(item, now);
+  if (status === "BLOCKED") {
+    return snippet(item.blockedReason, 140) ?? "Unblock this before the work can move.";
+  }
+  return (
+    snippet(item.successDefinition, 140) ??
+    snippet(item.description, 140) ??
+    (item.officerMeetingId
+      ? "Close the loop from the source meeting."
+      : "Confirm the next concrete move.")
+  );
+}
+
+function actionContextSummary(
+  item: ActionItemWithRelations,
+  related: RelatedEntitySummary | null
+): string | null {
+  if (item.officerMeeting) {
+    const title = item.officerMeeting.title?.trim() || "Officer Meeting";
+    return `Created from ${title}`;
+  }
+  if (related) return `Linked to ${related.typeLabel}: ${related.label}`;
+  return snippet(item.goalCategory ? `Goal: ${item.goalCategory}` : item.description, 140);
+}
+
 // --- lite mappers ------------------------------------------------------------
 
 export function toActionLite(
   item: ActionItemWithRelations,
-  now: Date = new Date()
+  now: Date = new Date(),
+  labels?: ReadonlyMap<string, RelatedEntitySummary>
 ): ActionLite {
   const status = effectiveStatus(item, now);
   const relatedType =
     item.relatedEntityType && isRelatedEntityType(item.relatedEntityType)
       ? item.relatedEntityType
       : null;
+  const relatedId = relatedType ? item.relatedEntityId : null;
+  const related = summaryForRef(relatedType, relatedId, labels);
   return {
     id: item.id,
     title: item.title,
@@ -315,17 +406,30 @@ export function toActionLite(
     blocked: status === "BLOCKED",
     unassigned: isUnassigned(item),
     relatedType,
-    relatedId: relatedType ? item.relatedEntityId : null,
+    relatedId,
+    relatedLabel: related?.label ?? null,
+    relatedTypeLabel: related?.typeLabel ?? (relatedType ? relatedEntityTypeLabel(relatedType) : null),
     sourceMeetingId: item.officerMeetingId ?? null,
+    sourceMeetingTitle: item.officerMeeting?.title?.trim() || (item.officerMeeting ? "Officer Meeting" : null),
+    sourceMeetingStartISO: item.officerMeeting?.date.toISOString() ?? null,
+    latestUpdate: latestActionUpdate(item),
+    nextStep: actionNextStep(item, now),
+    contextSummary: actionContextSummary(item, related),
     href: actionHref(item.id),
   };
 }
 
-export function toMeetingLite(m: MeetingCardDTO, now: Date = new Date()): MeetingLite {
+export function toMeetingLite(
+  m: MeetingCardDTO,
+  now: Date = new Date(),
+  labels?: ReadonlyMap<string, RelatedEntitySummary>
+): MeetingLite {
   const relatedType =
     m.relatedEntityType && isRelatedEntityType(m.relatedEntityType)
       ? m.relatedEntityType
       : null;
+  const relatedId = relatedType ? m.relatedEntityId : null;
+  const related = summaryForRef(relatedType, relatedId, labels);
   return {
     id: m.id,
     title: m.title,
@@ -337,11 +441,47 @@ export function toMeetingLite(m: MeetingCardDTO, now: Date = new Date()): Meetin
     overdueFollowUps: m.overdueFollowUps,
     decisionCount: m.decisionCount,
     linkedActionCount: m.linkedActionCount,
+    facilitatorName: m.facilitator?.name ?? null,
+    attendeeCount: m.attendeeCount,
     recurrence: m.recurrence,
     relatedType,
-    relatedId: relatedType ? m.relatedEntityId : null,
+    relatedId,
+    relatedLabel: related?.label ?? null,
+    keyDecisions: (m.decisionsPreview ?? []).map((d) => d.decision).slice(0, 3),
+    linkedActionTitles: (m.linkedActionsPreview ?? []).map((a) => a.title).slice(0, 3),
+    unconvertedFollowUps: (m.unconvertedFollowUps ?? []).map((f) =>
+      toMeetingFollowUpLite(f, m, relatedType, relatedId, related)
+    ),
     outcome: meetingOutcomeFromCard(m, now),
     href: meetingHref(m.id),
+  };
+}
+
+function toMeetingFollowUpLite(
+  followUp: NonNullable<MeetingCardDTO["unconvertedFollowUps"]>[number],
+  meeting: MeetingCardDTO,
+  relatedType: RelatedEntityType | null,
+  relatedId: string | null,
+  related: RelatedEntitySummary | null
+): MeetingFollowUpLite {
+  return {
+    id: followUp.id,
+    title: followUp.title,
+    description: followUp.description,
+    meetingId: meeting.id,
+    meetingTitle: meeting.title,
+    meetingStartISO: meeting.startISO,
+    meetingCategory: meeting.category,
+    ownerName: followUp.owner?.name ?? null,
+    ownerId: followUp.owner?.id ?? null,
+    dueISO: followUp.dueISO,
+    priority: followUp.priority,
+    status: followUp.effectiveStatus,
+    areaLabel: followUp.areaLabel,
+    relatedType,
+    relatedId,
+    relatedLabel: related?.label ?? null,
+    href: meetingHref(meeting.id),
   };
 }
 
@@ -1220,9 +1360,14 @@ export function deriveWeeklyOperationalDigest(
   pushUnique(actionBuckets.overdue);
   pushUnique(actionBuckets.dueToday);
   pushUnique(actionBuckets.blocked);
-  const urgentActions = urgentRaw.map((a) => toActionLite(a, now));
+  const urgentActions = urgentRaw.map((a) => toActionLite(a, now, input.labels));
 
-  const upcomingMeetings = meetingBuckets.upcomingThisWeek.map((m) => toMeetingLite(m, now));
+  const upcomingMeetings = meetingBuckets.upcomingThisWeek.map((m) =>
+    toMeetingLite(m, now, input.labels)
+  );
+  const recentMeetings = meetingBuckets.recent.map((m) =>
+    toMeetingLite(m, now, input.labels)
+  );
 
   // Meetings needing follow-through: unresolved follow-ups, decisions with no
   // action, or a meeting that happened and produced no action at all.
@@ -1236,7 +1381,7 @@ export function deriveWeeklyOperationalDigest(
     for (const m of list) {
       if (followThroughSeen.has(m.id)) continue;
       followThroughSeen.add(m.id);
-      meetingsNeedingFollowThrough.push(toMeetingLite(m, now));
+      meetingsNeedingFollowThrough.push(toMeetingLite(m, now, input.labels));
     }
   }
 
@@ -1249,10 +1394,35 @@ export function deriveWeeklyOperationalDigest(
   const warningEntities = entities.filter((e) => e.health.level === "at_risk");
 
   const recentlyCompletedActions = actionBuckets.recentlyCompleted.map((a) =>
-    toActionLite(a, now)
+    toActionLite(a, now, input.labels)
   );
 
   const unresolvedFollowUps = input.meetings.reduce((sum, m) => sum + m.openFollowUps, 0);
+  const unresolvedMeetingFollowUps = input.meetings
+    .flatMap((m) => toMeetingLite(m, now, input.labels).unconvertedFollowUps)
+    .sort((a, b) => {
+      const aDue = a.dueISO ? new Date(a.dueISO).getTime() : Number.POSITIVE_INFINITY;
+      const bDue = b.dueISO ? new Date(b.dueISO).getTime() : Number.POSITIVE_INFINITY;
+      return aDue - bDue || a.meetingTitle.localeCompare(b.meetingTitle);
+    });
+  const openActions = input.actions.filter((a) => !SETTLED.has(effectiveStatus(a, now))).length;
+  const meetingsThisWeek = input.meetings.filter((m) => {
+    const start = new Date(m.startISO).getTime();
+    return (
+      m.effectiveStatus !== "canceled" &&
+      start >= window.start.getTime() &&
+      start <= window.end.getTime()
+    );
+  }).length;
+
+  const triage: ActionTriage = {
+    overdue: actionBuckets.overdue.map((a) => toActionLite(a, now, input.labels)),
+    blocked: actionBuckets.blocked.map((a) => toActionLite(a, now, input.labels)),
+    unassigned: actionBuckets.unassigned.map((a) => toActionLite(a, now, input.labels)),
+    dueSoon: [...actionBuckets.dueToday, ...actionBuckets.dueThisWeek].map((a) =>
+      toActionLite(a, now, input.labels)
+    ),
+  };
 
   const areaHealth = deriveAreaHealth({
     actions: input.actions,
@@ -1272,14 +1442,17 @@ export function deriveWeeklyOperationalDigest(
   });
 
   const counts: OperationalDigestCounts = {
+    openActions,
     overdueActions: actionBuckets.overdue.length,
     dueTodayActions: actionBuckets.dueToday.length,
     dueSoonActions: actionBuckets.dueToday.length + actionBuckets.dueThisWeek.length,
     blockedActions: actionBuckets.blocked.length,
     unassignedActions: actionBuckets.unassigned.length,
+    meetingsThisWeek,
     upcomingMeetings: meetingBuckets.upcomingThisWeek.length,
     meetingsWithoutActions: meetingBuckets.withoutActions.length,
     unresolvedFollowUps,
+    unconvertedFollowUps: unresolvedMeetingFollowUps.length,
     criticalEntities: criticalEntities.length,
     warningEntities: warningEntities.length,
     recentDecisions: recentDecisions.length,
@@ -1295,10 +1468,18 @@ export function deriveWeeklyOperationalDigest(
     window,
     counts,
     urgentActions: sliceOr(urgentActions, limits.urgentActions ?? 8),
+    triage: {
+      overdue: sliceOr(triage.overdue, limits.urgentActions ?? 8),
+      blocked: sliceOr(triage.blocked, limits.urgentActions ?? 8),
+      unassigned: sliceOr(triage.unassigned, limits.urgentActions ?? 8),
+      dueSoon: sliceOr(triage.dueSoon, limits.urgentActions ?? 8),
+    },
     upcomingMeetings: sliceOr(upcomingMeetings, limits.upcomingMeetings ?? 6),
+    recentMeetings: sliceOr(recentMeetings, limits.upcomingMeetings ?? 6),
     staleEntities: sliceOr(staleEntities, limits.staleEntities ?? 6),
     criticalEntities: sliceOr(criticalEntities, limits.criticalEntities ?? 6),
     decisionsNeedingAction: sliceOr(decisionsNeedingAction, limits.decisions ?? 6),
+    unresolvedMeetingFollowUps: sliceOr(unresolvedMeetingFollowUps, limits.meetingsNeedingFollowThrough ?? 8),
     meetingsNeedingFollowThrough: sliceOr(
       meetingsNeedingFollowThrough,
       limits.meetingsNeedingFollowThrough ?? 6
