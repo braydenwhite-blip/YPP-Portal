@@ -16,6 +16,8 @@ The simple operating model is:
 
 Initiatives are the big goals. Meetings are where decisions happen. Actions are what move initiatives forward. The Weekly Execution OS keeps the loop moving.
 
+In the unified leadership OS (see [Operations OS Simplification](./operations-os-simplification.md)), `/operations/initiatives` is the primary strategic page. The deeper analytical views — Portfolio (`/operations/portfolio`), Strategic Projects (`/operations/projects`), and the Strategic Map (`/operations/strategic-map`) — are secondary and linked from the Initiatives page instead of the primary nav.
+
 ## How Initiatives Differ From Actions
 
 An action is a concrete task with an owner and due date.

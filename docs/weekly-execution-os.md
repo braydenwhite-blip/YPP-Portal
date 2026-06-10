@@ -4,6 +4,8 @@
 
 The Weekly Execution OS is the officer-meeting workspace for YPP leadership. It lives at `/operations/weekly-execution` and turns the existing Action Tracker, Meetings Tracker, and Strategic Initiatives layer into one weekly operating loop.
 
+It is one of the five primary places in the unified leadership OS (see [Operations OS Simplification](./operations-os-simplification.md)). The legacy guided Weekly Review (`/operations/weekly-review`) has been folded into this page and now redirects here.
+
 It answers four practical questions:
 
 - What should we discuss before the meeting starts?
@@ -24,7 +26,7 @@ The two pages are meant to work together:
 
 ## Page Sections
 
-The page has four main operating sections.
+The page is a four-stage meeting workflow: **1. Build agenda → 2. Capture meeting → 3. Resolve loose ends → 4. Draft recap**. Loose ends and communications render with the shared operations card (`operations-item-card.tsx`) from the shared operations summary, so they read identically to the same items on the Command Center.
 
 ### Agenda
 

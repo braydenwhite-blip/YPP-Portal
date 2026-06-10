@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -155,21 +155,27 @@ function osFixture(overrides: Partial<WeeklyExecutionOS> = {}): WeeklyExecutionO
 }
 
 describe("WeeklyExecutionOSView", () => {
-  it("renders the weekly execution sections and operational content", () => {
+  it("renders the four meeting-workflow stages and operational content", () => {
     render(<WeeklyExecutionOSView os={osFixture()} people={people} currentUserId="u1" />);
 
-    expect(screen.getByText("Agenda")).toBeInTheDocument();
-    expect(screen.getByText("Meeting Capture")).toBeInTheDocument();
-    expect(screen.getByText("Loose Ends")).toBeInTheDocument();
-    expect(screen.getByText("Weekly Recap")).toBeInTheDocument();
-    expect(screen.getByText("Initiatives Needing Attention")).toBeInTheDocument();
-    expect(screen.getByText("Communication Needed")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "1. Build agenda" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "2. Capture meeting" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "3. Resolve loose ends" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "4. Draft recap" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Loose ends" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Communications needed" })).toBeInTheDocument();
 
     expect(screen.getByText("Blocked: clarify STEM curriculum direction")).toBeInTheDocument();
     expect(screen.getByText("Draft instructor training plan")).toBeInTheDocument();
     expect(screen.getByText("Message Lily about Friday 4 PM")).toBeInTheDocument();
-    expect(screen.getByText("Lily - Clarify STEM curriculum direction")).toBeInTheDocument();
+    expect(screen.getByText("Lily — Clarify STEM curriculum direction")).toBeInTheDocument();
     expect(screen.getByDisplayValue(/Here is the weekly YPP operations recap/)).toBeInTheDocument();
+  });
+
+  it("shows initiative context on agenda items via the agenda sections", () => {
+    render(<WeeklyExecutionOSView os={osFixture()} people={people} currentUserId="u1" />);
+    expect(screen.getByText("Camp / STEM Curriculum Launch")).toBeInTheDocument();
+    expect(screen.getByText("Initiative: Camp / STEM Curriculum Launch")).toBeInTheDocument();
   });
 
   it("renders a copyable weekly recap draft", () => {
@@ -178,7 +184,7 @@ describe("WeeklyExecutionOSView", () => {
     expect((draft as HTMLTextAreaElement).value).toContain("Initiative updates:");
   });
 
-  it("shows simple empty states when queues are clear", () => {
+  it("shows teaching empty states when queues are clear", () => {
     const empty = osFixture({
       agendaSections: osFixture().agendaSections.map((section) => ({ ...section, items: [] })),
       looseEnds: [],
@@ -186,10 +192,11 @@ describe("WeeklyExecutionOSView", () => {
       initiativesNeedingAttention: [],
     });
     render(<WeeklyExecutionOSView os={empty} people={people} currentUserId="u1" />);
-    const looseEnds = screen.getByText("Loose Ends").closest("section")!;
-    expect(within(looseEnds).getByText(/No loose ends/)).toBeInTheDocument();
-    const communication = screen.getByText("Communication Needed").closest("section")!;
-    expect(within(communication).getByText(/No communication items/)).toBeInTheDocument();
-    expect(screen.getByText(/No strategic initiatives need officer discussion/)).toBeInTheDocument();
+    expect(screen.getByText(/No urgent agenda items/)).toBeInTheDocument();
+    expect(screen.getByText("No loose ends.")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Every meeting output has either been resolved or converted into an action/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/No communications are waiting to be sent/)).toBeInTheDocument();
   });
 });

@@ -30,26 +30,31 @@ export type StrategicNavKey =
 type NavItem = { key: StrategicNavKey; label: string; href: string };
 
 /**
- * The strategic workspace, in leadership-reading order: the cockpit, then the
- * executive overview, then the program → project ladder, then the weekly cadence
- * and the underlying execution trackers. Not a giant navbar — the seven places a
- * leader actually moves between every week.
+ * The unified leadership OS, in leadership-reading order:
+ *
+ *   Command Center   — what matters right now
+ *   Weekly Execution — run the weekly officer meeting
+ *   Initiatives      — the big strategic goals
+ *   Actions          — the concrete work
+ *   Meetings         — where decisions and loose ends come from
+ *
+ * Deliberately only the five places a leader moves between every week. The
+ * deeper strategic views (Portfolio, Projects, Strategic Map) are secondary
+ * and linked from the Initiatives page instead of crowding the primary nav;
+ * the old Weekly Review redirects into Weekly Execution.
  */
 const NAV_ITEMS: readonly NavItem[] = [
   { key: "command-center", label: "Command Center", href: "/operations/command-center" },
-  { key: "portfolio", label: "Portfolio", href: "/operations/portfolio" },
-  { key: "initiatives", label: "Initiatives", href: "/operations/initiatives" },
-  { key: "projects", label: "Projects", href: "/operations/projects" },
-  { key: "weekly-review", label: "Weekly Review", href: "/operations/weekly-review" },
   { key: "weekly-execution", label: "Weekly Execution", href: "/operations/weekly-execution" },
-  { key: "actions", label: "Actions", href: "/actions/command-center" },
+  { key: "initiatives", label: "Initiatives", href: "/operations/initiatives" },
+  { key: "actions", label: "Actions", href: "/actions/all" },
   { key: "meetings", label: "Meetings", href: "/actions/meetings" },
 ];
 
 /**
- * The portfolio / initiatives / projects surfaces are gated behind the strategic
- * initiatives flag. The Command Center and Weekly Review are not, so when that
- * flag is off they must not link into destinations that would 404.
+ * The initiatives surface is gated behind the strategic initiatives flag. The
+ * Command Center and Weekly Execution are not, so when that flag is off the
+ * nav must not link into destinations that would 404.
  */
 const STRATEGIC_ONLY: ReadonlySet<StrategicNavKey> = new Set([
   "portfolio",

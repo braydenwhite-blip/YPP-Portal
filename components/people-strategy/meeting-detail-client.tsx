@@ -85,7 +85,7 @@ export function MeetingDetailClient({
         style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "var(--ypp-purple-600)", textDecoration: "none", alignSelf: "flex-start" }}
       >
         <MeetingIcon name="chevL" size={16} />
-        Weekly Command Center
+        Meetings
       </Link>
 
       {/* header card */}
@@ -134,9 +134,26 @@ export function MeetingDetailClient({
           </div>
           <HealthStat icon="list" value={`${meeting.agendaDoneCount}/${meeting.agendaCount}`} label="Agenda done" />
           <HealthStat icon="checkCircle" value={meeting.decisionCount} label="Decisions" />
-          <HealthStat icon="flag" value={meeting.openFollowUps} label="Follow-ups open" />
-          <HealthStat icon="bolt" value={meeting.linkedActions.length} label="Linked actions" />
+          <HealthStat icon="flag" value={meeting.openFollowUps} label="Loose ends" />
+          <HealthStat icon="bolt" value={meeting.linkedActions.length} label="Actions created" />
           <HealthStat icon="alert" value={overdue} label="Overdue" danger={overdue > 0} />
+        </div>
+        {/* What this meeting produced — a meeting is a source of operational
+            truth, never a dead note. */}
+        <div style={{ borderTop: "1px solid var(--border)", padding: "11px 22px", fontSize: 13, color: "var(--text-secondary)" }}>
+          This meeting created{" "}
+          <strong style={{ color: "var(--ypp-ink)" }}>
+            {meeting.decisionCount} decision{meeting.decisionCount === 1 ? "" : "s"}
+          </strong>
+          ,{" "}
+          <strong style={{ color: "var(--ypp-ink)" }}>
+            {meeting.linkedActions.length} action{meeting.linkedActions.length === 1 ? "" : "s"}
+          </strong>
+          , and{" "}
+          <strong style={{ color: meeting.openFollowUps > 0 ? "var(--warn-fg, #854d0e)" : "var(--ypp-ink)" }}>
+            {meeting.openFollowUps} loose end{meeting.openFollowUps === 1 ? "" : "s"}
+          </strong>
+          .{meeting.openFollowUps > 0 ? " Resolve the loose ends below before they slip." : " Nothing is left hanging."}
         </div>
       </Card>
 
@@ -562,7 +579,7 @@ function DecisionCard({
         ) : (
           <span style={{ fontSize: 12.5, color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
             <MeetingIcon name="alert" size={13} style={{ color: "var(--warn-fg)" }} />
-            Not yet converted to action
+            Loose end — this decision has no action carrying it out yet
           </span>
         )}
         {!dec.linkedActionId && (
@@ -593,28 +610,38 @@ function DecisionCard({
 
 function FollowUpsSection({ meeting, pending, run, onAdd }: { meeting: MeetingDetailDTO; pending: boolean; run: RunFn; onAdd: () => void }) {
   const overdue = meeting.overdueFollowUps;
+  const open = meeting.openFollowUps;
   return (
     <SectionBlock
-      title="Follow-Ups"
+      title="Loose Ends"
       icon="flag"
-      count={meeting.followUps.length}
+      count={open}
       right={
         <MeetingButton size="sm" variant="outline" icon="plus" onClick={onAdd}>
-          Add follow-up
+          Add loose end
         </MeetingButton>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <p style={{ margin: 0, fontSize: 12.5, color: "var(--muted)", lineHeight: 1.5 }}>
+          Meeting outputs that are not yet handled. Convert each one into an action with an owner
+          before it gets lost.
+        </p>
         {overdue > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, fontWeight: 600, color: "var(--danger-fg)", background: "var(--danger-bg)", border: "1px solid #f3cccc", borderRadius: 10, padding: "9px 13px" }}>
             <MeetingIcon name="alert" size={15} />
-            {overdue} follow-up{overdue > 1 ? "s are" : " is"} overdue — convert to tracked actions so they don&rsquo;t slip.
+            {overdue} loose end{overdue > 1 ? "s are" : " is"} overdue — convert to tracked actions so they don&rsquo;t slip.
           </div>
         )}
         {meeting.followUps.length ? (
           meeting.followUps.map((f) => <FollowUpCard key={f.id} f={f} pending={pending} run={run} />)
         ) : (
-          <EmptyState compact icon="flag" title="No follow-ups yet" body="Add follow-ups to assign owners and keep momentum after the meeting." />
+          <EmptyState
+            compact
+            icon="flag"
+            title="No loose ends"
+            body="Every meeting output has either been resolved or converted into an action."
+          />
         )}
       </div>
     </SectionBlock>
@@ -667,7 +694,7 @@ function FollowUpCard({ f, pending, run }: { f: FollowUpDTO; pending: boolean; r
         ) : (
           <span style={{ fontSize: 12.5, color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
             <MeetingIcon name="alert" size={13} style={{ color: "var(--warn-fg)" }} />
-            Not yet tracked
+            Loose end — next step: convert this into an action and assign an owner
           </span>
         )}
         <div style={{ display: "flex", gap: 7 }}>
@@ -692,7 +719,7 @@ function FollowUpCard({ f, pending, run }: { f: FollowUpDTO; pending: boolean; r
 function LinkedActionsSection({ actions }: { actions: LinkedActionDTO[] }) {
   return (
     <SectionBlock
-      title="Linked Actions"
+      title="Actions From This Meeting"
       icon="bolt"
       count={actions.length}
       right={
@@ -710,7 +737,7 @@ function LinkedActionsSection({ actions }: { actions: LinkedActionDTO[] }) {
           ))}
         </div>
       ) : (
-        <EmptyState compact icon="bolt" title="No linked actions" body="Follow-ups you convert to the Action Tracker will appear here, linked both ways." />
+        <EmptyState compact icon="bolt" title="No actions created yet" body="Decisions and loose ends you convert become tracked actions here, linked both ways." />
       )}
     </SectionBlock>
   );

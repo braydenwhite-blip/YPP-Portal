@@ -275,7 +275,7 @@ function buildNextMoves(args: {
       id: "review",
       title: "Put this on the leadership review",
       detail: reviewNeed.reason,
-      href: "/operations/weekly-review",
+      href: "/operations/weekly-execution",
       severity: reviewNeed.urgency === "now" ? "warning" : "watch",
     });
   }

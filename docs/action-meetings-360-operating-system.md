@@ -2,7 +2,9 @@
 
 ## What This Is
 
-The Action + Meetings 360 view is the leadership operating page for YPP work. It lives at `/operations/command-center` and combines meetings, decisions, follow-ups, owners, due dates, blocked work, and recent completions into one weekly command view.
+The Action + Meetings 360 view is the leadership operating page for YPP work. It lives at `/operations/command-center` and combines meetings, decisions, loose ends, owners, due dates, blocked work, and recent completions into one weekly command view.
+
+Since the operations simplification pass (see [Operations OS Simplification](./operations-os-simplification.md)), the Command Center renders from the ONE shared operations summary (`lib/people-strategy/operations-summary.ts`) with the ONE shared card (`components/people-strategy/operations-item-card.tsx`), structured as: Top snapshot → Needs attention → This week → Recently decided → Strategic initiatives → area health + recent timeline.
 
 The basic operating rule is:
 

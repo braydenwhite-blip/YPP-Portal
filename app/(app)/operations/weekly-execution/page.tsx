@@ -9,13 +9,13 @@ import {
 } from "@/lib/feature-flags";
 import { listActionAssignableUsers } from "@/lib/people-strategy/action-queries";
 import { getWeeklyOperationalDigestForViewer } from "@/lib/people-strategy/operational-digest-queries";
-import { getStrategicDashboardData } from "@/lib/people-strategy/strategic-initiative-queries";
+import { getStrategicInitiativesOverview } from "@/lib/people-strategy/strategic-initiative-queries";
 import { deriveWeeklyExecutionOS } from "@/lib/people-strategy/weekly-execution";
 import { WeeklyExecutionOSView } from "@/components/people-strategy/weekly-execution";
 import { StrategicWorkspaceHeader } from "@/components/people-strategy/strategic-workspace-nav";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Weekly Execution OS - Operations" };
+export const metadata = { title: "Weekly Execution · Operations" };
 
 function personName(p: { name: string | null; email: string | null }): string {
   return p.name ?? p.email ?? "Unknown";
@@ -36,28 +36,24 @@ export default async function WeeklyExecutionPage() {
   if (!viewer) notFound();
 
   const now = new Date();
-  const [digest, people, strategic] = await Promise.all([
+  const [digest, people, initiatives] = await Promise.all([
     getWeeklyOperationalDigestForViewer(viewer, { now }),
     listActionAssignableUsers(),
     isStrategicInitiativesEnabled()
-      ? getStrategicDashboardData(viewer, { now }).catch(() => null)
-      : Promise.resolve(null),
+      ? getStrategicInitiativesOverview(viewer, { now }).catch(() => [])
+      : Promise.resolve([]),
   ]);
 
-  const os = deriveWeeklyExecutionOS({
-    digest,
-    initiatives: strategic?.leadershipPriorities ?? [],
-    now,
-  });
+  const os = deriveWeeklyExecutionOS({ digest, initiatives, now });
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
       <StrategicWorkspaceHeader
         current="weekly-execution"
         showStrategic={isStrategicInitiativesEnabled()}
-        eyebrow="People Strategy / Leadership"
-        title="Weekly Execution OS"
-        subtitle="Run the officer meeting, convert decisions into actions, catch loose ends, and draft the weekly recap."
+        eyebrow="YPP Leadership OS"
+        title="Weekly Execution"
+        subtitle="Run the weekly officer meeting: build the agenda, capture the meeting, resolve loose ends, and draft the recap."
         meta={`${os.snapshot.urgent} urgent | ${os.snapshot.initiativesNeedingAttention} initiatives | ${os.snapshot.communicationsNeeded} communications`}
         actions={
           <>

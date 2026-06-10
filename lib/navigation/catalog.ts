@@ -448,7 +448,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/operations",
-      label: "Operations Hub",
+      label: "Operations",
       icon: "🧭",
       // Secondary surface, not a pinned core link — keep it out of the capped
       // per-role "core" map (validate-nav enforces those limits).

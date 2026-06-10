@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireOfficer } from "@/lib/authorization";
@@ -12,6 +13,7 @@ import {
   selectInitiativesNeedingAttention,
 } from "@/lib/people-strategy/strategic-initiative-summary";
 import { CommandCenterSection } from "@/components/people-strategy/command-center-os";
+import { OperationsEmptyState } from "@/components/people-strategy/operations-item-card";
 import {
   InitiativeCardGrid,
   PortfolioStatStrip,
@@ -22,12 +24,14 @@ import {
 } from "@/components/people-strategy/strategic-workspace-nav";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Strategic Initiatives · Operations" };
+export const metadata = { title: "Initiatives · Operations" };
 
 /**
- * Strategic Initiatives index — the portfolio view above the Action Tracker.
- * Leadership stops seeing hundreds of disconnected actions and starts seeing
- * initiatives, each with its derived health, momentum, progress, and next move.
+ * Initiatives — the strategic layer of the leadership OS. It answers one
+ * question: what are the big goals, and are they moving? Each initiative card
+ * shows derived health, owner, momentum, progress, and the next move; the
+ * deeper analytical views (Portfolio, Projects, Strategic Map) are secondary
+ * and linked from here instead of crowding the primary nav.
  *
  * Triple-gated (operations hub + tracker + strategic-initiatives flags) and
  * officer-guarded; a scoped officer only ever feeds the initiatives the work
@@ -50,10 +54,9 @@ export default async function StrategicInitiativesPage() {
     <div className="page-shell" style={{ maxWidth: 1180 }}>
       <StrategicWorkspaceHeader
         current="initiatives"
-        breadcrumbs={[{ label: "Portfolio", href: "/operations/portfolio" }, { label: "Initiatives" }]}
-        eyebrow="People Strategy · Leadership"
-        title="Strategic Initiatives"
-        subtitle="The major goals, programs, and campaigns YPP is driving — each with derived health, momentum, progress, and the next move."
+        eyebrow="YPP Leadership OS"
+        title="Initiatives"
+        subtitle="The big goals, and whether they are moving — each with derived health, momentum, progress, and the next move."
         meta={`${stats.total} initiatives · ${stats.active} active · ${stats.atRisk + stats.critical} need attention`}
       />
 
@@ -62,17 +65,38 @@ export default async function StrategicInitiativesPage() {
           <PortfolioStatStrip stats={stats} />
         </CommandCenterSection>
 
-        {needingAttention.length > 0 ? (
-          <CommandCenterSection title="Needs attention" hint={`${needingAttention.length} drifting, at risk, or critical`}>
+        <CommandCenterSection title="Needs attention" hint="Drifting, at risk, or critical — worst first">
+          {needingAttention.length > 0 ? (
             <InitiativeCardGrid initiatives={needingAttention} />
-          </CommandCenterSection>
-        ) : null}
+          ) : (
+            <OperationsEmptyState title="No initiatives need leadership attention right now.">
+              Every initiative has an owner, a next step, and no overdue or blocked work.
+            </OperationsEmptyState>
+          )}
+        </CommandCenterSection>
 
         <CommandCenterSection title="All initiatives" hint="Worst health first">
           <InitiativeCardGrid
             initiatives={initiatives}
             emptyHint="No initiatives are configured yet."
           />
+        </CommandCenterSection>
+
+        <CommandCenterSection
+          title="Deeper views"
+          hint="Secondary analytical views — most weeks the cards above are enough"
+        >
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link href="/operations/portfolio" className="button outline small">
+              Portfolio board
+            </Link>
+            <Link href="/operations/projects" className="button outline small">
+              Strategic projects
+            </Link>
+            <Link href="/operations/strategic-map" className="button outline small">
+              Strategic map
+            </Link>
+          </div>
         </CommandCenterSection>
       </StrategicStack>
     </div>
