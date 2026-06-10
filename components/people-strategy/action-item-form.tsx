@@ -28,6 +28,7 @@ import {
 } from "@/lib/people-strategy/action-items-actions";
 import { MotionArea, FeedbackBanner } from "@/components/people-strategy/motion";
 import { deriveActionQualityWarnings } from "@/lib/people-strategy/action-quality";
+import { listInitiativeDefs } from "@/lib/people-strategy/strategic-initiatives";
 
 interface UserOption {
   id: string;
@@ -332,6 +333,14 @@ export default function ActionItemForm({
   );
   const [executingIds, setExecutingIds] = useState<string[]>(initialExecuting);
   const [inputIds, setInputIds] = useState<string[]>(initialInput);
+  const initiativeOptions = useMemo(
+    () => listInitiativeDefs().filter((initiative) => initiative.status !== "archived"),
+    []
+  );
+  const initialStrategicInitiativeId = initial?.strategicInitiativeId ?? "";
+  const [strategicInitiativeId, setStrategicInitiativeId] = useState(
+    initialStrategicInitiativeId
+  );
 
   // Optional attachment (kept simple: a single labelled link added on save).
   const [fileLabel, setFileLabel] = useState("");
@@ -367,8 +376,18 @@ export default function ActionItemForm({
   const sourceType = initial?.sourceType ?? null;
   const sourceLabel = initial?.sourceLabel ?? null;
   const strategicLinkLabel = initial?.strategicLinkLabel ?? null;
+  const selectedInitiative = initiativeOptions.find(
+    (initiative) => initiative.id === strategicInitiativeId
+  );
+  const preservesInitialProject =
+    Boolean(initial?.strategicProjectId) &&
+    strategicInitiativeId === initialStrategicInitiativeId;
+  const strategicContextLabel =
+    preservesInitialProject && strategicLinkLabel
+      ? strategicLinkLabel
+      : selectedInitiative?.title ?? null;
   const hasStrategicLink = Boolean(
-    initial?.strategicInitiativeId || initial?.strategicProjectId
+    strategicInitiativeId || (preservesInitialProject && initial?.strategicProjectId)
   );
 
   // Live quality warnings, recomputed from the current draft (helpful, not
@@ -453,6 +472,10 @@ export default function ActionItemForm({
             deadlineStart: deadline || undefined,
             deadlineEnd: null,
             leadId,
+            strategicInitiativeId: strategicInitiativeId || null,
+            strategicProjectId: preservesInitialProject
+              ? initial?.strategicProjectId ?? null
+              : null,
             // Definition of done is editable on an existing action.
             successDefinition: successDefinition.trim(),
           });
@@ -490,8 +513,10 @@ export default function ActionItemForm({
             sourceType: initial?.sourceType ?? undefined,
             sourceId: initial?.sourceId ?? undefined,
             sourceActionId: initial?.sourceActionId ?? undefined,
-            strategicInitiativeId: initial?.strategicInitiativeId ?? undefined,
-            strategicProjectId: initial?.strategicProjectId ?? undefined,
+            strategicInitiativeId: strategicInitiativeId || undefined,
+            strategicProjectId: preservesInitialProject
+              ? initial?.strategicProjectId ?? undefined
+              : undefined,
             successDefinition: successDefinition.trim() || undefined,
           });
 
@@ -671,7 +696,7 @@ export default function ActionItemForm({
           </div>
         ) : null}
 
-        {(sourceLabel || strategicLinkLabel) ? (
+        {(sourceLabel || strategicContextLabel) ? (
           <div className="ps-linked-banner" style={{ flexWrap: "wrap", gap: 12 }}>
             {sourceLabel ? (
               <span>
@@ -679,16 +704,38 @@ export default function ActionItemForm({
                 {sourceLabel}
               </span>
             ) : null}
-            {strategicLinkLabel ? (
+            {strategicContextLabel ? (
               <span>
                 <span style={{ fontWeight: 700 }}>Strategic: </span>
-                {strategicLinkLabel}
+                {strategicContextLabel}
               </span>
             ) : null}
           </div>
         ) : null}
 
-        {!hasRelatedEntity && !sourceLabel && !strategicLinkLabel ? (
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-strategic-initiative">
+            Related initiative
+          </label>
+          <select
+            id="action-strategic-initiative"
+            value={strategicInitiativeId}
+            onChange={(e) => setStrategicInitiativeId(e.target.value)}
+            className="ps-select"
+          >
+            <option value="">No related initiative</option>
+            {initiativeOptions.map((initiative) => (
+              <option key={initiative.id} value={initiative.id}>
+                {initiative.title}
+              </option>
+            ))}
+          </select>
+          <p className="ps-help" style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
+            Use this when the action moves a larger YPP strategic goal forward.
+          </p>
+        </div>
+
+        {!hasRelatedEntity && !sourceLabel && !strategicContextLabel ? (
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
             No meeting or related record is attached yet. That is okay for a manual action.
           </p>

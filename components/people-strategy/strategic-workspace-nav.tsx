@@ -23,6 +23,7 @@ export type StrategicNavKey =
   | "initiatives"
   | "projects"
   | "weekly-review"
+  | "weekly-execution"
   | "actions"
   | "meetings";
 
@@ -40,6 +41,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { key: "initiatives", label: "Initiatives", href: "/operations/initiatives" },
   { key: "projects", label: "Projects", href: "/operations/projects" },
   { key: "weekly-review", label: "Weekly Review", href: "/operations/weekly-review" },
+  { key: "weekly-execution", label: "Weekly Execution", href: "/operations/weekly-execution" },
   { key: "actions", label: "Actions", href: "/actions/command-center" },
   { key: "meetings", label: "Meetings", href: "/actions/meetings" },
 ];

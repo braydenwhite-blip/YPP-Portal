@@ -22,6 +22,16 @@ The old operating experience spread context across action lists, meeting pages, 
 
 The 360 view reduces that clicking by showing the operational context inline on the command center.
 
+## Relationship To Weekly Execution OS
+
+The Command Center and Weekly Execution OS now share the same operating spine.
+
+- `/operations/command-center` shows the current operating picture.
+- `/operations/weekly-execution` turns that picture into the weekly officer agenda, meeting capture flow, loose-end inbox, communication queue, and recap draft.
+- `/operations/initiatives` adds the strategic layer above actions and meetings.
+
+The Command Center links leaders into the Weekly Execution OS when it is time to run the weekly meeting. The Weekly Execution OS links back to the Command Center when leaders need the broader operating picture.
+
 ## How Meetings Connect To Actions
 
 Meetings can create three kinds of operational output:
@@ -31,6 +41,8 @@ Meetings can create three kinds of operational output:
 - Linked actions: tracked Action Items created from or attached to the meeting.
 
 Action cards now show source meeting context when available. Meeting cards show key decisions, open follow-ups, actions already created, and follow-ups that still need to become tracked actions.
+
+Action cards also show related initiative context when the action is tied to a strategic initiative. This keeps actions from becoming disconnected tasks without a larger reason.
 
 ## Unresolved Follow-Ups
 
@@ -45,6 +57,28 @@ Use “Create action” when the follow-up needs an owner, due date, and tracked
 - Related YPP entity, when the meeting was linked to one
 
 This keeps ambiguous meeting output, such as curriculum direction questions or partner uncertainty, from disappearing after the meeting ends.
+
+## Strategic Initiative Context
+
+Initiatives are the big goals. Meetings are where decisions happen. Actions are what moves the initiatives forward.
+
+When a meeting output becomes an action, the conversion path preserves the likely strategic initiative or project when the meeting matches one. Manual actions can also choose a Related initiative on `/actions/new`.
+
+This means an action like "Clarify Lily STEM curriculum direction" can roll up to "Camp / STEM Curriculum Launch" instead of living as a random task.
+
+See [Weekly Execution OS](./weekly-execution-os.md) and [Strategic Initiatives OS](./strategic-initiatives-os.md) for the weekly loop and initiative layer.
+
+## Communication Needed
+
+The Weekly Execution OS adds a lightweight communication-needed layer over action and meeting output. It does not send email or Slack messages. It only identifies work that likely needs outreach and suggests a short message.
+
+Examples include:
+
+- Message an instructor about curriculum direction
+- Email an applicant about next steps
+- Follow up with a partner
+- Ask a mentor for an update
+- Send the weekly officer recap
 
 ## What Future Work Remains
 

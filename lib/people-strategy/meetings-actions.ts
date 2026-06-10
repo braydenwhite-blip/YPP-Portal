@@ -16,6 +16,7 @@ import {
 } from "./constants";
 import { buildActionPrefillFromDecision } from "./action-prefill";
 import { createActionItem } from "./action-items-actions";
+import { deriveStrategicContextForMeeting } from "./strategic-context";
 
 /**
  * People Strategy — Meetings Tracker server actions.
@@ -76,6 +77,27 @@ function parseCategoryOrThrow(value: string | null | undefined): string | null {
   const parsed = parseMeetingCategory(value);
   if (!parsed.ok) throw new Error(parsed.error);
   return parsed.value;
+}
+
+function deriveMeetingStrategicLink(meeting: {
+  title?: string | null;
+  purpose?: string | null;
+  category?: string | null;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
+}) {
+  const context = deriveStrategicContextForMeeting({
+    title: meeting.title ?? "Meeting",
+    purpose: meeting.purpose,
+    category: meeting.category,
+    relatedEntityType: meeting.relatedEntityType,
+    relatedEntityId: meeting.relatedEntityId,
+  });
+  const project = context.projects[0];
+  return {
+    strategicInitiativeId: project?.initiativeId ?? context.primaryInitiative?.id,
+    strategicProjectId: project?.id,
+  };
 }
 
 /** Validate the optional meeting → YPP entity link (both-or-neither, known type). */
@@ -359,6 +381,7 @@ export async function convertDecisionToAction(decisionId: string) {
         select: {
           id: true,
           title: true,
+          purpose: true,
           date: true,
           category: true,
           facilitatorId: true,
@@ -389,6 +412,7 @@ export async function convertDecisionToAction(decisionId: string) {
 
   const leadId = suggestedOwnerId ?? session.id;
   const deadline = addDays(new Date(), prefill.dueInDays ?? DEFAULT_ACTION_DEADLINE_DAYS);
+  const strategicLink = deriveMeetingStrategicLink(dec.officerMeeting);
 
   const action = await createActionItem({
     title: prefill.title ?? dec.decision,
@@ -405,6 +429,8 @@ export async function convertDecisionToAction(decisionId: string) {
     // meeting decision — plus the seeded definition of done.
     sourceType: prefill.sourceType,
     sourceId: prefill.sourceId,
+    strategicInitiativeId: strategicLink.strategicInitiativeId,
+    strategicProjectId: strategicLink.strategicProjectId,
     successDefinition: prefill.successDefinition,
   });
 
@@ -513,7 +539,18 @@ export async function convertFollowUpToAction(followUpId: string) {
   const fu = await prisma.meetingFollowUp.findUnique({
     where: { id: followUpId },
     include: {
-      officerMeeting: { select: { id: true, date: true, category: true, facilitatorId: true } },
+      officerMeeting: {
+        select: {
+          id: true,
+          title: true,
+          purpose: true,
+          date: true,
+          category: true,
+          facilitatorId: true,
+          relatedEntityType: true,
+          relatedEntityId: true,
+        },
+      },
     },
   });
   if (!fu) throw new Error("Follow-up not found");
@@ -521,6 +558,7 @@ export async function convertFollowUpToAction(followUpId: string) {
 
   const leadId = fu.ownerId ?? fu.officerMeeting.facilitatorId ?? session.id;
   const deadline = fu.dueDate ?? fu.officerMeeting.date ?? new Date();
+  const strategicLink = deriveMeetingStrategicLink(fu.officerMeeting);
 
   const action = await createActionItem({
     title: fu.title,
@@ -531,6 +569,12 @@ export async function convertFollowUpToAction(followUpId: string) {
     officerMeetingId: fu.officerMeeting.id,
     actionType: "FOLLOW_UP",
     goalCategory: fu.area ?? fu.officerMeeting.category ?? undefined,
+    relatedEntityType: fu.officerMeeting.relatedEntityType ?? undefined,
+    relatedEntityId: fu.officerMeeting.relatedEntityId ?? undefined,
+    sourceType: "FOLLOW_UP",
+    sourceId: fu.id,
+    strategicInitiativeId: strategicLink.strategicInitiativeId,
+    strategicProjectId: strategicLink.strategicProjectId,
   });
 
   await prisma.meetingFollowUp.update({
@@ -554,13 +598,25 @@ export async function convertAgendaItemToAction(agendaItemId: string) {
   const item = await prisma.meetingAgendaItem.findUnique({
     where: { id: agendaItemId },
     include: {
-      officerMeeting: { select: { id: true, date: true, category: true, facilitatorId: true } },
+      officerMeeting: {
+        select: {
+          id: true,
+          title: true,
+          purpose: true,
+          date: true,
+          category: true,
+          facilitatorId: true,
+          relatedEntityType: true,
+          relatedEntityId: true,
+        },
+      },
     },
   });
   if (!item) throw new Error("Agenda item not found");
   if (item.convertedActionId) return { id: item.convertedActionId };
 
   const leadId = item.ownerId ?? item.officerMeeting.facilitatorId ?? session.id;
+  const strategicLink = deriveMeetingStrategicLink(item.officerMeeting);
 
   const action = await createActionItem({
     title: item.title,
@@ -571,6 +627,12 @@ export async function convertAgendaItemToAction(agendaItemId: string) {
     officerMeetingId: item.officerMeeting.id,
     actionType: "MEETING_RECAP",
     goalCategory: item.officerMeeting.category ?? undefined,
+    relatedEntityType: item.officerMeeting.relatedEntityType ?? undefined,
+    relatedEntityId: item.officerMeeting.relatedEntityId ?? undefined,
+    sourceType: "MEETING",
+    sourceId: item.id,
+    strategicInitiativeId: strategicLink.strategicInitiativeId,
+    strategicProjectId: strategicLink.strategicProjectId,
   });
 
   await prisma.meetingAgendaItem.update({

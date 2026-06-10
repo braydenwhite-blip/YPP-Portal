@@ -318,6 +318,115 @@ export function InitiativeSummaryPanel({ initiative }: { initiative: InitiativeS
   );
 }
 
+export function InitiativeWeeklyOperatingView({ initiative }: { initiative: InitiativeSummary }) {
+  const currentMilestone = initiative.milestones.find((m) => m.status !== "complete");
+  const topRecommendation = initiative.recommendations[0];
+  const blockers = [
+    initiative.counts.blockedActions > 0
+      ? `${initiative.counts.blockedActions} blocked action${initiative.counts.blockedActions === 1 ? "" : "s"}`
+      : null,
+    initiative.counts.overdueActions > 0
+      ? `${initiative.counts.overdueActions} overdue action${initiative.counts.overdueActions === 1 ? "" : "s"}`
+      : null,
+    ...initiative.risk.factors.slice(0, 2).map((factor) => factor.label),
+  ].filter(Boolean) as string[];
+  const communicationNeeded =
+    /partner|instructor|parent|applicant|mentor|communication|curriculum/i.test(
+      `${initiative.title} ${initiative.description} ${initiative.healthExplanation.headline}`
+    ) || initiative.counts.openFollowUps > 0;
+
+  return (
+    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}>
+      <OperatingTile title="Current Focus">
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+          {currentMilestone ? currentMilestone.title : "Define the next milestone."}
+        </p>
+        <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "var(--muted)", lineHeight: 1.45 }}>
+          {topRecommendation ? topRecommendation.detail : initiative.healthExplanation.suggestedNextSteps[0] ?? "Confirm the next owner and next step."}
+        </p>
+      </OperatingTile>
+
+      <OperatingTile title="Open Actions">
+        <MetricLine label="Open" value={initiative.counts.openActions} />
+        <MetricLine label="Overdue" value={initiative.counts.overdueActions} danger />
+        <MetricLine label="Blocked" value={initiative.counts.blockedActions} warning />
+        <MetricLine label="No owner" value={initiative.counts.unassignedActions} warning />
+      </OperatingTile>
+
+      <OperatingTile title="Meetings & Decisions">
+        <MetricLine label="Recent meetings" value={initiative.counts.meetingCount} />
+        <MetricLine label="Upcoming" value={initiative.counts.upcomingMeetings} />
+        <MetricLine label="Open follow-ups" value={initiative.counts.openFollowUps} warning />
+        <MetricLine label="Decisions to convert" value={initiative.counts.decisionsWithoutAction} warning />
+      </OperatingTile>
+
+      <OperatingTile title="Risks / Blockers">
+        {blockers.length > 0 ? (
+          <ul style={{ margin: 0, paddingLeft: 18, color: "var(--text-secondary)", fontSize: 12.5, lineHeight: 1.5 }}>
+            {blockers.slice(0, 4).map((blocker, index) => (
+              <li key={`${blocker}-${index}`}>{blocker}</li>
+            ))}
+          </ul>
+        ) : (
+          <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+            No blockers are currently surfaced.
+          </p>
+        )}
+      </OperatingTile>
+
+      <OperatingTile title="Communication Needed">
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+          {communicationNeeded
+            ? `Send a status update about ${initiative.title} and confirm the next owner.`
+            : "No communication item is currently surfaced."}
+        </p>
+      </OperatingTile>
+
+      <OperatingTile title="Timeline">
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+          {initiative.timeline.events.length} timeline event{initiative.timeline.events.length === 1 ? "" : "s"} captured from meetings, decisions, actions, and milestones.
+        </p>
+        <Link href="#timeline" style={{ marginTop: 8, display: "inline-flex", fontSize: 12, fontWeight: 700, color: "var(--ypp-purple, #6b21c8)" }}>
+          Review timeline
+        </Link>
+      </OperatingTile>
+    </div>
+  );
+}
+
+function OperatingTile({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="card" style={{ padding: 14, display: "grid", gap: 8, alignContent: "start" }}>
+      <h3 style={{ margin: 0, fontSize: 13.5 }}>{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function MetricLine({
+  label,
+  value,
+  danger,
+  warning,
+}: {
+  label: string;
+  value: number;
+  danger?: boolean;
+  warning?: boolean;
+}) {
+  const color = danger
+    ? "var(--error-color, #991b1b)"
+    : warning
+      ? "var(--warning-color, #854d0e)"
+      : "var(--text-secondary)";
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12.5, color }}>
+      <span>{label}</span>
+      <strong style={{ fontVariantNumeric: "tabular-nums" }}>{value}</strong>
+    </div>
+  );
+}
+
 // --- milestones (Phase D view) ----------------------------------------------
 
 export function MilestoneList({ milestones }: { milestones: InitiativeMilestoneSummary[] }) {

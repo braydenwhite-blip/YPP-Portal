@@ -52,6 +52,7 @@ describe("ActionItemForm — Action 4.0 creation surface", () => {
     ).toBeInTheDocument();
     // Next-step / definition-of-done field is present.
     expect(screen.getByLabelText(/definition of done/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Related initiative/i)).toHaveValue("summer-camps-2026");
   });
 
   it("uses a follow-up CTA for a follow-up action", () => {
@@ -73,6 +74,7 @@ describe("ActionItemForm — Action 4.0 creation surface", () => {
     expect(screen.getByText("3. When is it due?")).toBeInTheDocument();
     expect(screen.getByText("4. Where did this come from?")).toBeInTheDocument();
     expect(screen.getByText("5. What context matters?")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Related initiative/i)).toBeInTheDocument();
   });
 
   it("surfaces live quality warnings for a weak draft", () => {

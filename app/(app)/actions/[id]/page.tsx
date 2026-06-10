@@ -137,6 +137,8 @@ function toDetailDTO(
     officerMeetingId: item.officerMeetingId,
     officerMeetingTitle: item.officerMeeting?.title ?? null,
     officerMeetingDate: item.officerMeeting?.date ? item.officerMeeting.date.toISOString() : null,
+    strategicInitiativeId: item.strategicInitiativeId,
+    strategicProjectId: item.strategicProjectId,
     relatedEntityType: item.relatedEntityType,
     relatedArea:
       item.relatedEntityType && isRelatedEntityType(item.relatedEntityType)

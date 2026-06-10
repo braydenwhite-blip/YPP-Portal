@@ -25,6 +25,7 @@ import {
   AreaBadge,
   RelatedEntityBadge,
 } from "@/components/people-strategy/operational-badges";
+import { deriveActionStrategicLinkage } from "@/lib/people-strategy/action-source";
 
 /** A nearby action shown as a cross-link (other work on the same entity / meeting). */
 export type RelatedActionLite = {
@@ -77,6 +78,8 @@ export type ActionDetailDTO = {
   officerMeetingId: string | null;
   officerMeetingTitle?: string | null;
   officerMeetingDate?: string | null;
+  strategicInitiativeId?: string | null;
+  strategicProjectId?: string | null;
   /** Polymorphic YPP entity this action is about (resolved for display). */
   relatedEntityType?: string | null;
   relatedEntityLabel?: string | null;
@@ -320,6 +323,7 @@ export default function ActionDetailCard({
   const [pending, startTransition] = useTransition();
   const theme = departmentTheme();
   const due = deadlineText(item);
+  const strategic = deriveActionStrategicLinkage(item);
 
   function runMutation(work: () => Promise<void>, success: string) {
     setError(null);
@@ -483,6 +487,12 @@ export default function ActionDetailCard({
             />
           ) : null}
           {item.officerMeetingId && <Pill tone="purple">Source: Meeting</Pill>}
+          {strategic.initiativeTitle ? (
+            <Pill tone="purple">Initiative: {strategic.initiativeTitle}</Pill>
+          ) : null}
+          {strategic.projectTitle ? (
+            <Pill tone="neutral">Project: {strategic.projectTitle}</Pill>
+          ) : null}
         </div>
       </section>
 
@@ -501,8 +511,46 @@ export default function ActionDetailCard({
           <Meta label="Goal Category" value={item.goalCategory ?? "Uncategorized"} />
           <Meta label="Department" value={item.departmentName} />
           <Meta label="Deadline" value={due.label} />
+          <Meta label="Initiative" value={strategic.initiativeTitle ?? "None"} />
+          <Meta label="Project" value={strategic.projectTitle ?? "None"} />
         </div>
       </Section>
+
+      {strategic.initiativeTitle ? (
+        <Section title="Strategic Context" defaultOpen>
+          <div
+            style={{
+              border: "1px solid var(--ypp-purple-200)",
+              background: "var(--ypp-purple-50)",
+              color: "var(--ypp-purple-800)",
+              borderRadius: "var(--radius-sm)",
+              padding: "12px 14px",
+              fontSize: 14,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ fontWeight: 700 }}>
+                This action moves {strategic.initiativeTitle} forward.
+              </span>
+              {strategic.projectTitle ? (
+                <span style={{ fontSize: 12.5, opacity: 0.85 }}>
+                  Project: {strategic.projectTitle}
+                </span>
+              ) : null}
+            </span>
+            {strategic.initiativeHref ? (
+              <Link href={strategic.initiativeHref} className="button outline small">
+                Open initiative
+              </Link>
+            ) : null}
+          </div>
+        </Section>
+      ) : null}
 
       <Section title="People">
         <div

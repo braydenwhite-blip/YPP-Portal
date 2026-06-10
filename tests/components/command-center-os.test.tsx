@@ -459,12 +459,12 @@ describe("EntityHealthList", () => {
 });
 
 describe("CommandCenterAllClear", () => {
-  it("renders the motivating all-clear state with a weekly-review CTA", () => {
+  it("renders the motivating all-clear state with a weekly execution CTA", () => {
     render(<CommandCenterAllClear upcomingMeetings={[]} recentlyCompleted={[]} />);
     expect(screen.getByText(/Everything looks under control/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /weekly leadership review/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /weekly execution meeting/i })).toHaveAttribute(
       "href",
-      "/operations/weekly-review"
+      "/operations/weekly-execution"
     );
   });
 });

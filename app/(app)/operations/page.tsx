@@ -85,8 +85,8 @@ export default async function OperationsHubPage() {
             <Link href="/operations/command-center" className="button primary" style={{ fontSize: 13 }}>
               Command Center
             </Link>
-            <Link href="/operations/weekly-review" className="button outline" style={{ fontSize: 13 }}>
-              Weekly Review
+            <Link href="/operations/weekly-execution" className="button outline" style={{ fontSize: 13 }}>
+              Weekly Execution
             </Link>
             {isStrategicInitiativesEnabled() ? (
               <Link href="/operations/initiatives" className="button outline" style={{ fontSize: 13 }}>

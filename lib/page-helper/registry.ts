@@ -3851,6 +3851,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/operations/weekly-execution",
+    title: "Weekly Execution OS",
+    content: {
+      purpose: "This is the weekly officer meeting workspace: build the agenda, capture meeting notes, close loose ends, track communication needed, and draft the weekly recap from real action, meeting, and initiative data.",
+      firstStep: "Start with the snapshot and Agenda tab so you can see urgent blockers, due-this-week actions, unresolved follow-ups, and initiatives needing leadership attention.",
+      nextStep: "During the meeting, capture decisions and follow-ups, then use Loose Ends and Weekly Recap before leaving so every owner, action, and communication is clear."
+    }
+  },
+  {
     pattern: "/operations/initiatives",
     title: "Strategic Initiatives",
     content: {

@@ -7,6 +7,7 @@ import {
   effectiveDeadline,
   isActionOverdue,
 } from "@/lib/people-strategy/my-actions-selectors";
+import { deriveActionStrategicLinkage } from "@/lib/people-strategy/action-source";
 import { getUserTitle } from "@/lib/user-title";
 import {
   ActionTypePill,
@@ -66,6 +67,7 @@ export function ActionCard({
   const executors = item.assignments.filter((a) => a.role === "EXECUTING");
   const inputs = item.assignments.filter((a) => a.role === "INPUT");
   const lead = personLabel(item.lead);
+  const strategic = deriveActionStrategicLinkage(item);
 
   // Left rail color makes the list scannable at a glance: overdue always wins
   // (red), otherwise the rail carries the priority signal so urgent/high work
@@ -134,6 +136,12 @@ export function ActionCard({
           </Pill>
         ) : item.officerMeetingId ? (
           <Pill tone="purple">Source: Meeting</Pill>
+        ) : null}
+        {strategic.initiativeTitle ? (
+          <Pill tone="purple">Initiative: {strategic.initiativeTitle}</Pill>
+        ) : null}
+        {strategic.projectTitle ? (
+          <Pill tone="neutral">Project: {strategic.projectTitle}</Pill>
         ) : null}
         <Pill tone={item.visibility === "OFFICERS_ONLY" ? "warning" : "neutral"}>
           {ACTION_VISIBILITY_LABELS[item.visibility]}
