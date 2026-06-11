@@ -52,11 +52,11 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/admin",
-    title: "Create Content",
+    title: "Admin Home",
     content: {
-      purpose: "This workspace is only for approved content and structured setup tasks that belong in the portal.",
-      firstStep: "Pick the content type you need from the dropdown so the page only shows the fields for that one task.",
-      nextStep: "After you submit, the new content is created and the matching portal area is revalidated automatically."
+      purpose: "Every admin tool in one place, grouped by domain (people, hiring, mentorship, programs, partners, communications, reports). You only see the destinations your admin access covers.",
+      firstStep: "Pick the domain group that matches your task and follow its link — each entry says exactly what lives behind it.",
+      nextStep: "Use the YPP Help Agent (⌘K) when you know the record you need instead of the tool."
     }
   },
   {
@@ -3668,6 +3668,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page collects in-product help and quick reference links.",
       firstStep: "Skim the help index to find the topic that matches what you're trying to do.",
       nextStep: "Follow the linked workspace or article for step-by-step instructions."
+    }
+  },
+  {
+    pattern: "/help-agent",
+    title: "YPP Help Agent",
+    content: {
+      purpose: "The portal-wide search and command layer: find any person, partner, class, meeting, action, or initiative, and open its 360 preview without leaving the page. Deterministic search — not a chatbot.",
+      firstStep: "Type a name or pick a suggested search. Use ↑↓ and Enter to open a result's 360 preview; ⌘+Enter opens its full page.",
+      nextStep: "Press ⌘K (Ctrl+K) on any page to open the same search as a palette without navigating here."
     }
   },
   {

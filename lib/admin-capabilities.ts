@@ -143,9 +143,10 @@ export function resolveAdminRouteDomain(pathname: string): AdminRouteDomain | nu
   if (path !== "/admin" && !path.startsWith("/admin/")) {
     return null;
   }
-  // The /admin landing belongs to the baseline — any admin with a subtype.
+  // The /admin landing (Knowledge OS V2 admin home) is universal — every
+  // admin lands there and sees only the domains their subtypes can reach.
   if (path === "/admin") {
-    return "BASELINE";
+    return "UNIVERSAL";
   }
 
   const segment = path.slice("/admin/".length).split("/")[0];

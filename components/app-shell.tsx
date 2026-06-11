@@ -8,6 +8,15 @@ import PageHelperFab from "@/components/page-helper-fab";
 import type { PageHelperRole } from "@/lib/page-helper/types";
 import { getUserTitle } from "@/lib/user-title";
 import { Entity360Provider } from "@/components/operations/entity-360-drawer";
+import { HelpAgentProvider } from "@/components/help-agent/help-agent-provider";
+
+/** Mirrors OFFICER_TIER_ROLES in lib/authorization.ts (server-only module). */
+const OFFICER_TIER_NAV_ROLES = new Set([
+  "ADMIN",
+  "STAFF",
+  "CHAPTER_PRESIDENT",
+  "HIRING_CHAIR",
+]);
 
 export default function AppShell({
   children,
@@ -88,8 +97,15 @@ export default function AppShell({
     return raw.slice(0, 2).toUpperCase();
   }, [userName]);
 
+  // Officer tier gates which entity types the Help Agent searches/suggests.
+  const officerTier = useMemo(() => {
+    if (primaryRole && OFFICER_TIER_NAV_ROLES.has(primaryRole)) return true;
+    return (roles ?? []).some((role) => OFFICER_TIER_NAV_ROLES.has(role));
+  }, [primaryRole, roles]);
+
   return (
     <Entity360Provider>
+    <HelpAgentProvider officerTier={officerTier}>
     <div className="app-shell">
       {/* Mobile menu toggle */}
       <button
@@ -215,6 +231,7 @@ export default function AppShell({
         roles={roles}
       />
     </div>
+    </HelpAgentProvider>
     </Entity360Provider>
   );
 }

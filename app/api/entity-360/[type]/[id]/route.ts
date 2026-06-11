@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth-supabase";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { isEntity360Type } from "@/lib/operations/entity-360";
 import { loadEntity360 } from "@/lib/operations/entity-360-queries";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -42,5 +43,30 @@ export async function GET(
   if (!entity) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  // Knowledge OS V2 — record the view for Help Agent recents / "Recently
+  // Viewed". Fire-and-forget: a recents failure must never break a 360 open.
+  recordRecentView(viewer.id, type, id).catch(() => {});
+
   return NextResponse.json(entity);
+}
+
+/** Upsert the recents row and prune the viewer's list to the newest 50. */
+async function recordRecentView(userId: string, entityType: string, entityId: string) {
+  await prisma.recentEntityView.upsert({
+    where: { userId_entityType_entityId: { userId, entityType, entityId } },
+    create: { userId, entityType, entityId },
+    update: { viewedAt: new Date() },
+  });
+  const stale = await prisma.recentEntityView.findMany({
+    where: { userId },
+    orderBy: { viewedAt: "desc" },
+    skip: 50,
+    select: { id: true },
+  });
+  if (stale.length > 0) {
+    await prisma.recentEntityView.deleteMany({
+      where: { id: { in: stale.map((row) => row.id) } },
+    });
+  }
 }

@@ -20,7 +20,9 @@ describe("resolveAdminRouteDomain", () => {
     expect(resolveAdminRouteDomain("/admin/announcements")).toBe("COMMUNICATIONS_ADMIN");
     expect(resolveAdminRouteDomain("/admin/chapters")).toBe("UNIVERSAL");
     expect(resolveAdminRouteDomain("/admin/audit-log")).toBe("BASELINE");
-    expect(resolveAdminRouteDomain("/admin")).toBe("BASELINE");
+    // Knowledge OS V2: /admin is a universal admin home (every admin lands
+    // there and sees only their domains), no longer baseline-gated.
+    expect(resolveAdminRouteDomain("/admin")).toBe("UNIVERSAL");
   });
 
   it("gates the participant-facing mentorship and intake surfaces", () => {
@@ -52,7 +54,9 @@ describe("canAccessAdminRoute", () => {
     expect(canAccessAdminRoute([], "/admin/chapters")).toBe(true);
     expect(canAccessAdminRoute([], "/admin/audit-log")).toBe(false);
     expect(canAccessAdminRoute([], "/admin/instructor-applicants")).toBe(false);
-    expect(canAccessAdminRoute([], "/admin")).toBe(false);
+    // The V2 admin home is universal — a subtype-less admin lands there and
+    // sees only the universal destinations.
+    expect(canAccessAdminRoute([], "/admin")).toBe(true);
   });
 
   it("grants the shared baseline to any admin with a subtype", () => {
