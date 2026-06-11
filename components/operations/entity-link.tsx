@@ -44,6 +44,14 @@ export function EntityLink({
 }) {
   const drawer = useEntity360();
   if (!id) {
+    // No drawer target — keep an href-only link working, else plain text.
+    if (href) {
+      return (
+        <Link href={href} className={className} title={title} style={{ textDecoration: "none", ...style }}>
+          {children}
+        </Link>
+      );
+    }
     return (
       <span className={className} style={style}>
         {children}

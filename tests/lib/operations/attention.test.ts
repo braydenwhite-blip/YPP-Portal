@@ -4,10 +4,12 @@ import type { OperationalReviewItem } from "@/lib/people-strategy/operational-di
 import {
   attentionFromReviewItem,
   buildNeedsAttention,
+  categoryForReviewItem,
   deriveApplicantAttention,
   deriveClassSetupAttention,
   deriveMentorshipAttention,
   derivePartnerAttention,
+  groupAttentionItems,
   partnerIsActive,
   type ApplicantAttentionInput,
   type ClassSetupAttentionInput,
@@ -38,12 +40,17 @@ function partner(overrides: Partial<PartnerAttentionInput> = {}): PartnerAttenti
 }
 
 describe("derivePartnerAttention", () => {
-  it("flags an active partner with no next step, explaining why", () => {
+  it("flags an active partner with no next step, explaining why and what to do", () => {
     const items = derivePartnerAttention([partner()], NOW);
     expect(items).toHaveLength(1);
     expect(items[0].title).toBe("Mohawk Day Camp has no next step");
     expect(items[0].why).toContain("10 days ago");
+    expect(items[0].category).toBe("missing_next_step");
+    expect(items[0].suggestedStep).toContain("Schedule the next touchpoint");
+    expect(items[0].ageLabel).toBe("quiet 10 days");
     expect(items[0].entityType).toBe("partner");
+    expect(items[0].relatedLabel).toBe("Mohawk Day Camp");
+    expect(items[0].href).toBe("/admin/partners/p1");
   });
 
   it("flags an overdue follow-up, escalating with age", () => {
@@ -53,6 +60,9 @@ describe("derivePartnerAttention", () => {
     );
     expect(recent[0].id).toBe("partner:p1:follow-up-overdue");
     expect(recent[0].severity).toBe("warning");
+    expect(recent[0].category).toBe("urgent");
+    expect(recent[0].suggestedStep).toContain("Ian Chen");
+    expect(recent[0].ageLabel).toBe("3 days overdue");
 
     const ancient = derivePartnerAttention(
       [partner({ nextFollowUpAt: daysAgo(20) })],
@@ -93,6 +103,9 @@ describe("deriveApplicantAttention", () => {
     expect(items).toHaveLength(1);
     expect(items[0].title).toContain("20 days");
     expect(items[0].why).toContain("walk away");
+    expect(items[0].category).toBe("stalled");
+    expect(items[0].suggestedStep).toBe("Assign a reviewer or schedule the interview.");
+    expect(items[0].ageLabel).toBe("20 days without movement");
   });
 
   it("skips fresh applications, scheduled interviews, and decided statuses", () => {
@@ -121,10 +134,13 @@ function mentorship(
 }
 
 describe("deriveMentorshipAttention", () => {
-  it("flags quiet pairings with the quiet-day count", () => {
+  it("flags quiet pairings with the quiet-day count and a concrete ask", () => {
     const items = deriveMentorshipAttention([mentorship()], NOW);
     expect(items).toHaveLength(1);
     expect(items[0].title).toBe("Ian Chen → Maya Johnson has been quiet 60 days");
+    expect(items[0].category).toBe("stalled");
+    expect(items[0].suggestedStep).toContain("Ian Chen");
+    expect(items[0].ageLabel).toBe("quiet 60 days");
   });
 
   it("skips recently active pairings", () => {
@@ -154,20 +170,32 @@ describe("deriveClassSetupAttention", () => {
   it("flags an imminent class missing sessions, naming the instructor", () => {
     const items = deriveClassSetupAttention([classSetup()], NOW);
     expect(items).toHaveLength(1);
-    expect(items[0].title).toContain("no sessions scheduled");
+    expect(items[0].title).toContain("missing session schedule");
     expect(items[0].why).toContain("Maya Johnson");
+    expect(items[0].category).toBe("upcoming_risk");
+    expect(items[0].suggestedStep).toBe("Finish setup: session schedule.");
     expect(items[0].entityType).toBe("class");
+    expect(items[0].relatedLabel).toBe("Introduction to Entrepreneurship");
   });
 
-  it("compounds multiple gaps into one item", () => {
+  it("compounds multiple gaps into one item, mirroring the readiness rule", () => {
     const items = deriveClassSetupAttention(
       [classSetup({ status: "DRAFT", enrolledCount: 0 })],
       NOW
     );
     expect(items).toHaveLength(1);
-    expect(items[0].title).toContain("no sessions scheduled");
-    expect(items[0].title).toContain("still in draft");
-    expect(items[0].title).toContain("no students enrolled");
+    expect(items[0].title).toContain("session schedule");
+    expect(items[0].title).toContain("publish the class");
+    expect(items[0].title).toContain("student enrollment");
+  });
+
+  it("marks an already-running class with gaps as urgent", () => {
+    const items = deriveClassSetupAttention(
+      [classSetup({ startDate: daysAgo(2) })],
+      NOW
+    );
+    expect(items[0].category).toBe("urgent");
+    expect(items[0].ageLabel).toBe("already running");
   });
 
   it("escalates to critical inside a week of start", () => {
@@ -204,6 +232,17 @@ describe("buildNeedsAttention", () => {
     const item = attentionFromReviewItem(reviewItem);
     expect(item.why).toBe("Overdue 4 days · No owner assigned");
     expect(item.severity).toBe("critical");
+    expect(item.category).toBe("urgent");
+    expect(item.suggestedStep).toBe("Reassign, reschedule, or unblock it.");
+  });
+
+  it("derives deterministic categories from the engine's own reason strings", () => {
+    const base = { ...reviewItem };
+    expect(categoryForReviewItem({ ...base, reasons: ["2 actions blocked"], severity: "warning" })).toBe("stalled");
+    expect(categoryForReviewItem({ ...base, reasons: ["1 action with no owner"], severity: "warning" })).toBe("missing_owner");
+    expect(categoryForReviewItem({ ...base, kind: "decision", reasons: ["Decided but no action assigned"], severity: "watch" })).toBe("missing_next_step");
+    expect(categoryForReviewItem({ ...base, kind: "meeting", reasons: ["Meeting tomorrow — prep and confirm the agenda"], severity: "neutral" })).toBe("upcoming_risk");
+    expect(categoryForReviewItem({ ...base, reasons: ["no meeting in 30 days"], severity: "watch" })).toBe("stalled");
   });
 
   it("merges all sources, severity first then score, and respects the limit", () => {
@@ -245,5 +284,32 @@ describe("buildNeedsAttention", () => {
       now: NOW,
     };
     expect(buildNeedsAttention(input)).toEqual(buildNeedsAttention(input));
+  });
+});
+
+describe("groupAttentionItems", () => {
+  it("groups a ranked queue into labeled categories in triage order", () => {
+    const items = buildNeedsAttention({
+      reviewItems: [],
+      partners: [
+        partner({ nextFollowUpAt: daysAgo(20) }), // urgent
+        partner({ id: "p2", name: "Hillside", lastContactedAt: daysAgo(5) }), // missing_next_step
+      ],
+      applicants: [applicant()], // stalled
+      mentorships: [],
+      classes: [classSetup({ startDate: daysAhead(15) })], // upcoming_risk
+      now: NOW,
+    });
+    const groups = groupAttentionItems(items);
+    expect(groups.map((g) => g.category)).toEqual([
+      "urgent",
+      "missing_next_step",
+      "stalled",
+      "upcoming_risk",
+    ]);
+    expect(groups[0].label).toBe("Urgent");
+    expect(groups[0].items[0].relatedLabel).toBe("Mohawk Day Camp");
+    // Every item lands in exactly one group.
+    expect(groups.flatMap((g) => g.items)).toHaveLength(items.length);
   });
 });

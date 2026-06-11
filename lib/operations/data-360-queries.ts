@@ -25,6 +25,7 @@ import {
   MENTORSHIP_QUIET_DAYS,
 } from "./attention";
 import { buildExecutiveSnapshot, type DataMetric, type OrgWideCounts } from "./metrics";
+import { buildTodaysBrief, latestActivityISO } from "./signals";
 import {
   buildUnifiedTimeline,
   type TimelineEvent,
@@ -58,15 +59,32 @@ export type ExplorerCard = {
   areaLabel: string;
   healthLabel: string;
   healthLevel: "healthy" | "attention" | "at_risk" | "critical";
+  /** Who is on the hook (class instructor / partner relationship lead). */
+  owner: string | null;
   openActions: number;
   overdueActions: number;
   meetingCount: number;
   recentDecisions: number;
+  /** Newest linked action/meeting touch, for the "last activity" read. */
+  lastActivityISO: string | null;
   /** The most pressing open work item's title, when one exists. */
   nextStep: string | null;
   /** The single worst health reason, when unhealthy. */
   risk: string | null;
   href: string | null;
+};
+
+/** One searchable row in the Data 360 quick-find index. */
+export type QuickFindEntry = {
+  id: string;
+  label: string;
+  /** One context line (type · owner / date). */
+  sub: string | null;
+  typeLabel: string;
+  /** Drawer target when one exists; otherwise href-only. */
+  entityType: "person" | "class" | "partner" | "initiative" | "meeting" | "action" | null;
+  entityId: string | null;
+  href: string;
 };
 
 /** A compact initiative card for the explorer (config-defined initiatives). */
@@ -87,12 +105,15 @@ export type ExplorerInitiative = {
 
 export type Data360Payload = {
   generatedAtISO: string;
+  /** Today's Brief — the org's state as plain sentences, worst first. */
+  brief: string[];
   snapshot: DataMetric[];
   attention: AttentionItem[];
   board: WorkBoard;
   timeline: TimelineEvent[];
   explorer: ExplorerCard[];
   initiatives: ExplorerInitiative[];
+  quickFind: QuickFindEntry[];
   digest: WeeklyOperationalDigest;
 };
 
@@ -247,7 +268,11 @@ async function loadClassSetupInputs(now: Date): Promise<ClassSetupAttentionInput
 
 function toExplorerCard(
   entity: OperationalEntityLite,
-  nextStepByRef: Map<string, string>
+  enrichment: {
+    nextStepByRef: Map<string, string>;
+    ownerByRef: Map<string, string>;
+    lastActivityByRef: Map<string, string>;
+  }
 ): ExplorerCard {
   return {
     refKey: entity.refKey,
@@ -258,14 +283,62 @@ function toExplorerCard(
     areaLabel: entity.areaLabel,
     healthLabel: entity.health.label,
     healthLevel: entity.health.level,
+    owner: enrichment.ownerByRef.get(entity.refKey) ?? null,
     openActions: entity.openActions,
     overdueActions: entity.overdueActions,
     meetingCount: entity.meetingCount,
     recentDecisions: entity.recentDecisions,
-    nextStep: nextStepByRef.get(entity.refKey) ?? null,
+    lastActivityISO: enrichment.lastActivityByRef.get(entity.refKey) ?? null,
+    nextStep: enrichment.nextStepByRef.get(entity.refKey) ?? null,
     risk: entity.health.level === "healthy" ? null : (entity.health.reasons[0] ?? null),
     href: entity.href,
   };
+}
+
+/**
+ * Who owns each explorer entity — one query per entity TYPE present (a class's
+ * instructor, a partner's relationship lead), never one per entity.
+ */
+async function loadExplorerOwners(
+  entities: OperationalEntityLite[]
+): Promise<Map<string, string>> {
+  const owners = new Map<string, string>();
+  const classIds = entities.filter((e) => e.type === "CLASS_OFFERING").map((e) => e.id);
+  const partnerIds = entities.filter((e) => e.type === "PARTNER").map((e) => e.id);
+
+  const tasks: Array<Promise<unknown>> = [];
+  if (classIds.length > 0) {
+    tasks.push(
+      prisma.classOffering
+        .findMany({
+          where: { id: { in: classIds } },
+          select: { id: true, instructor: { select: { name: true, email: true } } },
+        })
+        .then((rows) => {
+          for (const c of rows) {
+            const name = c.instructor?.name ?? c.instructor?.email;
+            if (name) owners.set(`CLASS_OFFERING:${c.id}`, name);
+          }
+        })
+    );
+  }
+  if (partnerIds.length > 0) {
+    tasks.push(
+      prisma.partner
+        .findMany({
+          where: { id: { in: partnerIds } },
+          select: { id: true, relationshipLead: { select: { name: true, email: true } } },
+        })
+        .then((rows) => {
+          for (const p of rows) {
+            const name = p.relationshipLead?.name ?? p.relationshipLead?.email;
+            if (name) owners.set(`PARTNER:${p.id}`, name);
+          }
+        })
+    );
+  }
+  await Promise.allSettled(tasks);
+  return owners;
 }
 
 // --- the loader ------------------------------------------------------------------
@@ -307,21 +380,41 @@ export async function loadData360(
     limit: 60,
   });
 
-  // Explorer: every entity the operating data touches, with its next step.
+  // Explorer: every entity the operating data touches, enriched with its next
+  // step, its owner, and its most recent touch.
   const entities = deriveOperationalEntities({ ...pool, now });
   const nextStepByRef = new Map<string, string>();
+  const lastActivityByRef = new Map<string, string>();
   for (const entity of entities) {
     const related = actionLites.filter(
-      (a) =>
-        a.relatedType === entity.type &&
-        a.relatedId === entity.id &&
-        a.status !== "COMPLETE" &&
-        a.status !== "DROPPED"
+      (a) => a.relatedType === entity.type && a.relatedId === entity.id
     );
-    const step = nextStepFromWork(related.map(workItemFromAction));
+    const open = related.filter(
+      (a) => a.status !== "COMPLETE" && a.status !== "DROPPED"
+    );
+    const step = nextStepFromWork(open.map(workItemFromAction));
     if (step) nextStepByRef.set(entity.refKey, step);
+
+    const relatedMeetingDates = meetingLites
+      .filter(
+        (m) =>
+          m.relatedType === entity.type &&
+          m.relatedId === entity.id &&
+          new Date(m.startISO).getTime() <= now.getTime()
+      )
+      .map((m) => m.startISO);
+    const last = latestActivityISO([
+      ...related.map((a) => a.completedISO ?? a.createdISO),
+      ...relatedMeetingDates,
+    ]);
+    if (last) lastActivityByRef.set(entity.refKey, last);
   }
-  const explorer = entities.map((e) => toExplorerCard(e, nextStepByRef));
+  const ownerByRef = await loadExplorerOwners(entities).catch(
+    () => new Map<string, string>()
+  );
+  const explorer = entities.map((e) =>
+    toExplorerCard(e, { nextStepByRef, ownerByRef, lastActivityByRef })
+  );
 
   const explorerInitiatives: ExplorerInitiative[] = initiatives
     .filter((s) => s.status === "active" || s.status === "planning")
@@ -376,14 +469,64 @@ export async function loadData360(
     ).length,
   };
 
+  // Quick-find: a client-side index over everything this page loaded — typing
+  // "Beth El" surfaces the partner, its classes, meetings, and work at once.
+  const fmtDay = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const quickFind: QuickFindEntry[] = [
+    ...explorer.map((e) => ({
+      id: `qf:${e.refKey}`,
+      label: e.label,
+      sub: [e.typeLabel, e.owner].filter(Boolean).join(" · "),
+      typeLabel: e.typeLabel,
+      entityType: e.entityType,
+      entityId: e.entityType ? e.id : null,
+      href: e.href ?? "/operations/data-360",
+    })),
+    ...explorerInitiatives.map((s) => ({
+      id: `qf:initiative:${s.id}`,
+      label: s.title,
+      sub: ["Initiative", s.owner].filter(Boolean).join(" · "),
+      typeLabel: "Initiative",
+      entityType: "initiative" as const,
+      entityId: s.id,
+      href: s.href,
+    })),
+    ...workItems.slice(0, 80).map((w) => ({
+      id: `qf:${w.id}`,
+      label: w.title,
+      sub: [w.sourceLabel, w.ownerName].filter(Boolean).join(" · "),
+      typeLabel: "Work",
+      // Actions open their own panel; an unconverted follow-up opens its
+      // source meeting's panel (its href is the meeting page).
+      entityType: w.kind === "action" ? ("action" as const) : ("meeting" as const),
+      entityId:
+        w.kind === "action"
+          ? w.id.replace(/^action:/, "")
+          : (w.href.split("/").pop() ?? null),
+      href: w.href,
+    })),
+    ...meetingLites.slice(0, 40).map((m) => ({
+      id: `qf:meeting:${m.id}`,
+      label: m.title,
+      sub: `Meeting · ${fmtDay(m.startISO)}`,
+      typeLabel: "Meeting",
+      entityType: "meeting" as const,
+      entityId: m.id,
+      href: m.href,
+    })),
+  ];
+
   return {
     generatedAtISO: now.toISOString(),
+    brief: buildTodaysBrief({ counts: digest.counts, org }),
     snapshot: buildExecutiveSnapshot({ counts: digest.counts, org }),
     attention,
     board,
     timeline,
     explorer,
     initiatives: explorerInitiatives,
+    quickFind,
     digest,
   };
 }

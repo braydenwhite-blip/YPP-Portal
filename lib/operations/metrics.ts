@@ -12,11 +12,22 @@ import type { OperationalDigestCounts } from "@/lib/people-strategy/operational-
 
 export type MetricTone = "default" | "accent" | "danger" | "warning" | "success";
 
+/** Thematic clusters the snapshot renders as labeled groups. */
+export const METRIC_GROUPS = ["work", "meetings", "programs"] as const;
+export type MetricGroup = (typeof METRIC_GROUPS)[number];
+
+export const METRIC_GROUP_LABELS: Record<MetricGroup, string> = {
+  work: "Work",
+  meetings: "Meetings & decisions",
+  programs: "Programs & people",
+};
+
 export type DataMetric = {
   key: string;
   label: string;
   value: number;
   tone: MetricTone;
+  group: MetricGroup;
   href: string | null;
   /** One short line of context under the number. */
   hint: string | null;
@@ -50,6 +61,7 @@ export function buildExecutiveSnapshot(input: {
   return [
     {
       key: "open-actions",
+      group: "work",
       label: "Open work items",
       value: counts.openActions + counts.unconvertedFollowUps,
       tone: "accent",
@@ -60,6 +72,7 @@ export function buildExecutiveSnapshot(input: {
     },
     {
       key: "overdue",
+      group: "work",
       label: "Overdue",
       value: counts.overdueActions,
       tone: toneWhenPresent(counts.overdueActions, "danger"),
@@ -68,6 +81,7 @@ export function buildExecutiveSnapshot(input: {
     },
     {
       key: "due-week",
+      group: "work",
       label: "Due this week",
       value: counts.dueSoonActions,
       tone: "default",
@@ -76,6 +90,7 @@ export function buildExecutiveSnapshot(input: {
     },
     {
       key: "blocked",
+      group: "work",
       label: "Blocked",
       value: counts.blockedActions,
       tone: toneWhenPresent(counts.blockedActions, "warning"),
@@ -84,6 +99,7 @@ export function buildExecutiveSnapshot(input: {
     },
     {
       key: "meetings-week",
+      group: "meetings",
       label: "Meetings this week",
       value: counts.meetingsThisWeek,
       tone: "default",
@@ -94,6 +110,7 @@ export function buildExecutiveSnapshot(input: {
     },
     {
       key: "initiatives",
+      group: "programs",
       label: "Active initiatives",
       value: org.activeInitiatives,
       tone: toneWhenPresent(org.initiativesAtRisk, "warning"),
@@ -102,6 +119,7 @@ export function buildExecutiveSnapshot(input: {
     },
     {
       key: "classes",
+      group: "programs",
       label: "Active classes",
       value: org.activeClasses,
       tone: "default",
@@ -110,6 +128,7 @@ export function buildExecutiveSnapshot(input: {
     },
     {
       key: "applicants",
+      group: "programs",
       label: "Applicants in review",
       value: org.applicantsInReview,
       tone: toneWhenPresent(org.applicantsStuck, "warning"),
@@ -118,6 +137,7 @@ export function buildExecutiveSnapshot(input: {
     },
     {
       key: "partners",
+      group: "programs",
       label: "Partner follow-ups",
       value: org.partnersNeedingFollowUp,
       tone: toneWhenPresent(org.partnersNeedingFollowUp, "warning"),
@@ -126,6 +146,7 @@ export function buildExecutiveSnapshot(input: {
     },
     {
       key: "mentorships",
+      group: "programs",
       label: "Active mentorships",
       value: org.activeMentorships,
       tone: toneWhenPresent(org.mentorshipsQuiet, "warning"),

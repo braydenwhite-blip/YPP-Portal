@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { EntityLink } from "@/components/operations/entity-link";
+import { PersonLink } from "@/components/people-strategy/person-link";
 import { formatDueDate } from "@/lib/leadership-action-center/dates";
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import { ACTION_VISIBILITY_LABELS } from "@/lib/people-strategy/constants";
@@ -23,9 +25,12 @@ import { RelatedEntityBadge } from "@/components/people-strategy/operational-bad
  * Leadership feedback #11: the card should read by a person's *title*, not their
  * account type. We resolve the Lead's title through `getUserTitle` (stored title
  * → admin-subtype label → formatted role) so e.g. an admin shows as "Leadership"
- * rather than "Admin". The whole card is a single link to the action, so people
- * names render as text here (clickable profiles live on the detail view + people
- * lists, which aren't wrapped in an outer link).
+ * rather than "Admin".
+ *
+ * The card is a container, not one big link, so everything inside is genuinely
+ * clickable: the title opens the Action 360 panel in place (modifier clicks
+ * still navigate to /actions/[id]), the Lead opens their person panel, and the
+ * related-entity badge opens the linked class/partner/person panel.
  */
 
 const OVERDUE_ACCENT = "var(--error-color)";
@@ -81,13 +86,11 @@ export function ActionCard({
         : "transparent";
 
   return (
-    <Link
-      href={`/actions/${item.id}`}
+    <div
       className="card ps-action-card"
       style={{
         display: "block",
         padding: "12px 14px",
-        textDecoration: "none",
         color: "inherit",
         borderLeft: `3px solid ${railColor}`,
       }}
@@ -100,9 +103,14 @@ export function ActionCard({
           alignItems: "baseline",
         }}
       >
-        <strong className="ps-action-card-title" style={{ fontSize: 14 }}>
+        <EntityLink
+          type="action"
+          id={item.id}
+          className="ps-action-card-title"
+          style={{ fontSize: 14, fontWeight: 700, color: "inherit", minWidth: 0 }}
+        >
           {item.title}
-        </strong>
+        </EntityLink>
         <Pill tone={overdue ? "overdue" : "neutral"}>
           {overdue ? "Overdue · " : "Due "}
           {formatDueDate(due)}
@@ -146,9 +154,9 @@ export function ActionCard({
         {strategic.projectTitle ? (
           <Pill tone="neutral">Project: {strategic.projectTitle}</Pill>
         ) : null}
-        <Pill tone={item.visibility === "OFFICERS_ONLY" ? "warning" : "neutral"}>
-          {ACTION_VISIBILITY_LABELS[item.visibility]}
-        </Pill>
+        {item.visibility === "OFFICERS_ONLY" ? (
+          <Pill tone="warning">{ACTION_VISIBILITY_LABELS[item.visibility]}</Pill>
+        ) : null}
       </div>
 
       {prompt ? (
@@ -180,9 +188,12 @@ export function ActionCard({
           {lead ? (
             <>
               Lead:{" "}
-              <strong style={{ color: "var(--ypp-ink)", fontWeight: 600 }}>
+              <PersonLink
+                id={item.leadId}
+                style={{ color: "var(--ypp-ink)", fontWeight: 600 }}
+              >
                 {lead.name}
-              </strong>
+              </PersonLink>
               <span style={{ color: "var(--muted)" }}> · {lead.title}</span>
             </>
           ) : (
@@ -191,11 +202,17 @@ export function ActionCard({
           {executors.length > 0 ? ` · Executing: ${executors.length}` : ""}
           {inputs.length > 0 ? ` · Input: ${inputs.length}` : ""}
         </span>
-        <span style={{ whiteSpace: "nowrap" }}>
+        <span style={{ whiteSpace: "nowrap", display: "inline-flex", gap: 10, alignItems: "baseline" }}>
           {item.comments.length}{" "}
           {item.comments.length === 1 ? "comment" : "comments"}
+          <Link
+            href={`/actions/${item.id}`}
+            style={{ color: "var(--ypp-purple-600, #6b21c8)", fontWeight: 600, textDecoration: "none" }}
+          >
+            Open →
+          </Link>
         </span>
       </div>
-    </Link>
+    </div>
   );
 }

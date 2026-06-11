@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import Link from "next/link";
 
 import type {
@@ -14,12 +12,13 @@ import { TIMELINE_EVENT_LABELS } from "@/lib/operations/timeline";
 import type { WorkItem } from "@/lib/operations/work-items";
 import { Pill, type PillTone } from "@/components/people-strategy/pills";
 
-import { useEntity360 } from "./entity-360-context";
+import { EntityLink } from "./entity-link";
 
 /**
  * Entity 360 — the universal drawer body. ONE component renders every entity
- * type from the same serializable payload: header identity, contact facts,
- * connected people (each opening their own panel in place), connected work,
+ * type from the same serializable payload: the derived signal (readiness /
+ * health / momentum), the at-a-glance stats, contact facts, connected people
+ * (each opening their own panel in place via EntityLink), connected work,
  * classes, meetings, the story timeline, risks, and the next step. Sections
  * with no data simply don't render, so a sparse entity still reads clean.
  */
@@ -30,6 +29,15 @@ const WORK_TONE: Record<WorkItem["tone"], PillTone> = {
   info: "info",
   success: "success",
   neutral: "neutral",
+};
+
+const TONE_PILL: Record<string, PillTone> = {
+  neutral: "neutral",
+  info: "info",
+  success: "success",
+  warning: "warning",
+  overdue: "overdue",
+  purple: "purple",
 };
 
 function fmtDay(iso: string): string {
@@ -61,7 +69,6 @@ function initialsOf(name: string): string {
 }
 
 function PersonRow({ person }: { person: Entity360Person }) {
-  const drawer = useEntity360();
   const inner = (
     <>
       <span className="e360-person-avatar">{initialsOf(person.name)}</span>
@@ -76,20 +83,10 @@ function PersonRow({ person }: { person: Entity360Person }) {
   if (!person.id) {
     return <div className="e360-person-row">{inner}</div>;
   }
-  const id = person.id;
   return (
-    <Link
-      href={`/people/${id}`}
-      className="e360-person-row"
-      onClick={(e) => {
-        if (drawer && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-          e.preventDefault();
-          drawer.openEntity("person", id);
-        }
-      }}
-    >
+    <EntityLink type="person" id={person.id} className="e360-person-row">
       {inner}
-    </Link>
+    </EntityLink>
   );
 }
 
@@ -122,8 +119,15 @@ function PeopleSection({ people }: { people: Entity360Person[] }) {
 // --- connected items -----------------------------------------------------------
 
 function WorkItemRow({ item }: { item: WorkItem }) {
-  return (
-    <Link href={item.href} className="e360-item">
+  // Actions stack their own 360 panel; an unconverted follow-up opens its
+  // source meeting's panel (its href is the meeting page).
+  const drawerType = item.kind === "action" ? ("action" as const) : ("meeting" as const);
+  const drawerId =
+    item.kind === "action"
+      ? item.id.replace(/^action:/, "")
+      : (item.href.split("/").pop() ?? null);
+  const inner = (
+    <>
       <div className="e360-item-top">
         <span className="e360-item-title">{item.title}</span>
         <Pill tone={WORK_TONE[item.tone]}>{item.status}</Pill>
@@ -137,7 +141,12 @@ function WorkItemRow({ item }: { item: WorkItem }) {
           .filter(Boolean)
           .join(" · ")}
       </div>
-    </Link>
+    </>
+  );
+  return (
+    <EntityLink type={drawerType} id={drawerId} href={item.href} className="e360-item">
+      {inner}
+    </EntityLink>
   );
 }
 
@@ -146,40 +155,20 @@ function ClassRow({
 }: {
   cls: Entity360["classes"][number];
 }) {
-  const drawer = useEntity360();
   return (
-    <Link
-      href={`/admin/classes/${cls.id}`}
-      className="e360-item"
-      onClick={(e) => {
-        if (drawer && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-          e.preventDefault();
-          drawer.openEntity("class", cls.id);
-        }
-      }}
-    >
+    <EntityLink type="class" id={cls.id} className="e360-item">
       <div className="e360-item-top">
         <span className="e360-item-title">{cls.title}</span>
         {cls.status ? <Pill tone="neutral">{cls.status}</Pill> : null}
       </div>
       {cls.context ? <div className="e360-item-meta">{cls.context}</div> : null}
-    </Link>
+    </EntityLink>
   );
 }
 
 function MeetingRow({ meeting }: { meeting: Entity360MeetingRef }) {
-  const drawer = useEntity360();
   return (
-    <Link
-      href={`/actions/meetings/${meeting.id}`}
-      className="e360-item"
-      onClick={(e) => {
-        if (drawer && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-          e.preventDefault();
-          drawer.openEntity("meeting", meeting.id);
-        }
-      }}
-    >
+    <EntityLink type="meeting" id={meeting.id} className="e360-item">
       <div className="e360-item-top">
         <span className="e360-item-title">{meeting.title}</span>
         <Pill tone={meeting.upcoming ? "info" : "neutral"}>
@@ -195,7 +184,7 @@ function MeetingRow({ meeting }: { meeting: Entity360MeetingRef }) {
           .filter(Boolean)
           .join(" · ")}
       </div>
-    </Link>
+    </EntityLink>
   );
 }
 
@@ -234,6 +223,28 @@ function TimelineEventRow({ event }: { event: TimelineEvent }) {
 export function Entity360Body({ entity }: { entity: Entity360 }) {
   return (
     <div className="e360-body">
+      {entity.signal ? (
+        <div className="e360-signal" data-tone={entity.signal.tone}>
+          <Pill tone={TONE_PILL[entity.signal.tone] ?? "neutral"}>
+            {entity.signal.label}
+          </Pill>
+          {entity.signal.detail ? (
+            <span className="e360-signal-detail">{entity.signal.detail}</span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {entity.glance && entity.glance.length > 0 ? (
+        <div className="e360-glance" aria-label="At a glance">
+          {entity.glance.map((stat) => (
+            <div key={stat.label} className="e360-glance-stat" data-tone={stat.tone}>
+              <span className="e360-glance-value">{stat.value}</span>
+              <span className="e360-glance-label">{stat.label}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {entity.nextStep ? (
         <div className="e360-next-step">
           <strong>Next step: </strong>
