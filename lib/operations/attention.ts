@@ -3,6 +3,7 @@ import type {
   OperationalReviewSeverity,
 } from "@/lib/people-strategy/operational-digest";
 
+import type { Entity360Type } from "./entity-360";
 import { deriveClassReadiness, INACTIVE_PARTNER_STAGES } from "./signals";
 
 /**
@@ -100,7 +101,7 @@ export type AttentionItem = {
   /** Where to go to act. */
   href: string;
   /** Optional drawer target so the UI can open a 360 panel in place. */
-  entityType?: "person" | "class" | "partner" | "initiative" | "meeting" | "action";
+  entityType?: Entity360Type;
   entityId?: string;
   /** Display name of the related entity, for the relationship chip. */
   relatedLabel?: string;
@@ -237,7 +238,9 @@ export function deriveApplicantAttention(
       ageLabel: `${idleDays} days without movement`,
       severity: idleDays >= APPLICANT_STUCK_DAYS * 2 ? "warning" : "watch",
       score: 12 + Math.min(idleDays, 40),
-      href: "/admin/instructor-applicants",
+      href: `/admin/instructor-applicants/${applicant.id}`,
+      entityType: "applicant",
+      entityId: applicant.id,
       relatedLabel: applicant.name,
     });
   }
@@ -273,7 +276,9 @@ export function deriveMentorshipAttention(
       ageLabel: `quiet ${quietDays} days`,
       severity: quietDays >= MENTORSHIP_QUIET_DAYS * 2 ? "warning" : "watch",
       score: 10 + Math.min(quietDays, 30),
-      href: `/mentorship/mentees/${m.menteeId}`,
+      href: `/admin/mentorship/relationships/${m.id}`,
+      entityType: "mentorship",
+      entityId: m.id,
       relatedLabel: m.menteeName,
     });
   }

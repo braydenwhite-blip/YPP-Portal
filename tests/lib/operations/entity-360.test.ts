@@ -56,8 +56,17 @@ describe("meetingOutcomeLine", () => {
 });
 
 describe("isEntity360Type", () => {
-  it("accepts the six drawer types and rejects everything else", () => {
-    for (const t of ["person", "class", "partner", "initiative", "meeting", "action"]) {
+  it("accepts the eight drawer types and rejects everything else", () => {
+    for (const t of [
+      "person",
+      "class",
+      "partner",
+      "initiative",
+      "meeting",
+      "action",
+      "mentorship",
+      "applicant",
+    ]) {
       expect(isEntity360Type(t)).toBe(true);
     }
     expect(isEntity360Type("chapter")).toBe(false);
