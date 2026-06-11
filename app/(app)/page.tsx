@@ -268,9 +268,14 @@ export default async function OverviewPage() {
   }
 
   const roles = session.user.roles ?? [];
-  const isReviewer = roles.some((role) => REVIEWER_ROLES.includes(role));
+  const isAdmin = roles.includes("ADMIN");
   const isInstructor =
     roles.includes("INSTRUCTOR") || session.user.primaryRole === "INSTRUCTOR";
+  // Instructors must never land on the application board. A reviewer role only
+  // routes to the board when the viewer isn't also an instructor — the lone
+  // exception is full ADMINs, who keep the board even when they teach.
+  const isReviewer =
+    isAdmin || (roles.some((role) => REVIEWER_ROLES.includes(role)) && !isInstructor);
   const name = firstName(session.user.name);
 
   // Compact People Strategy queue card. The card self-gates on the feature
