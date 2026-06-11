@@ -20,12 +20,14 @@ export const TIMELINE_EVENT_KINDS = [
   "decision",
   "action_created",
   "action_completed",
-  // Story events used by Entity 360 panels (joins, pairings, roles, notes).
+  // Story events used by Entity 360 panels (joins, pairings, roles, notes,
+  // pipeline milestones like "Application submitted").
   "joined",
   "mentorship",
   "class_assigned",
   "role",
   "note",
+  "milestone",
 ] as const;
 export type TimelineEventKind = (typeof TIMELINE_EVENT_KINDS)[number];
 
@@ -39,6 +41,7 @@ export const TIMELINE_EVENT_LABELS: Record<TimelineEventKind, string> = {
   class_assigned: "Class",
   role: "Role",
   note: "Note",
+  milestone: "Milestone",
 };
 
 /** The filter chips the timeline UI offers. */

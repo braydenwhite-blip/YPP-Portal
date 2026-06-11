@@ -30,6 +30,7 @@ const KIND_ICON: Record<TimelineEventKind, MeetingIconName> = {
   class_assigned: "book",
   role: "flag",
   note: "doc",
+  milestone: "target",
 };
 
 /**

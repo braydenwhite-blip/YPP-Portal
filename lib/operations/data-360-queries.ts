@@ -52,7 +52,7 @@ import { nextStepFromWork } from "./entity-360";
 export type ExplorerCard = {
   refKey: string;
   /** Drawer entity type, when this entity has a 360 panel. */
-  entityType: "class" | "partner" | "person" | null;
+  entityType: "class" | "partner" | "person" | "mentorship" | "applicant" | null;
   id: string;
   label: string;
   typeLabel: string;
@@ -82,7 +82,16 @@ export type QuickFindEntry = {
   sub: string | null;
   typeLabel: string;
   /** Drawer target when one exists; otherwise href-only. */
-  entityType: "person" | "class" | "partner" | "initiative" | "meeting" | "action" | null;
+  entityType:
+    | "person"
+    | "class"
+    | "partner"
+    | "initiative"
+    | "meeting"
+    | "action"
+    | "mentorship"
+    | "applicant"
+    | null;
   entityId: string | null;
   href: string;
 };
@@ -121,6 +130,8 @@ const ENTITY_TO_DRAWER: Record<string, ExplorerCard["entityType"]> = {
   CLASS_OFFERING: "class",
   PARTNER: "partner",
   USER: "person",
+  MENTORSHIP: "mentorship",
+  INSTRUCTOR_APPLICATION: "applicant",
 };
 
 const HEALTH_TONE: Record<string, ExplorerInitiative["healthTone"]> = {

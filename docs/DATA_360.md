@@ -41,8 +41,9 @@ All six panels render through ONE body component; emphasis comes from what
 each loader fills in:
 
 - **Person** — identity facts (+ profile completeness when incomplete), glance
-  (open/overdue work, classes, meetings, mentees, last activity), mentor/mentee
-  clusters, story timeline, visibility footer.
+  (open/overdue work, classes, meetings, mentees, last activity), mentor /
+  mentee clusters plus advisor / advisee links (officer view), story timeline,
+  visibility footer.
 - **Class** — readiness signal with the missing-setup list, glance (sessions,
   students, open work, meetings), instructor, schedule facts.
 - **Partner** — relationship-health signal with reasons, glance (open work,
@@ -53,6 +54,15 @@ each loader fills in:
   attendees), unconverted follow-ups as work items with "Track as action".
 - **Action** — owner/executing/input people, source, blockers, comment
   timeline.
+- **Mentorship** — mentor / mentee / chair (each clickable), quiet-pairing
+  signal (same rule as the attention engine), glance (check-ins, sessions,
+  open work, last activity), linked work and meetings.
+- **Applicant** — pipeline status, stage-milestone timeline (submitted →
+  interview → decision), waiting signal, reviewer. Deliberately conservative:
+  review scores and notes never leave the hiring surfaces.
+
+With these, **every shipped related-entity link type opens a panel** — a
+"Linked to" chip on any action or meeting is always clickable.
 
 ## The universal 360 drawer
 
@@ -121,8 +131,6 @@ No drawer, API, or body changes needed — that is the point of the pattern.
 - **Class readiness can't see curriculum yet.** The signal reads instructor /
   sessions / publication / enrollment; wiring in curriculum-draft state would
   complete the "missing: curriculum" story.
-- **Mentorship and applicant entities have no 360 panel** — they keep their
-  dedicated surfaces. Both fit the three-step recipe above.
 - **Quick actions in the drawer are read-only links.** Inline mutations
   (reassign owner, complete follow-up) would need the existing server actions
   threaded into the panel — doable, deliberately out of scope so far.

@@ -51,6 +51,7 @@ import {
   type Entity360Tone,
   type Entity360Type,
 } from "./entity-360";
+import { APPLICANT_STUCK_DAYS, MENTORSHIP_QUIET_DAYS } from "./attention";
 import {
   deriveClassReadiness,
   derivePartnerHealth,
@@ -176,6 +177,17 @@ async function loadPerson360(
           take: 8,
           select: { id: true, title: true, startDate: true },
         },
+        // Advising relationships (Leadership Roles system): who advises this
+        // person, and who they advise. Names only — advising status/notes are
+        // a leadership assessment and stay on the leadership surfaces.
+        adviseeAssignments: {
+          where: { isActive: true },
+          select: { id: true, advisor: { select: { id: true, name: true, email: true, title: true } } },
+        },
+        advisorAssignments: {
+          where: { isActive: true },
+          select: { id: true, student: { select: { id: true, name: true, email: true, title: true } } },
+        },
       },
     }),
     getMyActionItems(id, viewer).catch(() => [] as ActionItemWithRelations[]),
@@ -273,6 +285,23 @@ async function loadPerson360(
       title: p.title,
       relationship: "Mentee",
     })),
+    // Advising links are an officer-facing read (mirrors the leadership pages).
+    ...(officer
+      ? extra.adviseeAssignments.map((a) => ({
+          id: a.advisor.id,
+          name: a.advisor.name ?? a.advisor.email,
+          title: a.advisor.title,
+          relationship: "Advisor",
+        }))
+      : []),
+    ...(officer
+      ? extra.advisorAssignments.map((a) => ({
+          id: a.student.id,
+          name: a.student.name ?? a.student.email,
+          title: a.student.title,
+          relationship: "Advisee",
+        }))
+      : []),
   ];
 
   const timeline = buildPersonTimeline(
@@ -1000,6 +1029,385 @@ async function loadAction360(
   };
 }
 
+// --- mentorship -----------------------------------------------------------------
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const MENTORSHIP_STATUS_META: Record<string, Entity360Status> = {
+  ACTIVE: { label: "Active", tone: "success" },
+  PAUSED: { label: "Paused", tone: "warning" },
+  COMPLETE: { label: "Complete", tone: "neutral" },
+};
+
+/** "SUMMER_WORKSHOP" → "Summer workshop" — readable enum values for facts. */
+function prettyEnum(value: string): string {
+  const words = value.replaceAll("_", " ").toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+async function loadMentorship360(
+  id: string,
+  viewer: ActionViewer,
+  now: Date
+): Promise<Entity360 | null> {
+  if (!isOfficerTier(viewer)) return null;
+  const pairing = await prisma.mentorship.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      status: true,
+      type: true,
+      programGroup: true,
+      startDate: true,
+      kickoffCompletedAt: true,
+      mentor: { select: { id: true, name: true, email: true, title: true } },
+      mentee: { select: { id: true, name: true, email: true, title: true } },
+      chair: { select: { id: true, name: true, email: true, title: true } },
+      _count: { select: { checkIns: true, sessions: true } },
+      checkIns: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { createdAt: true },
+      },
+      sessions: {
+        orderBy: { scheduledAt: "desc" },
+        take: 1,
+        select: { scheduledAt: true, completedAt: true },
+      },
+    },
+  });
+  if (!pairing) return null;
+
+  const [actions, meetings] = await Promise.all([
+    getActionsForEntity("MENTORSHIP", id, viewer),
+    getMeetingsForEntity("MENTORSHIP", id, DRAWER_LIMITS.meetings),
+  ]);
+  const actionLites = actions.map((a) => toActionLite(a, now));
+  const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
+
+  const mentorName = pairing.mentor.name ?? pairing.mentor.email;
+  const menteeName = pairing.mentee.name ?? pairing.mentee.email;
+
+  // Last recorded activity — the exact rule the attention engine uses.
+  const lastActivity = latestActivityISO([
+    pairing.startDate,
+    pairing.kickoffCompletedAt,
+    pairing.checkIns[0]?.createdAt,
+    pairing.sessions[0]?.completedAt ?? pairing.sessions[0]?.scheduledAt,
+  ]);
+  const quietDays = lastActivity
+    ? Math.floor((now.getTime() - new Date(lastActivity).getTime()) / DAY_MS)
+    : null;
+  const quiet =
+    pairing.status === "ACTIVE" && quietDays != null && quietDays >= MENTORSHIP_QUIET_DAYS;
+
+  return {
+    type: "mentorship",
+    id,
+    title: `${mentorName} → ${menteeName}`,
+    subtitle: "Mentorship pairing",
+    typeLabel: "Mentorship",
+    status: MENTORSHIP_STATUS_META[pairing.status] ?? {
+      label: pairing.status,
+      tone: "neutral",
+    },
+    meta: `Since ${fmtDate(pairing.startDate)}`,
+    initials: entityInitials(`${mentorName} ${menteeName}`),
+    avatarUrl: null,
+    pageHref: `/admin/mentorship/relationships/${id}`,
+    signal: quiet
+      ? {
+          label: `Quiet ${quietDays} days`,
+          tone: quietDays >= MENTORSHIP_QUIET_DAYS * 2 ? "overdue" : "warning",
+          detail: "No check-ins, reviews, or sessions recorded recently.",
+        }
+      : null,
+    glance: [
+      { label: "Check-ins", value: String(pairing._count.checkIns) },
+      { label: "Sessions", value: String(pairing._count.sessions) },
+      { label: "Open work", value: String(workItems.filter((w) => !w.completedISO).length) },
+      { label: "Last activity", value: recencyLabel(lastActivity, now) },
+    ],
+    facts: [
+      { label: "Type", value: prettyEnum(pairing.type) },
+      { label: "Program", value: prettyEnum(pairing.programGroup) },
+      { label: "Started", value: fmtDate(pairing.startDate) },
+      {
+        label: "Kickoff",
+        value: pairing.kickoffCompletedAt
+          ? fmtDate(pairing.kickoffCompletedAt)
+          : "Not completed yet",
+      },
+    ],
+    people: [
+      {
+        id: pairing.mentor.id,
+        name: mentorName,
+        title: pairing.mentor.title,
+        relationship: "Mentor",
+      },
+      {
+        id: pairing.mentee.id,
+        name: menteeName,
+        title: pairing.mentee.title,
+        relationship: "Mentee",
+      },
+      ...(pairing.chair
+        ? [
+            {
+              id: pairing.chair.id,
+              name: pairing.chair.name ?? pairing.chair.email,
+              title: pairing.chair.title,
+              relationship: "Chair",
+            },
+          ]
+        : []),
+    ],
+    classes: [],
+    workItems,
+    meetings: meetingDtos.map(meetingRef),
+    timeline: buildUnifiedTimeline({
+      actions: actionLites,
+      meetings: meetingDtos.map((dto) => toMeetingLite(dto, now)),
+      decisions: [],
+      now,
+      daysBack: 120,
+      limit: DRAWER_LIMITS.timeline,
+    }),
+    nextStep:
+      nextStepFromWork(workItems) ??
+      (quiet ? `Ask ${mentorName} for a check-in.` : null),
+    risks: quiet
+      ? [`No recorded activity in ${quietDays} days — the pairing may have stalled.`]
+      : [],
+    footnote: OFFICER_FOOTNOTE,
+  };
+}
+
+// --- applicant (instructor application) --------------------------------------------
+
+const APPLICANT_STATUS_META: Record<string, Entity360Status> = {
+  SUBMITTED: { label: "Submitted", tone: "neutral" },
+  UNDER_REVIEW: { label: "Under review", tone: "info" },
+  INFO_REQUESTED: { label: "Info requested", tone: "warning" },
+  PRE_APPROVED: { label: "Pre-approved", tone: "info" },
+  INTERVIEW_SCHEDULED: { label: "Interview scheduled", tone: "info" },
+  INTERVIEW_COMPLETED: { label: "Interview completed", tone: "info" },
+  CHAIR_REVIEW: { label: "Chair review", tone: "purple" },
+  APPROVED: { label: "Approved", tone: "success" },
+  REJECTED: { label: "Rejected", tone: "overdue" },
+  ON_HOLD: { label: "On hold", tone: "warning" },
+};
+
+/**
+ * Deliberately conservative: pipeline status, identity basics, stage
+ * milestones, and linked work only — never reviewer scores, notes, or any
+ * review content. Those stay on the dedicated hiring surfaces.
+ */
+async function loadApplicant360(
+  id: string,
+  viewer: ActionViewer,
+  now: Date
+): Promise<Entity360 | null> {
+  if (!isOfficerTier(viewer)) return null;
+  const app = await prisma.instructorApplication.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      interviewScheduledAt: true,
+      approvedAt: true,
+      rejectedAt: true,
+      applicationTrack: true,
+      schoolName: true,
+      graduationYear: true,
+      city: true,
+      stateProvince: true,
+      preferredFirstName: true,
+      lastName: true,
+      legalName: true,
+      applicant: {
+        select: { id: true, name: true, email: true, primaryRole: true },
+      },
+      reviewer: { select: { id: true, name: true, email: true, title: true } },
+    },
+  });
+  if (!app) return null;
+
+  const composed = [app.preferredFirstName, app.lastName].filter(Boolean).join(" ").trim();
+  const name =
+    composed || app.legalName || app.applicant?.name || app.applicant?.email || "Applicant";
+
+  const [actions, meetings] = await Promise.all([
+    getActionsForEntity("INSTRUCTOR_APPLICATION", id, viewer),
+    getMeetingsForEntity("INSTRUCTOR_APPLICATION", id, DRAWER_LIMITS.meetings),
+  ]);
+  const actionLites = actions.map((a) => toActionLite(a, now));
+  const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
+
+  const daysInPipeline = Math.max(
+    0,
+    Math.floor((now.getTime() - app.createdAt.getTime()) / DAY_MS)
+  );
+  const idleDays = Math.max(
+    0,
+    Math.floor((now.getTime() - app.updatedAt.getTime()) / DAY_MS)
+  );
+  const decided = app.status === "APPROVED" || app.status === "REJECTED";
+  const interviewUpcoming =
+    app.interviewScheduledAt != null &&
+    app.interviewScheduledAt.getTime() > now.getTime();
+  const stuck =
+    !decided && !interviewUpcoming && idleDays >= APPLICANT_STUCK_DAYS;
+
+  // The pipeline story: stage milestones first, then linked work/meetings.
+  const milestones = [
+    {
+      id: "applicant:submitted",
+      occurredAtISO: app.createdAt.toISOString(),
+      title: "Application submitted",
+    },
+    ...(app.interviewScheduledAt
+      ? [
+          {
+            id: "applicant:interview",
+            occurredAtISO: app.interviewScheduledAt.toISOString(),
+            title: interviewUpcoming ? "Interview scheduled" : "Interview held",
+          },
+        ]
+      : []),
+    ...(app.approvedAt
+      ? [
+          {
+            id: "applicant:approved",
+            occurredAtISO: app.approvedAt.toISOString(),
+            title: "Approved",
+          },
+        ]
+      : []),
+    ...(app.rejectedAt
+      ? [
+          {
+            id: "applicant:rejected",
+            occurredAtISO: app.rejectedAt.toISOString(),
+            title: "Not moved forward",
+          },
+        ]
+      : []),
+  ].map((m) => ({
+    ...m,
+    kind: "milestone" as const,
+    detail: null,
+    actorName: null,
+    relatedType: null,
+    relatedId: null,
+    relatedLabel: null,
+    href: null,
+  }));
+  const workEvents = buildUnifiedTimeline({
+    actions: actionLites,
+    meetings: meetingDtos.map((dto) => toMeetingLite(dto, now)),
+    decisions: [],
+    now,
+    daysBack: 180,
+  });
+  const timeline = [...milestones, ...workEvents]
+    .sort(
+      (a, b) =>
+        new Date(b.occurredAtISO).getTime() - new Date(a.occurredAtISO).getTime()
+    )
+    .slice(0, DRAWER_LIMITS.timeline);
+
+  // A pure applicant has no member profile to open — keep the name plain text.
+  const applicantIsMember =
+    app.applicant != null && app.applicant.primaryRole !== "APPLICANT";
+
+  return {
+    type: "applicant",
+    id,
+    title: name,
+    subtitle: "Instructor application",
+    typeLabel: "Applicant",
+    status: APPLICANT_STATUS_META[app.status] ?? { label: app.status, tone: "neutral" },
+    meta: `Applied ${fmtDate(app.createdAt)}`,
+    initials: entityInitials(name),
+    avatarUrl: null,
+    pageHref: `/admin/instructor-applicants/${id}`,
+    signal: stuck
+      ? {
+          label: `Waiting ${idleDays} days`,
+          tone: idleDays >= APPLICANT_STUCK_DAYS * 2 ? "overdue" : "warning",
+          detail: "No movement on the application — applicants this stale usually walk away.",
+        }
+      : null,
+    glance: [
+      { label: "In pipeline", value: `${daysInPipeline}d` },
+      {
+        label: "Since movement",
+        value: `${idleDays}d`,
+        ...(stuck ? { tone: "warning" as const } : {}),
+      },
+      {
+        label: "Interview",
+        value: app.interviewScheduledAt
+          ? fmtDate(app.interviewScheduledAt)
+          : "Not scheduled",
+      },
+    ],
+    facts: [
+      { label: "Track", value: prettyEnum(app.applicationTrack) },
+      ...(app.schoolName ? [{ label: "School", value: app.schoolName }] : []),
+      ...(app.graduationYear
+        ? [{ label: "Graduation", value: String(app.graduationYear) }]
+        : []),
+      ...(app.city
+        ? [
+            {
+              label: "Location",
+              value: [app.city, app.stateProvince].filter(Boolean).join(", "),
+            },
+          ]
+        : []),
+    ],
+    people: [
+      ...(app.applicant
+        ? [
+            {
+              id: applicantIsMember ? app.applicant.id : null,
+              name: app.applicant.name ?? app.applicant.email,
+              title: null,
+              relationship: "Applicant",
+            },
+          ]
+        : []),
+      ...(app.reviewer
+        ? [
+            {
+              id: app.reviewer.id,
+              name: app.reviewer.name ?? app.reviewer.email,
+              title: app.reviewer.title,
+              relationship: "Reviewer",
+            },
+          ]
+        : []),
+    ],
+    classes: [],
+    workItems,
+    meetings: meetingDtos.map(meetingRef),
+    timeline,
+    nextStep:
+      nextStepFromWork(workItems) ??
+      (stuck ? "Assign a reviewer or schedule the interview." : null),
+    risks: [],
+    footnote:
+      "Pipeline view · review scores and notes stay on the hiring surfaces",
+  };
+}
+
 // --- dispatch -------------------------------------------------------------------
 
 /**
@@ -1028,6 +1436,10 @@ export async function loadEntity360(
       return loadMeeting360(trimmed, viewer, now);
     case "action":
       return loadAction360(trimmed, viewer, now);
+    case "mentorship":
+      return loadMentorship360(trimmed, viewer, now);
+    case "applicant":
+      return loadApplicant360(trimmed, viewer, now);
     default: {
       const _exhaustive: never = type;
       return _exhaustive;

@@ -106,6 +106,10 @@ describe("deriveApplicantAttention", () => {
     expect(items[0].category).toBe("stalled");
     expect(items[0].suggestedStep).toBe("Assign a reviewer or schedule the interview.");
     expect(items[0].ageLabel).toBe("20 days without movement");
+    // Clicking opens the Applicant 360 panel; the href deep-links the detail page.
+    expect(items[0].entityType).toBe("applicant");
+    expect(items[0].entityId).toBe("app1");
+    expect(items[0].href).toBe("/admin/instructor-applicants/app1");
   });
 
   it("skips fresh applications, scheduled interviews, and decided statuses", () => {
@@ -141,6 +145,10 @@ describe("deriveMentorshipAttention", () => {
     expect(items[0].category).toBe("stalled");
     expect(items[0].suggestedStep).toContain("Ian Chen");
     expect(items[0].ageLabel).toBe("quiet 60 days");
+    // Clicking opens the Mentorship 360 panel; the href deep-links the pairing.
+    expect(items[0].entityType).toBe("mentorship");
+    expect(items[0].entityId).toBe("men1");
+    expect(items[0].href).toBe("/admin/mentorship/relationships/men1");
   });
 
   it("skips recently active pairings", () => {

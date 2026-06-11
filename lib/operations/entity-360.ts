@@ -23,6 +23,8 @@ export const ENTITY_360_TYPES = [
   "initiative",
   "meeting",
   "action",
+  "mentorship",
+  "applicant",
 ] as const;
 export type Entity360Type = (typeof ENTITY_360_TYPES)[number];
 
@@ -40,17 +42,21 @@ export const ENTITY_360_TYPE_LABELS: Record<Entity360Type, string> = {
   initiative: "Initiative",
   meeting: "Meeting",
   action: "Action",
+  mentorship: "Mentorship",
+  applicant: "Applicant",
 };
 
 /**
  * The polymorphic related-entity types (`ActionItem.relatedEntityType`) that
  * map onto a drawer entity type — so a "Linked to" chip can open the 360 panel.
- * Mentorships and instructor applications keep their dedicated surfaces.
+ * All five shipped link types are covered.
  */
 export const RELATED_TO_ENTITY_360: Partial<Record<string, Entity360Type>> = {
   CLASS_OFFERING: "class",
   PARTNER: "partner",
   USER: "person",
+  MENTORSHIP: "mentorship",
+  INSTRUCTOR_APPLICATION: "applicant",
 };
 
 export type Entity360Tone = "neutral" | "info" | "success" | "warning" | "overdue" | "purple";
