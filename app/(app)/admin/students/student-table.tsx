@@ -23,6 +23,8 @@ interface Student {
   certificates: number;
   mentorId: string;
   mentorName: string;
+  advisorName: string;
+  advisorAssignmentId: string;
   createdAt: string;
 }
 
@@ -112,6 +114,18 @@ export default function StudentTable({
           <SuiteChip>{item.mentorName}</SuiteChip>
         ) : (
           <SuiteChip muted>Unassigned</SuiteChip>
+        )
+    },
+    {
+      key: "advisorName",
+      label: "Advisor",
+      render: (item: Student) =>
+        item.advisorAssignmentId ? (
+          <a href={`/my-advisees/${item.advisorAssignmentId}`}>
+            <SuiteChip>{item.advisorName}</SuiteChip>
+          </a>
+        ) : (
+          <SuiteChip muted>No advisor</SuiteChip>
         )
     }
   ];

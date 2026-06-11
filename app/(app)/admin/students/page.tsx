@@ -22,6 +22,10 @@ export default async function AdminStudentsPage() {
         chapter: true,
         enrollments: { include: { course: true } },
         menteePairs: { where: { type: "STUDENT" }, include: { mentor: true } },
+        adviseeAssignments: {
+          where: { isActive: true },
+          select: { id: true, advisor: { select: { name: true } } }
+        },
         profile: true,
         certificates: true
       },
@@ -38,6 +42,7 @@ export default async function AdminStudentsPage() {
     const enrolledCount = student.enrollments.filter((e) => e.status === "ENROLLED").length;
     const completedCount = student.enrollments.filter((e) => e.status === "COMPLETED").length;
     const mentor = student.menteePairs[0]?.mentor;
+    const advisorAssignment = student.adviseeAssignments[0];
 
     return {
       id: student.id,
@@ -52,6 +57,8 @@ export default async function AdminStudentsPage() {
       certificates: student.certificates.length,
       mentorId: mentor?.id ?? "",
       mentorName: mentor?.name ?? "Unassigned",
+      advisorName: advisorAssignment?.advisor.name ?? "",
+      advisorAssignmentId: advisorAssignment?.id ?? "",
       createdAt: student.createdAt.toISOString()
     };
   });

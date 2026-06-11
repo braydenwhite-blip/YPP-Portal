@@ -384,6 +384,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/leadership",
+    title: "Leadership Roles & Contributions",
+    content: {
+      purpose: "This dashboard assigns and tracks leadership roles beyond teaching — Student Advisors, mentors, reviewers, committee members, and ownership areas — as review and promotion evidence.",
+      firstStep: "Check students without an advisor and flagged follow-ups first, then use the assign forms to fill the most important gap.",
+      nextStep: "After you assign or re-status a role, the instructor's leadership record and Senior/Lead standing update immediately."
+    }
+  },
+  {
     pattern: "/admin/mentor-match",
     title: "Mentor Match",
     content: {
@@ -2654,6 +2663,24 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/my-advisees",
+    title: "My Advisees",
+    content: {
+      purpose: "This page lists the students assigned to you as Student Advisor, with their advising status, follow-up flags, and last check-in.",
+      firstStep: "Open the student with a follow-up flag or the longest gap since their last check-in.",
+      nextStep: "After you log a check-in or recommend a next step, the caseload list and your leadership record update automatically."
+    }
+  },
+  {
+    pattern: "/my-advisees/[id]",
+    title: "Advising Workspace",
+    content: {
+      purpose: "This workspace shows one advisee's interests, classes, and history, with tools to log check-ins, set next steps, flag follow-up, and recommend opportunities.",
+      firstStep: "Review the student snapshot and the most recent notes, then log what you learned in your latest check-in.",
+      nextStep: "After you save a note or recommendation, it appears on the student's profile and counts toward your advising record."
+    }
+  },
+  {
     pattern: "/my-classes",
     title: "My Classes",
     content: {
@@ -2687,6 +2714,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page helps you review my cours feedback and move each item to the right next step.",
       firstStep: "Open the item that is newest, overdue, or blocked so you can confirm the current status before changing anything.",
       nextStep: "After you approve, return, score, or update the record, the workflow reflects the change for the next person automatically."
+    }
+  },
+  {
+    pattern: "/my-leadership",
+    title: "My Leadership",
+    content: {
+      purpose: "This page shows your leadership roles and contributions beyond teaching, your Senior/Lead expectation progress, and the review evidence your work generates.",
+      firstStep: "Check your current roles and log any recent activity — check-ins, completed reviews, interviews, or committee work.",
+      nextStep: "After you log activity or complete a role, your review evidence and Senior/Lead progress update automatically."
     }
   },
   {

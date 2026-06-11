@@ -406,6 +406,29 @@ export const NAV_CATALOG: NavLink[] = [
 
   ...groupLinks("People & Support", 800, [
     {
+      href: "/my-advisees",
+      label: "My Advisees",
+      icon: "🧭",
+      // Student Advisor dashboard — the page itself only lists students
+      // actually assigned to the viewer, so the link is offered to the
+      // instructor-tier roles that can hold the role.
+      coreEligible: false,
+      roles: INSTRUCTOR_ROLES,
+      searchAliases: ["Student Advisor", "Advisees", "Advising"],
+      dashboardDescription: "Students assigned to you for advising — check-ins, next steps, and follow-ups.",
+      dashboardPriority: 6,
+    },
+    {
+      href: "/my-leadership",
+      label: "My Leadership",
+      icon: "🏛️",
+      coreEligible: false,
+      roles: INSTRUCTOR_ROLES,
+      searchAliases: ["Leadership Roles", "Contributions", "Leadership & Contributions"],
+      dashboardDescription: "Your leadership roles and contributions beyond teaching, and your Senior/Lead progress.",
+      dashboardPriority: 7,
+    },
+    {
       href: "/actions",
       label: "My Actions",
       icon: "✅",
@@ -1011,6 +1034,22 @@ export const NAV_CATALOG: NavLink[] = [
 
   ...groupLinks("Admin People", 1100, [
     { href: "/admin/students", label: "All Students", icon: "👨‍🎓", roles: ADMIN_ONLY },
+    {
+      href: "/admin/leadership",
+      label: "Leadership Roles",
+      icon: "🏛️",
+      coreEligible: false,
+      roles: ADMIN_ONLY,
+      searchAliases: [
+        "Leadership Contributions",
+        "Student Advisors",
+        "Advisor Assignments",
+        "Senior Lead Expectations",
+      ],
+      dashboardDescription:
+        "Assign and track leadership roles — Student Advisors, mentors, reviewers, committee, and ownership areas.",
+      dashboardPriority: 6,
+    },
     {
       href: "/admin/instructors",
       label: "All Instructors",

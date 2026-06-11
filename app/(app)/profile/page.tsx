@@ -12,6 +12,8 @@ import {
 import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
 import ProfileMain from "@/components/profile/profile-main";
 import { RoleStrip } from "@/components/leadership-pathway/role-strip";
+import { isLeadershipRolesEnabled } from "@/lib/feature-flags";
+import { StudentAdvisingPanel } from "@/components/leadership/student-advising-panel";
 
 export default async function ProfilePage() {
   const session = await getSession();
@@ -85,6 +87,15 @@ export default async function ProfilePage() {
             canCreate={canCreateAction(viewer)}
             emptyHint="No Action Tracker items are linked to you yet."
           />
+        </div>
+      )}
+
+      {/* Student Advisor assignment — advisor, advising status, next steps,
+          and recommended opportunities. Renders nothing when the viewer has
+          no active advisor assignment. */}
+      {isLeadershipRolesEnabled() && roles.includes("STUDENT") && (
+        <div style={{ marginBottom: 16 }}>
+          <StudentAdvisingPanel studentId={session.user.id} />
         </div>
       )}
 
