@@ -314,3 +314,17 @@ export function isFinalReviewV2EnabledForChapter(chapterId: string | null): bool
     .filter(Boolean);
   return ids.includes(chapterId);
 }
+
+/**
+ * Leadership Roles & Contributions — concrete leadership roles instructors can
+ * hold beyond teaching (Student Advisor, instructor mentor, curriculum
+ * reviewer, interviewer, committee member, partner lead, …), tracked as
+ * review/promotion evidence. Covers /my-advisees, /my-leadership,
+ * /admin/leadership, and the leadership sections embedded in instructor and
+ * student profiles.
+ *
+ * Defaults ON — set `ENABLE_LEADERSHIP_ROLES=false` as a kill-switch.
+ */
+export function isLeadershipRolesEnabled(): boolean {
+  return process.env.ENABLE_LEADERSHIP_ROLES !== "false";
+}

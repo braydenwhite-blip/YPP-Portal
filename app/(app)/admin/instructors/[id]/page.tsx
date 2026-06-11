@@ -40,6 +40,14 @@ import {
 } from "@/lib/people-strategy/feedback-requests";
 import { QuarterlyReviewForm } from "@/components/people-strategy/quarterly-review-form";
 import { MemberPeopleStrategySection } from "@/components/people-strategy/member-people-strategy-section";
+import { isLeadershipRolesEnabled } from "@/lib/feature-flags";
+import { loadInstructorLeadership } from "@/lib/leadership/queries";
+import {
+  ContributionList,
+  ExpectationProgressCard,
+  ReviewEvidenceCard,
+} from "@/components/leadership/leadership-section";
+import { AssignContributionForm } from "@/components/leadership/assign-forms";
 import { TagsEditor, NotesEditor, TasksEditor } from "./profile-editor";
 
 export const dynamic = "force-dynamic";
@@ -63,16 +71,18 @@ export default async function AdminInstructorProfilePage({
   const quarterlyReviewsEnabled = isQuarterlyReviewsEnabled();
   const peopleDashboardEnabled = isPeopleDashboardEnabled();
   const provisionalEnabled = isProvisionalClockEnabled();
+  const leadershipRolesEnabled = isLeadershipRolesEnabled();
 
   // Leadership/Board check drives both the Quarterly Review submit affordance and the
   // confidential feedback block. The server actions re-enforce `requireLeadership()`.
   const viewerIsLeadershipOrBoard = session?.user ? isLeadershipOrBoard(session.user) : false;
 
-  const [profile, detail, allTags, latestQuarterlyReview, peopleStrategy] =
+  const [profile, detail, allTags, leadership, latestQuarterlyReview, peopleStrategy] =
     await Promise.all([
       getInstructorOpsProfile(id),
       loadInstructorProfileDetail(id),
       listAllTags(),
+      leadershipRolesEnabled ? loadInstructorLeadership(id) : Promise.resolve(null),
       quarterlyReviewsEnabled ? getLatestQuarterlyReview(id) : Promise.resolve(null),
       peopleDashboardEnabled
         ? loadMemberPeopleStrategy(id, {
@@ -228,6 +238,7 @@ export default async function AdminInstructorProfilePage({
         <a href="#pipeline">Pipeline</a>
         <a href="#assignments">Assignments</a>
         <a href="#mentorship">Mentorship</a>
+        {leadershipRolesEnabled && <a href="#leadership">Leadership</a>}
         {peopleDashboardEnabled && peopleStrategy && <a href="#people-strategy">People Strategy</a>}
         {provisionalEnabled && <a href="#provisional">Provisional</a>}
         {quarterlyReviewsEnabled && <a href="#quarterly-review">Quarterly Review</a>}
@@ -447,6 +458,31 @@ export default async function AdminInstructorProfilePage({
           </div>
         </div>
       </section>
+
+      {leadershipRolesEnabled && leadership && (
+        <section id="leadership" className="card instructor-profile-section">
+          <SectionHeading
+            title="Leadership & Contributions"
+            detail="Roles beyond teaching — advising, mentoring, reviewing, committee, and ownership areas. Counts as review and promotion evidence."
+          />
+          <div className="instructor-profile-two-column" style={{ alignItems: "start", marginBottom: 16 }}>
+            <ExpectationProgressCard progress={leadership.progress} />
+            <ReviewEvidenceCard evidence={leadership.evidence} />
+          </div>
+          {leadership.advisorStats.activeAdvisees > 0 && (
+            <p style={{ fontSize: 13, marginTop: 0 }}>
+              <strong>Student Advisor:</strong> {leadership.advisorStats.activeAdvisees} assigned
+              student{leadership.advisorStats.activeAdvisees === 1 ? "" : "s"} ·{" "}
+              {leadership.advisorStats.checkInsLogged} check-ins ·{" "}
+              {leadership.advisorStats.recommendationsMade} recommendations
+            </p>
+          )}
+          <div style={{ marginBottom: 16 }}>
+            <AssignContributionForm instructors={[]} fixedInstructorId={id} />
+          </div>
+          <ContributionList data={leadership} canManage canAct />
+        </section>
+      )}
 
       {peopleDashboardEnabled && peopleStrategy && (
         <MemberPeopleStrategySection

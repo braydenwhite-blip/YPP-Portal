@@ -1374,6 +1374,18 @@ model User {
   provisionalStart       DateTime?
   provisionalConfirmedAt DateTime?
 
+  // Leadership Roles & Contributions (ENABLE_LEADERSHIP_ROLES)
+  leadershipContributions          LeadershipContribution[]         @relation("LeadershipContributionInstructor")
+  leadershipContributionsAsSubject LeadershipContribution[]         @relation("LeadershipContributionSubject")
+  leadershipContributionsOwned     LeadershipContribution[]         @relation("LeadershipContributionAdminOwner")
+  leadershipContributionsCreated   LeadershipContribution[]         @relation("LeadershipContributionCreatedBy")
+  leadershipContributionActivities LeadershipContributionActivity[] @relation("LeadershipContributionActivityAuthor")
+  advisorAssignments               StudentAdvisorAssignment[]       @relation("StudentAdvisorAssignmentAdvisor")
+  adviseeAssignments               StudentAdvisorAssignment[]       @relation("StudentAdvisorAssignmentStudent")
+  advisorAssignmentsCreated        StudentAdvisorAssignment[]       @relation("StudentAdvisorAssignmentAssignedBy")
+  advisingNotesAuthored            AdvisingNote[]                   @relation("AdvisingNoteAuthor")
+  advisingRecommendationsAuthored  AdvisingRecommendation[]         @relation("AdvisingRecommendationAuthor")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -7248,6 +7260,10 @@ model ClassOffering {
   outcome                      ClassOutcome?
   regularInstructorAssignments RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsForOffering")
 
+  /// Leadership Roles & Contributions — lead-instructor / quality-review
+  /// contributions pointing at this offering (ENABLE_LEADERSHIP_ROLES).
+  leadershipContributions LeadershipContribution[] @relation("LeadershipContributionOffering")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -7276,6 +7292,9 @@ model Partner {
   relationshipLeadId String?
   relationshipLead   User?           @relation("PartnerRelationshipLead", fields: [relationshipLeadId], references: [id])
   classOfferings     ClassOffering[] @relation("PartnerClassOfferings")
+  /// Leadership Roles & Contributions — partner-relationship-lead contributions
+  /// pointing at this partner (ENABLE_LEADERSHIP_ROLES).
+  leadershipContributions LeadershipContribution[] @relation("LeadershipContributionPartner")
   archivedAt         DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
@@ -13502,4 +13521,255 @@ model GrowthProgressEvent {
   @@unique([userId, dedupeKey])
   @@index([userId, occurredAt])
   @@index([type])
+}
+
+// ============================================================================
+// LEADERSHIP ROLES & CONTRIBUTIONS (ENABLE_LEADERSHIP_ROLES)
+//
+// Concrete leadership/contribution roles instructors can hold beyond teaching
+// (Student Advisor, instructor mentor, curriculum reviewer, interviewer,
+// committee member, partner lead, …). Each role is a LeadershipContribution
+// row with a status lifecycle, an expected level (Senior/Lead), a weight, and
+// optional links to the student / class / partner / program it concerns.
+// Activity (notes, check-ins, completed reviews/interviews) is an append-only
+// LeadershipContributionActivity log so the work itself becomes review
+// evidence. Student Advisor is first-class: StudentAdvisorAssignment +
+// AdvisingNote + AdvisingRecommendation model the actual advising workflow,
+// and every assignment back-links to the advisor's STUDENT_ADVISOR
+// contribution so caseload work rolls up into reviews/promotions.
+//
+// Role *definitions* (default weight, level, ownership flag, examples) are a
+// code catalog in lib/leadership/constants.ts — same convention as
+// lib/growth/constants.ts — so new roles can be added without a migration;
+// the OTHER category plus the free-text `title` covers anything custom.
+// Additive only: new tables + four enums; existing tables only gain virtual
+// Prisma back-relations.
+// ============================================================================
+
+/// What kind of leadership role/contribution this is. Display metadata,
+/// default weights, and Senior/Lead expectations for each category live in
+/// lib/leadership/constants.ts.
+enum LeadershipRoleCategory {
+  STUDENT_ADVISOR
+  INSTRUCTOR_MENTOR
+  CURRICULUM_REVIEWER
+  INTERVIEWER
+  ONBOARDING_HELPER
+  CLASS_QUALITY_REVIEWER
+  STUDENT_PROJECT_MENTOR
+  INSTRUCTION_COMMITTEE
+  LEAD_INSTRUCTOR
+  PARTNER_RELATIONSHIP_LEAD
+  RECRUITMENT_LEAD
+  TRAINING_DEVELOPMENT_LEAD
+  STUDENT_SUCCESS_LEAD
+  MENTORSHIP_PROGRAM_LEAD
+  CURRICULUM_LEAD
+  INITIATIVE_OWNER
+  OTHER
+}
+
+/// Lifecycle of a contribution. SUGGESTED = admin shortlisted, instructor not
+/// yet committed; NEEDS_ATTENTION = stalled / no recent activity.
+enum LeadershipContributionStatus {
+  SUGGESTED
+  ASSIGNED
+  ACTIVE
+  COMPLETED
+  PAUSED
+  NEEDS_ATTENTION
+}
+
+/// Which promotion track this contribution counts toward.
+enum LeadershipExpectedLevel {
+  SENIOR_INSTRUCTOR
+  LEAD_INSTRUCTOR
+  EITHER
+}
+
+/// Advisor-set engagement state for an advised student.
+enum AdvisingStatus {
+  ENGAGED
+  NEEDS_ATTENTION
+  INACTIVE
+  READY_FOR_NEXT
+}
+
+/// One leadership role / contribution held by an instructor. Flexible by
+/// design: `category` + free-text `title` describe the role; the optional
+/// related* links tie it to the concrete student / class offering / partner /
+/// program it concerns when applicable.
+model LeadershipContribution {
+  id           String @id @default(cuid())
+  instructorId String
+  instructor   User   @relation("LeadershipContributionInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+
+  category    LeadershipRoleCategory
+  title       String
+  description String?                @db.Text
+
+  status        LeadershipContributionStatus @default(ASSIGNED)
+  /// Which promotion track this counts toward (Senior / Lead / either).
+  expectedLevel LeadershipExpectedLevel      @default(EITHER)
+  /// Contribution weight 1-3: 1 = light support, 2 = meaningful contribution,
+  /// 3 = major ownership. Expectation math counts weight >= 2 as meaningful.
+  weight        Int                          @default(2)
+  /// True when the role involves real ownership (committee seat, subject lead,
+  /// partner lead, initiative owner). Lead Instructor expectations require at
+  /// least one ownership contribution.
+  isOwnership   Boolean                      @default(false)
+
+  // Optional links to what the role concerns. All nullable — a curriculum
+  // reviewer links nothing; a Student Advisor's caseload lives on
+  // StudentAdvisorAssignment rows that back-link here instead.
+  relatedUserId     String?
+  relatedUser       User?          @relation("LeadershipContributionSubject", fields: [relatedUserId], references: [id], onDelete: SetNull)
+  relatedOfferingId String?
+  relatedOffering   ClassOffering? @relation("LeadershipContributionOffering", fields: [relatedOfferingId], references: [id], onDelete: SetNull)
+  relatedPartnerId  String?
+  relatedPartner    Partner?       @relation("LeadershipContributionPartner", fields: [relatedPartnerId], references: [id], onDelete: SetNull)
+  /// Free-text program / initiative name when no structured link exists.
+  relatedProgram    String?
+
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+
+  /// Standing notes / evidence summary (the running log lives in activities).
+  notes String? @db.Text
+
+  /// Admin who owns/reviews this contribution.
+  adminOwnerId String?
+  adminOwner   User?   @relation("LeadershipContributionAdminOwner", fields: [adminOwnerId], references: [id], onDelete: SetNull)
+
+  /// When true this contribution surfaces as evidence in instructor reviews.
+  reviewVisible Boolean @default(true)
+
+  createdById String?
+  createdBy   User?   @relation("LeadershipContributionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  activities         LeadershipContributionActivity[]
+  advisorAssignments StudentAdvisorAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([instructorId, status])
+  @@index([category, status])
+  @@index([status])
+  @@index([adminOwnerId])
+  @@index([relatedPartnerId])
+  @@index([relatedOfferingId])
+  @@index([relatedUserId])
+}
+
+/// Append-only activity log on a contribution — notes, check-ins, completed
+/// reviews/interviews, recommendations, status changes. `kind` is a TEXT
+/// vocabulary validated in lib/leadership/constants.ts (NOTE | CHECK_IN |
+/// FEEDBACK | INTERVIEW_COMPLETED | REVIEW_COMPLETED | RECOMMENDATION |
+/// STATUS_CHANGE | FOLLOW_UP), matching the repo's actionType convention.
+model LeadershipContributionActivity {
+  id             String                 @id @default(cuid())
+  contributionId String
+  contribution   LeadershipContribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("LeadershipContributionActivityAuthor", fields: [authorId], references: [id])
+
+  kind     String @default("NOTE")
+  body     String @db.Text
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([contributionId, createdAt])
+  @@index([authorId])
+}
+
+/// A Student Advisor's responsibility for one student. One row per
+/// (advisor, student) pair, reactivated rather than duplicated on
+/// re-assignment. Back-links to the advisor's STUDENT_ADVISOR contribution so
+/// advising work counts as leadership/review evidence.
+model StudentAdvisorAssignment {
+  id        String @id @default(cuid())
+  advisorId String
+  advisor   User   @relation("StudentAdvisorAssignmentAdvisor", fields: [advisorId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User   @relation("StudentAdvisorAssignmentStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  contributionId String?
+  contribution   LeadershipContribution? @relation(fields: [contributionId], references: [id], onDelete: SetNull)
+
+  isActive Boolean @default(true)
+
+  advisingStatus AdvisingStatus @default(ENGAGED)
+  needsFollowUp  Boolean        @default(false)
+  followUpNote   String?
+  /// Advisor-maintained "what this student needs next" summary, shown on the
+  /// student profile and admin views.
+  nextSteps      String?        @db.Text
+  lastCheckInAt  DateTime?
+
+  assignedById String?
+  assignedBy   User?   @relation("StudentAdvisorAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  startDate DateTime  @default(now())
+  endedAt   DateTime?
+
+  notes           AdvisingNote[]
+  recommendations AdvisingRecommendation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([advisorId, studentId])
+  @@index([studentId, isActive])
+  @@index([advisorId, isActive])
+  @@index([isActive, needsFollowUp])
+  @@index([isActive, advisingStatus])
+}
+
+/// Advising note or logged check-in on an assignment. `kind` is a TEXT
+/// vocabulary (NOTE | CHECK_IN) validated in lib/leadership/constants.ts.
+model AdvisingNote {
+  id           String                   @id @default(cuid())
+  assignmentId String
+  assignment   StudentAdvisorAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("AdvisingNoteAuthor", fields: [authorId], references: [id])
+
+  kind String @default("NOTE")
+  body String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([assignmentId, createdAt])
+  @@index([authorId])
+}
+
+/// Advisor recommendation of a next step for the student — a class, project,
+/// mentor, opportunity, or pathway (instructor track, leadership, …). `kind`
+/// and `status` are TEXT vocabularies validated in
+/// lib/leadership/constants.ts (kind: CLASS | PROJECT | MENTOR | OPPORTUNITY |
+/// PATHWAY; status: SUGGESTED | IN_PROGRESS | DONE | DISMISSED).
+model AdvisingRecommendation {
+  id           String                   @id @default(cuid())
+  assignmentId String
+  assignment   StudentAdvisorAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("AdvisingRecommendationAuthor", fields: [authorId], references: [id])
+
+  kind   String  @default("OPPORTUNITY")
+  title  String
+  detail String? @db.Text
+  /// Optional in-portal link (e.g. /courses/xyz) for the student to act on.
+  href   String?
+  status String  @default("SUGGESTED")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assignmentId, status])
+  @@index([authorId])
 }
