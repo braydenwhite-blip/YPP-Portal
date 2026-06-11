@@ -27,7 +27,10 @@ import {
 } from "@/lib/people-strategy/operational-digest";
 import { loadDigestInputs } from "@/lib/people-strategy/operational-digest-queries";
 import { loadPublicProfile } from "@/lib/people-strategy/public-profile";
-import { INITIATIVE_RISK_META } from "@/lib/people-strategy/strategic-initiative-health";
+import {
+  INITIATIVE_MOMENTUM_META,
+  INITIATIVE_RISK_META,
+} from "@/lib/people-strategy/strategic-initiative-health";
 import {
   classifyInitiativeWork,
   deriveInitiativeSummary,
@@ -42,11 +45,19 @@ import {
   personFootnote,
   tenureLabel,
   type Entity360,
+  type Entity360Glance,
   type Entity360MeetingRef,
   type Entity360Status,
   type Entity360Tone,
   type Entity360Type,
 } from "./entity-360";
+import {
+  deriveClassReadiness,
+  derivePartnerHealth,
+  derivePersonProfileCompleteness,
+  latestActivityISO,
+  recencyLabel,
+} from "./signals";
 import { buildUnifiedTimeline } from "./timeline";
 import {
   buildUnifiedWorkItems,
@@ -193,8 +204,10 @@ async function loadPerson360(
   if (!extra) return null;
 
   const actionLites = actions.map((a) => toActionLite(a, now));
-  const openWork = actionLites
-    .filter((a) => a.status !== "DROPPED" && a.status !== "COMPLETE")
+  const openLites = actionLites.filter(
+    (a) => a.status !== "DROPPED" && a.status !== "COMPLETE"
+  );
+  const openWork = openLites
     .map(workItemFromAction)
     .slice(0, DRAWER_LIMITS.workItems);
   const completedActions = actionLites
@@ -206,6 +219,22 @@ async function loadPerson360(
       completedAt: a.completedISO as string,
       href: a.href,
     }));
+  const overdueCount = openLites.filter((a) => a.overdue).length;
+  const lastActivity = latestActivityISO([
+    completedActions[0]?.completedAt,
+    meetings[0]?.date,
+    extra.classOfferingsInstructed[0]?.startDate,
+  ]);
+  const glance: Entity360Glance[] = [
+    { label: "Open work", value: String(openLites.length) },
+    ...(overdueCount > 0
+      ? [{ label: "Overdue", value: String(overdueCount), tone: "overdue" as const }]
+      : []),
+    { label: "Classes", value: String(extra.classOfferingsInstructed.length) },
+    ...(officer ? [{ label: "Meetings", value: String(meetings.length) }] : []),
+    { label: "Mentees", value: String(profile.mentees.length) },
+    { label: "Last activity", value: recencyLabel(lastActivity, now) },
+  ];
 
   const facts: Entity360["facts"] = [];
   facts.push({ label: "Email", value: profile.email, href: `mailto:${profile.email}` });
@@ -216,6 +245,20 @@ async function loadPerson360(
   }
   if (profile.location) facts.push({ label: "Location", value: profile.location });
   if (profile.chapterName) facts.push({ label: "Chapter", value: profile.chapterName });
+  const completeness = derivePersonProfileCompleteness({
+    hasBio: Boolean(profile.bio),
+    hasAvatar: Boolean(profile.avatarUrl),
+    hasPhone: Boolean(profile.phone),
+    hasSchool: Boolean(profile.school),
+    hasLocation: Boolean(profile.location),
+    hasChapter: Boolean(profile.chapterName),
+  });
+  if (completeness.percent < 100) {
+    facts.push({
+      label: "Profile",
+      value: `${completeness.percent}% complete · missing ${completeness.missing.join(", ")}`,
+    });
+  }
 
   const people: Entity360["people"] = [
     ...profile.mentors.map((p) => ({
@@ -274,6 +317,7 @@ async function loadPerson360(
     initials: entityInitials(profile.name),
     avatarUrl: profile.avatarUrl,
     pageHref: `/people/${id}`,
+    glance,
     facts,
     people,
     classes: extra.classOfferingsInstructed.map((c) => ({
@@ -357,18 +401,31 @@ async function loadClass360(
   const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
   const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
 
+  // Readiness is THE shared judgment (signals.ts) — the same rule the
+  // needs-attention engine uses, so the panel and the queue always agree.
+  const readiness = deriveClassReadiness(
+    {
+      status: offering.status,
+      startDate: offering.startDate,
+      endDate: offering.endDate,
+      hasInstructor: offering.instructor != null,
+      sessionCount: offering._count.sessions,
+      enrolledCount: offering._count.enrollments,
+    },
+    now
+  );
+  const overdueHere = actionLites.filter(
+    (a) => a.overdue && a.status !== "COMPLETE" && a.status !== "DROPPED"
+  ).length;
   const risks: string[] = [];
-  const upcomingOrRunning =
-    offering.status !== "CANCELLED" &&
-    offering.status !== "COMPLETED" &&
-    offering.endDate.getTime() >= now.getTime();
-  if (upcomingOrRunning) {
-    if (offering._count.sessions === 0) risks.push("No sessions are scheduled yet.");
-    if (offering._count.enrollments === 0) risks.push("No students are enrolled yet.");
-    if (offering.status === "DRAFT") risks.push("Still in draft — not visible to students.");
+  if (overdueHere > 0) {
+    risks.push(`${overdueHere} linked action${overdueHere === 1 ? " is" : "s are"} overdue.`);
   }
 
   const students = offering._count.enrollments;
+  const openHere = actionLites.filter(
+    (a) => a.status !== "COMPLETE" && a.status !== "DROPPED"
+  ).length;
   return {
     type: "class",
     id,
@@ -382,6 +439,26 @@ async function loadClass360(
     initials: entityInitials(offering.title),
     avatarUrl: null,
     pageHref: `/admin/classes/${id}`,
+    signal: readiness
+      ? {
+          label: `Readiness: ${readiness.label}`,
+          tone: readiness.tone,
+          detail:
+            readiness.missing.length > 0
+              ? `Missing: ${readiness.missing.join(", ")}`
+              : null,
+        }
+      : null,
+    glance: [
+      { label: "Sessions", value: String(offering._count.sessions) },
+      { label: "Students", value: `${students} / ${offering.capacity}` },
+      {
+        label: "Open work",
+        value: String(openHere),
+        ...(overdueHere > 0 ? { tone: "overdue" as const } : {}),
+      },
+      { label: "Meetings", value: String(meetingDtos.length) },
+    ],
     facts: [
       { label: "Dates", value: `${fmtDate(offering.startDate)} – ${fmtDate(offering.endDate)}` },
       {
@@ -389,8 +466,6 @@ async function loadClass360(
         value: [offering.meetingDays.join("/"), offering.meetingTime].filter(Boolean).join(" · ") || "Not set",
       },
       { label: "Delivery", value: offering.deliveryMode },
-      { label: "Sessions", value: String(offering._count.sessions) },
-      { label: "Enrollment", value: `${students} / ${offering.capacity}` },
       ...(offering.chapter ? [{ label: "Chapter", value: offering.chapter.name }] : []),
       ...(offering.partner ? [{ label: "Partner", value: offering.partner.name }] : []),
     ],
@@ -473,15 +548,23 @@ async function loadPartner360(
   const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
   const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
 
-  const risks: string[] = [];
-  const activeStage =
-    partner.stage != null &&
-    !["NOT_STARTED", "CLOSED", "DECLINED", "ARCHIVED"].includes(partner.stage);
-  if (activeStage && partner.nextFollowUpAt && partner.nextFollowUpAt.getTime() < now.getTime()) {
-    risks.push(`The planned follow-up (${fmtDate(partner.nextFollowUpAt)}) never happened.`);
-  } else if (activeStage && !partner.nextFollowUpAt) {
-    risks.push("No next step is scheduled for this relationship.");
-  }
+  // Relationship health is THE shared judgment (signals.ts) — same rule as the
+  // needs-attention engine, fed with this partner's live tracker counts.
+  const openHere = actionLites.filter(
+    (a) => a.status !== "COMPLETE" && a.status !== "DROPPED"
+  );
+  const health = derivePartnerHealth(
+    {
+      stage: partner.stage,
+      nextFollowUpAt: partner.nextFollowUpAt,
+      lastContactedAt: partner.lastContactedAt,
+      openActions: openHere.length,
+      overdueActions: openHere.filter((a) => a.overdue).length,
+    },
+    now
+  );
+  const activeStage = health != null;
+  const risks = health?.reasons ?? [];
 
   const timeline = buildUnifiedTimeline({
     actions: actionLites,
@@ -529,6 +612,25 @@ async function loadPartner360(
     initials: entityInitials(partner.name),
     avatarUrl: null,
     pageHref: `/admin/partners/${id}`,
+    signal: health
+      ? {
+          label: health.label,
+          tone: health.tone,
+          detail: health.reasons.length > 0 ? health.reasons.join(" · ") : null,
+        }
+      : null,
+    glance: [
+      { label: "Open work", value: String(openHere.length) },
+      { label: "Meetings", value: String(meetingDtos.length) },
+      { label: "Classes", value: String(partner.classOfferings.length) },
+      {
+        label: "Last contact",
+        value: recencyLabel(
+          partner.lastContactedAt ? partner.lastContactedAt.toISOString() : null,
+          now
+        ),
+      },
+    ],
     facts: [
       ...(partner.contactName
         ? [
@@ -631,10 +733,29 @@ async function loadInitiative360(
       label: summary.health.label,
       tone: INITIATIVE_HEALTH_TONE[summary.health.level] ?? "neutral",
     },
-    meta: `${summary.progress.percent}% of tracked work complete · ${summary.counts.openActions} open action${summary.counts.openActions === 1 ? "" : "s"}`,
+    meta: `${summary.progress.percent}% of tracked work complete`,
     initials: entityInitials(summary.title),
     avatarUrl: null,
     pageHref: summary.href,
+    // Momentum comes straight from the initiative engine — never re-derived.
+    signal: {
+      label: `Momentum: ${INITIATIVE_MOMENTUM_META[summary.momentum.level].label}`,
+      tone: INITIATIVE_MOMENTUM_META[summary.momentum.level].tone,
+      detail: summary.momentum.reasons[0] ?? null,
+    },
+    glance: [
+      { label: "Progress", value: `${summary.progress.percent}%` },
+      {
+        label: "Open work",
+        value: String(summary.counts.openActions),
+        ...(summary.counts.overdueActions > 0 ? { tone: "overdue" as const } : {}),
+      },
+      { label: "Meetings", value: String(summary.counts.meetingCount) },
+      {
+        label: "Milestones",
+        value: `${summary.counts.milestonesComplete}/${summary.counts.milestonesTotal}`,
+      },
+    ],
     facts: [
       { label: "Area", value: summary.areaLabel },
       { label: "Status", value: summary.statusLabel },
@@ -643,10 +764,6 @@ async function loadInitiative360(
       ...(summary.targetDateISO
         ? [{ label: "Target", value: fmtDate(new Date(summary.targetDateISO)) }]
         : []),
-      {
-        label: "Milestones",
-        value: `${summary.counts.milestonesComplete} of ${summary.counts.milestonesTotal} complete`,
-      },
       { label: "Risk", value: INITIATIVE_RISK_META[summary.risk.level].label },
     ],
     people: summary.ownership.topLeads.slice(0, 4).map((lead) => ({
@@ -738,6 +855,16 @@ async function loadMeeting360(
     initials: entityInitials(dto.title),
     avatarUrl: null,
     pageHref: `/actions/meetings/${id}`,
+    glance: [
+      { label: "Decisions", value: String(dto.decisionCount) },
+      {
+        label: "Open follow-ups",
+        value: String(dto.openFollowUps),
+        ...(dto.overdueFollowUps > 0 ? { tone: "overdue" as const } : {}),
+      },
+      { label: "Actions created", value: String(dto.linkedActionCount) },
+      { label: "Attendees", value: String(dto.attendeeCount) },
+    ],
     facts: [
       { label: "Date", value: fmtDate(new Date(dto.startISO)) },
       { label: "Category", value: dto.categoryLabel },
@@ -746,15 +873,6 @@ async function loadMeeting360(
         ? [{ label: "Repeats", value: dto.recurrence.toLowerCase() }]
         : []),
       ...(related ? [{ label: related.typeLabel, value: related.label }] : []),
-      {
-        label: "Output",
-        value:
-          meetingOutcomeLine({
-            decisionCount: dto.decisionCount,
-            linkedActionCount: dto.linkedActionCount,
-            openFollowUps: dto.openFollowUps,
-          }) ?? "No decisions or actions yet",
-      },
     ],
     people: [
       ...(dto.facilitator

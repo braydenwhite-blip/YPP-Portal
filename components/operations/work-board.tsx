@@ -47,6 +47,13 @@ function WorkItemCard({ item }: { item: WorkItem }) {
   const relatedDrawerType = item.relatedType
     ? RELATED_TO_ENTITY_360[item.relatedType]
     : undefined;
+  // Actions peek open in their 360 panel; an unconverted follow-up opens its
+  // source meeting's panel. Modifier clicks still hit the full page.
+  const titleDrawerType = item.kind === "action" ? ("action" as const) : ("meeting" as const);
+  const titleDrawerId =
+    item.kind === "action"
+      ? item.id.replace(/^action:/, "")
+      : (item.href.split("/").pop() ?? null);
   return (
     <div
       className="card ps-action-card"
@@ -60,7 +67,9 @@ function WorkItemCard({ item }: { item: WorkItem }) {
           alignItems: "baseline",
         }}
       >
-        <Link
+        <EntityLink
+          type={titleDrawerType}
+          id={titleDrawerId}
           href={item.href}
           style={{
             fontSize: 13,
@@ -68,12 +77,11 @@ function WorkItemCard({ item }: { item: WorkItem }) {
             lineHeight: 1.35,
             minWidth: 0,
             color: "inherit",
-            textDecoration: "none",
             overflowWrap: "anywhere",
           }}
         >
           {item.title}
-        </Link>
+        </EntityLink>
         <Pill tone={WORK_TONE[item.tone]}>{item.status}</Pill>
       </div>
       <div

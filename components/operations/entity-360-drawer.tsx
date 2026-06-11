@@ -4,7 +4,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { ProfileDrawerContext } from "@/components/people-strategy/profile-drawer-context";
 import { Pill, type PillTone } from "@/components/people-strategy/pills";
@@ -66,8 +73,10 @@ export function Entity360Provider({ children }: { children: ReactNode }) {
       <ProfileDrawerContext.Provider value={profileApi}>
         {children}
         {top ? (
+          // Deliberately un-keyed: the panel stays mounted while the stack
+          // navigates, so the slide-in plays once and Back/forward swap
+          // content (with the skeleton) instead of replaying the animation.
           <Entity360Panel
-            key={`${top.type}:${top.id}`}
             type={top.type}
             id={top.id}
             canGoBack={stack.length > 1}
@@ -104,6 +113,12 @@ function Entity360Panel({
 }) {
   const [entity, setEntity] = useState<Entity360 | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
+
+  // Move keyboard focus into the dialog when it opens (screen readers + Esc).
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -146,10 +161,13 @@ function Entity360Panel({
     <>
       <div className="e360-backdrop" onClick={onClose} />
       <aside
+        ref={panelRef}
+        tabIndex={-1}
         className="e360-panel"
         role="dialog"
         aria-modal="true"
         aria-label={entity ? `${entity.typeLabel}: ${entity.title}` : "Details"}
+        style={{ outline: "none" }}
       >
         <header className="e360-header">
           <div className="e360-header-top">
@@ -210,7 +228,12 @@ function Entity360Panel({
         {error ? (
           <p className="e360-error">{error}</p>
         ) : !entity ? (
-          <p className="e360-loading">Loading…</p>
+          <div className="e360-body" aria-busy="true" aria-label="Loading">
+            <div className="e360-skeleton" style={{ height: 64 }} />
+            <div className="e360-skeleton" style={{ height: 96 }} />
+            <div className="e360-skeleton" style={{ height: 44 }} />
+            <div className="e360-skeleton" style={{ height: 120 }} />
+          </div>
         ) : (
           <Entity360Body entity={entity} />
         )}

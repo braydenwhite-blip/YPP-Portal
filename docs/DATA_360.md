@@ -27,11 +27,32 @@ only ones that touch Prisma.
 | --- | --- |
 | `work-items.ts` | The unified **Work Item**: folds tracker actions and unconverted meeting follow-ups into one shape, and groups them into mutually-exclusive board lanes (overdue → blocked → needs owner → due soon → in progress → not started → done recently). |
 | `timeline.ts` | The unified **timeline**: meetings, decisions, actions created/completed (plus person-story kinds: joined, mentorship, class, role, note) as one filterable, day-groupable event stream. |
-| `attention.ts` | The **needs-attention engine**: wraps the digest's ranked review queue and adds cross-domain signals — partners with no/overdue next step, applicants stuck in review, mentorships gone quiet, classes starting without setup. Every item carries a plain-language "why it matters". |
-| `metrics.ts` | The **executive snapshot**: one ordered strip of org-wide numbers (work, meetings, initiatives, classes, applicants, partners, mentorships) with calm-by-default tones. |
-| `entity-360.ts` | The universal **Entity 360** payload type (one shape for all six entity types) plus pure helpers: initials, tenure, footnotes, person-story timeline, next-step selection. |
-| `entity-360-queries.ts` | Per-type 360 loaders (person, class, partner, initiative, meeting, action) composing the existing query helpers. Authorization lives here (see below). |
-| `data-360-queries.ts` | The Data 360 page loader: one digest pool read + four cheap cross-domain queries → snapshot, attention queue, work board, timeline, connected-data explorer. |
+| `signals.ts` | The derived **judgment calls**, made exactly once: class readiness (ready / almost / needs setup / at risk, with the missing-setup list), partner health (healthy / needs follow-up / stalled / at risk, with reasons), person profile completeness, recency labels, and **Today's Brief** (the org's state as plain sentences, worst first). The attention engine and the 360 drawers both read from here, so they can never disagree. |
+| `attention.ts` | The **needs-attention engine**: wraps the digest's ranked review queue and adds cross-domain signals — partners with no/overdue next step, applicants stuck in review, mentorships gone quiet, classes failing the shared readiness rule. Every item carries a plain-language "why it matters", a **suggested next step**, an age label, a related-entity chip, and a **category** (urgent / missing owner / missing next step / stalled / upcoming risk / data incomplete) the queue groups by. |
+| `metrics.ts` | The **executive snapshot**: org-wide numbers grouped by theme (Work · Meetings & decisions · Programs & people) with calm-by-default tones. |
+| `quick-find.ts` | **Quick Find** ranking: pure client-side filtering over the page's loaded index (prefix > word-start > substring). |
+| `entity-360.ts` | The universal **Entity 360** payload type — now including the derived `signal` (readiness / health / momentum chip) and the `glance` stat row — plus pure helpers: initials, tenure, footnotes, person-story timeline, next-step selection. |
+| `entity-360-queries.ts` | Per-type 360 loaders (person, class, partner, initiative, meeting, action) composing the existing query helpers and the `signals.ts` judgments. Initiative momentum comes straight from the strategic-initiative engine — never re-derived. Authorization lives here (see below). |
+| `data-360-queries.ts` | The Data 360 page loader: one digest pool read + four cheap cross-domain queries → Today's Brief, snapshot, attention queue, work board, timeline, the enriched explorer (owner, last activity, next step per entity), and the Quick Find index. |
+
+### Entity-specific panel emphasis
+
+All six panels render through ONE body component; emphasis comes from what
+each loader fills in:
+
+- **Person** — identity facts (+ profile completeness when incomplete), glance
+  (open/overdue work, classes, meetings, mentees, last activity), mentor/mentee
+  clusters, story timeline, visibility footer.
+- **Class** — readiness signal with the missing-setup list, glance (sessions,
+  students, open work, meetings), instructor, schedule facts.
+- **Partner** — relationship-health signal with reasons, glance (open work,
+  meetings, classes, last contact), contact facts, pipeline-note timeline.
+- **Initiative** — momentum signal (from the initiative engine), glance
+  (progress, open work, meetings, milestones), risk factors, matched work.
+- **Meeting** — glance (decisions, open follow-ups, actions created,
+  attendees), unconverted follow-ups as work items with "Track as action".
+- **Action** — owner/executing/input people, source, blockers, comment
+  timeline.
 
 ## The universal 360 drawer
 
@@ -60,6 +81,29 @@ only ones that touch Prisma.
 - **class / partner / initiative / meeting** — officer-tier only; loaders
   return null (the route 404s) so existence never leaks.
 
+## Where the drawer is wired into existing trackers
+
+- **Action tracker** — `ActionCard` (My Actions + All Actions): the title opens
+  the Action 360 panel, the Lead opens their person panel, the related-entity
+  badge opens the linked class/partner/person panel; "Open →" keeps the full
+  page one click away. The card is a container, never one big link, so nothing
+  nests anchors.
+- **Meetings tracker** — `MeetingCard`: the title opens the Meeting 360 panel
+  for a quick peek (decisions, follow-ups, "Track as action"); the footer
+  "Open →" goes to the full meeting workspace where capture happens.
+- **Initiatives** — `InitiativeMiniRow` (Command Center / dashboard surfaces)
+  opens the Initiative 360 panel; the full `InitiativeCard` on
+  `/operations/initiatives` still navigates to the initiative command center.
+- **Command Center** — entity-health cards open their panels.
+- **Admin lists** — partner names (`/admin/partners`) and class titles
+  (`/admin/classes`) open their panels.
+- Everywhere a person's name renders through `PersonLink`, the person panel
+  opens — no per-page wiring.
+
+In every case a plain left-click peeks, and modifier/middle clicks (and
+no-provider contexts) navigate to the full page. The drawer enhances
+navigation; it never replaces a route.
+
 ## Extending to a new entity type
 
 1. Add the type to `ENTITY_360_TYPES` in `lib/operations/entity-360.ts`.
@@ -68,3 +112,19 @@ only ones that touch Prisma.
 3. Add its page fallback in `entity-link.tsx`'s `DEFAULT_HREF`.
 
 No drawer, API, or body changes needed — that is the point of the pattern.
+
+## Known limitations / recommended next pass
+
+- **Quick Find is page-local.** It filters what the Data 360 page loaded — it
+  is not a portal-wide search. A global command palette (⌘K) backed by a
+  search endpoint is the natural next step.
+- **Class readiness can't see curriculum yet.** The signal reads instructor /
+  sessions / publication / enrollment; wiring in curriculum-draft state would
+  complete the "missing: curriculum" story.
+- **Mentorship and applicant entities have no 360 panel** — they keep their
+  dedicated surfaces. Both fit the three-step recipe above.
+- **Quick actions in the drawer are read-only links.** Inline mutations
+  (reassign owner, complete follow-up) would need the existing server actions
+  threaded into the panel — doable, deliberately out of scope so far.
+- The work board lanes cap at 5 visible items with an overflow link; a
+  "show all" expansion per lane is a small follow-up.

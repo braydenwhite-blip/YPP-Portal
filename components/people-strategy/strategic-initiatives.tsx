@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { EntityLink } from "@/components/operations/entity-link";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import {
   INITIATIVE_HEALTH_META,
@@ -255,13 +256,16 @@ export function InitiativeCardGrid({
 export function InitiativeMiniRow({ initiative, note }: { initiative: InitiativeSummary; note?: string }) {
   const i = initiative;
   return (
-    <Link
+    // Quick peek: opens the Initiative 360 panel in place; modifier clicks
+    // still navigate to the full initiative command center.
+    <EntityLink
+      type="initiative"
+      id={i.id}
       href={i.href}
       className="card cc-focusable"
       style={{
         display: "block",
         padding: "10px 14px",
-        textDecoration: "none",
         color: "inherit",
         borderLeft: `3px solid ${healthBorder(i.health)}`,
       }}
@@ -273,7 +277,7 @@ export function InitiativeMiniRow({ initiative, note }: { initiative: Initiative
       <div style={{ marginTop: 4, fontSize: 12, color: "var(--text-secondary)" }}>
         {note ?? i.healthExplanation.headline}
       </div>
-    </Link>
+    </EntityLink>
   );
 }
 

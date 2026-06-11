@@ -7,6 +7,7 @@ import {
   isOperationsHubEnabled,
 } from "@/lib/feature-flags";
 import { loadData360 } from "@/lib/operations/data-360-queries";
+import { METRIC_GROUPS, METRIC_GROUP_LABELS } from "@/lib/operations/metrics";
 import { countOpenWorkItems } from "@/lib/operations/work-items";
 import { StatCard } from "@/components/people-strategy/stat-card";
 import type { PsIconName } from "@/components/people-strategy/ps-icons";
@@ -17,6 +18,7 @@ import {
 import { StrategicWorkspaceHeader } from "@/components/people-strategy/strategic-workspace-nav";
 import { ConnectedExplorer } from "@/components/operations/connected-explorer";
 import { NeedsAttentionQueue } from "@/components/operations/needs-attention-list";
+import { QuickFind } from "@/components/operations/quick-find";
 import { UnifiedTimeline } from "@/components/operations/unified-timeline";
 import { UnifiedWorkBoard } from "@/components/operations/work-board";
 
@@ -81,20 +83,98 @@ export default async function Data360Page() {
       />
 
       <div className="ps-stack" style={{ marginTop: 18, display: "grid", gap: 26 }}>
-        {/* A. Executive snapshot — the whole org in one strip. */}
+        {/* Today's Brief + Quick Find — the 10-second read, then the way in. */}
+        <section
+          className="card"
+          style={{
+            padding: "18px 20px",
+            display: "grid",
+            gap: 14,
+            background:
+              "linear-gradient(135deg, var(--bg-2, #faf7ff) 0%, var(--surface, #fff) 60%)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ minWidth: 0, flex: "1 1 320px" }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  color: "var(--ypp-purple-600, #6b21c8)",
+                }}
+              >
+                Today&rsquo;s Brief
+              </h2>
+              <ul
+                style={{
+                  margin: "8px 0 0",
+                  padding: 0,
+                  listStyle: "none",
+                  display: "grid",
+                  gap: 4,
+                }}
+              >
+                {data.brief.map((line) => (
+                  <li
+                    key={line}
+                    style={{ fontSize: 13.5, lineHeight: 1.5, color: "var(--ypp-ink, #1a0533)" }}
+                  >
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <QuickFind entries={data.quickFind} />
+          </div>
+        </section>
+
+        {/* A. Executive snapshot — the whole org, grouped by theme. */}
         <CommandCenterSection title="Executive snapshot" hint="The whole org at a glance">
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {data.snapshot.map((metric) => (
-              <StatCard
-                key={metric.key}
-                label={metric.label}
-                value={metric.value}
-                tone={metric.tone}
-                icon={METRIC_ICON[metric.key]}
-                hint={metric.hint ?? undefined}
-                href={metric.href ?? undefined}
-              />
-            ))}
+          <div style={{ display: "grid", gap: 14 }}>
+            {METRIC_GROUPS.map((group) => {
+              const metrics = data.snapshot.filter((m) => m.group === group);
+              if (metrics.length === 0) return null;
+              return (
+                <div key={group}>
+                  <p
+                    style={{
+                      margin: "0 0 6px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.4,
+                      color: "var(--muted)",
+                    }}
+                  >
+                    {METRIC_GROUP_LABELS[group]}
+                  </p>
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    {metrics.map((metric) => (
+                      <StatCard
+                        key={metric.key}
+                        label={metric.label}
+                        value={metric.value}
+                        tone={metric.tone}
+                        icon={METRIC_ICON[metric.key]}
+                        hint={metric.hint ?? undefined}
+                        href={metric.href ?? undefined}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </CommandCenterSection>
 

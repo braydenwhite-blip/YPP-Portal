@@ -94,6 +94,24 @@ export type Entity360MeetingRef = {
   upcoming: boolean;
 };
 
+/** One compact stat in the "At a glance" row under the header. */
+export type Entity360Glance = {
+  label: string;
+  value: string;
+  tone?: Entity360Tone;
+};
+
+/**
+ * A derived readiness/health/momentum read (from `signals.ts` or the
+ * initiative engine), rendered as a prominent chip with its reasons.
+ */
+export type Entity360Signal = {
+  label: string;
+  tone: Entity360Tone;
+  /** What's behind the read — missing setup items, health reasons. */
+  detail: string | null;
+};
+
 export type Entity360 = {
   type: Entity360Type;
   id: string;
@@ -110,6 +128,10 @@ export type Entity360 = {
   avatarUrl: string | null;
   /** "Open full page" target, when a stable page exists. */
   pageHref: string | null;
+  /** Derived readiness/health read, shown prominently under the header. */
+  signal?: Entity360Signal | null;
+  /** Compact "At a glance" stats row. */
+  glance?: Entity360Glance[];
   facts: Entity360Fact[];
   people: Entity360Person[];
   classes: Entity360ClassRef[];

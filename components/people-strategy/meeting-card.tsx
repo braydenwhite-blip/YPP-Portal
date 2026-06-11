@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
+import { EntityLink } from "@/components/operations/entity-link";
+import { PersonLink } from "@/components/people-strategy/person-link";
 import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
 import { meetingCategoryTone } from "@/lib/people-strategy/meeting-categories";
 import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
@@ -67,10 +69,9 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
   };
 
   return (
-    <Link
-      href={`/actions/meetings/${m.id}`}
+    <div
       className="mtg-card-link"
-      style={{ textDecoration: "none", color: "inherit", display: "block" }}
+      style={{ color: "inherit", display: "block" }}
     >
       <div
         className="mtg-card"
@@ -99,18 +100,20 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
               </Pill>
             )}
           </div>
-          {/* title */}
+          {/* title — opens the Meeting 360 panel in place; modifier clicks
+              still navigate to the full meeting workspace. */}
           <h3
             style={{
               margin: 0,
               fontSize: 16.5,
               fontWeight: 800,
-              color: "var(--ypp-ink)",
               letterSpacing: "-.01em",
               lineHeight: 1.25,
             }}
           >
-            {m.title}
+            <EntityLink type="meeting" id={m.id} style={{ color: "var(--ypp-ink)" }}>
+              {m.title}
+            </EntityLink>
           </h3>
           {/* time meta */}
           <div
@@ -153,9 +156,12 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
               <>
                 <Avatar name={m.facilitator.name} size={26} />
                 <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ypp-ink)", whiteSpace: "nowrap" }}>
+                  <PersonLink
+                    id={m.facilitator.id}
+                    style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ypp-ink)", whiteSpace: "nowrap" }}
+                  >
                     {m.facilitator.name.split(" ")[0]}
-                  </span>
+                  </PersonLink>
                   <span style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>Facilitator</span>
                 </span>
               </>
@@ -171,10 +177,22 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
             <StatChip icon="list" value={`${m.agendaDoneCount}/${m.agendaCount}`} label="" />
             <StatChip icon="bolt" value={m.openLinkedActions} label="" />
             <StatChip icon="flag" value={m.openFollowUps} label="" danger={m.overdueFollowUps > 0} />
+            <Link
+              href={`/actions/meetings/${m.id}`}
+              style={{
+                fontSize: 12.5,
+                fontWeight: 700,
+                color: "var(--ypp-purple-600, #6b21c8)",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Open →
+            </Link>
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
