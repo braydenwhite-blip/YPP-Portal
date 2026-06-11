@@ -1,4 +1,7 @@
 import "./globals.css";
+// Design System 2.0 (Tailwind v4, no preflight) — must load AFTER globals.css
+// so ui-v2 utilities win on source order during the hybrid period.
+import "./ui-v2.css";
 import type { Metadata, Viewport } from "next";
 import { Inter, EB_Garamond } from "next/font/google";
 

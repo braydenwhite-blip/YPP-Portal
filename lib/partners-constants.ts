@@ -296,3 +296,89 @@ export function summarizePartnerPipeline(
 
   return { total: partners.length, active, won, parked, stuck, byStage, byPriority };
 }
+
+// --- Partner Relationship Operations vocabularies (Knowledge OS V2) ----------
+// PartnerContact.role, PartnerRequest.status, PartnerAgreement.kind/status and
+// PartnerAgreementCondition.status are TEXT columns; these are their canonical
+// values, following the same convention as PARTNER_STAGES above.
+
+export const PARTNER_CONTACT_ROLES = [
+  "DECISION_MAKER",
+  "DAY_TO_DAY",
+  "BILLING",
+  "OTHER",
+] as const;
+export type PartnerContactRole = (typeof PARTNER_CONTACT_ROLES)[number];
+
+export const PARTNER_CONTACT_ROLE_LABELS: Record<PartnerContactRole, string> = {
+  DECISION_MAKER: "Decision maker",
+  DAY_TO_DAY: "Day-to-day contact",
+  BILLING: "Billing",
+  OTHER: "Other",
+};
+
+export const PARTNER_REQUEST_STATUSES = [
+  "OPEN",
+  "IN_NEGOTIATION",
+  "AGREED",
+  "DECLINED",
+  "FULFILLED",
+  "EXPIRED",
+] as const;
+export type PartnerRequestStatus = (typeof PARTNER_REQUEST_STATUSES)[number];
+
+export const PARTNER_REQUEST_STATUS_LABELS: Record<PartnerRequestStatus, string> = {
+  OPEN: "Open",
+  IN_NEGOTIATION: "In negotiation",
+  AGREED: "Agreed",
+  DECLINED: "Declined",
+  FULFILLED: "Fulfilled",
+  EXPIRED: "Expired",
+};
+
+/** Request statuses that count as "open partner asks" on dashboards/search. */
+export const PARTNER_REQUEST_OPEN_STATUSES: readonly PartnerRequestStatus[] = [
+  "OPEN",
+  "IN_NEGOTIATION",
+];
+
+export const PARTNER_AGREEMENT_KINDS = ["MOU", "CONTRACT", "INFORMAL"] as const;
+export type PartnerAgreementKind = (typeof PARTNER_AGREEMENT_KINDS)[number];
+
+export const PARTNER_AGREEMENT_KIND_LABELS: Record<PartnerAgreementKind, string> = {
+  MOU: "MOU",
+  CONTRACT: "Contract",
+  INFORMAL: "Informal agreement",
+};
+
+export const PARTNER_AGREEMENT_STATUSES = [
+  "DRAFT",
+  "SENT",
+  "SIGNED",
+  "EXPIRED",
+  "TERMINATED",
+] as const;
+export type PartnerAgreementStatus = (typeof PARTNER_AGREEMENT_STATUSES)[number];
+
+export const PARTNER_AGREEMENT_STATUS_LABELS: Record<PartnerAgreementStatus, string> = {
+  DRAFT: "Draft",
+  SENT: "Sent",
+  SIGNED: "Signed",
+  EXPIRED: "Expired",
+  TERMINATED: "Terminated",
+};
+
+export const PARTNER_CONDITION_STATUSES = [
+  "PENDING",
+  "SATISFIED",
+  "WAIVED",
+  "FAILED",
+] as const;
+export type PartnerConditionStatus = (typeof PARTNER_CONDITION_STATUSES)[number];
+
+export const PARTNER_CONDITION_STATUS_LABELS: Record<PartnerConditionStatus, string> = {
+  PENDING: "Pending",
+  SATISFIED: "Satisfied",
+  WAIVED: "Waived",
+  FAILED: "Failed",
+};

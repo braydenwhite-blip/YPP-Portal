@@ -274,7 +274,10 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toContain("/");
     expect(visibleHrefs).toContain("/messages");
     expect(visibleHrefs).toContain("/notifications");
-    expect(visibleHrefs).not.toContain("/admin");
+    // Knowledge OS V2: /admin is the universal admin home, so it stays
+    // visible even for a subtype-less admin (the page itself filters
+    // domain links by access).
+    expect(visibleHrefs).toContain("/admin");
     expect(visibleHrefs).not.toContain("/my-mentor");
     expect(visibleHrefs).not.toContain("/my-program");
     expect(visibleHrefs).not.toContain("/admin/instructor-applicants");

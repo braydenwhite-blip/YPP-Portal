@@ -7333,6 +7333,14 @@ model Partner {
   outcome               String?       @db.Text
   pipelineNotes         PartnerNote[]
 
+  // --- Partner Relationship Operations (Knowledge OS V2, Phase 1) ------------
+  // Structured contacts, requests/negotiations, and agreements/conditions so
+  // partner records support real relationship work, not contact cards.
+  // (docs/ypp-organizational-knowledge-os-master-plan.md §10/§23.)
+  contacts   PartnerContact[]
+  requests   PartnerRequest[]
+  agreements PartnerAgreement[]
+
   @@index([relationshipLeadId])
   @@index([archivedAt])
   @@index([stage])
@@ -7354,6 +7362,91 @@ model PartnerNote {
   createdAt DateTime @default(now())
 
   @@index([partnerId, createdAt])
+}
+
+/// A named contact at a partner organization (Knowledge OS V2). Replaces the
+/// single contactName/contactEmail strings on Partner over time. `userId`
+/// optionally links to a portal account; user refs are FK-less per the repo's
+/// loosely-coupled-reference convention (see PartnerNote).
+model PartnerContact {
+  id        String   @id @default(cuid())
+  partnerId String
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  name      String
+  title     String?
+  email     String?
+  phone     String?
+  /// Relationship role: DECISION_MAKER | DAY_TO_DAY | BILLING | OTHER
+  /// (TEXT vocabulary, validated in lib/partners-constants.ts).
+  role      String?
+  isPrimary Boolean  @default(false)
+  userId    String?
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerId, isPrimary])
+}
+
+/// A structured partner ask ("3 instructors for summer camp by June") with a
+/// negotiation lifecycle. `status` is a TEXT vocabulary validated in
+/// lib/partners-constants.ts: OPEN | IN_NEGOTIATION | AGREED | DECLINED |
+/// FULFILLED | EXPIRED. ownerId/createdById are FK-less user references.
+model PartnerRequest {
+  id          String    @id @default(cuid())
+  partnerId   String
+  partner     Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  title       String
+  details     String?   @db.Text
+  status      String    @default("OPEN")
+  ownerId     String?
+  dueAt       DateTime?
+  resolvedAt  DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([partnerId, status])
+  @@index([status, dueAt])
+}
+
+/// An MOU / contract / informal agreement with a partner. `kind` (MOU |
+/// CONTRACT | INFORMAL) and `status` (DRAFT | SENT | SIGNED | EXPIRED |
+/// TERMINATED) are TEXT vocabularies validated in lib/partners-constants.ts.
+model PartnerAgreement {
+  id            String    @id @default(cuid())
+  partnerId     String
+  partner       Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  kind          String    @default("MOU")
+  status        String    @default("DRAFT")
+  title         String
+  effectiveAt   DateTime?
+  expiresAt     DateTime?
+  renewalNoteAt DateTime?
+  terms         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  conditions PartnerAgreementCondition[]
+
+  @@index([partnerId, status])
+}
+
+/// One condition on an agreement ("background checks for all instructors"),
+/// tracked to completion. `status`: PENDING | SATISFIED | WAIVED | FAILED
+/// (TEXT vocabulary, validated in lib/partners-constants.ts).
+model PartnerAgreementCondition {
+  id          String           @id @default(cuid())
+  agreementId String
+  agreement   PartnerAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  description String           @db.Text
+  status      String           @default("PENDING")
+  dueAt       DateTime?
+  satisfiedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([agreementId, status])
 }
 
 enum ClassOfferingTimelineKind {
@@ -13708,6 +13801,10 @@ model StudentAdvisorAssignment {
   /// student profile and admin views.
   nextSteps      String?        @db.Text
   lastCheckInAt  DateTime?
+  /// Knowledge OS V2 — check-in scheduling so "check-in overdue" is a stored,
+  /// queryable fact instead of a reactive lastCheckInAt read (plan §12).
+  checkInCadenceDays Int       @default(14)
+  nextCheckInDueAt   DateTime?
 
   assignedById String?
   assignedBy   User?   @relation("StudentAdvisorAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
@@ -13772,4 +13869,68 @@ model AdvisingRecommendation {
 
   @@index([assignmentId, status])
   @@index([authorId])
+}
+
+// ============================================================================
+// YPP Help Agent — deterministic search infrastructure (Knowledge OS V2).
+// docs/ypp-organizational-knowledge-os-master-plan.md §8/§24.
+// User refs are FK-less per the repo's loosely-coupled-reference convention.
+// ============================================================================
+
+/// One indexed, searchable record per entity (person, partner, class, meeting,
+/// action, initiative, application, mentorship). Display fields only —
+/// authorization stays in the entity-360 loaders at hydration time; the
+/// coarse `visibilityTier` (MEMBER | OFFICER) lets queries pre-filter.
+/// Populated by scripts/backfill-search-documents.ts (re-runnable reconcile);
+/// write-path upserts land in the next pass.
+model SearchDocument {
+  id         String   @id @default(cuid())
+  /// Entity 360 type vocabulary: person | class | partner | initiative |
+  /// meeting | action (matches lib/operations/entity-360.ts).
+  entityType String
+  entityId   String
+  title      String
+  subtitle   String?
+  /// Space-joined extra match terms (email, aliases, partner type…).
+  keywords   String?
+  /// MEMBER (any signed-in user) | OFFICER (officer-tier and above).
+  visibilityTier String @default("OFFICER")
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@unique([entityType, entityId])
+  @@index([visibilityTier, entityType])
+}
+
+/// A saved, named query: a target page plus serialized params. Generalizes
+/// SavedActionView for the Help Agent and future master databases.
+/// `scope`: PERSONAL | SHARED | SEEDED (TEXT vocabulary).
+model SavedQuery {
+  id         String   @id @default(cuid())
+  ownerId    String?
+  scope      String   @default("PERSONAL")
+  name       String
+  /// Where the query runs ("/people", "/admin/partners", "/help-agent"…).
+  targetPage String
+  /// Serialized query string / params for the target page.
+  params     String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([scope])
+}
+
+/// Recently viewed entities per user — powers Help Agent recents and the
+/// sidebar "Recently Viewed". Written on Entity 360 opens; pruned to the
+/// newest ~50 rows per user by the writer.
+model RecentEntityView {
+  id         String   @id @default(cuid())
+  userId     String
+  entityType String
+  entityId   String
+  viewedAt   DateTime @default(now())
+
+  @@unique([userId, entityType, entityId])
+  @@index([userId, viewedAt])
 }

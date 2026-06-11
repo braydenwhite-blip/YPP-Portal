@@ -493,6 +493,35 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
+      href: "/help-agent",
+      label: "YPP Help Agent",
+      icon: "🔎",
+      // The global deterministic search/command layer (Knowledge OS V2).
+      // Reachable from every page via ⌘K and the sidebar trigger; this entry
+      // adds nav-search discoverability. Not an AI chatbot.
+      coreEligible: false,
+      roles: [
+        "ADMIN",
+        "STAFF",
+        "CHAPTER_PRESIDENT",
+        "HIRING_CHAIR",
+        "MENTOR",
+        "INSTRUCTOR",
+        "STUDENT",
+        "PARENT",
+      ] as NavRole[],
+      searchAliases: [
+        "Help Agent",
+        "Search",
+        "Global Search",
+        "Command Palette",
+        "Find",
+      ],
+      dashboardDescription:
+        "Find any person, partner, class, meeting, or action — and open its 360 preview from anywhere.",
+      dashboardPriority: 7,
+    },
+    {
       href: "/operations",
       label: "Operations",
       icon: "🧭",

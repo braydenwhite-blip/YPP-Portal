@@ -1,0 +1,71 @@
+/* ============================================================
+   DESIGN SYSTEM 2.0 — Tailwind v4 foundation (Knowledge OS V2)
+   docs/ypp-tailwind-design-system-v2-plan.md §3
+
+   Hybrid-period rules:
+   - NO preflight. Legacy pages styled by app/globals.css must stay
+     pixel-identical; Tailwind's global reset is enabled only after the
+     legacy layer is retired (addendum §9, phase 5).
+   - Theme + utilities are imported WITHOUT cascade layers (a deliberate
+     deviation from the addendum's layer() sketch, same intent): the
+     legacy stylesheet is unlayered, and unlayered CSS always beats
+     layered CSS — importing utilities unlayered *after* globals.css
+     lets them win on source order/specificity where ui-v2 surfaces
+     use them, while legacy markup (which never uses utility classes)
+     is untouched. The only legacy class name colliding with a Tailwind
+     utility is `.grid` (globals.css:1575) — both set display:grid, so
+     the collision is benign.
+   - globals.css is FROZEN (scripts/check-globals-css-freeze.mjs).
+     New styling belongs here (tokens only) or in components/ui-v2/.
+   ============================================================ */
+
+@import "tailwindcss/theme.css";
+@import "tailwindcss/utilities.css";
+
+@theme {
+  /* --- Brand (mapped 1:1 from the legacy --ypp-* values) --- */
+  --color-brand-950: #1a0533; /* --ypp-ink */
+  --color-brand-900: #2a0847;
+  --color-brand-800: #3b0f6e; /* --ypp-deep — dark premium sidebar */
+  --color-brand-700: #5a1da8;
+  --color-brand-600: #6b21c8; /* --ypp-primary */
+  --color-brand-500: #8b3fe8; /* --ypp-mid */
+  --color-brand-400: #b47fff; /* --ypp-light */
+  --color-brand-300: #d4b8ff;
+  --color-brand-200: #e8d8ff; /* --ypp-lavender */
+  --color-brand-100: #f0e6ff;
+  --color-brand-50: #f3ecff; /* --ypp-blush */
+
+  /* --- One semantic status set (consumed via StatusBadge only) --- */
+  --color-success-700: #15803d;
+  --color-success-100: #dcfce7;
+  --color-warning-700: #b45309;
+  --color-warning-100: #fef3c7;
+  --color-danger-700: #dc2626;
+  --color-danger-100: #fee2e2;
+  --color-info-700: #1e40af;
+  --color-info-100: #dbeafe;
+
+  /* --- Surfaces & lines --- */
+  --color-surface: #ffffff;
+  --color-surface-soft: #faf7ff;
+  --color-ink: #1a0533;
+  --color-ink-muted: #6b5f7a; /* --ypp-muted */
+  --color-line: rgb(107 33 200 / 0.15); /* --ypp-line */
+  --color-line-soft: rgb(107 33 200 / 0.08);
+
+  /* --- Shape --- */
+  --radius-card: 12px;
+  --radius-control: 8px;
+
+  /* --- Elevation (one level per surface type) --- */
+  --shadow-card: 0 1px 2px rgb(26 5 51 / 0.06), 0 4px 12px rgb(26 5 51 / 0.06);
+  --shadow-overlay: 0 8px 30px rgb(26 5 51 / 0.18);
+
+  /* --- Type --- */
+  --font-sans:
+    var(--font-dm-sans), "Inter", system-ui, -apple-system, sans-serif;
+
+  /* --- Motion --- */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+}

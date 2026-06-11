@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { HelpAgentTrigger } from "@/components/help-agent/help-agent-provider";
 import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-nav";
 import { INSTRUCTOR_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/instructor-v1-nav-layout";
 import { STUDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/student-v1-nav-layout";
@@ -249,18 +250,9 @@ export default function Nav({
     }));
   }, []);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent): void {
-      if ((event.ctrlKey || event.metaKey) && event.key === "k") {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
+  // ⌘K belongs to the YPP Help Agent (global palette) now — see
+  // components/help-agent/help-agent-provider.tsx. The nav filter below stays
+  // a plain click-to-focus input.
   const filteredCore = useMemo(
     () => model.core.filter((item) => matchesSearch(item, searchLower)),
     [model.core, searchLower],
@@ -365,18 +357,18 @@ export default function Nav({
 
   return (
     <nav className="nav nav--minimal">
+      {showSearch ? <HelpAgentTrigger className="mb-2" /> : null}
       {showSearch ? (
         <div className="nav-search-wrapper">
           <input
             ref={searchRef}
             type="text"
             className="nav-search"
-            placeholder="Search navigation..."
+            placeholder="Filter navigation..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            aria-label="Search navigation"
+            aria-label="Filter navigation"
           />
-          {!search ? <span className="nav-search-kbd">⌘K</span> : null}
           {search && (
             <button
               type="button"
