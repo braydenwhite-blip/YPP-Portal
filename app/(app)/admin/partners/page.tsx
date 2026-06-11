@@ -12,6 +12,7 @@ import {
   updatePartner,
   archivePartner,
 } from "@/lib/partners-actions";
+import { EntityLink } from "@/components/operations/entity-link";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import {
   isActionTrackerEnabled,
@@ -158,7 +159,13 @@ export default async function AdminPartnersPage({
                   }}
                 >
                   <div style={{ minWidth: 0 }}>
-                    <strong style={{ fontSize: 15 }}>{partner.name}</strong>
+                    <EntityLink
+                      type="partner"
+                      id={partner.id}
+                      style={{ fontSize: 15, fontWeight: 700, color: "inherit" }}
+                    >
+                      {partner.name}
+                    </EntityLink>
                     {partner.type ? (
                       <span className="badge" style={{ marginLeft: 8, fontSize: 11 }}>
                         {partner.type}
@@ -345,9 +352,13 @@ export default async function AdminPartnersPage({
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <Link href={`/admin/partners/${p.id}`} style={{ fontSize: 15, fontWeight: 700, color: "var(--ypp-purple)" }}>
+              <EntityLink
+                type="partner"
+                id={p.id}
+                style={{ fontSize: 15, fontWeight: 700, color: "var(--ypp-purple)" }}
+              >
                 {p.name}
-              </Link>
+              </EntityLink>
               {partnerTypeLabel(p.partnerType) ? (
                 <span className="badge" style={{ fontSize: 11 }}>{partnerTypeLabel(p.partnerType)}</span>
               ) : p.type ? (

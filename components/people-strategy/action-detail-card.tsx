@@ -82,6 +82,7 @@ export type ActionDetailDTO = {
   strategicProjectId?: string | null;
   /** Polymorphic YPP entity this action is about (resolved for display). */
   relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
   relatedEntityLabel?: string | null;
   relatedEntityHref?: string | null;
   relatedArea?: string | null;
@@ -482,6 +483,7 @@ export default function ActionDetailCard({
           {item.relatedEntityType ? (
             <RelatedEntityBadge
               type={item.relatedEntityType}
+              id={item.relatedEntityId}
               label={item.relatedEntityLabel}
               href={item.relatedEntityHref}
             />
@@ -613,6 +615,7 @@ export default function ActionDetailCard({
               <span style={TINY_LABEL}>Related to</span>
               <RelatedEntityBadge
                 type={item.relatedEntityType}
+                id={item.relatedEntityId}
                 label={item.relatedEntityLabel}
                 href={item.relatedEntityHref}
               />

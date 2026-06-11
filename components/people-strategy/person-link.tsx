@@ -8,11 +8,11 @@ import { useProfileDrawer } from "@/components/people-strategy/profile-drawer-co
 /**
  * Links a person's name to their public profile.
  *
- * When a `ProfileDrawerProvider` is mounted above it (the app shell), a plain
- * left-click opens the profile in a slide-in drawer instead of navigating —
- * keeping the user in context. Modifier/middle clicks, and any usage outside a
- * provider, fall back to a normal `/people/[id]` navigation, so deep links and
- * "open in new tab" keep working.
+ * When the Entity 360 provider is mounted above it (the app shell), a plain
+ * left-click opens the person's 360 panel in a slide-in drawer instead of
+ * navigating — keeping the user in context. Modifier/middle clicks, and any
+ * usage outside a provider, fall back to a normal `/people/[id]` navigation,
+ * so deep links and "open in new tab" keep working.
  *
  * Falls back to plain inline text when there is no real user to link to — e.g.
  * the synthetic "system" author on audit entries, or an empty id — so callers

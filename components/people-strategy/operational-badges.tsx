@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { EntityLink } from "@/components/operations/entity-link";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
+import { RELATED_TO_ENTITY_360 } from "@/lib/operations/entity-360";
 import { relatedEntityTypeLabel } from "@/lib/people-strategy/constants";
 import {
   meetingCategoryIdentity,
@@ -27,15 +29,19 @@ import { Pill, type PillTone } from "./pills";
 
 /**
  * The YPP entity an item is about (a class / mentorship / person / …). Shows the
- * type and, when known, the entity's own name, linking to its page when one
- * exists. Quiet neutral tone so it labels without competing with status.
+ * type and, when known, the entity's own name. When the entity has a 360 panel
+ * (class / partner / person) and an `id` is supplied, clicking opens the panel
+ * in place; otherwise it links to the entity's page when one exists. Quiet
+ * neutral tone so it labels without competing with status.
  */
 export function RelatedEntityBadge({
   type,
+  id = null,
   label,
   href = null,
 }: {
   type: string;
+  id?: string | null;
   label?: string | null;
   href?: string | null;
 }) {
@@ -47,6 +53,14 @@ export function RelatedEntityBadge({
       {text}
     </Pill>
   );
+  const drawerType = id ? RELATED_TO_ENTITY_360[type] : undefined;
+  if (drawerType && id) {
+    return (
+      <EntityLink type={drawerType} id={id} href={href ?? undefined} title={`Open ${typeLabel}`}>
+        {inner}
+      </EntityLink>
+    );
+  }
   if (href) {
     return (
       <Link href={href} style={{ textDecoration: "none" }} title={`Open ${typeLabel}`}>

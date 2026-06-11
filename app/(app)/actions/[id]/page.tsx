@@ -140,6 +140,7 @@ function toDetailDTO(
     strategicInitiativeId: item.strategicInitiativeId,
     strategicProjectId: item.strategicProjectId,
     relatedEntityType: item.relatedEntityType,
+    relatedEntityId: item.relatedEntityId,
     relatedArea:
       item.relatedEntityType && isRelatedEntityType(item.relatedEntityType)
         ? operationalAreaLabel(areaForRelatedEntityType(item.relatedEntityType))

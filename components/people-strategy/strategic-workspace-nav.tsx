@@ -19,6 +19,7 @@ import { ActionCommandBar } from "./action-command-bar";
 
 export type StrategicNavKey =
   | "command-center"
+  | "data-360"
   | "portfolio"
   | "initiatives"
   | "projects"
@@ -33,18 +34,20 @@ type NavItem = { key: StrategicNavKey; label: string; href: string };
  * The unified leadership OS, in leadership-reading order:
  *
  *   Command Center   — what matters right now
+ *   Data 360         — how everything connects (people, partners, classes, work)
  *   Weekly Execution — run the weekly officer meeting
  *   Initiatives      — the big strategic goals
  *   Actions          — the concrete work
  *   Meetings         — where decisions and loose ends come from
  *
- * Deliberately only the five places a leader moves between every week. The
+ * Deliberately only the six places a leader moves between every week. The
  * deeper strategic views (Portfolio, Projects, Strategic Map) are secondary
  * and linked from the Initiatives page instead of crowding the primary nav;
  * the old Weekly Review redirects into Weekly Execution.
  */
 const NAV_ITEMS: readonly NavItem[] = [
   { key: "command-center", label: "Command Center", href: "/operations/command-center" },
+  { key: "data-360", label: "Data 360", href: "/operations/data-360" },
   { key: "weekly-execution", label: "Weekly Execution", href: "/operations/weekly-execution" },
   { key: "initiatives", label: "Initiatives", href: "/operations/initiatives" },
   { key: "actions", label: "Actions", href: "/actions/all" },

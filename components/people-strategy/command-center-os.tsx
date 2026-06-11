@@ -20,6 +20,9 @@ import type {
   WeeklyOperationalDigest,
 } from "@/lib/people-strategy/operational-digest";
 
+import { EntityLink } from "@/components/operations/entity-link";
+import { RELATED_TO_ENTITY_360 } from "@/lib/operations/entity-360";
+
 import { ActionCommandBar } from "./action-command-bar";
 import { MeetingOutcomeBadge, OperationalHealthBadge } from "./operational-badges";
 import { Pill, type PillTone } from "./pills";
@@ -708,13 +711,32 @@ export function EntityHealthList({
             </div>
           </>
         );
+        const drawerType = RELATED_TO_ENTITY_360[e.type];
+        const cardStyle: React.CSSProperties = {
+          display: "block",
+          padding: "10px 14px",
+          textDecoration: "none",
+          color: "inherit",
+          borderLeft: `3px solid ${e.health.level === "critical" ? SEVERITY_BORDER.critical : SEVERITY_BORDER.warning}`,
+        };
         return (
           <li key={e.refKey}>
-            {e.href ? (
+            {drawerType ? (
+              // Opens the entity's 360 panel in place (falls back to its page).
+              <EntityLink
+                type={drawerType}
+                id={e.id}
+                href={e.href ?? undefined}
+                className="card ps-action-card cc-focusable"
+                style={cardStyle}
+              >
+                {inner}
+              </EntityLink>
+            ) : e.href ? (
               <Link
                 href={e.href}
                 className="card ps-action-card cc-focusable"
-                style={{ display: "block", padding: "10px 14px", textDecoration: "none", color: "inherit", borderLeft: `3px solid ${e.health.level === "critical" ? SEVERITY_BORDER.critical : SEVERITY_BORDER.warning}` }}
+                style={cardStyle}
               >
                 {inner}
               </Link>
