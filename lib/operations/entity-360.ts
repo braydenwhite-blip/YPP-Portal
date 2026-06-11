@@ -1,0 +1,312 @@
+import type { TimelineEvent } from "./timeline";
+import type { WorkItem } from "./work-items";
+
+export type { TimelineEvent } from "./timeline";
+export type { WorkItem } from "./work-items";
+
+/**
+ * Data 360 — the universal Entity 360 shape.
+ *
+ * ONE serializable payload renders every 360 drawer — person, class, partner,
+ * initiative, meeting, action — so the UI is a single component, the API is a
+ * single route, and adding a new entity type means writing one loader, not one
+ * drawer. Sections the loader leaves empty simply do not render.
+ *
+ * Pure helpers here (initials, tenure, footnotes) are unit-tested; the
+ * per-type loaders live in `entity-360-queries.ts`.
+ */
+
+export const ENTITY_360_TYPES = [
+  "person",
+  "class",
+  "partner",
+  "initiative",
+  "meeting",
+  "action",
+] as const;
+export type Entity360Type = (typeof ENTITY_360_TYPES)[number];
+
+export function isEntity360Type(value: unknown): value is Entity360Type {
+  return (
+    typeof value === "string" &&
+    (ENTITY_360_TYPES as readonly string[]).includes(value)
+  );
+}
+
+export const ENTITY_360_TYPE_LABELS: Record<Entity360Type, string> = {
+  person: "Person",
+  class: "Class",
+  partner: "Partner",
+  initiative: "Initiative",
+  meeting: "Meeting",
+  action: "Action",
+};
+
+/**
+ * The polymorphic related-entity types (`ActionItem.relatedEntityType`) that
+ * map onto a drawer entity type — so a "Linked to" chip can open the 360 panel.
+ * Mentorships and instructor applications keep their dedicated surfaces.
+ */
+export const RELATED_TO_ENTITY_360: Partial<Record<string, Entity360Type>> = {
+  CLASS_OFFERING: "class",
+  PARTNER: "partner",
+  USER: "person",
+};
+
+export type Entity360Tone = "neutral" | "info" | "success" | "warning" | "overdue" | "purple";
+
+export type Entity360Status = { label: string; tone: Entity360Tone };
+
+/** One identity/contact row ("Email · maya@…", "Chapter · Scarsdale"). */
+export type Entity360Fact = {
+  label: string;
+  value: string;
+  href?: string | null;
+};
+
+/** A connected person, clickable into their own 360 panel. */
+export type Entity360Person = {
+  /** Null when no portal account backs the name (e.g. a declared initiative owner). */
+  id: string | null;
+  name: string;
+  title: string | null;
+  /** How they connect ("Mentor", "Mentee", "Lead Instructor", "Facilitator", …). */
+  relationship: string;
+};
+
+/** A connected class, clickable into the class 360 panel. */
+export type Entity360ClassRef = {
+  id: string;
+  title: string;
+  /** Context line: chapter/partner · semester · student count. */
+  context: string | null;
+  status: string | null;
+};
+
+/** A connected meeting, clickable into the meeting 360 panel. */
+export type Entity360MeetingRef = {
+  id: string;
+  title: string;
+  dateISO: string;
+  categoryLabel: string | null;
+  /** "2 decisions · 1 open follow-up" — what the meeting produced. */
+  outcome: string | null;
+  upcoming: boolean;
+};
+
+export type Entity360 = {
+  type: Entity360Type;
+  id: string;
+  /** The big name in the header. */
+  title: string;
+  /** Role / context line under the name. */
+  subtitle: string | null;
+  typeLabel: string;
+  status: Entity360Status | null;
+  /** Tertiary header line ("Active · 8 months", "Spring 2025 · 14 students"). */
+  meta: string | null;
+  /** Avatar initials (people) or a type glyph fallback. */
+  initials: string;
+  avatarUrl: string | null;
+  /** "Open full page" target, when a stable page exists. */
+  pageHref: string | null;
+  facts: Entity360Fact[];
+  people: Entity360Person[];
+  classes: Entity360ClassRef[];
+  workItems: WorkItem[];
+  meetings: Entity360MeetingRef[];
+  timeline: TimelineEvent[];
+  /** The single most useful next move, when one is known. */
+  nextStep: string | null;
+  risks: string[];
+  /** Data-visibility note rendered as the panel footer. */
+  footnote: string | null;
+};
+
+// --- pure helpers ---------------------------------------------------------------
+
+/** "Brayden Kim" → "BK"; falls back through email/title to a glyph. */
+export function entityInitials(name: string): string {
+  const words = name
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return "•";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
+/** "Active · 8 months" / "Active · 2 years+" tenure label. */
+export function tenureLabel(monthsActive: number): string {
+  if (monthsActive <= 0) return "Active · new";
+  if (monthsActive < 12) {
+    return `Active · ${monthsActive} month${monthsActive === 1 ? "" : "s"}`;
+  }
+  const years = Math.floor(monthsActive / 12);
+  return `Active · ${years} year${years === 1 ? "" : "s"}+`;
+}
+
+/**
+ * The standard person-panel footnote: contact info is public by design;
+ * leadership-only assessments are called out so members know what peers see.
+ */
+export function personFootnote(viewerIsOfficer: boolean): string {
+  return viewerIsOfficer
+    ? "Leadership view · includes growth signals not visible to members"
+    : "Public view · performance data visible to leadership only";
+}
+
+/** "2 decisions · 3 actions · 1 open follow-up" meeting outcome line. */
+export function meetingOutcomeLine(input: {
+  decisionCount: number;
+  linkedActionCount: number;
+  openFollowUps: number;
+}): string | null {
+  const parts: string[] = [];
+  if (input.decisionCount > 0) {
+    parts.push(`${input.decisionCount} decision${input.decisionCount === 1 ? "" : "s"}`);
+  }
+  if (input.linkedActionCount > 0) {
+    parts.push(`${input.linkedActionCount} action${input.linkedActionCount === 1 ? "" : "s"}`);
+  }
+  if (input.openFollowUps > 0) {
+    parts.push(`${input.openFollowUps} open follow-up${input.openFollowUps === 1 ? "" : "s"}`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+// --- person story timeline --------------------------------------------------------
+
+export type PersonTimelineInputs = {
+  joinedAt: Date | string;
+  /** Active pairings where this person mentors someone. */
+  mentees: Array<{ id: string; name: string; startedAt: Date | string }>;
+  /** Active pairings where this person is mentored. */
+  mentors: Array<{ id: string; name: string; startedAt: Date | string }>;
+  classesTaught: Array<{ id: string; title: string; startedAt: Date | string }>;
+  completedActions: Array<{
+    id: string;
+    title: string;
+    completedAt: Date | string;
+    href: string;
+  }>;
+  /** Leadership roles/contributions (officer viewers only — pass [] otherwise). */
+  roles: Array<{ id: string; title: string; startedAt: Date | string }>;
+};
+
+function toISO(value: Date | string): string {
+  return typeof value === "string" ? value : value.toISOString();
+}
+
+/**
+ * The story of one person's YPP involvement — joined, paired up, assigned
+ * classes, took on roles, shipped work — as one newest-first event stream.
+ * Pure; the loader supplies only what the viewer may see.
+ */
+export function buildPersonTimeline(
+  inputs: PersonTimelineInputs,
+  options: { limit?: number } = {}
+): TimelineEvent[] {
+  const events: TimelineEvent[] = [
+    {
+      id: "person:joined",
+      kind: "joined",
+      occurredAtISO: toISO(inputs.joinedAt),
+      title: "Joined YPP",
+      detail: null,
+      actorName: null,
+      relatedType: null,
+      relatedId: null,
+      relatedLabel: null,
+      href: null,
+    },
+  ];
+  for (const m of inputs.mentors) {
+    events.push({
+      id: `person:mentor:${m.id}`,
+      kind: "mentorship",
+      occurredAtISO: toISO(m.startedAt),
+      title: `Paired with mentor ${m.name}`,
+      detail: null,
+      actorName: m.name,
+      relatedType: null,
+      relatedId: null,
+      relatedLabel: null,
+      href: null,
+    });
+  }
+  for (const m of inputs.mentees) {
+    events.push({
+      id: `person:mentee:${m.id}`,
+      kind: "mentorship",
+      occurredAtISO: toISO(m.startedAt),
+      title: `Became mentor to ${m.name}`,
+      detail: null,
+      actorName: m.name,
+      relatedType: null,
+      relatedId: null,
+      relatedLabel: null,
+      href: null,
+    });
+  }
+  for (const c of inputs.classesTaught) {
+    events.push({
+      id: `person:class:${c.id}`,
+      kind: "class_assigned",
+      occurredAtISO: toISO(c.startedAt),
+      title: `Started teaching ${c.title}`,
+      detail: null,
+      actorName: null,
+      relatedType: "CLASS_OFFERING",
+      relatedId: c.id,
+      relatedLabel: c.title,
+      href: null,
+    });
+  }
+  for (const r of inputs.roles) {
+    events.push({
+      id: `person:role:${r.id}`,
+      kind: "role",
+      occurredAtISO: toISO(r.startedAt),
+      title: r.title,
+      detail: null,
+      actorName: null,
+      relatedType: null,
+      relatedId: null,
+      relatedLabel: null,
+      href: null,
+    });
+  }
+  for (const a of inputs.completedActions) {
+    events.push({
+      id: `person:action:${a.id}`,
+      kind: "action_completed",
+      occurredAtISO: toISO(a.completedAt),
+      title: a.title,
+      detail: null,
+      actorName: null,
+      relatedType: null,
+      relatedId: null,
+      relatedLabel: null,
+      href: a.href,
+    });
+  }
+  events.sort(
+    (a, b) =>
+      new Date(b.occurredAtISO).getTime() - new Date(a.occurredAtISO).getTime() ||
+      a.id.localeCompare(b.id)
+  );
+  return typeof options.limit === "number" ? events.slice(0, options.limit) : events;
+}
+
+/** Earliest-due open work item's title — the default "next step" for an entity. */
+export function nextStepFromWork(workItems: WorkItem[]): string | null {
+  const open = workItems
+    .filter((w) => !w.completedISO && w.status !== "Completed")
+    .sort((a, b) => {
+      const aDue = a.dueISO ? new Date(a.dueISO).getTime() : Number.POSITIVE_INFINITY;
+      const bDue = b.dueISO ? new Date(b.dueISO).getTime() : Number.POSITIVE_INFINITY;
+      return aDue - bDue;
+    });
+  return open[0]?.title ?? null;
+}

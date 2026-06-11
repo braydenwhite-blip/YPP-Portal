@@ -136,9 +136,7 @@ export async function loadRelatedEntitySummary(
         id: entityId,
         label: partner.name,
         typeLabel,
-        // Partners have no per-row detail page yet; the admin list is the stable
-        // home for the relationship + its lead.
-        href: "/admin/partners",
+        href: `/admin/partners/${partner.id}`,
       };
     }
     default: {
@@ -306,7 +304,7 @@ export async function loadRelatedEntityLabels(
         })
         .then((rows) => {
           for (const p of rows) {
-            put({ type: "PARTNER", id: p.id, label: p.name, typeLabel, href: "/admin/partners" });
+            put({ type: "PARTNER", id: p.id, label: p.name, typeLabel, href: `/admin/partners/${p.id}` });
           }
         })
     );

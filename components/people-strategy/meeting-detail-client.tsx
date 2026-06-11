@@ -53,6 +53,7 @@ import { MeetingOutcomeBadge, RelatedEntityBadge } from "./operational-badges";
 /** The portal context a meeting is connected to (resolved server-side). */
 export type MeetingRelatedContext = {
   entityType: string;
+  entityId?: string | null;
   entityLabel: string;
   entityHref: string | null;
   area: string;
@@ -176,6 +177,7 @@ export function MeetingDetailClient({
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <RelatedEntityBadge
                     type={relatedContext.entityType}
+                    id={relatedContext.entityId}
                     label={relatedContext.entityLabel}
                     href={relatedContext.entityHref}
                   />

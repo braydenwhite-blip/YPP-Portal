@@ -8,11 +8,12 @@ import {
 } from "@/components/people-strategy/strategic-workspace-nav";
 
 describe("StrategicWorkspaceNav", () => {
-  it("renders the five unified leadership OS destinations with the right hrefs", () => {
+  it("renders the six unified leadership OS destinations with the right hrefs", () => {
     render(<StrategicWorkspaceNav current="initiatives" />);
     const nav = screen.getByRole("navigation", { name: "Strategic workspace" });
     const expected: Array<[string, string]> = [
       ["Command Center", "/operations/command-center"],
+      ["Data 360", "/operations/data-360"],
       ["Weekly Execution", "/operations/weekly-execution"],
       ["Initiatives", "/operations/initiatives"],
       ["Actions", "/actions/all"],
@@ -43,6 +44,7 @@ describe("StrategicWorkspaceNav", () => {
     render(<StrategicWorkspaceNav current="command-center" showStrategic={false} />);
     // Always-available destinations stay.
     expect(screen.getByRole("link", { name: "Command Center" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Data 360" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Weekly Execution" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Actions" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Meetings" })).toBeInTheDocument();

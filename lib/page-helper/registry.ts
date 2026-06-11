@@ -3878,6 +3878,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/operations/data-360",
+    title: "Data 360",
+    content: {
+      purpose: "This is the connected-data control center: one executive snapshot across every tracker, a Needs Attention queue that also watches partners, applicants, mentorships, and class setup, one board of all the work, a unified timeline, and an explorer where every person, class, partner, and initiative opens its 360 panel in place.",
+      firstStep: "Scan the executive snapshot, then work 'Needs attention' from the top — every card explains in plain language why it matters.",
+      nextStep: "Use the All Work board to triage by lane, and the Connected Data explorer to open any entity's 360 panel without leaving the page."
+    }
+  },
+  {
     pattern: "/operations/weekly-review",
     title: "Weekly Review (moved)",
     content: {

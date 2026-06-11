@@ -128,7 +128,10 @@ export function ActionCard({
           </span>
         ) : null}
         {item.relatedEntityType ? (
-          <RelatedEntityBadge type={item.relatedEntityType} />
+          <RelatedEntityBadge
+            type={item.relatedEntityType}
+            id={item.relatedEntityId}
+          />
         ) : null}
         {item.officerMeeting ? (
           <Pill tone="purple">

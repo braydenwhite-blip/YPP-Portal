@@ -470,6 +470,29 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
+      href: "/operations/data-360",
+      label: "Data 360",
+      icon: "🧠",
+      // Officer-tier and above only (mirrors requireOfficer()), like the
+      // Command Center. Secondary surface — never a pinned core link.
+      coreEligible: false,
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
+      requiresOperationsHub: true,
+      searchAliases: [
+        "Data 360",
+        "Connected Data",
+        "360",
+        "Entity 360",
+        "Relationship Map",
+        "Work Board",
+        "Unified Timeline",
+      ],
+      dashboardDescription:
+        "Every person, class, partner, meeting, and action in one connected picture — with a unified work board and needs-attention queue.",
+      dashboardPriority: 6,
+    },
+    {
       href: "/operations",
       label: "Operations",
       icon: "🧭",

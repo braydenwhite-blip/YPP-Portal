@@ -80,6 +80,7 @@ export default async function MeetingDetailPage({
     if (summary) {
       relatedContext = {
         entityType: type,
+        entityId,
         entityLabel: summary.label,
         entityHref: summary.href,
         area: operationalAreaLabel(areaForRelatedEntityType(type)),

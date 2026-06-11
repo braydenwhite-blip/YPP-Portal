@@ -86,14 +86,14 @@ describe("loadRelatedEntitySummary", () => {
     });
   });
 
-  it("summarises a partner with the admin partners href", async () => {
+  it("summarises a partner with its detail-page href", async () => {
     partnerFind.mockResolvedValue({ id: "p1", name: "Beth El" });
     expect(await loadRelatedEntitySummary("PARTNER", "  p1  ")).toEqual({
       type: "PARTNER",
       id: "p1",
       label: "Beth El",
       typeLabel: "Partner",
-      href: "/admin/partners",
+      href: "/admin/partners/p1",
     });
   });
 

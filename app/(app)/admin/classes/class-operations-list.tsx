@@ -2,6 +2,7 @@ import Link from "next/link";
 import type {
   AdminClassOperationsListItem,
 } from "@/lib/admin-class-operations";
+import { EntityLink } from "@/components/operations/entity-link";
 import { Meter, PeopleAvatar } from "@/components/people-strategy/people-suite";
 import { PsIcon } from "@/components/people-strategy/ps-icons";
 
@@ -215,7 +216,11 @@ function OperationsRow({ offering }: { offering: AdminClassOperationsListItem })
       <div style={rowHeader}>
         <div style={{ minWidth: 0 }}>
           <h3 className="psuite-class-title">
-            <Link href={`/admin/classes/${offering.id}`}>{offering.title}</Link>
+            {/* Opens the Class 360 panel in place; modifier-clicks still
+                navigate to the full class page. */}
+            <EntityLink type="class" id={offering.id}>
+              {offering.title}
+            </EntityLink>
           </h3>
           <div className="psuite-class-meta">
             <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
