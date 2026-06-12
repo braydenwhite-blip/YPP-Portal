@@ -1354,6 +1354,7 @@ model User {
   actionEmailLogs          ActionEmailLog[]   @relation("ActionEmailLogRecipient")
   feedbackRequestsAbout    FeedbackRequest[]  @relation("FeedbackRequestSubject")
   feedbackRequestsToAnswer FeedbackRequest[]  @relation("FeedbackRequestCollaborator")
+  monthlyFeedbackRequestsSent FeedbackRequest[] @relation("MonthlyFeedbackRequestedBy")
   growthTags               MemberGrowthTag[]  @relation("MemberGrowthTags")
   growthTagsCreated        MemberGrowthTag[]  @relation("MemberGrowthTagsCreated")
   actionTemplatesCreated   ActionTemplate[]   @relation("ActionTemplatesCreated")
@@ -12962,11 +12963,26 @@ model FeedbackRequest {
   submittedAt    DateTime?
   createdAt      DateTime  @default(now())
 
+  /// Who created the request (the Leadership/Board member who sent it).
+  /// Null on legacy rows created before the reviewable request workflow.
+  requestedById String?
+  requestedBy   User?   @relation("MonthlyFeedbackRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  /// Why this collaborator was chosen ("Worked with X on 3 action items…").
+  /// Shown to the recipient on the form and in the request email.
+  reason        String?   @db.Text
+  /// Display snapshot of the shared work connecting the collaborator to the
+  /// subject at request time: [{ type, id, title, detail }]. Snapshot only —
+  /// never re-read as live data.
+  contextItems  Json?
+  /// The reply-by date communicated in the request email.
+  dueAt         DateTime?
+
   /// One outstanding request per (subject, collaborator, month) — makes
   /// `sendFeedbackRequest` idempotent across re-runs.
   @@unique([subjectUserId, collaboratorId, month])
   @@index([subjectUserId, month])
   @@index([collaboratorId, submittedAt])
+  @@index([requestedById])
 }
 
 // ============================================

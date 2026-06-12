@@ -16,6 +16,14 @@ function monthLabel(d: Date): string {
   }).format(d);
 }
 
+function dueDateLabel(d: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
+}
+
 export default async function FeedbackRequestPage({
   params,
 }: {
@@ -49,7 +57,39 @@ export default async function FeedbackRequestPage({
         {monthLabel(request.month)} · Your response is read only by the Chief People
         Officer and Board. {subjectName} will not see what you write — please be
         candid and constructive.
+        {request.dueAt ? ` Please respond by ${dueDateLabel(request.dueAt)}.` : ""}
       </p>
+
+      {request.reason || request.contextItems.length > 0 ? (
+        <div className="card" style={{ padding: "14px 16px", marginBottom: 16, fontSize: 13 }}>
+          <p style={{ margin: 0, fontWeight: 600 }}>Why you&apos;re being asked</p>
+          {request.reason ? (
+            <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>{request.reason}</p>
+          ) : null}
+          {request.contextItems.length > 0 ? (
+            <ul style={{ margin: "8px 0 0", paddingLeft: 18, color: "var(--muted)" }}>
+              {request.contextItems.map((item) => (
+                <li key={`${item.type}-${item.id}-${item.title}`}>
+                  {item.title}
+                  {item.detail ? ` — ${item.detail}` : ""}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4 }}>
+        <p style={{ margin: 0, fontWeight: 600, color: "inherit" }}>
+          Helpful prompts (3–5 minutes):
+        </p>
+        <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+          <li>What did {subjectName} do well this month?</li>
+          <li>Where could they improve?</li>
+          <li>Did they follow through on their responsibilities?</li>
+          <li>Anything the Chief People Officer should know?</li>
+        </ul>
+      </div>
 
       <FeedbackResponseForm
         requestId={request.id}

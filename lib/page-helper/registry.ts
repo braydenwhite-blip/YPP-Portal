@@ -3166,6 +3166,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/people/performance",
+    title: "People & Performance",
+    content: {
+      purpose: "The Leadership/Board people view: every member with a people-strategy footprint in one table — active work split Lead vs Executing, quarterly review placement, monthly check-in dots, and concrete workload/trend/succession signals.",
+      firstStep: "Use the stat tiles or filter chips to focus on members needing a check-in, pending feedback, or a review due this quarter.",
+      nextStep: "Click Request feedback on a member to review the suggested collaborators (with the shared work that makes each relevant), preview the email, and send — responses stay Leadership/Board-confidential."
+    }
+  },
+  {
     pattern: "/peer-recognition",
     title: "Peer Recognition",
     content: {

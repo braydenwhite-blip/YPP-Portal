@@ -148,6 +148,7 @@ export async function compileCheckIn(
   });
 
   revalidatePath("/admin/people");
+  revalidatePath("/people/performance");
 
   return {
     id: checkIn.id,

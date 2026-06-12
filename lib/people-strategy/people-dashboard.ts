@@ -5,6 +5,8 @@ import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
 import { formatDueDate, startOfDay } from "@/lib/leadership-action-center/dates";
 import { getMatrixLabel } from "@/lib/matrix";
 
+import { monthKeyUTC } from "./people-performance-selectors";
+
 import {
   computeTrend,
   isActionOverdue,
@@ -67,6 +69,12 @@ export interface PeopleDashboardRow {
   /** True when the latest review flags this person as a succession candidate. */
   successor: boolean;
   checkInDots: DashboardCheckInDot[];
+  /**
+   * The same last-3 check-ins keyed by UTC month ("2026-06"), most recent
+   * first — lets People & Performance map them onto fixed calendar months
+   * (and render explicit "missing" dots) without a second query.
+   */
+  recentCheckIns: Array<{ monthKey: string; rating: GoalRatingColor | null }>;
   trend: TrendWord;
   workloadWarning: string | null;
 }
@@ -201,11 +209,13 @@ export async function loadPeopleDashboard(
         }
       : null;
 
-    const checkInDots: DashboardCheckInDot[] = lastCheckIns(
-      user.peopleCheckIns,
-      3
-    ).map((c) => ({
+    const recent = lastCheckIns(user.peopleCheckIns, 3);
+    const checkInDots: DashboardCheckInDot[] = recent.map((c) => ({
       monthLabel: c.month.toLocaleDateString("en-US", MONTH_FORMAT),
+      rating: c.performanceRating,
+    }));
+    const recentCheckIns = recent.map((c) => ({
+      monthKey: monthKeyUTC(c.month),
       rating: c.performanceRating,
     }));
 
@@ -224,6 +234,7 @@ export async function loadPeopleDashboard(
       quarterly,
       successor: review?.successionFlag ?? false,
       checkInDots,
+      recentCheckIns,
       trend: computeTrend(user.peopleCheckIns),
       workloadWarning: workloadWarning(split, today),
     };
