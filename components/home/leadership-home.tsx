@@ -73,7 +73,7 @@ export function LeadershipHome({
             label="Overdue actions"
             value={stats.overdueActions}
             tone={stats.overdueActions > 0 ? "attention" : "default"}
-            href="/actions"
+            href="/work?flag=overdue"
           />
           <StatCardV2
             label="Decisions needed"
@@ -109,7 +109,7 @@ export function LeadershipHome({
           <StatCardV2
             label="Upcoming meetings"
             value={stats.upcomingMeetings}
-            href="/actions/meetings"
+            href="/work?view=meetings"
           />
         </div>
       </PageHeaderV2>
@@ -135,8 +135,8 @@ export function LeadershipHome({
             title="Needs attention"
             description="Worst first, each with the reason and the next move."
             action={
-              <ButtonLink href="/operations/data-360" variant="ghost" size="sm">
-                Full review →
+              <ButtonLink href="/work?view=attention" variant="ghost" size="sm">
+                Full queue →
               </ButtonLink>
             }
           >
@@ -278,8 +278,8 @@ export function LeadershipHome({
             title="Overdue actions"
             description="Open work past its due date."
             action={
-              <ButtonLink href="/actions" variant="ghost" size="sm">
-                All actions →
+              <ButtonLink href="/work?flag=overdue" variant="ghost" size="sm">
+                All overdue work →
               </ButtonLink>
             }
           >
@@ -321,7 +321,7 @@ export function LeadershipHome({
             title="Upcoming meetings"
             description="The next officer meetings on the calendar."
             action={
-              <ButtonLink href="/actions/meetings" variant="ghost" size="sm">
+              <ButtonLink href="/work?view=meetings" variant="ghost" size="sm">
                 All meetings →
               </ButtonLink>
             }
@@ -359,6 +359,9 @@ export function LeadershipHome({
               </ButtonLink>
               <ButtonLink href="/actions/meetings?new=1" size="sm">
                 Log meeting
+              </ButtonLink>
+              <ButtonLink href="/work" size="sm">
+                Work Hub
               </ButtonLink>
               <ButtonLink href="/people" size="sm">
                 People

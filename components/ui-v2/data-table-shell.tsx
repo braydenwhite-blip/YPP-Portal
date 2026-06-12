@@ -82,12 +82,13 @@ export function TableHeadCell({
 export function TableCell({
   children,
   className,
-}: {
-  children?: React.ReactNode;
-  className?: string;
-}) {
+  ...rest
+}: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={cn("border-b border-line-soft px-5 py-3 align-middle text-ink", className)}>
+    <td
+      className={cn("border-b border-line-soft px-5 py-3 align-middle text-ink", className)}
+      {...rest}
+    >
       {children}
     </td>
   );

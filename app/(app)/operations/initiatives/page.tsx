@@ -18,6 +18,7 @@ import {
   InitiativeCardGrid,
   PortfolioStatStrip,
 } from "@/components/people-strategy/strategic-initiatives";
+import { LegacySurfaceBanner } from "@/components/ui-v2";
 import {
   StrategicStack,
   StrategicWorkspaceHeader,
@@ -52,6 +53,12 @@ export default async function StrategicInitiativesPage() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
+      <LegacySurfaceBanner
+        title="Work Hub shows initiative health beside the rest of the work now."
+        body="Active initiatives with reasons and open-action counts live at /work — this workspace keeps the dossiers, milestones, and planning tools."
+        ctaLabel="Open Work Hub"
+        ctaHref="/work?view=initiatives"
+      />
       <StrategicWorkspaceHeader
         current="initiatives"
         eyebrow="YPP Leadership OS"

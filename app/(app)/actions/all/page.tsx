@@ -30,6 +30,7 @@ import {
   summarizeDepartments,
   summarizeStatuses,
 } from "@/lib/people-strategy/action-analytics";
+import { LegacySurfaceBanner } from "@/components/ui-v2";
 import { ActionFiltersBar } from "@/components/people-strategy/action-filters-bar";
 import {
   ActionStatusDonut,
@@ -200,6 +201,12 @@ export default async function AllActionsPage({
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
+      <LegacySurfaceBanner
+        title="Work Hub is the front door for browsing work now."
+        body="Actions, follow-ups, partner requests, and check-ins triage together there — this page keeps the filters, analytics, and CSV export."
+        ctaLabel="Open Work Hub"
+        ctaHref="/work?view=actions"
+      />
       <ActionCommandBar
         eyebrow="Admin · People Strategy"
         title="Action Tracker"

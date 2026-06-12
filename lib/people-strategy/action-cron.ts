@@ -361,7 +361,7 @@ export async function runWeeklyLeadershipBriefing(
   const weekKey = dateKey(data.weekStart);
   const weekLabel = formatMonthDay(data.weekStart);
   const recipients = (await loadLeadershipRecipients()).filter((r) => r.email);
-  const commandCenterUrl = toAbsoluteAppUrl("/actions/command-center");
+  const commandCenterUrl = toAbsoluteAppUrl("/work");
 
   let emailsSent = 0;
   for (const recipient of recipients) {

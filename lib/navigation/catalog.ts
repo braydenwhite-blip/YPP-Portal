@@ -451,22 +451,25 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 5,
     },
     {
-      href: "/actions/command-center",
-      label: "Command Center",
+      href: "/work",
+      label: "Work",
       icon: "🎛️",
-      // Officer-tier and above only (mirrors requireOfficer()).
+      // Work Hub (Knowledge OS V2 §15) — the unified front door for actions,
+      // meeting follow-ups, initiatives, partner requests, advisor check-ins,
+      // and applicant next steps. Officer-tier (mirrors /people, /partners).
+      // Replaces /actions/command-center, which now redirects here.
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
-      requiresActionTracker: true,
       searchAliases: [
-        "People Strategy",
-        "Weekly Pulse",
+        "Work Hub",
+        "Command Center",
         "Attention Queue",
-        "Momentum",
-        "Leadership Command Center",
-        "People Strategy OS",
+        "All Work",
+        "My Queue",
+        "Follow-ups",
+        "Overdue",
       ],
       dashboardDescription:
-        "This week's pulse, the attention queue, people momentum, and wins — the People Strategy command center.",
+        "Everything that needs doing — actions, follow-ups, partner requests, advisor check-ins, and applicant next steps — triaged in one place.",
       dashboardPriority: 6,
     },
     {

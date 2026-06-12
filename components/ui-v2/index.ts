@@ -32,6 +32,7 @@ export { RecordSection } from "./record-section";
 export { Checklist, type ChecklistItem } from "./checklist";
 export { DecisionDock, type DecisionOption } from "./decision-dock";
 export { FilterBar, FilterChipLink, UrlSyncedSearchInput } from "./filter-bar";
+export { LegacySurfaceBanner } from "./legacy-surface-banner";
 export {
   SidebarChevron,
   SidebarUserCard,

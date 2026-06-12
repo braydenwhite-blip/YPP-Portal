@@ -5,8 +5,11 @@ import { isActionTrackerEnabled, isStrategicInitiativesEnabled } from "@/lib/fea
 import { deriveStrategicContextForMeeting } from "@/lib/people-strategy/strategic-context";
 import {
   getActionsForEntity,
+  getActionsForMeeting,
   listActionAssignableUsers,
 } from "@/lib/people-strategy/action-queries";
+import { deriveMeetingFollowUpPack } from "@/lib/people-strategy/action-operations-intel";
+import { MeetingFollowUpPackSection } from "@/components/work/meeting-follow-up-pack";
 import { effectiveStatus } from "@/lib/people-strategy/action-filters";
 import {
   getMeetingById,
@@ -54,6 +57,27 @@ export default async function MeetingDetailPage({
 
   const detail = mapMeetingToDetailDTO(meeting, now);
   const people: PersonOption[] = assignableUsers.map((u) => ({ id: u.id, name: personName(u) }));
+
+  // Action System 4.0 — the post-meeting follow-up pack: decisions that never
+  // became actions plus this meeting's open / overdue / recently-done work.
+  const meetingViewer: ActionViewer = {
+    id: viewer.id,
+    roles: viewer.roles,
+    primaryRole: viewer.primaryRole,
+    adminSubtypes: viewer.adminSubtypes,
+  };
+  const meetingActions = await getActionsForMeeting(id, meetingViewer).catch(() => []);
+  const followUpPack = deriveMeetingFollowUpPack(
+    {
+      decisions: meeting.decisions.map((d) => ({
+        id: d.id,
+        decision: d.decision,
+        linkedActionId: d.linkedActionId,
+      })),
+      actions: meetingActions,
+    },
+    now
+  );
 
   // Related portal context: when the meeting is linked to a YPP entity, surface
   // that entity + its open actions + the other meetings about it, so the meeting
@@ -114,6 +138,7 @@ export default async function MeetingDetailPage({
   return (
     <div className="page-shell" style={{ maxWidth: 1280 }}>
       <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
+      <MeetingFollowUpPackSection pack={followUpPack} />
       {strategicContext ? (
         <StrategicContextSection context={strategicContext} kind="meeting" showEmptyState />
       ) : null}

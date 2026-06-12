@@ -14,6 +14,7 @@ import {
 import { getDashboardSnapshot } from "@/lib/leadership-action-center/queries";
 import { getLeadershipSession } from "@/lib/leadership-action-center/authorization";
 import type { LeadershipActionCategory } from "@prisma/client";
+import { LegacySurfaceBanner } from "@/components/ui-v2";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Leadership Action Center" };
@@ -53,6 +54,12 @@ export default async function ActionCenterDashboardPage() {
 
   return (
     <div className="page-shell">
+      <LegacySurfaceBanner
+        title="This is the legacy Leadership Action Center."
+        body="New work tracking lives in the Work Hub — this page stays for browsing the old task/meeting records kept in the legacy system."
+        ctaLabel="Open Work Hub"
+        ctaHref="/work"
+      />
       <ActionCenterSectionHeader
         badge="Admin · Leadership"
         title="Leadership Action Center"
