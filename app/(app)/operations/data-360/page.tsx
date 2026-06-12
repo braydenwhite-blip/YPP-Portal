@@ -21,6 +21,7 @@ import { NeedsAttentionQueue } from "@/components/operations/needs-attention-lis
 import { QuickFind } from "@/components/operations/quick-find";
 import { UnifiedTimeline } from "@/components/operations/unified-timeline";
 import { UnifiedWorkBoard } from "@/components/operations/work-board";
+import { LegacySurfaceBanner } from "@/components/ui-v2";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Data 360 · Operations" };
@@ -61,6 +62,12 @@ export default async function Data360Page() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
+      <LegacySurfaceBanner
+        title="Work Hub is the front door for the unified work list now."
+        body="The triaged work board, attention queue, and my-queue live at /work — this page keeps the connected-data explorer and quick find."
+        ctaLabel="Open Work Hub"
+        ctaHref="/work"
+      />
       <StrategicWorkspaceHeader
         current="data-360"
         eyebrow="Operations · YPP OS"

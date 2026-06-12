@@ -1,4 +1,10 @@
-import { type FunnelCounts } from "./PipelineFunnelChart";
+/**
+ * Pipeline summary strip (Tailwind / ui-v2 vocabulary): the filtered board's
+ * stage counts plus the overall per-status counts. Concrete numbers only —
+ * no composite scores (§19). `FunnelCounts` lives here since the old funnel
+ * chart was retired (it was never rendered).
+ */
+export type FunnelCounts = Partial<Record<string, number>>;
 
 export interface ApplicantPipelineFilteredCounts {
   newApplications: number;
@@ -15,13 +21,41 @@ interface ApplicantPipelineOverviewProps {
 const RIBBON_SEGMENTS: Array<{
   key: keyof ApplicantPipelineFilteredCounts;
   label: string;
-  color: string;
+  dotClass: string;
 }> = [
-  { key: "newApplications", label: "New", color: "#6b21c8" },
-  { key: "needsReview", label: "Needs review", color: "#2563eb" },
-  { key: "interviewStage", label: "Interview", color: "#059669" },
-  { key: "postInterview", label: "Post-interview", color: "#4338ca" },
+  { key: "newApplications", label: "New", dotClass: "bg-brand-600" },
+  { key: "needsReview", label: "Needs review", dotClass: "bg-blue-600" },
+  { key: "interviewStage", label: "Interview", dotClass: "bg-emerald-600" },
+  { key: "postInterview", label: "Post-interview", dotClass: "bg-indigo-600" },
 ];
+
+function Pill({
+  label,
+  value,
+  strong = false,
+  dotClass,
+}: {
+  label: string;
+  value?: number;
+  strong?: boolean;
+  dotClass?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] ${
+        strong
+          ? "border-brand-200 bg-brand-50 font-bold text-brand-700"
+          : "border-line-soft bg-surface-soft text-ink-muted"
+      }`}
+    >
+      {dotClass ? <span aria-hidden className={`size-2 rounded-full ${dotClass}`} /> : null}
+      <span>{label}</span>
+      {value !== undefined ? (
+        <span className="font-bold text-ink">{value}</span>
+      ) : null}
+    </span>
+  );
+}
 
 export default function ApplicantPipelineOverview({
   filteredCounts,
@@ -50,33 +84,26 @@ export default function ApplicantPipelineOverview({
   ];
 
   return (
-    <section className="card applicant-pipeline-overview" aria-label="Applicant pipeline summary">
-      <div className="applicant-pipeline-overview-row" role="group" aria-label="Filtered board counts">
-        <span className="applicant-pipeline-overview-pill applicant-pipeline-overview-pill-strong">
-          Filtered <span className="applicant-pipeline-overview-pill-value">{total}</span>
-        </span>
-
-        {RIBBON_SEGMENTS.map((seg) => {
-          const n = filteredCounts[seg.key];
-          return (
-            <span key={seg.key} className="applicant-pipeline-overview-pill">
-              <span className="applicant-pipeline-overview-dot" style={{ background: seg.color }} aria-hidden />
-              <span className="applicant-pipeline-overview-pill-label">{seg.label}</span>
-              <span className="applicant-pipeline-overview-pill-value">{n}</span>
-            </span>
-          );
-        })}
+    <section
+      className="mb-4 flex flex-col gap-2 rounded-[12px] border border-line-soft bg-surface p-4 shadow-card"
+      aria-label="Applicant pipeline summary"
+    >
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtered board counts">
+        <Pill label="Filtered" value={total} strong />
+        {RIBBON_SEGMENTS.map((seg) => (
+          <Pill
+            key={seg.key}
+            label={seg.label}
+            value={filteredCounts[seg.key]}
+            dotClass={seg.dotClass}
+          />
+        ))}
       </div>
 
-      <div className="applicant-pipeline-overview-row" role="group" aria-label="Overall counts by status">
-        <span className="applicant-pipeline-overview-pill applicant-pipeline-overview-pill-strong">
-          Overall
-        </span>
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Overall counts by status">
+        <Pill label="Overall" strong />
         {overall.map((row) => (
-          <span key={row.label} className="applicant-pipeline-overview-pill">
-            <span className="applicant-pipeline-overview-pill-label">{row.label}</span>
-            <span className="applicant-pipeline-overview-pill-value">{row.value}</span>
-          </span>
+          <Pill key={row.label} label={row.label} value={row.value} />
         ))}
       </div>
     </section>

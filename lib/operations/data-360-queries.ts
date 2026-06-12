@@ -145,7 +145,7 @@ const HEALTH_TONE: Record<string, ExplorerInitiative["healthTone"]> = {
 
 // --- cross-domain attention inputs --------------------------------------------
 
-async function loadPartnerInputs(): Promise<PartnerAttentionInput[]> {
+export async function loadPartnerInputs(): Promise<PartnerAttentionInput[]> {
   const partners = await prisma.partner.findMany({
     select: {
       id: true,
@@ -201,7 +201,7 @@ async function loadApplicantInputs(): Promise<ApplicantAttentionInput[]> {
   });
 }
 
-async function loadMentorshipInputs(): Promise<MentorshipAttentionInput[]> {
+export async function loadMentorshipInputs(): Promise<MentorshipAttentionInput[]> {
   const mentorships = await prisma.mentorship.findMany({
     where: { status: "ACTIVE" },
     take: 200,
@@ -246,7 +246,7 @@ async function loadMentorshipInputs(): Promise<MentorshipAttentionInput[]> {
   });
 }
 
-async function loadClassSetupInputs(now: Date): Promise<ClassSetupAttentionInput[]> {
+export async function loadClassSetupInputs(now: Date): Promise<ClassSetupAttentionInput[]> {
   const offerings = await prisma.classOffering.findMany({
     where: {
       status: { in: ["DRAFT", "PUBLISHED", "IN_PROGRESS"] },

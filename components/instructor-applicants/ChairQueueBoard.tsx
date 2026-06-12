@@ -61,11 +61,11 @@ interface Props {
   applications: ApplicationRow[];
 }
 
-const REC_CLASSES: Record<string, string> = {
-  ACCEPT: "is-accept",
-  ACCEPT_WITH_SUPPORT: "is-support",
-  HOLD: "is-hold",
-  REJECT: "is-reject",
+const REC_DOT_CLASSES: Record<string, string> = {
+  ACCEPT: "bg-emerald-500",
+  ACCEPT_WITH_SUPPORT: "bg-teal-500",
+  HOLD: "bg-amber-500",
+  REJECT: "bg-rose-500",
 };
 
 const REC_LABELS: Record<string, string> = {
@@ -100,23 +100,29 @@ export default function ChairQueueBoard({ applications }: Props) {
     return Math.floor((Date.now() - new Date(app.chairQueuedAt).getTime()) / 86400000);
   }
 
+  const tabClass = (active: boolean) =>
+    `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors duration-100 ${
+      active
+        ? "border-brand-600 bg-brand-50 text-brand-700"
+        : "border-line bg-surface text-ink-muted hover:bg-surface-soft hover:text-ink"
+    }`;
+
   return (
-    <div className="chair-queue-board">
+    <div className="flex flex-col gap-3">
       <div
         role="tablist"
         aria-label="Filter by chapter"
-        className="chair-queue-tabs"
+        className="flex flex-wrap items-center gap-1.5"
       >
         <button
           role="tab"
           type="button"
           aria-selected={showAll}
           onClick={() => { setActiveChapterId(null); setShowAll(true); }}
-          className="chair-queue-tab"
-          data-active={showAll}
+          className={tabClass(showAll)}
         >
           <span>YPP-wide</span>
-          <strong>{applications.length}</strong>
+          <strong className="font-bold">{applications.length}</strong>
         </button>
         {chapters.map(([chapId, chapName]) => {
           const count = applications.filter((a) => a.applicant.chapterId === chapId).length;
@@ -128,22 +134,21 @@ export default function ChairQueueBoard({ applications }: Props) {
               type="button"
               aria-selected={active}
               onClick={() => { setActiveChapterId(chapId); setShowAll(false); }}
-              className="chair-queue-tab"
-              data-active={active}
+              className={tabClass(active)}
             >
               <span>{chapName}</span>
-              <strong>{count}</strong>
+              <strong className="font-bold">{count}</strong>
             </button>
           );
         })}
       </div>
 
       {displayed.length === 0 ? (
-        <div className="chair-queue-empty">
-          <p>No applications in the chair queue.</p>
+        <div className="rounded-[10px] border border-dashed border-line px-5 py-8 text-center">
+          <p className="m-0 text-[13.5px] text-ink-muted">No applications in the chair queue.</p>
         </div>
       ) : (
-        <div className="chair-queue-list">
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {displayed.map((app) => {
             const days = daysInQueue(app);
             const displayName = formatApplicantDisplayName(app);
@@ -154,60 +159,67 @@ export default function ChairQueueBoard({ applications }: Props) {
             ).length;
 
             return (
-              <Link
-                key={app.id}
-                aria-label={`Open chair decision for ${displayName}`}
-                href={`/admin/instructor-applicants/${app.id}/review`}
-                className="chair-queue-row"
-              >
-                <div className="chair-queue-applicant">
-                  <p>{displayName}</p>
-                  {app.applicant.chapter && (
-                    <span>
-                      {app.applicant.chapter.name}
-                    </span>
-                  )}
-                </div>
-
-                <div className="chair-queue-evidence" aria-label="Decision evidence">
-                  {days !== null && (
-                    <span className={`chair-queue-chip ${days > 7 ? "is-warn" : "is-info"}`}>
-                      {days}d queued
-                    </span>
-                  )}
-
-                  {reviewerRec?.nextStep && (
-                    <span className="chair-queue-chip is-reviewer">
-                      {reviewerRec.nextStep.replace(/_/g, " ")}
-                    </span>
-                  )}
-
-                  {missingRecommendations > 0 && (
-                    <span className="chair-queue-chip is-warn">
-                      {missingRecommendations} Rec Missing
-                    </span>
-                  )}
-                </div>
-
-                <div className="chair-queue-recs" aria-label="Interviewer recommendations">
-                  {app.interviewReviews.map((ir) => (
-                    <span
-                      key={ir.reviewerId}
-                      title={`${ir.reviewer.name ?? "Interviewer"}: ${ir.recommendation ? REC_LABELS[ir.recommendation] ?? ir.recommendation : "No recommendation"}`}
-                      className={`chair-rec-dot ${ir.recommendation ? REC_CLASSES[ir.recommendation] ?? "" : ""}`}
-                    >
-                      <span className="sr-only">
-                        {ir.reviewer.name ?? "Interviewer"}: {ir.recommendation ? REC_LABELS[ir.recommendation] ?? ir.recommendation : "No recommendation"}
+              <li key={app.id}>
+                <Link
+                  aria-label={`Open chair decision for ${displayName}`}
+                  href={`/admin/instructor-applicants/${app.id}/review`}
+                  className="flex flex-wrap items-center gap-3 rounded-[10px] border border-line-soft bg-surface px-4 py-3 no-underline shadow-card transition-colors duration-100 hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-400"
+                >
+                  <div className="min-w-44 flex-1">
+                    <p className="m-0 text-[13.5px] font-semibold text-ink">{displayName}</p>
+                    {app.applicant.chapter && (
+                      <span className="text-[12px] text-ink-muted">
+                        {app.applicant.chapter.name}
                       </span>
-                    </span>
-                  ))}
-                </div>
+                    )}
+                  </div>
 
-                <span className="chair-queue-arrow" aria-hidden="true">›</span>
-              </Link>
+                  <div className="flex flex-wrap items-center gap-1.5" aria-label="Decision evidence">
+                    {days !== null && (
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          days > 7
+                            ? "bg-amber-50 text-amber-800"
+                            : "bg-blue-50 text-blue-700"
+                        }`}
+                      >
+                        {days}d queued
+                      </span>
+                    )}
+
+                    {reviewerRec?.nextStep && (
+                      <span className="inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
+                        {reviewerRec.nextStep.replace(/_/g, " ")}
+                      </span>
+                    )}
+
+                    {missingRecommendations > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                        {missingRecommendations} Rec Missing
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1" aria-label="Interviewer recommendations">
+                    {app.interviewReviews.map((ir) => (
+                      <span
+                        key={ir.reviewerId}
+                        title={`${ir.reviewer.name ?? "Interviewer"}: ${ir.recommendation ? REC_LABELS[ir.recommendation] ?? ir.recommendation : "No recommendation"}`}
+                        className={`size-2.5 rounded-full ${ir.recommendation ? REC_DOT_CLASSES[ir.recommendation] ?? "bg-gray-300" : "bg-gray-300"}`}
+                      >
+                        <span className="sr-only">
+                          {ir.reviewer.name ?? "Interviewer"}: {ir.recommendation ? REC_LABELS[ir.recommendation] ?? ir.recommendation : "No recommendation"}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+
+                  <span className="text-[16px] text-ink-muted" aria-hidden="true">›</span>
+                </Link>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </div>
   );

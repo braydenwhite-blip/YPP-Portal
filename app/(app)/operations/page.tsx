@@ -129,6 +129,12 @@ const ENTRY_POINTS: Array<{
   strategicOnly?: boolean;
 }> = [
   {
+    href: "/work",
+    title: "Work Hub",
+    description:
+      "The front door for all work — actions, follow-ups, partner requests, advisor check-ins, and applicant next steps, triaged together.",
+  },
+  {
     href: "/operations/command-center",
     title: "Command Center",
     description: "See what matters right now — needs attention, this week, recently decided.",

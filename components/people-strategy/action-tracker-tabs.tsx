@@ -19,7 +19,7 @@ export type ActionTrackerTab =
 type TabDef = { key: ActionTrackerTab; label: string; href?: string };
 
 const TABS: TabDef[] = [
-  { key: "command", label: "Command Center", href: "/actions/command-center" },
+  { key: "command", label: "Work Hub", href: "/work" },
   { key: "all", label: "All Actions", href: "/actions/all" },
   { key: "my", label: "My Actions", href: "/actions" },
   { key: "classes", label: "Classes", href: "/actions/all/classes" },

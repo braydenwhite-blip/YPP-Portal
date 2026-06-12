@@ -9,7 +9,8 @@ import {
 } from "@/lib/instructor-applicant-board-queries";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
 import ApplicantPipelineOverview from "@/components/instructor-applicants/ApplicantPipelineOverview";
-import { type FunnelCounts } from "@/components/instructor-applicants/PipelineFunnelChart";
+import { type FunnelCounts } from "@/components/instructor-applicants/ApplicantPipelineOverview";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 const DEMO_PIPELINE_TAKE = 48;
@@ -261,16 +262,12 @@ export default async function ChapterLeadInstructorApplicantsPage({
   const postInterviewCount = pipelineResult.columns.post_interview.length;
 
   return (
-    <div className="page-shell applicant-command-page">
-      <div className="page-header applicant-command-header">
-        <div>
-          <span className="badge">Chapter President</span>
-          <h1 className="page-title">Instructor Applicants</h1>
-          <p className="page-subtitle">
-            Review and manage instructor applicants from your chapter.
-          </p>
-        </div>
-      </div>
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 px-6 py-6">
+      <PageHeaderV2
+        eyebrow="Chapter President"
+        title="Instructor Applicants"
+        subtitle="Review and manage instructor applicants from your chapter."
+      />
 
       <ApplicantPipelineOverview
         filteredCounts={{

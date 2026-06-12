@@ -32,6 +32,7 @@ import {
   type PulseRow,
   type RecentDecisionRow,
 } from "@/components/people-strategy/weekly-command-center-client";
+import { LegacySurfaceBanner } from "@/components/ui-v2";
 import type {
   MeetingPrefill,
   PersonOption,
@@ -203,6 +204,12 @@ export default async function WeeklyCommandCenterPage({
 
   return (
     <div className="page-shell" style={{ maxWidth: 1280 }}>
+      <LegacySurfaceBanner
+        title="Work Hub shows meetings and their follow-up debt now."
+        body="Upcoming meetings, open follow-ups, and decisions without actions triage at /work — this page keeps meeting capture, agendas, and editing."
+        ctaLabel="Open Work Hub"
+        ctaHref="/work?view=meetings"
+      />
       <ActionTrackerTabs active="meetings" showPeople={showPeopleDashboardTab} />
       <WeeklyCommandCenterClient
         meetings={cards}

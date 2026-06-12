@@ -15,10 +15,12 @@ import { fileURLToPath } from "node:url";
 /**
  * Frozen 2026-06 at the start of the Knowledge OS V2 migration (17,443).
  * Lowered to 16,503 by CSS deletion milestone 1 (Phase 2C): dead nav/sidebar
- * skin blocks removed after a static usage audit —
- * docs/knowledge-os-phase-2c-notes.md. Only lower it.
+ * skin blocks — docs/knowledge-os-phase-2c-notes.md.
+ * Lowered to 14,955 by CSS deletion milestone 2 (Phase 3A): dead overview /
+ * legacy-dashboard blocks plus the application-board skins replaced by the
+ * ui-v2 reskin — docs/knowledge-os-phase-3a-notes.md. Only lower it.
  */
-const BASELINE_LINE_COUNT = 16503;
+const BASELINE_LINE_COUNT = 14955;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const file = join(root, "app", "globals.css");

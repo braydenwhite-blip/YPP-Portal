@@ -3887,6 +3887,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/work",
+    title: "Work Hub",
+    content: {
+      purpose: "The Work Hub is the one place for everything that needs doing — tracker actions, meeting follow-ups, upcoming meetings, initiative health, open partner requests, advisor check-ins, and applicant next steps, triaged worst-first.",
+      firstStep: "Start with the stat cards: Overdue, Blocked, and Needs an owner each open the filtered list. Click any row for its 360 preview.",
+      nextStep: "Use My queue for your own work, Needs attention for the cross-domain queue with reasons, and the quick action on each row to act without leaving the page."
+    }
+  },
+  {
     pattern: "/actions/command-center",
     title: "People Strategy Command Center",
     content: {

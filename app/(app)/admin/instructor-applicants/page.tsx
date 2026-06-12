@@ -9,9 +9,10 @@ import {
   getChairQueue,
 } from "@/lib/instructor-applicant-board-queries";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
+import { buttonVariants, PageHeaderV2, StatCardV2 } from "@/components/ui-v2";
 import ApplicantPipelineOverview from "@/components/instructor-applicants/ApplicantPipelineOverview";
 import { ArchiveAllButton } from "@/components/instructor-applicants/ArchiveActions";
-import { type FunnelCounts } from "@/components/instructor-applicants/PipelineFunnelChart";
+import { type FunnelCounts } from "@/components/instructor-applicants/ApplicantPipelineOverview";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 const DEMO_PIPELINE_TAKE = 48;
@@ -358,45 +359,88 @@ export default async function AdminInstructorApplicantsPage({
       ? pipelineResult.columns.chair_review.length
       : chairQueueItems.length;
 
+  // Concrete board flags (§16) — every count is a real filter or queue.
+  const missingMaterialsCount = serializedPipeline.filter(
+    (app) =>
+      app.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" && !app.materialsReadyAt
+  ).length;
+  const overdueCount = serializedPipeline.filter((app) => app.overdue).length;
+
   return (
-    <div className="page-shell applicant-command-page">
-      <div className="page-header applicant-command-header">
-        <div>
-          <span className="badge">
-            {isAdmin
-              ? "Admin"
-              : isHiringChair
-                ? "Hiring Chair"
-                : "Chapter President"}
-          </span>
-          <h1 className="page-title">Instructor Applicants</h1>
-          <p className="page-subtitle">
-            Pipeline, assignments, and decisions for all instructor applicants.
-          </p>
-        </div>
-        <div className="applicant-command-header-actions">
-          <a
-            href="/admin/external-applicants/new"
-            className="button small"
-            aria-label="Add an external applicant (Google Forms or manual entry)"
-          >
-            Add External Applicant
-          </a>
-          {/* CSV export is admin/hiring-chair only — hide for pure CPs so we
-              don't render a button that 403s for them. */}
-          {hasNetworkScope && (
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 px-6 py-6">
+      <PageHeaderV2
+        eyebrow={
+          isAdmin ? "Admin" : isHiringChair ? "Hiring Chair" : "Chapter President"
+        }
+        title="Instructor Applicants"
+        subtitle="The application review board — pipeline, assignments, and decisions for every instructor applicant. Click a card for the quick view; the Application 360 and full workspace are one click further."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
             <a
-              href="/api/admin/instructor-applicants/export.csv"
-              download
-              className="button secondary small"
-              aria-label="Download instructor applicants CSV export"
+              href="/admin/external-applicants/new"
+              className={buttonVariants({ variant: "secondary", size: "md" })}
+              aria-label="Add an external applicant (Google Forms or manual entry)"
             >
-              Download CSV
+              Add External Applicant
             </a>
-          )}
-          {isAdmin && <ArchiveAllButton />}
+            {/* CSV export is admin/hiring-chair only — hide for pure CPs so we
+                don't render a button that 403s for them. */}
+            {hasNetworkScope && (
+              <a
+                href="/api/admin/instructor-applicants/export.csv"
+                download
+                className={buttonVariants({ variant: "secondary", size: "md" })}
+                aria-label="Download instructor applicants CSV export"
+              >
+                Download CSV
+              </a>
+            )}
+            {isAdmin && <ArchiveAllButton />}
+          </div>
+        }
+      >
+        {/* Concrete flags, never composite scores — each count is clickable. */}
+        <div className="flex flex-wrap gap-3">
+          <StatCardV2
+            label="In pipeline"
+            value={serializedPipeline.length}
+            href="/admin/instructor-applicants"
+          />
+          <StatCardV2
+            label="Needs review"
+            value={toReviewCount}
+            detail="submitted or info returned"
+            href="/admin/instructor-applicants"
+          />
+          <StatCardV2
+            label="Missing materials"
+            value={missingMaterialsCount}
+            tone={missingMaterialsCount > 0 ? "attention" : "default"}
+            href="/admin/instructor-applicants?materialsMissing=1"
+          />
+          <StatCardV2
+            label="Overdue"
+            value={overdueCount}
+            detail="past their action date"
+            tone={overdueCount > 0 ? "attention" : "default"}
+            href="/admin/instructor-applicants?overdueOnly=1"
+          />
+          {showChairQueue ? (
+            <StatCardV2
+              label="Decision needed"
+              value={chairQueueCount}
+              detail="in the chair queue"
+              tone={chairQueueCount > 0 ? "attention" : "default"}
+              href="/admin/instructor-applicants/chair-queue"
+            />
+          ) : null}
+          <StatCardV2
+            label="Archived"
+            value={archiveResult.total}
+            href="/admin/instructor-applicants?tab=archive"
+          />
         </div>
-      </div>
+      </PageHeaderV2>
 
       <ApplicantPipelineOverview
         filteredCounts={{

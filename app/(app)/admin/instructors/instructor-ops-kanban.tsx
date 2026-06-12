@@ -213,7 +213,7 @@ export default function InstructorOpsKanban({
   records: InstructorOpsRecord[];
 }) {
   return (
-    <div className="instructor-ops-kanban applicant-command">
+    <div className="instructor-ops-kanban" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 16 }}>
       <KanbanBoard
         items={records}
         columns={COLUMNS}

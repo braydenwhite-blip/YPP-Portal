@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { ButtonLink } from "@/components/ui-v2";
 import { formatScheduleDateTime } from "@/lib/scheduling/shared";
 import { ArchiveOneButton } from "./ArchiveActions";
 import {
@@ -86,20 +86,20 @@ export default function ApplicantQuickDrawer({
     <>
       <div className="slideout-backdrop" onClick={onClose} aria-hidden="true" />
       <div
-        className="slideout-panel applicant-quick-drawer"
+        className="slideout-panel"
         role="dialog"
         aria-modal="true"
         aria-label={`Applicant detail: ${displayName}`}
       >
         {/* Header */}
-        <div className="slideout-header applicant-quick-drawer-header">
+        <div className="slideout-header">
           <div>
-            <div className="applicant-quick-drawer-title">
+            <div className="text-[16px] font-bold text-ink">
               {displayName}
             </div>
-            <div className="applicant-quick-drawer-chips">
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {app.applicant.chapter && (
-                <span className="kanban-card-chapter">{app.applicant.chapter.name}</span>
+                <span className="inline-flex items-center rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10.5px] font-semibold text-brand-700">{app.applicant.chapter.name}</span>
               )}
               <span
                 className={`status-pill ${app.status.toLowerCase().replace(/_/g, "-")}`}
@@ -197,7 +197,7 @@ export default function ApplicantQuickDrawer({
                       </div>
                     </>
                   ) : (
-                    <div className="applicant-card-unassigned">
+                    <div className="text-[13px] italic text-ink-muted">
                       No workshop outline submitted
                     </div>
                   )}
@@ -208,7 +208,7 @@ export default function ApplicantQuickDrawer({
               {app.subjectsOfInterest && (
               <div className="slideout-section">
                 <div className="slideout-section-title">Subjects of Interest</div>
-                  <div className="applicant-quick-drawer-chips">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {app.subjectsOfInterest
                       .split(/[\s,;]+/)
                       .filter(Boolean)
@@ -225,7 +225,7 @@ export default function ApplicantQuickDrawer({
                 {app.reviewer ? (
                   <div className="slideout-field-value">{app.reviewer.name ?? "Unknown"}</div>
                 ) : (
-                  <div className="applicant-card-unassigned">Not assigned</div>
+                  <div className="text-[13px] italic text-ink-muted">Not assigned</div>
                 )}
               </div>
 
@@ -250,22 +250,20 @@ export default function ApplicantQuickDrawer({
               {leadReview?.summary && (
                 <div className="slideout-section">
                   <div className="slideout-section-title">Reviewer note</div>
-                  <div
-                    className="applicant-quick-drawer-note"
-                  >
+                  <div className="rounded-[8px] border border-line-soft bg-surface-soft px-3 py-2 text-[13px] leading-relaxed text-ink">
                     {leadReview.summary}
                   </div>
                 </div>
               )}
 
-              {/* Open full workspace CTA */}
-              <div style={{ marginTop: 24, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Link
-                  href={`/applications/instructor/${app.id}`}
-                  className="button applicant-quick-drawer-cta"
-                >
-                  Open full workspace
-                </Link>
+              {/* Open record / workspace CTAs */}
+              <div className="mt-6 flex flex-wrap gap-2">
+                <ButtonLink href={`/admin/instructor-applicants/${app.id}`} variant="primary" size="md">
+                  Open Application 360
+                </ButtonLink>
+                <ButtonLink href={`/applications/instructor/${app.id}`} variant="secondary" size="md">
+                  Full workspace
+                </ButtonLink>
                 {isAdmin && (
                   <ArchiveOneButton
                     applicationId={app.id}
