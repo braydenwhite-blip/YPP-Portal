@@ -213,6 +213,112 @@ describe("runHelpAgentSearch — SearchDocument person cutover", () => {
   });
 });
 
+type CountArgs = { where: { entityType?: string } };
+
+/** Point the shared searchDocument mocks at one populated index group. */
+function populateIndexGroup(
+  entityType: string,
+  docs: Array<{ entityId: string; title: string; subtitle: string | null }>
+) {
+  mock(prisma.searchDocument.count).mockImplementation((args: CountArgs) =>
+    Promise.resolve(args.where.entityType === entityType ? docs.length : 0)
+  );
+  mock(prisma.searchDocument.findMany).mockImplementation((args: CountArgs) =>
+    Promise.resolve(args.where.entityType === entityType ? docs : [])
+  );
+}
+
+describe("runHelpAgentSearch — SearchDocument partner cutover", () => {
+  it("uses the partner index when populated; admin hrefs only for admins", async () => {
+    populateIndexGroup("partner", [
+      { entityId: "pa9", title: "Beth El", subtitle: "School" },
+    ]);
+
+    const res = await runHelpAgentSearch("beth", OFFICER);
+
+    expect(res.groups.find((g) => g.type === "partner")?.items[0]).toMatchObject({
+      type: "partner",
+      id: "pa9",
+      title: "Beth El",
+      subtitle: "School",
+      href: "/admin/partners/pa9",
+    });
+    // The live partner query is skipped when the index answers.
+    expect(prisma.partner.findMany).not.toHaveBeenCalled();
+  });
+
+  it("keeps partner hrefs preview-safe (null) for non-admin officers on the index path", async () => {
+    populateIndexGroup("partner", [
+      { entityId: "pa9", title: "Beth El", subtitle: "School" },
+    ]);
+
+    const res = await runHelpAgentSearch("beth", CHAPTER_OFFICER);
+
+    expect(res.groups.find((g) => g.type === "partner")?.items[0]).toMatchObject({
+      id: "pa9",
+      href: null,
+    });
+  });
+
+  it("falls back to the live partner query when the partner index is empty", async () => {
+    mock(prisma.partner.findMany).mockResolvedValue([
+      { id: "pa1", name: "Beth El", type: "School", contactName: null, contacts: [] },
+    ]);
+
+    const res = await runHelpAgentSearch("beth", OFFICER);
+
+    expect(prisma.partner.findMany).toHaveBeenCalled();
+    expect(res.groups.find((g) => g.type === "partner")?.items[0].id).toBe("pa1");
+  });
+});
+
+describe("runHelpAgentSearch — SearchDocument applicant cutover", () => {
+  it("uses the applicant index and re-checks every hit against the live visibility filter", async () => {
+    populateIndexGroup("applicant", [
+      { entityId: "a-visible", title: "Sam Vale", subtitle: "UNDER_REVIEW" },
+      { entityId: "a-hidden", title: "Sam Stone", subtitle: "SUBMITTED" },
+    ]);
+    // The visibility re-check keeps only the row the viewer may see.
+    mock(prisma.instructorApplication.findMany).mockResolvedValue([{ id: "a-visible" }]);
+
+    const res = await runHelpAgentSearch("sam", OFFICER);
+
+    const applicantGroup = res.groups.find((g) => g.type === "applicant");
+    expect(applicantGroup?.items).toHaveLength(1);
+    expect(applicantGroup?.items[0]).toMatchObject({
+      id: "a-visible",
+      title: "Sam Vale",
+      subtitle: "Under review",
+      href: "/admin/instructor-applicants/a-visible",
+    });
+    // The re-check queried exactly the index hits, with the visibility filter.
+    const where = mock(prisma.instructorApplication.findMany).mock.calls[0][0].where;
+    expect(where.AND[0].id.in).toEqual(["a-visible", "a-hidden"]);
+    expect(where.AND[1]).toEqual({ archivedAt: null });
+  });
+
+  it("falls back to the live application query when the applicant index is empty", async () => {
+    mock(prisma.instructorApplication.findMany).mockResolvedValue([
+      {
+        id: "a1",
+        status: "UNDER_REVIEW",
+        preferredFirstName: "Sam",
+        lastName: "Vale",
+        legalName: null,
+        applicant: { name: "Sam Vale", email: "sam@test.dev" },
+      },
+    ]);
+
+    const res = await runHelpAgentSearch("sam", OFFICER);
+
+    expect(res.groups.find((g) => g.type === "applicant")?.items[0]).toMatchObject({
+      id: "a1",
+      title: "Sam Vale",
+      subtitle: "Under review",
+    });
+  });
+});
+
 describe("runHelpAgentSearch — application visibility", () => {
   it("does not query applications when the viewer cannot resolve an application visibility filter", async () => {
     mock(instructorApplicationVisibilityWhere).mockResolvedValue(null);

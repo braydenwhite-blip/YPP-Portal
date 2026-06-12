@@ -16,6 +16,7 @@ import {
 } from "@prisma/client";
 import { validateEnum } from "@/lib/validate-enum";
 import { logAuditEvent } from "@/lib/audit-log-actions";
+import { syncPersonSearchDocument } from "@/lib/help-agent/search-indexing";
 import { onProgressEvent } from "@/lib/progress-events";
 import { migrateUsersToSupabaseAuth } from "@/lib/supabase-user-migration";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -201,6 +202,7 @@ export async function createUser(formData: FormData) {
     metadata: { roles, primaryRole, adminSubtypes, defaultOwnerSubtype },
   });
 
+  await syncPersonSearchDocument(newUser.id);
   revalidatePath("/admin");
 }
 

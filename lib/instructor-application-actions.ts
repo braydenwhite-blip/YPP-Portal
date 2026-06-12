@@ -32,6 +32,10 @@ import {
 } from "@/lib/legacy-application-review";
 import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 import {
+  syncApplicationSearchDocument,
+  syncPersonSearchDocument,
+} from "@/lib/help-agent/search-indexing";
+import {
   startProvisionalClock,
   clearProvisionalClock,
 } from "@/lib/people-strategy/provisional";
@@ -2991,6 +2995,8 @@ export async function archiveApplication(formData: FormData): Promise<{ success:
       });
     });
 
+    // Archived applications leave the search index.
+    await syncApplicationSearchDocument(applicationId);
     revalidatePath("/admin/instructor-applicants");
     return { success: true };
   } catch (error) {
@@ -3040,6 +3046,7 @@ export async function autoArchiveTerminalApplications(): Promise<{ archived: num
           },
         });
       });
+      await syncApplicationSearchDocument(app.id);
       archived++;
     } catch (e) {
       console.error(`[autoArchiveTerminalApplications] failed for ${app.id}:`, e);
@@ -3161,6 +3168,7 @@ export async function archiveApplicantSubmissionById(
         }
         return updated.count;
       });
+      if (res > 0) await syncApplicationSearchDocument(id);
       return res > 0;
     }
     case "application": {
@@ -3207,6 +3215,8 @@ export async function archiveUserById(
     where: { id: userId, archivedAt: null },
     data: { archivedAt: now },
   });
+  // Archived people leave the search index.
+  if (res.count > 0) await syncPersonSearchDocument(userId);
   return res.count > 0;
 }
 
@@ -3431,6 +3441,8 @@ export async function editInstructorApplicationFields(
       }
     });
 
+    // Name edits change the applicant's search title.
+    await syncApplicationSearchDocument(application.id);
     revalidatePath("/application-status");
     revalidatePath(`/applications/instructor/${application.id}`);
     revalidatePath("/admin/instructor-applicants");

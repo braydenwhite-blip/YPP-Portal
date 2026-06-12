@@ -143,6 +143,22 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     kind: "query",
   },
   {
+    label: "Interviews needing my action",
+    description: "Interview queue filtered to tasks that move when you act",
+    href: "/interviews?state=needs_action",
+    icon: "🎙️",
+    tier: "MEMBER",
+    kind: "query",
+  },
+  {
+    label: "Upcoming interviews",
+    description: "Confirmed hiring and readiness interviews on the calendar",
+    href: "/interviews?state=scheduled",
+    icon: "📅",
+    tier: "OFFICER",
+    kind: "query",
+  },
+  {
     label: "My work queue",
     description: "Work Hub filtered to work you own",
     href: "/work?view=mine",

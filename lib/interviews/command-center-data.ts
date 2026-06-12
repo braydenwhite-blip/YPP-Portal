@@ -362,7 +362,21 @@ export async function getInterviewCommandCenterData(
             label: "Applicant detail",
             href: `/applications/instructor/${app.id}`,
           },
+          // Application 360 is the decision-first record page — admin-only route.
+          ...(isAdmin
+            ? [
+                {
+                  label: "Application 360",
+                  href: `/admin/instructor-applicants/${app.id}`,
+                },
+              ]
+            : []),
         ],
+        relatedEntity: {
+          type: "applicant",
+          id: app.id,
+          label: displayName,
+        },
         blockers: stage === "BLOCKED" ? ["No confirmed slot yet."] : [],
         timestamps: {
           scheduledAt: app.interviewScheduledAt ?? null,
@@ -485,8 +499,8 @@ export async function getInterviewCommandCenterData(
       );
 
       for (const gate of gates) {
-        tasks.push(
-          buildReadinessInterviewTask({
+        tasks.push({
+          ...buildReadinessInterviewTask({
             gateId: gate.id,
             instructorId: gate.instructorId,
             instructorName: gate.instructor.name || "Instructor",
@@ -500,8 +514,14 @@ export async function getInterviewCommandCenterData(
             pendingRequests: gate.availabilityRequests,
             audience: "team",
             viewerRole: "reviewer",
-          })
-        );
+          }),
+          // The interviewee is a real person record — surface their 360.
+          relatedEntity: {
+            type: "person",
+            id: gate.instructorId,
+            label: gate.instructor.name || "Instructor",
+          },
+        });
       }
     }
   }

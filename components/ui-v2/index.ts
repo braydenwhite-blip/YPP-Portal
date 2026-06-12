@@ -33,6 +33,9 @@ export { Checklist, type ChecklistItem } from "./checklist";
 export { DecisionDock, type DecisionOption } from "./decision-dock";
 export { FilterBar, FilterChipLink, UrlSyncedSearchInput } from "./filter-bar";
 export { LegacySurfaceBanner } from "./legacy-surface-banner";
+export { ModalV2, ModalFooterV2 } from "./modal";
+export { ToastV2 } from "./toast";
+export { BannerV2 } from "./banner";
 export {
   SidebarChevron,
   SidebarUserCard,

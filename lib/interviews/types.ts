@@ -106,6 +106,17 @@ export type InterviewPrimaryAction =
       href: string;
     };
 
+/**
+ * Optional Entity 360 hook for a task: the person being interviewed
+ * (readiness) or the instructor application (hiring V1). Rendered as an
+ * EntityChip so the hub opens previews instead of dead-end labels.
+ */
+export type InterviewTaskEntity = {
+  type: "person" | "applicant";
+  id: string;
+  label: string;
+};
+
 export type InterviewTask = {
   id: string;
   domain: InterviewDomain;
@@ -118,6 +129,7 @@ export type InterviewTask = {
   href: string;
   primaryAction: InterviewPrimaryAction;
   secondaryLinks: InterviewTaskLink[];
+  relatedEntity?: InterviewTaskEntity;
   schedulingStatus?: InterviewSchedulingStatus;
   blockers: string[];
   timestamps?: {

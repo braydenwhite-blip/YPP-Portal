@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CardV2, FilterBar, FilterChipLink, cn } from "@/components/ui-v2";
 import type {
   InterviewHubFilters,
   InterviewHubKpis,
@@ -53,75 +54,89 @@ function stateCount(value: InterviewStateFilter | "all", kpis?: InterviewHubKpis
   return null;
 }
 
+/** URL-synced segmented control — filters are links, not client state. */
+function Segmented({
+  label,
+  options,
+}: {
+  label: string;
+  options: Array<{ label: string; href: string; selected: boolean }>;
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+        {label}
+      </p>
+      <div
+        role="group"
+        aria-label={label}
+        className="inline-flex overflow-hidden rounded-[10px] border border-line bg-surface-soft p-0.5"
+      >
+        {options.map((option) => (
+          <Link
+            key={option.label}
+            href={option.href}
+            aria-current={option.selected ? "page" : undefined}
+            className={cn(
+              "rounded-[8px] px-3 py-1.5 text-[12.5px] font-semibold transition-colors duration-150",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400",
+              option.selected
+                ? "bg-surface text-brand-700 shadow-card"
+                : "text-ink-muted hover:text-brand-700"
+            )}
+          >
+            {option.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function InterviewFilters({ filters, canTeamView, kpis }: InterviewFiltersProps) {
   return (
-    <div className="iv-card iv-card-body" aria-label="Filter interviews">
-      <div className="iv-filter-row">
-        <div>
-          <p className="iv-filter-label">Scope</p>
-          <div className="iv-segmented" role="group" aria-label="Interview scope">
-            {SCOPES.map((scope) => {
-              const selected = filters.scope === scope.value;
-              return (
-                <Link
-                  key={scope.value}
-                  href={makeHref(filters, { scope: scope.value })}
-                  className={selected ? "is-selected" : ""}
-                  aria-current={selected ? "page" : undefined}
-                >
-                  {scope.label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-
+    <CardV2 padding="md" className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start gap-6">
+        <Segmented
+          label="Scope"
+          options={SCOPES.map((scope) => ({
+            label: scope.label,
+            href: makeHref(filters, { scope: scope.value }),
+            selected: filters.scope === scope.value,
+          }))}
+        />
         {canTeamView ? (
-          <div>
-            <p className="iv-filter-label">View</p>
-            <div className="iv-segmented" role="group" aria-label="Interview view">
-              {VIEWS.map((view) => {
-                const selected = filters.view === view.value;
-                return (
-                  <Link
-                    key={view.value}
-                    href={makeHref(filters, { view: view.value })}
-                    className={selected ? "is-selected" : ""}
-                    aria-current={selected ? "page" : undefined}
-                  >
-                    {view.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+          <Segmented
+            label="View"
+            options={VIEWS.map((view) => ({
+              label: view.label,
+              href: makeHref(filters, { view: view.value }),
+              selected: filters.view === view.value,
+            }))}
+          />
         ) : null}
       </div>
 
-      <div className="iv-filter-row" style={{ marginTop: 14 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p className="iv-filter-label">State</p>
-          <div className="iv-filter-chip-group">
-            {STATES.map((state) => {
-              const selected = filters.state === state.value;
-              const count = stateCount(state.value, kpis);
-              return (
-                <Link
-                  key={state.value}
-                  href={makeHref(filters, { state: state.value })}
-                  className={`iv-filter-chip${selected ? " is-selected" : ""}`}
-                  aria-current={selected ? "page" : undefined}
-                >
-                  {state.label}
-                  {typeof count === "number" && count > 0 ? (
-                    <span className="iv-filter-chip-count">{count}</span>
-                  ) : null}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+      <div>
+        <p className="mb-1.5 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+          State
+        </p>
+        <FilterBar aria-label="Interview state">
+          {STATES.map((state) => {
+            const count = stateCount(state.value, kpis);
+            return (
+              <FilterChipLink
+                key={state.value}
+                href={makeHref(filters, { state: state.value })}
+                active={filters.state === state.value}
+                count={typeof count === "number" && count > 0 ? count : undefined}
+              >
+                {state.label}
+              </FilterChipLink>
+            );
+          })}
+        </FilterBar>
       </div>
-    </div>
+    </CardV2>
   );
 }

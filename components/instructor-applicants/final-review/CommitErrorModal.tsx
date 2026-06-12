@@ -6,8 +6,7 @@
  * jump-to-field affordance keyed to the offending field. (§10.4)
  */
 
-import { useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Button, ModalFooterV2, ModalV2 } from "@/components/ui-v2";
 import { AlertTriangleIcon } from "./cockpit-icons";
 
 export type CommitValidationField =
@@ -39,109 +38,43 @@ const CODE_TITLE: Record<string, string> = {
 };
 
 export default function CommitErrorModal(props: CommitErrorModalProps) {
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!props.open) return;
-    const previous = document.activeElement as HTMLElement | null;
-    dialogRef.current?.focus();
-    return () => previous?.focus?.();
-  }, [props.open]);
-
   const title =
     (props.code && CODE_TITLE[props.code]) || "We couldn't save this decision.";
 
   return (
-    <AnimatePresence>
-      {props.open ? (
-        <motion.div
-          key="commit-err-backdrop"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-          onClick={props.onDismiss}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(15, 7, 36, 0.4)",
-            backdropFilter: "blur(8px)",
-            zIndex: 65,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
-          <motion.div
-            ref={dialogRef}
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="commit-err-title"
-            tabIndex={-1}
-            initial={{ scale: 0.96, y: 12, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.96, y: 12, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 240, damping: 26 }}
-            onClick={(event) => event.stopPropagation()}
-            style={{
-              maxWidth: 460,
-              width: "100%",
-              background: "var(--cockpit-surface, #fff)",
-              borderRadius: 16,
-              padding: 22,
-              boxShadow: "0 24px 60px rgba(15, 7, 36, 0.32)",
-              borderTop: "4px solid var(--score-mixed, #eab308)",
-            }}
+    <ModalV2
+      open={props.open}
+      onClose={props.onDismiss}
+      size="sm"
+      accent="warning"
+      role="alertdialog"
+      labelledBy="commit-err-title"
+      motionKey="commit-err"
+      className="max-w-[460px]"
+    >
+      <div className="flex items-center gap-2 text-warning-700">
+        <AlertTriangleIcon size={20} />
+        <h2 id="commit-err-title" className="m-0 text-[17px] text-ink">
+          {title}
+        </h2>
+      </div>
+      <p className="m-0 text-[13px] text-ink-muted">{props.message}</p>
+      <ModalFooterV2>
+        <Button variant="secondary" size="sm" onClick={props.onDismiss}>
+          Cancel
+        </Button>
+        {props.field ? (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => props.field && props.onJumpToField(props.field, props.fieldIndex)}
+            className="bg-warning-700 hover:bg-warning-700/90"
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#a16207" }}>
-              <AlertTriangleIcon size={20} />
-              <h2 id="commit-err-title" style={{ margin: 0, fontSize: 17, color: "var(--ink-default, #1a0533)" }}>
-                {title}
-              </h2>
-            </div>
-            <p style={{ marginTop: 10, fontSize: 13, color: "var(--ink-muted, #6b5f7a)" }}>
-              {props.message}
-            </p>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
-              <button
-                type="button"
-                onClick={props.onDismiss}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: 8,
-                  border: "1px solid var(--cockpit-line, rgba(71,85,105,0.2))",
-                  background: "var(--cockpit-surface, #fff)",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                Cancel
-              </button>
-              {props.field ? (
-                <button
-                  type="button"
-                  onClick={() => props.field && props.onJumpToField(props.field, props.fieldIndex)}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: 8,
-                    border: "1px solid #b45309",
-                    background: "#b45309",
-                    color: "#fff",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                >
-                  Fix {fieldLabel(props.field, props.fieldIndex)}
-                </button>
-              ) : null}
-            </div>
-          </motion.div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+            Fix {fieldLabel(props.field, props.fieldIndex)}
+          </Button>
+        ) : null}
+      </ModalFooterV2>
+    </ModalV2>
   );
 }
 

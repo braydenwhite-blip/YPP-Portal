@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
+import { syncPersonSearchDocument } from "@/lib/help-agent/search-indexing";
 import {
   parseOptionalEmail,
   parseOptionalPhone,
@@ -99,6 +100,8 @@ export async function updateBasicInfo(formData: FormData) {
     }
   });
 
+  // Name is the person's search title.
+  await syncPersonSearchDocument(userId);
   revalidatePath("/profile");
 }
 

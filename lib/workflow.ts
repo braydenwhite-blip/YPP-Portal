@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { syncApplicationSearchDocument } from "@/lib/help-agent/search-indexing";
 import {
   ADMIN_SUBTYPE_LABELS,
   normalizeAdminSubtype,
@@ -642,6 +643,12 @@ function workflowStatusFromTerminalState(isComplete: boolean): WorkflowStatus {
 }
 
 export async function syncInstructorApplicationWorkflow(applicationId: string) {
+  // Every application lifecycle mutation funnels through here, so this is
+  // also the search index's write path: keep the Help Agent applicant row
+  // (name / status subtitle) current. Never throws; the nightly reconcile
+  // self-heals any miss.
+  await syncApplicationSearchDocument(applicationId);
+
   const application = await prisma.instructorApplication.findUnique({
     where: { id: applicationId },
     include: {

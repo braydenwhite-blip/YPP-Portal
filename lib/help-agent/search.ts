@@ -11,21 +11,22 @@ import type { HelpAgentGroup, HelpAgentResult, HelpAgentSearchResponse } from ".
 /**
  * YPP Help Agent — deterministic, permission-aware entity search.
  *
- * Phase 3C began the SearchDocument cutover: the PERSON group reads the
- * index (title/keywords) when it is populated, and falls back to the live
- * Prisma query when it is empty — the index has no write path yet, so the
- * fallback keeps search correct on environments where the backfill
- * (scripts/backfill-search-documents.ts) has not run. Every other group
- * still runs live, scoped Prisma queries (small `take`s on indexed
- * columns): meetings need date context the index lacks, initiatives are
- * config-defined, and partner/class/action subtitles can go stale without
- * write-path upserts. Remaining cutover work: write-path upserts on entity
- * mutations + a nightly reconcile run of the backfill, then the
- * partner/applicant/action groups.
+ * SearchDocument cutover status (Phase 3C started it, Phase 3D extended it):
+ * the PERSON, PARTNER, and APPLICANT groups read the index (title/keywords,
+ * kept current by the write-path upserts in lib/help-agent/search-indexing.ts
+ * and the nightly /api/cron/search-reconcile), and every group falls back to
+ * its live Prisma query when the index is empty, has no text hits, or
+ * errors — search stays correct on environments where the backfill has
+ * never run. Applicant index hits are additionally re-checked against the
+ * live per-viewer application visibility filter, so the index can never
+ * widen access. Meetings/actions stay live (meetings need date context the
+ * index lacks; the action group is cheap and title-only), and initiatives
+ * are config-defined.
  *
  * Access mirrors the Entity 360 loaders ("stricter reading wins"):
  *   - person   → any signed-in member (active members only — no applicants)
  *   - partner / class / meeting / action / initiative → officer-tier only
+ *   - applicant → officer-tier, narrowed per viewer (chapter / assignment)
  * Hydration of anything deeper always goes through /api/entity-360, which
  * re-authorizes — a search row can never reveal more than its 360 would.
  */
@@ -78,23 +79,31 @@ function canOpenAdminRecord(viewer: ActionViewer): boolean {
   return viewer.primaryRole === "ADMIN" || viewer.roles.includes("ADMIN");
 }
 
+type SearchIndexHit = {
+  entityId: string;
+  title: string;
+  subtitle: string | null;
+};
+
 /**
- * Person search via the SearchDocument index. Returns null when the index
- * has no person rows (backfill never run) so the caller can fall back to
- * the live query — never an empty result set caused by missing ops.
+ * Read one entity group from the SearchDocument index. Returns null when
+ * the group has no index rows (backfill never run) or the query has no
+ * text hits, so the caller falls back to its live query — never an empty
+ * result set caused by missing ops.
  */
-async function searchPeopleFromIndex(q: string): Promise<HelpAgentResult[] | null> {
-  const personIndexWhere = {
-    entityType: "person",
-    visibilityTier: "MEMBER",
-  };
+async function searchIndexGroup(
+  entityType: string,
+  visibilityTier: "MEMBER" | "OFFICER",
+  q: string
+): Promise<SearchIndexHit[] | null> {
+  const groupWhere = { entityType, visibilityTier };
   const indexed = await prisma.searchDocument
-    .count({ where: personIndexWhere })
+    .count({ where: groupWhere })
     .catch(() => 0);
   if (indexed === 0) return null;
   const docs = await prisma.searchDocument.findMany({
     where: {
-      ...personIndexWhere,
+      ...groupWhere,
       OR: [
         { title: { contains: q, mode: "insensitive" } },
         { keywords: { contains: q, mode: "insensitive" } },
@@ -105,6 +114,12 @@ async function searchPeopleFromIndex(q: string): Promise<HelpAgentResult[] | nul
     take: PER_GROUP_LIMIT * 3,
   });
   if (docs.length === 0) return null;
+  return docs;
+}
+
+async function searchPeopleFromIndex(q: string): Promise<HelpAgentResult[] | null> {
+  const docs = await searchIndexGroup("person", "MEMBER", q);
+  if (docs === null) return null;
   return docs.map((d) => ({
     type: "person" as const,
     id: d.entityId,
@@ -139,10 +154,28 @@ async function searchPeople(q: string): Promise<HelpAgentResult[]> {
   }));
 }
 
+async function searchPartnersFromIndex(
+  q: string,
+  viewer: ActionViewer
+): Promise<HelpAgentResult[] | null> {
+  const docs = await searchIndexGroup("partner", "OFFICER", q);
+  if (docs === null) return null;
+  const adminRecordAccess = canOpenAdminRecord(viewer);
+  return docs.map((d) => ({
+    type: "partner" as const,
+    id: d.entityId,
+    title: d.title,
+    subtitle: d.subtitle,
+    href: adminRecordAccess ? `/admin/partners/${d.entityId}` : null,
+  }));
+}
+
 async function searchPartners(
   q: string,
   viewer: ActionViewer
 ): Promise<HelpAgentResult[]> {
+  const fromIndex = await searchPartnersFromIndex(q, viewer).catch(() => null);
+  if (fromIndex !== null) return fromIndex;
   const adminRecordAccess = canOpenAdminRecord(viewer);
   const partners = await prisma.partner.findMany({
     where: {
@@ -195,6 +228,41 @@ function prettyStatus(value: string): string {
 }
 
 /**
+ * Applicant index path: text-match on the index, then re-check every hit
+ * against the live per-viewer visibility filter (chapter / assignment /
+ * own application) so an OFFICER-tier index row can never widen access.
+ */
+async function searchApplicationsFromIndex(
+  q: string,
+  visibilityWhere: NonNullable<
+    Awaited<ReturnType<typeof instructorApplicationVisibilityWhere>>
+  >
+): Promise<HelpAgentResult[] | null> {
+  const docs = await searchIndexGroup("applicant", "OFFICER", q);
+  if (docs === null) return null;
+  const visible = await prisma.instructorApplication.findMany({
+    where: {
+      AND: [
+        { id: { in: docs.map((d) => d.entityId) } },
+        { archivedAt: null },
+        visibilityWhere,
+      ],
+    },
+    select: { id: true },
+  });
+  const visibleIds = new Set(visible.map((v) => v.id));
+  return docs
+    .filter((d) => visibleIds.has(d.entityId))
+    .map((d) => ({
+      type: "applicant" as const,
+      id: d.entityId,
+      title: d.title,
+      subtitle: d.subtitle ? prettyStatus(d.subtitle) : null,
+      href: `/admin/instructor-applicants/${d.entityId}`,
+    }));
+}
+
+/**
  * Instructor applications (Knowledge OS V2 Phase 2C) — finding an applicant
  * by name lands on the decision-first Application 360. Officer-tier only,
  * matching the board's read access; active (non-archived) applications only.
@@ -205,6 +273,11 @@ async function searchApplications(
 ): Promise<HelpAgentResult[]> {
   const visibilityWhere = await instructorApplicationVisibilityWhere(viewer.id);
   if (!visibilityWhere) return [];
+
+  const fromIndex = await searchApplicationsFromIndex(q, visibilityWhere).catch(
+    () => null
+  );
+  if (fromIndex !== null) return fromIndex;
 
   const applications = await prisma.instructorApplication.findMany({
     where: {

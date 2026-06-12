@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/authorization-helpers";
+import { syncPartnerSearchDocument } from "@/lib/help-agent/search-indexing";
 import { whereActiveMember } from "@/lib/user-role-where";
 import {
   asPartnerStage,
@@ -148,9 +149,10 @@ export async function createPartner(formData: FormData): Promise<void> {
   const priority = asPartnerPriority(getString(formData, "priority", false));
   const partnerType = asPartnerType(getString(formData, "partnerType", false));
 
-  await prisma.partner.create({
+  const partner = await prisma.partner.create({
     data: { name, type, website, notes, relationshipLeadId, stage, priority, partnerType },
   });
+  await syncPartnerSearchDocument(partner.id);
 
   revalidatePath("/admin/partners");
 }
@@ -161,6 +163,7 @@ export async function updatePartner(formData: FormData): Promise<void> {
   const id = getString(formData, "id");
   const data = await buildPartnerUpdateData(formData);
   await prisma.partner.update({ where: { id }, data });
+  await syncPartnerSearchDocument(id);
 
   revalidatePath("/admin/partners");
   revalidatePath(`/admin/partners/${id}`);
@@ -229,6 +232,8 @@ export async function archivePartner(formData: FormData): Promise<void> {
     where: { id },
     data: { archivedAt: new Date() },
   });
+  // Archived partners leave the index (the sync removes the row).
+  await syncPartnerSearchDocument(id);
 
   revalidatePath("/admin/partners");
 }

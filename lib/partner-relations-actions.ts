@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/authorization-helpers";
+import { syncPartnerSearchDocument } from "@/lib/help-agent/search-indexing";
 import { whereActiveMember } from "@/lib/user-role-where";
 import {
   asPartnerAgreementKind,
@@ -80,6 +81,8 @@ export async function addPartnerContact(formData: FormData): Promise<void> {
     }),
   ]);
 
+  // Contact names/emails are partner search keywords ("find the person I met").
+  await syncPartnerSearchDocument(partnerId);
   revalidatePartner(partnerId);
 }
 
@@ -118,6 +121,7 @@ export async function removePartnerContact(formData: FormData): Promise<void> {
   if (!contact) throw new Error("Contact not found.");
 
   await prisma.partnerContact.delete({ where: { id: contactId } });
+  await syncPartnerSearchDocument(contact.partnerId);
   revalidatePartner(contact.partnerId);
 }
 

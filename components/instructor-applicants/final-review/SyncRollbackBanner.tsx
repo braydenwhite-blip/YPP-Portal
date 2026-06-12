@@ -7,8 +7,8 @@
  */
 
 import { useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import type { ChairDecisionAction } from "@prisma/client";
+import { BannerV2, Button } from "@/components/ui-v2";
 import { AlertOctagonIcon } from "./cockpit-icons";
 
 const ACTION_LABEL: Record<ChairDecisionAction, string> = {
@@ -71,89 +71,43 @@ export default function SyncRollbackBanner(props: SyncRollbackBannerProps) {
   }
 
   return (
-    <AnimatePresence>
-      {props.open ? (
-        <motion.div
-          key="sync-rollback-banner"
-          role="alert"
-          aria-live="assertive"
-          initial={{ y: -16, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -16, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 220, damping: 26 }}
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 70,
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 12,
-            padding: "14px 24px",
-            background: "rgba(239, 68, 68, 0.06)",
-            borderBottom: "1px solid rgba(239, 68, 68, 0.4)",
-            borderLeft: "8px solid var(--score-weak, #ef4444)",
-            color: "#7f1d1d",
-          }}
+    <BannerV2
+      open={props.open}
+      tone="danger"
+      role="alert"
+      sticky
+      motionKey="sync-rollback-banner"
+      className="top-0 z-[70] items-start rounded-none border-l-8 border-l-danger-700 px-6 py-3.5 text-danger-700"
+      icon={<AlertOctagonIcon size={22} />}
+    >
+      <p className="m-0 text-[14px] font-bold">Decision was reversed.</p>
+      <p className="mx-0 mb-0 mt-1 text-[13px] leading-snug">
+        We couldn&apos;t finalise &ldquo;{ACTION_LABEL[props.rolledBackAction]}&rdquo;
+        for <strong>{props.applicantName}</strong> because the onboarding pipeline
+        didn&apos;t update. The decision record was removed and the applicant is
+        back in your queue.
+      </p>
+      <p className="mx-0 mb-0 mt-1 font-mono text-[12px] text-danger-700">
+        {props.reason}
+      </p>
+      <div className="mt-2.5 flex gap-2">
+        <Button
+          ref={retryButtonRef}
+          variant="danger"
+          size="sm"
+          onClick={props.onRetry}
         >
-          <AlertOctagonIcon size={22} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
-              Decision was reversed.
-            </p>
-            <p style={{ margin: "4px 0 0", fontSize: 13, lineHeight: 1.45 }}>
-              We couldn&apos;t finalise &ldquo;{ACTION_LABEL[props.rolledBackAction]}&rdquo;
-              for <strong>{props.applicantName}</strong> because the onboarding pipeline
-              didn&apos;t update. The decision record was removed and the applicant is
-              back in your queue.
-            </p>
-            <p
-              style={{
-                margin: "4px 0 0",
-                fontSize: 12,
-                color: "#991b1b",
-                fontFamily: "var(--font-mono, ui-monospace, monospace)",
-              }}
-            >
-              {props.reason}
-            </p>
-            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button
-                ref={retryButtonRef}
-                type="button"
-                onClick={props.onRetry}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 8,
-                  border: "1px solid #b91c1c",
-                  background: "#b91c1c",
-                  color: "#fff",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Retry decision
-              </button>
-              <button
-                type="button"
-                onClick={handleContactSupport}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(239, 68, 68, 0.4)",
-                  background: "transparent",
-                  color: "#7f1d1d",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Contact support
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+          Retry decision
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleContactSupport}
+          className="border-danger-700/40 bg-transparent text-danger-700 hover:border-danger-700 hover:bg-danger-100"
+        >
+          Contact support
+        </Button>
+      </div>
+    </BannerV2>
   );
 }

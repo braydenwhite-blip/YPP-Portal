@@ -4,6 +4,7 @@
  */
 
 import type { ChairDecisionAction, InstructorApplicationStatus } from "@prisma/client";
+import { BannerV2, cn } from "@/components/ui-v2";
 
 const ACTION_LABEL: Record<ChairDecisionAction, string> = {
   APPROVE: "Approved",
@@ -15,12 +16,16 @@ const ACTION_LABEL: Record<ChairDecisionAction, string> = {
   REQUEST_SECOND_INTERVIEW: "Sent to second interview",
 };
 
-const STATUS_TONE: Partial<Record<InstructorApplicationStatus, { fg: string; bg: string }>> = {
-  APPROVED: { fg: "#15803d", bg: "rgba(22, 163, 74, 0.1)" },
-  REJECTED: { fg: "#b91c1c", bg: "rgba(239, 68, 68, 0.1)" },
-  ON_HOLD: { fg: "#a16207", bg: "rgba(234, 179, 8, 0.12)" },
-  INFO_REQUESTED: { fg: "#1d4ed8", bg: "rgba(59, 130, 246, 0.1)" },
-  WITHDRAWN: { fg: "#6b5f7a", bg: "rgba(168, 156, 184, 0.18)" },
+type BannerTone = "neutral" | "brand" | "success" | "warning" | "danger" | "info";
+
+const STATUS_TONE: Partial<
+  Record<InstructorApplicationStatus, { tone: BannerTone; fg: string; accent: string }>
+> = {
+  APPROVED: { tone: "success", fg: "text-success-700", accent: "border-l-success-700" },
+  REJECTED: { tone: "danger", fg: "text-danger-700", accent: "border-l-danger-700" },
+  ON_HOLD: { tone: "warning", fg: "text-warning-700", accent: "border-l-warning-700" },
+  INFO_REQUESTED: { tone: "info", fg: "text-info-700", accent: "border-l-info-700" },
+  WITHDRAWN: { tone: "neutral", fg: "text-ink-muted", accent: "border-l-ink-muted" },
 };
 
 function relativeTime(iso: string | null): string {
@@ -50,54 +55,36 @@ export default function ApplicantStatusBanner({
   canRescind,
   onRescindClick,
 }: ApplicantStatusBannerProps) {
-  const tone = STATUS_TONE[status] ?? { fg: "#5a1da8", bg: "rgba(107, 33, 200, 0.1)" };
+  const tone = STATUS_TONE[status] ?? {
+    tone: "brand" as BannerTone,
+    fg: "text-brand-700",
+    accent: "border-l-brand-600",
+  };
   const actionLabel = latestDecision ? ACTION_LABEL[latestDecision.action] : status;
   const decidedRel = latestDecision ? relativeTime(latestDecision.decidedAt) : null;
 
   return (
-    <div
-      className="applicant-status-banner"
+    <BannerV2
+      tone={tone.tone}
       role="status"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "10px 16px",
-        borderRadius: 12,
-        background: tone.bg,
-        borderLeft: `4px solid ${tone.fg}`,
-        color: "var(--ink-default, #1a0533)",
-        fontSize: 13,
-        lineHeight: 1.4,
-      }}
+      motionKey="applicant-status-banner"
+      className={cn(
+        "applicant-status-banner inline-flex w-auto items-center gap-2.5 border-l-4 px-4 py-2.5 text-[13px] leading-[1.4] text-ink",
+        tone.accent
+      )}
     >
-      <span style={{ color: tone.fg, fontWeight: 700 }}>{actionLabel}</span>
-      {decidedByName ? (
-        <span style={{ color: "var(--ink-muted, #6b5f7a)" }}>by {decidedByName}</span>
-      ) : null}
-      {decidedRel ? (
-        <span style={{ color: "var(--ink-muted, #6b5f7a)" }}>· {decidedRel}</span>
-      ) : null}
+      <span className={cn("font-bold", tone.fg)}>{actionLabel}</span>
+      {decidedByName ? <span className="text-ink-muted"> by {decidedByName}</span> : null}
+      {decidedRel ? <span className="text-ink-muted"> · {decidedRel}</span> : null}
       {canRescind && onRescindClick ? (
         <button
           type="button"
           onClick={onRescindClick}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            marginLeft: 6,
-            color: "#b91c1c",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            textDecoration: "underline",
-            textUnderlineOffset: 2,
-          }}
+          className="ml-1.5 cursor-pointer border-none bg-transparent p-0 text-[12px] font-semibold text-danger-700 underline underline-offset-2"
         >
           Rescind
         </button>
       ) : null}
-    </div>
+    </BannerV2>
   );
 }
