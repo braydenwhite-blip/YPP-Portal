@@ -26,3 +26,19 @@ export {
   TableCell,
 } from "./data-table-shell";
 export { CommandPaletteShell } from "./command-palette";
+export { FilterBar, FilterChipLink, UrlSyncedSearchInput } from "./filter-bar";
+export {
+  SidebarChevron,
+  SidebarUserCard,
+  sidebarBadgeClass,
+  sidebarFilterInputClass,
+  sidebarFooterClass,
+  sidebarGhostButtonClass,
+  sidebarGroupToggleVariants,
+  sidebarHeaderClass,
+  sidebarIconVariants,
+  sidebarLinkVariants,
+  sidebarNewBadgeClass,
+  sidebarSectionTitleClass,
+  sidebarSurfaceClass,
+} from "./sidebar";

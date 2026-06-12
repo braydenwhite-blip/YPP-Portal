@@ -46,11 +46,14 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/messages",
   ],
   ADMIN: [
+    // Knowledge OS V2 leadership pins (plan §20): Home, Admin home, and the
+    // two master-database front doors lead; /goals and /my-program moved to
+    // the grouped "More Tools" section to stay within the 8-pin cap.
     "/",
     "/admin",
+    "/people",
+    "/partners",
     "/messages",
-    "/goals",
-    "/my-program",
     "/positions",
     "/admin/mentorship",
     "/attendance",

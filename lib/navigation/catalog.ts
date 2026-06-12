@@ -493,6 +493,44 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
+      href: "/people",
+      label: "People",
+      icon: "👥",
+      // Master People database (Knowledge OS V2 front door). Officer-tier:
+      // advisor check-in state and applicant stages are leadership reads.
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "People Database",
+        "Directory",
+        "Find a person",
+        "Students",
+        "Instructors",
+        "Advisors",
+        "Members",
+      ],
+      dashboardDescription:
+        "Every person connected to YPP — search, role filters, advisor flags, and one-click 360 previews.",
+      dashboardPriority: 3,
+    },
+    {
+      href: "/partners",
+      label: "Partners",
+      icon: "🤝",
+      // Master Partner database (Knowledge OS V2 front door). Officer-tier.
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Partner Database",
+        "Partnerships",
+        "Camps",
+        "Schools",
+        "Organizations",
+        "Relationship leads",
+      ],
+      dashboardDescription:
+        "Every partner relationship — owner, contacts, open requests, agreements, and the next step.",
+      dashboardPriority: 3,
+    },
+    {
       href: "/help-agent",
       label: "YPP Help Agent",
       icon: "🔎",
@@ -1282,12 +1320,14 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/admin/partners",
-      label: "Partners",
+      // "Partners" is the master database at /partners now; this is the
+      // admin CRUD/pipeline tool (renamed to keep visible labels unique).
+      label: "Partner Admin",
       icon: "🤝",
       roles: ADMIN_ONLY,
-      dashboardDescription: "Manage org/school partners and their Relationship Leads for classes.",
+      dashboardDescription: "Add/edit partners, move pipeline stages, and run the partnership report.",
       dashboardPriority: 9,
-      searchAliases: ["Partner Directory", "Relationship Leads"],
+      searchAliases: ["Partner Directory", "Relationship Leads", "Partner Pipeline"],
     },
   ]),
 

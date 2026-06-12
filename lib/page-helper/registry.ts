@@ -3040,6 +3040,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/partners",
+    title: "Partner Database",
+    content: {
+      purpose: "The master partner database: every organization YPP works with, who owns the relationship, the primary contact, open requests, agreements, and the next step. Clicking a row opens the partner's 360 preview without leaving the page.",
+      firstStep: "Use the stat tiles or view chips to jump to what needs attention (needs follow-up, open requests, no relationship lead), or search by partner, contact, or lead name.",
+      nextStep: "From a preview, open the full partner profile to log touchpoints, manage contacts and requests, or schedule a meeting."
+    }
+  },
+  {
     pattern: "/pathways",
     title: "Pathways Library",
     content: {
@@ -3118,6 +3127,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page gives you a clear view of the pathway progress dashboard so you can spot what needs attention first.",
       firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
       nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
+    }
+  },
+  {
+    pattern: "/people",
+    title: "People Database",
+    content: {
+      purpose: "The master people database: every student, instructor, mentor, advisor, applicant, and leader in one searchable directory, with advisor state and concrete attention flags on each row. Clicking a row opens the person's 360 preview without leaving the page.",
+      firstStep: "Search by name or email, or use the stat tiles and role chips to filter — students without advisors and overdue check-ins are one click.",
+      nextStep: "From a preview, open the full profile for the complete history, or jump to a connected class, mentor, or advisor from the chips."
     }
   },
   {

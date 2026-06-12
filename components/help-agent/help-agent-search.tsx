@@ -36,6 +36,8 @@ const TYPE_ICON: Record<Entity360Type, string> = {
   initiative: "🚩",
   meeting: "📅",
   action: "✅",
+  mentorship: "🔄",
+  applicant: "📋",
 };
 
 type Selectable =

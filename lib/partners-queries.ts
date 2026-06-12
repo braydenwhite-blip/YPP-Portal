@@ -96,6 +96,71 @@ export async function resolveAuthorNames(
   return new Map(users.map((u) => [u.id, u.name || u.email || "Unknown"]));
 }
 
+/**
+ * Relationship-operations satellites for the partner profile (Knowledge OS
+ * V2): structured contacts, requests with their lifecycle, and agreements
+ * with per-condition status.
+ */
+export async function listPartnerRelations(partnerId: string) {
+  const [contacts, requests, agreements] = await Promise.all([
+    prisma.partnerContact.findMany({
+      where: { partnerId },
+      orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        email: true,
+        phone: true,
+        role: true,
+        isPrimary: true,
+      },
+    }),
+    prisma.partnerRequest.findMany({
+      where: { partnerId },
+      orderBy: [{ resolvedAt: "asc" }, { dueAt: "asc" }, { createdAt: "desc" }],
+      take: 30,
+      select: {
+        id: true,
+        title: true,
+        details: true,
+        status: true,
+        ownerId: true,
+        dueAt: true,
+        resolvedAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.partnerAgreement.findMany({
+      where: { partnerId },
+      orderBy: { createdAt: "desc" },
+      take: 15,
+      select: {
+        id: true,
+        kind: true,
+        status: true,
+        title: true,
+        effectiveAt: true,
+        expiresAt: true,
+        terms: true,
+        conditions: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            description: true,
+            status: true,
+            dueAt: true,
+            satisfiedAt: true,
+          },
+        },
+      },
+    }),
+  ]);
+  return { contacts, requests, agreements };
+}
+
+export type PartnerRelations = Awaited<ReturnType<typeof listPartnerRelations>>;
+
 /** Lightweight partner options for a class-offering partner picker. */
 export async function listPartnerOptions() {
   return prisma.partner.findMany({

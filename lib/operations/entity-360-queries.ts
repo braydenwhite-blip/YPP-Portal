@@ -135,11 +135,13 @@ async function loadPerson360(
   if (!profile) return null;
   const officer = isOfficerTier(viewer);
 
-  const [extra, actions, meetings] = await Promise.all([
+  const [extra, actions, meetings, latestReview] = await Promise.all([
     prisma.user.findUnique({
       where: { id },
       select: {
         createdAt: true,
+        primaryRole: true,
+        roles: { select: { role: true } },
         profile: { select: { grade: true } },
         menteePairs: {
           where: { status: "ACTIVE" },
@@ -178,11 +180,18 @@ async function loadPerson360(
           select: { id: true, title: true, startDate: true },
         },
         // Advising relationships (Leadership Roles system): who advises this
-        // person, and who they advise. Names only — advising status/notes are
-        // a leadership assessment and stay on the leadership surfaces.
+        // person, and who they advise. Names are member-visible; check-in
+        // state (last/next/overdue) is an officer-facing read surfaced in the
+        // facts/risks below per the advisor visibility matrix (plan §12).
         adviseeAssignments: {
           where: { isActive: true },
-          select: { id: true, advisor: { select: { id: true, name: true, email: true, title: true } } },
+          select: {
+            id: true,
+            lastCheckInAt: true,
+            nextCheckInDueAt: true,
+            needsFollowUp: true,
+            advisor: { select: { id: true, name: true, email: true, title: true } },
+          },
         },
         advisorAssignments: {
           where: { isActive: true },
@@ -212,8 +221,27 @@ async function loadPerson360(
           },
         })
       : Promise.resolve([]),
+    // Latest quarterly review (officer read) — instructor/staff records show
+    // "last review" as a concrete fact, never a bare performance label (§19).
+    officer
+      ? prisma.quarterlyReview
+          .findFirst({
+            where: { userId: id },
+            orderBy: { createdAt: "desc" },
+            select: { quarter: true, createdAt: true },
+          })
+          .catch(() => null)
+      : Promise.resolve(null),
   ]);
   if (!extra) return null;
+
+  const roleSet = new Set<string>([
+    ...(extra.primaryRole ? [extra.primaryRole] : []),
+    ...extra.roles.map((r) => r.role),
+  ]);
+  const isStudent = roleSet.has("STUDENT");
+  const isInstructorTier =
+    roleSet.has("INSTRUCTOR") || roleSet.has("STAFF") || roleSet.has("CHAPTER_PRESIDENT");
 
   const actionLites = actions.map((a) => toActionLite(a, now));
   const openLites = actionLites.filter(
@@ -269,6 +297,46 @@ async function loadPerson360(
     facts.push({
       label: "Profile",
       value: `${completeness.percent}% complete · missing ${completeness.missing.join(", ")}`,
+    });
+  }
+
+  // Advisor centrality (plan §12): for students, the advisor relationship and
+  // its check-in state are always-visible officer facts — concrete dates and
+  // flags, never a "health" label.
+  const risks: string[] = [];
+  if (officer && isStudent) {
+    const advising = extra.adviseeAssignments[0];
+    if (!advising) {
+      risks.push("No advisor assigned");
+    } else {
+      facts.push({
+        label: "Advisor",
+        value: advising.advisor.name ?? advising.advisor.email,
+      });
+      facts.push({
+        label: "Last check-in",
+        value: advising.lastCheckInAt ? fmtDate(advising.lastCheckInAt) : "Never",
+      });
+      if (advising.nextCheckInDueAt) {
+        facts.push({ label: "Next check-in", value: fmtDate(advising.nextCheckInDueAt) });
+        if (advising.nextCheckInDueAt.getTime() < now.getTime()) {
+          risks.push(`Advisor check-in overdue (due ${fmtDate(advising.nextCheckInDueAt)})`);
+        }
+      }
+      if (advising.needsFollowUp) {
+        risks.push("Advisor flagged this student for follow-up");
+      }
+    }
+  }
+
+  // Instructor leadership centrality (plan §11): last review as a concrete
+  // fact for instructor-tier records on the officer view.
+  if (officer && isInstructorTier) {
+    facts.push({
+      label: "Last review",
+      value: latestReview
+        ? `${latestReview.quarter} · ${fmtDate(latestReview.createdAt)}`
+        : "None on record",
     });
   }
 
@@ -376,7 +444,7 @@ async function loadPerson360(
     })),
     timeline,
     nextStep: nextStepFromWork(openWork),
-    risks: [],
+    risks,
     footnote: personFootnote(officer),
   };
 }
@@ -565,6 +633,37 @@ async function loadPartner360(
         take: 6,
         select: { id: true, kind: true, body: true, createdAt: true },
       },
+      // Partner relationship operations (Knowledge OS V2 models, plan §13):
+      // structured contacts, open asks, and agreements with their conditions.
+      contacts: {
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+        take: 5,
+        select: {
+          id: true,
+          name: true,
+          title: true,
+          email: true,
+          isPrimary: true,
+          userId: true,
+        },
+      },
+      requests: {
+        where: { status: { in: ["OPEN", "IN_NEGOTIATION"] } },
+        orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+        take: 6,
+        select: { id: true, title: true, status: true, dueAt: true },
+      },
+      agreements: {
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          kind: true,
+          status: true,
+          title: true,
+          conditions: { select: { status: true } },
+        },
+      },
     },
   });
   if (!partner) return null;
@@ -593,7 +692,22 @@ async function loadPartner360(
     now
   );
   const activeStage = health != null;
-  const risks = health?.reasons ?? [];
+  const risks = [...(health?.reasons ?? [])];
+  for (const request of partner.requests) {
+    if (request.dueAt && request.dueAt.getTime() < now.getTime()) {
+      risks.push(`Request overdue: ${request.title}`);
+    }
+  }
+
+  // Relationship-operations reads (concrete, never a composite score).
+  const primaryContact =
+    partner.contacts.find((c) => c.isPrimary) ?? partner.contacts[0] ?? null;
+  const openRequestCount = partner.requests.length;
+  const signedAgreements = partner.agreements.filter((a) => a.status === "SIGNED").length;
+  const pendingConditions = partner.agreements.reduce(
+    (sum, a) => sum + a.conditions.filter((c) => c.status === "PENDING").length,
+    0
+  );
 
   const timeline = buildUnifiedTimeline({
     actions: actionLites,
@@ -650,6 +764,15 @@ async function loadPartner360(
       : null,
     glance: [
       { label: "Open work", value: String(openHere.length) },
+      ...(openRequestCount > 0
+        ? [
+            {
+              label: "Open requests",
+              value: String(openRequestCount),
+              tone: "warning" as const,
+            },
+          ]
+        : []),
       { label: "Meetings", value: String(meetingDtos.length) },
       { label: "Classes", value: String(partner.classOfferings.length) },
       {
@@ -661,34 +784,95 @@ async function loadPartner360(
       },
     ],
     facts: [
-      ...(partner.contactName
+      // Structured PartnerContact wins; the legacy contactName columns remain
+      // the fallback until the backfill retires them (plan §23).
+      ...(primaryContact
         ? [
             {
-              label: "Contact",
-              value: [partner.contactName, partner.contactTitle].filter(Boolean).join(" · "),
+              label: "Primary contact",
+              value: [primaryContact.name, primaryContact.title].filter(Boolean).join(" · "),
             },
+            ...(primaryContact.email
+              ? [
+                  {
+                    label: "Email",
+                    value: primaryContact.email,
+                    href: `mailto:${primaryContact.email}`,
+                  },
+                ]
+              : []),
           ]
-        : []),
-      ...(partner.contactEmail
-        ? [{ label: "Email", value: partner.contactEmail, href: `mailto:${partner.contactEmail}` }]
-        : []),
+        : [
+            ...(partner.contactName
+              ? [
+                  {
+                    label: "Contact",
+                    value: [partner.contactName, partner.contactTitle]
+                      .filter(Boolean)
+                      .join(" · "),
+                  },
+                ]
+              : []),
+            ...(partner.contactEmail
+              ? [
+                  {
+                    label: "Email",
+                    value: partner.contactEmail,
+                    href: `mailto:${partner.contactEmail}`,
+                  },
+                ]
+              : []),
+          ]),
       ...(partner.contactPhone ? [{ label: "Phone", value: partner.contactPhone }] : []),
       ...(partner.location ? [{ label: "Location", value: partner.location }] : []),
       ...(partner.priority ? [{ label: "Priority", value: partner.priority }] : []),
       ...(partner.nextFollowUpAt
         ? [{ label: "Next follow-up", value: fmtDate(partner.nextFollowUpAt) }]
         : []),
+      ...(openRequestCount > 0
+        ? [
+            {
+              label: "Open requests",
+              value: partner.requests
+                .map((r) => `${r.title}${r.dueAt ? ` (due ${fmtDate(r.dueAt)})` : ""}`)
+                .join(" · "),
+            },
+          ]
+        : []),
+      ...(partner.agreements.length > 0
+        ? [
+            {
+              label: "Agreements",
+              value: [
+                `${signedAgreements} signed of ${partner.agreements.length}`,
+                pendingConditions > 0
+                  ? `${pendingConditions} condition${pendingConditions === 1 ? "" : "s"} pending`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            },
+          ]
+        : []),
     ],
-    people: partner.relationshipLead
-      ? [
-          {
-            id: partner.relationshipLead.id,
-            name: partner.relationshipLead.name ?? partner.relationshipLead.email,
-            title: partner.relationshipLead.title,
-            relationship: "Relationship lead",
-          },
-        ]
-      : [],
+    people: [
+      ...(partner.relationshipLead
+        ? [
+            {
+              id: partner.relationshipLead.id,
+              name: partner.relationshipLead.name ?? partner.relationshipLead.email,
+              title: partner.relationshipLead.title,
+              relationship: "Relationship lead",
+            },
+          ]
+        : []),
+      ...partner.contacts.map((c) => ({
+        id: c.userId ?? null,
+        name: c.name,
+        title: c.title,
+        relationship: c.isPrimary ? "Primary contact" : "Contact",
+      })),
+    ],
     classes: partner.classOfferings.map((c) => ({
       id: c.id,
       title: c.title,
@@ -705,7 +889,11 @@ async function loadPartner360(
     timeline: mergedTimeline,
     nextStep:
       nextStepFromWork(workItems) ??
-      (partner.nextFollowUpAt ? `Follow up on ${fmtDate(partner.nextFollowUpAt)}` : null),
+      (partner.nextFollowUpAt
+        ? `Follow up on ${fmtDate(partner.nextFollowUpAt)}`
+        : partner.requests[0]
+          ? `Resolve open request: ${partner.requests[0].title}`
+          : null),
     risks,
     footnote: OFFICER_FOOTNOTE,
   };

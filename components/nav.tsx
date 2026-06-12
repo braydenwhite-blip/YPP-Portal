@@ -5,11 +5,34 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { HelpAgentTrigger } from "@/components/help-agent/help-agent-provider";
+import { SidebarRecents } from "@/components/help-agent/sidebar-recents";
+import {
+  cn,
+  SidebarChevron,
+  sidebarBadgeClass,
+  sidebarFilterInputClass,
+  sidebarGroupToggleVariants,
+  sidebarIconVariants,
+  sidebarLinkVariants,
+  sidebarNewBadgeClass,
+  sidebarSectionTitleClass,
+} from "@/components/ui-v2";
 import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-nav";
 import { INSTRUCTOR_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/instructor-v1-nav-layout";
 import { STUDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/student-v1-nav-layout";
 import { CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/chapter-president-v1-nav-layout";
 import type { NavGroup, NavLink } from "@/lib/navigation/types";
+
+/**
+ * Sidebar navigation — all nine roles, one chrome (Knowledge OS V2).
+ *
+ * Behavior (nav model resolution, group expand/collapse with localStorage
+ * persistence, role-minimal chrome, locking, badges, the filter input) is
+ * unchanged from the legacy version and pinned by
+ * tests/components/app-shell-nav-contract.test.tsx. The skin is Design
+ * System 2.0's dark premium sidebar (components/ui-v2/sidebar); the legacy
+ * `.nav*` classes in globals.css are no longer referenced here.
+ */
 
 /** Counts passed from the server layout for notification badges. */
 export interface NavBadges {
@@ -85,6 +108,7 @@ export default function Nav({
   hiringDemoMode,
   instructorSubtype,
   publicGateActive,
+  officerTier,
 }: {
   roles?: string[];
   adminSubtypes?: string[];
@@ -113,6 +137,8 @@ export default function Nav({
   instructorSubtype?: string | null;
   /** Public portal gate is active for this user (no admin/preview bypass). */
   publicGateActive?: boolean;
+  /** Officer tier (from AppShell) — gates the Recently Viewed section. */
+  officerTier?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -250,7 +276,7 @@ export default function Nav({
     }));
   }, []);
 
-  // ⌘K belongs to the YPP Help Agent (global palette) now — see
+  // ⌘K belongs to the YPP Help Agent (global palette) — see
   // components/help-agent/help-agent-provider.tsx. The nav filter below stays
   // a plain click-to-focus input.
   const filteredCore = useMemo(
@@ -297,6 +323,15 @@ export default function Nav({
   const hiddenCount = model.more.reduce((sum, group) => sum + group.items.length, 0);
   const moreCountLabel = hasSearch ? totalMore : hiddenCount;
 
+  // Recently Viewed: leadership chrome only — never on the role-minimal navs,
+  // never in hiring demo, never behind the public gate, hidden while filtering.
+  const showRecents =
+    officerTier === true &&
+    !useMinimalFlatNavChrome &&
+    showSearch &&
+    publicGateActive !== true &&
+    !hasSearch;
+
   const renderNavLink = (item: NavLink, opts?: { nestedUnderTraining?: boolean }): JSX.Element => {
     const isActive = activeNavHref !== null && item.href === activeNavHref;
     const badgeCount = item.badgeKey && badges ? badges[item.badgeKey] : undefined;
@@ -306,15 +341,16 @@ export default function Nav({
       <Link
         key={item.href}
         href={item.href}
-        className={[isActive ? "active" : undefined, nested ? "nav-link--nested-under-training" : undefined]
-          .filter(Boolean)
-          .join(" ")}
+        className={cn(sidebarLinkVariants({ active: isActive, nested }))}
+        aria-current={isActive ? "page" : undefined}
         onClick={onNavigate}
       >
-        <span className="nav-icon">{item.icon}</span>
-        <span className="nav-item-label">{item.label}</span>
+        <span aria-hidden className={cn(sidebarIconVariants({ active: isActive, nested }))}>
+          {item.icon}
+        </span>
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
         {badgeCount && badgeCount > 0 ? (
-          <span className="nav-badge">{badgeCount > 99 ? "99+" : badgeCount}</span>
+          <span className={sidebarBadgeClass}>{badgeCount > 99 ? "99+" : badgeCount}</span>
         ) : null}
       </Link>
     );
@@ -331,10 +367,10 @@ export default function Nav({
         const next = filteredCore[i + 1];
         if (next?.href === "/instructor/lesson-design-studio") {
           out.push(
-            <div key="instructor-training-with-studio" className="nav-training-group">
+            <div key="instructor-training-with-studio" className="flex flex-col gap-0.5">
               {renderNavLink(item)}
               <div
-                className="nav-training-group-sub"
+                className="mb-1 ml-5 flex flex-col gap-0.5 border-l-2 border-white/15 pl-2"
                 role="group"
                 aria-label="Instructor training tools"
               >
@@ -356,14 +392,14 @@ export default function Nav({
   }
 
   return (
-    <nav className="nav nav--minimal">
-      {showSearch ? <HelpAgentTrigger className="mb-2" /> : null}
+    <nav className="flex flex-col gap-3">
+      {showSearch ? <HelpAgentTrigger className="mb-1" /> : null}
       {showSearch ? (
-        <div className="nav-search-wrapper">
+        <div className="relative">
           <input
             ref={searchRef}
             type="text"
-            className="nav-search"
+            className={sidebarFilterInputClass}
             placeholder="Filter navigation..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -372,7 +408,7 @@ export default function Nav({
           {search && (
             <button
               type="button"
-              className="nav-search-clear"
+              className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] text-white/50 hover:bg-white/10 hover:text-white"
               onClick={() => setSearch("")}
               aria-label="Clear search"
             >
@@ -383,21 +419,23 @@ export default function Nav({
       ) : null}
 
       {totalResults === 0 ? (
-        <div className="nav-empty">No results for &ldquo;{search}&rdquo;</div>
+        <div className="px-3 py-4 text-[12.5px] text-white/55">
+          No results for &ldquo;{search}&rdquo;
+        </div>
       ) : (
         <>
-          <section className="nav-main-tools">
+          <section>
             {studentHomeOnlyCore ? null : (
-              <p className="nav-block-title">
+              <p className={sidebarSectionTitleClass}>
                 {hiringDemoMode ? "Hiring" : useMinimalFlatNavChrome ? "Shortcuts" : "Top Tools"}
               </p>
             )}
-            <div className="nav-main-items">{renderCoreNavItems()}</div>
+            <div className="flex flex-col gap-0.5">{renderCoreNavItems()}</div>
           </section>
 
           {filteredMore.length > 0 ? (
             useMinimalFlatNavChrome ? (
-              <section className="nav-student-flat-groups" aria-label="Navigation sections">
+              <section className="flex flex-col gap-1" aria-label="Navigation sections">
                 {filteredMore.map((group) => {
                   const groupHasActive =
                     activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
@@ -412,10 +450,15 @@ export default function Nav({
                     : group.label;
 
                   return (
-                    <div key={group.label} className="nav-student-group">
+                    <div key={group.label}>
                       <button
                         type="button"
-                        className={`nav-more-group-toggle nav-student-flat-toggle ${groupHasActive ? "nav-section-active" : ""}${isLocked ? " nav-section-locked" : ""}`}
+                        className={cn(
+                          sidebarGroupToggleVariants({
+                            active: groupHasActive,
+                            locked: Boolean(isLocked),
+                          })
+                        )}
                         onClick={() => !isLocked && toggleGroup(group.label)}
                         aria-expanded={isLocked ? false : groupOpen}
                         aria-label={
@@ -426,21 +469,23 @@ export default function Nav({
                         disabled={hasSearch || isLocked}
                         title={isLocked ? `Locked: ${lockReason}` : undefined}
                       >
-                        <span className="nav-section-label">
-                          {isLocked && <span className="nav-lock-icon" aria-hidden="true">{"🔒 "}</span>}
+                        <span className="min-w-0 flex-1 truncate normal-case tracking-normal">
+                          {isLocked && <span aria-hidden="true">{"🔒 "}</span>}
                           {heading}
                         </span>
-                        {isRecentlyUnlocked ? <span className="nav-new-badge">New!</span> : null}
-                        {!isLocked && (
-                          <span className={`nav-section-chevron ${groupOpen ? "open" : ""}`}>{"›"}</span>
-                        )}
+                        {isRecentlyUnlocked ? (
+                          <span className={sidebarNewBadgeClass}>New!</span>
+                        ) : null}
+                        {!isLocked && <SidebarChevron open={groupOpen} />}
                       </button>
 
                       {!isLocked && groupOpen ? (
-                        <div className="nav-more-group-items">{group.items.map((item) => renderNavLink(item))}</div>
+                        <div className="flex flex-col gap-0.5 pb-1">
+                          {group.items.map((item) => renderNavLink(item))}
+                        </div>
                       ) : null}
                       {isLocked ? (
-                        <p className="nav-student-locked-hint">
+                        <p className="m-0 px-3 pb-2 text-[12px] leading-snug text-white/45">
                           {lockReason ?? "Complete earlier steps to unlock."}
                         </p>
                       ) : null}
@@ -449,21 +494,21 @@ export default function Nav({
                 })}
               </section>
             ) : (
-              <section className="nav-more">
+              <section>
                 <button
                   type="button"
-                  className="nav-more-toggle"
+                  className={cn(sidebarGroupToggleVariants({ active: false }))}
                   onClick={() => setMoreOpen((previous) => !previous)}
                   aria-expanded={effectiveMoreOpen}
                   aria-label={`${effectiveMoreOpen ? "Collapse" : "Expand"} more navigation links`}
                   disabled={hasSearch}
                 >
-                  <span className="nav-more-label">More Tools ({moreCountLabel})</span>
-                  <span className={`nav-more-chevron ${effectiveMoreOpen ? "open" : ""}`}>{"›"}</span>
+                  <span className="min-w-0 flex-1 truncate">More Tools ({moreCountLabel})</span>
+                  <SidebarChevron open={effectiveMoreOpen} />
                 </button>
 
                 {effectiveMoreOpen ? (
-                  <div className="nav-more-content">
+                  <div className="flex flex-col gap-1 pt-0.5">
                     {filteredMore.map((group) => {
                       const groupHasActive =
                         activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
@@ -476,30 +521,35 @@ export default function Nav({
                       const isRecentlyUnlocked = recentlyUnlockedGroups?.has(group.label);
 
                       return (
-                        <div key={group.label} className="nav-more-group">
+                        <div key={group.label} className="pl-1.5">
                           <button
                             type="button"
-                            className={`nav-more-group-toggle ${groupHasActive ? "nav-section-active" : ""}${isLocked ? " nav-section-locked" : ""}`}
+                            className={cn(
+                              sidebarGroupToggleVariants({
+                                active: groupHasActive,
+                                locked: Boolean(isLocked),
+                              })
+                            )}
                             onClick={() => !isLocked && toggleGroup(group.label)}
                             aria-expanded={isLocked ? false : groupOpen}
                             aria-label={`${isLocked ? `${group.label} — locked: ${lockReason}` : `${groupOpen ? "Collapse" : "Expand"} ${group.label}`}`}
                             disabled={hasSearch || isLocked}
                             title={isLocked ? `Locked: ${lockReason}` : undefined}
                           >
-                            <span className="nav-section-label">
-                              {isLocked && <span className="nav-lock-icon" aria-hidden="true">{"🔒 "}</span>}
+                            <span className="min-w-0 flex-1 truncate">
+                              {isLocked && <span aria-hidden="true">{"🔒 "}</span>}
                               {group.label}
                             </span>
                             {isRecentlyUnlocked && (
-                              <span className="nav-new-badge">New!</span>
+                              <span className={sidebarNewBadgeClass}>New!</span>
                             )}
-                            {!isLocked && (
-                              <span className={`nav-section-chevron ${groupOpen ? "open" : ""}`}>{"›"}</span>
-                            )}
+                            {!isLocked && <SidebarChevron open={groupOpen} />}
                           </button>
 
                           {!isLocked && groupOpen ? (
-                            <div className="nav-more-group-items">{group.items.map((item) => renderNavLink(item))}</div>
+                            <div className="flex flex-col gap-0.5 pb-1">
+                              {group.items.map((item) => renderNavLink(item))}
+                            </div>
                           ) : null}
                         </div>
                       );
@@ -509,6 +559,8 @@ export default function Nav({
               </section>
             )
           ) : null}
+
+          {showRecents ? <SidebarRecents /> : null}
         </>
       )}
     </nav>
