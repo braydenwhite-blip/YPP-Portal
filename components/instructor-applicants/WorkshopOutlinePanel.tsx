@@ -20,9 +20,9 @@ export default function WorkshopOutlinePanel({ outline }: WorkshopOutlinePanelPr
   const hasOutline = !!outline;
 
   return (
-    <section id="section-workshop-outline" className="cockpit-panel">
-      <div className="cockpit-section-heading">
-        <span className="cockpit-section-kicker">Summer Workshop</span>
+    <section id="section-workshop-outline" className="rounded-[12px] border border-line-soft bg-surface p-[22px] shadow-card">
+      <div className="mb-4 grid gap-0.5">
+        <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">Summer Workshop</span>
         <h2>Workshop Outline</h2>
       </div>
 
@@ -67,7 +67,7 @@ export default function WorkshopOutlinePanel({ outline }: WorkshopOutlinePanelPr
       )}
 
       {hasOutline && (
-        <dl className="cockpit-detail-grid">
+        <dl className="grid grid-cols-[minmax(120px,220px)_minmax(0,1fr)] gap-x-[18px] gap-y-2.5 [&_dt]:m-0 [&_dt]:text-[11.5px] [&_dt]:font-bold [&_dt]:uppercase [&_dt]:tracking-[0.05em] [&_dt]:text-ink-muted [&_dd]:m-0 [&_dd]:whitespace-pre-wrap [&_dd]:text-[13.5px] [&_dd]:text-ink">
           <dt>Title</dt>
           <dd>{outline!.title || <em style={{ color: "var(--muted)" }}>Not provided</em>}</dd>
 

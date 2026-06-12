@@ -30,6 +30,7 @@ import { StrategicEntityPanel } from "@/components/people-strategy/strategic-ent
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import { getMenteeSupport } from "@/lib/people-strategy/connections";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
+import { EntityActionPanel } from "@/components/work/entity-action-panel";
 import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
 import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
 import {
@@ -182,6 +183,25 @@ export default async function AdminClassDetailPage({
                 </p>
               )}
             </Section>
+          )}
+
+          {operationsEnabled && opsContext && (
+            <section
+              className="card"
+              style={{ marginTop: 14 }}
+              aria-label="Action operating panel"
+            >
+              <h2 className="section-title" style={{ marginTop: 0 }}>
+                Action operating panel
+              </h2>
+              <EntityActionPanel
+                actions={opsContext.actions}
+                viewer={viewer}
+                entityType="CLASS_OFFERING"
+                entityId={id}
+                entityLabel={detail.title}
+              />
+            </section>
           )}
 
           {operationsEnabled && opsContext && (

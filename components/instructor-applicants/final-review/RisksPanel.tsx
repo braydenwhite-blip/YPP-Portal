@@ -21,10 +21,10 @@ const SEVERITY_LABEL: Record<WarningSeverity, string> = {
   INFO: "Considerations",
 };
 
-const SEVERITY_TONE: Record<WarningSeverity, { bg: string; fg: string }> = {
-  HIGH_RISK: { bg: "rgba(239, 68, 68, 0.10)", fg: "#b91c1c" },
-  CAUTION: { bg: "rgba(234, 179, 8, 0.12)", fg: "#a16207" },
-  INFO: { bg: "rgba(107, 33, 200, 0.08)", fg: "var(--ypp-purple-700, #5a1da8)" },
+const SEVERITY_CLASS: Record<WarningSeverity, string> = {
+  HIGH_RISK: "bg-rose-500/10 text-rose-700",
+  CAUTION: "bg-amber-500/10 text-amber-700",
+  INFO: "bg-brand-600/10 text-brand-700",
 };
 
 export interface RisksPanelProps {
@@ -51,21 +51,8 @@ export default function RisksPanel({
 
   if (warnings.length === 0) {
     return (
-      <div
-        className="risks-panel empty"
-        style={{
-          background: "var(--cockpit-surface, #fff)",
-          border: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
-          borderRadius: 16,
-          padding: 16,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          color: "var(--ink-muted, #6b5f7a)",
-          fontSize: 13,
-        }}
-      >
-        <span style={{ color: "#16a34a", display: "inline-flex" }}>
+      <div className="flex items-center gap-2 rounded-[16px] border border-line bg-surface p-4 text-[13px] text-ink-muted shadow-card">
+        <span className="inline-flex text-success-600">
           <CheckIcon size={16} />
         </span>
         No risks or considerations detected.
@@ -75,28 +62,10 @@ export default function RisksPanel({
 
   return (
     <section
-      className="risks-panel"
+      className="flex flex-col gap-2 rounded-[16px] border border-line bg-surface p-4 shadow-card"
       aria-label="Risks and considerations"
-      style={{
-        background: "var(--cockpit-surface, #fff)",
-        border: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
-        borderRadius: 16,
-        padding: 16,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
     >
-      <p
-        style={{
-          margin: 0,
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "var(--ink-muted, #6b5f7a)",
-        }}
-      >
+      <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
         Risks &amp; considerations
       </p>
       {(["HIGH_RISK", "CAUTION", "INFO"] as WarningSeverity[]).map((sev) => {
@@ -109,22 +78,7 @@ export default function RisksPanel({
               type="button"
               onClick={() => toggleGroup(sev)}
               aria-expanded={isOpen}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                width: "100%",
-                padding: "6px 8px",
-                borderRadius: 8,
-                background: SEVERITY_TONE[sev].bg,
-                color: SEVERITY_TONE[sev].fg,
-                border: "1px solid transparent",
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-              }}
+              className={`flex w-full cursor-pointer items-center gap-2 rounded-[8px] border border-transparent px-2 py-1.5 text-[12px] font-semibold uppercase tracking-[0.04em] ${SEVERITY_CLASS[sev]}`}
             >
               {sev === "HIGH_RISK" ? (
                 <AlertOctagonIcon size={14} />
@@ -133,46 +87,30 @@ export default function RisksPanel({
               ) : (
                 <CheckIcon size={14} />
               )}
-              <span style={{ flex: 1, textAlign: "left" }}>
+              <span className="flex-1 text-left">
                 {items.length} {SEVERITY_LABEL[sev]}
               </span>
-              <span style={{ fontSize: 11, fontWeight: 500 }}>{isOpen ? "Hide" : "Show"}</span>
+              <span className="text-[11px] font-medium">{isOpen ? "Hide" : "Show"}</span>
             </button>
             {isOpen ? (
-              <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "flex", flexDirection: "column", gap: 8 }}>
+              <ul className="m-0 mt-2 flex list-none flex-col gap-2 p-0">
                 {items.map((warning) => {
                   const acked = acknowledgements[warning.key] === true;
                   return (
                     <li
                       key={warning.key}
-                      style={{
-                        padding: "8px 12px",
-                        borderRadius: 10,
-                        background: "var(--cockpit-surface-strong, #faf8ff)",
-                        border: "1px solid var(--cockpit-line, rgba(71,85,105,0.14))",
-                      }}
+                      className="rounded-[10px] border border-line-soft bg-surface-soft px-3 py-2"
                     >
-                      <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--ink-default, #1a0533)" }}>
+                      <p className="m-0 text-[12px] font-semibold text-ink">
                         {warning.message}
                       </p>
                       {warning.detail ? (
-                        <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--ink-muted, #6b5f7a)" }}>
+                        <p className="m-0 mt-1 text-[11px] text-ink-muted">
                           {warning.detail}
                         </p>
                       ) : null}
                       {sev === "HIGH_RISK" ? (
-                        <label
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                            marginTop: 6,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: "var(--ink-default, #1a0533)",
-                            cursor: "pointer",
-                          }}
-                        >
+                        <label className="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold text-ink">
                           <input
                             type="checkbox"
                             checked={acked}

@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 export default function FeedbackPanel({ children }: { children: ReactNode }) {
   return (
     <section
-      className="feedback-panel"
+      className="flex min-w-0 flex-col gap-4"
       aria-labelledby="feedback-panel-heading"
       aria-label="Feedback and signals"
     >

@@ -12,6 +12,21 @@ import {
 } from "@/lib/instructor-review-config";
 import { StatusBadge } from "@/components/interviews/ui";
 import { KeyboardHelp } from "@/components/instructor-review/live/KeyboardHelp";
+import { buttonVariants } from "@/components/ui-v2";
+import {
+  CATEGORY_CARD,
+  CATEGORY_DESCRIPTION,
+  CATEGORY_TITLE,
+  CHECKBOX_ROW,
+  EDITOR_CALLOUT,
+  EDITOR_NOTICE,
+  EDITOR_PANEL,
+  EDITOR_WARNING,
+  FIELD_INPUT,
+  FIELD_LABEL,
+  RATING_GRID,
+  ratingOptionClass,
+} from "./editor-classes";
 import { SaveChip } from "@/components/instructor-review/live/SaveChip";
 import { SubmitDockShell } from "@/components/instructor-review/live/SubmitDock";
 import {
@@ -154,7 +169,7 @@ const RECOMMENDATION_TONES: Record<
 
 function RequiredStar() {
   return (
-    <span className="required-star" aria-hidden="true">
+    <span className="ml-0.5 font-bold text-rose-600" aria-hidden="true">
       *
     </span>
   );
@@ -243,11 +258,44 @@ function labelFromStatus(status: QuestionStatus) {
   return "Not Started";
 }
 
-function statusClass(status: QuestionStatus) {
-  if (status === "ASKED") return "is-asked";
-  if (status === "SKIPPED") return "is-skipped";
-  return "is-untouched";
+/** Status tones (Tailwind) — asked/skipped/untouched for bubbles and pills. */
+const STATUS_BUBBLE: Record<string, string> = {
+  ASKED: "bg-emerald-50 text-emerald-700",
+  SKIPPED: "bg-amber-50 text-amber-700",
+  UNTOUCHED: "bg-surface-soft text-ink-muted",
+};
+function statusBubble(status: QuestionStatus): string {
+  return STATUS_BUBBLE[status] ?? STATUS_BUBBLE.UNTOUCHED;
 }
+
+const CARD_PANEL =
+  "rounded-[10px] border border-line bg-surface shadow-card";
+
+/** Guidance label with its colored leading dot (legacy guidance-label skin). */
+function guidanceLabel(tone: "question" | "learn" | "followup" | "note" | "plain"): string {
+  const dot =
+    tone === "question"
+      ? "before:bg-slate-800 text-ink"
+      : tone === "learn"
+        ? "before:bg-amber-500 text-amber-800"
+        : tone === "followup"
+          ? "before:bg-blue-600 text-blue-700"
+          : tone === "note"
+            ? "before:bg-slate-400 text-ink-muted"
+            : "before:bg-slate-400/60 text-ink-muted";
+  return (
+    "inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.06em] " +
+    "before:inline-block before:size-1.5 before:rounded-full before:content-[''] " +
+    dot
+  );
+}
+
+const TAG_SELECTED: Record<string, string> = {
+  success: "border-2 border-emerald-600 bg-emerald-50 text-emerald-700",
+  warning: "border-2 border-amber-600 bg-amber-50 text-amber-700",
+  danger: "border-2 border-rose-600 bg-rose-50 text-rose-600",
+  info: "border-2 border-blue-600 bg-blue-50 text-blue-600",
+};
 
 export default function InterviewReviewEditor({
   action,
@@ -761,13 +809,12 @@ export default function InterviewReviewEditor({
   }
 
   return (
-    <div className={`iv-live-shell${focusMode ? " is-focus-mode" : ""}`}>
+    <div className="flex min-h-full flex-col">
       <form
         ref={formRef}
         action={action}
         onSubmit={handleFormSubmit}
-        className={`live-interview-workspace iv-live-content${focusMode ? " is-focus-mode" : ""}`}
-        style={{ padding: 0, maxWidth: "none" }}
+        className={`grid w-full gap-[18px] ${focusMode ? "mx-auto max-w-[920px]" : ""}`}
       >
         <input type="hidden" name="applicationId" value={applicationId} />
         <input type="hidden" name="returnTo" value={returnTo} />
@@ -776,10 +823,10 @@ export default function InterviewReviewEditor({
 
         {!canEdit ? (
           <div
-            className="iv-card iv-card-tone-success iv-card-body iv-locked-notice"
+            className="rounded-[12px] border border-emerald-200 bg-emerald-50/70 p-4"
             role="status"
           >
-            <div className="iv-locked-notice-row">
+            <div className="flex flex-wrap items-start gap-2.5">
               <StatusBadge tone="completed">Submitted</StatusBadge>
               <div>
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
@@ -795,7 +842,10 @@ export default function InterviewReviewEditor({
         ) : null}
 
         {missingFields.length > 0 ? (
-          <div className="review-editor-missing iv-validation-summary" role="alert">
+          <div
+            className="rounded-[12px] border border-amber-200 bg-amber-50 p-4 [&>h3]:m-0 [&>h3]:text-[14px] [&>h3]:font-bold [&>h3]:text-amber-900 [&>p]:m-0 [&>p]:mt-1 [&>p]:text-[12.5px] [&>p]:text-amber-900 [&>ul]:m-0 [&>ul]:mt-1.5 [&>ul]:pl-5 [&>ul]:text-[12.5px] [&>ul]:text-amber-900"
+            role="alert"
+          >
             <h3>Just a few things to finish before submitting</h3>
             <p>
               Save the draft any time. When you&apos;re ready to submit, please fill in:
@@ -808,9 +858,9 @@ export default function InterviewReviewEditor({
           </div>
         ) : null}
 
-        <section className="live-interview-hero">
+        <section className="flex flex-wrap items-start justify-between gap-4 rounded-[10px] border border-line bg-surface p-[22px] shadow-card [&_h2]:m-0 [&_h2]:mt-1 [&_h2]:text-[22px] [&_h2]:font-bold [&_h2]:leading-tight [&_h2]:text-ink [&_div>p]:m-0 [&_div>p]:mt-1.5 [&_div>p]:max-w-[620px] [&_div>p]:text-[14px] [&_div>p]:leading-relaxed [&_div>p]:text-ink-muted">
           <div>
-            <span className="cockpit-section-kicker">During-interview workflow</span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">During-interview workflow</span>
             <h2>Live Question Runner</h2>
             <p>
               Move through questions, capture notes while answers are fresh, tag signals, and save as you go.
@@ -819,7 +869,7 @@ export default function InterviewReviewEditor({
           <div style={{ display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <button
               type="button"
-              className="iv-live-jump-button"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-[8px] bg-brand-600 px-3 py-2 text-[12.5px] font-bold text-white shadow-card hover:bg-brand-700 disabled:pointer-events-none disabled:opacity-50"
               onClick={() => jumpTo("next-unanswered")}
               disabled={!canEdit || nextUnansweredCount === 0}
               aria-label="Jump to next unanswered question"
@@ -847,18 +897,25 @@ export default function InterviewReviewEditor({
             </button>
             <button
               type="button"
-              className={`iv-timer-chip${timer.running ? " is-running" : ""}`}
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-[8px] border px-3 py-2 text-[12.5px] font-bold tabular-nums ${
+                timer.running
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                  : "border-line bg-surface text-ink-muted hover:bg-surface-soft"
+              }`}
               onClick={timer.toggle}
               aria-label={timer.running ? "Pause interview timer" : "Start interview timer"}
               title="Press T"
-              style={{ cursor: "pointer", border: "1px solid var(--iv-border)" }}
             >
               <span aria-hidden="true">⏱</span>
               <span>{timer.label}</span>
             </button>
             <button
               type="button"
-              className={`iv-focus-mode-button${focusMode ? " is-active" : ""}`}
+              className={`inline-flex cursor-pointer items-center rounded-[8px] border px-3 py-2 text-[12.5px] font-bold ${
+                focusMode
+                  ? "border-brand-600 bg-brand-50 text-brand-700"
+                  : "border-line bg-surface text-ink-muted hover:bg-surface-soft"
+              }`}
               onClick={() => setFocusMode((value) => !value)}
               aria-pressed={focusMode}
               title="Press F"
@@ -867,7 +924,7 @@ export default function InterviewReviewEditor({
             </button>
             <button
               type="button"
-              className="iv-live-help-button"
+              className="inline-flex size-9 cursor-pointer items-center justify-center rounded-[8px] border border-line bg-surface text-[13px] font-bold text-ink-muted hover:bg-surface-soft"
               onClick={() => setHelpOpen(true)}
               aria-label="Show keyboard shortcuts"
               title="Press ?"
@@ -878,10 +935,10 @@ export default function InterviewReviewEditor({
           </div>
         </section>
 
-        <section className="live-notepad" aria-label="Scratch notes">
-          <div className="live-notepad-header">
+        <section className="rounded-[10px] border border-line bg-surface p-4 shadow-card" aria-label="Scratch notes">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <span className="cockpit-section-kicker">Always-on notes</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">Always-on notes</span>
               <h3 style={{ margin: "2px 0 0" }}>Scratch pad &amp; follow-ups</h3>
               <p
                 style={{
@@ -906,14 +963,14 @@ export default function InterviewReviewEditor({
             </button>
           </div>
           {notepadOpen ? (
-            <div className="live-notepad-grid">
-              <label className="form-row">
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <label className={FIELD_LABEL}>
                 <span style={{ fontWeight: 600 }}>Scratch pad</span>
-                <p className="live-field-hint">
+                <p className="m-0 text-[11.5px] font-normal text-ink-muted">
                   Quick thoughts, quotes, anything you want to remember.
                 </p>
                 <textarea
-                  className="input"
+                  className={FIELD_INPUT}
                   rows={4}
                   value={scratchPad}
                   onChange={(event) => setScratchPad(event.target.value)}
@@ -921,13 +978,13 @@ export default function InterviewReviewEditor({
                   disabled={!canEdit}
                 />
               </label>
-              <label className="form-row">
+              <label className={FIELD_LABEL}>
                 <span style={{ fontWeight: 600 }}>Follow up after the interview</span>
-                <p className="live-field-hint">
+                <p className="m-0 text-[11.5px] font-normal text-ink-muted">
                   Things to circle back on — reference checks, missing answers, prep gaps.
                 </p>
                 <textarea
-                  className="input"
+                  className={FIELD_INPUT}
                   rows={4}
                   value={followUpsPad}
                   onChange={(event) => setFollowUpsPad(event.target.value)}
@@ -939,33 +996,38 @@ export default function InterviewReviewEditor({
           ) : null}
         </section>
 
-        <section className="live-legend" aria-label="How to use this runner">
-          <span className="live-legend-title">How to use</span>
-          <span className="live-legend-item">
-            <span className="live-legend-dot dot-question" aria-hidden="true" />
+        <section className="flex flex-wrap items-center gap-x-[18px] gap-y-2 rounded-[10px] border border-line bg-surface px-4 py-3 shadow-card" aria-label="How to use this runner">
+          <span className="text-[11px] font-black uppercase tracking-[0.07em] text-ink-muted">How to use</span>
+          <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-muted">
+            <span className="size-[11px] shrink-0 rounded-[3px] bg-slate-800" aria-hidden="true" />
             Black — the actual question you should be saying
           </span>
-          <span className="live-legend-item">
-            <span className="live-legend-dot dot-followup" aria-hidden="true" />
+          <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-muted">
+            <span className="size-[11px] shrink-0 rounded-[3px] bg-blue-600" aria-hidden="true" />
             Blue — follow-ups
           </span>
-          <span className="live-legend-item">
-            <span className="live-legend-dot dot-learn" aria-hidden="true" />
+          <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-muted">
+            <span className="size-[11px] shrink-0 rounded-[3px] bg-amber-500" aria-hidden="true" />
             Yellow — what we&apos;re trying to learn
           </span>
-          <span className="live-legend-item">
-            <span className="live-legend-dot dot-strong" aria-hidden="true" />
+          <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-muted">
+            <span className="size-[11px] shrink-0 rounded-[3px] bg-emerald-600" aria-hidden="true" />
             Green — strong answers
           </span>
-          <span className="live-legend-item">
-            <span className="live-legend-dot dot-flag" aria-hidden="true" />
+          <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-muted">
+            <span className="size-[11px] shrink-0 rounded-[3px] bg-rose-600" aria-hidden="true" />
             Red — answers that should make you pause
           </span>
         </section>
 
-      <section className="live-interview-grid">
-        <aside className="live-progress-rail" aria-label="Interview progress">
-          <div className="live-progress-counts">
+      <section
+        className={`grid items-start gap-[18px] ${focusMode ? "grid-cols-1" : "lg:grid-cols-[minmax(240px,280px)_minmax(0,1fr)]"}`}
+      >
+        <aside
+          className={`${CARD_PANEL} sticky top-[60px] grid gap-3.5 p-4 ${focusMode ? "hidden" : ""}`}
+          aria-label="Interview progress"
+        >
+          <div className="grid grid-cols-3 gap-2 [&>div]:min-w-0 [&>div]:rounded-[8px] [&>div]:bg-surface-soft [&>div]:px-2 [&>div]:py-2.5 [&>div]:text-center [&>div>strong]:block [&>div>strong]:text-[16px] [&>div>strong]:font-black [&>div>strong]:text-ink [&>div>span]:text-[11px] [&>div>span]:text-ink-muted">
             <div>
               <strong>{progress.asked}</strong>
               <span>Asked</span>
@@ -980,19 +1042,19 @@ export default function InterviewReviewEditor({
             </div>
           </div>
 
-          <div className="live-progress-alerts">
-            <span className={progress.redFlags > 0 ? "is-danger" : ""}>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] font-semibold text-ink-muted">
+            <span className={progress.redFlags > 0 ? "text-rose-600" : ""}>
               {progress.redFlags} red flag{progress.redFlags === 1 ? "" : "s"}
             </span>
-            <span className={progress.followUps > 0 ? "is-info" : ""}>
+            <span className={progress.followUps > 0 ? "text-blue-600" : ""}>
               {progress.followUps} follow-up{progress.followUps === 1 ? "" : "s"}
             </span>
-            <span className={progress.incompleteAsked > 0 ? "is-warning" : ""}>
+            <span className={progress.incompleteAsked > 0 ? "text-amber-600" : ""}>
               {progress.incompleteAsked} incomplete
             </span>
           </div>
 
-          <div className="live-section-list">
+          <div className="grid gap-1 [&>div]:flex [&>div]:items-center [&>div]:justify-between [&>div]:text-[12px] [&>div>span]:text-ink-muted [&>div>strong]:font-bold [&>div>strong]:text-ink">
             {Object.entries(progress.sections).map(([section, value]) => (
               <div key={section}>
                 <span>{section}</span>
@@ -1003,24 +1065,36 @@ export default function InterviewReviewEditor({
             ))}
           </div>
 
-          <div className="live-question-nav">
+          <div className="grid gap-2.5">
             {groupedQuestionNav.map((group) => (
-              <div key={group.topic} className="live-question-nav-group">
-                <div className="live-question-nav-section-label">{group.topic}</div>
+              <div key={group.topic} className="grid gap-1.5">
+                <div className="px-0.5 text-[10px] font-black uppercase tracking-[0.08em] text-ink-muted">{group.topic}</div>
                 {group.items.map(({ question, originalIndex, isMustAsk }) => (
                   <button
                     key={question.localId}
                     type="button"
-                    className={`live-question-nav-item ${statusClass(question.status)}${
-                      question.localId === activeQuestion?.localId ? " is-active" : ""
-                    }${isMustAsk ? " has-star" : ""}`}
+                    className={`grid min-h-[42px] cursor-pointer items-center gap-2 rounded-[8px] border bg-surface p-2 text-left ${
+                      isMustAsk
+                        ? "grid-cols-[26px_minmax(0,1fr)_auto]"
+                        : "grid-cols-[26px_minmax(0,1fr)]"
+                    } ${
+                      question.localId === activeQuestion?.localId
+                        ? "border-teal-600 ring-[3px] ring-teal-600/10"
+                        : "border-line hover:bg-surface-soft"
+                    }`}
                     onClick={() => setActiveQuestionId(question.localId)}
                   >
-                    <span>{originalIndex + 1}</span>
-                    <strong>{question.competency || "Custom"}</strong>
+                    <span
+                      className={`inline-flex size-6 items-center justify-center rounded-full text-[12px] font-black ${statusBubble(question.status)}`}
+                    >
+                      {originalIndex + 1}
+                    </span>
+                    <strong className="truncate text-[12px] font-bold leading-tight text-ink">
+                      {question.competency || "Custom"}
+                    </strong>
                     {isMustAsk ? (
                       <span
-                        className="live-question-nav-item-star"
+                        className="text-[13px] leading-none text-amber-600"
                         aria-label="Must-ask question"
                         title="Must ask"
                       >
@@ -1035,7 +1109,7 @@ export default function InterviewReviewEditor({
 
           <button
             type="button"
-            className="button secondary live-add-question-button"
+            className="w-full cursor-pointer rounded-[8px] border border-line bg-surface px-3 py-2 text-[12.5px] font-semibold text-brand-800 hover:border-brand-400 hover:bg-brand-50 disabled:pointer-events-none disabled:opacity-50"
             onClick={addCustomQuestion}
             disabled={!canEdit}
           >
@@ -1046,37 +1120,40 @@ export default function InterviewReviewEditor({
         {activeQuestion ? (
           <article
             ref={questionCardRef}
-            className={`live-question-card ${statusClass(activeQuestion.status)}${
-              activeBankItem?.isMustAsk ? " is-must-ask" : ""
-            }`}
+            className={`${CARD_PANEL} grid gap-4 p-5 [&_h3]:m-0 [&_h3]:mt-1 [&_h3]:text-[22px] [&_h3]:font-bold [&_h3]:leading-tight [&_h3]:text-ink ${
+              activeBankItem?.isMustAsk ? "border-l-4 border-l-amber-400" : ""
+            } ${focusMode ? "border-brand-400 shadow-[0_18px_50px_rgb(59_15_110/0.14)]" : ""}`}
           >
-            <div className="live-question-card-header">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="live-question-card-header-meta">
-                  <span className="cockpit-section-kicker">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">
                     {activeQuestion.source === "CUSTOM"
                       ? "Custom follow-up"
                       : activeBankItem?.topic ?? "Interview question"}
                   </span>
                   {activeBankItem?.isMustAsk ? (
-                    <span className="live-must-ask-badge" aria-label="Must-ask question">
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800"
+                      aria-label="Must-ask question"
+                    >
                       <span aria-hidden="true">★</span> Must ask
                     </span>
                   ) : null}
                 </div>
                 <h3>{activeQuestion.competency || "Live interview question"}</h3>
               </div>
-              <span className={`live-status-pill ${statusClass(activeQuestion.status)}`}>
+              <span className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-[12px] font-black ${statusBubble(activeQuestion.status)}`}>
                 {labelFromStatus(activeQuestion.status)}
               </span>
             </div>
 
             {activeQuestion.source === "CUSTOM" ? (
-              <div className="live-custom-grid">
-                <label className="form-row">
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                <label className={FIELD_LABEL}>
                   Custom question
                   <textarea
-                    className="input"
+                    className={FIELD_INPUT}
                     rows={3}
                     value={activeQuestion.prompt}
                     disabled={!canEdit}
@@ -1089,10 +1166,10 @@ export default function InterviewReviewEditor({
                     placeholder="Ask the follow-up exactly how you want it saved..."
                   />
                 </label>
-                <label className="form-row">
+                <label className={FIELD_LABEL}>
                   Competency
                   <input
-                    className="input"
+                    className={FIELD_INPUT}
                     value={activeQuestion.competency}
                     disabled={!canEdit}
                     onChange={(event) =>
@@ -1104,10 +1181,10 @@ export default function InterviewReviewEditor({
                     placeholder="Example: Communication, coachability, student support..."
                   />
                 </label>
-                <label className="form-row">
+                <label className={FIELD_LABEL}>
                   Why it was asked
                   <textarea
-                    className="input"
+                    className={FIELD_INPUT}
                     rows={2}
                     value={activeQuestion.whyAsked}
                     disabled={!canEdit}
@@ -1123,24 +1200,24 @@ export default function InterviewReviewEditor({
               </div>
             ) : (
               <>
-                <div className="live-question-prompt-block">
-                  <span className="live-guidance-label is-question">
+                <div className="grid gap-2">
+                  <span className={guidanceLabel("question")}>
                     Main question · say this out loud
                   </span>
-                  <p className="live-question-text">{activeQuestion.prompt}</p>
+                  <p className="m-0 text-[26px] font-extrabold leading-tight text-ink">{activeQuestion.prompt}</p>
                 </div>
                 {activeBankItem?.whyItMatters ? (
-                  <div className="live-trying-to-learn">
-                    <span className="live-guidance-label is-learn">
+                  <div className="grid gap-1.5">
+                    <span className={guidanceLabel("learn")}>
                       What we&apos;re trying to learn
                     </span>
-                    <p className="live-guidance-callout is-learn">{activeBankItem.whyItMatters}</p>
+                    <p className="m-0 rounded-r-[8px] border-l-4 border-amber-400 bg-amber-50 px-3.5 py-3 text-[13px] leading-relaxed text-amber-900">{activeBankItem.whyItMatters}</p>
                   </div>
                 ) : null}
                 {activeBankItem?.interviewerGuidance ? (
-                  <div className="live-trying-to-learn">
-                    <span className="live-guidance-label is-note">Note for you</span>
-                    <p className="live-guidance-callout is-note">
+                  <div className="grid gap-1.5">
+                    <span className={guidanceLabel("note")}>Note for you</span>
+                    <p className="m-0 rounded-r-[8px] border-l-4 border-slate-300 bg-surface-soft px-3.5 py-3 text-[13px] leading-relaxed text-ink-muted">
                       {activeBankItem.interviewerGuidance}
                     </p>
                   </div>
@@ -1148,10 +1225,14 @@ export default function InterviewReviewEditor({
               </>
             )}
 
-            <div className="live-status-actions" role="group" aria-label="Question status">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Question status">
               <button
                 type="button"
-                className={activeQuestion.status === "ASKED" ? "is-selected" : ""}
+                className={`min-h-9 cursor-pointer rounded-[8px] border px-3 py-2 text-[13px] font-black disabled:cursor-not-allowed disabled:opacity-60 ${
+                  activeQuestion.status === "ASKED"
+                    ? "border-teal-600 bg-teal-50 text-teal-700"
+                    : "border-line bg-surface text-ink hover:bg-surface-soft"
+                }`}
                 disabled={!canEdit}
                 onClick={() => setQuestionStatus(activeQuestion.localId, "ASKED")}
               >
@@ -1159,7 +1240,11 @@ export default function InterviewReviewEditor({
               </button>
               <button
                 type="button"
-                className={activeQuestion.status === "SKIPPED" ? "is-selected" : ""}
+                className={`min-h-9 cursor-pointer rounded-[8px] border px-3 py-2 text-[13px] font-black disabled:cursor-not-allowed disabled:opacity-60 ${
+                  activeQuestion.status === "SKIPPED"
+                    ? "border-amber-600 bg-amber-50 text-amber-700"
+                    : "border-line bg-surface text-ink hover:bg-surface-soft"
+                }`}
                 disabled={!canEdit}
                 onClick={() => setQuestionStatus(activeQuestion.localId, "SKIPPED")}
               >
@@ -1170,12 +1255,12 @@ export default function InterviewReviewEditor({
             {activeBankItem &&
             (asStringArray(activeBankItem.strongSignals).length > 0 ||
               asStringArray(activeBankItem.concernSignals).length > 0) ? (
-              <details className="live-guidance-section live-guidance-collapsible">
-                <summary className="live-guidance-label" style={{ cursor: "pointer" }}>
+              <details className="grid gap-1.5">
+                <summary className={`${guidanceLabel("plain")} cursor-pointer`}>
                   For you only · don&apos;t read aloud — strong-answer / red-flag cheatsheet
                 </summary>
-                <div className="live-guidance-grid" style={{ marginTop: 8 }}>
-                  <div className="is-strong">
+                <div className="mt-2 grid gap-3 md:grid-cols-2 [&>div]:min-w-0 [&>div]:rounded-[8px] [&>div]:border [&>div]:p-3 [&_h4]:m-0 [&_h4]:mb-1.5 [&_h4]:text-[13px] [&_h4]:font-black [&_h4]:text-ink [&_ul]:m-0 [&_ul]:pl-[18px] [&_ul]:text-[13px] [&_ul]:leading-normal [&_ul]:text-ink-muted">
+                  <div className="border-emerald-200 bg-emerald-50">
                     <h4>Strong answers</h4>
                     <ul>
                       {asStringArray(activeBankItem.strongSignals).map((signal) => (
@@ -1183,7 +1268,7 @@ export default function InterviewReviewEditor({
                       ))}
                     </ul>
                   </div>
-                  <div className="is-flag">
+                  <div className="border-rose-200 bg-rose-50">
                     <h4>Red flags</h4>
                     <ul>
                       {asStringArray(activeBankItem.concernSignals).map((signal) => (
@@ -1195,14 +1280,14 @@ export default function InterviewReviewEditor({
               </details>
             ) : null}
 
-            <div className="live-followup-section">
-              <span className="live-guidance-label is-followup">Follow-ups</span>
-              <p className="live-field-hint">
+            <div className="grid gap-1.5">
+              <span className={guidanceLabel("followup")}>Follow-ups</span>
+              <p className="m-0 text-[11.5px] font-normal text-ink-muted">
                 Don&apos;t ask all follow-ups — only ask if the candidate&apos;s original answer
                 was vague.
               </p>
               {activeBankItem && asStringArray(activeBankItem.suggestedFollowUps).length > 0 ? (
-                <div className="live-followup-suggestions">
+                <div className="flex flex-wrap gap-2 [&>button]:cursor-pointer [&>button]:rounded-[8px] [&>button]:border [&>button]:border-line [&>button]:bg-surface [&>button]:px-2.5 [&>button]:py-1.5 [&>button]:text-[12px] [&>button]:font-semibold [&>button]:text-ink hover:[&>button]:bg-surface-soft">
                   {asStringArray(activeBankItem.suggestedFollowUps).map((followUp) => (
                     <button
                       key={followUp}
@@ -1222,10 +1307,10 @@ export default function InterviewReviewEditor({
                   ))}
                 </div>
               ) : null}
-              <label className="form-row">
+              <label className={FIELD_LABEL}>
                 Follow-up you asked
                 <textarea
-                  className="input"
+                  className={FIELD_INPUT}
                   rows={2}
                   value={activeQuestion.followUpPrompt}
                   disabled={!canEdit}
@@ -1240,16 +1325,16 @@ export default function InterviewReviewEditor({
               </label>
             </div>
 
-            <label className="form-row">
+            <label className={FIELD_LABEL}>
               <span>
                 Notes
                 {activeQuestion.status === "ASKED" ? <RequiredStar /> : null}
               </span>
-              <p className="live-field-hint">
+              <p className="m-0 text-[11.5px] font-normal text-ink-muted">
                 Take real notes that can be helpful for others.
               </p>
               <textarea
-                className="input live-notes-input"
+                className={`w-full rounded-[8px] border border-line bg-surface px-2.5 py-2 text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-400 disabled:opacity-60 ${focusMode ? "min-h-[220px]" : "min-h-[120px]"}`}
                 rows={7}
                 value={activeQuestion.notes}
                 disabled={!canEdit}
@@ -1281,15 +1366,17 @@ export default function InterviewReviewEditor({
               />
             </label>
 
-            <div className="live-tag-block">
+            <div className="grid gap-2 [&>h4]:m-0 [&>h4]:text-[13px] [&>h4]:font-black [&>h4]:text-ink [&>div]:flex [&>div]:flex-wrap [&>div]:gap-2">
               <h4>Answer Tags</h4>
               <div>
                 {TAG_OPTIONS.map((tag) => (
                   <button
                     key={tag.value}
                     type="button"
-                    className={`live-tag-chip is-${tag.tone}${
-                      activeQuestion.tags.includes(tag.value) ? " is-selected" : ""
+                    className={`cursor-pointer rounded-[8px] px-2.5 py-1.5 text-[12px] font-black disabled:cursor-not-allowed disabled:opacity-60 ${
+                      activeQuestion.tags.includes(tag.value)
+                        ? TAG_SELECTED[tag.tone] ?? TAG_SELECTED.info
+                        : "border border-line bg-surface text-ink-muted hover:bg-surface-soft"
                     }`}
                     disabled={!canEdit}
                     onClick={() => toggleTag(activeQuestion.localId, tag.value)}
@@ -1303,7 +1390,7 @@ export default function InterviewReviewEditor({
             {activeQuestion.source === "CUSTOM" ? (
               <button
                 type="button"
-                className="button small outline"
+                className="cursor-pointer self-start rounded-[8px] border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink hover:bg-surface-soft disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={!canEdit}
                 onClick={() => removeCustomQuestion(activeQuestion.localId)}
               >
@@ -1312,13 +1399,13 @@ export default function InterviewReviewEditor({
             ) : null}
           </article>
         ) : (
-          <div className="review-editor-notice">
+          <div className={EDITOR_NOTICE}>
             <p>No interview questions are available yet.</p>
           </div>
         )}
       </section>
 
-      <section className="review-editor-panel">
+      <section className={EDITOR_PANEL}>
         <div>
           <h2>
             Overall Interview Evaluation
@@ -1327,7 +1414,7 @@ export default function InterviewReviewEditor({
           <p>Your per-question and per-category notes roll up into this final interview judgment.</p>
         </div>
 
-        <div className="review-rating-grid">
+        <div className={RATING_GRID}>
           {PROGRESS_RATING_OPTIONS.map((option) => {
             const selected = overallRating === option.value;
             return (
@@ -1336,12 +1423,11 @@ export default function InterviewReviewEditor({
                 type="button"
                 disabled={!canEdit}
                 onClick={() => setOverallRating(option.value)}
-                className={`review-rating-option${selected ? " is-selected" : ""}`}
+                className={ratingOptionClass(selected)}
                 style={
-                  {
-                    "--rating-color": option.color,
-                    "--rating-bg": option.bg,
-                  } as CSSProperties
+                  (selected
+                    ? { color: option.color, background: option.bg }
+                    : { color: option.color }) as CSSProperties
                 }
               >
                 <div>{option.label}</div>
@@ -1353,13 +1439,13 @@ export default function InterviewReviewEditor({
         <input type="hidden" name="overallRating" value={overallRating} />
 
         {showRecommendation ? (
-          <div className="form-row" role="group" aria-labelledby="iv-rec-label">
+          <div className={FIELD_LABEL} role="group" aria-labelledby="iv-rec-label">
             <span id="iv-rec-label">
               Final recommendation
               <RequiredStar />
             </span>
             <input type="hidden" name="recommendation" value={recommendation} />
-            <div className="iv-recommendation-grid">
+            <div className="grid gap-2 sm:grid-cols-2">
               {INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS.map((option) => {
                 const tone = RECOMMENDATION_TONES[option.value];
                 const selected = recommendation === option.value;
@@ -1374,37 +1460,38 @@ export default function InterviewReviewEditor({
                       )
                     }
                     aria-pressed={selected}
-                    className={`iv-recommendation-option${selected ? " is-selected" : ""}`}
+                    className={`flex cursor-pointer flex-col items-start gap-0.5 rounded-[10px] border px-3 py-2.5 text-left transition-colors duration-100 disabled:cursor-not-allowed disabled:opacity-60 ${
+                      selected ? "border-current shadow-card" : "border-line bg-surface hover:bg-surface-soft"
+                    }`}
                     style={
-                      {
-                        "--rec-color": tone.color,
-                        "--rec-bg": tone.bg,
-                      } as CSSProperties
+                      (selected
+                        ? { color: tone.color, background: tone.bg }
+                        : { color: tone.color }) as CSSProperties
                     }
                   >
-                    <span className="iv-recommendation-option-title">{option.label}</span>
-                    <span className="iv-recommendation-option-helper">{option.description}</span>
+                    <span className="text-[13px] font-black">{option.label}</span>
+                    <span className="text-[11.5px] text-ink-muted">{option.description}</span>
                   </button>
                 );
               })}
             </div>
           </div>
         ) : (
-          <div className="review-editor-callout">
+          <div className={EDITOR_CALLOUT}>
             Your interview evaluation will inform the lead reviewer&apos;s final recommendation.
             <input type="hidden" name="recommendation" value="" />
           </div>
         )}
       </section>
 
-      <section className="review-editor-panel">
+      <section className={EDITOR_PANEL}>
         <div>
           <h2>Interview Categories</h2>
           <p>Use the same category language from the application review so interview signals stack naturally.</p>
         </div>
 
-        <div className="iv-category-recap" role="status" aria-label="Category rating recap">
-          <span className="iv-category-recap-label">Coverage</span>
+        <div className="flex flex-wrap items-center gap-1.5" role="status" aria-label="Category rating recap">
+          <span className="text-[11px] font-black uppercase tracking-[0.06em] text-ink-muted">Coverage</span>
           {INSTRUCTOR_REVIEW_CATEGORIES.map((category) => {
             const current = categories.find((entry) => entry.category === category.key);
             const ratingOption = current?.rating
@@ -1413,18 +1500,17 @@ export default function InterviewReviewEditor({
             return (
               <span
                 key={category.key}
-                className={`iv-category-recap-chip${ratingOption ? " is-set" : " is-unset"}`}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-bold ${
+                  ratingOption ? "border-current" : "border-dashed border-line text-ink-muted"
+                }`}
                 style={
                   ratingOption
-                    ? ({
-                        "--recap-color": ratingOption.color,
-                        "--recap-bg": ratingOption.bg,
-                      } as CSSProperties)
+                    ? ({ color: ratingOption.color, background: ratingOption.bg } as CSSProperties)
                     : undefined
                 }
                 title={ratingOption ? `${category.label}: ${ratingOption.shortLabel}` : `${category.label}: not yet rated`}
               >
-                <span className="iv-category-recap-chip-dot" aria-hidden="true" />
+                <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
                 {category.label}
               </span>
             );
@@ -1434,16 +1520,16 @@ export default function InterviewReviewEditor({
         {INSTRUCTOR_REVIEW_CATEGORIES.map((category) => {
           const current = categories.find((entry) => entry.category === category.key)!;
           return (
-            <div key={category.key} className="review-category-card">
+            <div key={category.key} className={CATEGORY_CARD}>
               <div>
-                <div className="review-category-title">
+                <div className={CATEGORY_TITLE}>
                   {category.label}
                   <RequiredStar />
                 </div>
-                <div className="review-category-description">{category.description}</div>
+                <div className={CATEGORY_DESCRIPTION}>{category.description}</div>
               </div>
 
-              <div className="review-rating-grid review-rating-grid-compact">
+              <div className={RATING_GRID}>
                 {PROGRESS_RATING_OPTIONS.map((option) => {
                   const selected = current.rating === option.value;
                   return (
@@ -1452,7 +1538,7 @@ export default function InterviewReviewEditor({
                       type="button"
                       disabled={!canEdit}
                       onClick={() => updateCategoryRating(category.key, option.value)}
-                      className={`review-rating-option${selected ? " is-selected" : ""}`}
+                      className={ratingOptionClass(selected)}
                       style={
                         {
                           "--rating-color": option.color,
@@ -1467,13 +1553,13 @@ export default function InterviewReviewEditor({
                 })}
               </div>
 
-              <label className="form-row">
+              <label className={FIELD_LABEL}>
                 <span>
                   Internal note
                   <RequiredStar />
                 </span>
                 <textarea
-                  className="input"
+                  className={FIELD_INPUT}
                   rows={2}
                   value={current.notes}
                   disabled={!canEdit}
@@ -1489,19 +1575,19 @@ export default function InterviewReviewEditor({
         })}
       </section>
 
-      <section className="review-editor-panel">
+      <section className={EDITOR_PANEL}>
         {showRevisionRequirements ? (
           <>
-            <div className="review-editor-warning">
+            <div className={EDITOR_WARNING}>
               Keep required revisions specific. This recommendation does not approve the candidate yet.
             </div>
-            <label className="form-row">
+            <label className={FIELD_LABEL}>
               <span>
                 Required support notes
                 <RequiredStar />
               </span>
               <textarea
-                className="input"
+                className={FIELD_INPUT}
                 name="revisionRequirements"
                 rows={3}
                 value={revisionRequirements}
@@ -1516,13 +1602,13 @@ export default function InterviewReviewEditor({
         )}
 
         {showApplicantMessage ? (
-          <label className="form-row">
+          <label className={FIELD_LABEL}>
             <span>
               Applicant-facing rejection message
               <RequiredStar />
             </span>
             <textarea
-              className="input"
+              className={FIELD_INPUT}
               name="applicantMessage"
               rows={3}
               value={applicantMessage}
@@ -1535,7 +1621,7 @@ export default function InterviewReviewEditor({
           <input type="hidden" name="applicantMessage" value={applicantMessage} />
         )}
 
-        <label className="review-checkbox-row">
+        <label className={CHECKBOX_ROW}>
           <input
             type="checkbox"
             checked={flagForLeadership}
@@ -1552,18 +1638,18 @@ export default function InterviewReviewEditor({
             <>
               <SaveChip status={saveStatus} message={saveMessage} />
               {missingFields.length > 0 ? (
-                <span className="iv-live-submit-dock-warning">
+                <span className="text-[12.5px] font-semibold text-amber-700">
                   {missingFields.length} required {missingFields.length === 1 ? "field" : "fields"} left
                 </span>
               ) : (
-                <span className="iv-live-submit-dock-status-strong">Ready to submit</span>
+                <span className="text-[12.5px] font-bold text-emerald-700">Ready to submit</span>
               )}
             </>
           }
           actions={
             <>
               <button
-                className="button secondary"
+                className={buttonVariants({ variant: "secondary", size: "md" })}
                 type="submit"
                 name="intent"
                 value="save"
@@ -1574,7 +1660,7 @@ export default function InterviewReviewEditor({
                 Save Draft
               </button>
               <button
-                className="button"
+                className={buttonVariants({ variant: "primary", size: "md" })}
                 type="submit"
                 name="intent"
                 value="submit"

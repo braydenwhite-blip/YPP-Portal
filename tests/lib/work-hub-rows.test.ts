@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { WorkItem } from "@/lib/operations/work-items";
 import type { MeetingLite } from "@/lib/people-strategy/operational-digest";
 import {
+  asWorkHubEntityFilter,
   asWorkHubFlag,
+  filterWorkHubRowsByEntity,
   filterWorkHubRowsByFlag,
   rowIsDueSoon,
   searchWorkHubRows,
@@ -276,6 +278,25 @@ describe("sorting / filtering / search", () => {
   it("treats overdue rows as not due-soon", () => {
     const late = rows.find((r) => r.id === "action:late") as WorkHubRow;
     expect(rowIsDueSoon(late, NOW)).toBe(false);
+  });
+
+  it("parses and applies the entity filter", () => {
+    expect(asWorkHubEntityFilter("partner:p1")).toEqual({ type: "partner", id: "p1" });
+    expect(asWorkHubEntityFilter("bogus:p1")).toBeNull();
+    expect(asWorkHubEntityFilter("partner:")).toBeNull();
+    expect(asWorkHubEntityFilter(undefined)).toBeNull();
+
+    const tagged = [
+      workHubRowFromWorkItem(
+        workItem({ id: "action:linked", relatedType: "PARTNER", relatedId: "p1", relatedLabel: "Beth El" })
+      ),
+      workHubRowFromWorkItem(workItem({ id: "action:other" })),
+    ];
+    const filtered = filterWorkHubRowsByEntity(tagged, { type: "partner", id: "p1" });
+    expect(filtered.map((r) => r.id)).toEqual(["action:linked"]);
+    // previewType match: an action row IS the action entity
+    const byPreview = filterWorkHubRowsByEntity(tagged, { type: "action", id: "other" });
+    expect(byPreview.map((r) => r.id)).toEqual(["action:other"]);
   });
 
   it("validates flags and searches across title/owner/entity", () => {

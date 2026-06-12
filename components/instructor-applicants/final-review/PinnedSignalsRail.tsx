@@ -50,51 +50,28 @@ export default function PinnedSignalsRail({ application }: PinnedSignalsRailProp
 
   return (
     <section
-      className="pinned-signals-rail"
+      className="rounded-[16px] border border-line bg-surface p-4 shadow-card"
       aria-label="Pinned signals"
-      style={{
-        background: "var(--cockpit-surface, #fff)",
-        border: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
-        borderRadius: 16,
-        padding: 16,
-      }}
     >
-      <p
-        style={{
-          margin: 0,
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "var(--ink-muted, #6b5f7a)",
-        }}
-      >
+      <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
         Pinned for rationale · {pinned.length}
       </p>
       {pinned.length === 0 ? (
-        <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--ink-muted, #6b5f7a)", lineHeight: 1.5 }}>
+        <p className="m-0 mt-2 text-[12px] leading-normal text-ink-muted">
           Click the pin icon on any feed item to save it here for your rationale.
         </p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "flex", flexDirection: "column", gap: 8 }}>
+        <ul className="m-0 mt-2 flex list-none flex-col gap-2 p-0">
           {pinned.map(({ id, item }) => (
             <li
               key={id}
-              style={{
-                padding: 12,
-                borderRadius: 10,
-                background: "var(--cockpit-surface-strong, #faf8ff)",
-                border: "1px solid var(--cockpit-line, rgba(71,85,105,0.14))",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-              }}
+              className="flex flex-col gap-2 rounded-[10px] border border-line-soft bg-surface-soft p-3"
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-default, #1a0533)" }}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[12px] font-semibold text-ink">
                   {item.reviewerName ?? "Reviewer"}
                 </span>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <span className="inline-flex items-center gap-1">
                   {item.recommendation ? (
                     <RecommendationBadge
                       recommendation={item.recommendation as Parameters<typeof RecommendationBadge>[0]["recommendation"]}
@@ -105,29 +82,14 @@ export default function PinnedSignalsRail({ application }: PinnedSignalsRailProp
                     type="button"
                     onClick={() => toggle(id)}
                     aria-label="Unpin"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "var(--ypp-purple-700, #5a1da8)",
-                      padding: 0,
-                      display: "inline-flex",
-                    }}
+                    className="inline-flex cursor-pointer border-0 bg-transparent p-0 text-brand-700"
                   >
                     <PinIcon size={14} />
                   </button>
                 </span>
               </div>
               {item.summary ? (
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 12,
-                    color: "var(--ink-default, #1a0533)",
-                    lineHeight: 1.45,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
+                <p className="m-0 whitespace-pre-wrap text-[12px] leading-snug text-ink">
                   {item.summary.length > 200 ? `${item.summary.slice(0, 200)}…` : item.summary}
                 </p>
               ) : null}
@@ -135,16 +97,7 @@ export default function PinnedSignalsRail({ application }: PinnedSignalsRailProp
                 <button
                   type="button"
                   onClick={() => quoteIntoRationale(item.summary ?? "")}
-                  style={{
-                    alignSelf: "flex-start",
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "var(--ypp-purple-700, #5a1da8)",
-                    cursor: "pointer",
-                  }}
+                  className="cursor-pointer self-start border-0 bg-transparent p-0 text-[11px] font-semibold text-brand-700"
                 >
                   Quote into rationale
                 </button>

@@ -68,7 +68,7 @@ export default function ActionButton({
         disabled={disabled}
         aria-disabled={loading || disabled || undefined}
         aria-describedby={descId}
-        className={`action-button tone-${tone} action-${action.toLowerCase()}`}
+        className={`action-button tone-${tone} action-${action.toLowerCase()} transition enabled:hover:-translate-y-px enabled:hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600`}
         style={{
           display: "inline-flex",
           alignItems: "center",

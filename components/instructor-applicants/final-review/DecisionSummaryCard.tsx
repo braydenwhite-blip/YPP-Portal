@@ -85,15 +85,7 @@ export default function DecisionSummaryCard(props: DecisionSummaryCardProps) {
   );
 
   return (
-    <div
-      className="decision-summary-card"
-      style={{
-        border: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
-        borderRadius: 12,
-        padding: 16,
-        background: "var(--cockpit-surface, #fff)",
-      }}
-    >
+    <div className="rounded-[12px] border border-line bg-surface p-4">
       <h2
         id="confirm-modal-title"
         style={{ margin: 0, fontSize: 22, lineHeight: 1.25, color: "var(--ink-default, #1a0533)" }}

@@ -15,10 +15,13 @@ type SubmitDockShellProps = {
  */
 export function SubmitDockShell({ status, actions }: SubmitDockShellProps) {
   return (
-    <div className="iv-live-submit-dock" role="contentinfo">
-      <div className="iv-live-submit-dock-inner">
-        <div className="iv-live-submit-dock-status">{status}</div>
-        <div className="iv-live-submit-dock-actions">{actions}</div>
+    <div
+      className="sticky bottom-0 z-20 -mx-1 border-t border-line bg-surface/95 px-1 py-3 backdrop-blur"
+      role="contentinfo"
+    >
+      <div className="mx-auto flex w-full max-w-[1240px] flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">{status}</div>
+        <div className="flex items-center gap-2">{actions}</div>
       </div>
     </div>
   );

@@ -18,9 +18,16 @@ import { fileURLToPath } from "node:url";
  * skin blocks — docs/knowledge-os-phase-2c-notes.md.
  * Lowered to 14,955 by CSS deletion milestone 2 (Phase 3A): dead overview /
  * legacy-dashboard blocks plus the application-board skins replaced by the
- * ui-v2 reskin — docs/knowledge-os-phase-3a-notes.md. Only lower it.
+ * ui-v2 reskin — docs/knowledge-os-phase-3a-notes.md.
+ * Lowered to 13,704 by CSS deletion milestone 3 (Phase 3B): the applicant
+ * cockpit / chair-review / final-review skin families replaced by the
+ * ui-v2 rebuild — docs/knowledge-os-phase-3b-notes.md.
+ * Lowered to 11,598 by CSS deletion milestone 4 (Phase 3C): the live
+ * interview runner / review-editor / interviewer-brief skin families
+ * replaced by the ui-v2 rebuild — docs/knowledge-os-phase-3c-notes.md.
+ * Only lower it.
  */
-const BASELINE_LINE_COUNT = 14955;
+const BASELINE_LINE_COUNT = 11598;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const file = join(root, "app", "globals.css");

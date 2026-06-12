@@ -7,7 +7,10 @@ import type { ReactNode } from "react";
 
 export default function ReviewWorkspace({ children }: { children: ReactNode }) {
   return (
-    <section className="review-workspace" aria-label="Final review workspace">
+    <section
+      className="grid grid-cols-1 items-start gap-4 p-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]"
+      aria-label="Final review workspace"
+    >
       {children}
     </section>
   );

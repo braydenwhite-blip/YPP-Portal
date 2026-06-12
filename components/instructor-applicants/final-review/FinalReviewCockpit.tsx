@@ -298,7 +298,7 @@ function CockpitInner({
 
   return (
     <div
-      className="final-review-cockpit"
+      className="[font-feature-settings:'ss01','cv02']"
       style={{
         display: "flex",
         flexDirection: "column",

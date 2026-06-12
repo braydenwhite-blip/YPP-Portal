@@ -84,48 +84,18 @@ export default function ScoreMatrix({ reviewers, cells }: ScoreMatrixProps) {
 
   return (
     <section
-      className="score-matrix"
+      className="overflow-x-auto rounded-[16px] border border-line bg-surface p-4 shadow-card"
       aria-label="Score matrix — reviewer by category"
-      style={{
-        background: "var(--cockpit-surface, #fff)",
-        border: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
-        borderRadius: 16,
-        padding: 16,
-        overflowX: "auto",
-      }}
     >
-      <p
-        style={{
-          margin: "0 0 12px",
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "var(--ink-muted, #6b5f7a)",
-        }}
-      >
+      <p className="m-0 mb-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
         Score matrix · {reviewers.length} reviewer{reviewers.length === 1 ? "" : "s"}
       </p>
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "separate",
-          borderSpacing: 0,
-          minWidth: 480,
-          fontSize: 12,
-        }}
-      >
+      <table className="w-full min-w-[480px] border-separate border-spacing-0 text-[12px]">
         <thead>
           <tr>
             <th
               scope="col"
-              style={{
-                textAlign: "left",
-                padding: "6px 8px",
-                color: "var(--ink-muted, #6b5f7a)",
-                fontWeight: 600,
-                width: 200,
-              }}
+              className="w-[200px] px-2 py-1.5 text-left font-semibold text-ink-muted"
             >
               Category
             </th>
@@ -135,12 +105,7 @@ export default function ScoreMatrix({ reviewers, cells }: ScoreMatrixProps) {
                 <th
                   key={reviewer.id}
                   scope="col"
-                  style={{
-                    padding: "6px 8px",
-                    background: focused ? "var(--ypp-purple-50, #f3ecff)" : "transparent",
-                    borderTopLeftRadius: 8,
-                    borderTopRightRadius: 8,
-                  }}
+                  className={`rounded-t-[8px] px-2 py-1.5 ${focused ? "bg-brand-50" : "bg-transparent"}`}
                 >
                   <button
                     type="button"
@@ -148,12 +113,7 @@ export default function ScoreMatrix({ reviewers, cells }: ScoreMatrixProps) {
                       setFocusedReviewerId(focused ? null : reviewer.id)
                     }
                     aria-pressed={focused}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                    }}
+                    className="cursor-pointer border-0 bg-transparent p-0"
                   >
                     <ReviewerIdentityChip
                       user={{ id: reviewer.id, name: reviewer.name }}
@@ -174,26 +134,14 @@ export default function ScoreMatrix({ reviewers, cells }: ScoreMatrixProps) {
               <tr key={row.key}>
                 <th
                   scope="row"
-                  style={{
-                    textAlign: "left",
-                    padding: "8px",
-                    fontWeight: 500,
-                    color: "var(--ink-default, #1a0533)",
-                    background: divergent ? "rgba(234, 179, 8, 0.06)" : "transparent",
-                  }}
+                  className={`p-2 text-left font-medium text-ink ${divergent ? "bg-amber-500/5" : "bg-transparent"}`}
                 >
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span className="inline-flex items-center gap-1.5">
                     {row.label}
                     {divergent ? (
                       <span
                         aria-label="Reviewers diverged on this category"
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: "50%",
-                          background: "var(--score-mixed, #eab308)",
-                          display: "inline-block",
-                        }}
+                        className="inline-block size-1.5 rounded-full bg-amber-500"
                       />
                     ) : null}
                   </span>
@@ -204,11 +152,7 @@ export default function ScoreMatrix({ reviewers, cells }: ScoreMatrixProps) {
                   return (
                     <td
                       key={reviewer.id}
-                      style={{
-                        padding: "8px",
-                        textAlign: "center",
-                        background: focused ? "var(--ypp-purple-50, #f3ecff)" : "transparent",
-                      }}
+                      className={`p-2 text-center ${focused ? "bg-brand-50" : "bg-transparent"}`}
                     >
                       <RatingChip rating={rating} variant="solid" size="xs" />
                     </td>

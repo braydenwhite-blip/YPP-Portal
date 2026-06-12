@@ -120,16 +120,16 @@ export default function ManualEmailGuidancePanel({
   return (
     <section
       id="section-manual-email"
-      className="cockpit-panel"
+      className="rounded-[12px] border border-line-soft bg-surface p-[22px] shadow-card"
       aria-label="Manual email tracking"
     >
-      <div className="cockpit-section-heading">
-        <span className="cockpit-section-kicker">Manual email tracking</span>
+      <div className="mb-4 grid gap-0.5">
+        <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">Manual email tracking</span>
         <h2>Emails to send</h2>
       </div>
 
       <p
-        className="cockpit-muted"
+        className="m-0 text-[13px] text-ink-muted"
         style={{ marginTop: 0, fontSize: 13, lineHeight: 1.55 }}
       >
         Manual email tracking only. This does not send an email. Copy the
@@ -160,7 +160,7 @@ export default function ManualEmailGuidancePanel({
       )}
 
       {tasks.length === 0 ? (
-        <p className="cockpit-muted" style={{ marginTop: 16, fontSize: 13 }}>
+        <p className="m-0 text-[13px] text-ink-muted" style={{ marginTop: 16, fontSize: 13 }}>
           No manual email tasks have been added yet. Use the picker below to
           queue an email when one is needed.
         </p>

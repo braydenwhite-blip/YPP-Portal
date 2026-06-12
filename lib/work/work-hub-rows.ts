@@ -507,6 +507,42 @@ export function filterWorkHubRowsByFlag(
   }
 }
 
+/** Parse a `/work?entity=<type>:<id>` filter param ("partner:p1"). */
+export function asWorkHubEntityFilter(
+  value: string | undefined
+): { type: Entity360Type; id: string } | null {
+  if (!value) return null;
+  const idx = value.indexOf(":");
+  if (idx <= 0) return null;
+  const type = value.slice(0, idx);
+  const id = value.slice(idx + 1).trim();
+  if (!id) return null;
+  const known: readonly string[] = [
+    "person",
+    "class",
+    "partner",
+    "initiative",
+    "meeting",
+    "action",
+    "mentorship",
+    "applicant",
+  ];
+  if (!known.includes(type)) return null;
+  return { type: type as Entity360Type, id };
+}
+
+/** Rows connected to one entity (the record pages' "View in Work Hub" lens). */
+export function filterWorkHubRowsByEntity(
+  rows: WorkHubRow[],
+  entity: { type: Entity360Type; id: string }
+): WorkHubRow[] {
+  return rows.filter(
+    (row) =>
+      (row.entityType === entity.type && row.entityId === entity.id) ||
+      (row.previewType === entity.type && row.previewId === entity.id)
+  );
+}
+
 /** Case-insensitive search across title, owner, entity, status, and kind. */
 export function searchWorkHubRows(rows: WorkHubRow[], query: string): WorkHubRow[] {
   const q = query.trim().toLowerCase();

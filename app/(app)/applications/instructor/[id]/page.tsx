@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+
+import { buttonVariants } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
@@ -43,6 +45,18 @@ import WorkshopOutlinePanel from "@/components/instructor-applicants/WorkshopOut
 import PromoteToFullInstructorButton from "@/components/instructor-applicants/PromoteToFullInstructorButton";
 import type { PromotionEligibility, WorkshopOutline } from "@/lib/summer-workshop";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
+
+// Design System 2.0 panel vocabulary for this rebuilt workspace (Tailwind).
+const PANEL = "rounded-[12px] border border-line-soft bg-surface p-[22px] shadow-card";
+const KICKER = "text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700";
+const HEADING = "mb-4 grid gap-0.5";
+const H2 = "m-0 text-[17px] font-bold text-ink";
+const PROSE = "m-0 whitespace-pre-wrap text-[14px] leading-[1.72] text-ink";
+const MUTED = "m-0 text-[13px] text-ink-muted";
+const DETAIL_GRID =
+  "grid grid-cols-[minmax(120px,220px)_minmax(0,1fr)] gap-x-[18px] gap-y-2.5 " +
+  "[&_dt]:m-0 [&_dt]:text-[11.5px] [&_dt]:font-bold [&_dt]:uppercase [&_dt]:tracking-[0.05em] [&_dt]:text-ink-muted " +
+  "[&_dd]:m-0 [&_dd]:whitespace-pre-wrap [&_dd]:text-[13.5px] [&_dd]:text-ink";
 
 export const dynamic = "force-dynamic";
 
@@ -420,17 +434,28 @@ export default async function ApplicantCockpitPage({
     actorIsAdmin || isChapterLead(actor) || isHiringChair(actor);
 
   return (
-    <div className="applicant-cockpit-page">
-      <div className="applicant-cockpit-backbar">
-        <Link
-          href={actorCanSeeChair ? "/admin/instructor-applicants" : "/chapter-lead/instructor-applicants"}
-          className="applicant-cockpit-backlink"
-        >
-          Back to Instructor Applicants
-        </Link>
+    <div className="min-h-screen bg-surface-soft pb-28">
+      {/* Sticky back bar */}
+      <div className="sticky top-0 z-30 border-b border-line-soft bg-surface/95 px-6 py-2.5 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-[1320px] flex-wrap items-center justify-between gap-2">
+          <Link
+            href={actorCanSeeChair ? "/admin/instructor-applicants" : "/chapter-lead/instructor-applicants"}
+            className="text-[13px] font-semibold text-brand-700 hover:underline"
+          >
+            ← Instructor Applicants
+          </Link>
+          {actorCanSeeChair ? (
+            <Link
+              href={`/admin/instructor-applicants/${application.id}`}
+              className="text-[13px] font-semibold text-brand-700 hover:underline"
+            >
+              Application 360 →
+            </Link>
+          ) : null}
+        </div>
       </div>
 
-      <div className="applicant-cockpit-container">
+      <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-4 px-6 py-5">
         <ApplicantCockpitHeader application={application} />
 
         <ExternalIntakePanel
@@ -446,23 +471,13 @@ export default async function ApplicantCockpitPage({
         {application.isReapplication && application.previousApplicationId && (
           <div
             role="note"
-            style={{
-              marginTop: 12,
-              padding: "10px 14px",
-              borderRadius: 10,
-              background: "#fef3c7",
-              border: "1px solid #fde68a",
-              fontSize: 13,
-              color: "#78350f",
-              lineHeight: 1.55,
-            }}
+            className="rounded-[10px] border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-amber-900"
           >
             This is a re-application. The applicant&apos;s prior submission is on
             file —{" "}
             <Link
               href={`/applications/instructor/${application.previousApplicationId}?adminPreview=1`}
-              className="link"
-              style={{ color: "#78350f", textDecoration: "underline" }}
+              className="font-semibold text-amber-900 underline"
             >
               open the previous application
             </Link>{" "}
@@ -484,16 +499,15 @@ export default async function ApplicantCockpitPage({
           warningsJson={reviewWarnings ?? null}
         />
 
-
-        <div className="applicant-cockpit-layout">
-          <main className="applicant-cockpit-main">
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <main className="flex min-w-0 flex-col gap-4">
             {/* Applicant Summary */}
-            <section id="section-summary" className="cockpit-panel cockpit-panel-accent">
-              <div className="cockpit-section-heading">
-                <span className="cockpit-section-kicker">Profile</span>
-                <h2>Applicant Summary</h2>
+            <section id="section-summary" className={`${PANEL} border-l-4 border-l-brand-600`}>
+              <div className={HEADING}>
+                <span className={KICKER}>Profile</span>
+                <h2 className={H2}>Applicant Summary</h2>
               </div>
-              <dl className="cockpit-detail-grid">
+              <dl className={DETAIL_GRID}>
                 <dt>Email</dt>
                 <dd>{application.applicant.email}</dd>
                 {application.phoneNumber && (
@@ -531,12 +545,12 @@ export default async function ApplicantCockpitPage({
             {application.instructorSubtype === "SUMMER_WORKSHOP" &&
               application.status === "APPROVED" &&
               (isAdmin(actor) || isHiringChair(actor)) && (
-                <section className="cockpit-panel">
-                  <div className="cockpit-section-heading">
-                    <span className="cockpit-section-kicker">Subtype</span>
-                    <h2>Promotion</h2>
+                <section className={PANEL}>
+                  <div className={HEADING}>
+                    <span className={KICKER}>Subtype</span>
+                    <h2 className={H2}>Promotion</h2>
                   </div>
-                  <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px", lineHeight: 1.55 }}>
+                  <p className="m-0 mb-3 text-[13px] leading-relaxed text-ink-muted">
                     This applicant is on the Summer Workshop Instructor track. Promotion to
                     Full Instructor preserves all history; outstanding requirements (e.g.
                     Lesson Design Studio) become follow-ups, not waivers. Use this when the
@@ -554,40 +568,38 @@ export default async function ApplicantCockpitPage({
               )}
 
             {/* Motivation */}
-            <section id="section-motivation" className="cockpit-panel">
-              <div className="cockpit-section-heading">
-                <span className="cockpit-section-kicker">Why they applied</span>
-                <h2>Motivation</h2>
+            <section id="section-motivation" className={PANEL}>
+              <div className={HEADING}>
+                <span className={KICKER}>Why they applied</span>
+                <h2 className={H2}>Motivation</h2>
               </div>
               {application.motivationVideoUrl && (
-                <div className="cockpit-video-callout">
-                  <p>
-                    Motivation Video
-                  </p>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-brand-200 bg-brand-50/60 px-3.5 py-2.5">
+                  <p className="m-0 text-[13px] font-semibold text-ink">Motivation Video</p>
                   <a
                     href={application.motivationVideoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="button outline cockpit-inline-button"
+                    className={buttonVariants({ variant: "secondary", size: "sm" })}
                   >
                     Watch video
                   </a>
                 </div>
               )}
               {application.motivation ? (
-                <p className="cockpit-prose">
+                <p className={PROSE}>
                   {application.motivation}
                 </p>
               ) : (
-                <p className="cockpit-muted">No written motivation provided.</p>
+                <p className={MUTED}>No written motivation provided.</p>
               )}
             </section>
 
             {/* Initial Review */}
-            <section id="section-review" className="cockpit-review-workspace">
-              <div className="cockpit-section-heading">
-                <span className="cockpit-section-kicker">Evaluation</span>
-                <h2>Initial Review</h2>
+            <section id="section-review" className="grid gap-4">
+              <div className={HEADING.replace("mb-4", "mb-0")}>
+                <span className={KICKER}>Evaluation</span>
+                <h2 className={H2}>Initial Review</h2>
               </div>
               {reviewWorkspace ? (
                 <ApplicationReviewEditor
@@ -605,7 +617,7 @@ export default async function ApplicantCockpitPage({
                   hasLeadInterviewer={hasLeadInterviewer}
                 />
               ) : (
-                <p className="cockpit-muted">
+                <p className={MUTED}>
                   {isReadOnlyReview
                     ? "Review visible to assigned reviewer and admins only."
                     : "Review not yet available for this application."}
@@ -634,7 +646,7 @@ export default async function ApplicantCockpitPage({
               myCommitments={myInterviewCommitments}
             >
               {canAssignInterviewers && (
-                <div className="cockpit-assignment-panel-grid">
+                <div className="grid gap-3 md:grid-cols-2">
                   <CollapsibleAssignmentPanel
                     title="Lead Interviewer"
                     assigneeName={leadInterviewerAssignment?.interviewer.name}
@@ -664,25 +676,28 @@ export default async function ApplicantCockpitPage({
 
             {/* Interview Reviews summary */}
             {currentInterviewReviews.length > 0 && (
-              <section id="section-interview-reviews" className="cockpit-panel">
-                <div className="cockpit-section-heading">
-                  <span className="cockpit-section-kicker">Interview signal</span>
-                  <h2>Interview Reviews</h2>
+              <section id="section-interview-reviews" className={PANEL}>
+                <div className={HEADING}>
+                  <span className={KICKER}>Interview signal</span>
+                  <h2 className={H2}>Interview Reviews</h2>
                 </div>
-                <div className="cockpit-stack">
+                <div className="grid gap-2.5">
                   {currentInterviewReviews.map((review) => {
                     const recOpt = PROGRESS_RATING_OPTIONS.find(
                       (o) => o.value === review.overallRating
                     );
                     return (
-                      <article key={review.id} className="iv-cockpit-review-card">
-                        <header className="iv-cockpit-review-header">
-                          <span className="iv-cockpit-review-author">
+                      <article
+                        key={review.id}
+                        className="rounded-[10px] border border-line-soft bg-surface-soft px-3.5 py-3"
+                      >
+                        <header className="flex flex-wrap items-center gap-2">
+                          <span className="text-[13.5px] font-semibold text-ink">
                             {review.reviewer.name ?? "Interviewer"}
                           </span>
                           {recOpt ? (
                             <span
-                              className="cockpit-score-chip"
+                              className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold"
                               style={{ background: recOpt.bg, color: recOpt.color }}
                               aria-label={`Overall rating ${recOpt.shortLabel}`}
                             >
@@ -690,7 +705,7 @@ export default async function ApplicantCockpitPage({
                             </span>
                           ) : null}
                           {review.recommendation ? (
-                            <span className="iv-status-badge is-info">
+                            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                               {review.recommendation.replace(/_/g, " ")}
                             </span>
                           ) : null}
@@ -698,7 +713,7 @@ export default async function ApplicantCockpitPage({
                         {actorIsInterviewer && review.reviewerId === actor.id ? (
                           <Link
                             href={`/applications/instructor/${id}/interview`}
-                            className="iv-cockpit-review-edit"
+                            className="mt-1.5 inline-block text-[12.5px] font-semibold text-brand-700 hover:underline"
                           >
                             Edit my review →
                           </Link>
@@ -711,18 +726,21 @@ export default async function ApplicantCockpitPage({
             )}
 
             {actorIsInterviewer && (
-              <aside className="iv-cockpit-callout" aria-label="Interviewer workspace">
-                <div className="iv-cockpit-callout-text">
-                  <span className="iv-cockpit-callout-kicker">Run the interview</span>
-                  <p className="iv-cockpit-callout-title">Open Interviewer Workspace</p>
-                  <p className="iv-cockpit-callout-helper">
+              <aside
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-brand-200 bg-brand-50/70 px-[22px] py-4"
+                aria-label="Interviewer workspace"
+              >
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className={KICKER}>Run the interview</span>
+                  <p className="m-0 text-[15px] font-bold text-ink">Open Interviewer Workspace</p>
+                  <p className="m-0 text-[12.5px] text-ink-muted">
                     Live question runner, pre-interview brief, autosave, and the rubric all in one
                     place.
                   </p>
                 </div>
                 <Link
                   href={`/applications/instructor/${id}/interview`}
-                  className="button cockpit-inline-button"
+                  className={buttonVariants({ variant: "primary", size: "md" })}
                 >
                   Open Workspace →
                 </Link>
@@ -741,10 +759,10 @@ export default async function ApplicantCockpitPage({
             )}
 
             {/* Full Timeline */}
-            <section id="section-timeline" className="cockpit-panel">
-              <div className="cockpit-section-heading">
-                <span className="cockpit-section-kicker">Audit trail</span>
-                <h2>Timeline</h2>
+            <section id="section-timeline" className={PANEL}>
+              <div className={HEADING}>
+                <span className={KICKER}>Audit trail</span>
+                <h2 className={H2}>Timeline</h2>
               </div>
               <ApplicantTimelineFeed
                 events={application.timeline.map((e) => ({

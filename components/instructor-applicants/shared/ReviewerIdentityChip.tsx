@@ -73,7 +73,7 @@ export default function ReviewerIdentityChip({
     <Tag
       type={isClickable ? "button" : undefined}
       onClick={onClick}
-      className={`reviewer-identity-chip${className ? ` ${className}` : ""}`}
+      className={`reviewer-identity-chip focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600${className ? ` ${className}` : ""}`}
       style={style}
     >
       <span

@@ -129,7 +129,7 @@ const TONE_COLOR: Record<Tone, string> = {
 export default function ApplicantTimelineFeed({ events }: ApplicantTimelineFeedProps): ReactNode {
   if (events.length === 0) {
     return (
-      <p aria-label="No timeline events yet" className="cockpit-muted">
+      <p aria-label="No timeline events yet" className="m-0 text-[13px] text-ink-muted">
         No timeline events yet.
       </p>
     );
@@ -144,36 +144,38 @@ export default function ApplicantTimelineFeed({ events }: ApplicantTimelineFeedP
       role="log"
       aria-label="Application timeline"
       aria-live="polite"
-      className="cockpit-timeline"
+      className="flex flex-col gap-3.5"
     >
       {grouped.map(([day, dayEvents]) => (
-        <div key={day} className="cockpit-timeline-day">
-          <div className="cockpit-timeline-date">
+        <div key={day} className="flex flex-col gap-1.5">
+          <div className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
             {day}
           </div>
-          <div className="cockpit-timeline-events">
+          <div className="flex flex-col gap-1">
             {dayEvents.map((event) => {
               const tone = eventTone(event.kind);
               return (
                 <div
                   key={event.id}
-                  className="cockpit-timeline-event"
+                  className="flex items-start gap-2.5 rounded-[8px] px-1 py-1"
                 >
                   <div
-                    className={`dashboard-action-stripe tone-${tone}`}
+                    aria-hidden
+                    className="mt-1 h-[18px] w-[3px] shrink-0 rounded-full"
+                    style={{ background: TONE_COLOR[tone] }}
                   />
-                  <div className="cockpit-timeline-content">
-                    <div className="cockpit-timeline-label">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-medium text-ink">
                       {eventLabel(event.kind, event.payload)}
                     </div>
                     {event.actor && (
-                      <div className="cockpit-timeline-actor">
+                      <div className="text-[11.5px] text-ink-muted">
                         by {event.actor.name ?? "Unknown"}
                       </div>
                     )}
                   </div>
                   <div
-                    className="cockpit-timeline-time"
+                    className="shrink-0 text-[11.5px] tabular-nums text-ink-muted"
                     title={new Date(event.createdAt).toLocaleString()}
                   >
                     {new Date(event.createdAt).toLocaleTimeString("en-US", {

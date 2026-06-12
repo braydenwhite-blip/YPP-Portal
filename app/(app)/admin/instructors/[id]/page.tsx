@@ -1,3 +1,4 @@
+import { EntityActionPanel } from "@/components/work/entity-action-panel";
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
@@ -609,89 +610,55 @@ export default async function AdminInstructorRecordPage({
       {operationsEnabled && opsContext ? (
         <RecordSection
           id="work"
-          title="Open work"
-          description="Action items linked to this instructor, and the meetings they were discussed in."
-          action={
-            <ButtonLink
-              href={`/actions/new?relatedType=USER&relatedId=${id}`}
-              variant="ghost"
-              size="sm"
-            >
-              New action →
-            </ButtonLink>
-          }
+          title="Action operating panel"
+          description="The action work linked to this instructor — what's open, what's stuck, and the suggested next move — plus the meetings they were discussed in."
         >
-          {openActions.length === 0 && recentMeetings.length === 0 ? (
-            <p className="m-0 text-[13px] text-ink-muted">
-              No open actions or tracked meetings reference this instructor.
-            </p>
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
-                  Open actions
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <EntityActionPanel
+              actions={opsContext.actions}
+              viewer={{
+                id: session?.user?.id ?? "",
+                roles,
+                primaryRole: session?.user?.primaryRole ?? null,
+                adminSubtypes: session?.user?.adminSubtypes ?? [],
+              }}
+              entityType="USER"
+              entityId={id}
+              entityLabel={record.name}
+              now={now}
+            />
+            <div className="flex flex-col gap-2">
+              <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                Meetings mentioned in
+              </p>
+              {recentMeetings.length === 0 ? (
+                <p className="m-0 text-[13px] text-ink-muted">
+                  No tracked meetings yet.
                 </p>
-                {openActions.length === 0 ? (
-                  <p className="m-0 text-[13px] text-ink-muted">None open.</p>
-                ) : (
-                  openActions.slice(0, 8).map((action) => (
-                    <a
-                      key={action.id}
-                      href={action.href}
-                      className="rounded-[8px] border border-line-soft px-3.5 py-2.5 transition-colors hover:border-brand-400"
-                    >
-                      <p className="m-0 text-[13.5px] font-semibold text-ink">
-                        {action.title}
-                      </p>
-                      <p
-                        className={
-                          action.overdue
-                            ? "m-0 text-[12px] font-semibold text-danger-700"
-                            : "m-0 text-[12px] text-ink-muted"
-                        }
-                      >
-                        {action.overdue
-                          ? `Overdue · due ${formatInstructorOpsDate(action.dueISO)}`
-                          : `Due ${formatInstructorOpsDate(action.dueISO)}`}
-                        {action.ownerName ? ` · ${action.ownerName}` : ""}
-                      </p>
-                    </a>
-                  ))
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
-                  Meetings mentioned in
-                </p>
-                {recentMeetings.length === 0 ? (
-                  <p className="m-0 text-[13px] text-ink-muted">
-                    No tracked meetings yet.
-                  </p>
-                ) : (
-                  recentMeetings.map((meeting) => (
-                    <div
-                      key={meeting.id}
-                      className="rounded-[8px] bg-surface-soft px-3.5 py-2.5"
-                    >
-                      <p className="m-0 text-[13.5px] font-semibold text-ink">
-                        {meeting.title}
-                      </p>
-                      <p className="m-0 text-[12px] text-ink-muted">
-                        {formatInstructorOpsDate(meeting.startISO)} ·{" "}
-                        {meeting.categoryLabel}
-                        {meeting.decisionCount > 0
-                          ? ` · ${meeting.decisionCount} decision${meeting.decisionCount === 1 ? "" : "s"}`
-                          : ""}
-                        {meeting.openFollowUps > 0
-                          ? ` · ${meeting.openFollowUps} open follow-up${meeting.openFollowUps === 1 ? "" : "s"}`
-                          : ""}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </div>
+              ) : (
+                recentMeetings.map((meeting) => (
+                  <div
+                    key={meeting.id}
+                    className="rounded-[8px] bg-surface-soft px-3.5 py-2.5"
+                  >
+                    <p className="m-0 text-[13.5px] font-semibold text-ink">
+                      {meeting.title}
+                    </p>
+                    <p className="m-0 text-[12px] text-ink-muted">
+                      {formatInstructorOpsDate(meeting.startISO)} ·{" "}
+                      {meeting.categoryLabel}
+                      {meeting.decisionCount > 0
+                        ? ` · ${meeting.decisionCount} decision${meeting.decisionCount === 1 ? "" : "s"}`
+                        : ""}
+                      {meeting.openFollowUps > 0
+                        ? ` · ${meeting.openFollowUps} open follow-up${meeting.openFollowUps === 1 ? "" : "s"}`
+                        : ""}
+                    </p>
+                  </div>
+                ))
+              )}
             </div>
-          )}
+          </div>
         </RecordSection>
       ) : null}
 

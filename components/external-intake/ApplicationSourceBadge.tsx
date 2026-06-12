@@ -5,7 +5,7 @@ interface ApplicationSourceBadgeProps {
   source: ApplicationSource | null | undefined;
   /** When true (default), use short label; false uses long label. */
   short?: boolean;
-  /** Extra class for layout (e.g. "cockpit-hero-chip"). */
+  /** Extra class for layout. */
   className?: string;
 }
 

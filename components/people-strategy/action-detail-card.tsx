@@ -3,6 +3,9 @@
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+import { ActionStatusCapture } from "./action-status-capture";
+import { ACTION_COMPLETION_OUTCOME_LABELS } from "@/lib/people-strategy/action-source";
 import type { ActionCommentType, ActionItemStatus, ActionPriority } from "@prisma/client";
 
 import {
@@ -87,6 +90,11 @@ export type ActionDetailDTO = {
   relatedEntityHref?: string | null;
   relatedArea?: string | null;
   flaggedAt: string | null;
+  /** Action System 4.0 structured capture (read for display + prefill). */
+  blockedReason?: string | null;
+  completionNote?: string | null;
+  completionOutcome?: string | null;
+  nextFollowUpAt?: string | null;
   lead: PersonDTO;
   people: {
     lead: PersonDTO[];
@@ -321,6 +329,7 @@ export default function ActionDetailCard({
   const [linkUrl, setLinkUrl] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [capture, setCapture] = useState<"complete" | "blocked" | null>(null);
   const [pending, startTransition] = useTransition();
   const theme = departmentTheme();
   const due = deadlineText(item);
@@ -341,6 +350,19 @@ export default function ActionDetailCard({
   }
 
   function handleStatus(next: ActionItemStatus) {
+    // COMPLETE / BLOCKED go through structured capture (Action System 4.0):
+    // the outcome / blocker reason is recorded with the status, inline.
+    if (next === "COMPLETE") {
+      setStatus(next);
+      setCapture("complete");
+      return;
+    }
+    if (next === "BLOCKED") {
+      setStatus(next);
+      setCapture("blocked");
+      return;
+    }
+    setCapture(null);
     setStatus(next);
     runMutation(async () => updateActionStatus(item.id, next), "Status saved.");
   }
@@ -497,6 +519,84 @@ export default function ActionDetailCard({
           ) : null}
         </div>
       </section>
+
+      {capture ? (
+        <ActionStatusCapture
+          actionId={item.id}
+          mode={capture}
+          initialOutcome={item.completionOutcome}
+          initialNote={item.completionNote}
+          initialBlockedReason={item.blockedReason}
+          onDone={() => {
+            setCapture(null);
+            setMessage(capture === "complete" ? "Completed with outcome." : "Blocker captured.");
+          }}
+          onCancel={() => {
+            setCapture(null);
+            setStatus(item.status);
+          }}
+        />
+      ) : null}
+
+      {/* Structured state already on the record (Action System 4.0). */}
+      {!capture && item.status === "BLOCKED" && item.blockedReason ? (
+        <section
+          style={{
+            border: "1px solid var(--warning-border, #fcd34d)",
+            background: "var(--warning-bg, #fffbeb)",
+            borderRadius: 12,
+            padding: "12px 16px",
+          }}
+        >
+          <span style={TINY_LABEL}>Blocked because</span>
+          <p style={{ margin: "4px 0 0", fontSize: 13.5, whiteSpace: "pre-wrap" }}>
+            {item.blockedReason}
+          </p>
+          {canEdit ? (
+            <button
+              type="button"
+              className="button outline small"
+              style={{ marginTop: 8 }}
+              onClick={() => setCapture("blocked")}
+            >
+              Update blocker
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+      {!capture &&
+      item.status === "COMPLETE" &&
+      (item.completionOutcome || item.completionNote) ? (
+        <section
+          style={{
+            border: "1px solid var(--border)",
+            background: "var(--surface)",
+            borderRadius: 12,
+            padding: "12px 16px",
+          }}
+        >
+          <span style={TINY_LABEL}>
+            Outcome
+            {item.completionOutcome
+              ? `: ${
+                  ACTION_COMPLETION_OUTCOME_LABELS[
+                    item.completionOutcome as keyof typeof ACTION_COMPLETION_OUTCOME_LABELS
+                  ] ?? item.completionOutcome
+                }`
+              : ""}
+          </span>
+          {item.completionNote ? (
+            <p style={{ margin: "4px 0 0", fontSize: 13.5, whiteSpace: "pre-wrap" }}>
+              {item.completionNote}
+            </p>
+          ) : null}
+          {item.nextFollowUpAt ? (
+            <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--muted)" }}>
+              Next follow-up {new Date(item.nextFollowUpAt).toLocaleDateString()}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <Section title="Action Metadata">
         <div

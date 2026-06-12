@@ -67,12 +67,14 @@ const KIND_LABELS: Record<string, string> = {
 function PlanField({ label, value }: { label: string; value: string | null }) {
   const trimmed = value?.trim();
   return (
-    <div className="iv-brief-plan-field">
-      <span className="iv-brief-plan-field-label">{label}</span>
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-ink-muted">
+        {label}
+      </span>
       {trimmed ? (
-        <p className="iv-brief-plan-field-value">{trimmed}</p>
+        <p className="m-0 whitespace-pre-wrap text-[13px] leading-relaxed text-ink">{trimmed}</p>
       ) : (
-        <p className="iv-brief-plan-field-empty">Not provided</p>
+        <p className="m-0 text-[12.5px] italic text-ink-muted">Not provided</p>
       )}
     </div>
   );
@@ -103,38 +105,38 @@ export default function InterviewerBriefCard({
   const workshopOutline = application.workshopOutline ?? null;
 
   return (
-    <article className="iv-card iv-brief" aria-label="Pre-interview brief">
-      <header className="iv-brief-header">
-        <div className="iv-brief-title-block">
-          <span className="iv-brief-eyebrow">Pre-interview brief</span>
-          <h2 className="iv-brief-name">{displayName}</h2>
+    <article className="flex flex-col gap-4 rounded-[12px] border border-line-soft bg-surface p-[22px] shadow-card" aria-label="Pre-interview brief">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">Pre-interview brief</span>
+          <h2 className="m-0 mt-0.5 text-[18px] font-bold text-ink">{displayName}</h2>
           {subjects.length > 0 ? (
-            <div className="iv-brief-subjects">
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
               {subjects.map((subject) => (
-                <span key={subject} className="iv-brief-subject">
+                <span key={subject} className="inline-flex items-center rounded-full border border-line-soft bg-surface-soft px-2 py-0.5 text-[11px] font-medium text-ink-muted">
                   {subject}
                 </span>
               ))}
             </div>
           ) : null}
         </div>
-        <span className="iv-brief-confidentiality">
-          Internal only · Don't share with the applicant
+        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+          Internal only · Don&apos;t share with the applicant
         </span>
       </header>
 
       {confirmedSlots.length > 0 ? (
-        <div className="iv-brief-slot">
-          <span className="iv-brief-slot-icon" aria-hidden="true">
+        <div className="flex items-start gap-2.5 rounded-[10px] border border-emerald-200 bg-emerald-50/60 px-3.5 py-2.5">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface text-[12px] font-bold text-ink" aria-hidden="true">
             ✓
           </span>
-          <div className="iv-brief-slot-body">
-            <span className="iv-brief-slot-label">Scheduled interview</span>
+          <div className="min-w-0 flex-1">
+            <span className="block text-[12px] font-bold text-ink">Scheduled interview</span>
             {confirmedSlots.map((slot) => (
-              <div key={slot.id} className="iv-brief-slot-time">
+              <div key={slot.id} className="text-[13px] text-ink">
                 {formatDt(slot.scheduledAt)} · {slot.durationMinutes} min
                 {slot.meetingUrl ? (
-                  <span className="iv-brief-slot-meta">
+                  <span className="text-[12px] text-ink-muted">
                     {" · "}
                     <a href={slot.meetingUrl} target="_blank" rel="noopener noreferrer">
                       Join interview ↗
@@ -146,13 +148,13 @@ export default function InterviewerBriefCard({
           </div>
         </div>
       ) : (
-        <div className="iv-brief-slot is-warning" role="status">
-          <span className="iv-brief-slot-icon" aria-hidden="true">
+        <div className="flex items-start gap-2.5 rounded-[10px] border border-amber-200 bg-amber-50/70 px-3.5 py-2.5" role="status">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface text-[12px] font-bold text-ink" aria-hidden="true">
             !
           </span>
-          <div className="iv-brief-slot-body">
-            <span className="iv-brief-slot-label">No confirmed interview slot</span>
-            <span className="iv-brief-slot-meta">
+          <div className="min-w-0 flex-1">
+            <span className="block text-[12px] font-bold text-ink">No confirmed interview slot</span>
+            <span className="text-[12px] text-ink-muted">
               Coordinate availability before the interview can run.
             </span>
           </div>
@@ -160,10 +162,10 @@ export default function InterviewerBriefCard({
       )}
 
       {isSummerWorkshop ? (
-        <section className="iv-brief-section" aria-label="Workshop outline">
-          <p className="iv-brief-section-label">Workshop outline</p>
+        <section className="flex flex-col gap-2" aria-label="Workshop outline">
+          <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">Workshop outline</p>
           {workshopOutline ? (
-            <div className="iv-brief-plan">
+            <div className="grid gap-2.5">
               <PlanField label="Workshop title" value={workshopOutline.title || null} />
               <PlanField
                 label="Audience"
@@ -194,16 +196,16 @@ export default function InterviewerBriefCard({
               />
             </div>
           ) : (
-            <p className="iv-brief-plan-field-empty">
+            <p className="m-0 text-[12.5px] italic text-ink-muted">
               No workshop outline on file. Ask the applicant to walk you through
               the workshop they&rsquo;d run.
             </p>
           )}
         </section>
       ) : (
-        <section className="iv-brief-section" aria-label="Rough course plan">
-          <p className="iv-brief-section-label">Rough course plan</p>
-          <div className="iv-brief-plan">
+        <section className="flex flex-col gap-2" aria-label="Rough course plan">
+          <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">Rough course plan</p>
+          <div className="grid gap-2.5">
             <PlanField label="Class idea" value={classIdea} />
             <PlanField label="Rough outline" value={application.courseOutline} />
             <PlanField label="First-session sketch" value={application.firstClassPlan} />
@@ -212,26 +214,26 @@ export default function InterviewerBriefCard({
       )}
 
       {hasReviewerNote ? (
-        <section className="iv-brief-section" aria-label="Reviewer note">
-          <p className="iv-brief-section-label">Reviewer note</p>
-          <blockquote className="iv-brief-quote">
+        <section className="flex flex-col gap-2" aria-label="Reviewer note">
+          <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">Reviewer note</p>
+          <blockquote className="m-0 whitespace-pre-wrap rounded-[8px] border-l-[3px] border-brand-400 bg-surface-soft px-3 py-2 text-[13px] leading-relaxed text-ink">
             {reviewerNote!.summary ?? reviewerNote!.notes}
           </blockquote>
         </section>
       ) : null}
 
-      <section className="iv-brief-section" aria-label="Submitted documents">
-        <p className="iv-brief-section-label">Optional documents</p>
-        <div className="iv-brief-doc-list">
+      <section className="flex flex-col gap-2" aria-label="Submitted documents">
+        <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">Optional documents</p>
+        <div className="flex flex-col gap-1.5">
           {[
             { doc: courseOutline, kind: "COURSE_OUTLINE" as const },
             { doc: firstClassPlan, kind: "FIRST_CLASS_PLAN" as const },
           ].map(({ doc, kind }) => (
-            <div key={kind} className={`iv-brief-doc${doc ? " is-uploaded" : ""}`}>
-              <div className="iv-brief-doc-info">
-                <span className="iv-brief-doc-name">{KIND_LABELS[kind]}</span>
+            <div key={kind} className={`flex flex-wrap items-center justify-between gap-2 rounded-[8px] border px-3 py-2 ${doc ? "border-line-soft bg-surface-soft/60" : "border-dashed border-line bg-transparent"}`}>
+              <div className="min-w-0">
+                <span className="block text-[12.5px] font-semibold text-ink">{KIND_LABELS[kind]}</span>
                 {doc ? (
-                  <span className="iv-brief-doc-meta">
+                  <span className="text-[11.5px] text-ink-muted">
                     {doc.originalName ?? "Uploaded"} ·{" "}
                     {new Date(doc.uploadedAt).toLocaleDateString()}
                   </span>
@@ -242,13 +244,12 @@ export default function InterviewerBriefCard({
                   href={doc.fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="button outline small"
-                  style={{ textDecoration: "none" }}
+                  className="inline-flex items-center justify-center rounded-[8px] border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink no-underline hover:bg-surface-soft"
                 >
                   View
                 </a>
               ) : (
-                <span className="iv-brief-doc-missing">Not uploaded</span>
+                <span className="text-[11.5px] italic text-ink-muted">Not uploaded</span>
               )}
             </div>
           ))}
@@ -260,15 +261,14 @@ export default function InterviewerBriefCard({
           href={application.motivationVideoUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="iv-brief-video"
-          style={{ textDecoration: "none" }}
+          className="flex items-center gap-2.5 rounded-[10px] border border-brand-200 bg-brand-50/60 px-3.5 py-2.5 no-underline hover:bg-brand-50"
         >
-          <span className="iv-brief-video-icon" aria-hidden="true">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-[11px] text-white" aria-hidden="true">
             ▶
           </span>
-          <div className="iv-brief-video-body">
-            <span className="iv-brief-video-label">Motivation video</span>
-            <span className="iv-brief-video-helper">Watch in a new tab</span>
+          <div>
+            <span className="block text-[13px] font-bold text-ink">Motivation video</span>
+            <span className="text-[11.5px] text-ink-muted">Watch in a new tab</span>
           </div>
         </a>
       ) : null}

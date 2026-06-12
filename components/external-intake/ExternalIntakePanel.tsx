@@ -48,19 +48,19 @@ export default function ExternalIntakePanel({
   return (
     <section
       id="section-external-intake"
-      className="cockpit-panel cockpit-panel-accent"
+      className="rounded-[12px] border border-l-4 border-line-soft border-l-brand-600 bg-surface p-[22px] shadow-card"
       aria-label="External application intake details"
     >
-      <div className="cockpit-section-heading">
-        <span className="cockpit-section-kicker">Application source</span>
+      <div className="mb-4 grid gap-0.5">
+        <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">Application source</span>
         <h2>{descriptor.longLabel}</h2>
       </div>
 
-      <p className="cockpit-prose" style={{ marginTop: 0 }}>
+      <p className="m-0 whitespace-pre-wrap text-[14px] leading-[1.72] text-ink" style={{ marginTop: 0 }}>
         {descriptor.description}
       </p>
 
-      <dl className="cockpit-detail-grid" style={{ marginTop: 12 }}>
+      <dl className="grid grid-cols-[minmax(120px,220px)_minmax(0,1fr)] gap-x-[18px] gap-y-2.5 [&_dt]:m-0 [&_dt]:text-[11.5px] [&_dt]:font-bold [&_dt]:uppercase [&_dt]:tracking-[0.05em] [&_dt]:text-ink-muted [&_dd]:m-0 [&_dd]:whitespace-pre-wrap [&_dd]:text-[13.5px] [&_dd]:text-ink" style={{ marginTop: 12 }}>
         {externalSubmittedAt && (
           <>
             <dt>Submitted externally</dt>
@@ -98,7 +98,7 @@ export default function ExternalIntakePanel({
 
       {externalAnswersCopy && (
         <details
-          className="cockpit-prose"
+          className="m-0 whitespace-pre-wrap text-[14px] leading-[1.72] text-ink"
           style={{
             marginTop: 16,
             background: "var(--surface-1, #fafafa)",
