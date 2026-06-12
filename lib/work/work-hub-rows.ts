@@ -111,6 +111,10 @@ function daysPast(iso: string, now: Date): number {
   return Math.max(1, Math.floor((now.getTime() - new Date(iso).getTime()) / DAY_MS));
 }
 
+function workEntityHref(type: Entity360Type, id: string): string {
+  return `/work?entity=${type}:${encodeURIComponent(id)}`;
+}
+
 /** Is a row's due date inside the due-soon window (and not already overdue)? */
 export function rowIsDueSoon(row: WorkHubRow, now: Date): boolean {
   if (row.overdue || !row.dueISO) return false;
@@ -228,11 +232,14 @@ export function workHubRowFromPartnerRequest(
     partnerName: string;
   },
   now: Date,
-  options: { mine?: boolean } = {}
+  options: { mine?: boolean; canOpenAdminRecord?: boolean } = {}
 ): WorkHubRow {
   const overdue = Boolean(
     request.dueISO && new Date(request.dueISO).getTime() < now.getTime()
   );
+  const href = options.canOpenAdminRecord
+    ? `/admin/partners/${request.partnerId}#relationship-ops`
+    : workEntityHref("partner", request.partnerId);
   return {
     id: `partner_request:${request.id}`,
     kind: "partner_request",
@@ -256,9 +263,9 @@ export function workHubRowFromPartnerRequest(
     blocked: false,
     unassigned: !request.ownerName,
     mine: options.mine ?? false,
-    href: `/admin/partners/${request.partnerId}#relationship-ops`,
-    quickActionLabel: "Open partner",
-    quickActionHref: `/admin/partners/${request.partnerId}#relationship-ops`,
+    href,
+    quickActionLabel: options.canOpenAdminRecord ? "Open partner" : "View partner work",
+    quickActionHref: href,
     previewType: "partner",
     previewId: request.partnerId,
   };
@@ -273,8 +280,11 @@ export function workHubRowFromPartnerFollowUp(
     leadName: string | null;
   },
   now: Date,
-  options: { mine?: boolean } = {}
+  options: { mine?: boolean; canOpenAdminRecord?: boolean } = {}
 ): WorkHubRow {
+  const href = options.canOpenAdminRecord
+    ? `/admin/partners/${partner.id}`
+    : workEntityHref("partner", partner.id);
   return {
     id: `partner_follow_up:${partner.id}`,
     kind: "partner_follow_up",
@@ -294,9 +304,9 @@ export function workHubRowFromPartnerFollowUp(
     blocked: false,
     unassigned: !partner.leadName,
     mine: options.mine ?? false,
-    href: `/admin/partners/${partner.id}`,
-    quickActionLabel: "Open partner",
-    quickActionHref: `/admin/partners/${partner.id}`,
+    href,
+    quickActionLabel: options.canOpenAdminRecord ? "Open partner" : "View partner work",
+    quickActionHref: href,
     previewType: "partner",
     previewId: partner.id,
   };
@@ -417,8 +427,11 @@ export function workHubRowFromQuietMentorship(
     menteeId: string;
     quietDays: number;
   },
-  options: { mine?: boolean } = {}
+  options: { mine?: boolean; canOpenAdminRecord?: boolean } = {}
 ): WorkHubRow {
+  const href = options.canOpenAdminRecord
+    ? "/admin/mentorship"
+    : workEntityHref("mentorship", mentorship.id);
   return {
     id: `mentorship:${mentorship.id}`,
     kind: "mentorship",
@@ -438,9 +451,9 @@ export function workHubRowFromQuietMentorship(
     blocked: false,
     unassigned: false,
     mine: options.mine ?? false,
-    href: `/admin/mentorship`,
-    quickActionLabel: "Open mentorship",
-    quickActionHref: `/admin/mentorship`,
+    href,
+    quickActionLabel: options.canOpenAdminRecord ? "Open mentorship" : "View mentorship work",
+    quickActionHref: href,
     previewType: "mentorship",
     previewId: mentorship.id,
   };

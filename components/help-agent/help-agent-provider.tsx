@@ -31,10 +31,13 @@ export function useHelpAgent(): HelpAgentApi | null {
 
 export function HelpAgentProvider({
   officerTier,
+  adminTier = false,
   children,
 }: {
   /** Computed server-side from the session roles (OFFICER_TIER_ROLES). */
   officerTier: boolean;
+  /** Used only to hide admin-only shortcuts from non-admin officers. */
+  adminTier?: boolean;
   children: ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -68,6 +71,7 @@ export function HelpAgentProvider({
       <CommandPaletteShell open={isOpen} onClose={close} label="YPP Help Agent">
         <HelpAgentSearch
           officerTier={officerTier}
+          adminTier={adminTier}
           variant="palette"
           onDone={close}
         />

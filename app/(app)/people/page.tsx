@@ -22,6 +22,7 @@ import {
   PEOPLE_ROLE_FILTER_LABELS,
   PEOPLE_ROLE_FILTERS,
 } from "@/lib/people/directory";
+import { hasRole } from "@/lib/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,7 @@ export default async function PeoplePage({
   // Advisor check-in state and applicant stages are leadership reads — the
   // directory is officer-tier and above (mirrors the operations surfaces).
   if (!isOfficerTier(viewer)) redirect("/");
+  const canUseAdminPeopleTools = hasRole(viewer.roles, "ADMIN", viewer.primaryRole);
 
   const sp = await searchParams;
   const role = asPeopleRoleFilter(typeof sp.role === "string" ? sp.role : undefined);
@@ -92,9 +94,11 @@ export default async function PeoplePage({
         title="People"
         subtitle="Every person connected to YPP — find anyone, see their advisor or classes at a glance, and open their 360 without leaving the page."
         actions={
-          <ButtonLink href="/admin/bulk-users" variant="secondary" size="md">
-            Add person
-          </ButtonLink>
+          canUseAdminPeopleTools ? (
+            <ButtonLink href="/admin/bulk-users" variant="secondary" size="md">
+              Add person
+            </ButtonLink>
+          ) : null
         }
       >
         {/* Click-to-filter stat strip — every count lands on its filtered view. */}

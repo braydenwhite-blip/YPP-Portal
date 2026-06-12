@@ -887,7 +887,7 @@ export async function captureActionCompletion(input: {
         ...(completedAt !== undefined ? { completedAt } : {}),
         completionOutcome: data.completionOutcome,
         completionNote: data.completionNote,
-        ...(data.nextFollowUpAt !== null ? { nextFollowUpAt: data.nextFollowUpAt } : {}),
+        nextFollowUpAt: data.nextFollowUpAt,
       },
     });
     const detail = [
@@ -946,7 +946,7 @@ export async function captureActionBlocker(input: {
         status: "BLOCKED" as never,
         ...(completedAt !== undefined ? { completedAt } : {}),
         blockedReason: data.blockedReason,
-        ...(data.nextFollowUpAt !== null ? { nextFollowUpAt: data.nextFollowUpAt } : {}),
+        nextFollowUpAt: data.nextFollowUpAt,
       },
     });
     await postSystemComment(

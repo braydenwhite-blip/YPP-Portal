@@ -46,11 +46,13 @@ type Selectable =
 
 export function HelpAgentSearch({
   officerTier,
+  adminTier,
   variant,
   onDone,
   autoFocus = true,
 }: {
   officerTier: boolean;
+  adminTier?: boolean;
   variant: "palette" | "page";
   /** Called after any selection (palette closes itself through this). */
   onDone?: () => void;
@@ -67,8 +69,8 @@ export function HelpAgentSearch({
   const listRef = useRef<HTMLDivElement>(null);
 
   const suggestions = useMemo(
-    () => suggestionsForTier(officerTier ? "OFFICER" : "MEMBER"),
-    [officerTier]
+    () => suggestionsForTier(officerTier ? "OFFICER" : "MEMBER", { admin: adminTier }),
+    [adminTier, officerTier]
   );
 
   // Debounced fetch; empty query loads recents once.

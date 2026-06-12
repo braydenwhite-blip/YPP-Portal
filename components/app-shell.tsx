@@ -121,10 +121,14 @@ export default function AppShell({
     if (primaryRole && OFFICER_TIER_NAV_ROLES.has(primaryRole)) return true;
     return (roles ?? []).some((role) => OFFICER_TIER_NAV_ROLES.has(role));
   }, [primaryRole, roles]);
+  const adminTier = useMemo(() => {
+    if (primaryRole === "ADMIN") return true;
+    return (roles ?? []).includes("ADMIN");
+  }, [primaryRole, roles]);
 
   return (
     <Entity360Provider>
-    <HelpAgentProvider officerTier={officerTier}>
+    <HelpAgentProvider officerTier={officerTier} adminTier={adminTier}>
     <div className="app-shell">
       {/* Mobile menu toggle */}
       <button

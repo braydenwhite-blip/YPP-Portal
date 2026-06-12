@@ -50,10 +50,13 @@ function stageTone(group: PartnerDirectoryRow["stageGroup"]): "info" | "success"
 export function PartnerDirectory({
   rows,
   actionTrackerEnabled,
+  canManagePartners,
 }: {
   rows: PartnerDirectoryRow[];
   /** Gates the action/meeting quick actions in the preview rail. */
   actionTrackerEnabled: boolean;
+  /** Admin-only partner management route access. */
+  canManagePartners: boolean;
 }) {
   const entity360 = useEntity360();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -86,7 +89,11 @@ export function PartnerDirectory({
       <EmptyStateV2
         icon="🤝"
         title="No partners match this view"
-        body="Try a different view or type filter, clear the search, or add the organization from the partner admin."
+        body={
+          canManagePartners
+            ? "Try a different view or type filter, clear the search, or add the organization from the partner admin."
+            : "Try a different view or type filter, or clear the search."
+        }
       />
     );
   }
@@ -249,7 +256,7 @@ export function PartnerDirectory({
                   </Link>
                 </>
               ) : null}
-              {selectedRow ? (
+              {selectedRow && canManagePartners ? (
                 <Link
                   href={`/admin/partners/${selectedId}#relationship-ops`}
                   className="inline-flex h-8 items-center justify-center rounded-[8px] border border-line bg-surface px-3 text-[12.5px] font-semibold text-brand-800 transition-colors duration-150 hover:border-brand-400 hover:bg-brand-50"

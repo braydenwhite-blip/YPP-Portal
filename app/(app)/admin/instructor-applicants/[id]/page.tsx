@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 
 import { requireApplicationReviewerPage } from "@/lib/page-guards";
-import { canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
+import {
+  assertCanViewApplicant,
+  canSeeChairQueue,
+  getHiringActor,
+} from "@/lib/chapter-hiring-permissions";
 import { loadApplicationRecord } from "@/lib/applications/application-record";
 import { readinessSignalLabel } from "@/lib/readiness-signals";
 import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
@@ -103,6 +107,24 @@ export default async function ApplicationRecordPage({
   const record = await loadApplicationRecord(id);
   if (!record) notFound();
 
+  const actor = await getHiringActor(sessionUser.id);
+  try {
+    assertCanViewApplicant(actor, {
+      id: record.id,
+      applicantId: record.applicant.id,
+      reviewerId: record.reviewer?.id ?? null,
+      interviewRound: record.interviewRound,
+      applicantChapterId: record.applicant.chapterId,
+      interviewerAssignments: record.interviewerAssignments.map((assignment) => ({
+        interviewerId: assignment.interviewer.id,
+        round: assignment.round,
+        removedAt: null,
+      })),
+    });
+  } catch {
+    notFound();
+  }
+
   // Action System 4.0 — tracker actions linked to this application.
   const linkedActions = await getActionsForEntity("INSTRUCTOR_APPLICATION", id, {
     id: sessionUser.id,
@@ -111,12 +133,7 @@ export default async function ApplicationRecordPage({
     adminSubtypes: sessionUser.adminSubtypes ?? [],
   }).catch(() => []);
 
-  const viewerIsChair = canSeeChairQueue({
-    id: sessionUser.id,
-    roles: sessionUser.roles as string[],
-    chapterId: null,
-    featureKeys: new Set<string>(),
-  });
+  const viewerIsChair = canSeeChairQueue(actor);
 
   const status = STATUS_META[record.status] ?? {
     label: pretty(record.status),

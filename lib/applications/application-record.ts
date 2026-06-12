@@ -25,8 +25,10 @@ export type ApplicationRecord = {
     name: string | null;
     email: string;
     primaryRole: string;
+    chapterId: string | null;
     chapterName: string | null;
   };
+  interviewRound: number | null;
   applicationTrack: string;
   instructorSubtype: string;
   source: string;
@@ -135,6 +137,7 @@ export async function loadApplicationRecord(
       chairQueuedAt: true,
       materialsReadyAt: true,
       interviewScheduledAt: true,
+      interviewRound: true,
       reviewerAssignedAt: true,
       infoRequest: true,
       applicantResponse: true,
@@ -150,6 +153,7 @@ export async function loadApplicationRecord(
           name: true,
           email: true,
           primaryRole: true,
+          chapterId: true,
           chapter: { select: { name: true } },
         },
       },
@@ -254,8 +258,10 @@ export async function loadApplicationRecord(
       name: app.applicant.name,
       email: app.applicant.email,
       primaryRole: app.applicant.primaryRole,
+      chapterId: app.applicant.chapterId,
       chapterName: app.applicant.chapter?.name ?? null,
     },
+    interviewRound: app.interviewRound,
     applicationTrack: app.applicationTrack,
     instructorSubtype: app.instructorSubtype,
     source: app.source,

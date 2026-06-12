@@ -40,5 +40,7 @@ export type HelpAgentSuggestion = {
   icon: string;
   /** Minimum tier that should see this suggestion. */
   tier: "MEMBER" | "OFFICER";
+  /** Hide from non-admin officers when the target route is admin-only. */
+  adminOnly?: boolean;
   kind: "query" | "shortcut";
 };

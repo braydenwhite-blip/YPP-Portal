@@ -15,6 +15,7 @@ import {
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
+import { hasRole } from "@/lib/authorization";
 import {
   asPartnerFlagFilter,
   asPartnerViewFilter,
@@ -71,6 +72,7 @@ export default async function PartnersPage({
   // Partner relationships are an operations surface: officer-tier and above
   // (mirrors the partner Entity 360 loader).
   if (!isOfficerTier(viewer)) redirect("/");
+  const canManagePartners = hasRole(viewer.roles, "ADMIN", viewer.primaryRole);
 
   const sp = await searchParams;
   const view = asPartnerViewFilter(typeof sp.view === "string" ? sp.view : undefined);
@@ -88,14 +90,16 @@ export default async function PartnersPage({
         title="Partners"
         subtitle="Every organization YPP works with — who owns the relationship, what they've asked for, what's linked, and the next step so nothing goes cold."
         actions={
-          <>
-            <ButtonLink href="/admin/partners/report" variant="ghost" size="md">
-              Report
-            </ButtonLink>
-            <ButtonLink href="/admin/partners" variant="secondary" size="md">
-              Add partner
-            </ButtonLink>
-          </>
+          canManagePartners ? (
+            <>
+              <ButtonLink href="/admin/partners/report" variant="ghost" size="md">
+                Report
+              </ButtonLink>
+              <ButtonLink href="/admin/partners" variant="secondary" size="md">
+                Add partner
+              </ButtonLink>
+            </>
+          ) : null
         }
       >
         <div className="flex flex-wrap gap-3">
@@ -188,7 +192,11 @@ export default async function PartnersPage({
         {q ? ` · matching “${q}”` : ""}
       </p>
 
-      <PartnerDirectory rows={filtered} actionTrackerEnabled={isActionTrackerEnabled()} />
+      <PartnerDirectory
+        rows={filtered}
+        actionTrackerEnabled={isActionTrackerEnabled()}
+        canManagePartners={canManagePartners}
+      />
     </div>
   );
 }

@@ -15,11 +15,13 @@ export function EntityActionRowCapture({
   blockedReason,
   completionNote,
   completionOutcome,
+  nextFollowUpAt,
 }: {
   actionId: string;
   blockedReason?: string | null;
   completionNote?: string | null;
   completionOutcome?: string | null;
+  nextFollowUpAt?: string | Date | null;
 }) {
   const [mode, setMode] = useState<"complete" | "blocked" | null>(null);
 
@@ -32,6 +34,9 @@ export function EntityActionRowCapture({
           initialOutcome={completionOutcome}
           initialNote={completionNote}
           initialBlockedReason={blockedReason}
+          initialNextFollowUpAt={
+            nextFollowUpAt instanceof Date ? nextFollowUpAt.toISOString() : nextFollowUpAt
+          }
           onDone={() => setMode(null)}
           onCancel={() => setMode(null)}
         />

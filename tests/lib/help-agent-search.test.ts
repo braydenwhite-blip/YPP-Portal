@@ -17,7 +17,12 @@ vi.mock("@/lib/feature-flags", () => ({
   isActionTrackerEnabled: vi.fn(() => true),
 }));
 
+vi.mock("@/lib/applications/application-visibility", () => ({
+  instructorApplicationVisibilityWhere: vi.fn(() => Promise.resolve({})),
+}));
+
 import { prisma } from "@/lib/prisma";
+import { instructorApplicationVisibilityWhere } from "@/lib/applications/application-visibility";
 import { runHelpAgentSearch } from "@/lib/help-agent/search";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 
@@ -31,6 +36,12 @@ const OFFICER: ActionViewer = {
   id: "u-officer",
   roles: ["ADMIN"],
   primaryRole: "ADMIN",
+  adminSubtypes: [],
+};
+const CHAPTER_OFFICER: ActionViewer = {
+  id: "u-chapter-officer",
+  roles: ["CHAPTER_PRESIDENT"],
+  primaryRole: "CHAPTER_PRESIDENT",
   adminSubtypes: [],
 };
 
@@ -54,6 +65,7 @@ beforeEach(() => {
   }
   mock(prisma.searchDocument.count).mockResolvedValue(0);
   mock(prisma.searchDocument.findMany).mockResolvedValue([]);
+  mock(instructorApplicationVisibilityWhere).mockResolvedValue({});
 });
 
 describe("runHelpAgentSearch — permission tiers", () => {
@@ -90,6 +102,32 @@ describe("runHelpAgentSearch — permission tiers", () => {
     expect(prisma.officerMeeting.findMany).toHaveBeenCalled();
   });
 
+  it("non-admin officers get preview-safe partner and class results without admin-page fallbacks", async () => {
+    mock(prisma.partner.findMany).mockResolvedValue([
+      { id: "pa1", name: "Beth El", type: "School", contactName: null, contacts: [] },
+    ]);
+    mock(prisma.classOffering.findMany).mockResolvedValue([
+      {
+        id: "class-1",
+        title: "Beth El Entrepreneurship",
+        semester: "Spring 2026",
+        status: "PUBLISHED",
+        template: null,
+      },
+    ]);
+
+    const res = await runHelpAgentSearch("beth", CHAPTER_OFFICER);
+
+    expect(res.groups.find((g) => g.type === "partner")?.items[0]).toMatchObject({
+      id: "pa1",
+      href: null,
+    });
+    expect(res.groups.find((g) => g.type === "class")?.items[0]).toMatchObject({
+      id: "class-1",
+      href: null,
+    });
+  });
+
   it("short queries return no groups", async () => {
     const res = await runHelpAgentSearch("r", MEMBER);
     expect(res.groups).toEqual([]);
@@ -118,6 +156,8 @@ describe("runHelpAgentSearch — SearchDocument person cutover", () => {
     const where = mock(prisma.searchDocument.findMany).mock.calls[0][0].where;
     expect(where.entityType).toBe("person");
     expect(where.visibilityTier).toBe("MEMBER");
+    const countWhere = mock(prisma.searchDocument.count).mock.calls[0][0].where;
+    expect(countWhere).toMatchObject({ entityType: "person", visibilityTier: "MEMBER" });
   });
 
   it("falls back to the live person query when the index is empty", async () => {
@@ -131,6 +171,24 @@ describe("runHelpAgentSearch — SearchDocument person cutover", () => {
     expect(prisma.searchDocument.findMany).not.toHaveBeenCalled();
     expect(prisma.user.findMany).toHaveBeenCalled();
     expect(res.groups[0].items[0].id).toBe("p1");
+  });
+
+  it("falls back to the live person query when an existing index has no hits", async () => {
+    mock(prisma.searchDocument.count).mockResolvedValue(4);
+    mock(prisma.searchDocument.findMany).mockResolvedValue([]);
+    mock(prisma.user.findMany).mockResolvedValue([
+      { id: "p3", name: "Maya Chen", email: "maya@test.dev", primaryRole: "INSTRUCTOR" },
+    ]);
+
+    const res = await runHelpAgentSearch("maya", MEMBER);
+
+    expect(prisma.searchDocument.findMany).toHaveBeenCalled();
+    expect(prisma.user.findMany).toHaveBeenCalled();
+    expect(res.groups[0].items[0]).toMatchObject({
+      id: "p3",
+      title: "Maya Chen",
+      subtitle: "Instructor",
+    });
   });
 
   it("falls back when the index read throws (e.g. table missing)", async () => {
@@ -152,6 +210,17 @@ describe("runHelpAgentSearch — SearchDocument person cutover", () => {
 
     const res = await runHelpAgentSearch("sam", MEMBER);
     expect(res.groups[0].items.map((i) => i.id)).toEqual(["pre", "sub"]);
+  });
+});
+
+describe("runHelpAgentSearch — application visibility", () => {
+  it("does not query applications when the viewer cannot resolve an application visibility filter", async () => {
+    mock(instructorApplicationVisibilityWhere).mockResolvedValue(null);
+
+    const res = await runHelpAgentSearch("riley", OFFICER);
+
+    expect(prisma.instructorApplication.findMany).not.toHaveBeenCalled();
+    expect(res.groups.map((g) => g.type)).not.toContain("applicant");
   });
 });
 

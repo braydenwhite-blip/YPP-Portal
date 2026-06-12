@@ -73,6 +73,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     href: "/admin/instructors",
     icon: "🧑‍🏫",
     tier: "OFFICER",
+    adminOnly: true,
     kind: "query",
   },
   {
@@ -113,6 +114,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     href: "/admin/classes",
     icon: "📚",
     tier: "OFFICER",
+    adminOnly: true,
     kind: "query",
   },
   {
@@ -121,6 +123,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     href: "/admin/mentorship",
     icon: "🔄",
     tier: "OFFICER",
+    adminOnly: true,
     kind: "query",
   },
   {
@@ -194,13 +197,18 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     href: "/admin/partners",
     icon: "＋",
     tier: "OFFICER",
+    adminOnly: true,
     kind: "shortcut",
   },
 ];
 
 export function suggestionsForTier(
-  tier: "MEMBER" | "OFFICER"
+  tier: "MEMBER" | "OFFICER",
+  options: { admin?: boolean } = {}
 ): HelpAgentSuggestion[] {
-  if (tier === "OFFICER") return HELP_AGENT_SUGGESTIONS;
-  return HELP_AGENT_SUGGESTIONS.filter((s) => s.tier === "MEMBER");
+  return HELP_AGENT_SUGGESTIONS.filter((suggestion) => {
+    if (suggestion.adminOnly && !options.admin) return false;
+    if (tier === "OFFICER") return true;
+    return suggestion.tier === "MEMBER";
+  });
 }
