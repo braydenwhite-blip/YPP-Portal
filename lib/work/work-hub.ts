@@ -13,7 +13,10 @@ import {
   loadPartnerInputs,
 } from "@/lib/operations/data-360-queries";
 import { buildUnifiedWorkItems } from "@/lib/operations/work-items";
-import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
+import {
+  canEditAction,
+  type ActionViewer,
+} from "@/lib/people-strategy/action-permissions";
 import {
   deriveActionAccountabilitySummary,
   deriveMeetingDecisionsWithoutActions,
@@ -40,6 +43,7 @@ import {
   workHubRowFromQuietMentorship,
   workHubRowFromWorkItem,
   type WorkHubRow,
+  type WorkHubRowCapture,
 } from "./work-hub-rows";
 
 /**
@@ -292,6 +296,29 @@ export async function loadWorkHub(
     followUps.filter((f) => f.ownerId === viewer.id).map((f) => `follow_up:${f.id}`)
   );
 
+  // Inline Complete / Block in the Work Hub preview rail — only for action
+  // rows the viewer may edit (the server actions re-check on submit).
+  const captureByRowId = new Map<string, WorkHubRowCapture>();
+  for (const action of pool.actions) {
+    const editable = canEditAction(viewer, {
+      leadId: action.leadId,
+      createdById: action.createdById,
+      visibility: action.visibility,
+      assignments: action.assignments.map((a) => ({
+        userId: a.user.id,
+        role: a.role,
+      })),
+    });
+    if (!editable) continue;
+    captureByRowId.set(`action:${action.id}`, {
+      actionId: action.id,
+      blockedReason: action.blockedReason ?? null,
+      completionNote: action.completionNote ?? null,
+      completionOutcome: action.completionOutcome ?? null,
+      nextFollowUpISO: action.nextFollowUpAt ? action.nextFollowUpAt.toISOString() : null,
+    });
+  }
+
   const dayMs = 24 * 60 * 60 * 1000;
   const rows: WorkHubRow[] = sortWorkHubRows([
     ...workItems
@@ -299,6 +326,7 @@ export async function loadWorkHub(
       .map((item) =>
         workHubRowFromWorkItem(item, {
           mine: myActionIds.has(item.id) || myFollowUpIds.has(item.id),
+          capture: captureByRowId.get(item.id) ?? null,
         })
       ),
     ...partnerRequests.map((request) =>
@@ -353,9 +381,17 @@ export async function loadWorkHub(
       ),
   ]);
 
+  // "Mine" for a meeting = the viewer facilitates or attends it.
+  const myMeetingIds = new Set(
+    pool.meetings
+      .filter((m) => m.participantIds.includes(viewer.id))
+      .map((m) => m.id)
+  );
   const meetingRows = sortWorkHubRows(
     meetingLites
-      .map((meeting) => workHubRowFromMeeting(meeting, now))
+      .map((meeting) =>
+        workHubRowFromMeeting(meeting, now, { mine: myMeetingIds.has(meeting.id) })
+      )
       .filter((row): row is WorkHubRow => row !== null)
   ).sort((a, b) => {
     // Within meetings: follow-up debt first, then soonest upcoming start.

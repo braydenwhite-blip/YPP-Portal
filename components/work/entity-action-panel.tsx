@@ -149,17 +149,23 @@ export function EntityActionPanel({
       ) : null}
 
       {/* Concrete counts — never a composite score (§19). */}
-      <p className="m-0 text-[12.5px] text-ink-muted">
-        {[
-          `${panel.open.length} open`,
-          panel.overdue.length > 0 ? `${panel.overdue.length} overdue` : null,
-          panel.blocked.length > 0 ? `${panel.blocked.length} blocked` : null,
-          dueSoon.length > 0 ? `${dueSoon.length} due within ${DUE_SOON_DAYS} days` : null,
-          unowned.length > 0 ? `${unowned.length} without an executor` : null,
-        ]
-          .filter(Boolean)
-          .join(" · ")}
-      </p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <StatusBadge tone="neutral">{panel.open.length} open</StatusBadge>
+        {panel.overdue.length > 0 ? (
+          <StatusBadge tone="danger">{panel.overdue.length} overdue</StatusBadge>
+        ) : null}
+        {panel.blocked.length > 0 ? (
+          <StatusBadge tone="warning">{panel.blocked.length} blocked</StatusBadge>
+        ) : null}
+        {dueSoon.length > 0 ? (
+          <StatusBadge tone="info">
+            {dueSoon.length} due within {DUE_SOON_DAYS} days
+          </StatusBadge>
+        ) : null}
+        {unowned.length > 0 ? (
+          <StatusBadge tone="warning">{unowned.length} without an executor</StatusBadge>
+        ) : null}
+      </div>
 
       {panel.open.length > 0 ? (
         <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
@@ -207,7 +213,9 @@ export function EntityActionPanel({
           ))}
           {panel.open.length > 6 ? (
             <li className="text-[12px] text-ink-muted">
-              + {panel.open.length - 6} more in the Work Hub
+              <Link href={workHubHref} className="font-semibold text-brand-700 hover:underline">
+                + {panel.open.length - 6} more — view all in the Work Hub →
+              </Link>
             </li>
           ) : null}
         </ul>

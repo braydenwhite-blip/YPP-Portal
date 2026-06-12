@@ -45,6 +45,19 @@ export const WORK_HUB_KIND_LABELS: Record<WorkHubKind, string> = {
 
 export type WorkHubTone = "danger" | "warning" | "info" | "success" | "neutral";
 
+/**
+ * Inline Complete / Block payload for an action row the viewer may edit —
+ * serializable inputs for the shared ActionStatusCapture (same server
+ * actions as the detail card; permissions re-checked server-side).
+ */
+export type WorkHubRowCapture = {
+  actionId: string;
+  blockedReason: string | null;
+  completionNote: string | null;
+  completionOutcome: string | null;
+  nextFollowUpISO: string | null;
+};
+
 export type WorkHubRow = {
   /** Globally unique across kinds (`action:…`, `partner_request:…`). */
   id: string;
@@ -60,6 +73,9 @@ export type WorkHubRow = {
   priorityLabel: string | null;
   /** Honest provenance line ("From meeting: …", "Partner pipeline", …). */
   sourceLabel: string | null;
+  /** The meeting this work came from (or the meeting itself, for meeting
+   *  rows) — `/work?entity=meeting:<id>` matches on it. */
+  meetingId?: string | null;
   /** The connected entity, rendered as an EntityChip into its 360 preview. */
   entityType: Entity360Type | null;
   entityId: string | null;
@@ -78,6 +94,8 @@ export type WorkHubRow = {
   /** The row's OWN 360 preview target (rail / drawer), when one exists. */
   previewType: Entity360Type | null;
   previewId: string | null;
+  /** Inline Complete / Block capture, present only when the viewer can edit. */
+  capture?: WorkHubRowCapture | null;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -127,7 +145,7 @@ export function rowIsDueSoon(row: WorkHubRow, now: Date): boolean {
 /** Fold a unified work item (tracker action / meeting follow-up) into a row. */
 export function workHubRowFromWorkItem(
   item: WorkItem,
-  options: { mine?: boolean } = {}
+  options: { mine?: boolean; capture?: WorkHubRowCapture | null } = {}
 ): WorkHubRow {
   const entityType = item.relatedType
     ? (RELATED_TO_ENTITY_360[item.relatedType] ?? null)
@@ -143,6 +161,7 @@ export function workHubRowFromWorkItem(
     dueISO: item.dueISO,
     priorityLabel: PRIORITY_LABELS[item.priority] ?? null,
     sourceLabel: item.meetingTitle ? `From meeting: ${item.meetingTitle}` : null,
+    meetingId: item.meetingId,
     entityType,
     entityId: entityType ? item.relatedId : null,
     entityLabel: item.relatedLabel,
@@ -159,6 +178,7 @@ export function workHubRowFromWorkItem(
       item.kind === "action"
         ? item.id.replace(/^action:/, "")
         : (item.href.split("/").pop() ?? null),
+    capture: options.capture ?? null,
   };
 }
 
@@ -168,7 +188,8 @@ export function workHubRowFromWorkItem(
  */
 export function workHubRowFromMeeting(
   meeting: MeetingLite,
-  now: Date
+  now: Date,
+  options: { mine?: boolean } = {}
 ): WorkHubRow | null {
   const start = new Date(meeting.startISO).getTime();
   const upcoming = start >= now.getTime();
@@ -200,6 +221,7 @@ export function workHubRowFromMeeting(
     dueISO: meeting.startISO,
     priorityLabel: null,
     sourceLabel: meeting.categoryLabel || null,
+    meetingId: meeting.id,
     entityType,
     entityId: entityType ? meeting.relatedId : null,
     entityLabel: meeting.relatedLabel ?? null,
@@ -211,7 +233,7 @@ export function workHubRowFromMeeting(
     overdue: meeting.overdueFollowUps > 0,
     blocked: false,
     unassigned: !meeting.facilitatorName,
-    mine: false,
+    mine: options.mine ?? false,
     href: meeting.href,
     quickActionLabel: "Open meeting",
     quickActionHref: meeting.href,
@@ -544,7 +566,12 @@ export function asWorkHubEntityFilter(
   return { type: type as Entity360Type, id };
 }
 
-/** Rows connected to one entity (the record pages' "View in Work Hub" lens). */
+/**
+ * Rows connected to one entity (the record pages' "View in Work Hub" lens).
+ * The meeting lens additionally matches rows whose work CAME FROM that
+ * meeting (`meetingId`), so `/work?entity=meeting:<id>` answers "what did
+ * this meeting create, and what's still open?".
+ */
 export function filterWorkHubRowsByEntity(
   rows: WorkHubRow[],
   entity: { type: Entity360Type; id: string }
@@ -552,7 +579,8 @@ export function filterWorkHubRowsByEntity(
   return rows.filter(
     (row) =>
       (row.entityType === entity.type && row.entityId === entity.id) ||
-      (row.previewType === entity.type && row.previewId === entity.id)
+      (row.previewType === entity.type && row.previewId === entity.id) ||
+      (entity.type === "meeting" && row.meetingId === entity.id)
   );
 }
 

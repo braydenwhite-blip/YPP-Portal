@@ -1851,21 +1851,6 @@ select.input {
   align-items: center;
 }
 
-/* People Strategy "My Actions" two-column layout that collapses to a single
-   stacked column on narrow screens instead of squeezing the right column. */
-.ps-main-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-
-@media (max-width: 720px) {
-  .ps-main-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* Progress bar. */
 .progress-track {
   width: 100%;

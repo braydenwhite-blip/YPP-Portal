@@ -12,7 +12,7 @@ vi.mock("@/lib/prisma", () => ({
     instructorApplication: { findFirst: vi.fn(), findMany: vi.fn() },
     actionItem: { findUnique: vi.fn(), findMany: vi.fn() },
     classOffering: { findMany: vi.fn() },
-    officerMeeting: { findMany: vi.fn() },
+    officerMeeting: { findUnique: vi.fn(), findMany: vi.fn() },
   },
 }));
 
@@ -23,11 +23,14 @@ vi.mock("@/lib/logger", () => ({
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import {
+  buildActionDocument,
   buildApplicationDocument,
+  buildMeetingDocument,
   buildPartnerDocument,
   buildPersonDocument,
   reconcileSearchDocuments,
   syncApplicationSearchDocument,
+  syncMeetingSearchDocument,
   syncPartnerSearchDocument,
   syncPersonSearchDocument,
 } from "@/lib/help-agent/search-indexing";
@@ -119,6 +122,62 @@ describe("document builders", () => {
       }).title
     ).toBe("fallback@test.dev");
   });
+
+  it("builds the action row with status/owner/due subtitle and owner + meeting keywords", () => {
+    const doc = buildActionDocument({
+      id: "ac1",
+      title: "Call the venue",
+      status: "IN_PROGRESS",
+      deadlineStart: new Date("2026-06-10T00:00:00.000Z"),
+      deadlineEnd: new Date("2026-06-18T00:00:00.000Z"),
+      lead: { name: "Maya Chen", email: "maya@test.dev" },
+      officerMeeting: { title: "Camp planning" },
+    });
+    expect(doc).toMatchObject({
+      entityType: "action",
+      entityId: "ac1",
+      title: "Call the venue",
+      visibilityTier: "OFFICER",
+    });
+    // Humanized status · owner · effective (end) deadline.
+    expect(doc.subtitle).toContain("In progress");
+    expect(doc.subtitle).toContain("Maya Chen");
+    expect(doc.subtitle).toMatch(/Due Jun 1[78], 2026/);
+    for (const term of ["Maya Chen", "maya@test.dev", "Camp planning"]) {
+      expect(doc.keywords).toContain(term);
+    }
+  });
+
+  it("builds a minimal legacy action row without owner/meeting context", () => {
+    const doc = buildActionDocument({
+      id: "ac2",
+      title: "Old action",
+      status: "NOT_STARTED",
+    });
+    expect(doc.subtitle).toBe("Not started");
+    expect(doc.keywords).toBeNull();
+  });
+
+  it("builds the meeting row with category · date subtitle and structured eventAt", () => {
+    const date = new Date("2026-06-15T17:00:00.000Z");
+    const doc = buildMeetingDocument({
+      id: "m1",
+      title: "Leadership sync",
+      purpose: "Weekly leadership operating rhythm",
+      category: "LEADERSHIP",
+      date,
+    });
+    expect(doc).toMatchObject({
+      entityType: "meeting",
+      entityId: "m1",
+      title: "Leadership sync",
+      keywords: "Weekly leadership operating rhythm",
+      visibilityTier: "OFFICER",
+      eventAt: date,
+    });
+    expect(doc.subtitle).toContain("LEADERSHIP");
+    expect(doc.subtitle).toMatch(/Jun 1[56], 2026/);
+  });
 });
 
 describe("write-path sync helpers", () => {
@@ -169,6 +228,33 @@ describe("write-path sync helpers", () => {
 
     expect(prisma.searchDocument.deleteMany).toHaveBeenCalledWith({
       where: { entityType: "applicant", entityId: "a-archived" },
+    });
+  });
+
+  it("upserts the meeting row (with eventAt) and removes it when the meeting is gone", async () => {
+    const date = new Date("2026-06-15T17:00:00.000Z");
+    mock(prisma.officerMeeting.findUnique).mockResolvedValue({
+      id: "m1",
+      title: "Leadership sync",
+      purpose: null,
+      category: "LEADERSHIP",
+      date,
+    });
+
+    await syncMeetingSearchDocument("m1");
+
+    expect(prisma.searchDocument.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { entityType_entityId: { entityType: "meeting", entityId: "m1" } },
+        create: expect.objectContaining({ title: "Leadership sync", eventAt: date }),
+        update: expect.objectContaining({ eventAt: date }),
+      })
+    );
+
+    mock(prisma.officerMeeting.findUnique).mockResolvedValue(null);
+    await syncMeetingSearchDocument("m-gone");
+    expect(prisma.searchDocument.deleteMany).toHaveBeenCalledWith({
+      where: { entityType: "meeting", entityId: "m-gone" },
     });
   });
 

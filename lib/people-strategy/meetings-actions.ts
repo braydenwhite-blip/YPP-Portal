@@ -6,6 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { syncMeetingSearchDocument } from "@/lib/help-agent/search-indexing";
 import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
 import { parseMeetingCategory } from "./meeting-categories";
 import {
@@ -168,6 +169,7 @@ export async function createMeeting(input: CreateMeetingInput) {
     select: { id: true },
   });
 
+  await syncMeetingSearchDocument(created.id);
   revalidate(created.id);
   return { id: created.id };
 }
@@ -238,6 +240,7 @@ export async function updateMeeting(input: z.input<typeof UpdateMeetingSchema>) 
     },
   });
 
+  await syncMeetingSearchDocument(data.id);
   revalidate(data.id);
 }
 

@@ -16,12 +16,15 @@ export function EntityActionRowCapture({
   completionNote,
   completionOutcome,
   nextFollowUpAt,
+  onCaptured,
 }: {
   actionId: string;
   blockedReason?: string | null;
   completionNote?: string | null;
   completionOutcome?: string | null;
   nextFollowUpAt?: string | Date | null;
+  /** Called after a capture saves — lets client surfaces refresh stale views. */
+  onCaptured?: () => void;
 }) {
   const [mode, setMode] = useState<"complete" | "blocked" | null>(null);
 
@@ -37,7 +40,10 @@ export function EntityActionRowCapture({
           initialNextFollowUpAt={
             nextFollowUpAt instanceof Date ? nextFollowUpAt.toISOString() : nextFollowUpAt
           }
-          onDone={() => setMode(null)}
+          onDone={() => {
+            setMode(null);
+            onCaptured?.();
+          }}
           onCancel={() => setMode(null)}
         />
       </div>

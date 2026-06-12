@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { EntityPreviewRail } from "@/components/operations/entity-preview-rail";
 import { useEntity360 } from "@/components/operations/entity-360-context";
+import { EntityActionRowCapture } from "@/components/work/entity-action-row-capture";
 import {
   cn,
   DataTableShell,
@@ -43,6 +45,7 @@ function fmtDue(iso: string | null): string {
 }
 
 export function WorkHubTable({ rows }: { rows: WorkHubRow[] }) {
+  const router = useRouter();
   const entity360 = useEntity360();
   const [selected, setSelected] = useState<{
     type: Entity360Type;
@@ -50,6 +53,8 @@ export function WorkHubTable({ rows }: { rows: WorkHubRow[] }) {
     rowId: string;
   } | null>(null);
   const [wide, setWide] = useState(true);
+  // Bumped after an inline capture saves so the docked preview refetches.
+  const [previewVersion, setPreviewVersion] = useState(0);
 
   // Below xl the rail has no room — fall back to the universal 360 drawer.
   useEffect(() => {
@@ -66,6 +71,10 @@ export function WorkHubTable({ rows }: { rows: WorkHubRow[] }) {
       setSelected(null);
     }
   }, [rows, selected]);
+
+  const selectedRow = selected
+    ? (rows.find((row) => row.id === selected.rowId) ?? null)
+    : null;
 
   const openRow = (row: WorkHubRow) => {
     if (!row.previewType || !row.previewId) return;
@@ -194,9 +203,26 @@ export function WorkHubTable({ rows }: { rows: WorkHubRow[] }) {
 
       {selected && wide ? (
         <EntityPreviewRail
+          key={`${selected.type}:${selected.id}:${previewVersion}`}
           type={selected.type}
           id={selected.id}
           onClose={() => setSelected(null)}
+          quickActions={
+            selectedRow?.capture ? (
+              <EntityActionRowCapture
+                actionId={selectedRow.capture.actionId}
+                blockedReason={selectedRow.capture.blockedReason}
+                completionNote={selectedRow.capture.completionNote}
+                completionOutcome={selectedRow.capture.completionOutcome}
+                nextFollowUpAt={selectedRow.capture.nextFollowUpISO}
+                onCaptured={() => {
+                  // Re-pull the server rows AND remount the rail's fetch.
+                  router.refresh();
+                  setPreviewVersion((v) => v + 1);
+                }}
+              />
+            ) : undefined
+          }
         />
       ) : null}
     </div>

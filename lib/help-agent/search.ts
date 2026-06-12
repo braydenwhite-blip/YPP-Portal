@@ -11,17 +11,18 @@ import type { HelpAgentGroup, HelpAgentResult, HelpAgentSearchResponse } from ".
 /**
  * YPP Help Agent — deterministic, permission-aware entity search.
  *
- * SearchDocument cutover status (Phase 3C started it, Phase 3D extended it):
- * the PERSON, PARTNER, and APPLICANT groups read the index (title/keywords,
- * kept current by the write-path upserts in lib/help-agent/search-indexing.ts
- * and the nightly /api/cron/search-reconcile), and every group falls back to
- * its live Prisma query when the index is empty, has no text hits, or
- * errors — search stays correct on environments where the backfill has
- * never run. Applicant index hits are additionally re-checked against the
- * live per-viewer application visibility filter, so the index can never
- * widen access. Meetings/actions stay live (meetings need date context the
- * index lacks; the action group is cheap and title-only), and initiatives
- * are config-defined.
+ * SearchDocument cutover status (Phase 3C started it, 3D/3E extended it):
+ * the PERSON, PARTNER, APPLICANT, and ACTION groups read the index
+ * (title/keywords, kept current by the write-path upserts in
+ * lib/help-agent/search-indexing.ts and the nightly
+ * /api/cron/search-reconcile), and every group falls back to its live
+ * Prisma query when the index is empty, has no text hits, or errors —
+ * search stays correct on environments where the backfill has never run.
+ * Applicant index hits are additionally re-checked against the live
+ * per-viewer application visibility filter, so the index can never widen
+ * access. Meetings stay live (date-ordered; index rows now carry `eventAt`
+ * so a future cutover can match), classes stay live, and initiatives are
+ * config-defined.
  *
  * Access mirrors the Entity 360 loaders ("stricter reading wins"):
  *   - person   → any signed-in member (active members only — no applicants)
@@ -383,7 +384,29 @@ async function searchMeetings(q: string): Promise<HelpAgentResult[]> {
   }));
 }
 
+/**
+ * Action index path (Phase 3E cutover): the write-path upserts (create /
+ * update / status / capture) keep action rows current, so the group reads
+ * the index — richer subtitles (status · owner · due) and the owner /
+ * source-meeting keywords the live title-only query can't match. Access
+ * semantics are unchanged: the group is officer-tier (same as the live
+ * query), and `/actions/[id]` re-checks `canViewAction` on open.
+ */
+async function searchActionsFromIndex(q: string): Promise<HelpAgentResult[] | null> {
+  const docs = await searchIndexGroup("action", "OFFICER", q);
+  if (docs === null) return null;
+  return docs.map((d) => ({
+    type: "action" as const,
+    id: d.entityId,
+    title: d.title,
+    subtitle: d.subtitle,
+    href: `/actions/${d.entityId}`,
+  }));
+}
+
 async function searchActions(q: string): Promise<HelpAgentResult[]> {
+  const fromIndex = await searchActionsFromIndex(q).catch(() => null);
+  if (fromIndex !== null) return fromIndex;
   const actions = await prisma.actionItem.findMany({
     where: { title: { contains: q, mode: "insensitive" } },
     select: { id: true, title: true, status: true },
