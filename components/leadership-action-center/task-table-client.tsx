@@ -460,7 +460,7 @@ export default function TaskTableClient({
       </div>
 
       {isCreating && (
-        <KanbanDetailPanel title="New action item" onClose={closeCreate}>
+        <KanbanDetailPanel title="Create action" onClose={closeCreate}>
           <TaskForm
             users={users}
             meetings={meetings}

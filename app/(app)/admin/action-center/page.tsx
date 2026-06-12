@@ -56,8 +56,8 @@ export default async function ActionCenterDashboardPage() {
     <div className="page-shell">
       <LegacySurfaceBanner
         title="This is the legacy Leadership Action Center."
-        body="New work tracking lives in the Work Hub — this page stays for browsing the old task/meeting records kept in the legacy system."
-        ctaLabel="Open Work Hub"
+        body="New work tracking lives in Work — this page stays for browsing the old task/meeting records kept in the legacy system."
+        ctaLabel="Open Work"
         ctaHref="/work"
       />
       <ActionCenterSectionHeader

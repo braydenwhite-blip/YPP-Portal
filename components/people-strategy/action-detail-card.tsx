@@ -539,7 +539,7 @@ export default function ActionDetailCard({
               href={item.relatedEntityHref}
             />
           ) : null}
-          {item.officerMeetingId && <Pill tone="purple">Source: Meeting</Pill>}
+          {item.officerMeetingId && <Pill tone="purple">Created from meeting</Pill>}
           {strategic.initiativeTitle ? (
             <Pill tone="purple">Initiative: {strategic.initiativeTitle}</Pill>
           ) : null}
@@ -628,7 +628,7 @@ export default function ActionDetailCard({
         </section>
       ) : null}
 
-      <Section title="Action Metadata">
+      <Section title="Details">
         <div
           style={{
             display: "grid",
@@ -640,7 +640,7 @@ export default function ActionDetailCard({
             label="Type"
             value={item.actionType ? actionTypeLabel(item.actionType) : "Untyped"}
           />
-          <Meta label="Goal Category" value={item.goalCategory ?? "Uncategorized"} />
+          <Meta label="Goal area" value={item.goalCategory ?? "Not set"} />
           <Meta label="Department" value={item.departmentName} />
           <Meta label="Deadline" value={due.label} />
           <Meta label="Initiative" value={strategic.initiativeTitle ?? "None"} />
@@ -699,7 +699,7 @@ export default function ActionDetailCard({
       </Section>
 
       {item.officerMeetingId && (
-        <Section title="Source Meeting" defaultOpen>
+        <Section title="Created from meeting" defaultOpen>
           <div
             style={{
               border: "1px solid var(--ypp-purple-200)",
@@ -718,7 +718,7 @@ export default function ActionDetailCard({
             <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <span style={{ fontWeight: 700 }}>
                 {item.officerMeetingTitle
-                  ? `From: ${item.officerMeetingTitle}`
+                  ? item.officerMeetingTitle
                   : "This action came out of a meeting."}
               </span>
               {item.officerMeetingDate && (
@@ -739,7 +739,7 @@ export default function ActionDetailCard({
       )}
 
       {(item.relatedEntityType || sameEntityActions.length > 0 || sameMeetingActions.length > 0) && (
-        <Section title="Connected work" defaultOpen>
+        <Section title="Linked work" defaultOpen>
           {item.relatedEntityType ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={TINY_LABEL}>Related to</span>
@@ -754,7 +754,7 @@ export default function ActionDetailCard({
           ) : null}
           {sameEntityActions.length > 0 ? (
             <RelatedActionGroup
-              title={`Other actions about this ${item.relatedEntityType ? "item" : "entity"}`}
+              title="Other actions about this record"
               actions={sameEntityActions}
             />
           ) : null}

@@ -246,7 +246,7 @@ export function PartnerDirectory({
                     href={`/actions/new?relatedType=PARTNER&relatedId=${selectedId}`}
                     className="inline-flex h-8 items-center justify-center rounded-[8px] border border-line bg-surface px-3 text-[12.5px] font-semibold text-brand-800 transition-colors duration-150 hover:border-brand-400 hover:bg-brand-50"
                   >
-                    New action
+                    Create action
                   </Link>
                   <Link
                     href={`/actions/meetings?new=1&relatedType=PARTNER&relatedId=${selectedId}`}

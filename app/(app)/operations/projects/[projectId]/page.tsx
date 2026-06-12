@@ -93,7 +93,7 @@ export default async function StrategicProjectDetailPage({
         }`}
         actions={
           <Link href={p.newActionHref} className="button primary small">
-            + New action
+            Create action
           </Link>
         }
       />

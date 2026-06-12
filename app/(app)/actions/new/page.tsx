@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import ActionItemForm, {
   type ActionItemFormInitial,
 } from "@/components/people-strategy/action-item-form";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { OFFICER_TIER_ROLES } from "@/lib/authorization";
 import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
 import { requirePageRoles } from "@/lib/page-guards";
@@ -34,7 +34,7 @@ import {
 } from "@/lib/people-strategy/action-source";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "New action · Action Tracker" };
+export const metadata = { title: "Create action · Action Tracker" };
 
 /**
  * Related-entity types that can prefill a linked action from a "Create action
@@ -209,13 +209,13 @@ export default async function NewActionInTrackerPage({
       >
         ← Action Tracker
       </Link>
-      <ActionTrackerTabs showPeople={showPeople} />
+      <ActionTrackerTabsV2 active="all" showPeople={showPeople} />
 
       <div className="topbar" style={{ marginTop: 16 }}>
         <div>
           <p className="badge">Action Tracker</p>
           <h1 className="page-title" style={{ marginTop: 8 }}>
-            {sourceHeader ?? "New action item"}
+            {sourceHeader ?? "Create action"}
           </h1>
           <p className="page-subtitle">
             {strategicLinkLabel

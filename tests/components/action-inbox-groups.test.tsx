@@ -66,7 +66,7 @@ describe("ActionInboxGroups", () => {
         now={NOW}
       />
     );
-    expect(screen.getByText("Operational inbox")).toBeInTheDocument();
+    expect(screen.getByText("Needs action")).toBeInTheDocument();
     expect(screen.getByText("Blocked")).toBeInTheDocument();
     expect(screen.getByText("No owner")).toBeInTheDocument();
     expect(screen.getByText("Stale")).toBeInTheDocument();

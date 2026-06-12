@@ -43,7 +43,9 @@ export function MeetingFollowUpPackSection({
   if (pack.isClear) {
     return (
       <section className="mt-5 rounded-[12px] border border-line-soft bg-surface p-5 shadow-card">
-        <h2 className="m-0 text-[16px] font-semibold text-ink">Follow-up pack</h2>
+        <h2 className="m-0 text-[16px] font-semibold text-ink">
+          Follow-ups from this meeting
+        </h2>
         <p className="m-0 mt-1.5 text-[13.5px] text-ink-muted">
           Clean meeting — every decision has an action and nothing from this
           meeting is open or overdue.
@@ -56,14 +58,16 @@ export function MeetingFollowUpPackSection({
     <section className="mt-5 rounded-[12px] border border-line-soft bg-surface p-5 shadow-card">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="m-0 text-[16px] font-semibold text-ink">Follow-up pack</h2>
+          <h2 className="m-0 text-[16px] font-semibold text-ink">
+            Follow-ups from this meeting
+          </h2>
           <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
             What still has to happen after this meeting.
           </p>
         </div>
         {workHubLens ? (
           <ButtonLink href={workHubLens} variant="ghost" size="sm">
-            View this meeting&apos;s work in the Work Hub →
+            View this meeting&apos;s work in Work →
           </ButtonLink>
         ) : null}
       </div>
@@ -71,7 +75,7 @@ export function MeetingFollowUpPackSection({
       {pack.decisionsWithoutActions.length > 0 ? (
         <div className="mt-3.5">
           <p className="m-0 text-[12.5px] font-semibold text-ink">
-            Decisions without actions ({pack.decisionsWithoutActions.length})
+            Decisions needing actions ({pack.decisionsWithoutActions.length})
           </p>
           <ul className="m-0 mt-1.5 flex list-none flex-col gap-1.5 p-0">
             {pack.decisionsWithoutActions.map((decision) => (
@@ -83,16 +87,15 @@ export function MeetingFollowUpPackSection({
                   {decision.decision}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <StatusBadge tone="warning">Not tracked</StatusBadge>
+                  <StatusBadge tone="warning">Decision needs an action</StatusBadge>
                   <DecisionConvertButton decisionId={decision.id} />
                 </span>
               </li>
             ))}
           </ul>
           <p className="m-0 mt-1.5 text-[12px] text-ink-muted">
-            Creating an action keeps the meeting&apos;s provenance, suggests the
-            decider as owner, and shows up on the related entity and in the
-            Work Hub.
+            Creating an action keeps the meeting link, suggests the decider as
+            owner, and shows up in Work.
           </p>
         </div>
       ) : null}
@@ -141,7 +144,7 @@ export function MeetingFollowUpPackSection({
                   href={workHubLens}
                   className="font-semibold text-brand-700 hover:underline"
                 >
-                  + {pack.openActions.length - 6} more — view all in the Work Hub →
+                  + {pack.openActions.length - 6} more — view all in Work →
                 </Link>
               </li>
             ) : null}

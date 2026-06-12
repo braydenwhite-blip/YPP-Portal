@@ -7,7 +7,7 @@ import {
 } from "@/lib/feature-flags";
 import { listTrackerClasses, type TrackerClass } from "@/lib/people-strategy/class-tracker";
 import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +62,7 @@ export default async function ActionTrackerClassesPage() {
         </div>
       </div>
 
-      <ActionTrackerTabs active="classes" showPeople={showPeopleDashboardTab} />
+      <ActionTrackerTabsV2 active="classes" showPeople={showPeopleDashboardTab} />
 
       <div
         className="card"

@@ -130,9 +130,9 @@ const ENTRY_POINTS: Array<{
 }> = [
   {
     href: "/work",
-    title: "Work Hub",
+    title: "Work",
     description:
-      "The front door for all work — actions, follow-ups, partner requests, advisor check-ins, and applicant next steps, triaged together.",
+      "Actions, follow-ups, partner requests, advisor check-ins, and applicant next steps in one place.",
   },
   {
     href: "/operations/command-center",
@@ -148,7 +148,7 @@ const ENTRY_POINTS: Array<{
   {
     href: "/operations/weekly-execution",
     title: "Weekly Execution",
-    description: "Run the officer meeting: build the agenda, capture it, resolve loose ends, draft the recap.",
+    description: "Run the officer meeting: build the agenda, capture follow-ups, draft the recap.",
   },
   {
     href: "/operations/initiatives",
@@ -164,7 +164,7 @@ const ENTRY_POINTS: Array<{
   {
     href: "/actions/meetings",
     title: "Meetings",
-    description: "Review meeting history, decisions, and loose ends.",
+    description: "Review meeting history, decisions, and follow-ups.",
   },
 ];
 

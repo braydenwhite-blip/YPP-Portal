@@ -131,7 +131,7 @@ export function NewMeetingDrawer({
 
   return (
     <Drawer
-      title="New Meeting"
+      title="Log meeting"
       subtitle="Set up a meeting and pre-load its agenda."
       onClose={onClose}
       width={600}

@@ -63,9 +63,9 @@ export default async function CommandCenterOsPage() {
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
       <LegacySurfaceBanner
-        title="Work Hub is the unified command surface now."
-        body="The attention queue, who-owns-what, and the weekly action review live at /work — this page keeps the operations summary view."
-        ctaLabel="Open Work Hub"
+        title="Work is the simpler command surface now."
+        body="The attention queue, who owns what, and the weekly action review live at /work — this page keeps the operations summary view."
+        ctaLabel="Open Work"
         ctaHref="/work"
       />
       <div className="ps-workspace-header">
@@ -97,13 +97,13 @@ export default async function CommandCenterOsPage() {
       <div className="ps-stack" style={{ marginTop: 26, display: "grid", gap: 26 }}>
         <CommandCenterSection
           title="Needs attention"
-          hint="Overdue, blocked, ownerless, loose ends, at-risk initiatives"
+          hint="Overdue, blocked, ownerless, open follow-ups, at-risk initiatives"
         >
           <OperationsItemList
             items={summary.needsAttention}
             empty={
               <OperationsEmptyState title="Nothing needs leadership attention right now.">
-                No overdue or blocked actions, no loose ends, and no initiatives at risk. Open Weekly
+                No overdue or blocked actions, no open follow-ups, and no initiatives at risk. Open Weekly
                 Execution to plan the week, or review the initiatives below.
               </OperationsEmptyState>
             }

@@ -214,7 +214,7 @@ export default async function AdminStudentRecordPage({
                 variant="primary"
                 size="md"
               >
-                New action
+                Create action
               </ButtonLink>
             ) : null}
             {advising ? (

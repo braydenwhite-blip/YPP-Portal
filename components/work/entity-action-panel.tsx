@@ -106,10 +106,10 @@ export function EntityActionPanel({
   const quickActions = (
     <div className="flex flex-wrap items-center gap-2">
       <ButtonLink href={newActionHref} variant="secondary" size="sm">
-        New linked action
+        Create action
       </ButtonLink>
       <ButtonLink href={workHubHref} variant="ghost" size="sm">
-        View in Work Hub →
+        View in Work →
       </ButtonLink>
     </div>
   );
@@ -163,7 +163,7 @@ export function EntityActionPanel({
           </StatusBadge>
         ) : null}
         {unowned.length > 0 ? (
-          <StatusBadge tone="warning">{unowned.length} without an executor</StatusBadge>
+          <StatusBadge tone="warning">{unowned.length} need an owner</StatusBadge>
         ) : null}
       </div>
 
@@ -214,7 +214,7 @@ export function EntityActionPanel({
           {panel.open.length > 6 ? (
             <li className="text-[12px] text-ink-muted">
               <Link href={workHubHref} className="font-semibold text-brand-700 hover:underline">
-                + {panel.open.length - 6} more — view all in the Work Hub →
+                + {panel.open.length - 6} more — view all in Work →
               </Link>
             </li>
           ) : null}
@@ -225,8 +225,8 @@ export function EntityActionPanel({
         <div className="rounded-[8px] border border-amber-200 bg-amber-50/60 px-3 py-2">
           <p className="m-0 text-[12.5px] font-semibold text-ink">
             {panel.decisionsWithoutActions.length} decision
-            {panel.decisionsWithoutActions.length === 1 ? "" : "s"} about this entity never
-            became tracked work
+            {panel.decisionsWithoutActions.length === 1 ? "" : "s"} about this record still
+            need actions
           </p>
           <ul className="m-0 mt-1 flex list-none flex-col gap-0.5 p-0">
             {panel.decisionsWithoutActions.slice(0, 3).map((decision) => (

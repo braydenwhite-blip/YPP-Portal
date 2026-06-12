@@ -3888,20 +3888,20 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/work",
-    title: "Work Hub",
+    title: "Work",
     content: {
-      purpose: "The Work Hub is the one place for everything that needs doing — tracker actions, meeting follow-ups, upcoming meetings, initiative health, open partner requests, advisor check-ins, and applicant next steps, triaged worst-first.",
-      firstStep: "Start with the stat cards: Overdue, Blocked, and Needs an owner each open the filtered list. Click any row for its 360 preview.",
-      nextStep: "Use My queue for your own work, Needs attention for the cross-domain queue with reasons, and the quick action on each row to act without leaving the page."
+      purpose: "Work shows actions, meeting follow-ups, blockers, and next steps across YPP in one calm queue.",
+      firstStep: "Start with Needs attention. It shows the items most likely to need a leader today.",
+      nextStep: "Use My work for your own queue, Meetings for follow-ups, and the row action or preview to make the next move."
     }
   },
   {
     pattern: "/actions/command-center",
     title: "Command Center (moved)",
     content: {
-      purpose: "The People Strategy Command Center has been absorbed into the Work Hub — one triaged list of actions, follow-ups, meetings, and cross-domain attention. This route now redirects there.",
-      firstStep: "You will land on the Work Hub automatically.",
-      nextStep: "Use the stat cards (Overdue, Blocked, Needs an owner), the Needs attention view, and the Actions view's accountability summary."
+      purpose: "The People Strategy Command Center has been absorbed into Work — one simpler place for actions, follow-ups, meetings, and attention items.",
+      firstStep: "You will land on Work automatically.",
+      nextStep: "Start with Needs attention, then use My work, Actions, or Meetings when you need a narrower view."
     }
   },
   {
@@ -3915,11 +3915,11 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/actions/meetings",
-    title: "Weekly Command Center",
+    title: "Meetings",
     content: {
-      purpose: "This is the weekly operating dashboard for leadership meetings — what is happening this week, what decisions were made, which follow-ups are open or overdue, and which YPP area is falling behind.",
-      firstStep: "Start with Today and the metric cards, then scan Needs Follow-Up for anything overdue.",
-      nextStep: "Open a meeting to log decisions and follow-ups, and convert a follow-up into a tracked Action Tracker item so it does not slip."
+      purpose: "Meetings shows upcoming meetings, open follow-ups, recent decisions, and actions created from meetings.",
+      firstStep: "Start with Upcoming or Needs follow-up.",
+      nextStep: "Open a meeting to log decisions and follow-ups, then create actions for anything that needs an owner and due date."
     }
   },
   {
@@ -3937,7 +3937,7 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     content: {
       purpose: "This is the entry point to the YPP Leadership OS. Initiatives are the big goals, meetings create decisions, decisions create actions, actions move initiatives forward, and Weekly Execution keeps everything from getting lost.",
       firstStep: "Officers: open the Command Center to see what matters right now. Everyone else: review your open actions and support below.",
-      nextStep: "Use Weekly Execution to run the officer meeting, Initiatives for the big goals, Actions for the detailed work, and Meetings for decisions and loose ends."
+      nextStep: "Use Weekly Execution to run the officer meeting, Initiatives for the big goals, Actions for the detailed work, and Meetings for decisions and follow-ups."
     }
   },
   {
@@ -3964,16 +3964,16 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     content: {
       purpose: "The guided Weekly Review has been folded into Weekly Execution — one weekly workflow instead of two. This route now redirects there.",
       firstStep: "You will land on Weekly Execution automatically.",
-      nextStep: "Use Weekly Execution's four stages: build agenda, capture meeting, resolve loose ends, draft recap."
+      nextStep: "Use Weekly Execution's four stages: build agenda, capture meeting, resolve follow-ups, draft recap."
     }
   },
   {
     pattern: "/operations/weekly-execution",
     title: "Weekly Execution OS",
     content: {
-      purpose: "This is the weekly officer meeting workspace: build the agenda, capture meeting notes, close loose ends, track communication needed, and draft the weekly recap from real action, meeting, and initiative data.",
+      purpose: "This is the weekly officer meeting workspace: build the agenda, capture meeting notes, close follow-ups, track communication needed, and draft the weekly recap from real action, meeting, and initiative data.",
       firstStep: "Start with the snapshot and Agenda tab so you can see urgent blockers, due-this-week actions, unresolved follow-ups, and initiatives needing leadership attention.",
-      nextStep: "During the meeting, capture decisions and follow-ups, then use Loose Ends and Weekly Recap before leaving so every owner, action, and communication is clear."
+      nextStep: "During the meeting, capture decisions and follow-ups, then use Follow-ups and Weekly Recap before leaving so every owner, action, and communication is clear."
     }
   },
   {

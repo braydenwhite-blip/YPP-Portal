@@ -469,7 +469,7 @@ export const NAV_CATALOG: NavLink[] = [
         "Overdue",
       ],
       dashboardDescription:
-        "Everything that needs doing — actions, follow-ups, partner requests, advisor check-ins, and applicant next steps — triaged in one place.",
+        "Actions, meeting follow-ups, blockers, and next steps across YPP.",
       dashboardPriority: 6,
     },
     {

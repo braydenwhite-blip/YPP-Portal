@@ -36,6 +36,7 @@ export { LegacySurfaceBanner } from "./legacy-surface-banner";
 export { ModalV2, ModalFooterV2 } from "./modal";
 export { ToastV2 } from "./toast";
 export { BannerV2 } from "./banner";
+export { TrackerStartCard } from "./tracker";
 export {
   SidebarChevron,
   SidebarUserCard,

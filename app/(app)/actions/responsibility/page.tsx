@@ -9,9 +9,10 @@ import {
 import { loadResponsibilityMap } from "@/lib/people-strategy/responsibility";
 import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import { MOMENTUM_META } from "@/lib/people-strategy/momentum";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { Pill } from "@/components/people-strategy/pills";
 import { GrowthTagEditor } from "@/components/people-strategy/growth-tag-editor";
+import { LegacySurfaceBanner } from "@/components/ui-v2";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Responsibility Map · People Strategy" };
@@ -46,7 +47,14 @@ export default async function ResponsibilityMapPage() {
         </p>
       </div>
 
-      <ActionTrackerTabs active="responsibility" showPeople={showPeople} />
+      <LegacySurfaceBanner
+        title="Work is the simpler place to start."
+        body="Use Work for daily actions, blockers, and follow-ups. This map stays available when you need a deeper owner-by-owner accountability view."
+        ctaLabel="Open Work"
+        ctaHref="/work?view=actions"
+      />
+
+      <ActionTrackerTabsV2 active="responsibility" showPeople={showPeople} />
 
       {/* People Risk Radar */}
       <section style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>

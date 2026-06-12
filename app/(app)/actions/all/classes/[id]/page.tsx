@@ -13,7 +13,7 @@ import {
   getTrackerClass,
 } from "@/lib/people-strategy/class-tracker";
 import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import { Pill } from "@/components/people-strategy/pills";
 
@@ -82,7 +82,7 @@ export default async function TrackerClassDetailPage({
       >
         ← Classes
       </Link>
-      <ActionTrackerTabs active="classes" showPeople={showPeopleDashboardTab} />
+      <ActionTrackerTabsV2 active="classes" showPeople={showPeopleDashboardTab} />
 
       <div className="topbar" style={{ marginTop: 16, display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div>

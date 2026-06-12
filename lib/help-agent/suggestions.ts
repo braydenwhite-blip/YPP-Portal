@@ -12,6 +12,14 @@ import type { HelpAgentSuggestion } from "./types";
  */
 export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
+    label: "What needs attention?",
+    description: "Work filtered to the items most likely to need action today",
+    href: "/work?view=needs-attention",
+    icon: "⚑",
+    tier: "OFFICER",
+    kind: "query",
+  },
+  {
     label: "Students without advisors",
     description: "People database filtered to students with no active advisor",
     href: "/people?flag=no-advisor",
@@ -37,7 +45,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   },
   {
     label: "Overdue actions",
-    description: "Work Hub filtered to everything past its date",
+    description: "Work filtered to actions and follow-ups past their date",
     href: "/work?flag=overdue",
     icon: "⏰",
     tier: "OFFICER",
@@ -45,7 +53,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   },
   {
     label: "Blocked work",
-    description: "Work Hub filtered to blocked actions",
+    description: "Work filtered to blocked actions",
     href: "/work?flag=blocked",
     icon: "🚧",
     tier: "OFFICER",
@@ -53,7 +61,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   },
   {
     label: "Work without an owner",
-    description: "Work Hub filtered to unowned actions and follow-ups",
+    description: "Work filtered to actions and follow-ups that need an owner",
     href: "/work?flag=unowned",
     icon: "🫥",
     tier: "OFFICER",
@@ -61,7 +69,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   },
   {
     label: "Work due soon",
-    description: "Work Hub filtered to everything due within 7 days",
+    description: "Work filtered to everything due within 7 days",
     href: "/work?flag=due-soon",
     icon: "⏳",
     tier: "OFFICER",
@@ -69,9 +77,17 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   },
   {
     label: "Upcoming meetings",
-    description: "Work Hub meetings view — upcoming, plus open follow-up debt",
+    description: "Work meetings view — upcoming meetings and open follow-ups",
     href: "/work?view=meetings",
     icon: "📅",
+    tier: "OFFICER",
+    kind: "query",
+  },
+  {
+    label: "Meetings needing follow-up",
+    description: "Meetings view with open follow-ups and decisions needing actions",
+    href: "/work?view=meetings",
+    icon: "🗓️",
     tier: "OFFICER",
     kind: "query",
   },
@@ -84,8 +100,8 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     kind: "query",
   },
   {
-    label: "Decisions without actions",
-    description: "Meeting decisions that never became tracked work — convert or close",
+    label: "Decisions needing actions",
+    description: "Meeting decisions that still need someone assigned to carry them out",
     href: "/work?view=meetings",
     icon: "⚖️",
     tier: "OFFICER",
@@ -151,8 +167,8 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     kind: "query",
   },
   {
-    label: "At-risk initiatives",
-    description: "Work Hub initiatives view — health with the reasons shown",
+    label: "Initiatives needing attention",
+    description: "Work initiatives view with concrete reasons shown",
     href: "/work?view=initiatives",
     icon: "🚩",
     tier: "OFFICER",
@@ -183,17 +199,17 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     kind: "query",
   },
   {
-    label: "My work queue",
-    description: "Work Hub filtered to work you own",
-    href: "/work?view=mine",
+    label: "My work",
+    description: "Work filtered to actions and meetings connected to you",
+    href: "/work?view=my",
     icon: "🎛️",
     tier: "OFFICER",
     kind: "query",
   },
   // --- Command shortcuts ---
   {
-    label: "Open Work Hub",
-    description: "All work — actions, follow-ups, requests, check-ins — in one triaged list",
+    label: "Open Work",
+    description: "Actions, follow-ups, requests, check-ins, and next steps in one place",
     href: "/work",
     icon: "🎛️",
     tier: "OFFICER",
@@ -216,7 +232,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     kind: "shortcut",
   },
   {
-    label: "New action",
+    label: "Create action",
     description: "Create an action item",
     href: "/actions/new",
     icon: "＋",
@@ -224,7 +240,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     kind: "shortcut",
   },
   {
-    label: "New meeting",
+    label: "Log meeting",
     description: "Log or schedule an officer meeting",
     href: "/actions/meetings?new=1",
     icon: "＋",

@@ -21,10 +21,10 @@ import { StatCard, type StatTone } from "./stat-card";
  *
  *   1. Build agenda      (before the meeting)
  *   2. Capture meeting   (during the meeting)
- *   3. Resolve loose ends (before you leave)
+ *   3. Resolve follow-ups (before you leave)
  *   4. Draft recap       (after the meeting)
  *
- * Loose ends and communications render with the shared OperationsItemCard so
+ * Follow-ups and communications render with the shared OperationsItemCard so
  * they read exactly like the same items on the Command Center — one system,
  * one vocabulary, one card language.
  */
@@ -164,7 +164,7 @@ export function LooseEndsSection({ looseEnds }: { looseEnds: WeeklyExecutionOS["
     <OperationsItemList
       items={looseEnds.map(looseEndToOperationsItem)}
       empty={
-        <OperationsEmptyState title="No loose ends.">
+        <OperationsEmptyState title="No open follow-ups.">
           Every meeting output has either been resolved or converted into an action.
         </OperationsEmptyState>
       }
@@ -254,11 +254,11 @@ export function WeeklyExecutionOSView({
         <WeeklyMeetingCaptureClient people={people} currentUserId={currentUserId} />
       </Stage>
 
-      <Stage number={3} title="Resolve loose ends" hint="Before you leave the meeting">
+      <Stage number={3} title="Resolve follow-ups" hint="Before you leave the meeting">
         <div style={{ display: "grid", gap: 22, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", alignItems: "start" }} className="command-center-grid">
           <div style={{ display: "grid", gap: 8 }}>
             <h3 className="ps-section-title" style={{ margin: 0, fontSize: 14 }}>
-              Loose ends
+              Follow-ups
             </h3>
             <LooseEndsSection looseEnds={os.looseEnds} />
           </div>

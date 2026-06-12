@@ -135,7 +135,7 @@ export function LeadershipHome({
             title="Needs attention"
             description="Worst first, each with the reason and the next move."
             action={
-              <ButtonLink href="/work?view=attention" variant="ghost" size="sm">
+              <ButtonLink href="/work?view=needs-attention" variant="ghost" size="sm">
                 Full queue →
               </ButtonLink>
             }
@@ -171,7 +171,7 @@ export function LeadershipHome({
                         href={item.href}
                         className="text-[12.5px] font-semibold text-brand-700 hover:underline"
                       >
-                        Act →
+                        Open →
                       </a>
                     </div>
                     <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
@@ -376,13 +376,13 @@ export function LeadershipHome({
           <RecordSection title="Quick actions" description="The common next moves.">
             <div className="flex flex-wrap gap-2">
               <ButtonLink href="/actions/new" size="sm">
-                New action
+                Create action
               </ButtonLink>
               <ButtonLink href="/actions/meetings?new=1" size="sm">
                 Log meeting
               </ButtonLink>
               <ButtonLink href="/work" size="sm">
-                Work Hub
+                Work
               </ButtonLink>
               <ButtonLink href="/people" size="sm">
                 People

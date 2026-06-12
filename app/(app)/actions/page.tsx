@@ -150,11 +150,11 @@ export default async function MyActionsPage() {
           adminSubtypes: viewer.adminSubtypes,
         })} · Last updated ${lastUpdated}`}
         title="My Actions"
-        subtitle="Everything you lead, are executing, or owe input on — sorted by deadline."
+        subtitle="Your to-do list: what you own, what you are helping with, and what needs your input."
         actions={
           officer ? (
             <ButtonLink href="/actions/new" variant="primary" size="md">
-              New action
+              Create action
             </ButtonLink>
           ) : null
         }
@@ -281,8 +281,8 @@ export default async function MyActionsPage() {
       {/* Mentorship action items — managed in the Mentorship area; read-only. */}
       {mentorshipActions.length > 0 ? (
         <RecordSection
-          title="Mentorship action items"
-          description="Open tasks from your mentorship — managed in the Mentorship area."
+          title="Mentorship tasks"
+          description="Open mentorship tasks. Manage the full relationship in Mentorship."
         >
           <div className="flex flex-col gap-2">
             {mentorshipActions.map((m) => (

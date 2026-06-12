@@ -24,7 +24,7 @@ import {
   areaForRelatedEntityType,
   normalizeRelatedEntityType,
 } from "@/lib/people-strategy/operational-context";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import {
   WeeklyCommandCenterClient,
   type FollowQueueRow,
@@ -205,12 +205,12 @@ export default async function WeeklyCommandCenterPage({
   return (
     <div className="page-shell" style={{ maxWidth: 1280 }}>
       <LegacySurfaceBanner
-        title="Work Hub shows meetings and their follow-up debt now."
-        body="Upcoming meetings, open follow-ups, and decisions without actions triage at /work — this page keeps meeting capture, agendas, and editing."
-        ctaLabel="Open Work Hub"
+        title="Work shows meetings and follow-ups now."
+        body="Upcoming meetings, open follow-ups, and decisions needing actions triage at /work — this page keeps meeting capture, agendas, and editing."
+        ctaLabel="Open Work"
         ctaHref="/work?view=meetings"
       />
-      <ActionTrackerTabs active="meetings" showPeople={showPeopleDashboardTab} />
+      <ActionTrackerTabsV2 active="meetings" showPeople={showPeopleDashboardTab} />
       <WeeklyCommandCenterClient
         meetings={cards}
         metrics={metrics}
