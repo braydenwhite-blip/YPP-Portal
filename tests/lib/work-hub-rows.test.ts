@@ -154,6 +154,26 @@ describe("partner / advisor / application / mentorship rows", () => {
     expect(row.unassigned).toBe(true);
     expect(row.entityType).toBe("partner");
     expect(row.previewType).toBe("partner");
+    expect(row.quickActionLabel).toBe("View partner work");
+    expect(row.href).toBe("/work?entity=partner:p1");
+  });
+
+  it("keeps admin partner quick links for admins", () => {
+    const row = workHubRowFromPartnerRequest(
+      {
+        id: "r1",
+        title: "Send updated MOU",
+        status: "OPEN",
+        dueISO: null,
+        ownerName: "Sam",
+        partnerId: "p1",
+        partnerName: "Beth El",
+      },
+      NOW,
+      { canOpenAdminRecord: true }
+    );
+    expect(row.quickActionLabel).toBe("Open partner");
+    expect(row.href).toBe("/admin/partners/p1#relationship-ops");
   });
 
   it("derives partner follow-up days overdue", () => {
@@ -164,6 +184,7 @@ describe("partner / advisor / application / mentorship rows", () => {
     expect(row.title).toBe("Follow up with Beth El");
     expect(row.status).toBe("Overdue 7d");
     expect(row.overdue).toBe(true);
+    expect(row.quickActionHref).toBe("/work?entity=partner:p1");
   });
 
   it("routes advisor check-ins to the advising workspace", () => {
@@ -217,6 +238,7 @@ describe("partner / advisor / application / mentorship rows", () => {
     });
     expect(row.status).toBe("Quiet 45 days");
     expect(row.previewType).toBe("mentorship");
+    expect(row.quickActionHref).toBe("/work?entity=mentorship:mt1");
   });
 });
 

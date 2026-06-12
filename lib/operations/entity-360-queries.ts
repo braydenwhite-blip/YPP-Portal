@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { instructorApplicationVisibilityWhere } from "@/lib/applications/application-visibility";
 import { isActionTrackerEnabled, isStrategicInitiativesEnabled } from "@/lib/feature-flags";
 import {
   isOfficerTier,
@@ -93,6 +94,10 @@ const DRAWER_LIMITS = {
   classes: 8,
   timeline: 20,
 } as const;
+
+function canOpenAdminRecord(viewer: ActionViewer): boolean {
+  return viewer.primaryRole === "ADMIN" || (viewer.roles ?? []).includes("ADMIN");
+}
 
 function fmtDate(date: Date): string {
   return date.toLocaleDateString("en-US", {
@@ -406,7 +411,7 @@ async function loadPerson360(
   // "Open full page": admins land on the role-specific full-360 record pages
   // (Knowledge OS V2 Phase 2B); everyone else gets the member profile. The
   // record pages gate on ADMIN themselves, so never link non-admins there.
-  const viewerIsAdmin = (viewer.roles ?? []).includes("ADMIN");
+  const viewerIsAdmin = canOpenAdminRecord(viewer);
   const pageHref =
     viewerIsAdmin && isStudent
       ? `/admin/students/${id}`
@@ -546,7 +551,7 @@ async function loadClass360(
       .join(" · "),
     initials: entityInitials(offering.title),
     avatarUrl: null,
-    pageHref: `/admin/classes/${id}`,
+    pageHref: canOpenAdminRecord(viewer) ? `/admin/classes/${id}` : null,
     signal: readiness
       ? {
           label: `Readiness: ${readiness.label}`,
@@ -765,7 +770,7 @@ async function loadPartner360(
       : null,
     initials: entityInitials(partner.name),
     avatarUrl: null,
-    pageHref: `/admin/partners/${id}`,
+    pageHref: canOpenAdminRecord(viewer) ? `/admin/partners/${id}` : null,
     signal: health
       ? {
           label: health.label,
@@ -1410,8 +1415,11 @@ async function loadApplicant360(
   now: Date
 ): Promise<Entity360 | null> {
   if (!isOfficerTier(viewer)) return null;
-  const app = await prisma.instructorApplication.findUnique({
-    where: { id },
+  const visibilityWhere = await instructorApplicationVisibilityWhere(viewer.id);
+  if (!visibilityWhere) return null;
+
+  const app = await prisma.instructorApplication.findFirst({
+    where: { id, AND: [visibilityWhere] },
     select: {
       id: true,
       status: true,
@@ -1645,4 +1653,3 @@ export async function loadEntity360(
     }
   }
 }
-

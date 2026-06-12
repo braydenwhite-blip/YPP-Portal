@@ -30,6 +30,7 @@ export default async function HelpAgentPage() {
     adminSubtypes: session.user.adminSubtypes,
   };
   const officerTier = isOfficerTier(viewer);
+  const adminTier = viewer.primaryRole === "ADMIN" || viewer.roles.includes("ADMIN");
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-10">
@@ -40,7 +41,7 @@ export default async function HelpAgentPage() {
         className="mb-6"
       />
       <div className="flex h-[60vh] min-h-[420px] flex-col overflow-hidden rounded-[14px] border border-line bg-surface shadow-card">
-        <HelpAgentSearch officerTier={officerTier} variant="page" />
+        <HelpAgentSearch officerTier={officerTier} adminTier={adminTier} variant="page" />
       </div>
       <p className="mt-4 text-center text-[12px] text-ink-muted">
         Deterministic search across people{officerTier ? ", partners, classes, meetings, actions, and initiatives" : ""} —

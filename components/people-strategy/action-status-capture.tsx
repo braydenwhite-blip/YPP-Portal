@@ -33,6 +33,7 @@ export function ActionStatusCapture({
   initialOutcome,
   initialNote,
   initialBlockedReason,
+  initialNextFollowUpAt,
   onDone,
   onCancel,
 }: {
@@ -41,6 +42,7 @@ export function ActionStatusCapture({
   initialOutcome?: string | null;
   initialNote?: string | null;
   initialBlockedReason?: string | null;
+  initialNextFollowUpAt?: string | null;
   /** Called after a successful save. */
   onDone: () => void;
   onCancel: () => void;
@@ -49,7 +51,7 @@ export function ActionStatusCapture({
   const [outcome, setOutcome] = useState(initialOutcome ?? "DELIVERED");
   const [note, setNote] = useState(initialNote ?? "");
   const [reason, setReason] = useState(initialBlockedReason ?? "");
-  const [followUp, setFollowUp] = useState("");
+  const [followUp, setFollowUp] = useState(toDateInputValue(initialNextFollowUpAt));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -179,4 +181,11 @@ export function ActionStatusCapture({
       </div>
     </div>
   );
+}
+
+function toDateInputValue(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
 }

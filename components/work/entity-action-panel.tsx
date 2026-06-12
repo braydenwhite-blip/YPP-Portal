@@ -200,6 +200,7 @@ export function EntityActionPanel({
                   blockedReason={action.blockedReason}
                   completionNote={action.completionNote}
                   completionOutcome={action.completionOutcome}
+                  nextFollowUpAt={action.nextFollowUpAt}
                 />
               ) : null}
             </li>

@@ -121,6 +121,16 @@ describe("captureActionCompletion", () => {
     );
   });
 
+  it("clears nextFollowUpAt when completion capture leaves the date blank", async () => {
+    sessionAs();
+    actionExists("IN_PROGRESS");
+
+    await captureActionCompletion({ id: "a1", completionOutcome: "DELIVERED" });
+
+    const arg = txActionItemUpdate.mock.calls[0][0];
+    expect(arg.data.nextFollowUpAt).toBeNull();
+  });
+
   it("rejects an unknown completion outcome", async () => {
     sessionAs();
     actionExists("IN_PROGRESS");
@@ -181,5 +191,15 @@ describe("captureActionBlocker", () => {
     const arg = txActionItemUpdate.mock.calls[0][0];
     expect(arg.data.status).toBe("BLOCKED");
     expect(arg.data.completedAt).toBeNull();
+  });
+
+  it("clears nextFollowUpAt when blocker capture leaves the date blank", async () => {
+    sessionAs();
+    actionExists("IN_PROGRESS");
+
+    await captureActionBlocker({ id: "a1", blockedReason: "Waiting on a partner." });
+
+    const arg = txActionItemUpdate.mock.calls[0][0];
+    expect(arg.data.nextFollowUpAt).toBeNull();
   });
 });

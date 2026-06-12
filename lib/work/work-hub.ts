@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
+import { instructorApplicationVisibilityWhere } from "@/lib/applications/application-visibility";
 import { isStrategicInitiativesEnabled } from "@/lib/feature-flags";
 import {
   buildNeedsAttention,
@@ -123,6 +124,10 @@ const HEALTH_TONE: Record<string, WorkHubInitiativeCard["healthTone"]> = {
   archived: "neutral",
 };
 
+function canOpenAdminRecords(viewer: ActionViewer): boolean {
+  return viewer.primaryRole === "ADMIN" || viewer.roles.includes("ADMIN");
+}
+
 async function loadOpenPartnerRequests() {
   const requests = await prisma.partnerRequest.findMany({
     where: { status: { in: [...PARTNER_REQUEST_OPEN_STATUSES] } },
@@ -182,13 +187,21 @@ async function loadOverdueAdvisorCheckIns(now: Date) {
   }));
 }
 
-async function loadApplicationWork() {
+async function loadApplicationWork(viewer: ActionViewer) {
+  const visibilityWhere = await instructorApplicationVisibilityWhere(viewer.id);
+  if (!visibilityWhere) return [];
+
   const applications = await prisma.instructorApplication.findMany({
     where: {
-      archivedAt: null,
-      status: {
-        in: ["SUBMITTED", "UNDER_REVIEW", "INTERVIEW_COMPLETED", "CHAIR_REVIEW"],
-      },
+      AND: [
+        { archivedAt: null },
+        {
+          status: {
+            in: ["SUBMITTED", "UNDER_REVIEW", "INTERVIEW_COMPLETED", "CHAIR_REVIEW"],
+          },
+        },
+        visibilityWhere,
+      ],
     },
     orderBy: { updatedAt: "asc" },
     take: 100,
@@ -230,6 +243,7 @@ export async function loadWorkHub(
 ): Promise<WorkHubData> {
   const now = options.now ?? new Date();
   const showStrategic = isStrategicInitiativesEnabled();
+  const adminRecordAccess = canOpenAdminRecords(viewer);
 
   const [
     pool,
@@ -250,7 +264,7 @@ export async function loadWorkHub(
       : Promise.resolve([]),
     loadOpenPartnerRequests().catch(() => []),
     loadOverdueAdvisorCheckIns(now).catch(() => []),
-    loadApplicationWork().catch(() => []),
+    loadApplicationWork(viewer).catch(() => []),
   ]);
 
   const digest = deriveWeeklyOperationalDigest({ ...pool, now });
@@ -290,6 +304,7 @@ export async function loadWorkHub(
     ...partnerRequests.map((request) =>
       workHubRowFromPartnerRequest(request, now, {
         mine: request.ownerId === viewer.id,
+        canOpenAdminRecord: adminRecordAccess,
       })
     ),
     ...partners
@@ -302,7 +317,8 @@ export async function loadWorkHub(
             nextFollowUpISO: (p.nextFollowUpAt as Date).toISOString(),
             leadName: p.relationshipLeadName,
           },
-          now
+          now,
+          { canOpenAdminRecord: adminRecordAccess }
         )
       ),
     ...advisorCheckIns.map((assignment) =>
@@ -322,15 +338,18 @@ export async function loadWorkHub(
         (m) => now.getTime() - m.lastActivityAt.getTime() >= MENTORSHIP_QUIET_DAYS * dayMs
       )
       .map((m) =>
-        workHubRowFromQuietMentorship({
-          id: m.id,
-          mentorName: m.mentorName,
-          menteeName: m.menteeName,
-          menteeId: m.menteeId,
-          quietDays: Math.floor(
-            (now.getTime() - m.lastActivityAt.getTime()) / dayMs
-          ),
-        })
+        workHubRowFromQuietMentorship(
+          {
+            id: m.id,
+            mentorName: m.mentorName,
+            menteeName: m.menteeName,
+            menteeId: m.menteeId,
+            quietDays: Math.floor(
+              (now.getTime() - m.lastActivityAt.getTime()) / dayMs
+            ),
+          },
+          { canOpenAdminRecord: adminRecordAccess }
+        )
       ),
   ]);
 

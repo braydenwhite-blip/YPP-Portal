@@ -527,6 +527,7 @@ export default function ActionDetailCard({
           initialOutcome={item.completionOutcome}
           initialNote={item.completionNote}
           initialBlockedReason={item.blockedReason}
+          initialNextFollowUpAt={item.nextFollowUpAt}
           onDone={() => {
             setCapture(null);
             setMessage(capture === "complete" ? "Completed with outcome." : "Blocker captured.");

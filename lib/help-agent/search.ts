@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { instructorApplicationVisibilityWhere } from "@/lib/applications/application-visibility";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { isOfficerTier, type ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { STRATEGIC_INITIATIVES } from "@/lib/people-strategy/strategic-initiatives";
@@ -73,22 +74,27 @@ const ROLE_LABELS: Record<string, string> = {
   STUDENT: "Student",
 };
 
+function canOpenAdminRecord(viewer: ActionViewer): boolean {
+  return viewer.primaryRole === "ADMIN" || viewer.roles.includes("ADMIN");
+}
+
 /**
  * Person search via the SearchDocument index. Returns null when the index
  * has no person rows (backfill never run) so the caller can fall back to
  * the live query — never an empty result set caused by missing ops.
  */
 async function searchPeopleFromIndex(q: string): Promise<HelpAgentResult[] | null> {
+  const personIndexWhere = {
+    entityType: "person",
+    visibilityTier: "MEMBER",
+  };
   const indexed = await prisma.searchDocument
-    .count({ where: { entityType: "person" } })
+    .count({ where: personIndexWhere })
     .catch(() => 0);
   if (indexed === 0) return null;
   const docs = await prisma.searchDocument.findMany({
     where: {
-      entityType: "person",
-      // Person rows are MEMBER-tier by construction; the explicit filter
-      // keeps a future mixed-tier backfill from leaking officer rows here.
-      visibilityTier: "MEMBER",
+      ...personIndexWhere,
       OR: [
         { title: { contains: q, mode: "insensitive" } },
         { keywords: { contains: q, mode: "insensitive" } },
@@ -98,6 +104,7 @@ async function searchPeopleFromIndex(q: string): Promise<HelpAgentResult[] | nul
     orderBy: [{ title: "asc" }],
     take: PER_GROUP_LIMIT * 3,
   });
+  if (docs.length === 0) return null;
   return docs.map((d) => ({
     type: "person" as const,
     id: d.entityId,
@@ -132,7 +139,11 @@ async function searchPeople(q: string): Promise<HelpAgentResult[]> {
   }));
 }
 
-async function searchPartners(q: string): Promise<HelpAgentResult[]> {
+async function searchPartners(
+  q: string,
+  viewer: ActionViewer
+): Promise<HelpAgentResult[]> {
+  const adminRecordAccess = canOpenAdminRecord(viewer);
   const partners = await prisma.partner.findMany({
     where: {
       archivedAt: null,
@@ -172,7 +183,7 @@ async function searchPartners(q: string): Promise<HelpAgentResult[]> {
     subtitle: p.contacts[0]
       ? `Contact: ${p.contacts[0].name}`
       : (p.type ?? p.partnerType ?? null),
-    href: `/admin/partners/${p.id}`,
+    href: adminRecordAccess ? `/admin/partners/${p.id}` : null,
   }));
 }
 
@@ -188,16 +199,27 @@ function prettyStatus(value: string): string {
  * by name lands on the decision-first Application 360. Officer-tier only,
  * matching the board's read access; active (non-archived) applications only.
  */
-async function searchApplications(q: string): Promise<HelpAgentResult[]> {
+async function searchApplications(
+  q: string,
+  viewer: ActionViewer
+): Promise<HelpAgentResult[]> {
+  const visibilityWhere = await instructorApplicationVisibilityWhere(viewer.id);
+  if (!visibilityWhere) return [];
+
   const applications = await prisma.instructorApplication.findMany({
     where: {
-      archivedAt: null,
-      OR: [
-        { preferredFirstName: { contains: q, mode: "insensitive" } },
-        { lastName: { contains: q, mode: "insensitive" } },
-        { legalName: { contains: q, mode: "insensitive" } },
-        { applicant: { name: { contains: q, mode: "insensitive" } } },
-        { applicant: { email: { contains: q, mode: "insensitive" } } },
+      AND: [
+        { archivedAt: null },
+        visibilityWhere,
+        {
+          OR: [
+            { preferredFirstName: { contains: q, mode: "insensitive" } },
+            { lastName: { contains: q, mode: "insensitive" } },
+            { legalName: { contains: q, mode: "insensitive" } },
+            { applicant: { name: { contains: q, mode: "insensitive" } } },
+            { applicant: { email: { contains: q, mode: "insensitive" } } },
+          ],
+        },
       ],
     },
     orderBy: { updatedAt: "desc" },
@@ -231,7 +253,11 @@ async function searchApplications(q: string): Promise<HelpAgentResult[]> {
   });
 }
 
-async function searchClasses(q: string): Promise<HelpAgentResult[]> {
+async function searchClasses(
+  q: string,
+  viewer: ActionViewer
+): Promise<HelpAgentResult[]> {
+  const adminRecordAccess = canOpenAdminRecord(viewer);
   const offerings = await prisma.classOffering.findMany({
     where: {
       OR: [
@@ -254,7 +280,7 @@ async function searchClasses(q: string): Promise<HelpAgentResult[]> {
     id: c.id,
     title: c.title || c.template?.title || "Class offering",
     subtitle: [c.semester, c.status].filter(Boolean).join(" · ") || null,
-    href: `/admin/classes/${c.id}`,
+    href: adminRecordAccess ? `/admin/classes/${c.id}` : null,
   }));
 }
 
@@ -332,9 +358,9 @@ export async function runHelpAgentSearch(
   const [people, partners, applications, classes, meetings, actions] =
     await Promise.all([
       searchPeople(q),
-      officer ? searchPartners(q) : Promise.resolve([]),
-      officer ? searchApplications(q) : Promise.resolve([]),
-      officer ? searchClasses(q) : Promise.resolve([]),
+      officer ? searchPartners(q, viewer) : Promise.resolve([]),
+      officer ? searchApplications(q, viewer) : Promise.resolve([]),
+      officer ? searchClasses(q, viewer) : Promise.resolve([]),
       officer && tracker ? searchMeetings(q) : Promise.resolve([]),
       officer && tracker ? searchActions(q) : Promise.resolve([]),
     ]);
@@ -385,7 +411,7 @@ async function loadRecents(viewer: ActionViewer): Promise<HelpAgentResult[]> {
   for (const row of rows) {
     if (results.length >= 8) break;
     if (!allowedTypes.has(row.entityType)) continue;
-    const hydrated = await hydrateRecent(row.entityType, row.entityId);
+    const hydrated = await hydrateRecent(row.entityType, row.entityId, viewer);
     if (hydrated) results.push(hydrated);
   }
   return results;
@@ -393,7 +419,8 @@ async function loadRecents(viewer: ActionViewer): Promise<HelpAgentResult[]> {
 
 async function hydrateRecent(
   entityType: string,
-  entityId: string
+  entityId: string,
+  viewer: ActionViewer
 ): Promise<HelpAgentResult | null> {
   switch (entityType) {
     case "person": {
@@ -416,7 +443,13 @@ async function hydrateRecent(
         select: { id: true, name: true, type: true, archivedAt: true },
       });
       if (!p || p.archivedAt) return null;
-      return { type: "partner", id: p.id, title: p.name, subtitle: p.type, href: `/admin/partners/${p.id}` };
+      return {
+        type: "partner",
+        id: p.id,
+        title: p.name,
+        subtitle: p.type,
+        href: canOpenAdminRecord(viewer) ? `/admin/partners/${p.id}` : null,
+      };
     }
     case "class": {
       const c = await prisma.classOffering.findUnique({
@@ -429,7 +462,7 @@ async function hydrateRecent(
         id: c.id,
         title: c.title || c.template?.title || "Class offering",
         subtitle: c.semester,
-        href: `/admin/classes/${c.id}`,
+        href: canOpenAdminRecord(viewer) ? `/admin/classes/${c.id}` : null,
       };
     }
     case "meeting": {

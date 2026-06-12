@@ -42,7 +42,6 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/attendance",
     "/instructor/parent-feedback",
     "/my-mentor",
-    "/scheduling",
     "/messages",
   ],
   ADMIN: [
@@ -60,7 +59,10 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
   ],
   HIRING_CHAIR: [
     "/",
+    "/admin/instructor-applicants",
     "/admin/instructor-applicants/chair-queue",
+    "/work",
+    "/people",
     "/messages",
   ],
   PARENT: [
@@ -77,10 +79,15 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     // organized into groups by chapter-president-v1-nav-layout.ts.
     "/",
     "/chapter",
+    "/work",
+    "/people",
+    "/partners",
+    "/chapter-lead/instructor-applicants",
   ],
   MENTOR: [
     "/",
     "/mentorship",
+    "/mentorship/mentees",
     "/office-hours",
     "/messages",
   ],
