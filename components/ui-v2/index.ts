@@ -29,6 +29,8 @@ export { CommandPaletteShell } from "./command-palette";
 export { ProfileHeader } from "./profile-header";
 export { KeyFactsGrid, type KeyFact } from "./key-facts";
 export { RecordSection } from "./record-section";
+export { Checklist, type ChecklistItem } from "./checklist";
+export { DecisionDock, type DecisionOption } from "./decision-dock";
 export { FilterBar, FilterChipLink, UrlSyncedSearchInput } from "./filter-bar";
 export {
   SidebarChevron,

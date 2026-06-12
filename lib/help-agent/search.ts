@@ -134,6 +134,61 @@ async function searchPartners(q: string): Promise<HelpAgentResult[]> {
   }));
 }
 
+function prettyStatus(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
+/**
+ * Instructor applications (Knowledge OS V2 Phase 2C) — finding an applicant
+ * by name lands on the decision-first Application 360. Officer-tier only,
+ * matching the board's read access; active (non-archived) applications only.
+ */
+async function searchApplications(q: string): Promise<HelpAgentResult[]> {
+  const applications = await prisma.instructorApplication.findMany({
+    where: {
+      archivedAt: null,
+      OR: [
+        { preferredFirstName: { contains: q, mode: "insensitive" } },
+        { lastName: { contains: q, mode: "insensitive" } },
+        { legalName: { contains: q, mode: "insensitive" } },
+        { applicant: { name: { contains: q, mode: "insensitive" } } },
+        { applicant: { email: { contains: q, mode: "insensitive" } } },
+      ],
+    },
+    orderBy: { updatedAt: "desc" },
+    take: PER_GROUP_LIMIT * 3,
+    select: {
+      id: true,
+      status: true,
+      preferredFirstName: true,
+      lastName: true,
+      legalName: true,
+      applicant: { select: { name: true, email: true } },
+    },
+  });
+  return applications.map((app) => {
+    const composed = [app.preferredFirstName, app.lastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    return {
+      type: "applicant" as const,
+      id: app.id,
+      title:
+        composed ||
+        app.legalName ||
+        app.applicant?.name ||
+        app.applicant?.email ||
+        "Applicant",
+      subtitle: prettyStatus(app.status),
+      href: `/admin/instructor-applicants/${app.id}`,
+    };
+  });
+}
+
 async function searchClasses(q: string): Promise<HelpAgentResult[]> {
   const offerings = await prisma.classOffering.findMany({
     where: {
@@ -232,18 +287,21 @@ export async function runHelpAgentSearch(
   }
 
   const tracker = isActionTrackerEnabled();
-  const [people, partners, classes, meetings, actions] = await Promise.all([
-    searchPeople(q),
-    officer ? searchPartners(q) : Promise.resolve([]),
-    officer ? searchClasses(q) : Promise.resolve([]),
-    officer && tracker ? searchMeetings(q) : Promise.resolve([]),
-    officer && tracker ? searchActions(q) : Promise.resolve([]),
-  ]);
+  const [people, partners, applications, classes, meetings, actions] =
+    await Promise.all([
+      searchPeople(q),
+      officer ? searchPartners(q) : Promise.resolve([]),
+      officer ? searchApplications(q) : Promise.resolve([]),
+      officer ? searchClasses(q) : Promise.resolve([]),
+      officer && tracker ? searchMeetings(q) : Promise.resolve([]),
+      officer && tracker ? searchActions(q) : Promise.resolve([]),
+    ]);
   const initiatives = officer && tracker ? searchInitiatives(q) : [];
 
   const groups: HelpAgentGroup[] = (
     [
       ["person", people],
+      ["applicant", applications],
       ["partner", partners],
       ["class", classes],
       ["meeting", meetings],

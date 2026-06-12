@@ -24,8 +24,14 @@ export const sidebarSurfaceClass = cn(
   "shadow-[4px_0_24px_rgba(26,5,51,0.35)]"
 );
 
-export const sidebarHeaderClass = "border-b-white/10 px-5 pb-4 pt-5";
-export const sidebarFooterClass = "border-t-white/10 px-3 pb-4 pt-3";
+/*
+ * CSS deletion milestone 1: the legacy `.sidebar-header`/`.sidebar-footer`
+ * border declarations were removed from globals.css, so the 1px separators
+ * are fully owned here — `border-b`/`border-t` carry width+style (Tailwind
+ * v4 emits border-style alongside width utilities), white/10 the color.
+ */
+export const sidebarHeaderClass = "border-b border-b-white/10 px-5 pb-4 pt-5";
+export const sidebarFooterClass = "border-t border-t-white/10 px-3 pb-4 pt-3";
 
 /** Uppercase section label ("Top Tools", "Shortcuts", group names). */
 export const sidebarSectionTitleClass =

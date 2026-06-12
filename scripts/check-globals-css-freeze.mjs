@@ -12,8 +12,13 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** Frozen 2026-06 at the start of the Knowledge OS V2 migration. Only lower it. */
-const BASELINE_LINE_COUNT = 17443;
+/**
+ * Frozen 2026-06 at the start of the Knowledge OS V2 migration (17,443).
+ * Lowered to 16,503 by CSS deletion milestone 1 (Phase 2C): dead nav/sidebar
+ * skin blocks removed after a static usage audit —
+ * docs/knowledge-os-phase-2c-notes.md. Only lower it.
+ */
+const BASELINE_LINE_COUNT = 16503;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const file = join(root, "app", "globals.css");
