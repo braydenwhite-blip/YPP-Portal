@@ -101,6 +101,26 @@ across YPP.")
    emails sent / emails NOT sent (no address or provider failure) are
    reported as separate numbers — a failed email is never claimed as sent.
 
+### Feedback review → check-in (the loop closes)
+
+Rows with any feedback request show **Review feedback (N in)**, opening
+`FeedbackReviewDrawer`:
+
+- `loadFeedbackReviewForSubject` (server action, `requireLeadership()` +
+  ENABLE_PEOPLE_DASHBOARD; the body read goes through the already-gated
+  `getFeedbackResponsesForSubject`) returns responses grouped by month,
+  newest first: confidential bodies with collaborator + date, who is still
+  pending, and whether the month already has a compiled `CheckIn`.
+- Each month has a one-click **Compile monthly check-in** (or *Recompile*)
+  button that calls the EXISTING `compileCheckIn` upsert unchanged — the
+  unique (userId, month) key means recompiling refreshes the same row; the
+  derived rating (or its absence) is reported honestly after the click and
+  the table's dots/stats refresh.
+- Compile is hidden with an explanatory note when ENABLE_QUARTERLY_REVIEWS
+  is off (`canCompile` from the loader); the existing action also enforces
+  that flag + `requireOfficer()` server-side. `compileCheckIn` now also
+  revalidates `/people/performance`.
+
 ### Collaborator suggestion logic (`lib/people-strategy/feedback-plan.ts`)
 
 Evidence sources (all real records, window = 120 days):
@@ -196,6 +216,8 @@ finding path.
 
 - `components/people-strategy/people-performance-table.tsx` — the table.
 - `components/people-strategy/feedback-request-drawer.tsx` — the workflow.
+- `components/people-strategy/feedback-review-drawer.tsx` — responses +
+  one-click check-in compile.
 - `components/people-strategy/monthly-check-in-dots.tsx` — reusable dots.
 
 All compose existing primitives (PageHeaderV2, StatCardV2, FilterBar,
@@ -244,11 +266,8 @@ passes.
 
 ## Recommended next steps
 
-1. **Feedback review surface:** a per-member drawer/section on
-   `/people/performance` listing submitted responses
-   (`getFeedbackResponsesForSubject`, already Leadership-gated) so the CPO
-   can read replies where they requested them, then one-click "Compile
-   check-in".
+1. ~~Feedback review surface~~ — **shipped in this pass** (see "Feedback
+   review → check-in" above).
 2. Structured response fields (went well / improve / follow-through /
    concerns / optional rating) as nullable columns, with the form upgraded
    to match.
@@ -258,3 +277,7 @@ passes.
    monthly feedback" / "Feedback requests pending" entries.
 5. Retire the legacy `/actions/people` bulk send once the new flow has been
    used in anger for a cycle.
+6. Fold a feedback summary line into `compileCheckIn`'s compiled notes
+   ("3 collaborator responses on file for June") — deliberately not done
+   yet to keep the existing action's documented contract (reflection +
+   goal review only) unchanged.

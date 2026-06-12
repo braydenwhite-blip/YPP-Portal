@@ -15,19 +15,26 @@ vi.mock("@/lib/public-app-url", () => ({
 
 const isActionTrackerEmailsEnabled = vi.fn(() => true);
 const isPeopleDashboardEnabled = vi.fn(() => true);
+const isQuarterlyReviewsEnabled = vi.fn(() => true);
 vi.mock("@/lib/feature-flags", () => ({
   isActionTrackerEmailsEnabled: () => isActionTrackerEmailsEnabled(),
   isPeopleDashboardEnabled: () => isPeopleDashboardEnabled(),
+  isQuarterlyReviewsEnabled: () => isQuarterlyReviewsEnabled(),
 }));
 
 const sendMonthlyFeedbackRequestEmail = vi.fn();
 vi.mock("@/lib/email", () => ({
   sendMonthlyFeedbackRequestEmail: (a: unknown) => sendMonthlyFeedbackRequestEmail(a),
+  sendFeedbackRequestEmail: vi.fn(),
 }));
 
 const requireLeadership = vi.fn();
 vi.mock("@/lib/authorization", () => ({
   requireLeadership: () => requireLeadership(),
+  hasRole: (roles: string[], role: string, primary?: string) =>
+    roles.includes(role) || primary === role,
+  hasAnyAdminSubtype: (subs: string[], wanted: string[]) =>
+    subs.some((s) => wanted.includes(s)),
 }));
 
 const prismaMock = vi.hoisted(() => ({
@@ -37,6 +44,7 @@ const prismaMock = vi.hoisted(() => ({
   classOffering: { findMany: vi.fn() },
   officerMeeting: { findMany: vi.fn() },
   feedbackRequest: { create: vi.fn(), findMany: vi.fn() },
+  checkIn: { findMany: vi.fn() },
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 
@@ -48,6 +56,7 @@ import {
   type CollaboratorWorkEvidence,
 } from "@/lib/people-strategy/feedback-plan";
 import {
+  loadFeedbackReviewForSubject,
   prepareMonthlyFeedbackPlan,
   sendPlannedFeedbackRequests,
 } from "@/lib/people-strategy/feedback-plan-actions";
@@ -84,6 +93,7 @@ beforeEach(() => {
   prismaMock.classOffering.findMany.mockResolvedValue([]);
   prismaMock.officerMeeting.findMany.mockResolvedValue([]);
   prismaMock.feedbackRequest.findMany.mockResolvedValue([]);
+  prismaMock.checkIn.findMany.mockResolvedValue([]);
   prismaMock.feedbackRequest.create.mockImplementation(
     async ({ data }: { data: { collaboratorId: string } }) => ({
       id: `req-${data.collaboratorId}`,
@@ -429,5 +439,80 @@ describe("sendPlannedFeedbackRequests", () => {
     });
     expect(result).toMatchObject({ created: 1, emailsSent: 0, emailsNotSent: 1 });
     expect(sendMonthlyFeedbackRequestEmail).not.toHaveBeenCalled();
+  });
+});
+
+// ── loadFeedbackReviewForSubject ─────────────────────────────────────────────
+
+describe("loadFeedbackReviewForSubject", () => {
+  it("requires the Leadership/Board tier", async () => {
+    requireLeadership.mockRejectedValue(new Error("Unauthorized"));
+    await expect(
+      loadFeedbackReviewForSubject({ subjectUserId: SUBJECT.id })
+    ).rejects.toThrow("Unauthorized");
+  });
+
+  it("refuses when the dashboard flag is off", async () => {
+    isPeopleDashboardEnabled.mockReturnValue(false);
+    await expect(
+      loadFeedbackReviewForSubject({ subjectUserId: SUBJECT.id })
+    ).rejects.toThrow("not enabled");
+  });
+
+  it("groups responses by month, splits submitted vs pending, and attaches check-in state", async () => {
+    const june = new Date("2026-06-01T00:00:00Z");
+    const may = new Date("2026-05-01T00:00:00Z");
+    // getFeedbackResponsesForSubject reads prisma.feedbackRequest.findMany.
+    prismaMock.feedbackRequest.findMany.mockResolvedValue([
+      {
+        id: "r1",
+        month: june,
+        submittedAt: new Date("2026-06-10T12:00:00Z"),
+        responseBody: "Great month — shipped the hiring sprint.",
+        collaborator: { id: "ian", name: "Ian Park", email: "ian@ypp.org" },
+      },
+      {
+        id: "r2",
+        month: june,
+        submittedAt: null,
+        responseBody: null,
+        collaborator: { id: "sam", name: "Sam Singer", email: "sam@ypp.org" },
+      },
+      {
+        id: "r3",
+        month: may,
+        submittedAt: new Date("2026-05-28T12:00:00Z"),
+        responseBody: "Solid follow-through.",
+        collaborator: { id: "ana", name: null, email: "ana@ypp.org" },
+      },
+    ]);
+    prismaMock.checkIn.findMany.mockResolvedValue([
+      { month: may, performanceRating: "ACHIEVED", createdAt: new Date("2026-06-01T09:00:00Z") },
+    ]);
+
+    const review = await loadFeedbackReviewForSubject({ subjectUserId: SUBJECT.id });
+
+    expect(review.subject).toEqual({ id: SUBJECT.id, name: "Brayden Kim" });
+    expect(review.canCompile).toBe(true);
+    expect(review.months.map((m) => m.monthKey)).toEqual(["2026-06", "2026-05"]);
+
+    const [juneMonth, mayMonth] = review.months;
+    expect(juneMonth.submitted).toHaveLength(1);
+    expect(juneMonth.submitted[0]).toMatchObject({
+      collaboratorName: "Ian Park",
+      responseBody: "Great month — shipped the hiring sprint.",
+    });
+    expect(juneMonth.pending).toEqual([{ id: "r2", collaboratorName: "Sam Singer" }]);
+    expect(juneMonth.checkIn).toBeNull();
+
+    expect(mayMonth.submitted[0].collaboratorName).toBe("ana@ypp.org");
+    expect(mayMonth.checkIn).toMatchObject({ performanceRating: "ACHIEVED" });
+  });
+
+  it("reports canCompile=false when quarterly reviews are disabled", async () => {
+    isQuarterlyReviewsEnabled.mockReturnValue(false);
+    const review = await loadFeedbackReviewForSubject({ subjectUserId: SUBJECT.id });
+    expect(review.canCompile).toBe(false);
+    expect(review.months).toEqual([]);
   });
 });

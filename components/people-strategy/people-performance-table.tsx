@@ -16,6 +16,7 @@ import {
 import { PersonLink } from "@/components/people-strategy/person-link";
 import { MonthlyCheckInDots } from "@/components/people-strategy/monthly-check-in-dots";
 import { FeedbackRequestDrawer } from "@/components/people-strategy/feedback-request-drawer";
+import { FeedbackReviewDrawer } from "@/components/people-strategy/feedback-review-drawer";
 import { RATING_LABELS } from "@/lib/people-strategy/check-in-rating";
 import type { GoalRatingColor } from "@prisma/client";
 import type {
@@ -105,6 +106,9 @@ export function PeoplePerformanceTable({
   canRequestFeedback: boolean;
 }) {
   const [feedbackMember, setFeedbackMember] = useState<{ id: string; name: string } | null>(
+    null
+  );
+  const [reviewMember, setReviewMember] = useState<{ id: string; name: string } | null>(
     null
   );
 
@@ -290,6 +294,17 @@ export function PeoplePerformanceTable({
                             Request feedback
                           </Button>
                         ) : null}
+                        {row.facts.feedback.submitted + row.facts.feedback.outstanding > 0 ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setReviewMember({ id: row.id, name: displayName })
+                            }
+                          >
+                            Review feedback ({row.facts.feedback.submitted} in)
+                          </Button>
+                        ) : null}
                         <ButtonLink
                           href={`/admin/instructors/${row.id}/manage#people-strategy`}
                           variant="ghost"
@@ -310,6 +325,10 @@ export function PeoplePerformanceTable({
       <FeedbackRequestDrawer
         member={feedbackMember}
         onClose={() => setFeedbackMember(null)}
+      />
+      <FeedbackReviewDrawer
+        member={reviewMember}
+        onClose={() => setReviewMember(null)}
       />
     </>
   );

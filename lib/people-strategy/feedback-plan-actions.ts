@@ -10,12 +10,14 @@ import { requireLeadership } from "@/lib/authorization";
 import {
   isActionTrackerEmailsEnabled,
   isPeopleDashboardEnabled,
+  isQuarterlyReviewsEnabled,
 } from "@/lib/feature-flags";
 import { sendMonthlyFeedbackRequestEmail } from "@/lib/email";
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
 import { formatDueDateLong } from "@/lib/leadership-action-center/dates";
 
 import { buildFeedbackRequestEmailContent } from "./feedback-email-content";
+import { getFeedbackResponsesForSubject } from "./feedback-requests";
 import {
   suggestFeedbackCollaborators,
   type SuggestedFeedbackCollaborator,
@@ -270,4 +272,139 @@ export async function sendPlannedFeedbackRequests(
   revalidatePath(`/admin/instructors/${subjectUserId}`);
 
   return { ok: true, created, alreadyRequested, notSuggested, emailsSent, emailsNotSent };
+}
+
+// ── Feedback review (request → responses → check-in) ────────────────────────
+
+export type FeedbackReviewResponse = {
+  id: string;
+  collaboratorName: string;
+  submittedAtISO: string;
+  responseBody: string;
+};
+
+export type FeedbackReviewMonth = {
+  monthKey: string;
+  /** "June 2026" */
+  monthLabel: string;
+  /** Answered requests, newest first — the confidential bodies. */
+  submitted: FeedbackReviewResponse[];
+  /** Collaborators asked for this month who haven't answered yet. */
+  pending: Array<{ id: string; collaboratorName: string }>;
+  /** The compiled CheckIn for this month, if one exists. */
+  checkIn: {
+    performanceRating: GoalRatingColorValue | null;
+    compiledAtISO: string;
+  } | null;
+};
+
+/** Mirror of the Prisma enum, kept as a string union so the client component
+ *  doesn't need the Prisma runtime types for a display value. */
+export type GoalRatingColorValue =
+  | "BEHIND_SCHEDULE"
+  | "GETTING_STARTED"
+  | "ACHIEVED"
+  | "ABOVE_AND_BEYOND";
+
+export type FeedbackReview = {
+  subject: { id: string; name: string | null };
+  /** Months with at least one request, newest first. */
+  months: FeedbackReviewMonth[];
+  /** False when ENABLE_QUARTERLY_REVIEWS is off — compile is unavailable. */
+  canCompile: boolean;
+};
+
+const ReviewSchema = z.object({
+  subjectUserId: z.string().min(1),
+});
+
+/**
+ * Everything Leadership needs to read a member's feedback and close the loop:
+ * the CONFIDENTIAL responses grouped by month (newest first), who is still
+ * pending, and whether each month already has a compiled CheckIn.
+ *
+ * The body read goes through `getFeedbackResponsesForSubject`, which enforces
+ * `requireLeadership()` itself — re-asserted here so the boundary holds even
+ * if that internal changes. Page-level flag: ENABLE_PEOPLE_DASHBOARD (reading
+ * responses does not require the emails flag — requests may predate it).
+ */
+export async function loadFeedbackReviewForSubject(
+  input: z.input<typeof ReviewSchema>
+): Promise<FeedbackReview> {
+  if (!isPeopleDashboardEnabled()) {
+    throw new Error("The People dashboard is not enabled");
+  }
+  await requireLeadership();
+
+  const { subjectUserId } = ReviewSchema.parse(input);
+
+  const subject = await prisma.user.findUnique({
+    where: { id: subjectUserId },
+    select: { id: true, name: true, email: true },
+  });
+  if (!subject) throw new Error("Member not found");
+
+  const responses = await getFeedbackResponsesForSubject(subjectUserId);
+
+  const byMonth = new Map<string, FeedbackReviewMonth>();
+  for (const row of responses) {
+    const monthKey = monthKeyUTC(row.month);
+    let month = byMonth.get(monthKey);
+    if (!month) {
+      month = {
+        monthKey,
+        monthLabel: monthLabelUTC(row.month),
+        submitted: [],
+        pending: [],
+        checkIn: null,
+      };
+      byMonth.set(monthKey, month);
+    }
+    const collaboratorName =
+      row.collaborator.name || row.collaborator.email || "Unnamed collaborator";
+    if (row.submittedAt && row.responseBody) {
+      month.submitted.push({
+        id: row.id,
+        collaboratorName,
+        submittedAtISO: row.submittedAt.toISOString(),
+        responseBody: row.responseBody,
+      });
+    } else {
+      month.pending.push({ id: row.id, collaboratorName });
+    }
+  }
+
+  // Attach the compiled CheckIn state for each month that has requests.
+  const monthStarts = Array.from(byMonth.keys())
+    .map((key) => parseMonthKey(key))
+    .filter((d): d is Date => d !== null);
+  if (monthStarts.length > 0) {
+    const checkIns = await prisma.checkIn.findMany({
+      where: { userId: subjectUserId, month: { in: monthStarts } },
+      select: { month: true, performanceRating: true, createdAt: true },
+    });
+    for (const checkIn of checkIns) {
+      const month = byMonth.get(monthKeyUTC(checkIn.month));
+      if (month) {
+        month.checkIn = {
+          performanceRating: checkIn.performanceRating,
+          compiledAtISO: checkIn.createdAt.toISOString(),
+        };
+      }
+    }
+  }
+
+  // Newest month first; within a month, newest response first.
+  const months = Array.from(byMonth.values()).sort((a, b) =>
+    b.monthKey.localeCompare(a.monthKey)
+  );
+  for (const month of months) {
+    month.submitted.sort((a, b) => b.submittedAtISO.localeCompare(a.submittedAtISO));
+  }
+
+  return {
+    subject: { id: subject.id, name: subject.name ?? subject.email },
+    months,
+    canCompile: isQuarterlyReviewsEnabled(),
+  };
 }
