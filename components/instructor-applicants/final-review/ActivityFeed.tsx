@@ -79,31 +79,13 @@ export default function ActivityFeed({ application }: ActivityFeedProps) {
 
   return (
     <section
-      className="cockpit-activity-feed"
+      className="flex flex-col gap-3 rounded-[16px] border border-line bg-surface p-5 shadow-card"
       aria-label="Activity feed"
-      style={{
-        background: "var(--cockpit-surface, #fff)",
-        border: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
-        borderRadius: 16,
-        padding: 20,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
     >
-      <p
-        style={{
-          margin: 0,
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "var(--ink-muted, #6b5f7a)",
-        }}
-      >
+      <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
         Activity feed · {items.length} item{items.length === 1 ? "" : "s"}
       </p>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+      <ul className="m-0 flex list-none flex-col gap-3 p-0">
         {items.map((item) => {
           const focused = focusedReviewerId === item.reviewerId;
           const pinned = pinnedIds.includes(item.id);
@@ -112,28 +94,20 @@ export default function ActivityFeed({ application }: ActivityFeedProps) {
           return (
             <li
               key={item.id}
-              style={{
-                padding: 12,
-                borderRadius: 12,
-                border: "1px solid var(--cockpit-line, rgba(71,85,105,0.14))",
-                background: focused
-                  ? "var(--ypp-purple-50, #f3ecff)"
-                  : "var(--cockpit-surface-strong, #faf8ff)",
-                borderLeft: pinned
-                  ? "3px solid var(--ypp-purple-600, #6b21c8)"
-                  : "1px solid var(--cockpit-line, rgba(71,85,105,0.14))",
-                opacity: dim ? 0.55 : 1,
-                transition: "opacity 200ms ease, background 200ms ease",
-              }}
+              className={`rounded-[12px] border p-3 transition-opacity duration-200 ${
+                focused ? "bg-brand-50" : "bg-surface-soft"
+              } ${pinned ? "border-l-[3px] border-l-brand-600 border-line-soft" : "border-line-soft"} ${
+                dim ? "opacity-55" : "opacity-100"
+              }`}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between", flexWrap: "wrap" }}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <ReviewerIdentityChip
                   user={{ id: item.reviewerId, name: item.reviewerName }}
                   role={isReviewerNote ? "REVIEWER" : "INTERVIEWER"}
                   round={item.round ?? undefined}
                   size="sm"
                 />
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <div className="inline-flex items-center gap-1.5">
                   {item.recommendation ? (
                     <RecommendationBadge recommendation={item.recommendation} size="sm" />
                   ) : null}
@@ -149,23 +123,11 @@ export default function ActivityFeed({ application }: ActivityFeedProps) {
                     onClick={() => togglePin(item.id)}
                     aria-label={pinned ? "Unpin from rationale" : "Pin to rationale"}
                     aria-pressed={pinned}
-                    style={{
-                      background: pinned ? "var(--ypp-purple-100, #f0e6ff)" : "transparent",
-                      border: "1px solid",
-                      borderColor: pinned
-                        ? "var(--ypp-purple-400, #b47fff)"
-                        : "var(--cockpit-line, rgba(71,85,105,0.2))",
-                      borderRadius: 8,
-                      width: 28,
-                      height: 28,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                      color: pinned
-                        ? "var(--ypp-purple-700, #5a1da8)"
-                        : "var(--ink-muted, #6b5f7a)",
-                    }}
+                    className={`inline-flex size-7 cursor-pointer items-center justify-center rounded-[8px] border ${
+                      pinned
+                        ? "border-brand-400 bg-brand-100 text-brand-700"
+                        : "border-line bg-transparent text-ink-muted"
+                    }`}
                   >
                     <PinIcon size={14} />
                   </button>
@@ -174,15 +136,7 @@ export default function ActivityFeed({ application }: ActivityFeedProps) {
                       type="button"
                       onClick={() => quoteIntoRationale(item.summary ?? "")}
                       title="Quote into rationale"
-                      style={{
-                        background: "none",
-                        border: "none",
-                        padding: "0 4px",
-                        color: "var(--ypp-purple-700, #5a1da8)",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
+                      className="cursor-pointer border-0 bg-transparent px-1 text-[11px] font-semibold text-brand-700"
                     >
                       Quote
                     </button>
@@ -190,15 +144,7 @@ export default function ActivityFeed({ application }: ActivityFeedProps) {
                 </div>
               </div>
               {item.summary ? (
-                <p
-                  style={{
-                    margin: "8px 0 0",
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                    color: "var(--ink-default, #1a0533)",
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
+                <p className="m-0 mt-2 whitespace-pre-wrap text-[13px] leading-normal text-ink">
                   {item.summary}
                 </p>
               ) : null}
@@ -220,7 +166,7 @@ function renderCategories(
   const review = application.interviewReviews.find((r) => `interview-${r.id}` === item.id);
   if (!review || review.categories.length === 0) return null;
   return (
-    <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+    <div className="mt-2 flex flex-wrap gap-1.5">
       {review.categories.map((cat) => (
         <RatingChip
           key={`${item.id}-${cat.category}`}

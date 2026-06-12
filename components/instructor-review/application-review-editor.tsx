@@ -2,6 +2,23 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 
+import { buttonVariants } from "@/components/ui-v2";
+
+import {
+  CATEGORY_CARD,
+  CATEGORY_DESCRIPTION,
+  CATEGORY_TITLE,
+  CHECKBOX_ROW,
+  EDITOR_ACTIONS,
+  EDITOR_CALLOUT,
+  EDITOR_NOTICE,
+  EDITOR_PANEL,
+  EDITOR_WARNING,
+  FIELD_INPUT,
+  FIELD_LABEL,
+  RATING_GRID,
+  ratingOptionClass,
+} from "./editor-classes";
 import {
   INITIAL_REVIEW_RATING_OPTIONS,
   INSTRUCTOR_APPLICATION_NEXT_STEP_OPTIONS,
@@ -68,9 +85,11 @@ function buildInitialSignals(initialReview: ReviewSnapshot): SignalState[] {
 
 function FieldBlock({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="slideout-field">
-      <div className="slideout-field-label">{label}</div>
-      <div className="slideout-field-value" style={{ whiteSpace: "pre-wrap" }}>
+    <div>
+      <div className="text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
+        {label}
+      </div>
+      <div className="mt-0.5 whitespace-pre-wrap text-[13.5px] text-ink">
         {value?.trim() || "Not provided"}
       </div>
     </div>
@@ -131,7 +150,7 @@ export default function ApplicationReviewEditor({
   }
 
   return (
-    <form action={action} className="form-grid application-review-editor">
+    <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="applicationId" value={applicationId} />
       <input type="hidden" name="returnTo" value={returnTo} />
       <input type="hidden" name="categoriesJson" value={signalPayload} />
@@ -143,28 +162,28 @@ export default function ApplicationReviewEditor({
       <input type="hidden" name="draftOverrideReason" value="" />
 
       {!canEdit ? (
-        <div className="review-editor-notice">
+        <div className={EDITOR_NOTICE}>
           <p>
             This screen is locked because it has already been submitted. An admin can still edit it if needed.
           </p>
         </div>
       ) : null}
 
-      <div className="review-editor-panel">
+      <div className={EDITOR_PANEL}>
         <div>
           <h2>Rough Course Snapshot</h2>
           <p>
             Use this as a paper screen. The applicant will build the full curriculum later if hired.
           </p>
         </div>
-        <div className="grid grid-cols-[minmax(120px,220px)_minmax(0,1fr)] gap-x-[18px] gap-y-2.5 [&_dt]:m-0 [&_dt]:text-[11.5px] [&_dt]:font-bold [&_dt]:uppercase [&_dt]:tracking-[0.05em] [&_dt]:text-ink-muted [&_dd]:m-0 [&_dd]:whitespace-pre-wrap [&_dd]:text-[13.5px] [&_dd]:text-ink">
+        <div className="grid gap-3">
           <FieldBlock label="Class Idea" value={roughPlan.courseIdea} />
           <FieldBlock label="Rough Outline" value={roughPlan.courseOutline} />
           <FieldBlock label="First-Session Sketch" value={roughPlan.firstClassPlan} />
         </div>
       </div>
 
-      <div className="review-editor-panel">
+      <div className={EDITOR_PANEL}>
         <div>
           <h2>Initial Review Signals</h2>
           <p>
@@ -175,15 +194,15 @@ export default function ApplicationReviewEditor({
         {INSTRUCTOR_INITIAL_REVIEW_SIGNALS.map((signal) => {
           const current = signals.find((entry) => entry.category === signal.key)!;
           return (
-            <div key={signal.key} className="review-category-card">
+            <div key={signal.key} className={CATEGORY_CARD}>
               <div>
-                <div className="review-category-title">{signal.label}</div>
-                <div className="review-category-description">
+                <div className={CATEGORY_TITLE}>{signal.label}</div>
+                <div className={CATEGORY_DESCRIPTION}>
                   {signal.description}
                 </div>
               </div>
 
-              <div className="review-rating-grid review-rating-grid-compact">
+              <div className={RATING_GRID}>
                 {INITIAL_REVIEW_RATING_OPTIONS.map((option) => {
                   const selected = current.rating === option.value;
                   return (
@@ -192,12 +211,11 @@ export default function ApplicationReviewEditor({
                       type="button"
                       disabled={!canEdit}
                       onClick={() => updateSignalRating(signal.key, option.value)}
-                      className={`review-rating-option${selected ? " is-selected" : ""}`}
+                      className={ratingOptionClass(selected)}
                       style={
-                        {
-                          "--rating-color": option.color,
-                          "--rating-bg": option.bg,
-                        } as CSSProperties
+                        (selected
+                          ? { color: option.color, background: option.bg }
+                          : { color: option.color }) as CSSProperties
                       }
                     >
                       <div>{option.shortLabel}</div>
@@ -211,17 +229,17 @@ export default function ApplicationReviewEditor({
         })}
 
         {hasRedSignal ? (
-          <div className="review-editor-warning">
+          <div className={EDITOR_WARNING}>
             One or more signals are red. You can still move forward, but use the summary to explain why an interview is still appropriate.
           </div>
         ) : null}
       </div>
 
-      <div className="review-editor-panel">
-        <label className="form-row">
+      <div className={EDITOR_PANEL}>
+        <label className={FIELD_LABEL}>
           Internal Summary
           <textarea
-            className="input"
+            className={FIELD_INPUT}
             name="summary"
             rows={4}
             value={summary}
@@ -233,10 +251,10 @@ export default function ApplicationReviewEditor({
         </label>
 
         {isLeadReviewer ? (
-          <label className="form-row">
+          <label className={FIELD_LABEL}>
             Next Step
             <select
-              className="input"
+              className={FIELD_INPUT}
               name="nextStep"
               value={nextStep}
               required={canEdit}
@@ -254,20 +272,20 @@ export default function ApplicationReviewEditor({
             </select>
           </label>
         ) : (
-          <div className="review-editor-callout">
+          <div className={EDITOR_CALLOUT}>
             Your review will inform the lead reviewer&apos;s official next-step decision.
             <input type="hidden" name="nextStep" value="" />
           </div>
         )}
 
         {moveToInterviewNeedsLead ? (
-          <div className="review-editor-warning">
+          <div className={EDITOR_WARNING}>
             Assign a lead interviewer before submitting Move to Interview. The lead will send exactly 3 proposed times to the applicant.
           </div>
         ) : null}
 
         {showApplicantMessage ? (
-          <label className="form-row">
+          <label className={FIELD_LABEL}>
             Applicant-Facing Message
             <textarea
               className="input"
@@ -284,7 +302,7 @@ export default function ApplicationReviewEditor({
           <input type="hidden" name="applicantMessage" value={applicantMessage} />
         )}
 
-        <label className="review-checkbox-row">
+        <label className={CHECKBOX_ROW}>
           <input
             type="checkbox"
             checked={flagForLeadership}
@@ -296,9 +314,9 @@ export default function ApplicationReviewEditor({
         <input type="hidden" name="flagForLeadership" value={flagForLeadership ? "true" : "false"} />
       </div>
 
-      <div className="review-editor-actions">
+      <div className={EDITOR_ACTIONS}>
         <button
-          className="button secondary"
+          className={buttonVariants({ variant: "secondary", size: "md" })}
           type="submit"
           name="intent"
           value="save"
@@ -308,7 +326,7 @@ export default function ApplicationReviewEditor({
           Save Draft
         </button>
         <button
-          className="button"
+          className={buttonVariants({ variant: "primary", size: "md" })}
           type="submit"
           name="intent"
           value="submit"

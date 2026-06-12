@@ -38,34 +38,37 @@ export function KeyboardHelp({ open, onClose }: { open: boolean; onClose: () => 
   if (!open) return null;
   return (
     <div
-      className="iv-live-help-overlay"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-5"
       role="dialog"
       aria-modal="true"
       aria-label="Keyboard shortcuts"
       onClick={onClose}
     >
-      <div className="iv-live-help-panel" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="w-full max-w-md rounded-[14px] border border-line bg-surface p-5 shadow-[0_18px_50px_rgb(26_5_51/0.25)] [&>header]:mb-3 [&>header]:flex [&>header]:items-center [&>header]:justify-between [&>header>h2]:m-0 [&>header>h2]:text-[16px] [&>header>h2]:font-bold [&>header>h2]:text-ink"
+        onClick={(event) => event.stopPropagation()}
+      >
         <header>
           <h2>Keyboard shortcuts</h2>
           <button
             type="button"
-            className="button outline small"
+            className="cursor-pointer rounded-[8px] border border-line bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-ink hover:bg-surface-soft"
             onClick={onClose}
           >
             Close
           </button>
         </header>
-        <dl className="iv-live-help-list">
+        <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 [&_dd]:m-0 [&_dd]:text-[13px] [&_dd]:text-ink [&_dt]:text-[12px] [&_dt]:text-ink-muted">
           {ENTRIES.map((entry) => (
             <div key={entry.description} style={{ display: "contents" }}>
               <dt>
                 {entry.keys.map((key, index) => (
                   <span key={index} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                    {index > 0 ? <span className="iv-kbd-plus">+</span> : null}
+                    {index > 0 ? <span className="text-[11px] text-ink-muted">+</span> : null}
                     {isMod(key) ? (
                       <>
                         <Kbd>⌘</Kbd>
-                        <span className="iv-kbd-plus">+</span>
+                        <span className="text-[11px] text-ink-muted">+</span>
                         <Kbd>{key.key}</Kbd>
                       </>
                     ) : (

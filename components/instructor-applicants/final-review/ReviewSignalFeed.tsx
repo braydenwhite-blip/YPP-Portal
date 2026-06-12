@@ -129,17 +129,8 @@ export default function ReviewSignalFeed({
 
   return (
     <section
-      className="review-signal-feed"
+      className="flex flex-col gap-3 rounded-[16px] border border-line bg-surface p-5 shadow-card"
       aria-label="Review signals"
-      style={{
-        background: "var(--cockpit-surface, #fff)",
-        border: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
-        borderRadius: 16,
-        padding: 20,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
         <p

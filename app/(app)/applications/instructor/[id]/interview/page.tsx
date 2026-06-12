@@ -1,5 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
+
+import { buttonVariants } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
@@ -108,39 +110,42 @@ export default async function InterviewerWorkspacePage({
   const applicantDisplayName = formatApplicantDisplayName(application);
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <div className="iv-live-topbar">
-        <div className="iv-live-topbar-left">
-          <Link href={`/applications/instructor/${id}`} className="iv-live-topbar-back">
+    <div className="min-h-screen bg-surface-soft pb-10">
+      {/* Sticky workspace top bar */}
+      <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-2 border-b border-line-soft bg-surface/95 px-6 py-2.5 backdrop-blur">
+        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <Link
+            href={`/applications/instructor/${id}`}
+            className="whitespace-nowrap text-[13px] font-semibold text-brand-700 hover:underline"
+          >
             ← Back to Applicant
           </Link>
-          <span className="iv-live-topbar-title">
+          <span className="flex min-w-0 items-center text-[14px] font-bold text-ink">
             Live Interview Workspace
-            <span
-              style={{
-                marginLeft: 10,
-                paddingLeft: 10,
-                borderLeft: "1px solid var(--border)",
-                fontWeight: 600,
-                color: "var(--muted)",
-              }}
-            >
+            <span className="ml-2.5 truncate border-l border-line pl-2.5 font-semibold text-ink-muted">
               with {applicantDisplayName}
             </span>
           </span>
         </div>
-        <div className="iv-live-topbar-right">
+        <div className="flex items-center gap-2">
+          {actorIsAdmin ? (
+            <Link
+              href={`/admin/instructor-applicants/${id}`}
+              className="whitespace-nowrap text-[12.5px] font-semibold text-brand-700 hover:underline"
+            >
+              Application 360 →
+            </Link>
+          ) : null}
           <Link
             href="#section-pre-brief"
-            className="button outline small"
-            style={{ textDecoration: "none" }}
+            className={buttonVariants({ variant: "secondary", size: "sm" })}
           >
             View brief
           </Link>
         </div>
       </div>
 
-      <div className="iv-live-content">
+      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-4 px-6 py-5">
         {workspace ? (
           <InterviewReviewEditor
             action={saveInstructorInterviewReviewAction as (fd: FormData) => void}
@@ -155,9 +160,8 @@ export default async function InterviewerWorkspacePage({
           />
         ) : (
           <div
-            className="iv-card iv-card-tone-warning iv-card-body"
+            className="rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900"
             role="status"
-            style={{ fontSize: 13 }}
           >
             Interview evaluation is not yet available. The applicant must be in the interview stage
             first.
@@ -166,17 +170,9 @@ export default async function InterviewerWorkspacePage({
 
         {/* Pre-interview brief — sibling, always available, collapsed by default */}
         <section id="section-pre-brief" aria-labelledby="section-pre-brief-heading">
-          <details className="interview-brief-collapsible">
+          <details>
             <summary
-              className="iv-card iv-card-body"
-              style={{
-                cursor: "pointer",
-                fontSize: 14,
-                fontWeight: 700,
-                color: "var(--text)",
-                listStyle: "revert",
-                marginBottom: 12,
-              }}
+              className="mb-3 cursor-pointer rounded-[12px] border border-line-soft bg-surface px-4 py-3 text-[14px] font-bold text-ink shadow-card hover:bg-surface-soft"
               id="section-pre-brief-heading"
             >
               Pre-Interview Brief (initial review)
