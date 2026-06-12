@@ -53,7 +53,7 @@ export default async function WeeklyExecutionPage() {
         showStrategic={isStrategicInitiativesEnabled()}
         eyebrow="YPP Leadership OS"
         title="Weekly Execution"
-        subtitle="Run the weekly officer meeting: build the agenda, capture the meeting, resolve loose ends, and draft the recap."
+        subtitle="Run the weekly officer meeting: build the agenda, capture decisions and follow-ups, and draft the recap."
         meta={`${os.snapshot.urgent} urgent | ${os.snapshot.initiativesNeedingAttention} initiatives | ${os.snapshot.communicationsNeeded} communications`}
         actions={
           <>
@@ -61,7 +61,7 @@ export default async function WeeklyExecutionPage() {
               Back to command center
             </Link>
             <Link href="/actions/new" className="button small">
-              + New action
+              Create action
             </Link>
           </>
         }

@@ -94,7 +94,7 @@ export function CommandCenterHero({
             Run weekly execution meeting
           </Link>
           <Link href="/actions/new" className="button outline small">
-            + New action
+            Create action
           </Link>
         </>
       }

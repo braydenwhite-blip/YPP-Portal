@@ -43,7 +43,7 @@ import {
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Detail · People Strategy" };
@@ -282,7 +282,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
       {/* Persistent tabs so the detail view is reachable-from / returns-to the
           rest of the tracker (comment #17). Officers only — other viewers reach
           a detail page solely from My Actions. */}
-      {officer && <ActionTrackerTabs showPeople={showPeople} />}
+      {officer && <ActionTrackerTabsV2 showPeople={showPeople} />}
       <ActionDetailCard
         item={detail}
         canEdit={canEdit}

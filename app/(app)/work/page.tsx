@@ -10,8 +10,8 @@ import {
   FilterChipLink,
   PageHeaderV2,
   RecordSection,
-  StatCardV2,
   StatusBadge,
+  TrackerStartCard,
   UrlSyncedSearchInput,
 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
@@ -38,15 +38,15 @@ export const metadata = {
   title: "Work — Pathways Portal",
 };
 
-const VIEWS = ["all", "actions", "meetings", "initiatives", "mine", "attention"] as const;
+const VIEWS = ["attention", "mine", "actions", "meetings", "initiatives", "all"] as const;
 type WorkView = (typeof VIEWS)[number];
 
 const VIEW_LABELS: Record<WorkView, string> = {
-  all: "All work",
+  all: "All",
   actions: "Actions",
   meetings: "Meetings",
   initiatives: "Initiatives",
-  mine: "My queue",
+  mine: "My work",
   attention: "Needs attention",
 };
 
@@ -59,7 +59,7 @@ const VIEW_ALIASES: Record<string, WorkView> = {
 
 function asView(value: string | undefined): WorkView {
   if (value && VIEW_ALIASES[value]) return VIEW_ALIASES[value];
-  return (VIEWS as readonly string[]).includes(value ?? "") ? (value as WorkView) : "all";
+  return (VIEWS as readonly string[]).includes(value ?? "") ? (value as WorkView) : "attention";
 }
 
 function workHref(params: {
@@ -83,6 +83,40 @@ const SEVERITY_TONE: Record<string, "danger" | "warning" | "info"> = {
   watch: "info",
   neutral: "info",
 };
+
+function workStart({
+  stats,
+  myWorkCount,
+}: {
+  stats: Awaited<ReturnType<typeof loadWorkHub>>["stats"];
+  myWorkCount: number;
+}): { title: string; description: string; href: string; label: string } {
+  if (stats.needsAttention > 0) {
+    return {
+      title: "Review the work that needs attention first.",
+      description:
+        "This queue gathers overdue work, blockers, missing owners, open meeting follow-ups, and records with no clear next step.",
+      href: workHref({ view: "needs-attention" }),
+      label: "Review needs attention",
+    };
+  }
+  if (myWorkCount > 0) {
+    return {
+      title: "Your own queue is the best next stop.",
+      description:
+        "Nothing is currently flagged across the portal, so start with the actions and meetings connected to you.",
+      href: workHref({ view: "my" }),
+      label: "Open my work",
+    };
+  }
+  return {
+    title: "The work queues are calm right now.",
+    description:
+      "Create a new action when something needs an owner, or log a meeting when decisions and follow-ups need to be captured.",
+    href: "/actions/new",
+    label: "Create action",
+  };
+}
 
 function fmtDay(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -126,6 +160,10 @@ export default async function WorkHubPage({
 
   const now = new Date();
   const data = await loadWorkHub(viewer, { now });
+  const myWorkCount =
+    data.rows.filter((row) => row.mine).length +
+    data.meetingRows.filter((row) => row.mine).length;
+  const start = workStart({ stats: data.stats, myWorkCount });
 
   // The table's row set per view, then flag + search narrowing.
   let rows =
@@ -156,18 +194,19 @@ export default async function WorkHubPage({
     ? (rows.find((row) => row.entityLabel)?.entityLabel ?? entity.type)
     : null;
 
-  const showTable = view !== "initiatives" && view !== "attention";
+  const showAttentionSummary = view === "attention" && !flag && !q && !entity;
+  const showTable = view !== "initiatives" && !showAttentionSummary;
 
   return (
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
       <PageHeaderV2
-        eyebrow="Knowledge OS"
+        eyebrow="Work"
         title="Work"
-        subtitle="Everything that needs doing — actions, meeting follow-ups, partner requests, advisor check-ins, and applicant next steps — triaged worst-first in one place."
+        subtitle="Actions, meeting follow-ups, blockers, and next steps across YPP."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <ButtonLink href="/actions/new" variant="primary" size="md">
-              New action
+              Create action
             </ButtonLink>
             <ButtonLink href="/actions/meetings?new=1" variant="secondary" size="md">
               Log meeting
@@ -175,88 +214,98 @@ export default async function WorkHubPage({
           </div>
         }
       >
-        <div className="flex flex-col gap-4">
-          <HomeSearchButton />
-          {/* Click-to-filter stat strip — every count lands on its filtered view. */}
-          <div className="flex flex-wrap gap-3">
-            <StatCardV2
-              label="Overdue"
-              value={data.stats.overdue}
-              detail="past their date"
-              tone={data.stats.overdue > 0 ? "attention" : "default"}
-              href={workHref({ flag: "overdue" })}
-            />
-            <StatCardV2
-              label="Due soon"
-              value={data.stats.dueSoon}
-              detail="within 7 days"
-              href={workHref({ flag: "due-soon" })}
-            />
-            <StatCardV2
-              label="Blocked"
-              value={data.stats.blocked}
-              tone={data.stats.blocked > 0 ? "attention" : "default"}
-              href={workHref({ flag: "blocked" })}
-            />
-            <StatCardV2
-              label="Needs an owner"
-              value={data.stats.unowned}
-              tone={data.stats.unowned > 0 ? "attention" : "default"}
-              href={workHref({ flag: "unowned" })}
-            />
-            <StatCardV2
-              label="Needs attention"
-              value={data.stats.needsAttention}
-              detail="cross-domain, with reasons"
-              tone={data.stats.needsAttention > 0 ? "attention" : "default"}
-              href={workHref({ view: "attention" })}
-            />
-            <StatCardV2
-              label="Upcoming meetings"
-              value={data.stats.upcomingMeetings}
-              href={workHref({ view: "meetings" })}
-            />
-          </div>
-        </div>
+        <HomeSearchButton />
       </PageHeaderV2>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <FilterBar aria-label="Work views">
-          {VIEWS.map((value) => (
-            <FilterChipLink
-              key={value}
-              href={workHref({ view: value, q, entity: entityParam })}
-              active={view === value && !flag}
-            >
-              {VIEW_LABELS[value]}
-            </FilterChipLink>
-          ))}
-          <span aria-hidden className="mx-1 h-5 w-px bg-line" />
-          {WORK_HUB_FLAGS.map((value) => (
-            <FilterChipLink
-              key={value}
-              href={workHref({ view, flag: value, q, entity: entityParam })}
-              active={flag === value}
-            >
-              {WORK_HUB_FLAG_LABELS[value]}
-            </FilterChipLink>
-          ))}
-          {entity ? (
-            <>
-              <span aria-hidden className="mx-1 h-5 w-px bg-line" />
-              <FilterChipLink href={workHref({ view, flag: flag ?? undefined, q })} active>
-                {entityLabel} ✕
+      <TrackerStartCard
+        title={start.title}
+        description={start.description}
+        action={
+          <ButtonLink href={start.href} variant="secondary" size="sm">
+            {start.label}
+          </ButtonLink>
+        }
+        facts={[
+          {
+            label: "need attention",
+            value: data.stats.needsAttention,
+            href: workHref({ view: "needs-attention" }),
+            tone: data.stats.needsAttention > 0 ? "attention" : "default",
+          },
+          {
+            label: "your work",
+            value: myWorkCount,
+            href: workHref({ view: "my" }),
+          },
+          {
+            label: "blocked",
+            value: data.stats.blocked,
+            href: workHref({ flag: "blocked" }),
+            tone: data.stats.blocked > 0 ? "danger" : "default",
+          },
+          {
+            label: "upcoming meetings",
+            value: data.stats.upcomingMeetings,
+            href: workHref({ view: "meetings" }),
+          },
+        ]}
+      />
+
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <FilterBar aria-label="Work views">
+            {VIEWS.map((value) => (
+              <FilterChipLink
+                key={value}
+                href={workHref({ view: value, q, entity: entityParam })}
+                active={view === value && !flag}
+              >
+                {VIEW_LABELS[value]}
               </FilterChipLink>
-            </>
+            ))}
+            {entity ? (
+              <>
+                <span aria-hidden className="mx-1 h-5 w-px bg-line" />
+                <FilterChipLink href={workHref({ view, flag: flag ?? undefined, q })} active>
+                  {entityLabel} ✕
+                </FilterChipLink>
+              </>
+            ) : null}
+          </FilterBar>
+          {showTable ? (
+            <UrlSyncedSearchInput
+              placeholder="Search work, owners, or entities…"
+              wrapClassName="w-full sm:w-72"
+              aria-label="Search work"
+            />
           ) : null}
-        </FilterBar>
-        {showTable ? (
-          <UrlSyncedSearchInput
-            placeholder="Search work, owners, or entities…"
-            wrapClassName="w-full sm:w-72"
-            aria-label="Search work"
-          />
-        ) : null}
+        </div>
+
+        <details
+          open={!!flag}
+          className="rounded-[10px] border border-line-soft bg-surface px-3.5 py-2"
+        >
+          <summary className="cursor-pointer text-[12.5px] font-semibold text-ink-muted">
+            More filters{flag ? ` · ${WORK_HUB_FLAG_LABELS[flag]}` : ""}
+          </summary>
+          <FilterBar aria-label="Work status filters" className="mt-2">
+            <FilterChipLink
+              href={workHref({ view, q, entity: entityParam })}
+              active={!flag}
+            >
+              Any status
+            </FilterChipLink>
+            {WORK_HUB_FLAGS.map((value) => (
+              <FilterChipLink
+                key={value}
+                href={workHref({ view, flag: value, q, entity: entityParam })}
+                active={flag === value}
+              >
+                {WORK_HUB_FLAG_LABELS[value]}
+              </FilterChipLink>
+            ))}
+          </FilterBar>
+        </details>
       </div>
 
       {showTable ? (
@@ -270,10 +319,10 @@ export default async function WorkHubPage({
         </>
       ) : null}
 
-      {view === "attention" ? (
+      {showAttentionSummary ? (
         <RecordSection
           title="Needs attention"
-          description="Cross-domain queue, worst first — each with the reason and the next move."
+          description="Start here. These are the items most likely to need a leader today."
         >
           {data.attention.length === 0 ? (
             <p className="m-0 text-[13.5px] text-ink-muted">
@@ -306,7 +355,7 @@ export default async function WorkHubPage({
                       href={item.href}
                       className="text-[12.5px] font-semibold text-brand-700 hover:underline"
                     >
-                      Act →
+                      Open →
                     </a>
                   </div>
                   <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
@@ -325,10 +374,10 @@ export default async function WorkHubPage({
       {view === "initiatives" ? (
         <RecordSection
           title="Initiatives"
-          description="Active and planning initiatives, worst health first — the reasons are always shown beside the level."
+          description="Initiatives with concrete reasons shown beside each status."
           action={
             <ButtonLink href="/operations/initiatives" variant="ghost" size="sm">
-              Initiative workspace →
+              Advanced initiative tools →
             </ButtonLink>
           }
         >
@@ -392,7 +441,7 @@ export default async function WorkHubPage({
           {/* Action System 4.0 — who owns what (accountability summary). */}
           <RecordSection
             title="Who owns what"
-            description="Open actions per owner, most concerning first."
+            description="Open actions per owner, with overdue and blocked work called out."
           >
             {data.accountability.length === 0 ? (
               <p className="m-0 text-[13.5px] text-ink-muted">No open actions.</p>
@@ -423,7 +472,7 @@ export default async function WorkHubPage({
           {/* Action System 4.0 — the weekly action review counts. */}
           <RecordSection
             title="This week"
-            description="The action half of weekly review — explicit numbers, no pulse scores."
+            description="What changed this week, using only concrete counts."
           >
             <p className="m-0 text-[13.5px] text-ink">
               {data.weeklyReview.completedThisWeek} completed ·{" "}
@@ -456,8 +505,8 @@ export default async function WorkHubPage({
 
       {view === "meetings" && data.decisionsWithoutActions.length > 0 ? (
         <RecordSection
-          title="Decisions without actions"
-          description="Meeting decisions that never became tracked work — convert them or close them out."
+          title="Decisions needing actions"
+          description="Meeting decisions that still need someone assigned to carry them out."
         >
           <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
             {data.decisionsWithoutActions.map((decision) => (

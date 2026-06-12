@@ -160,9 +160,9 @@ describe("WeeklyExecutionOSView", () => {
 
     expect(screen.getByRole("heading", { name: "1. Build agenda" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "2. Capture meeting" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "3. Resolve loose ends" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "3. Resolve follow-ups" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "4. Draft recap" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Loose ends" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Follow-ups" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Communications needed" })).toBeInTheDocument();
 
     expect(screen.getByText("Blocked: clarify STEM curriculum direction")).toBeInTheDocument();
@@ -193,7 +193,7 @@ describe("WeeklyExecutionOSView", () => {
     });
     render(<WeeklyExecutionOSView os={empty} people={people} currentUserId="u1" />);
     expect(screen.getByText(/No urgent agenda items/)).toBeInTheDocument();
-    expect(screen.getByText("No loose ends.")).toBeInTheDocument();
+    expect(screen.getByText("No open follow-ups.")).toBeInTheDocument();
     expect(
       screen.getByText(/Every meeting output has either been resolved or converted into an action/)
     ).toBeInTheDocument();

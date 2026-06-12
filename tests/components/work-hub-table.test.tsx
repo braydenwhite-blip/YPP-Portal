@@ -48,14 +48,15 @@ function row(overrides: Partial<WorkHubRow> = {}): WorkHubRow {
 }
 
 describe("WorkHubTable", () => {
-  it("renders the unified columns: work, type, owner, status, related entity", () => {
+  it("renders the simplified row: work, owner and due date, status, next step, action", () => {
     render(<WorkHubTable rows={[row()]} />);
     expect(screen.getByText("Call the venue")).toBeInTheDocument();
-    expect(screen.getByText("Action")).toBeInTheDocument();
+    expect(screen.getAllByText("Action").length).toBeGreaterThan(0);
     expect(screen.getByText("Jordan")).toBeInTheDocument();
     expect(screen.getByText("Overdue 3d")).toBeInTheDocument();
     expect(screen.getByText("Beth El")).toBeInTheDocument();
     expect(screen.getByText("From meeting: Leadership sync")).toBeInTheDocument();
+    expect(screen.getByText("Confirm the date")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open/ })).toHaveAttribute(
       "href",
       "/actions/a1"
@@ -78,7 +79,7 @@ describe("WorkHubTable", () => {
         ]}
       />
     );
-    expect(screen.getByText("Unowned")).toBeInTheDocument();
+    expect(screen.getByText("Needs owner")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Convert to action/ })
     ).toHaveAttribute("href", "/actions/new?x=1");

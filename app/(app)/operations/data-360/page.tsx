@@ -63,9 +63,9 @@ export default async function Data360Page() {
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
       <LegacySurfaceBanner
-        title="Work Hub is the front door for the unified work list now."
-        body="The triaged work board, attention queue, and my-queue live at /work — this page keeps the connected-data explorer and quick find."
-        ctaLabel="Open Work Hub"
+        title="Work is the front door for the unified work list now."
+        body="The triaged work board, attention queue, and my-work view live at /work — this page keeps the connected-data explorer and quick find."
+        ctaLabel="Open Work"
         ctaHref="/work"
       />
       <StrategicWorkspaceHeader

@@ -119,10 +119,10 @@ export function MeetingDetailClient({
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
               <MeetingButton variant="outline" icon="flag" onClick={() => setDrawer({ create: false })}>
-                Add Follow-Up
+                Add follow-up
               </MeetingButton>
               <MeetingButton variant="outline" icon="bolt" onClick={() => setDrawer({ create: true })}>
-                Create Action
+                Create action
               </MeetingButton>
             </div>
           </div>
@@ -135,7 +135,7 @@ export function MeetingDetailClient({
           </div>
           <HealthStat icon="list" value={`${meeting.agendaDoneCount}/${meeting.agendaCount}`} label="Agenda done" />
           <HealthStat icon="checkCircle" value={meeting.decisionCount} label="Decisions" />
-          <HealthStat icon="flag" value={meeting.openFollowUps} label="Loose ends" />
+          <HealthStat icon="flag" value={meeting.openFollowUps} label="Open follow-ups" />
           <HealthStat icon="bolt" value={meeting.linkedActions.length} label="Actions created" />
           <HealthStat icon="alert" value={overdue} label="Overdue" danger={overdue > 0} />
         </div>
@@ -152,20 +152,20 @@ export function MeetingDetailClient({
           </strong>
           , and{" "}
           <strong style={{ color: meeting.openFollowUps > 0 ? "var(--warn-fg, #854d0e)" : "var(--ypp-ink)" }}>
-            {meeting.openFollowUps} loose end{meeting.openFollowUps === 1 ? "" : "s"}
+            {meeting.openFollowUps} follow-up{meeting.openFollowUps === 1 ? "" : "s"}
           </strong>
-          .{meeting.openFollowUps > 0 ? " Resolve the loose ends below before they slip." : " Nothing is left hanging."}
+          .{meeting.openFollowUps > 0 ? " Resolve the follow-ups below before they slip." : " Nothing is left hanging."}
         </div>
       </Card>
 
       {/* body two-col */}
       <div className="detail-cols" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 16, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <AgendaSection meeting={meeting} pending={pending} run={run} />
-          <NotesSection meeting={meeting} pending={pending} run={run} />
-          <DecisionsSection meeting={meeting} people={people} pending={pending} run={run} />
           <FollowUpsSection meeting={meeting} pending={pending} run={run} onAdd={() => setDrawer({ create: false })} />
           <LinkedActionsSection actions={meeting.linkedActions} />
+          <DecisionsSection meeting={meeting} people={people} pending={pending} run={run} />
+          <AgendaSection meeting={meeting} pending={pending} run={run} />
+          <NotesSection meeting={meeting} pending={pending} run={run} />
         </div>
 
         {/* SIDE */}
@@ -581,7 +581,7 @@ function DecisionCard({
         ) : (
           <span style={{ fontSize: 12.5, color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
             <MeetingIcon name="alert" size={13} style={{ color: "var(--warn-fg)" }} />
-            Loose end — this decision has no action carrying it out yet
+            Decision needs an action
           </span>
         )}
         {!dec.linkedActionId && (
@@ -615,7 +615,7 @@ function FollowUpsSection({ meeting, pending, run, onAdd }: { meeting: MeetingDe
   const open = meeting.openFollowUps;
   return (
     <SectionBlock
-      title="Loose Ends"
+      title="Follow-ups and actions"
       icon="flag"
       count={open}
       right={
@@ -626,13 +626,13 @@ function FollowUpsSection({ meeting, pending, run, onAdd }: { meeting: MeetingDe
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <p style={{ margin: 0, fontSize: 12.5, color: "var(--muted)", lineHeight: 1.5 }}>
-          Meeting outputs that are not yet handled. Convert each one into an action with an owner
-          before it gets lost.
+          Meeting outputs that still need a next step. Create an action when a follow-up needs
+          an owner, due date, and accountability.
         </p>
         {overdue > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, fontWeight: 600, color: "var(--danger-fg)", background: "var(--danger-bg)", border: "1px solid #f3cccc", borderRadius: 10, padding: "9px 13px" }}>
             <MeetingIcon name="alert" size={15} />
-            {overdue} loose end{overdue > 1 ? "s are" : " is"} overdue — convert to tracked actions so they don&rsquo;t slip.
+            {overdue} follow-up{overdue > 1 ? "s are" : " is"} overdue — create actions so they don&rsquo;t slip.
           </div>
         )}
         {meeting.followUps.length ? (
@@ -641,7 +641,7 @@ function FollowUpsSection({ meeting, pending, run, onAdd }: { meeting: MeetingDe
           <EmptyState
             compact
             icon="flag"
-            title="No loose ends"
+            title="No open follow-ups"
             body="Every meeting output has either been resolved or converted into an action."
           />
         )}
@@ -696,13 +696,13 @@ function FollowUpCard({ f, pending, run }: { f: FollowUpDTO; pending: boolean; r
         ) : (
           <span style={{ fontSize: 12.5, color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
             <MeetingIcon name="alert" size={13} style={{ color: "var(--warn-fg)" }} />
-            Loose end — next step: convert this into an action and assign an owner
+            Follow-up still open — next step: create an action and assign an owner
           </span>
         )}
         <div style={{ display: "flex", gap: 7 }}>
           {!f.linkedActionId && (
             <MeetingButton size="sm" variant="outline" icon="bolt" disabled={pending} onClick={() => run(() => convertFollowUpToAction(f.id))}>
-              Convert to Action
+              Create action
             </MeetingButton>
           )}
           {!done && (
@@ -721,13 +721,13 @@ function FollowUpCard({ f, pending, run }: { f: FollowUpDTO; pending: boolean; r
 function LinkedActionsSection({ actions }: { actions: LinkedActionDTO[] }) {
   return (
     <SectionBlock
-      title="Actions From This Meeting"
+      title="Actions created"
       icon="bolt"
       count={actions.length}
       right={
         <Link href="/actions/all" style={{ textDecoration: "none" }}>
           <MeetingButton size="sm" variant="ghost" iconRight="arrowUpR">
-            Action Tracker
+            All actions
           </MeetingButton>
         </Link>
       }
@@ -739,7 +739,7 @@ function LinkedActionsSection({ actions }: { actions: LinkedActionDTO[] }) {
           ))}
         </div>
       ) : (
-        <EmptyState compact icon="bolt" title="No actions created yet" body="Decisions and loose ends you convert become tracked actions here, linked both ways." />
+        <EmptyState compact icon="bolt" title="No actions created yet" body="Decisions and follow-ups you convert become tracked actions here, linked both ways." />
       )}
     </SectionBlock>
   );

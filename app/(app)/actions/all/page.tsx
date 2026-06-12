@@ -246,22 +246,22 @@ export default async function AllActionsPage({
   return (
     <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-5">
       <LegacySurfaceBanner
-        title="Work Hub is the front door for browsing work now."
-        body="Actions, follow-ups, partner requests, and check-ins triage together there — this page keeps the filters, analytics, and CSV export."
-        ctaLabel="Open Work Hub"
+        title="Most leaders should start in Work."
+        body="Work gives a simpler queue for actions, follow-ups, blockers, and next steps. This page remains for advanced action filtering, analytics, and CSV export."
+        ctaLabel="Open Work"
         ctaHref="/work?view=actions"
       />
       <PageHeaderV2
-        eyebrow="Admin · People Strategy"
+        eyebrow="Advanced action tools"
         title="Action Tracker"
-        subtitle="Every leadership action item, grouped by department — leads, executors, and input owners at a glance."
+        subtitle="Use this when you need the full action database. For daily triage, use Work."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <ButtonLink href={exportHref} variant="secondary" size="md">
               Export CSV
             </ButtonLink>
             <ButtonLink href="/actions/new" variant="primary" size="md">
-              New action
+              Create action
             </ButtonLink>
           </div>
         }
@@ -274,17 +274,25 @@ export default async function AllActionsPage({
 
       <ActionTrackerTabsV2 active="all" showPeople={showPeopleDashboardTab} />
 
-      <ActionFiltersBar departments={departments} filters={filters} hasActive={filtersActive} />
+      <details
+        open={filtersActive}
+        className="rounded-[12px] border border-line-soft bg-surface px-4 py-3 shadow-card"
+      >
+        <summary className="cursor-pointer text-[13px] font-semibold text-ink">
+          Advanced filters{filtersActive ? " · active" : ""}
+        </summary>
+        <div className="mt-3 flex flex-col gap-3">
+          <ActionFiltersBar departments={departments} filters={filters} hasActive={filtersActive} />
+          <ActionPresetChips chips={presetChips} label="Quick views" />
+          <SavedViewsBar
+            views={savedViews}
+            currentQuery={exportQuery}
+            hasActiveFilters={filtersActive}
+          />
+        </div>
+      </details>
 
-      <ActionPresetChips chips={presetChips} />
-
-      <SavedViewsBar
-        views={savedViews}
-        currentQuery={exportQuery}
-        hasActiveFilters={filtersActive}
-      />
-
-      {/* Operational inbox (Action 4.0) — ranked triage lenses over the full
+      {/* Needs action (Action 4.0) — ranked triage lenses over the full
           visible board (not the current filter), so the most important work is
           always one glance away regardless of how the list is filtered. */}
       <ActionInboxGroups items={visible} now={now} />
@@ -330,7 +338,7 @@ export default async function AllActionsPage({
         <div className="rounded-[12px] border border-line-soft bg-surface px-4 py-4 text-[13.5px] text-ink-muted shadow-card">
           {filtersActive
             ? "No action items match the current filters."
-            : "No action items are visible yet. Create the first one with New action."}
+            : "No action items are visible yet. Create the first one with Create action."}
         </div>
       ) : (
         <div className="flex flex-col gap-5">

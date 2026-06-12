@@ -272,7 +272,7 @@ export default async function AdminInstructorRecordPage({
                 variant="primary"
                 size="md"
               >
-                New action
+                Create action
               </ButtonLink>
             ) : null}
             {record.application ? (

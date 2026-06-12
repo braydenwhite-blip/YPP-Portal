@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { CardV2 } from "@/components/ui-v2";
+
 import type {
   ActionLabel,
   ActionLabelTone,
@@ -12,7 +14,7 @@ import type {
 } from "@/lib/people-strategy/action-source";
 
 /**
- * Action System 4.0 — the per-action "mini command center" panel. Purely
+ * Action System 4.0 — the per-action "what matters now" panel. Purely
  * presentational (server component): the detail page computes the pure
  * derivations and passes them in, so this renders honest copy without any logic.
  */
@@ -60,7 +62,7 @@ export function ActionIntelPanel({
   meetingHref?: string | null;
 }) {
   return (
-    <section className="card" style={{ marginTop: 16, padding: 16 }} aria-label="What matters now">
+    <CardV2 as="section" padding="md" className="mt-4">
       {labels.length > 0 && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
           {labels.map((l) => (
@@ -79,7 +81,10 @@ export function ActionIntelPanel({
         {nextMove.ifIgnored}
       </p>
       <div style={{ marginTop: 10 }}>
-        <Link href={ctaHref} className="button small">
+        <Link
+          href={ctaHref}
+          className="inline-flex h-8 items-center justify-center rounded-[8px] bg-brand-600 px-3 text-[12.5px] font-semibold text-white hover:bg-brand-700"
+        >
           {nextMove.ctaLabel}
         </Link>
       </div>
@@ -88,7 +93,7 @@ export function ActionIntelPanel({
 
       <div style={{ display: "grid", gap: 8 }}>
         <div style={{ fontSize: 13 }}>
-          <span style={{ fontWeight: 700 }}>Source: </span>
+          <span style={{ fontWeight: 700 }}>Created from: </span>
           <span>{source.label}</span>
           {!source.explicit && (
             <span style={{ color: "var(--muted)" }}> (inferred)</span>
@@ -105,7 +110,7 @@ export function ActionIntelPanel({
         </div>
 
         <div style={{ fontSize: 13 }}>
-          <span style={{ fontWeight: 700 }}>Strategic: </span>
+          <span style={{ fontWeight: 700 }}>Linked goal: </span>
           {linkage.hasExplicitLink ? (
             <span>
               {linkage.initiativeHref && linkage.initiativeTitle ? (
@@ -129,6 +134,6 @@ export function ActionIntelPanel({
           )}
         </div>
       </div>
-    </section>
+    </CardV2>
   );
 }

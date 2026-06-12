@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import ActionItemForm from "@/components/people-strategy/action-item-form";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { OFFICER_TIER_ROLES } from "@/lib/authorization";
 import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
 import { requirePageRoles } from "@/lib/page-guards";
@@ -54,7 +54,7 @@ export default async function EditActionInTrackerPage({
       >
         ← Back to action
       </Link>
-      <ActionTrackerTabs showPeople={showPeople} />
+      <ActionTrackerTabsV2 active="all" showPeople={showPeople} />
 
       <div className="topbar" style={{ marginTop: 16 }}>
         <div>

@@ -7,11 +7,10 @@ import { cn, StatusBadge, type StatusTone } from "@/components/ui-v2";
 import { formatDueDate } from "@/lib/leadership-action-center/dates";
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import { deriveActionStrategicLinkage } from "@/lib/people-strategy/action-source";
-import { actionTypeLabel } from "@/lib/people-strategy/action-types";
+import { deriveActionNextMove } from "@/lib/people-strategy/action-intel";
 import {
   ACTION_PRIORITY_LABELS,
   ACTION_STATUS_LABELS,
-  ACTION_VISIBILITY_LABELS,
 } from "@/lib/people-strategy/constants";
 import {
   effectiveDeadline,
@@ -78,6 +77,7 @@ export function ActionListCard({
   const inputs = item.assignments.filter((a) => a.role === "INPUT");
   const lead = leadLabel(item.lead);
   const strategic = deriveActionStrategicLinkage(item);
+  const nextMove = deriveActionNextMove(item, now);
 
   // Left rail makes the list scannable: overdue (red) wins, otherwise the rail
   // carries the priority signal so urgent/high work stands out.
@@ -118,39 +118,31 @@ export function ActionListCard({
             {ACTION_PRIORITY_LABELS[item.priority]}
           </StatusBadge>
         ) : null}
-        {item.actionType ? (
-          <StatusBadge tone="neutral">{actionTypeLabel(item.actionType)}</StatusBadge>
-        ) : null}
-        {item.department ? (
-          <span className="text-[12px] text-ink-muted">{item.department.name}</span>
-        ) : null}
         {item.relatedEntityType ? (
           <RelatedEntityBadge type={item.relatedEntityType} id={item.relatedEntityId} />
         ) : null}
         {item.officerMeeting ? (
           <StatusBadge tone="brand">
-            Source: {item.officerMeeting.title ?? "Meeting"} ·{" "}
+            From meeting: {item.officerMeeting.title ?? "Meeting"} ·{" "}
             {formatDueDate(item.officerMeeting.date)}
           </StatusBadge>
         ) : item.officerMeetingId ? (
-          <StatusBadge tone="brand">Source: Meeting</StatusBadge>
+          <StatusBadge tone="brand">From meeting</StatusBadge>
         ) : null}
         {strategic.initiativeTitle ? (
-          <StatusBadge tone="brand">Initiative: {strategic.initiativeTitle}</StatusBadge>
-        ) : null}
-        {strategic.projectTitle ? (
-          <StatusBadge tone="neutral">Project: {strategic.projectTitle}</StatusBadge>
-        ) : null}
-        {item.visibility === "OFFICERS_ONLY" ? (
-          <StatusBadge tone="warning">
-            {ACTION_VISIBILITY_LABELS[item.visibility]}
-          </StatusBadge>
+          <span className="text-[12px] text-ink-muted">
+            Initiative: {strategic.initiativeTitle}
+          </span>
         ) : null}
       </div>
 
       {prompt ? (
         <p className="m-0 mt-2 text-[12px] italic text-ink-muted">&ldquo;{prompt}&rdquo;</p>
-      ) : null}
+      ) : (
+        <p className="m-0 mt-2 text-[12.5px] text-ink-muted">
+          <span className="font-semibold text-ink">Next:</span> {nextMove.move}
+        </p>
+      )}
 
       <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3 text-[12px] text-ink-muted">
         <span>

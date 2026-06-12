@@ -14,7 +14,7 @@ import {
 } from "@/lib/people-strategy/action-analytics";
 import { buildWinLog } from "@/lib/people-strategy/command-center-selectors";
 import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { StatCard } from "@/components/people-strategy/stat-card";
 import {
@@ -70,7 +70,7 @@ export default async function ActionCompletionReportPage() {
         }
       />
 
-      <ActionTrackerTabs showPeople={showPeople} />
+      <ActionTrackerTabsV2 active="all" showPeople={showPeople} />
 
       {/* Headline completion metrics */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 20 }}>

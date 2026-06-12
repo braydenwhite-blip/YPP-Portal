@@ -17,8 +17,9 @@ import { isBoard } from "@/lib/people-strategy/action-permissions";
 import { PeopleDashboardTable } from "@/components/people-strategy/people-dashboard-table";
 import { EscalationQueue } from "@/components/people-strategy/escalation-queue";
 import { MentorshipHealthSection } from "@/components/people-strategy/mentorship-health-section";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
+import { LegacySurfaceBanner } from "@/components/ui-v2";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -75,7 +76,13 @@ export default async function PeopleDashboardPage() {
       >
         ← Action Tracker
       </Link>
-      <ActionTrackerTabs active="people" showPeople />
+      <LegacySurfaceBanner
+        title="Work is the simpler place to start."
+        body="Use Work for daily actions and follow-ups. This leadership-only page stays available for people review, escalation, and feedback workflows."
+        ctaLabel="Open Work"
+        ctaHref="/work?view=actions"
+      />
+      <ActionTrackerTabsV2 active="people" showPeople />
 
       {/* Header banner */}
       <ActionCommandBar

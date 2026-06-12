@@ -107,12 +107,10 @@ export function WorkHubTable({ rows }: { rows: WorkHubRow[] }) {
           <thead>
             <tr>
               <TableHeadCell>Work</TableHeadCell>
-              <TableHeadCell>Type</TableHeadCell>
-              <TableHeadCell>Owner</TableHeadCell>
-              <TableHeadCell>Due / next step</TableHeadCell>
+              <TableHeadCell>Owner / due</TableHeadCell>
               <TableHeadCell>Status</TableHeadCell>
-              <TableHeadCell>Related</TableHeadCell>
-              <TableHeadCell className="text-right">Open</TableHeadCell>
+              <TableHeadCell>Next step</TableHeadCell>
+              <TableHeadCell className="text-right">Action</TableHeadCell>
             </tr>
           </thead>
           <tbody>
@@ -137,32 +135,41 @@ export function WorkHubTable({ rows }: { rows: WorkHubRow[] }) {
                   )}
                 >
                   <TableCell>
-                    <p className="m-0 max-w-[340px] truncate text-[13.5px] font-semibold text-ink">
-                      {row.title}
-                    </p>
-                    {row.sourceLabel ? (
-                      <p className="m-0 max-w-[340px] truncate text-[12px] text-ink-muted">
-                        {row.sourceLabel}
-                      </p>
-                    ) : null}
+                    <div className="flex max-w-[420px] flex-col gap-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <StatusBadge tone="neutral">{row.kindLabel}</StatusBadge>
+                        <p className="m-0 min-w-0 flex-1 truncate text-[13.5px] font-semibold text-ink">
+                          {row.title}
+                        </p>
+                      </div>
+                      <div
+                        className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-ink-muted"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {row.entityType && row.entityId && row.entityLabel ? (
+                          <EntityChip
+                            type={row.entityType}
+                            id={row.entityId}
+                            label={row.entityLabel}
+                          />
+                        ) : null}
+                        {row.sourceLabel ? <span>{row.sourceLabel}</span> : null}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <StatusBadge tone="neutral">{row.kindLabel}</StatusBadge>
-                  </TableCell>
-                  <TableCell>
-                    {row.ownerName ? (
-                      <span className="text-[13px] text-ink">{row.ownerName}</span>
-                    ) : (
-                      <StatusBadge tone="warning">Unowned</StatusBadge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <p className="m-0 text-[13px] text-ink">{fmtDue(row.dueISO)}</p>
-                    {row.nextStep ? (
-                      <p className="m-0 max-w-[220px] truncate text-[12px] text-ink-muted">
-                        {row.nextStep}
-                      </p>
-                    ) : null}
+                    <div className="flex flex-col gap-0.5">
+                      {row.ownerName ? (
+                        <span className="text-[13px] font-semibold text-ink">
+                          {row.ownerName}
+                        </span>
+                      ) : (
+                        <StatusBadge tone="warning">Needs owner</StatusBadge>
+                      )}
+                      <span className="text-[12px] text-ink-muted">
+                        {row.dueISO ? `Due ${fmtDue(row.dueISO)}` : "No due date"}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <StatusBadge tone={TONE_TO_BADGE[row.tone]}>{row.status}</StatusBadge>
@@ -172,16 +179,10 @@ export function WorkHubTable({ rows }: { rows: WorkHubRow[] }) {
                       </span>
                     ) : null}
                   </TableCell>
-                  <TableCell onClick={(event) => event.stopPropagation()}>
-                    {row.entityType && row.entityId && row.entityLabel ? (
-                      <EntityChip
-                        type={row.entityType}
-                        id={row.entityId}
-                        label={row.entityLabel}
-                      />
-                    ) : (
-                      <span className="text-[13px] text-ink-muted">—</span>
-                    )}
+                  <TableCell>
+                    <p className="m-0 max-w-[240px] text-[12.5px] leading-5 text-ink-muted">
+                      {row.nextStep ?? "Open the preview to decide the next move."}
+                    </p>
                   </TableCell>
                   <TableCell
                     className="text-right"

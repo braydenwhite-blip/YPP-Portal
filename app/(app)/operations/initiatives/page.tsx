@@ -54,9 +54,9 @@ export default async function StrategicInitiativesPage() {
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
       <LegacySurfaceBanner
-        title="Work Hub shows initiative health beside the rest of the work now."
+        title="Work shows initiative status beside the rest of the work now."
         body="Active initiatives with reasons and open-action counts live at /work — this workspace keeps the dossiers, milestones, and planning tools."
-        ctaLabel="Open Work Hub"
+        ctaLabel="Open Work"
         ctaHref="/work?view=initiatives"
       />
       <StrategicWorkspaceHeader

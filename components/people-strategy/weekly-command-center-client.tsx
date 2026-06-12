@@ -17,7 +17,6 @@ import {
   Card,
   EmptyState,
   MeetingButton,
-  MetricCard,
   Pill,
   SectionTitle,
   dueText,
@@ -69,6 +68,7 @@ interface Filters {
 }
 
 const EMPTY_FILTERS: Filters = { status: "", category: "", owner: "", overdue: false, hasActions: false };
+type SimpleMeetingView = "upcoming" | "needs" | "recent" | "all";
 
 const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "today", label: "Today" },
@@ -108,14 +108,39 @@ export function WeeklyCommandCenterClient({
 }) {
   const [q, setQ] = useState("");
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [simpleView, setSimpleView] = useState<SimpleMeetingView>("upcoming");
   const [showNew, setShowNew] = useState(autoOpenNew);
 
-  const anyFilter =
+  const anyAdvancedFilter =
     !!q || !!filters.status || !!filters.category || !!filters.owner || filters.overdue || filters.hasActions;
+  const anyFilter = anyAdvancedFilter || simpleView !== "upcoming";
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return meetings.filter((m) => {
+      if (
+        simpleView === "upcoming" &&
+        m.effectiveStatus !== "today" &&
+        m.effectiveStatus !== "in_progress" &&
+        m.effectiveStatus !== "upcoming"
+      ) {
+        return false;
+      }
+      if (
+        simpleView === "needs" &&
+        m.effectiveStatus !== "needs_follow_up" &&
+        m.openFollowUps === 0 &&
+        m.overdueFollowUps === 0
+      ) {
+        return false;
+      }
+      if (
+        simpleView === "recent" &&
+        m.effectiveStatus !== "completed" &&
+        m.effectiveStatus !== "canceled"
+      ) {
+        return false;
+      }
       if (needle && !`${m.title} ${m.purpose ?? ""} ${m.categoryLabel}`.toLowerCase().includes(needle)) return false;
       if (filters.status && m.effectiveStatus !== filters.status) return false;
       if (filters.category && m.category !== filters.category) return false;
@@ -124,7 +149,7 @@ export function WeeklyCommandCenterClient({
       if (filters.hasActions && m.openLinkedActions === 0 && m.openFollowUps === 0) return false;
       return true;
     });
-  }, [meetings, q, filters]);
+  }, [meetings, q, filters, simpleView]);
 
   const groups = useMemo(() => {
     const today: MeetingCardDTO[] = [];
@@ -139,6 +164,24 @@ export function WeeklyCommandCenterClient({
     }
     return { today, upcoming, completed, needs };
   }, [filtered]);
+
+  const upcomingMeetings = [...groups.today, ...groups.upcoming];
+  const recentMeetings = groups.completed;
+  const allUpcomingMeetings = meetings.filter(
+    (m) =>
+      m.effectiveStatus === "today" ||
+      m.effectiveStatus === "in_progress" ||
+      m.effectiveStatus === "upcoming"
+  );
+  const allRecentMeetings = meetings.filter(
+    (m) => m.effectiveStatus === "completed" || m.effectiveStatus === "canceled"
+  );
+  const allNeedsFollowUpCount = meetings.filter(
+    (m) =>
+      m.effectiveStatus === "needs_follow_up" ||
+      m.openFollowUps > 0 ||
+      m.overdueFollowUps > 0
+  ).length;
 
   const weekHref = (offset: number) => (offset === 0 ? "/actions/meetings" : `/actions/meetings?week=${offset}`);
 
@@ -162,18 +205,18 @@ export function WeeklyCommandCenterClient({
             Meetings
           </h1>
           <p style={{ margin: "7px 0 0", fontSize: 14.5, color: "var(--muted)", maxWidth: 560, lineHeight: 1.45 }}>
-            Where decisions and loose ends come from &mdash; this week&rsquo;s meetings, decisions, and the actions they created.
+            Where decisions and follow-ups come from &mdash; this week&rsquo;s meetings, decisions, and the actions they created.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <WeekNav weekLabel={weekLabel} weekOffset={weekOffset} hrefFor={weekHref} />
           <Link href="/work" style={{ textDecoration: "none" }}>
             <MeetingButton variant="outline" icon="bolt">
-              Open Work Hub
+              Open Work
             </MeetingButton>
           </Link>
           <MeetingButton icon="plus" onClick={() => setShowNew(true)}>
-            New Meeting
+            Log meeting
           </MeetingButton>
         </div>
       </div>
@@ -183,24 +226,63 @@ export function WeeklyCommandCenterClient({
           icon="calendar"
           title="No meetings scheduled this week"
           body="Create a leadership sync, class review, or mentorship check-in to start organizing the week."
-          cta="New Meeting"
+          cta="Log meeting"
           onCta={() => setShowNew(true)}
         />
       ) : (
         <>
-          {/* Metrics */}
-          <div className="metrics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0,1fr))", gap: 12 }}>
-            <MetricCard label="Meetings this week" value={metrics.meetingsThisWeek} sub={`${metrics.meetingsToday} happening today`} icon="calendar" tone="purple" active />
-            <MetricCard label="Meetings today" value={metrics.meetingsToday} sub="on the calendar" icon="clock" tone="info" />
-            <MetricCard label="Needs follow-up" value={metrics.needsFollowUp} sub="meetings to close out" icon="flag" tone="warning" onClick={() => setFilters((f) => ({ ...f, status: "needs_follow_up" }))} />
-            <MetricCard label="Open meeting actions" value={metrics.openMeetingActions} sub="from this week's meetings" icon="bolt" tone="purple" onClick={() => setFilters((f) => ({ ...f, hasActions: true }))} />
-            <MetricCard label="Overdue follow-ups" value={metrics.overdueFollowUps} sub={metrics.overdueFollowUps ? "need attention today" : "all clear"} icon="alert" tone="danger" alert={metrics.overdueFollowUps > 0} onClick={() => setFilters((f) => ({ ...f, overdue: true }))} />
-            <MetricCard label="Decisions logged" value={metrics.decisionsLogged} sub="this week" icon="checkCircle" tone="success" />
-          </div>
+          <Card style={{ padding: "16px 18px", borderColor: metrics.overdueFollowUps > 0 ? "var(--danger-border, #f3cccc)" : "var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 0, flex: "1 1 360px" }}>
+                <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--ypp-purple-600)" }}>
+                  Start here
+                </span>
+                <h2 style={{ margin: "5px 0 0", fontSize: 18, lineHeight: 1.2, color: "var(--ypp-ink)" }}>
+                  {metrics.overdueFollowUps > 0
+                    ? "Close overdue follow-ups first."
+                    : allNeedsFollowUpCount > 0
+                      ? "Close the meetings that still need follow-up."
+                      : "Review upcoming meetings."}
+                </h2>
+                <p style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.45, color: "var(--muted)" }}>
+                  Meetings are useful when decisions and follow-ups become tracked actions.
+                </p>
+              </div>
+              <MeetingButton
+                variant={allNeedsFollowUpCount > 0 ? "outline" : "solid"}
+                icon={allNeedsFollowUpCount > 0 ? "flag" : "calendar"}
+                onClick={() => setSimpleView(allNeedsFollowUpCount > 0 ? "needs" : "upcoming")}
+              >
+                {allNeedsFollowUpCount > 0 ? "Review follow-ups" : "View upcoming"}
+              </MeetingButton>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 13 }}>
+              <SummaryPill value={metrics.meetingsThisWeek} label="this week" />
+              <SummaryPill value={metrics.needsFollowUp} label="need follow-up" tone={metrics.needsFollowUp > 0 ? "warning" : "default"} />
+              <SummaryPill value={metrics.overdueFollowUps} label="overdue follow-ups" tone={metrics.overdueFollowUps > 0 ? "danger" : "default"} />
+              <SummaryPill value={metrics.openMeetingActions} label="open actions" />
+            </div>
+          </Card>
 
-          {/* Filter bar */}
           <Card style={{ padding: "11px 12px" }}>
-            <FilterBar q={q} setQ={setQ} filters={filters} setFilters={setFilters} owners={owners} />
+            <MeetingViewSwitcher
+              view={simpleView}
+              setView={setSimpleView}
+              counts={{
+                upcoming: allUpcomingMeetings.length,
+                needs: allNeedsFollowUpCount,
+                recent: allRecentMeetings.length,
+                all: meetings.length,
+              }}
+            />
+            <details open={anyAdvancedFilter} style={{ marginTop: 10 }}>
+              <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: "var(--muted)" }}>
+                More filters{anyAdvancedFilter ? " · active" : ""}
+              </summary>
+              <div style={{ marginTop: 10 }}>
+                <FilterBar q={q} setQ={setQ} filters={filters} setFilters={setFilters} owners={owners} />
+              </div>
+            </details>
           </Card>
 
           {/* Two-column layout */}
@@ -216,36 +298,60 @@ export function WeeklyCommandCenterClient({
                   onCta={() => {
                     setQ("");
                     setFilters(EMPTY_FILTERS);
+                    setSimpleView("upcoming");
                   }}
                 />
               ) : (
                 <>
-                  <MeetingSection
-                    title="Today"
-                    icon="spark"
-                    meetings={groups.today}
-                    empty={{ icon: "calendar", title: "Nothing on the calendar today", body: "Enjoy the focus time — or schedule a quick sync." }}
-                  />
-                  {groups.needs.length > 0 && <MeetingSection title="Needs Follow-Up" icon="flag" meetings={groups.needs} />}
-                  <MeetingSection
-                    title="Upcoming This Week"
-                    icon="calendar"
-                    meetings={groups.upcoming}
-                    empty={{ icon: "calendar", title: "No more meetings this week", body: "The rest of the week is open." }}
-                  />
-                  <MeetingSection
-                    title="Completed This Week"
-                    icon="check"
-                    meetings={groups.completed}
-                    empty={{ icon: "checkCircle", title: "No completed meetings yet", body: "Completed meetings will appear here with their decisions and follow-ups." }}
-                  />
+                  {simpleView === "needs" ? (
+                    <MeetingSection
+                      title="Needs follow-up"
+                      icon="flag"
+                      meetings={filtered}
+                      empty={{ icon: "check", title: "No meetings need follow-up", body: "Every meeting in this view is closed out." }}
+                    />
+                  ) : simpleView === "recent" ? (
+                    <MeetingSection
+                      title="Recent"
+                      icon="check"
+                      meetings={recentMeetings}
+                      empty={{ icon: "checkCircle", title: "No recent meetings yet", body: "Completed meetings will appear here." }}
+                    />
+                  ) : simpleView === "all" ? (
+                    <>
+                      <MeetingSection
+                        title="Needs follow-up"
+                        icon="flag"
+                        meetings={groups.needs}
+                      />
+                      <MeetingSection
+                        title="Upcoming"
+                        icon="calendar"
+                        meetings={upcomingMeetings}
+                        empty={{ icon: "calendar", title: "No upcoming meetings", body: "Schedule a leadership sync, class review, or mentorship check-in when needed." }}
+                      />
+                      <MeetingSection
+                        title="Recent"
+                        icon="check"
+                        meetings={recentMeetings}
+                        empty={{ icon: "checkCircle", title: "No recent meetings yet", body: "Completed meetings will appear here." }}
+                      />
+                    </>
+                  ) : (
+                    <MeetingSection
+                      title="Upcoming"
+                      icon="calendar"
+                      meetings={upcomingMeetings}
+                      empty={{ icon: "calendar", title: "No upcoming meetings", body: "The rest of the week is open." }}
+                    />
+                  )}
                 </>
               )}
             </div>
 
             {/* SIDEBAR */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Widget title="Needs Follow-Up" icon="flag" count={followQueue.length}>
+              <Widget title="Follow-ups still open" icon="flag" count={followQueue.length}>
                 {followQueue.length ? (
                   <div>
                     {followQueue.slice(0, 6).map((f) => (
@@ -257,7 +363,7 @@ export function WeeklyCommandCenterClient({
                 )}
               </Widget>
 
-              <Widget title="Overdue Meeting Actions" icon="alert" count={overdueActions.length}>
+              <Widget title="Overdue actions from meetings" icon="alert" count={overdueActions.length}>
                 {overdueActions.length ? (
                   <div>
                     {overdueActions.map((a) => (
@@ -269,7 +375,7 @@ export function WeeklyCommandCenterClient({
                 )}
               </Widget>
 
-              <Widget title="Recent Decisions" icon="checkCircle" count={recentDecisions.length}>
+              <Widget title="Recent decisions" icon="checkCircle" count={recentDecisions.length}>
                 {recentDecisions.length ? (
                   <div>
                     {recentDecisions.map((d) => (
@@ -281,13 +387,20 @@ export function WeeklyCommandCenterClient({
                 )}
               </Widget>
 
-              <Widget title="Department Pulse" icon="target">
-                {pulse.length ? (
-                  <DepartmentPulse rows={pulse} />
-                ) : (
-                  <EmptyState compact icon="target" title="No open follow-ups" body="Open follow-ups will show up here grouped by YPP area." />
-                )}
-              </Widget>
+              <details>
+                <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: "var(--muted)", padding: "0 2px" }}>
+                  Follow-ups by area
+                </summary>
+                <div style={{ marginTop: 8 }}>
+                  <Widget title="Follow-ups by area" icon="target">
+                    {pulse.length ? (
+                      <DepartmentPulse rows={pulse} />
+                    ) : (
+                      <EmptyState compact icon="target" title="No open follow-ups" body="Open follow-ups will show up here grouped by YPP area." />
+                    )}
+                  </Widget>
+                </div>
+              </details>
             </div>
           </div>
         </>
@@ -301,6 +414,94 @@ export function WeeklyCommandCenterClient({
 }
 
 // --- week nav ---------------------------------------------------------------
+
+function SummaryPill({
+  value,
+  label,
+  tone = "default",
+}: {
+  value: number;
+  label: string;
+  tone?: "default" | "warning" | "danger";
+}) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        border: "1px solid var(--border)",
+        borderRadius: 999,
+        background: "var(--surface)",
+        padding: "4px 10px",
+        fontSize: 12,
+        fontWeight: 700,
+        color:
+          tone === "danger"
+            ? "var(--danger-fg)"
+            : tone === "warning"
+              ? "var(--warn-fg, #854d0e)"
+              : "var(--text-secondary)",
+      }}
+    >
+      <strong style={{ color: "inherit", fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </strong>
+      {label}
+    </span>
+  );
+}
+
+function MeetingViewSwitcher({
+  view,
+  setView,
+  counts,
+}: {
+  view: SimpleMeetingView;
+  setView: (view: SimpleMeetingView) => void;
+  counts: Record<SimpleMeetingView, number>;
+}) {
+  const views: Array<{ key: SimpleMeetingView; label: string }> = [
+    { key: "upcoming", label: "Upcoming" },
+    { key: "needs", label: "Needs follow-up" },
+    { key: "recent", label: "Recent" },
+    { key: "all", label: "All" },
+  ];
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      {views.map((option) => {
+        const active = view === option.key;
+        return (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => setView(option.key)}
+            aria-pressed={active}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              borderRadius: 999,
+              border: `1px solid ${active ? "var(--ypp-purple-600)" : "var(--border)"}`,
+              background: active ? "var(--ypp-purple-600)" : "var(--surface)",
+              color: active ? "#fff" : "var(--text-secondary)",
+              padding: "7px 11px",
+              font: "inherit",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            {option.label}
+            <span style={{ opacity: 0.78, fontVariantNumeric: "tabular-nums" }}>
+              {counts[option.key]}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function WeekNav({
   weekLabel,

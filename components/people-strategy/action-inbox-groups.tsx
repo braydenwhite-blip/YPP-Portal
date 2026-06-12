@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CardV2 } from "@/components/ui-v2";
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import {
   deriveActionInboxGroups,
@@ -9,7 +10,7 @@ import {
 import { deriveActionSourceLabel } from "@/lib/people-strategy/action-source";
 
 /**
- * Action System 4.0 — the OPERATIONAL INBOX. Turns a flat action list into
+ * Action System 4.0 — the Needs Action summary. Turns a flat action list into
  * ranked triage lenses (needs attention, blocked, unowned, due soon, stale,
  * fastest wins) via the pure {@link deriveActionInboxGroups}. Server component:
  * it derives + renders, no client state. Each row carries an honest source label
@@ -65,30 +66,26 @@ export function ActionInboxGroups({
   const groups = deriveActionInboxGroups(items, now);
   if (groups.length === 0) {
     return (
-      <section className="card" style={{ marginTop: 16, padding: 16 }}>
-        <h2 className="ps-section-title" style={{ margin: 0 }}>
-          Operational inbox
-        </h2>
-        <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
+      <CardV2 as="section" padding="md">
+        <h2 className="m-0 text-[18px] font-bold text-ink">Needs action</h2>
+        <p className="m-0 mt-1.5 text-[13px] text-ink-muted">
           Nothing needs triage — no overdue, blocked, unowned, or stale work. Clean board.
         </p>
-      </section>
+      </CardV2>
     );
   }
 
   return (
     <section style={{ marginTop: 16 }}>
-      <h2 className="ps-section-title" style={{ margin: "0 0 4px" }}>
-        Operational inbox
-      </h2>
-      <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--muted)" }}>
-        Triage lenses — handle the top of each before scrolling the full list.
+      <h2 className="m-0 text-[18px] font-bold text-ink">Needs action</h2>
+      <p style={{ margin: "4px 0 12px", fontSize: 13, color: "var(--muted)" }}>
+        Start with these items before scrolling the full action list.
       </p>
       <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
         {groups.map((group) => {
           const preset = GROUP_PRESET[group.key];
           return (
-            <div key={group.key} className="card" style={{ padding: "12px 14px" }}>
+            <CardV2 key={group.key} padding="md">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
                 <strong style={{ fontSize: 14 }}>{group.label}</strong>
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>{group.items.length}</span>
@@ -104,7 +101,7 @@ export function ActionInboxGroups({
                   View all {group.items.length} →
                 </Link>
               ) : null}
-            </div>
+            </CardV2>
           );
         })}
       </div>

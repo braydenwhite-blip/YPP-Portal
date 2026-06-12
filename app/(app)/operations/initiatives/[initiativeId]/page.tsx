@@ -110,7 +110,7 @@ export default async function StrategicInitiativeDetailPage({
         }`}
         actions={
           <Link href={newActionHref} className="button primary small">
-            + New action
+            Create action
           </Link>
         }
       />
