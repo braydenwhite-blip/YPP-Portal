@@ -31,11 +31,13 @@ import { fileURLToPath } from "node:url";
  * the ui-v2 rebuild — docs/knowledge-os-phase-3d-notes.md.
  * Lowered to 10,746 in Phase 3E: the dead `.ps-main-grid` block (zero
  * consumers) — docs/knowledge-os-phase-3e-actions-meetings-notes.md.
- * Milestone 6 proper waits for the legacy /actions/* + weekly command
- * center ui-v2 rebuild (the live `.ps-*` family).
+ * Lowered to 10,731 in Phase 3F: the `.my-actions-*` phone-width rules,
+ * orphaned by the `/actions` (My Actions) ui-v2 rebuild. The shared `.ps-*`
+ * chassis stays — it is portal-wide (People Suite, admin records, chapter,
+ * operations) — docs/knowledge-os-phase-3f-actions-pages-notes.md.
  * Only lower it.
  */
-const BASELINE_LINE_COUNT = 10746;
+const BASELINE_LINE_COUNT = 10731;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const file = join(root, "app", "globals.css");

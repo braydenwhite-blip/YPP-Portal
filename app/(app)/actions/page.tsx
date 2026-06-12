@@ -13,10 +13,15 @@ import {
 import { getMyTeachingClasses } from "@/lib/people-strategy/class-tracker";
 import { getMyMentorshipActionItems } from "@/lib/people-strategy/mentorship-my-actions";
 import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
-import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
-import { ActionCard } from "@/components/people-strategy/action-card";
-import { StatCard } from "@/components/people-strategy/stat-card";
+import { ActionListCard } from "@/components/people-strategy/action-list-card";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
+import {
+  ButtonLink,
+  cn,
+  EmptyStateV2,
+  PageHeaderV2,
+  RecordSection,
+} from "@/components/ui-v2";
 import { getUserTitle } from "@/lib/user-title";
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import {
@@ -34,68 +39,64 @@ import {
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My Actions · People Strategy" };
 
-const OVERDUE_ACCENT = "var(--error-color)";
-
 // Small colored dot keyed to each urgency bucket, so the "By Deadline" stack
 // reads at a glance before the labels are even parsed.
 const URGENCY_DOT: Record<string, string> = {
-  overdue: "var(--error-color)",
-  today: "var(--warning-color)",
-  thisWeek: "var(--ps-accent)",
-  later: "var(--gray-400)",
+  overdue: "bg-danger-700",
+  today: "bg-warning-700",
+  thisWeek: "bg-brand-500",
+  later: "bg-ink-muted",
 };
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+/** A non-link stat tile (My Actions stats are informational, not filters). */
+function StatTile({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string | number;
+  tone?: "default" | "danger" | "brand";
+}) {
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <h2 className="ps-section-title">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function EmptyNote({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="card" style={{ padding: "12px 14px", fontSize: 13, color: "var(--muted)" }}>
-      {children}
+    <div
+      className={cn(
+        "min-w-[120px] flex-1 rounded-[12px] border bg-surface px-3.5 py-3 shadow-card",
+        tone === "danger" ? "border-red-200" : "border-line-soft"
+      )}
+    >
+      <p
+        className={cn(
+          "m-0 text-[22px] font-bold leading-tight",
+          tone === "danger" ? "text-danger-700" : tone === "brand" ? "text-brand-700" : "text-ink"
+        )}
+      >
+        {value}
+      </p>
+      <p className="m-0 text-[11.5px] font-semibold uppercase tracking-[0.04em] text-ink-muted">
+        {label}
+      </p>
     </div>
   );
 }
 
 /** Compact deadline row used inside the "By Deadline" urgency buckets. */
-function DeadlineRow({
-  item,
-  now,
-}: {
-  item: ActionItemWithRelations;
-  now: Date;
-}) {
+function DeadlineRow({ item, now }: { item: ActionItemWithRelations; now: Date }) {
   const overdue = isActionOverdue(item, now);
   return (
     <Link
       href={`/actions/${item.id}`}
-      className="card ps-action-card my-actions-deadline-row"
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 10,
-        padding: "10px 14px",
-        textDecoration: "none",
-        color: "inherit",
-        borderLeft: overdue
-          ? `3px solid ${OVERDUE_ACCENT}`
-          : "3px solid transparent",
-      }}
+      className={cn(
+        "flex items-center justify-between gap-2.5 rounded-[8px] border border-line-soft border-l-[3px] bg-surface px-3.5 py-2.5 no-underline transition-colors hover:border-brand-400",
+        overdue ? "border-l-danger-700" : "border-l-transparent"
+      )}
     >
-      <span style={{ fontSize: 13 }}>{item.title}</span>
+      <span className="min-w-0 truncate text-[13px] text-ink">{item.title}</span>
       <span
-        className="my-actions-deadline-date"
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: overdue ? OVERDUE_ACCENT : "var(--muted)",
-          whiteSpace: "nowrap",
-        }}
+        className={cn(
+          "whitespace-nowrap text-[12px] font-semibold",
+          overdue ? "text-danger-700" : "text-ink-muted"
+        )}
       >
         {formatDueDateLong(effectiveDeadline(item))}
       </span>
@@ -132,9 +133,7 @@ export default async function MyActionsPage() {
   const executing = selectExecuting(items, viewer.id);
   const needsInput = selectNeedsInput(items, viewer.id);
   const urgency = bucketByUrgency(items, now);
-  const hasOpenWork = URGENCY_BUCKET_ORDER.some(
-    ({ key }) => urgency[key].length > 0
-  );
+  const hasOpenWork = URGENCY_BUCKET_ORDER.some(({ key }) => urgency[key].length > 0);
 
   const lastUpdated = new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -144,214 +143,168 @@ export default async function MyActionsPage() {
   }).format(now);
 
   return (
-    <div className="page-shell" style={{ maxWidth: 1040 }}>
-      <ActionCommandBar
+    <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-5">
+      <PageHeaderV2
         eyebrow={`${session.user.name ?? "You"} · ${getUserTitle({
           primaryRole: viewer.primaryRole,
           adminSubtypes: viewer.adminSubtypes,
-        })}`}
+        })} · Last updated ${lastUpdated}`}
         title="My Actions"
         subtitle="Everything you lead, are executing, or owe input on — sorted by deadline."
-        meta={`Last updated ${lastUpdated}`}
         actions={
           officer ? (
-            <Link href="/actions/new" className="button small">
-              + New Action
-            </Link>
+            <ButtonLink href="/actions/new" variant="primary" size="md">
+              New action
+            </ButtonLink>
           ) : null
         }
-      />
+      >
+        <div className="flex flex-wrap gap-3">
+          <StatTile label="Overdue" value={summary.overdue} tone={summary.overdue > 0 ? "danger" : "default"} />
+          <StatTile label="In progress" value={summary.inProgress} />
+          <StatTile label="Executing" value={summary.executing} tone="brand" />
+          <StatTile label="Needs your input" value={summary.needsInput} />
+          <StatTile
+            label="Next deadline"
+            value={summary.nextDeadline ? formatDueDate(summary.nextDeadline) : "—"}
+          />
+        </div>
+      </PageHeaderV2>
 
-      {officer && <ActionTrackerTabs active="my" showPeople={showPeople} />}
-
-      {/* Stat cards */}
-      <div style={{ display: "flex", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
-        <StatCard
-          label="Overdue"
-          value={summary.overdue}
-          icon="alert"
-          tone={summary.overdue > 0 ? "danger" : "default"}
-        />
-        <StatCard label="In Progress" value={summary.inProgress} icon="activity" />
-        <StatCard label="Executing" value={summary.executing} icon="bolt" tone="accent" />
-        <StatCard label="Needs Your Input" value={summary.needsInput} icon="inbox" />
-        <StatCard
-          label="Next Deadline"
-          value={summary.nextDeadline ? formatDueDate(summary.nextDeadline) : "—"}
-          icon="calendar"
-        />
-      </div>
+      {officer ? <ActionTrackerTabsV2 active="my" showPeople={showPeople} /> : null}
 
       {items.length === 0 ? (
-        <div
-          className="card"
-          style={{
-            marginTop: 16,
-            padding: 16,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
-        >
-          <p style={{ margin: 0 }}>
-            You have no action items yet. When you&apos;re assigned as a lead, executor, or input,
-            they&apos;ll appear here.
-          </p>
-          {officer ? (
-            <Link
-              href="/actions/new"
-              className="button small"
-              style={{ alignSelf: "flex-start" }}
-            >
-              + Create your first action
-            </Link>
-          ) : null}
-        </div>
+        <EmptyStateV2
+          icon="✅"
+          title="No action items yet"
+          body="When you're assigned as a lead, executor, or input, your work shows up here."
+          action={
+            officer ? (
+              <ButtonLink href="/actions/new" variant="primary" size="sm">
+                Create your first action
+              </ButtonLink>
+            ) : undefined
+          }
+        />
       ) : (
-        <div
-          className="my-actions-dashboard-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-            gap: 16,
-            marginTop: 16,
-            alignItems: "start",
-          }}
-        >
-          {/* Left: You Are Executing */}
-          <Panel title="You Are Executing">
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+          <RecordSection title="You are executing">
             {executing.length === 0 ? (
-              <EmptyNote>Nothing assigned to you to execute right now.</EmptyNote>
+              <p className="m-0 text-[13px] text-ink-muted">
+                Nothing assigned to you to execute right now.
+              </p>
             ) : (
-              executing.map((item) => (
-                <ActionCard key={item.id} item={item} now={now} />
-              ))
+              <div className="flex flex-col gap-2">
+                {executing.map((item) => (
+                  <ActionListCard key={item.id} item={item} now={now} />
+                ))}
+              </div>
             )}
-          </Panel>
+          </RecordSection>
 
-          {/* Right column: Needs Your Input + Upcoming Deadlines */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <Panel title="Needs Your Input">
+          <div className="flex flex-col gap-4">
+            <RecordSection title="Needs your input">
               {needsInput.length === 0 ? (
-                <EmptyNote>No one is waiting on your input.</EmptyNote>
+                <p className="m-0 text-[13px] text-ink-muted">
+                  No one is waiting on your input.
+                </p>
               ) : (
-                needsInput.map((item) => (
-                  <ActionCard
-                    key={item.id}
-                    item={item}
-                    now={now}
-                    prompt={latestInputRequest(item, viewer.id)?.body ?? null}
-                  />
-                ))
+                <div className="flex flex-col gap-2">
+                  {needsInput.map((item) => (
+                    <ActionListCard
+                      key={item.id}
+                      item={item}
+                      now={now}
+                      prompt={latestInputRequest(item, viewer.id)?.body ?? null}
+                    />
+                  ))}
+                </div>
               )}
-            </Panel>
+            </RecordSection>
 
-            <Panel title="By Deadline">
+            <RecordSection title="By deadline">
               {!hasOpenWork ? (
-                <EmptyNote>No open deadlines ahead — you&apos;re all clear. 🎉</EmptyNote>
+                <p className="m-0 text-[13px] text-ink-muted">
+                  No open deadlines ahead — you&apos;re all clear. 🎉
+                </p>
               ) : (
-                URGENCY_BUCKET_ORDER.map(({ key, label }) => {
-                  const bucket = urgency[key];
-                  if (bucket.length === 0) return null;
-                  const isOverdue = key === "overdue";
-                  return (
-                    <div
-                      key={key}
-                      style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                    >
-                      <p
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          margin: "2px 0 0",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: 0.4,
-                          color: isOverdue ? OVERDUE_ACCENT : "var(--muted)",
-                        }}
-                      >
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            width: 7,
-                            height: 7,
-                            borderRadius: "50%",
-                            background: URGENCY_DOT[key] ?? "var(--gray-400)",
-                            flexShrink: 0,
-                          }}
-                        />
-                        {label} · {bucket.length}
-                      </p>
-                      {bucket.map((item) => (
-                        <DeadlineRow key={item.id} item={item} now={now} />
-                      ))}
-                    </div>
-                  );
-                })
+                <div className="flex flex-col gap-3">
+                  {URGENCY_BUCKET_ORDER.map(({ key, label }) => {
+                    const bucket = urgency[key];
+                    if (bucket.length === 0) return null;
+                    const isOverdue = key === "overdue";
+                    return (
+                      <div key={key} className="flex flex-col gap-1.5">
+                        <p
+                          className={cn(
+                            "m-0 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.05em]",
+                            isOverdue ? "text-danger-700" : "text-ink-muted"
+                          )}
+                        >
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "size-[7px] shrink-0 rounded-full",
+                              URGENCY_DOT[key] ?? "bg-ink-muted"
+                            )}
+                          />
+                          {label} · {bucket.length}
+                        </p>
+                        {bucket.map((item) => (
+                          <DeadlineRow key={item.id} item={item} now={now} />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
-            </Panel>
+            </RecordSection>
           </div>
         </div>
       )}
 
-      {/* Teaching classes, surfaced alongside action items with a clear "Class"
-          type label. Each row is read-only — class data is owned by the Classes
-          system, not the Action Tracker. */}
+      {/* Teaching classes — read-only; class data is owned by the Classes
+          system, surfaced here with a clear "Class" framing. */}
       {teachingClasses.length > 0 ? (
-        <section style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 28 }}>
-          <h2 className="ps-section-title">Your Classes</h2>
-          <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
-            Classes you teach as lead or executing instructor — read-only.
-          </p>
-          {teachingClasses.map((offering) => (
-            <ClassTrackerRow key={offering.id} offering={offering} />
-          ))}
-        </section>
+        <RecordSection
+          title="Your classes"
+          description="Classes you teach as lead or executing instructor — read-only."
+        >
+          <div className="flex flex-col gap-2">
+            {teachingClasses.map((offering) => (
+              <ClassTrackerRow key={offering.id} offering={offering} />
+            ))}
+          </div>
+        </RecordSection>
       ) : null}
 
-      {/* Mentorship action items, surfaced from the Mentorship system so a
-          mentor/mentee sees them next to their tracker work (#12). Read-only. */}
+      {/* Mentorship action items — managed in the Mentorship area; read-only. */}
       {mentorshipActions.length > 0 ? (
-        <section style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 28 }}>
-          <h2 className="ps-section-title">Mentorship Action Items</h2>
-          <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
-            Open tasks from your mentorship — managed in the Mentorship area.
-          </p>
-          {mentorshipActions.map((m) => (
-            <div
-              key={m.id}
-              className="card"
-              style={{
-                padding: "10px 14px",
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <strong style={{ fontSize: 14 }}>{m.title}</strong>
-                <div style={{ fontSize: 12, color: "#64748b" }}>
-                  {m.role === "owner" ? "Your task" : `For ${m.menteeName ?? "your mentee"}`}
+        <RecordSection
+          title="Mentorship action items"
+          description="Open tasks from your mentorship — managed in the Mentorship area."
+        >
+          <div className="flex flex-col gap-2">
+            {mentorshipActions.map((m) => (
+              <div
+                key={m.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-line-soft bg-surface px-3.5 py-2.5 shadow-card"
+              >
+                <div className="min-w-0">
+                  <strong className="text-[14px] text-ink">{m.title}</strong>
+                  <div className="text-[12px] text-ink-muted">
+                    {m.role === "owner" ? "Your task" : `For ${m.menteeName ?? "your mentee"}`}
+                  </div>
                 </div>
+                {m.dueAt ? (
+                  <span className="whitespace-nowrap text-[12px] font-semibold text-ink-muted">
+                    Due {formatDueDate(m.dueAt)}
+                  </span>
+                ) : null}
               </div>
-              {m.dueAt ? (
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "var(--muted)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Due {formatDueDate(m.dueAt)}
-                </span>
-              ) : null}
-            </div>
-          ))}
-        </section>
+            ))}
+          </div>
+        </RecordSection>
       ) : null}
     </div>
   );

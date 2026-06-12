@@ -7986,22 +7986,7 @@ a.mentor-panel__row:focus-visible {
   }
 }
 
-/* People Strategy: keep My Actions readable on phone-width screens. */
 @media (max-width: 640px) {
-  .my-actions-dashboard-grid {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-
-  .my-actions-deadline-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .my-actions-deadline-date {
-    white-space: normal !important;
-    text-align: left;
-  }
-
   /* Command Center collapses its two-column layout on phone-width screens. */
   .command-center-grid {
     grid-template-columns: minmax(0, 1fr) !important;

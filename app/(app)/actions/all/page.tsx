@@ -30,7 +30,12 @@ import {
   summarizeDepartments,
   summarizeStatuses,
 } from "@/lib/people-strategy/action-analytics";
-import { LegacySurfaceBanner } from "@/components/ui-v2";
+import {
+  ButtonLink,
+  cn,
+  LegacySurfaceBanner,
+  PageHeaderV2,
+} from "@/components/ui-v2";
 import { ActionFiltersBar } from "@/components/people-strategy/action-filters-bar";
 import {
   ActionStatusDonut,
@@ -38,11 +43,9 @@ import {
 } from "@/components/people-strategy/action-analytics-cards";
 import { listSavedActionViews } from "@/lib/people-strategy/saved-views";
 import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
-import { ActionCard } from "@/components/people-strategy/action-card";
+import { ActionListCard } from "@/components/people-strategy/action-list-card";
 import { ActionInboxGroups } from "@/components/people-strategy/action-inbox-groups";
-import { StatCard } from "@/components/people-strategy/stat-card";
-import { ActionTrackerTabs } from "@/components/people-strategy/action-tracker-tabs";
-import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { SavedViewsBar } from "@/components/people-strategy/saved-views-bar";
 import {
   ActionPresetChips,
@@ -52,6 +55,47 @@ import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Tracker · All Actions" };
+
+/** A drill-in stat tile: a non-zero count with an optional filter href. */
+function StatTile({
+  label,
+  value,
+  href,
+  tone = "default",
+}: {
+  label: string;
+  value: number;
+  href?: string;
+  tone?: "default" | "danger" | "brand";
+}) {
+  const body = (
+    <>
+      <p
+        className={cn(
+          "m-0 text-[22px] font-bold leading-tight",
+          tone === "danger" ? "text-danger-700" : tone === "brand" ? "text-brand-700" : "text-ink"
+        )}
+      >
+        {value}
+      </p>
+      <p className="m-0 text-[11.5px] font-semibold uppercase tracking-[0.04em] text-ink-muted">
+        {label}
+      </p>
+    </>
+  );
+  const className = cn(
+    "min-w-[120px] flex-1 rounded-[12px] border bg-surface px-3.5 py-3 shadow-card",
+    tone === "danger" ? "border-red-200" : "border-line-soft",
+    href ? "transition-colors hover:border-brand-400" : ""
+  );
+  return href ? (
+    <Link href={href} className={cn(className, "no-underline")}>
+      {body}
+    </Link>
+  ) : (
+    <div className={className}>{body}</div>
+  );
+}
 
 export default async function AllActionsPage({
   searchParams,
@@ -200,37 +244,37 @@ export default async function AllActionsPage({
   }).format(now);
 
   return (
-    <div className="page-shell" style={{ maxWidth: 1040 }}>
+    <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-5">
       <LegacySurfaceBanner
         title="Work Hub is the front door for browsing work now."
         body="Actions, follow-ups, partner requests, and check-ins triage together there — this page keeps the filters, analytics, and CSV export."
         ctaLabel="Open Work Hub"
         ctaHref="/work?view=actions"
       />
-      <ActionCommandBar
+      <PageHeaderV2
         eyebrow="Admin · People Strategy"
         title="Action Tracker"
         subtitle="Every leadership action item, grouped by department — leads, executors, and input owners at a glance."
-        meta={`${items.length} ${items.length === 1 ? "action" : "actions"} in view · updated ${lastUpdated}`}
         actions={
-          <>
-            <a href={exportHref} className="button outline small">
+          <div className="flex flex-wrap items-center gap-2">
+            <ButtonLink href={exportHref} variant="secondary" size="md">
               Export CSV
-            </a>
-            <Link href="/actions/new" className="button small">
-              + New Action
-            </Link>
-          </>
+            </ButtonLink>
+            <ButtonLink href="/actions/new" variant="primary" size="md">
+              New action
+            </ButtonLink>
+          </div>
         }
-      />
+      >
+        <p className="m-0 text-[12.5px] text-ink-muted">
+          {items.length} {items.length === 1 ? "action" : "actions"} in view · updated{" "}
+          {lastUpdated}
+        </p>
+      </PageHeaderV2>
 
-      <ActionTrackerTabs active="all" showPeople={showPeopleDashboardTab} />
+      <ActionTrackerTabsV2 active="all" showPeople={showPeopleDashboardTab} />
 
-      <ActionFiltersBar
-        departments={departments}
-        filters={filters}
-        hasActive={filtersActive}
-      />
+      <ActionFiltersBar departments={departments} filters={filters} hasActive={filtersActive} />
 
       <ActionPresetChips chips={presetChips} />
 
@@ -245,98 +289,94 @@ export default async function AllActionsPage({
           always one glance away regardless of how the list is filtered. */}
       <ActionInboxGroups items={visible} now={now} />
 
-      {/* Overview — collapsed by default so the list is reachable fast (#-3). */}
-      <div style={{ marginTop: 16 }}>
-        <CollapsibleSection
-          title="Overview"
-          summary={`${statusBreakdown.total} in view · ${statusBreakdown.counts.OVERDUE} overdue · ${flaggedCount} flagged`}
-          defaultOpen={false}
-        >
-          {/* Summary strip — reflects the current filters, and each count drills
-              into the matching filter where one exists. */}
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <StatCard label="Total" value={statusBreakdown.total} icon="list" tone="accent" />
-            <StatCard
-              label="Overdue"
-              value={statusBreakdown.counts.OVERDUE}
-              icon="alert"
-              tone={statusBreakdown.counts.OVERDUE > 0 ? "danger" : "default"}
-              href={statFilterHref("status", "OVERDUE")}
-            />
-            <StatCard
-              label="In Progress"
-              value={statusBreakdown.counts.IN_PROGRESS}
-              icon="activity"
-              href={statFilterHref("status", "IN_PROGRESS")}
-            />
-            <StatCard
-              label="Officers Only"
-              value={officersOnlyCount}
-              icon="eye"
-              href={statFilterHref("vis", "OFFICERS_ONLY")}
-            />
-            <StatCard label="Flagged" value={flaggedCount} icon="flag" />
-          </div>
+      {/* Overview — collapsed by default so the list is reachable fast. */}
+      <CollapsibleSection
+        title="Overview"
+        summary={`${statusBreakdown.total} in view · ${statusBreakdown.counts.OVERDUE} overdue · ${flaggedCount} flagged`}
+        defaultOpen={false}
+      >
+        {/* Summary strip — reflects the current filters, and each count drills
+            into the matching filter where one exists. */}
+        <div className="flex flex-wrap gap-3">
+          <StatTile label="Total" value={statusBreakdown.total} tone="brand" />
+          <StatTile
+            label="Overdue"
+            value={statusBreakdown.counts.OVERDUE}
+            tone={statusBreakdown.counts.OVERDUE > 0 ? "danger" : "default"}
+            href={statFilterHref("status", "OVERDUE")}
+          />
+          <StatTile
+            label="In progress"
+            value={statusBreakdown.counts.IN_PROGRESS}
+            href={statFilterHref("status", "IN_PROGRESS")}
+          />
+          <StatTile
+            label="Officers only"
+            value={officersOnlyCount}
+            href={statFilterHref("vis", "OFFICERS_ONLY")}
+          />
+          <StatTile label="Flagged" value={flaggedCount} />
+        </div>
 
-          {/* Analytics: status donut + department mini-bars */}
-          <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
-            <ActionStatusDonut breakdown={statusBreakdown} />
-            <DepartmentBars bars={departmentBars} />
-          </div>
-        </CollapsibleSection>
-      </div>
+        {/* Analytics: status donut + department mini-bars */}
+        <div className="mt-4 flex flex-wrap gap-4">
+          <ActionStatusDonut breakdown={statusBreakdown} />
+          <DepartmentBars bars={departmentBars} />
+        </div>
+      </CollapsibleSection>
 
       {/* Grouped list by department */}
       {items.length === 0 ? (
-        <div className="card" style={{ marginTop: 16, padding: 16 }}>
-          <p style={{ margin: 0 }}>
-            {filtersActive
-              ? "No action items match the current filters."
-              : "No action items are visible yet. Create the first one with + New Action."}
-          </p>
+        <div className="rounded-[12px] border border-line-soft bg-surface px-4 py-4 text-[13.5px] text-ink-muted shadow-card">
+          {filtersActive
+            ? "No action items match the current filters."
+            : "No action items are visible yet. Create the first one with New action."}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 16 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
-            <span style={{ color: "var(--muted)" }}>Group by:</span>
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center gap-2 text-[13px]">
+            <span className="text-ink-muted">Group by:</span>
             <Link
               href={groupToggleHref("department")}
-              className={`button outline small${groupBy === "department" ? " primary" : ""}`}
+              className={cn(
+                "rounded-full border px-3 py-1 text-[12.5px] font-semibold no-underline transition-colors",
+                groupBy === "department"
+                  ? "border-brand-600 bg-brand-600 text-white"
+                  : "border-line text-ink-muted hover:border-brand-400 hover:text-brand-700"
+              )}
             >
               Department
             </Link>
             <Link
               href={groupToggleHref("linked")}
-              className={`button outline small${groupBy === "linked" ? " primary" : ""}`}
+              className={cn(
+                "rounded-full border px-3 py-1 text-[12.5px] font-semibold no-underline transition-colors",
+                groupBy === "linked"
+                  ? "border-brand-600 bg-brand-600 text-white"
+                  : "border-line text-ink-muted hover:border-brand-400 hover:text-brand-700"
+              )}
             >
               Linked item
             </Link>
           </div>
           {displayGroups.map((group) => (
-            <section key={group.name} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "baseline",
-                  gap: 12,
-                }}
-              >
-                <h2 className="ps-section-title">
+            <section key={group.name} className="flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="m-0 text-[15px] font-bold text-ink">
                   {group.href ? (
-                    <Link href={group.href} style={{ color: "inherit" }}>
+                    <Link href={group.href} className="text-ink hover:text-brand-700">
                       {group.name}
                     </Link>
                   ) : (
                     group.name
                   )}
                 </h2>
-                <span style={{ fontSize: 12, color: "#64748b" }}>
+                <span className="text-[12px] text-ink-muted">
                   {group.items.length} {group.items.length === 1 ? "action" : "actions"}
                 </span>
               </div>
               {group.items.map((item) => (
-                <ActionCard key={item.id} item={item} now={now} />
+                <ActionListCard key={item.id} item={item} now={now} />
               ))}
             </section>
           ))}
