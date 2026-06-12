@@ -32,6 +32,8 @@ const GROUP_LABELS: Record<Entity360Type, string> = {
   meeting: "Meetings",
   action: "Actions",
   initiative: "Initiatives",
+  mentorship: "Mentorships",
+  applicant: "Applicants",
 };
 
 /** Quick Find scoring (prefix > word-start > substring), shared convention. */
@@ -96,9 +98,28 @@ async function searchPartners(q: string): Promise<HelpAgentResult[]> {
         { name: { contains: q, mode: "insensitive" } },
         { type: { contains: q, mode: "insensitive" } },
         { contactName: { contains: q, mode: "insensitive" } },
+        // Structured contacts (Knowledge OS V2): finding a person you met
+        // should surface the organization they belong to.
+        { contacts: { some: { name: { contains: q, mode: "insensitive" } } } },
+        { contacts: { some: { email: { contains: q, mode: "insensitive" } } } },
       ],
     },
-    select: { id: true, name: true, type: true, partnerType: true },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      partnerType: true,
+      contacts: {
+        where: {
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { email: { contains: q, mode: "insensitive" } },
+          ],
+        },
+        take: 1,
+        select: { name: true },
+      },
+    },
     orderBy: [{ name: "asc" }],
     take: PER_GROUP_LIMIT * 3,
   });
@@ -106,7 +127,9 @@ async function searchPartners(q: string): Promise<HelpAgentResult[]> {
     type: "partner" as const,
     id: p.id,
     title: p.name,
-    subtitle: p.type ?? p.partnerType ?? null,
+    subtitle: p.contacts[0]
+      ? `Contact: ${p.contacts[0].name}`
+      : (p.type ?? p.partnerType ?? null),
     href: `/admin/partners/${p.id}`,
   }));
 }

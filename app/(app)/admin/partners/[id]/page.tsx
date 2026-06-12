@@ -5,10 +5,12 @@ import { getSession } from "@/lib/auth-supabase";
 import {
   getPartnerById,
   listPartnerNotes,
+  listPartnerRelations,
   resolveAuthorNames,
   listRelationshipLeadOptions,
 } from "@/lib/partners-queries";
 import { updatePartner, addPartnerNote } from "@/lib/partners-actions";
+import { PartnerRelationsPanel } from "@/components/partners/partner-relations-panel";
 import { matchInstructorsForPartner } from "@/lib/partner-instructor-matching";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
@@ -18,7 +20,6 @@ import { getOperationalContextForEntity } from "@/lib/people-strategy/operationa
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import {
   isActionTrackerEnabled,
-  isPartnerPipelineEnabled,
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { deriveStrategicEntityContext } from "@/lib/people-strategy/strategic-entity-context";
@@ -69,10 +70,9 @@ export default async function PartnerProfilePage({
   if (!session?.user?.roles?.includes("ADMIN")) {
     redirect("/");
   }
-  // Don't leak the new route's existence while the feature is dark.
-  if (!isPartnerPipelineEnabled()) {
-    notFound();
-  }
+  // Knowledge OS V2 promoted partners to a core front door (/partners), so
+  // the profile is no longer dark behind ENABLE_PARTNER_PIPELINE — it is the
+  // "Open full 360" target from the master database. Still ADMIN-only.
 
   const { id } = await params;
   const partner = await getPartnerById(id);
@@ -86,7 +86,7 @@ export default async function PartnerProfilePage({
     adminSubtypes: session?.user?.adminSubtypes ?? [],
   };
 
-  const [notes, leads, matchResult, opsContext] = await Promise.all([
+  const [notes, leads, matchResult, opsContext, relations] = await Promise.all([
     listPartnerNotes(id),
     listRelationshipLeadOptions(),
     matchInstructorsForPartner({
@@ -96,8 +96,12 @@ export default async function PartnerProfilePage({
     trackerEnabled
       ? getOperationalContextForEntity("PARTNER", id, viewer)
       : Promise.resolve(null),
+    listPartnerRelations(id),
   ]);
-  const authorNames = await resolveAuthorNames(notes.map((n) => n.authorId));
+  const authorNames = await resolveAuthorNames([
+    ...notes.map((n) => n.authorId),
+    ...relations.requests.map((r) => r.ownerId),
+  ]);
   const canCreate = canCreateAction(viewer);
 
   const stuck = partnerStuckReasons(
@@ -204,6 +208,14 @@ export default async function PartnerProfilePage({
               </p>
             ) : null}
           </section>
+
+          {/* Relationship operations: contacts, requests, agreements (KOS V2) */}
+          <PartnerRelationsPanel
+            partnerId={partner.id}
+            relations={relations}
+            leads={leads}
+            ownerNames={authorNames}
+          />
 
           {/* Notes & timeline */}
           <section className="card">

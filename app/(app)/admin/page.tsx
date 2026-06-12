@@ -24,6 +24,7 @@ const ADMIN_DOMAINS: AdminDomain[] = [
   {
     title: "People & Access",
     items: [
+      { href: "/people", label: "People Database", description: "Every person connected to YPP — search, advisor flags, 360 previews" },
       { href: "/admin/bulk-users", label: "Users & Roles", description: "Import, export, and edit accounts, roles, and access" },
       { href: "/admin/staff", label: "Staff", description: "Staff reflections and records" },
       { href: "/admin/role-matrix", label: "Role Matrix", description: "Who can do what, by role and subtype" },
@@ -59,7 +60,8 @@ const ADMIN_DOMAINS: AdminDomain[] = [
   {
     title: "Partners & Chapters",
     items: [
-      { href: "/admin/partners", label: "Partner Database", description: "Organizations, relationship leads, follow-ups, and pipeline" },
+      { href: "/partners", label: "Partner Database", description: "Every relationship — owner, contacts, open requests, next step" },
+      { href: "/admin/partners", label: "Partner Admin", description: "Add/edit partners, pipeline stages, and the partnership report" },
       { href: "/admin/chapters", label: "Chapters", description: "Chapter records, presidents, and membership" },
       { href: "/admin/chapter-reports", label: "Chapter Reports", description: "Per-chapter staffing, size, and recent activity" },
     ],

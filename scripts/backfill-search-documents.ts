@@ -46,7 +46,16 @@ async function collectRows(): Promise<IndexRow[]> {
 
   const partners = await prisma.partner.findMany({
     where: { archivedAt: null },
-    select: { id: true, name: true, type: true, partnerType: true, contactName: true },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      partnerType: true,
+      contactName: true,
+      // Structured contacts index as keywords so "find the person I met"
+      // surfaces their organization (Knowledge OS V2, plan §24).
+      contacts: { select: { name: true, email: true } },
+    },
   });
   for (const p of partners) {
     rows.push({
@@ -54,7 +63,14 @@ async function collectRows(): Promise<IndexRow[]> {
       entityId: p.id,
       title: p.name,
       subtitle: p.type ?? p.partnerType ?? null,
-      keywords: [p.partnerType, p.contactName].filter(Boolean).join(" ") || null,
+      keywords:
+        [
+          p.partnerType,
+          p.contactName,
+          ...p.contacts.flatMap((c) => [c.name, c.email]),
+        ]
+          .filter(Boolean)
+          .join(" ") || null,
       visibilityTier: "OFFICER",
     });
   }

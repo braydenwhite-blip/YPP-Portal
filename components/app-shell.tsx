@@ -9,6 +9,14 @@ import type { PageHelperRole } from "@/lib/page-helper/types";
 import { getUserTitle } from "@/lib/user-title";
 import { Entity360Provider } from "@/components/operations/entity-360-drawer";
 import { HelpAgentProvider } from "@/components/help-agent/help-agent-provider";
+import {
+  cn,
+  SidebarUserCard,
+  sidebarFooterClass,
+  sidebarGhostButtonClass,
+  sidebarHeaderClass,
+  sidebarSurfaceClass,
+} from "@/components/ui-v2";
 
 /** Mirrors OFFICER_TIER_ROLES in lib/authorization.ts (server-only module). */
 const OFFICER_TIER_NAV_ROLES = new Set([
@@ -18,6 +26,17 @@ const OFFICER_TIER_NAV_ROLES = new Set([
   "HIRING_CHAIR",
 ]);
 
+/**
+ * The app shell — one chassis for all nine roles (Knowledge OS V2).
+ *
+ * Structure (grid, fixed sidebar, mobile off-canvas, scroll regions) still
+ * rides the frozen legacy classes in app/globals.css (.app-shell/.sidebar/*)
+ * so responsive behavior is untouched; the SKIN is Design System 2.0: the
+ * dark premium sidebar surface and chrome come from components/ui-v2/sidebar
+ * (master plan §22.4 — "the sidebar is the brand anchor on every page for
+ * every role"). The legacy sidebar/nav skin blocks in globals.css are dead
+ * after this and queue for CSS deletion milestone 1.
+ */
 export default function AppShell({
   children,
   userName,
@@ -116,7 +135,7 @@ export default function AppShell({
         aria-controls={sidebarId}
         type="button"
       >
-        {sidebarOpen ? "\u2715" : "\u2630"}
+        {sidebarOpen ? "✕" : "☰"}
       </button>
 
       {/* Mobile backdrop */}
@@ -135,12 +154,16 @@ export default function AppShell({
         aria-hidden={!sidebarOpen}
       />
 
-      <aside id={sidebarId} className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+      <aside
+        id={sidebarId}
+        className={cn("sidebar", sidebarOpen && "open", sidebarSurfaceClass)}
+      >
         {/* Header — fixed */}
-        <div className="sidebar-header">
+        <div className={cn("sidebar-header", sidebarHeaderClass)}>
           <div className="sidebar-brand">
             <BrandLockup
               height={40}
+              tone="dark"
               className="brand-lockup"
               href="/"
               priority
@@ -171,27 +194,22 @@ export default function AppShell({
             hiringDemoMode={hiringDemoMode}
             instructorSubtype={instructorSubtype}
             publicGateActive={publicGateActive}
+            officerTier={officerTier}
           />
         </div>
 
         {/* Footer — fixed */}
-        <div className="sidebar-footer">
-          <div className="sidebar-footer-card sidebar-marble-panel">
-            <div className="sidebar-user-row">
-              <div className="sidebar-user-avatar" aria-hidden>
-                {userInitials}
-              </div>
-              <div>
-                <p className="user-name">{userName ?? "Portal User"}</p>
-                <p className="user-role">
-                  {primaryRole || adminSubtypes?.length
-                    ? getUserTitle({ primaryRole, adminSubtypes })
-                    : "Portal access"}
-                </p>
-              </div>
-            </div>
-            <LogoutButton className="button small outline logout-button-sidebar" />
-          </div>
+        <div className={cn("sidebar-footer", sidebarFooterClass)}>
+          <SidebarUserCard
+            initials={userInitials}
+            name={userName ?? "Portal User"}
+            roleLabel={
+              primaryRole || adminSubtypes?.length
+                ? getUserTitle({ primaryRole, adminSubtypes })
+                : "Portal access"
+            }
+            action={<LogoutButton className={sidebarGhostButtonClass} />}
+          />
         </div>
       </aside>
 

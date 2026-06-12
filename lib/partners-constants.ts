@@ -382,3 +382,54 @@ export const PARTNER_CONDITION_STATUS_LABELS: Record<PartnerConditionStatus, str
   WAIVED: "Waived",
   FAILED: "Failed",
 };
+
+// --- Safe coercion for the relationship-operations vocabularies --------------
+// (TEXT columns; same convention as asPartnerStage above.)
+
+export function asPartnerContactRole(
+  value: string | null | undefined
+): PartnerContactRole | null {
+  return value && (PARTNER_CONTACT_ROLES as readonly string[]).includes(value)
+    ? (value as PartnerContactRole)
+    : null;
+}
+
+export function asPartnerRequestStatus(
+  value: string | null | undefined
+): PartnerRequestStatus {
+  return value && (PARTNER_REQUEST_STATUSES as readonly string[]).includes(value)
+    ? (value as PartnerRequestStatus)
+    : "OPEN";
+}
+
+export function asPartnerAgreementKind(
+  value: string | null | undefined
+): PartnerAgreementKind {
+  return value && (PARTNER_AGREEMENT_KINDS as readonly string[]).includes(value)
+    ? (value as PartnerAgreementKind)
+    : "MOU";
+}
+
+export function asPartnerAgreementStatus(
+  value: string | null | undefined
+): PartnerAgreementStatus {
+  return value && (PARTNER_AGREEMENT_STATUSES as readonly string[]).includes(value)
+    ? (value as PartnerAgreementStatus)
+    : "DRAFT";
+}
+
+export function asPartnerConditionStatus(
+  value: string | null | undefined
+): PartnerConditionStatus {
+  return value && (PARTNER_CONDITION_STATUSES as readonly string[]).includes(value)
+    ? (value as PartnerConditionStatus)
+    : "PENDING";
+}
+
+/** "Fulfilled" / "Declined" / "Expired" close a request; stamp resolvedAt. */
+export const PARTNER_REQUEST_TERMINAL_STATUSES: readonly PartnerRequestStatus[] = [
+  "AGREED",
+  "DECLINED",
+  "FULFILLED",
+  "EXPIRED",
+];

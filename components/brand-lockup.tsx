@@ -19,6 +19,12 @@ type BrandLockupProps = {
   /** Match marketing header: hide tagline in very tight layouts. */
   showTagline?: boolean;
   /**
+   * Surface tone. `dark` renders white type and seats the mark on a white
+   * tile so the lockup stays legible on the dark premium sidebar (DS 2.0).
+   * Default `light` keeps the legacy classes for every other surface.
+   */
+  tone?: "light" | "dark";
+  /**
    * Public auth only: full navigation to `/login` so users can restart sign-in.
    * (Not used in the logged-in app shell.)
    */
@@ -41,11 +47,13 @@ export default function BrandLockup({
   className,
   priority,
   showTagline = true,
+  tone = "light",
   reloadOnClick = false,
   href,
   onClick,
 }: BrandLockupProps) {
-  const h = height;
+  const dark = tone === "dark";
+  const h = dark ? Math.round(height * 0.8) : height;
   const w = Math.round((MARK_W / MARK_H) * h);
   const rootClass = [
     "portal-brand",
@@ -57,18 +65,39 @@ export default function BrandLockup({
 
   const inner = (
     <>
-      <Image
-        src="/ypp-logo-mark.png"
-        alt=""
-        width={w}
-        height={h}
-        className="portal-brand-mark"
-        priority={priority}
-      />
+      {dark ? (
+        <span className="flex shrink-0 items-center justify-center rounded-[10px] bg-white p-1 shadow-[0_1px_2px_rgba(26,5,51,0.3)]">
+          <Image
+            src="/ypp-logo-mark.png"
+            alt=""
+            width={w}
+            height={h}
+            className="portal-brand-mark"
+            priority={priority}
+          />
+        </span>
+      ) : (
+        <Image
+          src="/ypp-logo-mark.png"
+          alt=""
+          width={w}
+          height={h}
+          className="portal-brand-mark"
+          priority={priority}
+        />
+      )}
       <div className="portal-brand-text min-w-0">
-        <span className="portal-brand-title">Youth Passion Project</span>
+        <span className={dark ? "portal-brand-title text-white" : "portal-brand-title"}>
+          Youth Passion Project
+        </span>
         {showTagline ? (
-          <span className="portal-brand-tagline">Guiding the stars of tomorrow.</span>
+          <span
+            className={
+              dark ? "portal-brand-tagline text-white/55" : "portal-brand-tagline"
+            }
+          >
+            Guiding the stars of tomorrow.
+          </span>
         ) : null}
       </div>
     </>
