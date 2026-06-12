@@ -36,6 +36,22 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     kind: "query",
   },
   {
+    label: "Overdue actions",
+    description: "Open action items past their due date",
+    href: "/actions",
+    icon: "⏰",
+    tier: "OFFICER",
+    kind: "query",
+  },
+  {
+    label: "Upcoming meetings",
+    description: "Officer meetings on the calendar, soonest first",
+    href: "/actions/meetings",
+    icon: "📅",
+    tier: "OFFICER",
+    kind: "query",
+  },
+  {
     label: "Overdue instructor reviews",
     description: "Instructor database — filter status to Attention",
     href: "/admin/instructors",

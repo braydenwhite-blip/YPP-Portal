@@ -3734,6 +3734,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/instructor-applicants/[id]",
+    title: "Application Record",
+    content: {
+      purpose: "This decision-first record shows one instructor application end to end: stage, what's missing, what reviewers said, and what the chair can do next.",
+      firstStep: "Check the next-step card and the decision-readiness checklist \u2014 they name exactly what is blocking a decision.",
+      nextStep: "Open the full application for materials and assignment tools, or the decision cockpit when the application is in chair review."
+    }
+  },
+  {
     pattern: "/admin/instructor-applicants/[id]/review",
     title: "Instructor Applicant Review",
     content: {

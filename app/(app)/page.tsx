@@ -22,6 +22,8 @@ import StudentDashboard, {
 } from "@/components/dashboard/student-dashboard";
 import MyActionsCard from "@/components/people-strategy/my-actions-card";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
+import { loadLeadershipHome } from "@/lib/home/leadership-home";
+import { LeadershipHome } from "@/components/home/leadership-home";
 
 // Roles that work the hiring pipeline and should land on the applicant board.
 const REVIEWER_ROLES = ["ADMIN", "HIRING_CHAIR", "CHAPTER_PRESIDENT"];
@@ -288,13 +290,37 @@ export default async function OverviewPage() {
   };
 
   if (isReviewer) {
-    return (
-      <ReviewerHome
-        name={name}
-        gateEnabled={isPublicGateEnabled()}
-        actionsCard={<MyActionsCard viewer={actionViewer} />}
-      />
-    );
+    // Leadership Home cockpit (Knowledge OS V2, plan §7/§27.6) — the
+    // executive front door. Falls back to the prior minimal reviewer home if
+    // the cockpit loaders fail, so leadership never lands on an error page.
+    try {
+      const cockpit = await loadLeadershipHome(actionViewer);
+      return (
+        <>
+          <LeadershipHome firstName={name} data={cockpit} />
+          {isPublicGateEnabled() && (
+            <p style={{ maxWidth: 1280, margin: "16px auto 0" }}>
+              <Link
+                href="/preview"
+                style={{ fontSize: 13, fontWeight: 600, color: "#6b21c8" }}
+              >
+                🔑 Enter the preview passcode to unlock the rest of the portal on
+                this device
+              </Link>
+            </p>
+          )}
+        </>
+      );
+    } catch (error) {
+      console.error("[home] leadership cockpit failed, using fallback:", error);
+      return (
+        <ReviewerHome
+          name={name}
+          gateEnabled={isPublicGateEnabled()}
+          actionsCard={<MyActionsCard viewer={actionViewer} />}
+        />
+      );
+    }
   }
 
   if (isInstructor) {
