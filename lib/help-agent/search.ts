@@ -11,8 +11,8 @@ import type { HelpAgentGroup, HelpAgentResult, HelpAgentSearchResponse } from ".
 /**
  * YPP Help Agent — deterministic, permission-aware entity search.
  *
- * SearchDocument cutover status (Phase 3C started it, 3D/3E extended it):
- * the PERSON, PARTNER, APPLICANT, and ACTION groups read the index
+ * SearchDocument cutover status (Phase 3C started it, 3D/3E/3F extended it):
+ * the PERSON, PARTNER, APPLICANT, ACTION, and MEETING groups read the index
  * (title/keywords, kept current by the write-path upserts in
  * lib/help-agent/search-indexing.ts and the nightly
  * /api/cron/search-reconcile), and every group falls back to its live
@@ -20,9 +20,9 @@ import type { HelpAgentGroup, HelpAgentResult, HelpAgentSearchResponse } from ".
  * search stays correct on environments where the backfill has never run.
  * Applicant index hits are additionally re-checked against the live
  * per-viewer application visibility filter, so the index can never widen
- * access. Meetings stay live (date-ordered; index rows now carry `eventAt`
- * so a future cutover can match), classes stay live, and initiatives are
- * config-defined.
+ * access. The meeting group sorts off the indexed `eventAt` (date desc) to
+ * match its live ordering. Classes stay live (no write-path sync yet), and
+ * initiatives are config-defined.
  *
  * Access mirrors the Entity 360 loaders ("stricter reading wins"):
  *   - person   → any signed-in member (active members only — no applicants)
@@ -95,13 +95,21 @@ type SearchIndexHit = {
 async function searchIndexGroup(
   entityType: string,
   visibilityTier: "MEMBER" | "OFFICER",
-  q: string
+  q: string,
+  options: { orderBy?: "title" | "eventAtDesc" } = {}
 ): Promise<SearchIndexHit[] | null> {
   const groupWhere = { entityType, visibilityTier };
   const indexed = await prisma.searchDocument
     .count({ where: groupWhere })
     .catch(() => 0);
   if (indexed === 0) return null;
+  // Time-anchored groups (meetings) sort newest-first off `eventAt`, mirroring
+  // the live query's `date desc`; everything else sorts alphabetically. Rows
+  // with a null `eventAt` fall to the bottom (Prisma default for desc).
+  const orderBy =
+    options.orderBy === "eventAtDesc"
+      ? [{ eventAt: "desc" as const }, { title: "asc" as const }]
+      : [{ title: "asc" as const }];
   const docs = await prisma.searchDocument.findMany({
     where: {
       ...groupWhere,
@@ -111,7 +119,7 @@ async function searchIndexGroup(
       ],
     },
     select: { entityId: true, title: true, subtitle: true },
-    orderBy: [{ title: "asc" }],
+    orderBy,
     take: PER_GROUP_LIMIT * 3,
   });
   if (docs.length === 0) return null;
@@ -358,7 +366,30 @@ async function searchClasses(
   }));
 }
 
+/**
+ * Meeting index path (Phase 3F cutover): meeting rows now carry `eventAt`
+ * (the start date) and a `category · date` subtitle (Phase 3E write path),
+ * so the group reads the index — ordered newest-first off `eventAt` to
+ * match the live `date desc`. Officer-tier, like the live query; standard
+ * three-way fallback (empty group / no text hit / index error → live).
+ */
+async function searchMeetingsFromIndex(q: string): Promise<HelpAgentResult[] | null> {
+  const docs = await searchIndexGroup("meeting", "OFFICER", q, {
+    orderBy: "eventAtDesc",
+  });
+  if (docs === null) return null;
+  return docs.map((d) => ({
+    type: "meeting" as const,
+    id: d.entityId,
+    title: d.title,
+    subtitle: d.subtitle,
+    href: `/actions/meetings/${d.entityId}`,
+  }));
+}
+
 async function searchMeetings(q: string): Promise<HelpAgentResult[]> {
+  const fromIndex = await searchMeetingsFromIndex(q).catch(() => null);
+  if (fromIndex !== null) return fromIndex;
   const meetings = await prisma.officerMeeting.findMany({
     where: {
       OR: [

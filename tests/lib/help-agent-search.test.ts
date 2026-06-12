@@ -374,6 +374,56 @@ describe("runHelpAgentSearch — SearchDocument action cutover", () => {
   });
 });
 
+describe("runHelpAgentSearch — SearchDocument meeting cutover", () => {
+  it("uses the meeting index ordered by eventAt desc, with a category·date subtitle", async () => {
+    populateIndexGroup("meeting", [
+      { entityId: "m1", title: "Leadership sync", subtitle: "LEADERSHIP · Jun 15, 2026" },
+    ]);
+
+    const res = await runHelpAgentSearch("leadership", OFFICER);
+
+    expect(res.groups.find((g) => g.type === "meeting")?.items[0]).toMatchObject({
+      type: "meeting",
+      id: "m1",
+      title: "Leadership sync",
+      subtitle: "LEADERSHIP · Jun 15, 2026",
+      href: "/actions/meetings/m1",
+    });
+    // The live meeting query is skipped when the index answers.
+    expect(prisma.officerMeeting.findMany).not.toHaveBeenCalled();
+    // The meeting group sorts newest-first off the indexed eventAt.
+    const findManyCalls = mock(prisma.searchDocument.findMany).mock.calls as Array<
+      [{ where: { entityType?: string }; orderBy?: unknown }]
+    >;
+    const meetingFind = findManyCalls.find(([args]) => args.where.entityType === "meeting");
+    expect(meetingFind?.[0].orderBy).toEqual([{ eventAt: "desc" }, { title: "asc" }]);
+  });
+
+  it("falls back to the live meeting query when the meeting index is empty", async () => {
+    mock(prisma.officerMeeting.findMany).mockResolvedValue([
+      { id: "m2", title: "Camp planning", date: new Date("2026-06-15T00:00:00.000Z"), category: "CLASSES" },
+    ]);
+
+    const res = await runHelpAgentSearch("camp", OFFICER);
+
+    expect(prisma.officerMeeting.findMany).toHaveBeenCalled();
+    expect(res.groups.find((g) => g.type === "meeting")?.items[0]).toMatchObject({
+      id: "m2",
+      title: "Camp planning",
+      href: "/actions/meetings/m2",
+    });
+  });
+
+  it("members never get the meeting group, even with a populated index", async () => {
+    populateIndexGroup("meeting", [
+      { entityId: "m1", title: "Leadership sync", subtitle: null },
+    ]);
+
+    const res = await runHelpAgentSearch("leadership", MEMBER);
+    expect(res.groups.map((g) => g.type)).not.toContain("meeting");
+  });
+});
+
 describe("runHelpAgentSearch — application visibility", () => {
   it("does not query applications when the viewer cannot resolve an application visibility filter", async () => {
     mock(instructorApplicationVisibilityWhere).mockResolvedValue(null);
