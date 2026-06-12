@@ -403,6 +403,17 @@ async function loadPerson360(
     { limit: DRAWER_LIMITS.timeline }
   );
 
+  // "Open full page": admins land on the role-specific full-360 record pages
+  // (Knowledge OS V2 Phase 2B); everyone else gets the member profile. The
+  // record pages gate on ADMIN themselves, so never link non-admins there.
+  const viewerIsAdmin = (viewer.roles ?? []).includes("ADMIN");
+  const pageHref =
+    viewerIsAdmin && isStudent
+      ? `/admin/students/${id}`
+      : viewerIsAdmin && roleSet.has("INSTRUCTOR")
+        ? `/admin/instructors/${id}`
+        : `/people/${id}`;
+
   return {
     type: "person",
     id,
@@ -413,7 +424,7 @@ async function loadPerson360(
     meta: tenureLabel(profile.monthsActive),
     initials: entityInitials(profile.name),
     avatarUrl: profile.avatarUrl,
-    pageHref: `/people/${id}`,
+    pageHref,
     glance,
     facts,
     people,

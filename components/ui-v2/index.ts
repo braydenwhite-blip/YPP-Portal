@@ -26,6 +26,9 @@ export {
   TableCell,
 } from "./data-table-shell";
 export { CommandPaletteShell } from "./command-palette";
+export { ProfileHeader } from "./profile-header";
+export { KeyFactsGrid, type KeyFact } from "./key-facts";
+export { RecordSection } from "./record-section";
 export { FilterBar, FilterChipLink, UrlSyncedSearchInput } from "./filter-bar";
 export {
   SidebarChevron,

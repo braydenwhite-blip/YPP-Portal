@@ -56,7 +56,13 @@ export default function StudentTable({
       key: "name",
       label: "Student",
       render: (item: Student) => (
-        <IdentityCell name={item.name} sub={item.email} />
+        <a
+          href={`/admin/students/${item.id}`}
+          style={{ textDecoration: "none", color: "inherit" }}
+          title="Open student record"
+        >
+          <IdentityCell name={item.name} sub={item.email} />
+        </a>
       )
     },
     {

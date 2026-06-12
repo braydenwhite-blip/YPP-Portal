@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { getInstructorOpsMetrics, getInstructorOpsRecords } from "@/lib/instructor-ops";
 import { listAllTags, listSavedViews } from "@/lib/instructor-ops-actions";
+import { MasterDirectoryBanner } from "@/components/people/master-directory-banner";
 import InstructorDatabaseClient from "./instructor-database-client";
 
 export const dynamic = "force-dynamic";
@@ -36,20 +37,26 @@ export default async function AdminInstructorsPage() {
   );
 
   return (
-    <InstructorDatabaseClient
-      records={records}
-      chapters={chapters}
-      tags={tags}
-      allTags={allTags}
-      savedViews={savedViews}
-      metrics={{
-        total: metrics.total,
-        attention: metrics.attention,
-        onboarding: metrics.onboarding,
-        ready: metrics.ready,
-        active: metrics.active,
-        activeAssignments: metrics.activeAssignments,
-      }}
-    />
+    <>
+      <MasterDirectoryBanner
+        label="Browse instructors in People"
+        href="/people?role=instructor"
+      />
+      <InstructorDatabaseClient
+        records={records}
+        chapters={chapters}
+        tags={tags}
+        allTags={allTags}
+        savedViews={savedViews}
+        metrics={{
+          total: metrics.total,
+          attention: metrics.attention,
+          onboarding: metrics.onboarding,
+          ready: metrics.ready,
+          active: metrics.active,
+          activeAssignments: metrics.activeAssignments,
+        }}
+      />
+    </>
   );
 }

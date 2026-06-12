@@ -384,6 +384,24 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/instructors/[id]",
+    title: "Instructor Record",
+    content: {
+      purpose: "This record shows everything one instructor carries — classes, sessions, reviews, mentorship, leadership roles, advisees, and open work — on a single page.",
+      firstStep: "Read the next-step card under the key facts first; it names the most urgent flag or onboarding blocker for this instructor.",
+      nextStep: "After you act on the next step, use the section links (classes, reviews, caseload, work) or open Admin tools for tags, notes, and the quarterly review form."
+    }
+  },
+  {
+    pattern: "/admin/instructors/[id]/manage",
+    title: "Instructor Admin Tools",
+    content: {
+      purpose: "This workspace holds the deep admin tooling for one instructor: tags, notes, tasks, provisional status, people-strategy panels, and the quarterly review form.",
+      firstStep: "Use the section tabs to jump to the tool you need — overview, pipeline, assignments, mentorship, leadership, or the quarterly review.",
+      nextStep: "After you save an edit or submit a review, return to the instructor record for the full-360 view of what changed."
+    }
+  },
+  {
     pattern: "/admin/leadership",
     title: "Leadership Roles & Contributions",
     content: {
@@ -750,6 +768,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page helps you manage the all students and keep the portal data or workflow organized.",
       firstStep: "Review the current list, board, or settings first so you can decide which item needs action right now.",
       nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
+    }
+  },
+  {
+    pattern: "/admin/students/[id]",
+    title: "Student Record",
+    content: {
+      purpose: "This record shows one student's full picture — advisor relationship and check-in state, enrolled classes with attendance, mentor and family links, and open work.",
+      firstStep: "Check the advisor section first: who advises this student, when the last check-in happened, and whether the next one is overdue.",
+      nextStep: "Act on the next-step card (assign an advisor, log a check-in, or resolve the follow-up), then review classes and open actions below."
     }
   },
   {

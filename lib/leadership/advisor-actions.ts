@@ -44,7 +44,13 @@ async function requireAssignmentAccess(assignmentId: string) {
   const user = await requireSessionUser();
   const assignment = await prisma.studentAdvisorAssignment.findUnique({
     where: { id: assignmentId },
-    select: { id: true, advisorId: true, studentId: true, contributionId: true },
+    select: {
+      id: true,
+      advisorId: true,
+      studentId: true,
+      contributionId: true,
+      checkInCadenceDays: true,
+    },
   });
   if (!assignment) throw new Error("Assignment not found");
   if (!isAdminUser(user) && assignment.advisorId !== user.id) {
@@ -120,6 +126,14 @@ export async function assignStudentAdvisor(
     admin.id,
   );
 
+  // Seed the first check-in due date from the default cadence so a fresh
+  // assignment is schedulable (and eventually overdue) from day one
+  // (Knowledge OS V2, plan §12/§23).
+  const DEFAULT_CADENCE_DAYS = 14;
+  const firstCheckInDue = new Date(
+    Date.now() + DEFAULT_CADENCE_DAYS * 24 * 60 * 60 * 1000,
+  );
+
   for (const studentId of data.studentIds) {
     if (studentId === data.advisorId) continue;
     await prisma.studentAdvisorAssignment.upsert({
@@ -131,12 +145,14 @@ export async function assignStudentAdvisor(
         studentId,
         contributionId,
         assignedById: admin.id,
+        nextCheckInDueAt: firstCheckInDue,
       },
       update: {
         isActive: true,
         endedAt: null,
         contributionId,
         assignedById: admin.id,
+        nextCheckInDueAt: firstCheckInDue,
       },
     });
   }
@@ -193,9 +209,15 @@ export async function addAdvisingNote(input: z.infer<typeof addNoteSchema>) {
   });
 
   if (data.kind === "CHECK_IN") {
+    // A logged check-in also schedules the next one from the assignment's
+    // cadence, so "check-in overdue" stays a stored, queryable fact
+    // (Knowledge OS V2, plan §12/§23).
+    const now = new Date();
+    const cadenceDays = assignment.checkInCadenceDays ?? 14;
+    const nextDue = new Date(now.getTime() + cadenceDays * 24 * 60 * 60 * 1000);
     await prisma.studentAdvisorAssignment.update({
       where: { id: data.assignmentId },
-      data: { lastCheckInAt: new Date() },
+      data: { lastCheckInAt: now, nextCheckInDueAt: nextDue },
     });
   }
 

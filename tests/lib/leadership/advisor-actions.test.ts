@@ -80,12 +80,15 @@ describe("assignStudentAdvisor", () => {
         studentId: "student-1",
         contributionId: "contrib-1",
         assignedById: "admin-1",
+        // Knowledge OS V2: assignments seed the first check-in due date.
+        nextCheckInDueAt: expect.any(Date),
       },
       update: {
         isActive: true,
         endedAt: null,
         contributionId: "contrib-1",
         assignedById: "admin-1",
+        nextCheckInDueAt: expect.any(Date),
       },
     });
   });
@@ -137,6 +140,7 @@ describe("addAdvisingNote", () => {
         advisorId: "advisor-1",
         studentId: "student-1",
         contributionId: "contrib-1",
+        checkInCadenceDays: 10,
       }),
       update: vi.fn().mockResolvedValue({ id: "assignment-1" }),
     };
@@ -145,7 +149,7 @@ describe("addAdvisingNote", () => {
     };
   });
 
-  it("logs a check-in and bumps lastCheckInAt", async () => {
+  it("logs a check-in, bumps lastCheckInAt, and schedules the next check-in", async () => {
     await addAdvisingNote({
       assignmentId: "assignment-1",
       kind: "CHECK_IN",
@@ -161,8 +165,17 @@ describe("addAdvisingNote", () => {
     });
     expect((prisma as any).studentAdvisorAssignment.update).toHaveBeenCalledWith({
       where: { id: "assignment-1" },
-      data: { lastCheckInAt: expect.any(Date) },
+      data: {
+        lastCheckInAt: expect.any(Date),
+        nextCheckInDueAt: expect.any(Date),
+      },
     });
+    // Next check-in is one cadence (10 days here) after the logged check-in.
+    const call = (prisma as any).studentAdvisorAssignment.update.mock.calls[0][0];
+    const deltaDays =
+      (call.data.nextCheckInDueAt.getTime() - call.data.lastCheckInAt.getTime()) /
+      (24 * 60 * 60 * 1000);
+    expect(deltaDays).toBeCloseTo(10, 5);
   });
 
   it("does not bump lastCheckInAt for plain notes", async () => {

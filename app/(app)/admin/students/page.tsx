@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { StatCard } from "@/components/people-strategy/stat-card";
+import { MasterDirectoryBanner } from "@/components/people/master-directory-banner";
 import StudentTable from "./student-table";
 
 export default async function AdminStudentsPage() {
@@ -73,6 +74,10 @@ export default async function AdminStudentsPage() {
 
   return (
     <div className="ps-page psuite">
+      <MasterDirectoryBanner
+        label="Browse students in People"
+        href="/people?role=student"
+      />
       <ActionCommandBar
         eyebrow="Admin · Students"
         title="All Students"

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+
 import { getSession } from "@/lib/auth-supabase";
 import {
   formatInstructorOpsDate,
@@ -7,56 +7,56 @@ import {
   formatInstructorOpsLabel,
   getInstructorOpsProfile,
 } from "@/lib/instructor-ops";
-import { loadInstructorProfileDetail, listAllTags } from "@/lib/instructor-ops-actions";
 import {
-  completenessTone,
-  type InstructorCompleteness,
-} from "@/lib/instructor-completeness";
-import {
-  isProvisionalClockEnabled,
-  isPeopleDashboardEnabled,
-  isQuarterlyReviewsEnabled,
   isActionTrackerEnabled,
+  isLeadershipRolesEnabled,
   isOperationsHubEnabled,
-  isStrategicInitiativesEnabled,
+  isQuarterlyReviewsEnabled,
 } from "@/lib/feature-flags";
-import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
-import { canCreateAction } from "@/lib/people-strategy/action-permissions";
-import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
-import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
-import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
-import { deriveStrategicEntityContext } from "@/lib/people-strategy/strategic-entity-context";
-import { StrategicEntityPanel } from "@/components/people-strategy/strategic-entity-panel";
 import { getLatestQuarterlyReview } from "@/lib/people-strategy/quarterly-review-actions";
-import { loadProvisionalStatus } from "@/lib/people-strategy/provisional";
-import { loadMemberPeopleStrategy } from "@/lib/people-strategy/member-people-detail";
-import { ProvisionalStatusCard } from "@/components/people-strategy/provisional-status-card";
-import {
-  getFeedbackRequestStatusForSubject,
-  getFeedbackResponsesForSubject,
-  isLeadershipOrBoard,
-  type FeedbackRequestStatus,
-  type SubjectFeedbackResponse,
-} from "@/lib/people-strategy/feedback-requests";
-import { QuarterlyReviewForm } from "@/components/people-strategy/quarterly-review-form";
-import { MemberPeopleStrategySection } from "@/components/people-strategy/member-people-strategy-section";
-import { isLeadershipRolesEnabled } from "@/lib/feature-flags";
 import { loadInstructorLeadership } from "@/lib/leadership/queries";
+import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
+import { toActionLite } from "@/lib/people-strategy/operational-digest";
 import {
-  ContributionList,
-  ExpectationProgressCard,
-  ReviewEvidenceCard,
-} from "@/components/leadership/leadership-section";
-import { AssignContributionForm } from "@/components/leadership/assign-forms";
-import { TagsEditor, NotesEditor, TasksEditor } from "./profile-editor";
+  loadAdvisorCaseload,
+  loadQuarterlyReviewHistory,
+  loadUpcomingSessions,
+} from "@/lib/people/instructor-record";
+import {
+  ButtonLink,
+  EntityChip,
+  KeyFactsGrid,
+  ProfileHeader,
+  RecordSection,
+  StatusBadge,
+  type KeyFact,
+  type StatusTone,
+} from "@/components/ui-v2";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Instructor record — Pathways Portal" };
 
 function asArray(value: unknown): any[] {
   return Array.isArray(value) ? value : [];
 }
 
-export default async function AdminInstructorProfilePage({
+const CLASS_STATUS_TONE: Record<string, StatusTone> = {
+  DRAFT: "neutral",
+  PUBLISHED: "info",
+  IN_PROGRESS: "success",
+  COMPLETED: "neutral",
+  CANCELLED: "danger",
+};
+
+/**
+ * Instructor full-360 (Knowledge OS V2, plan §11) — the one page answering
+ * "what does this instructor carry, and what do they need next?": identity,
+ * current/past classes, upcoming sessions, reviews and interviews, mentorship,
+ * leadership contributions, advisor caseload, open work, and activity — all
+ * concrete facts, no bare performance labels (§19). Deep admin tooling (tags,
+ * notes, tasks, the quarterly review form) lives at ./manage.
+ */
+export default async function AdminInstructorRecordPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -64,693 +64,693 @@ export default async function AdminInstructorProfilePage({
   const { id } = await params;
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  if (!roles.includes("ADMIN")) redirect("/");
 
-  const quarterlyReviewsEnabled = isQuarterlyReviewsEnabled();
-  const peopleDashboardEnabled = isPeopleDashboardEnabled();
-  const provisionalEnabled = isProvisionalClockEnabled();
-  const leadershipRolesEnabled = isLeadershipRolesEnabled();
+  const now = new Date();
+  const quarterlyEnabled = isQuarterlyReviewsEnabled();
+  const leadershipEnabled = isLeadershipRolesEnabled();
+  const operationsEnabled = isOperationsHubEnabled() && isActionTrackerEnabled();
 
-  // Leadership/Board check drives both the Quarterly Review submit affordance and the
-  // confidential feedback block. The server actions re-enforce `requireLeadership()`.
-  const viewerIsLeadershipOrBoard = session?.user ? isLeadershipOrBoard(session.user) : false;
-
-  const [profile, detail, allTags, leadership, latestQuarterlyReview, peopleStrategy] =
+  const [profile, leadership, latestReview, reviewHistory, caseload, upcomingSessions] =
     await Promise.all([
       getInstructorOpsProfile(id),
-      loadInstructorProfileDetail(id),
-      listAllTags(),
-      leadershipRolesEnabled ? loadInstructorLeadership(id) : Promise.resolve(null),
-      quarterlyReviewsEnabled ? getLatestQuarterlyReview(id) : Promise.resolve(null),
-      peopleDashboardEnabled
-        ? loadMemberPeopleStrategy(id, {
-            id: session?.user?.id ?? "",
-            roles: session?.user?.roles ?? [],
-            primaryRole: session?.user?.primaryRole ?? null,
-            adminSubtypes: session?.user?.adminSubtypes ?? [],
-          })
-        : Promise.resolve(null),
+      leadershipEnabled ? loadInstructorLeadership(id) : Promise.resolve(null),
+      quarterlyEnabled ? getLatestQuarterlyReview(id) : Promise.resolve(null),
+      quarterlyEnabled ? loadQuarterlyReviewHistory(id) : Promise.resolve([]),
+      loadAdvisorCaseload(id, now),
+      loadUpcomingSessions(id, now),
     ]);
-  if (!profile) {
-    notFound();
-  }
+  if (!profile) notFound();
 
-  // People Strategy Operating System — Action Tracker items linked to this
-  // person. Additive + double-flagged; visibility-filtered for the viewer.
-  const operationsEnabled = isOperationsHubEnabled() && isActionTrackerEnabled();
-  const operationsViewer = {
-    id: session?.user?.id ?? "",
-    roles,
-    primaryRole: session?.user?.primaryRole ?? null,
-    adminSubtypes: session?.user?.adminSubtypes ?? [],
-  };
   const opsContext = operationsEnabled
-    ? await getOperationalContextForEntity("USER", id, operationsViewer)
+    ? await getOperationalContextForEntity("USER", id, {
+        id: session?.user?.id ?? "",
+        roles,
+        primaryRole: session?.user?.primaryRole ?? null,
+        adminSubtypes: session?.user?.adminSubtypes ?? [],
+      })
     : null;
-  const canCreatePersonAction = canCreateAction(operationsViewer);
-
-  // Confidential feedback responses — ONLY for Leadership/Board. The loader enforces
-  // `requireLeadership()` itself; the guard + catch here keep the page resilient for
-  // non-Leadership admins (who see everything else but not this block).
-  let feedbackResponses: SubjectFeedbackResponse[] | null = null;
-  if (peopleDashboardEnabled && viewerIsLeadershipOrBoard) {
-    feedbackResponses = await getFeedbackResponsesForSubject(id).catch(() => null);
-  }
-
-  // Feedback request STATUS (counts + last requested/submitted dates only — no
-  // response bodies), safe to show to any admin viewing this page. Null when the
-  // emails feature is off.
-  const feedbackStatus: FeedbackRequestStatus | null =
-    peopleDashboardEnabled ? await getFeedbackRequestStatusForSubject(id) : null;
-
-  // Provisional 3-month confirmation clock (ENABLE_PROVISIONAL_CLOCK). Loaded
-  // independently of the People Dashboard so the badge/countdown shows on any
-  // hire's profile. The loader returns a "not provisional" status when off.
-  const provisionalStatus = provisionalEnabled
-    ? await loadProvisionalStatus(id)
-    : null;
-
-  // Quarterly Review submission is leadership-gated (Leadership / Board) per the role
-  // hierarchy; non-Leadership admins still see the latest review read-only. The server
-  // action re-enforces `requireLeadership()` regardless of this UI flag.
-  const canSubmitQuarterlyReview = viewerIsLeadershipOrBoard;
 
   const { record, user, readiness } = profile;
-  const instructorApplications = asArray(user.instructorApplications);
   const classOfferings = asArray(user.classOfferingsInstructed);
-  const courses = asArray(user.courses);
+  const currentClasses = classOfferings.filter((c: any) =>
+    ["PUBLISHED", "IN_PROGRESS"].includes(c.status)
+  );
+  const pastClasses = classOfferings.filter(
+    (c: any) => !["PUBLISHED", "IN_PROGRESS"].includes(c.status)
+  );
+  const legacyCourses = asArray(user.courses);
   const coInstructorAssignments = asArray(user.coInstructorAssignments);
-  const teachingPermissions = asArray(user.teachingPermissions);
-  const instructorCertifications = asArray(user.instructorCertifications);
-  const menteePairs = asArray(user.menteePairs);
-  const mentorPairs = asArray(user.mentorPairs);
-  const instructorGrowthEvents = asArray(user.instructorGrowthEvents);
-  const activeApplication = instructorApplications[0] ?? null;
-  const applicationTimelineEvents = instructorApplications.flatMap((application: any) =>
-    asArray(application.timeline).map((event: any) => ({
-      ...event,
-      applicationId: application.id,
+  const mentorPair = asArray(user.menteePairs).find((p: any) => p.status === "ACTIVE");
+  const mentees = asArray(user.mentorPairs).filter((p: any) => p.status === "ACTIVE");
+  const instructorApplications = asArray(user.instructorApplications);
+  const interviewReviews = instructorApplications.flatMap((application: any) =>
+    asArray(application.interviewReviews).map((review: any, index: number) => ({
+      id: `${application.id}-interview-${index}`,
+      recommendation: review.recommendation,
+      overallRating: review.overallRating,
+      submittedAt: review.submittedAt,
     }))
   );
-  const reviewActivity = instructorApplications.flatMap((application: any) => [
-    ...asArray(application.applicationReviews).map((review: any, index: number) => ({
-      id: `${application.id}-app-review-${index}`,
-      title: "Application review",
-      summary: review.summary ?? "No summary recorded.",
-    })),
-    ...asArray(application.interviewReviews).map((review: any, index: number) => ({
-      id: `${application.id}-interview-review-${index}`,
-      title: "Interview review",
-      summary:
-        review.recommendation || review.overallRating
-          ? `${formatInstructorOpsLabel(review.recommendation ?? "Interview")}: ${
-              review.overallRating ?? "No rating"
-            }`
-          : "No summary recorded.",
-    })),
-  ]);
-
-  return (
-    <div className="instructor-ops-page instructor-profile-page">
-      <div className="instructor-profile-hero">
-        <div className="instructor-profile-identity">
-          <div className="instructor-profile-avatar" aria-hidden="true">
-            {record.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- small admin avatar, not page-critical.
-              <img src={record.avatarUrl} alt="" />
-            ) : (
-              record.name.slice(0, 2).toUpperCase()
-            )}
-          </div>
-          <div>
-            <div className="instructor-profile-breadcrumbs">
-              <Link href="/admin/instructors">Database</Link>
-              <span>/</span>
-              <Link href="/admin/instructors/hub">Pipeline hub</Link>
-            </div>
-            <p className="badge">{record.stageLabel}</p>
-            <h1 className="page-title">{record.name}</h1>
-            <p className="page-subtitle">
-              {record.email} | {record.chapterName} | {record.stageDetail}
-            </p>
-          </div>
-        </div>
-        <div className="instructor-profile-actions">
-          {record.application && (
-            <Link href={`/admin/instructor-applicants/${record.application.id}`} className="button secondary">
-              Open application
-            </Link>
-          )}
-          <Link href="/admin/instructors/attention" className="button secondary">
-            Attention inbox
-          </Link>
-          <Link href="/admin/instructors" className="button">
-            Back to database
-          </Link>
-        </div>
-      </div>
-
-      <div className="grid four instructor-ops-metrics">
-        <ProfileMetric label="Stage" value={record.stageLabel} detail={record.currentLoadLabel} />
-        <ProfileMetric
-          label="Assignments"
-          value={String(record.activeAssignmentCount)}
-          detail={`${record.assignmentCount} total`}
-        />
-        <ProfileMetric
-          label="Training"
-          value={`${record.trainingPercent}%`}
-          detail={`${record.trainingCompleted}/${record.trainingTotal} modules`}
-        />
-        <ProfileMetric
-          label="Attention"
-          value={String(record.attentionFlags.length)}
-          detail={record.attentionFlags[0]?.title ?? "No active flags"}
-        />
-      </div>
-
-      <CompletenessBanner completeness={record.completeness} />
-
-      <nav className="instructor-profile-tabs" aria-label="Instructor profile sections">
-        <a href="#overview">Overview</a>
-        <a href="#pipeline">Pipeline</a>
-        <a href="#assignments">Assignments</a>
-        <a href="#mentorship">Mentorship</a>
-        {leadershipRolesEnabled && <a href="#leadership">Leadership</a>}
-        {peopleDashboardEnabled && peopleStrategy && <a href="#people-strategy">People Strategy</a>}
-        {provisionalEnabled && <a href="#provisional">Provisional</a>}
-        {quarterlyReviewsEnabled && <a href="#quarterly-review">Quarterly Review</a>}
-        <a href="#activity">Notes/Activity</a>
-      </nav>
-
-      <section id="overview" className="card instructor-profile-section">
-        <SectionHeading title="Overview" detail="Identity, contact, tags, categories, and leadership signals." />
-        <div className="instructor-profile-two-column">
-          <InfoGrid
-            items={[
-              ["Email", record.email],
-              ["Phone", record.phone ?? "Not recorded"],
-              ["Chapter", record.chapterName],
-              ["Location", record.chapterLocation ?? user.profile?.city ?? "Not recorded"],
-              ["School", user.profile?.school ?? activeApplication?.schoolName ?? "Not recorded"],
-              ["Roles", record.roles.join(", ") || "None"],
-            ]}
-          />
-          <div>
-            <TagsEditor
-              userId={id}
-              initialTags={detail.tags}
-              allTags={allTags.map((t) => ({
-                id: t.id,
-                namespace: t.namespace,
-                label: t.label,
-                color: t.color,
-              }))}
-            />
-            <div className="instructor-profile-signal-grid" style={{ marginTop: 16 }}>
-              <Signal label="Mentor eligible" value={record.mentorEligible ? "Yes" : "No"} />
-              <Signal label="Workshop eligible" value={record.workshopEligible ? "Yes" : "No"} />
-              <Signal label="Leadership track" value={record.leadershipTrack ? "Yes" : "No"} />
-              <Signal label="Growth tier" value={record.growthTier ? formatInstructorOpsLabel(record.growthTier) : "Not started"} />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="pipeline" className="card instructor-profile-section">
-        <SectionHeading title="Pipeline" detail="How this person got to the current board stage." />
-        <div className="instructor-profile-two-column">
-          <div>
-            <h3>Current operations stage</h3>
-            <div className="instructor-profile-stage-card">
-              <span className={`pill ${record.needsAttention ? "pill-attention" : "pill-purple"}`}>
-                {record.stageLabel}
-              </span>
-              <strong>{record.stageDetail}</strong>
-              <span>
-                Latest activity: {formatInstructorOpsDateTime(record.latestActivityAt)}
-              </span>
-            </div>
-
-            <h3 style={{ marginTop: 18 }}>Attention flags</h3>
-            {record.attentionFlags.length === 0 ? (
-              <p className="instructor-profile-muted">No active attention flags.</p>
-            ) : (
-              <div className="instructor-ops-attention-list">
-                {record.attentionFlags.map((flag) => (
-                  <Link key={flag.kind} href={flag.href} className={`instructor-ops-attention-item is-${flag.tone}`}>
-                    <strong>{flag.title}</strong>
-                    <span>{flag.detail}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <h3>Readiness and onboarding</h3>
-            <InfoGrid
-              items={[
-                ["Readiness complete", readiness.baseReadinessComplete ? "Yes" : "No"],
-                ["Can request offering approval", readiness.canRequestOfferingApproval ? "Yes" : "No"],
-                ["Training complete", readiness.trainingComplete ? "Yes" : "No"],
-                ["Interview status", formatInstructorOpsLabel(readiness.interviewStatus)],
-                ["Onboarding profile", record.onboardingComplete ? "Complete" : "Incomplete"],
-                ["Subtype", formatInstructorOpsLabel(readiness.instructorSubtype)],
-              ]}
-            />
-            {readiness.missingRequirements.length > 0 && (
-              <div className="instructor-profile-blocker-list">
-                {readiness.missingRequirements.map((requirement) => (
-                  <Link key={requirement.code} href={requirement.href}>
-                    <strong>{requirement.title}</strong>
-                    <span>{requirement.detail}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="instructor-profile-history">
-          <h3>Application history</h3>
-          {instructorApplications.length === 0 ? (
-            <p className="instructor-profile-muted">No instructor application records found.</p>
-          ) : (
-            instructorApplications.map((application: any) => (
-              <Link key={application.id} href={`/admin/instructor-applicants/${application.id}`} className="instructor-profile-history-row">
-                <span>{formatInstructorOpsLabel(application.status)}</span>
-                <strong>{formatInstructorOpsLabel(application.applicationTrack)}</strong>
-                <small>Updated {formatInstructorOpsDate(application.updatedAt)}</small>
-              </Link>
-            ))
-          )}
-        </div>
-      </section>
-
-      <section id="assignments" className="card instructor-profile-section">
-        <SectionHeading title="Assignments" detail="Classes, legacy courses, co-instructor roles, and teaching permissions." />
-        <div className="instructor-profile-assignment-grid">
-          <div>
-            <h3>Class offerings</h3>
-            <div className="instructor-profile-stack">
-              {classOfferings.length === 0 ? (
-                <p className="instructor-profile-muted">No class offerings assigned.</p>
-              ) : (
-                classOfferings.map((offering: any) => (
-                  <Link key={offering.id} href={`/admin/classes/${offering.id}`} className="instructor-profile-assignment-row">
-                    <strong>{offering.title}</strong>
-                    <span>
-                      {formatInstructorOpsLabel(offering.status)} | {offering.template.interestArea}
-                    </span>
-                    <small>
-                      Approval: {formatInstructorOpsLabel(offering.approval?.status ?? "NOT_REQUESTED")}
-                    </small>
-                  </Link>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div>
-            <h3>Courses and co-instructor roles</h3>
-            <div className="instructor-profile-stack">
-              {courses.map((course: any) => (
-                <div key={course.id} className="instructor-profile-assignment-row">
-                  <strong>{course.title}</strong>
-                  <span>{course.interestArea} | {course._count.enrollments} enrollments</span>
-                </div>
-              ))}
-              {coInstructorAssignments.map((assignment: any) => (
-                <div key={assignment.id} className="instructor-profile-assignment-row">
-                  <strong>{assignment.course.title}</strong>
-                  <span>{formatInstructorOpsLabel(assignment.role)} | Co-instructor</span>
-                </div>
-              ))}
-              {courses.length === 0 && coInstructorAssignments.length === 0 && (
-                <p className="instructor-profile-muted">No legacy course assignments found.</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="instructor-profile-history">
-          <h3>Teaching permissions and certifications</h3>
-          <div className="instructor-profile-permission-grid">
-            {teachingPermissions.map((permission: any) => (
-              <div key={permission.id} className="instructor-profile-mini-row">
-                <strong>{formatInstructorOpsLabel(permission.level)}</strong>
-                <span>Granted {formatInstructorOpsDate(permission.grantedAt)}</span>
-              </div>
-            ))}
-            {instructorCertifications.map((certification: any) => (
-              <div key={certification.id} className="instructor-profile-mini-row">
-                <strong>{certification.certType}</strong>
-                <span>
-                  {formatInstructorOpsLabel(certification.status)}
-                  {certification.expiresAt ? ` | Expires ${formatInstructorOpsDate(certification.expiresAt)}` : ""}
-                </span>
-              </div>
-            ))}
-            {teachingPermissions.length === 0 && instructorCertifications.length === 0 && (
-              <p className="instructor-profile-muted">No permissions or certifications recorded.</p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section id="mentorship" className="card instructor-profile-section">
-        <SectionHeading title="Mentorship" detail="Mentor assignment, mentor capacity, and leadership readiness." />
-        <div className="instructor-profile-two-column">
-          <div>
-            <h3>As mentee</h3>
-            {menteePairs.length === 0 ? (
-              <p className="instructor-profile-muted">No instructor mentor assigned.</p>
-            ) : (
-              <div className="instructor-profile-stack">
-                {menteePairs.map((pair: any) => (
-                  <div key={pair.id} className="instructor-profile-assignment-row">
-                    <strong>{pair.mentor.name}</strong>
-                    <span>{pair.mentor.email}</span>
-                    <small>{formatInstructorOpsLabel(pair.status)} since {formatInstructorOpsDate(pair.startDate)}</small>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div>
-            <h3>As mentor</h3>
-            {mentorPairs.length === 0 ? (
-              <p className="instructor-profile-muted">No instructor mentees assigned.</p>
-            ) : (
-              <div className="instructor-profile-stack">
-                {mentorPairs.map((pair: any) => (
-                  <div key={pair.id} className="instructor-profile-assignment-row">
-                    <strong>{pair.mentee.name}</strong>
-                    <span>{pair.mentee.email}</span>
-                    <small>{formatInstructorOpsLabel(pair.status)} since {formatInstructorOpsDate(pair.startDate)}</small>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {leadershipRolesEnabled && leadership && (
-        <section id="leadership" className="card instructor-profile-section">
-          <SectionHeading
-            title="Leadership & Contributions"
-            detail="Roles beyond teaching — advising, mentoring, reviewing, committee, and ownership areas. Counts as review and promotion evidence."
-          />
-          <div className="instructor-profile-two-column" style={{ alignItems: "start", marginBottom: 16 }}>
-            <ExpectationProgressCard progress={leadership.progress} />
-            <ReviewEvidenceCard evidence={leadership.evidence} />
-          </div>
-          {leadership.advisorStats.activeAdvisees > 0 && (
-            <p style={{ fontSize: 13, marginTop: 0 }}>
-              <strong>Student Advisor:</strong> {leadership.advisorStats.activeAdvisees} assigned
-              student{leadership.advisorStats.activeAdvisees === 1 ? "" : "s"} ·{" "}
-              {leadership.advisorStats.checkInsLogged} check-ins ·{" "}
-              {leadership.advisorStats.recommendationsMade} recommendations
-            </p>
-          )}
-          <div style={{ marginBottom: 16 }}>
-            <AssignContributionForm instructors={[]} fixedInstructorId={id} />
-          </div>
-          <ContributionList data={leadership} canManage canAct />
-        </section>
-      )}
-
-      {peopleDashboardEnabled && peopleStrategy && (
-        <MemberPeopleStrategySection
-          data={peopleStrategy}
-          feedbackResponses={feedbackResponses}
-          feedbackStatus={feedbackStatus}
-          canSeeFeedback={viewerIsLeadershipOrBoard}
-          quarterlyFormAvailable={quarterlyReviewsEnabled}
-        />
-      )}
-
-      {operationsEnabled && opsContext && (
-        <OperationalContextPanel
-          title="Instructor Accountability"
-          subtitle="Meetings & actions about this instructor"
-          health={opsContext.health}
-          meetings={opsContext.meetings}
-          actions={opsContext.actions}
-          openFollowUps={opsContext.openFollowUps}
-          recentDecisions={opsContext.recentDecisions}
-          canCreate={canCreatePersonAction}
-          createActionHref={`/actions/new?relatedType=USER&relatedId=${id}`}
-          createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
-          emptyActionsHint="No Action Tracker items are linked to this instructor yet."
-          emptyMeetingsHint="This instructor hasn't been the focus of a tracked meeting yet."
-        />
-      )}
-
-      {operationsEnabled && opsContext && isStrategicInitiativesEnabled() && (
-        <div style={{ marginTop: 14 }}>
-          <StrategicEntityPanel
-            context={deriveStrategicEntityContext({
-              actions: opsContext.actions,
-              meetings: opsContext.meetings,
-            })}
-          />
-        </div>
-      )}
-
-      {operationsEnabled && opsContext && (
-        <OperationalTimeline
-          events={deriveOperationalTimeline({
-            meetings: opsContext.meetings,
-            actions: opsContext.actions,
-            decisions: opsContext.recentDecisions,
-            followUps: opsContext.openFollowUps,
-          })}
-          compact
-          createActionHref={`/actions/new?relatedType=USER&relatedId=${id}`}
-          createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
-        />
-      )}
-
-      {provisionalEnabled && provisionalStatus && (
-        <section id="provisional" className="card instructor-profile-section">
-          <SectionHeading
-            title="Provisional status"
-            detail="3-month confirmation clock for new hires. Confirm at Month 3 via the Quarterly Review workflow to clear provisional status."
-          />
-          <ProvisionalStatusCard
-            userId={id}
-            canConfirm={viewerIsLeadershipOrBoard}
-            quarterlyFormAvailable={quarterlyReviewsEnabled}
-            status={{
-              isProvisional: provisionalStatus.isProvisional,
-              confirmed: provisionalStatus.confirmed,
-              startDate: provisionalStatus.startDate?.toISOString() ?? null,
-              confirmedAt: provisionalStatus.confirmedAt?.toISOString() ?? null,
-              monthThreeDate: provisionalStatus.monthThreeDate?.toISOString() ?? null,
-              daysRemaining: provisionalStatus.daysRemaining,
-              atMonthThree: provisionalStatus.atMonthThree,
-              percentElapsed: provisionalStatus.percentElapsed,
-            }}
-          />
-        </section>
-      )}
-
-      {quarterlyReviewsEnabled && (
-        <section id="quarterly-review" className="card instructor-profile-section">
-          <SectionHeading
-            title="Quarterly Review"
-            detail="Performance x Potential succession placement. The matrix label is computed, never stored."
-          />
-          <QuarterlyReviewForm
-            userId={id}
-            canSubmit={canSubmitQuarterlyReview}
-            latestReview={
-              latestQuarterlyReview
-                ? {
-                    quarter: latestQuarterlyReview.quarter,
-                    performanceRating: latestQuarterlyReview.performanceRating,
-                    potentialRating: latestQuarterlyReview.potentialRating,
-                    decision: latestQuarterlyReview.decision,
-                    notes: latestQuarterlyReview.notes,
-                    successionFlag: latestQuarterlyReview.successionFlag,
-                    matrixLabel: latestQuarterlyReview.matrixLabel,
-                    createdAt: latestQuarterlyReview.createdAt.toISOString(),
-                  }
-                : null
-            }
-          />
-        </section>
-      )}
-
-      <section id="activity" className="card instructor-profile-section">
-        <SectionHeading title="Notes/Activity" detail="Admin notes, open tasks, application events, and growth events." />
-
-        <div className="instructor-profile-activity-grid" style={{ marginBottom: 24 }}>
-          <NotesEditor userId={id} initialNotes={detail.notes} />
-          <TasksEditor userId={id} initialTasks={detail.tasks} />
-        </div>
-
-        <div className="instructor-profile-activity-grid">
-          <div>
-            <h3>Application activity</h3>
-            <div className="instructor-profile-stack">
-              {applicationTimelineEvents.length === 0 ? (
-                <p className="instructor-profile-muted">No application timeline events found.</p>
-              ) : (
-                applicationTimelineEvents.map((event: any) => (
-                  <div key={event.id} className="instructor-profile-activity-row">
-                    <strong>{formatInstructorOpsLabel(event.kind)}</strong>
-                    <span>
-                      {event.actor?.name ? `${event.actor.name} | ` : ""}
-                      {formatInstructorOpsDateTime(event.createdAt)}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div>
-            <h3>Review notes and growth</h3>
-            <div className="instructor-profile-stack">
-              {reviewActivity.map((activity: any) => (
-                <div key={activity.id} className="instructor-profile-activity-row">
-                  <strong>{activity.title}</strong>
-                  <span>{activity.summary}</span>
-                </div>
-              ))}
-              {instructorGrowthEvents.map((event: any) => (
-                <div key={event.id} className="instructor-profile-activity-row">
-                  <strong>{event.title}</strong>
-                  <span>
-                    {formatInstructorOpsLabel(event.status)} | {event.xpAmount} XP | {formatInstructorOpsDate(event.occurredAt)}
-                  </span>
-                </div>
-              ))}
-              {reviewActivity.length === 0 && instructorGrowthEvents.length === 0 && (
-                <p className="instructor-profile-muted">No review notes or growth events found.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
+  const activeContributions = (leadership?.contributions ?? []).filter(
+    (c) => !["COMPLETED", "CANCELLED", "DECLINED"].includes(c.status)
   );
-}
 
-function ProfileMetric({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <div className="card instructor-ops-metric">
-      <span className="kpi" style={{ fontSize: value.length > 8 ? 22 : undefined }}>
-        {value}
-      </span>
-      <span className="kpi-label">{label}</span>
-      <span>{detail}</span>
-    </div>
+  const actionLites = (opsContext?.actions ?? []).map((a) => toActionLite(a, now));
+  const openActions = actionLites.filter(
+    (a) => a.status !== "COMPLETE" && a.status !== "DROPPED"
   );
-}
+  const overdueActions = openActions.filter((a) => a.overdue);
+  const recentMeetings = (opsContext?.meetings ?? []).slice(0, 5);
 
-function CompletenessBanner({
-  completeness,
-}: {
-  completeness: InstructorCompleteness;
-}) {
-  const tone = completenessTone(completeness.score);
-  const palette =
-    tone === "success"
-      ? { bg: "#f0fdf4", border: "#bbf7d0", fg: "#166534" }
-      : tone === "warning"
-        ? { bg: "#fffbeb", border: "#fde68a", fg: "#854d0e" }
-        : { bg: "#fef2f2", border: "#fecaca", fg: "#991b1b" };
+  // Activity: application timeline events + growth events, newest first.
+  const activity = [
+    ...instructorApplications.flatMap((application: any) =>
+      asArray(application.timeline).map((event: any) => ({
+        id: event.id,
+        title: formatInstructorOpsLabel(event.kind),
+        detail: event.actor?.name ?? null,
+        atISO: event.createdAt,
+      }))
+    ),
+    ...asArray(user.instructorGrowthEvents).map((event: any) => ({
+      id: event.id,
+      title: event.title,
+      detail: formatInstructorOpsLabel(event.status),
+      atISO: event.occurredAt,
+    })),
+  ]
+    .sort((a, b) => new Date(b.atISO).getTime() - new Date(a.atISO).getTime())
+    .slice(0, 12);
+
+  // The concrete next step (never a bare flag): attention queue first, then
+  // onboarding blockers, then a missing first review.
+  const attentionFlag = record.attentionFlags[0] ?? null;
+  const missingRequirement = readiness.missingRequirements[0] ?? null;
+  const nextStep = attentionFlag
+    ? {
+        title: attentionFlag.title,
+        detail: attentionFlag.detail,
+        // Some flags self-link to this record; send those to the admin tools.
+        href:
+          attentionFlag.href === `/admin/instructors/${id}`
+            ? `/admin/instructors/${id}/manage`
+            : attentionFlag.href,
+      }
+    : missingRequirement
+      ? {
+          title: missingRequirement.title,
+          detail: missingRequirement.detail,
+          href: missingRequirement.href,
+        }
+      : quarterlyEnabled && !latestReview
+        ? {
+            title: "Schedule the first quarterly review",
+            detail: "No review is on record for this instructor yet.",
+            href: `/admin/instructors/${id}/manage#quarterly-review`,
+          }
+        : null;
+
+  const facts: KeyFact[] = [
+    {
+      label: "Current classes",
+      value: String(currentClasses.length),
+      detail: record.currentLoadLabel,
+      href: "#classes",
+    },
+    {
+      label: "Training",
+      value: `${record.trainingCompleted}/${record.trainingTotal}`,
+      detail: "required modules complete",
+    },
+    ...(quarterlyEnabled
+      ? [
+          {
+            label: "Last review",
+            value: latestReview
+              ? latestReview.quarter
+              : "None on record",
+            detail: latestReview
+              ? formatInstructorOpsDate(latestReview.createdAt)
+              : undefined,
+            href: "#reviews",
+          },
+        ]
+      : []),
+    ...(operationsEnabled
+      ? [
+          {
+            label: "Open actions",
+            value: String(openActions.length),
+            detail:
+              overdueActions.length > 0
+                ? `${overdueActions.length} overdue`
+                : undefined,
+            tone: overdueActions.length > 0 ? ("attention" as const) : undefined,
+            href: "#work",
+          },
+        ]
+      : []),
+    ...(caseload.length > 0
+      ? [
+          {
+            label: "Advisees",
+            value: String(caseload.length),
+            detail: caseload.some((row) => row.overdue)
+              ? `${caseload.filter((row) => row.overdue).length} check-in overdue`
+              : undefined,
+            tone: caseload.some((row) => row.overdue)
+              ? ("attention" as const)
+              : undefined,
+            href: "#caseload",
+          },
+        ]
+      : []),
+    ...(mentorPair
+      ? [
+          {
+            label: "Mentor",
+            value: mentorPair.mentor.name ?? mentorPair.mentor.email,
+            href: "#mentorship",
+          },
+        ]
+      : []),
+  ];
+
+  const identityLine = [
+    record.email,
+    record.phone,
+    record.chapterName,
+    record.roles.map((r: string) => formatInstructorOpsLabel(r)).join(", "),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <section
-      className="card"
-      style={{
-        background: palette.bg,
-        border: `1px solid ${palette.border}`,
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        flexWrap: "wrap",
-      }}
-    >
-      <div style={{ fontSize: 28, fontWeight: 700, color: palette.fg, minWidth: 64 }}>
-        {completeness.score}%
-      </div>
-      <div style={{ flex: 1, minWidth: 220 }}>
-        <div style={{ fontWeight: 600, color: palette.fg }}>
-          Profile completeness
-        </div>
-        {completeness.missing.length === 0 ? (
-          <div style={{ fontSize: 13, color: palette.fg }}>
-            All tracked fields are on file.
-          </div>
-        ) : (
-          <div style={{ fontSize: 13, color: palette.fg, display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-            <span>Missing:</span>
-            {completeness.missing.map((m) => (
-              <span
-                key={m.code}
-                style={{
-                  padding: "1px 8px",
-                  borderRadius: 9999,
-                  background: "rgba(0,0,0,0.05)",
-                  fontWeight: 600,
-                }}
+    <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5">
+      <ProfileHeader
+        name={record.name}
+        eyebrow="Instructor record"
+        identityLine={identityLine}
+        avatarUrl={record.avatarUrl}
+        backHref="/people?role=instructor"
+        backLabel="People · Instructors"
+        badges={
+          <StatusBadge
+            tone={record.needsAttention ? "warning" : "success"}
+            title={record.stageDetail}
+          >
+            {record.stageLabel}
+          </StatusBadge>
+        }
+        actions={
+          <>
+            {operationsEnabled ? (
+              <ButtonLink
+                href={`/actions/new?relatedType=USER&relatedId=${id}`}
+                variant="primary"
+                size="md"
               >
-                {m.label}
-              </span>
+                New action
+              </ButtonLink>
+            ) : null}
+            {record.application ? (
+              <ButtonLink
+                href={`/admin/instructor-applicants/${record.application.id}`}
+                size="md"
+              >
+                Open application
+              </ButtonLink>
+            ) : null}
+            <ButtonLink href={`/admin/instructors/${id}/manage`} size="md">
+              Admin tools
+            </ButtonLink>
+          </>
+        }
+      />
+
+      <KeyFactsGrid facts={facts} />
+
+      {nextStep ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-warning-700/25 bg-warning-100/40 px-5 py-4">
+          <div className="min-w-0">
+            <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.06em] text-warning-700">
+              Next step
+            </p>
+            <p className="m-0 text-[14.5px] font-semibold text-ink">{nextStep.title}</p>
+            {nextStep.detail ? (
+              <p className="m-0 text-[12.5px] text-ink-muted">{nextStep.detail}</p>
+            ) : null}
+          </div>
+          <ButtonLink href={nextStep.href} size="sm">
+            Go to it →
+          </ButtonLink>
+        </div>
+      ) : null}
+
+      <RecordSection
+        id="classes"
+        title="Classes"
+        description="Lead-instructed class offerings, current first."
+        action={
+          <ButtonLink href="/admin/classes" variant="ghost" size="sm">
+            Class operations →
+          </ButtonLink>
+        }
+      >
+        {currentClasses.length === 0 && pastClasses.length === 0 ? (
+          <p className="m-0 text-[13px] text-ink-muted">
+            No class offerings assigned yet.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {currentClasses.map((offering: any) => (
+              <ClassRow key={offering.id} offering={offering} />
             ))}
+            {pastClasses.length > 0 ? (
+              <>
+                <p className="m-0 mt-2 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                  Past classes
+                </p>
+                {pastClasses.map((offering: any) => (
+                  <ClassRow key={offering.id} offering={offering} />
+                ))}
+              </>
+            ) : null}
           </div>
         )}
-      </div>
-    </section>
-  );
-}
+        {(legacyCourses.length > 0 || coInstructorAssignments.length > 0) && (
+          <div className="mt-4 border-t border-line-soft pt-3">
+            <p className="m-0 mb-2 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+              Legacy courses & co-instructor roles
+            </p>
+            <div className="flex flex-wrap gap-2 text-[13px] text-ink-muted">
+              {legacyCourses.map((course: any) => (
+                <span key={course.id}>
+                  {course.title} ({course._count.enrollments} enrolled)
+                </span>
+              ))}
+              {coInstructorAssignments.map((assignment: any) => (
+                <span key={assignment.id}>
+                  {assignment.course.title} · {formatInstructorOpsLabel(assignment.role)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </RecordSection>
 
-function SectionHeading({ title, detail }: { title: string; detail: string }) {
-  return (
-    <div className="instructor-ops-section-heading">
-      <div>
-        <h2>{title}</h2>
-        <p>{detail}</p>
-      </div>
-    </div>
-  );
-}
+      {upcomingSessions.length > 0 ? (
+        <RecordSection
+          id="sessions"
+          title="Upcoming sessions"
+          description="Next scheduled sessions across current classes."
+        >
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {upcomingSessions.map((s) => (
+              <li
+                key={s.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 rounded-[8px] bg-surface-soft px-3.5 py-2.5"
+              >
+                <span className="text-[13.5px] font-semibold text-ink">
+                  {s.topic}
+                  <span className="ml-2 font-normal text-ink-muted">
+                    {s.offering.title}
+                  </span>
+                </span>
+                <span className="text-[12.5px] text-ink-muted">
+                  {formatInstructorOpsDate(s.dateISO)} · {s.startTime}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </RecordSection>
+      ) : null}
 
-function InfoGrid({ items }: { items: Array<[string, string]> }) {
-  return (
-    <div className="instructor-profile-info-grid">
-      {items.map(([label, value]) => (
-        <div key={label}>
-          <span>{label}</span>
-          <strong>{value}</strong>
+      <RecordSection
+        id="reviews"
+        title="Reviews & interviews"
+        description="Quarterly reviews, application history, and interview outcomes — concrete records, not a performance label."
+        action={
+          quarterlyEnabled ? (
+            <ButtonLink
+              href={`/admin/instructors/${id}/manage#quarterly-review`}
+              variant="ghost"
+              size="sm"
+            >
+              Submit review →
+            </ButtonLink>
+          ) : undefined
+        }
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div>
+            <p className="m-0 mb-2 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+              Quarterly reviews
+            </p>
+            {!quarterlyEnabled ? (
+              <p className="m-0 text-[13px] text-ink-muted">
+                Quarterly reviews are not enabled.
+              </p>
+            ) : latestReview ? (
+              <div className="flex flex-col gap-2">
+                <div className="rounded-[8px] border border-line-soft bg-surface-soft px-3.5 py-3">
+                  <p className="m-0 text-[13.5px] font-semibold text-ink">
+                    {latestReview.quarter} · {formatInstructorOpsLabel(latestReview.decision)}
+                  </p>
+                  <p className="m-0 text-[12.5px] text-ink-muted">
+                    Performance {formatInstructorOpsLabel(latestReview.performanceRating)} ·
+                    Potential {formatInstructorOpsLabel(latestReview.potentialRating)} ·{" "}
+                    {formatInstructorOpsDate(latestReview.createdAt)}
+                  </p>
+                  {latestReview.notes ? (
+                    <p className="m-0 mt-1.5 text-[12.5px] leading-relaxed text-ink">
+                      {latestReview.notes}
+                    </p>
+                  ) : null}
+                </div>
+                {reviewHistory.slice(1).map((review) => (
+                  <p key={review.id} className="m-0 text-[12.5px] text-ink-muted">
+                    {review.quarter} · {formatInstructorOpsLabel(review.decision)} ·{" "}
+                    {formatInstructorOpsDate(review.createdAtISO)}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="m-0 text-[13px] text-ink-muted">
+                No quarterly review on record yet.
+              </p>
+            )}
+          </div>
+          <div>
+            <p className="m-0 mb-2 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+              Applications & interviews
+            </p>
+            {instructorApplications.length === 0 ? (
+              <p className="m-0 text-[13px] text-ink-muted">
+                No instructor application records.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {instructorApplications.map((application: any) => (
+                  <a
+                    key={application.id}
+                    href={`/admin/instructor-applicants/${application.id}`}
+                    className="rounded-[8px] border border-line-soft px-3.5 py-2.5 transition-colors hover:border-brand-400"
+                  >
+                    <p className="m-0 text-[13.5px] font-semibold text-ink">
+                      {formatInstructorOpsLabel(application.applicationTrack)} ·{" "}
+                      {formatInstructorOpsLabel(application.status)}
+                    </p>
+                    <p className="m-0 text-[12px] text-ink-muted">
+                      Updated {formatInstructorOpsDate(application.updatedAt)}
+                    </p>
+                  </a>
+                ))}
+                {interviewReviews.map((review: any) => (
+                  <p key={review.id} className="m-0 text-[12.5px] text-ink-muted">
+                    Interview: {formatInstructorOpsLabel(review.recommendation ?? "completed")}
+                    {review.overallRating ? ` · rated ${review.overallRating}` : ""}
+                    {review.submittedAt
+                      ? ` · ${formatInstructorOpsDate(review.submittedAt)}`
+                      : ""}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      ))}
+      </RecordSection>
+
+      {(mentorPair || mentees.length > 0 || activeContributions.length > 0) && (
+        <RecordSection
+          id="mentorship"
+          title="Mentorship & leadership"
+          description="Mentor relationships and leadership contributions beyond teaching."
+        >
+          <div className="flex flex-col gap-4">
+            {(mentorPair || mentees.length > 0) && (
+              <div className="flex flex-wrap gap-2">
+                {mentorPair ? (
+                  <EntityChip
+                    type="person"
+                    id={mentorPair.mentor.id}
+                    label={mentorPair.mentor.name ?? mentorPair.mentor.email}
+                    sublabel="Mentor"
+                    href={`/people/${mentorPair.mentor.id}`}
+                  />
+                ) : null}
+                {mentees.map((pair: any) => (
+                  <EntityChip
+                    key={pair.id}
+                    type="person"
+                    id={pair.mentee.id}
+                    label={pair.mentee.name ?? pair.mentee.email}
+                    sublabel="Mentee"
+                    href={`/people/${pair.mentee.id}`}
+                  />
+                ))}
+              </div>
+            )}
+            {activeContributions.length > 0 ? (
+              <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                {activeContributions.map((contribution) => (
+                  <li
+                    key={contribution.id}
+                    className="flex flex-wrap items-baseline justify-between gap-2 rounded-[8px] bg-surface-soft px-3.5 py-2.5"
+                  >
+                    <span className="text-[13.5px] font-semibold text-ink">
+                      {contribution.title}
+                      {contribution.relatedLabel ? (
+                        <span className="ml-2 font-normal text-ink-muted">
+                          {contribution.relatedLabel}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="flex items-center gap-2 text-[12.5px] text-ink-muted">
+                      <StatusBadge
+                        tone={contribution.status === "NEEDS_ATTENTION" ? "warning" : "neutral"}
+                      >
+                        {formatInstructorOpsLabel(contribution.status)}
+                      </StatusBadge>
+                      since {formatInstructorOpsDate(contribution.startDate)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </RecordSection>
+      )}
+
+      {caseload.length > 0 ? (
+        <RecordSection
+          id="caseload"
+          title="Advisor caseload"
+          description="Assigned advisees with check-in state — overdue first (plan §12)."
+          action={
+            <ButtonLink
+              href={`/people?role=student&advisor=${id}`}
+              variant="ghost"
+              size="sm"
+            >
+              View caseload in People →
+            </ButtonLink>
+          }
+        >
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {caseload.map((row) => (
+              <li
+                key={row.assignmentId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] bg-surface-soft px-3.5 py-2.5"
+              >
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <EntityChip
+                    type="person"
+                    id={row.student.id}
+                    label={row.student.name}
+                    href={`/admin/students/${row.student.id}`}
+                  />
+                  {row.overdue ? (
+                    <StatusBadge tone="danger">Check-in overdue</StatusBadge>
+                  ) : null}
+                  {row.needsFollowUp ? (
+                    <StatusBadge tone="warning" title={row.followUpNote ?? undefined}>
+                      Follow-up flagged
+                    </StatusBadge>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-3 text-[12.5px] text-ink-muted">
+                  <span>
+                    Last check-in:{" "}
+                    {row.lastCheckInISO
+                      ? formatInstructorOpsDate(row.lastCheckInISO)
+                      : "never"}
+                  </span>
+                  <span>
+                    Next:{" "}
+                    {row.nextCheckInISO
+                      ? formatInstructorOpsDate(row.nextCheckInISO)
+                      : "not scheduled"}
+                  </span>
+                  <a
+                    href={`/my-advisees/${row.assignmentId}`}
+                    className="font-semibold text-brand-700 hover:underline"
+                  >
+                    Advising workspace →
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </RecordSection>
+      ) : null}
+
+      {operationsEnabled && opsContext ? (
+        <RecordSection
+          id="work"
+          title="Open work"
+          description="Action items linked to this instructor, and the meetings they were discussed in."
+          action={
+            <ButtonLink
+              href={`/actions/new?relatedType=USER&relatedId=${id}`}
+              variant="ghost"
+              size="sm"
+            >
+              New action →
+            </ButtonLink>
+          }
+        >
+          {openActions.length === 0 && recentMeetings.length === 0 ? (
+            <p className="m-0 text-[13px] text-ink-muted">
+              No open actions or tracked meetings reference this instructor.
+            </p>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                  Open actions
+                </p>
+                {openActions.length === 0 ? (
+                  <p className="m-0 text-[13px] text-ink-muted">None open.</p>
+                ) : (
+                  openActions.slice(0, 8).map((action) => (
+                    <a
+                      key={action.id}
+                      href={action.href}
+                      className="rounded-[8px] border border-line-soft px-3.5 py-2.5 transition-colors hover:border-brand-400"
+                    >
+                      <p className="m-0 text-[13.5px] font-semibold text-ink">
+                        {action.title}
+                      </p>
+                      <p
+                        className={
+                          action.overdue
+                            ? "m-0 text-[12px] font-semibold text-danger-700"
+                            : "m-0 text-[12px] text-ink-muted"
+                        }
+                      >
+                        {action.overdue
+                          ? `Overdue · due ${formatInstructorOpsDate(action.dueISO)}`
+                          : `Due ${formatInstructorOpsDate(action.dueISO)}`}
+                        {action.ownerName ? ` · ${action.ownerName}` : ""}
+                      </p>
+                    </a>
+                  ))
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                  Meetings mentioned in
+                </p>
+                {recentMeetings.length === 0 ? (
+                  <p className="m-0 text-[13px] text-ink-muted">
+                    No tracked meetings yet.
+                  </p>
+                ) : (
+                  recentMeetings.map((meeting) => (
+                    <div
+                      key={meeting.id}
+                      className="rounded-[8px] bg-surface-soft px-3.5 py-2.5"
+                    >
+                      <p className="m-0 text-[13.5px] font-semibold text-ink">
+                        {meeting.title}
+                      </p>
+                      <p className="m-0 text-[12px] text-ink-muted">
+                        {formatInstructorOpsDate(meeting.startISO)} ·{" "}
+                        {meeting.categoryLabel}
+                        {meeting.decisionCount > 0
+                          ? ` · ${meeting.decisionCount} decision${meeting.decisionCount === 1 ? "" : "s"}`
+                          : ""}
+                        {meeting.openFollowUps > 0
+                          ? ` · ${meeting.openFollowUps} open follow-up${meeting.openFollowUps === 1 ? "" : "s"}`
+                          : ""}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </RecordSection>
+      ) : null}
+
+      {activity.length > 0 ? (
+        <RecordSection
+          id="activity"
+          title="Recent activity"
+          description="Application events and growth milestones, newest first."
+        >
+          <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+            {activity.map((event) => (
+              <li
+                key={event.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line-soft pb-1.5 text-[13px] last:border-b-0"
+              >
+                <span className="font-medium text-ink">
+                  {event.title}
+                  {event.detail ? (
+                    <span className="ml-2 font-normal text-ink-muted">{event.detail}</span>
+                  ) : null}
+                </span>
+                <span className="text-[12px] text-ink-muted">
+                  {formatInstructorOpsDateTime(event.atISO)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </RecordSection>
+      ) : null}
     </div>
   );
 }
 
-function Signal({ label, value }: { label: string; value: string }) {
+function ClassRow({ offering }: { offering: any }) {
   return (
-    <div>
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-line-soft px-3.5 py-2.5">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <EntityChip
+          type="class"
+          id={offering.id}
+          label={offering.title}
+          href={`/admin/classes/${offering.id}`}
+        />
+        <StatusBadge tone={CLASS_STATUS_TONE[offering.status] ?? "neutral"}>
+          {formatInstructorOpsLabel(offering.status)}
+        </StatusBadge>
+      </div>
+      <span className="text-[12.5px] text-ink-muted">
+        {[
+          offering.template?.interestArea,
+          offering.semester,
+          `${offering._count?.enrollments ?? 0} enrolled`,
+          offering.approval
+            ? `Approval: ${formatInstructorOpsLabel(offering.approval.status)}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </span>
     </div>
   );
 }
