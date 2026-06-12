@@ -27,6 +27,7 @@ import {
   filterWorkHubRowsByEntity,
   filterWorkHubRowsByFlag,
   searchWorkHubRows,
+  sortWorkHubRows,
   WORK_HUB_FLAG_LABELS,
   WORK_HUB_FLAGS,
 } from "@/lib/work/work-hub-rows";
@@ -49,7 +50,15 @@ const VIEW_LABELS: Record<WorkView, string> = {
   attention: "Needs attention",
 };
 
+/** Aliases so natural spellings of a view land on the canonical one. */
+const VIEW_ALIASES: Record<string, WorkView> = {
+  my: "mine",
+  "my-queue": "mine",
+  "needs-attention": "attention",
+};
+
 function asView(value: string | undefined): WorkView {
+  if (value && VIEW_ALIASES[value]) return VIEW_ALIASES[value];
   return (VIEWS as readonly string[]).includes(value ?? "") ? (value as WorkView) : "all";
 }
 
@@ -125,8 +134,19 @@ export default async function WorkHubPage({
       : view === "actions"
         ? data.rows.filter((row) => row.kind === "action" || row.kind === "follow_up")
         : view === "mine"
-          ? data.rows.filter((row) => row.mine)
+          ? // My queue includes the viewer's meetings (facilitating/attending,
+            // upcoming or carrying open follow-ups) beside their work rows.
+            sortWorkHubRows([
+              ...data.rows.filter((row) => row.mine),
+              ...data.meetingRows.filter((row) => row.mine),
+            ])
           : data.rows;
+  if (entity && view === "all") {
+    // The entity lens spans meetings too: the meeting's own row (or the
+    // meetings about a partner/class/person) belongs in "work connected to
+    // this entity". The two row sets are disjoint, so the union is safe.
+    rows = sortWorkHubRows([...rows, ...data.meetingRows]);
+  }
   if (entity) rows = filterWorkHubRowsByEntity(rows, entity);
   if (flag) rows = filterWorkHubRowsByFlag(rows, flag, now);
   if (q) rows = searchWorkHubRows(rows, q);

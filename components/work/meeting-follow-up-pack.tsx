@@ -1,16 +1,45 @@
 import Link from "next/link";
 
-import { StatusBadge } from "@/components/ui-v2";
+import { ButtonLink, StatusBadge } from "@/components/ui-v2";
+import { DecisionConvertButton } from "@/components/work/decision-convert-button";
 import type { MeetingFollowUpPack } from "@/lib/people-strategy/action-operations-intel";
+import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
+import { effectiveDeadline } from "@/lib/people-strategy/my-actions-selectors";
 
 /**
  * Action System 4.0 — the Meeting Follow-Up Pack, rendered on the meeting
  * detail page: what still has to happen after this meeting. Decisions that
- * never became tracked actions, the meeting's open/overdue actions, and what
- * recently got done. Pure presentation over `deriveMeetingFollowUpPack`;
- * Tailwind-only subtree (allowed on legacy pages per the hybrid rules).
+ * never became tracked actions (with one-click conversion), the meeting's
+ * open/overdue actions with owner + due date, and what recently got done.
+ * Pure presentation over `deriveMeetingFollowUpPack`; Tailwind-only subtree
+ * (allowed on legacy pages per the hybrid rules).
  */
-export function MeetingFollowUpPackSection({ pack }: { pack: MeetingFollowUpPack }) {
+
+function fmtDay(date: Date): string {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function OwnerDueLine({ action }: { action: ActionItemWithRelations }) {
+  const owner = action.lead?.name ?? action.lead?.email ?? "Unassigned";
+  return (
+    <span className="ml-1.5 text-[12px] text-ink-muted">
+      {owner} · due {fmtDay(effectiveDeadline(action))}
+    </span>
+  );
+}
+
+export function MeetingFollowUpPackSection({
+  pack,
+  meetingId,
+}: {
+  pack: MeetingFollowUpPack;
+  /** Enables the `/work?entity=meeting:<id>` lens link. */
+  meetingId?: string;
+}) {
+  const workHubLens = meetingId
+    ? `/work?entity=meeting:${encodeURIComponent(meetingId)}`
+    : null;
+
   if (pack.isClear) {
     return (
       <section className="mt-5 rounded-[12px] border border-line-soft bg-surface p-5 shadow-card">
@@ -25,10 +54,19 @@ export function MeetingFollowUpPackSection({ pack }: { pack: MeetingFollowUpPack
 
   return (
     <section className="mt-5 rounded-[12px] border border-line-soft bg-surface p-5 shadow-card">
-      <h2 className="m-0 text-[16px] font-semibold text-ink">Follow-up pack</h2>
-      <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
-        What still has to happen after this meeting.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="m-0 text-[16px] font-semibold text-ink">Follow-up pack</h2>
+          <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
+            What still has to happen after this meeting.
+          </p>
+        </div>
+        {workHubLens ? (
+          <ButtonLink href={workHubLens} variant="ghost" size="sm">
+            View this meeting&apos;s work in the Work Hub →
+          </ButtonLink>
+        ) : null}
+      </div>
 
       {pack.decisionsWithoutActions.length > 0 ? (
         <div className="mt-3.5">
@@ -44,12 +82,17 @@ export function MeetingFollowUpPackSection({ pack }: { pack: MeetingFollowUpPack
                 <span className="min-w-0 flex-1 text-[13px] text-ink">
                   {decision.decision}
                 </span>
-                <StatusBadge tone="warning">Not tracked</StatusBadge>
+                <span className="flex items-center gap-1.5">
+                  <StatusBadge tone="warning">Not tracked</StatusBadge>
+                  <DecisionConvertButton decisionId={decision.id} />
+                </span>
               </li>
             ))}
           </ul>
           <p className="m-0 mt-1.5 text-[12px] text-ink-muted">
-            Convert these from the Decisions section below so the work is owned.
+            Creating an action keeps the meeting&apos;s provenance, suggests the
+            decider as owner, and shows up on the related entity and in the
+            Work Hub.
           </p>
         </div>
       ) : null}
@@ -68,9 +111,7 @@ export function MeetingFollowUpPackSection({ pack }: { pack: MeetingFollowUpPack
                 >
                   {action.title}
                 </Link>
-                <span className="ml-1.5 text-[12px] text-ink-muted">
-                  {action.lead?.name ?? action.lead?.email ?? "Unassigned"}
-                </span>
+                <OwnerDueLine action={action} />
               </li>
             ))}
           </ul>
@@ -91,11 +132,19 @@ export function MeetingFollowUpPackSection({ pack }: { pack: MeetingFollowUpPack
                 >
                   {action.title}
                 </Link>
-                <span className="ml-1.5 text-[12px] text-ink-muted">
-                  {action.lead?.name ?? action.lead?.email ?? "Unassigned"}
-                </span>
+                <OwnerDueLine action={action} />
               </li>
             ))}
+            {pack.openActions.length > 6 && workHubLens ? (
+              <li className="text-[12px] text-ink-muted">
+                <Link
+                  href={workHubLens}
+                  className="font-semibold text-brand-700 hover:underline"
+                >
+                  + {pack.openActions.length - 6} more — view all in the Work Hub →
+                </Link>
+              </li>
+            ) : null}
           </ul>
         </div>
       ) : null}

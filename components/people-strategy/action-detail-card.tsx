@@ -17,7 +17,12 @@ import {
 import {
   ACTION_STATUS_LABELS,
   ACTION_STATUS_SELECTABLE,
+  isRelatedEntityType,
 } from "@/lib/people-strategy/constants";
+import {
+  actionPrefillToQuery,
+  buildActionPrefillFromFollowUp,
+} from "@/lib/people-strategy/action-prefill";
 import { cardRevealVariants } from "@/lib/people-strategy/motion";
 import { ActionTypePill, Pill, PriorityPill } from "@/components/people-strategy/pills";
 import { actionTypeLabel } from "@/lib/people-strategy/action-types";
@@ -461,6 +466,30 @@ export default function ActionDetailCard({
               Edit
             </Link>
           )}
+          <Link
+            href={actionPrefillToQuery(
+              buildActionPrefillFromFollowUp({
+                parentActionId: item.id,
+                parentTitle: item.title,
+                relatedType:
+                  item.relatedEntityType && isRelatedEntityType(item.relatedEntityType)
+                    ? item.relatedEntityType
+                    : undefined,
+                relatedId:
+                  item.relatedEntityType &&
+                  isRelatedEntityType(item.relatedEntityType) &&
+                  item.relatedEntityId
+                    ? item.relatedEntityId
+                    : undefined,
+                strategicInitiativeId: item.strategicInitiativeId ?? undefined,
+                strategicProjectId: item.strategicProjectId ?? undefined,
+              })
+            )}
+            className="button outline small"
+            title="Create a follow-up action chained to this one (keeps the entity and strategic context)"
+          >
+            Create follow-up
+          </Link>
           <Link href={closeHref} className="button outline small" aria-label="Close action detail">
             ×
           </Link>

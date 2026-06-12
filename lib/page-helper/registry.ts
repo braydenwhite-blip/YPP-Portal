@@ -3897,11 +3897,11 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/actions/command-center",
-    title: "People Strategy Command Center",
+    title: "Command Center (moved)",
     content: {
-      purpose: "This leadership command center shows what matters this week — the weekly pulse, the attention queue, people momentum, team risk, and wins.",
-      firstStep: "Start with the Leadership Attention Queue: it lists the items that need a look, most urgent first.",
-      nextStep: "Use the Follow-Up Generator to draft a nudge for anything slipping, then check People Momentum for who needs support."
+      purpose: "The People Strategy Command Center has been absorbed into the Work Hub — one triaged list of actions, follow-ups, meetings, and cross-domain attention. This route now redirects there.",
+      firstStep: "You will land on the Work Hub automatically.",
+      nextStep: "Use the stat cards (Overdue, Blocked, Needs an owner), the Needs attention view, and the Actions view's accountability summary."
     }
   },
   {

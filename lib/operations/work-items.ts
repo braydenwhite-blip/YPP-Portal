@@ -84,6 +84,8 @@ export type WorkItem = {
   sourceLabel: string;
   /** The meeting this came out of, when it did. */
   meetingTitle: string | null;
+  /** Source meeting id — powers the Work Hub meeting lens ("work this meeting created"). */
+  meetingId: string | null;
   relatedType: RelatedEntityType | null;
   relatedId: string | null;
   relatedLabel: string | null;
@@ -146,6 +148,7 @@ export function workItemFromAction(action: ActionLite): WorkItem {
       ? WORK_SOURCE_LABELS.follow_up
       : WORK_SOURCE_LABELS.action,
     meetingTitle: action.sourceMeetingTitle,
+    meetingId: action.sourceMeetingId,
     relatedType: action.relatedType,
     relatedId: action.relatedId,
     relatedLabel: action.relatedLabel,
@@ -199,6 +202,7 @@ export function workItemFromFollowUp(
     priority: followUp.priority,
     sourceLabel: WORK_SOURCE_LABELS.follow_up,
     meetingTitle: followUp.meetingTitle,
+    meetingId: followUp.meetingId,
     relatedType: followUp.relatedType,
     relatedId: followUp.relatedId,
     relatedLabel: followUp.relatedLabel,

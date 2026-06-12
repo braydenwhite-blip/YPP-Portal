@@ -30,6 +30,8 @@ export type LeadershipHomeData = {
   brief: string[];
   stats: {
     overdueActions: number;
+    blockedActions: number;
+    unownedActions: number;
     upcomingMeetings: number;
     applicantsAwaitingDecision: number;
     studentsWithoutAdvisor: number;
@@ -118,6 +120,8 @@ export async function loadLeadershipHome(
     brief: data360.brief,
     stats: {
       overdueActions: data360.digest.counts.overdueActions,
+      blockedActions: data360.digest.counts.blockedActions,
+      unownedActions: data360.digest.counts.unassignedActions,
       upcomingMeetings: data360.digest.counts.upcomingMeetings,
       applicantsAwaitingDecision: chairQueueTotal,
       studentsWithoutAdvisor,

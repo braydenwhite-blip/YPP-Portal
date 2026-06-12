@@ -30,6 +30,8 @@ export type SearchDocumentRow = {
   subtitle: string | null;
   keywords: string | null;
   visibilityTier: "MEMBER" | "OFFICER";
+  /** Event time for time-anchored entities (a meeting's start). */
+  eventAt?: Date | null;
 };
 
 function joinKeywords(parts: Array<string | null | undefined>): string | null {
@@ -104,17 +106,46 @@ export function buildApplicationDocument(app: {
   };
 }
 
+function prettyStatusWord(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
 export function buildActionDocument(action: {
   id: string;
   title: string;
   status: string | null;
+  deadlineStart?: Date | null;
+  deadlineEnd?: Date | null;
+  lead?: { name: string | null; email: string | null } | null;
+  officerMeeting?: { title: string | null } | null;
 }): SearchDocumentRow {
+  const owner = action.lead?.name ?? action.lead?.email ?? null;
+  const deadline = action.deadlineEnd ?? action.deadlineStart ?? null;
   return {
     entityType: "action",
     entityId: action.id,
     title: action.title,
-    subtitle: action.status,
-    keywords: null,
+    // Owner / status / due context so a search hit reads like a work row.
+    subtitle:
+      [
+        action.status ? prettyStatusWord(action.status) : null,
+        owner,
+        deadline
+          ? `Due ${deadline.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ") || null,
+    // Match terms: the owner and the source meeting ("camp planning" finds
+    // the actions that meeting created).
+    keywords: joinKeywords([
+      action.lead?.name,
+      action.lead?.email,
+      action.officerMeeting?.title,
+    ]),
     visibilityTier: "OFFICER",
   };
 }
@@ -140,14 +171,28 @@ export function buildMeetingDocument(meeting: {
   title: string | null;
   purpose: string | null;
   category: string | null;
+  date?: Date | null;
 }): SearchDocumentRow {
   return {
     entityType: "meeting",
     entityId: meeting.id,
     title: meeting.title || "Officer meeting",
-    subtitle: meeting.category,
+    // Mirror the live meeting result's subtitle (category · date) so a future
+    // index cutover renders identically.
+    subtitle:
+      [
+        meeting.category,
+        meeting.date
+          ? meeting.date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ") || null,
     keywords: meeting.purpose,
     visibilityTier: "OFFICER",
+    // Structured date metadata — the live query orders meetings by date DESC;
+    // eventAt is what lets the index do the same.
+    eventAt: meeting.date ?? null,
   };
 }
 
@@ -160,12 +205,13 @@ export async function upsertSearchDocument(row: SearchDocumentRow): Promise<void
     where: {
       entityType_entityId: { entityType: row.entityType, entityId: row.entityId },
     },
-    create: row,
+    create: { ...row, eventAt: row.eventAt ?? null },
     update: {
       title: row.title,
       subtitle: row.subtitle,
       keywords: row.keywords,
       visibilityTier: row.visibilityTier,
+      eventAt: row.eventAt ?? null,
     },
   });
 }
@@ -258,7 +304,15 @@ export async function syncActionSearchDocument(actionId: string): Promise<void> 
   try {
     const action = await prisma.actionItem.findUnique({
       where: { id: actionId },
-      select: { id: true, title: true, status: true },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        deadlineStart: true,
+        deadlineEnd: true,
+        lead: { select: { name: true, email: true } },
+        officerMeeting: { select: { title: true } },
+      },
     });
     if (!action) {
       await removeSearchDocument("action", actionId);
@@ -267,6 +321,22 @@ export async function syncActionSearchDocument(actionId: string): Promise<void> 
     await upsertSearchDocument(buildActionDocument(action));
   } catch (err) {
     logIndexError("action", actionId, err);
+  }
+}
+
+export async function syncMeetingSearchDocument(meetingId: string): Promise<void> {
+  try {
+    const meeting = await prisma.officerMeeting.findUnique({
+      where: { id: meetingId },
+      select: { id: true, title: true, purpose: true, category: true, date: true },
+    });
+    if (!meeting) {
+      await removeSearchDocument("meeting", meetingId);
+      return;
+    }
+    await upsertSearchDocument(buildMeetingDocument(meeting));
+  } catch (err) {
+    logIndexError("meeting", meetingId, err);
   }
 }
 
@@ -329,12 +399,20 @@ async function collectAllRows(): Promise<SearchDocumentRow[]> {
   for (const c of offerings) rows.push(buildClassDocument(c));
 
   const meetings = await prisma.officerMeeting.findMany({
-    select: { id: true, title: true, purpose: true, category: true },
+    select: { id: true, title: true, purpose: true, category: true, date: true },
   });
   for (const m of meetings) rows.push(buildMeetingDocument(m));
 
   const actions = await prisma.actionItem.findMany({
-    select: { id: true, title: true, status: true },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      deadlineStart: true,
+      deadlineEnd: true,
+      lead: { select: { name: true, email: true } },
+      officerMeeting: { select: { title: true } },
+    },
   });
   for (const a of actions) rows.push(buildActionDocument(a));
 

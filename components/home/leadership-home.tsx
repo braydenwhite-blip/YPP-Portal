@@ -315,6 +315,27 @@ export function LeadershipHome({
                 ))}
               </ul>
             )}
+            {stats.blockedActions > 0 || stats.unownedActions > 0 ? (
+              <p className="m-0 mt-2.5 text-[12.5px] text-ink-muted">
+                {stats.blockedActions > 0 ? (
+                  <a
+                    href="/work?flag=blocked"
+                    className="font-semibold text-brand-700 hover:underline"
+                  >
+                    {stats.blockedActions} blocked →
+                  </a>
+                ) : null}
+                {stats.blockedActions > 0 && stats.unownedActions > 0 ? " · " : null}
+                {stats.unownedActions > 0 ? (
+                  <a
+                    href="/work?flag=unowned"
+                    className="font-semibold text-brand-700 hover:underline"
+                  >
+                    {stats.unownedActions} need an owner →
+                  </a>
+                ) : null}
+              </p>
+            ) : null}
           </RecordSection>
 
           <RecordSection

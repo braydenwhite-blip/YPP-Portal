@@ -34,6 +34,7 @@ function workItem(overrides: Partial<WorkItem> = {}): WorkItem {
     priority: "MEDIUM",
     sourceLabel: "Action",
     meetingTitle: null,
+    meetingId: null,
     relatedType: null,
     relatedId: null,
     relatedLabel: null,
@@ -74,16 +75,30 @@ describe("workHubRowFromWorkItem", () => {
         id: "follow_up:f1",
         kind: "follow_up",
         meetingTitle: "Leadership sync",
+        meetingId: "m1",
         href: "/actions/meetings/m1",
         convertHref: "title=Do+it",
       })
     );
     expect(row.kindLabel).toBe("Meeting follow-up");
     expect(row.sourceLabel).toBe("From meeting: Leadership sync");
+    expect(row.meetingId).toBe("m1");
     expect(row.quickActionLabel).toBe("Convert to action");
     expect(row.quickActionHref).toBe("/actions/new?title=Do+it");
     expect(row.previewType).toBe("meeting");
     expect(row.previewId).toBe("m1");
+  });
+
+  it("carries the inline capture payload only when the loader provides one", () => {
+    const capture = {
+      actionId: "a1",
+      blockedReason: null,
+      completionNote: null,
+      completionOutcome: null,
+      nextFollowUpISO: null,
+    };
+    expect(workHubRowFromWorkItem(workItem(), { capture }).capture).toEqual(capture);
+    expect(workHubRowFromWorkItem(workItem()).capture).toBeNull();
   });
 });
 
@@ -132,6 +147,13 @@ describe("workHubRowFromMeeting", () => {
     expect(withDebt?.status).toBe("1 follow-up overdue");
     expect(withDebt?.tone).toBe("danger");
     expect(withDebt?.overdue).toBe(true);
+  });
+
+  it("marks the viewer's meetings as mine and carries its own meetingId", () => {
+    const row = workHubRowFromMeeting(meeting(), NOW, { mine: true });
+    expect(row?.mine).toBe(true);
+    expect(row?.meetingId).toBe("m1");
+    expect(workHubRowFromMeeting(meeting(), NOW)?.mine).toBe(false);
   });
 });
 
@@ -319,6 +341,36 @@ describe("sorting / filtering / search", () => {
     // previewType match: an action row IS the action entity
     const byPreview = filterWorkHubRowsByEntity(tagged, { type: "action", id: "other" });
     expect(byPreview.map((r) => r.id)).toEqual(["action:other"]);
+  });
+
+  it("the meeting lens matches the work a meeting created, not just the meeting row", () => {
+    const lensRows = [
+      // An action created from meeting m1 (related to a partner, not the meeting).
+      workHubRowFromWorkItem(
+        workItem({
+          id: "action:from-m1",
+          meetingTitle: "Leadership sync",
+          meetingId: "m1",
+          relatedType: "PARTNER",
+          relatedId: "p1",
+          relatedLabel: "Beth El",
+        })
+      ),
+      // An unconverted follow-up from the same meeting.
+      workHubRowFromWorkItem(
+        workItem({
+          id: "follow_up:f1",
+          kind: "follow_up",
+          meetingTitle: "Leadership sync",
+          meetingId: "m1",
+          href: "/actions/meetings/m1",
+        })
+      ),
+      // Unrelated work.
+      workHubRowFromWorkItem(workItem({ id: "action:other" })),
+    ];
+    const filtered = filterWorkHubRowsByEntity(lensRows, { type: "meeting", id: "m1" });
+    expect(filtered.map((r) => r.id)).toEqual(["action:from-m1", "follow_up:f1"]);
   });
 
   it("validates flags and searches across title/owner/entity", () => {

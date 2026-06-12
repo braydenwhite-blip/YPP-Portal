@@ -13895,6 +13895,9 @@ model SearchDocument {
   keywords   String?
   /// MEMBER (any signed-in user) | OFFICER (officer-tier and above).
   visibilityTier String @default("OFFICER")
+  /// When the entity is time-anchored (a meeting's start), its event time —
+  /// lets date-aware groups order/render real dates from the index.
+  eventAt    DateTime?
   updatedAt  DateTime @updatedAt
   createdAt  DateTime @default(now())
 

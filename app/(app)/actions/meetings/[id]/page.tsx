@@ -138,7 +138,7 @@ export default async function MeetingDetailPage({
   return (
     <div className="page-shell" style={{ maxWidth: 1280 }}>
       <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
-      <MeetingFollowUpPackSection pack={followUpPack} />
+      <MeetingFollowUpPackSection pack={followUpPack} meetingId={id} />
       {strategicContext ? (
         <StrategicContextSection context={strategicContext} kind="meeting" showEmptyState />
       ) : null}

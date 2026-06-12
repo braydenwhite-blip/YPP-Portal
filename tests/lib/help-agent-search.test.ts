@@ -319,6 +319,111 @@ describe("runHelpAgentSearch — SearchDocument applicant cutover", () => {
   });
 });
 
+describe("runHelpAgentSearch — SearchDocument action cutover", () => {
+  it("uses the action index (officer tier) with its owner/status/due subtitle", async () => {
+    populateIndexGroup("action", [
+      {
+        entityId: "ac1",
+        title: "Call the venue",
+        subtitle: "In progress · Maya Chen · Due Jun 18, 2026",
+      },
+    ]);
+
+    const res = await runHelpAgentSearch("venue", OFFICER);
+
+    expect(res.groups.find((g) => g.type === "action")?.items[0]).toMatchObject({
+      type: "action",
+      id: "ac1",
+      title: "Call the venue",
+      subtitle: "In progress · Maya Chen · Due Jun 18, 2026",
+      href: "/actions/ac1",
+    });
+    // The live action query is skipped when the index answers.
+    expect(prisma.actionItem.findMany).not.toHaveBeenCalled();
+    // The group is queried at the OFFICER tier.
+    const countCalls = mock(prisma.searchDocument.count).mock.calls as Array<
+      [{ where: { entityType?: string; visibilityTier?: string } }]
+    >;
+    const actionCount = countCalls.find(([args]) => args.where.entityType === "action");
+    expect(actionCount?.[0].where.visibilityTier).toBe("OFFICER");
+  });
+
+  it("falls back to the live action query when the action index is empty", async () => {
+    mock(prisma.actionItem.findMany).mockResolvedValue([
+      { id: "ac2", title: "Call the venue", status: "IN_PROGRESS" },
+    ]);
+
+    const res = await runHelpAgentSearch("venue", OFFICER);
+
+    expect(prisma.actionItem.findMany).toHaveBeenCalled();
+    expect(res.groups.find((g) => g.type === "action")?.items[0]).toMatchObject({
+      id: "ac2",
+      title: "Call the venue",
+      subtitle: "in progress",
+      href: "/actions/ac2",
+    });
+  });
+
+  it("members never get the action group, even with a populated index", async () => {
+    populateIndexGroup("action", [
+      { entityId: "ac1", title: "Call the venue", subtitle: null },
+    ]);
+
+    const res = await runHelpAgentSearch("venue", MEMBER);
+    expect(res.groups.map((g) => g.type)).not.toContain("action");
+  });
+});
+
+describe("runHelpAgentSearch — SearchDocument meeting cutover", () => {
+  it("uses the meeting index ordered by eventAt desc, with a category·date subtitle", async () => {
+    populateIndexGroup("meeting", [
+      { entityId: "m1", title: "Leadership sync", subtitle: "LEADERSHIP · Jun 15, 2026" },
+    ]);
+
+    const res = await runHelpAgentSearch("leadership", OFFICER);
+
+    expect(res.groups.find((g) => g.type === "meeting")?.items[0]).toMatchObject({
+      type: "meeting",
+      id: "m1",
+      title: "Leadership sync",
+      subtitle: "LEADERSHIP · Jun 15, 2026",
+      href: "/actions/meetings/m1",
+    });
+    // The live meeting query is skipped when the index answers.
+    expect(prisma.officerMeeting.findMany).not.toHaveBeenCalled();
+    // The meeting group sorts newest-first off the indexed eventAt.
+    const findManyCalls = mock(prisma.searchDocument.findMany).mock.calls as Array<
+      [{ where: { entityType?: string }; orderBy?: unknown }]
+    >;
+    const meetingFind = findManyCalls.find(([args]) => args.where.entityType === "meeting");
+    expect(meetingFind?.[0].orderBy).toEqual([{ eventAt: "desc" }, { title: "asc" }]);
+  });
+
+  it("falls back to the live meeting query when the meeting index is empty", async () => {
+    mock(prisma.officerMeeting.findMany).mockResolvedValue([
+      { id: "m2", title: "Camp planning", date: new Date("2026-06-15T00:00:00.000Z"), category: "CLASSES" },
+    ]);
+
+    const res = await runHelpAgentSearch("camp", OFFICER);
+
+    expect(prisma.officerMeeting.findMany).toHaveBeenCalled();
+    expect(res.groups.find((g) => g.type === "meeting")?.items[0]).toMatchObject({
+      id: "m2",
+      title: "Camp planning",
+      href: "/actions/meetings/m2",
+    });
+  });
+
+  it("members never get the meeting group, even with a populated index", async () => {
+    populateIndexGroup("meeting", [
+      { entityId: "m1", title: "Leadership sync", subtitle: null },
+    ]);
+
+    const res = await runHelpAgentSearch("leadership", MEMBER);
+    expect(res.groups.map((g) => g.type)).not.toContain("meeting");
+  });
+});
+
 describe("runHelpAgentSearch — application visibility", () => {
   it("does not query applications when the viewer cannot resolve an application visibility filter", async () => {
     mock(instructorApplicationVisibilityWhere).mockResolvedValue(null);
