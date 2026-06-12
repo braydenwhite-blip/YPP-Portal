@@ -127,7 +127,7 @@ describe("runWeeklyLeadershipBriefing", () => {
 
     const arg = sendLeadershipBriefingEmail.mock.calls[0][0];
     expect(arg.to).toBe("lead-a@test.dev");
-    expect(arg.commandCenterUrl).toBe("https://app.test/actions/command-center");
+    expect(arg.commandCenterUrl).toBe("https://app.test/work");
     expect(typeof arg.briefingMarkdown).toBe("string");
     expect(arg.briefingMarkdown).toContain("Weekly Leadership Briefing");
   });

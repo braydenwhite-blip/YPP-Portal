@@ -3,6 +3,22 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 
+import { cn } from "@/components/ui-v2";
+
+const selectClass =
+  "h-9 max-w-52 rounded-[8px] border border-line bg-surface px-2.5 text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-400";
+
+function chipClass(active: boolean, tone: "warning" | "brand" = "brand") {
+  return cn(
+    "cursor-pointer rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors duration-100",
+    active
+      ? tone === "warning"
+        ? "border-warning-600 bg-amber-50 text-warning-600"
+        : "border-brand-600 bg-brand-50 text-brand-700"
+      : "border-line bg-surface text-ink-muted hover:bg-surface-soft hover:text-ink"
+  );
+}
+
 type FilterUser = { id: string; name: string | null; email: string };
 
 interface ApplicantCommandFiltersProps {
@@ -54,11 +70,11 @@ export default function ApplicantCommandFilters({
   const myCasesOnly = searchParams.get("myCasesOnly") === "1";
 
   return (
-    <div className="applicant-command-filters">
+    <div className="mb-2.5 flex flex-wrap items-center gap-2">
       {/* Chapter pivot — admin only */}
       {isAdmin && chapters.length > 0 && (
         <select
-          className="input applicant-command-select"
+          className={selectClass}
           value={getParam("chapterId")}
           onChange={(e) => setParam("chapterId", e.target.value)}
         >
@@ -72,7 +88,7 @@ export default function ApplicantCommandFilters({
       {/* Reviewer filter */}
       {reviewers.length > 0 && (
         <select
-          className="input applicant-command-select"
+          className={selectClass}
           value={getParam("reviewerId")}
           onChange={(e) => setParam("reviewerId", e.target.value)}
         >
@@ -86,7 +102,7 @@ export default function ApplicantCommandFilters({
       {/* Interviewer filter */}
       {interviewers.length > 0 && (
         <select
-          className="input applicant-command-select"
+          className={selectClass}
           value={getParam("interviewerId")}
           onChange={(e) => setParam("interviewerId", e.target.value)}
         >
@@ -99,7 +115,7 @@ export default function ApplicantCommandFilters({
 
       {/* Source filter — PORTAL / GOOGLE_FORMS / CSV_IMPORT / MANUAL_ADMIN_ENTRY */}
       <select
-        className="input applicant-command-select"
+        className={selectClass}
         value={getParam("source")}
         onChange={(e) => setParam("source", e.target.value)}
         aria-label="Filter by application source"
@@ -114,7 +130,8 @@ export default function ApplicantCommandFilters({
       {/* Toggle chips */}
       <button
         type="button"
-        className={`button outline applicant-filter-chip${overdueOnly ? " active is-warning" : ""}`}
+        aria-pressed={overdueOnly}
+        className={chipClass(overdueOnly, "warning")}
         onClick={() => toggleParam("overdueOnly")}
       >
         Overdue
@@ -123,7 +140,8 @@ export default function ApplicantCommandFilters({
       {actorId && (
         <button
           type="button"
-          className={`button outline applicant-filter-chip${myCasesOnly ? " active is-primary" : ""}`}
+          aria-pressed={myCasesOnly}
+          className={chipClass(myCasesOnly)}
           onClick={() => toggleParam("myCasesOnly")}
         >
           My cases only

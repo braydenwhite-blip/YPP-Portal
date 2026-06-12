@@ -8,6 +8,7 @@ import ApplicantCommandFilters from "./ApplicantCommandFilters";
 import ApplicantQuickDrawer from "./ApplicantQuickDrawer";
 import ArchiveTable from "./ArchiveTable";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
+import { ButtonLink, cn } from "@/components/ui-v2";
 
 type PipelineApp = {
   id: string;
@@ -207,20 +208,28 @@ export default function InstructorApplicantsCommandCenter({
     [pipelineApps]
   );
 
+  const tabClass = (active: boolean) =>
+    cn(
+      "inline-flex items-center gap-1.5 rounded-[8px] px-3.5 py-2 text-[13px] font-semibold transition-colors duration-100",
+      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400",
+      active
+        ? "bg-brand-50 text-brand-700"
+        : "text-ink-muted hover:bg-surface-soft hover:text-ink"
+    );
+
   return (
-    <div className="applicant-command">
+    <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
       {/* Tab bar */}
       <div
         role="tablist"
         aria-label="Applicant workflow views"
-        className="applicant-command-tabs"
+        className="mb-3 flex flex-wrap items-center gap-1 border-b border-line-soft pb-3"
       >
         <button
           role="tab"
           type="button"
           aria-selected={activeTab === "pipeline"}
-          className="applicant-command-tab"
-          data-active={activeTab === "pipeline"}
+          className={tabClass(activeTab === "pipeline")}
           onClick={() => setTab("pipeline")}
         >
           Pipeline
@@ -230,15 +239,14 @@ export default function InstructorApplicantsCommandCenter({
             role="tab"
             type="button"
             aria-selected={activeTab === "chair_queue"}
-            className="applicant-command-tab"
-            data-active={activeTab === "chair_queue"}
+            className={tabClass(activeTab === "chair_queue")}
             onClick={() => setTab("chair_queue")}
           >
             Chair Queue
             {chairQueueCount > 0 && (
               <span
                 aria-label={`${chairQueueCount} pending`}
-                className="applicant-command-tab-count"
+                className="inline-flex min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 py-0.5 text-[10.5px] font-bold text-white"
               >
                 {chairQueueCount}
               </span>
@@ -249,8 +257,7 @@ export default function InstructorApplicantsCommandCenter({
           role="tab"
           type="button"
           aria-selected={activeTab === "archive"}
-          className="applicant-command-tab"
-          data-active={activeTab === "archive"}
+          className={tabClass(activeTab === "archive")}
           onClick={() => setTab("archive")}
         >
           Archive
@@ -259,14 +266,14 @@ export default function InstructorApplicantsCommandCenter({
 
       {/* Pipeline tab */}
       {activeTab === "pipeline" && (
-        <div role="tabpanel" aria-label="Pipeline view" className="applicant-command-panel">
+        <div role="tabpanel" aria-label="Pipeline view">
           {/* Applicant type filter (Standard / Summer Workshop) */}
           <div
             role="group"
             aria-label="Filter by applicant type"
-            style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}
+            className="mb-2 flex flex-wrap items-center gap-1.5"
           >
-            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
               Type
             </span>
             {([
@@ -281,16 +288,12 @@ export default function InstructorApplicantsCommandCenter({
                   type="button"
                   onClick={() => setTrackFilter(opt.value)}
                   aria-pressed={active}
-                  style={{
-                    fontSize: 12,
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    border: active ? "1px solid #6b21c8" : "1px solid var(--border)",
-                    background: active ? "#f5f3ff" : "var(--background)",
-                    color: active ? "#6b21c8" : "var(--foreground)",
-                    cursor: "pointer",
-                    fontWeight: active ? 700 : 500,
-                  }}
+                  className={cn(
+                    "cursor-pointer rounded-full border px-2.5 py-1 text-[12px] transition-colors duration-100",
+                    active
+                      ? "border-brand-600 bg-brand-50 font-bold text-brand-700"
+                      : "border-line bg-surface font-medium text-ink hover:bg-surface-soft"
+                  )}
                 >
                   {opt.label}
                 </button>
@@ -366,19 +369,23 @@ export default function InstructorApplicantsCommandCenter({
 
       {/* Chair Queue tab — redirects to dedicated page */}
       {activeTab === "chair_queue" && canSeeChairQueue && (
-        <div role="tabpanel" aria-label="Chair queue" className="applicant-command-empty">
-          <p>
+        <div
+          role="tabpanel"
+          aria-label="Chair queue"
+          className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed border-line px-6 py-10 text-center"
+        >
+          <p className="m-0 text-[13.5px] text-ink-muted">
             The Chair Queue is now a dedicated page.
           </p>
-          <a href="/admin/instructor-applicants/chair-queue" className="button">
+          <ButtonLink href="/admin/instructor-applicants/chair-queue" variant="primary" size="md">
             Open Chair Queue
-          </a>
+          </ButtonLink>
         </div>
       )}
 
       {/* Archive tab */}
       {activeTab === "archive" && (
-        <div role="tabpanel" aria-label="Archive" className="applicant-command-panel">
+        <div role="tabpanel" aria-label="Archive">
           <ArchiveTable
             applications={archivedApps as any}
           />

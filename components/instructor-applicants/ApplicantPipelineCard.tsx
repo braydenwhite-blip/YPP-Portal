@@ -88,10 +88,55 @@ function Avatar({ name, email, title }: { name: string | null; email: string; ti
   return (
     <div
       title={title ?? (name ?? email)}
-      className="applicant-card-avatar"
+      className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[11px] font-bold text-brand-700"
     >
       {initials(name, email)}
     </div>
+  );
+}
+
+/** Status pill tones — concrete stage states, ui-v2 badge vocabulary. */
+const STATUS_TONES: Record<string, string> = {
+  SUBMITTED: "bg-brand-50 text-brand-700",
+  UNDER_REVIEW: "bg-blue-50 text-blue-700",
+  INFO_REQUESTED: "bg-amber-50 text-amber-700",
+  PRE_APPROVED: "bg-emerald-50 text-emerald-700",
+  INTERVIEW_SCHEDULED: "bg-amber-50 text-amber-700",
+  INTERVIEW_SCHEDULED_READY: "bg-emerald-50 text-emerald-700",
+  INTERVIEW_COMPLETED: "bg-indigo-50 text-indigo-700",
+  CHAIR_REVIEW: "bg-amber-50 text-amber-800",
+  APPROVED: "bg-emerald-50 text-emerald-700",
+  REJECTED: "bg-rose-50 text-rose-700",
+  ON_HOLD: "bg-amber-50 text-amber-800",
+  WITHDRAWN: "bg-gray-100 text-gray-600",
+  WAITLISTED: "bg-violet-50 text-violet-700",
+};
+
+function MetaPill({
+  children,
+  tone = "neutral",
+  title,
+  ariaLabel,
+}: {
+  children: ReactNode;
+  tone?: "neutral" | "brand" | "attention" | "info";
+  title?: string;
+  ariaLabel?: string;
+}): ReactNode {
+  const tones: Record<string, string> = {
+    neutral: "bg-surface-soft text-ink-muted border border-line-soft",
+    brand: "bg-brand-50 text-brand-700 border border-brand-200",
+    attention: "bg-amber-50 text-amber-800 border border-amber-200",
+    info: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+  };
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${tones[tone]}`}
+      title={title}
+      aria-label={ariaLabel}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -107,7 +152,6 @@ export default function ApplicantPipelineCard({
 
   const leadInterviewer = app.interviewerAssignments.find((a) => a.role === "LEAD");
   const secondInterviewer = app.interviewerAssignments.find((a) => a.role === "SECOND");
-  const stageClass = app.status.toLowerCase().replace(/_/g, "-");
   const latestRating = app.applicationReviews?.find((review) => review.overallRating)
     ?.overallRating;
   const ratingOption = PROGRESS_RATING_OPTIONS.find((option) => option.value === latestRating);
@@ -121,133 +165,102 @@ export default function ApplicantPipelineCard({
     app.status === "INTERVIEW_SCHEDULED" && hasInterviewTime
       ? "Interview Scheduled"
       : STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ");
+  const statusTone =
+    app.status === "INTERVIEW_SCHEDULED" && hasInterviewTime
+      ? STATUS_TONES.INTERVIEW_SCHEDULED_READY
+      : STATUS_TONES[app.status] ?? "bg-surface-soft text-ink-muted";
   const hasMaterials = Boolean(app.materialsReadyAt);
 
   return (
     <button
       type="button"
-      className={`kanban-card applicant-pipeline-card stage-${stageClass}${isDragging ? " dragging" : ""}`}
       onClick={onClick}
+      className={`w-full cursor-pointer rounded-[10px] border border-line-soft bg-surface p-3 text-left shadow-card transition-shadow duration-100 hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-400${isDragging ? " opacity-70" : ""}`}
     >
-      <div className="applicant-pipeline-card-top">
+      <div className="flex items-start gap-2.5">
         <Avatar name={displayName} email={app.applicant.email} />
-        <div className="applicant-pipeline-card-title">
-          <div className="kanban-card-name">
-            {displayName}
-          </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13.5px] font-semibold text-ink">{displayName}</div>
 
-          <div className="applicant-card-meta-row">
+          <div className="mt-1 flex flex-wrap items-center gap-1">
             <span
-              className={`status-pill ${stageClass}`}
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold ${statusTone}`}
               aria-label={`Status: ${statusLabel}`}
               title={statusLabel}
             >
               {statusLabel}
             </span>
             {missingLastName && (
-              <span className="pill pill-attention pill-small" title="This legacy application is missing an explicit last name.">
+              <MetaPill tone="attention" title="This legacy application is missing an explicit last name.">
                 Missing last name
-              </span>
+              </MetaPill>
             )}
 
             {app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
-              <span
-                className="pill pill-small applicant-card-meta-pill"
+              <MetaPill
+                tone="brand"
                 title="Summer Workshop Instructor applicant"
-                aria-label="Summer Workshop Instructor applicant"
-                style={{ background: "#f5f3ff", color: "#6b21c8", border: "1px solid #ddd6fe", fontWeight: 700, letterSpacing: "0.04em" }}
+                ariaLabel="Summer Workshop Instructor applicant"
               >
                 SW
-              </span>
+              </MetaPill>
             )}
 
             {app.source && app.source !== "PORTAL" && (() => {
               const descriptor = describeApplicationSource(app.source as ApplicationSource);
               return (
-                <span
-                  className="pill pill-small applicant-card-meta-pill"
+                <MetaPill
+                  tone="info"
                   title={`Source: ${descriptor.longLabel}`}
-                  aria-label={`Application source: ${descriptor.longLabel}`}
-                  style={{
-                    background: "#eef2ff",
-                    color: "#3730a3",
-                    border: "1px solid #c7d2fe",
-                    fontWeight: 600,
-                  }}
+                  ariaLabel={`Application source: ${descriptor.longLabel}`}
                 >
                   {descriptor.shortLabel}
-                </span>
+                </MetaPill>
               );
             })()}
 
             {app.interviewScheduledAt && (
-              <span
-                className="pill pill-small applicant-card-meta-pill"
-                title={`Interview: ${formatScheduleDateTime(app.interviewScheduledAt)}`}
-              >
+              <MetaPill title={`Interview: ${formatScheduleDateTime(app.interviewScheduledAt)}`}>
                 {formatScheduleDateTime(app.interviewScheduledAt)}
-              </span>
+              </MetaPill>
             )}
 
             {app.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" && (
-              <span
-                className={`pill pill-small applicant-card-meta-pill${hasMaterials ? " pill-purple" : " pill-attention"}`}
+              <MetaPill
+                tone={hasMaterials ? "brand" : "attention"}
                 title={hasMaterials ? "Materials ready" : "Materials missing"}
               >
                 {hasMaterials ? "Materials" : "Missing"}
-              </span>
+              </MetaPill>
             )}
           </div>
 
           {app.applicant.chapter && (
-            <div className="kanban-card-meta">
-              <span className="pill pill-purple pill-small kanban-card-chapter">{app.applicant.chapter.name}</span>
+            <div className="mt-1">
+              <MetaPill tone="brand">{app.applicant.chapter.name}</MetaPill>
             </div>
           )}
 
           {app.status === "ON_HOLD" && app.chairDecision?.rationale && (
             <div
-              style={{
-                marginTop: 6,
-                padding: "5px 8px",
-                borderRadius: 6,
-                background: "#fff7ed",
-                border: "1px solid #fed7aa",
-                fontSize: 12,
-                color: "#9a3412",
-                lineHeight: 1.45,
-                overflow: "hidden",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-              }}
+              className="mt-1.5 line-clamp-2 rounded-[6px] border border-amber-200 bg-amber-50 px-2 py-1 text-[12px] leading-snug text-amber-900"
               title={`Hold reason: ${app.chairDecision.rationale}`}
             >
-              <strong style={{ fontWeight: 600 }}>Hold: </strong>
+              <strong className="font-semibold">Hold: </strong>
               {app.chairDecision.rationale}
             </div>
           )}
 
           {app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && app.workshopTitle && (
             <div
-              className="applicant-card-workshop-line"
+              className="mt-1 truncate text-[12px] text-ink-muted"
               title={`Workshop: ${app.workshopTitle}${
                 app.workshopAgeRange ? ` · ${app.workshopAgeRange}` : ""
               }${
                 app.workshopDurationMinutes ? ` · ${app.workshopDurationMinutes}m` : ""
               }`}
-              style={{
-                marginTop: 4,
-                fontSize: 12,
-                color: "var(--muted)",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
             >
-              <strong style={{ color: "var(--foreground)", fontWeight: 600 }}>
-                Workshop:
-              </strong>{" "}
+              <strong className="font-semibold text-ink">Workshop:</strong>{" "}
               {app.workshopTitle}
               {app.workshopAgeRange ? ` · ${app.workshopAgeRange}` : ""}
               {app.workshopDurationMinutes ? ` · ${app.workshopDurationMinutes}m` : ""}
@@ -256,8 +269,8 @@ export default function ApplicantPipelineCard({
         </div>
         {ratingOption && (
           <span
-            className="kanban-card-rating-chip"
-            style={{ "--rating-color": ratingOption.color } as CSSProperties}
+            className="flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+            style={{ background: ratingOption.color } as CSSProperties}
             title={`${ratingOption.label}: ${ratingOption.helperLabel}`}
           >
             {ratingOption.label[0]}
@@ -266,10 +279,11 @@ export default function ApplicantPipelineCard({
       </div>
 
       {subjectTags.length > 0 && (
-        <div className="applicant-card-tags">
+        <div className="mt-2 flex flex-wrap gap-1">
           {subjectTags.map((tag) => (
             <span
               key={tag}
+              className="rounded-[6px] bg-surface-soft px-1.5 py-0.5 text-[11px] text-ink-muted"
             >
               {tag}
             </span>
@@ -277,49 +291,51 @@ export default function ApplicantPipelineCard({
         </div>
       )}
 
-      <div className="applicant-card-alerts">
-        {app.overdue && (
-          <span className="pill pill-attention pill-small" aria-label="Overdue review">Overdue</span>
-        )}
-        {app.stuck && (
-          <span
-            className="pill pill-attention pill-small"
-            aria-label="Stuck - interviewer review pending over 7 days"
-            title="INTERVIEW_COMPLETED for more than 7 days - use Force to Chair to unblock"
-          >
-            Stuck
-          </span>
-        )}
-        {app.awaitingSlots && (
-          <span
-            className="pill pill-attention pill-small"
-            aria-label="Lead interviewer has not yet offered times"
-            title="No interview times offered after 5+ days - lead interviewer needs to send slots"
-          >
-            Awaiting slots
-          </span>
-        )}
-      </div>
-
-      <div className="kanban-card-footer">
-        <div className="applicant-card-owner-list">
-          <span className="applicant-card-owner-chip">
-            <span>Reviewer</span>
-            <strong>{app.reviewer?.name ?? "Not assigned"}</strong>
-          </span>
-          {leadInterviewer && (
-            <span className="applicant-card-owner-chip">
-              <span>Lead</span>
-              <strong>{leadInterviewer.interviewer.name ?? "Unknown"}</strong>
-            </span>
+      {(app.overdue || app.stuck || app.awaitingSlots) && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {app.overdue && (
+            <MetaPill tone="attention" ariaLabel="Overdue review">
+              Overdue
+            </MetaPill>
           )}
-          {secondInterviewer && (
-            <span className="applicant-card-owner-chip">
-              <span>Second</span>
-              <strong>{secondInterviewer.interviewer.name ?? "Unknown"}</strong>
-            </span>
+          {app.stuck && (
+            <MetaPill
+              tone="attention"
+              ariaLabel="Stuck - interviewer review pending over 7 days"
+              title="INTERVIEW_COMPLETED for more than 7 days - use Force to Chair to unblock"
+            >
+              Stuck
+            </MetaPill>
+          )}
+          {app.awaitingSlots && (
+            <MetaPill
+              tone="attention"
+              ariaLabel="Lead interviewer has not yet offered times"
+              title="No interview times offered after 5+ days - lead interviewer needs to send slots"
+            >
+              Awaiting slots
+            </MetaPill>
           )}
         </div>
+      )}
+
+      <div className="mt-2 flex flex-wrap gap-1 border-t border-line-soft pt-2">
+        <span className="inline-flex items-baseline gap-1 text-[11px] text-ink-muted">
+          Reviewer
+          <strong className="font-semibold text-ink">{app.reviewer?.name ?? "Not assigned"}</strong>
+        </span>
+        {leadInterviewer && (
+          <span className="inline-flex items-baseline gap-1 text-[11px] text-ink-muted">
+            · Lead
+            <strong className="font-semibold text-ink">{leadInterviewer.interviewer.name ?? "Unknown"}</strong>
+          </span>
+        )}
+        {secondInterviewer && (
+          <span className="inline-flex items-baseline gap-1 text-[11px] text-ink-muted">
+            · Second
+            <strong className="font-semibold text-ink">{secondInterviewer.interviewer.name ?? "Unknown"}</strong>
+          </span>
+        )}
       </div>
     </button>
   );

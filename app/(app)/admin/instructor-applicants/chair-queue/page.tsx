@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
+import { CardV2, PageHeaderV2 } from "@/components/ui-v2";
 import { getHiringActor, isAdmin } from "@/lib/chapter-hiring-permissions";
 import { getChairQueue } from "@/lib/instructor-applicant-board-queries";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
@@ -110,59 +112,49 @@ export default async function ChairQueuePage() {
   const oldestDays = daysSince(oldestQueued);
 
   return (
-    <div className="page-shell chair-queue-page">
-      <div className="chair-queue-page-header">
-        <span className="badge">Hiring Chair</span>
-        <h1>Chair Queue</h1>
-        <p>
-          {applications.length} application{applications.length !== 1 ? "s" : ""} awaiting chair decision.
-          {oldestDays !== null
+    <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-6 py-6">
+      <PageHeaderV2
+        eyebrow="Hiring Chair"
+        title="Chair Queue"
+        subtitle={`${applications.length} application${applications.length !== 1 ? "s" : ""} awaiting chair decision.${
+          oldestDays !== null
             ? ` Oldest has been waiting ${oldestDays} day${oldestDays === 1 ? "" : "s"}.`
-            : ""}
-          {" "}Open any row to launch the full chair review workspace.
-        </p>
-        <div style={{ marginTop: 8 }}>
-          <Link href="/admin/instructor-applicants/activity" className="link">
+            : ""
+        } Open any row to launch the full chair review workspace.`}
+        actions={
+          <Link
+            href="/admin/instructor-applicants/activity"
+            className="text-[13px] font-semibold text-brand-700 hover:underline"
+          >
             See all reviewer activity →
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       {applications.length === 0 ? (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h2 style={{ marginTop: 0 }}>No pending chair decisions</h2>
-          <p style={{ margin: 0, color: "var(--muted)" }}>
+        <CardV2 padding="lg">
+          <h2 className="m-0 text-[16px] font-semibold text-ink">No pending chair decisions</h2>
+          <p className="m-0 mt-1.5 text-[13.5px] text-ink-muted">
             The Chair Queue is clear. New chair-pending applications will appear here when reviewers and interviewers send them up.
           </p>
-        </div>
+        </CardV2>
       ) : (
         <ChairQueueClientWrapper initialApplications={applications} />
       )}
 
-      <section className="card" style={{ marginTop: 24 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 12,
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <h2 style={{ margin: 0 }}>Recently decided</h2>
-            <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
-              Chair decisions in the last {RECENT_WINDOW_DAYS} days. Open any row to view its audit history.
-            </p>
-          </div>
+      <CardV2 as="section" padding="lg">
+        <div className="mb-3">
+          <h2 className="m-0 text-[16px] font-semibold text-ink">Recently decided</h2>
+          <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
+            Chair decisions in the last {RECENT_WINDOW_DAYS} days. Open any row to view its audit history.
+          </p>
         </div>
         {recentDecisionRows.length === 0 ? (
-          <p style={{ margin: 0, color: "var(--muted)" }}>
+          <p className="m-0 text-[13.5px] text-ink-muted">
             No chair decisions in the last {RECENT_WINDOW_DAYS} days.
           </p>
         ) : (
-          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 10 }}>
+          <ul className="m-0 grid list-none gap-2.5 p-0">
             {recentDecisionRows.map((row) => {
               const displayName = deriveDisplayName(row.application);
               const chapterName = row.application.applicant?.chapter?.name ?? null;
@@ -170,37 +162,23 @@ export default async function ChairQueuePage() {
               return (
                 <li
                   key={row.id}
-                  style={{
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    padding: "10px 12px",
-                    background: "var(--surface)",
-                  }}
+                  className="rounded-[8px] border border-line-soft bg-surface px-3 py-2.5"
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      flexWrap: "wrap",
-                    }}
-                  >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <Link
                       href={`/admin/instructor-applicants/${row.applicationId}/review`}
-                      style={{ color: "inherit", textDecoration: "none" }}
+                      className="text-inherit no-underline hover:underline"
                     >
-                      <strong>{displayName}</strong>
+                      <strong className="text-[13.5px] font-semibold text-ink">{displayName}</strong>
                       {chapterName ? (
-                        <span style={{ color: "var(--muted)", marginLeft: 8 }}>
-                          · {chapterName}
-                        </span>
+                        <span className="ml-2 text-[12.5px] text-ink-muted">· {chapterName}</span>
                       ) : null}
                     </Link>
-                    <span style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>
+                    <span className="whitespace-nowrap text-[12.5px] text-ink-muted">
                       {formatActionLabel(row.action)} · {formatDateTime(row.decidedAt)}
                     </span>
                   </div>
-                  <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
+                  <p className="m-0 mt-1 text-[12.5px] text-ink-muted">
                     {isMine
                       ? "Decided by you"
                       : row.chair?.name
@@ -212,7 +190,7 @@ export default async function ChairQueuePage() {
             })}
           </ul>
         )}
-      </section>
+      </CardV2>
     </div>
   );
 }

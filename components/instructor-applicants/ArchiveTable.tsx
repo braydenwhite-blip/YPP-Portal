@@ -1,7 +1,24 @@
 "use client";
 
 import { useState, useMemo, type ReactNode } from "react";
+
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
+import {
+  DataTableShell,
+  EmptyStateV2,
+  StatusBadge,
+  TableCell,
+  TableV2,
+  type StatusTone,
+} from "@/components/ui-v2";
+
+const STATUS_TONES: Record<string, StatusTone> = {
+  APPROVED: "success",
+  REJECTED: "danger",
+  ON_HOLD: "warning",
+  WITHDRAWN: "neutral",
+  WAITLISTED: "info",
+};
 
 type ArchiveApp = {
   id: string;
@@ -96,23 +113,25 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
 
   if (applications.length === 0) {
     return (
-      <div className="applicant-archive-empty">
-        No archived applications yet. Applications are automatically archived 30 days after a final decision is made.
-      </div>
+      <EmptyStateV2
+        icon="🗄️"
+        title="No archived applications yet"
+        body="Applications are automatically archived 30 days after a final decision is made."
+      />
     );
   }
 
   return (
-    <div className="applicant-archive">
-      <div className="applicant-archive-toolbar">
+    <div>
+      <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <input
-          className="input applicant-archive-search"
+          className="h-9 w-full max-w-64 rounded-[8px] border border-line bg-surface px-2.5 text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-400"
           placeholder="Search applicants..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <select
-          className="input applicant-command-select"
+          className="h-9 max-w-52 rounded-[8px] border border-line bg-surface px-2.5 text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-400"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -121,13 +140,13 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
             <option key={v} value={v}>{l}</option>
           ))}
         </select>
-        <span className="applicant-archive-count">
+        <span className="text-[12.5px] text-ink-muted">
           {filtered.length} of {applications.length}
         </span>
       </div>
 
-      <div className="applicant-archive-table-wrap">
-        <table className="applicant-archive-table">
+      <DataTableShell>
+        <TableV2>
           <thead>
             <tr>
               <Th onClick={() => toggleSort("applicant")} sorted={sortKey === "applicant"} dir={sortDir}>
@@ -148,51 +167,49 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
           </thead>
           <tbody>
             {filtered.map((app) => (
-              <tr
-                key={app.id}
-              >
-                <td className="applicant-archive-name">
+              <tr key={app.id} className="hover:bg-surface-soft">
+                <TableCell className="font-semibold">
                   {formatApplicantDisplayName(app)}
-                </td>
-                <td>
+                </TableCell>
+                <TableCell className="text-ink-muted">
                   {app.applicant.chapter?.name ?? "—"}
-                </td>
-                <td>
+                </TableCell>
+                <TableCell className="text-ink-muted">
                   {app.subjectsOfInterest
                     ? app.subjectsOfInterest.split(/[\s,;]+/).filter(Boolean).slice(0, 2).join(", ")
                     : "—"}
-                </td>
-                <td>
+                </TableCell>
+                <TableCell className="text-ink-muted">
                   {app.reviewer?.name ?? "—"}
-                </td>
-                <td>
-                  <span className={`status-pill ${app.status.toLowerCase().replace(/_/g, "-")}`}>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge tone={STATUS_TONES[app.status] ?? "neutral"}>
                     {STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ")}
-                  </span>
-                </td>
-                <td>
+                  </StatusBadge>
+                </TableCell>
+                <TableCell className="text-ink-muted">
                   {app.chairDecision
                     ? DECISION_LABELS[app.chairDecision.action] ?? app.chairDecision.action
                     : "—"}
-                </td>
-                <td className="applicant-archive-date">
+                </TableCell>
+                <TableCell className="text-[12.5px] text-ink-muted">
                   {app.archivedAt
                     ? new Date(app.archivedAt).toLocaleDateString()
                     : new Date(app.updatedAt).toLocaleDateString()}
-                </td>
-                <td>
+                </TableCell>
+                <TableCell>
                   <a
                     href={`/applications/instructor/${app.id}`}
-                    className="cockpit-text-link"
+                    className="text-[12.5px] font-semibold text-brand-600 hover:text-brand-700"
                   >
-                    View
+                    View →
                   </a>
-                </td>
+                </TableCell>
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
+        </TableV2>
+      </DataTableShell>
     </div>
   );
 }
@@ -211,10 +228,10 @@ function Th({
   return (
     <th
       onClick={onClick}
-      className={onClick ? "is-sortable" : undefined}
+      className={`border-b border-line-soft px-5 py-2.5 text-left text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted${onClick ? " cursor-pointer select-none hover:text-ink" : ""}`}
     >
       {children}
-      {sorted && <span style={{ marginLeft: 4 }}>{dir === "asc" ? "↑" : "↓"}</span>}
+      {sorted && <span className="ml-1">{dir === "asc" ? "↑" : "↓"}</span>}
     </th>
   );
 }
