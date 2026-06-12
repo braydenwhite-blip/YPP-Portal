@@ -29,10 +29,16 @@ export const metadata = {
   title: "People — Pathways Portal",
 };
 
-function peopleHref(params: { role?: string; flag?: string; q?: string }): string {
+function peopleHref(params: {
+  role?: string;
+  flag?: string;
+  q?: string;
+  advisor?: string;
+}): string {
   const search = new URLSearchParams();
   if (params.role && params.role !== "all") search.set("role", params.role);
   if (params.flag) search.set("flag", params.flag);
+  if (params.advisor) search.set("advisor", params.advisor);
   if (params.q) search.set("q", params.q);
   const qs = search.toString();
   return qs ? `/people?${qs}` : "/people";
@@ -69,9 +75,15 @@ export default async function PeoplePage({
   const sp = await searchParams;
   const role = asPeopleRoleFilter(typeof sp.role === "string" ? sp.role : undefined);
   const flag = asPeopleFlagFilter(typeof sp.flag === "string" ? sp.flag : undefined);
+  const advisorId = typeof sp.advisor === "string" ? sp.advisor : null;
   const q = typeof sp.q === "string" ? sp.q : undefined;
 
-  const { rows, total, stats } = await loadPeopleDirectory({ q, role, flag });
+  const { rows, total, stats, advisorFilter } = await loadPeopleDirectory({
+    q,
+    role,
+    flag,
+    advisorId,
+  });
 
   return (
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
@@ -144,6 +156,14 @@ export default async function PeoplePage({
           >
             {PEOPLE_FLAG_FILTER_LABELS["checkin-overdue"]}
           </FilterChipLink>
+          {advisorFilter ? (
+            <>
+              <span aria-hidden className="mx-1 h-5 w-px bg-line" />
+              <FilterChipLink href={peopleHref({ role, flag: flag ?? undefined, q })} active>
+                Caseload: {advisorFilter.name} ✕
+              </FilterChipLink>
+            </>
+          ) : null}
         </FilterBar>
         <UrlSyncedSearchInput
           placeholder="Search by name or email…"

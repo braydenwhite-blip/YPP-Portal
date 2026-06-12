@@ -120,6 +120,11 @@ export type PeopleDirectoryParams = {
   q?: string;
   role?: PeopleRoleFilter;
   flag?: PeopleFlagFilter | null;
+  /**
+   * Advisor caseload view (plan §12): restrict to students actively advised
+   * by this user. Linked from the instructor record's caseload section.
+   */
+  advisorId?: string | null;
   /** Row cap; the page shows "N of total" when the cap bites. */
   take?: number;
 };
@@ -284,6 +289,8 @@ export type PeopleDirectoryResult = {
   rows: PersonDirectoryRow[];
   total: number;
   stats: PeopleDirectoryStats;
+  /** Set when the caseload filter is active — the advisor being viewed. */
+  advisorFilter: { id: string; name: string } | null;
 };
 
 export async function loadPeopleDirectory(
@@ -292,6 +299,7 @@ export async function loadPeopleDirectory(
   const now = new Date();
   const role = params.role ?? "all";
   const flag = params.flag ?? null;
+  const advisorId = params.advisorId ?? null;
   const q = params.q?.trim();
   const take = params.take ?? 250;
 
@@ -300,6 +308,9 @@ export async function loadPeopleDirectory(
       { archivedAt: null },
       whereForRoleFilter(role),
       whereForFlagFilter(flag, now),
+      ...(advisorId
+        ? [{ adviseeAssignments: { some: { isActive: true, advisorId } } }]
+        : []),
       ...(q
         ? [
             {
@@ -313,7 +324,14 @@ export async function loadPeopleDirectory(
     ],
   };
 
-  const [users, total, students, instructors, applicantsInProcess, noAdvisor, overdue] =
+  const advisorFilterPromise = advisorId
+    ? prisma.user.findUnique({
+        where: { id: advisorId },
+        select: { id: true, name: true, email: true },
+      })
+    : Promise.resolve(null);
+
+  const [users, total, students, instructors, applicantsInProcess, noAdvisor, overdue, advisorUser] =
     await Promise.all([
       prisma.user.findMany({
         where,
@@ -355,6 +373,7 @@ export async function loadPeopleDirectory(
       prisma.user.count({
         where: { archivedAt: null, ...whereForFlagFilter("checkin-overdue", now) },
       }),
+      advisorFilterPromise,
     ]);
 
   return {
@@ -367,5 +386,8 @@ export async function loadPeopleDirectory(
       studentsWithoutAdvisor: noAdvisor,
       checkInsOverdue: overdue,
     },
+    advisorFilter: advisorUser
+      ? { id: advisorUser.id, name: advisorUser.name || advisorUser.email }
+      : null,
   };
 }

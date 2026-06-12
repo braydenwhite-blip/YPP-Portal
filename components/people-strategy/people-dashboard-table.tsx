@@ -564,7 +564,7 @@ export function PeopleDashboardTable({
                   {/* View / Review */}
                   <td style={cellStyle}>
                     <Link
-                      href={`/admin/instructors/${row.id}#people-strategy`}
+                      href={`/admin/instructors/${row.id}/manage#people-strategy`}
                       className="button outline small"
                       style={{ whiteSpace: "nowrap" }}
                     >
