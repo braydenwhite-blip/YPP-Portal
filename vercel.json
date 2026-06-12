@@ -39,6 +39,10 @@
     {
       "path": "/api/cron/action-leadership-escalation",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/search-reconcile",
+      "schedule": "0 4 * * *"
     }
   ]
 }

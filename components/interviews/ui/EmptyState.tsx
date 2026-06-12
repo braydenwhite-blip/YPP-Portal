@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { EmptyStateV2, cn } from "@/components/ui-v2";
+
 type EmptyStateProps = {
   title: string;
   helper?: string;
@@ -8,13 +10,11 @@ type EmptyStateProps = {
   className?: string;
 };
 
+/** Interview-domain empty state — thin wrapper over the ui-v2 primitive. */
 export function EmptyState({ title, helper, icon, action, className }: EmptyStateProps) {
   return (
-    <div className={`iv-empty-state${className ? ` ${className}` : ""}`} role="status">
-      {icon ? <div className="iv-empty-state-icon" aria-hidden="true">{icon}</div> : null}
-      <p className="iv-empty-state-title">{title}</p>
-      {helper ? <p className="iv-empty-state-helper">{helper}</p> : null}
-      {action ? <div className="iv-empty-state-action">{action}</div> : null}
+    <div role="status" className={cn(className)}>
+      <EmptyStateV2 icon={icon} title={title} body={helper} action={action} />
     </div>
   );
 }

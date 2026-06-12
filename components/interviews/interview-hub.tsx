@@ -1,8 +1,8 @@
-import Link from "next/link";
 import InterviewFilters from "@/components/interviews/interview-filters";
 import InterviewNextAction from "@/components/interviews/interview-next-action";
 import InterviewTaskCard from "@/components/interviews/interview-task-card";
 import { EmptyState, SectionHeader, StatusBadge } from "@/components/interviews/ui";
+import { StatCardV2 } from "@/components/ui-v2";
 import type {
   InterviewCommandCenterData,
   InterviewHubFilters,
@@ -56,7 +56,7 @@ function Section({
 }) {
   const meta = SECTION_META[sectionKey];
   return (
-    <section className="iv-section" aria-label={meta.title}>
+    <section className="flex flex-col gap-3" aria-label={meta.title}>
       <SectionHeader
         kicker={meta.kicker}
         title={meta.title}
@@ -82,40 +82,13 @@ function Section({
       {tasks.length === 0 ? (
         <EmptyState title={meta.emptyTitle} helper={meta.emptyHelper} />
       ) : (
-        <div className="iv-hub-section-list">
+        <div className="flex flex-col gap-3">
           {tasks.map((task) => (
             <InterviewTaskCard key={task.id} task={task} />
           ))}
         </div>
       )}
     </section>
-  );
-}
-
-function KpiTile({
-  label,
-  value,
-  helper,
-  tone,
-  href,
-  active,
-}: {
-  label: string;
-  value: number;
-  helper?: string;
-  tone: "needs-action" | "scheduled" | "warning" | "success";
-  href: string;
-  active?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`iv-kpi-tile iv-kpi-tile-accent-${tone}${active ? " is-active" : ""}`}
-    >
-      <span className="iv-kpi-tile-label">{label}</span>
-      <span className="iv-kpi-tile-value">{value}</span>
-      {helper ? <span className="iv-kpi-tile-helper">{helper}</span> : null}
-    </Link>
   );
 }
 
@@ -131,37 +104,31 @@ function buildKpiHref(filters: InterviewHubFilters, partial: Partial<InterviewHu
 
 function KpiStrip({ kpis, filters }: { kpis: InterviewHubKpis; filters: InterviewHubFilters }) {
   return (
-    <div className="iv-kpi-strip" aria-label="Interview KPIs">
-      <KpiTile
+    <div className="flex flex-wrap gap-3" aria-label="Interview counts">
+      <StatCardV2
         label="Needs my action"
         value={kpis.needsAction}
-        helper="Move forward when you do"
-        tone="needs-action"
+        detail="moves forward when you act"
+        tone={kpis.needsAction > 0 ? "attention" : "default"}
         href={buildKpiHref(filters, { state: "needs_action" })}
-        active={filters.state === "needs_action"}
       />
-      <KpiTile
+      <StatCardV2
         label="Scheduled"
         value={kpis.scheduledTotal}
-        helper={kpis.scheduledToday > 0 ? `${kpis.scheduledToday} today` : "On the calendar"}
-        tone="scheduled"
+        detail={kpis.scheduledToday > 0 ? `${kpis.scheduledToday} today` : "on the calendar"}
         href={buildKpiHref(filters, { state: "scheduled" })}
-        active={filters.state === "scheduled"}
       />
-      <KpiTile
+      <StatCardV2
         label="Today"
         value={kpis.scheduledToday}
-        helper="Interviews on today's docket"
-        tone="warning"
+        detail="on today's docket"
         href={buildKpiHref(filters, { state: "scheduled" })}
       />
-      <KpiTile
+      <StatCardV2
         label="Completed this week"
         value={kpis.completedThisWeek}
-        helper="Wrapped up in last 7 days"
-        tone="success"
+        detail="wrapped up in last 7 days"
         href={buildKpiHref(filters, { state: "completed" })}
-        active={filters.state === "completed"}
       />
     </div>
   );
@@ -171,7 +138,7 @@ export default function InterviewHub({ data }: InterviewHubProps) {
   const nextAction = data.sections.needsAction[0] ?? data.sections.blocked[0] ?? null;
 
   return (
-    <div className="iv-section" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="flex flex-col gap-5">
       <KpiStrip kpis={data.kpis} filters={data.filters} />
       <InterviewNextAction task={nextAction} totalNeedsAction={data.kpis.needsAction} />
       <InterviewFilters

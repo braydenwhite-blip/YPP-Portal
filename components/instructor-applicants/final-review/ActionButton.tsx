@@ -89,13 +89,13 @@ export default function ActionButton({
         {loading ? (
           <span
             aria-hidden="true"
+            className="animate-spin"
             style={{
               width: 14,
               height: 14,
               borderRadius: "50%",
               border: `2px solid ${style.fg}`,
               borderTopColor: "transparent",
-              animation: "cockpit-spin 0.8s linear infinite",
             }}
           />
         ) : (

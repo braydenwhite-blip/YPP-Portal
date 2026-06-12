@@ -9,6 +9,7 @@ import {
   confirmPostedInterviewSlot,
 } from "@/lib/instructor-interview-actions";
 import { StatusBadge, type StatusBadgeTone } from "@/components/interviews/ui";
+import { Button, EntityChip, buttonVariants, cn } from "@/components/ui-v2";
 import type { InterviewTask } from "@/lib/interviews/types";
 
 type InterviewTaskCardProps = {
@@ -20,6 +21,12 @@ const INLINE_FORM_KINDS = new Set([
   "add_hiring_recommendation_note",
   "complete_readiness_interview_and_outcome",
 ]);
+
+/** Shared Tailwind vocabulary for the inline capture forms. */
+const FIELD_LABEL =
+  "flex flex-col gap-1 text-[12.5px] font-semibold text-ink";
+const FIELD_INPUT =
+  "rounded-[8px] border border-line bg-surface px-3 py-2 text-[13px] font-normal text-ink outline-none focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30";
 
 function stageLabel(stage: InterviewTask["stage"]) {
   if (stage === "NEEDS_ACTION") return "Needs Action";
@@ -100,12 +107,34 @@ function timestampHelper(task: InterviewTask) {
   return null;
 }
 
+const PRIMARY_LINK_CLASS = cn(buttonVariants({ variant: "primary", size: "sm" }), "no-underline");
+const SECONDARY_LINK_CLASS = cn(buttonVariants({ variant: "secondary", size: "sm" }), "no-underline");
+
+function InlineFormDisclosure({
+  open,
+  summaryLabel,
+  children,
+}: {
+  open: boolean;
+  summaryLabel: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group" open={open}>
+      <summary className="inline-flex cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+        <span className={PRIMARY_LINK_CLASS}>{summaryLabel}</span>
+      </summary>
+      {children}
+    </details>
+  );
+}
+
 function renderPrimaryAction(task: InterviewTask, formId: string) {
   const action = task.primaryAction;
 
   if (action.kind === "open_details") {
     return (
-      <Link href={action.href} className="button small" style={{ textDecoration: "none" }}>
+      <Link href={action.href} className={PRIMARY_LINK_CLASS}>
         {action.label}
       </Link>
     );
@@ -115,16 +144,16 @@ function renderPrimaryAction(task: InterviewTask, formId: string) {
     return (
       <form action={confirmInterviewSlot}>
         <input type="hidden" name="slotId" value={action.slotId} />
-        <button type="submit" className="button small">
+        <Button type="submit" variant="primary" size="sm">
           {action.label}
-        </button>
+        </Button>
       </form>
     );
   }
 
   if (action.kind === "post_hiring_slots_bulk") {
     return (
-      <Link href="/interviews/schedule" className="button small" style={{ textDecoration: "none" }}>
+      <Link href="/interviews/schedule" className={PRIMARY_LINK_CLASS}>
         Open Interview Scheduler
       </Link>
     );
@@ -132,92 +161,88 @@ function renderPrimaryAction(task: InterviewTask, formId: string) {
 
   if (action.kind === "complete_hiring_interview_and_note") {
     return (
-      <details className="iv-task-card-disclosure" open={task.stage === "NEEDS_ACTION"}>
-        <summary className="iv-task-card-disclosure-summary">
-          <span className="button small">{action.label}</span>
-        </summary>
+      <InlineFormDisclosure open={task.stage === "NEEDS_ACTION"} summaryLabel={action.label}>
         <form
           id={formId}
           action={completeApplicationInterviewAndNote}
-          className="form-grid"
-          style={{ marginTop: 12 }}
+          className="mt-3 flex flex-col gap-3"
         >
           <input type="hidden" name="applicationId" value={action.applicationId} />
           <input type="hidden" name="slotId" value={action.slotId} />
-          <label className="form-row">
+          <label className={FIELD_LABEL}>
             Recommendation
-            <select name="recommendation" className="input" defaultValue="YES">
+            <select name="recommendation" className={FIELD_INPUT} defaultValue="YES">
               <option value="STRONG_YES">Strong Yes</option>
               <option value="YES">Yes</option>
               <option value="MAYBE">Maybe</option>
               <option value="NO">No</option>
             </select>
           </label>
-          <label className="form-row">
+          <label className={FIELD_LABEL}>
             Interview Note Summary
             <textarea
               name="content"
-              className="input"
+              className={FIELD_INPUT}
               rows={3}
               required
               placeholder="Key signals, strengths, concerns, and recommendation rationale..."
             />
           </label>
-          <div className="grid two">
-            <label className="form-row">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className={FIELD_LABEL}>
               Strengths (optional)
-              <textarea name="strengths" className="input" rows={2} placeholder="Observed strengths..." />
+              <textarea name="strengths" className={FIELD_INPUT} rows={2} placeholder="Observed strengths..." />
             </label>
-            <label className="form-row">
+            <label className={FIELD_LABEL}>
               Concerns (optional)
-              <textarea name="concerns" className="input" rows={2} placeholder="Potential risks or follow-ups..." />
+              <textarea name="concerns" className={FIELD_INPUT} rows={2} placeholder="Potential risks or follow-ups..." />
             </label>
           </div>
-          <button type="submit" className="button small">
-            {action.label}
-          </button>
+          <div>
+            <Button type="submit" variant="primary" size="sm">
+              {action.label}
+            </Button>
+          </div>
         </form>
-      </details>
+      </InlineFormDisclosure>
     );
   }
 
   if (action.kind === "add_hiring_recommendation_note") {
     return (
-      <details className="iv-task-card-disclosure" open={task.stage === "NEEDS_ACTION"}>
-        <summary className="iv-task-card-disclosure-summary">
-          <span className="button small">{action.label}</span>
-        </summary>
+      <InlineFormDisclosure open={task.stage === "NEEDS_ACTION"} summaryLabel={action.label}>
         <form
           id={formId}
           action={saveStructuredInterviewNote}
-          className="form-grid"
-          style={{ marginTop: 12 }}
+          className="mt-3 flex flex-col gap-3"
         >
           <input type="hidden" name="applicationId" value={action.applicationId} />
-          <label className="form-row">
+          <label className={FIELD_LABEL}>
             Recommendation
-            <select name="recommendation" className="input" defaultValue="YES">
+            <select name="recommendation" className={FIELD_INPUT} defaultValue="YES">
               <option value="STRONG_YES">Strong Yes</option>
               <option value="YES">Yes</option>
               <option value="MAYBE">Maybe</option>
               <option value="NO">No</option>
             </select>
           </label>
-          <label className="form-row">
+          <label className={FIELD_LABEL}>
             Interview Note Summary
             <textarea
               name="content"
-              className="input"
+              className={FIELD_INPUT}
               rows={3}
               required
               placeholder="Add recommendation details so decision can move forward..."
             />
           </label>
-          <button type="submit" className="button small">
-            {action.label}
-          </button>
+          <div>
+            <Button type="submit" variant="primary" size="sm">
+              {action.label}
+            </Button>
+          </div>
         </form>
-      </details>
+      </InlineFormDisclosure>
     );
   }
 
@@ -225,9 +250,9 @@ function renderPrimaryAction(task: InterviewTask, formId: string) {
     return (
       <form action={confirmPostedInterviewSlot}>
         <input type="hidden" name="slotId" value={action.slotId} />
-        <button type="submit" className="button small">
+        <Button type="submit" variant="primary" size="sm">
           {action.label}
-        </button>
+        </Button>
       </form>
     );
   }
@@ -238,45 +263,43 @@ function renderPrimaryAction(task: InterviewTask, formId: string) {
     action.kind === "accept_readiness_request"
   ) {
     return (
-      <Link href="/interviews/schedule" className="button small" style={{ textDecoration: "none" }}>
+      <Link href="/interviews/schedule" className={PRIMARY_LINK_CLASS}>
         Open Interview Scheduler
       </Link>
     );
   }
 
   return (
-    <details className="iv-task-card-disclosure" open={task.stage === "NEEDS_ACTION"}>
-      <summary className="iv-task-card-disclosure-summary">
-        <span className="button small">{action.label}</span>
-      </summary>
+    <InlineFormDisclosure open={task.stage === "NEEDS_ACTION"} summaryLabel={action.label}>
       <form
         id={formId}
         action={completeInstructorInterviewAndSetOutcome}
-        className="form-grid"
-        style={{ marginTop: 12 }}
+        className="mt-3 flex flex-col gap-3"
       >
         <input type="hidden" name="gateId" value={action.gateId} />
         {action.slotId ? <input type="hidden" name="slotId" value={action.slotId} /> : null}
-        <div className="grid two">
-          <label className="form-row">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className={FIELD_LABEL}>
             Outcome
-            <select name="outcome" className="input" defaultValue="PASS">
+            <select name="outcome" className={FIELD_INPUT} defaultValue="PASS">
               <option value="PASS">PASS</option>
               <option value="HOLD">HOLD</option>
               <option value="FAIL">FAIL</option>
               <option value="WAIVE">WAIVE (Admin only)</option>
             </select>
           </label>
-          <label className="form-row">
+          <label className={FIELD_LABEL}>
             Notes
-            <input name="reviewNotes" className="input" placeholder="Outcome notes or follow-up steps..." />
+            <input name="reviewNotes" className={FIELD_INPUT} placeholder="Outcome notes or follow-up steps..." />
           </label>
         </div>
-        <button type="submit" className="button small">
-          {action.label}
-        </button>
+        <div>
+          <Button type="submit" variant="primary" size="sm">
+            {action.label}
+          </Button>
+        </div>
       </form>
-    </details>
+    </InlineFormDisclosure>
   );
 }
 
@@ -290,44 +313,68 @@ export default function InterviewTaskCard({ task }: InterviewTaskCardProps) {
 
   return (
     <article
-      className={`iv-card iv-task-card${isAccent ? " iv-card-accent" : ""}`}
+      className={cn(
+        "flex flex-col gap-3 rounded-[12px] border border-line-soft bg-surface p-5 shadow-card",
+        isAccent && "border-l-4 border-l-brand-600"
+      )}
       aria-labelledby={`${formId}-title`}
     >
-      <div className="iv-task-card-row">
-        <div className="iv-task-card-identity">
-          <div className="iv-task-card-meta">
-            <span className="iv-task-card-domain">{domainLabel(task.domain)}</span>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+              {domainLabel(task.domain)}
+            </span>
             <StatusBadge tone={stageTone(task.stage)}>{stageLabel(task.stage)}</StatusBadge>
             {scheduling ? (
               <StatusBadge tone={scheduling.tone}>{scheduling.label}</StatusBadge>
             ) : null}
           </div>
-          <h4 id={`${formId}-title`} className="iv-task-card-title">
+          <h4
+            id={`${formId}-title`}
+            className="mt-1.5 text-[15px] font-bold leading-snug text-ink"
+          >
             {task.title}
           </h4>
-          <p className="iv-task-card-subtitle">{task.subtitle}</p>
+          <p className="mt-0.5 text-[13px] text-ink-muted">{task.subtitle}</p>
           {schedulingHelper ? (
-            <p className="iv-task-card-scheduling">{schedulingHelper}</p>
+            <p className="mt-1 text-[12.5px] font-medium text-warning-700">{schedulingHelper}</p>
           ) : null}
-          {helper ? <p className="iv-task-card-helper">{helper}</p> : null}
+          {helper ? <p className="mt-1 text-[12.5px] text-ink-muted">{helper}</p> : null}
+          {task.relatedEntity ? (
+            <div className="mt-2">
+              <EntityChip
+                type={task.relatedEntity.type}
+                id={task.relatedEntity.id}
+                label={task.relatedEntity.label}
+              />
+            </div>
+          ) : null}
         </div>
         {!hasInlineForm ? (
-          <div className="iv-task-card-action">{renderPrimaryAction(task, formId)}</div>
+          <div className="shrink-0">{renderPrimaryAction(task, formId)}</div>
         ) : null}
       </div>
 
-      {task.detail ? <p className="iv-task-card-detail">{task.detail}</p> : null}
+      {task.detail ? (
+        <p className="text-[13px] leading-relaxed text-ink">{task.detail}</p>
+      ) : null}
 
       {hasInlineForm ? (
-        <div className="iv-task-card-action-block">{renderPrimaryAction(task, formId)}</div>
+        <div className="rounded-[10px] border border-line-soft bg-surface-soft p-4">
+          {renderPrimaryAction(task, formId)}
+        </div>
       ) : null}
 
       {(task.blockers.length > 0 || task.secondaryLinks.length > 0) && (
-        <div className="iv-task-card-footer">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-t border-line-soft pt-3">
           {task.blockers.length > 0 ? (
-            <div className="iv-task-card-blockers" role="note">
-              <span className="iv-task-card-blockers-label">Blocked</span>
-              <ul>
+            <div
+              className="flex flex-col gap-1 text-[12.5px] text-danger-700"
+              role="note"
+            >
+              <span className="font-bold uppercase tracking-[0.06em]">Blocked</span>
+              <ul className="m-0 list-disc pl-4">
                 {task.blockers.map((blocker) => (
                   <li key={blocker}>{blocker}</li>
                 ))}
@@ -335,13 +382,12 @@ export default function InterviewTaskCard({ task }: InterviewTaskCardProps) {
             </div>
           ) : null}
           {task.secondaryLinks.length > 0 ? (
-            <div className="iv-task-card-links">
+            <div className="flex flex-wrap gap-2">
               {task.secondaryLinks.map((link) => (
                 <Link
                   key={link.href + link.label}
                   href={link.href}
-                  className="button small outline"
-                  style={{ textDecoration: "none" }}
+                  className={SECONDARY_LINK_CLASS}
                 >
                   {link.label}
                 </Link>

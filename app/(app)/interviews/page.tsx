@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
-import Link from "next/link";
 import { getInterviewCommandCenterData } from "@/lib/interviews/command-center-data";
 import InterviewHub from "@/components/interviews/interview-hub";
+import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
 
 type InterviewSearchParams = {
   scope?: string;
@@ -32,28 +32,17 @@ export default async function InterviewsPage({
   });
 
   return (
-    <div className="iv-page">
-      <div className="iv-toolbar">
-        <div className="iv-section-header-text">
-          <span className="iv-section-header-kicker">Interview Ops</span>
-          <h1 className="iv-section-header-title" style={{ fontSize: 24 }}>
-            Interview Command Center
-          </h1>
-          <p className="iv-section-header-helper">
-            One place for hiring interviews and instructor-readiness interviews.
-          </p>
-        </div>
-        <div className="iv-toolbar-actions">
-          <Link
-            href="/interviews/schedule"
-            className="button outline small"
-            style={{ textDecoration: "none" }}
-          >
-            Open Scheduler
-          </Link>
-        </div>
-      </div>
-
+    <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-6 p-6">
+      <PageHeaderV2
+        eyebrow="Interview Ops"
+        title="Interviews"
+        subtitle="One queue for hiring interviews and instructor-readiness interviews — what needs you, what's on the calendar, what's done."
+        actions={
+          <ButtonLink href="/interviews/schedule" variant="primary" size="md">
+            Open scheduler
+          </ButtonLink>
+        }
+      />
       <InterviewHub data={data} />
     </div>
   );

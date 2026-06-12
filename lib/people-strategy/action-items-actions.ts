@@ -7,6 +7,7 @@ import type { ActionAssignmentRole, ActionCommentType, Prisma } from "@prisma/cl
 import { prisma } from "@/lib/prisma";
 import { requireLeadership, requireSessionUser } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { syncActionSearchDocument } from "@/lib/help-agent/search-indexing";
 import { parseDateInput, startOfDay } from "@/lib/leadership-action-center/dates";
 
 import {
@@ -486,6 +487,7 @@ export async function createActionItem(input: CreateActionItemInput) {
   // Every assignment row on a brand-new item is genuinely new → notify each.
   await notifyNewActionAssignments(created.id, assignmentRows);
 
+  await syncActionSearchDocument(created.id);
   revalidateAll();
   return { id: created.id };
 }
@@ -781,6 +783,7 @@ export async function updateActionItem(input: UpdateActionItemInput) {
     ]);
   }
 
+  await syncActionSearchDocument(data.id);
   revalidateAll();
 }
 
@@ -824,6 +827,7 @@ export async function updateActionStatus(
     );
   });
 
+  await syncActionSearchDocument(data.id);
   revalidateAll();
 }
 
@@ -906,6 +910,7 @@ export async function captureActionCompletion(input: {
     );
   });
 
+  await syncActionSearchDocument(data.id);
   revalidateAll();
 }
 
@@ -959,6 +964,7 @@ export async function captureActionBlocker(input: {
     );
   });
 
+  await syncActionSearchDocument(data.id);
   revalidateAll();
 }
 

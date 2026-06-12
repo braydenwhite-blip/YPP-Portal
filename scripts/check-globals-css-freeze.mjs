@@ -25,9 +25,13 @@ import { fileURLToPath } from "node:url";
  * Lowered to 11,598 by CSS deletion milestone 4 (Phase 3C): the live
  * interview runner / review-editor / interviewer-brief skin families
  * replaced by the ui-v2 rebuild — docs/knowledge-os-phase-3c-notes.md.
+ * Lowered to 10,761 by CSS deletion milestone 5 (Phase 3D): the entire
+ * /interviews hub `.iv-*` layer (cards/task cards/KPIs/filters/segmented/
+ * toolbar/empty states/badges/kbd + its :root --iv-* tokens) replaced by
+ * the ui-v2 rebuild — docs/knowledge-os-phase-3d-notes.md.
  * Only lower it.
  */
-const BASELINE_LINE_COUNT = 11598;
+const BASELINE_LINE_COUNT = 10761;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const file = join(root, "app", "globals.css");
