@@ -1,6 +1,11 @@
 import Link from "next/link";
 
 import { ButtonLink, StatusBadge, type StatusTone } from "@/components/ui-v2";
+import { EntityActionRowCapture } from "./entity-action-row-capture";
+import {
+  canEditAction,
+  type ActionViewer,
+} from "@/lib/people-strategy/action-permissions";
 import type { Entity360Type } from "@/lib/operations/entity-360";
 import {
   deriveEntityActionPanel,
@@ -69,6 +74,7 @@ export function EntityActionPanel({
   entityType,
   entityId,
   entityLabel,
+  viewer,
   now = new Date(),
 }: {
   actions: ActionItemWithRelations[];
@@ -76,6 +82,8 @@ export function EntityActionPanel({
   entityType: RelatedEntityType;
   entityId: string;
   entityLabel: string;
+  /** When provided, rows the viewer can edit get inline Complete / Block. */
+  viewer?: ActionViewer;
   now?: Date;
 }) {
   const panel = deriveEntityActionPanel({ actions, decisions }, now);
@@ -177,6 +185,23 @@ export function EntityActionPanel({
               <StatusBadge tone={actionTone(action, now)}>
                 {actionStatusLabel(action, now)}
               </StatusBadge>
+              {viewer &&
+              canEditAction(viewer, {
+                leadId: action.leadId,
+                createdById: action.createdById,
+                visibility: action.visibility,
+                assignments: action.assignments.map((a) => ({
+                  userId: a.user.id,
+                  role: a.role,
+                })),
+              }) ? (
+                <EntityActionRowCapture
+                  actionId={action.id}
+                  blockedReason={action.blockedReason}
+                  completionNote={action.completionNote}
+                  completionOutcome={action.completionOutcome}
+                />
+              ) : null}
             </li>
           ))}
           {panel.open.length > 6 ? (

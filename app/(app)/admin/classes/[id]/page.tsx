@@ -196,6 +196,7 @@ export default async function AdminClassDetailPage({
               </h2>
               <EntityActionPanel
                 actions={opsContext.actions}
+                viewer={viewer}
                 entityType="CLASS_OFFERING"
                 entityId={id}
                 entityLabel={detail.title}

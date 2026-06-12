@@ -10,11 +10,17 @@ import type { HelpAgentGroup, HelpAgentResult, HelpAgentSearchResponse } from ".
 /**
  * YPP Help Agent — deterministic, permission-aware entity search.
  *
- * V1 runs live, scoped Prisma queries per entity type (small `take`s on
- * indexed columns) rather than reading the SearchDocument index — zero ops
- * dependency while the portal is small. The SearchDocument table + backfill
- * script exist (scripts/backfill-search-documents.ts); cutting this module
- * over to the index (with pg_trgm fuzziness) is the next pass.
+ * Phase 3C began the SearchDocument cutover: the PERSON group reads the
+ * index (title/keywords) when it is populated, and falls back to the live
+ * Prisma query when it is empty — the index has no write path yet, so the
+ * fallback keeps search correct on environments where the backfill
+ * (scripts/backfill-search-documents.ts) has not run. Every other group
+ * still runs live, scoped Prisma queries (small `take`s on indexed
+ * columns): meetings need date context the index lacks, initiatives are
+ * config-defined, and partner/class/action subtitles can go stale without
+ * write-path upserts. Remaining cutover work: write-path upserts on entity
+ * mutations + a nightly reconcile run of the backfill, then the
+ * partner/applicant/action groups.
  *
  * Access mirrors the Entity 360 loaders ("stricter reading wins"):
  *   - person   → any signed-in member (active members only — no applicants)
@@ -67,7 +73,43 @@ const ROLE_LABELS: Record<string, string> = {
   STUDENT: "Student",
 };
 
+/**
+ * Person search via the SearchDocument index. Returns null when the index
+ * has no person rows (backfill never run) so the caller can fall back to
+ * the live query — never an empty result set caused by missing ops.
+ */
+async function searchPeopleFromIndex(q: string): Promise<HelpAgentResult[] | null> {
+  const indexed = await prisma.searchDocument
+    .count({ where: { entityType: "person" } })
+    .catch(() => 0);
+  if (indexed === 0) return null;
+  const docs = await prisma.searchDocument.findMany({
+    where: {
+      entityType: "person",
+      // Person rows are MEMBER-tier by construction; the explicit filter
+      // keeps a future mixed-tier backfill from leaking officer rows here.
+      visibilityTier: "MEMBER",
+      OR: [
+        { title: { contains: q, mode: "insensitive" } },
+        { keywords: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    select: { entityId: true, title: true, subtitle: true },
+    orderBy: [{ title: "asc" }],
+    take: PER_GROUP_LIMIT * 3,
+  });
+  return docs.map((d) => ({
+    type: "person" as const,
+    id: d.entityId,
+    title: d.title,
+    subtitle: d.subtitle ? (ROLE_LABELS[d.subtitle] ?? d.subtitle) : null,
+    href: `/people/${d.entityId}`,
+  }));
+}
+
 async function searchPeople(q: string): Promise<HelpAgentResult[]> {
+  const fromIndex = await searchPeopleFromIndex(q).catch(() => null);
+  if (fromIndex !== null) return fromIndex;
   const users = await prisma.user.findMany({
     where: {
       archivedAt: null,

@@ -593,6 +593,12 @@ export default async function ApplicationRecordPage({
       >
         <EntityActionPanel
           actions={linkedActions}
+          viewer={{
+            id: sessionUser.id,
+            roles: sessionUser.roles,
+            primaryRole: sessionUser.primaryRole ?? null,
+            adminSubtypes: sessionUser.adminSubtypes ?? [],
+          }}
           entityType="INSTRUCTOR_APPLICATION"
           entityId={record.id}
           entityLabel={record.displayName}

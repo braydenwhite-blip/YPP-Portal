@@ -616,6 +616,12 @@ export default async function AdminInstructorRecordPage({
           <div className="grid items-start gap-4 lg:grid-cols-2">
             <EntityActionPanel
               actions={opsContext.actions}
+              viewer={{
+                id: session?.user?.id ?? "",
+                roles,
+                primaryRole: session?.user?.primaryRole ?? null,
+                adminSubtypes: session?.user?.adminSubtypes ?? [],
+              }}
               entityType="USER"
               entityId={id}
               entityLabel={record.name}

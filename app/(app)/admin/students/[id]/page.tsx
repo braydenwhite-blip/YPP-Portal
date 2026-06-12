@@ -509,6 +509,12 @@ export default async function AdminStudentRecordPage({
         >
           <EntityActionPanel
             actions={opsContext.actions}
+            viewer={{
+              id: session?.user?.id ?? "",
+              roles,
+              primaryRole: session?.user?.primaryRole ?? null,
+              adminSubtypes: session?.user?.adminSubtypes ?? [],
+            }}
             entityType="USER"
             entityId={id}
             entityLabel={student.name}

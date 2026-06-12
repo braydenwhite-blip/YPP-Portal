@@ -307,6 +307,7 @@ export default async function PartnerProfilePage({
               </h2>
               <EntityActionPanel
                 actions={opsContext.actions}
+                viewer={viewer}
                 entityType="PARTNER"
                 entityId={partner.id}
                 entityLabel={partner.name}
