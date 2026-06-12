@@ -69,7 +69,7 @@ export default function QueueNavigator({
       )}
       <button
         type="button"
-        className="queue-counter"
+        className="queue-counter focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((s) => !s)}

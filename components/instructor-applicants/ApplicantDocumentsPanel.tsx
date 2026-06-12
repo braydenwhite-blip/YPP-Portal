@@ -172,7 +172,7 @@ export default function ApplicantDocumentsPanel({
   }
 
   return (
-    <div className="cockpit-documents-panel">
+    <div className="flex flex-col gap-3 rounded-[12px] border border-line-soft bg-surface p-[18px] shadow-card">
       {KINDS.map((kind) => {
         const meta = KIND_META[kind];
         const active = activeDoc(kind);
@@ -187,35 +187,33 @@ export default function ApplicantDocumentsPanel({
         return (
           <div
             key={kind}
-            className={`cockpit-document-card${isComplete ? " is-complete" : " is-missing"}`}
+            className={`rounded-[10px] border px-3.5 py-3 ${isComplete ? "border-line-soft bg-surface-soft/60" : "border-amber-200 bg-amber-50/50"}`}
           >
-            <div className="cockpit-document-header">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <div className="cockpit-document-title">{meta.label}</div>
-                <div className="cockpit-document-hint">{meta.hint}</div>
+                <div className="text-[13.5px] font-bold text-ink">{meta.label}</div>
+                <div className="text-[12px] text-ink-muted">{meta.hint}</div>
               </div>
               {isComplete ? (
-                <span className="pill pill-success pill-small">
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                   {structureNotesDoc ? "Notes received" : "Uploaded"}
                 </span>
               ) : (
-                <span className="pill pill-attention pill-small">Missing</span>
+                <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Missing</span>
               )}
             </div>
 
             {active && (
-              <div
-                className="cockpit-document-file"
-              >
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-line-soft bg-surface px-2.5 py-2 text-[12.5px]">
                 <a
                   href={active.fileUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="cockpit-text-link"
+                  className="text-[12.5px] font-semibold text-brand-700 hover:underline"
                 >
                   {active.originalName ?? "View document"}
                 </a>
-                <div className="cockpit-document-actions">
+                <div className="flex items-center gap-2 text-[12px] text-ink-muted">
                   <span>
                     {new Date(active.uploadedAt).toLocaleDateString()}
                   </span>
@@ -234,7 +232,7 @@ export default function ApplicantDocumentsPanel({
             )}
 
             {structureNotesDoc ? (
-              <div className="cockpit-document-file">
+              <div className="mt-2 rounded-[8px] border border-line-soft bg-surface px-2.5 py-2 text-[12.5px] text-ink-muted">
                 <span>Structure notes were submitted with the first class plan.</span>
               </div>
             ) : null}
@@ -254,7 +252,7 @@ export default function ApplicantDocumentsPanel({
             ) : null}
 
             {canUpload && (
-              <div className="cockpit-document-upload">
+              <div className="mt-2">
                 <input
                   ref={(el: HTMLInputElement | null) => { inputRefs.current[kind] = el; }}
                   type="file"
@@ -278,14 +276,14 @@ export default function ApplicantDocumentsPanel({
             )}
 
             {err && (
-              <p className="cockpit-form-error">{err}</p>
+              <p className="m-0 mt-1.5 text-[12.5px] font-semibold text-danger-700">{err}</p>
             )}
 
             {history.length > 0 && (
-              <div className="cockpit-document-history">
+              <div className="mt-2">
                 <button
                   type="button"
-                  className="cockpit-plain-button"
+                  className="cursor-pointer border-0 bg-transparent p-0 text-[12px] font-semibold text-ink-muted underline hover:text-ink"
                   onClick={() =>
                     setExpandedHistory((prev) => ({ ...prev, [kind]: !prev[kind] }))
                   }
@@ -293,17 +291,17 @@ export default function ApplicantDocumentsPanel({
                   {expandedHistory[kind] ? "Hide" : "Show"} {history.length} prior version{history.length > 1 ? "s" : ""}
                 </button>
                 {expandedHistory[kind] && (
-                  <div className="cockpit-document-history-list">
+                  <div className="mt-1.5 flex flex-col gap-1">
                     {history.map((d) => (
                       <div
                         key={d.id}
-                        className="cockpit-document-history-item"
+                        className="flex flex-wrap items-center gap-1.5 text-[12px] text-ink-muted"
                       >
                         <a
                           href={d.fileUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="cockpit-text-link"
+                          className="text-[12.5px] font-semibold text-brand-700 hover:underline"
                         >
                           {d.originalName ?? "Document"}
                         </a>

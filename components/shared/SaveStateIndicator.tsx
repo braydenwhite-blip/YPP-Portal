@@ -66,7 +66,7 @@ export default function SaveStateIndicator({
     >
       <span
         aria-hidden="true"
-        className={state === "saving" ? "save-dot pulsing" : "save-dot"}
+        className={state === "saving" ? "save-dot animate-pulse" : "save-dot"}
         style={{
           width: 8,
           height: 8,

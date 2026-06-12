@@ -810,7 +810,7 @@ export default function InterviewReviewEditor({
 
         <section className="live-interview-hero">
           <div>
-            <span className="cockpit-section-kicker">During-interview workflow</span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">During-interview workflow</span>
             <h2>Live Question Runner</h2>
             <p>
               Move through questions, capture notes while answers are fresh, tag signals, and save as you go.
@@ -881,7 +881,7 @@ export default function InterviewReviewEditor({
         <section className="live-notepad" aria-label="Scratch notes">
           <div className="live-notepad-header">
             <div>
-              <span className="cockpit-section-kicker">Always-on notes</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">Always-on notes</span>
               <h3 style={{ margin: "2px 0 0" }}>Scratch pad &amp; follow-ups</h3>
               <p
                 style={{
@@ -1053,7 +1053,7 @@ export default function InterviewReviewEditor({
             <div className="live-question-card-header">
               <div>
                 <div className="live-question-card-header-meta">
-                  <span className="cockpit-section-kicker">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">
                     {activeQuestion.source === "CUSTOM"
                       ? "Custom follow-up"
                       : activeBankItem?.topic ?? "Interview question"}

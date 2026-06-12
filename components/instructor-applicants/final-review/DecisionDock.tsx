@@ -60,20 +60,9 @@ export default function DecisionDock(props: DecisionDockProps) {
   if (readOnly) {
     return (
       <div
-        className="decision-dock decision-dock-readonly"
+        className="sticky bottom-0 z-20 border-t border-line bg-surface px-6 py-4 text-center text-[13px] text-ink-muted"
         role="region"
         aria-label="Decision dock (read-only)"
-        style={{
-          position: "sticky",
-          bottom: 0,
-          background: "var(--cockpit-surface, #fff)",
-          borderTop: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
-          padding: "16px 24px",
-          fontSize: 13,
-          color: "var(--ink-muted, #6b5f7a)",
-          textAlign: "center",
-          zIndex: 20,
-        }}
       >
         This application was already decided. The dock is read-only — see the audit trail above.
       </div>
@@ -87,26 +76,12 @@ export default function DecisionDock(props: DecisionDockProps) {
 
   return (
     <motion.div
-      className="decision-dock"
+      className="sticky bottom-0 z-20 grid grid-cols-1 items-stretch gap-4 border-t border-line bg-surface px-6 py-4 shadow-[0_-8px_32px_rgb(59_15_110/0.10),0_-2px_8px_rgb(59_15_110/0.06)] lg:grid-cols-[minmax(0,1.1fr)_auto]"
       role="region"
       aria-label="Decision dock"
       initial={{ y: 32, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 220, damping: 26 }}
-      style={{
-        position: "sticky",
-        bottom: 0,
-        zIndex: 20,
-        background: "var(--cockpit-surface, #fff)",
-        borderTop: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
-        boxShadow:
-          "0 -8px 32px rgba(59, 15, 110, 0.10), 0 -2px 8px rgba(59, 15, 110, 0.06)",
-        padding: "16px 24px",
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1.1fr) auto",
-        gap: 16,
-        alignItems: "stretch",
-      }}
     >
       <DraftRationaleField
         applicationId={applicationId}

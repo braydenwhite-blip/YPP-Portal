@@ -251,43 +251,43 @@ export default function InterviewSchedulingInlinePanel({
   }
 
   return (
-    <section id="section-scheduling" className="cockpit-panel cockpit-scheduling-panel">
-      <div className="cockpit-panel-header-row">
-        <div className="cockpit-section-heading">
-          <span className="cockpit-section-kicker">Automatic applicant email</span>
+    <section id="section-scheduling" className="rounded-[12px] border border-line-soft bg-surface p-[22px] shadow-card">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="mb-4 grid gap-0.5">
+          <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">Automatic applicant email</span>
           <h2>Interview Scheduling</h2>
         </div>
         <a
           href={schedulerHref}
-          className="button outline cockpit-inline-button"
+          className="inline-flex cursor-pointer items-center justify-center rounded-[8px] border border-line bg-surface px-3.5 py-2 text-[13px] font-semibold text-brand-800 hover:border-brand-400 hover:bg-brand-50 disabled:pointer-events-none disabled:opacity-50"
         >
           Open scheduler
         </a>
       </div>
-      <p className="cockpit-scheduler-bridge">
+      <p className="m-0 mb-3 rounded-[8px] border border-line-soft bg-surface-soft px-3 py-2 text-[12.5px] leading-relaxed text-ink-muted">
         <strong>Automatic email offer.</strong> The assigned lead interviewer chooses
         exactly 3 future options, the portal emails them to the applicant, and the
         applicant picks the one that works.
       </p>
 
       {canPostSlots && sortedCommitments.length > 0 && (
-        <div className="cockpit-slot-group">
-          <p className="cockpit-slot-title">
+        <div className="mb-3.5 flex flex-col gap-1.5">
+          <p className="m-0 text-[12.5px] font-bold text-ink">
             Your other interview times ({sortedCommitments.length})
           </p>
-          <p className="cockpit-muted" style={{ marginTop: -2, marginBottom: 8 }}>
+          <p className="m-0 text-[13px] text-ink-muted" style={{ marginTop: -2, marginBottom: 8 }}>
             Times you&apos;ve already sent out or confirmed for other interviews.
             Check these before proposing new times so you don&apos;t double-book
             yourself.
           </p>
           {sortedCommitments.map((commitment) => (
-            <div key={commitment.id} className="cockpit-slot-card">
+            <div key={commitment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-line-soft bg-surface-soft px-3 py-2 text-[13px] text-ink">
               {formatDt(commitment.scheduledAt)} | {commitment.durationMinutes} min |{" "}
               {commitment.applicantName}
               {commitment.confirmed ? (
                 <strong style={{ color: "#047857" }}> · Confirmed</strong>
               ) : (
-                <span className="cockpit-muted"> · Awaiting confirmation</span>
+                <span className="text-[12px] text-ink-muted"> · Awaiting confirmation</span>
               )}
             </div>
           ))}
@@ -295,7 +295,7 @@ export default function InterviewSchedulingInlinePanel({
       )}
 
       {canPostSlots && (
-        <form onSubmit={handleSetDirect} className="cockpit-slot-form">
+        <form onSubmit={handleSetDirect} className="mt-2 flex flex-col gap-2.5">
           <p>
             <strong>Skip the offer step.</strong> If you and the applicant have
             already agreed on a time, set it directly here. Status moves to{" "}
@@ -332,7 +332,7 @@ export default function InterviewSchedulingInlinePanel({
             </label>
             <button
               type="submit"
-              className="button cockpit-inline-button"
+              className="inline-flex cursor-pointer items-center justify-center rounded-[8px] bg-brand-600 px-3.5 py-2 text-[13px] font-semibold text-white shadow-card hover:bg-brand-700 disabled:pointer-events-none disabled:opacity-50"
               disabled={directPending || !directAt}
               style={{ alignSelf: "end" }}
             >
@@ -341,7 +341,7 @@ export default function InterviewSchedulingInlinePanel({
           </div>
           {renderConflictNote(conflictsFor(directAt, 60))}
           {directResult && (
-            <p className={directResult.ok ? "cockpit-form-success" : "cockpit-form-error"}>
+            <p className={directResult.ok ? "m-0 text-[12.5px] font-semibold text-success-600" : "m-0 text-[12.5px] font-semibold text-danger-700"}>
               {directResult.text}
             </p>
           )}
@@ -352,21 +352,21 @@ export default function InterviewSchedulingInlinePanel({
 
       {/* Confirmed slots */}
       {confirmed.length > 0 && (
-        <div className="cockpit-slot-group">
-          <p className="cockpit-slot-title is-confirmed">
+        <div className="mb-3.5 flex flex-col gap-1.5">
+          <p className="m-0 text-[12.5px] font-bold text-emerald-700">
             Confirmed ({confirmed.length})
           </p>
           {confirmed.map((slot) => (
             <div
               key={slot.id}
-              className="cockpit-slot-card is-confirmed"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-[13px] text-ink"
             >
               {formatDt(slot.scheduledAt)} | {slot.durationMinutes} min
               {slot.meetingUrl ? (
                 <>
                   {" | "}
                   {isHttpUrl(slot.meetingUrl) ? (
-                    <a href={slot.meetingUrl} target="_blank" rel="noreferrer" className="cockpit-text-link">
+                    <a href={slot.meetingUrl} target="_blank" rel="noreferrer" className="text-[12.5px] font-semibold text-brand-700 hover:underline">
                       Join link
                     </a>
                   ) : (
@@ -381,14 +381,14 @@ export default function InterviewSchedulingInlinePanel({
 
       {/* Posted (pending confirmation) */}
       {pending_slots.length > 0 && (
-        <div className="cockpit-slot-group">
-          <p className="cockpit-slot-title">
+        <div className="mb-3.5 flex flex-col gap-1.5">
+          <p className="m-0 text-[12.5px] font-bold text-ink">
             Sent to applicant, awaiting confirmation ({pending_slots.length})
           </p>
           {pending_slots.map((slot) => (
             <div
               key={slot.id}
-              className="cockpit-slot-card"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-line-soft bg-surface-soft px-3 py-2 text-[13px] text-ink"
             >
               {formatDt(slot.scheduledAt)} | {slot.durationMinutes} min | by {slot.offeredBy.name ?? "Unknown"}
             </div>
@@ -398,8 +398,8 @@ export default function InterviewSchedulingInlinePanel({
 
       {/* Applicant availability windows */}
       {availabilityWindows.length > 0 && (
-        <div className="cockpit-slot-group">
-          <p className="cockpit-slot-title is-requested">
+        <div className="mb-3.5 flex flex-col gap-1.5">
+          <p className="m-0 text-[12.5px] font-bold text-amber-800">
             Legacy Applicant Availability Notes ({availabilityWindows.length})
           </p>
           {availabilityWindows.map((w) => {
@@ -407,7 +407,7 @@ export default function InterviewSchedulingInlinePanel({
             return (
               <div
                 key={w.id}
-                className="cockpit-slot-card is-requested"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-amber-200 bg-amber-50/60 px-3 py-2 text-[13px] text-ink"
               >
                 {days[w.dayOfWeek]} {w.startTime}-{w.endTime}
                 <span>({w.timezone})</span>
@@ -418,16 +418,16 @@ export default function InterviewSchedulingInlinePanel({
       )}
 
       {offeredSlots.length === 0 && availabilityWindows.length === 0 && (
-        <p className="cockpit-muted">
+        <p className="m-0 text-[13px] text-ink-muted">
           No official applicant time offers have been posted yet.
         </p>
       )}
 
       {/* Lead sends exactly three proposed times. */}
       {canPostSlots && (
-        <form onSubmit={handleSendTimes} className="cockpit-slot-form">
+        <form onSubmit={handleSendTimes} className="mt-2 flex flex-col gap-2.5">
           <p>Email 3 proposed interview times</p>
-          <label className="cockpit-slot-meeting-link">
+          <label className="flex flex-col gap-1 text-[12.5px] font-semibold text-ink">
             <span>Meeting details</span>
             <input
               type="text"
@@ -438,7 +438,7 @@ export default function InterviewSchedulingInlinePanel({
               placeholder="Zoom link, Google Meet link, room number, phone call, or TBD"
             />
           </label>
-          <div className="cockpit-slot-draft-list">
+          <div className="flex flex-col gap-1.5">
             {slotDrafts.map((slot, index) => {
               const conflicts = conflictsFor(
                 slot.scheduledAt,
@@ -446,7 +446,7 @@ export default function InterviewSchedulingInlinePanel({
               );
               return (
                 <div key={slot.id}>
-                  <div className="cockpit-slot-draft-row">
+                  <div className="flex flex-wrap items-center gap-2">
                     <label>
                       <span>Option {index + 1}</span>
                       <input
@@ -480,13 +480,13 @@ export default function InterviewSchedulingInlinePanel({
               );
             })}
           </div>
-          <div className="cockpit-slot-form-actions">
-            <button type="submit" className="button cockpit-inline-button" disabled={pending}>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="submit" className="inline-flex cursor-pointer items-center justify-center rounded-[8px] bg-brand-600 px-3.5 py-2 text-[13px] font-semibold text-white shadow-card hover:bg-brand-700 disabled:pointer-events-none disabled:opacity-50" disabled={pending}>
               {pending ? "Emailing..." : "Email times"}
             </button>
           </div>
           {result && (
-            <p className={result.ok ? "cockpit-form-success" : "cockpit-form-error"}>
+            <p className={result.ok ? "m-0 text-[12.5px] font-semibold text-success-600" : "m-0 text-[12.5px] font-semibold text-danger-700"}>
               {result.text}
             </p>
           )}

@@ -6,6 +6,7 @@
  * §6.2 of the redesign plan.
  */
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import type { InstructorApplicationStatus, ChairDecisionAction } from "@prisma/client";
 import type { QueueNeighbors } from "@/lib/final-review-queries";
@@ -48,24 +49,12 @@ export default function ApplicantSnapshotBar({
 
   return (
     <motion.header
-      className="applicant-snapshot-bar"
+      className="sticky top-0 z-10 grid grid-cols-1 items-center gap-2.5 border-b border-line bg-surface px-6 py-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:gap-4"
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       role="region"
       aria-label="Applicant snapshot"
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-        background: "var(--cockpit-surface, #fff)",
-        borderBottom: "1px solid var(--cockpit-line, rgba(71,85,105,0.16))",
-        padding: "12px 24px",
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) auto auto",
-        alignItems: "center",
-        gap: 16,
-      }}
     >
       <ApplicantIdentity
         applicant={application.applicant}
@@ -78,7 +67,7 @@ export default function ApplicantSnapshotBar({
         daysInQueue={application.daysInQueue}
         size="md"
       />
-      <div className="snapshot-meter-or-status">
+      <div>
         {isDecided ? (
           <ApplicantStatusBanner
             status={application.status}
@@ -90,15 +79,23 @@ export default function ApplicantSnapshotBar({
           <DecisionReadinessMeter signals={readiness} compact />
         )}
       </div>
-      <QueueNavigator
-        currentId={application.id}
-        prevId={queue.prevId}
-        nextId={queue.nextId}
-        position={queue.position}
-        total={queue.total}
-        siblings={queue.siblings}
-        routeBuilder={routeBuilder}
-      />
+      <div className="flex items-center gap-3">
+        <Link
+          href={`/admin/instructor-applicants/${application.id}`}
+          className="whitespace-nowrap text-[12.5px] font-semibold text-brand-700 hover:underline"
+        >
+          Application 360 →
+        </Link>
+        <QueueNavigator
+          currentId={application.id}
+          prevId={queue.prevId}
+          nextId={queue.nextId}
+          position={queue.position}
+          total={queue.total}
+          siblings={queue.siblings}
+          routeBuilder={routeBuilder}
+        />
+      </div>
     </motion.header>
   );
 }

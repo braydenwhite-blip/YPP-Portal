@@ -157,7 +157,7 @@ export default function ApplicationReviewEditor({
             Use this as a paper screen. The applicant will build the full curriculum later if hired.
           </p>
         </div>
-        <div className="cockpit-detail-grid">
+        <div className="grid grid-cols-[minmax(120px,220px)_minmax(0,1fr)] gap-x-[18px] gap-y-2.5 [&_dt]:m-0 [&_dt]:text-[11.5px] [&_dt]:font-bold [&_dt]:uppercase [&_dt]:tracking-[0.05em] [&_dt]:text-ink-muted [&_dd]:m-0 [&_dd]:whitespace-pre-wrap [&_dd]:text-[13.5px] [&_dd]:text-ink">
           <FieldBlock label="Class Idea" value={roughPlan.courseIdea} />
           <FieldBlock label="Rough Outline" value={roughPlan.courseOutline} />
           <FieldBlock label="First-Session Sketch" value={roughPlan.firstClassPlan} />

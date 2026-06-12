@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 export default function SignalPanel({ children }: { children: ReactNode }) {
   return (
     <aside
-      className="signal-panel"
+      className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20"
       aria-label="Decision signals"
     >
       {children}
