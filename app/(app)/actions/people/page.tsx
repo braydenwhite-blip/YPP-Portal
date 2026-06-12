@@ -77,10 +77,10 @@ export default async function PeopleDashboardPage() {
         ← Action Tracker
       </Link>
       <LegacySurfaceBanner
-        title="Work is the simpler place to start."
-        body="Use Work for daily actions and follow-ups. This leadership-only page stays available for people review, escalation, and feedback workflows."
-        ctaLabel="Open Work"
-        ctaHref="/work?view=actions"
+        title="People & Performance is the simpler place to start."
+        body="The new Leadership people view has the same table plus a reviewable Request Monthly Feedback flow — see who will be asked and why, preview the email, then send. This legacy page stays available for escalation and mentorship-health review."
+        ctaLabel="Open People & Performance"
+        ctaHref="/people/performance"
       />
       <ActionTrackerTabsV2 active="people" showPeople />
 

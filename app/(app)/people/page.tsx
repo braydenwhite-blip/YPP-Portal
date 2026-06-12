@@ -10,7 +10,9 @@ import {
   UrlSyncedSearchInput,
 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
+import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
 import {
+  isLeadershipOrBoard,
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
@@ -73,6 +75,9 @@ export default async function PeoplePage({
   // directory is officer-tier and above (mirrors the operations surfaces).
   if (!isOfficerTier(viewer)) redirect("/");
   const canUseAdminPeopleTools = hasRole(viewer.roles, "ADMIN", viewer.primaryRole);
+  // Leadership/Board entry into the People & Performance view (the route
+  // itself re-checks with requireLeadership(); this only gates the affordance).
+  const canOpenPerformanceView = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
 
   const sp = await searchParams;
   const role = asPeopleRoleFilter(typeof sp.role === "string" ? sp.role : undefined);
@@ -94,10 +99,19 @@ export default async function PeoplePage({
         title="People"
         subtitle="Every person connected to YPP — find anyone, see their advisor or classes at a glance, and open their 360 without leaving the page."
         actions={
-          canUseAdminPeopleTools ? (
-            <ButtonLink href="/admin/bulk-users" variant="secondary" size="md">
-              Add person
-            </ButtonLink>
+          canUseAdminPeopleTools || canOpenPerformanceView ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {canOpenPerformanceView ? (
+                <ButtonLink href="/people/performance" variant="primary" size="md">
+                  People &amp; Performance
+                </ButtonLink>
+              ) : null}
+              {canUseAdminPeopleTools ? (
+                <ButtonLink href="/admin/bulk-users" variant="secondary" size="md">
+                  Add person
+                </ButtonLink>
+              ) : null}
+            </div>
           ) : null
         }
       >

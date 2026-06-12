@@ -1209,6 +1209,50 @@ export async function sendFeedbackRequestEmail({
 }
 
 /**
+ * Monthly feedback request email for the reviewable People & Performance
+ * workflow. The copy arrives pre-built from `buildFeedbackRequestEmailContent`
+ * (lib/people-strategy/feedback-email-content.ts) — the SAME builder the
+ * on-screen preview uses, so what Leadership previews is exactly what is sent.
+ */
+export async function sendMonthlyFeedbackRequestEmail({
+  to,
+  content,
+  formUrl,
+}: {
+  to: string;
+  content: {
+    subject: string;
+    greeting: string;
+    intro: string[];
+    workItems: string[];
+    closing: string[];
+  };
+  formUrl: string;
+}): Promise<EmailResult> {
+  const intro = content.intro.map((p) => `<p>${escapeHtml(p)}</p>`).join("\n");
+  const workItems =
+    content.workItems.length > 0
+      ? `<ul style="color: #44403c; font-size: 14px; line-height: 1.8; padding-left: 20px; margin: 12px 0;">${content.workItems
+          .map((item) => `<li>${escapeHtml(item)}</li>`)
+          .join("")}</ul>`
+      : "";
+  const closing = content.closing
+    .map((p) => `<p style="color: #57534e; font-size: 14px;">${escapeHtml(p)}</p>`)
+    .join("\n");
+
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">${escapeHtml(content.greeting)}</h2>
+    ${intro}
+    ${workItems}
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(formUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Share Feedback</a>
+    </div>
+    ${closing}
+  `);
+  return sendEmail({ to, subject: content.subject, html });
+}
+
+/**
  * Notify admins/chapter presidents of a new instructor applicant
  */
 export async function sendNewApplicationNotification({

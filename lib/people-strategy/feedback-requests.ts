@@ -224,6 +224,12 @@ export type CollaboratorFeedbackRequest = {
   responseBody: string | null;
   submittedAt: Date | null;
   subjectUser: { id: string; name: string | null };
+  /** Why this collaborator was asked (reviewable workflow); null on legacy rows. */
+  reason: string | null;
+  /** Snapshot of the shared work shown in the request ([{type,id,title,detail}]). */
+  contextItems: Array<{ type: string; id: string; title: string; detail: string | null }>;
+  /** Reply-by date stated in the request email; null on legacy rows. */
+  dueAt: Date | null;
 };
 
 /**
@@ -246,10 +252,31 @@ export async function getFeedbackRequestForCollaborator(
       month: true,
       responseBody: true,
       submittedAt: true,
+      reason: true,
+      contextItems: true,
+      dueAt: true,
       subjectUser: { select: { id: true, name: true } },
     },
   });
   if (!request || request.collaboratorId !== collaboratorId) return null;
+
+  // The Json snapshot was written by the send action as FeedbackContextItem[];
+  // tolerate legacy rows (null) and anything malformed by rendering nothing.
+  const contextItems = Array.isArray(request.contextItems)
+    ? (request.contextItems as unknown[]).flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const candidate = item as Record<string, unknown>;
+        if (typeof candidate.title !== "string") return [];
+        return [
+          {
+            type: typeof candidate.type === "string" ? candidate.type : "work",
+            id: typeof candidate.id === "string" ? candidate.id : "",
+            title: candidate.title,
+            detail: typeof candidate.detail === "string" ? candidate.detail : null,
+          },
+        ];
+      })
+    : [];
 
   return {
     id: request.id,
@@ -257,6 +284,9 @@ export async function getFeedbackRequestForCollaborator(
     responseBody: request.responseBody,
     submittedAt: request.submittedAt,
     subjectUser: request.subjectUser,
+    reason: request.reason,
+    contextItems,
+    dueAt: request.dueAt,
   };
 }
 
