@@ -4,6 +4,8 @@ import { requireApplicationReviewerPage } from "@/lib/page-guards";
 import { canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
 import { loadApplicationRecord } from "@/lib/applications/application-record";
 import { readinessSignalLabel } from "@/lib/readiness-signals";
+import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { EntityActionPanel } from "@/components/work/entity-action-panel";
 import {
   ButtonLink,
   Checklist,
@@ -100,6 +102,14 @@ export default async function ApplicationRecordPage({
 
   const record = await loadApplicationRecord(id);
   if (!record) notFound();
+
+  // Action System 4.0 — tracker actions linked to this application.
+  const linkedActions = await getActionsForEntity("INSTRUCTOR_APPLICATION", id, {
+    id: sessionUser.id,
+    roles: sessionUser.roles,
+    primaryRole: sessionUser.primaryRole ?? null,
+    adminSubtypes: sessionUser.adminSubtypes ?? [],
+  }).catch(() => []);
 
   const viewerIsChair = canSeeChairQueue({
     id: sessionUser.id,
@@ -575,6 +585,19 @@ export default async function ApplicationRecordPage({
           ) : null}
         </RecordSection>
       )}
+
+      <RecordSection
+        id="work"
+        title="Action operating panel"
+        description="Tracker actions linked to this application — follow-ups, blockers, and the suggested next move."
+      >
+        <EntityActionPanel
+          actions={linkedActions}
+          entityType="INSTRUCTOR_APPLICATION"
+          entityId={record.id}
+          entityLabel={record.displayName}
+        />
+      </RecordSection>
 
       {record.timeline.length > 0 ? (
         <RecordSection

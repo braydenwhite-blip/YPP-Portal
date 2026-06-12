@@ -146,6 +146,10 @@ function toDetailDTO(
         ? operationalAreaLabel(areaForRelatedEntityType(item.relatedEntityType))
         : null,
     flaggedAt: item.flaggedAt ? item.flaggedAt.toISOString() : null,
+    blockedReason: item.blockedReason ?? null,
+    completionNote: item.completionNote ?? null,
+    completionOutcome: item.completionOutcome ?? null,
+    nextFollowUpAt: item.nextFollowUpAt ? item.nextFollowUpAt.toISOString() : null,
     lead,
     people: {
       lead: uniquePeople([lead, ...leadAssignments]),

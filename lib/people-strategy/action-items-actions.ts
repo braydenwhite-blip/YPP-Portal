@@ -827,6 +827,141 @@ export async function updateActionStatus(
   revalidateAll();
 }
 
+// --- structured completion / blocker capture (Action System 4.0) -------------
+
+const CaptureCompletionSchema = z.object({
+  id: NonEmptyString,
+  completionOutcome: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v, ctx) => {
+      const parsed = parseActionCompletionOutcome(v ?? null);
+      if (!parsed.ok) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: parsed.error });
+        return z.NEVER;
+      }
+      return parsed.value;
+    }),
+  completionNote: z
+    .string()
+    .trim()
+    .max(10_000)
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  nextFollowUpAt: CreateOptionalDateString,
+});
+
+/**
+ * Mark an action COMPLETE with the structured outcome the 4.0 contract
+ * stores: what happened (DELIVERED / PARTIAL / SUPERSEDED / ABANDONED), the
+ * completion note, and an optional next follow-up date. One focused mutation
+ * so inline capture doesn't need the full edit form.
+ */
+export async function captureActionCompletion(input: {
+  id: string;
+  completionOutcome?: string;
+  completionNote?: string;
+  nextFollowUpAt?: string;
+}) {
+  ensureEnabled();
+  const session = await requireSessionUser();
+  const data = CaptureCompletionSchema.parse(input);
+
+  const access = await loadAccess(data.id);
+  if (!canEditAction(session, access)) throw new Error("Unauthorized");
+
+  const existing = await prisma.actionItem.findUnique({
+    where: { id: data.id },
+    select: { status: true },
+  });
+  if (!existing) throw new Error("Action item not found");
+
+  const completedAt = completedAtForTransition(existing.status, "COMPLETE", new Date());
+
+  await prisma.$transaction(async (tx) => {
+    await tx.actionItem.update({
+      where: { id: data.id },
+      data: {
+        status: "COMPLETE" as never,
+        ...(completedAt !== undefined ? { completedAt } : {}),
+        completionOutcome: data.completionOutcome,
+        completionNote: data.completionNote,
+        ...(data.nextFollowUpAt !== null ? { nextFollowUpAt: data.nextFollowUpAt } : {}),
+      },
+    });
+    const detail = [
+      data.completionOutcome ? `outcome ${data.completionOutcome}` : null,
+      data.nextFollowUpAt ? "follow-up scheduled" : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    await postSystemComment(
+      tx,
+      data.id,
+      session.id,
+      existing.status === "COMPLETE"
+        ? `Completion details updated${detail ? ` (${detail})` : ""}`
+        : `Status changed from ${existing.status} to COMPLETE${detail ? ` (${detail})` : ""}`
+    );
+  });
+
+  revalidateAll();
+}
+
+const CaptureBlockerSchema = z.object({
+  id: NonEmptyString,
+  blockedReason: z.string().trim().min(1, "Name the blocker").max(10_000),
+  nextFollowUpAt: CreateOptionalDateString,
+});
+
+/**
+ * Mark an action BLOCKED with the reason the 4.0 contract stores (so the
+ * blocker is actionable, not just a status) and an optional revisit date.
+ */
+export async function captureActionBlocker(input: {
+  id: string;
+  blockedReason: string;
+  nextFollowUpAt?: string;
+}) {
+  ensureEnabled();
+  const session = await requireSessionUser();
+  const data = CaptureBlockerSchema.parse(input);
+
+  const access = await loadAccess(data.id);
+  if (!canEditAction(session, access)) throw new Error("Unauthorized");
+
+  const existing = await prisma.actionItem.findUnique({
+    where: { id: data.id },
+    select: { status: true },
+  });
+  if (!existing) throw new Error("Action item not found");
+
+  const completedAt = completedAtForTransition(existing.status, "BLOCKED", new Date());
+
+  await prisma.$transaction(async (tx) => {
+    await tx.actionItem.update({
+      where: { id: data.id },
+      data: {
+        status: "BLOCKED" as never,
+        ...(completedAt !== undefined ? { completedAt } : {}),
+        blockedReason: data.blockedReason,
+        ...(data.nextFollowUpAt !== null ? { nextFollowUpAt: data.nextFollowUpAt } : {}),
+      },
+    });
+    await postSystemComment(
+      tx,
+      data.id,
+      session.id,
+      existing.status === "BLOCKED"
+        ? "Blocker updated"
+        : `Status changed from ${existing.status} to BLOCKED (reason captured)`
+    );
+  });
+
+  revalidateAll();
+}
+
 // --- assignments -------------------------------------------------------------
 
 const AssignmentSchema = z.object({

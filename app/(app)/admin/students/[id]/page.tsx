@@ -1,3 +1,4 @@
+import { EntityActionPanel } from "@/components/work/entity-action-panel";
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
@@ -500,44 +501,19 @@ export default async function AdminStudentRecordPage({
         </RecordSection>
       )}
 
-      {operationsEnabled && opsContext && openActions.length > 0 ? (
+      {operationsEnabled && opsContext ? (
         <RecordSection
           id="work"
-          title="Open work"
-          description="Action items linked to this student."
-          action={
-            <ButtonLink
-              href={`/actions/new?relatedType=USER&relatedId=${id}`}
-              variant="ghost"
-              size="sm"
-            >
-              New action →
-            </ButtonLink>
-          }
+          title="Action operating panel"
+          description="The action work linked to this student — what's open, what's stuck, and the suggested next move."
         >
-          <div className="flex flex-col gap-2">
-            {openActions.slice(0, 8).map((action) => (
-              <a
-                key={action.id}
-                href={action.href}
-                className="rounded-[8px] border border-line-soft px-3.5 py-2.5 transition-colors hover:border-brand-400"
-              >
-                <p className="m-0 text-[13.5px] font-semibold text-ink">{action.title}</p>
-                <p
-                  className={
-                    action.overdue
-                      ? "m-0 text-[12px] font-semibold text-danger-700"
-                      : "m-0 text-[12px] text-ink-muted"
-                  }
-                >
-                  {action.overdue
-                    ? `Overdue · due ${fmtDate(action.dueISO)}`
-                    : `Due ${fmtDate(action.dueISO)}`}
-                  {action.ownerName ? ` · ${action.ownerName}` : ""}
-                </p>
-              </a>
-            ))}
-          </div>
+          <EntityActionPanel
+            actions={opsContext.actions}
+            entityType="USER"
+            entityId={id}
+            entityLabel={student.name}
+            now={now}
+          />
         </RecordSection>
       ) : null}
     </div>

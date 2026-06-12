@@ -22,7 +22,9 @@ import {
 } from "@/lib/people-strategy/action-permissions";
 import { loadWorkHub } from "@/lib/work/work-hub";
 import {
+  asWorkHubEntityFilter,
   asWorkHubFlag,
+  filterWorkHubRowsByEntity,
   filterWorkHubRowsByFlag,
   searchWorkHubRows,
   WORK_HUB_FLAG_LABELS,
@@ -51,10 +53,16 @@ function asView(value: string | undefined): WorkView {
   return (VIEWS as readonly string[]).includes(value ?? "") ? (value as WorkView) : "all";
 }
 
-function workHref(params: { view?: string; flag?: string; q?: string }): string {
+function workHref(params: {
+  view?: string;
+  flag?: string;
+  q?: string;
+  entity?: string;
+}): string {
   const search = new URLSearchParams();
   if (params.view && params.view !== "all") search.set("view", params.view);
   if (params.flag) search.set("flag", params.flag);
+  if (params.entity) search.set("entity", params.entity);
   if (params.q) search.set("q", params.q);
   const qs = search.toString();
   return qs ? `/work?${qs}` : "/work";
@@ -101,6 +109,10 @@ export default async function WorkHubPage({
   const sp = await searchParams;
   const view = asView(typeof sp.view === "string" ? sp.view : undefined);
   const flag = asWorkHubFlag(typeof sp.flag === "string" ? sp.flag : undefined);
+  const entity = asWorkHubEntityFilter(
+    typeof sp.entity === "string" ? sp.entity : undefined
+  );
+  const entityParam = entity ? `${entity.type}:${entity.id}` : undefined;
   const q = typeof sp.q === "string" ? sp.q : undefined;
 
   const now = new Date();
@@ -115,8 +127,14 @@ export default async function WorkHubPage({
         : view === "mine"
           ? data.rows.filter((row) => row.mine)
           : data.rows;
+  if (entity) rows = filterWorkHubRowsByEntity(rows, entity);
   if (flag) rows = filterWorkHubRowsByFlag(rows, flag, now);
   if (q) rows = searchWorkHubRows(rows, q);
+
+  // The entity filter's display label: the first matching row's chip label.
+  const entityLabel = entity
+    ? (rows.find((row) => row.entityLabel)?.entityLabel ?? entity.type)
+    : null;
 
   const showTable = view !== "initiatives" && view !== "attention";
 
@@ -187,7 +205,7 @@ export default async function WorkHubPage({
           {VIEWS.map((value) => (
             <FilterChipLink
               key={value}
-              href={workHref({ view: value, q })}
+              href={workHref({ view: value, q, entity: entityParam })}
               active={view === value && !flag}
             >
               {VIEW_LABELS[value]}
@@ -197,12 +215,20 @@ export default async function WorkHubPage({
           {WORK_HUB_FLAGS.map((value) => (
             <FilterChipLink
               key={value}
-              href={workHref({ view, flag: value, q })}
+              href={workHref({ view, flag: value, q, entity: entityParam })}
               active={flag === value}
             >
               {WORK_HUB_FLAG_LABELS[value]}
             </FilterChipLink>
           ))}
+          {entity ? (
+            <>
+              <span aria-hidden className="mx-1 h-5 w-px bg-line" />
+              <FilterChipLink href={workHref({ view, flag: flag ?? undefined, q })} active>
+                {entityLabel} ✕
+              </FilterChipLink>
+            </>
+          ) : null}
         </FilterBar>
         {showTable ? (
           <UrlSyncedSearchInput

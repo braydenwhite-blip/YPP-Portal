@@ -14,6 +14,7 @@ import { PartnerRelationsPanel } from "@/components/partners/partner-relations-p
 import { matchInstructorsForPartner } from "@/lib/partner-instructor-matching";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
+import { EntityActionPanel } from "@/components/work/entity-action-panel";
 import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
 import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
 import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
@@ -292,6 +293,26 @@ export default async function PartnerProfilePage({
               </ul>
             )}
           </section>
+
+          {/* Action operating panel (Action System 4.0): suggested next move,
+              overdue/blocked/unowned counts, and the Work Hub lens. */}
+          {trackerEnabled && opsContext ? (
+            <section
+              className="card"
+              style={{ marginTop: 14 }}
+              aria-label="Action operating panel"
+            >
+              <h2 className="section-title" style={{ marginTop: 0 }}>
+                Action operating panel
+              </h2>
+              <EntityActionPanel
+                actions={opsContext.actions}
+                entityType="PARTNER"
+                entityId={partner.id}
+                entityLabel={partner.name}
+              />
+            </section>
+          ) : null}
 
           {/* Partner operations: related meetings + actions */}
           {trackerEnabled && opsContext ? (
