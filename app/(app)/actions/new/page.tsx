@@ -1,14 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import ActionItemForm, {
   type ActionItemFormInitial,
 } from "@/components/people-strategy/action-item-form";
-import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
+import { ActionTrackerBack } from "@/components/people-strategy/action-tracker-tabs";
 import { OFFICER_TIER_ROLES } from "@/lib/authorization";
-import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
+import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { requirePageRoles } from "@/lib/page-guards";
-import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import {
   listActionAssignableUsers,
   listActionDepartments,
@@ -18,7 +17,7 @@ import {
   listActionTemplates,
   templateToFormInitial,
 } from "@/lib/people-strategy/action-templates";
-import { ACTION_PRIORITY_LABELS, ACTION_PRIORITY_VALUES } from "@/lib/people-strategy/constants";
+import { ACTION_PRIORITY_VALUES } from "@/lib/people-strategy/constants";
 import { isActionType } from "@/lib/people-strategy/action-types";
 import { isMeetingCategory } from "@/lib/people-strategy/meeting-categories";
 import { getMeetingById } from "@/lib/people-strategy/meetings-queries";
@@ -34,7 +33,7 @@ import {
 } from "@/lib/people-strategy/action-source";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Create action · Action Tracker" };
+export const metadata = { title: "New action · Action Tracker" };
 
 /**
  * Related-entity types that can prefill a linked action from a "Create action
@@ -62,16 +61,29 @@ export default async function NewActionInTrackerPage({
   const first = (v: string | string[] | undefined): string | undefined =>
     Array.isArray(v) ? v[0] : v;
   const templateId = first(sp.template);
+  const relatedTypeParam = first(sp.relatedType);
+  const relatedIdParam = first(sp.relatedId);
+  const meetingIdParam = first(sp.fromMeeting)?.trim() || null;
+  const ctx = actionPrefillFromQuery(sp);
+
+  const hasPrefillContext = Boolean(
+    templateId ||
+      (relatedTypeParam && relatedIdParam) ||
+      meetingIdParam ||
+      ctx.title ||
+      ctx.sourceType ||
+      ctx.sourceActionId ||
+      ctx.suggestedOwnerId ||
+      ctx.strategicInitiativeId
+  );
+  if (!hasPrefillContext) redirect("/actions");
 
   // The honest 4.0 context (source provenance + strategic link + suggestions),
   // parsed + lightly validated by the one tested reader.
-  const ctx = actionPrefillFromQuery(sp);
 
   // Optional related-entity prefill. Both params must be present and the type
   // must be prefillable; the entity is resolved + existence-checked server-side
   // so an invalid or stale link simply falls back to an unlinked form.
-  const relatedTypeParam = first(sp.relatedType);
-  const relatedIdParam = first(sp.relatedId);
   const relatedPromise =
     relatedTypeParam && relatedIdParam && PREFILLABLE_RELATED_TYPES.has(relatedTypeParam)
       ? loadRelatedEntitySummary(relatedTypeParam, relatedIdParam)
@@ -80,7 +92,6 @@ export default async function NewActionInTrackerPage({
   // Optional source-meeting prefill (a decision / recap CTA). Existence-checked
   // so a hand-edited / stale id falls back to an unlinked form instead of a
   // submit-time FK error.
-  const meetingIdParam = first(sp.fromMeeting)?.trim() || null;
   const meetingPromise = meetingIdParam
     ? getMeetingById(meetingIdParam).catch(() => null)
     : Promise.resolve(null);
@@ -199,51 +210,49 @@ export default async function NewActionInTrackerPage({
         }
       : undefined;
 
-  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
+  const useFullForm = Boolean(relatedSummary || sourceMeeting || template || hasPrefill);
 
   return (
     <div className="page-shell">
       <Link
-        href="/actions/all"
+        href="/actions"
         style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)", textDecoration: "none" }}
       >
         ← Action Tracker
       </Link>
-      <ActionTrackerTabsV2 active="all" showPeople={showPeople} />
+      <ActionTrackerBack />
 
       <div className="topbar" style={{ marginTop: 16 }}>
         <div>
           <p className="badge">Action Tracker</p>
           <h1 className="page-title" style={{ marginTop: 8 }}>
-            {sourceHeader ?? "Create action"}
+            {sourceHeader ?? "New action"}
           </h1>
           <p className="page-subtitle">
             {strategicLinkLabel
-              ? `This action ladders up to ${strategicLinkLabel} — it'll show on that strategy view.`
+              ? `Linked to ${strategicLinkLabel}.`
               : relatedSummary
-                ? `This action will be linked to ${relatedSummary.typeLabel.toLowerCase()} “${relatedSummary.label}.”`
+                ? `Linked to ${relatedSummary.typeLabel.toLowerCase()} “${relatedSummary.label}.”`
                 : sourceLabel
-                  ? `${sourceLabel} — fill in who owns it and what done means.`
+                  ? `${sourceLabel} — who owns it and when is it due?`
                   : template
-                    ? `Pre-filled from the “${template.name}” template — adjust anything before saving.`
-                    : "Start from a template below, or fill in the form directly."}
+                    ? `From “${template.name}” template — adjust if needed.`
+                    : "Title, owner, due date — that's enough to start."}
           </p>
         </div>
       </div>
 
-      {/* Template gallery — shown until a template is chosen. Hidden when the
-          action is being linked to a specific entity, so navigating to a
-          template never drops the related-entity params. */}
       {!template && !relatedSummary && templates.length > 0 ? (
-        <section style={{ marginTop: 16 }}>
-          <h2 className="ps-section-title" style={{ margin: "0 0 10px" }}>
-            Start from a template
-          </h2>
+        <details style={{ marginTop: 16 }}>
+          <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
+            Start from a template ({templates.length})
+          </summary>
           <div
             style={{
               display: "grid",
               gap: 10,
               gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+              marginTop: 12,
             }}
           >
             {templates.map((t) => (
@@ -262,14 +271,10 @@ export default async function NewActionInTrackerPage({
                 {t.description ? (
                   <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--muted)" }}>{t.description}</p>
                 ) : null}
-                <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--muted)" }}>
-                  {ACTION_PRIORITY_LABELS[t.defaultPriority]} priority
-                  {t.deadlineOffsetDays != null ? ` · due in ${t.deadlineOffsetDays}d` : ""}
-                </p>
               </Link>
             ))}
           </div>
-        </section>
+        </details>
       ) : null}
 
       <div className="ps-form-card" style={{ marginTop: 18, maxWidth: 760 }}>
@@ -285,6 +290,7 @@ export default async function NewActionInTrackerPage({
           departments={departments}
           initial={initial}
           currentUserId={viewer.id}
+          variant={useFullForm ? "full" : "simple"}
         />
       </div>
     </div>

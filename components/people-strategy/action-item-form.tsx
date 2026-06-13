@@ -27,15 +27,14 @@ import {
   updateActionItem,
 } from "@/lib/people-strategy/action-items-actions";
 import { MotionArea, FeedbackBanner } from "@/components/people-strategy/motion";
+import {
+  ActionUserPicker,
+  type ActionUserOption,
+} from "@/components/people-strategy/action-user-picker";
 import { deriveActionQualityWarnings } from "@/lib/people-strategy/action-quality";
 import { listInitiativeDefs } from "@/lib/people-strategy/strategic-initiatives";
 
-interface UserOption {
-  id: string;
-  name: string | null;
-  email: string;
-  primaryRole?: string | null;
-}
+interface UserOption extends ActionUserOption {}
 
 interface DepartmentOption {
   id: string;
@@ -125,135 +124,6 @@ const REQUIRED_MARK = (
   </span>
 );
 
-function userLabel(u: UserOption): string {
-  return u.name ? `${u.name} (${u.email})` : u.email;
-}
-
-/**
- * Searchable user picker. Mirrors the existing Action Center chip pattern but
- * adds a filter box (the closest existing portal pattern, made searchable).
- * `single` enforces "exactly one"; multi mode allows any number.
- */
-function UserPicker({
-  label,
-  required,
-  single,
-  users,
-  selected,
-  onChange,
-  excludeIds = [],
-  emptyHint,
-}: {
-  label: React.ReactNode;
-  required?: boolean;
-  single?: boolean;
-  users: UserOption[];
-  selected: string[];
-  onChange: (next: string[]) => void;
-  excludeIds?: string[];
-  emptyHint?: string;
-}) {
-  const [query, setQuery] = useState("");
-
-  const available = useMemo(
-    () => users.filter((u) => !excludeIds.includes(u.id)),
-    [users, excludeIds]
-  );
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return available;
-    return available.filter((u) => {
-      const hay = `${u.name ?? ""} ${u.email}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [available, query]);
-
-  const selectedUsers = useMemo(
-    () => selected.map((id) => users.find((u) => u.id === id)).filter(Boolean) as UserOption[],
-    [selected, users]
-  );
-
-  function toggle(id: string) {
-    if (single) {
-      onChange(selected.includes(id) ? [] : [id]);
-      return;
-    }
-    onChange(
-      selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]
-    );
-  }
-
-  return (
-    <div className="ps-field">
-      <span className="ps-label">
-        {label}
-        {required && REQUIRED_MARK}
-      </span>
-
-      {selectedUsers.length > 0 && (
-        <div className="ps-picker-chips">
-          {selectedUsers.map((u) => (
-            <span key={u.id} className="ps-picker-chip">
-              {userLabel(u)}
-              <button
-                type="button"
-                onClick={() => toggle(u.id)}
-                aria-label={`Remove ${u.name ?? u.email}`}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search by name or email…"
-        aria-label={`${typeof label === "string" ? label : "User"} search`}
-        className="ps-input"
-      />
-
-      {/* A plain scroll container of native checkboxes/radios — no role="listbox"
-          here, which would be invalid ARIA wrapping native form controls. */}
-      <div
-        className="ps-picker-list"
-        role="group"
-        aria-label={`${typeof label === "string" ? label : "User"} options`}
-      >
-        {available.length === 0 && (
-          <span className="ps-picker-empty">{emptyHint ?? "No users available."}</span>
-        )}
-        {available.length > 0 && filtered.length === 0 && (
-          <span className="ps-picker-empty">No matches for “{query}”.</span>
-        )}
-        {filtered.map((u) => {
-          const checked = selected.includes(u.id);
-          return (
-            <label
-              key={u.id}
-              className={`ps-picker-option${checked ? " is-selected" : ""}`}
-            >
-              <input
-                type={single ? "radio" : "checkbox"}
-                checked={checked}
-                onChange={() => toggle(u.id)}
-              />
-              <span>
-                {u.name ?? u.email}
-                {u.name && <span style={{ color: "var(--muted)" }}> · {u.email}</span>}
-              </span>
-            </label>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function FormSection({
   title,
   description,
@@ -283,6 +153,7 @@ export default function ActionItemForm({
   currentUserId,
   onSaved,
   onCancel,
+  variant = "simple",
 }: {
   initial?: ActionItemFormInitial;
   users: UserOption[];
@@ -295,9 +166,12 @@ export default function ActionItemForm({
   currentUserId?: string | null;
   onSaved?: () => void;
   onCancel?: () => void;
+  /** `simple` = title + owner + due date upfront; rest in "More options". */
+  variant?: "simple" | "full";
 }) {
   const router = useRouter();
   const isEdit = Boolean(initial?.id);
+  const useSimpleLayout = variant === "simple";
 
   const initialExecuting = useMemo(
     () => initial?.executingUserIds ?? [],
@@ -451,6 +325,21 @@ export default function ActionItemForm({
     }
   }, [sourceType]);
 
+  const showMoreOptions =
+    !useSimpleLayout ||
+    Boolean(
+      initial?.description ||
+        initial?.successDefinition ||
+        initial?.actionType ||
+        initial?.goalCategory ||
+        initial?.departmentId ||
+        (initial?.executingUserIds?.length ?? 0) > 0 ||
+        (initial?.inputUserIds?.length ?? 0) > 0 ||
+        hasRelatedEntity ||
+        sourceLabel ||
+        strategicContextLabel
+    );
+
   function validate(): string | null {
     if (!title.trim()) return "Title is required.";
     if (!leadId) return "A Lead is required (exactly one).";
@@ -567,7 +456,7 @@ export default function ActionItemForm({
         } else {
           // Return to the canonical Action Tracker list, not the legacy
           // /admin/actions page, so creation lands the user back in /actions/*.
-          router.push("/actions/all");
+          router.push("/actions");
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to save the action item.");
@@ -575,11 +464,280 @@ export default function ActionItemForm({
     });
   }
 
+  const extendedFields = (
+    <>
+      <div className="ps-field">
+        <label className="ps-label" htmlFor="action-success-ext">
+          Next step / definition of done
+        </label>
+        <textarea
+          id="action-success-ext"
+          value={successDefinition}
+          onChange={(e) => setSuccessDefinition(e.target.value)}
+          rows={2}
+          className="ps-textarea"
+          placeholder="What has to happen next, and how will we know it is done?"
+        />
+      </div>
+
+      <ActionUserPicker
+        label="Executing (optional — defaults to owner)"
+        users={users}
+        selected={executingIds}
+        onChange={setExecutingIds}
+        emptyHint="No assignable users found."
+      />
+
+      <ActionUserPicker
+        label="Input (optional)"
+        users={users}
+        selected={inputIds}
+        onChange={setInputIds}
+        emptyHint="No assignable users found."
+      />
+
+      <div className="ps-field-grid">
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-status-ext">
+            Status
+          </label>
+          <select
+            id="action-status-ext"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="ps-select"
+          >
+            {ACTION_STATUS_SELECTABLE.map((s) => (
+              <option key={s} value={s}>
+                {ACTION_STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-priority-ext">
+            Priority
+          </label>
+          <select
+            id="action-priority-ext"
+            value={priority}
+            onChange={(e) => {
+              setPriority(e.target.value);
+              setPriorityTouched(true);
+            }}
+            className="ps-select"
+          >
+            {ACTION_PRIORITY_VALUES.map((p) => (
+              <option key={p} value={p}>
+                {ACTION_PRIORITY_LABELS[p]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-visibility-ext">
+            Visibility{REQUIRED_MARK}
+          </label>
+          <select
+            id="action-visibility-ext"
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value)}
+            className="ps-select"
+          >
+            {ACTION_VISIBILITY_VALUES.map((v) => (
+              <option key={v} value={v}>
+                {ACTION_VISIBILITY_LABELS[v]}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {hasRelatedEntity ? (
+        <div className="ps-linked-banner">
+          <span style={{ fontWeight: 700 }}>Linked to {relatedTypeLabel}:</span>
+          <span>{relatedLabel ?? "this item"}</span>
+        </div>
+      ) : null}
+
+      {(sourceLabel || strategicContextLabel) ? (
+        <div className="ps-linked-banner" style={{ flexWrap: "wrap", gap: 12 }}>
+          {sourceLabel ? (
+            <span>
+              <span style={{ fontWeight: 700 }}>Source: </span>
+              {sourceLabel}
+            </span>
+          ) : null}
+          {strategicContextLabel ? (
+            <span>
+              <span style={{ fontWeight: 700 }}>Strategic: </span>
+              {strategicContextLabel}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="ps-field">
+        <label className="ps-label" htmlFor="action-strategic-initiative-ext">
+          Related initiative
+        </label>
+        <select
+          id="action-strategic-initiative-ext"
+          value={strategicInitiativeId}
+          onChange={(e) => setStrategicInitiativeId(e.target.value)}
+          className="ps-select"
+        >
+          <option value="">No related initiative</option>
+          {initiativeOptions.map((initiative) => (
+            <option key={initiative.id} value={initiative.id}>
+              {initiative.title}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="ps-field">
+        <label className="ps-label" htmlFor="action-description-ext">
+          Description / context
+        </label>
+        <textarea
+          id="action-description-ext"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+          className="ps-textarea"
+          placeholder="Optional context, scope, and background"
+        />
+      </div>
+
+      <div className="ps-field-grid">
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-type-ext">
+            Action type
+          </label>
+          <select
+            id="action-type-ext"
+            value={actionType}
+            onChange={(e) => handleActionTypeChange(e.target.value)}
+            className="ps-select"
+          >
+            <option value="">— No type —</option>
+            {ACTION_TYPE_VALUES.map((t) => (
+              <option key={t} value={t}>
+                {ACTION_TYPE_LABELS[t]}
+              </option>
+            ))}
+          </select>
+          {typeGuidance ? <p className="ps-hint">{typeGuidance}</p> : null}
+        </div>
+        <div className="ps-field">
+          <label className="ps-label" htmlFor="action-department-ext">
+            Department
+          </label>
+          <select
+            id="action-department-ext"
+            value={departmentId}
+            onChange={(e) => setDepartmentId(e.target.value)}
+            className="ps-select"
+          >
+            <option value="">— No department —</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <MotionArea>
     <form onSubmit={handleSubmit} className="ps-form">
       <FeedbackBanner message={error} tone="error" style={{ padding: "8px 12px" }} />
 
+      {useSimpleLayout ? (
+        <>
+          <section className="ps-form-section" style={{ display: "grid", gap: 12 }}>
+            <div className="ps-field">
+              <label className="ps-label" htmlFor="action-title">
+                What needs to happen?{REQUIRED_MARK}
+              </label>
+              <input
+                id="action-title"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="ps-input"
+                placeholder="e.g. Refresh fall curriculum rollout"
+                autoFocus
+              />
+            </div>
+
+            <ActionUserPicker
+              label="Owner"
+              required
+              single
+              users={users}
+              selected={leadIds}
+              onChange={setLeadIds}
+              emptyHint="No assignable users found."
+            />
+
+            {currentUserId && users.some((u) => u.id === currentUserId) && leadIds[0] !== currentUserId ? (
+              <button
+                type="button"
+                className="button outline small"
+                style={{ justifySelf: "start" }}
+                onClick={() => setLeadIds([currentUserId])}
+              >
+                Assign me
+              </button>
+            ) : null}
+
+            <div className="ps-field">
+              <label className="ps-label" htmlFor="action-deadline">
+                Due{REQUIRED_MARK}
+              </label>
+              <input
+                id="action-deadline"
+                type="date"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                className="ps-input"
+              />
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                {DEADLINE_PRESETS.map((preset) => {
+                  const value = toDateInputValue(addDays(new Date(), preset.days));
+                  const active = deadline === value;
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => setDeadline(value)}
+                      className={`pill pill-${active ? "purple" : "neutral"} pill-small`}
+                      style={{ cursor: "pointer", border: "1px solid var(--border)" }}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          <details open={showMoreOptions} className="ps-form-more" style={{ marginTop: 4 }}>
+            <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 13, marginBottom: 12 }}>
+              More options
+            </summary>
+            <div style={{ display: "grid", gap: 12, paddingTop: 4 }}>
+              {extendedFields}
+            </div>
+          </details>
+        </>
+      ) : (
+        <>
       <FormSection
         title="1. What needs to happen?"
         description="Write the action in plain language and define the finish line."
@@ -620,7 +778,7 @@ export default function ActionItemForm({
         title="2. Who owns it?"
         description="Pick the accountable lead first. Add executors or input people only when needed."
       >
-        <UserPicker
+        <ActionUserPicker
           label="Lead (exactly one)"
           required
           single
@@ -641,7 +799,7 @@ export default function ActionItemForm({
           </button>
         ) : null}
 
-        <UserPicker
+        <ActionUserPicker
           label="Executing (optional — defaults to the Lead)"
           users={users}
           selected={executingIds}
@@ -649,7 +807,7 @@ export default function ActionItemForm({
           emptyHint="No assignable users found."
         />
 
-        <UserPicker
+        <ActionUserPicker
           label="Input (optional)"
           users={users}
           selected={inputIds}
@@ -956,10 +1114,10 @@ export default function ActionItemForm({
           </div>
         </fieldset>
       </FormSection>
+        </>
+      )}
 
-      {/* Live capture summary — reinforces that this is a step in the system,
-          not a random task. */}
-      {title.trim() ? (
+      {!useSimpleLayout && title.trim() ? (
         <p
           role="status"
           style={{
@@ -984,7 +1142,7 @@ export default function ActionItemForm({
         </p>
       ) : null}
 
-      {warnings.length > 0 && (
+      {!useSimpleLayout && warnings.length > 0 && (
         <div
           className="card"
           role="status"
@@ -1013,7 +1171,7 @@ export default function ActionItemForm({
       >
         <button
           type="button"
-          onClick={() => (onCancel ? onCancel() : router.push("/actions/all"))}
+          onClick={() => (onCancel ? onCancel() : router.push("/actions"))}
           className="button outline small"
           disabled={pending}
         >

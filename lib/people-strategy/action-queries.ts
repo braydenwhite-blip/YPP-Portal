@@ -219,6 +219,8 @@ export type ActionPickerUser = {
   name: string | null;
   email: string;
   primaryRole: string | null;
+  title: string | null;
+  adminSubtypes: string[];
 };
 
 /**
@@ -235,12 +237,30 @@ export type ActionPickerUser = {
 export async function listActionAssignableUsers(): Promise<ActionPickerUser[]> {
   if (!isActionTrackerEnabled()) return [];
 
-  return prisma.user.findMany({
-    where: { archivedAt: null, ...whereActiveMember() },
-    select: { id: true, name: true, email: true, primaryRole: true },
-    orderBy: [{ name: "asc" }, { email: "asc" }],
-    take: 500,
-  });
+  return prisma.user
+    .findMany({
+      where: { archivedAt: null, ...whereActiveMember() },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        primaryRole: true,
+        title: true,
+        adminSubtypes: { select: { subtype: true } },
+      },
+      orderBy: [{ name: "asc" }, { email: "asc" }],
+      take: 500,
+    })
+    .then((rows) =>
+      rows.map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        primaryRole: user.primaryRole,
+        title: user.title,
+        adminSubtypes: user.adminSubtypes.map((entry) => entry.subtype),
+      }))
+    );
 }
 
 export type ActionDepartmentOption = { id: string; name: string };

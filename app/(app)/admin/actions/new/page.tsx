@@ -4,12 +4,13 @@ import { appendSearchParams, type RedirectSearchParams } from "@/lib/navigation/
 
 export const dynamic = "force-dynamic";
 
-// Action creation now lives inside the Action Tracker at /actions/new (Phase 3).
-// This legacy admin route redirects so old links / bookmarks keep working.
+// Action creation lives on /actions (inline) or /actions/new when prefilled.
 export default async function LegacyNewActionRedirect({
   searchParams,
 }: {
   searchParams?: Promise<RedirectSearchParams>;
 }) {
-  redirect(appendSearchParams("/actions/new", await searchParams));
+  const params = (await searchParams) ?? {};
+  const hasPrefill = Object.keys(params).length > 0;
+  redirect(appendSearchParams(hasPrefill ? "/actions/new" : "/actions", params));
 }

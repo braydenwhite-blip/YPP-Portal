@@ -1,6 +1,8 @@
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 
+import type { ActionItemWithRelations } from "./action-queries";
 import { type ActionViewer } from "./action-permissions";
+import { sortByDeadline } from "./my-actions-selectors";
 import {
   loadDigestInputs,
   type DigestInputs,
@@ -8,6 +10,7 @@ import {
 import {
   getInitiativeDef,
   listInitiativeDefs,
+  type StrategicInitiativeDef,
 } from "./strategic-initiatives";
 import {
   classifyInitiativeWork,
@@ -119,6 +122,37 @@ function healthRank(s: InitiativeSummary): number {
     critical: 3,
   };
   return order[s.health.level] ?? 0;
+}
+
+/**
+ * One initiative's plan page: summary + the open actions that belong to it.
+ * Loads the shared pool once. Officer-gate the caller.
+ */
+export async function getInitiativePageData(
+  initiativeId: string,
+  viewer: ActionViewer,
+  options: StrategicQueryOptions = {}
+): Promise<{
+  def: StrategicInitiativeDef;
+  summary: InitiativeSummary;
+  actions: ActionItemWithRelations[];
+} | null> {
+  const def = getInitiativeDef(initiativeId);
+  if (!def) return null;
+  const now = options.now ?? new Date();
+  const pool = await loadPool(viewer, now);
+  const work = classifyInitiativeWork(def, pool);
+  const summary = deriveInitiativeSummary({
+    def,
+    ...work,
+    labels: pool.labels,
+    now,
+    limits: { timeline: 8, keyMoments: 3, recommendations: 2, ...options.limits },
+  });
+  const actions = sortByDeadline(
+    work.actions.filter((a) => a.status !== "DROPPED")
+  );
+  return { def, summary, actions };
 }
 
 /**

@@ -2,11 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import ActionItemForm from "@/components/people-strategy/action-item-form";
-import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
+import { ActionTrackerBack } from "@/components/people-strategy/action-tracker-tabs";
 import { OFFICER_TIER_ROLES } from "@/lib/authorization";
-import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
+import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { requirePageRoles } from "@/lib/page-guards";
-import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import {
   getActionItemById,
   listActionAssignableUsers,
@@ -21,11 +20,9 @@ export default async function EditActionInTrackerPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-
-  // Feature flag: with ENABLE_ACTION_TRACKER off, the route is unreachable.
   if (!isActionTrackerEnabled()) notFound();
 
+  const { id } = await params;
   const viewer = await requirePageRoles([...OFFICER_TIER_ROLES]);
 
   const [item, users, departments] = await Promise.all([
@@ -34,7 +31,6 @@ export default async function EditActionInTrackerPage({
     listActionDepartments(),
   ]);
 
-  // Null when missing or the viewer cannot see it (access-denied convention).
   if (!item) notFound();
 
   const executingUserIds = item.assignments
@@ -44,30 +40,24 @@ export default async function EditActionInTrackerPage({
     .filter((a) => a.role === "INPUT")
     .map((a) => a.user.id);
 
-  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
-
   return (
-    <div className="page-shell">
+    <div className="page-shell" style={{ maxWidth: 760 }}>
       <Link
         href={`/actions/${item.id}`}
         style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)", textDecoration: "none" }}
       >
         ← Back to action
       </Link>
-      <ActionTrackerTabsV2 active="all" showPeople={showPeople} />
+      <ActionTrackerBack />
 
-      <div className="topbar" style={{ marginTop: 16 }}>
-        <div>
-          <p className="badge">Action Tracker</p>
-          <h1 className="page-title" style={{ marginTop: 8 }}>
-            Edit action item
-          </h1>
-          <p className="page-subtitle">{item.title}</p>
-        </div>
+      <div style={{ marginTop: 16 }}>
+        <h1 className="page-title" style={{ fontSize: 22 }}>Edit action</h1>
+        <p className="page-subtitle">{item.title}</p>
       </div>
 
-      <div className="card" style={{ marginTop: 16, maxWidth: 720 }}>
+      <div className="ps-form-card" style={{ marginTop: 16 }}>
         <ActionItemForm
+          variant="simple"
           users={users}
           departments={departments}
           initial={{

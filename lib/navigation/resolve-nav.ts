@@ -65,6 +65,11 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/chapter/achievements",
   "/chapters/leaderboard",
   "/admin/chapters",
+  /** Action Tracker — one sidebar link (/actions); rest via in-page nav or search. */
+  "/actions/all",
+  "/actions/command-center",
+  "/actions/responsibility",
+  "/actions/meetings",
   "/mentorship/mentees",
   "/mentorship/reviews",
   "/mentorship/schedule",
@@ -406,6 +411,9 @@ function navHrefMatchesPathnameForActive(
   candidateHrefs: readonly string[],
 ): boolean {
   if (pathMatchesHref(pathname, href)) return true;
+  if (href === "/actions" && pathname.startsWith("/actions")) {
+    return true;
+  }
   if (href === "/actions" && (pathname === "/my-actions" || pathname.startsWith("/my-actions/"))) {
     return true;
   }

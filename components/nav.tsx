@@ -15,6 +15,7 @@ import {
   sidebarIconVariants,
   sidebarLinkVariants,
   sidebarNewBadgeClass,
+  sidebarSectionDividerClass,
   sidebarSectionTitleClass,
 } from "@/components/ui-v2";
 import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-nav";
@@ -408,7 +409,7 @@ export default function Nav({
           {search && (
             <button
               type="button"
-              className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] text-white/50 hover:bg-white/10 hover:text-white"
+              className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] text-white/65 hover:bg-white/10 hover:text-white"
               onClick={() => setSearch("")}
               aria-label="Clear search"
             >
@@ -456,6 +457,7 @@ export default function Nav({
                         className={cn(
                           sidebarGroupToggleVariants({
                             active: groupHasActive,
+                            open: groupOpen,
                             locked: Boolean(isLocked),
                           })
                         )}
@@ -495,9 +497,15 @@ export default function Nav({
               </section>
             ) : (
               <section>
+                <div className={sidebarSectionDividerClass} aria-hidden />
                 <button
                   type="button"
-                  className={cn(sidebarGroupToggleVariants({ active: false }))}
+                  className={cn(
+                    sidebarGroupToggleVariants({
+                      active: false,
+                      open: effectiveMoreOpen,
+                    })
+                  )}
                   onClick={() => setMoreOpen((previous) => !previous)}
                   aria-expanded={effectiveMoreOpen}
                   aria-label={`${effectiveMoreOpen ? "Collapse" : "Expand"} more navigation links`}
@@ -508,7 +516,7 @@ export default function Nav({
                 </button>
 
                 {effectiveMoreOpen ? (
-                  <div className="flex flex-col gap-1 pt-0.5">
+                  <div className="ml-1 flex flex-col gap-0.5 border-l border-white/[0.08] pl-2 pt-0.5">
                     {filteredMore.map((group) => {
                       const groupHasActive =
                         activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
@@ -521,12 +529,13 @@ export default function Nav({
                       const isRecentlyUnlocked = recentlyUnlockedGroups?.has(group.label);
 
                       return (
-                        <div key={group.label} className="pl-1.5">
+                        <div key={group.label}>
                           <button
                             type="button"
                             className={cn(
                               sidebarGroupToggleVariants({
                                 active: groupHasActive,
+                                open: groupOpen,
                                 locked: Boolean(isLocked),
                               })
                             )}

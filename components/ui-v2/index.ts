@@ -49,6 +49,7 @@ export {
   sidebarIconVariants,
   sidebarLinkVariants,
   sidebarNewBadgeClass,
+  sidebarSectionDividerClass,
   sidebarSectionTitleClass,
   sidebarSurfaceClass,
 } from "./sidebar";

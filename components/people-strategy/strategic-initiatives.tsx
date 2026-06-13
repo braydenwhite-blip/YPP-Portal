@@ -199,12 +199,13 @@ export function InitiativeCard({ initiative }: { initiative: InitiativeSummary }
       </div>
 
       <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)", display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <span>{i.counts.openActions} open</span>
+        <span style={{ fontWeight: 700, color: "var(--ypp-purple, #6b21c8)" }}>
+          {i.counts.openActions} action{i.counts.openActions === 1 ? "" : "s"}
+        </span>
         {i.counts.overdueActions > 0 ? (
           <span style={{ color: "var(--error-color, #991b1b)" }}>{i.counts.overdueActions} overdue</span>
         ) : null}
-        <span>{i.counts.milestonesComplete}/{i.counts.milestonesTotal} milestones</span>
-        {i.counts.upcomingMeetings > 0 ? <span>{i.counts.upcomingMeetings} upcoming mtg</span> : null}
+        <span>{i.progress.percent}% complete</span>
       </div>
 
       {topRec ? (

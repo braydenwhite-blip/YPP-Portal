@@ -34,6 +34,7 @@ import {
 import {
   canAssignAction,
   canCreateAction,
+  canDeleteAction,
   canEditAction,
   canFlagAction,
   canViewAction,
@@ -966,6 +967,75 @@ export async function captureActionBlocker(input: {
 
   await syncActionSearchDocument(data.id);
   revalidateAll();
+}
+
+// --- deleteActionItem --------------------------------------------------------
+
+const DeleteActionItemSchema = z.object({
+  id: NonEmptyString,
+});
+
+/** Remove an action from the open tracker (marks it DROPPED, keeps history). */
+export async function deleteActionItem(id: string) {
+  ensureEnabled();
+  const session = await requireSessionUser();
+  const data = DeleteActionItemSchema.parse({ id });
+
+  const access = await loadAccess(data.id);
+  if (!canDeleteAction(session, access)) throw new Error("Unauthorized");
+
+  const existing = await prisma.actionItem.findUnique({
+    where: { id: data.id },
+    select: { status: true },
+  });
+  if (!existing) throw new Error("Action item not found");
+  if (existing.status === "DROPPED") return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.actionItem.update({
+      where: { id: data.id },
+      data: { status: "DROPPED", completedAt: null },
+    });
+    await postSystemComment(tx, data.id, session.id, "Action removed");
+  });
+
+  revalidateAll();
+}
+
+const DeleteActionItemsSchema = z.object({
+  ids: z.array(NonEmptyString).min(1).max(50),
+});
+
+/** Remove multiple actions from the open tracker (marks each DROPPED). */
+export async function deleteActionItems(ids: string[]) {
+  ensureEnabled();
+  const session = await requireSessionUser();
+  const uniqueIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+  const data = DeleteActionItemsSchema.parse({ ids: uniqueIds });
+
+  for (const id of data.ids) {
+    const access = await loadAccess(id);
+    if (!canDeleteAction(session, access)) throw new Error("Unauthorized");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    for (const id of data.ids) {
+      const existing = await tx.actionItem.findUnique({
+        where: { id },
+        select: { status: true },
+      });
+      if (!existing || existing.status === "DROPPED") continue;
+
+      await tx.actionItem.update({
+        where: { id },
+        data: { status: "DROPPED", completedAt: null },
+      });
+      await postSystemComment(tx, id, session.id, "Action removed");
+    }
+  });
+
+  revalidateAll();
+  return { removed: data.ids.length };
 }
 
 // --- assignments -------------------------------------------------------------

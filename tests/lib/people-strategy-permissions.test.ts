@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canAssignAction,
   canCreateAction,
+  canDeleteAction,
   canEditAction,
   canFlagAction,
   canViewAction,
@@ -138,5 +139,22 @@ describe("canFlagAction", () => {
     expect(canFlagAction(member, leadershipNotMine)).toBe(false);
     expect(canFlagAction(member, officersOnlyMine)).toBe(false);
     expect(canFlagAction(officer, leadershipNotMine)).toBe(true);
+  });
+});
+
+describe("canDeleteAction", () => {
+  const createdByMember: ActionAccessShape = {
+    leadId: "someoneElse",
+    createdById: "m1",
+    visibility: "ALL_LEADERSHIP",
+    assignments: [],
+  };
+
+  it("allows officers, the creator, and the lead; denies others", () => {
+    expect(canDeleteAction(officer, leadershipNotMine)).toBe(true);
+    expect(canDeleteAction(member, createdByMember)).toBe(true);
+    expect(canDeleteAction(member, leadByMember)).toBe(true);
+    expect(canDeleteAction(member, leadershipMine)).toBe(false);
+    expect(canDeleteAction(otherMember, createdByMember)).toBe(false);
   });
 });

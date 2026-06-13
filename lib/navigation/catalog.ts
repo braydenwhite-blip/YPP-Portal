@@ -430,7 +430,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/actions",
-      label: "My Actions",
+      label: "Actions",
       icon: "✅",
       // My Actions is per-record guarded server-side and can be used by any
       // portal user who is assigned as Lead, Executing, or Input.
@@ -446,30 +446,35 @@ export const NAV_CATALOG: NavLink[] = [
         "APPLICANT",
       ] as NavRole[],
       requiresActionTracker: true,
-      searchAliases: ["Action Items", "Action Tracker", "My Action Items"],
+      searchAliases: [
+        "Action Items",
+        "Action Tracker",
+        "My Action Items",
+        "All Actions",
+        "Meetings",
+        "Command Center",
+      ],
       dashboardDescription: "Everything you lead, are executing, or owe input on — sorted by deadline.",
       dashboardPriority: 5,
     },
     {
-      href: "/work",
-      label: "Work",
+      href: "/actions/command-center",
+      label: "Command Center",
       icon: "🎛️",
-      // Work Hub (Knowledge OS V2 §15) — the unified front door for actions,
-      // meeting follow-ups, initiatives, partner requests, advisor check-ins,
-      // and applicant next steps. Officer-tier (mirrors /people, /partners).
-      // Replaces /actions/command-center, which now redirects here.
+      coreEligible: false,
+      // Officer-tier and above only (mirrors requireOfficer()).
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
       searchAliases: [
-        "Work Hub",
-        "Command Center",
+        "People Strategy",
+        "Weekly Pulse",
         "Attention Queue",
-        "All Work",
-        "My Queue",
-        "Follow-ups",
-        "Overdue",
+        "Momentum",
+        "Leadership Command Center",
+        "People Strategy OS",
       ],
       dashboardDescription:
-        "Actions, meeting follow-ups, blockers, and next steps across YPP.",
+        "This week's pulse, the attention queue, people momentum, and wins — the People Strategy command center.",
       dashboardPriority: 6,
     },
     {
@@ -598,6 +603,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/actions/all",
       label: "All Actions",
       icon: "🗂️",
+      coreEligible: false,
       // Officer-tier and above only (mirrors requireOfficer()).
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
       requiresActionTracker: true,
@@ -616,6 +622,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/actions/responsibility",
       label: "Responsibility Map",
       icon: "🗺️",
+      coreEligible: false,
       // Officer-tier and above only (mirrors requireOfficer()).
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
       requiresActionTracker: true,

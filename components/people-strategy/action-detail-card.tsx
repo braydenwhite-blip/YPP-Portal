@@ -3,9 +3,6 @@
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
-import { ActionStatusCapture } from "./action-status-capture";
-import { ACTION_COMPLETION_OUTCOME_LABELS } from "@/lib/people-strategy/action-source";
 import type { ActionCommentType, ActionItemStatus, ActionPriority } from "@prisma/client";
 
 import {
@@ -14,18 +11,13 @@ import {
   flagActionToLeadership,
   updateActionStatus,
 } from "@/lib/people-strategy/action-items-actions";
+import { ActionDeleteButton } from "@/components/people-strategy/action-delete-button";
 import {
   ACTION_STATUS_LABELS,
   ACTION_STATUS_SELECTABLE,
-  isRelatedEntityType,
 } from "@/lib/people-strategy/constants";
-import {
-  actionPrefillToQuery,
-  buildActionPrefillFromFollowUp,
-} from "@/lib/people-strategy/action-prefill";
 import { cardRevealVariants } from "@/lib/people-strategy/motion";
-import { ActionTypePill, Pill, PriorityPill } from "@/components/people-strategy/pills";
-import { actionTypeLabel } from "@/lib/people-strategy/action-types";
+import { Pill, PriorityPill } from "@/components/people-strategy/pills";
 import { MotionArea, m, FeedbackBanner } from "@/components/people-strategy/motion";
 import { getUserTitle } from "@/lib/user-title";
 import { PersonLink } from "@/components/people-strategy/person-link";
@@ -73,6 +65,7 @@ export type ActionDetailDTO = {
   id: string;
   title: string;
   description: string | null;
+  successDefinition: string | null;
   goalCategory: string | null;
   actionType: string | null;
   departmentName: string;
@@ -95,11 +88,6 @@ export type ActionDetailDTO = {
   relatedEntityHref?: string | null;
   relatedArea?: string | null;
   flaggedAt: string | null;
-  /** Action System 4.0 structured capture (read for display + prefill). */
-  blockedReason?: string | null;
-  completionNote?: string | null;
-  completionOutcome?: string | null;
-  nextFollowUpAt?: string | null;
   lead: PersonDTO;
   people: {
     lead: PersonDTO[];
@@ -313,6 +301,7 @@ export default function ActionDetailCard({
   item,
   canEdit,
   canFlag,
+  canDelete,
   closeHref,
   sameEntityActions = [],
   sameMeetingActions = [],
@@ -320,6 +309,7 @@ export default function ActionDetailCard({
   item: ActionDetailDTO;
   canEdit: boolean;
   canFlag: boolean;
+  canDelete: boolean;
   closeHref: string;
   /** Other actions about the same YPP entity (excludes this one). */
   sameEntityActions?: RelatedActionLite[];
@@ -334,7 +324,6 @@ export default function ActionDetailCard({
   const [linkUrl, setLinkUrl] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [capture, setCapture] = useState<"complete" | "blocked" | null>(null);
   const [pending, startTransition] = useTransition();
   const theme = departmentTheme();
   const due = deadlineText(item);
@@ -355,19 +344,6 @@ export default function ActionDetailCard({
   }
 
   function handleStatus(next: ActionItemStatus) {
-    // COMPLETE / BLOCKED go through structured capture (Action System 4.0):
-    // the outcome / blocker reason is recorded with the status, inline.
-    if (next === "COMPLETE") {
-      setStatus(next);
-      setCapture("complete");
-      return;
-    }
-    if (next === "BLOCKED") {
-      setStatus(next);
-      setCapture("blocked");
-      return;
-    }
-    setCapture(null);
     setStatus(next);
     runMutation(async () => updateActionStatus(item.id, next), "Status saved.");
   }
@@ -466,30 +442,9 @@ export default function ActionDetailCard({
               Edit
             </Link>
           )}
-          <Link
-            href={actionPrefillToQuery(
-              buildActionPrefillFromFollowUp({
-                parentActionId: item.id,
-                parentTitle: item.title,
-                relatedType:
-                  item.relatedEntityType && isRelatedEntityType(item.relatedEntityType)
-                    ? item.relatedEntityType
-                    : undefined,
-                relatedId:
-                  item.relatedEntityType &&
-                  isRelatedEntityType(item.relatedEntityType) &&
-                  item.relatedEntityId
-                    ? item.relatedEntityId
-                    : undefined,
-                strategicInitiativeId: item.strategicInitiativeId ?? undefined,
-                strategicProjectId: item.strategicProjectId ?? undefined,
-              })
-            )}
-            className="button outline small"
-            title="Create a follow-up action chained to this one (keeps the entity and strategic context)"
-          >
-            Create follow-up
-          </Link>
+          {canDelete && item.status !== "DROPPED" ? (
+            <ActionDeleteButton actionId={item.id} redirectTo={closeHref} />
+          ) : null}
           <Link href={closeHref} className="button outline small" aria-label="Close action detail">
             ×
           </Link>
@@ -528,7 +483,6 @@ export default function ActionDetailCard({
         </label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <PriorityPill priority={item.priority} />
-          <ActionTypePill actionType={item.actionType} />
           <Pill tone={due.overdue ? "overdue" : "neutral"}>{due.label}</Pill>
           {item.relatedArea ? <AreaBadge area={item.relatedArea} /> : null}
           {item.relatedEntityType ? (
@@ -539,150 +493,21 @@ export default function ActionDetailCard({
               href={item.relatedEntityHref}
             />
           ) : null}
-          {item.officerMeetingId && <Pill tone="purple">Created from meeting</Pill>}
+          {item.officerMeetingId && <Pill tone="purple">Source: Meeting</Pill>}
           {strategic.initiativeTitle ? (
-            <Pill tone="purple">Initiative: {strategic.initiativeTitle}</Pill>
+            strategic.initiativeHref ? (
+              <Link href={strategic.initiativeHref} className="pill pill-purple pill-small" style={{ textDecoration: "none" }}>
+                Plan: {strategic.initiativeTitle}
+              </Link>
+            ) : (
+              <Pill tone="purple">Initiative: {strategic.initiativeTitle}</Pill>
+            )
           ) : null}
           {strategic.projectTitle ? (
             <Pill tone="neutral">Project: {strategic.projectTitle}</Pill>
           ) : null}
         </div>
       </section>
-
-      {capture ? (
-        <ActionStatusCapture
-          actionId={item.id}
-          mode={capture}
-          initialOutcome={item.completionOutcome}
-          initialNote={item.completionNote}
-          initialBlockedReason={item.blockedReason}
-          initialNextFollowUpAt={item.nextFollowUpAt}
-          onDone={() => {
-            setCapture(null);
-            setMessage(capture === "complete" ? "Completed with outcome." : "Blocker captured.");
-          }}
-          onCancel={() => {
-            setCapture(null);
-            setStatus(item.status);
-          }}
-        />
-      ) : null}
-
-      {/* Structured state already on the record (Action System 4.0). */}
-      {!capture && item.status === "BLOCKED" && item.blockedReason ? (
-        <section
-          style={{
-            border: "1px solid var(--warning-border, #fcd34d)",
-            background: "var(--warning-bg, #fffbeb)",
-            borderRadius: 12,
-            padding: "12px 16px",
-          }}
-        >
-          <span style={TINY_LABEL}>Blocked because</span>
-          <p style={{ margin: "4px 0 0", fontSize: 13.5, whiteSpace: "pre-wrap" }}>
-            {item.blockedReason}
-          </p>
-          {canEdit ? (
-            <button
-              type="button"
-              className="button outline small"
-              style={{ marginTop: 8 }}
-              onClick={() => setCapture("blocked")}
-            >
-              Update blocker
-            </button>
-          ) : null}
-        </section>
-      ) : null}
-      {!capture &&
-      item.status === "COMPLETE" &&
-      (item.completionOutcome || item.completionNote) ? (
-        <section
-          style={{
-            border: "1px solid var(--border)",
-            background: "var(--surface)",
-            borderRadius: 12,
-            padding: "12px 16px",
-          }}
-        >
-          <span style={TINY_LABEL}>
-            Outcome
-            {item.completionOutcome
-              ? `: ${
-                  ACTION_COMPLETION_OUTCOME_LABELS[
-                    item.completionOutcome as keyof typeof ACTION_COMPLETION_OUTCOME_LABELS
-                  ] ?? item.completionOutcome
-                }`
-              : ""}
-          </span>
-          {item.completionNote ? (
-            <p style={{ margin: "4px 0 0", fontSize: 13.5, whiteSpace: "pre-wrap" }}>
-              {item.completionNote}
-            </p>
-          ) : null}
-          {item.nextFollowUpAt ? (
-            <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--muted)" }}>
-              Next follow-up {new Date(item.nextFollowUpAt).toLocaleDateString()}
-            </p>
-          ) : null}
-        </section>
-      ) : null}
-
-      <Section title="Details">
-        <div
-          style={{
-            display: "grid",
-            gap: 12,
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          }}
-        >
-          <Meta
-            label="Type"
-            value={item.actionType ? actionTypeLabel(item.actionType) : "Untyped"}
-          />
-          <Meta label="Goal area" value={item.goalCategory ?? "Not set"} />
-          <Meta label="Department" value={item.departmentName} />
-          <Meta label="Deadline" value={due.label} />
-          <Meta label="Initiative" value={strategic.initiativeTitle ?? "None"} />
-          <Meta label="Project" value={strategic.projectTitle ?? "None"} />
-        </div>
-      </Section>
-
-      {strategic.initiativeTitle ? (
-        <Section title="Strategic Context" defaultOpen>
-          <div
-            style={{
-              border: "1px solid var(--ypp-purple-200)",
-              background: "var(--ypp-purple-50)",
-              color: "var(--ypp-purple-800)",
-              borderRadius: "var(--radius-sm)",
-              padding: "12px 14px",
-              fontSize: 14,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span style={{ fontWeight: 700 }}>
-                This action moves {strategic.initiativeTitle} forward.
-              </span>
-              {strategic.projectTitle ? (
-                <span style={{ fontSize: 12.5, opacity: 0.85 }}>
-                  Project: {strategic.projectTitle}
-                </span>
-              ) : null}
-            </span>
-            {strategic.initiativeHref ? (
-              <Link href={strategic.initiativeHref} className="button outline small">
-                Open initiative
-              </Link>
-            ) : null}
-          </div>
-        </Section>
-      ) : null}
 
       <Section title="People">
         <div
@@ -699,7 +524,7 @@ export default function ActionDetailCard({
       </Section>
 
       {item.officerMeetingId && (
-        <Section title="Created from meeting" defaultOpen>
+        <Section title="Source Meeting" defaultOpen>
           <div
             style={{
               border: "1px solid var(--ypp-purple-200)",
@@ -718,7 +543,7 @@ export default function ActionDetailCard({
             <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <span style={{ fontWeight: 700 }}>
                 {item.officerMeetingTitle
-                  ? item.officerMeetingTitle
+                  ? `From: ${item.officerMeetingTitle}`
                   : "This action came out of a meeting."}
               </span>
               {item.officerMeetingDate && (
@@ -739,7 +564,7 @@ export default function ActionDetailCard({
       )}
 
       {(item.relatedEntityType || sameEntityActions.length > 0 || sameMeetingActions.length > 0) && (
-        <Section title="Linked work" defaultOpen>
+        <Section title="Connected work" defaultOpen>
           {item.relatedEntityType ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={TINY_LABEL}>Related to</span>
@@ -754,7 +579,7 @@ export default function ActionDetailCard({
           ) : null}
           {sameEntityActions.length > 0 ? (
             <RelatedActionGroup
-              title="Other actions about this record"
+              title={`Other actions about this ${item.relatedEntityType ? "item" : "entity"}`}
               actions={sameEntityActions}
             />
           ) : null}
@@ -972,15 +797,6 @@ export default function ActionDetailCard({
       </Section>
       </m.article>
     </MotionArea>
-  );
-}
-
-function Meta({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <span style={TINY_LABEL}>{label}</span>
-      <strong style={{ color: "var(--ypp-ink)", fontSize: 14, overflowWrap: "anywhere" }}>{value}</strong>
-    </div>
   );
 }
 

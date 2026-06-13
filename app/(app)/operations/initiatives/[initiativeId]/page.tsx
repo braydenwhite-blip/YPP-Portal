@@ -1,43 +1,29 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { InitiativeActionsPanel } from "@/components/people-strategy/initiative-actions-panel";
+import {
+  InitiativeHealthBadge,
+  ProgressBar,
+} from "@/components/people-strategy/strategic-initiatives";
+import { StrategicWorkspaceHeader } from "@/components/people-strategy/strategic-workspace-nav";
+import { StatCard } from "@/components/people-strategy/stat-card";
 import { requireOfficer } from "@/lib/authorization";
 import {
   isActionTrackerEnabled,
   isOperationsHubEnabled,
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
-import { getStrategicInitiativeDossier } from "@/lib/people-strategy/strategic-initiative-queries";
-import { getProjectsForInitiative } from "@/lib/people-strategy/strategic-project-queries";
+import {
+  canCreateAction,
+  type ActionViewer,
+} from "@/lib/people-strategy/action-permissions";
+import {
+  listActionAssignableUsers,
+  listActionDepartments,
+} from "@/lib/people-strategy/action-queries";
+import { getInitiativePageData } from "@/lib/people-strategy/strategic-initiative-queries";
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
-import { buildInitiativeActionPrefill } from "@/lib/people-strategy/strategic-recommendations";
-import { ProjectCardGrid } from "@/components/people-strategy/strategic-projects";
-import {
-  CommandCenterSection,
-  EntityHealthList,
-} from "@/components/people-strategy/command-center-os";
-import { StrategicWorkspaceHeader } from "@/components/people-strategy/strategic-workspace-nav";
-import {
-  InitiativeSummaryPanel,
-  InitiativeWeeklyOperatingView,
-  MilestoneList,
-  NextStepsPanel,
-  OwnershipPanel,
-  RecommendationsList,
-  RiskPanel,
-  StrategicTimelineView,
-} from "@/components/people-strategy/strategic-initiatives";
-import {
-  DependencyPanel,
-  ExecutionGraphView,
-  InitiativeCharterPanel,
-  KnowledgeBasePanel,
-  OperatingReviewTabs,
-  RoadmapView,
-  ScenariosPanel,
-  WorkstreamBoard,
-  DecisionCenterPanel,
-} from "@/components/people-strategy/strategic-initiatives-os";
 
 export const dynamic = "force-dynamic";
 
@@ -51,25 +37,8 @@ export async function generateMetadata({
   return { title: def ? `${def.title} · Initiatives` : "Initiative · Operations" };
 }
 
-const NAV_LINKS: Array<{ href: string; label: string }> = [
-  { href: "#charter", label: "Architecture" },
-  { href: "#workstreams", label: "Workstreams" },
-  { href: "#projects", label: "Projects" },
-  { href: "#roadmap", label: "Roadmap" },
-  { href: "#milestones", label: "Milestones" },
-  { href: "#decisions", label: "Decisions" },
-  { href: "#scenarios", label: "Scenarios" },
-  { href: "#dependencies", label: "Dependencies" },
-  { href: "#reviews", label: "Reviews" },
-  { href: "#knowledge", label: "Knowledge" },
-  { href: "#graph", label: "Execution graph" },
-];
-
 /**
- * Strategic Initiative command center — the living-program detail page. It runs
- * the whole initiative as an operating business unit: its architecture (charter),
- * workstreams, roadmap, decision center, scenarios, dependencies, operating
- * reviews, knowledge base, and the full execution graph — all derived state.
+ * One initiative = the plan. Actions on this page are the work under that plan.
  */
 export default async function StrategicInitiativeDetailPage({
   params,
@@ -80,199 +49,99 @@ export default async function StrategicInitiativeDetailPage({
     notFound();
   }
 
-  const viewer = await requireOfficer().catch(() => null);
-  if (!viewer) notFound();
+  const sessionUser = await requireOfficer().catch(() => null);
+  if (!sessionUser) notFound();
+
+  const viewer: ActionViewer = {
+    id: sessionUser.id,
+    roles: sessionUser.roles,
+    primaryRole: sessionUser.primaryRole,
+    adminSubtypes: sessionUser.adminSubtypes,
+  };
 
   const { initiativeId } = await params;
-  const def = getInitiativeDef(initiativeId);
   const now = new Date();
-  const dossier = await getStrategicInitiativeDossier(initiativeId, viewer, { now });
-  if (!dossier || !def) notFound();
+  const canCreate = canCreateAction(viewer);
 
-  const summary = dossier.summary;
-  const projects = await getProjectsForInitiative(initiativeId, viewer, { now });
-  const newActionHref = buildInitiativeActionPrefill(def);
+  const [pageData, assignableUsers, departments] = await Promise.all([
+    getInitiativePageData(initiativeId, viewer, { now }),
+    canCreate ? listActionAssignableUsers() : Promise.resolve([]),
+    canCreate ? listActionDepartments() : Promise.resolve([]),
+  ]);
+
+  if (!pageData) notFound();
+
+  const { def, summary, actions } = pageData;
+  const topRec = summary.recommendations[0];
 
   return (
-    <div className="page-shell" style={{ maxWidth: 1180 }}>
+    <div className="page-shell" style={{ maxWidth: 900 }}>
       <StrategicWorkspaceHeader
         current="initiatives"
         breadcrumbs={[
-          { label: "Portfolio", href: "/operations/portfolio" },
           { label: "Initiatives", href: "/operations/initiatives" },
           { label: summary.title },
         ]}
-        eyebrow={`People Strategy · ${summary.areaLabel}`}
+        eyebrow={`Plan · ${summary.areaLabel}`}
         title={summary.title}
         subtitle={summary.description}
-        meta={`${summary.statusLabel} · ${summary.priorityLabel} · owner ${summary.owner ?? "unassigned"}${
-          summary.targetDateISO ? ` · target ${new Date(summary.targetDateISO).toLocaleDateString()}` : ""
-        }`}
-        actions={
-          <Link href={newActionHref} className="button primary small">
-            Create action
-          </Link>
+        meta={
+          <>
+            <InitiativeHealthBadge health={summary.health} />
+            <span style={{ marginLeft: 8 }}>
+              {summary.progress.percent}% complete · owner {summary.owner ?? "unassigned"}
+            </span>
+          </>
         }
       />
 
-      <nav className="ps-anchor-nav" aria-label="On this page">
-        {NAV_LINKS.map((l) => (
-          <a key={l.href} href={l.href}>
-            {l.label}
-          </a>
-        ))}
-      </nav>
-
-      {/* Executive summary */}
-      <section style={{ marginTop: 18 }}>
-        <CommandCenterSection title="Executive summary" hint={summary.health.label}>
-          <InitiativeSummaryPanel initiative={summary} />
-        </CommandCenterSection>
-      </section>
-
-      <section style={{ marginTop: 26 }}>
-        <CommandCenterSection title="Weekly operating view" hint="Focus · actions · risks · communication">
-          <InitiativeWeeklyOperatingView initiative={summary} />
-        </CommandCenterSection>
-      </section>
-
-      {/* Phase A — Architecture / charter */}
-      <section id="charter" style={{ marginTop: 26 }}>
-        <CommandCenterSection title="Initiative architecture" hint="Mission · purpose · success · stakeholders">
-          <InitiativeCharterPanel charter={dossier.profile.charter} />
-        </CommandCenterSection>
-      </section>
-
-      {/* Phase B — Workstreams */}
-      <section id="workstreams" style={{ marginTop: 26 }}>
-        <CommandCenterSection
-          title="Workstreams"
-          hint={`${dossier.workstreams.length} program${dossier.workstreams.length === 1 ? "" : "s"}`}
-        >
-          <WorkstreamBoard workstreams={dossier.workstreams} />
-        </CommandCenterSection>
-      </section>
-
-      {/* 3.0 — Strategic projects under this initiative */}
-      <section id="projects" style={{ marginTop: 26 }}>
-        <CommandCenterSection
-          title="Strategic projects"
-          hint={
-            projects.length > 0 ? (
-              <Link href="/operations/projects" style={{ color: "var(--ypp-purple, #6b21c8)" }}>
-                {projects.length} project{projects.length === 1 ? "" : "s"} →
-              </Link>
-            ) : (
-              "The concrete bodies of work that move this initiative"
-            )
-          }
-        >
-          <ProjectCardGrid
-            projects={projects}
-            emptyHint="No strategic projects are defined for this initiative yet. Add one in lib/people-strategy/strategic-projects.ts to run it as a tracked project."
-          />
-        </CommandCenterSection>
-      </section>
-
-      {/* Phase E — Roadmap */}
-      <section id="roadmap" style={{ marginTop: 26 }}>
-        <CommandCenterSection title="Roadmap" hint="Sequencing by phase and horizon">
-          <RoadmapView roadmap={dossier.roadmap} />
-        </CommandCenterSection>
-      </section>
-
-      <div
-        className="command-center-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)",
-          gap: 22,
-          marginTop: 26,
-          alignItems: "start",
-        }}
-      >
-        {/* Left — milestones + timeline */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 26, minWidth: 0 }}>
-          <div id="milestones">
-            <CommandCenterSection
-              title="Milestones"
-              hint={`${summary.counts.milestonesComplete}/${summary.counts.milestonesTotal} complete`}
-            >
-              <MilestoneList milestones={summary.milestones} />
-            </CommandCenterSection>
-          </div>
-
-          <div id="timeline">
-            <CommandCenterSection title="Timeline" hint="How we got here">
-              <StrategicTimelineView timeline={summary.timeline} />
-            </CommandCenterSection>
-          </div>
-        </div>
-
-        {/* Right — next moves + intelligence */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 26, minWidth: 0 }}>
-          <CommandCenterSection title="Recommended next moves" hint={`${summary.recommendations.length}`}>
-            <RecommendationsList recommendations={summary.recommendations} />
-          </CommandCenterSection>
-
-          <CommandCenterSection title="Program intelligence">
-            <div style={{ display: "grid", gap: 12 }}>
-              <RiskPanel risk={summary.risk} />
-              <OwnershipPanel ownership={summary.ownership} />
-              <NextStepsPanel steps={summary.healthExplanation.suggestedNextSteps} />
-            </div>
-          </CommandCenterSection>
-
-          <CommandCenterSection title="Related entities" hint="Worst first">
-            <EntityHealthList
-              entities={summary.relatedEntities.slice(0, 8)}
-              emptyHint="No specific classes, partners, or people are linked to this initiative's work yet."
-            />
-          </CommandCenterSection>
-        </div>
+      <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+        <StatCard label="Open actions" value={summary.counts.openActions} icon="layers" tone="accent" />
+        <StatCard
+          label="Overdue"
+          value={summary.counts.overdueActions}
+          icon="clock"
+          tone={summary.counts.overdueActions > 0 ? "danger" : "default"}
+        />
+        <StatCard label="Progress" value={`${summary.progress.percent}%`} icon="target" />
       </div>
 
-      {/* Phase C — Decision Center */}
-      <section id="decisions" style={{ marginTop: 26 }}>
-        <CommandCenterSection title="Decision center" hint={`${dossier.decisionCenter.stats.followThroughRate}% follow-through`}>
-          <DecisionCenterPanel center={dossier.decisionCenter} />
-        </CommandCenterSection>
-      </section>
+      <div className="card" style={{ marginTop: 16, padding: "14px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <ProgressBar percent={summary.progress.percent} />
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+            {summary.progress.completedActions}/{summary.progress.totalTracked} actions done
+          </span>
+        </div>
+        {topRec ? (
+          <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            <strong style={{ color: "var(--ypp-purple, #6b21c8)" }}>Next: </strong>
+            {topRec.title} — {topRec.detail}
+          </p>
+        ) : (
+          <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--muted)" }}>
+            {summary.healthExplanation.headline}
+          </p>
+        )}
+      </div>
 
-      {/* Phase F — Scenarios */}
-      <section id="scenarios" style={{ marginTop: 26 }}>
-        <CommandCenterSection title="Scenarios" hint="Best · expected · stretch · risk">
-          <ScenariosPanel board={dossier.scenarios} />
-        </CommandCenterSection>
-      </section>
+      <div style={{ marginTop: 24 }}>
+        <InitiativeActionsPanel
+          initiative={def}
+          actions={actions}
+          now={now}
+          canCreate={canCreate}
+          assignableUsers={assignableUsers}
+          departments={departments}
+          currentUserId={viewer.id}
+        />
+      </div>
 
-      {/* Phase G — Dependencies */}
-      <section id="dependencies" style={{ marginTop: 26 }}>
-        <CommandCenterSection title="Dependencies" hint="What we wait on, what we unblock">
-          <DependencyPanel view={dossier.dependencies} />
-        </CommandCenterSection>
-      </section>
-
-      {/* Phase H — Operating reviews */}
-      <section id="reviews" style={{ marginTop: 26 }}>
-        <CommandCenterSection title="Operating reviews" hint="Weekly · monthly · quarterly">
-          <OperatingReviewTabs reviews={dossier.reviews} />
-        </CommandCenterSection>
-      </section>
-
-      {/* Phase D — Knowledge base */}
-      <section id="knowledge" style={{ marginTop: 26 }}>
-        <CommandCenterSection title="Knowledge base" hint="Institutional memory">
-          <KnowledgeBasePanel kb={dossier.profile.knowledge} />
-        </CommandCenterSection>
-      </section>
-
-      {/* Phase J — Execution graph */}
-      <section id="graph" style={{ marginTop: 26 }}>
-        <CommandCenterSection title="Execution graph" hint="Initiative → workstream → milestone → decision → meeting → action → outcome">
-          <ExecutionGraphView graph={dossier.executionGraph} />
-        </CommandCenterSection>
-      </section>
+      <p style={{ marginTop: 20, fontSize: 12, color: "var(--muted)" }}>
+        <Link href="/operations/initiatives">← All initiatives</Link>
+      </p>
     </div>
   );
 }

@@ -130,10 +130,19 @@ export function canAssignAction(user: ActionViewer): boolean {
   return isOfficerTier(user);
 }
 
-/**
- * Who can FLAG an action to the Leadership (escalation). Anyone who can view it —
- * members escalate their own actions; officers escalate anything they see.
- */
+/** Anyone who can view it may flag. */
 export function canFlagAction(user: ActionViewer, action: ActionAccessShape): boolean {
   return canViewAction(user, action);
+}
+
+/**
+ * Who can remove an action from the open tracker.
+ * Officers may remove anything they can see; creators and leads may remove their own.
+ */
+export function canDeleteAction(user: ActionViewer, action: ActionAccessShape): boolean {
+  if (!canViewAction(user, action)) return false;
+  if (isOfficerTier(user)) return true;
+  if (action.createdById === user.id) return true;
+  if (action.leadId === user.id) return true;
+  return false;
 }

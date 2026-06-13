@@ -153,13 +153,13 @@ const ENTRY_POINTS: Array<{
   {
     href: "/operations/initiatives",
     title: "Initiatives",
-    description: "Track the big goals and whether they are moving.",
+    description: "The strategic plan — open any initiative to see and add its actions.",
     strategicOnly: true,
   },
   {
-    href: "/actions/all",
+    href: "/actions",
     title: "Actions",
-    description: "Manage the detailed work — every action, owner, and due date.",
+    description: "Every action item — filter by person or by initiative.",
   },
   {
     href: "/actions/meetings",

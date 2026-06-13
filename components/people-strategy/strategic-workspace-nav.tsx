@@ -36,8 +36,8 @@ type NavItem = { key: StrategicNavKey; label: string; href: string };
  *   Command Center   — what matters right now
  *   Data 360         — how everything connects (people, partners, classes, work)
  *   Weekly Execution — run the weekly officer meeting
- *   Initiatives      — the big strategic goals
- *   Actions          — the concrete work
+ *   Initiatives      — the plan (each initiative lists its actions)
+ *   Actions          — all concrete work across initiatives
  *   Meetings         — where decisions and loose ends come from
  *
  * Deliberately only the six places a leader moves between every week. The
@@ -50,7 +50,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { key: "data-360", label: "Data 360", href: "/operations/data-360" },
   { key: "weekly-execution", label: "Weekly Execution", href: "/operations/weekly-execution" },
   { key: "initiatives", label: "Initiatives", href: "/operations/initiatives" },
-  { key: "actions", label: "Actions", href: "/actions/all" },
+  { key: "actions", label: "Actions", href: "/actions" },
   { key: "meetings", label: "Meetings", href: "/actions/meetings" },
 ];
 

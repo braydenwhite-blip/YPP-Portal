@@ -7,7 +7,6 @@ import ActionDetailCard, {
 import { getSession } from "@/lib/auth-supabase";
 import {
   isActionTrackerEnabled,
-  isPeopleDashboardEnabled,
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { deriveStrategicContextForAction } from "@/lib/people-strategy/strategic-context";
@@ -38,12 +37,11 @@ import {
 import { isRelatedEntityType } from "@/lib/people-strategy/constants";
 import {
   canEditAction,
+  canDeleteAction,
   canFlagAction,
-  isLeadershipOrBoard,
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
-import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Action Detail · People Strategy" };
@@ -124,6 +122,7 @@ function toDetailDTO(
     id: item.id,
     title: item.title,
     description: item.description,
+    successDefinition: item.successDefinition,
     goalCategory: item.goalCategory,
     actionType: item.actionType,
     departmentName: item.department?.name ?? "Unassigned",
@@ -146,10 +145,6 @@ function toDetailDTO(
         ? operationalAreaLabel(areaForRelatedEntityType(item.relatedEntityType))
         : null,
     flaggedAt: item.flaggedAt ? item.flaggedAt.toISOString() : null,
-    blockedReason: item.blockedReason ?? null,
-    completionNote: item.completionNote ?? null,
-    completionOutcome: item.completionOutcome ?? null,
-    nextFollowUpAt: item.nextFollowUpAt ? item.nextFollowUpAt.toISOString() : null,
     lead,
     people: {
       lead: uniquePeople([lead, ...leadAssignments]),
@@ -211,10 +206,10 @@ export default async function ActionDetailPage({ params }: PageProps) {
   if (!actionShape) notFound();
 
   const canEdit = canEditAction(viewer, actionShape);
+  const canDelete = canDeleteAction(viewer, actionShape);
   const canFlag = canFlagAction(viewer, actionShape);
   const officer = isOfficerTier(viewer);
-  const closeHref = officer ? "/actions/all" : "/actions";
-  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
+  const closeHref = officer ? "/actions?who=all" : "/actions";
 
   const now = new Date();
   const detail = toDetailDTO(item);
@@ -278,29 +273,37 @@ export default async function ActionDetailPage({ params }: PageProps) {
     : null;
 
   return (
-    <div className="page-shell" style={{ maxWidth: 1040 }}>
-      {/* Persistent tabs so the detail view is reachable-from / returns-to the
-          rest of the tracker (comment #17). Officers only — other viewers reach
-          a detail page solely from My Actions. */}
-      {officer && <ActionTrackerTabsV2 showPeople={showPeople} />}
+    <div className="page-shell" style={{ maxWidth: 720 }}>
       <ActionDetailCard
         item={detail}
         canEdit={canEdit}
+        canDelete={canDelete}
         canFlag={canFlag}
         closeHref={closeHref}
         sameEntityActions={sameEntityActions}
         sameMeetingActions={sameMeetingActions}
       />
-      <ActionIntelPanel
-        nextMove={intel.nextMove}
-        labels={intel.labels}
-        source={intel.source}
-        linkage={intel.linkage}
-        urgency={intel.urgency}
-        ctaHref={intelCtaHref}
-        meetingHref={meetingHref}
-      />
-      {strategicContext ? <StrategicContextSection context={strategicContext} kind="action" /> : null}
+      {officer ? (
+        <details style={{ marginTop: 16 }}>
+          <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 13, color: "var(--muted)" }}>
+            More details
+          </summary>
+          <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+            <ActionIntelPanel
+              nextMove={intel.nextMove}
+              labels={intel.labels}
+              source={intel.source}
+              linkage={intel.linkage}
+              urgency={intel.urgency}
+              ctaHref={intelCtaHref}
+              meetingHref={meetingHref}
+            />
+            {strategicContext ? (
+              <StrategicContextSection context={strategicContext} kind="action" />
+            ) : null}
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }

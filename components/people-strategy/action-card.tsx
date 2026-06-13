@@ -61,11 +61,19 @@ export function ActionCard({
   item,
   now,
   prompt,
+  selectable = false,
+  selected = false,
+  onSelectChange,
+  selectionDisabled = false,
 }: {
   item: ActionItemWithRelations;
   now: Date;
   /** Optional context line (e.g. the input request shown on My Actions). */
   prompt?: string | null;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelectChange?: (checked: boolean) => void;
+  selectionDisabled?: boolean;
 }) {
   const overdue = isActionOverdue(item, now);
   const due = effectiveDeadline(item);
@@ -87,12 +95,18 @@ export function ActionCard({
 
   return (
     <div
-      className="card ps-action-card"
+      className={`card ps-action-card${selected ? " is-selected" : ""}`}
       style={{
         display: "block",
         padding: "12px 14px",
         color: "inherit",
         borderLeft: `3px solid ${railColor}`,
+        ...(selected
+          ? {
+              boxShadow: "inset 0 0 0 1px var(--ypp-purple-300, var(--border))",
+              background: "var(--ypp-purple-50, var(--surface))",
+            }
+          : null),
       }}
     >
       <div
@@ -103,14 +117,26 @@ export function ActionCard({
           alignItems: "baseline",
         }}
       >
-        <EntityLink
-          type="action"
-          id={item.id}
-          className="ps-action-card-title"
-          style={{ fontSize: 14, fontWeight: 700, color: "inherit", minWidth: 0 }}
-        >
-          {item.title}
-        </EntityLink>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0, flex: 1 }}>
+          {selectable ? (
+            <input
+              type="checkbox"
+              checked={selected}
+              disabled={selectionDisabled}
+              onChange={(event) => onSelectChange?.(event.target.checked)}
+              aria-label={`Select ${item.title}`}
+              style={{ marginTop: 3, flexShrink: 0 }}
+            />
+          ) : null}
+          <EntityLink
+            type="action"
+            id={item.id}
+            className="ps-action-card-title"
+            style={{ fontSize: 14, fontWeight: 700, color: "inherit", minWidth: 0 }}
+          >
+            {item.title}
+          </EntityLink>
+        </div>
         <Pill tone={overdue ? "overdue" : "neutral"}>
           {overdue ? "Overdue · " : "Due "}
           {formatDueDate(due)}

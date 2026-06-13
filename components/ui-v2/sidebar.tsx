@@ -35,7 +35,64 @@ export const sidebarFooterClass = "border-t border-t-white/10 px-3 pb-4 pt-3";
 
 /** Uppercase section label ("Top Tools", "Shortcuts", group names). */
 export const sidebarSectionTitleClass =
-  "px-3 pb-1.5 pt-2 text-[10.5px] font-bold uppercase tracking-[0.12em] text-white/45";
+  "px-3 pb-1 pt-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-brand-300/70";
+
+/** Thin divider between major nav sections (e.g. before "More Tools"). */
+export const sidebarSectionDividerClass = "mx-2 my-2 border-t border-white/[0.08]";
+
+/** Disclosure toggle for "More Tools" and nav groups — flat labels, no pill/shadow. */
+export const sidebarGroupToggleVariants = cva(
+  [
+    "group flex w-full items-center gap-2 border-0 bg-transparent px-3 py-1.5 text-left shadow-none",
+    "text-[10.5px] font-bold uppercase tracking-[0.14em] transition-colors duration-200",
+    "appearance-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400/60",
+  ],
+  {
+    variants: {
+      active: {
+        true: "text-brand-300",
+        false: "text-white/55 hover:text-brand-200/90",
+      },
+      open: {
+        true: "text-white/80",
+        false: "",
+      },
+      locked: {
+        true: "cursor-default opacity-45 hover:text-white/55",
+        false: "",
+      },
+    },
+    compoundVariants: [
+      {
+        active: true,
+        open: true,
+        className: "text-brand-300",
+      },
+    ],
+    defaultVariants: { active: false, open: false, locked: false },
+  }
+);
+
+export function SidebarChevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 12 12"
+      className={cn(
+        "ml-auto size-3 shrink-0 text-white/35 transition-[transform,color] duration-200",
+        "group-hover:text-brand-300/80",
+        open && "rotate-90 text-brand-400"
+      )}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4.5 2.5 8 6 4.5 9.5" />
+    </svg>
+  );
+}
 
 /** One nav link row. `active` carries the brand-400 accent bar. */
 export const sidebarLinkVariants = cva(
@@ -87,42 +144,6 @@ export const sidebarIconVariants = cva(
 /** Notification count pill on a nav link. */
 export const sidebarBadgeClass =
   "ml-auto rounded-full bg-brand-400 px-1.5 py-0.5 text-[10px] font-bold leading-none text-brand-950";
-
-/** Disclosure toggle for "More Tools" and nav groups. */
-export const sidebarGroupToggleVariants = cva(
-  [
-    "flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left",
-    "text-[11px] font-bold uppercase tracking-[0.1em] transition-colors duration-150",
-    "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-400",
-  ],
-  {
-    variants: {
-      active: {
-        true: "text-brand-300",
-        false: "text-white/50 hover:text-white/80",
-      },
-      locked: {
-        true: "cursor-default opacity-50 hover:text-white/50",
-        false: "",
-      },
-    },
-    defaultVariants: { active: false, locked: false },
-  }
-);
-
-export function SidebarChevron({ open }: { open: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "ml-auto text-[13px] leading-none text-white/40 transition-transform duration-150",
-        open && "rotate-90"
-      )}
-    >
-      ›
-    </span>
-  );
-}
 
 /** "New!" unlock badge on a group toggle. */
 export const sidebarNewBadgeClass =

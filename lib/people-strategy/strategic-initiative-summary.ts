@@ -1,6 +1,7 @@
 import { startOfDay, addDays } from "@/lib/leadership-action-center/dates";
 
 import type { ActionItemWithRelations } from "./action-queries";
+import { sortByDeadline } from "./my-actions-selectors";
 import type { MeetingCardDTO } from "./meetings-queries";
 import type { RelatedEntitySummary } from "./connections";
 import { operationalAreaLabel, type OperationalArea } from "./operational-context";
@@ -44,6 +45,7 @@ import {
 import {
   actionToMatchable,
   decisionToMatchable,
+  getInitiativeDef,
   INITIATIVE_PRIORITY_WEIGHT,
   initiativePriorityLabel,
   initiativeStatusLabel,
@@ -128,17 +130,36 @@ export type ClassifiedWork = {
 };
 
 /**
- * Filter a pool of already-loaded work down to the subset that belongs to one
- * initiative, using the deterministic matcher. An item can belong to several
- * initiatives (work genuinely serving two goals counts in both) — this is
- * honest, not double-counting noise. Pure + unit-tested.
+ * True when an action is explicitly linked to the initiative or matches its rules.
  */
+export function actionBelongsToInitiative(
+  action: ActionItemWithRelations,
+  def: StrategicInitiativeDef
+): boolean {
+  if (action.strategicInitiativeId === def.id) return true;
+  return matchesInitiative(actionToMatchable(action), def).matched;
+}
+
+/** Open actions that belong to one initiative, sorted by deadline. Pure. */
+export function filterActionsByInitiative(
+  items: ActionItemWithRelations[],
+  initiativeId: string
+): ActionItemWithRelations[] {
+  const def = getInitiativeDef(initiativeId);
+  if (!def) return [];
+  return sortByDeadline(
+    items.filter(
+      (a) => a.status !== "DROPPED" && actionBelongsToInitiative(a, def)
+    )
+  );
+}
+
 export function classifyInitiativeWork(
   def: StrategicInitiativeDef,
   pool: ClassifiedWork
 ): ClassifiedWork {
   return {
-    actions: pool.actions.filter((a) => matchesInitiative(actionToMatchable(a), def).matched),
+    actions: pool.actions.filter((a) => actionBelongsToInitiative(a, def)),
     meetings: pool.meetings.filter((m) => matchesInitiative(meetingToMatchable(m), def).matched),
     decisions: pool.decisions.filter((d) => matchesInitiative(decisionToMatchable(d), def).matched),
   };

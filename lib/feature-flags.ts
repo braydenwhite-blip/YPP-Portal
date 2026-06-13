@@ -16,12 +16,11 @@ export function isNativeInstructorGateEnabled(): boolean {
 
 /**
  * People Strategy — Action Tracker (Action Items, My Actions, All Actions).
- * Defaults OFF — set `ENABLE_ACTION_TRACKER=true` to expose the runtime
- * surfaces. The schema/migration ship regardless of this flag; the flag gates
- * the feature's pages, server actions, and emails added in later phases.
+ * Defaults ON — set `ENABLE_ACTION_TRACKER=false` to hide runtime surfaces.
+ * Schema/migrations ship regardless; the flag gates pages, server actions, and emails.
  */
 export function isActionTrackerEnabled(): boolean {
-  return process.env.ENABLE_ACTION_TRACKER === "true";
+  return process.env.ENABLE_ACTION_TRACKER !== "false";
 }
 
 /**

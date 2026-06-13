@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 
 import { requireOfficer } from "@/lib/authorization";
-import { isActionTrackerEnabled, isPeopleDashboardEnabled } from "@/lib/feature-flags";
+import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { startOfDay } from "@/lib/leadership-action-center/dates";
-import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import { listActionAssignableUsers } from "@/lib/people-strategy/action-queries";
 import {
   computeDashboardMetrics,
@@ -24,7 +23,7 @@ import {
   areaForRelatedEntityType,
   normalizeRelatedEntityType,
 } from "@/lib/people-strategy/operational-context";
-import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
+import { ActionTrackerBack } from "@/components/people-strategy/action-tracker-tabs";
 import {
   WeeklyCommandCenterClient,
   type FollowQueueRow,
@@ -32,7 +31,6 @@ import {
   type PulseRow,
   type RecentDecisionRow,
 } from "@/components/people-strategy/weekly-command-center-client";
-import { LegacySurfaceBanner } from "@/components/ui-v2";
 import type {
   MeetingPrefill,
   PersonOption,
@@ -200,17 +198,9 @@ export default async function WeeklyCommandCenterPage({
   }
   const owners: PersonOption[] = people.filter((p) => ownerIds.has(p.id));
 
-  const showPeopleDashboardTab = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
-
   return (
     <div className="page-shell" style={{ maxWidth: 1280 }}>
-      <LegacySurfaceBanner
-        title="Work shows meetings and follow-ups now."
-        body="Upcoming meetings, open follow-ups, and decisions needing actions triage at /work — this page keeps meeting capture, agendas, and editing."
-        ctaLabel="Open Work"
-        ctaHref="/work?view=meetings"
-      />
-      <ActionTrackerTabsV2 active="meetings" showPeople={showPeopleDashboardTab} />
+      <ActionTrackerBack />
       <WeeklyCommandCenterClient
         meetings={cards}
         metrics={metrics}
