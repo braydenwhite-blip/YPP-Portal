@@ -394,20 +394,24 @@ export default function Nav({
 
   return (
     <nav className="flex flex-col gap-3">
-      {/* Always-visible doorway to every page in the portal. Sits above the
-          role-tailored nav so there is one clear, complete way into everything,
-          regardless of role-minimal chrome or the public gate. */}
-      <Link
-        href="/site-map"
-        onClick={onNavigate}
-        aria-current={activeNavHref === "/site-map" ? "page" : undefined}
-        className="mb-1 flex items-center gap-2 rounded-xl border border-[rgba(99,102,241,0.25)] bg-[rgba(99,102,241,0.08)] px-3 py-2.5 text-[13.5px] font-semibold text-[#4f46e5] no-underline transition-colors hover:bg-[rgba(99,102,241,0.14)]"
-      >
-        <span aria-hidden className="text-base leading-none">
-          {"🗺️"}
-        </span>
-        <span className="min-w-0 flex-1 truncate">Full Portal — see everything</span>
-      </Link>
+      {/* Doorway to every page in the portal. Gated behind the public preview
+          gate: it only appears once the viewer is past the gate (a valid
+          preview passcode, an officer bypass, or the gate disabled entirely) —
+          mirroring middleware, which redirects gated users away from /site-map.
+          So "see everything" is reachable then and only then. */}
+      {publicGateActive !== true ? (
+        <Link
+          href="/site-map"
+          onClick={onNavigate}
+          aria-current={activeNavHref === "/site-map" ? "page" : undefined}
+          className="mb-1 flex items-center gap-2 rounded-xl border border-[rgba(99,102,241,0.25)] bg-[rgba(99,102,241,0.08)] px-3 py-2.5 text-[13.5px] font-semibold text-[#4f46e5] no-underline transition-colors hover:bg-[rgba(99,102,241,0.14)]"
+        >
+          <span aria-hidden className="text-base leading-none">
+            {"🗺️"}
+          </span>
+          <span className="min-w-0 flex-1 truncate">Full Portal — see everything</span>
+        </Link>
+      ) : null}
       {showSearch ? <HelpAgentTrigger className="mb-1" /> : null}
       {showSearch ? (
         <div className="relative">
