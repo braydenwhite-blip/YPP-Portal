@@ -31,11 +31,8 @@ const OFFICER_TIER_NAV_ROLES = new Set([
  *
  * Structure (grid, fixed sidebar, mobile off-canvas, scroll regions) still
  * rides the frozen legacy classes in app/globals.css (.app-shell/.sidebar/*)
- * so responsive behavior is untouched; the SKIN is Design System 2.0: the
- * dark premium sidebar surface and chrome come from components/ui-v2/sidebar
- * (master plan §22.4 — "the sidebar is the brand anchor on every page for
- * every role"). The legacy sidebar/nav skin blocks in globals.css are dead
- * after this and queue for CSS deletion milestone 1.
+ * so responsive behavior is untouched; the skin is the light cream sidebar
+ * with bubbly pill links from components/ui-v2/sidebar.
  */
 export default function AppShell({
   children,
@@ -167,7 +164,6 @@ export default function AppShell({
           <div className="sidebar-brand">
             <BrandLockup
               height={40}
-              tone="dark"
               className="brand-lockup items-center gap-[11px]"
               href="/"
               priority

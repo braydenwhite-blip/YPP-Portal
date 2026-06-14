@@ -55,8 +55,10 @@ export function SidebarRecents({ limit = 4 }: { limit?: number }) {
             onClick={() => entity360.openEntity(item.type, item.id)}
             className={cn(
               "flex w-full items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-left",
-              "text-[12.5px] font-medium text-white/65 transition-colors duration-150",
-              "hover:bg-white/[0.08] hover:text-white",
+              "rounded-full px-2.5 py-1.5 text-[12.5px] font-medium text-[var(--text-secondary)] transition-all duration-150",
+              "hover:-translate-y-0.5 hover:text-[var(--nav-purple-800)]",
+              "hover:bg-[radial-gradient(130%_200%_at_10%_0%,rgba(255,255,255,0.98)_0%,rgba(237,233,254,0.88)_40%,rgba(224,219,254,0.55)_100%)]",
+              "hover:shadow-[0_4px_12px_rgba(99,102,241,0.1)]",
               "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-400"
             )}
             title={`Open ${item.title}`}
