@@ -28,7 +28,7 @@ import {
   isRegularInstructorGatedPath,
   isSummerWorkshopPermittedPath,
 } from "@/lib/feature-flags";
-import { isAllowedPublicPath } from "@/lib/public-gate";
+import { isAllowedPublicPath, isOfficerTierFromAuth } from "@/lib/public-gate";
 import {
   applyStudentMinimalSidebarLayout,
   studentMinimalLinkOrderIndex,
@@ -39,6 +39,14 @@ import { applyAdminPrimarySidebarFilter } from "@/lib/navigation/admin-primary-n
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
 const CRITICAL_CORE_LINKS = ["/messages"];
+
+/** Always pinned in officer-tier sidebars when visible (People Strategy front doors). */
+const OFFICER_CRITICAL_CORE_LINKS = [
+  "/people",
+  "/actions",
+  "/operations/initiatives",
+  "/work",
+];
 
 type RoleGroupOrder = Record<NavRole, NavGroup[]>;
 
@@ -264,11 +272,9 @@ export interface ResolveNavInput {
    */
   instructorSubtype?: string | null;
   /**
-   * Public portal gate. When true, the nav is restricted to the public
-   * Summer Workshop application + proposal flows. Testers in preview
-   * mode and admins (via admin auto-grant) bypass this filter — by the
-   * time we reach the nav resolver the layout has already cleared the
-   * gate flag for them.
+   * Public portal gate. When true, hide nav links the middleware would
+   * redirect to /locked. Officer-tier roles bypass this filter here even
+   * if the layout still passes `publicGateActive=true` (defense in depth).
    */
   publicGateActive?: boolean;
 }
@@ -500,6 +506,9 @@ function orderGroups(primaryRole: NavRole, groups: NavGroup[]): NavGroup[] {
 export function resolveNavModel(input: ResolveNavInput): NavViewModel & { lockedGroups?: Map<NavGroup, string> } {
   const roles = normalizeRoles(input.roles);
   const primaryRole = resolvePrimaryRole(input.primaryRole, roles);
+  const officerTierUser = isOfficerTierFromAuth(roles, primaryRole);
+  const publicGateRestrictsNav =
+    input.publicGateActive === true && !officerTierUser;
   const hasAward = isAwardTier(input.awardTier);
   const limit = Math.min(input.maxCoreItems ?? CORE_NAV_LIMIT, CORE_NAV_LIMIT);
   const adminSubtypes = input.adminSubtypes ?? [];
@@ -543,12 +552,9 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
         return false;
       }
 
-      // Public portal gate: hide every nav link that points to a surface
-      // the middleware would redirect to /locked. This applies to every
-      // user, admins included, until they enter preview mode (the layout
-      // passes publicGateActive=false only when a valid preview cookie
-      // is present).
-      if (input.publicGateActive && !isAllowedPublicPath(item.href)) {
+      // Public portal gate: hide nav links outside the public allowlist.
+      // Officer-tier roles keep the leadership sidebar without preview mode.
+      if (publicGateRestrictsNav && !isAllowedPublicPath(item.href)) {
         return false;
       }
 
@@ -671,6 +677,14 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
 
   if (!studentMinimalSidebar || primaryRole !== "STUDENT") {
     for (const criticalHref of CRITICAL_CORE_LINKS) {
+      const item = visibleByHref.get(criticalHref);
+      if (!item || !item.coreEligible) continue;
+      addOrReplaceCoreItem(core, item, limit);
+    }
+  }
+
+  if (officerTierUser && !hiringDemoHrefs) {
+    for (const criticalHref of OFFICER_CRITICAL_CORE_LINKS) {
       const item = visibleByHref.get(criticalHref);
       if (!item || !item.coreEligible) continue;
       addOrReplaceCoreItem(core, item, limit);

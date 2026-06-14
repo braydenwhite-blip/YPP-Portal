@@ -1,6 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
-import { isPublicGateEnabled } from "@/lib/public-gate";
+import { isPublicGateEnabled, isOfficerTierFromAuth } from "@/lib/public-gate";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import {
@@ -279,6 +279,12 @@ export default async function OverviewPage() {
   const isReviewer =
     isAdmin || (roles.some((role) => REVIEWER_ROLES.includes(role)) && !isInstructor);
   const name = firstName(session.user.name);
+  const officerBypassesPublicGate = isOfficerTierFromAuth(
+    roles,
+    session.user.primaryRole
+  );
+  const showPreviewUnlockLink =
+    isPublicGateEnabled() && !officerBypassesPublicGate;
 
   // Compact People Strategy queue card. The card self-gates on the feature
   // flag and renders nothing when the viewer has no actions.
@@ -298,7 +304,7 @@ export default async function OverviewPage() {
       return (
         <>
           <LeadershipHome firstName={name} data={cockpit} />
-          {isPublicGateEnabled() && (
+          {showPreviewUnlockLink && (
             <p style={{ maxWidth: 1280, margin: "16px auto 0" }}>
               <Link
                 href="/preview"
@@ -316,7 +322,7 @@ export default async function OverviewPage() {
       return (
         <ReviewerHome
           name={name}
-          gateEnabled={isPublicGateEnabled()}
+          gateEnabled={showPreviewUnlockLink}
           actionsCard={<MyActionsCard viewer={actionViewer} />}
         />
       );
