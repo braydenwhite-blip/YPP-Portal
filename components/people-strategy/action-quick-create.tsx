@@ -149,15 +149,29 @@ export function ActionQuickCreate({
   if (!open) {
     return (
       <div id="create-action" ref={rootRef} style={{ marginTop: 16 }}>
-        <button type="button" className="ps-add-action-cta" onClick={() => setOpen(true)}>
-          <span className="ps-add-action-cta-icon" aria-hidden>
+        <button
+          type="button"
+          className="group flex w-full cursor-pointer items-center gap-3.5 rounded-xl border border-[rgba(107,33,200,0.28)] bg-[linear-gradient(135deg,rgba(107,33,200,0.14)_0%,rgba(139,63,232,0.08)_48%,rgba(255,255,255,0.92)_100%)] px-[18px] py-4 text-left font-[inherit] shadow-[var(--ps-accent-glow)] transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-0.5 hover:border-[rgba(107,33,200,0.45)] hover:shadow-[0_14px_32px_rgba(107,33,200,0.28)] active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[var(--ps-accent)]"
+          onClick={() => setOpen(true)}
+        >
+          <span
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--ps-accent-gradient)] text-[26px] font-bold leading-none text-white shadow-[0_4px_14px_rgba(107,33,200,0.35)]"
+            aria-hidden
+          >
             +
           </span>
-          <span className="ps-add-action-cta-copy">
-            <strong>Add action</strong>
-            <span>What needs to get done? Title, people, due date — under a minute.</span>
+          <span className="grid min-w-0 flex-1 gap-[3px]">
+            <strong className="text-base font-extrabold tracking-[-0.02em] text-[var(--ps-ink,var(--ypp-ink))]">
+              Add action
+            </strong>
+            <span className="text-[13px] leading-[1.4] text-[var(--ps-ink-soft,var(--muted))]">
+              What needs to get done? Title, people, due date — under a minute.
+            </span>
           </span>
-          <span className="ps-add-action-cta-arrow" aria-hidden>
+          <span
+            className="shrink-0 text-xl font-bold text-[var(--ps-accent)] opacity-85 transition-transform duration-150 group-hover:translate-x-[3px]"
+            aria-hidden
+          >
             →
           </span>
         </button>

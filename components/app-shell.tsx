@@ -168,7 +168,7 @@ export default function AppShell({
             <BrandLockup
               height={40}
               tone="dark"
-              className="brand-lockup"
+              className="brand-lockup items-center gap-[11px]"
               href="/"
               priority
               onClick={() => setSidebarOpen(false)}

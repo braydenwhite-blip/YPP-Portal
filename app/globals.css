@@ -344,30 +344,7 @@ main {
 
 .portal-brand-mark {
   flex-shrink: 0;
-  display: block;
   object-fit: contain;
-}
-
-.portal-brand-mark-wrap {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-}
-
-.portal-brand-mark-wrap--dark {
-  width: 58px;
-  height: 40px;
-}
-
-.portal-brand-mark--dark {
-  height: 40px;
-  width: auto;
-  max-width: 100%;
-  object-position: left center;
-  filter:
-    drop-shadow(0 1px 6px rgba(167, 118, 255, 0.28))
-    drop-shadow(0 0 14px rgba(124, 72, 220, 0.16));
 }
 
 .portal-brand-text {
@@ -437,11 +414,6 @@ a.portal-brand.portal-brand--link:active {
 /* Legacy class: pages pass `brand-lockup` for layout caps */
 .brand-lockup {
   max-width: 100%;
-}
-
-.sidebar-header .portal-brand {
-  gap: 11px;
-  align-items: center;
 }
 
 .sidebar-header .brand-lockup {
@@ -8978,92 +8950,6 @@ select.ps-filter {
 }
 
 /* Elevated form shell with a gradient cap — frames the create/edit experience. */
-/* Primary CTA — the one thing that should pop on an otherwise calm tracker page. */
-.ps-add-action-cta {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  margin: 0;
-  padding: 16px 18px;
-  text-align: left;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid rgba(107, 33, 200, 0.28);
-  border-radius: var(--radius-lg, 12px);
-  background:
-    linear-gradient(135deg, rgba(107, 33, 200, 0.14) 0%, rgba(139, 63, 232, 0.08) 48%, rgba(255, 255, 255, 0.92) 100%),
-    var(--ps-surface, #fff);
-  box-shadow: var(--ps-accent-glow);
-  transition:
-    transform var(--transition-fast, 0.15s ease),
-    box-shadow var(--transition-fast, 0.15s ease),
-    border-color var(--transition-fast, 0.15s ease);
-}
-
-.ps-add-action-cta:hover {
-  transform: translateY(-2px);
-  border-color: rgba(107, 33, 200, 0.45);
-  box-shadow: 0 14px 32px rgba(107, 33, 200, 0.28);
-}
-
-.ps-add-action-cta:active {
-  transform: translateY(0);
-}
-
-.ps-add-action-cta:focus-visible {
-  outline: 2px solid var(--ps-accent);
-  outline-offset: 3px;
-}
-
-.ps-add-action-cta-icon {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1;
-  color: #fff;
-  background: var(--ps-accent-gradient);
-  box-shadow: 0 4px 14px rgba(107, 33, 200, 0.35);
-}
-
-.ps-add-action-cta-copy {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  flex: 1;
-}
-
-.ps-add-action-cta-copy strong {
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--ps-ink, var(--ypp-ink));
-}
-
-.ps-add-action-cta-copy span {
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--ps-ink-soft, var(--muted));
-}
-
-.ps-add-action-cta-arrow {
-  flex-shrink: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--ps-accent);
-  opacity: 0.85;
-  transition: transform var(--transition-fast, 0.15s ease);
-}
-
-.ps-add-action-cta:hover .ps-add-action-cta-arrow {
-  transform: translateX(3px);
-}
-
 .ps-form-card {
   position: relative;
   overflow: hidden;
