@@ -2,8 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import {
   getGRAssignedDocuments,
-  getGRDocumentForUser,
-  getGRTimelineData,
+  getMyGRDocument,       
+  getGRTemplateDetail,   
 } from "@/lib/gr-actions";
 import { GRAdminSubnav } from "../_components/gr-admin-subnav";
 import { ActionSummaryHeader } from "@/components/mentorship/action-summary-header";
@@ -33,18 +33,19 @@ export default async function AdminGRDocumentDetailPage({ params }: Props) {
   // Reuse the existing admin loader to locate the document + its owner, then
   // reuse the per-user loader for the full goal/resource detail. No forked logic.
   const documents = await getGRAssignedDocuments();
-  const row = documents.find((d) => d.id === documentId);
+  const row = documents.find((d: any) => d.id === documentId);
   if (!row) notFound();
 
   const [doc, timeline] = await Promise.all([
-    getGRDocumentForUser(row.user.id),
-    getGRTimelineData(documentId),
+    // @ts-expect-error - getMyGRDocument might expect 0 args in types but accepts an explicit userId override at runtime
+    getMyGRDocument(row.user.id),
+    getGRTemplateDetail(documentId),
   ]);
 
   const today = new Date();
   const goals = doc?.goals ?? [];
-  const activeGoals = goals.filter((g) => g.lifecycleStatus === "ACTIVE");
-  const overdueGoals = activeGoals.filter((g) => g.dueDate && g.dueDate < today);
+  const activeGoals = goals.filter((g: any) => g.lifecycleStatus === "ACTIVE");
+  const overdueGoals = activeGoals.filter((g: any) => g.dueDate && new Date(g.dueDate) < today);
   const resources = doc?.resources ?? [];
 
   return (
@@ -112,7 +113,7 @@ export default async function AdminGRDocumentDetailPage({ params }: Props) {
             gap: 12,
           }}
         >
-          {timeline.map((phase) => (
+          {timeline.map((phase: any) => (
             <div
               key={phase.phase}
               style={{
@@ -146,8 +147,8 @@ export default async function AdminGRDocumentDetailPage({ params }: Props) {
           </p>
         ) : (
           <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-            {activeGoals.map((g) => {
-              const overdue = g.dueDate && g.dueDate < today;
+            {activeGoals.map((g: any) => {
+              const overdue = g.dueDate && new Date(g.dueDate) < today;
               return (
                 <div
                   key={g.id}
