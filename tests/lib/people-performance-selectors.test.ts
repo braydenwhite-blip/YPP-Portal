@@ -9,16 +9,19 @@ import {
   buildSignals,
   checkInCellStatus,
   computePerformanceStats,
+  countMatchingFilter,
   currentQuarterLabel,
   deriveNextAction,
   describeCompileResult,
   factsMatchFilter,
   feedbackCellStatus,
+  memberNeedsAttention,
   monthKeyUTC,
   monthLabelUTC,
   monthStartUTC,
   parseMonthKey,
   quarterlyCellStatus,
+  roleExpectsMentor,
   workloadCellStatus,
   type CurrentMonthFeedback,
   type PerformanceRowFacts,
@@ -47,6 +50,11 @@ function makeFacts(overrides: Partial<PerformanceRowFacts> = {}): PerformanceRow
     activeActionCount: 0,
     overdueActionCount: 0,
     currentMonthKey: "2026-06",
+    hasMentor: true,
+    mentorEligible: false,
+    needsMentor: false,
+    growthOpportunity: false,
+    disengagementRisk: false,
     ...overrides,
   };
 }
@@ -361,6 +369,113 @@ describe("deriveNextAction priority", () => {
       CTX
     );
     expect(action.kind).toBe("view-details");
+  });
+
+  it("0 — a disengagement-risk flag wins over everything, even feedback to review", () => {
+    const action = deriveNextAction(
+      makeFacts({
+        disengagementRisk: true,
+        needsCheckIn: true,
+        monthFeedback: makeMonthFeedback({ requested: 3, submitted: 3 }),
+      }),
+      CTX
+    );
+    expect(action.kind).toBe("support-checkin");
+    expect(action.reason).toBe("Flagged at risk of disengaging");
+  });
+
+  it("7 — assigns a mentor for a mentor-eligible person with no other pressing step", () => {
+    const action = deriveNextAction(
+      makeFacts({
+        needsCheckIn: false,
+        reviewDue: false,
+        mentorEligible: true,
+        hasMentor: false,
+        needsMentor: true,
+        monthFeedback: makeMonthFeedback({ requested: 1, submitted: 1, pending: 0 }),
+      }),
+      CTX
+    );
+    expect(action.kind).toBe("assign-mentor");
+    expect(action.reason).toBe("No mentor assigned");
+  });
+
+  it("9 — recognizes a 'ready for more' person when nothing else is pressing", () => {
+    const action = deriveNextAction(
+      makeFacts({
+        needsCheckIn: false,
+        reviewDue: false,
+        growthOpportunity: true,
+        monthFeedback: makeMonthFeedback({ requested: 1, submitted: 1, pending: 0 }),
+      }),
+      CTX
+    );
+    expect(action.kind).toBe("recognize-growth");
+    expect(action.reason).toBe("Ready for more responsibility");
+  });
+
+  it("keeps overdue work ahead of a mentor gap but behind a missing review", () => {
+    const overdue = deriveNextAction(
+      makeFacts({
+        reviewDue: false,
+        needsMentor: false,
+        overdueActionCount: 2,
+        hasOverdueAction: true,
+        workloadWarning: "2 overdue actions",
+        monthFeedback: makeMonthFeedback({ requested: 1, submitted: 1 }),
+      }),
+      CTX
+    );
+    expect(overdue.kind).toBe("view-overdue");
+  });
+});
+
+describe("mentorship & growth selectors", () => {
+  it("treats instructors and chapter presidents as mentor-eligible", () => {
+    expect(roleExpectsMentor("INSTRUCTOR")).toBe(true);
+    expect(roleExpectsMentor("CHAPTER_PRESIDENT")).toBe(true);
+    expect(roleExpectsMentor("STUDENT")).toBe(false);
+    expect(roleExpectsMentor("ADMIN")).toBe(false);
+    expect(roleExpectsMentor(null)).toBe(false);
+  });
+
+  it("surfaces no-mentor, growth, and disengagement signals with concrete labels", () => {
+    expect(buildSignals(makeFacts({ needsMentor: true }))).toContainEqual({
+      label: "No mentor assigned",
+      tone: "warning",
+    });
+    expect(buildSignals(makeFacts({ growthOpportunity: true }))).toContainEqual({
+      label: "Ready for more",
+      tone: "success",
+    });
+    expect(buildSignals(makeFacts({ disengagementRisk: true }))).toContainEqual({
+      label: "At risk of disengaging",
+      tone: "danger",
+    });
+  });
+
+  it("matches the no-mentor and growth filters", () => {
+    expect(factsMatchFilter(makeFacts({ needsMentor: true }), "no-mentor")).toBe(true);
+    expect(factsMatchFilter(makeFacts(), "no-mentor")).toBe(false);
+    expect(factsMatchFilter(makeFacts({ growthOpportunity: true }), "growth")).toBe(true);
+    expect(factsMatchFilter(makeFacts(), "growth")).toBe(false);
+  });
+
+  it("counts a missing mentor and a disengagement risk as needing attention", () => {
+    expect(memberNeedsAttention(makeFacts({ needsMentor: true }))).toBe(true);
+    expect(memberNeedsAttention(makeFacts({ disengagementRisk: true }))).toBe(true);
+    expect(memberNeedsAttention(makeFacts())).toBe(false);
+  });
+
+  it("counts rows matching a filter for the chip badges", () => {
+    const rows = [
+      { facts: makeFacts({ needsMentor: true }) },
+      { facts: makeFacts({ needsMentor: true }) },
+      { facts: makeFacts({ growthOpportunity: true }) },
+    ];
+    expect(countMatchingFilter(rows, "no-mentor")).toBe(2);
+    expect(countMatchingFilter(rows, "growth")).toBe(1);
+    expect(countMatchingFilter(rows, "all")).toBe(3);
   });
 });
 

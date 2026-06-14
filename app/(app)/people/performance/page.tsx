@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { PageHeaderV2, UrlSyncedSearchInput } from "@/components/ui-v2";
+import {
+  FilterBar,
+  FilterChipLink,
+  PageHeaderV2,
+  UrlSyncedSearchInput,
+} from "@/components/ui-v2";
 import { PeopleHubNav } from "@/components/people/people-hub-nav";
 import { MonthSnapshotStrip } from "@/components/people-strategy/month-snapshot-strip";
 import { PeoplePerformanceClient } from "@/components/people-strategy/people-performance-client";
@@ -18,8 +23,11 @@ import {
 } from "@/lib/people-strategy/people-performance";
 import {
   buildMonthSnapshot,
+  countMatchingFilter,
   monthLabelUTC,
   parseMonthKey,
+  PERFORMANCE_FILTER_LABELS,
+  type PerformanceFilter,
 } from "@/lib/people-strategy/people-performance-selectors";
 
 export const dynamic = "force-dynamic";
@@ -38,8 +46,34 @@ export default async function PeoplePerformancePage({
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : undefined;
 
+  // The high-signal People-memory views, "All" last. Filters are URL links so
+  // the CPO review queue and the Help Agent can deep-link a filtered view.
+  const FILTER_CHIPS = [
+    "needs-attention",
+    "needs-checkin",
+    "feedback-pending",
+    "reviews-due",
+    "no-mentor",
+    "growth",
+    "workload",
+    "all",
+  ] as const satisfies readonly PerformanceFilter[];
+  const rawView = typeof sp.view === "string" ? sp.view : undefined;
+  const view: PerformanceFilter =
+    rawView && (FILTER_CHIPS as readonly string[]).includes(rawView)
+      ? (rawView as PerformanceFilter)
+      : "all";
+
   const { rows, currentQuarter, currentMonthKey } = await loadPeoplePerformance();
-  const visible = filterPerformanceRows(rows, "all", q);
+  const visible = filterPerformanceRows(rows, view, q);
+
+  function chipHref(key: PerformanceFilter): string {
+    const params = new URLSearchParams();
+    if (key !== "all") params.set("view", key);
+    if (q) params.set("q", q);
+    const query = params.toString();
+    return query ? `/people/performance?${query}` : "/people/performance";
+  }
 
   const currentMonth = parseMonthKey(currentMonthKey);
   const monthLabel = currentMonth ? monthLabelUTC(currentMonth) : currentMonthKey;
@@ -96,6 +130,19 @@ export default async function PeoplePerformancePage({
         wrapClassName="w-full"
         aria-label="Search team"
       />
+
+      <FilterBar aria-label="Filter people">
+        {FILTER_CHIPS.map((key) => (
+          <FilterChipLink
+            key={key}
+            href={chipHref(key)}
+            active={key === view}
+            count={key === "all" ? undefined : countMatchingFilter(rows, key)}
+          >
+            {PERFORMANCE_FILTER_LABELS[key]}
+          </FilterChipLink>
+        ))}
+      </FilterBar>
 
       <p className="m-0 text-[12.5px] text-ink-muted">
         {visible.length === rows.length

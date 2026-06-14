@@ -26,13 +26,19 @@ import type { PeoplePerformanceRow } from "@/lib/people-strategy/people-performa
 type Member = { id: string; name: string };
 
 /** Tones for the needs-action chips — concrete, never a vague level. */
-const KIND_TONE: Record<NextActionKind, "danger" | "warning" | "info" | "brand" | "neutral"> = {
+const KIND_TONE: Record<
+  NextActionKind,
+  "danger" | "warning" | "info" | "brand" | "success" | "neutral"
+> = {
+  "support-checkin": "danger",
   "review-feedback": "info",
   "compile-check-in": "warning",
   "request-feedback": "brand",
   "await-feedback": "info",
   "open-review": "warning",
+  "assign-mentor": "warning",
   "view-overdue": "danger",
+  "recognize-growth": "success",
   "view-details": "neutral",
 };
 

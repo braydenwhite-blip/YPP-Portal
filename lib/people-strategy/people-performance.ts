@@ -1,5 +1,11 @@
+import type { GrowthTag } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 
+import {
+  hasDisengagementRisk,
+  isGrowthOpportunity,
+} from "./growth-signals";
 import { loadPeopleDashboard, type PeopleDashboardRow } from "./people-dashboard";
 import {
   buildCheckInCalendarDots,
@@ -10,6 +16,7 @@ import {
   factsMatchFilter,
   monthKeyUTC,
   parseMonthKey,
+  roleExpectsMentor,
   type CheckInCalendarDot,
   type CurrentMonthFeedback,
   type MemberFeedbackStatus,
@@ -38,6 +45,8 @@ export type PeoplePerformanceRow = PeopleDashboardRow & {
   facts: PerformanceRowFacts;
   signals: PerformanceSignal[];
   calendarDots: CheckInCalendarDot[];
+  /** Human-curated growth signals on this member (officer assessment). */
+  growthTags: GrowthTag[];
 };
 
 export type PeoplePerformanceResult = {
@@ -88,6 +97,30 @@ const EMPTY_FEEDBACK: MemberFeedbackStatus = {
   submitted: 0,
   lastRequestedMonthKey: null,
 };
+
+/**
+ * Human-curated `MemberGrowthTag`s per member (the leadership growth signals
+ * already shown on the public profile to officers). Read here so the People
+ * memory layer can flag "Ready for more" and "At risk of disengaging" without a
+ * per-row query — these are officer-visible assessments, never response bodies.
+ */
+async function loadGrowthSignalsByMember(
+  memberIds: string[]
+): Promise<Map<string, GrowthTag[]>> {
+  if (memberIds.length === 0) return new Map();
+  const tags = await prisma.memberGrowthTag.findMany({
+    where: { userId: { in: memberIds } },
+    select: { userId: true, tag: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const map = new Map<string, GrowthTag[]>();
+  for (const t of tags) {
+    const list = map.get(t.userId);
+    if (list) list.push(t.tag);
+    else map.set(t.userId, [t.tag]);
+  }
+  return map;
+}
 
 /**
  * Per-member feedback position for ONE month (the current month). Reads only
@@ -165,17 +198,23 @@ export async function loadPeoplePerformance(
 
   const dashboardRows = await loadPeopleDashboard(now);
   const memberIds = dashboardRows.map((r) => r.id);
-  const [feedbackByMember, monthFeedbackByMember] = await Promise.all([
+  const [feedbackByMember, monthFeedbackByMember, growthByMember] = await Promise.all([
     loadFeedbackStatusByMember(memberIds),
     loadCurrentMonthFeedback(memberIds, monthStart),
+    loadGrowthSignalsByMember(memberIds),
   ]);
 
   const rows: PeoplePerformanceRow[] = dashboardRows.map((row) => {
     const feedback = feedbackByMember.get(row.id) ?? EMPTY_FEEDBACK;
     const monthFeedback =
       monthFeedbackByMember.get(row.id) ?? EMPTY_CURRENT_MONTH_FEEDBACK;
+    const growthTags = growthByMember.get(row.id) ?? [];
     const activeActions = [...row.leadActions, ...row.executingActions];
     const overdueActionCount = activeActions.filter((a) => a.overdue).length;
+    // Mentorship: a missing mentor is only a gap for mentor-eligible roles
+    // (instructors / chapter presidents — the program's two lanes).
+    const hasMentor = Boolean(row.mentorId);
+    const mentorEligible = roleExpectsMentor(row.role);
     const facts: PerformanceRowFacts = {
       workloadWarning: row.workloadWarning,
       // The action views already carry the overdue flag computed by the
@@ -191,12 +230,18 @@ export async function loadPeoplePerformance(
       activeActionCount: activeActions.length,
       overdueActionCount,
       currentMonthKey,
+      hasMentor,
+      mentorEligible,
+      needsMentor: mentorEligible && !hasMentor,
+      growthOpportunity: isGrowthOpportunity(growthTags),
+      disengagementRisk: hasDisengagementRisk(growthTags),
     };
     return {
       ...row,
       facts,
       signals: buildSignals(facts),
       calendarDots: buildCheckInCalendarDots(row.recentCheckIns, now),
+      growthTags,
     };
   });
 

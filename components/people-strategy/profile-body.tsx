@@ -5,6 +5,7 @@ import type {
   PublicProfilePerson,
 } from "@/lib/people-strategy/public-profile";
 import { GROWTH_TAG_META } from "@/lib/people-strategy/growth-signals";
+import { roleExpectsMentor } from "@/lib/people-strategy/people-performance-selectors";
 import { Pill } from "@/components/people-strategy/pills";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
@@ -99,6 +100,20 @@ export function ProfileBody({ profile }: { profile: PublicProfile }) {
             ) : null}
           </div>
         </CollapsibleSection>
+      ) : null}
+
+      {/* Mentorship gap — officer view only, for roles the program pairs a
+          mentor to (instructors / chapter presidents). Members and peers never
+          see this assessment. */}
+      {profile.mentors.length === 0 &&
+      profile.growthSignals !== null &&
+      roleExpectsMentor(profile.primaryRole) ? (
+        <section className="card" style={{ padding: "16px 18px" }}>
+          <h2 style={SECTION_LABEL}>Mentorship</h2>
+          <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
+            No mentor is assigned. Assign a mentor or create a mentorship plan.
+          </p>
+        </section>
       ) : null}
 
       {/* Recognition — public peer kudos received. */}
