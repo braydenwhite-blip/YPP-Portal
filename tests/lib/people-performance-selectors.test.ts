@@ -4,18 +4,34 @@ import {
   allowedFeedbackMonths,
   asPerformanceFilter,
   buildCheckInCalendarDots,
+  buildMonthSnapshot,
+  buildNeedsActionList,
   buildSignals,
+  checkInCellStatus,
   computePerformanceStats,
   currentQuarterLabel,
+  deriveNextAction,
+  describeCompileResult,
   factsMatchFilter,
+  feedbackCellStatus,
   monthKeyUTC,
   monthLabelUTC,
   monthStartUTC,
   parseMonthKey,
+  quarterlyCellStatus,
+  workloadCellStatus,
+  type CurrentMonthFeedback,
   type PerformanceRowFacts,
 } from "@/lib/people-strategy/people-performance-selectors";
 
 const NOW = new Date("2026-06-12T15:00:00Z");
+const CTX = { monthLabel: "June 2026", quarter: "2026-Q2" };
+
+function makeMonthFeedback(
+  overrides: Partial<CurrentMonthFeedback> = {}
+): CurrentMonthFeedback {
+  return { requested: 0, submitted: 0, pending: 0, newSinceCheckIn: false, ...overrides };
+}
 
 function makeFacts(overrides: Partial<PerformanceRowFacts> = {}): PerformanceRowFacts {
   return {
@@ -25,7 +41,11 @@ function makeFacts(overrides: Partial<PerformanceRowFacts> = {}): PerformanceRow
     successor: false,
     needsCheckIn: false,
     reviewDue: false,
+    hasAnyReview: true,
     feedback: { outstanding: 0, submitted: 0, lastRequestedMonthKey: "2026-06" },
+    monthFeedback: makeMonthFeedback(),
+    activeActionCount: 0,
+    overdueActionCount: 0,
     currentMonthKey: "2026-06",
     ...overrides,
   };
@@ -172,5 +192,268 @@ describe("filters and stats", () => {
       workloadFlagged: 1,
       succession: 1,
     });
+  });
+});
+
+describe("plain-English cell statuses", () => {
+  it("derives feedback text from the current month's workflow position", () => {
+    expect(feedbackCellStatus(makeFacts()).text).toBe("No request this month");
+    expect(
+      feedbackCellStatus(
+        makeFacts({
+          needsCheckIn: true,
+          monthFeedback: makeMonthFeedback({ requested: 5, submitted: 3, pending: 2 }),
+        })
+      ).text
+    ).toBe("3 in, 2 waiting");
+    expect(
+      feedbackCellStatus(
+        makeFacts({
+          needsCheckIn: true,
+          monthFeedback: makeMonthFeedback({ requested: 3, submitted: 3, pending: 0 }),
+        })
+      ).text
+    ).toBe("Ready to review");
+    expect(
+      feedbackCellStatus(
+        makeFacts({
+          needsCheckIn: true,
+          monthFeedback: makeMonthFeedback({ requested: 2, submitted: 0, pending: 2 }),
+        })
+      ).text
+    ).toBe("Waiting on 2");
+    expect(
+      feedbackCellStatus(
+        makeFacts({
+          needsCheckIn: false,
+          monthFeedback: makeMonthFeedback({ requested: 2, submitted: 2, newSinceCheckIn: true }),
+        })
+      ).text
+    ).toBe("New feedback since check-in");
+  });
+
+  it("derives check-in text including ready-to-compile and missing states", () => {
+    expect(checkInCellStatus(makeFacts({ needsCheckIn: false }), "Jun").text).toBe(
+      "Jun compiled"
+    );
+    expect(checkInCellStatus(makeFacts({ needsCheckIn: true }), "Jun").text).toBe(
+      "Missing Jun"
+    );
+    expect(
+      checkInCellStatus(
+        makeFacts({
+          needsCheckIn: true,
+          monthFeedback: makeMonthFeedback({ requested: 2, submitted: 2 }),
+        }),
+        "Jun"
+      ).text
+    ).toBe("Ready to compile");
+  });
+
+  it("derives workload text from active and overdue counts", () => {
+    expect(workloadCellStatus(makeFacts({ activeActionCount: 0 })).text).toBe(
+      "No active items"
+    );
+    expect(
+      workloadCellStatus(
+        makeFacts({ activeActionCount: 4, overdueActionCount: 1 })
+      ).text
+    ).toBe("4 active, 1 overdue");
+    expect(
+      workloadCellStatus(makeFacts({ activeActionCount: 3, overdueActionCount: 0 })).text
+    ).toBe("3 active");
+  });
+
+  it("derives quarterly text from review presence and the feature flag", () => {
+    expect(quarterlyCellStatus(makeFacts({ reviewDue: false })).text).toBe("Complete");
+    expect(quarterlyCellStatus(makeFacts({ reviewDue: true })).text).toBe("Missing");
+    expect(quarterlyCellStatus(makeFacts({ reviewDue: true }), false).text).toBe("Not due");
+  });
+});
+
+describe("deriveNextAction priority", () => {
+  it("1 — reviews feedback that is in and not yet reflected in a check-in", () => {
+    const action = deriveNextAction(
+      makeFacts({
+        needsCheckIn: true,
+        monthFeedback: makeMonthFeedback({ requested: 3, submitted: 3 }),
+      }),
+      CTX
+    );
+    expect(action.kind).toBe("review-feedback");
+    expect(action.reason).toBe("3 responses ready to review");
+  });
+
+  it("1 — flags new feedback that arrived after the check-in was compiled", () => {
+    const action = deriveNextAction(
+      makeFacts({
+        needsCheckIn: false,
+        monthFeedback: makeMonthFeedback({ requested: 2, submitted: 1, newSinceCheckIn: true }),
+      }),
+      CTX
+    );
+    expect(action.kind).toBe("review-feedback");
+    expect(action.reason).toBe("1 new response since check-in");
+  });
+
+  it("2/3 — compiles the check-in when the month is missing and no feedback is in", () => {
+    const action = deriveNextAction(makeFacts({ needsCheckIn: true }), CTX);
+    expect(action.kind).toBe("compile-check-in");
+    expect(action.reason).toBe("June 2026 check-in not compiled");
+  });
+
+  it("4 — requests feedback when none was sent this month", () => {
+    const action = deriveNextAction(
+      makeFacts({ needsCheckIn: false, monthFeedback: makeMonthFeedback({ requested: 0 }) }),
+      CTX
+    );
+    expect(action.kind).toBe("request-feedback");
+  });
+
+  it("5 — waits on outstanding responses", () => {
+    const action = deriveNextAction(
+      makeFacts({
+        needsCheckIn: false,
+        monthFeedback: makeMonthFeedback({ requested: 3, submitted: 1, pending: 2 }),
+      }),
+      CTX
+    );
+    expect(action.kind).toBe("await-feedback");
+    expect(action.reason).toBe("Waiting on 2 responses");
+  });
+
+  it("6 — opens a missing quarterly review", () => {
+    const action = deriveNextAction(
+      makeFacts({
+        needsCheckIn: false,
+        reviewDue: true,
+        monthFeedback: makeMonthFeedback({ requested: 1, submitted: 1, pending: 0 }),
+      }),
+      CTX
+    );
+    expect(action.kind).toBe("open-review");
+    expect(action.reason).toBe("No 2026-Q2 review");
+  });
+
+  it("7 — surfaces overdue work items", () => {
+    const action = deriveNextAction(
+      makeFacts({
+        needsCheckIn: false,
+        reviewDue: false,
+        overdueActionCount: 4,
+        hasOverdueAction: true,
+        workloadWarning: "4 overdue actions",
+        monthFeedback: makeMonthFeedback({ requested: 1, submitted: 1, pending: 0 }),
+      }),
+      CTX
+    );
+    expect(action.kind).toBe("view-overdue");
+    expect(action.reason).toBe("4 overdue actions");
+  });
+
+  it("8 — falls back to view-details when nothing is pressing", () => {
+    const action = deriveNextAction(
+      makeFacts({
+        needsCheckIn: false,
+        reviewDue: false,
+        monthFeedback: makeMonthFeedback({ requested: 1, submitted: 1, pending: 0 }),
+      }),
+      CTX
+    );
+    expect(action.kind).toBe("view-details");
+  });
+});
+
+describe("buildMonthSnapshot", () => {
+  it("sums concrete workflow counts across rows", () => {
+    const rows = [
+      {
+        facts: makeFacts({
+          needsCheckIn: true,
+          monthFeedback: makeMonthFeedback({ requested: 3, submitted: 3, pending: 0 }),
+        }),
+      },
+      {
+        facts: makeFacts({
+          needsCheckIn: false,
+          reviewDue: true,
+          monthFeedback: makeMonthFeedback({ requested: 2, submitted: 1, pending: 1 }),
+        }),
+      },
+    ];
+    expect(buildMonthSnapshot(rows)).toEqual({
+      feedbackRequested: 5,
+      feedbackReceived: 4,
+      feedbackToReview: 1,
+      checkInsCompleted: 1,
+      checkInsMissing: 1,
+      reviewsToAttend: 1,
+    });
+  });
+});
+
+describe("buildNeedsActionList", () => {
+  it("orders by urgency, drops up-to-date people, and caps the list", () => {
+    const rows = [
+      {
+        id: "calm",
+        name: "Calm Person",
+        email: "calm@example.com",
+        facts: makeFacts({
+          needsCheckIn: false,
+          monthFeedback: makeMonthFeedback({ requested: 1, submitted: 1, pending: 0 }),
+        }),
+      },
+      {
+        id: "missing",
+        name: "Missing Checkin",
+        email: "m@example.com",
+        facts: makeFacts({ needsCheckIn: true }),
+      },
+      {
+        id: "review",
+        name: "Has Feedback",
+        email: "h@example.com",
+        facts: makeFacts({
+          needsCheckIn: true,
+          monthFeedback: makeMonthFeedback({ requested: 2, submitted: 2 }),
+        }),
+      },
+    ];
+    const list = buildNeedsActionList(rows, CTX);
+    expect(list.map((i) => i.id)).toEqual(["review", "missing"]);
+    expect(list[0].action.kind).toBe("review-feedback");
+  });
+});
+
+describe("describeCompileResult", () => {
+  it("reports a first compile that used feedback", () => {
+    expect(
+      describeCompileResult("May 2026", {
+        feedbackResponses: 3,
+        isRecompile: false,
+        newResponses: 3,
+      })
+    ).toBe("Compiled May 2026 check-in using 3 feedback responses.");
+  });
+
+  it("reports a compile with no feedback available", () => {
+    expect(
+      describeCompileResult("May 2026", {
+        feedbackResponses: 0,
+        isRecompile: false,
+        newResponses: 0,
+      })
+    ).toBe("Compiled May 2026 check-in. No collaborator feedback was available yet.");
+  });
+
+  it("reports a recompile that picked up new responses", () => {
+    expect(
+      describeCompileResult("May 2026", {
+        feedbackResponses: 4,
+        isRecompile: true,
+        newResponses: 1,
+      })
+    ).toBe("Recompiled May 2026 check-in with 1 new response.");
   });
 });

@@ -125,6 +125,30 @@ export type MemberFeedbackStatus = {
   lastRequestedMonthKey: string | null;
 };
 
+/**
+ * The current month's feedback workflow position for one member. These are the
+ * concrete facts the redesigned surface answers leadership's questions with —
+ * "who has feedback ready to review", "who is still waiting" — with no synthetic
+ * score and no vague health word.
+ */
+export type CurrentMonthFeedback = {
+  /** Feedback requests created targeting the current month. */
+  requested: number;
+  /** Of those, responses already received. */
+  submitted: number;
+  /** Of those, still awaiting a response. */
+  pending: number;
+  /** A response arrived after the current-month check-in was compiled. */
+  newSinceCheckIn: boolean;
+};
+
+export const EMPTY_CURRENT_MONTH_FEEDBACK: CurrentMonthFeedback = {
+  requested: 0,
+  submitted: 0,
+  pending: 0,
+  newSinceCheckIn: false,
+};
+
 export type PerformanceSignal = {
   label: string;
   tone: "danger" | "warning" | "info" | "success" | "brand" | "neutral";
@@ -146,7 +170,15 @@ export type PerformanceRowFacts = {
   needsCheckIn: boolean;
   /** No quarterly review for the current quarter. */
   reviewDue: boolean;
+  /** A quarterly review exists, but for an older quarter than the current one. */
+  hasAnyReview: boolean;
   feedback: MemberFeedbackStatus;
+  /** The current month's feedback workflow position. */
+  monthFeedback: CurrentMonthFeedback;
+  /** Active (incomplete) work items the member carries. */
+  activeActionCount: number;
+  /** Of those, how many are overdue. */
+  overdueActionCount: number;
   /** "2026-06" — the current month, for the needs-feedback comparison. */
   currentMonthKey: string;
 };
@@ -280,33 +312,268 @@ export function computePerformanceStats(rows: Array<{ facts: PerformanceRowFacts
   return stats;
 }
 
-/** Up to three plain-language status chips for the simplified table. */
-export function buildAttentionLabels(
-  facts: PerformanceRowFacts,
-  currentMonthLabel: string,
-  currentQuarter: string
-): PerformanceSignal[] {
-  const labels: PerformanceSignal[] = [];
-  if (facts.needsCheckIn) {
-    labels.push({ label: `No ${currentMonthLabel} check-in`, tone: "warning" });
+// ── Plain-English cell status (table + drawer share this language) ───────────
+
+export type CellStatus = { text: string; tone: PerformanceSignal["tone"] };
+
+function plural(n: number, one: string, many = `${one}s`): string {
+  return n === 1 ? one : many;
+}
+
+/** "3 in, 2 waiting" · "No request this month" · "Ready to review". */
+export function feedbackCellStatus(facts: PerformanceRowFacts): CellStatus {
+  const f = facts.monthFeedback;
+  if (f.requested === 0) {
+    return { text: "No request this month", tone: "neutral" };
   }
-  if (facts.reviewDue) {
-    labels.push({ label: `No ${currentQuarter} review`, tone: "warning" });
-  }
-  if (facts.workloadWarning) {
-    labels.push({
-      label: facts.workloadWarning,
-      tone: facts.hasOverdueAction ? "danger" : "warning",
-    });
-  }
-  if (facts.feedback.outstanding > 0) {
-    labels.push({
-      label: `${facts.feedback.outstanding} feedback pending`,
+  const readyToReview = f.submitted > 0 && (facts.needsCheckIn || f.newSinceCheckIn);
+  if (readyToReview) {
+    if (f.newSinceCheckIn && !facts.needsCheckIn) {
+      return { text: "New feedback since check-in", tone: "info" };
+    }
+    return {
+      text: f.pending > 0 ? `${f.submitted} in, ${f.pending} waiting` : "Ready to review",
       tone: "info",
-    });
+    };
   }
-  if (labels.length === 0) {
-    labels.push({ label: "On track", tone: "success" });
+  if (f.submitted === 0 && f.pending > 0) {
+    return { text: `Waiting on ${f.pending}`, tone: "warning" };
   }
-  return labels.slice(0, 3);
+  if (f.submitted > 0) {
+    return { text: `${f.submitted} ${plural(f.submitted, "response")} in`, tone: "success" };
+  }
+  return { text: "No responses yet", tone: "neutral" };
+}
+
+/** "May compiled" · "Missing May" · "Ready to compile". `monthLabel` is short ("May"). */
+export function checkInCellStatus(
+  facts: PerformanceRowFacts,
+  monthLabel: string
+): CellStatus {
+  if (facts.needsCheckIn) {
+    if (facts.monthFeedback.submitted > 0) {
+      return { text: "Ready to compile", tone: "info" };
+    }
+    return { text: `Missing ${monthLabel}`, tone: "warning" };
+  }
+  if (facts.monthFeedback.newSinceCheckIn) {
+    return { text: "New feedback since", tone: "info" };
+  }
+  return { text: `${monthLabel} compiled`, tone: "success" };
+}
+
+/** "4 active, 1 overdue" · "No active items". */
+export function workloadCellStatus(facts: PerformanceRowFacts): CellStatus {
+  const { activeActionCount: active, overdueActionCount: overdue } = facts;
+  if (active === 0) {
+    return { text: "No active items", tone: "neutral" };
+  }
+  if (overdue > 0) {
+    return { text: `${active} active, ${overdue} overdue`, tone: "danger" };
+  }
+  return { text: `${active} active`, tone: "neutral" };
+}
+
+/** "Complete" · "Missing" · "Not due". `enabled` reflects ENABLE_QUARTERLY_REVIEWS. */
+export function quarterlyCellStatus(
+  facts: PerformanceRowFacts,
+  enabled = true
+): CellStatus {
+  if (!enabled) return { text: "Not due", tone: "neutral" };
+  if (!facts.reviewDue) return { text: "Complete", tone: "success" };
+  return { text: "Missing", tone: "warning" };
+}
+
+// ── Next action: one concrete step per person ────────────────────────────────
+
+export type NextActionKind =
+  | "review-feedback"
+  | "compile-check-in"
+  | "request-feedback"
+  | "await-feedback"
+  | "open-review"
+  | "view-overdue"
+  | "view-details";
+
+export type NextAction = {
+  kind: NextActionKind;
+  /** Button label, e.g. "Review feedback". */
+  actionLabel: string;
+  /** Concrete reason with its real number, e.g. "3 responses ready to review". */
+  reason: string;
+};
+
+/** Lower = more urgent. Drives the "Needs action" list ordering. */
+export const NEXT_ACTION_RANK: Record<NextActionKind, number> = {
+  "review-feedback": 0,
+  "compile-check-in": 1,
+  "request-feedback": 2,
+  "await-feedback": 3,
+  "open-review": 4,
+  "view-overdue": 5,
+  "view-details": 6,
+};
+
+/**
+ * Decide the single best next step for a member from concrete workflow facts —
+ * never a score. The order mirrors the request → respond → review → compile →
+ * review loop: act on feedback that is in, then close the month's check-in,
+ * then chase what is still missing.
+ */
+export function deriveNextAction(
+  facts: PerformanceRowFacts,
+  ctx: { monthLabel: string; quarter: string }
+): NextAction {
+  const f = facts.monthFeedback;
+
+  // 1. New feedback responses ready to review.
+  if (f.submitted > 0 && (facts.needsCheckIn || f.newSinceCheckIn)) {
+    const reason =
+      f.newSinceCheckIn && !facts.needsCheckIn
+        ? `${f.submitted} new ${plural(f.submitted, "response")} since check-in`
+        : `${f.submitted} ${plural(f.submitted, "response")} ready to review`;
+    return { kind: "review-feedback", actionLabel: "Review feedback", reason };
+  }
+
+  // 2 + 3. Check-in for the current month is not compiled yet.
+  if (facts.needsCheckIn) {
+    return {
+      kind: "compile-check-in",
+      actionLabel: "Compile check-in",
+      reason: `${ctx.monthLabel} check-in not compiled`,
+    };
+  }
+
+  // 4. No feedback request was sent this month.
+  if (f.requested === 0) {
+    return {
+      kind: "request-feedback",
+      actionLabel: "Request feedback",
+      reason: "No feedback request sent this month",
+    };
+  }
+
+  // 5. Waiting on outstanding responses.
+  if (f.pending > 0) {
+    return {
+      kind: "await-feedback",
+      actionLabel: "View feedback",
+      reason: `Waiting on ${f.pending} ${plural(f.pending, "response")}`,
+    };
+  }
+
+  // 6. Quarterly review missing for the current quarter.
+  if (facts.reviewDue) {
+    return {
+      kind: "open-review",
+      actionLabel: "Open quarterly review",
+      reason: `No ${ctx.quarter} review`,
+    };
+  }
+
+  // 7. Overdue work items.
+  if (facts.overdueActionCount > 0) {
+    return {
+      kind: "view-overdue",
+      actionLabel: "View overdue work",
+      reason:
+        facts.workloadWarning ??
+        `${facts.overdueActionCount} overdue ${plural(facts.overdueActionCount, "item")}`,
+    };
+  }
+
+  // 8. Nothing pressing.
+  return { kind: "view-details", actionLabel: "View details", reason: "Up to date" };
+}
+
+// ── "This month" snapshot strip + "Needs action" list ────────────────────────
+
+export type MonthSnapshot = {
+  feedbackRequested: number;
+  feedbackReceived: number;
+  feedbackToReview: number;
+  checkInsCompleted: number;
+  checkInsMissing: number;
+  reviewsToAttend: number;
+};
+
+export function buildMonthSnapshot(
+  rows: Array<{ facts: PerformanceRowFacts }>
+): MonthSnapshot {
+  const snap: MonthSnapshot = {
+    feedbackRequested: 0,
+    feedbackReceived: 0,
+    feedbackToReview: 0,
+    checkInsCompleted: 0,
+    checkInsMissing: 0,
+    reviewsToAttend: 0,
+  };
+  for (const { facts } of rows) {
+    const f = facts.monthFeedback;
+    snap.feedbackRequested += f.requested;
+    snap.feedbackReceived += f.submitted;
+    if (f.submitted > 0 && (facts.needsCheckIn || f.newSinceCheckIn)) {
+      snap.feedbackToReview++;
+    }
+    if (facts.needsCheckIn) snap.checkInsMissing++;
+    else snap.checkInsCompleted++;
+    if (facts.reviewDue) snap.reviewsToAttend++;
+  }
+  return snap;
+}
+
+export type NeedsActionItem = {
+  id: string;
+  name: string;
+  action: NextAction;
+};
+
+/**
+ * The short triage list at the top of the page — the most urgent concrete
+ * actions, capped. Members whose next step is "view-details" (nothing pressing)
+ * never appear here: this is a to-do list, not a roster.
+ */
+export function buildNeedsActionList<
+  T extends { id: string; name: string; email: string; facts: PerformanceRowFacts },
+>(
+  rows: T[],
+  ctx: { monthLabel: string; quarter: string },
+  limit = 8
+): NeedsActionItem[] {
+  return rows
+    .map((row) => ({
+      id: row.id,
+      name: row.name || row.email,
+      action: deriveNextAction(row.facts, ctx),
+    }))
+    .filter((item) => item.action.kind !== "view-details")
+    .sort((a, b) => NEXT_ACTION_RANK[a.action.kind] - NEXT_ACTION_RANK[b.action.kind])
+    .slice(0, limit);
+}
+
+// ── Feedback-aware compile result language ───────────────────────────────────
+
+/**
+ * Plain-English sentence describing what a compile did, from aggregate counts
+ * only — no collaborator names, no response bodies. Shared by the compile
+ * action's caller so the wording is consistent.
+ */
+export function describeCompileResult(
+  monthLabel: string,
+  args: { feedbackResponses: number; isRecompile: boolean; newResponses: number }
+): string {
+  const verb = args.isRecompile ? "Recompiled" : "Compiled";
+  if (args.feedbackResponses === 0) {
+    return `${verb} ${monthLabel} check-in. No collaborator feedback was available yet.`;
+  }
+  if (args.isRecompile && args.newResponses > 0) {
+    return `Recompiled ${monthLabel} check-in with ${args.newResponses} new ${plural(
+      args.newResponses,
+      "response"
+    )}.`;
+  }
+  return `${verb} ${monthLabel} check-in using ${args.feedbackResponses} feedback ${plural(
+    args.feedbackResponses,
+    "response"
+  )}.`;
 }
