@@ -5,6 +5,7 @@ import {
   isRelatedEntityType,
   parseRelatedEntityRef,
   parseRelatedEntityUpdate,
+  relatedEntityNoun,
   relatedEntityTypeLabel,
 } from "@/lib/people-strategy/constants";
 
@@ -44,6 +45,22 @@ describe("relatedEntityTypeLabel", () => {
 
   it("falls back to the raw value when unknown", () => {
     expect(relatedEntityTypeLabel("MYSTERY")).toBe("MYSTERY");
+  });
+});
+
+describe("relatedEntityNoun — lowercase prose noun for inline sentences", () => {
+  it("uses the audience's everyday word, not the Title-Case label", () => {
+    expect(relatedEntityNoun("CLASS_OFFERING")).toBe("class");
+    expect(relatedEntityNoun("MENTORSHIP")).toBe("mentorship");
+    expect(relatedEntityNoun("USER")).toBe("person");
+    // "applicant" deliberately differs from the "Instructor Application" label.
+    expect(relatedEntityNoun("INSTRUCTOR_APPLICATION")).toBe("applicant");
+    expect(relatedEntityNoun("PARTNER")).toBe("partner");
+  });
+
+  it("falls back to a neutral 'record' when unknown", () => {
+    expect(relatedEntityNoun("MYSTERY")).toBe("record");
+    expect(relatedEntityNoun("")).toBe("record");
   });
 });
 

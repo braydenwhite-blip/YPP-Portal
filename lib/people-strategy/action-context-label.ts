@@ -2,6 +2,7 @@ import { formatDueDate } from "@/lib/leadership-action-center/dates";
 
 import type { ActionItemWithRelations } from "./action-queries";
 import { deriveActionStrategicLinkage } from "./action-source";
+import { relatedEntityNoun } from "./constants";
 
 /**
  * People Strategy — connected context for an action.
@@ -24,14 +25,6 @@ export type ActionConnectedContext = {
   text: string;
   /** A link to the originating record, when one is resolvable. */
   href: string | null;
-};
-
-const RELATED_ENTITY_NOUN: Record<string, string> = {
-  CLASS_OFFERING: "class",
-  MENTORSHIP: "mentorship",
-  USER: "person",
-  INSTRUCTOR_APPLICATION: "applicant",
-  PARTNER: "partner",
 };
 
 /**
@@ -68,8 +61,7 @@ export function deriveActionContextLabel(
 
   // A polymorphic record link — class / partner / person / applicant.
   if (item.relatedEntityType && item.relatedEntityId) {
-    const noun = RELATED_ENTITY_NOUN[item.relatedEntityType] ?? "record";
-    return { text: `Related ${noun}`, href: null };
+    return { text: `Related ${relatedEntityNoun(item.relatedEntityType)}`, href: null };
   }
 
   return null;
