@@ -8,6 +8,7 @@ import { PersonLink } from "@/components/people-strategy/person-link";
 import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
 import { meetingCategoryTone } from "@/lib/people-strategy/meeting-categories";
 import { meetingNextAction } from "@/lib/people-strategy/meeting-command-center";
+import { relatedEntityTypeLabel } from "@/lib/people-strategy/constants";
 import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
 import {
   Avatar,
@@ -99,6 +100,11 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
             <CategoryBadge category={m.category} />
             <MeetingStatusBadge status={m.effectiveStatus} />
             {(m.priority === "HIGH" || m.priority === "URGENT") && <PriorityBadge priority={m.priority} />}
+            {m.relatedEntityType ? (
+              <Pill tone="purple" style={{ fontWeight: 700 }}>
+                {relatedEntityTypeLabel(m.relatedEntityType)}
+              </Pill>
+            ) : null}
             <span style={{ flex: 1 }} />
             {m.overdueFollowUps > 0 && (
               <Pill tone="danger" style={{ fontWeight: 700 }}>
@@ -186,6 +192,7 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
             <StatChip icon="flag" value={m.openFollowUps} label="" danger={m.overdueFollowUps > 0} />
             <Link
               href={next.href}
+              title={next.reason}
               style={{
                 fontSize: 12.5,
                 fontWeight: 700,

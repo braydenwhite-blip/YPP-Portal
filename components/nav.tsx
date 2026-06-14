@@ -14,6 +14,7 @@ import {
   sidebarGroupToggleVariants,
   sidebarIconVariants,
   sidebarLinkVariants,
+  sidebarNavPanelClass,
   sidebarNewBadgeClass,
   sidebarSectionDividerClass,
   sidebarSectionTitleClass,
@@ -30,9 +31,8 @@ import type { NavGroup, NavLink } from "@/lib/navigation/types";
  * Behavior (nav model resolution, group expand/collapse with localStorage
  * persistence, role-minimal chrome, locking, badges, the filter input) is
  * unchanged from the legacy version and pinned by
- * tests/components/app-shell-nav-contract.test.tsx. The skin is Design
- * System 2.0's dark premium sidebar (components/ui-v2/sidebar); the legacy
- * `.nav*` classes in globals.css are no longer referenced here.
+ * tests/components/app-shell-nav-contract.test.tsx. The skin is the light
+ * cream sidebar with bubbly pill links from components/ui-v2/sidebar.
  */
 
 /** Counts passed from the server layout for notification badges. */
@@ -371,7 +371,7 @@ export default function Nav({
             <div key="instructor-training-with-studio" className="flex flex-col gap-0.5">
               {renderNavLink(item)}
               <div
-                className="mb-1 ml-5 flex flex-col gap-0.5 border-l-2 border-white/15 pl-2"
+                className="mb-1 ml-5 flex flex-col gap-0.5 border-l-2 border-[rgba(99,102,241,0.2)] pl-2"
                 role="group"
                 aria-label="Instructor training tools"
               >
@@ -409,7 +409,7 @@ export default function Nav({
           {search && (
             <button
               type="button"
-              className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] text-white/65 hover:bg-white/10 hover:text-white"
+              className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] text-gray-400 hover:bg-gray-100 hover:text-gray-700"
               onClick={() => setSearch("")}
               aria-label="Clear search"
             >
@@ -420,18 +420,18 @@ export default function Nav({
       ) : null}
 
       {totalResults === 0 ? (
-        <div className="px-3 py-4 text-[12.5px] text-white/55">
+        <div className="px-3 py-4 text-[12.5px] text-[var(--gray-600)]">
           No results for &ldquo;{search}&rdquo;
         </div>
       ) : (
         <>
-          <section>
+          <section className={sidebarNavPanelClass}>
             {studentHomeOnlyCore ? null : (
               <p className={sidebarSectionTitleClass}>
                 {hiringDemoMode ? "Hiring" : useMinimalFlatNavChrome ? "Shortcuts" : "Top Tools"}
               </p>
             )}
-            <div className="flex flex-col gap-0.5">{renderCoreNavItems()}</div>
+            <div className="flex flex-col gap-0.5 p-2">{renderCoreNavItems()}</div>
           </section>
 
           {filteredMore.length > 0 ? (
@@ -487,7 +487,7 @@ export default function Nav({
                         </div>
                       ) : null}
                       {isLocked ? (
-                        <p className="m-0 px-3 pb-2 text-[12px] leading-snug text-white/45">
+                        <p className="m-0 px-3 pb-2 text-[12px] leading-snug text-[var(--gray-600)]">
                           {lockReason ?? "Complete earlier steps to unlock."}
                         </p>
                       ) : null}
@@ -496,15 +496,15 @@ export default function Nav({
                 })}
               </section>
             ) : (
-              <section>
-                <div className={sidebarSectionDividerClass} aria-hidden />
+              <section className={sidebarNavPanelClass}>
                 <button
                   type="button"
                   className={cn(
                     sidebarGroupToggleVariants({
                       active: false,
                       open: effectiveMoreOpen,
-                    })
+                    }),
+                    "border-b border-[rgba(99,102,241,0.1)]"
                   )}
                   onClick={() => setMoreOpen((previous) => !previous)}
                   aria-expanded={effectiveMoreOpen}
@@ -516,7 +516,7 @@ export default function Nav({
                 </button>
 
                 {effectiveMoreOpen ? (
-                  <div className="ml-1 flex flex-col gap-0.5 border-l border-white/[0.08] pl-2 pt-0.5">
+                  <div className="ml-1 flex flex-col gap-0.5 border-l border-[rgba(99,102,241,0.1)] pl-2 pt-0.5 pb-2">
                     {filteredMore.map((group) => {
                       const groupHasActive =
                         activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);

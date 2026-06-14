@@ -170,6 +170,11 @@ export function MeetingNowNextCard({
           <Link href={next.href} style={{ textDecoration: "none" }}>
             <MeetingButton icon="arrowR">{next.label}</MeetingButton>
           </Link>
+          {next.reason ? (
+            <span style={{ fontSize: 11.5, color: "var(--muted)", textAlign: "center", lineHeight: 1.35, maxWidth: 220 }}>
+              {next.reason}
+            </span>
+          ) : null}
           <Link href={`/actions/meetings/${m.id}`} style={{ textDecoration: "none" }}>
             <MeetingButton variant="outline" icon="calendar">
               Open workspace

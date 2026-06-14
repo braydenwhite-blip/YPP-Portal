@@ -48,6 +48,7 @@ export {
   sidebarHeaderClass,
   sidebarIconVariants,
   sidebarLinkVariants,
+  sidebarNavPanelClass,
   sidebarNewBadgeClass,
   sidebarSectionDividerClass,
   sidebarSectionTitleClass,

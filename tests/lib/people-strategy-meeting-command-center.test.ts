@@ -225,6 +225,81 @@ describe("meetingNextAction priority order (spec §10)", () => {
   });
 });
 
+describe("meetingNextAction reason — the exact 'why' beside the action", () => {
+  it("explains a live meeting", () => {
+    expect(meetingNextAction(meeting({ effectiveStatus: "in_progress" })).reason).toBe(
+      "It's happening now."
+    );
+  });
+
+  it("explains a missing agenda", () => {
+    expect(
+      meetingNextAction(meeting({ effectiveStatus: "upcoming", agendaCount: 0 })).reason
+    ).toBe("No agenda set yet.");
+  });
+
+  it("explains a missing wrap-up step with the exact gap", () => {
+    expect(
+      meetingNextAction(meeting({ effectiveStatus: "completed", hasNotes: false })).reason
+    ).toBe("No notes written yet.");
+  });
+
+  it("pluralizes owner gaps with the real count", () => {
+    const one = meetingNextAction(
+      meeting({
+        effectiveStatus: "completed",
+        hasNotes: true,
+        decisionCount: 1,
+        followUpCount: 2,
+        followUpsNeedingOwner: 1,
+      })
+    );
+    expect(one.key).toBe("assign_owners");
+    expect(one.reason).toBe("1 action needs an owner.");
+
+    const many = meetingNextAction(
+      meeting({
+        effectiveStatus: "completed",
+        hasNotes: true,
+        decisionCount: 1,
+        followUpCount: 3,
+        followUpsNeedingOwner: 2,
+      })
+    );
+    expect(many.reason).toBe("2 actions need an owner.");
+  });
+
+  it("counts overdue follow-ups in the reason", () => {
+    const a = meetingNextAction(
+      meeting({
+        effectiveStatus: "needs_follow_up",
+        hasNotes: true,
+        decisionCount: 1,
+        linkedActionCount: 1,
+        followUpCount: 1,
+        overdueFollowUps: 2,
+      })
+    );
+    expect(a.key).toBe("review_actions");
+    expect(a.reason).toBe("2 follow-ups overdue.");
+  });
+
+  it("stays positive when nothing is outstanding", () => {
+    expect(
+      meetingNextAction(
+        meeting({
+          effectiveStatus: "completed",
+          hasNotes: true,
+          decisionCount: 1,
+          linkedActionCount: 1,
+          followUpCount: 1,
+          overdueFollowUps: 0,
+        })
+      ).reason
+    ).toBe("Wrapped up — nothing outstanding.");
+  });
+});
+
 describe("computeWrapUpState (spec §5)", () => {
   it("names notes as missing in plain English", () => {
     const state = computeWrapUpState(meeting({ effectiveStatus: "completed", hasNotes: false }));
