@@ -11,6 +11,7 @@ import {
 } from "@/lib/app-shell-metadata";
 import {
   PREVIEW_COOKIE_NAME,
+  isOfficerTierFromAuth,
   isPublicGateEnabled,
   verifyPreviewToken,
 } from "@/lib/public-gate";
@@ -81,7 +82,8 @@ export default async function AppLayout({
   ]);
 
   const awardTier = getHighestAwardTier(session.user.awards ?? []);
-  const publicGateActive = publicGateEnabled && !previewActive;
+  const officerBypassesPublicGate = isOfficerTierFromAuth(roles, primaryRole);
+  const publicGateActive = publicGateEnabled && !previewActive && !officerBypassesPublicGate;
 
   return (
     <AppShell

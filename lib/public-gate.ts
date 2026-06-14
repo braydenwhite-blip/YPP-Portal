@@ -89,6 +89,19 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   // route through middleware; it does not grant access.
   "/admin/instructor-applicants",
 
+  // Leadership / People Strategy surfaces (each page enforces officer-tier
+  // or role checks server-side; listing here only bypasses the public gate
+  // redirect so officers can navigate without a preview passcode).
+  "/people",
+  "/work",
+  "/actions",
+  "/operations",
+  "/partners",
+  "/admin",
+  "/messages",
+  "/notifications",
+  "/help-agent",
+
   // Summer Workshop Proposals (workshop design studio + required
   // training surface that the Summer Workshop pathway depends on).
   "/instructor/workshop-design-studio",
@@ -128,6 +141,35 @@ export function isAllowedPublicPath(pathname: string): boolean {
   return PUBLIC_ALLOWED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
+}
+
+const OFFICER_TIER_ROLE_SET = new Set([
+  "ADMIN",
+  "STAFF",
+  "CHAPTER_PRESIDENT",
+  "HIRING_CHAIR",
+]);
+
+/** Edge-safe officer check for middleware (Supabase user_metadata.roles). */
+export function isOfficerTierFromAuth(
+  roles: unknown,
+  primaryRole?: unknown
+): boolean {
+  const roleSet = new Set<string>();
+  if (typeof primaryRole === "string" && primaryRole.trim()) {
+    roleSet.add(primaryRole.trim().toUpperCase());
+  }
+  if (Array.isArray(roles)) {
+    for (const role of roles) {
+      if (typeof role === "string" && role.trim()) {
+        roleSet.add(role.trim().toUpperCase());
+      }
+    }
+  }
+  for (const role of roleSet) {
+    if (OFFICER_TIER_ROLE_SET.has(role)) return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------

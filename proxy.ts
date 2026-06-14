@@ -7,6 +7,7 @@ import {
   LOCKED_PATH,
   PREVIEW_COOKIE_NAME,
   isAllowedPublicPath,
+  isOfficerTierFromAuth,
   isPublicGateEnabled,
   verifyPreviewToken,
 } from "@/lib/public-gate";
@@ -243,14 +244,17 @@ export async function proxy(request: NextRequest) {
   }
 
   // Public portal gate: redirect any non-allowed surface to /locked
-  // unless the visitor presents a valid signed preview cookie. This
-  // applies to every authenticated user, admins included — the only
-  // way past the gate is the preview passcode at /preview.
+  // unless the visitor presents a valid signed preview cookie or holds an
+  // officer-tier role (admin, staff, chapter president, hiring chair).
   if (isPublicGateEnabled() && isAuthenticated && pathname !== LOCKED_PATH) {
     if (!isAllowedPublicPath(pathname)) {
       const previewCookie = request.cookies.get(PREVIEW_COOKIE_NAME)?.value ?? null;
       const previewValid = previewCookie ? await verifyPreviewToken(previewCookie) : false;
-      if (!previewValid) {
+      const metadata = user?.user_metadata as
+        | { roles?: string[]; primaryRole?: string }
+        | undefined;
+      const officerBypass = isOfficerTierFromAuth(metadata?.roles, metadata?.primaryRole);
+      if (!previewValid && !officerBypass) {
         const dest = request.nextUrl.clone();
         dest.pathname = LOCKED_PATH;
         dest.search = "";
