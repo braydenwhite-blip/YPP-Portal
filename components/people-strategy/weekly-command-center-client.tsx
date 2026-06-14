@@ -8,9 +8,9 @@ import {
   meetingCategoryLabel,
   meetingCategoryTone,
 } from "@/lib/people-strategy/meeting-categories";
-import type { DashboardMetrics } from "@/lib/people-strategy/meetings-status";
 import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
 import { MeetingCard } from "./meeting-card";
+import { MeetingNowNextCard } from "./meeting-now-next";
 import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
 import {
   Avatar,
@@ -81,7 +81,6 @@ const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
 
 export function WeeklyCommandCenterClient({
   meetings,
-  metrics,
   followQueue,
   overdueActions,
   recentDecisions,
@@ -92,9 +91,9 @@ export function WeeklyCommandCenterClient({
   owners,
   meetingPrefill,
   autoOpenNew = false,
+  nowISO,
 }: {
   meetings: MeetingCardDTO[];
-  metrics: DashboardMetrics;
   followQueue: FollowQueueRow[];
   overdueActions: OverdueActionRow[];
   recentDecisions: RecentDecisionRow[];
@@ -105,6 +104,7 @@ export function WeeklyCommandCenterClient({
   owners: PersonOption[];
   meetingPrefill?: MeetingPrefill;
   autoOpenNew?: boolean;
+  nowISO: string;
 }) {
   const [q, setQ] = useState("");
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
@@ -231,38 +231,8 @@ export function WeeklyCommandCenterClient({
         />
       ) : (
         <>
-          <Card style={{ padding: "16px 18px", borderColor: metrics.overdueFollowUps > 0 ? "var(--danger-border, #f3cccc)" : "var(--border)" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-              <div style={{ minWidth: 0, flex: "1 1 360px" }}>
-                <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--ypp-purple-600)" }}>
-                  Start here
-                </span>
-                <h2 style={{ margin: "5px 0 0", fontSize: 18, lineHeight: 1.2, color: "var(--ypp-ink)" }}>
-                  {metrics.overdueFollowUps > 0
-                    ? "Close overdue follow-ups first."
-                    : allNeedsFollowUpCount > 0
-                      ? "Close the meetings that still need follow-up."
-                      : "Review upcoming meetings."}
-                </h2>
-                <p style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.45, color: "var(--muted)" }}>
-                  Meetings are useful when decisions and follow-ups become tracked actions.
-                </p>
-              </div>
-              <MeetingButton
-                variant={allNeedsFollowUpCount > 0 ? "outline" : "solid"}
-                icon={allNeedsFollowUpCount > 0 ? "flag" : "calendar"}
-                onClick={() => setSimpleView(allNeedsFollowUpCount > 0 ? "needs" : "upcoming")}
-              >
-                {allNeedsFollowUpCount > 0 ? "Review follow-ups" : "View upcoming"}
-              </MeetingButton>
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 13 }}>
-              <SummaryPill value={metrics.meetingsThisWeek} label="this week" />
-              <SummaryPill value={metrics.needsFollowUp} label="need follow-up" tone={metrics.needsFollowUp > 0 ? "warning" : "default"} />
-              <SummaryPill value={metrics.overdueFollowUps} label="overdue follow-ups" tone={metrics.overdueFollowUps > 0 ? "danger" : "default"} />
-              <SummaryPill value={metrics.openMeetingActions} label="open actions" />
-            </div>
-          </Card>
+          {/* What matters right now — the page's primary entry point. */}
+          <MeetingNowNextCard meetings={meetings} nowISO={nowISO} />
 
           <Card style={{ padding: "11px 12px" }}>
             <MeetingViewSwitcher
@@ -414,43 +384,6 @@ export function WeeklyCommandCenterClient({
 }
 
 // --- week nav ---------------------------------------------------------------
-
-function SummaryPill({
-  value,
-  label,
-  tone = "default",
-}: {
-  value: number;
-  label: string;
-  tone?: "default" | "warning" | "danger";
-}) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        border: "1px solid var(--border)",
-        borderRadius: 999,
-        background: "var(--surface)",
-        padding: "4px 10px",
-        fontSize: 12,
-        fontWeight: 700,
-        color:
-          tone === "danger"
-            ? "var(--danger-fg)"
-            : tone === "warning"
-              ? "var(--warn-fg, #854d0e)"
-              : "var(--text-secondary)",
-      }}
-    >
-      <strong style={{ color: "inherit", fontVariantNumeric: "tabular-nums" }}>
-        {value}
-      </strong>
-      {label}
-    </span>
-  );
-}
 
 function MeetingViewSwitcher({
   view,

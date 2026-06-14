@@ -5,7 +5,6 @@ import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { startOfDay } from "@/lib/leadership-action-center/dates";
 import { listActionAssignableUsers } from "@/lib/people-strategy/action-queries";
 import {
-  computeDashboardMetrics,
   computeDepartmentPulse,
   computeFollowUpStatus,
   weekRangeForOffset,
@@ -127,7 +126,6 @@ export default async function WeeklyCommandCenterPage({
 
   const views = meetings.map(mapMeetingToView);
   const cards = meetings.map((m) => mapMeetingToCardDTO(m, now));
-  const metrics = computeDashboardMetrics(views, now);
   const pulse: PulseRow[] = computeDepartmentPulse(views, now).map((r) => ({
     area: r.area,
     open: r.open,
@@ -203,7 +201,7 @@ export default async function WeeklyCommandCenterPage({
       <ActionTrackerBack />
       <WeeklyCommandCenterClient
         meetings={cards}
-        metrics={metrics}
+        nowISO={now.toISOString()}
         followQueue={followQueue}
         overdueActions={overdueActions}
         recentDecisions={recentDecisionRows}
