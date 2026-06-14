@@ -34,7 +34,7 @@ describe("resolvePageHelper", () => {
       roles: ["ADMIN"],
     });
 
-    expect(result?.content.purpose).toContain("admin command center");
+    expect(result?.content.purpose).toContain("admin home base");
   });
 
   it("returns public help for public routes", () => {

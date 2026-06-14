@@ -1,9 +1,9 @@
 import {
   ButtonLink,
   EntityChip,
+  MetricStrip,
   PageHeaderV2,
   RecordSection,
-  StatCardV2,
   StatusBadge,
 } from "@/components/ui-v2";
 import type { LeadershipHomeData } from "@/lib/home/leadership-home";
@@ -68,50 +68,50 @@ export function LeadershipHome({
         subtitle="What needs attention across YPP today — every number below opens its list."
         actions={<HomeSearchButton />}
       >
-        <div className="flex flex-wrap gap-3">
-          <StatCardV2
-            label="Overdue actions"
-            value={stats.overdueActions}
-            tone={stats.overdueActions > 0 ? "attention" : "default"}
-            href="/work?flag=overdue"
-          />
-          <StatCardV2
-            label="Decisions needed"
-            value={stats.applicantsAwaitingDecision}
-            detail="applicants in the chair queue"
-            tone={stats.applicantsAwaitingDecision > 0 ? "attention" : "default"}
-            href="/admin/instructor-applicants"
-          />
-          <StatCardV2
-            label="Students without advisors"
-            value={stats.studentsWithoutAdvisor}
-            tone={stats.studentsWithoutAdvisor > 0 ? "attention" : "default"}
-            href="/people?flag=no-advisor"
-          />
-          <StatCardV2
-            label="Check-ins overdue"
-            value={stats.advisorCheckInsOverdue}
-            detail="advisor check-ins past due"
-            tone={stats.advisorCheckInsOverdue > 0 ? "attention" : "default"}
-            href="/people?flag=checkin-overdue"
-          />
-          <StatCardV2
-            label="Partner follow-ups"
-            value={stats.partnerFollowUpsOverdue}
-            detail={
-              stats.openPartnerRequests > 0
-                ? `past due · ${stats.openPartnerRequests} open requests`
-                : "past their follow-up date"
-            }
-            tone={stats.partnerFollowUpsOverdue > 0 ? "attention" : "default"}
-            href="/partners?view=follow-up"
-          />
-          <StatCardV2
-            label="Upcoming meetings"
-            value={stats.upcomingMeetings}
-            href="/work?view=meetings"
-          />
-        </div>
+        {/* Attention-first summary: five concrete states, worst first. Upcoming
+            meetings live in their own section below rather than as a calm sixth
+            tile, so this strip stays purely "what needs you" (doctrine §7). */}
+        <MetricStrip
+          aria-label="What needs attention today"
+          metrics={[
+            {
+              label: "Overdue actions",
+              value: stats.overdueActions,
+              tone: stats.overdueActions > 0 ? "attention" : "default",
+              href: "/work?flag=overdue",
+            },
+            {
+              label: "Decisions needed",
+              value: stats.applicantsAwaitingDecision,
+              detail: "applicants in the chair queue",
+              tone: stats.applicantsAwaitingDecision > 0 ? "attention" : "default",
+              href: "/admin/instructor-applicants",
+            },
+            {
+              label: "Students without advisors",
+              value: stats.studentsWithoutAdvisor,
+              tone: stats.studentsWithoutAdvisor > 0 ? "attention" : "default",
+              href: "/people?flag=no-advisor",
+            },
+            {
+              label: "Check-ins overdue",
+              value: stats.advisorCheckInsOverdue,
+              detail: "advisor check-ins past due",
+              tone: stats.advisorCheckInsOverdue > 0 ? "attention" : "default",
+              href: "/people?flag=checkin-overdue",
+            },
+            {
+              label: "Partner follow-ups",
+              value: stats.partnerFollowUpsOverdue,
+              detail:
+                stats.openPartnerRequests > 0
+                  ? `past due · ${stats.openPartnerRequests} open requests`
+                  : "past their follow-up date",
+              tone: stats.partnerFollowUpsOverdue > 0 ? "attention" : "default",
+              href: "/partners?view=follow-up",
+            },
+          ]}
+        />
       </PageHeaderV2>
 
       {data.brief.length > 0 ? (

@@ -32,11 +32,15 @@ export { RecordSection } from "./record-section";
 export { Checklist, type ChecklistItem } from "./checklist";
 export { DecisionDock, type DecisionOption } from "./decision-dock";
 export { FilterBar, FilterChipLink, UrlSyncedSearchInput } from "./filter-bar";
+export { ViewSwitcher, type SwitcherView } from "./view-switcher";
+export { AdvancedFilters } from "./advanced-filters";
+export { MetricStrip, type MetricStripItem } from "./metric-strip";
 export { LegacySurfaceBanner } from "./legacy-surface-banner";
 export { ModalV2, ModalFooterV2 } from "./modal";
 export { ToastV2 } from "./toast";
 export { BannerV2 } from "./banner";
 export { TrackerStartCard } from "./tracker";
+export { TrackerShell, TrackerRow, TrackerPreview } from "./tracker-shell";
 export {
   SidebarChevron,
   SidebarUserCard,

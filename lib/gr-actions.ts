@@ -1005,3 +1005,135 @@ export async function getMyGRDocument() {
     ratingHistoryByGoal
   };
 }
+
+/**
+ * Admin loader for one person's full G&R document (goals + resources), keyed by
+ * the document owner's user id. Mirrors getMyGRDocument's query (one active doc
+ * per user via @@unique([userId, templateId])) but gated to admins, for the
+ * /admin/mentorship/gr/[documentId] detail page.
+ */
+export async function getGRDocumentForUser(userId: string) {
+  await requireAdmin();
+
+  return prisma.gRDocument.findFirst({
+    where: { userId, status: { in: ["DRAFT", "ACTIVE"] } },
+    include: {
+      template: { select: { title: true, roleType: true } },
+      goals: {
+        where: { lifecycleStatus: { in: ["ACTIVE", "COMPLETED"] } },
+        orderBy: [
+          { lifecycleStatus: "asc" },
+          { priority: "desc" },
+          { dueDate: "asc" },
+          { sortOrder: "asc" },
+        ],
+      },
+      resources: { include: { resource: true }, orderBy: { sortOrder: "asc" } },
+    },
+  });
+}
+
+/** Display order + human labels for the G&R time phases. */
+const GR_TIMELINE_PHASES: { phase: string; label: string }[] = [
+  { phase: "FIRST_MONTH", label: "First month" },
+  { phase: "FIRST_QUARTER", label: "First quarter" },
+  { phase: "LONG_TERM", label: "Long term" },
+  { phase: "MONTHLY", label: "Monthly goals" },
+];
+
+/**
+ * Timeline phases for one G&R document: for each phase that has goals, how many
+ * goals it holds and how many show logged progress, plus whether the phase is
+ * current or done relative to the role start date. Drives the admin "Timeline
+ * phases" card. Deterministic — no scores, just concrete counts.
+ */
+export async function getGRTimelineData(documentId: string) {
+  await requireAdmin();
+
+  const [doc, goals] = await Promise.all([
+    prisma.gRDocument.findUnique({
+      where: { id: documentId },
+      select: { roleStartDate: true },
+    }),
+    prisma.gRDocumentGoal.findMany({
+      where: { documentId, lifecycleStatus: { in: ["ACTIVE", "COMPLETED"] } },
+      select: {
+        timePhase: true,
+        progressState: true,
+        completedAt: true,
+        lifecycleStatus: true,
+        _count: { select: { kpiValues: true } },
+      },
+    }),
+  ]);
+
+  const now = new Date();
+  const monthsElapsed = doc?.roleStartDate
+    ? (now.getFullYear() - doc.roleStartDate.getFullYear()) * 12 +
+      (now.getMonth() - doc.roleStartDate.getMonth())
+    : 0;
+
+  // The deprecated FULL_YEAR bucket folds into LONG_TERM.
+  const normalizePhase = (phase: string) => (phase === "FULL_YEAR" ? "LONG_TERM" : phase);
+  const hasProgress = (g: (typeof goals)[number]) =>
+    g.lifecycleStatus === "COMPLETED" ||
+    g.completedAt != null ||
+    g.progressState !== "NOT_STARTED" ||
+    g._count.kpiValues > 0;
+
+  const phaseState: Record<string, { isCurrent: boolean; isCompleted: boolean }> = {
+    FIRST_MONTH: { isCompleted: monthsElapsed >= 1, isCurrent: monthsElapsed < 1 },
+    FIRST_QUARTER: {
+      isCompleted: monthsElapsed >= 3,
+      isCurrent: monthsElapsed >= 1 && monthsElapsed < 3,
+    },
+    LONG_TERM: { isCompleted: false, isCurrent: monthsElapsed >= 3 },
+    MONTHLY: { isCompleted: false, isCurrent: true },
+  };
+
+  return GR_TIMELINE_PHASES.map(({ phase, label }) => {
+    const phaseGoals = goals.filter((g) => normalizePhase(g.timePhase) === phase);
+    return {
+      phase,
+      label,
+      isCurrent: phaseState[phase]?.isCurrent ?? false,
+      isCompleted: phaseState[phase]?.isCompleted ?? false,
+      goalCount: phaseGoals.length,
+      goalsWithProgress: phaseGoals.filter(hasProgress).length,
+    };
+  }).filter((p) => p.goalCount > 0);
+}
+
+/**
+ * Mentor (or admin) reminder to a mentee that their monthly self-reflection is
+ * still outstanding. Resolves the reflection's mentee + cycle, authorizes the
+ * caller as the assigned mentor or an admin (same rule as saveGoalReview), then
+ * fires the deduped GR_REFLECTION_DUE notification.
+ */
+export async function sendReflectionNudge(formData: FormData) {
+  const session = await requireAuth();
+
+  const reflectionId = String(formData.get("reflectionId") ?? "").trim();
+  if (!reflectionId) throw new Error("Missing reflectionId");
+
+  const reflection = await prisma.monthlySelfReflection.findUniqueOrThrow({
+    where: { id: reflectionId },
+    select: {
+      cycleMonth: true,
+      mentorship: { select: { mentorId: true, menteeId: true } },
+    },
+  });
+
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+  if (reflection.mentorship.mentorId !== session.user.id && !isAdmin) {
+    throw new Error("You are not the assigned mentor for this reflection");
+  }
+
+  await notifyMenteeReflectionDue({
+    menteeId: reflection.mentorship.menteeId,
+    cycleMonthIso: reflection.cycleMonth.toISOString(),
+  });
+
+  return { ok: true };
+}

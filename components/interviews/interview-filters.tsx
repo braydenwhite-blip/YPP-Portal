@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { CardV2, FilterBar, FilterChipLink, cn } from "@/components/ui-v2";
+import { CardV2, FilterBar, FilterChipLink, ViewSwitcher } from "@/components/ui-v2";
 import type {
   InterviewHubFilters,
   InterviewHubKpis,
@@ -54,66 +53,39 @@ function stateCount(value: InterviewStateFilter | "all", kpis?: InterviewHubKpis
   return null;
 }
 
-/** URL-synced segmented control — filters are links, not client state. */
-function Segmented({
-  label,
-  options,
-}: {
-  label: string;
-  options: Array<{ label: string; href: string; selected: boolean }>;
-}) {
-  return (
-    <div>
-      <p className="mb-1.5 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
-        {label}
-      </p>
-      <div
-        role="group"
-        aria-label={label}
-        className="inline-flex overflow-hidden rounded-[10px] border border-line bg-surface-soft p-0.5"
-      >
-        {options.map((option) => (
-          <Link
-            key={option.label}
-            href={option.href}
-            aria-current={option.selected ? "page" : undefined}
-            className={cn(
-              "rounded-[8px] px-3 py-1.5 text-[12.5px] font-semibold transition-colors duration-150",
-              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400",
-              option.selected
-                ? "bg-surface text-brand-700 shadow-card"
-                : "text-ink-muted hover:text-brand-700"
-            )}
-          >
-            {option.label}
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function InterviewFilters({ filters, canTeamView, kpis }: InterviewFiltersProps) {
   return (
     <CardV2 padding="md" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start gap-6">
-        <Segmented
-          label="Scope"
-          options={SCOPES.map((scope) => ({
-            label: scope.label,
-            href: makeHref(filters, { scope: scope.value }),
-            selected: filters.scope === scope.value,
-          }))}
-        />
-        {canTeamView ? (
-          <Segmented
-            label="View"
-            options={VIEWS.map((view) => ({
-              label: view.label,
-              href: makeHref(filters, { view: view.value }),
-              selected: filters.view === view.value,
+        <div>
+          <p className="mb-1.5 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+            Scope
+          </p>
+          <ViewSwitcher
+            aria-label="Scope"
+            views={SCOPES.map((scope) => ({
+              key: scope.value,
+              label: scope.label,
+              href: makeHref(filters, { scope: scope.value }),
+              active: filters.scope === scope.value,
             }))}
           />
+        </div>
+        {canTeamView ? (
+          <div>
+            <p className="mb-1.5 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+              View
+            </p>
+            <ViewSwitcher
+              aria-label="View"
+              views={VIEWS.map((view) => ({
+                key: view.value,
+                label: view.label,
+                href: makeHref(filters, { view: view.value }),
+                active: filters.view === view.value,
+              }))}
+            />
+          </div>
         ) : null}
       </div>
 

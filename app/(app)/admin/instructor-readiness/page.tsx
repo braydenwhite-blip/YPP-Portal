@@ -253,14 +253,14 @@ export default async function InstructorReadinessPage() {
           }}
         >
           <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-            Interview execution now lives in Interview Command Center for guided next actions.
+            Interview scheduling and reviews now live in Interviews, with guided next actions.
           </p>
           <Link
             href="/interviews?scope=readiness&view=team&state=needs_action"
             className="button small outline"
             style={{ textDecoration: "none" }}
           >
-            Open Interview Command Center
+            Open Interviews
           </Link>
         </div>
         <InterviewBoard items={serializedInterviews} dragEnabled />

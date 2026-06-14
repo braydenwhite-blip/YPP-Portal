@@ -4,6 +4,8 @@
 **Date:** June 2026
 **Decision:** The current CSS layer is a bottleneck. All new and redesigned Knowledge OS surfaces are built on Tailwind CSS v4 + a new `components/ui-v2/` design system. `app/globals.css` is frozen immediately and retired in phases.
 
+**Product/intuitiveness doctrine:** `docs/ypp-global-intuitiveness-design-system.md` is the source of truth for *how pages should feel* — page anatomy, density budget, CTA hierarchy, status language, progressive disclosure, and the "never again" anti-patterns. This file is the *engineering* companion (tokens, primitives, lint guards, migration). Build with both open.
+
 ---
 
 ## 1. Why the current CSS layer cannot stay
@@ -91,6 +93,10 @@ components/
     stat-card.tsx
     data-table-shell.tsx
     filter-bar.tsx
+    view-switcher.tsx       ← segmented "which view" control (distinct from filters)
+    advanced-filters.tsx    ← the one "More filters" disclosure (native <details>)
+    metric-strip.tsx        ← capped 3–5 click-to-filter StatCard strip
+    tracker-shell.tsx       ← TrackerShell / TrackerRow / TrackerPreview family
     search-input.tsx
     status-badge.tsx
     entity-chip.tsx
@@ -138,6 +144,18 @@ Conventions:
 | `PreviewPanel` | Docked variant of DrawerShell for wide layouts (master databases' right rail) |
 
 **Tranche 2 — Records (Phase 2):** `DataTableShell` (header/filter/table/pagination/empty slots around existing `data-table.tsx` logic), `FilterBar` (chips + dropdowns + "More filters" disclosure + active-filter summary), `ProfileHeader` (avatar/initials, identity, status, quick actions), `ActionButtonGroup`, form primitives (`Field`, `Input`, `Select`, `Textarea` — label/help/error pattern, 8px radius, AA contrast).
+
+**Tranche 2b — Intuitiveness reset (added with `docs/ypp-global-intuitiveness-design-system.md`):**
+
+| Primitive | Contract |
+|---|---|
+| `ViewSwitcher` | Segmented control for "which slice of this page am I on?" — `views: {key,label,href,active,count?}[]`. Links, not client state. **Distinct from `FilterBar`** (which narrows the slice). Replaces hand-rolled `FilterChipLink` view loops (`/work`, `/partners`) and the local `Segmented` in `interview-filters.tsx`. |
+| `AdvancedFilters` | The one "More filters" disclosure — native `<details>`, server-renderable, `defaultOpen` when a deep filter is active, optional `hint` showing the active filter. Replaces hand-rolled `<details>` blocks. |
+| `MetricStrip` | Data-driven, **hard-capped** click-to-filter `StatCardV2` strip (`max=5`, Home's 6 is the only sanctioned exception). Enforces the density budget (§18 of the doctrine) so no page quietly grows a seventh headline tile. |
+| `lib/ui/status-language.ts` | Not a component — the single status vocabulary (`STATUS_LANGUAGE`, `humanStatus()`, `BANNED_STATUS_WORDS`). One approved label + tone per concrete state; the source of truth behind §11 of the doctrine. Unit-tested in `tests/lib/status-language.test.ts`. |
+| `TrackerShell` · `TrackerRow` · `TrackerPreview` | The tracker family (doctrine §5). `TrackerShell` is the canonical tracker page chassis (header → metrics → start-here → views → filters → list); `TrackerRow` is one scannable row (title · status · meta · next step · 1 action); `TrackerPreview` is the standard item-preview body for `PreviewPanel`/`DrawerShell`. Adopted on the rebuilt admin Application board; the foundation for the `/actions/all` + meeting-tracker rebuilds. Render-tested in `tests/components/tracker-shell.test.tsx`. |
+
+Existing primitives that already satisfy the doctrine's named patterns (do **not** rebuild): `TrackerStartCard` = the "Start here / recommended next step" card; `EmptyStateV2` (+ action) = the empty-state-with-action; `ActionButtonGroup` / `PageHeaderV2 actions` = the primary-action bar; `RecordSection` / `SectionHeaderV2` = section summary.
 
 **Tranche 3 — Depth (Phase 3):** `RelationshipSection` (chip clusters with section headers), `TimelineSection` (day-grouped event stream, ports `lib/operations/timeline.ts` rendering), `QuickActionBar`, `SectionHeader`.
 

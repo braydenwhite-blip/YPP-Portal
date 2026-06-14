@@ -48,7 +48,7 @@ export const CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, str
 const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: string }> = {
   // Shortcuts (extracted into the "core" row, not shown under a group header)
   "/": { group: "Start Here", label: "Home", icon: "🏠" },
-  "/chapter": { group: "Start Here", label: "Command Center", icon: "🧭" },
+  "/chapter": { group: "Start Here", label: "Chapter Home", icon: "🧭" },
 
   // Chapter — the day-to-day operating surfaces
   "/chapter/members": { group: "Chapters", label: "Members", icon: "👥" },
