@@ -107,7 +107,9 @@ describe("createOfficerMeeting", () => {
   });
 
   it("throws when the feature flag is off", async () => {
-    delete process.env.ENABLE_ACTION_TRACKER;
+    // The flag defaults ON (ENABLE_ACTION_TRACKER !== "false"); deleting it
+    // leaves the tracker enabled, so disable it explicitly.
+    process.env.ENABLE_ACTION_TRACKER = "false";
     sessionAs(["ADMIN"]);
     await expect(createOfficerMeeting({ date: "2026-06-15T14:00" })).rejects.toThrow(
       "Action Tracker is not enabled"

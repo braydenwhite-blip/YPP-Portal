@@ -5,6 +5,7 @@ import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
+import { AskAboutThis } from "@/components/help-agent/ask-about-this";
 import { ClassPublishControls } from "./_components/publish-controls";
 import { ClassReviewBanner } from "./_components/header";
 import { loadClassAdminDetail } from "./_components/loaders";
@@ -55,6 +56,11 @@ export default async function AdminClassOverviewPage({
   return (
     <div className="flex flex-col gap-5">
       <ClassReviewBanner detail={detail} />
+      {trackerEnabled ? (
+        <div className="flex justify-end">
+          <AskAboutThis entityType="class" entityId={detail.id} />
+        </div>
+      ) : null}
       <ClassPublishControls detail={detail} />
 
       <RecordSection title="Schedule" description="When and where this class meets.">

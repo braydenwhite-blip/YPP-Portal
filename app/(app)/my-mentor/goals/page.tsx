@@ -231,8 +231,8 @@ export default async function MyGoalsPage() {
     })),
     roleLabel: ROLE_LABELS[doc.template.roleType] ?? doc.template.roleType,
     ratingHistoryByGoal: doc.ratingHistoryByGoal,
-    unseenMilestones: doc.unseenMilestones,
-    reviewAck: doc.reviewAck,
+    unseenMilestones: [],
+    reviewAck: null,
   };
 
   return (

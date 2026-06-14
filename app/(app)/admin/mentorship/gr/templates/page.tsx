@@ -20,7 +20,7 @@ export default async function AdminGRTemplatesPage() {
     status: t.status,
     version: t.version,
     publishedAt: t.publishedAt?.toISOString() ?? null,
-    goalCount: t.goals.length,
+    goalCount: t._count.goals,
     assignmentCount: t._count.assignments,
     commentCount: t._count.comments,
     updatedAt: t.updatedAt.toISOString(),

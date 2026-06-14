@@ -25,6 +25,7 @@ import { deriveStrategicEntityContext } from "@/lib/people-strategy/strategic-en
 import { StrategicEntityPanel } from "@/components/people-strategy/strategic-entity-panel";
 import { LeadershipStageContext } from "@/components/people-strategy/leadership-stage-context";
 import { ProfileBody, activeLabel } from "@/components/people-strategy/profile-body";
+import { AskAboutThis } from "@/components/help-agent/ask-about-this";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Member Profile" };
@@ -137,6 +138,11 @@ export default async function PublicProfilePage({ params }: PageProps) {
             {` · ${activeLabel(profile.monthsActive)}`}
           </p>
         </div>
+        {showLinkedActions ? (
+          <div style={{ marginLeft: "auto" }}>
+            <AskAboutThis entityType="person" entityId={id} />
+          </div>
+        ) : null}
       </div>
 
       <ProfileBody profile={profile} />

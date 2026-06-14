@@ -191,7 +191,7 @@ export async function deleteGRTemplate(idOrFormData: string | FormData) {
       };
     }
 
-    await prisma.gRGoal.deleteMany({
+    await prisma.gRTemplateGoal.deleteMany({
       where: { templateId },
     });
 
@@ -731,7 +731,7 @@ export async function saveGRPlanOfAction(formData: FormData) {
     if (!roles.includes("ADMIN")) throw new Error("Unauthorized");
   }
 
-  await prisma.gRPlanOfAction.slateUpsert({
+  await prisma.gRPlanOfAction.upsert({
     where: { documentId_cycleNumber: { documentId, cycleNumber } },
     create: { documentId, cycleNumber, content, reflectionId },
     update: { content, reflectionId },
@@ -832,7 +832,7 @@ export async function getGRTemplates() {
   const templates = await prisma.gRTemplate.findMany({
     where: { isActive: true },
     include: {
-      _count: { select: { assignments: true, goals: true } },
+      _count: { select: { assignments: true, goals: true, comments: true } },
     },
     orderBy: { title: "asc" },
   });

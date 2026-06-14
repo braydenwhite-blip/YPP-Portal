@@ -26,6 +26,7 @@ import {
 } from "@/lib/people-strategy/meetings-actions";
 import { findSimilarActionTitles } from "@/lib/people-strategy/action-prefill";
 import { meetingOutcomeFromDetail } from "@/lib/people-strategy/meeting-outcome";
+import { AskAboutThis } from "@/components/help-agent/ask-about-this";
 import { AddFollowUpDrawer } from "./meeting-followup-drawer";
 import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
 import { fieldStyle } from "./meeting-form-kit";
@@ -73,6 +74,7 @@ export function MeetingDetailClient({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [drawer, setDrawer] = useState<null | { create: boolean }>(null);
+  const [gateOpen, setGateOpen] = useState(false);
 
   const c = meetingCategoryTone(meeting.category);
   const overdue = meeting.overdueFollowUps;
@@ -112,12 +114,13 @@ export function MeetingDetailClient({
                   Reopen
                 </MeetingButton>
               ) : (
-                <MeetingButton icon="check" disabled={pending} onClick={() => run(() => setMeetingStatus(meeting.id, "COMPLETED"))}>
+                <MeetingButton icon="check" disabled={pending} onClick={() => setGateOpen(true)}>
                   Mark Complete
                 </MeetingButton>
               )}
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <AskAboutThis entityType="meeting" entityId={meeting.id} />
               <MeetingButton variant="outline" icon="flag" onClick={() => setDrawer({ create: false })}>
                 Add follow-up
               </MeetingButton>
@@ -267,6 +270,166 @@ export function MeetingDetailClient({
           onClose={() => setDrawer(null)}
         />
       )}
+
+      {gateOpen && (
+        <CompletionGate
+          meeting={meeting}
+          pending={pending}
+          onCancel={() => setGateOpen(false)}
+          onComplete={() => {
+            setGateOpen(false);
+            run(() => setMeetingStatus(meeting.id, "COMPLETED"));
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Meeting completion quality gate. A meeting's notes must not become dead text:
+ * before completing, the facilitator reviews what should become organizational
+ * memory — Decisions, Next Actions, and Follow-Ups. Areas that already have
+ * content pass automatically; empty/unresolved areas must be acknowledged
+ * explicitly (a clean checklist, not a nag). It reuses the meeting's existing
+ * outcome-quality signal rather than re-deriving anything.
+ */
+function CompletionGate({
+  meeting,
+  pending,
+  onCancel,
+  onComplete,
+}: {
+  meeting: MeetingDetailDTO;
+  pending: boolean;
+  onCancel: () => void;
+  onComplete: () => void;
+}) {
+  const hasDecisions = meeting.decisionCount > 0;
+  const hasActions = meeting.linkedActions.length > 0;
+  const openFollowUps = meeting.openFollowUps;
+
+  const [noDecisions, setNoDecisions] = useState(false);
+  const [noActions, setNoActions] = useState(false);
+  const [noActionsReason, setNoActionsReason] = useState("");
+  const [followUpsAck, setFollowUpsAck] = useState(false);
+
+  const decisionsOk = hasDecisions || noDecisions;
+  const actionsOk = hasActions || (noActions && noActionsReason.trim().length > 0);
+  const followUpsOk = openFollowUps === 0 || followUpsAck;
+  const canComplete = decisionsOk && actionsOk && followUpsOk;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Review before completing meeting"
+      onClick={onCancel}
+      style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: "min(560px, 100%)", maxHeight: "90vh", overflowY: "auto", background: "var(--surface, #fff)", border: "1px solid var(--border)", borderRadius: 14, boxShadow: "0 18px 50px rgba(15,23,42,.22)" }}
+      >
+        <div style={{ padding: "18px 20px 12px" }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--ypp-ink)" }}>
+            Before completing this meeting
+          </h2>
+          <p style={{ margin: "6px 0 0", fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            Review what should become memory. Nothing here is busywork — it just
+            keeps the meeting from turning into a dead note.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "4px 20px 16px" }}>
+          {/* Decisions */}
+          <GateRow
+            label="Decisions Made"
+            ok={decisionsOk}
+            status={hasDecisions ? `${meeting.decisionCount} on record` : "None logged"}
+          >
+            {!hasDecisions && (
+              <label style={gateCheckStyle}>
+                <input type="checkbox" checked={noDecisions} onChange={(e) => setNoDecisions(e.target.checked)} />
+                No decisions made in this meeting
+              </label>
+            )}
+          </GateRow>
+
+          {/* Next Actions */}
+          <GateRow
+            label="Next Actions"
+            ok={actionsOk}
+            status={hasActions ? `${meeting.linkedActions.length} created` : "None created"}
+          >
+            {!hasActions && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                <label style={gateCheckStyle}>
+                  <input type="checkbox" checked={noActions} onChange={(e) => setNoActions(e.target.checked)} />
+                  No next actions needed
+                </label>
+                {noActions && (
+                  <input
+                    value={noActionsReason}
+                    onChange={(e) => setNoActionsReason(e.target.value)}
+                    placeholder="Short reason (e.g. informational sync only)"
+                    style={{ ...fieldStyle, fontSize: 13 }}
+                  />
+                )}
+              </div>
+            )}
+          </GateRow>
+
+          {/* Follow-ups */}
+          <GateRow
+            label="Follow-Ups"
+            ok={followUpsOk}
+            status={openFollowUps === 0 ? "All resolved" : `${openFollowUps} unresolved`}
+          >
+            {openFollowUps > 0 && (
+              <label style={gateCheckStyle}>
+                <input type="checkbox" checked={followUpsAck} onChange={(e) => setFollowUpsAck(e.target.checked)} />
+                Leave {openFollowUps} unresolved on purpose (owner &amp; due date set — convert them below if not)
+              </label>
+            )}
+          </GateRow>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid var(--border)", padding: "12px 20px" }}>
+          <MeetingButton variant="outline" onClick={onCancel}>
+            Keep reviewing
+          </MeetingButton>
+          <MeetingButton icon="check" disabled={!canComplete || pending} onClick={onComplete}>
+            Complete meeting
+          </MeetingButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const gateCheckStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  fontSize: 13,
+  color: "var(--text-secondary)",
+  cursor: "pointer",
+};
+
+function GateRow({ label, ok, status, children }: { label: string; ok: boolean; status: string; children?: ReactNode }) {
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px", background: ok ? "var(--ok-bg, #f0fdf4)" : "var(--surface, #fff)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span aria-hidden style={{ fontSize: 14, color: ok ? "var(--ok-fg, #15803d)" : "var(--muted)" }}>
+            {ok ? "✓" : "○"}
+          </span>
+          <strong style={{ fontSize: 13.5, color: "var(--ypp-ink)" }}>{label}</strong>
+        </div>
+        <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>{status}</span>
+      </div>
+      {children ? <div style={{ marginTop: 9, paddingLeft: 22 }}>{children}</div> : null}
     </div>
   );
 }

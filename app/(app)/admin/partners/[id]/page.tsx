@@ -11,6 +11,7 @@ import {
 } from "@/lib/partners-queries";
 import { updatePartner, addPartnerNote } from "@/lib/partners-actions";
 import { PartnerRelationsPanel } from "@/components/partners/partner-relations-panel";
+import { AskAboutThis } from "@/components/help-agent/ask-about-this";
 import { matchInstructorsForPartner } from "@/lib/partner-instructor-matching";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
@@ -128,6 +129,7 @@ export default async function PartnerProfilePage({
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <AskAboutThis entityType="partner" entityId={partner.id} />
           <Link href="/admin/partners" className="button" style={{ fontSize: 13 }}>← All partners</Link>
           {trackerEnabled ? (
             <Link

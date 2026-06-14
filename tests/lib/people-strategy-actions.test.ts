@@ -164,7 +164,9 @@ describe("flagActionToLeadership", () => {
   });
 
   it("rejects when the feature flag is off", async () => {
-    delete process.env.ENABLE_ACTION_TRACKER;
+    // The flag defaults ON (ENABLE_ACTION_TRACKER !== "false"); deleting it
+    // leaves the tracker enabled, so disable it explicitly.
+    process.env.ENABLE_ACTION_TRACKER = "false";
     sessionAs({ id: "o1", roles: ["STAFF"] });
 
     await expect(flagActionToLeadership("a1")).rejects.toThrow("not enabled");

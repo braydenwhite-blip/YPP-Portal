@@ -2,6 +2,23 @@ import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
+// jsdom does not implement window.matchMedia. Components that read motion
+// preferences (lib/motion-preference.ts) call it during render, so provide a
+// minimal, inert polyfill (reduced-motion off) for the test environment.
+if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList;
+}
+
 // Clean up after each test
 afterEach(() => {
   cleanup();

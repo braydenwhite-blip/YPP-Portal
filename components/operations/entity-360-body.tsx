@@ -12,6 +12,8 @@ import { TIMELINE_EVENT_LABELS } from "@/lib/operations/timeline";
 import type { WorkItem } from "@/lib/operations/work-items";
 import { Pill, type PillTone } from "@/components/people-strategy/pills";
 
+import { AskAboutThis } from "@/components/help-agent/ask-about-this";
+
 import { EntityLink } from "./entity-link";
 
 /**
@@ -223,6 +225,10 @@ function TimelineEventRow({ event }: { event: TimelineEvent }) {
 export function Entity360Body({ entity }: { entity: Entity360 }) {
   return (
     <div className="e360-body">
+      <div className="flex justify-end">
+        <AskAboutThis entityType={entity.type} entityId={entity.id} align="right" />
+      </div>
+
       {entity.signal ? (
         <div className="e360-signal" data-tone={entity.signal.tone}>
           <Pill tone={TONE_PILL[entity.signal.tone] ?? "neutral"}>
