@@ -147,6 +147,13 @@ Apply to: `/work`, `/actions/all`, `/actions/meetings`, `/interviews`,
 Application board, partner requests, the CPO feedback/performance table, mentorship /
 advisor queues.
 
+The `ui-v2` **tracker family** implements this shape so pages don't re-derive it:
+`TrackerShell` (the chassis: header → metrics → start-here → views → filters → list),
+`TrackerRow` (one scannable row: title · status · meta · next step · one action), and
+`TrackerPreview` (the standard item-preview body for `PreviewPanel`/`DrawerShell`).
+`TrackerStartCard` is the start-here card; `ViewSwitcher`/`AdvancedFilters`/`MetricStrip`
+are the views/filters/metrics. Compose these — don't hand-roll a tracker.
+
 ---
 
 ## 6. Record / 360 Page Anatomy

@@ -96,6 +96,7 @@ components/
     view-switcher.tsx       ← segmented "which view" control (distinct from filters)
     advanced-filters.tsx    ← the one "More filters" disclosure (native <details>)
     metric-strip.tsx        ← capped 3–5 click-to-filter StatCard strip
+    tracker-shell.tsx       ← TrackerShell / TrackerRow / TrackerPreview family
     search-input.tsx
     status-badge.tsx
     entity-chip.tsx
@@ -152,6 +153,7 @@ Conventions:
 | `AdvancedFilters` | The one "More filters" disclosure — native `<details>`, server-renderable, `defaultOpen` when a deep filter is active, optional `hint` showing the active filter. Replaces hand-rolled `<details>` blocks. |
 | `MetricStrip` | Data-driven, **hard-capped** click-to-filter `StatCardV2` strip (`max=5`, Home's 6 is the only sanctioned exception). Enforces the density budget (§18 of the doctrine) so no page quietly grows a seventh headline tile. |
 | `lib/ui/status-language.ts` | Not a component — the single status vocabulary (`STATUS_LANGUAGE`, `humanStatus()`, `BANNED_STATUS_WORDS`). One approved label + tone per concrete state; the source of truth behind §11 of the doctrine. Unit-tested in `tests/lib/status-language.test.ts`. |
+| `TrackerShell` · `TrackerRow` · `TrackerPreview` | The tracker family (doctrine §5). `TrackerShell` is the canonical tracker page chassis (header → metrics → start-here → views → filters → list); `TrackerRow` is one scannable row (title · status · meta · next step · 1 action); `TrackerPreview` is the standard item-preview body for `PreviewPanel`/`DrawerShell`. Adopted on the rebuilt admin Application board; the foundation for the `/actions/all` + meeting-tracker rebuilds. Render-tested in `tests/components/tracker-shell.test.tsx`. |
 
 Existing primitives that already satisfy the doctrine's named patterns (do **not** rebuild): `TrackerStartCard` = the "Start here / recommended next step" card; `EmptyStateV2` (+ action) = the empty-state-with-action; `ActionButtonGroup` / `PageHeaderV2 actions` = the primary-action bar; `RecordSection` / `SectionHeaderV2` = section summary.
 

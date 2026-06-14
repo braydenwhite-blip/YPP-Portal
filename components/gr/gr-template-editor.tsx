@@ -21,7 +21,7 @@ interface TemplateEditorProps {
     version: number;
     goals?: Array<{ id: string; title: string; description: string; timePhase: string; sortOrder: number }>;
     successCriteria?: Array<{ id: string; timePhase: string; criteria: string }>;
-    comments?: Array<{ id: string; body: string; createdAt: Date; author: { name: string | null; email: string | null } }>;
+    comments?: Array<{ id: string; body: string; createdAt: string; author: { name: string | null; email: string | null } }>;
     resources?: Array<{ id: string; resource?: { title: string; url: string } | null }>;
   } | null;
 }

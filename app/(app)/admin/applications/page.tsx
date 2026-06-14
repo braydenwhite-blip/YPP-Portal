@@ -1,12 +1,20 @@
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PositionType } from "@prisma/client";
 import { requireAdminPage } from "@/lib/page-guards";
+import {
+  AdvancedFilters,
+  ButtonLink,
+  FilterChipLink,
+  MetricStrip,
+  TrackerShell,
+  ViewSwitcher,
+} from "@/components/ui-v2";
 import ApplicationsView from "./applications-view";
 
 type ApplicationFilters = {
   type?: string;
   chapterProposal?: string;
+  status?: string;
 };
 
 const POSITION_TYPES: PositionType[] = [
@@ -17,9 +25,42 @@ const POSITION_TYPES: PositionType[] = [
   "GLOBAL_ADMIN",
 ];
 
+const TYPE_LABELS: Record<string, string> = {
+  INSTRUCTOR: "Instructor",
+  CHAPTER_PRESIDENT: "Chapter President",
+  MENTOR: "Mentor",
+  STAFF: "Staff",
+  GLOBAL_ADMIN: "Admin",
+};
+
+// Each summary card / chip maps to one or more application statuses.
+const STATUS_FILTERS: Record<string, { label: string; statuses: string[] }> = {
+  submitted: { label: "Submitted", statuses: ["SUBMITTED"] },
+  "in-review": { label: "In review", statuses: ["UNDER_REVIEW"] },
+  interviewing: {
+    label: "Interviewing",
+    statuses: ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"],
+  },
+  accepted: { label: "Accepted", statuses: ["ACCEPTED"] },
+  rejected: { label: "Rejected", statuses: ["REJECTED"] },
+};
+
 function normalizeType(value: string | undefined): PositionType | null {
   if (!value) return null;
   return POSITION_TYPES.includes(value as PositionType) ? (value as PositionType) : null;
+}
+
+function applicationsHref(params: {
+  type?: string | null;
+  chapterProposal?: boolean;
+  status?: string;
+}): string {
+  const search = new URLSearchParams();
+  if (params.type) search.set("type", params.type);
+  if (params.chapterProposal) search.set("chapterProposal", "true");
+  if (params.status) search.set("status", params.status);
+  const qs = search.toString();
+  return qs ? `/admin/applications?${qs}` : "/admin/applications";
 }
 
 export default async function AdminApplicationsPage({
@@ -32,8 +73,13 @@ export default async function AdminApplicationsPage({
 
   const selectedType = normalizeType(params.type);
   const chapterProposalOnly = params.chapterProposal === "true";
+  const statusKey =
+    params.status && STATUS_FILTERS[params.status] ? params.status : undefined;
 
-  const applications = await prisma.application.findMany({
+  // One query scoped by type / chapter-proposal (NOT status), so the summary
+  // counts stay a stable overview; the status filter is then applied in memory
+  // to the list itself.
+  const baseApplications = await prisma.application.findMany({
     where: {
       archivedAt: null,
       ...(selectedType ? { position: { type: selectedType } } : {}),
@@ -69,14 +115,20 @@ export default async function AdminApplicationsPage({
   });
 
   const statusCounts = {
-    submitted: applications.filter((a) => a.status === "SUBMITTED").length,
-    inReview: applications.filter((a) => a.status === "UNDER_REVIEW").length,
-    interviewing: applications.filter((a) =>
+    submitted: baseApplications.filter((a) => a.status === "SUBMITTED").length,
+    inReview: baseApplications.filter((a) => a.status === "UNDER_REVIEW").length,
+    interviewing: baseApplications.filter((a) =>
       ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"].includes(a.status),
     ).length,
-    accepted: applications.filter((a) => a.status === "ACCEPTED").length,
-    rejected: applications.filter((a) => a.status === "REJECTED").length,
+    accepted: baseApplications.filter((a) => a.status === "ACCEPTED").length,
+    rejected: baseApplications.filter((a) => a.status === "REJECTED").length,
   };
+
+  const applications = statusKey
+    ? baseApplications.filter((a) =>
+        STATUS_FILTERS[statusKey].statuses.includes(a.status),
+      )
+    : baseApplications;
 
   // Serialize dates for client components
   const serialized = applications.map((app) => ({
@@ -98,94 +150,151 @@ export default async function AdminApplicationsPage({
       : null,
   }));
 
+  const activeFilterCount = (chapterProposalOnly ? 1 : 0) + (statusKey ? 1 : 0);
+  const countLabel = [
+    `${applications.length} application${applications.length === 1 ? "" : "s"}`,
+    statusKey ? STATUS_FILTERS[statusKey].label.toLowerCase() : null,
+    chapterProposalOnly ? "new chapter proposals" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Admin</p>
-          <h1 className="page-title">Applications</h1>
-          <p className="page-subtitle">
-            Review applications, manage interview scheduling, and monitor Chair-reviewed decisions.
-          </p>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-          Interview scheduling and reviews now live in Interviews.
-        </p>
-        <Link href="/interviews?scope=hiring&view=team&state=needs_action" className="button small outline" style={{ textDecoration: "none" }}>
+    <TrackerShell
+      eyebrow="Admin"
+      title="Applications"
+      subtitle="Review applications, manage interview scheduling, and monitor Chair-reviewed decisions. Interview scheduling and reviews live in Interviews."
+      primaryAction={
+        <ButtonLink
+          href="/interviews?scope=hiring&view=team&state=needs_action"
+          variant="secondary"
+          size="md"
+        >
           Open Interviews
-        </Link>
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <form method="get" className="form-grid">
-          <div className="grid two">
-            <label className="form-row">
-              Position Type
-              <select className="input" name="type" defaultValue={selectedType ?? ""}>
-                <option value="">All Types</option>
-                {POSITION_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type.replace(/_/g, " ")}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="form-row">
-              Chapter Proposal Filter
-              <select
-                className="input"
-                name="chapterProposal"
-                defaultValue={chapterProposalOnly ? "true" : "false"}
-              >
-                <option value="false">All Applications</option>
-                <option value="true">Only New Chapter Proposals</option>
-              </select>
-            </label>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button type="submit" className="button small">
-              Apply Filters
-            </button>
-            <Link href="/admin/applications" className="button small ghost" style={{ textDecoration: "none" }}>
-              Reset
-            </Link>
-          </div>
-        </form>
-      </div>
-
-      <div className="grid four">
-        <div className="card">
-          <div className="kpi">{applications.length}</div>
-          <div className="kpi-label">Total</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{statusCounts.submitted}</div>
-          <div className="kpi-label">Submitted</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{statusCounts.inReview}</div>
-          <div className="kpi-label">In Review</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{statusCounts.interviewing}</div>
-          <div className="kpi-label">Interviewing</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{statusCounts.accepted}</div>
-          <div className="kpi-label">Accepted</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{statusCounts.rejected}</div>
-          <div className="kpi-label">Rejected</div>
-        </div>
-      </div>
-
-      <div style={{ marginTop: 24 }}>
-        <ApplicationsView applications={serialized as any} />
-      </div>
-    </div>
+        </ButtonLink>
+      }
+      views={[
+        {
+          key: "all",
+          label: "All types",
+          href: applicationsHref({
+            chapterProposal: chapterProposalOnly,
+            status: statusKey,
+          }),
+          active: !selectedType,
+        },
+        ...POSITION_TYPES.map((type) => ({
+          key: type,
+          label: TYPE_LABELS[type] ?? type,
+          href: applicationsHref({
+            type,
+            chapterProposal: chapterProposalOnly,
+            status: statusKey,
+          }),
+          active: selectedType === type,
+        })),
+      ]}
+      filters={
+        <AdvancedFilters
+          defaultOpen={activeFilterCount > 0}
+          hint={activeFilterCount > 0 ? `${activeFilterCount} active` : undefined}
+        >
+          <FilterChipLink
+            href={applicationsHref({ type: selectedType, status: statusKey })}
+            active={!chapterProposalOnly}
+          >
+            All applications
+          </FilterChipLink>
+          <FilterChipLink
+            href={applicationsHref({
+              type: selectedType,
+              chapterProposal: true,
+              status: statusKey,
+            })}
+            active={chapterProposalOnly}
+          >
+            New chapter proposals
+          </FilterChipLink>
+          <span aria-hidden className="mx-1 h-5 w-px bg-line" />
+          <FilterChipLink
+            href={applicationsHref({
+              type: selectedType,
+              chapterProposal: chapterProposalOnly,
+            })}
+            active={!statusKey}
+          >
+            Any status
+          </FilterChipLink>
+          {Object.entries(STATUS_FILTERS).map(([key, { label }]) => (
+            <FilterChipLink
+              key={key}
+              href={applicationsHref({
+                type: selectedType,
+                chapterProposal: chapterProposalOnly,
+                status: key,
+              })}
+              active={statusKey === key}
+            >
+              {label}
+            </FilterChipLink>
+          ))}
+        </AdvancedFilters>
+      }
+      metrics={
+        <MetricStrip
+          aria-label="Applications by status"
+          metrics={[
+            {
+              label: "Submitted",
+              value: statusCounts.submitted,
+              href: applicationsHref({
+                type: selectedType,
+                chapterProposal: chapterProposalOnly,
+                status: "submitted",
+              }),
+            },
+            {
+              label: "In review",
+              value: statusCounts.inReview,
+              href: applicationsHref({
+                type: selectedType,
+                chapterProposal: chapterProposalOnly,
+                status: "in-review",
+              }),
+            },
+            {
+              label: "Interviewing",
+              value: statusCounts.interviewing,
+              href: applicationsHref({
+                type: selectedType,
+                chapterProposal: chapterProposalOnly,
+                status: "interviewing",
+              }),
+            },
+            {
+              label: "Accepted",
+              value: statusCounts.accepted,
+              href: applicationsHref({
+                type: selectedType,
+                chapterProposal: chapterProposalOnly,
+                status: "accepted",
+              }),
+            },
+            {
+              label: "Rejected",
+              value: statusCounts.rejected,
+              href: applicationsHref({
+                type: selectedType,
+                chapterProposal: chapterProposalOnly,
+                status: "rejected",
+              }),
+            },
+          ]}
+        />
+      }
+      count={countLabel}
+    >
+      <ApplicationsView applications={serialized as never} />
+    </TrackerShell>
   );
 }

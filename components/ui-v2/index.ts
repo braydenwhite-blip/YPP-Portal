@@ -40,6 +40,7 @@ export { ModalV2, ModalFooterV2 } from "./modal";
 export { ToastV2 } from "./toast";
 export { BannerV2 } from "./banner";
 export { TrackerStartCard } from "./tracker";
+export { TrackerShell, TrackerRow, TrackerPreview } from "./tracker-shell";
 export {
   SidebarChevron,
   SidebarUserCard,
