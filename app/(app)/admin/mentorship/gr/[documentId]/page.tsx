@@ -113,7 +113,7 @@ export default async function AdminGRDocumentDetailPage({ params }: Props) {
             gap: 12,
           }}
         >
-          {(timeline?.phases ?? []).map((phase: any) => (
+          {((timeline as any)?.phases ?? timeline as any ?? []).map((phase: any) => (
             <div
               key={phase.phase}
               style={{
