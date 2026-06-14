@@ -94,8 +94,9 @@ export async function getStrategicInitiativesOverview(
       ...classifyInitiativeWork(def, pool),
       labels: pool.labels,
       now,
-      // The index/dashboard render compact cards — keep the timeline light.
-      limits: { timeline: 0, keyMoments: 4, recommendations: 3, ...options.limits },
+      // The index/dashboard render compact cards. Keep the timeline light, but
+      // carry enough recent events for cards to surface the last related meeting.
+      limits: { timeline: 16, keyMoments: 6, recommendations: 3, ...options.limits },
     })
   );
   return summaries.sort(compareForOverview);
@@ -147,7 +148,8 @@ export async function getInitiativePageData(
     ...work,
     labels: pool.labels,
     now,
-    limits: { timeline: 8, keyMoments: 3, recommendations: 2, ...options.limits },
+    // The 360 detail renders full Milestones / Meetings / Timeline sections.
+    limits: { timeline: 50, keyMoments: 6, recommendations: 6, ...options.limits },
   });
   const actions = sortByDeadline(
     work.actions.filter((a) => a.status !== "DROPPED")

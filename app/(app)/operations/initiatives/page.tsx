@@ -1,22 +1,44 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { InitiativeCardGrid } from "@/components/people-strategy/strategic-initiatives";
+import {
+  InitiativeHubByOwner,
+  InitiativeHubList,
+} from "@/components/people-strategy/initiative-hub";
 import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
-import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
+import {
+  ButtonLink,
+  FilterBar,
+  FilterChipLink,
+  PageHeaderV2,
+  StatCardV2,
+} from "@/components/ui-v2";
 import { requireOfficer } from "@/lib/authorization";
 import {
   isActionTrackerEnabled,
   isOperationsHubEnabled,
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
+import { deriveInitiativeAttention } from "@/lib/people-strategy/strategic-initiative-attention";
 import { getStrategicInitiativesOverview } from "@/lib/people-strategy/strategic-initiative-queries";
+import { selectUpcomingMilestones } from "@/lib/people-strategy/strategic-initiative-summary";
+import { isTerminalStatus } from "@/lib/people-strategy/strategic-initiatives";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Initiatives · Work" };
 
-/** Initiatives = the plan. Open one to see and add its actions. */
-export default async function StrategicInitiativesPage() {
+const VIEWS = ["active", "attention", "owner", "completed", "all"] as const;
+type View = (typeof VIEWS)[number];
+
+function parseView(value: string | undefined): View {
+  return VIEWS.includes(value as View) ? (value as View) : "active";
+}
+
+/** Initiatives hub — the plan. Open one to see its milestones, actions, and meetings. */
+export default async function StrategicInitiativesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
   if (!isOperationsHubEnabled() || !isActionTrackerEnabled() || !isStrategicInitiativesEnabled()) {
     notFound();
   }
@@ -31,18 +53,33 @@ export default async function StrategicInitiativesPage() {
     adminSubtypes: sessionUser.adminSubtypes,
   };
 
+  const view = parseView((await searchParams).view);
   const now = new Date();
   const initiatives = await getStrategicInitiativesOverview(viewer, { now });
-  const openActions = initiatives.reduce((n, i) => n + i.counts.openActions, 0);
+
+  // Derive the executive reads once.
+  const active = initiatives.filter((i) => !isTerminalStatus(i.status));
+  const completed = initiatives.filter((i) => isTerminalStatus(i.status));
+  const needingAttention = initiatives.filter(
+    (i) => deriveInitiativeAttention(i, now).length > 0
+  );
+  const blocked = initiatives.filter((i) =>
+    deriveInitiativeAttention(i, now).some((r) => r.key === "blocked")
+  );
+  const dueSoonMilestones = selectUpcomingMilestones(initiatives, now, 14);
+  const recentlyActive = active.filter((i) => i.momentum.recentlyCompleted > 0);
+
+  const base = "/operations/initiatives";
+  const href = (v: View) => (v === "active" ? base : `${base}?view=${v}`);
 
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6 pb-10">
+    <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-6 pb-10">
       <PageHeaderV2
         eyebrow="Work"
         backHref="/work?view=initiatives"
         backLabel="Work"
         title="Initiatives"
-        subtitle="Each initiative is a goal. Open one to see the actions that move it forward."
+        subtitle="Each initiative is a priority. Open one to see its next milestone, the actions driving it, and the meetings where it was discussed."
         actions={
           <ButtonLink href="/work" variant="ghost" size="sm">
             Work hub →
@@ -52,22 +89,88 @@ export default async function StrategicInitiativesPage() {
 
       <ActionTrackerTabsV2 active="initiatives" />
 
-      <p className="m-0 text-[12.5px] text-ink-muted">
-        {initiatives.length} initiatives · {openActions} open actions
-      </p>
+      {/* Executive header — calm by default, loud only when work demands it. */}
+      <div className="flex flex-wrap gap-3">
+        <StatCardV2 label="Active initiatives" value={active.length} href={href("active")} />
+        <StatCardV2
+          label="Due soon"
+          value={dueSoonMilestones.length}
+          detail="milestones ≤ 14 days"
+          href={href("attention")}
+          tone={dueSoonMilestones.length > 0 ? "attention" : "default"}
+        />
+        <StatCardV2
+          label="Blocked"
+          value={blocked.length}
+          detail={blocked.length > 0 ? "need a path forward" : "none"}
+          href={href("attention")}
+          tone={blocked.length > 0 ? "attention" : "default"}
+        />
+        <StatCardV2
+          label="Recently active"
+          value={recentlyActive.length}
+          detail="wins in last 14 days"
+          href={href("all")}
+        />
+      </div>
 
-      <InitiativeCardGrid
-        initiatives={initiatives}
-        emptyHint="No initiatives are configured yet."
-      />
+      <FilterBar aria-label="Initiative views">
+        <FilterChipLink href={href("active")} active={view === "active"} count={active.length}>
+          Active
+        </FilterChipLink>
+        <FilterChipLink href={href("attention")} active={view === "attention"} count={needingAttention.length}>
+          Needs attention
+        </FilterChipLink>
+        <FilterChipLink href={href("owner")} active={view === "owner"}>
+          By owner
+        </FilterChipLink>
+        <FilterChipLink href={href("completed")} active={view === "completed"} count={completed.length}>
+          Completed
+        </FilterChipLink>
+        <FilterChipLink href={href("all")} active={view === "all"} count={initiatives.length}>
+          All
+        </FilterChipLink>
+      </FilterBar>
 
-      <p className="m-0 text-[12.5px] text-ink-muted">
-        Tip: use{" "}
-        <Link href="/work?view=initiatives" className="font-semibold text-brand-700 no-underline hover:underline">
-          Work → Initiatives
-        </Link>{" "}
-        for the same list inside your daily queue.
-      </p>
+      {view === "owner" ? (
+        <InitiativeHubByOwner initiatives={initiatives} now={now} />
+      ) : view === "active" ? (
+        <InitiativeHubList
+          initiatives={active}
+          now={now}
+          empty={{
+            title: "No active initiatives",
+            body: "Completed and archived initiatives live under the Completed tab.",
+          }}
+        />
+      ) : view === "attention" ? (
+        <InitiativeHubList
+          initiatives={needingAttention}
+          now={now}
+          empty={{
+            title: "Nothing needs attention",
+            body: "Every initiative has a clear owner, an open next action, and no overdue or blocked work. 🎉",
+          }}
+        />
+      ) : view === "completed" ? (
+        <InitiativeHubList
+          initiatives={completed}
+          now={now}
+          empty={{
+            title: "No completed initiatives yet",
+            body: "Initiatives appear here once all their work is done.",
+          }}
+        />
+      ) : (
+        <InitiativeHubList
+          initiatives={initiatives}
+          now={now}
+          empty={{
+            title: "No initiatives yet",
+            body: "Initiatives are the priorities your actions and meetings ladder up to.",
+          }}
+        />
+      )}
     </div>
   );
 }
