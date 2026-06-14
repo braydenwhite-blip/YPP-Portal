@@ -36,6 +36,10 @@ import {
 import type { NavGroup, NavLink, NavRole, NavViewModel } from "@/lib/navigation/types";
 import { canAccessAdminRoute } from "@/lib/admin-capabilities";
 import { applyAdminPrimarySidebarFilter } from "@/lib/navigation/admin-primary-nav-filter";
+import {
+  getPublicPreviewSlimNavHrefs,
+  shouldApplyPublicPreviewSlimNav,
+} from "@/lib/navigation/public-preview-slim-nav";
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
 const CRITICAL_CORE_LINKS = ["/messages"];
@@ -625,6 +629,11 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     visible = applyAdminPrimarySidebarFilter(visible, primaryRole, roles, adminSubtypes);
   }
 
+  if (shouldApplyPublicPreviewSlimNav(primaryRole, roles)) {
+    const slimHrefs = getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes);
+    visible = visible.filter((item) => slimHrefs.has(item.href));
+  }
+
   if (shouldApplyStudentV1NavFilter(primaryRole, input.studentFullPortalExplorer)) {
     visible = visible.filter((item) => STUDENT_V1_ALLOWED_HREFS.has(item.href));
   }
@@ -676,10 +685,13 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
   }
 
   if (!studentMinimalSidebar || primaryRole !== "STUDENT") {
-    for (const criticalHref of CRITICAL_CORE_LINKS) {
-      const item = visibleByHref.get(criticalHref);
-      if (!item || !item.coreEligible) continue;
-      addOrReplaceCoreItem(core, item, limit);
+    const skipMessagesPin = shouldApplyPublicPreviewSlimNav(primaryRole, roles);
+    if (!skipMessagesPin) {
+      for (const criticalHref of CRITICAL_CORE_LINKS) {
+        const item = visibleByHref.get(criticalHref);
+        if (!item || !item.coreEligible) continue;
+        addOrReplaceCoreItem(core, item, limit);
+      }
     }
   }
 
@@ -687,6 +699,14 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     for (const criticalHref of OFFICER_CRITICAL_CORE_LINKS) {
       const item = visibleByHref.get(criticalHref);
       if (!item || !item.coreEligible) continue;
+      addOrReplaceCoreItem(core, item, limit);
+    }
+  }
+
+  if (shouldApplyPublicPreviewSlimNav(primaryRole, roles)) {
+    for (const href of getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes)) {
+      const item = visibleByHref.get(href);
+      if (!item) continue;
       addOrReplaceCoreItem(core, item, limit);
     }
   }
