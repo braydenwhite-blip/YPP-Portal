@@ -3,6 +3,8 @@ import Link from "next/link";
 import ClassOperationsList from "@/app/(app)/admin/classes/class-operations-list";
 import type { AdminClassOperationsListItem } from "@/lib/admin-class-operations";
 import { getAdminClassOperationsList } from "@/lib/admin-class-operations";
+import type { ClassCommandCenter as ClassCommandCenterData } from "@/lib/classes/command-center";
+import { ClassCommandCenter } from "@/components/classes/class-command-center";
 import { ButtonLink, CardV2, PageHeaderV2 } from "@/components/ui-v2";
 import { PeopleHubNav } from "@/components/people/people-hub-nav";
 
@@ -39,6 +41,7 @@ export function ClassOperationsHub({
   operationsPage,
   proposals,
   counts,
+  commandCenter,
   showPeopleNav,
   showPerformanceTab,
 }: {
@@ -46,6 +49,8 @@ export function ClassOperationsHub({
   operationsPage: Awaited<ReturnType<typeof getAdminClassOperationsList>>;
   proposals: ProposalQueueItem[];
   counts: ClassOperationsCounts;
+  /** Enriched operations view; present only on the operations tab. */
+  commandCenter?: ClassCommandCenterData | null;
   showPeopleNav?: boolean;
   showPerformanceTab?: boolean;
 }) {
@@ -86,7 +91,7 @@ export function ClassOperationsHub({
       <PageHeaderV2
         eyebrow="People Hub"
         title="Classes"
-        subtitle="Tap a class to manage it. Use Review for new proposals."
+        subtitle="See what needs attention, then tap any class for the full picture."
         actions={
           <ButtonLink href="/admin/classes/reports" variant="ghost" size="sm">
             Reports
@@ -100,14 +105,19 @@ export function ClassOperationsHub({
         </div>
 
         <div className="px-3 py-4 sm:px-4 sm:py-5">
-          <p className="mb-4 mt-0 px-1 text-[12.5px] text-ink-muted">
-            {visibleCount} {visibleCount === 1 ? "class" : "classes"}
-            {tab === "operations" ? " running now" : null}
-            {tab === "review" ? " need your attention" : null}
-            {tab === "archive" ? " in history" : null}
-          </p>
+          {tab === "operations" && commandCenter ? (
+            <ClassCommandCenter data={commandCenter} />
+          ) : (
+            <>
+              <p className="mb-4 mt-0 px-1 text-[12.5px] text-ink-muted">
+                {visibleCount} {visibleCount === 1 ? "class" : "classes"}
+                {tab === "review" ? " need your attention" : null}
+                {tab === "archive" ? " in history" : null}
+              </p>
 
-          <ClassOperationsList tab={tab} operations={operations} proposals={proposals} />
+              <ClassOperationsList tab={tab} operations={operations} proposals={proposals} />
+            </>
+          )}
         </div>
 
         {nextPageHref && tab !== "review" ? (

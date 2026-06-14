@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { deriveClassNextAction } from "@/lib/class-next-action";
 import { instructorApplicationVisibilityWhere } from "@/lib/applications/application-visibility";
 import { isActionTrackerEnabled, isStrategicInitiativesEnabled } from "@/lib/feature-flags";
 import {
@@ -506,9 +507,20 @@ async function loadClass360(
   });
   if (!offering) return null;
 
-  const [actions, meetings] = await Promise.all([
+  const [actions, meetings, nextSession, outcome, feedbackCount] = await Promise.all([
     getActionsForEntity("CLASS_OFFERING", id, viewer),
     getMeetingsForEntity("CLASS_OFFERING", id, DRAWER_LIMITS.meetings),
+    prisma.classSession
+      .findFirst({
+        where: { offeringId: id, isCancelled: false, date: { gte: now } },
+        orderBy: { date: "asc" },
+        select: { date: true },
+      })
+      .catch(() => null),
+    prisma.classOutcome
+      .findUnique({ where: { offeringId: id }, select: { instructorReflectedAt: true } })
+      .catch(() => null),
+    prisma.classFeedback.count({ where: { offeringId: id } }).catch(() => 0),
   ]);
   const actionLites = actions.map((a) => toActionLite(a, now));
   const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
@@ -539,6 +551,33 @@ async function loadClass360(
   const openHere = actionLites.filter(
     (a) => a.status !== "COMPLETE" && a.status !== "DROPPED"
   ).length;
+
+  // The drawer hero CTA shares the same Next-Action helper as the Classes
+  // command center, so "what to do next" never disagrees across surfaces.
+  const nextAction = deriveClassNextAction(
+    {
+      status: offering.status,
+      startDate: offering.startDate,
+      endDate: offering.endDate,
+      hasLeadInstructor: offering.instructor != null,
+      sessionCount: offering._count.sessions,
+      nextSessionAt: nextSession?.date ?? null,
+      enrolledCount: students,
+      partnerLinked: offering.partner != null,
+      partnerConfirmationNeeded: false,
+      openActionCount: openHere,
+      overdueActionCount: overdueHere,
+      hasReflection: outcome?.instructorReflectedAt != null,
+      feedbackCount,
+    },
+    now
+  );
+  const classNextStep =
+    nextAction.kind === "view_class"
+      ? nextStepFromWork(workItems)
+      : nextAction.reason
+        ? `${nextAction.label} — ${nextAction.reason}`
+        : nextAction.label;
   return {
     type: "class",
     id,
@@ -603,7 +642,7 @@ async function loadClass360(
       daysBack: 90,
       limit: DRAWER_LIMITS.timeline,
     }),
-    nextStep: nextStepFromWork(workItems),
+    nextStep: classNextStep,
     risks,
     footnote: OFFICER_FOOTNOTE,
   };
