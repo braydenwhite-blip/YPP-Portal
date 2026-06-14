@@ -6,9 +6,14 @@ import type {
   ActionItemWithRelations,
   ActionPickerUser,
 } from "@/lib/people-strategy/action-queries";
-import { canDeleteAction, type ActionViewer } from "@/lib/people-strategy/action-permissions";
+import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
+import {
+  attentionReason,
+  buildActionOperatingBoard,
+} from "@/lib/people-strategy/action-operating-board";
+import { ActionPulseStrip } from "@/components/people-strategy/action-pulse-strip";
 import { ActionQuickCreate } from "@/components/people-strategy/action-quick-create";
-import { ActionTrackerList } from "@/components/people-strategy/action-tracker-list";
+import { ActionRow } from "@/components/people-strategy/action-row";
 import { EmptyStateV2, UrlSyncedSearchInput } from "@/components/ui-v2";
 
 type UserOption = ActionPickerUser;
@@ -40,18 +45,6 @@ export function filterActionsByPerson(
   );
 }
 
-function actionAccessShape(item: ActionItemWithRelations) {
-  return {
-    leadId: item.leadId,
-    createdById: item.createdById,
-    visibility: item.visibility,
-    assignments: item.assignments.map((assignment) => ({
-      userId: assignment.user.id,
-      role: assignment.role,
-    })),
-  };
-}
-
 function WhoTab({
   href,
   active,
@@ -75,6 +68,39 @@ function WhoTab({
   );
 }
 
+/** One operating-board section: a quiet header + a stack of simplified rows. */
+function BoardSection({
+  title,
+  hint,
+  items,
+  now,
+  reasons,
+}: {
+  title: string;
+  hint?: string;
+  items: ActionItemWithRelations[];
+  now: Date;
+  reasons?: Map<string, string | null>;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: "0.01em" }}>
+          {title}
+        </h2>
+        <span style={{ fontSize: 12, color: "var(--text-secondary, #64748b)" }}>
+          {items.length}
+          {hint ? ` · ${hint}` : ""}
+        </span>
+      </div>
+      {items.map((item) => (
+        <ActionRow key={item.id} item={item} now={now} reason={reasons?.get(item.id)} />
+      ))}
+    </section>
+  );
+}
+
 export function ActionTrackerDashboard({
   items,
   now,
@@ -83,7 +109,6 @@ export function ActionTrackerDashboard({
   assignableUsers,
   departments,
   currentUserId,
-  viewer,
   who,
   q,
   initiativeId,
@@ -104,17 +129,26 @@ export function ActionTrackerDashboard({
   defaultOpenCreate?: boolean;
   initiativeLink?: { id: string; goalCategory?: string };
 }) {
-  const deletableIds = items
-    .filter(
-      (item) =>
-        item.status !== "DROPPED" && canDeleteAction(viewer, actionAccessShape(item))
-    )
-    .map((item) => item.id);
-
   const listHref = buildActionsHref({ who, q, initiative: initiativeId });
 
+  const board = buildActionOperatingBoard(items, currentUserId, now);
+  const attentionIds = new Set(board.needsAttention.map((i) => i.id));
+  const reasons = new Map(
+    board.needsAttention.map((i) => [i.id, attentionReason(i, now)] as const)
+  );
+  // Keep each open action in one place: a row in "Needs attention" is not
+  // repeated under Mine / Team.
+  const mine = board.mine.filter((i) => !attentionIds.has(i.id));
+  const team = board.team.filter((i) => !attentionIds.has(i.id));
+
+  const hasAnything =
+    board.needsAttention.length > 0 ||
+    mine.length > 0 ||
+    team.length > 0 ||
+    board.recentlyCompleted.length > 0;
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {canCreate && assignableUsers.length > 0 ? (
         <ActionQuickCreate
           users={assignableUsers}
@@ -145,28 +179,46 @@ export function ActionTrackerDashboard({
         </nav>
       ) : null}
 
+      <ActionPulseStrip items={items} now={now} />
+
       <UrlSyncedSearchInput
         placeholder="Search actions…"
         wrapClassName="w-full"
         aria-label="Search actions"
       />
 
-      {items.length === 0 ? (
+      {!hasAnything ? (
         <EmptyStateV2
           icon="✓"
-          title={q ? "No matches" : "No actions here"}
+          title={q ? "No matches" : "All clear"}
           body={
             q
               ? "Try another search."
               : canCreate
-                ? initiativeId
-                  ? "Add the first action for this initiative above."
-                  : "Use Add action above to create one."
+                ? "Nothing needs your attention. Use Add action above to create one."
                 : "Nothing assigned to you yet."
           }
         />
       ) : (
-        <ActionTrackerList items={items} nowISO={now.toISOString()} deletableIds={deletableIds} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <BoardSection
+            title="Needs attention"
+            hint="handle these first"
+            items={board.needsAttention}
+            now={now}
+            reasons={reasons}
+          />
+          <BoardSection title="My actions" items={mine} now={now} />
+          {who === "all" ? (
+            <BoardSection title="Team actions" hint="owned by others" items={team} now={now} />
+          ) : null}
+          <BoardSection
+            title="Recently completed"
+            hint="last 7 days"
+            items={board.recentlyCompleted}
+            now={now}
+          />
+        </div>
       )}
     </div>
   );
