@@ -6,9 +6,12 @@ import {
   buildSignals,
   computePerformanceStats,
   currentQuarterLabel,
+  EMPTY_CURRENT_MONTH_FEEDBACK,
   factsMatchFilter,
   monthKeyUTC,
+  parseMonthKey,
   type CheckInCalendarDot,
+  type CurrentMonthFeedback,
   type MemberFeedbackStatus,
   type PerformanceFilter,
   type PerformanceRowFacts,
@@ -86,31 +89,107 @@ const EMPTY_FEEDBACK: MemberFeedbackStatus = {
   lastRequestedMonthKey: null,
 };
 
+/**
+ * Per-member feedback position for ONE month (the current month). Reads only
+ * counts and the latest response timestamp — never response bodies — so this
+ * stays safe to compute for every row without touching confidential content.
+ * `newSinceCheckIn` compares the latest response against the month's compiled
+ * check-in timestamp, which is how "new feedback since check-in" is derived.
+ */
+async function loadCurrentMonthFeedback(
+  memberIds: string[],
+  monthStart: Date
+): Promise<Map<string, CurrentMonthFeedback>> {
+  if (memberIds.length === 0) return new Map();
+
+  const [requests, latestResponse, checkIns] = await Promise.all([
+    prisma.feedbackRequest.groupBy({
+      by: ["subjectUserId"],
+      where: { subjectUserId: { in: memberIds }, month: monthStart },
+      _count: { _all: true },
+    }),
+    prisma.feedbackRequest.groupBy({
+      by: ["subjectUserId"],
+      where: {
+        subjectUserId: { in: memberIds },
+        month: monthStart,
+        submittedAt: { not: null },
+      },
+      _count: { _all: true },
+      _max: { submittedAt: true },
+    }),
+    prisma.checkIn.findMany({
+      where: { userId: { in: memberIds }, month: monthStart },
+      select: { userId: true, createdAt: true },
+    }),
+  ]);
+
+  const requestedById = new Map(requests.map((g) => [g.subjectUserId, g._count._all]));
+  const submittedById = new Map(
+    latestResponse.map((g) => [
+      g.subjectUserId,
+      { count: g._count._all, latest: g._max.submittedAt ?? null },
+    ])
+  );
+  const checkInAtById = new Map(checkIns.map((c) => [c.userId, c.createdAt]));
+
+  const result = new Map<string, CurrentMonthFeedback>();
+  for (const id of memberIds) {
+    const requested = requestedById.get(id) ?? 0;
+    if (requested === 0 && !submittedById.has(id)) continue;
+    const submittedInfo = submittedById.get(id);
+    const submitted = submittedInfo?.count ?? 0;
+    const checkInAt = checkInAtById.get(id) ?? null;
+    const newSinceCheckIn = Boolean(
+      checkInAt && submittedInfo?.latest && submittedInfo.latest > checkInAt
+    );
+    result.set(id, {
+      requested,
+      submitted,
+      pending: Math.max(0, requested - submitted),
+      newSinceCheckIn,
+    });
+  }
+  return result;
+}
+
 export async function loadPeoplePerformance(
   now: Date = new Date()
 ): Promise<PeoplePerformanceResult> {
   const currentQuarter = currentQuarterLabel(now);
   const currentMonthKey = monthKeyUTC(now);
 
-  const dashboardRows = await loadPeopleDashboard(now);
-  const feedbackByMember = await loadFeedbackStatusByMember(
-    dashboardRows.map((r) => r.id)
+  const monthStart = parseMonthKey(currentMonthKey) ?? new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
   );
+
+  const dashboardRows = await loadPeopleDashboard(now);
+  const memberIds = dashboardRows.map((r) => r.id);
+  const [feedbackByMember, monthFeedbackByMember] = await Promise.all([
+    loadFeedbackStatusByMember(memberIds),
+    loadCurrentMonthFeedback(memberIds, monthStart),
+  ]);
 
   const rows: PeoplePerformanceRow[] = dashboardRows.map((row) => {
     const feedback = feedbackByMember.get(row.id) ?? EMPTY_FEEDBACK;
+    const monthFeedback =
+      monthFeedbackByMember.get(row.id) ?? EMPTY_CURRENT_MONTH_FEEDBACK;
+    const activeActions = [...row.leadActions, ...row.executingActions];
+    const overdueActionCount = activeActions.filter((a) => a.overdue).length;
     const facts: PerformanceRowFacts = {
       workloadWarning: row.workloadWarning,
       // The action views already carry the overdue flag computed by the
       // dashboard loader — reuse it rather than re-deriving deadlines.
-      hasOverdueAction:
-        row.leadActions.some((a) => a.overdue) ||
-        row.executingActions.some((a) => a.overdue),
+      hasOverdueAction: overdueActionCount > 0,
       trend: row.trend,
       successor: row.successor,
       needsCheckIn: !row.recentCheckIns.some((c) => c.monthKey === currentMonthKey),
       reviewDue: !row.quarterly || row.quarterly.quarter !== currentQuarter,
+      hasAnyReview: Boolean(row.quarterly),
       feedback,
+      monthFeedback,
+      activeActionCount: activeActions.length,
+      overdueActionCount,
       currentMonthKey,
     };
     return {

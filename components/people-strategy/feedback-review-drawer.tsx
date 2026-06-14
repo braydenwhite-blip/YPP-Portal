@@ -11,6 +11,7 @@ import {
   type FeedbackReviewMonth,
 } from "@/lib/people-strategy/feedback-plan-actions";
 import { RATING_LABELS } from "@/lib/people-strategy/check-in-rating";
+import { describeCompileResult } from "@/lib/people-strategy/people-performance-selectors";
 
 /**
  * Feedback review — closes the request → responses → check-in loop (ui-v2).
@@ -114,11 +115,17 @@ export function FeedbackReviewDrawer({
               }
             : prev
         );
+        const sentence = describeCompileResult(month.monthLabel, {
+          feedbackResponses: compiled.feedbackResponses,
+          isRecompile: compiled.isRecompile,
+          newResponses: compiled.newResponses,
+        });
+        const ratingNote = compiled.performanceRating
+          ? ` Performance from goal progress: ${RATING_LABELS[compiled.performanceRating]}.`
+          : " No goal-progress data yet, so no derived rating.";
         setCompileNotes((prev) => ({
           ...prev,
-          [month.monthKey]: compiled.performanceRating
-            ? `Compiled — performance from goal progress: ${RATING_LABELS[compiled.performanceRating]}.`
-            : "Compiled — no goal-progress data yet, so the check-in has no derived rating.",
+          [month.monthKey]: sentence + ratingNote,
         }));
         router.refresh(); // dots/stats on the table reflect the new check-in
       } catch (err) {

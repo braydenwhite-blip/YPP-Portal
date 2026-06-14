@@ -56,6 +56,14 @@ export interface CompiledCheckIn {
   selfReflectionId: string | null;
   mentorGoalReviewId: string | null;
   compiledNotes: string | null;
+  /** Feedback responses received for the month (aggregate count, no bodies). */
+  feedbackResponses: number;
+  /** Feedback requests for the month still awaiting a response. */
+  feedbackPending: number;
+  /** True when a check-in for this month already existed (this was a refresh). */
+  isRecompile: boolean;
+  /** Responses that arrived after the previous compile (0 on first compile). */
+  newResponses: number;
 }
 
 /**
@@ -66,6 +74,8 @@ function buildCompiledNotes(args: {
   hasReflection: boolean;
   rating: GoalRatingColor | null;
   goalCount: number;
+  feedbackResponses: number;
+  feedbackPending: number;
 }): string {
   const lines: string[] = [];
   lines.push(
@@ -85,6 +95,23 @@ function buildCompiledNotes(args: {
       ? `Derived from ${args.goalCount} per-goal rating${args.goalCount === 1 ? "" : "s"}.`
       : "No per-goal ratings recorded for this month."
   );
+  // Feedback context — AGGREGATE COUNTS ONLY. Compiled notes surface to admins
+  // (broader than Leadership/Board), so confidential collaborator response
+  // bodies are never written here; they stay in the leadership-gated review
+  // surface. See the privacy note on `compileCheckIn`.
+  if (args.feedbackResponses > 0 || args.feedbackPending > 0) {
+    const parts = [
+      `${args.feedbackResponses} response${args.feedbackResponses === 1 ? "" : "s"} received`,
+    ];
+    if (args.feedbackPending > 0) {
+      parts.push(`${args.feedbackPending} still pending`);
+    }
+    lines.push(
+      `Collaborator feedback: ${parts.join(", ")} (summaries in the leadership feedback review).`
+    );
+  } else {
+    lines.push("Collaborator feedback: none requested or received for this month.");
+  }
   return lines.join("\n");
 }
 
@@ -103,9 +130,11 @@ export async function compileCheckIn(
   const nextMonth = startOfNextMonthUTC(monthStart);
   const monthRange = { gte: monthStart, lt: nextMonth };
 
-  // Pull the EXISTING reflection + mentor review for this user/month. Both are
-  // optional — a check-in can be compiled before either is on file.
-  const [reflection, review] = await Promise.all([
+  // Pull the EXISTING reflection + mentor review for this user/month, plus the
+  // PRIOR check-in (to tell first-compile from recompile) and the month's
+  // feedback responses (COUNTS ONLY — no response bodies are read here). All
+  // optional: a check-in can be compiled before any of these are on file.
+  const [reflection, review, priorCheckIn, feedbackRequests] = await Promise.all([
     prisma.monthlySelfReflection.findFirst({
       where: { menteeId: userId, cycleMonth: monthRange },
       orderBy: { submittedAt: "desc" },
@@ -120,13 +149,33 @@ export async function compileCheckIn(
         goalRatings: { select: { rating: true } },
       },
     }),
+    prisma.checkIn.findUnique({
+      where: { userId_month: { userId, month: monthStart } },
+      select: { createdAt: true },
+    }),
+    prisma.feedbackRequest.findMany({
+      where: { subjectUserId: userId, month: monthStart },
+      select: { submittedAt: true },
+    }),
   ]);
+
+  const submittedRequests = feedbackRequests.filter((r) => r.submittedAt != null);
+  const feedbackResponses = submittedRequests.length;
+  const feedbackPending = feedbackRequests.length - feedbackResponses;
+  const isRecompile = priorCheckIn != null;
+  const newResponses = isRecompile
+    ? submittedRequests.filter(
+        (r) => r.submittedAt != null && r.submittedAt > priorCheckIn.createdAt
+      ).length
+    : feedbackResponses;
 
   const performanceRating = derivePerformanceRating(review);
   const compiledNotes = buildCompiledNotes({
     hasReflection: Boolean(reflection),
     rating: performanceRating,
     goalCount: review?.goalRatings.length ?? 0,
+    feedbackResponses,
+    feedbackPending,
   });
 
   const checkIn = await prisma.checkIn.upsert({
@@ -158,5 +207,9 @@ export async function compileCheckIn(
     selfReflectionId: checkIn.selfReflectionId,
     mentorGoalReviewId: checkIn.mentorGoalReviewId,
     compiledNotes: checkIn.compiledNotes,
+    feedbackResponses,
+    feedbackPending,
+    isRecompile,
+    newResponses,
   };
 }

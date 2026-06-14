@@ -13,7 +13,8 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     monthlySelfReflection: { findFirst: vi.fn() },
     mentorGoalReview: { findFirst: vi.fn() },
-    checkIn: { upsert: vi.fn() },
+    feedbackRequest: { findMany: vi.fn() },
+    checkIn: { upsert: vi.fn(), findUnique: vi.fn() },
   },
 }));
 
@@ -39,6 +40,9 @@ function sessionAs(roles: string[], id = "officer-1") {
 beforeEach(() => {
   process.env.ENABLE_QUARTERLY_REVIEWS = "true";
   vi.clearAllMocks();
+  // No prior check-in and no feedback by default; individual tests override.
+  fn(prisma.checkIn.findUnique).mockResolvedValue(null);
+  fn(prisma.feedbackRequest.findMany).mockResolvedValue([]);
   // Echo the upsert payload back as the persisted row.
   fn(prisma.checkIn.upsert).mockImplementation(async (args: { create: Record<string, unknown> }) => ({
     id: "ci1",
@@ -88,6 +92,32 @@ describe("compileCheckIn", () => {
     expect(result.selfReflectionId).toBeNull();
     expect(result.mentorGoalReviewId).toBeNull();
     expect(result.compiledNotes).toContain("not submitted");
+  });
+
+  it("is feedback-aware: counts responses, persists only aggregate counts, and reports new-on-recompile", async () => {
+    sessionAs(["STAFF"]);
+    fn(prisma.monthlySelfReflection.findFirst).mockResolvedValue(null);
+    fn(prisma.mentorGoalReview.findFirst).mockResolvedValue(null);
+    // A check-in already exists, compiled before the newest response arrived.
+    const priorCompiledAt = new Date("2026-05-20T00:00:00.000Z");
+    fn(prisma.checkIn.findUnique).mockResolvedValue({ createdAt: priorCompiledAt });
+    fn(prisma.feedbackRequest.findMany).mockResolvedValue([
+      { submittedAt: new Date("2026-05-10T00:00:00.000Z") }, // before prior compile
+      { submittedAt: new Date("2026-05-25T00:00:00.000Z") }, // new since prior compile
+      { submittedAt: null }, // still pending
+    ]);
+
+    const result = await compileCheckIn({ userId: "u1", month: "2026-05-15" });
+
+    expect(result.feedbackResponses).toBe(2);
+    expect(result.feedbackPending).toBe(1);
+    expect(result.isRecompile).toBe(true);
+    expect(result.newResponses).toBe(1);
+
+    const arg = fn(prisma.checkIn.upsert).mock.calls[0][0];
+    // Aggregate counts are persisted; no response body text leaks into notes.
+    expect(arg.create.compiledNotes).toContain("2 responses received");
+    expect(arg.create.compiledNotes).toContain("1 still pending");
   });
 
   it("denies a user below officer-tier", async () => {

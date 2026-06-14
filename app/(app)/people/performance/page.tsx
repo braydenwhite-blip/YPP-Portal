@@ -1,16 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import {
-  FilterBar,
-  FilterChipLink,
-  PageHeaderV2,
-  UrlSyncedSearchInput,
-} from "@/components/ui-v2";
+import { PageHeaderV2, UrlSyncedSearchInput } from "@/components/ui-v2";
 import { PeopleHubNav } from "@/components/people/people-hub-nav";
-import { PeoplePerformanceTable } from "@/components/people-strategy/people-performance-table";
+import { MonthSnapshotStrip } from "@/components/people-strategy/month-snapshot-strip";
+import { PeoplePerformanceClient } from "@/components/people-strategy/people-performance-client";
 import { requireLeadership } from "@/lib/authorization";
-import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
+import {
+  isPeopleDashboardEnabled,
+  isQuarterlyReviewsEnabled,
+} from "@/lib/feature-flags";
 import { getPeopleHubAccess } from "@/lib/people/hub-access";
 import { isBoard, type ActionViewer } from "@/lib/people-strategy/action-permissions";
 import {
@@ -18,25 +17,13 @@ import {
   loadPeoplePerformance,
 } from "@/lib/people-strategy/people-performance";
 import {
-  asPerformanceFilter,
+  buildMonthSnapshot,
   monthLabelUTC,
   parseMonthKey,
-  PERFORMANCE_FILTER_LABELS,
-  PERFORMANCE_SIMPLE_FILTERS,
 } from "@/lib/people-strategy/people-performance-selectors";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "People & Performance — Pathways Portal" };
-
-function performanceHref(params: { filter?: string; q?: string }): string {
-  const search = new URLSearchParams();
-  if (params.filter && params.filter !== "needs-attention") {
-    search.set("filter", params.filter);
-  }
-  if (params.q) search.set("q", params.q);
-  const qs = search.toString();
-  return qs ? `/people/performance?${qs}` : "/people/performance";
-}
 
 export default async function PeoplePerformancePage({
   searchParams,
@@ -49,14 +36,22 @@ export default async function PeoplePerformancePage({
   if (!viewer) notFound();
 
   const sp = await searchParams;
-  const filter = asPerformanceFilter(typeof sp.filter === "string" ? sp.filter : undefined);
   const q = typeof sp.q === "string" ? sp.q : undefined;
 
   const { rows, currentQuarter, currentMonthKey } = await loadPeoplePerformance();
-  const visible = filterPerformanceRows(rows, filter, q);
+  const visible = filterPerformanceRows(rows, "all", q);
 
   const currentMonth = parseMonthKey(currentMonthKey);
-  const currentMonthLabel = currentMonth ? monthLabelUTC(currentMonth) : currentMonthKey;
+  const monthLabel = currentMonth ? monthLabelUTC(currentMonth) : currentMonthKey;
+  const monthShortLabel = currentMonth
+    ? new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" }).format(
+        currentMonth
+      )
+    : currentMonthKey;
+
+  const quarterlyEnabled = isQuarterlyReviewsEnabled();
+  // Snapshot reflects the whole team for the month — never just the search subset.
+  const snapshot = buildMonthSnapshot(rows);
   const showBoardRollupLink = isBoard(viewer);
 
   const hubViewer: ActionViewer = {
@@ -68,7 +63,7 @@ export default async function PeoplePerformancePage({
   const hubAccess = getPeopleHubAccess(hubViewer);
 
   return (
-    <div className="mx-auto flex w-full max-w-[960px] flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-5">
       <PeopleHubNav
         active="performance"
         showPerformance
@@ -76,8 +71,8 @@ export default async function PeoplePerformancePage({
       />
 
       <PageHeaderV2
-        title="Who needs attention"
-        subtitle="Open someone to follow up on check-ins, reviews, or workload."
+        title="People & Performance"
+        subtitle="A quick operating snapshot — who needs feedback reviewed, a check-in compiled, or a review attended."
         actions={
           showBoardRollupLink ? (
             <Link
@@ -90,23 +85,17 @@ export default async function PeoplePerformancePage({
         }
       />
 
+      <MonthSnapshotStrip
+        snapshot={snapshot}
+        monthLabel={monthLabel}
+        quarterlyEnabled={quarterlyEnabled}
+      />
+
       <UrlSyncedSearchInput
         placeholder="Search name…"
         wrapClassName="w-full"
         aria-label="Search team"
       />
-
-      <FilterBar aria-label="Performance views">
-        {PERFORMANCE_SIMPLE_FILTERS.map((value) => (
-          <FilterChipLink
-            key={value}
-            href={performanceHref({ filter: value, q })}
-            active={filter === value}
-          >
-            {PERFORMANCE_FILTER_LABELS[value]}
-          </FilterChipLink>
-        ))}
-      </FilterBar>
 
       <p className="m-0 text-[12.5px] text-ink-muted">
         {visible.length === rows.length
@@ -115,10 +104,12 @@ export default async function PeoplePerformancePage({
         {q ? ` · “${q}”` : ""}
       </p>
 
-      <PeoplePerformanceTable
+      <PeoplePerformanceClient
         rows={visible}
-        currentQuarter={currentQuarter}
-        currentMonthLabel={currentMonthLabel}
+        monthLabel={monthLabel}
+        monthShortLabel={monthShortLabel}
+        quarter={currentQuarter}
+        quarterlyEnabled={quarterlyEnabled}
       />
     </div>
   );
