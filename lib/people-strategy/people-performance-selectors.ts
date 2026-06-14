@@ -114,6 +114,22 @@ export function buildCheckInCalendarDots(
   return dots;
 }
 
+// ── Mentorship & growth eligibility ──────────────────────────────────────────
+
+/**
+ * Roles the Instructor Mentorship Program assigns a mentor to. Mentees in the
+ * program are instructors and chapter presidents (the two active mentorship
+ * lanes); students get an *advisor* (not a mentor), and admins/staff/officers
+ * are not mentees — so a missing mentor is only a development gap for these
+ * roles. Keeping the predicate pure here lets the loader flag "No mentor
+ * assigned" without over-flagging people who are not expected to have one.
+ */
+export const MENTOR_EXPECTED_ROLES = ["INSTRUCTOR", "CHAPTER_PRESIDENT"] as const;
+
+export function roleExpectsMentor(role: string | null | undefined): boolean {
+  return role != null && (MENTOR_EXPECTED_ROLES as readonly string[]).includes(role);
+}
+
 // ── Row shape ────────────────────────────────────────────────────────────────
 
 export type MemberFeedbackStatus = {
@@ -181,6 +197,17 @@ export type PerformanceRowFacts = {
   overdueActionCount: number;
   /** "2026-06" — the current month, for the needs-feedback comparison. */
   currentMonthKey: string;
+  // ── Mentorship & growth — the People-memory dimensions ──
+  /** An active mentorship pairing names a mentor for this person. */
+  hasMentor: boolean;
+  /** This person's role is one the mentorship program assigns a mentor to. */
+  mentorEligible: boolean;
+  /** Mentor-eligible but no active mentor on file — a development gap. */
+  needsMentor: boolean;
+  /** Carries a "Ready for more" / "Potential team lead" growth signal. */
+  growthOpportunity: boolean;
+  /** Carries the "At risk of disengaging" watch signal. */
+  disengagementRisk: boolean;
 };
 
 /**
@@ -190,6 +217,9 @@ export type PerformanceRowFacts = {
  */
 export function buildSignals(facts: PerformanceRowFacts): PerformanceSignal[] {
   const signals: PerformanceSignal[] = [];
+  if (facts.disengagementRisk) {
+    signals.push({ label: "At risk of disengaging", tone: "danger" });
+  }
   if (facts.workloadWarning) {
     signals.push({
       label: facts.workloadWarning,
@@ -203,6 +233,12 @@ export function buildSignals(facts: PerformanceRowFacts): PerformanceSignal[] {
   }
   if (facts.successor) {
     signals.push({ label: "Succession candidate", tone: "brand" });
+  }
+  if (facts.growthOpportunity) {
+    signals.push({ label: "Ready for more", tone: "success" });
+  }
+  if (facts.needsMentor) {
+    signals.push({ label: "No mentor assigned", tone: "warning" });
   }
   if (facts.feedback.outstanding > 0) {
     signals.push({
@@ -227,6 +263,8 @@ export const PERFORMANCE_FILTERS = [
   "reviews-due",
   "workload",
   "succession",
+  "no-mentor",
+  "growth",
 ] as const;
 export type PerformanceFilter = (typeof PERFORMANCE_FILTERS)[number];
 
@@ -246,6 +284,8 @@ export const PERFORMANCE_FILTER_LABELS: Record<PerformanceFilter, string> = {
   "reviews-due": "Reviews due",
   workload: "Workload flagged",
   succession: "Succession",
+  "no-mentor": "No mentor",
+  growth: "Ready for more",
 };
 
 export function memberNeedsAttention(facts: PerformanceRowFacts): boolean {
@@ -253,7 +293,9 @@ export function memberNeedsAttention(facts: PerformanceRowFacts): boolean {
     facts.needsCheckIn ||
     facts.reviewDue ||
     facts.hasOverdueAction ||
-    facts.feedback.outstanding > 0
+    facts.feedback.outstanding > 0 ||
+    facts.needsMentor ||
+    facts.disengagementRisk
   );
 }
 
@@ -277,10 +319,22 @@ export function factsMatchFilter(facts: PerformanceRowFacts, filter: Performance
       return facts.workloadWarning !== null;
     case "succession":
       return facts.successor;
+    case "no-mentor":
+      return facts.needsMentor;
+    case "growth":
+      return facts.growthOpportunity;
     case "all":
     default:
       return true;
   }
+}
+
+/** Count rows matching a filter — powers the filter chips' live counts. */
+export function countMatchingFilter(
+  rows: Array<{ facts: PerformanceRowFacts }>,
+  filter: PerformanceFilter
+): number {
+  return rows.reduce((n, r) => (factsMatchFilter(r.facts, filter) ? n + 1 : n), 0);
 }
 
 export type PerformanceStats = {
@@ -387,12 +441,15 @@ export function quarterlyCellStatus(
 // ── Next action: one concrete step per person ────────────────────────────────
 
 export type NextActionKind =
+  | "support-checkin"
   | "review-feedback"
   | "compile-check-in"
   | "request-feedback"
   | "await-feedback"
   | "open-review"
+  | "assign-mentor"
   | "view-overdue"
+  | "recognize-growth"
   | "view-details";
 
 export type NextAction = {
@@ -405,13 +462,16 @@ export type NextAction = {
 
 /** Lower = more urgent. Drives the "Needs action" list ordering. */
 export const NEXT_ACTION_RANK: Record<NextActionKind, number> = {
-  "review-feedback": 0,
-  "compile-check-in": 1,
-  "request-feedback": 2,
-  "await-feedback": 3,
-  "open-review": 4,
-  "view-overdue": 5,
-  "view-details": 6,
+  "support-checkin": 0,
+  "review-feedback": 1,
+  "compile-check-in": 2,
+  "request-feedback": 3,
+  "await-feedback": 4,
+  "open-review": 5,
+  "assign-mentor": 6,
+  "view-overdue": 7,
+  "recognize-growth": 8,
+  "view-details": 9,
 };
 
 /**
@@ -425,6 +485,15 @@ export function deriveNextAction(
   ctx: { monthLabel: string; quarter: string }
 ): NextAction {
   const f = facts.monthFeedback;
+
+  // 0. A human flagged them as pulling back — a supportive check-in comes first.
+  if (facts.disengagementRisk) {
+    return {
+      kind: "support-checkin",
+      actionLabel: "Schedule check-in",
+      reason: "Flagged at risk of disengaging",
+    };
+  }
 
   // 1. New feedback responses ready to review.
   if (f.submitted > 0 && (facts.needsCheckIn || f.newSinceCheckIn)) {
@@ -471,7 +540,16 @@ export function deriveNextAction(
     };
   }
 
-  // 7. Overdue work items.
+  // 7. Mentor-eligible but unpaired — close the structural development gap.
+  if (facts.needsMentor) {
+    return {
+      kind: "assign-mentor",
+      actionLabel: "Assign mentor",
+      reason: "No mentor assigned",
+    };
+  }
+
+  // 8. Overdue work items.
   if (facts.overdueActionCount > 0) {
     return {
       kind: "view-overdue",
@@ -482,7 +560,16 @@ export function deriveNextAction(
     };
   }
 
-  // 8. Nothing pressing.
+  // 9. Ready for more — recognize and advance when nothing else is pressing.
+  if (facts.growthOpportunity) {
+    return {
+      kind: "recognize-growth",
+      actionLabel: "Recognize & advance",
+      reason: "Ready for more responsibility",
+    };
+  }
+
+  // 10. Nothing pressing.
   return { kind: "view-details", actionLabel: "View details", reason: "Up to date" };
 }
 

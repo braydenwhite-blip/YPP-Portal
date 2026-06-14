@@ -13,6 +13,7 @@ import {
 } from "@/components/ui-v2";
 import { compileCheckIn } from "@/lib/people-strategy/check-in-actions";
 import { RATING_LABELS } from "@/lib/people-strategy/check-in-rating";
+import { GROWTH_TAG_META } from "@/lib/people-strategy/growth-signals";
 import {
   loadLatestCheckInDetail,
   type PersonCheckInDetail,
@@ -208,6 +209,9 @@ export function PersonDetailDrawer({
           </ButtonLink>
         );
       case "open-review":
+      case "support-checkin":
+      case "assign-mentor":
+      case "recognize-growth":
         return (
           <ButtonLink href={strategyHref} variant="primary" size="md">
             {action.actionLabel}
@@ -380,6 +384,46 @@ export function PersonDetailDrawer({
               {row.quarterly.successionFlag ? " · Succession candidate" : ""}
             </p>
           ) : null}
+        </Section>
+
+        {/* G. Mentorship & growth */}
+        <Section title="Mentorship & growth">
+          <div className="flex flex-wrap items-center gap-2">
+            {row.mentorName ? (
+              <StatusBadge tone="success">Mentor · {row.mentorName}</StatusBadge>
+            ) : row.facts.needsMentor ? (
+              <StatusBadge tone="warning">No mentor assigned</StatusBadge>
+            ) : (
+              <StatusBadge tone="neutral">No mentor on file</StatusBadge>
+            )}
+          </div>
+          {!row.mentorName && row.facts.needsMentor ? (
+            <p className="m-0 text-[12.5px] text-ink-muted">
+              No mentor is assigned. Assign a mentor or create a mentorship plan.
+            </p>
+          ) : null}
+          {row.growthTags.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {row.growthTags.map((tag) => {
+                const meta = GROWTH_TAG_META[tag];
+                const tone: "danger" | "warning" | "success" =
+                  tag === "AT_RISK_OF_DISENGAGING"
+                    ? "danger"
+                    : meta.kind === "watch"
+                      ? "warning"
+                      : "success";
+                return (
+                  <StatusBadge key={tag} tone={tone}>
+                    {meta.label}
+                  </StatusBadge>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="m-0 text-[12px] text-ink-muted">
+              No growth signals tagged yet.
+            </p>
+          )}
         </Section>
       </div>
 
