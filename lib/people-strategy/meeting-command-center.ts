@@ -66,6 +66,13 @@ export interface MeetingNextAction {
   key: MeetingNextActionKey;
   /** Plain-English button label, e.g. "Add notes". */
   label: string;
+  /**
+   * The exact reason this is the next move, in plain English with real numbers
+   * ("No notes written yet.", "2 actions need an owner."). Shown beside the
+   * action so meetings match People / Actions / Classes, where every primary
+   * action explains itself.
+   */
+  reason: string;
   /** Where the primary button points (the meeting workspace, optionally focused). */
   href: string;
   /** The workspace section to scroll to, when the action targets one. */
@@ -109,43 +116,85 @@ function isPastStatus(status: EffectiveMeetingStatus): boolean {
  * dates → overdue) before settling on "View meeting" when nothing is missing.
  */
 export function meetingNextAction(m: MeetingWorkflowInput): MeetingNextAction {
-  const key = meetingNextActionKey(m);
+  const { key, reason } = resolveMeetingNextAction(m);
   const focus = NEXT_ACTION_FOCUS[key];
   const href = focus ? `/actions/meetings/${m.id}#${focus}` : `/actions/meetings/${m.id}`;
-  return { key, label: NEXT_ACTION_LABELS[key], href, focus };
+  return { key, label: NEXT_ACTION_LABELS[key], reason, href, focus };
 }
 
-function meetingNextActionKey(m: MeetingWorkflowInput): MeetingNextActionKey {
+/**
+ * The single best next action for a meeting AND the exact reason it is next,
+ * resolved together so the label and its "why" can never drift. Same priority
+ * ladder as the spec: live meetings open; un-prepped upcoming meetings get an
+ * agenda; finished meetings climb the wrap-up ladder (notes → decisions →
+ * actions → owners → dates → overdue) before settling on "View meeting".
+ */
+function resolveMeetingNextAction(m: MeetingWorkflowInput): {
+  key: MeetingNextActionKey;
+  reason: string;
+} {
   const followUpCount = m.followUpCount ?? 0;
   const needOwner = m.followUpsNeedingOwner ?? 0;
   const needDue = m.followUpsNeedingDueDate ?? 0;
+  const openFollowUps = m.openFollowUps ?? 0;
   const actionsCreated = m.linkedActionCount + followUpCount;
 
   // 1. Live meeting — get into the room.
-  if (m.effectiveStatus === "in_progress") return "open";
+  if (m.effectiveStatus === "in_progress") {
+    return { key: "open", reason: "It's happening now." };
+  }
 
   // 2–3. Upcoming / today (not started yet) — set it up, then prep.
   if (m.effectiveStatus === "upcoming" || m.effectiveStatus === "today") {
-    if (m.agendaCount === 0) return "add_agenda";
-    if (m.hasRelatedEntity || (m.openFollowUps ?? 0) > 0) return "prepare";
-    return "view";
+    if (m.agendaCount === 0) return { key: "add_agenda", reason: "No agenda set yet." };
+    if (m.hasRelatedEntity || openFollowUps > 0) {
+      return {
+        key: "prepare",
+        reason:
+          openFollowUps > 0
+            ? `${plural(openFollowUps, "open follow-up")} to review first.`
+            : "Connected context to review first.",
+      };
+    }
+    return { key: "view", reason: "Agenda's set — you're prepped." };
   }
 
   // Canceled — nothing to wrap up.
-  if (m.effectiveStatus === "canceled") return "view";
+  if (m.effectiveStatus === "canceled") {
+    return { key: "view", reason: "This meeting was canceled." };
+  }
 
   // 4–9. Finished meeting — walk the wrap-up ladder.
   if (isPastStatus(m.effectiveStatus)) {
-    if (!m.hasNotes) return "add_notes";
-    if (m.decisionCount === 0) return "add_decisions";
-    if (actionsCreated === 0) return "create_actions";
-    if (needOwner > 0) return "assign_owners";
-    if (needDue > 0) return "set_due_dates";
-    if (m.overdueFollowUps > 0) return "review_actions";
-    return "view";
+    if (!m.hasNotes) return { key: "add_notes", reason: "No notes written yet." };
+    if (m.decisionCount === 0) {
+      return { key: "add_decisions", reason: "No decisions recorded yet." };
+    }
+    if (actionsCreated === 0) {
+      return { key: "create_actions", reason: "No follow-up actions created yet." };
+    }
+    if (needOwner > 0) {
+      return {
+        key: "assign_owners",
+        reason: `${plural(needOwner, "action")} ${needOwner === 1 ? "needs" : "need"} an owner.`,
+      };
+    }
+    if (needDue > 0) {
+      return {
+        key: "set_due_dates",
+        reason: `${plural(needDue, "action")} ${needDue === 1 ? "needs" : "need"} a due date.`,
+      };
+    }
+    if (m.overdueFollowUps > 0) {
+      return {
+        key: "review_actions",
+        reason: `${plural(m.overdueFollowUps, "follow-up")} overdue.`,
+      };
+    }
+    return { key: "view", reason: "Wrapped up — nothing outstanding." };
   }
 
-  return "view";
+  return { key: "view", reason: "Nothing needs attention." };
 }
 
 // --- wrap-up state (spec §5) ------------------------------------------------
