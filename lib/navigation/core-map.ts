@@ -45,15 +45,11 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/messages",
   ],
   ADMIN: [
-    // Leadership pins: People Hub, Actions, Initiatives, then Work + admin home.
     "/",
     "/people",
     "/actions",
     "/operations/initiatives",
     "/work",
-    "/admin",
-    "/messages",
-    "/partners",
   ],
   HIRING_CHAIR: [
     "/",
@@ -63,7 +59,6 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/actions",
     "/operations/initiatives",
     "/work",
-    "/messages",
   ],
   PARENT: [
     "/",
@@ -75,16 +70,12 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/messages",
   ],
   CHAPTER_PRESIDENT: [
-    // "Shortcuts" row above the grouped CP sidebar. Everything else is
-    // organized into groups by chapter-president-v1-nav-layout.ts.
     "/",
     "/chapter",
     "/people",
     "/actions",
     "/operations/initiatives",
     "/work",
-    "/partners",
-    "/chapter-lead/instructor-applicants",
   ],
   MENTOR: [
     "/",
@@ -99,8 +90,5 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/actions",
     "/operations/initiatives",
     "/work",
-    "/announcements",
-    "/calendar",
-    "/messages",
   ],
 };
