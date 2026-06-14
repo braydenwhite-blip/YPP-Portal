@@ -432,14 +432,14 @@ export default async function ChapterLeadInstructorReadinessPage() {
           }}
         >
           <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-            Interview execution now lives in Interview Command Center for chapter-scoped guidance.
+            Interview scheduling and reviews now live in Interviews, with chapter-scoped guidance.
           </p>
           <Link
             href="/interviews?scope=readiness&view=team&state=needs_action"
             className="button small outline"
             style={{ textDecoration: "none" }}
           >
-            Open Interview Command Center
+            Open Interviews
           </Link>
         </div>
         {interviewQueue.length === 0 ? (

@@ -103,7 +103,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/",
       label: "Home",
       icon: "▣",
-      dashboardDescription: "Your primary-role command center with queues and next actions.",
+      dashboardDescription: "Your home base: what's assigned to you and what needs attention first.",
       dashboardPriority: 1,
     },
     {
@@ -122,13 +122,13 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "🎤",
       roles: INTERVIEW_ROLES,
       coreEligible: false,
-      dashboardDescription: "Run interview scheduling, confirmations, and outcomes in one command center.",
+      dashboardDescription: "Run interview scheduling, confirmations, and outcomes in one place.",
       dashboardPriority: 7,
       dashboardBadgeKey: "interview_queue",
     },
     {
       href: "/scheduling",
-      label: "Scheduling Hub",
+      label: "Scheduling",
       icon: "🗓",
       roles: ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR"] as NavRole[],
       dashboardDescription: "See interviews, mentorship, and college-advisor scheduling work in one place.",
@@ -498,7 +498,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/operations/data-360",
-      label: "Data 360",
+      label: "Connected data",
       icon: "🧠",
       // Officer-tier and above only (mirrors requireOfficer()), like the
       // Command Center. Secondary surface — never a pinned core link.
@@ -680,7 +680,7 @@ export const NAV_CATALOG: NavLink[] = [
         "Follow-ups",
       ],
       dashboardDescription:
-        "Weekly Command Center: run leadership meetings, log decisions and follow-ups, and turn them into tracked actions.",
+        "Run leadership meetings, log decisions and follow-ups, and turn them into tracked actions.",
       dashboardPriority: 5,
     },
     {
@@ -945,12 +945,12 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/chapter",
-      label: "Command Center",
+      label: "Chapter Home",
       icon: "🧭",
       roles: CHAPTER_PRESIDENT_ONLY,
-      dashboardDescription: "Run your chapter: health, action queues, members, and operations.",
+      dashboardDescription: "Run your chapter: members, action queues, and what needs attention.",
       dashboardPriority: 1,
-      searchAliases: ["Dashboard", "Chapter OS", "President Dashboard", "Overview"],
+      searchAliases: ["Dashboard", "Chapter OS", "President Dashboard", "Overview", "Command Center"],
     },
     {
       href: "/chapter/president",

@@ -3,16 +3,17 @@ import { redirect } from "next/navigation";
 import { HomeSearchButton } from "@/components/home/home-search-button";
 import { WorkHubTable } from "@/components/work/work-hub-table";
 import {
+  AdvancedFilters,
   ButtonLink,
   CardV2,
   EntityChip,
-  FilterBar,
   FilterChipLink,
   PageHeaderV2,
   RecordSection,
   StatusBadge,
   TrackerStartCard,
   UrlSyncedSearchInput,
+  ViewSwitcher,
 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import type { Entity360Type } from "@/lib/operations/entity-360";
@@ -256,25 +257,22 @@ export default async function WorkHubPage({
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <FilterBar aria-label="Work views">
-            {VIEWS.map((value) => (
-              <FilterChipLink
-                key={value}
-                href={workHref({ view: value, q, entity: entityParam })}
-                active={view === value && !flag}
-              >
-                {VIEW_LABELS[value]}
-              </FilterChipLink>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <ViewSwitcher
+              aria-label="Work views"
+              views={VIEWS.map((value) => ({
+                key: value,
+                label: VIEW_LABELS[value],
+                href: workHref({ view: value, q, entity: entityParam }),
+                active: view === value && !flag,
+              }))}
+            />
             {entity ? (
-              <>
-                <span aria-hidden className="mx-1 h-5 w-px bg-line" />
-                <FilterChipLink href={workHref({ view, flag: flag ?? undefined, q })} active>
-                  {entityLabel} ✕
-                </FilterChipLink>
-              </>
+              <FilterChipLink href={workHref({ view, flag: flag ?? undefined, q })} active>
+                {entityLabel} ✕
+              </FilterChipLink>
             ) : null}
-          </FilterBar>
+          </div>
           {showTable ? (
             <UrlSyncedSearchInput
               placeholder="Search work, owners, or entities…"
@@ -284,31 +282,26 @@ export default async function WorkHubPage({
           ) : null}
         </div>
 
-        <details
-          open={!!flag}
-          className="rounded-[10px] border border-line-soft bg-surface px-3.5 py-2"
+        <AdvancedFilters
+          defaultOpen={!!flag}
+          hint={flag ? WORK_HUB_FLAG_LABELS[flag] : undefined}
         >
-          <summary className="cursor-pointer text-[12.5px] font-semibold text-ink-muted">
-            More filters{flag ? ` · ${WORK_HUB_FLAG_LABELS[flag]}` : ""}
-          </summary>
-          <FilterBar aria-label="Work status filters" className="mt-2">
+          <FilterChipLink
+            href={workHref({ view, q, entity: entityParam })}
+            active={!flag}
+          >
+            Any status
+          </FilterChipLink>
+          {WORK_HUB_FLAGS.map((value) => (
             <FilterChipLink
-              href={workHref({ view, q, entity: entityParam })}
-              active={!flag}
+              key={value}
+              href={workHref({ view, flag: value, q, entity: entityParam })}
+              active={flag === value}
             >
-              Any status
+              {WORK_HUB_FLAG_LABELS[value]}
             </FilterChipLink>
-            {WORK_HUB_FLAGS.map((value) => (
-              <FilterChipLink
-                key={value}
-                href={workHref({ view, flag: value, q, entity: entityParam })}
-                active={flag === value}
-              >
-                {WORK_HUB_FLAG_LABELS[value]}
-              </FilterChipLink>
-            ))}
-          </FilterBar>
-        </details>
+          ))}
+        </AdvancedFilters>
       </div>
 
       {showTable ? (

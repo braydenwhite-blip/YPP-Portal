@@ -122,7 +122,7 @@ export default async function ChapterCommandCenterPage() {
           )}
           <div style={{ color: "white", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.9 }}>
-              {data.scope.isAdmin ? "Admin Oversight" : "Chapter Command Center"}
+              {data.scope.isAdmin ? "Admin Oversight" : "Chapter Home"}
             </div>
             <h1 style={{ margin: "6px 0 0", fontSize: 30 }}>{title}</h1>
             {data.chapter?.tagline ? (

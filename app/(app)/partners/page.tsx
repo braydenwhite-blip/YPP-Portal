@@ -2,12 +2,13 @@ import { redirect } from "next/navigation";
 
 import { PartnerDirectory } from "@/components/partners/partner-directory";
 import {
+  AdvancedFilters,
   ButtonLink,
-  FilterBar,
   FilterChipLink,
+  MetricStrip,
   PageHeaderV2,
-  StatCardV2,
   UrlSyncedSearchInput,
+  ViewSwitcher,
 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
@@ -102,65 +103,49 @@ export default async function PartnersPage({
           ) : null
         }
       >
-        <div className="flex flex-wrap gap-3">
-          <StatCardV2
-            label="Partners"
-            value={stats.total}
-            href={partnersHref({})}
-          />
-          <StatCardV2
-            label="Active conversations"
-            value={stats.activeConversations}
-            href={partnersHref({ view: "active" })}
-          />
-          <StatCardV2
-            label="Needs follow-up"
-            value={stats.needsFollowUp}
-            detail="overdue, no next step, or unowned"
-            tone={stats.needsFollowUp > 0 ? "attention" : "default"}
-            href={partnersHref({ view: "follow-up" })}
-          />
-          <StatCardV2
-            label="Open requests"
-            value={stats.openRequests}
-            detail="asks being negotiated"
-            tone={stats.openRequests > 0 ? "attention" : "default"}
-            href={partnersHref({ flag: "open-requests" })}
-          />
-          <StatCardV2
-            label="Upcoming meetings"
-            value={stats.upcomingMeetings}
-            detail="partners with a meeting scheduled"
-            href={partnersHref({ view: "meetings" })}
-          />
-        </div>
+        <MetricStrip
+          aria-label="Partner summary"
+          metrics={[
+            { label: "Partners", value: stats.total, href: partnersHref({}) },
+            {
+              label: "Active conversations",
+              value: stats.activeConversations,
+              href: partnersHref({ view: "active" }),
+            },
+            {
+              label: "Needs follow-up",
+              value: stats.needsFollowUp,
+              detail: "overdue, no next step, or unowned",
+              tone: stats.needsFollowUp > 0 ? "attention" : "default",
+              href: partnersHref({ view: "follow-up" }),
+            },
+            {
+              label: "Open requests",
+              value: stats.openRequests,
+              detail: "asks being negotiated",
+              tone: stats.openRequests > 0 ? "attention" : "default",
+              href: partnersHref({ flag: "open-requests" }),
+            },
+            {
+              label: "Upcoming meetings",
+              value: stats.upcomingMeetings,
+              detail: "partners with a meeting scheduled",
+              href: partnersHref({ view: "meetings" }),
+            },
+          ]}
+        />
       </PageHeaderV2>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <FilterBar aria-label="Partner views">
-          {PARTNER_VIEW_FILTERS.map((value) => (
-            <FilterChipLink
-              key={value}
-              href={partnersHref({ view: value, type, q })}
-              active={view === value && !flag}
-            >
-              {PARTNER_VIEW_FILTER_LABELS[value]}
-            </FilterChipLink>
-          ))}
-          <span aria-hidden className="mx-1 h-5 w-px bg-line" />
-          <FilterChipLink
-            href={partnersHref({ flag: "no-lead", q })}
-            active={flag === "no-lead"}
-          >
-            {PARTNER_FLAG_FILTER_LABELS["no-lead"]}
-          </FilterChipLink>
-          <FilterChipLink
-            href={partnersHref({ flag: "open-requests", q })}
-            active={flag === "open-requests"}
-          >
-            {PARTNER_FLAG_FILTER_LABELS["open-requests"]}
-          </FilterChipLink>
-        </FilterBar>
+        <ViewSwitcher
+          aria-label="Partner views"
+          views={PARTNER_VIEW_FILTERS.map((value) => ({
+            key: value,
+            label: PARTNER_VIEW_FILTER_LABELS[value],
+            href: partnersHref({ view: value, type, q }),
+            active: view === value && !flag,
+          }))}
+        />
         <UrlSyncedSearchInput
           placeholder="Search partners, contacts, leads…"
           wrapClassName="w-full sm:w-72"
@@ -168,22 +153,54 @@ export default async function PartnersPage({
         />
       </div>
 
-      {typeLabels.length > 1 ? (
-        <FilterBar aria-label="Partner types" className="-mt-2">
-          <span className="text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
-            Type
-          </span>
-          {typeLabels.map((label) => (
-            <FilterChipLink
-              key={label}
-              href={partnersHref({ view, flag: flag ?? undefined, q, type: type === label ? undefined : label })}
-              active={type === label}
-            >
-              {label}
-            </FilterChipLink>
-          ))}
-        </FilterBar>
-      ) : null}
+      <AdvancedFilters
+        defaultOpen={!!flag || !!type}
+        hint={
+          flag
+            ? PARTNER_FLAG_FILTER_LABELS[flag]
+            : type
+              ? `Type: ${type}`
+              : undefined
+        }
+      >
+        <FilterChipLink href={partnersHref({ view, type, q })} active={!flag}>
+          Any status
+        </FilterChipLink>
+        <FilterChipLink
+          href={partnersHref({ flag: "no-lead", q })}
+          active={flag === "no-lead"}
+        >
+          {PARTNER_FLAG_FILTER_LABELS["no-lead"]}
+        </FilterChipLink>
+        <FilterChipLink
+          href={partnersHref({ flag: "open-requests", q })}
+          active={flag === "open-requests"}
+        >
+          {PARTNER_FLAG_FILTER_LABELS["open-requests"]}
+        </FilterChipLink>
+        {typeLabels.length > 1 ? (
+          <>
+            <span aria-hidden className="mx-1 h-5 w-px bg-line" />
+            <span className="text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+              Type
+            </span>
+            {typeLabels.map((label) => (
+              <FilterChipLink
+                key={label}
+                href={partnersHref({
+                  view,
+                  flag: flag ?? undefined,
+                  q,
+                  type: type === label ? undefined : label,
+                })}
+                active={type === label}
+              >
+                {label}
+              </FilterChipLink>
+            ))}
+          </>
+        ) : null}
+      </AdvancedFilters>
 
       <p className="m-0 text-[12.5px] text-ink-muted">
         {filtered.length === rows.length

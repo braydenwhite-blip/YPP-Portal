@@ -44,7 +44,7 @@ export default async function ChapterMarketingPage() {
       <div className="page-header">
         <div>
           <Link href="/chapter" className="back-link">
-            ← Command Center
+            ← Chapter Home
           </Link>
           <h1>Chapter Marketing</h1>
           <p className="page-subtitle">

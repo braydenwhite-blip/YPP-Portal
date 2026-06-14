@@ -5,23 +5,23 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     pattern: "/",
     title: "Portal Home",
     content: {
-      purpose: "This home page is your role-based command center for assigned work and recent alerts.",
+      purpose: "This home page is your home base for the work assigned to you and what changed recently.",
       firstStep: "Open the first next action with the nearest due date or the item that is already assigned to you.",
       nextStep: "When you finish an action, the workflow record updates and the next owner or next stage appears automatically."
     },
     roleOverrides: {
       ADMIN: {
-        purpose: "This home page is your admin command center for queues, approvals, and the items that need attention first.",
+        purpose: "This home page is your admin home base for queues, approvals, and the items that need attention first.",
         firstStep: "Start with the highest-priority queue card or overdue workflow item at the top of the page.",
         nextStep: "After you move work forward, the next owner, next stage, or refreshed count appears automatically."
       },
       INSTRUCTOR: {
-        purpose: "This home page is your teaching command center for follow-up tasks, alerts, and student-facing work.",
+        purpose: "This home page is your teaching home base for follow-up tasks, alerts, and student-facing work.",
         firstStep: "Open the next teaching or follow-up item with the closest deadline or the clearest blocker.",
         nextStep: "After you finish a task, the page updates so the next class, learner, or workflow step can surface."
       },
       STUDENT: {
-        purpose: "This home page is your student command center for progress, reminders, and the next step in your portal journey.",
+        purpose: "This home page is your student home base for progress, reminders, and the next step in your portal journey.",
         firstStep: "Open the top next action first so you can handle the task that matters most right now.",
         nextStep: "After you complete a step, your progress updates and the next recommended action shows up automatically."
       },

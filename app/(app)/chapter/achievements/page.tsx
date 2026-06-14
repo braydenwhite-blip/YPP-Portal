@@ -18,7 +18,7 @@ export default async function ChapterAchievementsPage() {
         <div>
           {isLead && (
             <Link href="/chapter" className="back-link">
-              ← Command Center
+              ← Chapter Home
             </Link>
           )}
           <h1>Chapter Achievements</h1>

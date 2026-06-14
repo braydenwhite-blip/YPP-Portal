@@ -103,7 +103,7 @@ export default async function AdminApplicationsPage({
       <div className="topbar">
         <div>
           <p className="badge">Admin</p>
-          <h1 className="page-title">Application Pipeline</h1>
+          <h1 className="page-title">Applications</h1>
           <p className="page-subtitle">
             Review applications, manage interview scheduling, and monitor Chair-reviewed decisions.
           </p>
@@ -112,10 +112,10 @@ export default async function AdminApplicationsPage({
 
       <div className="card" style={{ marginBottom: 16 }}>
         <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-          Interview execution is now centralized in Interview Command Center.
+          Interview scheduling and reviews now live in Interviews.
         </p>
         <Link href="/interviews?scope=hiring&view=team&state=needs_action" className="button small outline" style={{ textDecoration: "none" }}>
-          Open Interview Command Center
+          Open Interviews
         </Link>
       </div>
 
