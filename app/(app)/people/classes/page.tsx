@@ -15,6 +15,7 @@ import { getPeopleHubAccess } from "@/lib/people/hub-access";
 import {
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
+import { loadClassCommandCenter } from "@/lib/classes/command-center";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Classes · People · Pathways Portal" };
@@ -58,12 +59,18 @@ export default async function PeopleClassesPage({
   const counts = deriveClassOperationsCounts(operationsPage.items, proposals);
   const hubAccess = getPeopleHubAccess(viewer);
 
+  // The command center (This-term strip, Needs action, calm list) is the
+  // operations view only — Review and Past keep the approval-workflow board.
+  const commandCenter =
+    tab === "operations" ? await loadClassCommandCenter(operationsPage.items) : null;
+
   return (
     <ClassOperationsHub
       tab={tab}
       operationsPage={operationsPage}
       proposals={proposals}
       counts={counts}
+      commandCenter={commandCenter}
       showPeopleNav
       showPerformanceTab={hubAccess.showPerformance}
     />

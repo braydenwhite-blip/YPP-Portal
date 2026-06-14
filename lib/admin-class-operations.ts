@@ -623,6 +623,13 @@ export async function getAdminClassOperationsList(args?: {
       chapter: {
         select: { id: true, name: true, city: true, region: true },
       },
+      partner: {
+        select: {
+          id: true,
+          name: true,
+          relationshipLead: { select: { id: true, name: true } },
+        },
+      },
       template: {
         select: { id: true, title: true, interestArea: true, difficultyLevel: true, targetAgeGroup: true },
       },
