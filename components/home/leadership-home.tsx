@@ -375,7 +375,7 @@ export function LeadershipHome({
 
           <RecordSection title="Quick actions" description="The common next moves.">
             <div className="flex flex-wrap gap-2">
-              <ButtonLink href="/actions/new" size="sm">
+              <ButtonLink href="/actions?create=1" size="sm">
                 Create action
               </ButtonLink>
               <ButtonLink href="/actions/meetings?new=1" size="sm">

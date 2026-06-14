@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ActionCard } from "@/components/people-strategy/action-card";
 import { ActionQuickCreate } from "@/components/people-strategy/action-quick-create";
+import { EmptyStateV2, RecordSection } from "@/components/ui-v2";
 import type {
   ActionDepartmentOption,
   ActionItemWithRelations,
@@ -10,9 +11,7 @@ import type {
 import { initiativePrimaryGoalCategory } from "@/lib/people-strategy/strategic-recommendations";
 import type { StrategicInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
 
-/**
- * The work under one initiative — the plan's action list, inline.
- */
+/** The work under one initiative — add actions inline; they stay linked to the plan. */
 export function InitiativeActionsPanel({
   initiative,
   actions,
@@ -31,32 +30,20 @@ export function InitiativeActionsPanel({
   currentUserId: string;
 }) {
   const trackerHref = `/actions?initiative=${encodeURIComponent(initiative.id)}&who=all`;
-  const openCount = actions.length;
 
   return (
-    <section>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <h2 className="ps-section-title" style={{ margin: 0 }}>
-            Actions
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
-            The work that moves this initiative forward — {openCount} open.
-          </p>
-        </div>
-        <Link href={trackerHref} className="button outline small">
-          Open in tracker
+    <RecordSection
+      title="Actions"
+      description={`${actions.length} open — the work that moves this initiative forward.`}
+      action={
+        <Link
+          href={trackerHref}
+          className="text-[13px] font-semibold text-brand-700 no-underline hover:underline"
+        >
+          View all →
         </Link>
-      </div>
-
+      }
+    >
       {canCreate && assignableUsers.length > 0 ? (
         <ActionQuickCreate
           users={assignableUsers}
@@ -70,19 +57,19 @@ export function InitiativeActionsPanel({
         />
       ) : null}
 
-      {openCount === 0 ? (
-        <div className="card" style={{ marginTop: 12, padding: 16 }}>
-          <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
-            No open actions yet. Add one above — it will stay linked to this initiative.
-          </p>
-        </div>
+      {actions.length === 0 ? (
+        <EmptyStateV2
+          title="No actions yet"
+          body="Add one above — it will stay linked to this initiative."
+          className="py-8"
+        />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+        <div className="mt-2 flex flex-col gap-2">
           {actions.map((item) => (
             <ActionCard key={item.id} item={item} now={now} />
           ))}
         </div>
       )}
-    </section>
+    </RecordSection>
   );
 }

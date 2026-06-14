@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { headers } from "next/headers";
 import { createServerClientOrNull } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeRoleValues, normalizeRoleValue } from "@/lib/role-utils";
@@ -110,56 +111,84 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const demoLegacySession = isHiringDemoModeEnabled()
     ? await getLegacySessionFromCookies()
     : null;
-  const supabase = demoLegacySession ? null : await createServerClientOrNull();
-  let authUser = null;
-  if (!demoLegacySession && supabase) {
-    try {
-      const { data } = await supabase.auth.getUser();
-      authUser = data.user;
-    } catch {
-      // Stale / invalid refresh token — treat as signed out. Middleware will
-      // have already stripped the poison cookies from the response.
-      authUser = null;
-    }
-  }
+
+  const headerStore = await headers();
+  const middlewareSupabaseAuthId = headerStore.get("x-supabase-auth-id");
+  const middlewareSupabaseEmail = headerStore.get("x-supabase-auth-email");
+  const middlewareLegacyUserId = headerStore.get("x-legacy-user-id");
+  const middlewareLegacyEmail = headerStore.get("x-legacy-auth-email");
 
   let prismaUser = null;
+
   if (demoLegacySession) {
     prismaUser = await resolvePrismaUserForSession({
       id: demoLegacySession.userId,
       email: demoLegacySession.email,
     });
-  } else if (authUser) {
-    prismaUser = await resolvePrismaUserForSession({ supabaseAuthId: authUser.id });
+  } else if (middlewareLegacyUserId) {
+    prismaUser = await resolvePrismaUserForSession({
+      id: middlewareLegacyUserId,
+      email: middlewareLegacyEmail ?? undefined,
+    });
+  } else if (middlewareSupabaseAuthId) {
+    // Middleware already validated the Supabase session — skip a second
+    // network round-trip to supabase.auth.getUser() on every RSC render.
+    prismaUser = await resolvePrismaUserForSession({
+      supabaseAuthId: middlewareSupabaseAuthId,
+    });
 
-    // Fallback: some users (migrated from legacy auth, or created before the
-    // Supabase sync trigger was live) have a Prisma row without supabaseAuthId.
-    // Match on verified email instead and back-fill the link so the lookup is
-    // fast on subsequent requests. Without this, they render as "Portal User".
-    if (!prismaUser && authUser.email) {
-      const byEmail = await resolvePrismaUserForSession({ email: authUser.email });
+    if (!prismaUser && middlewareSupabaseEmail) {
+      const byEmail = await resolvePrismaUserForSession({ email: middlewareSupabaseEmail });
       if (byEmail) {
         prismaUser = byEmail;
         try {
           await prisma.user.update({
             where: { id: byEmail.id },
-            data: { supabaseAuthId: authUser.id },
+            data: { supabaseAuthId: middlewareSupabaseAuthId },
           });
         } catch (error) {
-          // Best-effort back-fill — if the write fails (pool, unique clash,
-          // whatever), the email fallback will still resolve them next time.
           console.warn("[auth] Could not back-fill supabaseAuthId.", error);
         }
       }
     }
   } else {
-    const legacySession = await getLegacySessionFromCookies();
-    prismaUser = legacySession
-      ? await resolvePrismaUserForSession({
-          id: legacySession.userId,
-          email: legacySession.email,
-        })
-      : null;
+    const supabase = await createServerClientOrNull();
+    let authUser = null;
+    if (supabase) {
+      try {
+        const { data } = await supabase.auth.getUser();
+        authUser = data.user;
+      } catch {
+        authUser = null;
+      }
+    }
+
+    if (authUser) {
+      prismaUser = await resolvePrismaUserForSession({ supabaseAuthId: authUser.id });
+
+      if (!prismaUser && authUser.email) {
+        const byEmail = await resolvePrismaUserForSession({ email: authUser.email });
+        if (byEmail) {
+          prismaUser = byEmail;
+          try {
+            await prisma.user.update({
+              where: { id: byEmail.id },
+              data: { supabaseAuthId: authUser.id },
+            });
+          } catch (error) {
+            console.warn("[auth] Could not back-fill supabaseAuthId.", error);
+          }
+        }
+      }
+    } else {
+      const legacySession = await getLegacySessionFromCookies();
+      prismaUser = legacySession
+        ? await resolvePrismaUserForSession({
+            id: legacySession.userId,
+            email: legacySession.email,
+          })
+        : null;
+    }
   }
 
   if (!prismaUser) return null;

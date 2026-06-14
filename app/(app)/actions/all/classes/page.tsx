@@ -1,12 +1,11 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { requireOfficer } from "@/lib/authorization";
+import { hasRole } from "@/lib/authorization";
 import {
   isActionTrackerEnabled,
-  isPeopleDashboardEnabled,
 } from "@/lib/feature-flags";
 import { listTrackerClasses, type TrackerClass } from "@/lib/people-strategy/class-tracker";
-import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { ClassTrackerRow } from "@/components/people-strategy/class-tracker-row";
 
@@ -22,8 +21,11 @@ export default async function ActionTrackerClassesPage() {
   const viewer = await requireOfficer().catch(() => null);
   if (!viewer) notFound();
 
+  if (hasRole(viewer.roles, "ADMIN", viewer.primaryRole ?? null)) {
+    redirect("/people/classes");
+  }
+
   const classes = await listTrackerClasses();
-  const showPeopleDashboardTab = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
 
   // Group by chapter (the class org unit), mirroring the department grouping on
   // All Actions. Classes keep the soonest-start ordering within each group.
@@ -62,7 +64,7 @@ export default async function ActionTrackerClassesPage() {
         </div>
       </div>
 
-      <ActionTrackerTabsV2 active="classes" showPeople={showPeopleDashboardTab} />
+      <ActionTrackerTabsV2 active="classes" />
 
       <div
         className="card"

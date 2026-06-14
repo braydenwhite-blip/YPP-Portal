@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { getSession } from "@/lib/auth-supabase";
 import {
   getInstructorOpsMetrics,
@@ -12,6 +13,12 @@ import InstructorOpsKanban from "../instructor-ops-kanban";
 
 export const dynamic = "force-dynamic";
 
+const getCachedInstructorOpsRecords = unstable_cache(
+  async () => getInstructorOpsRecords(),
+  ["admin-instructor-ops-records"],
+  { revalidate: 60 }
+);
+
 export default async function AdminInstructorsHubPage() {
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
@@ -19,7 +26,7 @@ export default async function AdminInstructorsHubPage() {
     redirect("/");
   }
 
-  const records = await getInstructorOpsRecords();
+  const records = await getCachedInstructorOpsRecords();
   const metrics = getInstructorOpsMetrics(records);
   const recentActivity = getInstructorOpsRecentActivity(records, 8);
   const attentionRecords = records

@@ -76,7 +76,7 @@ export default async function NewActionInTrackerPage({
       ctx.suggestedOwnerId ||
       ctx.strategicInitiativeId
   );
-  if (!hasPrefillContext) redirect("/actions");
+  if (!hasPrefillContext) redirect("/actions?create=1");
 
   // The honest 4.0 context (source provenance + strategic link + suggestions),
   // parsed + lightly validated by the one tested reader.

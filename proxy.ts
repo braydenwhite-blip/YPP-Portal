@@ -113,6 +113,36 @@ function buildCsp(nonce: string): string {
   ].join("; ");
 }
 
+function withForwardedRequestHeaders(
+  request: NextRequest,
+  pathname: string,
+  extra: Record<string, string> = {}
+): Headers {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+  for (const [key, value] of Object.entries(extra)) {
+    requestHeaders.set(key, value);
+  }
+  return requestHeaders;
+}
+
+function mergeMiddlewareResponse(
+  request: NextRequest,
+  source: NextResponse,
+  pathname: string,
+  extra: Record<string, string> = {}
+): NextResponse {
+  const merged = NextResponse.next({
+    request: {
+      headers: withForwardedRequestHeaders(request, pathname, extra),
+    },
+  });
+  for (const cookie of source.cookies.getAll()) {
+    merged.cookies.set(cookie.name, cookie.value);
+  }
+  return merged;
+}
+
 function applySecurityHeaders(response: NextResponse, pathname?: string): NextResponse {
   const nonce = generateNonce();
 
@@ -120,9 +150,6 @@ function applySecurityHeaders(response: NextResponse, pathname?: string): NextRe
   response.headers.set("x-nonce", nonce);
 
   // Forward the request pathname so layouts/RSCs can read it via `headers()`.
-  // Layouts don't get `params.pathname` in Next.js, but they can call
-  // `headers().get("x-pathname")` to make routing-aware decisions
-  // (e.g. SW-subtype bypass on /instructor/workshop-design-studio).
   if (pathname) {
     response.headers.set("x-pathname", pathname);
   }
@@ -142,7 +169,12 @@ export async function proxy(request: NextRequest) {
   const isPublic = isPublicPath(pathname);
 
   if (isPublic && !isLogin && !isSignup) {
-    return applySecurityHeaders(NextResponse.next({ request }), pathname);
+    const response = NextResponse.next({
+      request: {
+        headers: withForwardedRequestHeaders(request, pathname),
+      },
+    });
+    return applySecurityHeaders(response, pathname);
   }
 
   // Create Supabase client and refresh session
@@ -230,7 +262,20 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  return applySecurityHeaders(response, pathname);
+  const authForward: Record<string, string> = {};
+  if (user && !isArchivedPortalUser) {
+    authForward["x-supabase-auth-id"] = user.id;
+    if (user.email) authForward["x-supabase-auth-email"] = user.email;
+  }
+  if (legacySession?.userId) {
+    authForward["x-legacy-user-id"] = legacySession.userId;
+    if (legacySession.email) authForward["x-legacy-auth-email"] = legacySession.email;
+  }
+
+  return applySecurityHeaders(
+    mergeMiddlewareResponse(request, response, pathname, authForward),
+    pathname
+  );
 }
 
 export const config = {

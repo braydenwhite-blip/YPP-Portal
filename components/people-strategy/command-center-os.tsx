@@ -834,7 +834,7 @@ export function CommandCenterAllClear({
         <Link href="/actions/new" className="button outline small">
           Create an action
         </Link>
-        <Link href="/admin/classes" className="button outline small">
+        <Link href="/people/classes" className="button outline small">
           Review classes
         </Link>
       </div>

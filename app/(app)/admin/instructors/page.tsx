@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { getSession } from "@/lib/auth-supabase";
 import { getInstructorOpsMetrics, getInstructorOpsRecords } from "@/lib/instructor-ops";
 import { listAllTags, listSavedViews } from "@/lib/instructor-ops-actions";
@@ -6,6 +7,12 @@ import { MasterDirectoryBanner } from "@/components/people/master-directory-bann
 import InstructorDatabaseClient from "./instructor-database-client";
 
 export const dynamic = "force-dynamic";
+
+const getCachedInstructorOpsRecords = unstable_cache(
+  async () => getInstructorOpsRecords(),
+  ["admin-instructor-ops-records"],
+  { revalidate: 60 }
+);
 
 export default async function AdminInstructorsPage() {
   const session = await getSession();
@@ -15,7 +22,7 @@ export default async function AdminInstructorsPage() {
   }
 
   const [records, allTags, savedViews] = await Promise.all([
-    getInstructorOpsRecords(),
+    getCachedInstructorOpsRecords(),
     listAllTags(),
     listSavedViews(),
   ]);

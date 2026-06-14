@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 
 const QUICK_ACTIONS = [
+  { href: "/people", label: "People Hub", icon: "P" },
+  { href: "/people/classes", label: "Manage Classes", icon: "C" },
   { href: "/admin/action-center", label: "Action Center", icon: "L" },
   { href: "/admin/action-center/weekly", label: "Weekly Digest", icon: "W" },
-  { href: "/admin/classes", label: "Class Operations", icon: "C" },
   { href: "/admin/instructor-assignments", label: "Instructor Assignments", icon: "A" },
-  { href: "/admin/classes?tab=review", label: "Class Review Queue", icon: "R" },
+  { href: "/people/classes?tab=review", label: "Class Review Queue", icon: "R" },
   { href: "/admin/chapters", label: "Chapters", icon: "D" },
   { href: "/admin/audit-log", label: "Audit Log", icon: "A" },
   { href: "/admin/waitlist", label: "Waitlist", icon: "W" },

@@ -188,6 +188,7 @@ export function buildSignals(facts: PerformanceRowFacts): PerformanceSignal[] {
 // ── Filters and stats ────────────────────────────────────────────────────────
 
 export const PERFORMANCE_FILTERS = [
+  "needs-attention",
   "all",
   "needs-checkin",
   "feedback-pending",
@@ -197,8 +198,17 @@ export const PERFORMANCE_FILTERS = [
 ] as const;
 export type PerformanceFilter = (typeof PERFORMANCE_FILTERS)[number];
 
+/** Filters shown on the simplified performance page. */
+export const PERFORMANCE_SIMPLE_FILTERS = [
+  "needs-attention",
+  "needs-checkin",
+  "reviews-due",
+  "all",
+] as const satisfies readonly PerformanceFilter[];
+
 export const PERFORMANCE_FILTER_LABELS: Record<PerformanceFilter, string> = {
-  all: "All members",
+  "needs-attention": "Needs attention",
+  all: "All team",
   "needs-checkin": "Needs check-in",
   "feedback-pending": "Feedback pending",
   "reviews-due": "Reviews due",
@@ -206,14 +216,25 @@ export const PERFORMANCE_FILTER_LABELS: Record<PerformanceFilter, string> = {
   succession: "Succession",
 };
 
+export function memberNeedsAttention(facts: PerformanceRowFacts): boolean {
+  return (
+    facts.needsCheckIn ||
+    facts.reviewDue ||
+    facts.hasOverdueAction ||
+    facts.feedback.outstanding > 0
+  );
+}
+
 export function asPerformanceFilter(value: string | undefined): PerformanceFilter {
   return value && (PERFORMANCE_FILTERS as readonly string[]).includes(value)
     ? (value as PerformanceFilter)
-    : "all";
+    : "needs-attention";
 }
 
 export function factsMatchFilter(facts: PerformanceRowFacts, filter: PerformanceFilter): boolean {
   switch (filter) {
+    case "needs-attention":
+      return memberNeedsAttention(facts);
     case "needs-checkin":
       return facts.needsCheckIn;
     case "feedback-pending":
@@ -231,6 +252,7 @@ export function factsMatchFilter(facts: PerformanceRowFacts, filter: Performance
 }
 
 export type PerformanceStats = {
+  needsAttention: number;
   needsCheckIn: number;
   feedbackPending: number;
   reviewsDue: number;
@@ -240,6 +262,7 @@ export type PerformanceStats = {
 
 export function computePerformanceStats(rows: Array<{ facts: PerformanceRowFacts }>): PerformanceStats {
   const stats: PerformanceStats = {
+    needsAttention: 0,
     needsCheckIn: 0,
     feedbackPending: 0,
     reviewsDue: 0,
@@ -247,6 +270,7 @@ export function computePerformanceStats(rows: Array<{ facts: PerformanceRowFacts
     succession: 0,
   };
   for (const { facts } of rows) {
+    if (memberNeedsAttention(facts)) stats.needsAttention++;
     if (facts.needsCheckIn) stats.needsCheckIn++;
     if (facts.feedback.outstanding > 0) stats.feedbackPending++;
     if (facts.reviewDue) stats.reviewsDue++;
@@ -254,4 +278,35 @@ export function computePerformanceStats(rows: Array<{ facts: PerformanceRowFacts
     if (facts.successor) stats.succession++;
   }
   return stats;
+}
+
+/** Up to three plain-language status chips for the simplified table. */
+export function buildAttentionLabels(
+  facts: PerformanceRowFacts,
+  currentMonthLabel: string,
+  currentQuarter: string
+): PerformanceSignal[] {
+  const labels: PerformanceSignal[] = [];
+  if (facts.needsCheckIn) {
+    labels.push({ label: `No ${currentMonthLabel} check-in`, tone: "warning" });
+  }
+  if (facts.reviewDue) {
+    labels.push({ label: `No ${currentQuarter} review`, tone: "warning" });
+  }
+  if (facts.workloadWarning) {
+    labels.push({
+      label: facts.workloadWarning,
+      tone: facts.hasOverdueAction ? "danger" : "warning",
+    });
+  }
+  if (facts.feedback.outstanding > 0) {
+    labels.push({
+      label: `${facts.feedback.outstanding} feedback pending`,
+      tone: "info",
+    });
+  }
+  if (labels.length === 0) {
+    labels.push({ label: "On track", tone: "success" });
+  }
+  return labels.slice(0, 3);
 }

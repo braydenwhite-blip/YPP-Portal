@@ -1,36 +1,33 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PeopleDirectory } from "@/components/people/people-directory";
+import { PeopleHubNav } from "@/components/people/people-hub-nav";
 import {
   ButtonLink,
   FilterBar,
   FilterChipLink,
   PageHeaderV2,
-  StatCardV2,
   UrlSyncedSearchInput,
 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
-import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
 import {
-  isLeadershipOrBoard,
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
+import { getPeopleHubAccess } from "@/lib/people/hub-access";
 import {
   asPeopleFlagFilter,
   asPeopleRoleFilter,
   loadPeopleDirectory,
   PEOPLE_FLAG_FILTER_LABELS,
   PEOPLE_ROLE_FILTER_LABELS,
-  PEOPLE_ROLE_FILTERS,
+  PEOPLE_SIMPLE_ROLE_FILTERS,
 } from "@/lib/people/directory";
 import { hasRole } from "@/lib/authorization";
 
 export const dynamic = "force-dynamic";
-
-export const metadata = {
-  title: "People — Pathways Portal",
-};
+export const metadata = { title: "People — Pathways Portal" };
 
 function peopleHref(params: {
   role?: string;
@@ -47,16 +44,6 @@ function peopleHref(params: {
   return qs ? `/people?${qs}` : "/people";
 }
 
-/**
- * Master People database (Knowledge OS V2 must-build, plan §9) — one
- * directory for every person connected to YPP: students, instructors,
- * mentors, advisors, applicants, leadership, parents. Search + filters +
- * concrete flags at the row level; clicking a row opens the Entity 360
- * preview; the full profile is one explicit click from there.
- *
- * (Replaces the legacy redirect to /actions/people — that dashboard remains
- * reachable directly and folds into the Work Hub in a later phase.)
- */
 export default async function PeoplePage({
   searchParams,
 }: {
@@ -71,13 +58,10 @@ export default async function PeoplePage({
     primaryRole: session.user.primaryRole,
     adminSubtypes: session.user.adminSubtypes,
   };
-  // Advisor check-in state and applicant stages are leadership reads — the
-  // directory is officer-tier and above (mirrors the operations surfaces).
   if (!isOfficerTier(viewer)) redirect("/");
+
   const canUseAdminPeopleTools = hasRole(viewer.roles, "ADMIN", viewer.primaryRole);
-  // Leadership/Board entry into the People & Performance view (the route
-  // itself re-checks with requireLeadership(); this only gates the affordance).
-  const canOpenPerformanceView = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
+  const hubAccess = getPeopleHubAccess(viewer);
 
   const sp = await searchParams;
   const role = asPeopleRoleFilter(typeof sp.role === "string" ? sp.role : undefined);
@@ -85,116 +69,70 @@ export default async function PeoplePage({
   const advisorId = typeof sp.advisor === "string" ? sp.advisor : null;
   const q = typeof sp.q === "string" ? sp.q : undefined;
 
-  const { rows, total, stats, advisorFilter } = await loadPeopleDirectory({
+  const { rows, total, advisorFilter } = await loadPeopleDirectory({
     q,
     role,
     flag,
     advisorId,
   });
 
+  const usingFlag = Boolean(flag);
+  const usingRole = role !== "all" && !usingFlag;
+
   return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[960px] flex-col gap-5">
+      <PeopleHubNav
+        active="directory"
+        showPerformance={hubAccess.showPerformance}
+        showClasses={hubAccess.showClasses}
+      />
+
       <PageHeaderV2
-        eyebrow="Knowledge OS"
         title="People"
-        subtitle="Every person connected to YPP — find anyone, see their advisor or classes at a glance, and open their 360 without leaving the page."
+        subtitle="Search by name or email, then open someone."
         actions={
-          canUseAdminPeopleTools || canOpenPerformanceView ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {canOpenPerformanceView ? (
-                <ButtonLink href="/people/performance" variant="primary" size="md">
-                  People &amp; Performance
-                </ButtonLink>
-              ) : null}
-              {canUseAdminPeopleTools ? (
-                <ButtonLink href="/admin/bulk-users" variant="secondary" size="md">
-                  Add person
-                </ButtonLink>
-              ) : null}
-            </div>
+          canUseAdminPeopleTools ? (
+            <ButtonLink href="/admin/bulk-users" variant="secondary" size="md">
+              Add person
+            </ButtonLink>
           ) : null
         }
-      >
-        {/* Click-to-filter stat strip — every count lands on its filtered view. */}
-        <div className="flex flex-wrap gap-3">
-          <StatCardV2
-            label="Students"
-            value={stats.students}
-            href={peopleHref({ role: "student" })}
-          />
-          <StatCardV2
-            label="Instructors"
-            value={stats.instructors}
-            href={peopleHref({ role: "instructor" })}
-          />
-          <StatCardV2
-            label="Applicants in process"
-            value={stats.applicantsInProcess}
-            detail="awaiting a decision"
-            href={peopleHref({ role: "applicant" })}
-          />
-          <StatCardV2
-            label="No advisor"
-            value={stats.studentsWithoutAdvisor}
-            detail="students unassigned"
-            tone={stats.studentsWithoutAdvisor > 0 ? "attention" : "default"}
-            href={peopleHref({ flag: "no-advisor" })}
-          />
-          <StatCardV2
-            label="Check-ins overdue"
-            value={stats.checkInsOverdue}
-            detail="advisor check-ins past due"
-            tone={stats.checkInsOverdue > 0 ? "attention" : "default"}
-            href={peopleHref({ flag: "checkin-overdue" })}
-          />
-        </div>
-      </PageHeaderV2>
+      />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <FilterBar aria-label="Role filters">
-          {PEOPLE_ROLE_FILTERS.map((value) => (
-            <FilterChipLink
-              key={value}
-              href={peopleHref({ role: value, q })}
-              active={role === value && !flag}
-            >
-              {PEOPLE_ROLE_FILTER_LABELS[value]}
-            </FilterChipLink>
-          ))}
-          <span aria-hidden className="mx-1 h-5 w-px bg-line" />
+      <UrlSyncedSearchInput
+        placeholder="Search name or email…"
+        wrapClassName="w-full"
+        aria-label="Search people"
+      />
+
+      <FilterBar aria-label="People views">
+        {PEOPLE_SIMPLE_ROLE_FILTERS.map((value) => (
           <FilterChipLink
-            href={peopleHref({ flag: "no-advisor", q })}
-            active={flag === "no-advisor"}
+            key={value}
+            href={peopleHref({ role: value, q })}
+            active={usingRole && role === value}
           >
-            {PEOPLE_FLAG_FILTER_LABELS["no-advisor"]}
+            {PEOPLE_ROLE_FILTER_LABELS[value]}
           </FilterChipLink>
-          <FilterChipLink
-            href={peopleHref({ flag: "checkin-overdue", q })}
-            active={flag === "checkin-overdue"}
-          >
-            {PEOPLE_FLAG_FILTER_LABELS["checkin-overdue"]}
+        ))}
+        <FilterChipLink
+          href={peopleHref({ flag: "needs-attention", q })}
+          active={flag === "needs-attention"}
+        >
+          {PEOPLE_FLAG_FILTER_LABELS["needs-attention"]}
+        </FilterChipLink>
+        {advisorFilter ? (
+          <FilterChipLink href={peopleHref({ role, q })} active>
+            Caseload: {advisorFilter.name} ✕
           </FilterChipLink>
-          {advisorFilter ? (
-            <>
-              <span aria-hidden className="mx-1 h-5 w-px bg-line" />
-              <FilterChipLink href={peopleHref({ role, flag: flag ?? undefined, q })} active>
-                Caseload: {advisorFilter.name} ✕
-              </FilterChipLink>
-            </>
-          ) : null}
-        </FilterBar>
-        <UrlSyncedSearchInput
-          placeholder="Search by name or email…"
-          wrapClassName="w-full sm:w-72"
-          aria-label="Search people"
-        />
-      </div>
+        ) : null}
+      </FilterBar>
 
       <p className="m-0 text-[12.5px] text-ink-muted">
         {rows.length === total
           ? `${total} ${total === 1 ? "person" : "people"}`
-          : `Showing ${rows.length} of ${total} — refine the search or filters to narrow down`}
-        {q ? ` · matching “${q}”` : ""}
+          : `${rows.length} of ${total}`}
+        {q ? ` · “${q}”` : ""}
       </p>
 
       <PeopleDirectory rows={rows} />

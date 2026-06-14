@@ -24,7 +24,12 @@ const ADMIN_DOMAINS: AdminDomain[] = [
   {
     title: "People & Access",
     items: [
-      { href: "/people", label: "People Database", description: "Every person connected to YPP — search, advisor flags, 360 previews" },
+      {
+        href: "/people",
+        label: "People Hub",
+        description: "Find people, open 360s, manage classes, and (for leadership) performance check-ins",
+      },
+      { href: "/people/classes", label: "Manage Classes", description: "Class review queue, publishing, rosters, and logistics gaps" },
       { href: "/admin/bulk-users", label: "Users & Roles", description: "Import, export, and edit accounts, roles, and access" },
       { href: "/admin/staff", label: "Staff", description: "Staff reflections and records" },
       { href: "/admin/role-matrix", label: "Role Matrix", description: "Who can do what, by role and subtype" },
@@ -51,7 +56,7 @@ const ADMIN_DOMAINS: AdminDomain[] = [
   {
     title: "Programs & Content",
     items: [
-      { href: "/admin/classes", label: "Class Operations", description: "Review queue, publishing, rosters, logistics gaps" },
+      { href: "/people/classes", label: "Manage Classes", description: "Same as People Hub → Manage classes — review, publish, and logistics" },
       { href: "/admin/programs", label: "Programs", description: "Program and pathway administration" },
       { href: "/admin/curricula", label: "Curricula", description: "Curriculum library and drafts" },
       { href: "/admin/resource-library", label: "Resource Library", description: "Shared resources and materials" },

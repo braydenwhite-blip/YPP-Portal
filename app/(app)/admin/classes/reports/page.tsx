@@ -63,7 +63,7 @@ export default async function AdminClassReportsPage() {
       />
 
       <div style={{ margin: "12px 0 18px" }}>
-        <Link href="/admin/classes" className="button" style={{ fontSize: 13 }}>
+        <Link href="/people/classes" className="button" style={{ fontSize: 13 }}>
           ← Class operations
         </Link>
       </div>
@@ -76,7 +76,7 @@ export default async function AdminClassReportsPage() {
             Reports will populate here as instructors propose classes and students enroll. Create
             the first class to get started.
           </p>
-          <Link href="/admin/classes" className="button primary">
+          <Link href="/people/classes" className="button primary">
             Go to class operations
           </Link>
         </div>
@@ -94,14 +94,14 @@ export default async function AdminClassReportsPage() {
                 value={pipeline.needsReview}
                 icon="clock"
                 tone={pipeline.needsReview > 0 ? "warning" : "default"}
-                href="/admin/classes?tab=review"
+                href="/people/classes?tab=review"
               />
               <StatCard
                 label="Ready to publish"
                 value={pipeline.approvedNotPublished}
                 icon="check"
                 tone={pipeline.approvedNotPublished > 0 ? "accent" : "default"}
-                href="/admin/classes?tab=ready"
+                href="/people/classes?tab=ready"
               />
               <StatCard label="Published" value={pipeline.published} icon="check" tone="success" />
               <StatCard label="In session" value={pipeline.inProgress} icon="activity" />

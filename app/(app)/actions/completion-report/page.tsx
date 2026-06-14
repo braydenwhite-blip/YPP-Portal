@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { requireOfficer } from "@/lib/authorization";
 import {
   isActionTrackerEnabled,
-  isPeopleDashboardEnabled,
 } from "@/lib/feature-flags";
 import { listVisibleActionItems } from "@/lib/people-strategy/action-queries";
 import {
@@ -13,7 +12,6 @@ import {
   summarizeStatuses,
 } from "@/lib/people-strategy/action-analytics";
 import { buildWinLog } from "@/lib/people-strategy/command-center-selectors";
-import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
 import { StatCard } from "@/components/people-strategy/stat-card";
@@ -48,7 +46,6 @@ export default async function ActionCompletionReportPage() {
   const departmentBars = summarizeDepartments(items, now);
   const wins = buildWinLog(items, now);
 
-  const showPeople = isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
   const generated = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -70,7 +67,7 @@ export default async function ActionCompletionReportPage() {
         }
       />
 
-      <ActionTrackerTabsV2 active="all" showPeople={showPeople} />
+      <ActionTrackerTabsV2 active="all" />
 
       {/* Headline completion metrics */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 20 }}>

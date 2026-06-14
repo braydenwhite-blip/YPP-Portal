@@ -168,7 +168,7 @@ export default async function AdminInstructorRecordPage({
         ? {
             title: "Schedule the first quarterly review",
             detail: "No review is on record for this instructor yet.",
-            href: `/admin/instructors/${id}/manage#quarterly-review`,
+            href: `/admin/instructors/${id}/manage/strategy#quarterly-review`,
           }
         : null;
 
@@ -284,7 +284,7 @@ export default async function AdminInstructorRecordPage({
               </ButtonLink>
             ) : null}
             <ButtonLink href={`/admin/instructors/${id}/manage`} size="md">
-              Admin tools
+              Manage
             </ButtonLink>
           </>
         }
@@ -395,7 +395,7 @@ export default async function AdminInstructorRecordPage({
         action={
           quarterlyEnabled ? (
             <ButtonLink
-              href={`/admin/instructors/${id}/manage#quarterly-review`}
+              href={`/admin/instructors/${id}/manage/strategy#quarterly-review`}
               variant="ghost"
               size="sm"
             >

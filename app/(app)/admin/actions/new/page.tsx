@@ -12,5 +12,5 @@ export default async function LegacyNewActionRedirect({
 }) {
   const params = (await searchParams) ?? {};
   const hasPrefill = Object.keys(params).length > 0;
-  redirect(appendSearchParams(hasPrefill ? "/actions/new" : "/actions", params));
+  redirect(appendSearchParams(hasPrefill ? "/actions/new" : "/actions?create=1", params));
 }

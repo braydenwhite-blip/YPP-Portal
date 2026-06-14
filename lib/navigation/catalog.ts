@@ -503,22 +503,28 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/people",
-      label: "People",
+      label: "People Hub",
       icon: "👥",
       // Master People database (Knowledge OS V2 front door). Officer-tier:
       // advisor check-in state and applicant stages are leadership reads.
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
       searchAliases: [
+        "People",
         "People Database",
         "Directory",
         "Find a person",
+        "Find people",
+        "People & Performance",
         "Students",
         "Instructors",
         "Advisors",
         "Members",
+        "Manage classes",
+        "Class operations",
+        "Class review",
       ],
       dashboardDescription:
-        "Every person connected to YPP — search, role filters, advisor flags, and one-click 360 previews.",
+        "One hub for the people directory, leadership performance view, and (for admins) class operations.",
       dashboardPriority: 3,
     },
     {
@@ -1134,6 +1140,16 @@ export const NAV_CATALOG: NavLink[] = [
   ]),
 
   ...groupLinks("Admin People", 1100, [
+    {
+      href: "/people",
+      label: "People Hub",
+      icon: "👥",
+      roles: ADMIN_ONLY,
+      searchAliases: ["People Database", "Find people", "Directory"],
+      dashboardDescription:
+        "Master directory plus Manage classes and Performance — start here instead of the legacy admin lists.",
+      dashboardPriority: 2,
+    },
     { href: "/admin/students", label: "All Students", icon: "👨‍🎓", roles: ADMIN_ONLY },
     {
       href: "/admin/leadership",

@@ -1,12 +1,18 @@
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
+import { notFound, redirect } from "next/navigation";import { getSession } from "@/lib/auth-supabase";
 import {
   getAdminClassRoster,
   adminPromoteFromWaitlist,
   adminUpdateEnrollmentStatus,
-  adminUpdateCapacity,
 } from "@/lib/admin-class-operations";
+import {
+  ActionButtonGroup,
+  BannerV2,
+  Button,
+  buttonVariants,
+  RecordSection,
+  StatusBadge,
+} from "@/components/ui-v2";
+import { cn } from "@/components/ui-v2/cn";
 
 export const dynamic = "force-dynamic";
 
@@ -45,81 +51,42 @@ export default async function AdminClassRosterPage({
   );
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Admin · Roster</p>
-          <h1 className="page-title">{offering.title}</h1>
-          <p className="page-subtitle">
-            {groups.confirmed.length}/{offering.capacity} confirmed ·{" "}
-            {groups.waitlisted.length} waitlisted ·{" "}
-            {offering.enrollmentOpen ? "Enrollment open" : "Enrollment closed"}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
+    <div className="flex flex-col gap-5">
+      {overCapacity ? (
+        <BannerV2 tone="danger" title="Roster exceeds capacity">
+          {groups.confirmed.length} confirmed against capacity {offering.capacity}. Move
+          someone to the waitlist or raise capacity in Settings.
+        </BannerV2>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="m-0 text-[13px] text-ink-muted">
+          {groups.confirmed.length}/{offering.capacity} confirmed ·{" "}
+          {groups.waitlisted.length} waitlisted ·{" "}
+          {offering.enrollmentOpen ? "Enrollment open" : "Enrollment closed"}
+        </p>
+        <ActionButtonGroup>
           <a
             href={`/api/admin/classes/${offering.id}/roster/export`}
-            className="button secondary"
-            style={{ fontSize: 13 }}
+            className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
           >
             Export CSV
           </a>
-          <Link href={`/admin/classes/${offering.id}`} className="button" style={{ fontSize: 13 }}>
-            ← Class detail
-          </Link>
-        </div>
-      </div>
-
-      {overCapacity && (
-        <div
-          className="card"
-          style={{ background: "#fee2e2", border: "1px solid #fca5a5", marginBottom: 16 }}
-        >
-          <strong>Confirmed roster exceeds capacity.</strong>{" "}
-          {groups.confirmed.length} confirmed against capacity {offering.capacity}.
-          Move someone to waitlist or raise the capacity.
-        </div>
-      )}
-
-      <div className="grid two" style={{ gap: 16, marginBottom: 16 }}>
-        <div className="card">
-          <h3 className="section-title" style={{ margin: "0 0 8px" }}>
-            Capacity
-          </h3>
-          <form action={adminUpdateCapacity} style={inlineForm}>
-            <input type="hidden" name="offeringId" value={offering.id} />
-            <input
-              type="number"
-              name="capacity"
-              min={1}
-              defaultValue={offering.capacity}
-              className="input"
-              style={{ width: 100 }}
-            />
-            <button type="submit" className="button" style={{ fontSize: 12 }}>
-              Save capacity
-            </button>
-          </form>
-        </div>
-        <div className="card">
-          <h3 className="section-title" style={{ margin: "0 0 8px" }}>
-            Waitlist
-          </h3>
           <form action={adminPromoteFromWaitlist}>
             <input type="hidden" name="offeringId" value={offering.id} />
-            <button
+            <Button
               type="submit"
-              className="button primary"
-              style={{ fontSize: 12 }}
+              variant="primary"
+              size="sm"
               disabled={
                 groups.waitlisted.length === 0 ||
                 groups.confirmed.length >= offering.capacity
               }
             >
-              Promote next from waitlist
-            </button>
+              Promote from waitlist
+            </Button>
           </form>
-        </div>
+        </ActionButtonGroup>
       </div>
 
       <RosterSection
@@ -172,24 +139,29 @@ function RosterSection({
   muted?: boolean;
 }) {
   return (
-    <section className="card" style={{ marginBottom: 16, opacity: muted ? 0.85 : 1 }}>
-      <h2 className="section-title" style={{ marginTop: 0 }}>
-        {title}
-      </h2>
+    <RecordSection title={title} className={muted ? "opacity-85" : undefined}>
       {rows.length === 0 ? (
-        <p style={{ margin: 0, color: "var(--text-secondary)" }}>{emptyText}</p>
+        <p className="m-0 text-[13px] text-ink-muted">{emptyText}</p>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <div className="-mx-2 overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-[13px]">
             <thead>
-              <tr style={{ background: "#faf5ff" }}>
-                <th style={th}>Student</th>
-                <th style={th}>Grade</th>
-                <th style={th}>Email</th>
-                <th style={th}>Parent / Guardian</th>
-                <th style={th}>Signed up</th>
-                <th style={th}>Status</th>
-                <th style={th}>Actions</th>
+              <tr className="border-b border-line-soft text-left">
+                <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                  Student
+                </th>
+                <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                  Grade
+                </th>
+                <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                  Contact
+                </th>
+                <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                  Signed up
+                </th>
+                <th className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -205,7 +177,7 @@ function RosterSection({
           </table>
         </div>
       )}
-    </section>
+    </RecordSection>
   );
 }
 
@@ -226,95 +198,60 @@ function RosterRow({
       : "—";
   const parentEmail =
     primaryParent?.email ?? entry.student.profile?.parentEmail ?? "—";
-  const parentPhone =
-    primaryParent?.phone ?? entry.student.profile?.parentPhone ?? null;
 
   return (
-    <tr style={{ borderBottom: "1px solid var(--border)" }}>
-      <td style={td}>
-        <div style={{ fontWeight: 600 }}>
+    <tr className="border-b border-line-soft last:border-0">
+      <td className="px-3 py-3 align-top">
+        <div className="font-semibold text-ink">
           {entry.student.name}
-          {isDuplicate && (
-            <span
-              style={{
-                marginLeft: 6,
-                fontSize: 10,
-                fontWeight: 700,
-                padding: "1px 6px",
-                background: "#fee2e2",
-                color: "#991b1b",
-                borderRadius: 4,
-              }}
-            >
-              DUPLICATE
-            </span>
-          )}
+          {isDuplicate ? (
+            <StatusBadge tone="danger" className="ml-2">
+              Duplicate
+            </StatusBadge>
+          ) : null}
         </div>
-        {entry.waitlistPosition != null && (
-          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+        {entry.waitlistPosition != null ? (
+          <p className="m-0 mt-0.5 text-[11px] text-ink-muted">
             #{entry.waitlistPosition} on waitlist
-          </div>
-        )}
-        {(entry.signupGoal || entry.signupNote) && (
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 3, maxWidth: 260 }}>
-            {entry.signupGoal ? <span title="What the student wants from this class">🎯 {entry.signupGoal}</span> : null}
-            {entry.signupNote ? (
-              <span style={{ display: "block", fontStyle: "italic" }} title="Student's note at signup">
-                “{entry.signupNote}”
-              </span>
-            ) : null}
-          </div>
-        )}
+          </p>
+        ) : null}
+        {entry.signupGoal || entry.signupNote ? (
+          <p className="m-0 mt-1 max-w-xs text-[11px] text-ink-muted">
+            {entry.signupGoal ? entry.signupGoal : null}
+            {entry.signupNote ? ` · “${entry.signupNote}”` : null}
+          </p>
+        ) : null}
       </td>
-      <td style={td}>{grade}</td>
-      <td style={td}>
-        <div>{entry.student.email}</div>
-        {entry.student.phone && (
-          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
-            {entry.student.phone}
-          </div>
-        )}
-      </td>
-      <td style={td}>
+      <td className="px-3 py-3 align-top text-ink-muted">{grade}</td>
+      <td className="px-3 py-3 align-top">
+        <p className="m-0 text-ink">{entry.student.email}</p>
         {primaryParent ? (
-          <>
-            <div>{primaryParent.name}</div>
-            <div style={{ fontSize: 12 }}>{parentEmail}</div>
-            {parentPhone && (
-              <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{parentPhone}</div>
-            )}
-          </>
+          <p className="m-0 mt-1 text-[12px] text-ink-muted">
+            {primaryParent.name} · {parentEmail}
+          </p>
         ) : entry.student.profile?.parentEmail ? (
-          <>
-            <div style={{ fontSize: 12 }}>{entry.student.profile.parentEmail}</div>
-            {entry.student.profile.parentPhone && (
-              <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
-                {entry.student.profile.parentPhone}
-              </div>
-            )}
-          </>
-        ) : (
-          <span style={{ color: "var(--text-secondary)" }}>—</span>
-        )}
+          <p className="m-0 mt-1 text-[12px] text-ink-muted">
+            {entry.student.profile.parentEmail}
+          </p>
+        ) : null}
       </td>
-      <td style={td}>{entry.enrolledAt.toLocaleDateString()}</td>
-      <td style={td}>
-        <span style={statusBadge(entry.status)}>{entry.status}</span>
+      <td className="px-3 py-3 align-top text-ink-muted">
+        {entry.enrolledAt.toLocaleDateString()}
       </td>
-      <td style={td}>
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-          {actions.includes("ENROLL") && (
+      <td className="px-3 py-3 align-top">
+        <div className="flex flex-wrap gap-1.5">
+          {actions.includes("ENROLL") ? (
             <ActionForm enrollmentId={entry.id} status="ENROLLED" label="Confirm" />
-          )}
-          {actions.includes("WAITLIST") && (
+          ) : null}
+          {actions.includes("WAITLIST") ? (
             <ActionForm enrollmentId={entry.id} status="WAITLISTED" label="Waitlist" />
-          )}
-          {actions.includes("COMPLETE") && (
+          ) : null}
+          {actions.includes("COMPLETE") ? (
             <ActionForm enrollmentId={entry.id} status="COMPLETED" label="Complete" />
-          )}
-          {actions.includes("DROP") && (
+          ) : null}
+          {actions.includes("DROP") ? (
             <ActionForm enrollmentId={entry.id} status="DROPPED" label="Drop" danger />
-          )}
+          ) : null}
         </div>
       </td>
     </tr>
@@ -336,55 +273,9 @@ function ActionForm({
     <form action={adminUpdateEnrollmentStatus}>
       <input type="hidden" name="enrollmentId" value={enrollmentId} />
       <input type="hidden" name="status" value={status} />
-      <button
-        type="submit"
-        className="button"
-        style={{
-          fontSize: 11,
-          padding: "3px 8px",
-          color: danger ? "#991b1b" : undefined,
-        }}
-      >
+      <Button type="submit" variant={danger ? "danger" : "ghost"} size="sm">
         {label}
-      </button>
+      </Button>
     </form>
   );
 }
-
-function statusBadge(status: string): React.CSSProperties {
-  const palette: Record<string, { bg: string; color: string }> = {
-    ENROLLED: { bg: "#dcfce7", color: "#166534" },
-    WAITLISTED: { bg: "#fef3c7", color: "#854d0e" },
-    DROPPED: { bg: "#fee2e2", color: "#991b1b" },
-    COMPLETED: { bg: "#f3e8ff", color: "#6b21a8" },
-  };
-  const c = palette[status] ?? { bg: "#e5e7eb", color: "#374151" };
-  return {
-    padding: "2px 8px",
-    borderRadius: 999,
-    fontSize: 11,
-    fontWeight: 700,
-    background: c.bg,
-    color: c.color,
-  };
-}
-
-const th: React.CSSProperties = {
-  padding: "8px 10px",
-  textAlign: "left",
-  borderBottom: "1px solid var(--border)",
-  fontSize: 12,
-  fontWeight: 700,
-  color: "var(--text-secondary)",
-};
-
-const td: React.CSSProperties = {
-  padding: "8px 10px",
-  verticalAlign: "top",
-};
-
-const inlineForm: React.CSSProperties = {
-  display: "flex",
-  gap: 6,
-  alignItems: "center",
-};

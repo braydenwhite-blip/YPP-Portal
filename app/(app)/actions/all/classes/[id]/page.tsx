@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { requireOfficer } from "@/lib/authorization";
 import {
   isActionTrackerEnabled,
-  isPeopleDashboardEnabled,
 } from "@/lib/feature-flags";
 import {
   executingInstructors,
@@ -12,7 +11,6 @@ import {
   formatClassSchedule,
   getTrackerClass,
 } from "@/lib/people-strategy/class-tracker";
-import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
 import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import { Pill } from "@/components/people-strategy/pills";
@@ -68,21 +66,20 @@ export default async function TrackerClassDetailPage({
   const offering = await getTrackerClass(id);
   if (!offering) notFound();
 
-  const showPeopleDashboardTab =
-    isPeopleDashboardEnabled() && isLeadershipOrBoard(viewer);
   const canManageClasses = viewer.roles.includes("ADMIN");
   const executing = executingInstructors(offering);
   const schedule = formatClassSchedule(offering);
+  const classesBackHref = canManageClasses ? "/people/classes" : "/actions/all/classes";
 
   return (
     <div className="page-shell" style={{ maxWidth: 880 }}>
       <Link
-        href="/actions/all/classes"
+        href={classesBackHref}
         style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)", textDecoration: "none" }}
       >
         ← Classes
       </Link>
-      <ActionTrackerTabsV2 active="classes" showPeople={showPeopleDashboardTab} />
+      <ActionTrackerTabsV2 active="classes" />
 
       <div className="topbar" style={{ marginTop: 16, display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div>

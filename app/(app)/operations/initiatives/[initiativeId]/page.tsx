@@ -2,12 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { InitiativeActionsPanel } from "@/components/people-strategy/initiative-actions-panel";
+import { ProgressBar } from "@/components/people-strategy/strategic-initiatives";
 import {
-  InitiativeHealthBadge,
-  ProgressBar,
-} from "@/components/people-strategy/strategic-initiatives";
-import { StrategicWorkspaceHeader } from "@/components/people-strategy/strategic-workspace-nav";
-import { StatCard } from "@/components/people-strategy/stat-card";
+  ButtonLink,
+  KeyFactsGrid,
+  PageHeaderV2,
+  RecordSection,
+  StatusBadge,
+  type KeyFact,
+} from "@/components/ui-v2";
 import { requireOfficer } from "@/lib/authorization";
 import {
   isActionTrackerEnabled,
@@ -34,12 +37,10 @@ export async function generateMetadata({
 }) {
   const { initiativeId } = await params;
   const def = getInitiativeDef(initiativeId);
-  return { title: def ? `${def.title} · Initiatives` : "Initiative · Operations" };
+  return { title: def ? `${def.title} · Initiatives` : "Initiative · Work" };
 }
 
-/**
- * One initiative = the plan. Actions on this page are the work under that plan.
- */
+/** One initiative = the plan. Actions on this page are the work under that plan. */
 export default async function StrategicInitiativeDetailPage({
   params,
 }: {
@@ -74,73 +75,88 @@ export default async function StrategicInitiativeDetailPage({
   const { def, summary, actions } = pageData;
   const topRec = summary.recommendations[0];
 
+  const healthBadgeTone =
+    summary.health.tone === "overdue"
+      ? "danger"
+      : summary.health.tone === "warning"
+        ? "warning"
+        : summary.health.tone === "success"
+          ? "success"
+          : "neutral";
+
+  const facts: KeyFact[] = [
+    {
+      label: "Open actions",
+      value: summary.counts.openActions,
+      href: `/actions?initiative=${initiativeId}&who=all`,
+    },
+    {
+      label: "Overdue",
+      value: summary.counts.overdueActions,
+      tone: summary.counts.overdueActions > 0 ? "attention" : "default",
+    },
+    {
+      label: "Progress",
+      value: `${summary.progress.percent}%`,
+      detail: `${summary.progress.completedActions}/${summary.progress.totalTracked} done`,
+    },
+    {
+      label: "Owner",
+      value: summary.owner ?? "Unassigned",
+    },
+  ];
+
   return (
-    <div className="page-shell" style={{ maxWidth: 900 }}>
-      <StrategicWorkspaceHeader
-        current="initiatives"
-        breadcrumbs={[
-          { label: "Initiatives", href: "/operations/initiatives" },
-          { label: summary.title },
-        ]}
-        eyebrow={`Plan · ${summary.areaLabel}`}
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6 pb-10">
+      <PageHeaderV2
+        eyebrow="Initiatives"
+        backHref="/work?view=initiatives"
+        backLabel="Work"
         title={summary.title}
         subtitle={summary.description}
-        meta={
-          <>
-            <InitiativeHealthBadge health={summary.health} />
-            <span style={{ marginLeft: 8 }}>
-              {summary.progress.percent}% complete · owner {summary.owner ?? "unassigned"}
-            </span>
-          </>
+        actions={
+          <ButtonLink
+            href={`/actions?initiative=${initiativeId}&who=all`}
+            variant="ghost"
+            size="sm"
+          >
+            All actions →
+          </ButtonLink>
         }
-      />
+      >
+        <StatusBadge tone={healthBadgeTone}>{summary.health.label}</StatusBadge>
+      </PageHeaderV2>
 
-      <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
-        <StatCard label="Open actions" value={summary.counts.openActions} icon="layers" tone="accent" />
-        <StatCard
-          label="Overdue"
-          value={summary.counts.overdueActions}
-          icon="clock"
-          tone={summary.counts.overdueActions > 0 ? "danger" : "default"}
-        />
-        <StatCard label="Progress" value={`${summary.progress.percent}%`} icon="target" />
-      </div>
+      <KeyFactsGrid facts={facts} className="grid-cols-2 sm:grid-cols-4" />
 
-      <div className="card" style={{ marginTop: 16, padding: "14px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ flex: 1 }}>
-            <ProgressBar percent={summary.progress.percent} />
-          </div>
-          <span style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-            {summary.progress.completedActions}/{summary.progress.totalTracked} actions done
-          </span>
-        </div>
+      <RecordSection title="Plan progress">
+        <ProgressBar percent={summary.progress.percent} />
         {topRec ? (
-          <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-            <strong style={{ color: "var(--ypp-purple, #6b21c8)" }}>Next: </strong>
+          <p className="mb-0 mt-3 text-[13px] text-ink-muted">
+            <span className="font-semibold text-brand-700">Next: </span>
             {topRec.title} — {topRec.detail}
           </p>
         ) : (
-          <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--muted)" }}>
+          <p className="mb-0 mt-3 text-[13px] text-ink-muted">
             {summary.healthExplanation.headline}
           </p>
         )}
-      </div>
+      </RecordSection>
 
-      <div style={{ marginTop: 24 }}>
-        <InitiativeActionsPanel
-          initiative={def}
-          actions={actions}
-          now={now}
-          canCreate={canCreate}
-          assignableUsers={assignableUsers}
-          departments={departments}
-          currentUserId={viewer.id}
-        />
-      </div>
+      <InitiativeActionsPanel
+        initiative={def}
+        actions={actions}
+        now={now}
+        canCreate={canCreate}
+        assignableUsers={assignableUsers}
+        departments={departments}
+        currentUserId={viewer.id}
+      />
 
-      <p style={{ marginTop: 20, fontSize: 12, color: "var(--muted)" }}>
-        <Link href="/operations/initiatives">← All initiatives</Link>
+      <p className="m-0 text-[12.5px] text-ink-muted">
+        <Link href="/operations/initiatives" className="font-semibold text-brand-700 no-underline hover:underline">
+          All initiatives
+        </Link>
       </p>
     </div>
   );

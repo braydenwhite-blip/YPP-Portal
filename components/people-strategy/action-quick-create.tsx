@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { createActionItem } from "@/lib/people-strategy/action-items-actions";
 import {
@@ -45,6 +45,7 @@ export function ActionQuickCreate({
   currentUserId,
   redirectTo = "/actions",
   initiativeLink,
+  defaultOpen = false,
 }: {
   users: UserOption[];
   departments: ActionDepartmentOption[];
@@ -52,11 +53,20 @@ export function ActionQuickCreate({
   redirectTo?: string;
   /** When set, new actions are linked to this initiative (plan → work). */
   initiativeLink?: { id: string; goalCategory?: string };
+  /** Open the form on load (e.g. /actions?create=1). */
+  defaultOpen?: boolean;
 }) {
   const router = useRouter();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    if (!defaultOpen) return;
+    setOpen(true);
+    rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [defaultOpen]);
 
   const [title, setTitle] = useState("");
   const [assignedUserIds, setAssignedUserIds] = useState<string[]>(() =>
@@ -138,7 +148,7 @@ export function ActionQuickCreate({
 
   if (!open) {
     return (
-      <div style={{ marginTop: 16 }}>
+      <div id="create-action" ref={rootRef} style={{ marginTop: 16 }}>
         <button type="button" className="ps-add-action-cta" onClick={() => setOpen(true)}>
           <span className="ps-add-action-cta-icon" aria-hidden>
             +
@@ -156,7 +166,7 @@ export function ActionQuickCreate({
   }
 
   return (
-    <div className="ps-form-card" style={{ marginTop: 16 }}>
+    <div id="create-action" ref={rootRef} className="ps-form-card" style={{ marginTop: 16 }}>
       <form onSubmit={handleSubmit} className="ps-form">
         <div
           style={{

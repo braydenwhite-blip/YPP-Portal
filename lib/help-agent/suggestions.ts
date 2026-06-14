@@ -20,6 +20,23 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
     kind: "query",
   },
   {
+    label: "People Hub",
+    description: "Find anyone at YPP — directory, performance, and class tools in one place",
+    href: "/people",
+    icon: "👥",
+    tier: "OFFICER",
+    kind: "query",
+  },
+  {
+    label: "Manage classes",
+    description: "Review proposals, publish offerings, and fix logistics gaps",
+    href: "/people/classes",
+    icon: "📚",
+    tier: "OFFICER",
+    adminOnly: true,
+    kind: "query",
+  },
+  {
     label: "Students without advisors",
     description: "People database filtered to students with no active advisor",
     href: "/people?flag=no-advisor",
@@ -151,7 +168,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
     label: "Classes with no lead instructor",
     description: "Class operations — review queue and logistics gaps",
-    href: "/admin/classes",
+    href: "/people/classes",
     icon: "📚",
     tier: "OFFICER",
     adminOnly: true,
@@ -234,7 +251,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
     label: "Create action",
     description: "Create an action item",
-    href: "/actions/new",
+    href: "/actions?create=1",
     icon: "＋",
     tier: "OFFICER",
     kind: "shortcut",

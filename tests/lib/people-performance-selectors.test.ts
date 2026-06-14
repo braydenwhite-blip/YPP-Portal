@@ -124,13 +124,20 @@ describe("buildSignals", () => {
 });
 
 describe("filters and stats", () => {
-  it("normalizes unknown filter params to all", () => {
+  it("normalizes unknown filter params to needs-attention", () => {
     expect(asPerformanceFilter("workload")).toBe("workload");
-    expect(asPerformanceFilter("nonsense")).toBe("all");
-    expect(asPerformanceFilter(undefined)).toBe("all");
+    expect(asPerformanceFilter("nonsense")).toBe("needs-attention");
+    expect(asPerformanceFilter(undefined)).toBe("needs-attention");
   });
 
   it("matches each filter against the corresponding fact", () => {
+    expect(
+      factsMatchFilter(
+        makeFacts({ needsCheckIn: true, reviewDue: true }),
+        "needs-attention"
+      )
+    ).toBe(true);
+    expect(factsMatchFilter(makeFacts(), "needs-attention")).toBe(false);
     expect(factsMatchFilter(makeFacts({ needsCheckIn: true }), "needs-checkin")).toBe(true);
     expect(factsMatchFilter(makeFacts(), "needs-checkin")).toBe(false);
     expect(
@@ -158,6 +165,7 @@ describe("filters and stats", () => {
       { facts: makeFacts({ successor: true }) },
     ];
     expect(computePerformanceStats(rows)).toEqual({
+      needsAttention: 2,
       needsCheckIn: 1,
       feedbackPending: 1,
       reviewsDue: 1,

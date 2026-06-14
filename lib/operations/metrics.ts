@@ -123,7 +123,7 @@ export function buildExecutiveSnapshot(input: {
       label: "Active classes",
       value: org.activeClasses,
       tone: "default",
-      href: "/admin/classes",
+      href: "/people/classes",
       hint: null,
     },
     {

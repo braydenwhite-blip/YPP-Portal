@@ -43,13 +43,22 @@ export const PEOPLE_ROLE_FILTER_LABELS: Record<PeopleRoleFilter, string> = {
   parent: "Parents",
 };
 
-export const PEOPLE_FLAG_FILTERS = ["no-advisor", "checkin-overdue"] as const;
+export const PEOPLE_FLAG_FILTERS = ["needs-attention", "no-advisor", "checkin-overdue"] as const;
 export type PeopleFlagFilter = (typeof PEOPLE_FLAG_FILTERS)[number];
 
 export const PEOPLE_FLAG_FILTER_LABELS: Record<PeopleFlagFilter, string> = {
-  "no-advisor": "Students without advisors",
-  "checkin-overdue": "Advisor check-in overdue",
+  "needs-attention": "Needs attention",
+  "no-advisor": "No advisor",
+  "checkin-overdue": "Check-in overdue",
 };
+
+/** Filters shown on the simplified People directory page. */
+export const PEOPLE_SIMPLE_ROLE_FILTERS = [
+  "all",
+  "student",
+  "instructor",
+  "applicant",
+] as const satisfies readonly PeopleRoleFilter[];
 
 export function asPeopleRoleFilter(value: string | undefined): PeopleRoleFilter {
   return value && (PEOPLE_ROLE_FILTERS as readonly string[]).includes(value)
@@ -100,6 +109,20 @@ function whereForFlagFilter(
   now: Date
 ): Prisma.UserWhereInput {
   switch (flag) {
+    case "needs-attention":
+      return {
+        OR: [
+          {
+            ...whereUserHasRole(RoleType.STUDENT),
+            adviseeAssignments: { none: { isActive: true } },
+          },
+          {
+            adviseeAssignments: {
+              some: { isActive: true, nextCheckInDueAt: { lt: now } },
+            },
+          },
+        ],
+      };
     case "no-advisor":
       return {
         ...whereUserHasRole(RoleType.STUDENT),

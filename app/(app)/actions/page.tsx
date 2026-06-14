@@ -1,7 +1,11 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { ActionCommandBar } from "@/components/people-strategy/action-command-bar";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
+import {
+  ActionTrackerDashboard,
+  filterActionsByPerson,
+} from "@/components/people-strategy/action-tracker-dashboard";
+import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import {
@@ -19,12 +23,9 @@ import { sortByDeadline } from "@/lib/people-strategy/my-actions-selectors";
 import { filterActionsByInitiative } from "@/lib/people-strategy/strategic-initiative-summary";
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
 import { initiativePrimaryGoalCategory } from "@/lib/people-strategy/strategic-recommendations";
-import {
-  ActionTrackerDashboard,
-  filterActionsByPerson,
-} from "@/components/people-strategy/action-tracker-dashboard";
+
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Actions · Action Tracker" };
+export const metadata = { title: "My actions · Work" };
 
 function firstParam(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
@@ -49,22 +50,22 @@ export default async function ActionsPage({
 
   const params = (await searchParams) ?? {};
   const qParam = firstParam(params.q)?.trim().toLowerCase() ?? "";
-  const viewParam = firstParam(params.view);
-  const whoParam = firstParam(params.who) ?? (viewParam === "all" ? "all" : undefined);
+  const whoParam = firstParam(params.who);
+  const createOpen = firstParam(params.create) === "1";
 
   const initiativeParam = firstParam(params.initiative)?.trim() ?? "";
   const initiativeDef = initiativeParam ? getInitiativeDef(initiativeParam) : null;
 
   const officer = isOfficerTier(viewer);
   const canCreate = canCreateAction(viewer);
-  const who = officer ? whoParam ?? "all" : "me";
+  const who = officer ? whoParam ?? "me" : "me";
 
   const [myItems, allItems, assignableUsers, departments] = await Promise.all([
-      getMyActionItems(viewer.id, viewer),
-      officer ? listVisibleActionItems(viewer) : Promise.resolve([]),
-      canCreate ? listActionAssignableUsers() : Promise.resolve([]),
-      canCreate ? listActionDepartments() : Promise.resolve([]),
-    ]);
+    getMyActionItems(viewer.id, viewer),
+    officer ? listVisibleActionItems(viewer) : Promise.resolve([]),
+    canCreate ? listActionAssignableUsers() : Promise.resolve([]),
+    canCreate ? listActionDepartments() : Promise.resolve([]),
+  ]);
 
   const now = new Date();
 
@@ -86,45 +87,43 @@ export default async function ActionsPage({
     items = items.filter((item) => item.title.toLowerCase().includes(qParam));
   }
 
-  let whoLabel = "you";
-  if (who === "all") {
-    whoLabel = "everyone";
-  } else if (who !== "me") {
-    const person = assignableUsers.find((u) => u.id === who);
-    whoLabel = person?.name ?? person?.email ?? "this person";
-  }
-
-  const lastUpdated = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(now);
-
   return (
-    <div className="page-shell" style={{ maxWidth: 1040 }}>
-      <ActionCommandBar
-        eyebrow={initiativeDef ? "Initiative plan" : "Action Tracker"}
-        title={initiativeDef ? initiativeDef.title : "Actions"}
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5">
+      <PageHeaderV2
+        eyebrow="Work"
+        backHref="/work"
+        backLabel="Work"
+        title={initiativeDef ? initiativeDef.title : "My actions"}
         subtitle={
           initiativeDef
-            ? "Work items linked to this initiative — sorted by deadline."
+            ? "Actions linked to this initiative."
             : officer
-              ? "Every open action item — filter by person or initiative."
-              : "Everything you lead, are executing, or owe input on — sorted by deadline."
+              ? "Add an action below, or switch to everyone’s queue."
+              : "Everything you lead, execute, or owe input on."
         }
-        meta={`${items.length} in view · ${whoLabel}${initiativeDef ? "" : ` · updated ${lastUpdated}`}`}
         actions={
           initiativeDef ? (
-            <Link
+            <ButtonLink
               href={`/operations/initiatives/${initiativeDef.id}`}
-              className="button outline small"
+              variant="secondary"
+              size="sm"
             >
-              ← Initiative plan
-            </Link>
-          ) : null
+              Initiative plan
+            </ButtonLink>
+          ) : (
+            <ButtonLink href="/actions/all" variant="ghost" size="sm">
+              All actions →
+            </ButtonLink>
+          )
         }
       />
+
+      <ActionTrackerTabsV2 active="my" />
+
+      <p className="m-0 text-[12.5px] text-ink-muted">
+        {items.length} {items.length === 1 ? "action" : "actions"}
+        {qParam ? ` · “${qParam}”` : ""}
+      </p>
 
       <ActionTrackerDashboard
         items={items}
@@ -138,6 +137,7 @@ export default async function ActionsPage({
         who={who}
         q={qParam}
         initiativeId={initiativeDef?.id}
+        defaultOpenCreate={createOpen}
         initiativeLink={
           initiativeDef
             ? {

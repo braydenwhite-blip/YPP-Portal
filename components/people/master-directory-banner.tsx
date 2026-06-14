@@ -19,7 +19,7 @@ export function MasterDirectoryBanner({
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-line-soft bg-surface-soft px-5 py-3.5">
       <p className="m-0 text-[13.5px] text-ink">
-        <span className="font-semibold">People is the master directory now.</span>{" "}
+        <span className="font-semibold">People Hub is the master directory now.</span>{" "}
         <span className="text-ink-muted">
           Browse, search, and open 360s there — this page keeps the admin bulk
           tools.

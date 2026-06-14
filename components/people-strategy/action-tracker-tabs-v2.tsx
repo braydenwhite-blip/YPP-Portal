@@ -16,23 +16,18 @@ const TABS: TabDef[] = [
   { key: "my", label: "My actions", href: "/actions" },
   { key: "all", label: "All actions", href: "/actions/all" },
   { key: "meetings", label: "Meetings", href: "/actions/meetings" },
-  { key: "classes", label: "Classes", href: "/actions/all/classes" },
+  { key: "classes", label: "Class tracker", href: "/actions/all/classes" },
   { key: "responsibility", label: "Responsibility Map", href: "/actions/responsibility" },
-  { key: "people", label: "People Dashboard", href: "/actions/people" },
 ];
 
 const PRIMARY_TABS = new Set<ActionTrackerTab>(["command", "my", "all", "meetings"]);
 
 export function ActionTrackerTabsV2({
   active,
-  showPeople = false,
 }: {
   active?: ActionTrackerTab;
-  showPeople?: boolean;
 }) {
-  const tabs = TABS.filter(
-    (tab) => tab.key !== "people" || showPeople || active === "people"
-  );
+  const tabs = TABS;
   const primaryTabs = tabs.filter((tab) => PRIMARY_TABS.has(tab.key) || tab.key === active);
   const advancedTabs = tabs.filter((tab) => !PRIMARY_TABS.has(tab.key) && tab.key !== active);
   return (

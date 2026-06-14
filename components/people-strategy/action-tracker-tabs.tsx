@@ -1,5 +1,14 @@
 import Link from "next/link";
 
+export type ActionTrackerTab =
+  | "command"
+  | "my"
+  | "all"
+  | "meetings"
+  | "classes"
+  | "responsibility"
+  | "people";
+
 /** Mine vs everyone's list — the only in-page nav most people need. */
 export function ActionViewSwitch({ view }: { view: "mine" | "all" }) {
   return (

@@ -113,7 +113,7 @@ function workStart({
     title: "The work queues are calm right now.",
     description:
       "Create a new action when something needs an owner, or log a meeting when decisions and follow-ups need to be captured.",
-    href: "/actions/new",
+    href: "/actions?create=1",
     label: "Create action",
   };
 }
