@@ -1,4 +1,5 @@
 import { EntityActionPanel } from "@/components/work/entity-action-panel";
+import { RelatedMeetingsList } from "@/components/people-strategy/related-meetings-list";
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
@@ -122,8 +123,6 @@ export default async function AdminInstructorRecordPage({
     (a) => a.status !== "COMPLETE" && a.status !== "DROPPED"
   );
   const overdueActions = openActions.filter((a) => a.overdue);
-  const recentMeetings = (opsContext?.meetings ?? []).slice(0, 5);
-
   // Activity: application timeline events + growth events, newest first.
   const activity = [
     ...instructorApplications.flatMap((application: any) =>
@@ -611,55 +610,31 @@ export default async function AdminInstructorRecordPage({
         <RecordSection
           id="work"
           title="Action operating panel"
-          description="The action work linked to this instructor — what's open, what's stuck, and the suggested next move — plus the meetings they were discussed in."
+          description="The action work linked to this instructor — what's open, what's stuck, and the suggested next move."
         >
-          <div className="grid items-start gap-4 lg:grid-cols-2">
-            <EntityActionPanel
-              actions={opsContext.actions}
-              viewer={{
-                id: session?.user?.id ?? "",
-                roles,
-                primaryRole: session?.user?.primaryRole ?? null,
-                adminSubtypes: session?.user?.adminSubtypes ?? [],
-              }}
-              entityType="USER"
-              entityId={id}
-              entityLabel={record.name}
-              now={now}
-            />
-            <div className="flex flex-col gap-2">
-              <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
-                Meetings mentioned in
-              </p>
-              {recentMeetings.length === 0 ? (
-                <p className="m-0 text-[13px] text-ink-muted">
-                  No tracked meetings yet.
-                </p>
-              ) : (
-                recentMeetings.map((meeting) => (
-                  <div
-                    key={meeting.id}
-                    className="rounded-[8px] bg-surface-soft px-3.5 py-2.5"
-                  >
-                    <p className="m-0 text-[13.5px] font-semibold text-ink">
-                      {meeting.title}
-                    </p>
-                    <p className="m-0 text-[12px] text-ink-muted">
-                      {formatInstructorOpsDate(meeting.startISO)} ·{" "}
-                      {meeting.categoryLabel}
-                      {meeting.decisionCount > 0
-                        ? ` · ${meeting.decisionCount} decision${meeting.decisionCount === 1 ? "" : "s"}`
-                        : ""}
-                      {meeting.openFollowUps > 0
-                        ? ` · ${meeting.openFollowUps} open follow-up${meeting.openFollowUps === 1 ? "" : "s"}`
-                        : ""}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+          <EntityActionPanel
+            actions={opsContext.actions}
+            viewer={{
+              id: session?.user?.id ?? "",
+              roles,
+              primaryRole: session?.user?.primaryRole ?? null,
+              adminSubtypes: session?.user?.adminSubtypes ?? [],
+            }}
+            entityType="USER"
+            entityId={id}
+            entityLabel={record.name}
+            now={now}
+          />
         </RecordSection>
+      ) : null}
+
+      {/* Related meetings — shared component, consistent with the student record.
+          Only shown when this instructor has come up in a tracked meeting. */}
+      {operationsEnabled && opsContext && opsContext.meetings.length > 0 ? (
+        <RelatedMeetingsList
+          meetings={opsContext.meetings}
+          heading="Related meetings"
+        />
       ) : null}
 
       {activity.length > 0 ? (

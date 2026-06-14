@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import Nav from "@/components/nav";
 
@@ -9,14 +9,15 @@ import Nav from "@/components/nav";
  *
  * The sidebar chassis serves all nine roles and has no browser-level visual
  * baselines in this environment (no database → no authenticated screenshots),
- * so this suite pins the STRUCTURE the dark-premium reskin must preserve:
+ * so this suite pins the STRUCTURE the light reskin must preserve:
  * which links each role sees, group expand/collapse, locked groups, badges,
- * and the nav filter. It is written against the pre-reskin Nav and must stay
- * green after it — behavior identical, only the skin changes.
+ * and the nav filter.
  */
 
+const ORIGINAL_PORTAL_SLIM_NAV = process.env.PORTAL_SLIM_NAV;
+
 describe("app shell nav contract", () => {
-  it("renders the full leadership chrome for ADMIN with core links and grouped More Tools", async () => {
+  it("renders the slim leadership stack for ADMIN when the public preview gate is active", async () => {
     render(
       <Nav
         roles={["ADMIN"]}
@@ -28,7 +29,6 @@ describe("app shell nav contract", () => {
       />
     );
 
-    // Core links render as real anchors.
     const home = screen.getByRole("link", { name: /Home/i });
     expect(home).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: /People Hub/i })).toHaveAttribute("href", "/people");
@@ -37,16 +37,10 @@ describe("app shell nav contract", () => {
       "href",
       "/operations/initiatives"
     );
-    expect(screen.getByRole("link", { name: /Administration/i })).toHaveAttribute(
-      "href",
-      "/admin"
-    );
+    expect(screen.getByRole("link", { name: /Work/i })).toHaveAttribute("href", "/work");
 
-    // The grouped "More Tools" disclosure exists and expands on click.
-    const moreToggle = screen.getByRole("button", { name: /more navigation links/i });
-    expect(moreToggle).toHaveAttribute("aria-expanded", "false");
-    await userEvent.click(moreToggle);
-    expect(moreToggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByRole("link", { name: /Administration/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /more navigation links/i })).toBeNull();
   });
 
   it("keeps the student minimal nav flat, with section toggles and no More Tools accordion", () => {
@@ -59,7 +53,6 @@ describe("app shell nav contract", () => {
       />
     );
 
-    // Students get flat sections, never the officer "More Tools" accordion.
     expect(
       screen.queryByRole("button", { name: /more navigation links/i })
     ).toBeNull();
@@ -69,7 +62,6 @@ describe("app shell nav contract", () => {
       within(sections).getAllByRole("button").length
     ).toBeGreaterThan(0);
 
-    // Home stays present for students.
     expect(screen.getByRole("link", { name: /Home/i })).toHaveAttribute("href", "/");
   });
 
@@ -86,36 +78,49 @@ describe("app shell nav contract", () => {
     expect(screen.getByRole("link", { name: /Home/i })).toHaveAttribute("href", "/");
   });
 
-  it("shows notification badges with counts and caps at 99+", () => {
-    render(
-      <Nav
-        roles={["ADMIN"]}
-        adminSubtypes={["SUPER_ADMIN"]}
-        primaryRole="ADMIN"
-        badges={{ messages: 120 }}
-      />
-    );
-    expect(screen.getByText("99+")).toBeInTheDocument();
-  });
+  describe("full officer sidebar (PORTAL_SLIM_NAV=false)", () => {
+    beforeAll(() => {
+      process.env.PORTAL_SLIM_NAV = "false";
+    });
 
-  it("filters navigation by the sidebar search input", async () => {
-    render(
-      <Nav roles={["ADMIN"]} adminSubtypes={["SUPER_ADMIN"]} primaryRole="ADMIN" />
-    );
+    afterAll(() => {
+      if (ORIGINAL_PORTAL_SLIM_NAV === undefined) {
+        delete process.env.PORTAL_SLIM_NAV;
+      } else {
+        process.env.PORTAL_SLIM_NAV = ORIGINAL_PORTAL_SLIM_NAV;
+      }
+    });
 
-    const search = screen.getByRole("textbox", { name: /filter navigation/i });
-    await userEvent.type(search, "zzz-no-such-page");
-    expect(screen.getByText(/No results for/)).toBeInTheDocument();
+    it("shows notification badges with counts and caps at 99+", () => {
+      render(
+        <Nav
+          roles={["ADMIN"]}
+          adminSubtypes={["SUPER_ADMIN"]}
+          primaryRole="ADMIN"
+          badges={{ messages: 120 }}
+        />
+      );
+      expect(screen.getByText("99+")).toBeInTheDocument();
+    });
 
-    await userEvent.clear(search);
-    expect(screen.queryByText(/No results for/)).toBeNull();
+    it("filters navigation by the sidebar search input", async () => {
+      render(
+        <Nav roles={["ADMIN"]} adminSubtypes={["SUPER_ADMIN"]} primaryRole="ADMIN" />
+      );
+
+      const search = screen.getByRole("textbox", { name: /filter navigation/i });
+      await userEvent.type(search, "zzz-no-such-page");
+      expect(screen.getByText(/No results for/)).toBeInTheDocument();
+
+      await userEvent.clear(search);
+      expect(screen.queryByText(/No results for/)).toBeNull();
+    });
   });
 
   it("marks the active link from the current pathname", () => {
     render(
       <Nav roles={["ADMIN"]} adminSubtypes={["SUPER_ADMIN"]} primaryRole="ADMIN" />
     );
-    // usePathname is mocked to "/" in tests/setup.ts → Home is the active link.
     const home = screen.getByRole("link", { name: /Home/i });
     expect(home.getAttribute("aria-current") ?? home.className).toBeTruthy();
   });

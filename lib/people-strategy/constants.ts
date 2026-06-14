@@ -104,7 +104,17 @@ export const ACTION_VISIBILITY_LABELS: Record<ActionItemVisibility, string> = {
  */
 export const DEFAULT_ACTION_DEADLINE_DAYS = 3;
 
-/** Routes revalidated after an Action Item mutation. */
+/**
+ * Routes revalidated after an Action Item mutation.
+ *
+ * Includes the connected surfaces that read LIVE action counts / status, so
+ * completing or editing an action keeps every place that reflects it honest —
+ * not just the Action Tracker. Without these, a meeting's "open actions" chip,
+ * a class's "needs action" queue, or a person's workload cell would silently go
+ * stale after an action changed (the bug the final integration pass closes).
+ * The dynamic meeting workspace route (`/actions/meetings/[id]`) is revalidated
+ * separately in `revalidateAll()` because it needs the `"page"` type.
+ */
 export const ACTION_ITEM_PATHS = [
   "/actions",
   "/actions/all",
@@ -113,6 +123,12 @@ export const ACTION_ITEM_PATHS = [
   "/actions/responsibility",
   "/admin/actions",
   "/operations",
+  // Connected surfaces that surface action counts/status:
+  "/actions/meetings", // Meetings command center — open/overdue action chips
+  "/admin/classes", // Classes command center — open/overdue actions per class
+  "/people/classes", // same command center, under the People hub
+  "/people", // People directory — per-person workload
+  "/people/performance", // People & Performance — active/overdue action counts
 ] as const;
 
 /**
@@ -209,6 +225,29 @@ export function isRelatedEntityType(value: unknown): value is RelatedEntityType 
 /** Label for a related-entity type, falling back to the raw value. */
 export function relatedEntityTypeLabel(type: string): string {
   return RELATED_ENTITY_TYPE_LABELS[type] ?? type;
+}
+
+/**
+ * Lowercase, singular PROSE noun for a related-entity type — for inline
+ * sentences like "Related class" or "Related applicant". Distinct from
+ * {@link relatedEntityTypeLabel} (Title-Case pill/badge text): the noun reads
+ * naturally mid-sentence and uses the audience's everyday word ("applicant",
+ * not "Instructor Application"). Kept here, next to the canonical label map, so
+ * every "where this came from" sentence across the portal speaks one vocabulary
+ * (the Action context label, future entity drawers, …) instead of re-deriving
+ * its own copy.
+ */
+export const RELATED_ENTITY_NOUNS: Record<string, string> = {
+  CLASS_OFFERING: "class",
+  MENTORSHIP: "mentorship",
+  USER: "person",
+  INSTRUCTOR_APPLICATION: "applicant",
+  PARTNER: "partner",
+};
+
+/** Prose noun for a related-entity type, falling back to a neutral "record". */
+export function relatedEntityNoun(type: string): string {
+  return RELATED_ENTITY_NOUNS[type] ?? "record";
 }
 
 /** A validated, normalized polymorphic link. */

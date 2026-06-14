@@ -81,8 +81,7 @@ export function HelpAgentProvider({
 }
 
 /**
- * The dark-sidebar trigger. Styled for the premium sidebar surface; renders
- * nothing when the provider is absent (progressive enhancement).
+ * Sidebar trigger for the YPP Help Agent (⌘K).
  */
 export function HelpAgentTrigger({ className }: { className?: string }) {
   const api = useHelpAgent();
@@ -92,10 +91,10 @@ export function HelpAgentTrigger({ className }: { className?: string }) {
       type="button"
       onClick={api.open}
       className={cn(
-        "flex w-full items-center gap-2 rounded-[10px] border border-white/15 bg-white/[0.07] px-3 py-2",
-        "text-left text-[13px] font-medium text-white/80 transition-colors duration-150",
-        "hover:border-white/25 hover:bg-white/[0.12] hover:text-white",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400",
+        "flex w-full items-center gap-2 rounded-[10px] border border-[rgba(99,102,241,0.14)] bg-[rgba(255,255,255,0.92)] px-3 py-2",
+        "text-left text-[13px] font-medium text-[var(--text-secondary)] shadow-[0_1px_3px_rgba(59,15,110,0.06)]",
+        "transition-colors duration-150 hover:border-[rgba(99,102,241,0.22)] hover:bg-white hover:text-[var(--nav-purple-800)]",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(99,102,241,0.45)]",
         className
       )}
       aria-label="Open YPP Help Agent (⌘K)"
@@ -106,7 +105,7 @@ export function HelpAgentTrigger({ className }: { className?: string }) {
       <span className="flex-1 truncate">Search YPP…</span>
       <kbd
         aria-hidden
-        className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/70"
+        className="rounded border border-[rgba(99,102,241,0.15)] bg-[rgba(99,102,241,0.06)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--nav-purple-500)]"
       >
         ⌘K
       </kbd>
