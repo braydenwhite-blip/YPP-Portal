@@ -29,6 +29,7 @@ import {
   type MeetingRelatedContext,
 } from "@/components/people-strategy/meeting-detail-client";
 import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
+import { SuggestedActionsPanel } from "@/components/people-strategy/suggested-actions-panel";
 import type { PersonOption } from "@/components/people-strategy/new-meeting-drawer";
 
 export const dynamic = "force-dynamic";
@@ -138,6 +139,14 @@ export default async function MeetingDetailPage({
   return (
     <div className="page-shell" style={{ maxWidth: 1280 }}>
       <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
+      <SuggestedActionsPanel
+        meetingId={id}
+        people={people}
+        relatedEntityType={detail.relatedEntityType}
+        relatedEntityId={detail.relatedEntityId}
+        aiAvailable={Boolean(process.env.ANTHROPIC_API_KEY)}
+        hasNotes={Boolean(detail.notesText && detail.notesText.trim().length > 0)}
+      />
       <MeetingFollowUpPackSection pack={followUpPack} meetingId={id} />
       {strategicContext ? (
         <StrategicContextSection context={strategicContext} kind="meeting" showEmptyState />
