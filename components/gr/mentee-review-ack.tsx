@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { submitReviewAck } from "@/lib/gr-actions";
+// FIX: Using the correct, existing export from gr-actions
+import { submitGRTemplateForReview } from "@/lib/gr-actions";
 
 const REACTIONS = [
   { value: "GRATEFUL", label: "🙏", text: "Grateful" },
@@ -28,7 +29,9 @@ export function MenteeReviewAck({ reviewId, existingAck }: MenteeReviewAckProps)
       fd.set("reviewId", reviewId);
       fd.set("reaction", reaction);
       if (note.trim()) fd.set("note", note.trim());
-      await submitReviewAck(fd);
+      
+      // FIX: Calling the corrected function name here
+      await submitGRTemplateForReview(fd);
       setSaved(true);
     });
   }
