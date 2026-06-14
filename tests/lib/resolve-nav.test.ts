@@ -6,14 +6,21 @@ import { STUDENT_V1_ALLOWED_HREFS } from "@/lib/navigation/student-v1-allowlist"
 // The regular Instructor program is paused in production; enable it for the
 // nav-shape tests so the assertions cover the un-gated catalog.
 const ORIGINAL_ENABLE_REGULAR_INSTRUCTOR = process.env.ENABLE_REGULAR_INSTRUCTOR;
+const ORIGINAL_PORTAL_SLIM_NAV = process.env.PORTAL_SLIM_NAV;
 beforeAll(() => {
   process.env.ENABLE_REGULAR_INSTRUCTOR = "true";
+  process.env.PORTAL_SLIM_NAV = "false";
 });
 afterAll(() => {
   if (ORIGINAL_ENABLE_REGULAR_INSTRUCTOR === undefined) {
     delete process.env.ENABLE_REGULAR_INSTRUCTOR;
   } else {
     process.env.ENABLE_REGULAR_INSTRUCTOR = ORIGINAL_ENABLE_REGULAR_INSTRUCTOR;
+  }
+  if (ORIGINAL_PORTAL_SLIM_NAV === undefined) {
+    delete process.env.PORTAL_SLIM_NAV;
+  } else {
+    process.env.PORTAL_SLIM_NAV = ORIGINAL_PORTAL_SLIM_NAV;
   }
 });
 
@@ -331,6 +338,59 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toContain("/admin/instructor-applicants");
     expect(visibleHrefs).toContain("/people");
     expect(visibleHrefs).toContain("/admin/bulk-users");
+  });
+
+  describe("public preview slim nav", () => {
+    beforeAll(() => {
+      process.env.PORTAL_SLIM_NAV = "true";
+    });
+
+    afterAll(() => {
+      process.env.PORTAL_SLIM_NAV = "false";
+    });
+
+    it("shows only the finished leadership stack for admins", () => {
+      const model = resolveNavModel({
+        roles: ["ADMIN"],
+        adminSubtypes: ["SUPER_ADMIN"],
+        primaryRole: "ADMIN",
+        pathname: "/",
+        actionTrackerEnabled: true,
+        operationsHubEnabled: true,
+        publicGateActive: true,
+      });
+
+      expect(hrefs(model).sort()).toEqual(
+        ["/", "/actions", "/operations/initiatives", "/people", "/work"].sort()
+      );
+      expect(model.more).toHaveLength(0);
+      expect(model.core.map((item) => item.href)).toEqual([
+        "/",
+        "/people",
+        "/actions",
+        "/operations/initiatives",
+        "/work",
+      ]);
+    });
+
+    it("adds hiring-chair applicant routes without restoring the full catalog", () => {
+      const model = resolveNavModel({
+        roles: ["ADMIN"],
+        adminSubtypes: ["HIRING_ADMIN"],
+        primaryRole: "ADMIN",
+        pathname: "/",
+        actionTrackerEnabled: true,
+        operationsHubEnabled: true,
+        publicGateActive: true,
+      });
+
+      const visibleHrefs = hrefs(model);
+      expect(visibleHrefs).toContain("/admin/instructor-applicants");
+      expect(visibleHrefs).toContain("/admin/instructor-applicants/chair-queue");
+      expect(visibleHrefs).not.toContain("/admin/bulk-users");
+      expect(visibleHrefs).not.toContain("/admin");
+      expect(model.more).toHaveLength(0);
+    });
   });
 
   it("shows only application status for applicants in hiring demo mode", () => {
