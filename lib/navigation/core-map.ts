@@ -45,24 +45,24 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/messages",
   ],
   ADMIN: [
-    // Knowledge OS V2 leadership pins (plan §20): Home, Admin home, the two
-    // master-database front doors, and the Work Hub lead; /positions joined
-    // /goals and /my-program in "More Tools" to stay within the 8-pin cap.
+    // Leadership pins: People Hub, Actions, Initiatives, then Work + admin home.
     "/",
-    "/admin",
     "/people",
+    "/actions",
+    "/operations/initiatives",
     "/work",
-    "/partners",
+    "/admin",
     "/messages",
-    "/admin/mentorship",
-    "/attendance",
+    "/partners",
   ],
   HIRING_CHAIR: [
     "/",
     "/admin/instructor-applicants",
     "/admin/instructor-applicants/chair-queue",
-    "/work",
     "/people",
+    "/actions",
+    "/operations/initiatives",
+    "/work",
     "/messages",
   ],
   PARENT: [
@@ -79,8 +79,10 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     // organized into groups by chapter-president-v1-nav-layout.ts.
     "/",
     "/chapter",
-    "/work",
     "/people",
+    "/actions",
+    "/operations/initiatives",
+    "/work",
     "/partners",
     "/chapter-lead/instructor-applicants",
   ],
@@ -93,11 +95,12 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
   ],
   STAFF: [
     "/",
+    "/people",
+    "/actions",
+    "/operations/initiatives",
+    "/work",
     "/announcements",
     "/calendar",
-    "/goals",
-    "/positions",
-    "/applications",
     "/messages",
   ],
 };

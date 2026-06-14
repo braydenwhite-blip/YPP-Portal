@@ -2,6 +2,7 @@ import Link from "next/link";
 
 export type ActionTrackerTab =
   | "command"
+  | "initiatives"
   | "my"
   | "all"
   | "meetings"

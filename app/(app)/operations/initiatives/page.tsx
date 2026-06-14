@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { InitiativeCardGrid } from "@/components/people-strategy/strategic-initiatives";
+import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
 import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
 import { requireOfficer } from "@/lib/authorization";
 import {
@@ -48,6 +49,8 @@ export default async function StrategicInitiativesPage() {
           </ButtonLink>
         }
       />
+
+      <ActionTrackerTabsV2 active="initiatives" />
 
       <p className="m-0 text-[12.5px] text-ink-muted">
         {initiatives.length} initiatives · {openActions} open actions
