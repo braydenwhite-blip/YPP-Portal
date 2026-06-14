@@ -100,8 +100,11 @@ export default function GoalsPanel({ goals }: Props) {
           <div className="form-grid">
             <div className="form-row">
               <label>Role Group</label>
-              <select name="roleType" required>
-                <option value="">— select role group —</option>
+              <select name="roleType" required
+                className="input"
+                style={{ width: "auto" }}
+              >
+                <option value="">Select Role Group</option>
                 {ROLE_TYPES.map(({ value, label }) => (
                   <option key={value} value={value}>
                     {label}
@@ -111,11 +114,11 @@ export default function GoalsPanel({ goals }: Props) {
             </div>
             <div className="form-row">
               <label>Title</label>
-              <input name="title" type="text" required placeholder="e.g. Curriculum Delivery Quality" />
+              <input name="title" className="input" required placeholder="e.g. Curriculum Delivery Quality" />
             </div>
             <div className="form-row">
               <label>Description (optional)</label>
-              <textarea name="description" rows={2} placeholder="Brief description of this goal…" />
+              <textarea name="description" className="input" rows={2} placeholder="Brief description of this goal…" />
             </div>
             <div className="form-row">
               <label>Sort Order</label>
@@ -131,13 +134,16 @@ export default function GoalsPanel({ goals }: Props) {
       </div>
 
       {/* Filter */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
-        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-          <option value="ALL">All Role Groups</option>
+      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          className="input"
+          style={{ width: "auto" }}
+        >
+          <option value="ALL">All Roles</option>
           {ROLE_TYPES.map(({ value, label }) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
+            <option key={value} value={value}>{label}</option>
           ))}
         </select>
       </div>
@@ -214,7 +220,7 @@ export default function GoalsPanel({ goals }: Props) {
                       </div>
                       <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
                         <button
-                          className="button ghost small"
+                          className="button small"
                           disabled={isPending}
                           onClick={() => setEditingId(goal.id)}
                         >
