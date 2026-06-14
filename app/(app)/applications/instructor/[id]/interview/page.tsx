@@ -109,6 +109,17 @@ export default async function InterviewerWorkspacePage({
   const reviewerNote = application.applicationReviews[0] ?? null;
   const applicantDisplayName = formatApplicantDisplayName(application);
 
+  // Orientation + "what submitting does" context, so an interviewer is never
+  // unsure whether their evaluation actually advances the candidate.
+  const round = application.interviewRound ?? 1;
+  const activeInterviewerCount = application.interviewerAssignments.length;
+  const alreadySubmitted = workspace?.myReview?.status === "SUBMITTED";
+  const submitOutcomeHint = alreadySubmitted
+    ? "Your evaluation is submitted. It's locked unless an admin reopens it."
+    : activeInterviewerCount > 1
+      ? `Submitting records your recommendation. Once all ${activeInterviewerCount} assigned interviewers submit, this candidate moves to Chair Review automatically.`
+      : "Submitting records your recommendation and moves this candidate into Chair Review.";
+
   return (
     <div className="min-h-screen bg-surface-soft pb-10">
       {/* Sticky workspace top bar */}
@@ -125,6 +136,11 @@ export default async function InterviewerWorkspacePage({
             <span className="ml-2.5 truncate border-l border-line pl-2.5 font-semibold text-ink-muted">
               with {applicantDisplayName}
             </span>
+            {round > 1 ? (
+              <span className="ml-2.5 inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-bold text-brand-700">
+                Round {round}
+              </span>
+            ) : null}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -147,24 +163,52 @@ export default async function InterviewerWorkspacePage({
 
       <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-4 px-6 py-5">
         {workspace ? (
-          <InterviewReviewEditor
-            action={saveInstructorInterviewReviewAction as (fd: FormData) => void}
-            liveDraftAction={saveInstructorInterviewLiveDraftAction}
-            applicationId={id}
-            returnTo={`/applications/instructor/${id}`}
-            initialReview={workspace.myReview}
-            canEdit={workspace.myReview?.status !== "SUBMITTED" || actorIsAdmin}
-            isLeadReviewer={workspace.myReview?.isLeadReview ?? false}
-            canFinalizeRecommendation={workspace.canFinalizeRecommendation}
-            questionBank={workspace.questionBank}
-          />
+          <>
+            <div
+              className="flex items-start gap-2.5 rounded-[12px] border border-line-soft bg-surface px-4 py-3 shadow-card"
+              role="note"
+            >
+              <span aria-hidden className="mt-0.5 text-[15px]">
+                {alreadySubmitted ? "✅" : "🎯"}
+              </span>
+              <div className="min-w-0">
+                <p className="m-0 text-[13px] font-bold text-ink">
+                  {alreadySubmitted ? "Evaluation submitted" : "What happens when you submit"}
+                </p>
+                <p className="m-0 text-[12.5px] leading-snug text-ink-muted">
+                  {submitOutcomeHint}
+                </p>
+              </div>
+            </div>
+            <InterviewReviewEditor
+              action={saveInstructorInterviewReviewAction as (fd: FormData) => void}
+              liveDraftAction={saveInstructorInterviewLiveDraftAction}
+              applicationId={id}
+              returnTo={`/applications/instructor/${id}`}
+              initialReview={workspace.myReview}
+              canEdit={workspace.myReview?.status !== "SUBMITTED" || actorIsAdmin}
+              isLeadReviewer={workspace.myReview?.isLeadReview ?? false}
+              canFinalizeRecommendation={workspace.canFinalizeRecommendation}
+              questionBank={workspace.questionBank}
+            />
+          </>
         ) : (
           <div
             className="rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900"
             role="status"
           >
-            Interview evaluation is not yet available. The applicant must be in the interview stage
-            first.
+            <p className="m-0 font-bold">Interview evaluation isn&apos;t open yet</p>
+            <p className="m-0 mt-0.5 text-amber-800">
+              This candidate needs to reach the interview stage first — send and confirm an
+              interview time from the applicant page, then come back here to record your
+              evaluation.
+            </p>
+            <Link
+              href={`/applications/instructor/${id}`}
+              className="mt-2 inline-block font-semibold text-amber-900 underline"
+            >
+              ← Back to applicant
+            </Link>
           </div>
         )}
 

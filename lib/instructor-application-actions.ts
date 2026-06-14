@@ -665,6 +665,119 @@ export async function markInterviewCompleted(
   revalidatePath("/application-status");
 }
 
+/**
+ * Lightweight "we interviewed them" transition.
+ *
+ * Moves a scheduled application from INTERVIEW_SCHEDULED into
+ * INTERVIEW_COMPLETED (the "Post-interview" pipeline column) without forcing
+ * the reviewer through the full structured interview-review editor. This is the
+ * manual fallback for interviews that happen over a call/Zoom: the structured
+ * review + auto-advance path (`maybeAutoAdvanceAfterInterviewReview`) is still
+ * preferred and fully intact when interviewers are formally assigned — this
+ * simply stops cards from getting stranded in "Ready for interview" after a
+ * real interview took place. From INTERVIEW_COMPLETED the existing "Send to
+ * chair" action takes over, so the rest of the flow is unchanged.
+ */
+export async function completeInterviewStage(
+  formData: FormData
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const applicationId = String(formData.get("applicationId") ?? "").trim();
+    if (!applicationId) return { success: false, error: "Missing applicationId." };
+    const notes = String(formData.get("notes") ?? "").trim() || null;
+
+    const actor = await getHiringActor(session.user.id);
+
+    const app = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        id: true,
+        applicantId: true,
+        reviewerId: true,
+        status: true,
+        interviewRound: true,
+        applicant: { select: { chapterId: true } },
+        interviewerAssignments: {
+          where: { removedAt: null },
+          select: { interviewerId: true, round: true, removedAt: true },
+        },
+      },
+    });
+    if (!app) return { success: false, error: "Application not found." };
+
+    assertCanManageApplication(actor, {
+      id: app.id,
+      applicantId: app.applicantId,
+      reviewerId: app.reviewerId,
+      interviewRound: app.interviewRound,
+      applicantChapterId: app.applicant.chapterId,
+      interviewerAssignments: app.interviewerAssignments,
+    });
+
+    if (app.status !== InstructorApplicationStatus.INTERVIEW_SCHEDULED) {
+      return {
+        success: false,
+        error: "Only a scheduled interview can be marked complete.",
+      };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Guard against a concurrent auto-advance (all reviews submitted) racing us.
+      const moved = await tx.instructorApplication.updateMany({
+        where: {
+          id: applicationId,
+          status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+        },
+        data: {
+          status: InstructorApplicationStatus.INTERVIEW_COMPLETED,
+          ...(notes ? { reviewerNotes: notes } : {}),
+        },
+      });
+      if (moved.count === 0) {
+        throw new Error("This application already moved past the interview stage.");
+      }
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "STATUS_CHANGE",
+          actorId: actor.id,
+          payload: {
+            from: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+            to: InstructorApplicationStatus.INTERVIEW_COMPLETED,
+            trigger: "manual-mark-interview-complete",
+            ...(notes ? { hasNotes: true } : {}),
+          },
+        },
+      });
+    });
+
+    await syncInstructorApplicationWorkflow(applicationId);
+
+    trackApplicantEvent("applicant.status.interview_completed", {
+      applicationId,
+      actorId: actor.id,
+      chapterId: app.applicant.chapterId,
+      status: "INTERVIEW_COMPLETED",
+      meta: { trigger: "manual" },
+    });
+
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/chapter-lead/instructor-applicants");
+    revalidatePath("/application-status");
+    return { success: true };
+  } catch (error) {
+    console.error("[completeInterviewStage]", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
+  }
+}
+
 export async function submitInfoResponse(
   prevState: FormState,
   formData: FormData
