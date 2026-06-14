@@ -13,6 +13,7 @@ type TabDef = { key: ActionTrackerTab; label: string; href: string };
 
 const TABS: TabDef[] = [
   { key: "command", label: "Work", href: "/work" },
+  { key: "initiatives", label: "Initiatives", href: "/operations/initiatives" },
   { key: "my", label: "My actions", href: "/actions" },
   { key: "all", label: "All actions", href: "/actions/all" },
   { key: "meetings", label: "Meetings", href: "/actions/meetings" },
@@ -20,7 +21,13 @@ const TABS: TabDef[] = [
   { key: "responsibility", label: "Responsibility Map", href: "/actions/responsibility" },
 ];
 
-const PRIMARY_TABS = new Set<ActionTrackerTab>(["command", "my", "all", "meetings"]);
+const PRIMARY_TABS = new Set<ActionTrackerTab>([
+  "command",
+  "initiatives",
+  "my",
+  "all",
+  "meetings",
+]);
 
 export function ActionTrackerTabsV2({
   active,

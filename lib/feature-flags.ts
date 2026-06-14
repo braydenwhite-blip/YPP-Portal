@@ -28,14 +28,12 @@ export function isActionTrackerEnabled(): boolean {
  * connection panels that turn the People Strategy area into one connected
  * operating system (see `docs/people-strategy-operating-system-plan.md`).
  *
- * Defaults OFF — set `ENABLE_OPERATIONS_HUB=true` to expose the `/operations`
- * route, the new cross-surface panels, and the nav entry. With the flag off the
- * route returns notFound() and every new panel/nav entry is hidden, so existing
- * users see no behavior change. Tracker-powered features still also require
- * `ENABLE_ACTION_TRACKER`.
+ * Defaults ON — set `ENABLE_OPERATIONS_HUB=false` to hide the `/operations`
+ * route, cross-surface panels, and nav entry. Tracker-powered features still
+ * also require `ENABLE_ACTION_TRACKER`.
  */
 export function isOperationsHubEnabled(): boolean {
-  return process.env.ENABLE_OPERATIONS_HUB === "true";
+  return process.env.ENABLE_OPERATIONS_HUB !== "false";
 }
 
 /**
@@ -45,13 +43,11 @@ export function isOperationsHubEnabled(): boolean {
  * Initiatives section. The initiative LAYER is pure config + derivation (no
  * schema, no migration); this flag only gates the runtime surfaces.
  *
- * Defaults OFF — set `ENABLE_STRATEGIC_INITIATIVES=true` to expose them. The
- * surfaces also require `ENABLE_OPERATIONS_HUB` and `ENABLE_ACTION_TRACKER`
- * (they derive from tracker data and live under the officer-gated Operations
- * Hub), so with any of the three off the routes return notFound().
+ * Defaults ON — set `ENABLE_STRATEGIC_INITIATIVES=false` to hide them. The
+ * surfaces also require `ENABLE_OPERATIONS_HUB` and `ENABLE_ACTION_TRACKER`.
  */
 export function isStrategicInitiativesEnabled(): boolean {
-  return process.env.ENABLE_STRATEGIC_INITIATIVES === "true";
+  return process.env.ENABLE_STRATEGIC_INITIATIVES !== "false";
 }
 
 /**

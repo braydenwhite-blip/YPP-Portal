@@ -458,6 +458,24 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 5,
     },
     {
+      href: "/operations/initiatives",
+      label: "Initiatives",
+      icon: "🎯",
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
+      requiresOperationsHub: true,
+      searchAliases: [
+        "Initiatives",
+        "Strategic initiatives",
+        "Plans",
+        "Quarterly goals",
+        "Initiative plan",
+      ],
+      dashboardDescription:
+        "Quarterly initiatives — open one to see linked actions and next steps.",
+      dashboardPriority: 4,
+    },
+    {
       href: "/work",
       label: "Work",
       icon: "🎛️",
