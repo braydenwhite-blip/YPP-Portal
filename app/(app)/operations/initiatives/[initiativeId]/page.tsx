@@ -2,14 +2,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { InitiativeActionsPanel } from "@/components/people-strategy/initiative-actions-panel";
-import { ProgressBar } from "@/components/people-strategy/strategic-initiatives";
+import {
+  InitiativeAttentionBanner,
+  InitiativeMeetingsSection,
+  InitiativeSummaryHead,
+} from "@/components/people-strategy/initiative-detail-360";
+import {
+  MilestoneList,
+  OwnershipPanel,
+  RecommendationsList,
+  RiskPanel,
+  StrategicTimelineView,
+} from "@/components/people-strategy/strategic-initiatives";
 import {
   ButtonLink,
-  KeyFactsGrid,
   PageHeaderV2,
   RecordSection,
   StatusBadge,
-  type KeyFact,
 } from "@/components/ui-v2";
 import { requireOfficer } from "@/lib/authorization";
 import {
@@ -25,6 +34,7 @@ import {
   listActionAssignableUsers,
   listActionDepartments,
 } from "@/lib/people-strategy/action-queries";
+import { primaryNextStep } from "@/lib/people-strategy/strategic-initiative-attention";
 import { getInitiativePageData } from "@/lib/people-strategy/strategic-initiative-queries";
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
 
@@ -40,7 +50,7 @@ export async function generateMetadata({
   return { title: def ? `${def.title} · Initiatives` : "Initiative · Work" };
 }
 
-/** One initiative = the plan. Actions on this page are the work under that plan. */
+/** One initiative — the single place to understand it: progress, milestones, actions, meetings, owners, blockers. */
 export default async function StrategicInitiativeDetailPage({
   params,
 }: {
@@ -73,7 +83,6 @@ export default async function StrategicInitiativeDetailPage({
   if (!pageData) notFound();
 
   const { def, summary, actions } = pageData;
-  const topRec = summary.recommendations[0];
 
   const healthBadgeTone =
     summary.health.tone === "overdue"
@@ -84,36 +93,14 @@ export default async function StrategicInitiativeDetailPage({
           ? "success"
           : "neutral";
 
-  const facts: KeyFact[] = [
-    {
-      label: "Open actions",
-      value: summary.counts.openActions,
-      href: `/actions?initiative=${initiativeId}&who=all`,
-    },
-    {
-      label: "Overdue",
-      value: summary.counts.overdueActions,
-      tone: summary.counts.overdueActions > 0 ? "attention" : "default",
-    },
-    {
-      label: "Progress",
-      value: `${summary.progress.percent}%`,
-      detail: `${summary.progress.completedActions}/${summary.progress.totalTracked} done`,
-    },
-    {
-      label: "Owner",
-      value: summary.owner ?? "Unassigned",
-    },
-  ];
-
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6 pb-10">
+    <div className="mx-auto flex w-full max-w-[860px] flex-col gap-6 pb-10">
       <PageHeaderV2
         eyebrow="Initiatives"
-        backHref="/work?view=initiatives"
-        backLabel="Work"
+        backHref="/operations/initiatives"
+        backLabel="All initiatives"
         title={summary.title}
-        subtitle={summary.description}
+        subtitle={`Next step: ${primaryNextStep(summary)}`}
         actions={
           <ButtonLink
             href={`/actions?initiative=${initiativeId}&who=all`}
@@ -124,27 +111,24 @@ export default async function StrategicInitiativeDetailPage({
           </ButtonLink>
         }
       >
-        <StatusBadge tone={healthBadgeTone}>{summary.health.label}</StatusBadge>
+        <StatusBadge tone={healthBadgeTone}>{summary.statusLabel}</StatusBadge>
       </PageHeaderV2>
 
-      <KeyFactsGrid facts={facts} className="grid-cols-2 sm:grid-cols-4" />
+      <InitiativeAttentionBanner initiative={summary} now={now} />
 
-      <RecordSection title="Plan progress">
-        <ProgressBar percent={summary.progress.percent} />
-        {topRec ? (
-          <p className="mb-0 mt-3 text-[13px] text-ink-muted">
-            <span className="font-semibold text-brand-700">Next: </span>
-            {topRec.title} — {topRec.detail}
-          </p>
-        ) : (
-          <p className="mb-0 mt-3 text-[13px] text-ink-muted">
-            {summary.healthExplanation.headline}
-          </p>
-        )}
+      <InitiativeSummaryHead initiative={summary} />
+
+      <RecordSection
+        id="milestones"
+        title="Milestones"
+        description="The progress path — completed, current, and upcoming checkpoints."
+      >
+        <MilestoneList milestones={summary.milestones} />
       </RecordSection>
 
       <InitiativeActionsPanel
         initiative={def}
+        milestones={summary.milestones}
         actions={actions}
         now={now}
         canCreate={canCreate}
@@ -153,8 +137,34 @@ export default async function StrategicInitiativeDetailPage({
         currentUserId={viewer.id}
       />
 
+      <InitiativeMeetingsSection initiative={summary} />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <OwnershipPanel ownership={summary.ownership} />
+        <RiskPanel risk={summary.risk} />
+      </div>
+
+      <RecordSection
+        id="timeline"
+        title="Activity timeline"
+        description="Meetings, decisions, completed actions, and milestones reached — newest first."
+      >
+        <StrategicTimelineView timeline={summary.timeline} />
+      </RecordSection>
+
+      <RecordSection
+        id="next-steps"
+        title="Recommended next steps"
+        description="Concrete moves to keep this initiative on track."
+      >
+        <RecommendationsList recommendations={summary.recommendations} />
+      </RecordSection>
+
       <p className="m-0 text-[12.5px] text-ink-muted">
-        <Link href="/operations/initiatives" className="font-semibold text-brand-700 no-underline hover:underline">
+        <Link
+          href="/operations/initiatives"
+          className="font-semibold text-brand-700 no-underline hover:underline"
+        >
           All initiatives
         </Link>
       </p>
