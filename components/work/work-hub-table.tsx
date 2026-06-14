@@ -172,12 +172,10 @@ export function WorkHubTable({ rows }: { rows: WorkHubRow[] }) {
                     </div>
                   </TableCell>
                   <TableCell>
+                    {/* The operational status (Overdue 3d / Blocked / Due Jun 12 / Needs owner)
+                        is the organizing signal here — priority labels are intentionally
+                        not surfaced (operational signals say exactly why something matters). */}
                     <StatusBadge tone={TONE_TO_BADGE[row.tone]}>{row.status}</StatusBadge>
-                    {row.priorityLabel === "Urgent" || row.priorityLabel === "High" ? (
-                      <span className="ml-1.5 text-[11.5px] font-semibold text-ink-muted">
-                        {row.priorityLabel}
-                      </span>
-                    ) : null}
                   </TableCell>
                   <TableCell>
                     <p className="m-0 max-w-[240px] text-[12.5px] leading-5 text-ink-muted">

@@ -7,17 +7,17 @@ import { cn, StatusBadge, type StatusTone } from "@/components/ui-v2";
 import { formatDueDate } from "@/lib/leadership-action-center/dates";
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import { deriveActionStrategicLinkage } from "@/lib/people-strategy/action-source";
-import { deriveActionNextMove } from "@/lib/people-strategy/action-intel";
 import {
-  ACTION_PRIORITY_LABELS,
-  ACTION_STATUS_LABELS,
-} from "@/lib/people-strategy/constants";
+  deriveActionNextMove,
+  deriveActionQualityLabels,
+} from "@/lib/people-strategy/action-intel";
+import { ACTION_STATUS_LABELS } from "@/lib/people-strategy/constants";
 import {
   effectiveDeadline,
   isActionOverdue,
 } from "@/lib/people-strategy/my-actions-selectors";
 import { getUserTitle } from "@/lib/user-title";
-import type { ActionItemStatus, ActionPriority } from "@prisma/client";
+import type { ActionItemStatus } from "@prisma/client";
 
 /**
  * Action Tracker list card on ui-v2 (Knowledge OS V2 Phase 3F) — the Tailwind
@@ -40,11 +40,12 @@ const STATUS_TONE: Record<ActionItemStatus, StatusTone> = {
   DROPPED: "neutral",
 };
 
-const PRIORITY_TONE: Record<ActionPriority, StatusTone> = {
-  LOW: "neutral",
-  MEDIUM: "info",
-  HIGH: "warning",
-  URGENT: "danger",
+/** Operational-signal label tone → badge tone (replaces the old priority pill). */
+const GAP_TONE: Record<"good" | "warn" | "danger" | "info", StatusTone> = {
+  good: "success",
+  warn: "warning",
+  danger: "danger",
+  info: "info",
 };
 
 function leadLabel(
@@ -79,12 +80,21 @@ export function ActionListCard({
   const strategic = deriveActionStrategicLinkage(item);
   const nextMove = deriveActionNextMove(item, now);
 
+  // The single most serious operational gap (needs owner, blocked, stale,
+  // define done, follow-up needed…) — the honest "why this matters" signal that
+  // replaces the priority pill. "Overdue" is dropped here since the due badge
+  // above already says it, and positive ("good") reads are not surfaced.
+  const gap =
+    deriveActionQualityLabels(item, now).filter((l) => l.key !== "overdue").find(
+      (l) => l.tone !== "good"
+    ) ?? null;
+
   // Left rail makes the list scannable: overdue (red) wins, otherwise the rail
-  // carries the priority signal so urgent/high work stands out.
+  // carries the operational-gap signal so work that needs attention stands out.
   const rail =
-    overdue || item.priority === "URGENT"
+    overdue || gap?.tone === "danger"
       ? "border-l-danger-700"
-      : item.priority === "HIGH"
+      : gap?.tone === "warn"
         ? "border-l-warning-700"
         : "border-l-transparent";
 
@@ -113,11 +123,7 @@ export function ActionListCard({
         <StatusBadge tone={STATUS_TONE[item.status] ?? "neutral"}>
           {ACTION_STATUS_LABELS[item.status]}
         </StatusBadge>
-        {item.priority !== "LOW" ? (
-          <StatusBadge tone={PRIORITY_TONE[item.priority]}>
-            {ACTION_PRIORITY_LABELS[item.priority]}
-          </StatusBadge>
-        ) : null}
+        {gap ? <StatusBadge tone={GAP_TONE[gap.tone]}>{gap.text}</StatusBadge> : null}
         {item.relatedEntityType ? (
           <RelatedEntityBadge type={item.relatedEntityType} id={item.relatedEntityId} />
         ) : null}
