@@ -150,6 +150,18 @@ export interface MeetingCardDTO {
   openLinkedActions: number;
   linkedActionCount: number;
   /**
+   * Workflow signals the Meeting Command Center selectors read (next-action,
+   * wrap-up state). Optional on the type so older unit-test fixtures can stay
+   * light; the real query mappers always populate them.
+   */
+  hasNotes?: boolean;
+  /** Total follow-up commitments (any status) captured at the meeting. */
+  followUpCount?: number;
+  /** Open follow-ups still missing an owner. */
+  followUpsNeedingOwner?: number;
+  /** Open follow-ups still missing a due date. */
+  followUpsNeedingDueDate?: number;
+  /**
    * Small inline previews for command-center cards. These are optional on the
    * type so older unit-test fixtures can stay light, but real query mappers
    * always populate them.
@@ -239,7 +251,18 @@ function cardCounts(m: MeetingWithCommandCenter, now: Date) {
     (f) => computeFollowUpStatus({ status: f.status, dueDate: f.dueDate }, now) === "overdue"
   ).length;
   const openLinkedActions = m.actionItems.filter((a) => a.status !== "COMPLETE").length;
-  return { openFollowUps, overdueFollowUps, openLinkedActions };
+  // Open follow-ups (the loose commitments) missing an owner / a due date — the
+  // gaps the wrap-up checklist names exactly.
+  const openFollowUpList = m.followUps.filter((f) => f.status !== "COMPLETED");
+  const followUpsNeedingOwner = openFollowUpList.filter((f) => !f.ownerId).length;
+  const followUpsNeedingDueDate = openFollowUpList.filter((f) => !f.dueDate).length;
+  return {
+    openFollowUps,
+    overdueFollowUps,
+    openLinkedActions,
+    followUpsNeedingOwner,
+    followUpsNeedingDueDate,
+  };
 }
 
 export function mapMeetingToCardDTO(
@@ -306,6 +329,10 @@ export function mapMeetingToCardDTO(
     overdueFollowUps: counts.overdueFollowUps,
     openLinkedActions: counts.openLinkedActions,
     linkedActionCount: m.actionItems.length,
+    hasNotes: !!m.notesText && m.notesText.trim().length > 0,
+    followUpCount: m.followUps.length,
+    followUpsNeedingOwner: counts.followUpsNeedingOwner,
+    followUpsNeedingDueDate: counts.followUpsNeedingDueDate,
     decisionsPreview,
     unconvertedFollowUps,
     linkedActionsPreview,

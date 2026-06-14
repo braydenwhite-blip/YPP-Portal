@@ -7,6 +7,7 @@ import { EntityLink } from "@/components/operations/entity-link";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
 import { meetingCategoryTone } from "@/lib/people-strategy/meeting-categories";
+import { meetingNextAction } from "@/lib/people-strategy/meeting-command-center";
 import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
 import {
   Avatar,
@@ -57,6 +58,12 @@ function timeString(m: MeetingCardDTO): string {
 
 export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
   const c = meetingCategoryTone(m.category);
+  // The one primary action for this meeting, chosen by the command-center
+  // priority ladder (Open / Add agenda / Add notes / Create actions / …).
+  const next = meetingNextAction({
+    ...m,
+    hasRelatedEntity: !!m.relatedEntityType && !!m.relatedEntityId,
+  });
   const accentTime: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
@@ -178,7 +185,7 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
             <StatChip icon="bolt" value={m.openLinkedActions} label="" />
             <StatChip icon="flag" value={m.openFollowUps} label="" danger={m.overdueFollowUps > 0} />
             <Link
-              href={`/actions/meetings/${m.id}`}
+              href={next.href}
               style={{
                 fontSize: 12.5,
                 fontWeight: 700,
@@ -187,7 +194,7 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
                 whiteSpace: "nowrap",
               }}
             >
-              Open →
+              {next.label} →
             </Link>
           </div>
         </div>
