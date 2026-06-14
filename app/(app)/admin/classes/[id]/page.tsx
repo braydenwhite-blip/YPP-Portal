@@ -1,5 +1,10 @@
 import { getOfferingTimeline } from "@/lib/class-offering-timeline";
 import { RecordSection } from "@/components/ui-v2";
+import { getSession } from "@/lib/auth-supabase";
+import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { canCreateAction } from "@/lib/people-strategy/action-permissions";
+import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
+import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
 import { ClassPublishControls } from "./_components/publish-controls";
 import { ClassReviewBanner } from "./_components/header";
 import { loadClassAdminDetail } from "./_components/loaders";
@@ -18,10 +23,26 @@ export default async function AdminClassOverviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [detail, timeline] = await Promise.all([
+  // The route is ADMIN-gated by the layout; resolve the viewer so the connected
+  // actions/meetings are loaded with the same server-side visibility filter the
+  // rest of the portal uses (getActionsForEntity is viewer-scoped).
+  const session = await getSession();
+  const viewer = {
+    id: session?.user?.id ?? "",
+    roles: session?.user?.roles ?? [],
+    primaryRole: session?.user?.primaryRole ?? null,
+    adminSubtypes: session?.user?.adminSubtypes ?? [],
+  };
+  const trackerEnabled = isActionTrackerEnabled();
+
+  const [detail, timeline, opsContext] = await Promise.all([
     loadClassAdminDetail(id),
     getOfferingTimeline(id, 8),
+    trackerEnabled
+      ? getOperationalContextForEntity("CLASS_OFFERING", id, viewer)
+      : Promise.resolve(null),
   ]);
+  const canCreate = canCreateAction(viewer);
 
   const scheduleLine = [
     detail.meetingDays.join(", ") || null,
@@ -65,6 +86,26 @@ export default async function AdminClassOverviewPage({
           .
         </p>
       </RecordSection>
+
+      {/* Connected work — the class's linked actions + meetings, surfaced here so
+          officers see (and act on) the operating context without opening the
+          Class 360 drawer separately. Mirrors the Partner detail page. */}
+      {trackerEnabled && opsContext ? (
+        <OperationalContextPanel
+          title="Connected work"
+          subtitle={detail.title}
+          health={opsContext.health}
+          meetings={opsContext.meetings}
+          actions={opsContext.actions}
+          openFollowUps={opsContext.openFollowUps}
+          recentDecisions={opsContext.recentDecisions}
+          canCreate={canCreate}
+          createActionHref={`/actions/new?relatedType=CLASS_OFFERING&relatedId=${detail.id}`}
+          createMeetingHref={`/actions/meetings?new=1&relatedType=CLASS_OFFERING&relatedId=${detail.id}`}
+          emptyActionsHint="No actions are linked to this class yet. Add a follow-up so nothing slips."
+          emptyMeetingsHint="No meeting has been tracked about this class yet."
+        />
+      ) : null}
 
       <RecordSection
         title="Recent activity"
