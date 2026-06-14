@@ -9,8 +9,6 @@ import {
   type ActionFilters,
 } from "@/lib/people-strategy/action-filters";
 import {
-  ACTION_PRIORITY_LABELS,
-  ACTION_PRIORITY_VALUES,
   ACTION_STATUS_LABELS,
   ACTION_STATUS_VALUES,
   ACTION_VISIBILITY_LABELS,
@@ -96,20 +94,6 @@ export function ActionFiltersBar({
 
       <select
         className="ps-filter"
-        aria-label="Filter by priority"
-        value={filters.priority}
-        onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.priority, e.target.value)}
-      >
-        <option value="ALL">All priorities</option>
-        {ACTION_PRIORITY_VALUES.map((p) => (
-          <option key={p} value={p}>
-            {ACTION_PRIORITY_LABELS[p]}
-          </option>
-        ))}
-      </select>
-
-      <select
-        className="ps-filter"
         aria-label="Filter by visibility"
         value={filters.visibility}
         onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.visibility, e.target.value)}
@@ -169,7 +153,6 @@ export function ActionFiltersBar({
       >
         <option value="deadline_asc">Deadline ↑ (soonest)</option>
         <option value="deadline_desc">Deadline ↓ (latest)</option>
-        <option value="priority_desc">Priority (highest)</option>
       </select>
 
       <form onSubmit={submitSearch} className="ps-filter-search">

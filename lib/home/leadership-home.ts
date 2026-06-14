@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import { PARTNER_REQUEST_OPEN_STATUSES } from "@/lib/partners-constants";
 import { loadData360 } from "@/lib/operations/data-360-queries";
+import { buildChiefOfStaffInsights } from "@/lib/help-agent/chief-of-staff";
+import type { CoSInsight } from "@/lib/help-agent/types";
 import type { AttentionItem } from "@/lib/operations/attention";
 import type {
   ActionLite,
@@ -28,6 +30,8 @@ import { whereUserHasRole } from "@/lib/user-role-where";
 export type LeadershipHomeData = {
   /** Today's Brief — plain sentences, worst first. */
   brief: string[];
+  /** Chief of Staff proactive insights — high-signal lines, worst first. */
+  chiefOfStaff: CoSInsight[];
   stats: {
     overdueActions: number;
     blockedActions: number;
@@ -118,6 +122,7 @@ export async function loadLeadershipHome(
 
   return {
     brief: data360.brief,
+    chiefOfStaff: buildChiefOfStaffInsights(data360, { now, limit: 4 }),
     stats: {
       overdueActions: data360.digest.counts.overdueActions,
       blockedActions: data360.digest.counts.blockedActions,

@@ -176,9 +176,8 @@ function attentionReason(
   if (overdueDays > 0) {
     return { reason: `Overdue ${overdueDays} ${overdueDays === 1 ? "day" : "days"}`, severity: "medium" };
   }
-  if (item.priority === "URGENT") {
-    return { reason: "Urgent — keep it moving", severity: "medium" };
-  }
+  // Priority is intentionally NOT an attention reason: the queue surfaces only
+  // concrete operational signals (overdue, blocked, unowned, stale, due soon).
   if (item.status === "NOT_STARTED" && isDueThisWeek(effectiveDeadline(item), now)) {
     return { reason: "Due this week, not started", severity: "low" };
   }

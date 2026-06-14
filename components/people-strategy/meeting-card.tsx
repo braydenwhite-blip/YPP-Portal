@@ -15,7 +15,6 @@ import {
   CategoryBadge,
   MeetingStatusBadge,
   Pill,
-  PriorityBadge,
 } from "./meeting-ui";
 
 /** A small icon + value + label stat used in the meeting card footer. */
@@ -99,7 +98,6 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
           <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
             <CategoryBadge category={m.category} />
             <MeetingStatusBadge status={m.effectiveStatus} />
-            {(m.priority === "HIGH" || m.priority === "URGENT") && <PriorityBadge priority={m.priority} />}
             {m.relatedEntityType ? (
               <Pill tone="purple" style={{ fontWeight: 700 }}>
                 {relatedEntityTypeLabel(m.relatedEntityType)}

@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 
+import { HelpAgentAsk } from "@/components/help-agent/help-agent-ask";
 import { HelpAgentSearch } from "@/components/help-agent/help-agent-search";
 import { PageHeaderV2 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
+import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { defaultPrompts } from "@/lib/help-agent/chief-of-staff";
 import {
   isOfficerTier,
   type ActionViewer,
@@ -15,11 +18,20 @@ export const metadata = {
 };
 
 /**
- * YPP Help Agent — the full-page, search-first surface (Knowledge OS V2).
- * Same deterministic engine as the global ⌘K palette: find any person,
- * partner, class, meeting, action, or initiative and open its 360 preview.
+ * YPP Help Agent — the full-page surface (Knowledge OS V2).
+ *
+ * Two complementary modes, one agent:
+ *  - Ask (Chief of Staff): officers ask operational questions and get back
+ *    structured answer blocks built deterministically from the portal's data,
+ *    with an OPTIONAL AI-written summary on top.
+ *  - Search: the same deterministic entity search behind ⌘K — find any person,
+ *    partner, class, meeting, action, or initiative and open its 360 preview.
  */
-export default async function HelpAgentPage() {
+export default async function HelpAgentPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -31,21 +43,52 @@ export default async function HelpAgentPage() {
   };
   const officerTier = isOfficerTier(viewer);
   const adminTier = viewer.primaryRole === "ADMIN" || viewer.roles.includes("ADMIN");
+  const chiefOfStaff = officerTier && isActionTrackerEnabled();
+  const aiAvailable = Boolean(process.env.ANTHROPIC_API_KEY);
+
+  const params = (await searchParams) ?? {};
+  const rawQ = params.q ?? params.ask;
+  const initialQuestion = Array.isArray(rawQ) ? rawQ[0] : rawQ;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-10">
       <PageHeaderV2
         eyebrow="Knowledge OS"
         title="YPP Help Agent"
-        subtitle="Find anything. Every result opens a 360 preview — full pages are one ⌘-click away."
+        subtitle={
+          chiefOfStaff
+            ? "Your Chief of Staff. Ask what needs attention, what changed, or what to do next — or search to open any record."
+            : "Find anything. Every result opens a 360 preview — full pages are one ⌘-click away."
+        }
         className="mb-6"
       />
-      <div className="flex h-[60vh] min-h-[420px] flex-col overflow-hidden rounded-[14px] border border-line bg-surface shadow-card">
-        <HelpAgentSearch officerTier={officerTier} adminTier={adminTier} variant="page" />
-      </div>
+
+      {chiefOfStaff ? (
+        <section className="mb-8">
+          <HelpAgentAsk
+            prompts={defaultPrompts()}
+            aiAvailable={aiAvailable}
+            defaultQuestion={initialQuestion}
+          />
+        </section>
+      ) : null}
+
+      <section>
+        {chiefOfStaff ? (
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.07em] text-ink-muted">
+            Or search for a record
+          </p>
+        ) : null}
+        <div className="flex h-[52vh] min-h-[380px] flex-col overflow-hidden rounded-[14px] border border-line bg-surface shadow-card">
+          <HelpAgentSearch officerTier={officerTier} adminTier={adminTier} variant="page" />
+        </div>
+      </section>
+
       <p className="mt-4 text-center text-[12px] text-ink-muted">
-        Deterministic search across people{officerTier ? ", partners, classes, meetings, actions, and initiatives" : ""} —
-        press <kbd className="font-semibold">⌘K</kbd> anywhere in the portal to open this as a palette.
+        {chiefOfStaff
+          ? "Answers are built from your live meetings, actions, decisions, and records — no AI required."
+          : "Deterministic search across people and the records you can see."}{" "}
+        Press <kbd className="font-semibold">⌘K</kbd> anywhere to open this as a palette.
       </p>
     </div>
   );
