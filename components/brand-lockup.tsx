@@ -66,13 +66,22 @@ export default function BrandLockup({
     .join(" ");
 
   const mark = (
-    <span className={dark ? "portal-brand-mark-wrap portal-brand-mark-wrap--dark" : "portal-brand-mark-wrap"}>
+    <span
+      className={cn(
+        "flex shrink-0 items-center justify-center",
+        dark && "h-10 w-[58px]",
+      )}
+    >
       <Image
         src="/ypp-logo-mark.png?v=2308109d"
         alt=""
         width={w}
         height={h}
-        className={cn("portal-brand-mark", dark && "portal-brand-mark--dark")}
+        className={cn(
+          "portal-brand-mark shrink-0 object-contain",
+          dark &&
+            "h-10 w-auto max-w-full object-left [filter:drop-shadow(0_1px_6px_rgba(167,118,255,0.28))_drop-shadow(0_0_14px_rgba(124,72,220,0.16))]",
+        )}
         priority={priority}
         quality={95}
         sizes={dark ? "64px" : "160px"}
