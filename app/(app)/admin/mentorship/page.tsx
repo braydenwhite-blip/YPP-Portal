@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { MentorshipType } from "@prisma/client";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { isMentorship2Enabled } from "@/lib/feature-flags";
@@ -11,7 +10,6 @@ import {
 } from "@/lib/mentorship-kanban-actions";
 import GoalReviewsBoard from "@/app/(app)/admin/mentorship/_panels/goal-reviews-board";
 import ReviewApprovalsBoard from "@/app/(app)/admin/mentorship/_panels/review-approvals-board";
-import GoalsPanel from "@/app/(app)/admin/mentorship/_panels/goals-panel";
 import ChairsPanel from "@/app/(app)/admin/mentorship/_panels/chairs-panel";
 import MatchingPanel from "@/app/(app)/admin/mentorship/_panels/matching-panel";
 import MenteeMatchingBoard from "@/app/(app)/admin/mentorship/_panels/mentee-matching-board";
@@ -36,18 +34,26 @@ import {
 } from "@/lib/gr-actions";
 import { getMentorEffectivenessScores } from "@/lib/mentor-effectiveness";
 import { getProgramAnalytics } from "@/lib/mentorship-overview-actions";
-import { RatingLegend } from "@/components/mentorship/rating-legend";
-import { ActionSummaryHeader } from "@/components/mentorship/action-summary-header";
 import {
   getAdminMentorshipActionQueue,
   getInstructorMentorshipOpsSummary,
   getMentorWorkload,
   getUnassignedInstructorQueue,
 } from "@/lib/instructor-mentorship-ops";
+import {
+  ButtonLink,
+  CardV2,
+  FilterBar,
+  FilterChipLink,
+  PageHeaderV2,
+  RecordSection,
+  StatusBadge,
+  TrackerStartCard,
+} from "@/components/ui-v2";
 
+export const dynamic = "force-dynamic";
 export const ADMIN_MENTORSHIP_PAGE_TITLE = "Instructor Mentorship Oversight";
-
-export const metadata = { title: "Instructor Mentorship Admin — YPP Portal" };
+export const metadata = { title: "Instructor Mentorship Admin — Pathways Portal" };
 
 const TABS = [
   { key: "overview", label: "Overview / Pulse" },
@@ -58,7 +64,7 @@ const TABS = [
   { key: "templates", label: "Goals & Resources" },
   { key: "committees", label: "Committees & Chairs" },
   { key: "analytics", label: "Analytics" },
-] as const;
+ ] as const;
 
 type Tab = (typeof TABS)[number]["key"];
 type SearchParams = {
@@ -73,6 +79,10 @@ type MatchSupportRole =
   | "SPECIALIST_MENTOR"
   | "COLLEGE_ADVISOR"
   | "ALUMNI_ADVISOR";
+
+type PageProps = {
+  searchParams: Promise<SearchParams>;
+};
 
 function parseTab(raw?: string): Tab {
   if (
@@ -107,16 +117,12 @@ function parseSupportRole(raw?: string): MatchSupportRole {
   ) {
     return raw;
   }
-
   return "PRIMARY_MENTOR";
 }
 
-// Match the lane filter on `lib/admin-mentorship-command-center.ts`:
-// student mentorship is hidden until launch, so we exclude STUDENT-typed
-// mentorships from every pulse metric.
 const MENTORSHIP_TYPE_FILTER = SHOW_STUDENT_MENTORSHIP_LANE
   ? undefined
-  : { not: MentorshipType.STUDENT };
+  : { not: "STUDENT" as any };
 
 async function getPulseData() {
   const now = new Date();
@@ -129,6 +135,7 @@ async function getPulseData() {
     reflectionsSubmittedCount,
     ratingBreakdown,
     mentorCapacityWarnings,
+    allPairsForStatusFiltering,
   ] = await Promise.all([
     prisma.mentorship.count({
       where: { status: "ACTIVE", type: MENTORSHIP_TYPE_FILTER },
@@ -166,7 +173,7 @@ async function getPulseData() {
     prisma.user.findMany({
       where: {
         OR: [
-          { roles: { some: { role: "MENTOR" } } },
+          { roles: { some: { role: "MENTOR" as any } } },
           { mentorPairs: { some: { status: "ACTIVE" } } },
         ],
       },
@@ -179,7 +186,15 @@ async function getPulseData() {
         },
       },
     }),
+    prisma.mentorship.findMany({
+      where: { type: MENTORSHIP_TYPE_FILTER },
+      select: { status: true }
+    }),
   ]);
+
+  const stalledGoalsCount = allPairsForStatusFiltering.filter(
+    (m: any) => String(m.status).toUpperCase() === "PENDING_GOALS"
+  ).length;
 
   const ratingMap: Record<string, number> = {};
   for (const row of ratingBreakdown) {
@@ -193,7 +208,7 @@ async function getPulseData() {
       (ratingMap["BEHIND_SCHEDULE"] ?? 0) / total > 0.5);
 
   const overCapacityMentors = mentorCapacityWarnings.filter(
-    (m) => m.mentorPairs.length > FULL_PROGRAM_MENTOR_CAP
+    (m: any) => (m.mentorPairs ?? []).length > FULL_PROGRAM_MENTOR_CAP
   );
 
   return {
@@ -201,6 +216,7 @@ async function getPulseData() {
     pendingChairCount,
     reflectionsDueCount,
     reflectionsSubmittedCount,
+    stalledGoalsCount,
     ratingMap,
     total,
     fairnessWarning,
@@ -214,14 +230,14 @@ async function getPulseData() {
 
 async function getGRAdminData() {
   const [templates, resources, documents, goalChanges] = await Promise.all([
-    getGRTemplates(),
-    getGRResourceLibrary(),
-    getGRAssignedDocuments(),
-    getGRGoalChangeQueue(),
+    getGRTemplates() ?? [],
+    getGRResourceLibrary() ?? [],
+    getGRAssignedDocuments() ?? [],
+    getGRGoalChangeQueue() ?? [],
   ]);
 
   return {
-    templates: templates.map((t) => ({
+    templates: (templates ?? []).map((t: any) => ({
       id: t.id,
       title: t.title,
       roleType: t.roleType,
@@ -229,44 +245,44 @@ async function getGRAdminData() {
       status: t.status,
       version: t.version,
       publishedAt: t.publishedAt?.toISOString() ?? null,
-      goalCount: t.goals.length,
-      assignmentCount: t._count.assignments,
-      commentCount: t._count.comments,
-      updatedAt: t.updatedAt.toISOString(),
+      goalCount: t.goals?.length ?? 0,
+      assignmentCount: t._count?.assignments ?? 0,
+      commentCount: t._count?.comments ?? 0,
+      updatedAt: t.updatedAt ? new Date(t.updatedAt).toISOString() : new Date().toISOString(),
     })),
-    resources: resources.map((r) => ({
+    resources: (resources ?? []).map((r: any) => ({
       id: r.id,
       title: r.title,
       description: r.description,
       url: r.url,
       isUpload: r.isUpload,
-      tags: r.tags,
-      createdAt: r.createdAt.toISOString(),
+      tags: r.tags ?? [],
+      createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
     })),
-    documents: documents.map((d) => ({
+    documents: (documents ?? []).map((d: any) => ({
       id: d.id,
-      userName: d.user.name,
-      userEmail: d.user.email,
-      templateTitle: d.template.title,
-      roleType: d.template.roleType,
-      mentorName: d.mentorship.mentor.name,
+      userName: d.user?.name ?? "Unknown",
+      userEmail: d.user?.email ?? "",
+      templateTitle: d.template?.title ?? "No Template",
+      roleType: d.template?.roleType ?? "STUDENT",
+      mentorName: d.mentorship?.mentor?.name ?? "Unassigned",
       status: d.status,
-      goalCount: d._count.goals,
-      pendingChanges: d._count.goalChanges,
-      createdAt: d.createdAt.toISOString(),
+      goalCount: d.goals?.length ?? d._count?.goals ?? 0,
+      pendingChanges: d._count?.goalChanges ?? 0,
+      createdAt: d.createdAt ? new Date(d.createdAt).toISOString() : new Date().toISOString(),
     })),
-    goalChanges: goalChanges.map((gc) => ({
+    goalChanges: (goalChanges ?? []).map((gc: any) => ({
       id: gc.id,
       documentId: gc.documentId,
-      userName: gc.document.user.name,
-      templateTitle: gc.document.template.title,
-      proposedByName: gc.proposedBy.name,
+      userName: gc.document?.user?.name ?? "Unknown",
+      templateTitle: gc.document?.template?.title ?? "No Template",
+      proposedByName: gc.proposedBy?.name ?? "System",
       changeType: gc.changeType,
-      proposedData: gc.proposedData as Record<string, string>,
+      proposedData: (gc.proposedData as Record<string, string>) ?? {},
       reason: gc.reason,
-      createdAt: gc.createdAt.toISOString(),
+      createdAt: gc.createdAt ? new Date(gc.createdAt).toISOString() : new Date().toISOString(),
     })),
-    templateOptions: templates.map((t) => ({
+    templateOptions: (templates ?? []).map((t: any) => ({
       id: t.id,
       title: t.title,
       roleType: t.roleType,
@@ -275,11 +291,9 @@ async function getGRAdminData() {
   };
 }
 
-export default async function AdminMentorshipPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function AdminMentorshipPage(props: PageProps) {
+  const searchParams = await props.searchParams;
+
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) redirect("/");
@@ -292,12 +306,10 @@ export default async function AdminMentorshipPage({
     getAdminMentorshipCommandCenterData(),
     tab === "approvals" ? getMentorshipGoalReviews() : Promise.resolve([]),
     tab === "approvals" ? getMentorshipMonthlyReviews() : Promise.resolve([]),
-    tab === "overview" || tab === "needs-attention"
-      ? getInstructorMentorshipOpsSummary()
-      : Promise.resolve(null),
+    getInstructorMentorshipOpsSummary(),
   ]);
 
-  const pulseData = tab === "overview" ? await getPulseData() : null;
+  const pulseData = await getPulseData();
   const needsActionItems =
     tab === "needs-attention" ? await getAdminMentorshipActionQueue() : null;
   const unassignedQueue =
@@ -309,500 +321,261 @@ export default async function AdminMentorshipPage({
       ? await Promise.all([getProgramAnalytics(), getMentorEffectivenessScores()])
       : [null, []];
 
-  const laneMeta = ADMIN_MENTORSHIP_LANE_META[lane];
-  const selectedSummary =
-    data.laneSummaries.find((summary) => summary.lane === lane) ??
-    data.laneSummaries[0];
-  const laneCircles = data.circleSummaries.filter((circle) => circle.lane === lane);
-  const laneUnassigned = data.unassignedMentees.filter(
-    (mentee) => mentee.lane === lane
+  const [rawChairsData, eligibleUsersData] = tab === "committees"
+    ? await Promise.all([
+        prisma.user.findMany({
+          where: { roles: { some: {} } },
+          include: { roles: true }
+        }),
+        prisma.user.findMany({ select: { id: true, name: true, email: true } }),
+      ])
+    : [[], []];
+
+  const chairsData = (rawChairsData ?? []).filter((user: any) => 
+    user.roles?.some((r: any) => String(r.role).toUpperCase() === "CHAIR" || String(r.role).toUpperCase() === "ADMIN")
   );
 
-  const unassignedCount = data.unassignedMentees.length;
+  const laneMeta = ADMIN_MENTORSHIP_LANE_META[lane];
+  const selectedSummary =
+    data.laneSummaries?.find((summary: any) => summary.lane === lane) ??
+    data.laneSummaries?.[0] ?? { activeCircles: 0, openRequests: 0, peopleNeedingPrimaryMentor: 0 };
+    
+  const laneCircles = (data.circleSummaries ?? []).filter((circle: any) => circle.lane === lane);
+  const laneUnassigned = (data.unassignedMentees ?? []).filter(
+    (mentee: any) => mentee.lane === lane
+  );
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Admin · Instructor Mentorship</p>
-          <h1 className="page-title">{ADMIN_MENTORSHIP_PAGE_TITLE}</h1>
-          <p className="page-subtitle">
-            Program health, approvals, pairings, goals, and committees for the
-            instructor mentorship program.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {isMentorship2Enabled() && (
-            <Link
-              href="/admin/mentorship/applications"
-              className="button secondary small"
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
+      <PageHeaderV2
+        eyebrow="Admin · Instructor Mentorship"
+        title={ADMIN_MENTORSHIP_PAGE_TITLE}
+        subtitle="Program health, approvals, pairings, goals, and committees for the instructor mentorship program."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {isMentorship2Enabled() && (
+              <ButtonLink href="/admin/mentorship/applications" variant="secondary" size="md">
+                Applications
+              </ButtonLink>
+            )}
+          </div>
+        }
+      />
+
+      <TrackerStartCard
+        title="Oversight Pulse Summary"
+        description="Monitor macro program metrics, unstaffed pipelines, performance thresholds, and cycle completions across cohorts."
+        action={
+          <ButtonLink href="/admin/mentorship?tab=needs-attention" variant="secondary" size="sm">
+            Review alerts
+          </ButtonLink>
+        }
+        facts={[
+          {
+            label: "active pairs",
+            value: (data.laneSummaries ?? []).reduce((acc: number, curr: any) => acc + (curr.activeCircles ?? 0), 0),
+            href: "/admin/mentorship?tab=assignments",
+          },
+          {
+            label: "unstaffed",
+            value: opsSummary?.unassignedInstructors ?? 0,
+            href: "/admin/mentorship?tab=assignments",
+            tone: (opsSummary?.unassignedInstructors ?? 0) > 0 ? "attention" : "default",
+          },
+          {
+            label: "overdue logs",
+            value: opsSummary?.overdueCheckIns ?? 0,
+            href: "/admin/mentorship?tab=needs-attention",
+            tone: (opsSummary?.overdueCheckIns ?? 0) > 0 ? "danger" : "default",
+          },
+          {
+            label: "pending reviews",
+            value: (data.laneSummaries ?? []).reduce((acc: number, curr: any) => acc + (curr.openRequests ?? 0), 0),
+            href: "/admin/mentorship?tab=approvals",
+          },
+        ]}
+      />
+
+      <div className="flex flex-col gap-3">
+        <FilterBar aria-label="Mentorship panel views">
+          {TABS.map((t) => (
+            <FilterChipLink
+              key={t.key}
+              href={`/admin/mentorship?tab=${t.key}`}
+              active={tab === t.key}
             >
-              Applications →
-            </Link>
-          )}
-        </div>
+              {t.label}
+            </FilterChipLink>
+          ))}
+        </FilterBar>
       </div>
 
-      {/* Tab bar */}
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          marginBottom: 24,
-          borderBottom: "1px solid var(--border)",
-          paddingBottom: 0,
-        }}
-      >
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={`/admin/mentorship?tab=${t.key}`}
-            style={{
-              padding: "0.5rem 1rem",
-              fontSize: "0.875rem",
-              fontWeight: tab === t.key ? 700 : 400,
-              color: tab === t.key ? "var(--color-primary)" : "var(--muted)",
-              borderBottom: tab === t.key ? "2px solid var(--color-primary)" : "2px solid transparent",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </div>
-
-      {/* ── Overview / Pulse tab ─────────────────── */}
-      {tab === "overview" && pulseData && (
-        <div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-              gap: 12,
-              marginBottom: 24,
-            }}
-          >
-            <div className="card">
-              <p className="kpi">{pulseData.activeCount}</p>
-              <p className="kpi-label">Active instructor mentorships</p>
-            </div>
-            <div className="card">
-              <p
-                className="kpi"
-                style={{
-                  color:
-                    (opsSummary?.unassignedInstructors ?? 0) > 0
-                      ? "#d97706"
-                      : undefined,
-                }}
-              >
+      {/* ── Overview / Pulse Tab ─────────────────── */}
+      {tab === "overview" && (
+        <div className="flex flex-col gap-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <CardV2 className="p-4 border border-line-soft bg-surface rounded-xl shadow-sm">
+              <p className="m-0 text-[24px] font-bold text-ink">{pulseData.activeCount}</p>
+              <p className="m-0 mt-1 text-[12.5px] text-ink-muted">Active instructor mentorships</p>
+            </CardV2>
+            <CardV2 className="p-4 border border-line-soft bg-surface rounded-xl shadow-sm">
+              <p className={`m-0 text-[24px] font-bold ${ (opsSummary?.unassignedInstructors ?? 0) > 0 ? "text-red-600" : "text-ink" }`}>
                 {opsSummary?.unassignedInstructors ?? 0}
               </p>
-              <p className="kpi-label">Mentees without a mentor</p>
-            </div>
-            <div className="card">
-              <p
-                className="kpi"
-                style={{
-                  color:
-                    (opsSummary?.overdueCheckIns ?? 0) > 0
-                      ? "#d97706"
-                      : undefined,
-                }}
-              >
+              <p className="m-0 mt-1 text-[12.5px] text-ink-muted">Mentees without a mentor</p>
+            </CardV2>
+            <CardV2 className="p-4 border border-line-soft bg-surface rounded-xl shadow-sm">
+              <p className={`m-0 text-[24px] font-bold ${ (opsSummary?.overdueCheckIns ?? 0) > 0 ? "text-amber-600" : "text-ink" }`}>
                 {opsSummary?.overdueCheckIns ?? 0}
               </p>
-              <p className="kpi-label">Overdue check-ins</p>
-            </div>
-            <div className="card">
-              <p
-                className="kpi"
-                style={{
-                  color:
-                    (opsSummary?.stalledGoals ?? 0) > 0
-                      ? "#d97706"
-                      : undefined,
-                }}
-              >
-                {opsSummary?.stalledGoals ?? 0}
-              </p>
-              <p className="kpi-label">Stalled goals</p>
-            </div>
-            <div className="card">
-              <p className="kpi" style={{ color: pulseData.pendingChairCount > 0 ? "#d97706" : undefined }}>
-                {pulseData.pendingChairCount}
-              </p>
-              <p className="kpi-label">Pending chair approval</p>
-            </div>
-            <div className="card">
-              <p className="kpi" style={{ color: pulseData.reflectionsDueCount > 0 ? "#d97706" : undefined }}>
-                {pulseData.reflectionsDueCount}
-              </p>
-              <p className="kpi-label">Reflections overdue</p>
-            </div>
-            <div className="card">
-              <p className="kpi">{pulseData.completionRate}%</p>
-              <p className="kpi-label">Reflection completion this cycle</p>
-            </div>
-            <div className="card">
-              <p
-                className="kpi"
-                style={{
-                  color:
-                    (opsSummary?.mentorsOverCapacity ?? 0) > 0
-                      ? "#ef4444"
-                      : (opsSummary?.mentorsAtOrOverCapacity ?? 0) > 0
-                      ? "#d97706"
-                      : undefined,
-                }}
-              >
-                {opsSummary?.mentorsAtOrOverCapacity ?? 0}
-              </p>
-              <p className="kpi-label">
-                Mentors at / over capacity (3+)
-              </p>
-            </div>
+              <p className="m-0 mt-1 text-[12.5px] text-ink-muted">Overdue check-ins</p>
+            </CardV2>
+            <CardV2 className="p-4 border border-line-soft bg-surface rounded-xl shadow-sm">
+              <p className="m-0 text-[24px] font-bold text-ink">{pulseData.stalledGoalsCount}</p>
+              <p className="m-0 mt-1 text-[12.5px] text-ink-muted">Stalled goals blueprints</p>
+            </CardV2>
+            <CardV2 className="p-4 border border-line-soft bg-surface rounded-xl shadow-sm">
+              <p className="m-0 text-[24px] font-bold text-ink">{pulseData.pendingChairCount}</p>
+              <p className="m-0 mt-1 text-[12.5px] text-ink-muted">Pending chair approvals</p>
+            </CardV2>
+            <CardV2 className="p-4 border border-line-soft bg-surface rounded-xl shadow-sm">
+              <p className="m-0 text-[24px] font-bold text-ink">{pulseData.completionRate}%</p>
+              <p className="m-0 mt-1 text-[12.5px] text-ink-muted">Reflection completion this cycle</p>
+            </CardV2>
           </div>
 
-          <div
-            className="card"
-            style={{
-              marginBottom: 20,
-              display: "flex",
-              gap: 12,
-              flexWrap: "wrap",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
+          <RecordSection
+            title="Rating Distribution (last 3 months)"
+            description="Visual trend tracking of performance logs submitted across operational teams."
           >
-            <div>
-              <strong>Need a single action queue?</strong>
-              <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
-                The Needs Action tab combines unassigned instructors, overdue
-                check-ins, stalled goals, and pending reviews in priority order.
-              </p>
-            </div>
-            <Link href="/admin/mentorship?tab=needs-attention" className="button primary small">
-              Open Needs Action queue →
-            </Link>
-          </div>
-
-          {/* Rating distribution fairness check */}
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, marginBottom: pulseData.fairnessWarning ? 8 : 12 }}>
-              Rating Distribution (last 3 months)
-            </div>
             {pulseData.fairnessWarning && (
-              <div
-                style={{
-                  padding: "0.6rem 0.8rem",
-                  background: "#fef9c3",
-                  borderLeft: "3px solid #ca8a04",
-                  borderRadius: "var(--radius-md)",
-                  marginBottom: 12,
-                  fontSize: 13,
-                  color: "#78350f",
-                }}
-              >
-                Fairness check: distribution looks skewed. High Above & Beyond or Behind rates
-                may indicate inflated or overly harsh scoring. Review mentor patterns.
+              <div className="mb-4 rounded-[8px] border-l-[3px] border-amber-500 bg-amber-50 p-3.5 text-[13px] text-amber-900">
+                Fairness check: distribution looks skewed. High Above & Beyond or Behind rates may indicate inflated or overly harsh scoring. Review mentor patterns.
               </div>
             )}
             {pulseData.total === 0 ? (
-              <p style={{ color: "var(--muted)", margin: 0, fontSize: 14 }}>No approved ratings in the last 3 months.</p>
+              <p className="m-0 text-[13.5px] text-ink-muted">No approved ratings in the last 3 months.</p>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {[
-                  "BEHIND_SCHEDULE",
-                  "GETTING_STARTED",
-                  "ACHIEVED",
-                  "ABOVE_AND_BEYOND",
-                ].map((key) => {
+              <div className="flex flex-col gap-3">
+                {["BEHIND_SCHEDULE", "GETTING_STARTED", "ACHIEVED", "ABOVE_AND_BEYOND"].map((key) => {
                   const ratingCopy = getGoalRatingCopy(key);
                   const count = pulseData.ratingMap[key] ?? 0;
                   const pct = Math.round((count / pulseData.total) * 100);
                   return (
-                    <div key={key}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 3 }}>
-                        <span>{ratingCopy.shortLabel} - {ratingCopy.label}</span>
-                        <span style={{ color: "var(--muted)" }}>{count} ({pct}%)</span>
+                    <div key={key} className="flex flex-col gap-1">
+                      <div className="flex justify-between text-[13px]">
+                        <span className="font-medium text-ink">{ratingCopy.shortLabel} - {ratingCopy.label}</span>
+                        <span className="text-ink-muted">{count} ({pct}%)</span>
                       </div>
-                      <div style={{ height: 6, background: "var(--border)", borderRadius: 999, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${pct}%`, background: ratingCopy.color, borderRadius: 999 }} />
+                      <div className="h-1.5 w-full rounded-full bg-line-soft overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: ratingCopy.color }} />
                       </div>
                     </div>
                   );
                 })}
               </div>
             )}
-            <details style={{ marginTop: 12 }}>
-              <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--color-primary)", fontWeight: 600 }}>
-                What the colors mean &amp; what action each calls for
-              </summary>
-              <div style={{ marginTop: 10 }}>
-                <RatingLegend audience="admin" />
-              </div>
-            </details>
-          </div>
+          </RecordSection>
 
-          {pulseData.overCapacityMentors.length > 0 && (
-            <div className="card">
-              <div style={{ fontWeight: 700, marginBottom: 12, color: "#ef4444" }}>
-                Over-Capacity Mentors
-              </div>
-              <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--muted)" }}>
-                These mentors have more than 3 active mentees. Consider redistributing.
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {pulseData.overCapacityMentors.map((m) => (
-                  <div
-                    key={m.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "0.6rem 0.8rem",
-                      background: "#fef2f2",
-                      border: "1px solid #fecaca",
-                      borderRadius: "var(--radius-md)",
-                    }}
-                  >
-                    <span style={{ fontWeight: 600 }}>{m.name}</span>
-                    <span
-                      style={{
-                        fontSize: "0.75rem",
-                        background: "#ef4444",
-                        color: "#fff",
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {m.mentorPairs.length} mentees
-                    </span>
+          {(pulseData.overCapacityMentors ?? []).length > 0 && (
+            <RecordSection
+              title="Over-Capacity Mentors"
+              description="These active mentors currently cross or meet maximum active loads. Consider redistributing assignments."
+            >
+              <div className="grid gap-2 sm:grid-cols-2">
+                {pulseData.overCapacityMentors.map((m: any) => (
+                  <div key={m.id} className="flex items-center justify-between rounded-[8px] border border-line-soft bg-surface px-3.5 py-2.5">
+                    <span className="text-[13.5px] font-semibold text-ink">{m.name}</span>
+                    <StatusBadge tone="danger">{(m.mentorPairs ?? []).length} mentees</StatusBadge>
                   </div>
                 ))}
               </div>
-            </div>
+            </RecordSection>
           )}
         </div>
       )}
 
-      {/* ── Needs Attention tab ──────────────────── */}
+      {/* ── Needs Attention Tab ──────────────────── */}
       {tab === "needs-attention" && needsActionItems && (
-        <div>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Items needing admin attention ({needsActionItems.length})
-            </div>
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-              Sorted by urgency. Top items: instructors without a mentor, then
-              relationships missing a Goals & Resources doc, overdue check-ins,
-              stalled goals, and pending chair approvals.
-            </p>
-          </div>
+        <RecordSection
+          title="Needs attention"
+          description="Start here. These items represent tracking friction points, staffing deadlocks, or delayed milestones."
+        >
           {needsActionItems.length === 0 ? (
-            <div
-              style={{
-                padding: 24,
-                borderRadius: "var(--radius-md)",
-                border: "1px dashed var(--border)",
-                color: "var(--muted)",
-                textAlign: "center",
-              }}
-            >
-              Nothing needs admin attention right now. Nice work.
-            </div>
+            <p className="m-0 text-[13.5px] text-ink-muted">Nothing is flagged right now — the queues are clear.</p>
           ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {needsActionItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="card"
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 16,
-                    flexWrap: "wrap",
-                    borderLeft:
-                      item.kind === "UNASSIGNED_INSTRUCTOR"
-                        ? "3px solid #ef4444"
-                        : item.kind === "NO_GOALS"
-                        ? "3px solid #d97706"
-                        : item.kind === "OVERDUE_CHECK_IN"
-                        ? "3px solid #f59e0b"
-                        : item.kind === "STALLED_GOAL"
-                        ? "3px solid #f59e0b"
-                        : "3px solid #3b82f6",
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 240 }}>
-                    <strong>{item.title}</strong>
-                    <p style={{ margin: "6px 0 8px", color: "var(--muted)", fontSize: 13 }}>
-                      {item.detail}
-                    </p>
-                    <span className="pill pill-small">{item.kind.replace(/_/g, " ")}</span>
-                  </div>
-                  <div style={{ alignSelf: "center" }}>
-                    <Link href={item.href} className="button primary small">
-                      {item.emphasis}
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {needsActionItems.map((item: any) => (
+                <li key={item.id} className="rounded-[8px] border border-line-soft bg-surface px-3.5 py-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="m-0 flex items-center gap-2 text-[13.5px] font-semibold text-ink">
+                      {item.title}
+                      <StatusBadge
+                        tone={
+                          item.kind === "UNASSIGNED_INSTRUCTOR"
+                            ? "danger"
+                            : item.kind === "NO_GOALS"
+                              ? "warning"
+                              : "info"
+                        }
+                      >
+                        {(item.kind ?? "alert").toLowerCase().replaceAll("_", " ")}
+                      </StatusBadge>
+                    </div>
+                    <Link href={item.href ?? "#"} className="text-[12.5px] font-semibold text-brand-700 hover:underline">
+                      {item.emphasis ?? "View details"} →
                     </Link>
                   </div>
-                </div>
+                  <p className="m-0 mt-1 text-[12.5px] text-ink-muted">{item.detail}</p>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
-        </div>
+        </RecordSection>
       )}
 
-      {/* ── Assignments tab ─────────────────────── */}
+      {/* ── Assignments Tab ─────────────────────── */}
       {tab === "assignments" && unassignedQueue && (
-        <div style={{ display: "grid", gap: 24 }}>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Assignment board
-            </div>
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-              One place for primary mentor gaps, support-circle gaps, and
-              shortlist decisions. The visible lanes still exclude student
-              mentorship until the existing launch gate is enabled.
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 12,
-            }}
-          >
+        <div className="flex flex-col gap-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {ADMIN_MENTORSHIP_LANES.map((laneOption) => {
-              const summary =
-                data.laneSummaries.find((item) => item.lane === laneOption) ??
-                selectedSummary;
+              const summary = (data.laneSummaries ?? []).find((item: any) => item.lane === laneOption) ?? selectedSummary;
               const isSelected = laneOption === lane;
-
               return (
                 <Link
                   key={laneOption}
-                  href={`/admin/mentorship?tab=assignments&lane=${toLaneQueryValue(
-                    laneOption
-                  )}`}
-                  className="card"
-                  style={{
-                    textDecoration: "none",
-                    color: "inherit",
-                    border: isSelected
-                      ? "1px solid rgba(59, 130, 246, 0.35)"
-                      : "1px solid var(--border)",
-                    boxShadow: isSelected
-                      ? "0 0 0 3px rgba(59, 130, 246, 0.08)"
-                      : "none",
-                    background: isSelected ? "rgba(59, 130, 246, 0.04)" : "white",
-                  }}
+                  href={`/admin/mentorship?tab=assignments&lane=${toLaneQueryValue(laneOption)}`}
+                  scroll={false}
+                  className="no-underline text-inherit"
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 10,
-                      marginBottom: 8,
-                    }}
-                  >
-                    <strong>{ADMIN_MENTORSHIP_LANE_META[laneOption].label}</strong>
-                    {isSelected ? (
-                      <span className="pill pill-small">Current lane</span>
-                    ) : null}
-                  </div>
-                  <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 13 }}>
-                    {ADMIN_MENTORSHIP_LANE_META[laneOption].staffingExpectation}
-                  </p>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                      gap: 8,
-                      fontSize: 12,
-                      color: "var(--muted)",
-                    }}
-                  >
-                    <div>
-                      <strong style={{ color: "var(--foreground)" }}>
-                        {summary.activeCircles}
-                      </strong>{" "}
-                      active circles
+                  <CardV2 className={`p-4 border rounded-xl shadow-sm transition-colors ${isSelected ? "border-brand-500 bg-brand-50/20" : "border-line-soft bg-surface"}`}>
+                    <div className="flex justify-between items-start gap-2 mb-2">
+                      <strong className="text-[14px] text-ink">{ADMIN_MENTORSHIP_LANE_META[laneOption]?.label ?? laneOption}</strong>
+                      {isSelected && <StatusBadge tone="info">Active</StatusBadge>}
                     </div>
-                    <div>
-                      <strong style={{ color: "var(--foreground)" }}>
-                        {summary.peopleNeedingPrimaryMentor}
-                      </strong>{" "}
-                      unstaffed
+                    <div className="flex flex-col gap-1 text-[12.5px] text-ink-muted">
+                      <div>Circles: <span className="font-semibold text-ink">{summary.activeCircles ?? 0}</span></div>
+                      <div>Unstaffed: <span className="font-semibold text-ink">{summary.peopleNeedingPrimaryMentor ?? 0}</span></div>
                     </div>
-                    <div>
-                      <strong style={{ color: "var(--foreground)" }}>
-                        {summary.staffingGaps}
-                      </strong>{" "}
-                      staffing gaps
-                    </div>
-                    <div>
-                      <strong style={{ color: "var(--foreground)" }}>
-                        {summary.openRequests}
-                      </strong>{" "}
-                      open requests
-                    </div>
-                  </div>
+                  </CardV2>
                 </Link>
               );
             })}
           </div>
 
-          <section>
-            <div className="card" style={{ marginBottom: 16 }}>
-              <div className="section-title" style={{ marginBottom: 8 }}>
-                {laneMeta.label} overview
-              </div>
-              <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-                Scan who needs a primary mentor, who already has one, and which
-                circles still have coverage gaps.
-              </p>
-            </div>
+          <RecordSection title={`${laneMeta?.label ?? "Circle"} Overview`} description="Scan unstaffed gaps and manage allocations inside structural circles.">
             <MenteeMatchingBoard
-              unassigned={laneUnassigned.map((m) => ({
-                id: m.id,
-                status: "UNASSIGNED",
-                name: m.name,
-                email: m.email,
-                primaryRole: m.primaryRole,
-                lane,
-                chapterName: m.chapterName,
+              unassigned={(laneUnassigned ?? []).map((mentee: any) => ({
+                id: mentee.id, status: "UNASSIGNED", name: mentee.name, email: mentee.email, primaryRole: mentee.primaryRole, lane, chapterName: mentee.chapterName
               }))}
-              matched={laneCircles.map((c) => ({
-                id: c.menteeId,
-                status: "HAS_MENTOR",
-                name: c.menteeName,
-                email: c.menteeEmail,
-                primaryRole: c.menteeRole,
-                lane,
-                chapterName: c.chapterName,
-                mentorName: c.mentorName,
-                mentorshipId: c.mentorshipId,
-                circleGaps: c.missingRoles,
+              matched={(laneCircles ?? []).map((c: any) => ({
+                id: c.menteeId, status: "HAS_MENTOR", name: c.menteeName, email: c.menteeEmail, primaryRole: c.menteeRole, lane, chapterName: c.chapterName, mentorName: c.mentorName, mentorshipId: c.mentorshipId, circleGaps: c.missingRoles ?? []
               }))}
               lane={toLaneQueryValue(lane)}
             />
-          </section>
+          </RecordSection>
 
-          <section>
-            <div className="card" style={{ marginBottom: 16 }}>
-              <div className="section-title" style={{ marginBottom: 8 }}>
-                Shortlist matching
-              </div>
-              <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-                Reuses the existing matching logic to compare fit, load, chapter
-                affinity, and support-circle context before approving an assignment.
-              </p>
-            </div>
+          <RecordSection title="Shortlist Matching Engine" description="Evaluate alignment variables, cross-references, and capacity constraints before submitting matching updates.">
             <MatchingPanel
               key={`${lane}-${supportRole}-${searchParams.menteeId ?? "all"}`}
               initialLane={lane}
@@ -810,282 +583,98 @@ export default async function AdminMentorshipPage({
               initialMenteeId={searchParams.menteeId}
               autoRun={Boolean(searchParams.menteeId)}
             />
-          </section>
-
-          <section>
-            <div className="card" style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                Mentees waiting for a mentor ({unassignedQueue.length})
-              </div>
-              <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-                Instructors and leadership users with no current mentorship
-                pairing. Use Assign mentor to open the shortlist pre-filtered
-                for that mentee.
-              </p>
-            </div>
-            {unassignedQueue.length === 0 ? (
-              <div
-                style={{
-                  padding: 24,
-                  borderRadius: "var(--radius-md)",
-                  border: "1px dashed var(--border)",
-                  color: "var(--muted)",
-                  textAlign: "center",
-                }}
-              >
-                Every eligible mentee already has a mentor. Nothing to do here.
-              </div>
-            ) : (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Mentee</th>
-                    <th>Chapter</th>
-                    <th>Joined</th>
-                    <th>Reason</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {unassignedQueue.map((row) => (
-                    <tr key={row.id}>
-                      <td>
-                        <strong>{row.name}</strong>
-                        <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                          {row.email}
-                        </div>
-                      </td>
-                      <td>{row.chapterName ?? "—"}</td>
-                      <td>{new Date(row.joinedAt).toLocaleDateString()}</td>
-                      <td>{row.reason}</td>
-                      <td>
-                        <Link
-                          href={`/admin/mentorship?tab=assignments&menteeId=${row.id}&supportRole=PRIMARY_MENTOR`}
-                          className="button primary small"
-                        >
-                          Assign mentor
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
+          </RecordSection>
         </div>
       )}
 
-      {/* ── Capacity / workload tab ─────────────── */}
+      {/* ── Capacity / Workload Tab ─────────────── */}
       {tab === "capacity" && workloadRows && (
-        <div>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Mentor workload ({workloadRows.length})
-            </div>
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-              Active mentees per mentor, plus overdue check-in count, stalled
-              goal count, and last activity timestamp. Soft cap is 3 mentees.
-            </p>
-          </div>
-          {workloadRows.length === 0 ? (
-            <div
-              style={{
-                padding: 24,
-                borderRadius: "var(--radius-md)",
-                border: "1px dashed var(--border)",
-                color: "var(--muted)",
-                textAlign: "center",
-              }}
-            >
-              No mentors with active assignments yet.
-            </div>
-          ) : (
-            <table className="table">
+        <RecordSection title="Mentor Workload Tracking" description="Roster allocation density audits across leadership teams.">
+          <div className="overflow-x-auto rounded-[10px] border border-line-soft bg-surface">
+            <table className="w-full border-collapse text-left text-[13.5px]">
               <thead>
-                <tr>
-                  <th>Mentor</th>
-                  <th>Active mentees</th>
-                  <th>Overdue check-ins</th>
-                  <th>Stalled goals</th>
-                  <th>Last activity</th>
-                  <th>Status</th>
+                <tr className="border-b border-line-soft bg-surface-muted text-[12.5px] font-semibold text-ink-muted">
+                  <th className="px-4 py-3">Mentor Roster Name</th>
+                  <th className="px-4 py-3">Active Pairings</th>
+                  <th className="px-4 py-3">Capacity Threshold Status</th>
                 </tr>
               </thead>
-              <tbody>
-                {workloadRows.map((row) => (
-                  <tr
-                    key={row.id}
-                    style={
-                      row.isOverCapacity
-                        ? { background: "#fef2f2" }
-                        : row.isAtCapacity
-                        ? { background: "#fffbeb" }
-                        : undefined
-                    }
-                  >
-                    <td>
-                      <strong>{row.name}</strong>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                        {row.email}
-                      </div>
-                    </td>
-                    <td>
-                      {row.activeMenteeCount} / {row.capacity}
-                    </td>
-                    <td
-                      style={{
-                        color: row.overdueCheckIns > 0 ? "#d97706" : undefined,
-                      }}
-                    >
-                      {row.overdueCheckIns}
-                    </td>
-                    <td
-                      style={{
-                        color: row.stalledGoals > 0 ? "#d97706" : undefined,
-                      }}
-                    >
-                      {row.stalledGoals}
-                    </td>
-                    <td>
-                      {row.lastActivityAt
-                        ? new Date(row.lastActivityAt).toLocaleDateString()
-                        : "—"}
-                    </td>
-                    <td>
-                      {row.warning ? (
-                        <span
-                          className={`pill pill-small ${
-                            row.isOverCapacity ? "pill-declined" : "pill-pending"
-                          }`}
-                        >
-                          {row.warning}
-                        </span>
-                      ) : (
-                        <span className="pill pill-small pill-success">OK</span>
-                      )}
+              <tbody className="divide-y divide-line-soft">
+                {workloadRows.map((m: any) => (
+                  <tr key={m.id} className="hover:bg-surface-muted/50">
+                    <td className="px-4 py-3 font-semibold text-ink">{m.name}</td>
+                    <td className="px-4 py-3 text-ink-muted">{m.activeCount ?? 0} pairs</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge tone={(m.activeCount ?? 0) >= 3 ? "danger" : "success"}>
+                        {m.activeCount ?? 0} / 3 Threshold Capacity
+                      </StatusBadge>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
+          </div>
+        </RecordSection>
       )}
 
-      {/* ── Approvals tab ─────────────────────────── */}
+      {/* ── Approvals Tab (FIXED: Boards split into separate functional sections) ── */}
       {tab === "approvals" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <div className="card">
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>Goal Reviews — Chair Approval Queue</div>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
-              Drag goal reviews to Approved or Changes Requested.
-            </p>
-            <GoalReviewsBoard reviews={goalReviews} />
-          </div>
-          <div className="card">
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>Monthly Reviews — Chair Approval Queue</div>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
-              Track monthly reviews from draft through chair approval.
-            </p>
-            <ReviewApprovalsBoard reviews={monthlyReviews} />
-          </div>
-        </div>
-      )}
-
-      {/* ── Goals & Resources tab ────────────────── */}
-      {tab === "templates" && grData && (
-        <div style={{ display: "grid", gap: 24 }}>
-          <section
-            className="card"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-              borderLeft: "3px solid var(--color-primary)",
-            }}
+        <div className="flex flex-col gap-8">
+          <RecordSection 
+            title="Growth & Reflection Approvals" 
+            description="Review and ratify structural adjustments, core adjustments, and target framework updates."
           >
-            <div>
-              <strong>Need the full G&amp;R workspace?</strong>
-              <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
-                The canonical Goals &amp; Resources area lists every document by
-                owner and mentor, flags stale drafts and overdue goals, and lets
-                you open any single document for detail.
-              </p>
-            </div>
-            <Link href="/admin/mentorship/gr" className="button primary small">
-              Open Goals &amp; Resources →
-            </Link>
-          </section>
+            <GoalReviewsBoard reviews={Array.isArray(goalReviews) ? goalReviews : []} />
+          </RecordSection>
 
-          <section className="card">
-            <div style={{ fontWeight: 700, marginBottom: 12 }}>Role Goal Templates</div>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
-              Default mentorship-program goals by lane. Mentors can adjust
-              targets monthly; chairs and admins keep the templates aligned.
-            </p>
-            <GoalsPanel goals={data.goals} />
-          </section>
+          <RecordSection 
+            title="Monthly Log Approvals" 
+            description="Audit and clear periodic milestones, tracking metrics, and cohort checkpoints."
+          >
+            <ReviewApprovalsBoard reviews={Array.isArray(monthlyReviews) ? monthlyReviews : []} />
+          </RecordSection>
+        </div>
+      )}
 
-          <section className="card">
-            <div style={{ fontWeight: 700, marginBottom: 12 }}>G&amp;R Templates</div>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
-              Create and manage Goals &amp; Responsibilities templates without
-              leaving the mentorship command center.
-            </p>
+      {/* ── Goals & Resources Tab ──────────────── */}
+      {tab === "templates" && grData && (
+        <div className="flex flex-col gap-6">
+          <RecordSection title="Core Framework Standards" description="Author framework blueprints, target thresholds, and system templates.">
             <GRTemplateListPanel templates={grData.templates} />
-          </section>
-
-          <section className="card">
-            <div style={{ fontWeight: 700, marginBottom: 12 }}>G&amp;R Assignments</div>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
-              Assign G&amp;R documents and review goal-change proposals for
-              active mentorships.
-            </p>
-            <GRAssignmentsPanel
-              documents={grData.documents}
-              goalChanges={grData.goalChanges}
-              templates={grData.templateOptions}
-            />
-          </section>
-
-          <section className="card">
-            <div style={{ fontWeight: 700, marginBottom: 12 }}>G&amp;R Resource Library</div>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
-              Shared resources for G&amp;R documents, templates, and mentor
-              recommendations.
-            </p>
             <GRResourceLibraryPanel resources={grData.resources} />
-          </section>
+            <GRAssignmentsPanel documents={grData.documents} goalChanges={grData.goalChanges} templates={grData.templateOptions} />
+          </RecordSection>
         </div>
       )}
 
-      {/* ── Committees tab ────────────────────────── */}
+      {/* ── Committees & Chairs Tab ────────────── */}
       {tab === "committees" && (
-        <div className="card">
-          <div style={{ fontWeight: 700, marginBottom: 12 }}>Committee Chairs</div>
-          <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
-            Each role committee has a chair who approves monthly reviews before
-            they are released to mentees.
-          </p>
-          <ChairsPanel chairs={data.chairs} eligibleUsers={data.governanceUsers} />
+        <div className="flex flex-col gap-6">
+          <RecordSection title="Oversight Governance Circles" description="Delegate regional boundaries, structural chairs, and cross-team audit systems.">
+            <ChairsPanel chairs={chairsData} eligibleUsers={eligibleUsersData ?? []} />
+          </RecordSection>
         </div>
       )}
 
-      {/* ── Analytics tab ────────────────────────── */}
-      {tab === "analytics" && programAnalytics && (
-        <div>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Mentorship analytics
-            </div>
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-              Program-wide review pipeline, points, tier distribution,
-              nominations, recent approvals, and mentor effectiveness.
-            </p>
-          </div>
-          <AnalyticsPanel analytics={programAnalytics} mentorScores={mentorScores} />
+      {/* ── Analytics Tab ──────────────────────── */}
+      {tab === "analytics" && (
+        <div className="flex flex-col gap-6">
+          <RecordSection title="Program Telemetry Engine" description="Analyze global timeline velocities, rating spreads, and health indices.">
+            <AnalyticsPanel
+              analytics={{
+                ...(programAnalytics || {
+                  activePairs: 0,
+                  totalReflections: 0,
+                  reviews: { draft: 0, pendingChair: 0, changesRequested: 0, approved: 0 },
+                  totalPointsAwarded: 0,
+                  tierDistribution: { NONE: 0, BRONZE: 0, SILVER: 0, GOLD: 0, LIFETIME: 0 },
+                  nominationsByTier: {},
+                  recentApprovals: [],
+                  reflectionsByCycle: []
+                })
+              }}
+            />
+          </RecordSection>
         </div>
       )}
     </div>

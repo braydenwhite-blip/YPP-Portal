@@ -214,7 +214,7 @@ export default function GoalsPanel({ goals }: Props) {
                       </div>
                       <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
                         <button
-                          className="button ghost small"
+                          className="button small"
                           disabled={isPending}
                           onClick={() => setEditingId(goal.id)}
                         >

@@ -122,15 +122,6 @@ function fmtDay(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-/**
- * Work Hub (Knowledge OS V2, plan §15) — the one place for everything someone
- * has to do: tracker actions, meeting follow-ups, upcoming meetings, open
- * partner requests, partner follow-ups, advisor check-ins, applicant next
- * steps, and quiet mentorships, in one triaged list. Click a row for its 360
- * preview; the full record and a concrete quick action are always one click
- * away. Replaces browsing across /actions/all, /actions/meetings, and
- * /operations/initiatives (those pages keep their editing tools).
- */
 export default async function WorkHubPage({
   searchParams,
 }: {
@@ -145,8 +136,7 @@ export default async function WorkHubPage({
     primaryRole: session.user.primaryRole,
     adminSubtypes: session.user.adminSubtypes,
   };
-  // The hub crosses partner / applicant / advising domains — officer tier,
-  // mirroring /people, /partners and the operations surfaces.
+
   if (!isOfficerTier(viewer)) redirect("/");
 
   const sp = await searchParams;
@@ -160,36 +150,49 @@ export default async function WorkHubPage({
 
   const now = new Date();
   const data = await loadWorkHub(viewer, { now });
-  const myWorkCount =
-    data.rows.filter((row) => row.mine).length +
-    data.meetingRows.filter((row) => row.mine).length;
-  const start = workStart({ stats: data.stats, myWorkCount });
 
-  // The table's row set per view, then flag + search narrowing.
+  // 🛡️ Safe Extraction: Fallback defaults avoid reading fields from undefined contexts
+  const baseRows = data?.rows ?? [];
+  const baseMeetingRows = data?.meetingRows ?? [];
+  const attentionItems = data?.attention ?? [];
+  const initiativesItems = data?.initiatives ?? [];
+  const accountabilityItems = data?.accountability ?? [];
+  const decisionsItems = data?.decisionsWithoutActions ?? [];
+  const statsData = data?.stats ?? { needsAttention: 0, blocked: 0, upcomingMeetings: 0 };
+  const reviewData = data?.weeklyReview ?? {
+    completedThisWeek: 0,
+    createdThisWeek: 0,
+    fromMeetingsThisWeek: 0,
+    overdue: 0,
+    unowned: 0,
+    blockedNeedingEscalation: [],
+  };
+
+  const myWorkCount =
+    baseRows.filter((row) => row.mine).length +
+    baseMeetingRows.filter((row) => row.mine).length;
+  const start = workStart({ stats: statsData, myWorkCount });
+
+  // Filter datasets safely from local fallback variables
   let rows =
     view === "meetings"
-      ? data.meetingRows
+      ? baseMeetingRows
       : view === "actions"
-        ? data.rows.filter((row) => row.kind === "action" || row.kind === "follow_up")
+        ? baseRows.filter((row) => row.kind === "action" || row.kind === "follow_up")
         : view === "mine"
-          ? // My queue includes the viewer's meetings (facilitating/attending,
-            // upcoming or carrying open follow-ups) beside their work rows.
-            sortWorkHubRows([
-              ...data.rows.filter((row) => row.mine),
-              ...data.meetingRows.filter((row) => row.mine),
+          ? sortWorkHubRows([
+              ...baseRows.filter((row) => row.mine),
+              ...baseMeetingRows.filter((row) => row.mine),
             ])
-          : data.rows;
+          : baseRows;
+
   if (entity && view === "all") {
-    // The entity lens spans meetings too: the meeting's own row (or the
-    // meetings about a partner/class/person) belongs in "work connected to
-    // this entity". The two row sets are disjoint, so the union is safe.
-    rows = sortWorkHubRows([...rows, ...data.meetingRows]);
+    rows = sortWorkHubRows([...rows, ...baseMeetingRows]);
   }
   if (entity) rows = filterWorkHubRowsByEntity(rows, entity);
   if (flag) rows = filterWorkHubRowsByFlag(rows, flag, now);
   if (q) rows = searchWorkHubRows(rows, q);
 
-  // The entity filter's display label: the first matching row's chip label.
   const entityLabel = entity
     ? (rows.find((row) => row.entityLabel)?.entityLabel ?? entity.type)
     : null;
@@ -228,9 +231,9 @@ export default async function WorkHubPage({
         facts={[
           {
             label: "need attention",
-            value: data.stats.needsAttention,
+            value: statsData.needsAttention,
             href: workHref({ view: "needs-attention" }),
-            tone: data.stats.needsAttention > 0 ? "attention" : "default",
+            tone: statsData.needsAttention > 0 ? "attention" : "default",
           },
           {
             label: "your work",
@@ -239,13 +242,13 @@ export default async function WorkHubPage({
           },
           {
             label: "blocked",
-            value: data.stats.blocked,
+            value: statsData.blocked,
             href: workHref({ flag: "blocked" }),
-            tone: data.stats.blocked > 0 ? "danger" : "default",
+            tone: statsData.blocked > 0 ? "danger" : "default",
           },
           {
             label: "upcoming meetings",
-            value: data.stats.upcomingMeetings,
+            value: statsData.upcomingMeetings,
             href: workHref({ view: "meetings" }),
           },
         ]}
@@ -324,19 +327,19 @@ export default async function WorkHubPage({
           title="Needs attention"
           description="Start here. These are the items most likely to need a leader today."
         >
-          {data.attention.length === 0 ? (
+          {attentionItems.length === 0 ? (
             <p className="m-0 text-[13.5px] text-ink-muted">
               Nothing is flagged right now — the queues are clear.
             </p>
           ) : (
             <ul className="m-0 flex list-none flex-col gap-2 p-0">
-              {data.attention.map((item) => (
+              {attentionItems.map((item) => (
                 <li
                   key={item.id}
                   className="rounded-[8px] border border-line-soft px-3.5 py-2.5"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="m-0 flex min-w-0 flex-wrap items-center gap-2 text-[13.5px] font-semibold text-ink">
+                    <div className="m-0 flex min-w-0 flex-wrap items-center gap-2 text-[13.5px] font-semibold text-ink">
                       {item.entityType && item.entityId ? (
                         <EntityChip
                           type={item.entityType as Entity360Type}
@@ -350,7 +353,7 @@ export default async function WorkHubPage({
                       <StatusBadge tone={SEVERITY_TONE[item.severity] ?? "info"}>
                         {item.ageLabel ?? item.kind.replaceAll("_", " ")}
                       </StatusBadge>
-                    </p>
+                    </div>
                     <a
                       href={item.href}
                       className="text-[12.5px] font-semibold text-brand-700 hover:underline"
@@ -381,13 +384,13 @@ export default async function WorkHubPage({
             </ButtonLink>
           }
         >
-          {data.initiatives.length === 0 ? (
+          {initiativesItems.length === 0 ? (
             <p className="m-0 text-[13.5px] text-ink-muted">
               No active initiatives are being tracked right now.
             </p>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
-              {data.initiatives.map((initiative) => (
+              {initiativesItems.map((initiative) => (
                 <CardV2 key={initiative.id} padding="md">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <EntityChip
@@ -400,9 +403,9 @@ export default async function WorkHubPage({
                       {initiative.healthLabel}
                     </StatusBadge>
                   </div>
-                  {initiative.healthReasons.length > 0 ? (
+                  {(initiative.healthReasons ?? []).length > 0 ? (
                     <ul className="m-0 mt-2 flex list-none flex-col gap-1 p-0">
-                      {initiative.healthReasons.map((reason) => (
+                      {(initiative.healthReasons ?? []).map((reason) => (
                         <li key={reason} className="text-[12.5px] text-ink-muted">
                           · {reason}
                         </li>
@@ -438,16 +441,15 @@ export default async function WorkHubPage({
 
       {view === "actions" ? (
         <div className="grid items-start gap-5 xl:grid-cols-2">
-          {/* Action System 4.0 — who owns what (accountability summary). */}
           <RecordSection
             title="Who owns what"
             description="Open actions per owner, with overdue and blocked work called out."
           >
-            {data.accountability.length === 0 ? (
+            {accountabilityItems.length === 0 ? (
               <p className="m-0 text-[13.5px] text-ink-muted">No open actions.</p>
             ) : (
               <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
-                {data.accountability.map((owner) => (
+                {accountabilityItems.map((owner) => (
                   <li
                     key={owner.ownerId}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-line-soft px-3.5 py-2"
@@ -469,24 +471,23 @@ export default async function WorkHubPage({
             )}
           </RecordSection>
 
-          {/* Action System 4.0 — the weekly action review counts. */}
           <RecordSection
             title="This week"
             description="What changed this week, using only concrete counts."
           >
             <p className="m-0 text-[13.5px] text-ink">
-              {data.weeklyReview.completedThisWeek} completed ·{" "}
-              {data.weeklyReview.createdThisWeek} created (
-              {data.weeklyReview.fromMeetingsThisWeek} from meetings) ·{" "}
-              {data.weeklyReview.overdue} overdue · {data.weeklyReview.unowned} unowned
+              {reviewData.completedThisWeek} completed ·{" "}
+              {reviewData.createdThisWeek} created (
+              {reviewData.fromMeetingsThisWeek} from meetings) ·{" "}
+              {reviewData.overdue} overdue · {reviewData.unowned} unowned
             </p>
-            {data.weeklyReview.blockedNeedingEscalation.length > 0 ? (
+            {(reviewData.blockedNeedingEscalation ?? []).length > 0 ? (
               <div className="mt-2.5">
                 <p className="m-0 text-[12.5px] font-semibold text-ink">
                   Blocked work needing escalation
                 </p>
                 <ul className="m-0 mt-1 flex list-none flex-col gap-1 p-0">
-                  {data.weeklyReview.blockedNeedingEscalation.map((action) => (
+                  {(reviewData.blockedNeedingEscalation ?? []).map((action) => (
                     <li key={action.id}>
                       <a
                         href={action.href}
@@ -503,13 +504,13 @@ export default async function WorkHubPage({
         </div>
       ) : null}
 
-      {view === "meetings" && data.decisionsWithoutActions.length > 0 ? (
+      {view === "meetings" && decisionsItems.length > 0 ? (
         <RecordSection
           title="Decisions needing actions"
           description="Meeting decisions that still need someone assigned to carry them out."
         >
           <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
-            {data.decisionsWithoutActions.map((decision) => (
+            {decisionsItems.map((decision) => (
               <li
                 key={decision.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-line-soft px-3.5 py-2"

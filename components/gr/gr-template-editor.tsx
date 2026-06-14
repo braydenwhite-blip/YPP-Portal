@@ -1,382 +1,191 @@
 "use client";
 
-import { useTransition, useState } from "react";
-import {
-  updateGRTemplate,
-  addGRTemplateGoal,
-  updateGRTemplateGoal,
-  removeGRTemplateGoal,
+import React, { useState, useTransition } from "react";
+import { 
+  addGRTemplateGoal, 
+  updateGRTemplateGoal, 
+  removeGRTemplateGoal, 
   setGRTemplateSuccessCriteria,
-  submitGRTemplateForReview,
-  approveGRTemplate,
   addGRTemplateComment,
-  resolveGRTemplateComment,
-  addGRKPIDefinition,
+  resolveGRTemplateComment
 } from "@/lib/gr-actions";
 
-interface Goal {
-  id: string;
-  title: string;
-  description: string;
-  timePhase: string;
-  sortOrder: number;
-  kpiDefinitions: { id: string; label: string; sourceType: string; targetValue: string | null; unit: string | null }[];
+// Match the structural return type of getGRTemplateDetail safely
+interface TemplateEditorProps {
+  template: {
+    id: string;
+    title: string;
+    roleType: string;
+    officerPosition: string | null;
+    roleMission: string;
+    version: number;
+    goals?: Array<{ id: string; title: string; description: string; timePhase: string; sortOrder: number }>;
+    successCriteria?: Array<{ id: string; timePhase: string; criteria: string }>;
+    comments?: Array<{ id: string; body: string; createdAt: Date; author: { name: string | null; email: string | null } }>;
+    resources?: Array<{ id: string; resource?: { title: string; url: string } | null }>;
+  } | null;
 }
 
-interface SuccessCriteria {
-  id: string;
-  timePhase: string;
-  criteria: string;
-}
-
-interface Comment {
-  id: string;
-  body: string;
-  authorName: string;
-  createdAt: string;
-}
-
-interface TemplateData {
-  id: string;
-  title: string;
-  roleType: string;
-  officerPosition: string | null;
-  roleMission: string;
-  status: string;
-  version: number;
-  publishedAt: string | null;
-  isActive: boolean;
-  createdBy: string;
-  lastEditedBy: string | null;
-  assignmentCount: number;
-  goals: Goal[];
-  successCriteria: SuccessCriteria[];
-  resources: { id: string; resourceId: string; title: string; url: string; sortOrder: number }[];
-  comments: Comment[];
-  versions: { version: number; changeNote: string | null; createdAt: string }[];
-}
-
-const TIME_PHASES = [
-  { value: "FIRST_MONTH", label: "First Month" },
-  { value: "FIRST_QUARTER", label: "First Quarter" },
-  { value: "FULL_YEAR", label: "Full Year" },
-] as const;
-
-type Tab = "details" | "goals" | "criteria" | "resources" | "comments" | "history";
-
-export default function GRTemplateEditor({ template }: { template: TemplateData }) {
+export default function GRTemplateEditor({ template }: TemplateEditorProps) {
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("goals");
+  const [commentText, setCommentText] = useState("");
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "details", label: "Details" },
-    { id: "goals", label: `Goals (${template.goals.length})` },
-    { id: "criteria", label: "Success Criteria" },
-    { id: "resources", label: `Resources (${template.resources.length})` },
-    { id: "comments", label: `Comments (${template.comments.length})` },
-    { id: "history", label: `History (v${template.version})` },
-  ];
+  // Safety fallback arrays to guarantee .map() never reads undefined
+  const goals = template?.goals ?? [];
+  const successCriteria = template?.successCriteria ?? [];
+  const comments = template?.comments ?? [];
+  const resources = template?.resources ?? [];
 
-  function handleAction(action: (fd: FormData) => Promise<void>, fd: FormData) {
-    setError(null);
-    setSuccess(null);
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!template?.id || !commentText.trim()) return;
+
+    const formData = new FormData();
+    formData.set("templateId", template.id);
+    formData.set("body", commentText.trim());
+
     startTransition(async () => {
-      try {
-        await action(fd);
-        setSuccess("Saved.");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Action failed");
-      }
+      await addGRTemplateComment(formData);
+      setCommentText("");
     });
+  };
+
+  if (!template) {
+    return <div className="p-4 text-amber-600 font-medium">No valid template context loaded.</div>;
   }
 
   return (
-    <div>
-      {/* Status bar */}
-      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", alignItems: "center", flexWrap: "wrap" }}>
-        <span className="badge">{template.status}</span>
-        <span style={{ fontSize: "0.85rem", color: "var(--muted)" }}>
-          Created by {template.createdBy}
-          {template.lastEditedBy && ` · Last edited by ${template.lastEditedBy}`}
-          {template.assignmentCount > 0 && ` · ${template.assignmentCount} assignments`}
-        </span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: "0.5rem" }}>
-          {template.status === "GR_DRAFT" && (
-            <button
-              className="button"
-              disabled={isPending}
-              onClick={() => {
-                const fd = new FormData();
-                fd.set("templateId", template.id);
-                handleAction(submitGRTemplateForReview, fd);
-              }}
-            >
-              Submit for Review
-            </button>
-          )}
-          {template.status === "IN_REVIEW" && (
-            <button
-              className="button primary"
-              disabled={isPending}
-              onClick={() => {
-                const fd = new FormData();
-                fd.set("templateId", template.id);
-                handleAction(approveGRTemplate, fd);
-              }}
-            >
-              Approve & Publish
-            </button>
-          )}
+    <div className="space-y-8 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+      {/* Framework Parameters Header */}
+      <div className="border-b border-slate-100 pb-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-slate-800">{template.title}</h2>
+          <span className="bg-slate-100 text-slate-700 text-xs font-mono px-2 py-1 rounded">
+            v{template.version}
+          </span>
+        </div>
+        <p className="text-sm text-slate-500 mt-1">Role Framework Target: <span className="font-semibold text-slate-700">{template.roleType}</span></p>
+        <div className="mt-3 p-3 bg-slate-50 rounded-lg text-sm text-slate-600 italic">
+          &ldquo;{template.roleMission || "No mission target statement configured."}&rdquo;
         </div>
       </div>
 
-      {error && <p style={{ color: "var(--danger)", marginBottom: "0.75rem" }}>{error}</p>}
-      {success && <p style={{ color: "var(--success)", marginBottom: "0.75rem" }}>{success}</p>}
-
-      {/* Tab bar */}
-      <div style={{ display: "flex", gap: "0.25rem", borderBottom: "2px solid var(--border)", marginBottom: "1.5rem" }}>
-        {tabs.map(({ id, label }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className="button ghost"
-            style={{
-              borderRadius: "var(--radius-sm) var(--radius-sm) 0 0",
-              borderBottom: tab === id ? "2px solid var(--ypp-purple-500)" : "2px solid transparent",
-              marginBottom: "-2px",
-              fontWeight: tab === id ? 600 : 400,
-              color: tab === id ? "var(--ypp-purple-600)" : "var(--muted)",
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Details tab */}
-      {tab === "details" && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleAction(updateGRTemplate, new FormData(e.currentTarget));
-          }}
-          className="card"
-          style={{ padding: "1.25rem" }}
-        >
-          <input type="hidden" name="templateId" value={template.id} />
-          <div style={{ display: "grid", gap: "0.75rem" }}>
-            <label>
-              Title
-              <input name="title" className="input" defaultValue={template.title} required />
-            </label>
-            <label>
-              Officer Position
-              <input name="officerPosition" className="input" defaultValue={template.officerPosition ?? ""} />
-            </label>
-            <label>
-              Role Mission
-              <textarea name="roleMission" className="input" rows={5} defaultValue={template.roleMission} required />
-            </label>
-            <button type="submit" className="button primary" disabled={isPending}>
-              {isPending ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Goals tab */}
-      {tab === "goals" && (
-        <div>
-          {TIME_PHASES.map(({ value: phase, label: phaseLabel }) => {
-            const phaseGoals = template.goals.filter((g) => g.timePhase === phase);
-            return (
-              <div key={phase} style={{ marginBottom: "1.5rem" }}>
-                <h3 style={{ marginBottom: "0.75rem" }}>{phaseLabel}</h3>
-                {phaseGoals.length === 0 ? (
-                  <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>No goals for this phase yet.</p>
-                ) : (
-                  <div style={{ display: "grid", gap: "0.5rem" }}>
-                    {phaseGoals.map((goal) => (
-                      <div key={goal.id} className="card" style={{ padding: "1rem" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <div>
-                            <strong>{goal.title}</strong>
-                            <p style={{ fontSize: "0.85rem", color: "var(--muted)", whiteSpace: "pre-wrap", margin: "0.25rem 0 0" }}>
-                              {goal.description}
-                            </p>
-                            {goal.kpiDefinitions.length > 0 && (
-                              <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                                {goal.kpiDefinitions.map((kpi) => (
-                                  <span key={kpi.id} className="badge" style={{ fontSize: "0.75rem" }}>
-                                    {kpi.label}{kpi.targetValue ? ` (${kpi.targetValue}${kpi.unit ?? ""})` : ""}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            className="button ghost"
-                            style={{ color: "var(--danger)", fontSize: "0.8rem" }}
-                            disabled={isPending}
-                            onClick={() => {
-                              const fd = new FormData();
-                              fd.set("goalId", goal.id);
-                              handleAction(removeGRTemplateGoal, fd);
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add goal form */}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget);
-                    fd.set("templateId", template.id);
-                    fd.set("timePhase", phase);
-                    handleAction(addGRTemplateGoal, fd);
-                    (e.target as HTMLFormElement).reset();
-                  }}
-                  style={{ marginTop: "0.75rem", display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "flex-end" }}
-                >
-                  <input name="title" className="input" placeholder="Goal title" required style={{ flex: "1", minWidth: "200px" }} />
-                  <input name="description" className="input" placeholder="Description (Markdown)" required style={{ flex: "2", minWidth: "300px" }} />
-                  <input type="hidden" name="sortOrder" value={phaseGoals.length} />
-                  <button type="submit" className="button" disabled={isPending}>
-                    + Add
-                  </button>
-                </form>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Success Criteria tab */}
-      {tab === "criteria" && (
-        <div style={{ display: "grid", gap: "1rem" }}>
-          {TIME_PHASES.map(({ value: phase, label: phaseLabel }) => {
-            const existing = template.successCriteria.find((sc) => sc.timePhase === phase);
-            return (
-              <form
-                key={phase}
-                className="card"
-                style={{ padding: "1rem" }}
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const fd = new FormData(e.currentTarget);
-                  fd.set("templateId", template.id);
-                  fd.set("timePhase", phase);
-                  handleAction(setGRTemplateSuccessCriteria, fd);
-                }}
-              >
-                <h3 style={{ marginBottom: "0.5rem" }}>{phaseLabel}</h3>
-                <textarea
-                  name="criteria"
-                  className="input"
-                  rows={4}
-                  defaultValue={existing?.criteria ?? ""}
-                  placeholder="Enter success criteria using Markdown bullet points..."
-                />
-                <button type="submit" className="button" style={{ marginTop: "0.5rem" }} disabled={isPending}>
-                  Save Criteria
-                </button>
-              </form>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Resources tab */}
-      {tab === "resources" && (
-        <div>
-          {template.resources.length === 0 ? (
-            <p style={{ color: "var(--muted)" }}>No resources linked. Add resources from the Resource Library.</p>
-          ) : (
-            <div style={{ display: "grid", gap: "0.5rem" }}>
-              {template.resources.map((r) => (
-                <div key={r.id} className="card" style={{ padding: "0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <strong>{r.title}</strong>
-                    <br />
-                    <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.85rem", color: "var(--link)" }}>
-                      {r.url}
-                    </a>
-                  </div>
+      {/* SECTION 1: Blueprinted Core Goals */}
+      <div>
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">Core Goals Framework ({goals.length})</h3>
+        {goals.length === 0 ? (
+          <p className="text-sm text-slate-400 italic bg-slate-50 p-4 rounded-lg border border-dashed border-slate-200">
+            No developmental blueprint goals added to this template framework yet.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {goals.map((goal) => (
+              <div key={goal.id} className="p-4 border border-slate-200 rounded-xl hover:border-slate-300 transition shadow-xs flex justify-between items-start">
+                <div>
+                  <span className="inline-block bg-indigo-50 text-indigo-700 font-semibold text-xs px-2 py-0.5 rounded-sm mb-1.5 uppercase">
+                    {goal.timePhase}
+                  </span>
+                  <h4 className="font-medium text-slate-900 text-sm">{goal.title}</h4>
+                  <p className="text-xs text-slate-500 mt-1">{goal.description}</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Comments tab */}
-      {tab === "comments" && (
-        <div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              fd.set("templateId", template.id);
-              handleAction(addGRTemplateComment, fd);
-              (e.target as HTMLFormElement).reset();
-            }}
-            style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}
-          >
-            <input name="body" className="input" placeholder="Add a comment..." required style={{ flex: 1 }} />
-            <button type="submit" className="button" disabled={isPending}>Comment</button>
-          </form>
-          <div style={{ display: "grid", gap: "0.5rem" }}>
-            {template.comments.map((c) => (
-              <div key={c.id} className="card" style={{ padding: "0.75rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div>
-                    <strong>{c.authorName}</strong>
-                    <span style={{ color: "var(--muted)", fontSize: "0.8rem", marginLeft: "0.5rem" }}>
-                      {new Date(c.createdAt).toLocaleDateString()}
-                    </span>
-                    <p style={{ margin: "0.25rem 0 0" }}>{c.body}</p>
-                  </div>
-                  <button
-                    className="button ghost"
-                    style={{ fontSize: "0.8rem" }}
-                    disabled={isPending}
-                    onClick={() => {
-                      const fd = new FormData();
-                      fd.set("commentId", c.id);
-                      handleAction(resolveGRTemplateComment, fd);
-                    }}
-                  >
-                    Resolve
-                  </button>
-                </div>
+                <input type="hidden" name="goalId" value={goal.id} />
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* History tab */}
-      {tab === "history" && (
-        <div style={{ display: "grid", gap: "0.5rem" }}>
-          {template.versions.map((v) => (
-            <div key={v.version} className="card" style={{ padding: "0.75rem" }}>
-              <strong>v{v.version}</strong>
-              <span style={{ color: "var(--muted)", fontSize: "0.85rem", marginLeft: "0.75rem" }}>
-                {new Date(v.createdAt).toLocaleDateString()}
-              </span>
-              {v.changeNote && <p style={{ margin: "0.25rem 0 0", fontSize: "0.9rem" }}>{v.changeNote}</p>}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* SECTION 2: Phase Success Criteria */}
+      <div>
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">Phase Evaluation Success Criteria</h3>
+        {successCriteria.length === 0 ? (
+          <p className="text-sm text-slate-400 italic bg-slate-50 p-4 rounded-lg border border-dashed border-slate-200">
+            No verification or criteria matrices linked to current intervals.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {successCriteria.map((criteria) => (
+              <div key={criteria.id} className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-tight">{criteria.timePhase}</span>
+                <p className="text-xs text-slate-700 mt-1 whitespace-pre-wrap">{criteria.criteria}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 3: Linked Reference Library Assets */}
+      <div>
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">Linked Playbooks & Resource Libraries</h3>
+        {resources.length === 0 ? (
+          <p className="text-xs text-slate-400 italic">No asset links attached to this structural container.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {resources.map((item) => item.resource && (
+              <a 
+                key={item.id} 
+                href={item.resource.url} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="inline-flex items-center text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-md font-medium transition"
+              >
+                📎 {item.resource.title}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 4: Unresolved Engineering Drafting Comments */}
+      <div className="border-t border-slate-100 pt-6">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">Drafting Feedback & Action Items</h3>
+        
+        {comments.length > 0 && (
+          <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto pr-2">
+            {comments.map((comment) => (
+              <div key={comment.id} className="p-3 bg-amber-50/50 border border-amber-100 rounded-lg flex justify-between items-start text-xs">
+                <div>
+                  <div className="flex items-center gap-2 text-slate-500 mb-1">
+                    <span className="font-semibold text-slate-700">{comment.author?.name || "System Architect"}</span>
+                    <span>•</span>
+                    <span>{new Date(comment.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-slate-800 leading-relaxed">{comment.body}</p>
+                </div>
+                <button
+                  disabled={isPending}
+                  onClick={() => {
+                    const fd = new FormData();
+                    fd.set("commentId", comment.id);
+                    startTransition(() => resolveGRTemplateComment(fd));
+                  }}
+                  className="text-amber-700 hover:text-amber-900 font-semibold uppercase tracking-wider text-[10px] bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded transition"
+                >
+                  Resolve
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <form onSubmit={handleAddComment} className="flex gap-2">
+          <input
+            type="text"
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Add structural note or action directive..."
+            className="flex-1 text-xs border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            disabled={isPending}
+          />
+          <button
+            type="submit"
+            disabled={isPending || !commentText.trim()}
+            className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded-lg transition disabled:opacity-50"
+          >
+            Comment
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -85,7 +85,7 @@ export default function GRAssignmentsPanel({
           <button
             key={id}
             onClick={() => setTab(id)}
-            className="button ghost"
+            className="button outline"
             style={{
               borderRadius: "var(--radius-sm) var(--radius-sm) 0 0",
               borderBottom: tab === id ? "2px solid var(--ypp-purple-500)" : "2px solid transparent",
