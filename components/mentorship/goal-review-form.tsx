@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveGoalReview } from "@/lib/goal-review-actions";
-import { sendReflectionNudge } from "@/lib/gr-actions";
+import { sendReflectionNudge } from "@/lib/goals-reflections-actions";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 import type { ReviewDraftOutput } from "@/lib/ai/generate-review-draft";
 import { AiCoachingSidebar } from "@/components/mentorship/ai-coaching-sidebar";
@@ -201,19 +201,6 @@ export function GoalReviewForm({
 
   // A13: re-seed when goals list changes (e.g. parent re-fetches)
   const goalsKey = goals.map((g) => g.id).join(",");
-  useEffect(() => {
-    setGoalRatings(initGoalRatings(goals));
-    setGrProgressStates(() => {
-      const init: Record<string, string> = {};
-      goals.forEach((g) => { if (g.grDocumentGoalId) init[g.grDocumentGoalId] = g.currentProgressState ?? "NOT_STARTED"; });
-      return init;
-    });
-    setGrLifecycleStatuses(() => {
-      const init: Record<string, string> = {};
-      goals.forEach((g) => { if (g.grDocumentGoalId) init[g.grDocumentGoalId] = g.currentLifecycleStatus ?? "ACTIVE"; });
-      return init;
-    });
-  }, [goalsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── G&R-specific state ────────────────────────────────────────────────────
   const [grProgressStates, setGrProgressStates] = useState<Record<string, string>>(() => {
@@ -230,6 +217,20 @@ export function GoalReviewForm({
     });
     return init;
   });
+
+  useEffect(() => {
+    setGoalRatings(initGoalRatings(goals));
+    setGrProgressStates(() => {
+      const init: Record<string, string> = {};
+      goals.forEach((g) => { if (g.grDocumentGoalId) init[g.grDocumentGoalId] = g.currentProgressState ?? "NOT_STARTED"; });
+      return init;
+    });
+    setGrLifecycleStatuses(() => {
+      const init: Record<string, string> = {};
+      goals.forEach((g) => { if (g.grDocumentGoalId) init[g.grDocumentGoalId] = g.currentLifecycleStatus ?? "ACTIVE"; });
+      return init;
+    });
+  }, [goalsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Restore persisted next-month drafts from a previous DRAFT save (A6)
   const [nextMonthDrafts, setNextMonthDrafts] = useState<NextMonthGoalDraft[]>(() => {
@@ -736,6 +737,7 @@ export function GoalReviewForm({
                         <option value="BLOCKED">Blocked</option>
                       </select>
                     </div>
+
                     <div style={{ flex: 1, minWidth: 140 }}>
                       <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>
                         Status
@@ -804,6 +806,7 @@ export function GoalReviewForm({
                   placeholder="Goal title"
                   style={{ width: "100%", fontSize: "0.88rem" }}
                 />
+
                 {/* B2: Similarity hint */}
                 {(() => {
                   const similar = getSimilarActiveGoal(draft.title);
