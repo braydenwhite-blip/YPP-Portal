@@ -8,6 +8,12 @@ import ApplicantCommandFilters from "./ApplicantCommandFilters";
 import ApplicantQuickDrawer from "./ApplicantQuickDrawer";
 import ArchiveTable from "./ArchiveTable";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
+import {
+  completeInterviewStage,
+  sendToChair,
+  updateApplicationStage,
+} from "@/lib/instructor-application-actions";
+import type { InstructorApplicationStatus } from "@prisma/client";
 import { ButtonLink, cn } from "@/components/ui-v2";
 
 type PipelineApp = {
@@ -174,6 +180,54 @@ export default function InstructorApplicantsCommandCenter({
   const searchParams = useSearchParams();
   const router = useRouter();
   const [selectedDrawerApp, setSelectedDrawerApp] = useState<PipelineApp | null>(null);
+  const [boardMessage, setBoardMessage] = useState<{ text: string; ok: boolean } | null>(
+    null
+  );
+
+  // Drag-to-advance. The board hands us the synthetic target status
+  // (`column.statuses[0]`); we translate that into the correct, permission-safe
+  // server action so a drop is exactly equivalent to clicking the matching
+  // button. Anything that needs a richer step (final decisions, pre-approval,
+  // scheduling) is intentionally not drag-driven and returns a helpful nudge.
+  async function handleBoardStatusChange(
+    itemId: string,
+    targetStatus: string
+  ): Promise<{ success: boolean; error?: string }> {
+    let result: { success: boolean; error?: string };
+
+    if (targetStatus === "INTERVIEW_COMPLETED") {
+      const fd = new FormData();
+      fd.set("applicationId", itemId);
+      result = await completeInterviewStage(fd);
+    } else if (targetStatus === "CHAIR_REVIEW") {
+      const fd = new FormData();
+      fd.set("applicationId", itemId);
+      result = await sendToChair(fd);
+    } else if (
+      targetStatus === "ON_HOLD" ||
+      targetStatus === "WAITLISTED" ||
+      targetStatus === "UNDER_REVIEW"
+    ) {
+      result = await updateApplicationStage(
+        itemId,
+        targetStatus as InstructorApplicationStatus
+      );
+    } else {
+      result = {
+        success: false,
+        error:
+          "That step isn't available by drag — open the applicant to schedule, pre-approve, or record a final decision.",
+      };
+    }
+
+    setBoardMessage(
+      result.success
+        ? { text: "Moved. The pipeline is up to date.", ok: true }
+        : { text: result.error ?? "Couldn't move that applicant.", ok: false }
+    );
+    if (result.success) router.refresh();
+    return result;
+  }
 
   const rawTab = searchParams.get("tab");
   const activeTab: TabValue =
@@ -307,10 +361,39 @@ export default function InstructorApplicantsCommandCenter({
             interviewers={interviewers}
             actorId={actorId}
           />
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="m-0 text-[12px] text-ink-muted">
+              <span aria-hidden>↔ </span>Drag a card between columns to advance it —
+              mark interviews complete, send to the chair, hold, or waitlist.
+            </p>
+            {boardMessage && (
+              <span
+                role="status"
+                aria-live="polite"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold",
+                  boardMessage.ok
+                    ? "bg-success-50 text-success-600"
+                    : "bg-danger-50 text-danger-700"
+                )}
+              >
+                {boardMessage.text}
+                <button
+                  type="button"
+                  aria-label="Dismiss"
+                  className="cursor-pointer text-current/70 hover:text-current"
+                  onClick={() => setBoardMessage(null)}
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+          </div>
           <KanbanBoard
             items={kanbanItems}
             columns={EXTENDED_COLUMNS}
-            dragEnabled={false}
+            dragEnabled
+            onStatusChange={handleBoardStatusChange}
             renderCard={(item, { onClick, isDragging }) => {
               const originalApp = pipelineApps.find((a) => a.id === item.id)!;
               return (
