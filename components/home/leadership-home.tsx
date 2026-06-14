@@ -9,6 +9,7 @@ import {
 import type { LeadershipHomeData } from "@/lib/home/leadership-home";
 import type { Entity360Type } from "@/lib/operations/entity-360";
 
+import { ChiefOfStaffPanel } from "./chief-of-staff-panel";
 import { HomeSearchButton } from "./home-search-button";
 
 /**
@@ -127,6 +128,10 @@ export function LeadershipHome({
             ))}
           </div>
         </div>
+      ) : null}
+
+      {data.chiefOfStaff.length > 0 ? (
+        <ChiefOfStaffPanel insights={data.chiefOfStaff} />
       ) : null}
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">

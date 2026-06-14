@@ -42,7 +42,8 @@ const TYPE_ICON: Record<Entity360Type, string> = {
 
 type Selectable =
   | { kind: "result"; result: HelpAgentResult }
-  | { kind: "suggestion"; suggestion: HelpAgentSuggestion };
+  | { kind: "suggestion"; suggestion: HelpAgentSuggestion }
+  | { kind: "ask"; question: string };
 
 export function HelpAgentSearch({
   officerTier,
@@ -117,9 +118,16 @@ export function HelpAgentSearch({
   // The flat keyboard-selectable list, in visual order.
   const selectables = useMemo<Selectable[]>(() => {
     if (hasQuery) {
-      return groups.flatMap((g) =>
-        g.items.map((result) => ({ kind: "result" as const, result }))
-      );
+      // Officers can route any query to the Chief of Staff "Ask" surface.
+      const ask: Selectable[] = officerTier
+        ? [{ kind: "ask", question: query.trim() }]
+        : [];
+      return [
+        ...ask,
+        ...groups.flatMap((g) =>
+          g.items.map((result) => ({ kind: "result" as const, result }))
+        ),
+      ];
     }
     return [
       ...suggestions.map((suggestion) => ({
@@ -128,12 +136,17 @@ export function HelpAgentSearch({
       })),
       ...recents.map((result) => ({ kind: "result" as const, result })),
     ];
-  }, [hasQuery, groups, suggestions, recents]);
+  }, [hasQuery, groups, suggestions, recents, officerTier, query]);
 
   const activate = useCallback(
     (item: Selectable, forceNavigate: boolean) => {
       if (item.kind === "suggestion") {
         router.push(item.suggestion.href);
+        onDone?.();
+        return;
+      }
+      if (item.kind === "ask") {
+        router.push(`/help-agent?q=${encodeURIComponent(item.question)}`);
         onDone?.();
         return;
       }
@@ -221,36 +234,84 @@ export function HelpAgentSearch({
       {/* Results / suggestions */}
       <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto p-2">
         {hasQuery ? (
-          groups.length === 0 && !loading ? (
-            <EmptyStateV2
-              tone="editorial"
-              title={`No matches for “${query.trim()}”`}
-              body="Try a name, an email, a partner, a class, or a meeting title."
-            />
-          ) : (
-            groups.map((group) => (
-              <section key={group.type} className="mb-1">
-                <p className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
-                  {group.label}
-                </p>
-                {group.items.map((result) => {
+          <>
+            {officerTier
+              ? (() => {
                   const index = nextIndex();
                   return (
-                    <ResultRow
-                      key={`${result.type}:${result.id}`}
-                      result={result}
-                      index={index}
-                      active={index === selected}
-                      onHover={() => setSelected(index)}
-                      onActivate={(force) =>
-                        activate({ kind: "result", result }, force)
+                    <button
+                      type="button"
+                      data-index={index}
+                      onMouseEnter={() => setSelected(index)}
+                      onClick={() =>
+                        activate({ kind: "ask", question: query.trim() }, false)
                       }
-                    />
+                      className={cn(
+                        "mb-1 flex w-full items-center gap-3 rounded-[8px] px-3 py-2 text-left",
+                        index === selected ? "bg-brand-50" : "hover:bg-brand-50/60"
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        className="w-5 text-center text-[14px] text-brand-600"
+                      >
+                        ✦
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13.5px] font-semibold text-ink">
+                          Ask the Chief of Staff
+                        </span>
+                        <span className="block truncate text-[12px] text-ink-muted">
+                          “{query.trim()}” → a structured answer
+                        </span>
+                      </span>
+                      {index === selected ? (
+                        <span
+                          aria-hidden
+                          className="shrink-0 text-[11px] font-semibold text-brand-600"
+                        >
+                          ask ↵
+                        </span>
+                      ) : null}
+                    </button>
                   );
-                })}
-              </section>
-            ))
-          )
+                })()
+              : null}
+            {groups.length === 0 && !loading ? (
+              <EmptyStateV2
+                tone="editorial"
+                title={`No matches for “${query.trim()}”`}
+                body={
+                  officerTier
+                    ? "No records match — but you can still ask the Chief of Staff above."
+                    : "Try a name, an email, a partner, a class, or a meeting title."
+                }
+              />
+            ) : (
+              groups.map((group) => (
+                <section key={group.type} className="mb-1">
+                  <p className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+                    {group.label}
+                  </p>
+                  {group.items.map((result) => {
+                    const index = nextIndex();
+                    return (
+                      <ResultRow
+                        key={`${result.type}:${result.id}`}
+                        result={result}
+                        index={index}
+                        active={index === selected}
+                        onHover={() => setSelected(index)}
+                        onActivate={(force) =>
+                          activate({ kind: "result", result }, force)
+                        }
+                      />
+                    );
+                  })}
+                </section>
+              ))
+            )}
+          </>
         ) : (
           <>
             <section className="mb-1">
