@@ -284,24 +284,53 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).not.toContain("/admin/portal-rollout");
   });
 
-  it("trims admin navigation to public-allowed routes when the public gate is active", () => {
-    // The public gate applies to everyone, admins included. Until an admin
-    // enters preview mode the layout passes publicGateActive=true, so only
-    // public-allowed surfaces stay in the sidebar. The instructor applicant
-    // board is on the public allowlist; bulk users and messages are not.
+  it("pins People Hub, Actions, and Initiatives for admins even when publicGateActive is true", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
-      adminSubtypes: ["HIRING_ADMIN"],
+      adminSubtypes: ["SUPER_ADMIN"],
       primaryRole: "ADMIN",
+      pathname: "/",
+      actionTrackerEnabled: true,
+      operationsHubEnabled: true,
+      publicGateActive: true,
+    });
+
+    const coreHrefs = model.core.map((item) => item.href);
+    expect(coreHrefs).toContain("/people");
+    expect(coreHrefs).toContain("/actions");
+    expect(coreHrefs).toContain("/operations/initiatives");
+  });
+
+  it("trims admin navigation to public-allowed routes when the public gate is active for non-officers", () => {
+    const model = resolveNavModel({
+      roles: ["INSTRUCTOR"],
+      primaryRole: "INSTRUCTOR",
       pathname: "/",
       enabledFeatureKeys: new Set(),
       publicGateActive: true,
     });
 
     const visibleHrefs = hrefs(model);
-    expect(visibleHrefs).toContain("/admin/instructor-applicants");
+    expect(visibleHrefs).not.toContain("/people");
     expect(visibleHrefs).not.toContain("/admin/bulk-users");
-    expect(visibleHrefs).not.toContain("/messages");
+  });
+
+  it("shows the full leadership sidebar for officers even when publicGateActive is true", () => {
+    const model = resolveNavModel({
+      roles: ["ADMIN"],
+      adminSubtypes: ["HIRING_ADMIN"],
+      primaryRole: "ADMIN",
+      pathname: "/",
+      enabledFeatureKeys: new Set(),
+      actionTrackerEnabled: true,
+      operationsHubEnabled: true,
+      publicGateActive: true,
+    });
+
+    const visibleHrefs = hrefs(model);
+    expect(visibleHrefs).toContain("/admin/instructor-applicants");
+    expect(visibleHrefs).toContain("/people");
+    expect(visibleHrefs).toContain("/admin/bulk-users");
   });
 
   it("shows only application status for applicants in hiring demo mode", () => {

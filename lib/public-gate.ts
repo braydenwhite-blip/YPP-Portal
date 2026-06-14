@@ -97,7 +97,6 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   "/actions",
   "/operations",
   "/partners",
-  "/admin",
   "/messages",
   "/notifications",
   "/help-agent",

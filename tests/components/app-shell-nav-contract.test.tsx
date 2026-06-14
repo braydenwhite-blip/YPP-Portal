@@ -23,12 +23,20 @@ describe("app shell nav contract", () => {
         adminSubtypes={["SUPER_ADMIN"]}
         primaryRole="ADMIN"
         actionTrackerEnabled
+        operationsHubEnabled
+        publicGateActive
       />
     );
 
     // Core links render as real anchors.
     const home = screen.getByRole("link", { name: /Home/i });
     expect(home).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: /People Hub/i })).toHaveAttribute("href", "/people");
+    expect(screen.getByRole("link", { name: /^Actions$/i })).toHaveAttribute("href", "/actions");
+    expect(screen.getByRole("link", { name: /Initiatives/i })).toHaveAttribute(
+      "href",
+      "/operations/initiatives"
+    );
     expect(screen.getByRole("link", { name: /Administration/i })).toHaveAttribute(
       "href",
       "/admin"
