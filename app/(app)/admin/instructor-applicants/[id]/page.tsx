@@ -224,10 +224,12 @@ export default async function ApplicationRecordPage({
                 }
               : record.status === "INTERVIEW_SCHEDULED"
                 ? {
-                    title: "Interview scheduled",
+                    title: record.interviewScheduledAtISO
+                      ? "Interview scheduled — mark it complete afterwards"
+                      : "Interview scheduling in progress",
                     detail: record.interviewScheduledAtISO
-                      ? `Interview on ${fmtDate(record.interviewScheduledAtISO)} — submit the interview review afterwards.`
-                      : "Submit the interview review once it happens.",
+                      ? `Interview on ${fmtDate(record.interviewScheduledAtISO)}. Once it happens, mark the interview complete to move into post-interview review.`
+                      : "Waiting on the applicant to pick a time from the proposed slots.",
                     href: detailHref,
                     cta: "Open application",
                   }

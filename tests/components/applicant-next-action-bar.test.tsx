@@ -6,6 +6,7 @@ import ApplicantNextActionBar from "@/components/instructor-applicants/Applicant
 vi.mock("@/lib/instructor-application-actions", () => ({
   assignReviewer: vi.fn(),
   sendToChair: vi.fn(),
+  completeInterviewStage: vi.fn(),
 }));
 
 function baseApplication() {
@@ -40,5 +41,53 @@ describe("ApplicantNextActionBar", () => {
       "href",
       "/admin/instructor-applicants/app-1/review"
     );
+  });
+
+  it("offers 'Mark Interview Complete' once a scheduled interview has a confirmed time", () => {
+    render(
+      <ApplicantNextActionBar
+        application={{
+          ...baseApplication(),
+          status: "INTERVIEW_SCHEDULED" as const,
+          interviewScheduledAt: new Date("2026-06-01T15:00:00Z"),
+        }}
+        canAssignReviewer={false}
+        canAssignInterviewers={false}
+        isAssignedReviewer
+        isAssignedInterviewer={false}
+        isAssignedLeadInterviewer={false}
+        canActAsChair={false}
+        canSendToChair={false}
+        isAdmin={false}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Mark Interview Complete" })
+    ).toBeInTheDocument();
+  });
+
+  it("does not offer completion until the applicant has confirmed a time", () => {
+    render(
+      <ApplicantNextActionBar
+        application={{
+          ...baseApplication(),
+          status: "INTERVIEW_SCHEDULED" as const,
+          interviewScheduledAt: null,
+        }}
+        canAssignReviewer={false}
+        canAssignInterviewers={false}
+        isAssignedReviewer
+        isAssignedInterviewer={false}
+        isAssignedLeadInterviewer={false}
+        canActAsChair={false}
+        canSendToChair={false}
+        isAdmin={false}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Mark Interview Complete" })
+    ).not.toBeInTheDocument();
   });
 });

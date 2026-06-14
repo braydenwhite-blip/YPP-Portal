@@ -14,6 +14,7 @@ export type ApplicantTelemetryEvent =
   | "applicant.chair.decided"
   | "applicant.chair.rescinded"
   | "applicant.status.auto_advanced"
+  | "applicant.status.interview_completed"
   | "applicant.materials.ready";
 
 export interface ApplicantTelemetryPayload {

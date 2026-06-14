@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { sendToChair, assignReviewer } from "@/lib/instructor-application-actions";
+import {
+  sendToChair,
+  assignReviewer,
+  completeInterviewStage,
+} from "@/lib/instructor-application-actions";
 import type { InstructorApplicationStatus } from "@prisma/client";
 
 interface Props {
@@ -93,6 +97,31 @@ export default function ApplicantNextActionBar({
       label: "Update Interview Times",
       description: "The applicant has not picked a time yet. Send a fresh set if needed.",
       href: "#section-scheduling",
+    };
+  } else if (
+    status === "INTERVIEW_SCHEDULED" &&
+    application.interviewScheduledAt &&
+    (isAssignedInterviewer || isAssignedReviewer || isAdmin)
+  ) {
+    // The interview is on the calendar. Once it has happened, this is the
+    // single click that moves the candidate into the Post-interview column —
+    // previously there was no action here, so interviewed candidates silently
+    // stalled in "Ready for interview".
+    action = {
+      label: "Mark Interview Complete",
+      description:
+        "The interview is scheduled. Once it's done, mark it complete to move this candidate into post-interview review.",
+      handler: () => {
+        startTransition(async () => {
+          const fd = new FormData();
+          fd.set("applicationId", application.id);
+          const result = await completeInterviewStage(fd);
+          setMessage({
+            text: result.error ?? "Interview marked complete — moved to post-interview.",
+            ok: result.success,
+          });
+        });
+      },
     };
   } else if (status === "INTERVIEW_COMPLETED" && canRouteToChair) {
     action = {

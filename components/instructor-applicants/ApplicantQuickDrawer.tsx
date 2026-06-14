@@ -1,7 +1,10 @@
 "use client";
 
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ButtonLink } from "@/components/ui-v2";
 import { formatScheduleDateTime } from "@/lib/scheduling/shared";
+import { completeInterviewStage } from "@/lib/instructor-application-actions";
 import { ArchiveOneButton } from "./ArchiveActions";
 import {
   formatApplicantDisplayName,
@@ -67,11 +70,64 @@ export default function ApplicantQuickDrawer({
   onClose,
   isAdmin = false,
 }: ApplicantQuickDrawerProps) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+
   const leadInterviewer = app.interviewerAssignments.find((a) => a.role === "LEAD");
   const secondInterviewer = app.interviewerAssignments.find((a) => a.role === "SECOND");
   const leadReview = app.applicationReviews?.[0];
   const displayName = formatApplicantDisplayName(app);
   const missingLastName = isApplicantLastNameMissing(app);
+
+  // The interview has a confirmed time → the next concrete move is to mark it
+  // complete, which advances the card into Post-Interview. This is the inline
+  // mirror of the action bar on the full workspace, so reviewers don't have to
+  // navigate away just to advance a candidate they already interviewed.
+  const canMarkInterviewComplete =
+    app.status === "INTERVIEW_SCHEDULED" && Boolean(app.interviewScheduledAt);
+
+  // A short, status-aware "what happens next" line. Read-only guidance so the
+  // board never leaves someone guessing why a card is sitting where it is.
+  const nextStepHint: string | null = (() => {
+    switch (app.status) {
+      case "SUBMITTED":
+        return app.reviewer
+          ? "Assigned for review — the reviewer completes the paper screen next."
+          : "Assign a reviewer to start the paper screen.";
+      case "UNDER_REVIEW":
+        return "Reviewer is screening. Next step is submitting the initial review.";
+      case "INFO_REQUESTED":
+        return "Waiting on the applicant to provide the requested information.";
+      case "PRE_APPROVED":
+        return "Pre-approved — send interview times to get on the calendar.";
+      case "INTERVIEW_SCHEDULED":
+        return app.interviewScheduledAt
+          ? "Interview is on the calendar. After it happens, mark it complete to move to post-interview."
+          : "Awaiting the applicant to pick a time from the proposed slots.";
+      case "INTERVIEW_COMPLETED":
+        return "Interview done — submit any interview reviews, then send to the hiring chair.";
+      case "CHAIR_REVIEW":
+        return "In the hiring chair's queue for the final decision.";
+      default:
+        return null;
+    }
+  })();
+
+  function handleMarkComplete() {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("applicationId", app.id);
+      const result = await completeInterviewStage(fd);
+      setMessage({
+        text: result.error ?? "Interview marked complete — moved to Post-Interview.",
+        ok: result.success,
+      });
+      if (result.success) {
+        router.refresh();
+      }
+    });
+  }
 
   // An application can sit in INTERVIEW_SCHEDULED with no confirmed time yet
   // (interviewScheduledAt === null) while a time is still being arranged. Only
@@ -144,6 +200,40 @@ export default function ApplicantQuickDrawer({
 
         {/* Body */}
         <div className="slideout-body">
+              {/* Next step — status-aware guidance so nobody guesses why a
+                  card is parked in a column. */}
+              {nextStepHint && (
+                <div className="mb-3 rounded-[10px] border border-warning-700/25 bg-warning-100/40 px-3.5 py-2.5">
+                  <div className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-warning-700">
+                    Next step
+                  </div>
+                  <div className="mt-0.5 text-[13px] leading-snug text-ink">
+                    {nextStepHint}
+                  </div>
+                  {canMarkInterviewComplete && (
+                    <button
+                      type="button"
+                      onClick={handleMarkComplete}
+                      disabled={pending}
+                      className="mt-2 inline-flex cursor-pointer items-center justify-center rounded-[8px] bg-brand-600 px-3.5 py-2 text-[13px] font-semibold text-white shadow-card transition-colors hover:bg-brand-700 disabled:pointer-events-none disabled:opacity-50"
+                    >
+                      {pending ? "Saving…" : "Mark Interview Complete"}
+                    </button>
+                  )}
+                  {message && (
+                    <div
+                      className={
+                        message.ok
+                          ? "mt-1.5 text-[12px] font-semibold text-success-600"
+                          : "mt-1.5 text-[12px] font-semibold text-danger-700"
+                      }
+                    >
+                      {message.text}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Key details */}
               <div className="slideout-section">
                 <div className="slideout-section-title">Quick glance</div>
