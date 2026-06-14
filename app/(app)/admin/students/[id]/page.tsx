@@ -1,4 +1,5 @@
 import { EntityActionPanel } from "@/components/work/entity-action-panel";
+import { RelatedMeetingsList } from "@/components/people-strategy/related-meetings-list";
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
@@ -521,6 +522,16 @@ export default async function AdminStudentRecordPage({
             now={now}
           />
         </RecordSection>
+      ) : null}
+
+      {/* Related meetings — the same connected context the instructor record
+          shows, so both USER records read consistently. Only rendered when this
+          student has actually come up in a tracked meeting (no empty card). */}
+      {operationsEnabled && opsContext && opsContext.meetings.length > 0 ? (
+        <RelatedMeetingsList
+          meetings={opsContext.meetings}
+          heading="Related meetings"
+        />
       ) : null}
     </div>
   );
