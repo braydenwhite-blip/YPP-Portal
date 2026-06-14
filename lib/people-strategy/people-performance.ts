@@ -6,6 +6,10 @@ import {
   hasDisengagementRisk,
   isGrowthOpportunity,
 } from "./growth-signals";
+import {
+  loadCompletedContributionsByMember,
+  type CompletedContributionsSummary,
+} from "./completed-contributions";
 import { loadPeopleDashboard, type PeopleDashboardRow } from "./people-dashboard";
 import {
   buildCheckInCalendarDots,
@@ -47,6 +51,8 @@ export type PeoplePerformanceRow = PeopleDashboardRow & {
   calendarDots: CheckInCalendarDot[];
   /** Human-curated growth signals on this member (officer assessment). */
   growthTags: GrowthTag[];
+  /** Recent completed work — positive contribution evidence (deterministic). */
+  recentCompleted: CompletedContributionsSummary;
 };
 
 export type PeoplePerformanceResult = {
@@ -198,11 +204,13 @@ export async function loadPeoplePerformance(
 
   const dashboardRows = await loadPeopleDashboard(now);
   const memberIds = dashboardRows.map((r) => r.id);
-  const [feedbackByMember, monthFeedbackByMember, growthByMember] = await Promise.all([
-    loadFeedbackStatusByMember(memberIds),
-    loadCurrentMonthFeedback(memberIds, monthStart),
-    loadGrowthSignalsByMember(memberIds),
-  ]);
+  const [feedbackByMember, monthFeedbackByMember, growthByMember, completedByMember] =
+    await Promise.all([
+      loadFeedbackStatusByMember(memberIds),
+      loadCurrentMonthFeedback(memberIds, monthStart),
+      loadGrowthSignalsByMember(memberIds),
+      loadCompletedContributionsByMember(memberIds, { now }),
+    ]);
 
   const rows: PeoplePerformanceRow[] = dashboardRows.map((row) => {
     const feedback = feedbackByMember.get(row.id) ?? EMPTY_FEEDBACK;
@@ -242,6 +250,15 @@ export async function loadPeoplePerformance(
       signals: buildSignals(facts),
       calendarDots: buildCheckInCalendarDots(row.recentCheckIns, now),
       growthTags,
+      recentCompleted:
+        completedByMember.get(row.id) ?? {
+          total: 0,
+          thisWeek: 0,
+          thisMonth: 0,
+          asLead: 0,
+          lastCompletedAtISO: null,
+          label: null,
+        },
     };
   });
 

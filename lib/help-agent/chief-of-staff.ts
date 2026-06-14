@@ -971,3 +971,68 @@ export function pageAwarePrompts(pathname: string | null | undefined): CoSPrompt
 export function defaultPrompts(): CoSPrompt[] {
   return GLOBAL_PROMPTS;
 }
+
+/**
+ * Entity-type-aware suggested prompts for the "Ask about this" surfaces embedded
+ * across the portal (person/class/partner/initiative/meeting pages and drawers).
+ * Keyed by Entity360Type so the same set drives the button menu and the
+ * /help-agent page when entity context arrives via ?entityType=…&entityId=….
+ */
+export function entityPrompts(entityType: string | null | undefined): CoSPrompt[] {
+  switch (entityType) {
+    case "person":
+      return [
+        { label: "Summarize this person", question: "Summarize this person." },
+        { label: "Recent contributions", question: "Show this person's recent contributions." },
+        { label: "Open responsibilities", question: "Show this person's open responsibilities." },
+        { label: "Feedback themes", question: "Show feedback themes for this person." },
+        { label: "Prepare review evidence", question: "Prepare review evidence for this person." },
+        { label: "Suggest next growth action", question: "Suggest the next growth action for this person." },
+      ];
+    case "class":
+      return [
+        { label: "Summarize this class", question: "Summarize this class." },
+        { label: "Show setup gaps", question: "Show setup gaps for this class." },
+        { label: "Unresolved follow-ups", question: "Show unresolved follow-ups for this class." },
+        { label: "Related meetings & actions", question: "Show related meetings and actions for this class." },
+        { label: "What needs to happen before launch?", question: "What needs to happen before this class launches?" },
+      ];
+    case "partner":
+      return [
+        { label: "Summarize relationship history", question: "Summarize this partner relationship history." },
+        { label: "Last meeting & follow-up", question: "Show the last meeting and follow-up for this partner." },
+        { label: "Open commitments", question: "Show open commitments for this partner." },
+        { label: "What should the next outreach be?", question: "What should the next outreach be for this partner?" },
+      ];
+    case "initiative":
+      return [
+        { label: "Summarize progress", question: "Summarize progress on this initiative." },
+        { label: "Show blockers", question: "Show blockers for this initiative." },
+        { label: "Next milestone", question: "Show the next milestone for this initiative." },
+        { label: "Meetings & decisions", question: "Show meetings and decisions for this initiative." },
+        { label: "What is the next action?", question: "What is the next action for this initiative?" },
+      ];
+    case "meeting":
+      return [
+        { label: "Summarize this meeting", question: "Summarize this meeting." },
+        { label: "Show decisions", question: "Show the decisions from this meeting." },
+        { label: "Unresolved follow-ups", question: "Show unresolved follow-ups from this meeting." },
+        { label: "Review suggested actions", question: "Review the suggested actions from this meeting." },
+        { label: "What still needs to become an action?", question: "What from this meeting still needs to become an action?" },
+      ];
+    case "applicant":
+      return [
+        { label: "Summarize this applicant", question: "Summarize this applicant." },
+        { label: "What is the next step?", question: "What is the next step for this applicant?" },
+        { label: "Unresolved follow-ups", question: "Show unresolved follow-ups for this applicant." },
+      ];
+    case "action":
+      return [
+        { label: "Summarize this action", question: "Summarize this action." },
+        { label: "What is blocking it?", question: "What is blocking this action?" },
+        { label: "What should happen next?", question: "What should happen next on this action?" },
+      ];
+    default:
+      return GLOBAL_PROMPTS;
+  }
+}

@@ -52,6 +52,7 @@ export function PeoplePerformanceTable({
             <TableHeadCell>Feedback</TableHeadCell>
             <TableHeadCell>Check-in</TableHeadCell>
             <TableHeadCell>Workload</TableHeadCell>
+            <TableHeadCell>Contributions</TableHeadCell>
             {quarterlyEnabled ? <TableHeadCell>Quarterly</TableHeadCell> : null}
             <TableHeadCell className="text-right"> </TableHeadCell>
           </tr>
@@ -60,7 +61,7 @@ export function PeoplePerformanceTable({
           {rows.length === 0 ? (
             <tr>
               <TableCell
-                colSpan={quarterlyEnabled ? 6 : 5}
+                colSpan={quarterlyEnabled ? 7 : 6}
                 className="py-10 text-center text-ink-muted"
               >
                 No one matches this view.
@@ -98,6 +99,20 @@ export function PeoplePerformanceTable({
                   </TableCell>
                   <TableCell>
                     <StatusBadge tone={workload.tone}>{workload.text}</StatusBadge>
+                  </TableCell>
+                  <TableCell>
+                    {row.recentCompleted.label ? (
+                      <div className="flex flex-col gap-0.5">
+                        <StatusBadge tone="success">{row.recentCompleted.label}</StatusBadge>
+                        {row.recentCompleted.asLead > 0 ? (
+                          <span className="text-[11px] text-ink-muted">
+                            {row.recentCompleted.asLead} led
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <span className="text-[12px] text-ink-muted">No recent contributions</span>
+                    )}
                   </TableCell>
                   {quarterlyEnabled ? (
                     <TableCell>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AskAboutThis } from "@/components/help-agent/ask-about-this";
 import { InitiativeActionsPanel } from "@/components/people-strategy/initiative-actions-panel";
 import {
   InitiativeAttentionBanner,
@@ -102,13 +103,16 @@ export default async function StrategicInitiativeDetailPage({
         title={summary.title}
         subtitle={`Next step: ${primaryNextStep(summary)}`}
         actions={
-          <ButtonLink
-            href={`/actions?initiative=${initiativeId}&who=all`}
-            variant="ghost"
-            size="sm"
-          >
-            All actions →
-          </ButtonLink>
+          <div className="flex items-center gap-2">
+            <AskAboutThis entityType="initiative" entityId={initiativeId} />
+            <ButtonLink
+              href={`/actions?initiative=${initiativeId}&who=all`}
+              variant="ghost"
+              size="sm"
+            >
+              All actions →
+            </ButtonLink>
+          </div>
         }
       >
         <StatusBadge tone={healthBadgeTone}>{summary.statusLabel}</StatusBadge>

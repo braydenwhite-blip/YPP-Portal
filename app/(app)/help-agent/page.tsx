@@ -5,7 +5,7 @@ import { HelpAgentSearch } from "@/components/help-agent/help-agent-search";
 import { PageHeaderV2 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
-import { defaultPrompts } from "@/lib/help-agent/chief-of-staff";
+import { defaultPrompts, entityPrompts } from "@/lib/help-agent/chief-of-staff";
 import {
   isOfficerTier,
   type ActionViewer,
@@ -50,6 +50,16 @@ export default async function HelpAgentPage({
   const rawQ = params.q ?? params.ask;
   const initialQuestion = Array.isArray(rawQ) ? rawQ[0] : rawQ;
 
+  // Entity context can be passed from any "Ask about this" surface across the
+  // portal via ?entityType=…&entityId=…. The Ask endpoint scopes the answer to
+  // that record when the question is entity-scoped (e.g. "Summarize this person").
+  const rawType = params.entityType;
+  const rawId = params.entityId;
+  const entityType = Array.isArray(rawType) ? rawType[0] : rawType;
+  const entityId = Array.isArray(rawId) ? rawId[0] : rawId;
+  const entityContext =
+    entityType && entityId ? { entityType, entityId } : undefined;
+
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-10">
       <PageHeaderV2
@@ -66,9 +76,10 @@ export default async function HelpAgentPage({
       {chiefOfStaff ? (
         <section className="mb-8">
           <HelpAgentAsk
-            prompts={defaultPrompts()}
+            prompts={entityContext ? entityPrompts(entityContext.entityType) : defaultPrompts()}
             aiAvailable={aiAvailable}
             defaultQuestion={initialQuestion}
+            context={entityContext}
           />
         </section>
       ) : null}

@@ -331,9 +331,27 @@ export default async function AdminMentorshipPage(props: PageProps) {
       ])
     : [[], []];
 
-  const chairsData = (rawChairsData ?? []).filter((user: any) => 
-    user.roles?.some((r: any) => String(r.role).toUpperCase() === "CHAIR" || String(r.role).toUpperCase() === "ADMIN")
-  );
+  const chairsData = (rawChairsData ?? [])
+    .filter((user: any) =>
+      user.roles?.some(
+        (r: any) =>
+          String(r.role).toUpperCase() === "CHAIR" || String(r.role).toUpperCase() === "ADMIN"
+      )
+    )
+    .map((user: any) => {
+      const chairRole = user.roles?.find(
+        (r: any) =>
+          String(r.role).toUpperCase() === "CHAIR" || String(r.role).toUpperCase() === "ADMIN"
+      );
+      return {
+        id: user.id,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        roleType: String(chairRole?.role ?? "ADMIN"),
+        isActive: true,
+      };
+    });
 
   const laneMeta = ADMIN_MENTORSHIP_LANE_META[lane];
   const selectedSummary =
@@ -668,7 +686,7 @@ export default async function AdminMentorshipPage(props: PageProps) {
                   reviews: { draft: 0, pendingChair: 0, changesRequested: 0, approved: 0 },
                   totalPointsAwarded: 0,
                   tierDistribution: { NONE: 0, BRONZE: 0, SILVER: 0, GOLD: 0, LIFETIME: 0 },
-                  nominationsByTier: {},
+                  nominationsByTier: [],
                   recentApprovals: [],
                   reflectionsByCycle: []
                 })
