@@ -3,10 +3,11 @@ import type { RegularInstructorAssignmentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { isActionTrackerEmailsEnabled } from "@/lib/feature-flags";
-import { requireLeadership, hasRole, hasAnyAdminSubtype } from "@/lib/authorization";
+import { requireLeadership } from "@/lib/authorization";
 import type { SessionUser } from "@/lib/auth-supabase";
 import { sendFeedbackRequestEmail } from "@/lib/email";
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
+import { isFeedbackLeadership } from "./feedback-permissions";
 
 /**
  * People Strategy — confidential 360 feedback requests.
@@ -394,10 +395,13 @@ export async function getFeedbackRequestStatusForSubject(
   };
 }
 
-/** Non-throwing Leadership/Board check, for conditional UI (not a security boundary). */
-export function isLeadershipOrBoard(user: Pick<SessionUser, "roles" | "primaryRole" | "adminSubtypes">): boolean {
-  return (
-    hasRole(user.roles, "ADMIN", user.primaryRole) &&
-    hasAnyAdminSubtype(user.adminSubtypes, ["LEADERSHIP", "SUPER_ADMIN"])
-  );
+/**
+ * Non-throwing Leadership/Board check, for conditional UI (not a security
+ * boundary). Delegates to the centralised feedback-confidentiality tier so the
+ * "who may read confidential feedback" rule has a single source of truth.
+ */
+export function isLeadershipOrBoard(
+  user: Pick<SessionUser, "roles" | "primaryRole" | "adminSubtypes">
+): boolean {
+  return isFeedbackLeadership(user);
 }
