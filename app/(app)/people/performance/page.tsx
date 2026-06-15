@@ -8,7 +8,6 @@ import {
   UrlSyncedSearchInput,
 } from "@/components/ui-v2";
 import { PeopleHubNav } from "@/components/people/people-hub-nav";
-import { MonthSnapshotStrip } from "@/components/people-strategy/month-snapshot-strip";
 import { PeoplePerformanceClient } from "@/components/people-strategy/people-performance-client";
 import { requireLeadership } from "@/lib/authorization";
 import {
@@ -17,12 +16,12 @@ import {
 } from "@/lib/feature-flags";
 import { getPeopleHubAccess } from "@/lib/people/hub-access";
 import { isBoard, type ActionViewer } from "@/lib/people-strategy/action-permissions";
+import { loadPeopleCockpit } from "@/lib/people-strategy/people-cockpit-queries";
 import {
   filterPerformanceRows,
   loadPeoplePerformance,
 } from "@/lib/people-strategy/people-performance";
 import {
-  buildMonthSnapshot,
   countMatchingFilter,
   monthLabelUTC,
   parseMonthKey,
@@ -84,8 +83,14 @@ export default async function PeoplePerformancePage({
     : currentMonthKey;
 
   const quarterlyEnabled = isQuarterlyReviewsEnabled();
-  // Snapshot reflects the whole team for the month — never just the search subset.
-  const snapshot = buildMonthSnapshot(rows);
+  // The cockpit is the guided briefing — built from the WHOLE team (never the
+  // search subset) plus recent meeting follow-ups. Search/filter only narrow the
+  // secondary Browse-all table below.
+  const cockpit = await loadPeopleCockpit({
+    performanceRows: rows,
+    monthLabel,
+    quarter: currentQuarter,
+  });
   const showBoardRollupLink = isBoard(viewer);
 
   const hubViewer: ActionViewer = {
@@ -105,8 +110,8 @@ export default async function PeoplePerformancePage({
       />
 
       <PageHeaderV2
-        title="People & Performance"
-        subtitle="A quick operating snapshot — who needs feedback reviewed, a check-in compiled, or a review attended."
+        title="People Strategy"
+        subtitle="The leadership decisions and follow-ups across YPP people — grouped by what needs to happen next."
         actions={
           showBoardRollupLink ? (
             <Link
@@ -119,44 +124,41 @@ export default async function PeoplePerformancePage({
         }
       />
 
-      <MonthSnapshotStrip
-        snapshot={snapshot}
-        monthLabel={monthLabel}
-        quarterlyEnabled={quarterlyEnabled}
-      />
-
-      <UrlSyncedSearchInput
-        placeholder="Search name…"
-        wrapClassName="w-full"
-        aria-label="Search team"
-      />
-
-      <FilterBar aria-label="Filter people">
-        {FILTER_CHIPS.map((key) => (
-          <FilterChipLink
-            key={key}
-            href={chipHref(key)}
-            active={key === view}
-            count={key === "all" ? undefined : countMatchingFilter(rows, key)}
-          >
-            {PERFORMANCE_FILTER_LABELS[key]}
-          </FilterChipLink>
-        ))}
-      </FilterBar>
-
-      <p className="m-0 text-[12.5px] text-ink-muted">
-        {visible.length === rows.length
-          ? `${rows.length} ${rows.length === 1 ? "person" : "people"}`
-          : `${visible.length} of ${rows.length}`}
-        {q ? ` · “${q}”` : ""}
-      </p>
-
       <PeoplePerformanceClient
-        rows={visible}
+        cockpit={cockpit}
+        rows={rows}
+        tableRows={visible}
         monthLabel={monthLabel}
         monthShortLabel={monthShortLabel}
         quarter={currentQuarter}
         quarterlyEnabled={quarterlyEnabled}
+        browseControls={
+          <>
+            <UrlSyncedSearchInput
+              placeholder="Search name…"
+              wrapClassName="w-full"
+              aria-label="Search team"
+            />
+            <FilterBar aria-label="Filter people">
+              {FILTER_CHIPS.map((key) => (
+                <FilterChipLink
+                  key={key}
+                  href={chipHref(key)}
+                  active={key === view}
+                  count={key === "all" ? undefined : countMatchingFilter(rows, key)}
+                >
+                  {PERFORMANCE_FILTER_LABELS[key]}
+                </FilterChipLink>
+              ))}
+            </FilterBar>
+            <p className="m-0 text-[12.5px] text-ink-muted">
+              {visible.length === rows.length
+                ? `${rows.length} ${rows.length === 1 ? "person" : "people"}`
+                : `${visible.length} of ${rows.length}`}
+              {q ? ` · “${q}”` : ""}
+            </p>
+          </>
+        }
       />
     </div>
   );
