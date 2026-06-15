@@ -40,6 +40,13 @@ import {
   getPublicPreviewSlimNavHrefs,
   shouldApplyPublicPreviewSlimNav,
 } from "@/lib/navigation/public-preview-slim-nav";
+import {
+  OFFICER_GROUP_ORDER,
+  OFFICER_UNHIDE_HREFS,
+  applyOfficerNavLayout,
+  officerLinkOrderIndex,
+  shouldApplyOfficerNavLayout,
+} from "@/lib/navigation/officer-nav-layout";
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
 const CRITICAL_CORE_LINKS = ["/messages"];
@@ -134,32 +141,11 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
     "Admin Reports",
     "Admin Operations",
   ],
-  ADMIN: [
-    "Start Here",
-    "Learning",
-    "Admin People",
-    "Admin Content",
-    "Progress",
-    "People & Support",
-    "Chapters",
-    "Opportunities",
-    "Profile & Settings",
-    "Family",
-  ],
-  HIRING_CHAIR: [
-    "Start Here",
-    "Admin Operations",
-    "People & Support",
-    "Chapters",
-    "Profile & Settings",
-    "Learning",
-    "Progress",
-    "Opportunities",
-    "Family",
-    "Admin People",
-    "Admin Content",
-    "Admin Reports",
-  ],
+  // Officer operating-system order (Command → Work → People → Programs →
+  // Partners → Data → Admin), then the personal / long-tail sections.
+  // Single source of truth: lib/navigation/officer-nav-layout.ts.
+  ADMIN: OFFICER_GROUP_ORDER,
+  HIRING_CHAIR: OFFICER_GROUP_ORDER,
   CHAPTER_PRESIDENT: [
     "Start Here",
     "Chapters",
@@ -226,22 +212,7 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
     "Admin Reports",
     "Admin Operations",
   ],
-  STAFF: [
-    "Start Here",
-    "Opportunities",
-    "Learning",
-    "Progress",
-    "People & Support",
-    "Chapters",
-    "Profile & Settings",
-    "Challenges",
-    "Projects",
-    "Family",
-    "Admin People",
-    "Admin Content",
-    "Admin Reports",
-    "Admin Operations",
-  ],
+  STAFF: OFFICER_GROUP_ORDER,
 };
 
 export interface ResolveNavInput {
@@ -507,7 +478,9 @@ function orderGroups(primaryRole: NavRole, groups: NavGroup[]): NavGroup[] {
   });
 }
 
-export function resolveNavModel(input: ResolveNavInput): NavViewModel & { lockedGroups?: Map<NavGroup, string> } {
+export function resolveNavModel(
+  input: ResolveNavInput,
+): NavViewModel & { lockedGroups?: Map<NavGroup, string>; officerChrome?: boolean } {
   const roles = normalizeRoles(input.roles);
   const primaryRole = resolvePrimaryRole(input.primaryRole, roles);
   const officerTierUser = isOfficerTierFromAuth(roles, primaryRole);
@@ -519,6 +492,13 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
   const hiringDemoHrefs = input.hiringDemoMode
     ? hiringDemoHrefsForRole(primaryRole)
     : null;
+  // Leadership operating-system layout (Command → Work → People → Programs →
+  // Partners → Data → Admin). Officers only, and never in the hiring demo or the
+  // public-preview slim ship, which have their own curated stacks.
+  const officerLayoutActive =
+    shouldApplyOfficerNavLayout(primaryRole) &&
+    !hiringDemoHrefs &&
+    !shouldApplyPublicPreviewSlimNav(primaryRole, roles);
   const usesUnlockVisibility =
     primaryRole === "INSTRUCTOR" ||
     (input.unlockedSections && (primaryRole === "STUDENT" || primaryRole === "PARENT"));
@@ -550,7 +530,13 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       // does not apply, since the CP gets those pages as first-class nav.
       const isChapterPresidentNav = shouldApplyChapterPresidentNavFilter(primaryRole);
 
-      if (ALWAYS_HIDDEN_HREFS.has(item.href) && !isChapterPresidentNav) return false;
+      if (
+        ALWAYS_HIDDEN_HREFS.has(item.href) &&
+        !isChapterPresidentNav &&
+        !(officerLayoutActive && OFFICER_UNHIDE_HREFS.has(item.href))
+      ) {
+        return false;
+      }
 
       if (isChapterPresidentNav && !CHAPTER_PRESIDENT_ALLOWED_HREFS.has(item.href)) {
         return false;
@@ -671,6 +657,10 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     visible = visible.map(applyChapterPresidentMinimalSidebarLayout);
   }
 
+  if (officerLayoutActive) {
+    visible = visible.map(applyOfficerNavLayout);
+  }
+
   const visibleByHref = new Map(visible.map((item) => [item.href, item]));
 
   const coreHrefList =
@@ -754,7 +744,11 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
                   chapterPresidentMinimalLinkOrderIndex(a.href) -
                   chapterPresidentMinimalLinkOrderIndex(b.href),
               )
-            : items;
+            : officerLayoutActive
+              ? [...items].sort(
+                  (a, b) => officerLinkOrderIndex(a.href) - officerLinkOrderIndex(b.href),
+                )
+              : items;
     return { label, items: sorted };
   });
 
@@ -764,5 +758,6 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     core,
     more,
     lockedGroups: unlockLockedGroups ?? undefined,
+    officerChrome: officerLayoutActive,
   };
 }
