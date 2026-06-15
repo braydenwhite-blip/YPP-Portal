@@ -520,6 +520,47 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
+      href: "/operations/instructor-pairing",
+      label: "Instructor pairing",
+      icon: "🧩",
+      // Guided pairing/coverage cockpit. Officer-tier (mirrors requireOfficer()).
+      coreEligible: false,
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Pairing",
+        "Instructor pairing",
+        "Coverage",
+        "Needs instructor",
+        "Pair instructor",
+        "Class coverage",
+        "Partner coverage",
+      ],
+      dashboardDescription:
+        "Which classes need instructors, who's a fit, and what pairing is blocked — as guided lanes, not a table.",
+      dashboardPriority: 6,
+    },
+    {
+      href: "/operations/advising",
+      label: "Advising center",
+      icon: "🎓",
+      // Guided student-advising cockpit. Officer-tier (mirrors requireOfficer()).
+      coreEligible: false,
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Advising",
+        "Advisors",
+        "Student advising",
+        "Needs advisor",
+        "Assign advisor",
+        "Kickoff",
+        "Follow-up",
+        "Advising command center",
+      ],
+      dashboardDescription:
+        "Which students need advisors, which pairings need a kickoff or follow-up, and who's overloaded — one guided cockpit.",
+      dashboardPriority: 6,
+    },
+    {
       href: "/people",
       label: "People Hub",
       icon: "👥",

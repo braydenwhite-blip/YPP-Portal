@@ -105,6 +105,10 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/chapter/hub": { group: "Programs", label: "Chapters", icon: "🏘" },
   "/pathways": { group: "Programs", label: "Pathways", icon: "🗺" },
 
+  // Guided operating cockpits (pairing + advising)
+  "/operations/instructor-pairing": { group: "People", label: "Instructor Pairing", icon: "🧩" },
+  "/operations/advising": { group: "People", label: "Advising Center", icon: "🎓" },
+
   // Partners — external relationships
   "/partners": { group: "Partners", label: "Partner Directory", icon: "🤝" },
   "/admin/partners": { group: "Partners", label: "Partner Pipeline", icon: "📊" },
@@ -141,6 +145,8 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/admin/instructor-applicants",
   "/admin/instructor-applicants/chair-queue",
   "/admin/students",
+  "/operations/instructor-pairing",
+  "/operations/advising",
   "/admin/leadership",
   "/admin/parent-feedback",
   "/interviews",

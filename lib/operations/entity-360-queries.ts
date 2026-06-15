@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { deriveClassNextAction } from "@/lib/class-next-action";
+import { deriveAdvisingLifecycle } from "@/lib/advising/relationship";
 import { instructorApplicationVisibilityWhere } from "@/lib/applications/application-visibility";
 import { isActionTrackerEnabled, isStrategicInitiativesEnabled } from "@/lib/feature-flags";
 import {
@@ -49,6 +50,7 @@ import {
   type Entity360,
   type Entity360Glance,
   type Entity360MeetingRef,
+  type Entity360Signal,
   type Entity360Status,
   type Entity360Tone,
   type Entity360Type,
@@ -201,7 +203,16 @@ async function loadPerson360(
         },
         advisorAssignments: {
           where: { isActive: true },
-          select: { id: true, student: { select: { id: true, name: true, email: true, title: true } } },
+          select: {
+            id: true,
+            advisingStatus: true,
+            needsFollowUp: true,
+            followUpNote: true,
+            lastCheckInAt: true,
+            nextCheckInDueAt: true,
+            startDate: true,
+            student: { select: { id: true, name: true, email: true, title: true } },
+          },
         },
       },
     }),
@@ -378,6 +389,62 @@ async function loadPerson360(
       : []),
   ];
 
+  // Advisor caseload (plan §12): when this person advises students, surface the
+  // concrete caseload — count, follow-ups, kickoffs, next check-in — as a signal
+  // + next step. Officer-facing; concrete facts, never a vague health score.
+  let advisorSignal: Entity360Signal | null = null;
+  let advisorNextStep: string | null = null;
+  if (officer && extra.advisorAssignments.length > 0) {
+    const lifecycles = extra.advisorAssignments.map((a) => ({
+      studentName: a.student.name ?? a.student.email,
+      life: deriveAdvisingLifecycle(
+        {
+          isActive: true,
+          advisingStatus: a.advisingStatus,
+          needsFollowUp: a.needsFollowUp,
+          followUpNote: a.followUpNote,
+          lastCheckInAt: a.lastCheckInAt,
+          nextCheckInDueAt: a.nextCheckInDueAt,
+          startDate: a.startDate,
+        },
+        now,
+      ),
+    }));
+    const total = lifecycles.length;
+    const kickoffs = lifecycles.filter((l) => l.life.lifecycle === "KICKOFF_NEEDED").length;
+    const followUps = lifecycles.filter(
+      (l) => l.life.lifecycle === "FOLLOW_UP_DUE" || l.life.lifecycle === "STALE",
+    ).length;
+    const nextDue = extra.advisorAssignments
+      .map((a) => a.nextCheckInDueAt)
+      .filter((d): d is Date => d != null)
+      .sort((x, y) => x.getTime() - y.getTime())[0];
+
+    glance.push({ label: "Advisees", value: String(total) });
+    if (followUps > 0) glance.push({ label: "Follow-ups due", value: String(followUps), tone: "overdue" });
+    if (kickoffs > 0) glance.push({ label: "Kickoffs needed", value: String(kickoffs), tone: "warning" });
+
+    const parts = [`${total} student${total === 1 ? "" : "s"}`];
+    if (followUps > 0) parts.push(`${followUps} follow-up${followUps === 1 ? "" : "s"} due`);
+    if (kickoffs > 0) parts.push(`${kickoffs} kickoff${kickoffs === 1 ? "" : "s"} not scheduled`);
+    if (nextDue) parts.push(`next check-in ${fmtDate(nextDue)}`);
+    advisorSignal = {
+      label: "Advising caseload",
+      tone: followUps > 0 || kickoffs > 0 ? "warning" : "success",
+      detail: parts.join(" · "),
+    };
+
+    const first =
+      lifecycles.find((l) => l.life.lifecycle === "KICKOFF_NEEDED") ??
+      lifecycles.find((l) => l.life.lifecycle === "FOLLOW_UP_DUE" || l.life.lifecycle === "STALE");
+    if (first) {
+      advisorNextStep =
+        first.life.lifecycle === "KICKOFF_NEEDED"
+          ? `Schedule kickoff with ${first.studentName}`
+          : `Follow up with ${first.studentName}`;
+    }
+  }
+
   const timeline = buildPersonTimeline(
     {
       joinedAt: extra.createdAt,
@@ -431,6 +498,7 @@ async function loadPerson360(
     initials: entityInitials(profile.name),
     avatarUrl: profile.avatarUrl,
     pageHref,
+    signal: advisorSignal,
     glance,
     facts,
     people,
@@ -460,7 +528,7 @@ async function loadPerson360(
       upcoming: m.date.getTime() >= now.getTime() && m.status !== "CANCELLED",
     })),
     timeline,
-    nextStep: nextStepFromWork(openWork),
+    nextStep: advisorNextStep ?? nextStepFromWork(openWork),
     risks,
     footnote: personFootnote(officer),
   };
@@ -478,6 +546,24 @@ const CLASS_STATUS_META: Record<string, Entity360Status> = {
 
 function classStatus(status: string): Entity360Status {
   return CLASS_STATUS_META[status] ?? { label: status, tone: "neutral" };
+}
+
+const ASSIGNMENT_STATUS_LABELS: Record<string, string> = {
+  SUGGESTED: "suggested",
+  PENDING_REVIEW: "pending",
+  OFFERED: "offered",
+  INSTRUCTOR_CONFIRMED: "instructor confirmed",
+  CHAPTER_CONFIRMED: "chapter confirmed",
+  FULLY_CONFIRMED: "confirmed",
+  NEEDS_TRAINING: "needs training",
+  NEEDS_CURRICULUM: "needs curriculum",
+  DECLINED: "declined",
+  REMOVED: "removed",
+  COMPLETED: "completed",
+};
+
+function classAssignmentStatusLabel(status: string): string {
+  return ASSIGNMENT_STATUS_LABELS[status] ?? status.toLowerCase();
 }
 
 async function loadClass360(
@@ -502,10 +588,40 @@ async function loadClass360(
       instructor: { select: { id: true, name: true, email: true, title: true } },
       chapter: { select: { name: true } },
       partner: { select: { id: true, name: true } },
+      regularInstructorAssignments: {
+        orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true,
+          role: true,
+          status: true,
+          instructor: { select: { id: true, name: true, email: true, title: true } },
+        },
+      },
       _count: { select: { enrollments: true, sessions: true } },
     },
   });
   if (!offering) return null;
+
+  // Instructor coverage read from the RegularInstructorAssignment lifecycle.
+  const asg = offering.regularInstructorAssignments;
+  const coverageLabel =
+    asg.some((a) => a.status === "FULLY_CONFIRMED")
+      ? "Fully covered"
+      : asg.some((a) => a.status === "INSTRUCTOR_CONFIRMED")
+        ? "Partner confirmation needed"
+        : asg.some((a) => a.status === "CHAPTER_CONFIRMED" || a.status === "OFFERED")
+          ? "Waiting on instructor"
+          : asg.some((a) => a.status === "NEEDS_TRAINING" || a.status === "NEEDS_CURRICULUM")
+            ? "Training needed"
+            : asg.some((a) => a.status === "SUGGESTED" || a.status === "PENDING_REVIEW")
+              ? "Suggested match"
+              : offering.instructor
+                ? "Instructor assigned"
+                : "Needs instructor";
+  const coverageGap =
+    coverageLabel === "Needs instructor" ||
+    coverageLabel === "Partner confirmation needed" ||
+    coverageLabel === "Training needed";
 
   const [actions, meetings, nextSession, outcome, feedbackCount] = await Promise.all([
     getActionsForEntity("CLASS_OFFERING", id, viewer),
@@ -545,6 +661,9 @@ async function loadClass360(
   const risks: string[] = [];
   if (overdueHere > 0) {
     risks.push(`${overdueHere} linked action${overdueHere === 1 ? " is" : "s are"} overdue.`);
+  }
+  if (coverageGap) {
+    risks.push(`Instructor coverage: ${coverageLabel}.`);
   }
 
   const students = offering._count.enrollments;
@@ -618,19 +737,30 @@ async function loadClass360(
         value: [offering.meetingDays.join("/"), offering.meetingTime].filter(Boolean).join(" · ") || "Not set",
       },
       { label: "Delivery", value: offering.deliveryMode },
+      { label: "Instructor coverage", value: coverageLabel },
       ...(offering.chapter ? [{ label: "Chapter", value: offering.chapter.name }] : []),
       ...(offering.partner ? [{ label: "Partner", value: offering.partner.name }] : []),
     ],
-    people: offering.instructor
-      ? [
-          {
-            id: offering.instructor.id,
-            name: offering.instructor.name ?? offering.instructor.email,
-            title: offering.instructor.title,
-            relationship: "Lead Instructor",
-          },
-        ]
-      : [],
+    people: [
+      ...(offering.instructor
+        ? [
+            {
+              id: offering.instructor.id,
+              name: offering.instructor.name ?? offering.instructor.email,
+              title: offering.instructor.title,
+              relationship: "Lead Instructor",
+            },
+          ]
+        : []),
+      ...asg
+        .filter((a) => a.instructor.id !== offering.instructor?.id)
+        .map((a) => ({
+          id: a.instructor.id,
+          name: a.instructor.name ?? a.instructor.email,
+          title: a.instructor.title,
+          relationship: `${a.role.replace("_", " ").toLowerCase()} · ${classAssignmentStatusLabel(a.status)}`,
+        })),
+    ],
     classes: [],
     workItems,
     meetings: meetingDtos.map(meetingRef),
@@ -680,6 +810,8 @@ async function loadPartner360(
           title: true,
           semester: true,
           status: true,
+          instructor: { select: { id: true } },
+          regularInstructorAssignments: { select: { status: true } },
           _count: { select: { enrollments: true } },
         },
       },
@@ -752,6 +884,34 @@ async function loadPartner360(
     if (request.dueAt && request.dueAt.getTime() < now.getTime()) {
       risks.push(`Request overdue: ${request.title}`);
     }
+  }
+
+  // Instructor coverage across the partner's classes — the operational
+  // readiness read leadership cares about, not just relationship pipeline.
+  const partnerCoverage = partner.classOfferings.map((c) => {
+    const s = c.regularInstructorAssignments.map((a) => a.status);
+    const label = s.includes("FULLY_CONFIRMED")
+      ? "Fully covered"
+      : s.includes("INSTRUCTOR_CONFIRMED")
+        ? "Partner confirmation needed"
+        : s.some((x) => x === "CHAPTER_CONFIRMED" || x === "OFFERED")
+          ? "Waiting on instructor"
+          : s.some((x) => x === "NEEDS_TRAINING" || x === "NEEDS_CURRICULUM")
+            ? "Training needed"
+            : s.some((x) => x === "SUGGESTED" || x === "PENDING_REVIEW")
+              ? "Suggested match"
+              : c.instructor
+                ? "Instructor assigned"
+                : "Needs instructor";
+    const covered = label === "Fully covered" || label === "Instructor assigned";
+    return { id: c.id, title: c.title, label, covered };
+  });
+  const coverageGaps = partnerCoverage.filter((c) => !c.covered);
+  if (!partner.relationshipLead) {
+    risks.push("No relationship lead — partner coverage is unowned.");
+  }
+  for (const gap of coverageGaps.slice(0, 4)) {
+    risks.push(`${gap.title}: ${gap.label.toLowerCase()}.`);
   }
 
   // Relationship-operations reads (concrete, never a composite score).
@@ -830,6 +990,9 @@ async function loadPartner360(
         : []),
       { label: "Meetings", value: String(meetingDtos.length) },
       { label: "Classes", value: String(partner.classOfferings.length) },
+      ...(coverageGaps.length > 0
+        ? [{ label: "Coverage gaps", value: String(coverageGaps.length), tone: "warning" as const }]
+        : []),
       {
         label: "Last contact",
         value: recencyLabel(
@@ -934,6 +1097,7 @@ async function loadPartner360(
       context: [
         c.semester,
         `${c._count.enrollments} student${c._count.enrollments === 1 ? "" : "s"}`,
+        partnerCoverage.find((pc) => pc.id === c.id)?.label,
       ]
         .filter(Boolean)
         .join(" · "),
