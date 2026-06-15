@@ -5,16 +5,16 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     pattern: "/command-center",
     title: "Command Center",
     content: {
-      purpose: "Your daily operating cockpit: today's mission, what to do first, the current meeting, the decisions that matter, and who you're waiting on.",
-      firstStep: "Read the mission, then start the loop in the Now card — it's the single most pressing thing.",
-      nextStep: "Work the Now / Next / Later sequence, then open Decide, Meet, or Follow Up from the cards as needed.",
+      purpose: "Start here each day: your mission, your next move, the current meeting, the decisions that matter, and who you're waiting on.",
+      firstStep: "Read the mission, then press Start now on Today's focus — it's the single most pressing thing.",
+      nextStep: "Work the focus card, then open the next meeting, decision, or waiting-on from the supporting cards as needed.",
     },
   },
   {
     pattern: "/decide",
     title: "Decide",
     content: {
-      purpose: "The decision operating system: leadership choices, ownership gaps, and blockers aggregated into clear decision items.",
+      purpose: "Decisions that need you: leadership choices, ownership gaps, and blockers gathered into clear decision items.",
       firstStep: "Open the focus decision and choose an option, assign an owner, or add it to a meeting.",
       nextStep: "Clear the Needs decision today lane, then check Needs owner and Needs meeting before the decision log.",
     },
@@ -41,7 +41,7 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     pattern: "/meet",
     title: "Meet",
     content: {
-      purpose: "Meetings as live operating rooms: prep before, run during, and wrap up after — with connected actions, decisions, and open loops alongside.",
+      purpose: "Run your meetings: prep before, run during, and wrap up after — with connected actions, decisions, and open follow-ups alongside.",
       firstStep: "Open the current or next meeting and use the Before / During / After switcher for the phase you're in.",
       nextStep: "Capture decisions and actions into the meeting record, then close the open follow-ups in the context rail.",
     },

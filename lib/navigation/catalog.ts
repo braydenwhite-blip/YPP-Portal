@@ -512,7 +512,7 @@ export const NAV_CATALOG: NavLink[] = [
         "What matters today",
       ],
       dashboardDescription:
-        "Your daily operating cockpit — mission, what's next, today's meeting, and decisions.",
+        "Start here — your mission, your next move, today's meeting, and decisions.",
       dashboardPriority: 5,
     },
     {
@@ -521,9 +521,27 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "📥",
       // The one-card-at-a-time queue runner (Resolve / Delegate / Discuss / Defer).
       roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: ["My Queue", "Queue", "Run my queue", "Triage", "Loops"],
-      dashboardDescription: "Run your ranked queue one loop at a time.",
+      searchAliases: ["My Queue", "Queue", "Run my queue", "Triage", "Loops", "Clear work"],
+      dashboardDescription: "Clear your work one item at a time.",
       dashboardPriority: 6,
+    },
+    {
+      href: "/browse",
+      label: "Browse",
+      icon: "🗂️",
+      // The database mode — one front door to every record list and search.
+      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Browse",
+        "Database",
+        "All records",
+        "Search records",
+        "Find a record",
+        "Directory",
+        "Raw data",
+      ],
+      dashboardDescription: "Search every record — people, partners, actions, meetings, and more.",
+      dashboardPriority: 7,
     },
     {
       href: "/decide",
@@ -576,7 +594,7 @@ export const NAV_CATALOG: NavLink[] = [
         "Live notes",
       ],
       dashboardDescription:
-        "Run meetings as live operating rooms — prep, run, and wrap up.",
+        "Run your meetings — prep before, run during, wrap up after.",
       dashboardPriority: 6,
     },
     {

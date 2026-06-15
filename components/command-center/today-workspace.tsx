@@ -8,28 +8,26 @@ import {
   WorkspaceHeader,
   WorkspaceShell,
 } from "@/components/queue";
-import { ButtonLink, cn } from "@/components/ui-v2";
+import { ButtonLink } from "@/components/ui-v2";
 import type { CcMeeting, CcStep, TodayWorkspaceVM } from "@/lib/command-center";
 
-import { CommandModeProvider, CommandModeToggle, useIsExecutive } from "./command-mode";
-import { CcIcon } from "./icons";
+import { CommandModeProvider, CommandModeToggle, ExecutiveOnly, useIsExecutive } from "./command-mode";
+import { CcIcon, type CcIconName } from "./icons";
 import {
-  Avatar,
   ChangeList,
-  EmptyHint,
   ItemRow,
   MissionBriefCard,
   PanelCard,
   StatChip,
   ViewAllLink,
-  WaitingOnRows,
 } from "./primitives";
 
 /**
- * Command Center / Today — the default daily operating cockpit. Mission, a
- * guided Now / Next / Later sequence, the current meeting, today's decisions,
- * who we're waiting on, and what just changed. One obvious next move; Browse all
- * is demoted to the bottom.
+ * Command Center / Today — the daily home. It answers one question: what should
+ * I do right now? Calm mode shows the mission, ONE big focus card (the next
+ * move), three supporting cards (next meeting, a decision, who we're waiting on),
+ * recent changes, and a collapsed Browse all — nothing else. Executive mode adds
+ * the Now / Next / Later flow, the metric chips, and a launcher row.
  */
 
 const PHASE_META: Record<CcStep["phase"], { label: string; index: number }> = {
@@ -74,85 +72,163 @@ function FlowConnector() {
   );
 }
 
-function TodayMeetingCard({ meeting }: { meeting: CcMeeting }) {
-  const reviewed = meeting.agendaCount > 0 ? `${meeting.agendaDoneCount} of ${meeting.agendaCount} reviewed` : null;
-  const progress = meeting.agendaCount > 0 ? Math.round((meeting.agendaDoneCount / meeting.agendaCount) * 100) : 0;
-  return (
-    <PanelCard icon="calendar" title="Today's Meeting" className="h-full">
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-bold",
-              meeting.live ? "bg-brand-600 text-white" : "bg-brand-50 text-brand-700"
-            )}
-          >
-            {meeting.live ? <span className="size-1.5 animate-pulse rounded-full bg-white" /> : null}
-            {meeting.statusLabel}
-          </span>
-          <span className="text-[12.5px] font-semibold text-ink-muted">{meeting.timeLabel}</span>
+/** The one big "what should I do right now?" card — the daily next move. */
+function FocusCard({ step }: { step: CcStep | null }) {
+  if (!step) {
+    return (
+      <section className="flex flex-col items-start gap-3 rounded-[20px] border border-line-soft bg-gradient-to-br from-success-100/40 via-surface to-surface/90 p-5 shadow-card backdrop-blur sm:flex-row sm:items-center sm:gap-5 sm:p-6">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-[16px] bg-success-100 text-success-700">
+          <CcIcon name="check" size={26} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="m-0 mb-1 text-[12px] font-bold uppercase tracking-[0.12em] text-success-700">Today&apos;s focus</p>
+          <p className="m-0 text-[20px] font-bold leading-snug tracking-[-0.01em] text-ink">You&apos;re all clear.</p>
+          <p className="m-0 mt-1 text-[13.5px] text-ink-muted">Nothing urgent right now — review upcoming meetings or plan next week.</p>
         </div>
-        <div>
-          <h4 className="m-0 text-[18px] font-bold text-ink">{meeting.title}</h4>
-          {meeting.location ? (
-            <p className="m-0 mt-0.5 flex items-center gap-1 text-[12.5px] text-ink-muted">
-              <CcIcon name="compass" size={13} /> {meeting.location}
-            </p>
-          ) : null}
-        </div>
-        {meeting.purpose ? (
-          <div>
-            <p className="m-0 text-[12px] font-bold uppercase tracking-[0.08em] text-ink-muted">Purpose</p>
-            <p className="m-0 mt-0.5 text-[13px] text-ink">{meeting.purpose}</p>
-          </div>
-        ) : null}
-        {reviewed ? (
-          <div>
-            <div className="flex items-center justify-between text-[12.5px]">
-              <span className="font-bold text-ink">Prep needed</span>
-              <span className="text-ink-muted">{reviewed}</span>
-            </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-brand-50">
-              <div className="h-full rounded-full bg-brand-500" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        ) : null}
-        {meeting.openFollowUps > 0 ? (
-          <p className="m-0 text-[12.5px] text-ink-muted">
-            <span className="font-bold text-warning-700">{meeting.openFollowUps}</span> open follow-ups before the
-            meeting.
-          </p>
-        ) : null}
-        <ButtonLink href={`/meet?m=${meeting.id}`} variant="primary" size="md" className="mt-1 w-full justify-center">
-          Prep meeting →
+        <ButtonLink href="/work/queue" variant="secondary" size="md">
+          Open My Queue →
         </ButtonLink>
+      </section>
+    );
+  }
+  return (
+    <section className="flex flex-col gap-4 rounded-[20px] border border-line-soft bg-gradient-to-br from-brand-50/70 via-surface to-surface/90 p-5 shadow-card backdrop-blur sm:flex-row sm:items-center sm:gap-5 sm:p-6">
+      <span className="flex size-14 shrink-0 items-center justify-center rounded-[16px] bg-brand-100 text-brand-700">
+        <CcIcon name={(step.icon as CcIconName) ?? "target"} size={26} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="m-0 mb-1 text-[12px] font-bold uppercase tracking-[0.12em] text-brand-700">Today&apos;s focus</p>
+        <p className="m-0 text-[21px] font-bold leading-snug tracking-[-0.01em] text-ink">{step.title}</p>
+        <p className="m-0 mt-1 text-[13.5px] leading-relaxed text-ink-muted">{step.detail}</p>
       </div>
-    </PanelCard>
+      <ButtonLink href={step.ctaHref} variant="primary" size="md" className="shrink-0">
+        {step.ctaLabel ?? "Start now"} →
+      </ButtonLink>
+    </section>
   );
 }
 
-function DecisionMiniCard({ vm }: { vm: TodayWorkspaceVM["decisions"][number] }) {
-  const action = vm.signals.missingOwner ? "Assign owner" : "Review & decide";
+/** Clean supporting card — icon + small eyebrow, content, one quiet link. */
+function SupportingCard({
+  icon,
+  eyebrow,
+  children,
+  footer,
+}: {
+  icon: CcIconName;
+  eyebrow: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-2.5 rounded-[14px] border border-line-soft bg-surface-soft/50 p-3.5">
-      <div className="flex items-start gap-2.5">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-brand-100 text-brand-700">
-          <CcIcon name={vm.signals.missingOwner ? "user" : "scale"} size={18} />
+    <section className="flex flex-col rounded-[16px] border border-line-soft bg-surface/80 p-4 shadow-card backdrop-blur">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="flex size-8 items-center justify-center rounded-[10px] bg-brand-50 text-brand-700">
+          <CcIcon name={icon} size={16} />
         </span>
-        <div className="min-w-0">
-          <p className="m-0 text-[14px] font-bold leading-snug text-ink">{vm.title}</p>
-          <p className="m-0 mt-0.5 text-[12.5px] leading-snug text-ink-muted">{vm.why}</p>
-        </div>
+        <span className="text-[12px] font-bold uppercase tracking-[0.08em] text-ink-muted">{eyebrow}</span>
       </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-muted">
-          <Avatar name={vm.ownerName} size="sm" />
-          {vm.ownerName ?? "Unassigned"}
-        </span>
-        <ButtonLink href={vm.primaryAction.href} variant="secondary" size="sm">
-          {action} →
-        </ButtonLink>
-      </div>
+      <div className="flex-1">{children}</div>
+      {footer ? <div className="mt-3">{footer}</div> : null}
+    </section>
+  );
+}
+
+function NextMeetingCard({ meeting }: { meeting: CcMeeting | null }) {
+  if (!meeting) {
+    return (
+      <SupportingCard icon="calendar" eyebrow="Next meeting">
+        <p className="m-0 text-[13px] text-ink-muted">No meeting scheduled. You&apos;re clear.</p>
+      </SupportingCard>
+    );
+  }
+  return (
+    <SupportingCard
+      icon="calendar"
+      eyebrow="Next meeting"
+      footer={<ViewAllLink href={`/meet?m=${meeting.id}`}>Prep meeting</ViewAllLink>}
+    >
+      <p className="m-0 text-[16px] font-bold leading-snug text-ink">{meeting.title}</p>
+      <p className="m-0 mt-1 text-[12.5px] text-ink-muted">{meeting.timeLabel}</p>
+      {meeting.location ? <p className="m-0 text-[12.5px] text-ink-muted">{meeting.location}</p> : null}
+    </SupportingCard>
+  );
+}
+
+function DecisionCard({ decision }: { decision: TodayWorkspaceVM["decisions"][number] | null }) {
+  if (!decision) {
+    return (
+      <SupportingCard icon="scale" eyebrow="Decision">
+        <p className="m-0 text-[13px] text-ink-muted">No decisions need you today.</p>
+      </SupportingCard>
+    );
+  }
+  const label = decision.signals.missingOwner ? "Assign owner" : "View decision";
+  return (
+    <SupportingCard
+      icon="scale"
+      eyebrow="Decision"
+      footer={<ViewAllLink href={decision.primaryAction.href}>{label}</ViewAllLink>}
+    >
+      <p className="m-0 text-[16px] font-bold leading-snug text-ink">{decision.title}</p>
+      <p className="m-0 mt-1 text-[12.5px] leading-snug text-ink-muted">{decision.why}</p>
+    </SupportingCard>
+  );
+}
+
+function WaitingOnCard({
+  items,
+  count,
+}: {
+  items: TodayWorkspaceVM["waitingOn"];
+  count: number;
+}) {
+  return (
+    <SupportingCard
+      icon="hourglass"
+      eyebrow="Waiting on"
+      footer={count > 0 ? <ViewAllLink href="/follow-up">View all ({count})</ViewAllLink> : null}
+    >
+      {items.length > 0 ? (
+        <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+          {items.slice(0, 2).map((item) => {
+            const person = item.relatedPerson?.label ?? item.ownerName ?? "Unassigned";
+            return (
+              <li key={item.id} className="min-w-0">
+                <p className="m-0 truncate text-[14px] font-semibold text-ink">{person}</p>
+                <p className="m-0 truncate text-[12px] text-ink-muted">{item.title}</p>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="m-0 text-[13px] text-ink-muted">No one is blocking active work.</p>
+      )}
+    </SupportingCard>
+  );
+}
+
+const LAUNCHERS: { href: string; label: string; icon: CcIconName }[] = [
+  { href: "/decide", label: "Decide", icon: "scale" },
+  { href: "/delegate", label: "Delegate", icon: "users" },
+  { href: "/meet", label: "Meet", icon: "calendar" },
+  { href: "/review", label: "Review", icon: "activity" },
+  { href: "/follow-up", label: "Follow Up", icon: "inbox" },
+];
+
+function LauncherRow() {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {LAUNCHERS.map((tool) => (
+        <Link
+          key={tool.href}
+          href={tool.href}
+          className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-surface/80 px-3 py-1.5 text-[12.5px] font-semibold text-ink-muted shadow-card transition-colors hover:text-ink"
+        >
+          <CcIcon name={tool.icon} size={14} className="text-brand-600" />
+          {tool.label}
+        </Link>
+      ))}
     </div>
   );
 }
@@ -160,8 +236,6 @@ function DecisionMiniCard({ vm }: { vm: TodayWorkspaceVM["decisions"][number] })
 function TodayInner({ vm, nowISO }: { vm: TodayWorkspaceVM; nowISO: string }) {
   const now = new Date(nowISO);
   const executive = useIsExecutive();
-  const decisions = executive ? vm.decisions : vm.decisions.slice(0, 2);
-  const waitingMax = executive ? 5 : 2;
   const changesMax = executive ? vm.recentlyChanged.length : 3;
 
   return (
@@ -183,90 +257,69 @@ function TodayInner({ vm, nowISO }: { vm: TodayWorkspaceVM; nowISO: string }) {
           </div>
         }
       >
-        <div className="flex flex-wrap gap-2">
-          <StatChip value={vm.counts.open} label="open now" />
-          <StatChip value={vm.counts.overdue} label="overdue" tone="danger" />
-          <StatChip value={vm.counts.needsDecision} label="need a decision" tone="brand" />
-          <StatChip value={vm.counts.waiting} label="waiting on" tone="info" />
-          <StatChip value={vm.counts.clearedThisWeek} label="cleared this week" tone="success" />
-        </div>
+        <ExecutiveOnly>
+          <div className="flex flex-wrap gap-2">
+            <StatChip value={vm.counts.open} label="open now" />
+            <StatChip value={vm.counts.overdue} label="overdue" tone="danger" />
+            <StatChip value={vm.counts.needsDecision} label="need a decision" tone="brand" />
+            <StatChip value={vm.counts.waiting} label="waiting on" tone="info" />
+            <StatChip value={vm.counts.clearedThisWeek} label="cleared this week" tone="success" />
+          </div>
+        </ExecutiveOnly>
       </WorkspaceHeader>
 
       <WorkspaceBody>
-        <MissionBriefCard eyebrow="Today's mission" headline={vm.mission} />
+        {/* The one obvious next move. */}
+        <FocusCard step={vm.flow.now ?? null} />
 
-        <section aria-label="Now, next, later" className="flex flex-col gap-2 lg:flex-row">
-          {vm.flow.now ? <FlowStep step={vm.flow.now} /> : null}
-          {vm.flow.now && vm.flow.next ? <FlowConnector /> : null}
-          {vm.flow.next ? <FlowStep step={vm.flow.next} /> : null}
-          {vm.flow.next && vm.flow.later ? <FlowConnector /> : null}
-          {vm.flow.later ? <FlowStep step={vm.flow.later} /> : null}
-          {!vm.flow.now && !vm.flow.next && !vm.flow.later ? (
-            <EmptyHint>Your queue is clear. Review upcoming meetings or plan next week.</EmptyHint>
+        {/* Executive mode reveals the full mission + Now / Next / Later sequence. */}
+        <ExecutiveOnly>
+          <MissionBriefCard eyebrow="Today's mission" headline={vm.mission} />
+          {vm.flow.now || vm.flow.next || vm.flow.later ? (
+            <section aria-label="Now, next, later" className="flex flex-col gap-2 lg:flex-row">
+              {vm.flow.now ? <FlowStep step={vm.flow.now} /> : null}
+              {vm.flow.now && vm.flow.next ? <FlowConnector /> : null}
+              {vm.flow.next ? <FlowStep step={vm.flow.next} /> : null}
+              {vm.flow.next && vm.flow.later ? <FlowConnector /> : null}
+              {vm.flow.later ? <FlowStep step={vm.flow.later} /> : null}
+            </section>
           ) : null}
-        </section>
+        </ExecutiveOnly>
 
+        {/* Three supporting cards — next meeting, a decision, who we're waiting on. */}
         <div className="grid gap-4 lg:grid-cols-3">
-          {vm.meeting ? (
-            <TodayMeetingCard meeting={vm.meeting} />
-          ) : (
-            <PanelCard icon="calendar" title="Today's Meeting">
-              <EmptyHint>No meeting scheduled today. Review upcoming meetings in Meet.</EmptyHint>
-            </PanelCard>
-          )}
-
-          <PanelCard
-            icon="scale"
-            title="Today's Decisions"
-            action={<ViewAllLink href="/decide">View all decisions</ViewAllLink>}
-          >
-            {decisions.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                {decisions.map((decision) => (
-                  <DecisionMiniCard key={decision.id} vm={decision} />
-                ))}
-              </div>
-            ) : (
-              <EmptyHint>No decisions need you today. Nice and clear.</EmptyHint>
-            )}
-          </PanelCard>
-
-          <div className="flex flex-col gap-4">
-            <PanelCard
-              icon="hourglass"
-              title="Waiting On"
-              action={
-                vm.waitingOnCount > 0 ? (
-                  <ViewAllLink href="/follow-up">View all ({vm.waitingOnCount})</ViewAllLink>
-                ) : null
-              }
-            >
-              <WaitingOnRows items={vm.waitingOn} now={now} max={waitingMax} />
-            </PanelCard>
-            <PanelCard
-              icon="activity"
-              title="Recently Changed"
-              action={<ViewAllLink href="/review">View all activity</ViewAllLink>}
-            >
-              <ChangeList
-                changes={vm.recentlyChanged.slice(0, changesMax)}
-                emptyHint="Nothing has changed in the last few days."
-              />
-            </PanelCard>
-          </div>
+          <NextMeetingCard meeting={vm.meeting} />
+          <DecisionCard decision={vm.decisions[0] ?? null} />
+          <WaitingOnCard items={vm.waitingOn} count={vm.waitingOnCount} />
         </div>
+
+        {/* Recent changes — a calm, full-width activity strip. */}
+        <PanelCard
+          icon="activity"
+          title="Recent changes"
+          action={<ViewAllLink href="/review">View all activity</ViewAllLink>}
+        >
+          <ChangeList
+            changes={vm.recentlyChanged.slice(0, changesMax)}
+            emptyHint="Nothing has changed in the last few days."
+          />
+        </PanelCard>
+
+        <ExecutiveOnly>
+          <LauncherRow />
+        </ExecutiveOnly>
 
         <BrowseAllPanel
           label="Browse all"
-          hint="Explore all meetings, initiatives, actions, and people."
+          hint="Search meetings, initiatives, actions, people, and more."
         >
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
               {[
+                { href: "/browse", label: "Browse records" },
                 { href: "/work", label: "All work" },
                 { href: "/actions/meetings", label: "Meetings" },
                 { href: "/operations/initiatives", label: "Initiatives" },
-                { href: "/actions", label: "Actions" },
                 { href: "/people", label: "People" },
               ].map((link) => (
                 <Link

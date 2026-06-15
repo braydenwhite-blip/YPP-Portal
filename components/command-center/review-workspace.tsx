@@ -17,7 +17,7 @@ import type {
   ReviewWorkspaceVM,
 } from "@/lib/command-center";
 
-import { CommandModeProvider, CommandModeToggle, useIsExecutive } from "./command-mode";
+import { CommandModeProvider, CommandModeToggle, ExecutiveOnly, useIsExecutive } from "./command-mode";
 import { CcIcon, type CcIconName } from "./icons";
 import { Avatar, ChangeRow, EmptyHint, PanelCard, ViewAllLink } from "./primitives";
 
@@ -180,16 +180,23 @@ function ReviewInner({ vm }: { vm: ReviewWorkspaceVM }) {
               <p className="m-0 mt-0.5 max-w-xl text-[14.5px] font-semibold leading-snug text-ink">{vm.brief}</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            <ReviewStat value={vm.summary.actionsMoved} label="Actions moved" toneClass="border-success-700/20 bg-success-100/40 text-success-700" />
-            <ReviewStat value={vm.summary.overdue} label="Overdue" toneClass="border-danger-700/20 bg-danger-100/40 text-danger-700" />
-            <ReviewStat value={vm.summary.initiativesNeedNextSteps} label="Need next steps" toneClass="border-warning-700/20 bg-warning-100/40 text-warning-700" />
-            <ReviewStat value={vm.summary.unresolvedFollowUp} label="Unresolved follow-up" toneClass="border-brand-200/60 bg-brand-50/70 text-brand-700" />
-            <ReviewStat value={vm.summary.totalChanges} label="Total changes" toneClass="border-info-700/20 bg-info-100/40 text-info-700" />
-          </div>
+          <ExecutiveOnly>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              <ReviewStat value={vm.summary.actionsMoved} label="Actions moved" toneClass="border-success-700/20 bg-success-100/40 text-success-700" />
+              <ReviewStat value={vm.summary.overdue} label="Overdue" toneClass="border-danger-700/20 bg-danger-100/40 text-danger-700" />
+              <ReviewStat value={vm.summary.initiativesNeedNextSteps} label="Need next steps" toneClass="border-warning-700/20 bg-warning-100/40 text-warning-700" />
+              <ReviewStat value={vm.summary.unresolvedFollowUp} label="Unresolved follow-up" toneClass="border-brand-200/60 bg-brand-50/70 text-brand-700" />
+              <ReviewStat value={vm.summary.totalChanges} label="Total changes" toneClass="border-info-700/20 bg-info-100/40 text-info-700" />
+            </div>
+          </ExecutiveOnly>
         </section>
 
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div
+          className={cn(
+            "grid items-start gap-4",
+            executive ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""
+          )}
+        >
           <div className="flex flex-col gap-4">
             <div className="grid gap-4 md:grid-cols-2">
               <PanelCard icon="activity" title="What Changed" action={<ViewAllLink href="/work">View all</ViewAllLink>}>
@@ -216,7 +223,7 @@ function ReviewInner({ vm }: { vm: ReviewWorkspaceVM }) {
               </PanelCard>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+            <div className={cn("grid gap-4", executive ? "lg:grid-cols-[280px_minmax(0,1fr)]" : "")}>
               <PanelCard icon="check" title="Review Session">
                 <div className="flex flex-col gap-2">
                   {vm.reviewSession.map((step) => (
@@ -227,47 +234,51 @@ function ReviewInner({ vm }: { vm: ReviewWorkspaceVM }) {
                   </ButtonLink>
                 </div>
               </PanelCard>
-              <PanelCard icon="flag" title="Initiative Review Rooms" action={<ViewAllLink href="/operations/initiatives">View all initiatives</ViewAllLink>}>
-                {initiatives.length > 0 ? (
-                  <div className="flex flex-col gap-2">
-                    {initiatives.map((room) => (
-                      <InitiativeRoomRow key={room.id} room={room} />
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyHint>No active initiatives to review.</EmptyHint>
-                )}
-              </PanelCard>
+              <ExecutiveOnly>
+                <PanelCard icon="flag" title="Initiative Review Rooms" action={<ViewAllLink href="/operations/initiatives">View all initiatives</ViewAllLink>}>
+                  {initiatives.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      {initiatives.map((room) => (
+                        <InitiativeRoomRow key={room.id} room={room} />
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyHint>No active initiatives to review.</EmptyHint>
+                  )}
+                </PanelCard>
+              </ExecutiveOnly>
             </div>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <PanelCard icon="activity" title="Recent Changes Timeline" action={<ViewAllLink href="/work">View all activity</ViewAllLink>}>
-              {hasTimeline ? (
-                <div className="flex flex-col gap-3">
-                  <TimelineGroup label="Today" changes={vm.recentChanges.today} />
-                  <TimelineGroup label="Yesterday" changes={vm.recentChanges.yesterday} />
-                  <TimelineGroup label="Earlier" changes={vm.recentChanges.earlier} />
-                </div>
-              ) : (
-                <EmptyHint>No recent activity to show.</EmptyHint>
-              )}
-            </PanelCard>
-            <PanelCard icon="target" title="Focus for Next Week">
-              {vm.focusNextWeek.length > 0 ? (
-                <ul className="m-0 flex list-none flex-col gap-2 p-0">
-                  {vm.focusNextWeek.map((focus) => (
-                    <li key={focus} className="flex items-start gap-2 text-[13px] text-ink">
-                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand-500" />
-                      {focus}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyHint>Next week is clear so far.</EmptyHint>
-              )}
-            </PanelCard>
-          </div>
+          <ExecutiveOnly>
+            <div className="flex flex-col gap-4">
+              <PanelCard icon="activity" title="Recent Changes Timeline" action={<ViewAllLink href="/work">View all activity</ViewAllLink>}>
+                {hasTimeline ? (
+                  <div className="flex flex-col gap-3">
+                    <TimelineGroup label="Today" changes={vm.recentChanges.today} />
+                    <TimelineGroup label="Yesterday" changes={vm.recentChanges.yesterday} />
+                    <TimelineGroup label="Earlier" changes={vm.recentChanges.earlier} />
+                  </div>
+                ) : (
+                  <EmptyHint>No recent activity to show.</EmptyHint>
+                )}
+              </PanelCard>
+              <PanelCard icon="target" title="Focus for Next Week">
+                {vm.focusNextWeek.length > 0 ? (
+                  <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                    {vm.focusNextWeek.map((focus) => (
+                      <li key={focus} className="flex items-start gap-2 text-[13px] text-ink">
+                        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand-500" />
+                        {focus}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <EmptyHint>Next week is clear so far.</EmptyHint>
+                )}
+              </PanelCard>
+            </div>
+          </ExecutiveOnly>
         </div>
 
         <BrowseAllPanel label="Browse all review data" hint="Explore all actions, initiatives, meetings, decisions, and changes.">

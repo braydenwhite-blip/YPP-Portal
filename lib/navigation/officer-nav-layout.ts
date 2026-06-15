@@ -5,10 +5,12 @@ import type { NavGroup, NavLink, NavRole } from "@/lib/navigation/types";
  *
  * Admins, staff, and hiring chairs run the whole organization, so their sidebar
  * is organized into one coherent set of human-readable sections instead of a
- * pile of separate tools:
+ * pile of separate tools. The model collapses to three primary choices:
  *
- *   Command   — Home, what needs attention, the Help Agent
- *   Work      — all work: actions, meetings, initiatives, follow-ups
+ *   Start     — the three primary choices: Command Center, My Queue, Browse
+ *   Work      — the work records: actions, meetings, initiatives, scheduling
+ *   Modes     — the contextual operating modes (Decide, Delegate, Meet, Review,
+ *               Follow Up), collapsed by default — reach them from Command Center
  *   People    — the people directory, instructors, applicants, reviews
  *   Programs  — classes, curriculum, training, chapters
  *   Partners  — partner relationships and the partner pipeline
@@ -32,12 +34,14 @@ const OFFICER_LAYOUT_ROLES: ReadonlySet<NavRole> = new Set<NavRole>([
 ]);
 
 /**
- * The seven operating-system sections, shown expanded by default so the whole
- * leadership toolset is visible at a glance. Personal / long-tail sections
- * (Profile & Settings, etc.) stay collapsed beneath them to keep it calm.
+ * Operating-system sections shown expanded by default so the toolset is visible
+ * at a glance. "Modes" is deliberately NOT here: the contextual operating modes
+ * (Decide / Delegate / Meet / Review / Follow Up) stay collapsed so they don't
+ * compete with the three primary choices in Start. Personal / long-tail sections
+ * (Profile & Settings, etc.) also stay collapsed beneath these to keep it calm.
  */
 export const OFFICER_PRIMARY_GROUPS: ReadonlySet<NavGroup> = new Set<NavGroup>([
-  "Command",
+  "Start",
   "Work",
   "People",
   "Programs",
@@ -48,8 +52,9 @@ export const OFFICER_PRIMARY_GROUPS: ReadonlySet<NavGroup> = new Set<NavGroup>([
 
 /** Section emoji shown on each officer sidebar group header. */
 export const OFFICER_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
-  Command: "🧭",
+  Start: "🧭",
   Work: "🎛️",
+  Modes: "🧰",
   People: "👥",
   Programs: "🎓",
   Partners: "🤝",
@@ -69,28 +74,30 @@ export const OFFICER_UNHIDE_HREFS: ReadonlySet<string> = new Set<string>([
 ]);
 
 const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: string }> = {
-  // Command — start your day here
-  "/": { group: "Command", label: "Home", icon: "▣" },
-  "/command-center": { group: "Command", label: "Command Center", icon: "🛰️" },
-  "/operations": { group: "Command", label: "Needs Attention", icon: "🧭" },
-  "/help-agent": { group: "Command", label: "Help Agent", icon: "🔎" },
-  "/announcements": { group: "Command", label: "Updates", icon: "📢" },
+  // Start — the three primary choices. Start here, clear work, or browse records.
+  // (Home is pinned in the "Start" Top-of-sidebar strip via the core map.)
+  "/": { group: "Start", label: "Home", icon: "▣" },
+  "/command-center": { group: "Start", label: "Command Center", icon: "🛰️" },
+  "/work/queue": { group: "Start", label: "My Queue", icon: "📥" },
+  "/browse": { group: "Start", label: "Browse", icon: "🗂️" },
 
-  // Work — everything that needs doing, in one place
+  // Work — the work records: actions, meetings, initiatives, scheduling.
   "/work": { group: "Work", label: "Work", icon: "🎛️" },
-  "/work/queue": { group: "Work", label: "My Queue", icon: "📥" },
   "/actions": { group: "Work", label: "Actions", icon: "✅" },
   "/operations/initiatives": { group: "Work", label: "Initiatives", icon: "🎯" },
   "/actions/meetings": { group: "Work", label: "Meetings", icon: "📅" },
-  // Command Center OS operating modes
-  "/meet": { group: "Work", label: "Meet", icon: "🛎️" },
-  "/decide": { group: "Work", label: "Decide", icon: "⚖️" },
-  "/delegate": { group: "Work", label: "Delegate", icon: "🤝" },
-  "/review": { group: "Work", label: "Review", icon: "📊" },
-  "/follow-up": { group: "Work", label: "Follow Up", icon: "🔔" },
+  "/operations": { group: "Work", label: "Needs Attention", icon: "🧭" },
   "/actions/all": { group: "Work", label: "All Actions", icon: "🗂️" },
   "/actions/responsibility": { group: "Work", label: "Responsibility Map", icon: "🗺️" },
   "/scheduling": { group: "Work", label: "Scheduling", icon: "🗓" },
+
+  // Modes — contextual operating modes, collapsed by default. Command Center
+  // links into each of these; they no longer compete as primary destinations.
+  "/decide": { group: "Modes", label: "Decide", icon: "⚖️" },
+  "/delegate": { group: "Modes", label: "Delegate", icon: "🤝" },
+  "/meet": { group: "Modes", label: "Meet", icon: "🛎️" },
+  "/review": { group: "Modes", label: "Review", icon: "📊" },
+  "/follow-up": { group: "Modes", label: "Follow Up", icon: "🔔" },
 
   // People — find anyone, run leadership & review workflows
   "/people": { group: "People", label: "People", icon: "👥" },
@@ -124,36 +131,38 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   // Data — connected knowledge & organizational memory
   "/operations/data-360": { group: "Data", label: "Data 360", icon: "🧠" },
 
-  // Admin — configuration only
+  // Admin — configuration & utilities
   "/admin": { group: "Admin", label: "Administration", icon: "🛠" },
   "/admin/bulk-users": { group: "Admin", label: "Imports & Users", icon: "👥" },
   "/admin/analytics": { group: "Admin", label: "Analytics", icon: "📈" },
+  "/help-agent": { group: "Admin", label: "Help Agent", icon: "🔎" },
+  "/announcements": { group: "Admin", label: "Updates", icon: "📢" },
   "/settings/personalization": { group: "Admin", label: "Settings", icon: "⚙️" },
   "/notifications": { group: "Admin", label: "Notifications", icon: "🔔" },
 };
 
 /** Order of links within the officer sidebar (lower = earlier). */
 export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
-  // Command
+  // Start — the three primary choices
   "/",
   "/command-center",
-  "/operations",
-  "/help-agent",
-  "/announcements",
-  // Work
-  "/work",
   "/work/queue",
+  "/browse",
+  // Work — the work records
+  "/work",
   "/actions",
   "/operations/initiatives",
   "/actions/meetings",
-  "/meet",
-  "/decide",
-  "/delegate",
-  "/review",
-  "/follow-up",
+  "/operations",
   "/actions/all",
   "/actions/responsibility",
   "/scheduling",
+  // Modes — demoted operating modes (collapsed)
+  "/decide",
+  "/delegate",
+  "/meet",
+  "/review",
+  "/follow-up",
   // People
   "/people",
   "/admin/instructors",
@@ -184,14 +193,17 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/admin",
   "/admin/bulk-users",
   "/admin/analytics",
+  "/help-agent",
+  "/announcements",
   "/settings/personalization",
   "/notifications",
 ];
 
 /** Officer group order: the operating-system sections first, personal/long-tail last. */
 export const OFFICER_GROUP_ORDER: NavGroup[] = [
-  "Command",
+  "Start",
   "Work",
+  "Modes",
   "People",
   "Programs",
   "Partners",

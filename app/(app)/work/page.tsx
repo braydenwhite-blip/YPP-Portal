@@ -142,18 +142,18 @@ export default async function MissionControlPage({
   if (flag) browseRows = filterWorkHubRowsByFlag(browseRows, flag, now);
   if (q) browseRows = searchWorkHubRows(browseRows, q);
 
-  const loopWord = summary.openLoops === 1 ? "loop" : "loops";
+  const itemWord = summary.openLoops === 1 ? "item" : "items";
 
   return (
     <WorkspaceShell className="px-1 pb-12">
       <WorkspaceHeader
-        eyebrow="Mission Control"
+        eyebrow="Work"
         title={
           summary.openLoops > 0
-            ? `You have ${summary.openLoops} open leadership ${loopWord}.`
-            : "Your leadership queue is clear."
+            ? `You have ${summary.openLoops} ${itemWord} to clear.`
+            : "Your work is all clear."
         }
-        lede="Clear the next operational loop — not another list. Pick a mode, run a queue, close the loop."
+        lede="Clear the next item — not another list. Pick a queue and clear it."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <ButtonLink href="/work/queue?queue=leadership" variant="primary" size="md">
@@ -197,7 +197,7 @@ export default async function MissionControlPage({
 
         <RiseOnScroll delayMs={80}>
           <section aria-label="Queue lanes">
-            <h2 className="m-0 mb-3 text-[18px] font-bold text-ink">The leadership cockpit</h2>
+            <h2 className="m-0 mb-3 text-[18px] font-bold text-ink">Your queues</h2>
             <QueueLanesGrid>
               {overviewKeys.map((key) => {
                 const lane = engine.lanes[key];

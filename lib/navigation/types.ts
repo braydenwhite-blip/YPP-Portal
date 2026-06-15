@@ -30,10 +30,15 @@ export type NavGroup =
   | "Schedule"
   | "Community"
   | "Profile"
-  // Officer operating-system sections (Command → Work → People → Programs →
+  // Officer operating-system sections (Start → Work → Modes → People → Programs →
   // Partners → Data → Admin). These are the human-readable groups the leadership
   // sidebar is organized into; see lib/navigation/officer-nav-layout.ts.
+  // "Start" holds the three primary choices (Command Center · My Queue · Browse);
+  // "Modes" holds the demoted operating modes (Decide · Delegate · Meet · Review ·
+  // Follow Up), collapsed by default. "Command" is retained for back-compat.
   | "Command"
+  | "Start"
+  | "Modes"
   | "Work"
   | "People"
   | "Programs"

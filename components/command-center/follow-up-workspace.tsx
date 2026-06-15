@@ -17,7 +17,7 @@ import type {
   FollowUpWorkspaceVM,
 } from "@/lib/command-center";
 
-import { CommandModeProvider, CommandModeToggle, useIsExecutive } from "./command-mode";
+import { CommandModeProvider, CommandModeToggle, ExecutiveOnly, useIsExecutive } from "./command-mode";
 import { CcIcon } from "./icons";
 import { Avatar, EmptyHint, MissionBriefCard, PanelCard, SummaryTile, SummaryTileRow, ViewAllLink } from "./primitives";
 
@@ -115,7 +115,7 @@ function FollowUpInner({ vm }: { vm: FollowUpWorkspaceVM }) {
       : filter === "overdue"
         ? vm.items.filter((item) => item.overdue)
         : vm.items.filter((item) => item.category === filter);
-  const topFollowUps = executive ? filtered : filtered.slice(0, 6);
+  const topFollowUps = executive ? filtered : filtered.slice(0, 5);
 
   return (
     <WorkspaceShell className="px-1 pb-12">
@@ -140,13 +140,15 @@ function FollowUpInner({ vm }: { vm: FollowUpWorkspaceVM }) {
       <WorkspaceBody>
         <MissionBriefCard icon="inbox" eyebrow="Follow-up brief" headline={vm.brief} />
 
-        <SummaryTileRow>
-          <SummaryTile icon="inbox" value={vm.summary.open} label="Open" tone="brand" />
-          <SummaryTile icon="clock" value={vm.summary.overdue} label="Overdue" tone="danger" />
-          <SummaryTile icon="hourglass" value={vm.summary.waitingOnPeople} label="Waiting on people" tone="info" />
-          <SummaryTile icon="send" value={vm.summary.needOutreach} label="Need outreach" tone="warning" />
-          <SummaryTile icon="check" value={vm.summary.resolvedThisWeek} label="Resolved this week" tone="success" />
-        </SummaryTileRow>
+        <ExecutiveOnly>
+          <SummaryTileRow>
+            <SummaryTile icon="inbox" value={vm.summary.open} label="Open" tone="brand" />
+            <SummaryTile icon="clock" value={vm.summary.overdue} label="Overdue" tone="danger" />
+            <SummaryTile icon="hourglass" value={vm.summary.waitingOnPeople} label="Waiting on people" tone="info" />
+            <SummaryTile icon="send" value={vm.summary.needOutreach} label="Need outreach" tone="warning" />
+            <SummaryTile icon="check" value={vm.summary.resolvedThisWeek} label="Resolved this week" tone="success" />
+          </SummaryTileRow>
+        </ExecutiveOnly>
 
         <div className="flex flex-wrap gap-1.5">
           {vm.typeChips.map((chip) => (
@@ -167,7 +169,12 @@ function FollowUpInner({ vm }: { vm: FollowUpWorkspaceVM }) {
           ))}
         </div>
 
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div
+          className={cn(
+            "grid items-start gap-4",
+            executive ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""
+          )}
+        >
           <div className="flex flex-col gap-4">
             <PanelCard icon="hourglass" title="Waiting On People" action={<ViewAllLink href="/delegate">View ownership</ViewAllLink>}>
               {vm.waitingPeople.length > 0 ? (
@@ -207,41 +214,47 @@ function FollowUpInner({ vm }: { vm: FollowUpWorkspaceVM }) {
               )}
             </PanelCard>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <PanelCard icon="clock" title="Stale / No Update">
-                {vm.stale.length > 0 ? (
-                  <div className="flex flex-col gap-0.5">
-                    {vm.stale.map((item) => (
-                      <FollowUpRow key={item.id} item={item} />
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyHint>Nothing has gone stale. Everything has a recent update.</EmptyHint>
-                )}
-              </PanelCard>
-              <PanelCard icon="layers" title="Follow-Up by Type">
-                {vm.byType.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    {vm.byType.map((entry) => (
-                      <button
-                        key={entry.key}
-                        type="button"
-                        onClick={() => setFilter(entry.key)}
-                        className="flex flex-col items-start rounded-[12px] border border-line-soft bg-surface px-3 py-2.5 text-left transition-colors hover:bg-surface-soft"
-                      >
-                        <span className="text-[18px] font-bold text-ink">{entry.count}</span>
-                        <span className="text-[11.5px] text-ink-muted">{entry.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyHint>No categorized follow-ups yet.</EmptyHint>
-                )}
-              </PanelCard>
-            </div>
+            <ExecutiveOnly>
+              <div className="grid gap-4 md:grid-cols-2">
+                <PanelCard icon="clock" title="Stale / No Update">
+                  {vm.stale.length > 0 ? (
+                    <div className="flex flex-col gap-0.5">
+                      {vm.stale.map((item) => (
+                        <FollowUpRow key={item.id} item={item} />
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyHint>Nothing has gone stale. Everything has a recent update.</EmptyHint>
+                  )}
+                </PanelCard>
+                <PanelCard icon="layers" title="Follow-Up by Type">
+                  {vm.byType.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {vm.byType.map((entry) => (
+                        <button
+                          key={entry.key}
+                          type="button"
+                          onClick={() => setFilter(entry.key)}
+                          className="flex flex-col items-start rounded-[12px] border border-line-soft bg-surface px-3 py-2.5 text-left transition-colors hover:bg-surface-soft"
+                        >
+                          <span className="text-[18px] font-bold text-ink">{entry.count}</span>
+                          <span className="text-[11.5px] text-ink-muted">{entry.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyHint>No categorized follow-ups yet.</EmptyHint>
+                  )}
+                </PanelCard>
+              </div>
+            </ExecutiveOnly>
           </div>
 
-          <Composer targets={vm.composerTargets} />
+          {/* In Calm the composer stays out of the way — act from a row, or use
+              "New follow-up" above. Executive mode brings it alongside. */}
+          <ExecutiveOnly>
+            <Composer targets={vm.composerTargets} />
+          </ExecutiveOnly>
         </div>
 
         <BrowseAllPanel label="Browse all follow-ups" hint="Explore every follow-up by person, type, and status.">
