@@ -142,6 +142,28 @@ export default async function ActionsPage({
 
       <ActionTrackerTabsV2 active="my" />
 
+      {/* Queue mode — clear loops one at a time instead of scanning a table. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-brand-200 bg-gradient-to-br from-brand-50 to-surface p-4 shadow-card">
+        <div className="min-w-0">
+          <p className="m-0 text-[11px] font-bold uppercase tracking-[0.1em] text-brand-700">
+            Queue mode
+          </p>
+          <p className="m-0 text-[15px] font-bold text-ink">
+            {leadershipView ? "Run the leadership queue" : "Clear my queue"}
+          </p>
+          <p className="m-0 text-[12.5px] text-ink-muted">
+            Triage one loop at a time — Resolve, Delegate, Discuss, or Defer.
+          </p>
+        </div>
+        <ButtonLink
+          href={leadershipView ? "/work/queue?queue=leadership" : "/work/queue?queue=my"}
+          variant="primary"
+          size="md"
+        >
+          {leadershipView ? "Run leadership queue →" : "Clear my queue →"}
+        </ButtonLink>
+      </div>
+
       <p className="m-0 text-[12.5px] text-ink-muted">
         {items.length} {items.length === 1 ? "action" : "actions"}
         {qParam ? ` · “${qParam}”` : ""}

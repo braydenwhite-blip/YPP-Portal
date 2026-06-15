@@ -346,6 +346,17 @@ export default async function ApplicantCockpitPage({
     (application.status === "INTERVIEW_SCHEDULED" ||
       leadApplicationReview?.nextStep === "MOVE_TO_INTERVIEW");
 
+  // Interview scheduling state — surfaced as a focused workspace card so the
+  // current required step is obvious in the main canvas (not buried).
+  const applicantSelectedTime =
+    Boolean(application.interviewScheduledAt) ||
+    application.offeredSlots.some((slot) => slot.confirmedAt);
+  const interviewTimesSent = application.offeredSlots.length > 0;
+  const pendingSlotCount = application.offeredSlots.filter((slot) => !slot.confirmedAt).length;
+  const schedulingIsActiveStep =
+    application.status === "INTERVIEW_SCHEDULED" || canSendInterviewTimes;
+  const showSchedulingNeedsTime = schedulingIsActiveStep && !applicantSelectedTime;
+
   // Surface this interviewer's existing upcoming interview times for *other*
   // applicants so they can avoid double-booking themselves when sending out
   // new times for this applicant.
@@ -434,10 +445,10 @@ export default async function ApplicantCockpitPage({
     actorIsAdmin || isChapterLead(actor) || isHiringChair(actor);
 
   return (
-    <div className="min-h-screen bg-surface-soft pb-28">
+    <div className="min-h-screen bg-surface-soft">
       {/* Sticky back bar */}
       <div className="sticky top-0 z-30 border-b border-line-soft bg-surface/95 px-6 py-2.5 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-[1320px] flex-wrap items-center justify-between gap-2">
+        <div className="mx-auto flex w-full max-w-[1700px] flex-wrap items-center justify-between gap-2">
           <Link
             href={actorCanSeeChair ? "/admin/instructor-applicants" : "/chapter-lead/instructor-applicants"}
             className="text-[13px] font-semibold text-brand-700 hover:underline"
@@ -455,7 +466,7 @@ export default async function ApplicantCockpitPage({
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-4 px-6 py-5">
+      <div className="mx-auto flex w-full max-w-[1700px] flex-col gap-4 px-6 py-5 lg:px-8">
         <ApplicantCockpitHeader application={application} />
 
         <ExternalIntakePanel
@@ -499,8 +510,33 @@ export default async function ApplicantCockpitPage({
           warningsJson={reviewWarnings ?? null}
         />
 
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px]">
           <main className="flex min-w-0 flex-col gap-4">
+            {/* Next required leadership move — leads the review canvas */}
+            <ApplicantNextActionBar
+              application={{
+                id: application.id,
+                status: application.status,
+                reviewerId: application.reviewerId,
+                materialsReadyAt: application.materialsReadyAt,
+                interviewScheduledAt: application.interviewScheduledAt,
+                leadReviewNextStep: leadApplicationReview?.nextStep ?? null,
+                interviewerAssignments: currentInterviewerAssignments.map((a) => ({
+                  role: a.role as "LEAD" | "SECOND",
+                  removedAt: a.removedAt,
+                })),
+              }}
+              canAssignReviewer={canAssignReviewer}
+              canAssignInterviewers={canAssignInterviewers}
+              isAssignedReviewer={actorIsReviewer}
+              isAssignedInterviewer={actorIsInterviewer}
+              isAssignedLeadInterviewer={actorIsLeadInterviewer}
+              canActAsChair={canActAsChairBool}
+              canSendToChair={canSendToChair}
+              isAdmin={actorIsAdmin}
+              hidden={isHidden}
+            />
+
             {/* Applicant Summary */}
             <section id="section-summary" className={`${PANEL} border-l-4 border-l-brand-600`}>
               <div className={HEADING}>
@@ -636,6 +672,44 @@ export default async function ApplicantCockpitPage({
                 </CollapsibleAssignmentPanel>
               )}
             </section>
+
+            {/* Interview scheduling state — the current required step, stated plainly */}
+            {showSchedulingNeedsTime ? (
+              <section className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-warning-700/30 bg-warning-100/40 p-4">
+                <div className="min-w-0">
+                  <p className="m-0 text-[11px] font-bold uppercase tracking-[0.1em] text-warning-700">
+                    Interview scheduling
+                  </p>
+                  <p className="m-0 mt-0.5 text-[16px] font-bold text-ink">
+                    Applicant has not selected an interview time yet.
+                  </p>
+                  <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
+                    {interviewTimesSent
+                      ? `${pendingSlotCount} time option${pendingSlotCount === 1 ? "" : "s"} sent — waiting for the applicant to pick one.`
+                      : "No interview times have been sent yet."}
+                  </p>
+                </div>
+                {canSendInterviewTimes ? (
+                  <a href="#section-scheduling" className={buttonVariants({ variant: "primary", size: "md" })}>
+                    {interviewTimesSent ? "Update interview time options" : "Send interview time options"}
+                  </a>
+                ) : null}
+              </section>
+            ) : applicantSelectedTime && application.status === "INTERVIEW_SCHEDULED" ? (
+              <section className="rounded-[12px] border border-success-700/30 bg-success-100/40 p-4">
+                <p className="m-0 text-[11px] font-bold uppercase tracking-[0.1em] text-success-700">
+                  Interview scheduling
+                </p>
+                <p className="m-0 mt-0.5 text-[16px] font-bold text-ink">
+                  Interview time confirmed.
+                </p>
+                <p className="m-0 mt-0.5 text-[13px] text-ink-muted">
+                  {application.interviewScheduledAt
+                    ? `Scheduled for ${new Date(application.interviewScheduledAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.`
+                    : "The applicant picked a time. Run the interview, then mark it complete."}
+                </p>
+              </section>
+            ) : null}
 
             {/* Scheduling */}
             <InterviewSchedulingInlinePanel
@@ -773,7 +847,7 @@ export default async function ApplicantCockpitPage({
             </section>
           </main>
 
-          {/* Sidebar */}
+          {/* Sidebar — compact supporting context only */}
           <ApplicantCockpitSidebar
             application={{
               ...application,
@@ -782,30 +856,6 @@ export default async function ApplicantCockpitPage({
           />
         </div>
       </div>
-
-      <ApplicantNextActionBar
-        application={{
-          id: application.id,
-          status: application.status,
-          reviewerId: application.reviewerId,
-          materialsReadyAt: application.materialsReadyAt,
-          interviewScheduledAt: application.interviewScheduledAt,
-          leadReviewNextStep: leadApplicationReview?.nextStep ?? null,
-          interviewerAssignments: currentInterviewerAssignments.map((a) => ({
-            role: a.role as "LEAD" | "SECOND",
-            removedAt: a.removedAt,
-          })),
-        }}
-        canAssignReviewer={canAssignReviewer}
-        canAssignInterviewers={canAssignInterviewers}
-        isAssignedReviewer={actorIsReviewer}
-        isAssignedInterviewer={actorIsInterviewer}
-        isAssignedLeadInterviewer={actorIsLeadInterviewer}
-        canActAsChair={canActAsChairBool}
-        canSendToChair={canSendToChair}
-        isAdmin={actorIsAdmin}
-        hidden={isHidden}
-      />
     </div>
   );
 }
