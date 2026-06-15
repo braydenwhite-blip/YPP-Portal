@@ -23,7 +23,7 @@ import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-
 import { INSTRUCTOR_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/instructor-v1-nav-layout";
 import { STUDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/student-v1-nav-layout";
 import { CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/chapter-president-v1-nav-layout";
-import { OFFICER_GROUP_EMOJI } from "@/lib/navigation/officer-nav-layout";
+import { OFFICER_GROUP_EMOJI, OFFICER_PRIMARY_GROUPS } from "@/lib/navigation/officer-nav-layout";
 import type { NavGroup, NavLink } from "@/lib/navigation/types";
 
 /**
@@ -218,12 +218,16 @@ export default function Nav({
 
   const defaultGroupState = useMemo(() => {
     const next: Record<string, boolean> = {};
+    // Officers get every operating-system section open by default, so the whole
+    // nav is visible at a glance instead of hidden behind collapsed headers.
+    const officerChrome = model.officerChrome === true;
     for (const group of model.more) {
       next[group.label] =
-        activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
+        (officerChrome && OFFICER_PRIMARY_GROUPS.has(group.label as NavGroup)) ||
+        (activeNavHref !== null && group.items.some((item) => item.href === activeNavHref));
     }
     return next;
-  }, [model.more, activeNavHref]);
+  }, [model.more, activeNavHref, model.officerChrome]);
 
   useEffect(() => {
     const saved = loadSavedState(storageKey);
@@ -240,11 +244,13 @@ export default function Nav({
   useEffect(() => {
     setOpenGroups((previous) => {
       const next: Record<string, boolean> = { ...previous };
+      const officerChrome = model.officerChrome === true;
 
       for (const group of model.more) {
         if (next[group.label] === undefined) {
           next[group.label] =
-            activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
+            (officerChrome && OFFICER_PRIMARY_GROUPS.has(group.label as NavGroup)) ||
+            (activeNavHref !== null && group.items.some((item) => item.href === activeNavHref));
         }
       }
 
@@ -256,7 +262,7 @@ export default function Nav({
 
       return next;
     });
-  }, [model.more, activeNavHref]);
+  }, [model.more, activeNavHref, model.officerChrome]);
 
   const isFirstPersist = useRef(true);
   useEffect(() => {
