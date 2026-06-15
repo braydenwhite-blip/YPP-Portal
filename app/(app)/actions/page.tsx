@@ -118,10 +118,10 @@ export default async function ActionsPage({
           initiativeDef
             ? "Actions linked to this initiative."
             : leadershipView
-              ? "Everything stuck, owned, and in motion across the team."
+              ? "What needs doing across the team."
               : officer
-                ? "Add an action below, or switch to everyone’s queue."
-                : "Everything you lead, execute, or owe input on."
+                ? "What needs doing — add one below, or switch to the team’s queue."
+                : "What needs doing."
         }
         actions={
           initiativeDef ? (

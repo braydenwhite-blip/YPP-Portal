@@ -199,13 +199,13 @@ export function WeeklyCommandCenterClient({
               color: "var(--ypp-purple-600)",
             }}
           >
-            YPP Leadership OS
+            Work
           </span>
           <h1 style={{ margin: "7px 0 0", fontSize: 30, fontWeight: 800, color: "var(--ypp-ink)", letterSpacing: "-.02em" }}>
             Meetings
           </h1>
           <p style={{ margin: "7px 0 0", fontSize: 14.5, color: "var(--muted)", maxWidth: 560, lineHeight: 1.45 }}>
-            Where decisions and follow-ups come from &mdash; this week&rsquo;s meetings, decisions, and the actions they created.
+            Your meetings at a glance.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

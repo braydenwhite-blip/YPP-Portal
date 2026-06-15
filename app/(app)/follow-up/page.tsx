@@ -13,7 +13,7 @@ import { loadWorkHub } from "@/lib/work/work-hub";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Follow Up — Pathways Portal",
+  title: "Follow Ups — Pathways Portal",
 };
 
 export default async function FollowUpPage() {

@@ -25,7 +25,7 @@ import { loadWorkHub } from "@/lib/work/work-hub";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Decide — Pathways Portal",
+  title: "Decisions — Pathways Portal",
 };
 
 export default async function DecidePage() {

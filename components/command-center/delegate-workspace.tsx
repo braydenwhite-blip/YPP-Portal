@@ -17,7 +17,7 @@ import type {
   DelegateWorkspaceVM,
 } from "@/lib/command-center";
 
-import { CommandModeProvider, CommandModeToggle, useIsExecutive } from "./command-mode";
+import { CommandModeProvider, CommandModeToggle, ExecutiveOnly, useIsExecutive } from "./command-mode";
 import { CcIcon } from "./icons";
 import { Avatar, EmptyHint, MissionBriefCard, PanelCard, SummaryTile, SummaryTileRow, ViewAllLink } from "./primitives";
 
@@ -160,31 +160,28 @@ function WaitingPersonRow({ person }: { person: CcWaitingPerson }) {
 
 function DelegateInner({ vm }: { vm: DelegateWorkspaceVM }) {
   const executive = useIsExecutive();
-  const assignments = executive ? vm.assignmentQueue : vm.assignmentQueue.slice(0, 4);
+  const assignments = executive ? vm.assignmentQueue : vm.assignmentQueue.slice(0, 3);
+  const ownerLanes = executive ? vm.ownerLanes : vm.ownerLanes.slice(0, 4);
 
   return (
     <WorkspaceShell className="px-1 pb-12">
       <WorkspaceHeader
-        eyebrow="Ownership"
-        title={
-          <span className="inline-flex items-center gap-2">
-            Delegate
-            <CcIcon name="users" size={22} className="text-brand-400" />
-          </span>
-        }
-        lede="Assign ownership, close gaps, and keep work moving forward."
+        title="Owners"
+        lede="Work that needs someone responsible."
         actions={<CommandModeToggle />}
       />
 
       <WorkspaceBody>
-        <MissionBriefCard icon="users" eyebrow="Delegation brief" headline={vm.briefHeadline} sub={vm.briefSub} />
+        <MissionBriefCard icon="users" eyebrow="Owners" headline={vm.briefHeadline} sub={vm.briefSub} />
 
-        <SummaryTileRow className="xl:grid-cols-4">
-          <SummaryTile icon="user" value={vm.summary.needOwnership} label="Need ownership" tone="brand" />
-          <SummaryTile icon="clock" value={vm.summary.overdueItems} label="Overdue items" tone="danger" />
-          <SummaryTile icon="handoff" value={vm.summary.needsReassignment} label="Needs reassignment" tone="warning" />
-          <SummaryTile icon="hourglass" value={vm.summary.waitingOnPeople} label="Waiting on people" tone="info" />
-        </SummaryTileRow>
+        <ExecutiveOnly>
+          <SummaryTileRow className="xl:grid-cols-4">
+            <SummaryTile icon="user" value={vm.summary.needOwnership} label="Need ownership" tone="brand" />
+            <SummaryTile icon="clock" value={vm.summary.overdueItems} label="Overdue items" tone="danger" />
+            <SummaryTile icon="handoff" value={vm.summary.needsReassignment} label="Needs reassignment" tone="warning" />
+            <SummaryTile icon="hourglass" value={vm.summary.waitingOnPeople} label="Waiting on people" tone="info" />
+          </SummaryTileRow>
+        </ExecutiveOnly>
 
         <div className="grid items-start gap-4 xl:grid-cols-[320px_minmax(0,1fr)_300px]">
           <PanelCard
@@ -216,9 +213,9 @@ function DelegateInner({ vm }: { vm: DelegateWorkspaceVM }) {
               </div>
               <ViewAllLink href="/people">View all people</ViewAllLink>
             </div>
-            {vm.ownerLanes.length > 0 ? (
+            {ownerLanes.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                {vm.ownerLanes.map((lane) => (
+                {ownerLanes.map((lane) => (
                   <OwnerLaneCard key={lane.ownerId ?? lane.ownerName} lane={lane} />
                 ))}
               </div>

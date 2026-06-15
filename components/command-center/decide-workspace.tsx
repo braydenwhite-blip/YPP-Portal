@@ -17,7 +17,7 @@ import type {
 } from "@/lib/command-center";
 import type { QueueItem } from "@/lib/queue/types";
 
-import { CommandModeProvider, CommandModeToggle, useIsExecutive } from "./command-mode";
+import { CommandModeProvider, CommandModeToggle, ExecutiveOnly, useIsExecutive } from "./command-mode";
 import { CcIcon } from "./icons";
 import {
   Avatar,
@@ -263,22 +263,16 @@ function DecideInner({
   return (
     <WorkspaceShell className="px-1 pb-12">
       <WorkspaceHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            Decide
-            <CcIcon name="sparkle" size={22} className="text-brand-400" />
-          </span>
-        }
-        lede="Leadership choices, ownership gaps, and blockers in one calm workspace."
+        title="Decisions"
+        lede="Choices that need a call."
         actions={<CommandModeToggle />}
       />
 
       <WorkspaceBody>
         <MissionBriefCard
           icon="scale"
-          eyebrow="Decision brief"
+          eyebrow="Decisions"
           headline={vm.brief}
-          sub="Decisions aggregated from applicants, initiatives, meetings, actions, classes, people, and partners."
           action={
             <ButtonLink href="#decision-log" variant="secondary" size="md">
               View decision log →
@@ -286,22 +280,31 @@ function DecideInner({
           }
         />
 
-        <SummaryTileRow>
-          <SummaryTile icon="scale" value={vm.summary.needsDecisionToday} label="Needs decision today" tone="brand" active />
-          <SummaryTile icon="user" value={vm.summary.needsOwner} label="Needs owner" tone="warning" href="/delegate" />
-          <SummaryTile icon="calendar" value={vm.summary.needsMeeting} label="Needs meeting" tone="info" href="/meet" />
-          <SummaryTile icon="hourglass" value={vm.summary.waitingForContext} label="Waiting for context" tone="neutral" href="/follow-up" />
-          <SummaryTile icon="check" value={vm.summary.recentlyDecided} label="Recently decided" tone="success" />
-        </SummaryTileRow>
+        <ExecutiveOnly>
+          <SummaryTileRow>
+            <SummaryTile icon="scale" value={vm.summary.needsDecisionToday} label="Needs decision today" tone="brand" active />
+            <SummaryTile icon="user" value={vm.summary.needsOwner} label="Needs owner" tone="warning" href="/delegate" />
+            <SummaryTile icon="calendar" value={vm.summary.needsMeeting} label="Needs meeting" tone="info" href="/meet" />
+            <SummaryTile icon="hourglass" value={vm.summary.waitingForContext} label="Waiting for context" tone="neutral" href="/follow-up" />
+            <SummaryTile icon="check" value={vm.summary.recentlyDecided} label="Recently decided" tone="success" />
+          </SummaryTileRow>
+        </ExecutiveOnly>
 
-        <div className="grid items-start gap-4 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
-          <PanelCard icon="list" title="Decision Lanes">
-            <div className="flex flex-col gap-4">
-              <LaneGroup icon="scale" label="Needs decision today" count={vm.summary.needsDecisionToday} items={vm.lanes.needsDecisionToday.slice(0, laneMax)} now={now} emptyHint="No decisions due today." />
-              <LaneGroup icon="user" label="Needs owner" count={vm.summary.needsOwner} items={vm.lanes.needsOwner.slice(0, laneMax)} now={now} emptyHint="Every item has an owner." />
-              <LaneGroup icon="calendar" label="Needs meeting" count={vm.summary.needsMeeting} items={vm.lanes.needsMeeting.slice(0, laneMax)} now={now} emptyHint="Nothing waiting on a meeting." />
-            </div>
-          </PanelCard>
+        <div
+          className={cn(
+            "grid items-start gap-4",
+            executive ? "xl:grid-cols-[260px_minmax(0,1fr)_300px]" : "xl:grid-cols-[minmax(0,1fr)_300px]"
+          )}
+        >
+          <ExecutiveOnly>
+            <PanelCard icon="list" title="Decision Lanes">
+              <div className="flex flex-col gap-4">
+                <LaneGroup icon="scale" label="Needs decision today" count={vm.summary.needsDecisionToday} items={vm.lanes.needsDecisionToday.slice(0, laneMax)} now={now} emptyHint="No decisions due today." />
+                <LaneGroup icon="user" label="Needs owner" count={vm.summary.needsOwner} items={vm.lanes.needsOwner.slice(0, laneMax)} now={now} emptyHint="Every item has an owner." />
+                <LaneGroup icon="calendar" label="Needs meeting" count={vm.summary.needsMeeting} items={vm.lanes.needsMeeting.slice(0, laneMax)} now={now} emptyHint="Nothing waiting on a meeting." />
+              </div>
+            </PanelCard>
+          </ExecutiveOnly>
 
           {vm.focus ? (
             <FocusDecisionPanel focus={vm.focus} />

@@ -89,7 +89,7 @@ export default async function PeoplePage({
 
       <PageHeaderV2
         title="People"
-        subtitle="Search by name or email, then open someone."
+        subtitle="Who owns what. Search by name or email."
         actions={
           canUseAdminPeopleTools ? (
             <ButtonLink href="/admin/bulk-users" variant="secondary" size="md">
