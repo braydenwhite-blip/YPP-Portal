@@ -21,7 +21,12 @@ import {
   RECOMMENDATION_STATUSES,
 } from "./constants";
 
-const ADVISOR_PATHS = ["/my-advisees", "/admin/leadership", "/profile"];
+const ADVISOR_PATHS = [
+  "/my-advisees",
+  "/admin/leadership",
+  "/profile",
+  "/operations/advising",
+];
 
 function revalidateAdvising(assignmentId?: string) {
   for (const path of ADVISOR_PATHS) revalidatePath(path);
@@ -159,6 +164,93 @@ export async function assignStudentAdvisor(
 
   revalidateAdvising();
   return { success: true, contributionId };
+}
+
+const reassignSchema = z.object({
+  assignmentId: z.string().min(1),
+  newAdvisorId: z.string().min(1),
+});
+
+/**
+ * Move a student from one advisor to another. Ends the current assignment
+ * (history preserved) and get-or-creates the active pairing for the new
+ * advisor, seeding a fresh kickoff check-in window. Idempotent if the student
+ * is already with the target advisor.
+ */
+export async function reassignStudentAdvisor(
+  input: z.infer<typeof reassignSchema>,
+) {
+  const admin = await requireAdmin();
+  const data = reassignSchema.parse(input);
+
+  const current = await prisma.studentAdvisorAssignment.findUnique({
+    where: { id: data.assignmentId },
+    select: { id: true, advisorId: true, studentId: true, contributionId: true },
+  });
+  if (!current) throw new Error("Assignment not found");
+  if (current.advisorId === data.newAdvisorId) {
+    return { success: true, unchanged: true };
+  }
+
+  const contributionId = await ensureAdvisorContribution(
+    data.newAdvisorId,
+    admin.id,
+  );
+
+  const DEFAULT_CADENCE_DAYS = 14;
+  const firstCheckInDue = new Date(
+    Date.now() + DEFAULT_CADENCE_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  await prisma.$transaction(async (tx) => {
+    // End the old pairing.
+    await tx.studentAdvisorAssignment.update({
+      where: { id: current.id },
+      data: { isActive: false, endedAt: new Date(), needsFollowUp: false },
+    });
+
+    // If that advisor now has no active advisees, complete their contribution.
+    const remaining = await tx.studentAdvisorAssignment.count({
+      where: { advisorId: current.advisorId, isActive: true },
+    });
+    if (remaining === 0 && current.contributionId) {
+      await tx.leadershipContribution.update({
+        where: { id: current.contributionId },
+        data: { status: "COMPLETED", endDate: new Date() },
+      });
+    }
+
+    // Get-or-reactivate the pairing for the new advisor.
+    await tx.studentAdvisorAssignment.upsert({
+      where: {
+        advisorId_studentId: {
+          advisorId: data.newAdvisorId,
+          studentId: current.studentId,
+        },
+      },
+      create: {
+        advisorId: data.newAdvisorId,
+        studentId: current.studentId,
+        contributionId,
+        assignedById: admin.id,
+        nextCheckInDueAt: firstCheckInDue,
+      },
+      update: {
+        isActive: true,
+        endedAt: null,
+        contributionId,
+        assignedById: admin.id,
+        advisingStatus: AdvisingStatus.ENGAGED,
+        needsFollowUp: false,
+        lastCheckInAt: null,
+        nextCheckInDueAt: firstCheckInDue,
+      },
+    });
+  });
+
+  revalidateAdvising();
+  revalidatePath("/operations/advising");
+  return { success: true };
 }
 
 export async function endAdvisorAssignment(assignmentId: string) {
