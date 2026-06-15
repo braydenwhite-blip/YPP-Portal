@@ -2,6 +2,60 @@ import type { PageHelperEntry } from "@/lib/page-helper/types";
 
 export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   {
+    pattern: "/command-center",
+    title: "Command Center",
+    content: {
+      purpose: "Your daily operating cockpit: today's mission, what to do first, the current meeting, the decisions that matter, and who you're waiting on.",
+      firstStep: "Read the mission, then start the loop in the Now card — it's the single most pressing thing.",
+      nextStep: "Work the Now / Next / Later sequence, then open Decide, Meet, or Follow Up from the cards as needed.",
+    },
+  },
+  {
+    pattern: "/decide",
+    title: "Decide",
+    content: {
+      purpose: "The decision operating system: leadership choices, ownership gaps, and blockers aggregated into clear decision items.",
+      firstStep: "Open the focus decision and choose an option, assign an owner, or add it to a meeting.",
+      nextStep: "Clear the Needs decision today lane, then check Needs owner and Needs meeting before the decision log.",
+    },
+  },
+  {
+    pattern: "/delegate",
+    title: "Delegate",
+    content: {
+      purpose: "The ownership desk: what needs an owner, what's overdue and should be reassigned, and who's waiting on whom.",
+      firstStep: "Assign the highest-impact unowned item from the Assignment Queue using the suggested owner.",
+      nextStep: "Scan the owner lanes for anyone overdue or at capacity, then use the batch tools to clear gaps in one pass.",
+    },
+  },
+  {
+    pattern: "/follow-up",
+    title: "Follow Up",
+    content: {
+      purpose: "The waiting-on / outreach desk: who we're waiting on, what's open and overdue, and who needs a nudge next.",
+      firstStep: "Start with the Waiting On People panel — the person blocking the most active work is first.",
+      nextStep: "Pick someone in the composer and route into a reminder, a new action, or a meeting to keep momentum.",
+    },
+  },
+  {
+    pattern: "/meet",
+    title: "Meet",
+    content: {
+      purpose: "Meetings as live operating rooms: prep before, run during, and wrap up after — with connected actions, decisions, and open loops alongside.",
+      firstStep: "Open the current or next meeting and use the Before / During / After switcher for the phase you're in.",
+      nextStep: "Capture decisions and actions into the meeting record, then close the open follow-ups in the context rail.",
+    },
+  },
+  {
+    pattern: "/review",
+    title: "Review",
+    content: {
+      purpose: "The weekly operating review: what changed, what needs review, which initiatives need next steps, and the focus for next week.",
+      firstStep: "Start the review session, then work the guided steps — review overdue work, assign owners, resolve decisions.",
+      nextStep: "Open each initiative review room for its top blocker and next move, then set the focus for next week.",
+    },
+  },
+  {
     pattern: "/",
     title: "Portal Home",
     content: {

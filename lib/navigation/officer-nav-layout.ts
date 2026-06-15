@@ -71,15 +71,23 @@ export const OFFICER_UNHIDE_HREFS: ReadonlySet<string> = new Set<string>([
 const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: string }> = {
   // Command — start your day here
   "/": { group: "Command", label: "Home", icon: "▣" },
+  "/command-center": { group: "Command", label: "Command Center", icon: "🛰️" },
   "/operations": { group: "Command", label: "Needs Attention", icon: "🧭" },
   "/help-agent": { group: "Command", label: "Help Agent", icon: "🔎" },
   "/announcements": { group: "Command", label: "Updates", icon: "📢" },
 
   // Work — everything that needs doing, in one place
   "/work": { group: "Work", label: "Work", icon: "🎛️" },
+  "/work/queue": { group: "Work", label: "My Queue", icon: "📥" },
   "/actions": { group: "Work", label: "Actions", icon: "✅" },
   "/operations/initiatives": { group: "Work", label: "Initiatives", icon: "🎯" },
   "/actions/meetings": { group: "Work", label: "Meetings", icon: "📅" },
+  // Command Center OS operating modes
+  "/meet": { group: "Work", label: "Meet", icon: "🛎️" },
+  "/decide": { group: "Work", label: "Decide", icon: "⚖️" },
+  "/delegate": { group: "Work", label: "Delegate", icon: "🤝" },
+  "/review": { group: "Work", label: "Review", icon: "📊" },
+  "/follow-up": { group: "Work", label: "Follow Up", icon: "🔔" },
   "/actions/all": { group: "Work", label: "All Actions", icon: "🗂️" },
   "/actions/responsibility": { group: "Work", label: "Responsibility Map", icon: "🗺️" },
   "/scheduling": { group: "Work", label: "Scheduling", icon: "🗓" },
@@ -128,14 +136,21 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
 export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   // Command
   "/",
+  "/command-center",
   "/operations",
   "/help-agent",
   "/announcements",
   // Work
   "/work",
+  "/work/queue",
   "/actions",
   "/operations/initiatives",
   "/actions/meetings",
+  "/meet",
+  "/decide",
+  "/delegate",
+  "/review",
+  "/follow-up",
   "/actions/all",
   "/actions/responsibility",
   "/scheduling",

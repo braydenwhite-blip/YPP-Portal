@@ -497,6 +497,125 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
+      href: "/command-center",
+      label: "Command Center",
+      icon: "🧭",
+      // Command Center OS — the daily operating cockpit (mission, Now/Next/Later,
+      // today's meeting, decisions, waiting-on). Officer-tier, like /work.
+      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Command Center",
+        "Today",
+        "Daily cockpit",
+        "Good morning",
+        "Mission",
+        "What matters today",
+      ],
+      dashboardDescription:
+        "Your daily operating cockpit — mission, what's next, today's meeting, and decisions.",
+      dashboardPriority: 5,
+    },
+    {
+      href: "/work/queue",
+      label: "My Queue",
+      icon: "📥",
+      // The one-card-at-a-time queue runner (Resolve / Delegate / Discuss / Defer).
+      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: ["My Queue", "Queue", "Run my queue", "Triage", "Loops"],
+      dashboardDescription: "Run your ranked queue one loop at a time.",
+      dashboardPriority: 6,
+    },
+    {
+      href: "/decide",
+      label: "Decide",
+      icon: "⚖️",
+      // Decision operating system — leadership choices, ownership gaps, blockers.
+      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Decide",
+        "Decisions",
+        "Decision log",
+        "Needs decision",
+        "Ownership gaps",
+        "Approve",
+      ],
+      dashboardDescription:
+        "Leadership choices, ownership gaps, and blockers in one calm workspace.",
+      dashboardPriority: 6,
+    },
+    {
+      href: "/delegate",
+      label: "Delegate",
+      icon: "🤝",
+      // Ownership & accountability — assign owners, reassign overdue, batch tools.
+      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Delegate",
+        "Assign owner",
+        "Ownership",
+        "Reassign",
+        "Owner lanes",
+        "Accountability",
+      ],
+      dashboardDescription:
+        "Assign ownership, close gaps, and keep work moving forward.",
+      dashboardPriority: 6,
+    },
+    {
+      href: "/meet",
+      label: "Meet",
+      icon: "🛎️",
+      // Meetings as live operating rooms — before / during / after.
+      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Meet",
+        "Meeting room",
+        "Run a meeting",
+        "Agenda",
+        "Meeting prep",
+        "Live notes",
+      ],
+      dashboardDescription:
+        "Run meetings as live operating rooms — prep, run, and wrap up.",
+      dashboardPriority: 6,
+    },
+    {
+      href: "/review",
+      label: "Review",
+      icon: "📊",
+      // Weekly operating review — what changed, what needs review, next week.
+      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Review",
+        "Weekly review",
+        "What changed",
+        "Needs review",
+        "Initiative review",
+        "Retrospective",
+      ],
+      dashboardDescription:
+        "Weekly progress review and what needs your attention.",
+      dashboardPriority: 6,
+    },
+    {
+      href: "/follow-up",
+      label: "Follow Up",
+      icon: "🔔",
+      // Waiting-on / outreach desk — who we're waiting on, what's overdue.
+      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Follow Up",
+        "Follow-ups",
+        "Waiting on",
+        "Outreach",
+        "Reminders",
+        "Chase",
+      ],
+      dashboardDescription:
+        "Stay on top of who we're waiting on and keep momentum moving.",
+      dashboardPriority: 6,
+    },
+    {
       href: "/operations/data-360",
       label: "Connected data",
       icon: "🧠",
