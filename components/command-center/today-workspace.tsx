@@ -13,6 +13,7 @@ import type { CcMeeting, CcStep, TodayWorkspaceVM } from "@/lib/command-center";
 
 import { CommandModeProvider, CommandModeToggle, ExecutiveOnly, useIsExecutive } from "./command-mode";
 import { CcIcon, type CcIconName } from "./icons";
+import { PrimaryFocusCard } from "./simple";
 import {
   ChangeList,
   ItemRow,
@@ -76,35 +77,26 @@ function FlowConnector() {
 function FocusCard({ step }: { step: CcStep | null }) {
   if (!step) {
     return (
-      <section className="flex flex-col items-start gap-3 rounded-[20px] border border-line-soft bg-gradient-to-br from-success-100/40 via-surface to-surface/90 p-5 shadow-card backdrop-blur sm:flex-row sm:items-center sm:gap-5 sm:p-6">
-        <span className="flex size-14 shrink-0 items-center justify-center rounded-[16px] bg-success-100 text-success-700">
-          <CcIcon name="check" size={26} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="m-0 mb-1 text-[12px] font-bold uppercase tracking-[0.12em] text-success-700">Today&apos;s focus</p>
-          <p className="m-0 text-[20px] font-bold leading-snug tracking-[-0.01em] text-ink">You&apos;re all clear.</p>
-          <p className="m-0 mt-1 text-[13.5px] text-ink-muted">Nothing urgent right now — review upcoming meetings or plan next week.</p>
-        </div>
-        <ButtonLink href="/work/queue" variant="secondary" size="md">
-          Open My Queue →
-        </ButtonLink>
-      </section>
+      <PrimaryFocusCard
+        eyebrow="Today's focus"
+        title="You're all clear."
+        reason="Nothing urgent right now — review upcoming meetings or plan next week."
+        icon="check"
+        tone="success"
+        ctaLabel="Open My Queue"
+        ctaHref="/work/queue"
+      />
     );
   }
   return (
-    <section className="flex flex-col gap-4 rounded-[20px] border border-line-soft bg-gradient-to-br from-brand-50/70 via-surface to-surface/90 p-5 shadow-card backdrop-blur sm:flex-row sm:items-center sm:gap-5 sm:p-6">
-      <span className="flex size-14 shrink-0 items-center justify-center rounded-[16px] bg-brand-100 text-brand-700">
-        <CcIcon name={(step.icon as CcIconName) ?? "target"} size={26} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="m-0 mb-1 text-[12px] font-bold uppercase tracking-[0.12em] text-brand-700">Today&apos;s focus</p>
-        <p className="m-0 text-[21px] font-bold leading-snug tracking-[-0.01em] text-ink">{step.title}</p>
-        <p className="m-0 mt-1 text-[13.5px] leading-relaxed text-ink-muted">{step.detail}</p>
-      </div>
-      <ButtonLink href={step.ctaHref} variant="primary" size="md" className="shrink-0">
-        {step.ctaLabel ?? "Start now"} →
-      </ButtonLink>
-    </section>
+    <PrimaryFocusCard
+      eyebrow="Today's focus"
+      title={step.title}
+      reason={step.detail}
+      icon={(step.icon as CcIconName) ?? "target"}
+      ctaLabel={step.ctaLabel ?? "Start now"}
+      ctaHref={step.ctaHref}
+    />
   );
 }
 

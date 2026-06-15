@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { HomeSearchButton } from "@/components/home/home-search-button";
 import { WorkspaceBody, WorkspaceHeader, WorkspaceShell } from "@/components/queue";
 import { getSession } from "@/lib/auth-supabase";
 import {
@@ -34,6 +33,7 @@ const RECORD_GROUPS: { heading: string; cards: BrowseCard[] }[] = [
     heading: "People & partners",
     cards: [
       { href: "/people", icon: "👥", title: "People", description: "Every student, instructor, applicant, and advisor." },
+      { href: "/admin/instructor-applicants", icon: "📝", title: "Applicants", description: "Instructor applications across all chapters." },
       { href: "/partners", icon: "🤝", title: "Partners", description: "Camps, schools, and organizations you work with." },
       { href: "/interviews", icon: "🎤", title: "Interviews", description: "Scheduling, confirmations, and outcomes." },
     ],
@@ -96,14 +96,19 @@ export default async function BrowsePage() {
 
   return (
     <WorkspaceShell className="px-1 pb-12">
-      <WorkspaceHeader
-        eyebrow="Browse"
-        title="Find any record"
-        lede="The database mode. Search across everything, or open a record list below."
-        actions={<HomeSearchButton />}
-      />
+      <WorkspaceHeader title="Browse" lede="Search everything." />
 
       <WorkspaceBody>
+        {/* Big search box — the database front door. */}
+        <Link
+          href="/help-agent"
+          className="flex items-center gap-3 rounded-[16px] border border-line-soft bg-surface/80 px-5 py-4 shadow-card backdrop-blur transition-colors hover:border-brand-300"
+        >
+          <span aria-hidden className="text-[20px] leading-none opacity-50">🔎</span>
+          <span className="flex-1 text-[15px] text-ink-muted">Search people, actions, meetings, initiatives, and more…</span>
+          <kbd className="hidden rounded-[6px] border border-line-soft bg-surface-soft px-1.5 py-0.5 text-[11px] font-semibold text-ink-muted sm:inline">⌘K</kbd>
+        </Link>
+
         {RECORD_GROUPS.map((group) => (
           <section key={group.heading} aria-label={group.heading}>
             <h2 className="m-0 mb-3 text-[13px] font-bold uppercase tracking-[0.1em] text-ink-muted">

@@ -146,14 +146,8 @@ function ReviewInner({ vm }: { vm: ReviewWorkspaceVM }) {
   return (
     <WorkspaceShell className="px-1 pb-12">
       <WorkspaceHeader
-        eyebrow="Weekly review"
-        title={
-          <span className="inline-flex items-center gap-2">
-            Review
-            <CcIcon name="activity" size={22} className="text-brand-400" />
-          </span>
-        }
-        lede="Weekly progress review and what needs your attention."
+        title="Weekly Review"
+        lede="What changed and what needs attention."
         actions={
           <div className="flex flex-col items-end gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-surface/80 px-3 py-1 text-[12.5px] font-semibold text-ink shadow-card">

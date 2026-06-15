@@ -34,11 +34,12 @@ export type NavGroup =
   // Partners → Data → Admin). These are the human-readable groups the leadership
   // sidebar is organized into; see lib/navigation/officer-nav-layout.ts.
   // "Start" holds the three primary choices (Command Center · My Queue · Browse);
-  // "Modes" holds the demoted operating modes (Decide · Delegate · Meet · Review ·
-  // Follow Up), collapsed by default. "Command" is retained for back-compat.
+  // "More" holds the demoted advanced modes (Decisions · Owners · Weekly Review ·
+  // Meet), collapsed by default. "Command"/"Modes" are retained for back-compat.
   | "Command"
   | "Start"
   | "Modes"
+  | "More"
   | "Work"
   | "People"
   | "Programs"

@@ -8,9 +8,9 @@ import type { NavGroup, NavLink, NavRole } from "@/lib/navigation/types";
  * pile of separate tools. The model collapses to three primary choices:
  *
  *   Start     — the three primary choices: Command Center, My Queue, Browse
- *   Work      — the work records: actions, meetings, initiatives, scheduling
- *   Modes     — the contextual operating modes (Decide, Delegate, Meet, Review,
- *               Follow Up), collapsed by default — reach them from Command Center
+ *   Work      — the core workspaces: People, Meetings, Initiatives, Actions, Follow Ups
+ *   More      — advanced modes (Decisions, Owners, Weekly Review, Meet), collapsed
+ *               by default — reach them from Home and the records they belong to
  *   People    — the people directory, instructors, applicants, reviews
  *   Programs  — classes, curriculum, training, chapters
  *   Partners  — partner relationships and the partner pipeline
@@ -35,10 +35,10 @@ const OFFICER_LAYOUT_ROLES: ReadonlySet<NavRole> = new Set<NavRole>([
 
 /**
  * Operating-system sections shown expanded by default so the toolset is visible
- * at a glance. "Modes" is deliberately NOT here: the contextual operating modes
- * (Decide / Delegate / Meet / Review / Follow Up) stay collapsed so they don't
- * compete with the three primary choices in Start. Personal / long-tail sections
- * (Profile & Settings, etc.) also stay collapsed beneath these to keep it calm.
+ * at a glance. "More" is deliberately NOT here: the advanced modes (Decisions /
+ * Owners / Weekly Review / Meet) stay collapsed so they don't compete with the
+ * three primary choices in Start. Personal / long-tail sections (Profile &
+ * Settings, etc.) also stay collapsed beneath these to keep it calm.
  */
 export const OFFICER_PRIMARY_GROUPS: ReadonlySet<NavGroup> = new Set<NavGroup>([
   "Start",
@@ -54,7 +54,7 @@ export const OFFICER_PRIMARY_GROUPS: ReadonlySet<NavGroup> = new Set<NavGroup>([
 export const OFFICER_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
   Start: "🧭",
   Work: "🎛️",
-  Modes: "🧰",
+  More: "🧰",
   People: "👥",
   Programs: "🎓",
   Partners: "🤝",
@@ -81,23 +81,23 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/work/queue": { group: "Start", label: "My Queue", icon: "📥" },
   "/browse": { group: "Start", label: "Browse", icon: "🗂️" },
 
-  // Work — the work records: actions, meetings, initiatives, scheduling.
+  // Work — the core workspaces: people, meetings, initiatives, actions, follow-ups.
   "/work": { group: "Work", label: "Work", icon: "🎛️" },
   "/actions": { group: "Work", label: "Actions", icon: "✅" },
   "/operations/initiatives": { group: "Work", label: "Initiatives", icon: "🎯" },
   "/actions/meetings": { group: "Work", label: "Meetings", icon: "📅" },
+  "/follow-up": { group: "Work", label: "Follow Ups", icon: "🔔" },
   "/operations": { group: "Work", label: "Needs Attention", icon: "🧭" },
   "/actions/all": { group: "Work", label: "All Actions", icon: "🗂️" },
   "/actions/responsibility": { group: "Work", label: "Responsibility Map", icon: "🗺️" },
   "/scheduling": { group: "Work", label: "Scheduling", icon: "🗓" },
 
-  // Modes — contextual operating modes, collapsed by default. Command Center
-  // links into each of these; they no longer compete as primary destinations.
-  "/decide": { group: "Modes", label: "Decide", icon: "⚖️" },
-  "/delegate": { group: "Modes", label: "Delegate", icon: "🤝" },
-  "/meet": { group: "Modes", label: "Meet", icon: "🛎️" },
-  "/review": { group: "Modes", label: "Review", icon: "📊" },
-  "/follow-up": { group: "Modes", label: "Follow Up", icon: "🔔" },
+  // More — advanced operating modes, collapsed by default. Home / Meetings /
+  // Actions / Initiatives link into each; they don't compete as primary tabs.
+  "/decide": { group: "More", label: "Decisions", icon: "⚖️" },
+  "/delegate": { group: "More", label: "Owners", icon: "🤝" },
+  "/review": { group: "More", label: "Weekly Review", icon: "📊" },
+  "/meet": { group: "More", label: "Meet", icon: "🛎️" },
 
   // People — find anyone, run leadership & review workflows
   "/people": { group: "People", label: "People", icon: "👥" },
@@ -148,21 +148,21 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/command-center",
   "/work/queue",
   "/browse",
-  // Work — the work records
+  // Work — the core workspaces
   "/work",
   "/actions",
   "/operations/initiatives",
   "/actions/meetings",
+  "/follow-up",
   "/operations",
   "/actions/all",
   "/actions/responsibility",
   "/scheduling",
-  // Modes — demoted operating modes (collapsed)
+  // More — advanced modes (collapsed)
   "/decide",
   "/delegate",
-  "/meet",
   "/review",
-  "/follow-up",
+  "/meet",
   // People
   "/people",
   "/admin/instructors",
@@ -203,7 +203,7 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
 export const OFFICER_GROUP_ORDER: NavGroup[] = [
   "Start",
   "Work",
-  "Modes",
+  "More",
   "People",
   "Programs",
   "Partners",

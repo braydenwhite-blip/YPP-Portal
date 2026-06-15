@@ -117,7 +117,7 @@ export default async function StrategicInitiativesPage({
         backHref="/work?view=initiatives"
         backLabel="Work"
         title="Initiatives"
-        subtitle="Each initiative is a priority. Open one to see its next milestone, the actions driving it, and the meetings where it was discussed."
+        subtitle="What we’re moving forward. Open one to see its next move."
         actions={
           <ButtonLink href="/work" variant="ghost" size="sm">
             Work hub →

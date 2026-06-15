@@ -13,7 +13,7 @@ import { ButtonLink, cn } from "@/components/ui-v2";
 import type { CcMeeting, CcMeetingRoom, MeetWorkspaceVM } from "@/lib/command-center";
 import type { QueueItem } from "@/lib/queue/types";
 
-import { CommandModeProvider, CommandModeToggle, ExecutiveOnly } from "./command-mode";
+import { CommandModeProvider, CommandModeToggle, ExecutiveOnly, useIsExecutive } from "./command-mode";
 import { CcIcon } from "./icons";
 import { Avatar, EmptyHint, ItemRow, PanelCard, ViewAllLink } from "./primitives";
 
@@ -338,15 +338,11 @@ function RailItemList({ items, now, emptyHint }: { items: QueueItem[]; now: Date
 
 function MeetInner({ vm, nowISO }: { vm: MeetWorkspaceVM; nowISO: string }) {
   const now = new Date(nowISO);
+  const executive = useIsExecutive();
   return (
     <WorkspaceShell className="px-1 pb-12">
       <WorkspaceHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            Meet
-            <CcIcon name="calendar" size={22} className="text-brand-400" />
-          </span>
-        }
+        title="Meet"
         lede="Run your meetings — before, during, and after."
         actions={<CommandModeToggle />}
       />
@@ -372,14 +368,21 @@ function MeetInner({ vm, nowISO }: { vm: MeetWorkspaceVM; nowISO: string }) {
           </ExecutiveOnly>
         </section>
 
-        <div className="grid items-start gap-4 xl:grid-cols-[280px_minmax(0,1fr)_300px]">
-          <PanelCard icon="calendar" title="Meetings">
-            <div className="flex flex-col gap-4">
-              <RailSection label="Current" meetings={vm.rail.current} activeId={vm.room?.id ?? null} emptyHint="No meeting in progress." />
-              <RailSection label="Upcoming" meetings={vm.rail.upcoming} activeId={vm.room?.id ?? null} emptyHint="No upcoming meetings." />
-              <RailSection label="Recent" meetings={vm.rail.recent} activeId={vm.room?.id ?? null} emptyHint="No recent meetings." />
-            </div>
-          </PanelCard>
+        <div
+          className={cn(
+            "grid items-start gap-4",
+            executive ? "xl:grid-cols-[280px_minmax(0,1fr)_300px]" : "xl:grid-cols-[minmax(0,1fr)_300px]"
+          )}
+        >
+          <ExecutiveOnly>
+            <PanelCard icon="calendar" title="Meetings">
+              <div className="flex flex-col gap-4">
+                <RailSection label="Current" meetings={vm.rail.current} activeId={vm.room?.id ?? null} emptyHint="No meeting in progress." />
+                <RailSection label="Upcoming" meetings={vm.rail.upcoming} activeId={vm.room?.id ?? null} emptyHint="No upcoming meetings." />
+                <RailSection label="Recent" meetings={vm.rail.recent} activeId={vm.room?.id ?? null} emptyHint="No recent meetings." />
+              </div>
+            </PanelCard>
+          </ExecutiveOnly>
 
           {vm.room ? (
             <MeetingRoom room={vm.room} />

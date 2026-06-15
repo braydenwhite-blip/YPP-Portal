@@ -545,7 +545,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/decide",
-      label: "Decide",
+      label: "Decisions",
       icon: "⚖️",
       // Decision operating system — leadership choices, ownership gaps, blockers.
       roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
@@ -563,7 +563,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/delegate",
-      label: "Delegate",
+      label: "Owners",
       icon: "🤝",
       // Ownership & accountability — assign owners, reassign overdue, batch tools.
       roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
@@ -599,7 +599,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/review",
-      label: "Review",
+      label: "Weekly Review",
       icon: "📊",
       // Weekly operating review — what changed, what needs review, next week.
       roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
@@ -617,7 +617,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/follow-up",
-      label: "Follow Up",
+      label: "Follow Ups",
       icon: "🔔",
       // Waiting-on / outreach desk — who we're waiting on, what's overdue.
       roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],

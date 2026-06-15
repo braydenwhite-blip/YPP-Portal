@@ -263,22 +263,16 @@ function DecideInner({
   return (
     <WorkspaceShell className="px-1 pb-12">
       <WorkspaceHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            Decide
-            <CcIcon name="sparkle" size={22} className="text-brand-400" />
-          </span>
-        }
-        lede="Leadership choices, ownership gaps, and blockers in one calm workspace."
+        title="Decisions"
+        lede="Choices that need a call."
         actions={<CommandModeToggle />}
       />
 
       <WorkspaceBody>
         <MissionBriefCard
           icon="scale"
-          eyebrow="Decision brief"
+          eyebrow="Decisions"
           headline={vm.brief}
-          sub="Decisions aggregated from applicants, initiatives, meetings, actions, classes, people, and partners."
           action={
             <ButtonLink href="#decision-log" variant="secondary" size="md">
               View decision log →
