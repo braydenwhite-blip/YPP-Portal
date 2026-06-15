@@ -5,6 +5,7 @@ import {
   InitiativeHubList,
 } from "@/components/people-strategy/initiative-hub";
 import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
+import { InitiativeUnblockQueue } from "@/components/queue";
 import {
   ButtonLink,
   FilterBar,
@@ -13,6 +14,7 @@ import {
   StatCardV2,
 } from "@/components/ui-v2";
 import { requireOfficer } from "@/lib/authorization";
+import { queueItemFromInitiativeCard, rankQueueItems } from "@/lib/queue";
 import {
   isActionTrackerEnabled,
   isOperationsHubEnabled,
@@ -69,11 +71,47 @@ export default async function StrategicInitiativesPage({
   const dueSoonMilestones = selectUpcomingMilestones(initiatives, now, 14);
   const recentlyActive = active.filter((i) => i.momentum.recentlyCompleted > 0);
 
+  // Initiative Cleanup Queue — drifting initiatives folded into the canonical
+  // loop model (same mapping the Work Hub uses), so this surface leads with the
+  // next operational move instead of a wall of progress bars.
+  const healthTone: Record<string, "success" | "info" | "warning" | "danger" | "neutral"> = {
+    healthy: "success",
+    drifting: "info",
+    at_risk: "warning",
+    critical: "danger",
+    completed: "neutral",
+    archived: "neutral",
+  };
+  const cleanupItems = rankQueueItems(
+    active
+      .map((s) =>
+        queueItemFromInitiativeCard({
+          id: s.id,
+          title: s.title,
+          statusLabel: s.statusLabel,
+          healthLabel: s.health.label,
+          healthTone: healthTone[s.health.level] ?? "neutral",
+          healthReasons: s.healthExplanation.reasons.slice(0, 3),
+          owner: s.ownership.ownerName,
+          openActions: s.counts.openActions,
+          overdueActions: s.counts.overdueActions,
+          progressLabel: `${s.progress.percent}% of milestones`,
+          nextStep: s.recommendations[0]?.title ?? null,
+          targetDateISO: s.targetDateISO,
+          pastTargetDate: s.pastTargetDate,
+          flagship: s.priority === "flagship" || s.priority === "high",
+          href: s.href,
+        })
+      )
+      .filter((item): item is NonNullable<typeof item> => item !== null),
+    now
+  );
+
   const base = "/operations/initiatives";
   const href = (v: View) => (v === "active" ? base : `${base}?view=${v}`);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-6 pb-10">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 pb-10">
       <PageHeaderV2
         eyebrow="Work"
         backHref="/work?view=initiatives"
@@ -88,6 +126,8 @@ export default async function StrategicInitiativesPage({
       />
 
       <ActionTrackerTabsV2 active="initiatives" />
+
+      {cleanupItems.length > 0 ? <InitiativeUnblockQueue items={cleanupItems} /> : null}
 
       {/* Executive header — calm by default, loud only when work demands it. */}
       <div className="flex flex-wrap gap-3">

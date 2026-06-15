@@ -73,6 +73,8 @@ export type WorkHubInitiativeCard = {
   nextStep: string | null;
   targetDateISO: string | null;
   pastTargetDate: boolean;
+  /** Flagship or high-priority — feeds the Queue Engine's flagship signal. */
+  flagship: boolean;
   href: string;
 };
 
@@ -434,6 +436,7 @@ export async function loadWorkHub(
       nextStep: s.recommendations[0]?.title ?? null,
       targetDateISO: s.targetDateISO,
       pastTargetDate: s.pastTargetDate,
+      flagship: s.priority === "flagship" || s.priority === "high",
       href: s.href,
     }));
 

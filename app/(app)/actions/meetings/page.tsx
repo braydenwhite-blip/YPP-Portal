@@ -23,6 +23,9 @@ import {
   normalizeRelatedEntityType,
 } from "@/lib/people-strategy/operational-context";
 import { ActionTrackerBack } from "@/components/people-strategy/action-tracker-tabs";
+import { MeetingPrepQueue, PostMeetingQueue } from "@/components/queue";
+import { getEngineQueue } from "@/lib/queue/engine";
+import { loadQueueEngine } from "@/lib/queue/load";
 import {
   WeeklyCommandCenterClient,
   type FollowQueueRow,
@@ -196,9 +199,28 @@ export default async function WeeklyCommandCenterPage({
   }
   const owners: PersonOption[] = people.filter((p) => ownerIds.has(p.id));
 
+  // Meeting operating rhythm — fold the Queue Engine's prep + post-meeting lanes
+  // in above the week grid so meetings answer "what do I review before this?"
+  // and "what follow-ups are still open?". Degrades gracefully if it can't load.
+  const actionViewer = {
+    id: viewer.id,
+    roles: viewer.roles,
+    primaryRole: viewer.primaryRole,
+    adminSubtypes: viewer.adminSubtypes,
+  };
+  const queueEngine = await loadQueueEngine(actionViewer, { now }).catch(() => null);
+  const meetingPrepItems = queueEngine ? getEngineQueue(queueEngine, "meeting-prep", now) : [];
+  const postMeetingItems = queueEngine ? getEngineQueue(queueEngine, "post-meeting", now) : [];
+
   return (
-    <div className="page-shell" style={{ maxWidth: 1280 }}>
+    <div className="page-shell" style={{ maxWidth: 1400 }}>
       <ActionTrackerBack />
+      {meetingPrepItems.length > 0 || postMeetingItems.length > 0 ? (
+        <div className="mb-5 grid items-start gap-4 lg:grid-cols-2">
+          <MeetingPrepQueue items={meetingPrepItems} />
+          <PostMeetingQueue items={postMeetingItems} />
+        </div>
+      ) : null}
       <WeeklyCommandCenterClient
         meetings={cards}
         nowISO={now.toISOString()}
