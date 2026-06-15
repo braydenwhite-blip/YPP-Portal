@@ -5,6 +5,15 @@ import {
   ActionTrackerDashboard,
   filterActionsByPerson,
 } from "@/components/people-strategy/action-tracker-dashboard";
+import {
+  ActionAttentionPanel,
+  ActionDataQualityPanel,
+} from "@/components/people-strategy/action-attention-panel";
+import {
+  actionDataQuality,
+  leadershipActionAttention,
+  personalActionAttention,
+} from "@/lib/people-strategy/action-attention";
 import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
@@ -87,19 +96,32 @@ export default async function ActionsPage({
     items = items.filter((item) => item.title.toLowerCase().includes(qParam));
   }
 
+  // Unified, action-shaped Needs Attention — wired straight into the work hub.
+  // A member sees their personal triage feed; an officer browsing everyone's
+  // queue sees the leadership "what's stuck" feed plus the data-quality sweep.
+  const leadershipView = officer && who !== "me";
+  const attentionSignals = leadershipView
+    ? leadershipActionAttention(items, now)
+    : personalActionAttention(myItems, viewer.id, now);
+  const dataQualityFlags = who === "all" ? actionDataQuality(allItems, now) : [];
+
   return (
     <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5">
       <PageHeaderV2
         eyebrow="Work"
         backHref="/work"
         backLabel="Work"
-        title={initiativeDef ? initiativeDef.title : "My actions"}
+        title={
+          initiativeDef ? initiativeDef.title : leadershipView ? "All actions" : "My actions"
+        }
         subtitle={
           initiativeDef
             ? "Actions linked to this initiative."
-            : officer
-              ? "Add an action below, or switch to everyone’s queue."
-              : "Everything you lead, execute, or owe input on."
+            : leadershipView
+              ? "Everything stuck, owned, and in motion across the team."
+              : officer
+                ? "Add an action below, or switch to everyone’s queue."
+                : "Everything you lead, execute, or owe input on."
         }
         actions={
           initiativeDef ? (
@@ -125,6 +147,25 @@ export default async function ActionsPage({
         {qParam ? ` · “${qParam}”` : ""}
       </p>
 
+      <ActionAttentionPanel
+        title={leadershipView ? "What's stuck" : "Needs your attention"}
+        subtitle={
+          leadershipView
+            ? "Overdue, blocked, ownerless, escalated, and stale work across the team."
+            : "Overdue, blocked, due soon, and waiting on you — handle these first."
+        }
+        signals={attentionSignals}
+        emptyHint={
+          leadershipView
+            ? "Nothing is stuck right now. ✓"
+            : "You're all caught up — nothing needs you right now. ✓"
+        }
+      />
+
+      {dataQualityFlags.length > 0 ? (
+        <ActionDataQualityPanel flags={dataQualityFlags} />
+      ) : null}
+
       <ActionTrackerDashboard
         items={items}
         now={now}
@@ -138,6 +179,7 @@ export default async function ActionsPage({
         q={qParam}
         initiativeId={initiativeDef?.id}
         defaultOpenCreate={createOpen}
+        showAttentionBoard={false}
         initiativeLink={
           initiativeDef
             ? {

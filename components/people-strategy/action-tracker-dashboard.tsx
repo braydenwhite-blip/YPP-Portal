@@ -114,6 +114,7 @@ export function ActionTrackerDashboard({
   initiativeId,
   defaultOpenCreate = false,
   initiativeLink,
+  showAttentionBoard = true,
 }: {
   items: ActionItemWithRelations[];
   now: Date;
@@ -128,6 +129,13 @@ export function ActionTrackerDashboard({
   initiativeId?: string;
   defaultOpenCreate?: boolean;
   initiativeLink?: { id: string; goalCategory?: string };
+  /**
+   * When false, the built-in row-based "Needs attention" section is suppressed
+   * because the page renders the richer explainable Action Attention panel
+   * above the board (so attention items show once, in triage form). Mine / Team
+   * then list ALL open work rather than hiding the flagged rows.
+   */
+  showAttentionBoard?: boolean;
 }) {
   const listHref = buildActionsHref({ who, q, initiative: initiativeId });
 
@@ -136,13 +144,18 @@ export function ActionTrackerDashboard({
   const reasons = new Map(
     board.needsAttention.map((i) => [i.id, attentionReason(i, now)] as const)
   );
-  // Keep each open action in one place: a row in "Needs attention" is not
-  // repeated under Mine / Team.
-  const mine = board.mine.filter((i) => !attentionIds.has(i.id));
-  const team = board.team.filter((i) => !attentionIds.has(i.id));
+  // When the row-based section is shown, keep each open action in one place: a
+  // row in "Needs attention" is not repeated under Mine / Team. When it is
+  // suppressed (page panel takes over), Mine / Team carry the full open list.
+  const mine = showAttentionBoard
+    ? board.mine.filter((i) => !attentionIds.has(i.id))
+    : board.mine;
+  const team = showAttentionBoard
+    ? board.team.filter((i) => !attentionIds.has(i.id))
+    : board.team;
 
   const hasAnything =
-    board.needsAttention.length > 0 ||
+    (showAttentionBoard && board.needsAttention.length > 0) ||
     mine.length > 0 ||
     team.length > 0 ||
     board.recentlyCompleted.length > 0;
@@ -201,13 +214,15 @@ export function ActionTrackerDashboard({
         />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <BoardSection
-            title="Needs attention"
-            hint="handle these first"
-            items={board.needsAttention}
-            now={now}
-            reasons={reasons}
-          />
+          {showAttentionBoard ? (
+            <BoardSection
+              title="Needs attention"
+              hint="handle these first"
+              items={board.needsAttention}
+              now={now}
+              reasons={reasons}
+            />
+          ) : null}
           <BoardSection title="My actions" items={mine} now={now} />
           {who === "all" ? (
             <BoardSection title="Team actions" hint="owned by others" items={team} now={now} />

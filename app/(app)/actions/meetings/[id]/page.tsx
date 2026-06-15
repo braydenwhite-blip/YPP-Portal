@@ -10,6 +10,13 @@ import {
 } from "@/lib/people-strategy/action-queries";
 import { deriveMeetingFollowUpPack } from "@/lib/people-strategy/action-operations-intel";
 import { MeetingFollowUpPackSection } from "@/components/work/meeting-follow-up-pack";
+import {
+  generateAgendaText,
+  generateMeetingSummary,
+  type AgendaActionInput,
+} from "@/lib/people-strategy/meeting-agenda-summary";
+import { MeetingAgendaSummaryPanel } from "@/components/people-strategy/meeting-agenda-summary-panel";
+import { startOfDay } from "@/lib/leadership-action-center/dates";
 import { effectiveStatus } from "@/lib/people-strategy/action-filters";
 import {
   getMeetingById,
@@ -126,6 +133,61 @@ export default async function MeetingDetailPage({
     }
   }
 
+  // Deterministic agenda + summary generation (no AI required): build the
+  // grouped drafts from the meeting's own linked actions, agenda items,
+  // decisions, and follow-ups so the facilitator can preview / edit / copy.
+  const DUE_SOON_MS = 3 * 86_400_000;
+  const todayMs = startOfDay(now).getTime();
+  const agendaActions: AgendaActionInput[] = detail.linkedActions.map((a) => {
+    const deadlineMs = new Date(a.deadlineISO).getTime();
+    const settled = a.status === "COMPLETE" || a.status === "DROPPED";
+    const overdue = !settled && deadlineMs < todayMs;
+    const dueSoon = !settled && !overdue && deadlineMs <= todayMs + DUE_SOON_MS;
+    return {
+      id: a.id,
+      title: a.title,
+      status: a.status,
+      priority: a.priority,
+      ownerName: a.owner?.name ?? null,
+      deadlineISO: a.deadlineISO,
+      blocked: a.status === "BLOCKED",
+      overdue,
+      dueSoon,
+    };
+  });
+  const agendaText = generateAgendaText({
+    title: detail.title,
+    dateISO: detail.startISO,
+    actions: agendaActions,
+    agendaItems: detail.agenda.map((i) => ({
+      title: i.title,
+      status: i.status,
+      ownerName: i.owner?.name ?? null,
+    })),
+    openFollowUps: detail.followUps
+      .filter((f) => f.effectiveStatus !== "completed")
+      .map((f) => ({ title: f.title, ownerName: f.owner?.name ?? null, dueISO: f.dueISO })),
+  });
+  const summary = generateMeetingSummary({
+    title: detail.title,
+    dateISO: detail.startISO,
+    decisions: detail.decisions.map((d) => ({
+      decision: d.decision,
+      decidedByName: d.decidedBy?.name ?? null,
+    })),
+    actions: agendaActions,
+    followUps: detail.followUps.map((f) => ({
+      title: f.title,
+      ownerName: f.owner?.name ?? null,
+      dueISO: f.dueISO,
+      status: f.effectiveStatus === "completed" ? "COMPLETED" : "OPEN",
+    })),
+    deferredAgendaItems: detail.agenda
+      .filter((i) => i.status === "DEFERRED")
+      .map((i) => ({ title: i.title })),
+    notesText: detail.notesText,
+  });
+
   const strategicContext = isStrategicInitiativesEnabled()
     ? deriveStrategicContextForMeeting({
         title: detail.title,
@@ -139,6 +201,12 @@ export default async function MeetingDetailPage({
   return (
     <div className="page-shell" style={{ maxWidth: 1280 }}>
       <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
+      <MeetingAgendaSummaryPanel
+        agendaText={agendaText}
+        summaryText={summary.text}
+        summaryWarnings={summary.warnings}
+        summaryMissingNotes={summary.missingNotes}
+      />
       <SuggestedActionsPanel
         meetingId={id}
         people={people}

@@ -21,6 +21,8 @@ import {
   deriveActionStrategicLinkage,
 } from "@/lib/people-strategy/action-source";
 import { ActionIntelPanel } from "@/components/people-strategy/action-intel-panel";
+import { ActionAttentionCallout } from "@/components/people-strategy/action-attention-callout";
+import { deriveActionSignals } from "@/lib/people-strategy/action-attention";
 import {
   getActionItemById,
   getActionsForEntity,
@@ -214,6 +216,11 @@ export default async function ActionDetailPage({ params }: PageProps) {
   const now = new Date();
   const detail = toDetailDTO(item);
 
+  // Action-shaped Needs Attention for THIS action: the same deterministic
+  // engine the work hub uses, scoped to one item, so every permitted viewer
+  // sees plainly why it is stuck and the recommended next move — not just officers.
+  const attentionSignals = deriveActionSignals(item, now);
+
   // Cross-portal connective tissue: resolve the linked entity for a real link +
   // pull the nearby work (same entity / same source meeting) so the action never
   // reads as an island. Each load fails safe.
@@ -274,6 +281,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
 
   return (
     <div className="page-shell" style={{ maxWidth: 720 }}>
+      <ActionAttentionCallout signals={attentionSignals} />
       <ActionDetailCard
         item={detail}
         canEdit={canEdit}
