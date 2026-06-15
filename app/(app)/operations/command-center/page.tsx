@@ -10,6 +10,10 @@ import {
 import { getWeeklyOperationalDigestForViewer } from "@/lib/people-strategy/operational-digest-queries";
 import { getStrategicInitiativesOverview } from "@/lib/people-strategy/strategic-initiative-queries";
 import { deriveOperationsSummary } from "@/lib/people-strategy/operations-summary";
+import { isLeadershipOrBoard } from "@/lib/people-strategy/action-permissions";
+import { loadPeopleStrategyAttention } from "@/lib/people-strategy/needs-attention-queries";
+import type { AttentionItem } from "@/lib/people-strategy/needs-attention";
+import { NeedsAttentionList } from "@/components/people-strategy/needs-attention-list";
 import { StatCard } from "@/components/people-strategy/stat-card";
 import {
   OperationsEmptyState,
@@ -48,11 +52,18 @@ export default async function CommandCenterOsPage() {
 
   const now = new Date();
   const showStrategic = isStrategicInitiativesEnabled();
-  const [digest, initiatives] = await Promise.all([
+  // The People Strategy attention queue (mentors, kickoffs, check-ins,
+  // provisional decisions, escalations) is CPO/Board/SUPER_ADMIN data — only the
+  // Leadership/Board tier sees it; scoped officers keep the action-only view.
+  const showPeopleAttention = isLeadershipOrBoard(viewer);
+  const [digest, initiatives, peopleAttention] = await Promise.all([
     getWeeklyOperationalDigestForViewer(viewer, { now }),
     showStrategic
       ? getStrategicInitiativesOverview(viewer, { now }).catch(() => [])
       : Promise.resolve([]),
+    showPeopleAttention
+      ? loadPeopleStrategyAttention(now).catch(() => [] as AttentionItem[])
+      : Promise.resolve([] as AttentionItem[]),
   ]);
 
   const summary = deriveOperationsSummary({ digest, initiatives, now });
@@ -109,6 +120,19 @@ export default async function CommandCenterOsPage() {
             }
           />
         </CommandCenterSection>
+
+        {showPeopleAttention ? (
+          <CommandCenterSection
+            title="People needs attention"
+            hint="Missing mentors, kickoffs, check-ins, provisional decisions, escalations"
+          >
+            <NeedsAttentionList
+              items={peopleAttention}
+              limit={12}
+              emptyHint="No people-strategy items need attention right now — mentors are assigned, kickoffs and check-ins are current, and nothing is escalated."
+            />
+          </CommandCenterSection>
+        ) : null}
 
         <div
           className="command-center-grid"
