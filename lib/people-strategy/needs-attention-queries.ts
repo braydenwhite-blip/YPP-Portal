@@ -9,12 +9,15 @@ import { getMyActionItems, type ActionItemWithRelations } from "./action-queries
 import type { ActionViewer } from "./action-permissions";
 import { computeProvisionalStatus } from "./provisional";
 import {
+  actionAttention,
   computeNeedsAttention,
+  filterAttentionForViewer,
   type AttentionAction,
   type AttentionItem,
   type AttentionPerson,
   type AttentionEscalation,
 } from "./needs-attention";
+import { isOfficerTier } from "./action-permissions";
 
 /**
  * People Strategy — Needs Attention loader (read-only).
@@ -116,7 +119,7 @@ export async function loadPeopleStrategyAttention(
 }
 
 /** Map a loaded action item to the engine's minimal action shape. */
-function actionItemToAttention(item: ActionItemWithRelations): AttentionAction {
+export function actionItemToAttention(item: ActionItemWithRelations): AttentionAction {
   return {
     id: item.id,
     title: item.title,
@@ -198,4 +201,25 @@ export async function loadPersonAttention(
     { actions: actionItems.map(actionItemToAttention), people: [person] },
     now
   );
+}
+
+/**
+ * Bridge for the Action Tracker surfaces (`/actions`, `/actions/[id]`): turn
+ * already-loaded action items into the unified, severity-ranked attention list
+ * WITHOUT a second DB round-trip — the caller passes the items it already
+ * loaded (My Actions, All Actions, or a single action). Officer-only signals
+ * are dropped for non-officer viewers, mirroring `canViewAction` so a member's
+ * attention panel never leaks confidential work.
+ *
+ * Pure and deterministic (`now` injected) so it is unit-testable; the action
+ * pages call it directly off their existing loaders. This is what keeps the
+ * attention engine from being backend-only for actions.
+ */
+export function actionAttentionForViewer(
+  items: ActionItemWithRelations[],
+  viewer: ActionViewer,
+  now: Date = new Date()
+): AttentionItem[] {
+  const raw = actionAttention(items.map(actionItemToAttention), now);
+  return filterAttentionForViewer(raw, { canSeeConfidential: isOfficerTier(viewer) });
 }
