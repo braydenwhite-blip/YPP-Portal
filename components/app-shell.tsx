@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Nav, { type NavBadges } from "@/components/nav";
 import BrandLockup from "@/components/brand-lockup";
+import CommandBar from "@/components/command-bar";
 import LogoutButton from "@/components/logout-button";
 import PageHelperFab from "@/components/page-helper-fab";
 import type { PageHelperRole } from "@/lib/page-helper/types";
@@ -123,6 +124,35 @@ export default function AppShell({
     return (roles ?? []).includes("ADMIN");
   }, [primaryRole, roles]);
 
+  const userTitle = useMemo(
+    () =>
+      primaryRole || adminSubtypes?.length
+        ? getUserTitle({ primaryRole, adminSubtypes })
+        : "Portal access",
+    [primaryRole, adminSubtypes],
+  );
+
+  // The operating context shown in the global command bar.
+  const workspaceLabel = useMemo(() => {
+    const role = primaryRole?.toUpperCase();
+    if (role === "CHAPTER_PRESIDENT") return "Chapter Workspace";
+    if (officerTier) return "Leadership Workspace";
+    switch (role) {
+      case "INSTRUCTOR":
+        return "Instructor Studio";
+      case "STUDENT":
+        return "Student Portal";
+      case "PARENT":
+        return "Family Portal";
+      case "MENTOR":
+        return "Mentor Workspace";
+      case "APPLICANT":
+        return "Application Center";
+      default:
+        return "YPP Portal";
+    }
+  }, [officerTier, primaryRole]);
+
   return (
     <Entity360Provider>
     <HelpAgentProvider officerTier={officerTier} adminTier={adminTier}>
@@ -203,11 +233,7 @@ export default function AppShell({
           <SidebarUserCard
             initials={userInitials}
             name={userName ?? "Portal User"}
-            roleLabel={
-              primaryRole || adminSubtypes?.length
-                ? getUserTitle({ primaryRole, adminSubtypes })
-                : "Portal access"
-            }
+            roleLabel={userTitle}
             action={<LogoutButton className={sidebarGhostButtonClass} />}
           />
         </div>
@@ -242,6 +268,11 @@ export default function AppShell({
             </a>
           </div>
         )}
+        <CommandBar
+          workspaceLabel={workspaceLabel}
+          roleLabel={userTitle}
+          officerTier={officerTier}
+        />
         {children}
       </main>
       <PageHelperFab

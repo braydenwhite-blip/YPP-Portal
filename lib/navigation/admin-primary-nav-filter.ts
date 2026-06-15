@@ -10,10 +10,30 @@ const ADMIN_PRIMARY_HIDDEN_GROUPS = new Set<NavGroup>([
 
 const OPPORTUNITIES_KEEP_ONLY = new Set(["/positions"]);
 
-/** Hrefs in otherwise-hidden Admin groups that all primary-role admins should see in the sidebar. */
+/**
+ * Hrefs in otherwise-hidden Admin groups that all primary-role admins should see
+ * in the sidebar. These are re-skinned into the leadership operating-system
+ * sections (People / Programs / Partners / Admin) by officer-nav-layout.ts so
+ * the most-used admin surfaces are one click away instead of buried in /admin.
+ */
 const ADMIN_PRIMARY_GROUP_KEEP_HREFS = new Set<string>([
   "/admin/training",
   "/admin/bulk-users",
+  // People
+  "/admin/instructors",
+  "/admin/instructor-applicants",
+  "/admin/instructor-applicants/chair-queue",
+  "/admin/students",
+  "/admin/leadership",
+  "/admin/parent-feedback",
+  // Programs
+  "/admin/classes",
+  "/admin/programs",
+  "/admin/curricula",
+  // Partners
+  "/admin/partners",
+  // Admin
+  "/admin/analytics",
 ]);
 
 const PEOPLE_SUPPORT_HIDDEN_FOR_ADMIN_PRIMARY = new Set<string>([

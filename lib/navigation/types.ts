@@ -30,6 +30,16 @@ export type NavGroup =
   | "Schedule"
   | "Community"
   | "Profile"
+  // Officer operating-system sections (Command → Work → People → Programs →
+  // Partners → Data → Admin). These are the human-readable groups the leadership
+  // sidebar is organized into; see lib/navigation/officer-nav-layout.ts.
+  | "Command"
+  | "Work"
+  | "People"
+  | "Programs"
+  | "Partners"
+  | "Data"
+  | "Admin"
   | "Admin People"
   | "Admin Content"
   | "Admin Reports"

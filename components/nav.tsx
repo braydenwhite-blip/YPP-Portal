@@ -23,6 +23,7 @@ import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-
 import { INSTRUCTOR_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/instructor-v1-nav-layout";
 import { STUDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/student-v1-nav-layout";
 import { CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/chapter-president-v1-nav-layout";
+import { OFFICER_GROUP_EMOJI } from "@/lib/navigation/officer-nav-layout";
 import type { NavGroup, NavLink } from "@/lib/navigation/types";
 
 /**
@@ -308,8 +309,15 @@ export default function Nav({
   const showChapterPresidentMinimalChrome = model.primaryRole === "CHAPTER_PRESIDENT";
   const useMinimalFlatNavChrome =
     showStudentMinimalChrome || showInstructorMinimalChrome || showChapterPresidentMinimalChrome;
-  const minimalGroupEmoji =
-    model.primaryRole === "INSTRUCTOR"
+  // Officers get the leadership operating-system chrome: always-visible,
+  // collapsible sections (Command / Work / People / Programs / Partners / Data /
+  // Admin) instead of one big "More Tools" accordion — so every area is one
+  // glance away. They keep the "Top Tools" pins and Recently Viewed.
+  const showOfficerChrome = model.officerChrome === true;
+  const useFlatGroupChrome = useMinimalFlatNavChrome || showOfficerChrome;
+  const flatGroupEmoji = showOfficerChrome
+    ? OFFICER_GROUP_EMOJI
+    : model.primaryRole === "INSTRUCTOR"
       ? INSTRUCTOR_MINIMAL_GROUP_EMOJI
       : model.primaryRole === "CHAPTER_PRESIDENT"
         ? CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI
@@ -435,7 +443,7 @@ export default function Nav({
           </section>
 
           {filteredMore.length > 0 ? (
-            useMinimalFlatNavChrome ? (
+            useFlatGroupChrome ? (
               <section className="flex flex-col gap-1" aria-label="Navigation sections">
                 {filteredMore.map((group) => {
                   const groupHasActive =
@@ -446,8 +454,8 @@ export default function Nav({
                   const isLocked = lockedGroups?.has(group.label);
                   const lockReason = isLocked && lockedGroups ? lockedGroups.get(group.label) : undefined;
                   const isRecentlyUnlocked = recentlyUnlockedGroups?.has(group.label);
-                  const heading = minimalGroupEmoji[group.label as NavGroup]
-                    ? `${minimalGroupEmoji[group.label as NavGroup]} ${group.label}`
+                  const heading = flatGroupEmoji[group.label as NavGroup]
+                    ? `${flatGroupEmoji[group.label as NavGroup]} ${group.label}`
                     : group.label;
 
                   return (
