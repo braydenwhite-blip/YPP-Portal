@@ -31,6 +31,21 @@ const OFFICER_LAYOUT_ROLES: ReadonlySet<NavRole> = new Set<NavRole>([
   "HIRING_CHAIR",
 ]);
 
+/**
+ * The seven operating-system sections, shown expanded by default so the whole
+ * leadership toolset is visible at a glance. Personal / long-tail sections
+ * (Profile & Settings, etc.) stay collapsed beneath them to keep it calm.
+ */
+export const OFFICER_PRIMARY_GROUPS: ReadonlySet<NavGroup> = new Set<NavGroup>([
+  "Command",
+  "Work",
+  "People",
+  "Programs",
+  "Partners",
+  "Data",
+  "Admin",
+]);
+
 /** Section emoji shown on each officer sidebar group header. */
 export const OFFICER_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
   Command: "🧭",

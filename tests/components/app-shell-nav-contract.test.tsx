@@ -17,7 +17,7 @@ import Nav from "@/components/nav";
 const ORIGINAL_PORTAL_SLIM_NAV = process.env.PORTAL_SLIM_NAV;
 
 describe("app shell nav contract", () => {
-  it("renders the slim leadership stack for ADMIN when the public preview gate is active", async () => {
+  it("gives ADMIN the full operating-system nav even under the public preview gate", async () => {
     render(
       <Nav
         roles={["ADMIN"]}
@@ -29,18 +29,22 @@ describe("app shell nav contract", () => {
       />
     );
 
-    const home = screen.getByRole("link", { name: /Home/i });
-    expect(home).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: /People Hub/i })).toHaveAttribute("href", "/people");
+    // The leadership front doors stay pinned at the top.
+    expect(screen.getByRole("link", { name: /Home/i })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: /^People$/i })).toHaveAttribute("href", "/people");
     expect(screen.getByRole("link", { name: /^Actions$/i })).toHaveAttribute("href", "/actions");
     expect(screen.getByRole("link", { name: /Initiatives/i })).toHaveAttribute(
       "href",
       "/operations/initiatives"
     );
-    expect(screen.getByRole("link", { name: /Work/i })).toHaveAttribute("href", "/work");
+    expect(screen.getByRole("link", { name: /^Work$/i })).toHaveAttribute("href", "/work");
 
-    expect(screen.queryByRole("link", { name: /Administration/i })).toBeNull();
+    // Officers get the grouped operating-system sections (no "More Tools"
+    // accordion), and admin configuration is reachable — not hidden behind the
+    // old 5-link slim stack.
+    expect(screen.getByRole("region", { name: "Navigation sections" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /more navigation links/i })).toBeNull();
+    expect(screen.getByRole("link", { name: /Administration/i })).toHaveAttribute("href", "/admin");
   });
 
   it("keeps the student minimal nav flat, with section toggles and no More Tools accordion", () => {

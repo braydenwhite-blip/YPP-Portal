@@ -493,12 +493,13 @@ export function resolveNavModel(
     ? hiringDemoHrefsForRole(primaryRole)
     : null;
   // Leadership operating-system layout (Command → Work → People → Programs →
-  // Partners → Data → Admin). Officers only, and never in the hiring demo or the
-  // public-preview slim ship, which have their own curated stacks.
+  // Partners → Data → Admin). Officers always get the full, organized nav — it
+  // takes precedence over the public-preview "slim" 5-link stack, which was
+  // dumbing the leadership sidebar down to a handful of links. (Officers bypass
+  // the public gate at the route level, so every section is reachable.) Only the
+  // hiring demo, which has its own curated stack, opts out.
   const officerLayoutActive =
-    shouldApplyOfficerNavLayout(primaryRole) &&
-    !hiringDemoHrefs &&
-    !shouldApplyPublicPreviewSlimNav(primaryRole, roles);
+    shouldApplyOfficerNavLayout(primaryRole) && !hiringDemoHrefs;
   const usesUnlockVisibility =
     primaryRole === "INSTRUCTOR" ||
     (input.unlockedSections && (primaryRole === "STUDENT" || primaryRole === "PARENT"));
@@ -615,7 +616,7 @@ export function resolveNavModel(
     visible = applyAdminPrimarySidebarFilter(visible, primaryRole, roles, adminSubtypes);
   }
 
-  if (shouldApplyPublicPreviewSlimNav(primaryRole, roles)) {
+  if (shouldApplyPublicPreviewSlimNav(primaryRole, roles) && !officerLayoutActive) {
     const slimHrefs = getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes);
     visible = visible.filter((item) => slimHrefs.has(item.href));
   }
@@ -675,7 +676,8 @@ export function resolveNavModel(
   }
 
   if (!studentMinimalSidebar || primaryRole !== "STUDENT") {
-    const skipMessagesPin = shouldApplyPublicPreviewSlimNav(primaryRole, roles);
+    const skipMessagesPin =
+      shouldApplyPublicPreviewSlimNav(primaryRole, roles) && !officerLayoutActive;
     if (!skipMessagesPin) {
       for (const criticalHref of CRITICAL_CORE_LINKS) {
         const item = visibleByHref.get(criticalHref);
@@ -693,7 +695,7 @@ export function resolveNavModel(
     }
   }
 
-  if (shouldApplyPublicPreviewSlimNav(primaryRole, roles)) {
+  if (shouldApplyPublicPreviewSlimNav(primaryRole, roles) && !officerLayoutActive) {
     for (const href of getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes)) {
       const item = visibleByHref.get(href);
       if (!item) continue;
