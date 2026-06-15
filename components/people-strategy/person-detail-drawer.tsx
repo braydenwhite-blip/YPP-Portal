@@ -255,7 +255,15 @@ export function PersonDetailDrawer({
             ))}
           </div>
         ) : null}
-        <p className="m-0 mt-1 text-[13px] font-semibold text-ink">{action.reason}</p>
+        <div className="mt-1 flex flex-col gap-0.5 rounded-[10px] bg-surface-soft px-3 py-2 ring-1 ring-line-soft">
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+            Next step
+          </span>
+          <span className="text-[13px] font-semibold text-ink">
+            {action.actionLabel}
+            <span className="font-normal text-ink-muted"> · {action.reason}</span>
+          </span>
+        </div>
       </header>
 
       <div className="mt-1 flex max-h-[62vh] flex-col gap-4 overflow-y-auto pr-1">
