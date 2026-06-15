@@ -13,9 +13,13 @@ import {
 } from "@/lib/people-strategy/operational-context-queries";
 import {
   canCreateAction,
+  isLeadershipOrBoard,
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
+import { loadPersonAttention } from "@/lib/people-strategy/needs-attention-queries";
+import type { AttentionItem } from "@/lib/people-strategy/needs-attention";
+import { NeedsAttentionList } from "@/components/people-strategy/needs-attention-list";
 import { getLeadershipContext } from "@/lib/leadership-context";
 import type { LeadershipStage } from "@/lib/leadership-pathway";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
@@ -73,14 +77,22 @@ export default async function PublicProfilePage({ params }: PageProps) {
   let opsContext: EntityOperationalContext | null = null;
   let leadershipStage: LeadershipStage | null = null;
   let leadershipNextStage: LeadershipStage | null = null;
+  let personAttention: AttentionItem[] = [];
   if (showLinkedActions) {
-    const [context, leadership] = await Promise.all([
+    const [context, leadership, attention] = await Promise.all([
       getOperationalContextForEntity("USER", id, viewer),
       getLeadershipContext(id),
+      loadPersonAttention(id, viewer),
     ]);
     opsContext = context;
     leadershipStage = leadership?.stage ?? null;
     leadershipNextStage = leadership?.nextStage ?? null;
+    // Person-level People Strategy signals (mentor, kickoff, check-in,
+    // provisional) are Leadership/Board-confidential; a scoped officer sees only
+    // this person's own work signals (overdue / blocked / stale actions).
+    personAttention = isLeadershipOrBoard(viewer)
+      ? attention
+      : attention.filter((item) => !item.confidential);
   }
 
   return (
@@ -149,6 +161,19 @@ export default async function PublicProfilePage({ params }: PageProps) {
 
       {showLinkedActions && opsContext ? (
         <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+          <section className="card" style={{ padding: "16px 18px" }}>
+            <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>
+              Needs attention for {profile.name}
+            </h2>
+            <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 13 }}>
+              Overdue or blocked work, mentor & kickoff coverage, check-ins, and
+              provisional confirmation — what to act on first.
+            </p>
+            <NeedsAttentionList
+              items={personAttention}
+              emptyHint={`Nothing needs attention for ${profile.name} right now.`}
+            />
+          </section>
           <LeadershipStageContext stage={leadershipStage} nextStage={leadershipNextStage} />
           <OperationalContextPanel
             title="Accountability"

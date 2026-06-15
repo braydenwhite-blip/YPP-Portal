@@ -35,20 +35,38 @@ export default async function AdminInstructorApplicantsPage({
 
   const hiringDemoMode = isHiringDemoModeEnabled();
 
-  // Feature flag gate — if off, show legacy empty state with TODO
+  // Feature flag gate — when the applicant workflow is disabled, hand off to the
+  // live Instructor Operations database (and the People hub) instead of leaving
+  // the reviewer on a dead end. No TODO / blank state.
   if (!isInstructorApplicantWorkflowV1Enabled()) {
-    // TODO: render legacy InstructorKanbanBoard when flag is off
     return (
-      <div className="page-shell">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Instructor Applicants</h1>
-            <p className="page-subtitle">
-              The new applicant workflow is currently disabled. Set{" "}
-              <code>ENABLE_INSTRUCTOR_APPLICANT_WORKFLOW_V1=true</code> to enable it.
-            </p>
-          </div>
-        </div>
+      <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-6 py-6">
+        <PageHeaderV2
+          eyebrow={isAdmin ? "Admin" : isHiringChair ? "Hiring Chair" : "Chapter President"}
+          title="Instructor Applicants"
+          subtitle="The applicant review board is turned off in this environment. Confirmed instructors and their lifecycle still live in the Instructor Operations database — pick up there."
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href="/admin/instructors"
+                className={buttonVariants({ variant: "primary", size: "md" })}
+              >
+                Open Instructor Operations
+              </a>
+              <a
+                href="/people"
+                className={buttonVariants({ variant: "secondary", size: "md" })}
+              >
+                Open People
+              </a>
+            </div>
+          }
+        >
+          <p className="text-sm text-[var(--muted,#6b7280)]">
+            To re-enable the applicant pipeline, review, interview, and chair-decision
+            workspace, set <code>ENABLE_INSTRUCTOR_APPLICANT_WORKFLOW_V1=true</code>.
+          </p>
+        </PageHeaderV2>
       </div>
     );
   }

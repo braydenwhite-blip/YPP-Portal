@@ -1,9 +1,16 @@
+import { prisma } from "@/lib/prisma";
+import { isProvisionalClockEnabled } from "@/lib/feature-flags";
+
 import { loadPeopleDashboard, type PeopleDashboardRow } from "./people-dashboard";
 import { roleExpectsMentor } from "./people-performance-selectors";
 import { loadLeadershipEscalationQueue } from "./escalation-queue";
 import { loadMentorshipHealth } from "./mentorship-health";
+import { getMyActionItems, type ActionItemWithRelations } from "./action-queries";
+import type { ActionViewer } from "./action-permissions";
+import { computeProvisionalStatus } from "./provisional";
 import {
   computeNeedsAttention,
+  type AttentionAction,
   type AttentionItem,
   type AttentionPerson,
   type AttentionEscalation,
@@ -104,6 +111,91 @@ export async function loadPeopleStrategyAttention(
       people: Array.from(peopleById.values()),
       escalations,
     },
+    now
+  );
+}
+
+/** Map a loaded action item to the engine's minimal action shape. */
+function actionItemToAttention(item: ActionItemWithRelations): AttentionAction {
+  return {
+    id: item.id,
+    title: item.title,
+    status: item.status,
+    deadlineStart: item.deadlineStart,
+    deadlineEnd: item.deadlineEnd,
+    flaggedAt: item.flaggedAt,
+    resolvedAt: item.resolvedAt,
+    updatedAt: item.updatedAt,
+    hasOwner: item.leadId != null || item.assignments.some((a) => a.role === "LEAD"),
+    officersOnly: item.visibility === "OFFICERS_ONLY",
+  };
+}
+
+/**
+ * Needs-attention items scoped to ONE person — for the "Needs attention for this
+ * person" panel on Person 360 (`/people/[id]`). Combines the subject's own
+ * actions (visibility-filtered for `viewer`) with their People Strategy facts
+ * (mentor coverage, kickoff, last check-in, provisional clock) and runs them
+ * through the same unified engine. The caller decides whether to show the
+ * confidential person-level signals (see `filterAttentionForViewer`).
+ */
+export async function loadPersonAttention(
+  subjectUserId: string,
+  viewer: ActionViewer,
+  now: Date = new Date()
+): Promise<AttentionItem[]> {
+  const [actionItems, user] = await Promise.all([
+    getMyActionItems(subjectUserId, viewer),
+    prisma.user.findUnique({
+      where: { id: subjectUserId },
+      select: {
+        name: true,
+        email: true,
+        primaryRole: true,
+        provisionalStart: true,
+        provisionalConfirmedAt: true,
+        menteePairs: {
+          where: { status: "ACTIVE" },
+          take: 1,
+          orderBy: { startDate: "desc" },
+          select: { startDate: true, kickoffCompletedAt: true },
+        },
+        peopleCheckIns: {
+          orderBy: { month: "desc" },
+          take: 1,
+          select: { month: true },
+        },
+      },
+    }),
+  ]);
+
+  if (!user) return [];
+
+  const pair = user.menteePairs[0] ?? null;
+  const provisional = isProvisionalClockEnabled()
+    ? computeProvisionalStatus(user.provisionalStart, user.provisionalConfirmedAt, now)
+    : null;
+  const activeActionCount = actionItems.filter(
+    (i) => i.status !== "COMPLETE" && i.status !== "DROPPED"
+  ).length;
+
+  const person: AttentionPerson = {
+    id: subjectUserId,
+    name: user.name ?? user.email,
+    expectsMentor: roleExpectsMentor(user.primaryRole),
+    hasMentor: pair != null,
+    mentorshipStartDate: pair?.startDate ?? null,
+    kickoffCompleted: pair?.kickoffCompletedAt != null,
+    lastCheckInAt: user.peopleCheckIns[0]?.month ?? null,
+    quarterlyReviewDueAt: null,
+    hasCurrentQuarterReview: true,
+    provisional,
+    activeActionCount,
+    pendingMentorRecommendations: 0,
+  };
+
+  return computeNeedsAttention(
+    { actions: actionItems.map(actionItemToAttention), people: [person] },
     now
   );
 }
