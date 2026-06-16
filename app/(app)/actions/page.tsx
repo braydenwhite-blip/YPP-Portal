@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
@@ -14,14 +15,26 @@ import {
   leadershipActionAttention,
   personalActionAttention,
 } from "@/lib/people-strategy/action-attention";
-import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
+import { ButtonLink, PageHeaderV2, type StatusTone } from "@/components/ui-v2";
+import { CommandModeToggle } from "@/components/command-center/command-mode";
+import {
+  EmptySimpleState,
+  PrimaryFocusCard,
+  SimpleListCard,
+  SimpleRow,
+  SimpleSurface,
+  type SimpleAction,
+} from "@/components/command-center/simple";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { formatMonthDay } from "@/lib/leadership-action-center/dates";
+import { effectiveStatus } from "@/lib/people-strategy/action-filters";
 import {
   getMyActionItems,
   listActionAssignableUsers,
   listActionDepartments,
   listVisibleActionItems,
+  type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
 import {
   canCreateAction,
@@ -34,10 +47,49 @@ import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
 import { initiativePrimaryGoalCategory } from "@/lib/people-strategy/strategic-recommendations";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "My actions · Work" };
+export const metadata = { title: "Actions · Work" };
 
 function firstParam(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
+}
+
+const STATUS_TONE: Record<string, StatusTone> = {
+  OVERDUE: "danger",
+  BLOCKED: "danger",
+  IN_PROGRESS: "info",
+  NOT_STARTED: "neutral",
+  COMPLETE: "success",
+  DROPPED: "neutral",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  OVERDUE: "Overdue",
+  BLOCKED: "Blocked",
+  IN_PROGRESS: "In progress",
+  NOT_STARTED: "Not started",
+  COMPLETE: "Done",
+  DROPPED: "Dropped",
+};
+
+function ownerName(item: ActionItemWithRelations): string {
+  return item.lead?.name ?? item.lead?.email ?? "Unassigned";
+}
+
+/** Map one action to a calm row: what · who · status · when. */
+function ActionRowSimple({ item, now }: { item: ActionItemWithRelations; now: Date }) {
+  const status = effectiveStatus(item, now);
+  const due =
+    status === "OVERDUE" ? "Overdue" : `Due ${formatMonthDay(item.deadlineStart)}`;
+  return (
+    <SimpleRow
+      href={`/actions/${item.id}`}
+      icon="bolt"
+      name={item.title}
+      what={ownerName(item)}
+      status={{ label: STATUS_LABEL[status] ?? status, tone: STATUS_TONE[status] ?? "neutral" }}
+      meta={due}
+    />
+  );
 }
 
 export default async function ActionsPage({
@@ -105,112 +157,194 @@ export default async function ActionsPage({
     : personalActionAttention(myItems, viewer.id, now);
   const dataQualityFlags = who === "all" ? actionDataQuality(allItems, now) : [];
 
-  return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5">
-      <PageHeaderV2
-        eyebrow="Work"
-        backHref="/work"
-        backLabel="Work"
-        title={
-          initiativeDef ? initiativeDef.title : leadershipView ? "All actions" : "My actions"
-        }
-        subtitle={
-          initiativeDef
-            ? "Actions linked to this initiative."
-            : leadershipView
-              ? "What needs doing across the team."
-              : officer
-                ? "What needs doing — add one below, or switch to the team’s queue."
-                : "What needs doing."
-        }
-        actions={
-          initiativeDef ? (
-            <ButtonLink
-              href={`/operations/initiatives/${initiativeDef.id}`}
-              variant="secondary"
-              size="sm"
-            >
-              Initiative plan
-            </ButtonLink>
-          ) : (
-            <ButtonLink href="/actions/all" variant="ghost" size="sm">
-              All actions →
-            </ButtonLink>
-          )
-        }
-      />
+  const openItems = items.filter(
+    (item) => item.status !== "COMPLETE" && item.status !== "DROPPED"
+  );
+  const topSignal = attentionSignals[0] ?? null;
 
-      <ActionTrackerTabsV2 active="my" />
+  // The one obvious lead: the most urgent thing if something's stuck, else the
+  // next action by deadline, else an all-clear.
+  const focus = topSignal ? (
+    <PrimaryFocusCard
+      eyebrow={leadershipView ? "Most urgent" : "Start here"}
+      title={topSignal.title}
+      reason={`${topSignal.reason}. Next: ${topSignal.nextStep}${
+        topSignal.ownerName ? ` · ${topSignal.ownerName}` : ""
+      }`}
+      icon="bolt"
+      ctaLabel="Open action"
+      ctaHref={topSignal.href}
+    />
+  ) : openItems.length > 0 ? (
+    <PrimaryFocusCard
+      eyebrow="Focus action"
+      title={openItems[0].title}
+      reason={`${STATUS_LABEL[effectiveStatus(openItems[0], now)] ?? "Open"} · ${ownerName(
+        openItems[0]
+      )} · due ${formatMonthDay(openItems[0].deadlineStart)}`}
+      icon="target"
+      ctaLabel="Open action"
+      ctaHref={`/actions/${openItems[0].id}`}
+    />
+  ) : (
+    <PrimaryFocusCard
+      eyebrow="Actions"
+      title="Nothing needs doing right now."
+      reason="No open actions in this view. Add one, or switch to another queue."
+      icon="check"
+      tone="success"
+      ctaLabel={canCreate ? "Add an action" : "Open My Queue"}
+      ctaHref={canCreate ? "/actions/new" : "/work/queue?queue=my"}
+    />
+  );
 
-      {/* Queue mode — clear loops one at a time instead of scanning a table. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-brand-200 bg-gradient-to-br from-brand-50 to-surface p-4 shadow-card">
-        <div className="min-w-0">
-          <p className="m-0 text-[11px] font-bold uppercase tracking-[0.1em] text-brand-700">
-            Queue mode
-          </p>
-          <p className="m-0 text-[15px] font-bold text-ink">
-            {leadershipView ? "Run the leadership queue" : "Clear my queue"}
-          </p>
-          <p className="m-0 text-[12.5px] text-ink-muted">
-            Triage one loop at a time — Resolve, Delegate, Discuss, or Defer.
-          </p>
-        </div>
-        <ButtonLink
-          href={leadershipView ? "/work/queue?queue=leadership" : "/work/queue?queue=my"}
-          variant="primary"
-          size="md"
+  const calm = (
+    <SimpleListCard
+      title={leadershipView ? "Team's open actions" : "Your open actions"}
+      action={
+        <Link
+          href="/actions/all"
+          className="text-[12.5px] font-semibold text-brand-700 hover:text-brand-800"
         >
-          {leadershipView ? "Run leadership queue →" : "Clear my queue →"}
-        </ButtonLink>
+          View all →
+        </Link>
+      }
+      empty={
+        openItems.length === 0 ? (
+          <EmptySimpleState>You&apos;re all caught up — nothing open in this view.</EmptySimpleState>
+        ) : undefined
+      }
+    >
+      {openItems.slice(0, 5).map((item) => (
+        <ActionRowSimple key={item.id} item={item} now={now} />
+      ))}
+    </SimpleListCard>
+  );
+
+  const strip: SimpleAction[] = [
+    ...(canCreate
+      ? [{ label: "Add action", href: "/actions/new", icon: "bolt", primary: true } as SimpleAction]
+      : []),
+    {
+      label: leadershipView ? "Run leadership queue" : "Clear my queue",
+      href: leadershipView ? "/work/queue?queue=leadership" : "/work/queue?queue=my",
+      icon: "list",
+    },
+    { label: "All actions", href: "/actions/all", icon: "layers" },
+  ];
+
+  return (
+    <SimpleSurface
+      maxWidth={820}
+      header={
+        <div className="flex flex-col gap-4">
+          <PageHeaderV2
+            eyebrow="Work"
+            backHref="/work"
+            backLabel="Work"
+            title={initiativeDef ? initiativeDef.title : leadershipView ? "All actions" : "Actions"}
+            subtitle={
+              initiativeDef
+                ? "Actions linked to this initiative."
+                : leadershipView
+                  ? "What needs doing across the team."
+                  : "What needs doing."
+            }
+            actions={
+              <div className="flex flex-wrap items-center gap-2">
+                {initiativeDef ? (
+                  <ButtonLink
+                    href={`/operations/initiatives/${initiativeDef.id}`}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    Initiative plan
+                  </ButtonLink>
+                ) : null}
+                <CommandModeToggle />
+              </div>
+            }
+          />
+          <ActionTrackerTabsV2 active="my" />
+        </div>
+      }
+      focus={focus}
+      calm={calm}
+      actions={strip}
+      browseLabel="Browse all actions"
+      browseHint="The full tracker, attention queue, and data-quality sweep."
+    >
+      <div className="flex flex-col gap-5">
+        {/* Queue mode — clear loops one at a time instead of scanning a table. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-brand-200 bg-gradient-to-br from-brand-50 to-surface p-4 shadow-card">
+          <div className="min-w-0">
+            <p className="m-0 text-[11px] font-bold uppercase tracking-[0.1em] text-brand-700">
+              Queue mode
+            </p>
+            <p className="m-0 text-[15px] font-bold text-ink">
+              {leadershipView ? "Run the leadership queue" : "Clear my queue"}
+            </p>
+            <p className="m-0 text-[12.5px] text-ink-muted">
+              Triage one loop at a time — Resolve, Delegate, Discuss, or Defer.
+            </p>
+          </div>
+          <ButtonLink
+            href={leadershipView ? "/work/queue?queue=leadership" : "/work/queue?queue=my"}
+            variant="primary"
+            size="md"
+          >
+            {leadershipView ? "Run leadership queue →" : "Clear my queue →"}
+          </ButtonLink>
+        </div>
+
+        <p className="m-0 text-[12.5px] text-ink-muted">
+          {items.length} {items.length === 1 ? "action" : "actions"}
+          {qParam ? ` · “${qParam}”` : ""}
+        </p>
+
+        <ActionAttentionPanel
+          title={leadershipView ? "What's stuck" : "Needs your attention"}
+          subtitle={
+            leadershipView
+              ? "Overdue, blocked, ownerless, escalated, and stale work across the team."
+              : "Overdue, blocked, due soon, and waiting on you — handle these first."
+          }
+          signals={attentionSignals}
+          emptyHint={
+            leadershipView
+              ? "Nothing is stuck right now. ✓"
+              : "You're all caught up — nothing needs you right now. ✓"
+          }
+        />
+
+        {dataQualityFlags.length > 0 ? (
+          <ActionDataQualityPanel flags={dataQualityFlags} />
+        ) : null}
+
+        <ActionTrackerDashboard
+          items={items}
+          now={now}
+          officer={officer}
+          canCreate={canCreate}
+          assignableUsers={assignableUsers}
+          departments={departments}
+          currentUserId={viewer.id}
+          viewer={viewer}
+          who={who}
+          q={qParam}
+          initiativeId={initiativeDef?.id}
+          defaultOpenCreate={createOpen}
+          showAttentionBoard={false}
+          initiativeLink={
+            initiativeDef
+              ? {
+                  id: initiativeDef.id,
+                  goalCategory: initiativePrimaryGoalCategory(initiativeDef),
+                }
+              : undefined
+          }
+        />
       </div>
-
-      <p className="m-0 text-[12.5px] text-ink-muted">
-        {items.length} {items.length === 1 ? "action" : "actions"}
-        {qParam ? ` · “${qParam}”` : ""}
-      </p>
-
-      <ActionAttentionPanel
-        title={leadershipView ? "What's stuck" : "Needs your attention"}
-        subtitle={
-          leadershipView
-            ? "Overdue, blocked, ownerless, escalated, and stale work across the team."
-            : "Overdue, blocked, due soon, and waiting on you — handle these first."
-        }
-        signals={attentionSignals}
-        emptyHint={
-          leadershipView
-            ? "Nothing is stuck right now. ✓"
-            : "You're all caught up — nothing needs you right now. ✓"
-        }
-      />
-
-      {dataQualityFlags.length > 0 ? (
-        <ActionDataQualityPanel flags={dataQualityFlags} />
-      ) : null}
-
-      <ActionTrackerDashboard
-        items={items}
-        now={now}
-        officer={officer}
-        canCreate={canCreate}
-        assignableUsers={assignableUsers}
-        departments={departments}
-        currentUserId={viewer.id}
-        viewer={viewer}
-        who={who}
-        q={qParam}
-        initiativeId={initiativeDef?.id}
-        defaultOpenCreate={createOpen}
-        showAttentionBoard={false}
-        initiativeLink={
-          initiativeDef
-            ? {
-                id: initiativeDef.id,
-                goalCategory: initiativePrimaryGoalCategory(initiativeDef),
-              }
-            : undefined
-        }
-      />
-    </div>
+    </SimpleSurface>
   );
 }

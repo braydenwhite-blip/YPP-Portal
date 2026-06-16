@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Nav, { type NavBadges } from "@/components/nav";
 import BrandLockup from "@/components/brand-lockup";
 import CommandBar from "@/components/command-bar";
+import { CommandModeProvider } from "@/components/command-center/command-mode";
 import LogoutButton from "@/components/logout-button";
 import PageHelperFab from "@/components/page-helper-fab";
 import type { PageHelperRole } from "@/lib/page-helper/types";
@@ -156,6 +157,7 @@ export default function AppShell({
   return (
     <Entity360Provider>
     <HelpAgentProvider officerTier={officerTier} adminTier={adminTier}>
+    <CommandModeProvider>
     <div className="app-shell">
       {/* Mobile menu toggle */}
       <button
@@ -280,6 +282,7 @@ export default function AppShell({
         roles={roles}
       />
     </div>
+    </CommandModeProvider>
     </HelpAgentProvider>
     </Entity360Provider>
   );

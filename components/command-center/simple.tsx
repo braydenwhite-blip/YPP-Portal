@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { cn, StatusBadge, type StatusTone } from "@/components/ui-v2";
 
+import { CalmCollapse, CalmOnly } from "./command-mode";
 import { CcIcon, type CcIconName } from "./icons";
 import { Avatar } from "./primitives";
 
@@ -170,6 +171,60 @@ export function SimpleActionStrip({ actions }: { actions: SimpleAction[] }) {
           {action.label}
         </Link>
       ))}
+    </div>
+  );
+}
+
+// --- simple surface (the calm/executive page arrangement) -------------------
+
+/**
+ * The shared shape every simplified operating page takes. One capped column:
+ *
+ *   header → focus card → (calm summary) → quiet action strip → dense detail
+ *
+ * The focus card and strip show in both modes. The calm summary (a short list)
+ * shows only in Calm — Executive supersedes it with the full detail. The dense
+ * detail (existing tables, filters, panels) is passed as `children` and demoted
+ * behind a collapsed "Browse all" in Calm; Executive expands it inline. Nothing
+ * is deleted — it is moved out of the calm default and one click away.
+ */
+export function SimpleSurface({
+  header,
+  focus,
+  calm,
+  actions,
+  browseLabel = "Browse all",
+  browseHint,
+  children,
+  maxWidth = 880,
+}: {
+  /** Plain page header (title + one sentence + the mode pill). */
+  header?: ReactNode;
+  /** The one lead card. Shown in both modes. */
+  focus?: ReactNode;
+  /** Short calm summary (a few rows). Shown only in Calm mode. */
+  calm?: ReactNode;
+  /** Quiet CTAs. Shown in both modes. */
+  actions?: SimpleAction[];
+  /** Disclosure label for the demoted dense detail. */
+  browseLabel?: string;
+  browseHint?: string;
+  /** The existing dense surface — collapsed in Calm, inline in Executive. */
+  children?: ReactNode;
+  /** Comfortable reading width for the column. */
+  maxWidth?: number;
+}) {
+  return (
+    <div className="mx-auto flex w-full flex-col gap-5 pb-10" style={{ maxWidth }}>
+      {header}
+      {focus}
+      {calm ? <CalmOnly>{calm}</CalmOnly> : null}
+      {actions && actions.length > 0 ? <SimpleActionStrip actions={actions} /> : null}
+      {children ? (
+        <CalmCollapse label={browseLabel} hint={browseHint}>
+          {children}
+        </CalmCollapse>
+      ) : null}
     </div>
   );
 }

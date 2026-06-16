@@ -5,16 +5,38 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { cn } from "@/components/ui-v2";
 
 /**
- * Calm / Executive mode — a lightweight, local UI density preference for the
- * Command Center operating surfaces. Calm (default) shows the one obvious next
- * move and a few items; Executive reveals more context and longer lanes. The
- * preference is stored in localStorage so it sticks across visits, and it stays
- * scoped to these surfaces (no global shell change).
+ * Calm / Executive mode — a lightweight UI density preference shared across the
+ * operating surfaces. Calm (default) shows the one obvious next move and a few
+ * items; Executive reveals more context and longer lanes.
+ *
+ * The preference is stored in localStorage so it sticks across visits. Every
+ * provider instance — the one global provider in the app shell plus any local
+ * provider a surface still wraps itself in — listens for a window event, so a
+ * change anywhere (the global top-bar pill, or a surface's own pill) is applied
+ * everywhere live, and across browser tabs via the `storage` event. Each
+ * provider keeps its own state, so a surface mounted without the shell still
+ * falls back to a working local pill.
  */
 
 export type CommandMode = "calm" | "executive";
 
 const STORAGE_KEY = "ypp:command-mode";
+/** Same-tab broadcast so every provider stays in sync without a navigation. */
+const MODE_EVENT = "ypp:command-mode-change";
+
+function isMode(value: unknown): value is CommandMode {
+  return value === "calm" || value === "executive";
+}
+
+function readStoredMode(): CommandMode {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (isMode(stored)) return stored;
+  } catch {
+    // localStorage unavailable — keep the calm default.
+  }
+  return "calm";
+}
 
 const CommandModeContext = createContext<{
   mode: CommandMode;
@@ -25,12 +47,24 @@ export function CommandModeProvider({ children }: { children: React.ReactNode })
   const [mode, setModeState] = useState<CommandMode>("calm");
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored === "calm" || stored === "executive") setModeState(stored);
-    } catch {
-      // localStorage unavailable — keep the calm default.
+    // Hydrate from the stored preference, then keep in sync with any other
+    // provider (same tab via MODE_EVENT, other tabs via the storage event).
+    setModeState(readStoredMode());
+
+    function onModeEvent(event: Event) {
+      const next = (event as CustomEvent<CommandMode>).detail;
+      if (isMode(next)) setModeState(next);
     }
+    function onStorage(event: StorageEvent) {
+      if (event.key === STORAGE_KEY && isMode(event.newValue)) setModeState(event.newValue);
+    }
+
+    window.addEventListener(MODE_EVENT, onModeEvent);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(MODE_EVENT, onModeEvent);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   const setMode = useCallback((next: CommandMode) => {
@@ -39,6 +73,12 @@ export function CommandModeProvider({ children }: { children: React.ReactNode })
       window.localStorage.setItem(STORAGE_KEY, next);
     } catch {
       // ignore persistence failures
+    }
+    try {
+      // Broadcast so sibling / parent providers update without a reload.
+      window.dispatchEvent(new CustomEvent(MODE_EVENT, { detail: next }));
+    } catch {
+      // CustomEvent unavailable (very old runtime) — localStorage still sticks.
     }
   }, []);
 
@@ -65,6 +105,15 @@ export function useIsExecutive(): boolean {
  */
 export function ExecutiveOnly({ children }: { children: ReactNode }) {
   return useIsExecutive() ? <>{children}</> : null;
+}
+
+/**
+ * Renders its children only in Calm mode. The mirror of {@link ExecutiveOnly} —
+ * use it for the calm summary (one focus + a short list) that a denser Executive
+ * panel supersedes, so the two don't stack.
+ */
+export function CalmOnly({ children }: { children: ReactNode }) {
+  return useIsExecutive() ? null : <>{children}</>;
 }
 
 /**

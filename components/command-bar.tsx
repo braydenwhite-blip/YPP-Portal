@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { CommandModeToggle } from "@/components/command-center/command-mode";
 import { useHelpAgent } from "@/components/help-agent/help-agent-provider";
 import { cn } from "@/components/ui-v2";
 
@@ -167,6 +168,14 @@ export default function CommandBar({
               ))}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {/* View preference — Calm / Executive density, shared across the
+          operating surfaces. Officers only, since member pages don't read it. */}
+      {officerTier ? (
+        <div className="hidden shrink-0 sm:block" title="View density — Calm shows the essentials, Executive shows the full detail">
+          <CommandModeToggle />
         </div>
       ) : null}
 
