@@ -5,3 +5,10 @@ export {
   selectNextFocus,
   viewerRelationshipRole,
 } from "./selectors";
+export {
+  buildMentorHomeViewModel,
+  headlineRatingColor,
+  mentorCardsToFacts,
+  type MentorHomeCardInput,
+  type MentorHomeSessionInput,
+} from "./load";

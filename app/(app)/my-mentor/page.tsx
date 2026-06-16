@@ -10,6 +10,8 @@ import { MyMentorSubnav } from "./_components/my-mentor-subnav";
 import { isMentorship2Enabled } from "@/lib/feature-flags";
 import { getMenteeMentorshipView } from "@/lib/mentorship-2/mentee-dashboard";
 import { MenteeCommandCenter } from "./_components/mentee-command-center";
+import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
+import { MenteeCalmNextStep } from "./_components/mentee-home-calm";
 
 export const metadata = {
   title: "My Mentor — YPP",
@@ -129,6 +131,15 @@ export default async function MyMentorPage() {
           </div>
         )}
 
+        {hasMentor && ctx.primaryMentor && (
+          <CalmOnly>
+            <MenteeCalmNextStep
+              mentorName={ctx.primaryMentor.name}
+              kickoffCompleted={!!ctx.primaryMentor.kickoffCompletedAt}
+            />
+          </CalmOnly>
+        )}
+
         {m2Enabled && menteeView ? (
           <MenteeCommandCenter view={menteeView} />
         ) : (
@@ -167,7 +178,14 @@ export default async function MyMentorPage() {
           )
         )}
 
-        {hasMentor && <MenteeDashboard userId={session.user.id} />}
+        {hasMentor && (
+          <CalmCollapse
+            label="Your full mentorship workspace"
+            hint="goals, resources, progress, and reflections"
+          >
+            <MenteeDashboard userId={session.user.id} />
+          </CalmCollapse>
+        )}
       </div>
     </div>
   );

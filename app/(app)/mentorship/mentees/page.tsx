@@ -6,6 +6,13 @@ import {
   type SimplifiedKanbanCard,
 } from "@/lib/mentorship-kanban-actions";
 import { getMentorEngagementSnapshot } from "@/lib/mentor-overview";
+import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
+import {
+  EmptySimpleState,
+  SimpleListCard,
+} from "@/components/command-center/simple";
+import { MentorshipFocusCard, MentorshipRow } from "@/components/mentorship/calm";
+import { buildMentorHomeViewModel } from "@/lib/mentorship/load";
 import { mentorCardNeedsAttention } from "../_components/mentor-priority-list";
 import { EmptyStateEditorial } from "../_components/empty-state-editorial";
 import { MentorRoster, type RosterMentee } from "./mentor-roster";
@@ -62,6 +69,36 @@ export default async function MenteesPage() {
   const total = board.total;
   const needsCount = active.filter((m) => m.needsAttention).length;
 
+  // One canonical view-model drives the Calm summary (single focus + the
+  // mentees waiting on the mentor); Executive keeps the full searchable roster.
+  const vm = buildMentorHomeViewModel({
+    viewerId: userId,
+    viewerName: "You",
+    isAdmin: roles.includes("ADMIN"),
+    cards: board.columns.flatMap((c) => c.cards).map((card) => ({
+      mentorshipId: card.mentorshipId,
+      menteeId: card.menteeId,
+      menteeName: card.menteeName,
+      cycleStage: card.cycleStage,
+      kickoffPending: card.kickoffPending,
+      latestRatings: card.latestRatings,
+    })),
+    sessions: engagement.upcomingSessions.map((s) => ({
+      id: s.id,
+      menteeId: s.menteeId,
+      title: s.title,
+      type: s.type,
+      scheduledISO: s.scheduledAt,
+    })),
+    now: new Date(),
+  });
+  const needsIds = new Set(
+    active.filter((m) => m.needsAttention).map((m) => m.menteeId)
+  );
+  const needsList = vm.relationships
+    .filter((r) => needsIds.has(r.menteeId))
+    .slice(0, 5);
+
   return (
     <div>
       <div className="topbar">
@@ -90,7 +127,34 @@ export default async function MenteesPage() {
           link={{ label: "Open the mentorship hub", href: "/mentorship" }}
         />
       ) : (
-        <MentorRoster active={active} inactive={inactive} />
+        <div style={{ display: "grid", gap: 20 }}>
+          <CalmOnly>
+            <div className="flex flex-col gap-5">
+              {vm.focus ? (
+                <MentorshipFocusCard focus={vm.focus} />
+              ) : (
+                <EmptySimpleState icon="check">
+                  Everyone&apos;s settled this cycle — browse the full roster below
+                  to look anyone up.
+                </EmptySimpleState>
+              )}
+              {needsList.length > 0 ? (
+                <SimpleListCard title="Needs you now">
+                  {needsList.map((relationship) => (
+                    <MentorshipRow key={relationship.id} relationship={relationship} />
+                  ))}
+                </SimpleListCard>
+              ) : null}
+            </div>
+          </CalmOnly>
+
+          <CalmCollapse
+            label="Browse all mentees"
+            hint={`${total} total${needsCount > 0 ? ` · ${needsCount} need you` : ""}`}
+          >
+            <MentorRoster active={active} inactive={inactive} />
+          </CalmCollapse>
+        </div>
       )}
     </div>
   );
