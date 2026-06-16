@@ -43,6 +43,36 @@ import {
 } from "@/lib/people-strategy/class-tracker";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
+import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
+import {
+  RelationshipDetailCalm,
+  type CalmDetailFact,
+  type CalmDetailFocus,
+} from "@/components/mentorship/calm";
+import type { StatusTone } from "@/components/ui-v2";
+
+/** Plain-language cycle labels for the Calm relationship summary. */
+const CALM_CYCLE_LABEL: Record<string, string> = {
+  KICKOFF_PENDING: "Kickoff pending",
+  REFLECTION_DUE: "Reflection due",
+  REFLECTION_SUBMITTED: "Ready for your review",
+  CHANGES_REQUESTED: "Changes requested",
+  REVIEW_SUBMITTED: "With the chair",
+  APPROVED: "Up to date",
+  PAUSED: "Paused",
+  COMPLETE: "Cycle complete",
+};
+
+const CALM_CYCLE_TONE: Record<string, StatusTone> = {
+  KICKOFF_PENDING: "warning",
+  REFLECTION_DUE: "info",
+  REFLECTION_SUBMITTED: "warning",
+  CHANGES_REQUESTED: "danger",
+  REVIEW_SUBMITTED: "neutral",
+  APPROVED: "success",
+  PAUSED: "neutral",
+  COMPLETE: "success",
+};
 
 const WORKSPACE_GUIDE_ITEMS = [
   {
@@ -186,6 +216,88 @@ export default async function MenteeDetailPage({
   }
   const canCreateTrackerAction = canCreateAction(viewer);
 
+  // Calm summary — the single "act on this relationship" lead. Built entirely
+  // from data already loaded above; Executive supersedes it with the full record.
+  const calmCycleStage = workspace.mentorship?.cycleStage ?? null;
+  const calmGoals: CalmDetailFact[] = workspace.mentee.goals.slice(0, 5).map((goal) => ({
+    id: goal.id,
+    title: goal.template.title,
+    meta: goal.progress[0]?.status
+      ? `Latest: ${goal.progress[0].status.replace(/_/g, " ").toLowerCase()}`
+      : "No update yet",
+  }));
+  const calmCommitments: CalmDetailFact[] = openActionItems.slice(0, 5).map((item) => ({
+    id: item.id,
+    title: item.title,
+    meta: [
+      item.owner?.name ? `Owner: ${item.owner.name}` : "Shared",
+      item.dueAt ? `Due ${new Date(item.dueAt).toLocaleDateString()}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    status:
+      item.dueAt && item.dueAt.getTime() < Date.now()
+        ? { label: "Overdue", tone: "danger" as StatusTone }
+        : null,
+  }));
+
+  let calmFocus: CalmDetailFocus;
+  if (!canScheduleSessions) {
+    calmFocus = {
+      eyebrow: "Goals & resources",
+      title: `Open ${workspace.mentee.name}'s G&R plan`,
+      reason: "Review the goals and resources tracked for this mentee.",
+      ctaLabel: "Open G&R",
+      ctaHref: `/mentorship/mentees/${workspace.mentee.id}/gr`,
+    };
+  } else if (
+    calmCycleStage === "REFLECTION_SUBMITTED" ||
+    calmCycleStage === "CHANGES_REQUESTED"
+  ) {
+    calmFocus = {
+      eyebrow: calmCycleStage === "CHANGES_REQUESTED" ? "Changes requested" : "Review due",
+      title: `Write ${workspace.mentee.name}'s review`,
+      reason:
+        calmCycleStage === "CHANGES_REQUESTED"
+          ? "The chair asked for changes — revise and resubmit."
+          : "Their reflection is in and waiting on your feedback.",
+      ctaLabel: "Write review",
+      ctaHref: `/mentorship/reviews/${workspace.mentee.id}`,
+    };
+  } else if (calmCycleStage === "KICKOFF_PENDING") {
+    calmFocus = {
+      eyebrow: "Kickoff",
+      title: `Kick off with ${workspace.mentee.name}`,
+      reason: "Set up the first session and goals to start the cycle.",
+      ctaLabel: "Open G&R",
+      ctaHref: `/mentorship/mentees/${workspace.mentee.id}/gr`,
+    };
+  } else {
+    calmFocus = {
+      eyebrow: "On track",
+      title: `Stay close to ${workspace.mentee.name}`,
+      reason: "Log a check-in or open their goals & resources plan.",
+      tone: "success",
+      ctaLabel: "Open G&R",
+      ctaHref: `/mentorship/mentees/${workspace.mentee.id}/gr`,
+    };
+  }
+
+  const calmSummary = workspace.mentorship ? (
+    <RelationshipDetailCalm
+      status={{
+        label: calmCycleStage ? CALM_CYCLE_LABEL[calmCycleStage] ?? "Active" : "Active",
+        tone: calmCycleStage ? CALM_CYCLE_TONE[calmCycleStage] ?? "neutral" : "neutral",
+      }}
+      contextLine={`${workspace.mentee.primaryRole.replace(/_/g, " ")}${
+        workspace.mentorship.track?.name ? ` · ${workspace.mentorship.track.name}` : ""
+      }`}
+      focus={calmFocus}
+      goals={calmGoals}
+      commitments={calmCommitments}
+    />
+  ) : null;
+
   return (
     <div>
       <div className="topbar">
@@ -236,6 +348,16 @@ export default async function MenteeDetailPage({
         </LearnMore>
       </div>
 
+      {calmSummary ? (
+        <div style={{ marginBottom: 16 }}>
+          <CalmOnly>{calmSummary}</CalmOnly>
+        </div>
+      ) : null}
+
+      <CalmCollapse
+        label="Open the full workspace"
+        hint="sessions, action plan, requests, resources, and progress"
+      >
       {isMentorship2Enabled() && workspace.mentorship && (
         <div className="card" style={{ marginBottom: 16, display: "grid", gap: 8 }}>
           <h2 className="section-title" style={{ margin: 0 }}>
@@ -1002,6 +1124,7 @@ export default async function MenteeDetailPage({
           </div>
         </section>
       </div>
+      </CalmCollapse>
     </div>
   );
 }

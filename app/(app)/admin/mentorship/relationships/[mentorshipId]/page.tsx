@@ -19,12 +19,31 @@ import { OperationalTimeline } from "@/components/people-strategy/operational-ti
 import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
 import { deriveStrategicEntityContext } from "@/lib/people-strategy/strategic-entity-context";
 import { StrategicEntityPanel } from "@/components/people-strategy/strategic-entity-panel";
+import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
+import {
+  RelationshipDetailCalm,
+  type CalmDetailFact,
+  type CalmDetailFocus,
+} from "@/components/mentorship/calm";
+import type { StatusTone } from "@/components/ui-v2";
 
 export const metadata = {
   title: "Instructor mentorship relationship — Admin",
 };
 
 const STALE_SESSION_DAYS = 30;
+
+/** Plain-language cycle labels for the Calm relationship summary. */
+const CALM_CYCLE_LABEL: Record<string, string> = {
+  KICKOFF_PENDING: "Kickoff pending",
+  REFLECTION_DUE: "Reflection due",
+  REFLECTION_SUBMITTED: "Ready for review",
+  CHANGES_REQUESTED: "Changes requested",
+  REVIEW_SUBMITTED: "With the chair",
+  APPROVED: "Up to date",
+  PAUSED: "Paused",
+  COMPLETE: "Cycle complete",
+};
 
 export default async function AdminMentorshipRelationshipDetailPage({
   params,
@@ -173,6 +192,90 @@ export default async function AdminMentorshipRelationshipDetailPage({
       ? "pill-pending"
       : "pill-declined";
 
+  // Calm summary — what an admin needs to decide at a glance. Built from data
+  // already loaded; Executive supersedes it with the full record + controls.
+  const menteeWorkspaceHref = `/mentorship/mentees/${mentorship.menteeId}`;
+  const calmGoals: CalmDetailFact[] = (grDoc?.goals ?? [])
+    .filter((goal) => goal.lifecycleStatus === "ACTIVE")
+    .slice(0, 5)
+    .map((goal) => {
+      const overdue =
+        goal.dueDate && goal.dueDate < now && goal.progressState !== "DONE";
+      return {
+        id: goal.id,
+        title: goal.title,
+        meta: `${goal.progressState.replace(/_/g, " ").toLowerCase()}${
+          goal.dueDate ? ` · due ${new Date(goal.dueDate).toLocaleDateString()}` : ""
+        }`,
+        status: overdue
+          ? { label: "Overdue", tone: "danger" as StatusTone }
+          : goal.progressState === "BLOCKED"
+          ? { label: "Blocked", tone: "warning" as StatusTone }
+          : null,
+      };
+    });
+
+  let calmFocus: CalmDetailFocus;
+  if (mentorship.status !== "ACTIVE") {
+    calmFocus = {
+      eyebrow: "Status",
+      title: `This mentorship is ${mentorship.status.toLowerCase()}`,
+      reason: "Reactivate it or review the full record below.",
+      ctaLabel: "Open mentee workspace",
+      ctaHref: menteeWorkspaceHref,
+    };
+  } else if (isOverdueCheckIn) {
+    calmFocus = {
+      eyebrow: "Needs a touchpoint",
+      title: `Follow up on ${mentorship.mentee.name}`,
+      reason: `No completed session in ${STALE_SESSION_DAYS}+ days — check in with ${mentorship.mentor.name}.`,
+      ctaLabel: "Open mentee workspace",
+      ctaHref: menteeWorkspaceHref,
+    };
+  } else if (stalledGoals.length > 0) {
+    calmFocus = {
+      eyebrow: "Goals need attention",
+      title: `${stalledGoals.length} goal${stalledGoals.length === 1 ? "" : "s"} stalled or overdue`,
+      reason: "Review the goals & resources plan with the mentor.",
+      ctaLabel: "Open mentee workspace",
+      ctaHref: menteeWorkspaceHref,
+    };
+  } else {
+    calmFocus = {
+      eyebrow: "On track",
+      title: `${mentorship.mentee.name} is on track`,
+      reason: "Nothing flags for admin attention right now.",
+      tone: "success",
+      ctaLabel: "Open mentee workspace",
+      ctaHref: menteeWorkspaceHref,
+    };
+  }
+
+  const calmStatusTone: StatusTone =
+    mentorship.status !== "ACTIVE"
+      ? "neutral"
+      : isOverdueCheckIn || stalledGoals.length > 0
+      ? "warning"
+      : "success";
+  const calmStatusLabel = `${mentorship.status.charAt(0)}${mentorship.status
+    .slice(1)
+    .toLowerCase()}${
+    mentorship.cycleStage ? ` · ${CALM_CYCLE_LABEL[mentorship.cycleStage] ?? ""}` : ""
+  }`;
+  const calmSummary = (
+    <RelationshipDetailCalm
+      status={{ label: calmStatusLabel, tone: calmStatusTone }}
+      contextLine={`Mentor: ${mentorship.mentor.name}${
+        mentorship.mentee.chapter ? ` · ${mentorship.mentee.chapter.name}` : ""
+      }`}
+      focus={calmFocus}
+      goals={calmGoals}
+      goalsEmpty="No active G&R goals tracked yet."
+      commitments={[]}
+      commitmentsEmpty="Action items live in the mentee workspace."
+    />
+  );
+
   return (
     <div>
       <div className="topbar">
@@ -197,6 +300,14 @@ export default async function AdminMentorshipRelationshipDetailPage({
         </div>
       </div>
 
+      <div style={{ marginBottom: 16 }}>
+        <CalmOnly>{calmSummary}</CalmOnly>
+      </div>
+
+      <CalmCollapse
+        label="Open the full record"
+        hint="reassign / status controls, sessions, reviews, and operations"
+      >
       <div
         className="grid"
         style={{
@@ -550,6 +661,7 @@ export default async function AdminMentorshipRelationshipDetailPage({
           </div>
         </div>
       ) : null}
+      </CalmCollapse>
     </div>
   );
 }
