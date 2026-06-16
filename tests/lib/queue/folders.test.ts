@@ -72,6 +72,46 @@ describe("queueItemFromWorkHubRow", () => {
     );
     expect(item.signals.quickWin).toBe(true);
   });
+
+  it("attaches an inline ACTION workflow only when the row is editable (has capture)", () => {
+    const editable = queueItemFromWorkHubRow(
+      makeWorkHubRow({
+        id: "action:42",
+        kind: "action",
+        capture: {
+          actionId: "42",
+          blockedReason: null,
+          completionNote: null,
+          completionOutcome: null,
+          nextFollowUpISO: null,
+        },
+      }),
+      NOW
+    );
+    expect(editable.inline).toEqual({
+      kind: "action",
+      actionId: "42",
+      blockedReason: null,
+      completionNote: null,
+      completionOutcome: null,
+      nextFollowUpISO: null,
+    });
+
+    // No capture (viewer can't edit) → no inline mutation, routes to the record.
+    const readOnly = queueItemFromWorkHubRow(
+      makeWorkHubRow({ id: "action:42", kind: "action", capture: null }),
+      NOW
+    );
+    expect(readOnly.inline).toBeNull();
+  });
+
+  it("attaches an inline FOLLOW-UP workflow with the real follow-up id", () => {
+    const item = queueItemFromWorkHubRow(
+      makeWorkHubRow({ id: "follow_up:99", kind: "follow_up", kindLabel: "Meeting follow-up" }),
+      NOW
+    );
+    expect(item.inline).toEqual({ kind: "follow_up", followUpId: "99" });
+  });
 });
 
 describe("queueItemFromAttentionItem", () => {
@@ -125,5 +165,7 @@ describe("initiative + decision folders", () => {
     expect(item.signals.connectedToMeeting).toBe(true);
     expect(item.primaryAction.label).toBe("Convert to action");
     expect(item.relatedMeeting?.id).toBe("meeting-1");
+    // The loop is inline-completable: convert the decision into an owned action.
+    expect(item.inline).toEqual({ kind: "decision", decisionId: "decision-1" });
   });
 });

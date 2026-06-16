@@ -127,6 +127,8 @@ export function queueItemFromAttentionItem(item: AttentionItem): QueueItem {
     primaryAction,
     secondaryActions,
     resolutions,
+    // Triage signals route to their record; no generic inline mutation here.
+    inline: null,
     statusLabel: item.ageLabel ?? item.category.replaceAll("_", " "),
     ageLabel: item.ageLabel,
     dueISO: null,
