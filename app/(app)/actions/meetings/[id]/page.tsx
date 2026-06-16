@@ -23,7 +23,11 @@ import {
   getMeetingsForEntity,
   mapMeetingToDetailDTO,
   meetingDisplayTitle,
+  type MeetingDetailDTO,
 } from "@/lib/people-strategy/meetings-queries";
+import { meetingNextAction } from "@/lib/people-strategy/meeting-command-center";
+import { CalmCollapse, CalmOnly, CommandModeToggle } from "@/components/command-center/command-mode";
+import { PrimaryFocusCard } from "@/components/command-center/simple";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 import {
   areaForRelatedEntityType,
@@ -44,6 +48,43 @@ export const metadata = { title: "Meeting · Weekly Command Center" };
 
 function personName(p: { name: string | null; email: string | null }): string {
   return p.name ?? p.email ?? "Unknown";
+}
+
+/**
+ * The calm "Now" lead — what's happening in this meeting and the single best
+ * next move. Live meetings surface the current agenda item; finished meetings
+ * surface the next wrap-up step. Computed from the meeting's own detail DTO.
+ */
+function MeetingNowFocus({ detail }: { detail: MeetingDetailDTO }) {
+  const next = meetingNextAction({
+    ...detail,
+    hasRelatedEntity: !!detail.relatedEntityType && !!detail.relatedEntityId,
+  });
+  const openAgenda = detail.agenda.find((a) => a.status === "OPEN");
+  const live = detail.effectiveStatus === "in_progress";
+  const upcoming = detail.effectiveStatus === "upcoming" || detail.effectiveStatus === "today";
+  const eyebrow = live ? "Happening now" : upcoming ? "Before this meeting" : "Wrap-up";
+  const title =
+    live && openAgenda
+      ? openAgenda.title
+      : upcoming && openAgenda
+        ? `First up: ${openAgenda.title}`
+        : detail.title;
+  const summary = [
+    `${detail.decisionCount} decision${detail.decisionCount === 1 ? "" : "s"}`,
+    `${detail.openFollowUps} open follow-up${detail.openFollowUps === 1 ? "" : "s"}`,
+    `${detail.linkedActions.length} action${detail.linkedActions.length === 1 ? "" : "s"}`,
+  ].join(" · ");
+  return (
+    <PrimaryFocusCard
+      eyebrow={eyebrow}
+      title={title}
+      reason={`${summary}. ${next.reason}`}
+      icon="compass"
+      ctaLabel={next.label}
+      ctaHref={next.href}
+    />
+  );
 }
 
 export default async function MeetingDetailPage({
@@ -199,26 +240,49 @@ export default async function MeetingDetailPage({
     : null;
 
   return (
-    <div className="page-shell" style={{ maxWidth: 1280 }}>
+    <div className="page-shell" style={{ maxWidth: 1180 }}>
+      <div className="mx-auto flex w-full max-w-[1180px] justify-end pb-1">
+        <CommandModeToggle />
+      </div>
+
+      {/* Calm lead — what's happening now and the one next move. Executive mode
+          leans on the room's own header instead, so the two don't stack. */}
+      <CalmOnly>
+        <div className="mx-auto w-full max-w-[1180px] pb-3">
+          <MeetingNowFocus detail={detail} />
+        </div>
+      </CalmOnly>
+
+      {/* The room — notes, agenda, decisions, follow-ups, linked actions. */}
       <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
-      <MeetingAgendaSummaryPanel
-        agendaText={agendaText}
-        summaryText={summary.text}
-        summaryWarnings={summary.warnings}
-        summaryMissingNotes={summary.missingNotes}
-      />
-      <SuggestedActionsPanel
-        meetingId={id}
-        people={people}
-        relatedEntityType={detail.relatedEntityType}
-        relatedEntityId={detail.relatedEntityId}
-        aiAvailable={Boolean(process.env.ANTHROPIC_API_KEY)}
-        hasNotes={Boolean(detail.notesText && detail.notesText.trim().length > 0)}
-      />
-      <MeetingFollowUpPackSection pack={followUpPack} meetingId={id} />
-      {strategicContext ? (
-        <StrategicContextSection context={strategicContext} kind="meeting" showEmptyState />
-      ) : null}
+
+      {/* Secondary tools & context — demoted out of the calm default, one click
+          away, and always inline in Executive mode. Nothing is removed. */}
+      <CalmCollapse
+        label="Meeting tools & context"
+        hint="Agenda & summary drafts, suggested actions, the follow-up pack, and strategy links."
+      >
+        <div className="flex flex-col gap-4 pt-2">
+          <MeetingAgendaSummaryPanel
+            agendaText={agendaText}
+            summaryText={summary.text}
+            summaryWarnings={summary.warnings}
+            summaryMissingNotes={summary.missingNotes}
+          />
+          <SuggestedActionsPanel
+            meetingId={id}
+            people={people}
+            relatedEntityType={detail.relatedEntityType}
+            relatedEntityId={detail.relatedEntityId}
+            aiAvailable={Boolean(process.env.ANTHROPIC_API_KEY)}
+            hasNotes={Boolean(detail.notesText && detail.notesText.trim().length > 0)}
+          />
+          <MeetingFollowUpPackSection pack={followUpPack} meetingId={id} />
+          {strategicContext ? (
+            <StrategicContextSection context={strategicContext} kind="meeting" showEmptyState />
+          ) : null}
+        </div>
+      </CalmCollapse>
     </div>
   );
 }

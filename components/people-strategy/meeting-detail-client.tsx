@@ -164,11 +164,21 @@ export function MeetingDetailClient({
       {/* body two-col */}
       <div className="detail-cols" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 16, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <FollowUpsSection meeting={meeting} pending={pending} run={run} onAdd={() => setDrawer({ create: false })} />
-          <LinkedActionsSection actions={meeting.linkedActions} />
-          <DecisionsSection meeting={meeting} people={people} pending={pending} run={run} />
-          <AgendaSection meeting={meeting} pending={pending} run={run} />
-          <NotesSection meeting={meeting} pending={pending} run={run} />
+          <div id="followups" style={{ scrollMarginTop: 80 }}>
+            <FollowUpsSection meeting={meeting} pending={pending} run={run} onAdd={() => setDrawer({ create: false })} />
+          </div>
+          <div id="actions" style={{ scrollMarginTop: 80 }}>
+            <LinkedActionsSection actions={meeting.linkedActions} />
+          </div>
+          <div id="decisions" style={{ scrollMarginTop: 80 }}>
+            <DecisionsSection meeting={meeting} people={people} pending={pending} run={run} />
+          </div>
+          <div id="agenda" style={{ scrollMarginTop: 80 }}>
+            <AgendaSection meeting={meeting} pending={pending} run={run} />
+          </div>
+          <div id="notes" style={{ scrollMarginTop: 80 }}>
+            <NotesSection meeting={meeting} pending={pending} run={run} />
+          </div>
         </div>
 
         {/* SIDE */}
