@@ -1,123 +1,180 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn, EmptyStateV2 } from "@/components/ui-v2";
-import type { QueueDeferReason, QueueItem, QueueResolution } from "@/lib/queue/types";
+import {
+  activeIndex,
+  loopResolved,
+  nextIdAfterSkip,
+  visibleLoops,
+} from "@/lib/queue/runner-logic";
+import type { QueueItem } from "@/lib/queue/types";
 
-import { ArrowRightIcon, CloseIcon } from "./icons";
-import { QueueCard } from "./queue-card";
-import { QueueDrawer } from "./queue-drawer";
-import { QueueReceipt } from "./queue-receipt";
-import type { SessionDecision } from "./session";
+import { ArrowRightIcon, CheckCircleIcon, CloseIcon, SparkleIcon, typeGlyph } from "./icons";
+import { QueueInlineWork } from "./queue-inline-panels";
 
 /**
- * QueueRunner — the one-card-at-a-time, full-screen triage runner (Queue Engine
- * §A). It hides page chrome and walks the leader through each loop: Why it
- * matters, the recommended move, and the Resolve / Delegate / Discuss / Defer
- * dock. Decide the move for each loop (open the record any time to act now);
- * finishing the pass produces a receipt. Fully keyboard-navigable:
- *   r resolve · g delegate · c discuss · f defer · s skip · ← back · o details
+ * QueueRunner — My Queue as a work surface, not an inbox.
+ *
+ * One loop at a time: what it is, WHY it matters, WHAT needs to happen, and the
+ * real controls to do it. Finishing the actual work (completing the action,
+ * converting the decision, handling the follow-up) is what closes the loop — the
+ * server then recomputes the queue from source truth, so an item leaves ONLY
+ * because its underlying condition is gone. Partial progress (e.g. marking an
+ * action blocked) keeps the item, and the runner says what still remains. Skip
+ * moves past a loop for now without changing anything; reopen the queue and it's
+ * still there.
  */
+
+const toneAccent: Record<QueueItem["tone"], string> = {
+  danger: "text-danger-700",
+  warning: "text-warning-700",
+  info: "text-info-700",
+  brand: "text-brand-700",
+  neutral: "text-ink-muted",
+  success: "text-success-700",
+};
+
+function relatedHref(item: QueueItem): { label: string; href: string } | null {
+  if (item.relatedMeeting) {
+    return { label: item.relatedMeeting.title, href: `/actions/meetings/${item.relatedMeeting.id}` };
+  }
+  if (item.relatedInitiative) {
+    return {
+      label: item.relatedInitiative.title,
+      href: `/operations/initiatives/${item.relatedInitiative.id}`,
+    };
+  }
+  return null;
+}
+
 export function QueueRunner({
   queueLabel,
   items,
-  nextQueueHref,
-  nextQueueLabel,
+  backHref = "/work",
+  backLabel = "Mission Control",
 }: {
   queueLabel: string;
   items: QueueItem[];
-  nextQueueHref?: string;
-  nextQueueLabel?: string;
+  backHref?: string;
+  backLabel?: string;
 }) {
-  const [index, setIndex] = useState(0);
-  const [decisions, setDecisions] = useState<SessionDecision[]>([]);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [skipped, setSkipped] = useState<Set<string>>(new Set());
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [resolvedCount, setResolvedCount] = useState(0);
+  const [flash, setFlash] = useState<{ tone: "success" | "info"; text: string } | null>(null);
+  // The loop we just acted on, awaiting the refreshed queue to confirm it left.
+  const pendingRef = useRef<{ id: string; title: string } | null>(null);
 
-  const total = items.length;
-  const done = index >= total;
-  const current = done ? null : items[index];
+  const queue = useMemo(() => visibleLoops(items, skipped), [items, skipped]);
 
-  const decide = useCallback(
-    (resolution: QueueResolution, item: QueueItem, reason?: QueueDeferReason) => {
-      setDecisions((prev) => [
-        ...prev.filter((d) => d.item.id !== item.id),
-        { item, resolution, reason },
-      ]);
-      setDrawerOpen(false);
-      setIndex((i) => i + 1);
-    },
-    []
-  );
+  const currentIndex = useMemo(() => activeIndex(queue, activeId), [queue, activeId]);
 
-  const skip = useCallback(() => setIndex((i) => i + 1), []);
-  const back = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
-  const restart = useCallback(() => {
-    setIndex(0);
-    setDecisions([]);
+  const current = queue[currentIndex] ?? queue[0] ?? null;
+
+  // Reconcile after a mutation refresh: did the acted loop actually leave?
+  useEffect(() => {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    pendingRef.current = null;
+    if (!loopResolved(items, pending.id)) {
+      // Not resolved — e.g. blocked is still open work. Keep it, explain.
+      setFlash({
+        tone: "info",
+        text: "Saved. This one stays in your queue until it's fully cleared — skip it if you're done for now.",
+      });
+    } else {
+      setResolvedCount((c) => c + 1);
+      setFlash({ tone: "success", text: `Done — "${pending.title}" cleared.` });
+      // Advance: fall back to the worst-first remaining loop.
+      setActiveId(null);
+    }
+  }, [items]);
+
+  const onResolved = useCallback((item: QueueItem) => {
+    pendingRef.current = { id: item.id, title: item.title };
   }, []);
 
-  useEffect(() => {
-    if (done || !current) return;
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || drawerOpen) return;
-      const key = e.key.toLowerCase();
-      if (key === "r" && current.resolutions.includes("resolve")) decide("resolve", current);
-      else if (key === "g" && current.resolutions.includes("delegate")) decide("delegate", current);
-      else if (key === "c" && current.resolutions.includes("discuss")) decide("discuss", current);
-      else if (key === "f" && current.resolutions.includes("defer"))
-        decide("defer", current, "needs_more_info");
-      else if (key === "s") skip();
-      else if (key === "arrowleft") back();
-      else if (key === "o") setDrawerOpen(true);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [current, done, drawerOpen, decide, skip, back]);
+  const goTo = useCallback(
+    (index: number) => {
+      const next = queue[index];
+      if (next) {
+        setActiveId(next.id);
+        setFlash(null);
+      }
+    },
+    [queue]
+  );
 
-  if (total === 0) {
+  const skip = useCallback(() => {
+    if (!current) return;
+    const nextId = nextIdAfterSkip(queue, currentIndex);
+    setSkipped((prev) => new Set(prev).add(current.id));
+    setActiveId(nextId);
+    setFlash(null);
+  }, [current, queue, currentIndex]);
+
+  const reviewSkipped = useCallback(() => {
+    setSkipped(new Set());
+    setActiveId(null);
+    setFlash(null);
+  }, []);
+
+  // ── Empty / done states ────────────────────────────────────────────────
+  if (queue.length === 0) {
+    const skippedCount = skipped.size;
     return (
       <div className="mx-auto w-full max-w-2xl py-16">
         <EmptyStateV2
-          title="This queue is clear"
-          body={`No open loops in the ${queueLabel} right now. Nothing to run.`}
+          title={resolvedCount > 0 ? "Queue cleared 🎉" : "You're clear for now 🎉"}
+          body={
+            resolvedCount > 0
+              ? `You handled ${resolvedCount} ${resolvedCount === 1 ? "item" : "items"}.${
+                  skippedCount > 0 ? ` You skipped ${skippedCount} for later.` : ""
+                }`
+              : skippedCount > 0
+                ? `Nothing left to do right now. You skipped ${skippedCount} for later.`
+                : `No open loops in ${queueLabel}. Nothing needs you here.`
+          }
           action={
-            <Link href="/work" className="text-[13px] font-semibold text-brand-700 hover:underline">
-              Back to Mission Control →
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {skippedCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={reviewSkipped}
+                  className="rounded-full bg-brand-600 px-4 py-2 text-[13px] font-semibold text-white hover:bg-brand-700"
+                >
+                  Review skipped ({skippedCount})
+                </button>
+              ) : null}
+              <Link
+                href={backHref}
+                className="text-[13px] font-semibold text-brand-700 hover:underline"
+              >
+                Back to {backLabel} →
+              </Link>
+            </div>
           }
         />
       </div>
     );
   }
 
-  if (done) {
-    return (
-      <div className="py-10">
-        <QueueReceipt
-          queueLabel={queueLabel}
-          decisions={decisions}
-          remaining={total - decisions.filter((d) => d.resolution === "resolve").length}
-          nextQueueHref={nextQueueHref}
-          nextQueueLabel={nextQueueLabel}
-          onRestart={restart}
-        />
-      </div>
-    );
-  }
-
-  const progress = Math.round((index / total) * 100);
+  const related = relatedHref(current);
+  const total = queue.length;
+  const position = currentIndex + 1;
+  const progress = Math.round((resolvedCount / (resolvedCount + total)) * 100);
 
   return (
     <div className="flex min-h-[78vh] flex-col">
-      {/* Progress / chrome */}
+      {/* Calm top chrome: where you are, how much is left. */}
       <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-line-soft bg-surface-soft/90 px-1 py-3 backdrop-blur">
         <Link
-          href="/work"
+          href={backHref}
           className="flex items-center gap-1 rounded-full px-2 py-1 text-[12.5px] font-semibold text-ink-muted transition-colors hover:text-ink"
-          aria-label="Exit runner"
+          aria-label={`Exit to ${backLabel}`}
         >
           <CloseIcon className="size-4" /> Exit
         </Link>
@@ -132,51 +189,142 @@ export function QueueRunner({
             />
           </div>
           <span className="shrink-0 text-[12.5px] font-semibold text-ink-muted">
-            Loop {Math.min(index + 1, total)} of {total}
+            {total} left
           </span>
         </div>
       </header>
 
-      {/* Focused card */}
       <div className="flex flex-1 items-start justify-center py-8">
-        <div className="w-full max-w-3xl">
-          <QueueCard
-            key={current!.id}
-            item={current!}
-            featured
-            onAction={decide}
-            onOpenDrawer={() => setDrawerOpen(true)}
-          />
+        <div className="w-full max-w-2xl">
+          {flash ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className={cn(
+                "mb-4 flex items-center gap-2 rounded-[12px] border px-3.5 py-2.5 text-[13px] font-semibold",
+                flash.tone === "success"
+                  ? "border-success-700/20 bg-success-100/60 text-success-700"
+                  : "border-info-700/20 bg-info-100/60 text-info-700"
+              )}
+            >
+              {flash.tone === "success" ? (
+                <CheckCircleIcon className="size-4 shrink-0" />
+              ) : (
+                <SparkleIcon className="size-4 shrink-0" />
+              )}
+              <span>{flash.text}</span>
+            </div>
+          ) : null}
 
-          {/* Secondary controls */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12.5px] text-ink-muted">
-            <button type="button" onClick={back} disabled={index === 0} className="font-semibold disabled:opacity-40 hover:text-ink">
+          {/* The one focused loop. */}
+          <article
+            key={current.id}
+            className="rounded-[18px] border border-line-soft bg-surface p-6 shadow-card sm:p-7"
+          >
+            {/* Type + status */}
+            <div className="flex items-center justify-between gap-3">
+              <span className={cn("flex items-center gap-2 text-[12.5px] font-bold uppercase tracking-[0.06em]", toneAccent[current.tone])}>
+                <span aria-hidden className="text-[15px] leading-none">
+                  {typeGlyph(current.type)}
+                </span>
+                {current.typeLabel}
+              </span>
+              <span className="shrink-0 text-[12.5px] font-semibold text-ink-muted">
+                {current.statusLabel}
+              </span>
+            </div>
+
+            {/* Title */}
+            <h1 className="mt-3 text-[22px] font-bold leading-tight text-ink sm:text-[24px]">
+              {current.title}
+            </h1>
+
+            {/* Owner / due / related */}
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-ink-muted">
+              {current.ownerName ? <span>Owner: <span className="font-semibold text-ink">{current.ownerName}</span></span> : null}
+              {related ? (
+                <Link href={related.href} className="font-semibold text-brand-700 hover:underline">
+                  {related.label} ↗
+                </Link>
+              ) : null}
+            </div>
+
+            {/* Why it matters */}
+            <div className="mt-5">
+              <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
+                Why this matters
+              </p>
+              <p className="mt-1 text-[14px] leading-snug text-ink">{current.why}</p>
+            </div>
+
+            {/* What needs to happen */}
+            {current.recommendedMove ? (
+              <div className="mt-4">
+                <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
+                  What needs to happen
+                </p>
+                <p className="mt-1 text-[14px] leading-snug text-ink">{current.recommendedMove}</p>
+              </div>
+            ) : null}
+
+            {/* The real work */}
+            <div className="mt-5">
+              {current.inline ? (
+                <>
+                  <QueueInlineWork item={current} onResolved={() => onResolved(current)} />
+                  <Link
+                    href={current.href}
+                    className="mt-3 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand-700 hover:underline"
+                  >
+                    Open the full record <ArrowRightIcon className="size-3.5" />
+                  </Link>
+                </>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <Link
+                    href={current.primaryAction.href}
+                    className="inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-card transition-colors hover:bg-brand-700"
+                  >
+                    {current.primaryAction.label}
+                    <ArrowRightIcon className="size-4" />
+                  </Link>
+                  <p className="m-0 text-[12px] text-ink-muted">
+                    {current.primaryAction.hint ??
+                      "Opens the full record where you can finish this — then come back to your queue."}
+                  </p>
+                </div>
+              )}
+            </div>
+          </article>
+
+          {/* Move through the queue — simple, three controls. */}
+          <div className="mt-5 flex items-center justify-center gap-x-6 text-[12.5px] font-semibold text-ink-muted">
+            <button
+              type="button"
+              onClick={() => goTo(currentIndex - 1)}
+              disabled={currentIndex === 0}
+              className="transition-colors hover:text-ink disabled:opacity-40"
+            >
               ← Back
             </button>
-            <button type="button" onClick={skip} className="font-semibold hover:text-ink">
-              Skip <kbd className="rounded bg-surface px-1 text-[10px]">S</kbd>
+            <button type="button" onClick={skip} className="transition-colors hover:text-ink">
+              Skip for now
             </button>
-            <button type="button" onClick={() => setDrawerOpen(true)} className="font-semibold hover:text-ink">
-              Open details <kbd className="rounded bg-surface px-1 text-[10px]">O</kbd>
+            <button
+              type="button"
+              onClick={() => goTo(currentIndex + 1)}
+              disabled={currentIndex >= total - 1}
+              className="transition-colors hover:text-ink disabled:opacity-40"
+            >
+              Next →
             </button>
-            <span className="hidden items-center gap-1 sm:inline-flex">
-              <kbd className="rounded bg-surface px-1 text-[10px]">R</kbd>esolve
-              <kbd className="ml-2 rounded bg-surface px-1 text-[10px]">G</kbd>delegate
-              <kbd className="ml-2 rounded bg-surface px-1 text-[10px]">C</kbd>discuss
-              <kbd className="ml-2 rounded bg-surface px-1 text-[10px]">F</kbd>defer
-            </span>
           </div>
 
-          <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-[12px] text-ink-muted">
-            <ArrowRightIcon className="size-3.5" />
-            Decide the next move for each loop. Open the record any time to act now.
+          <p className="mt-5 text-center text-[12px] text-ink-muted">
+            Item {position} of {total} · Skipping never changes anything — it just moves you on.
           </p>
         </div>
       </div>
-
-      {drawerOpen ? (
-        <QueueDrawer item={current} onClose={() => setDrawerOpen(false)} onAction={decide} />
-      ) : null}
     </div>
   );
 }

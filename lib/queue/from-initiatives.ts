@@ -120,6 +120,8 @@ export function queueItemFromInitiativeCard(card: WorkHubInitiativeCard): QueueI
     primaryAction,
     secondaryActions,
     resolutions,
+    // No safe inline milestone mutation exists yet — route to the initiative.
+    inline: null,
     statusLabel: card.healthLabel,
     ageLabel: card.pastTargetDate ? "past target" : null,
     dueISO: card.targetDateISO,
@@ -167,6 +169,8 @@ export function queueItemFromDecision(decision: WorkHubDecisionWithoutAction): Q
     primaryAction: actions.resolve!,
     secondaryActions: resolutions.filter((k) => k !== "resolve").map((k) => actions[k]!),
     resolutions,
+    // Recorded but never tracked — convert it to an owned action right here.
+    inline: { kind: "decision", decisionId: decision.id },
     statusLabel: "Needs an action",
     ageLabel: null,
     dueISO: null,

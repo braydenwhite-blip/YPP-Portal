@@ -4,6 +4,7 @@ import { buildReasonString } from "./ranking";
 import { buildResolutionActions, pickPrimaryResolution } from "./resolution";
 import {
   emptyQueueSignals,
+  type QueueInline,
   type QueueItem,
   type QueueItemType,
   type QueueSeverity,
@@ -11,6 +12,33 @@ import {
   type QueueTone,
   QUEUE_ITEM_TYPE_LABELS,
 } from "./types";
+
+const FOLLOW_UP_ID_PREFIX = "follow_up:";
+
+/**
+ * The real inline workflow for a row, when one is safe to run in My Queue:
+ *   • an editable action → structured complete / block (the same mutations the
+ *     detail card uses; `capture` is only present when the viewer may edit), and
+ *   • a meeting follow-up → mark handled / convert to a tracked action.
+ * Everything else returns null and routes to its full record.
+ */
+function inlineForRow(row: WorkHubRow): QueueInline | null {
+  if (row.kind === "action" && row.capture) {
+    return {
+      kind: "action",
+      actionId: row.capture.actionId,
+      blockedReason: row.capture.blockedReason,
+      completionNote: row.capture.completionNote,
+      completionOutcome: row.capture.completionOutcome,
+      nextFollowUpISO: row.capture.nextFollowUpISO,
+    };
+  }
+  if (row.kind === "follow_up" && row.id.startsWith(FOLLOW_UP_ID_PREFIX)) {
+    const followUpId = row.id.slice(FOLLOW_UP_ID_PREFIX.length);
+    if (followUpId) return { kind: "follow_up", followUpId };
+  }
+  return null;
+}
 
 /**
  * Fold a unified Work Hub row (the existing cross-domain "someone must do
@@ -193,6 +221,7 @@ export function queueItemFromWorkHubRow(row: WorkHubRow, now: Date): QueueItem {
     primaryAction,
     secondaryActions,
     resolutions,
+    inline: inlineForRow(row),
     statusLabel: row.status,
     ageLabel: ageLabelForRow(row.status),
     dueISO: row.dueISO,

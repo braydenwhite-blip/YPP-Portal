@@ -171,12 +171,18 @@ export default function CommandBar({
         </div>
       ) : null}
 
-      {/* View preference — Calm / Executive density, shared across the
-          operating surfaces. Officers only, since member pages don't read it. */}
+      {/* View preference — Calm / Executive density, shared across every
+          operating surface. Officers only (member pages don't read it), but
+          always reachable: a compact pill on narrow screens, full on wider. */}
       {officerTier ? (
-        <div className="hidden shrink-0 sm:block" title="View density — Calm shows the essentials, Executive shows the full detail">
-          <CommandModeToggle />
-        </div>
+        <>
+          <div className="shrink-0 sm:hidden">
+            <CommandModeToggle compact />
+          </div>
+          <div className="hidden shrink-0 sm:block">
+            <CommandModeToggle />
+          </div>
+        </>
       ) : null}
 
       {/* Help Agent entry */}

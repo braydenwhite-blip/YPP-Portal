@@ -1,101 +1,157 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { cn } from "@/components/ui-v2";
+import {
+  COMMAND_MODE_COOKIE,
+  COMMAND_MODE_EVENT,
+  COMMAND_MODE_STORAGE_KEY,
+  DEFAULT_COMMAND_MODE,
+  isCommandMode,
+  type CommandMode,
+} from "@/lib/command-mode-cookie";
 
 /**
- * Calm / Executive mode — a lightweight UI density preference shared across the
- * operating surfaces. Calm (default) shows the one obvious next move and a few
- * items; Executive reveals more context and longer lanes.
+ * Calm / Executive mode — the ONE global view mode for the whole portal.
  *
- * The preference is stored in localStorage so it sticks across visits. Every
- * provider instance — the one global provider in the app shell plus any local
- * provider a surface still wraps itself in — listens for a window event, so a
- * change anywhere (the global top-bar pill, or a surface's own pill) is applied
- * everywhere live, and across browser tabs via the `storage` event. Each
- * provider keeps its own state, so a surface mounted without the shell still
- * falls back to a working local pill.
+ * Calm (the default) shows the single obvious next move and a few items so
+ * nobody is ever overwhelmed. Executive reveals the full operating picture —
+ * tables, metrics, every lane. It is a product mode, not a theme: pages render
+ * a genuinely simpler experience in Calm and the full detail in Executive.
+ *
+ * Single source of truth, three guarantees:
+ *   1. No drift — a provider that detects another provider above it defers to
+ *      that parent instead of holding its own state, so the global top-bar pill
+ *      and every surface always agree. A surface mounted standalone (a test, an
+ *      embed) still gets a working local provider because there is no parent.
+ *   2. No flash — the server reads the {@link COMMAND_MODE_COOKIE} cookie and
+ *      passes `initialMode`, so the first paint already matches the user's
+ *      choice. Executive never flashes through Calm (or vice-versa).
+ *   3. Persistence — a change writes the cookie (for the next server render) and
+ *      localStorage (for cross-tab sync and returning visitors), and broadcasts
+ *      so every live consumer updates without a navigation.
  */
 
-export type CommandMode = "calm" | "executive";
+export type { CommandMode };
 
-const STORAGE_KEY = "ypp:command-mode";
-/** Same-tab broadcast so every provider stays in sync without a navigation. */
-const MODE_EVENT = "ypp:command-mode-change";
-
-function isMode(value: unknown): value is CommandMode {
-  return value === "calm" || value === "executive";
-}
-
-function readStoredMode(): CommandMode {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (isMode(stored)) return stored;
-  } catch {
-    // localStorage unavailable — keep the calm default.
-  }
-  return "calm";
-}
-
-const CommandModeContext = createContext<{
+type CommandModeContextValue = {
   mode: CommandMode;
   setMode: (mode: CommandMode) => void;
-}>({ mode: "calm", setMode: () => {} });
+  /** Sentinel: a real provider is mounted above. Lets nested providers defer. */
+  hasProvider: boolean;
+};
 
-export function CommandModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<CommandMode>("calm");
+const CommandModeContext = createContext<CommandModeContextValue>({
+  mode: DEFAULT_COMMAND_MODE,
+  setMode: () => {},
+  hasProvider: false,
+});
+
+function readStoredMode(): CommandMode | null {
+  try {
+    const stored = window.localStorage.getItem(COMMAND_MODE_STORAGE_KEY);
+    return isCommandMode(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistMode(mode: CommandMode) {
+  try {
+    window.localStorage.setItem(COMMAND_MODE_STORAGE_KEY, mode);
+  } catch {
+    // localStorage unavailable — the cookie below still carries the choice.
+  }
+  try {
+    // A view-density preference, not sensitive; site-wide, one year, lax.
+    document.cookie = `${COMMAND_MODE_COOKIE}=${mode}; path=/; max-age=31536000; samesite=lax`;
+  } catch {
+    // ignore
+  }
+}
+
+export function CommandModeProvider({
+  children,
+  initialMode,
+}: {
+  children: ReactNode;
+  /** Server-supplied mode from the cookie, so the first paint is flash-free. */
+  initialMode?: CommandMode;
+}) {
+  const parent = useContext(CommandModeContext);
+  const isNested = parent.hasProvider;
+
+  const [mode, setModeState] = useState<CommandMode>(initialMode ?? DEFAULT_COMMAND_MODE);
+  const hadInitial = useRef(initialMode != null);
 
   useEffect(() => {
-    // Hydrate from the stored preference, then keep in sync with any other
-    // provider (same tab via MODE_EVENT, other tabs via the storage event).
-    setModeState(readStoredMode());
+    // Only the root provider owns persistence + sync; nested ones defer fully.
+    if (isNested) return;
+
+    // First visit before the cookie exists: a returning visitor may still have
+    // the choice in localStorage. Adopt it (and seed the cookie) when the server
+    // didn't already tell us the mode, so we converge without a future flash.
+    if (!hadInitial.current) {
+      const stored = readStoredMode();
+      if (stored && stored !== mode) {
+        setModeState(stored);
+        persistMode(stored);
+      } else {
+        persistMode(mode);
+      }
+    } else {
+      persistMode(mode);
+    }
 
     function onModeEvent(event: Event) {
       const next = (event as CustomEvent<CommandMode>).detail;
-      if (isMode(next)) setModeState(next);
+      if (isCommandMode(next)) setModeState(next);
     }
     function onStorage(event: StorageEvent) {
-      if (event.key === STORAGE_KEY && isMode(event.newValue)) setModeState(event.newValue);
+      if (event.key === COMMAND_MODE_STORAGE_KEY && isCommandMode(event.newValue)) {
+        setModeState(event.newValue);
+      }
     }
-
-    window.addEventListener(MODE_EVENT, onModeEvent);
+    window.addEventListener(COMMAND_MODE_EVENT, onModeEvent);
     window.addEventListener("storage", onStorage);
     return () => {
-      window.removeEventListener(MODE_EVENT, onModeEvent);
+      window.removeEventListener(COMMAND_MODE_EVENT, onModeEvent);
       window.removeEventListener("storage", onStorage);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNested]);
 
   const setMode = useCallback((next: CommandMode) => {
     setModeState(next);
+    persistMode(next);
     try {
-      window.localStorage.setItem(STORAGE_KEY, next);
+      window.dispatchEvent(new CustomEvent(COMMAND_MODE_EVENT, { detail: next }));
     } catch {
-      // ignore persistence failures
-    }
-    try {
-      // Broadcast so sibling / parent providers update without a reload.
-      window.dispatchEvent(new CustomEvent(MODE_EVENT, { detail: next }));
-    } catch {
-      // CustomEvent unavailable (very old runtime) — localStorage still sticks.
+      // CustomEvent unavailable — localStorage + cookie still stick.
     }
   }, []);
 
+  // A provider mounted inside another defers entirely to the parent: one source
+  // of truth, zero drift. Hooks above still run (rules of hooks), but their
+  // state is unused — consumers read the parent's value through this passthrough.
+  if (isNested) return <>{children}</>;
+
   return (
-    <CommandModeContext.Provider value={{ mode, setMode }}>
+    <CommandModeContext.Provider value={{ mode, setMode, hasProvider: true }}>
       {children}
     </CommandModeContext.Provider>
   );
 }
 
 export function useCommandMode() {
-  return useContext(CommandModeContext);
+  const { mode, setMode } = useContext(CommandModeContext);
+  return { mode, setMode };
 }
 
 /** True when the executive (denser, more context) view is active. */
 export function useIsExecutive(): boolean {
-  return useCommandMode().mode === "executive";
+  return useContext(CommandModeContext).mode === "executive";
 }
 
 /**
@@ -163,12 +219,19 @@ export function CalmCollapse({
 }
 
 /** The pill segmented control from the mockups (Calm · Executive). */
-export function CommandModeToggle({ className }: { className?: string }) {
+export function CommandModeToggle({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  /** Narrow chrome (mobile top bar) — tighter padding, same two clear labels. */
+  compact?: boolean;
+}) {
   const { mode, setMode } = useCommandMode();
   return (
     <div
       role="radiogroup"
-      aria-label="View density"
+      aria-label="View density — Calm shows the essentials, Executive shows the full detail"
       className={cn(
         "inline-flex items-center gap-0.5 rounded-full border border-line-soft bg-surface/80 p-0.5 shadow-card backdrop-blur",
         className
@@ -184,7 +247,8 @@ export function CommandModeToggle({ className }: { className?: string }) {
             aria-checked={active}
             onClick={() => setMode(value)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] font-semibold transition-colors",
+              "inline-flex items-center gap-1.5 rounded-full font-semibold transition-colors",
+              compact ? "px-2.5 py-1 text-[12px]" : "px-3 py-1 text-[12.5px]",
               active ? "bg-brand-600 text-white shadow-card" : "text-ink-muted hover:text-ink"
             )}
           >

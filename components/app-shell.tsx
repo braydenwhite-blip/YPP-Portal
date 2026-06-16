@@ -5,6 +5,7 @@ import Nav, { type NavBadges } from "@/components/nav";
 import BrandLockup from "@/components/brand-lockup";
 import CommandBar from "@/components/command-bar";
 import { CommandModeProvider } from "@/components/command-center/command-mode";
+import type { CommandMode } from "@/lib/command-mode-cookie";
 import LogoutButton from "@/components/logout-button";
 import PageHelperFab from "@/components/page-helper-fab";
 import type { PageHelperRole } from "@/lib/page-helper/types";
@@ -39,6 +40,7 @@ const OFFICER_TIER_NAV_ROLES = new Set([
 export default function AppShell({
   children,
   userName,
+  initialCommandMode,
   roles,
   adminSubtypes,
   primaryRole,
@@ -61,6 +63,8 @@ export default function AppShell({
 }: {
   children: React.ReactNode;
   userName?: string | null;
+  /** Server-supplied Calm/Executive choice (cookie) for a flash-free first paint. */
+  initialCommandMode?: CommandMode;
   roles?: string[];
   adminSubtypes?: string[];
   primaryRole?: string | null;
@@ -157,7 +161,7 @@ export default function AppShell({
   return (
     <Entity360Provider>
     <HelpAgentProvider officerTier={officerTier} adminTier={adminTier}>
-    <CommandModeProvider>
+    <CommandModeProvider initialMode={initialCommandMode}>
     <div className="app-shell">
       {/* Mobile menu toggle */}
       <button

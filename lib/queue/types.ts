@@ -171,6 +171,35 @@ export type QueueEntityRef = {
 };
 
 /**
+ * The real, inline-completable workflow behind a loop — the thing that lets My
+ * Queue be a work surface, not an inbox. Each variant carries the actual record
+ * id and maps to an EXISTING domain mutation (re-checked server-side); the
+ * runner renders the matching panel. When this is null the loop has no safe
+ * inline action and the runner routes to its full record instead. Serializable
+ * end-to-end so it can ride from the server engine to the client runner.
+ */
+export type QueueInline =
+  | {
+      kind: "action";
+      /** ActionItem id — `captureActionCompletion` / `captureActionBlocker`. */
+      actionId: string;
+      blockedReason: string | null;
+      completionNote: string | null;
+      completionOutcome: string | null;
+      nextFollowUpISO: string | null;
+    }
+  | {
+      kind: "decision";
+      /** MeetingDecision id — `convertDecisionToAction`. */
+      decisionId: string;
+    }
+  | {
+      kind: "follow_up";
+      /** MeetingFollowUp id — `setFollowUpStatus` / `convertFollowUpToAction`. */
+      followUpId: string;
+    };
+
+/**
  * The canonical open loop. Every queue across the portal is a list of these,
  * ranked deterministically. Serializable end-to-end (server → client).
  */
@@ -206,6 +235,13 @@ export type QueueItem = {
   secondaryActions: QueueAction[];
   /** Which of the four resolutions apply to this loop. */
   resolutions: QueueResolution[];
+
+  /**
+   * The real inline workflow, when one exists — lets the runner close the loop
+   * in place (complete an action, convert a decision, handle a follow-up)
+   * instead of just routing away. Null → no safe inline action; open the record.
+   */
+  inline: QueueInline | null;
 
   /** Display status ("Overdue 3d", "Decision needed", "Due Jun 12"). */
   statusLabel: string;

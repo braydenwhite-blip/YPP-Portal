@@ -39,6 +39,7 @@ export function makeQueueItem(overrides: Partial<QueueItem> = {}): QueueItem {
     primaryAction: { resolution: "resolve", label: "Resolve", href: "/x" },
     secondaryActions: [],
     resolutions: ["resolve"],
+    inline: null,
     statusLabel: "Open",
     ageLabel: null,
     dueISO: null,

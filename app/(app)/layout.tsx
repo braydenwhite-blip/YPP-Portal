@@ -2,6 +2,7 @@ import { cookies, headers } from "next/headers";
 import AppShell from "@/components/app-shell";
 import SessionUnavailablePage from "@/components/session-unavailable-page";
 import { getSession } from "@/lib/auth-supabase";
+import { COMMAND_MODE_COOKIE, parseCommandMode } from "@/lib/command-mode-cookie";
 import {
   ensurePortalOnboardingComplete,
   loadAppShellMetadata,
@@ -64,6 +65,11 @@ export default async function AppLayout({
   const publicGateEnabled = isPublicGateEnabled();
   const cookieStore = await cookies();
   const previewToken = cookieStore.get(PREVIEW_COOKIE_NAME)?.value ?? null;
+  // Read the saved Calm/Executive choice so the first paint matches it (no
+  // flash). Undefined when no cookie yet — the provider then adopts a returning
+  // visitor's localStorage preference and seeds the cookie for next time.
+  const initialCommandMode =
+    parseCommandMode(cookieStore.get(COMMAND_MODE_COOKIE)?.value) ?? undefined;
   const loadSubtype = shouldLoadInstructorSubtype(roles, primaryRole);
 
   const onboardingTask = checkOnboarding
@@ -88,6 +94,7 @@ export default async function AppLayout({
   return (
     <AppShell
       userName={session.user.name}
+      initialCommandMode={initialCommandMode}
       roles={roles}
       adminSubtypes={(session.user as { adminSubtypes?: string[] }).adminSubtypes}
       primaryRole={primaryRole}
