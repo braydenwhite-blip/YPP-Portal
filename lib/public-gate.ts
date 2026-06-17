@@ -101,6 +101,14 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   "/notifications",
   "/help-agent",
 
+  // Command Center OS (Calm mode) — officer pages; each enforces role server-side.
+  "/command-center",
+  "/browse",
+  "/delegate",
+  "/follow-up",
+  "/review",
+  "/decide",
+
   // Summer Workshop Proposals (workshop design studio + required
   // training surface that the Summer Workshop pathway depends on).
   "/instructor/workshop-design-studio",
