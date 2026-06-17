@@ -17,7 +17,18 @@ test("@smoke admin can open the mentorship command center", async ({ page }) => 
     page.getByRole("heading", { name: "Instructor Mentorship Oversight" })
   ).toBeVisible();
 
-  // Core tab navigation renders.
+  // Calm (the default) leads with a single triage and demotes the full
+  // eight-tab cockpit behind a disclosure — the triage region and the cockpit
+  // toggle both render on arrival.
+  await expect(
+    page.getByRole("region", { name: "Mentorship triage" })
+  ).toBeVisible();
+  const cockpitToggle = page.getByText("Full oversight cockpit");
+  await expect(cockpitToggle).toBeVisible();
+
+  // Expanding the cockpit reveals the full tab navigation (parity with
+  // Executive, which shows it inline).
+  await cockpitToggle.click();
   await expect(page.getByRole("link", { name: "Overview / Pulse" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Needs Attention" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Approvals" })).toBeVisible();
