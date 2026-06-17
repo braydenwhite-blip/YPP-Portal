@@ -18,7 +18,7 @@ import { EmptyStateV2, UrlSyncedSearchInput } from "@/components/ui-v2";
 
 type UserOption = ActionPickerUser;
 
-function buildActionsHref(params: {
+export function buildActionsHref(params: {
   who?: string;
   q?: string;
   initiative?: string;
@@ -115,6 +115,7 @@ export function ActionTrackerDashboard({
   defaultOpenCreate = false,
   initiativeLink,
   showAttentionBoard = true,
+  showQuickCreate = true,
 }: {
   items: ActionItemWithRelations[];
   now: Date;
@@ -136,6 +137,8 @@ export function ActionTrackerDashboard({
    * then list ALL open work rather than hiding the flagged rows.
    */
   showAttentionBoard?: boolean;
+  /** When false, the inline create form is omitted (e.g. rendered above browse on /actions). */
+  showQuickCreate?: boolean;
 }) {
   const listHref = buildActionsHref({ who, q, initiative: initiativeId });
 
@@ -162,7 +165,7 @@ export function ActionTrackerDashboard({
 
   return (
     <div className="flex flex-col gap-5">
-      {canCreate && assignableUsers.length > 0 ? (
+      {showQuickCreate && canCreate && assignableUsers.length > 0 ? (
         <ActionQuickCreate
           users={assignableUsers}
           departments={departments}

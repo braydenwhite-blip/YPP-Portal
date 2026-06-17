@@ -61,7 +61,7 @@ export default function CommandBar({
   }, [createOpen]);
 
   const quickCreate: QuickCreateItem[] = [
-    { label: "New action", href: "/actions", icon: "✅", hint: "Track work & follow-ups" },
+    { label: "New action", href: "/actions/new", icon: "✅", hint: "Track work & follow-ups" },
     { label: "Log a meeting", href: "/actions/meetings", icon: "📅", hint: "Decisions & follow-ups" },
     { label: "New initiative", href: "/operations/initiatives", icon: "🎯", hint: "Plan a quarter" },
     { label: "Add a partner", href: "/partners", icon: "🤝", hint: "External relationships" },

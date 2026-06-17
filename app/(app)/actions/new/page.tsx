@@ -1,29 +1,21 @@
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
+import { ActionCreateForm } from "@/components/command-center/action-create-form";
+import { CommandModeToggle } from "@/components/command-center/command-mode";
+import { SimpleListCard, SimpleRow, SimpleSurface, SimpleActionStrip, type SimpleAction } from "@/components/command-center/simple";
 import ActionItemForm, {
   type ActionItemFormInitial,
 } from "@/components/people-strategy/action-item-form";
-import { ActionTrackerBack } from "@/components/people-strategy/action-tracker-tabs";
+import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
 import { OFFICER_TIER_ROLES } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
 import { requirePageRoles } from "@/lib/page-guards";
+import { actionPrefillFromQuery } from "@/lib/people-strategy/action-prefill";
 import {
   listActionAssignableUsers,
   listActionDepartments,
 } from "@/lib/people-strategy/action-queries";
-import {
-  getActionTemplate,
-  listActionTemplates,
-  templateToFormInitial,
-} from "@/lib/people-strategy/action-templates";
-import { ACTION_PRIORITY_VALUES } from "@/lib/people-strategy/constants";
-import { isActionType } from "@/lib/people-strategy/action-types";
-import { isMeetingCategory } from "@/lib/people-strategy/meeting-categories";
-import { getMeetingById } from "@/lib/people-strategy/meetings-queries";
-import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
-import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
-import { actionPrefillFromQuery } from "@/lib/people-strategy/action-prefill";
 import {
   ACTION_SOURCE_HEADER,
   deriveActionSourceLabel,
@@ -31,15 +23,20 @@ import {
   isActionSourceType,
   parseStrategicLink,
 } from "@/lib/people-strategy/action-source";
+import {
+  getActionTemplate,
+  listActionTemplates,
+  templateToFormInitial,
+} from "@/lib/people-strategy/action-templates";
+import { ACTION_PRIORITY_VALUES } from "@/lib/people-strategy/constants";
+import { isActionType } from "@/lib/people-strategy/action-types";
+import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
+import { isMeetingCategory } from "@/lib/people-strategy/meeting-categories";
+import { getMeetingById } from "@/lib/people-strategy/meetings-queries";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "New action · Action Tracker" };
+export const metadata = { title: "New action · Work" };
 
-/**
- * Related-entity types that can prefill a linked action from a "Create action
- * for this …" CTA. INSTRUCTOR_APPLICATION is a valid link value but its panel
- * is deferred (plan §4), so it is not offered as a prefill here.
- */
 const PREFILLABLE_RELATED_TYPES = new Set([
   "CLASS_OFFERING",
   "MENTORSHIP",
@@ -47,12 +44,14 @@ const PREFILLABLE_RELATED_TYPES = new Set([
   "PARTNER",
 ]);
 
+const calmFormCard =
+  "rounded-[18px] border border-line-soft bg-surface/80 p-5 shadow-card backdrop-blur sm:p-6";
+
 export default async function NewActionInTrackerPage({
   searchParams,
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  // Feature flag: with ENABLE_ACTION_TRACKER off, the route is unreachable.
   if (!isActionTrackerEnabled()) notFound();
 
   const viewer = await requirePageRoles([...OFFICER_TIER_ROLES]);
@@ -66,32 +65,11 @@ export default async function NewActionInTrackerPage({
   const meetingIdParam = first(sp.fromMeeting)?.trim() || null;
   const ctx = actionPrefillFromQuery(sp);
 
-  const hasPrefillContext = Boolean(
-    templateId ||
-      (relatedTypeParam && relatedIdParam) ||
-      meetingIdParam ||
-      ctx.title ||
-      ctx.sourceType ||
-      ctx.sourceActionId ||
-      ctx.suggestedOwnerId ||
-      ctx.strategicInitiativeId
-  );
-  if (!hasPrefillContext) redirect("/actions?create=1");
-
-  // The honest 4.0 context (source provenance + strategic link + suggestions),
-  // parsed + lightly validated by the one tested reader.
-
-  // Optional related-entity prefill. Both params must be present and the type
-  // must be prefillable; the entity is resolved + existence-checked server-side
-  // so an invalid or stale link simply falls back to an unlinked form.
   const relatedPromise =
     relatedTypeParam && relatedIdParam && PREFILLABLE_RELATED_TYPES.has(relatedTypeParam)
       ? loadRelatedEntitySummary(relatedTypeParam, relatedIdParam)
       : Promise.resolve(null);
 
-  // Optional source-meeting prefill (a decision / recap CTA). Existence-checked
-  // so a hand-edited / stale id falls back to an unlinked form instead of a
-  // submit-time FK error.
   const meetingPromise = meetingIdParam
     ? getMeetingById(meetingIdParam).catch(() => null)
     : Promise.resolve(null);
@@ -106,9 +84,6 @@ export default async function NewActionInTrackerPage({
       meetingPromise,
     ]);
 
-  // Validated scalar prefill (title / description / area / priority / type / due
-  // date). Anything malformed is dropped, so a bad URL never throws or leaks a
-  // bogus value into the form.
   const titleParam = ctx.title ? ctx.title.slice(0, 300) : "";
   const descParam = ctx.description ? ctx.description.slice(0, 10_000) : "";
   const areaRaw = first(sp.area);
@@ -130,8 +105,6 @@ export default async function NewActionInTrackerPage({
       ? toDateInputValue(addDays(new Date(), ctx.dueInDays))
       : null);
 
-  // Validate + resolve the EXPLICIT strategic link against the curated registry,
-  // so a bad id degrades to "no link" instead of a misleading chip.
   const strategicParsed = parseStrategicLink({
     strategicInitiativeId: ctx.strategicInitiativeId,
     strategicProjectId: ctx.strategicProjectId,
@@ -146,7 +119,6 @@ export default async function NewActionInTrackerPage({
   const strategicLinkLabel =
     [linkage.initiativeTitle, linkage.projectTitle].filter(Boolean).join(" › ") || null;
 
-  // Resolve the source descriptor for the context-aware header + chip.
   const sourceTypeParam = isActionSourceType(ctx.sourceType) ? ctx.sourceType : null;
   const sourceLabel =
     sourceTypeParam || sourceMeeting || ctx.sourceActionId || relatedSummary
@@ -160,7 +132,6 @@ export default async function NewActionInTrackerPage({
       : null;
   const sourceHeader = sourceTypeParam ? ACTION_SOURCE_HEADER[sourceTypeParam] : null;
 
-  // A suggested owner is honored only when it is a real assignable user.
   const suggestedOwnerId =
     ctx.suggestedOwnerId && users.some((u) => u.id === ctx.suggestedOwnerId)
       ? ctx.suggestedOwnerId
@@ -174,7 +145,6 @@ export default async function NewActionInTrackerPage({
     ...(typeParam ? { actionType: typeParam } : {}),
     ...(deadlineStart ? { deadlineStart } : {}),
     ...(sourceMeeting ? { officerMeetingId: sourceMeeting.id } : {}),
-    // --- Action System 4.0 honest context ---
     ...(sourceTypeParam ? { sourceType: sourceTypeParam } : {}),
     ...(ctx.sourceId ? { sourceId: ctx.sourceId } : {}),
     ...(ctx.sourceActionId ? { sourceActionId: ctx.sourceActionId } : {}),
@@ -205,94 +175,99 @@ export default async function NewActionInTrackerPage({
                 relatedEntityTypeLabel: relatedSummary.typeLabel,
               }
             : {}),
-          // Explicit scalar prefill wins over a template's defaults.
           ...prefillInitial,
         }
       : undefined;
 
   const useFullForm = Boolean(relatedSummary || sourceMeeting || template || hasPrefill);
 
+  const pageTitle = sourceHeader ?? (template ? `From “${template.name}”` : "New action");
+  const pageSubtitle = strategicLinkLabel
+    ? `Linked to ${strategicLinkLabel}.`
+    : relatedSummary
+      ? `Linked to ${relatedSummary.typeLabel.toLowerCase()} “${relatedSummary.label}.”`
+      : sourceLabel
+        ? `${sourceLabel} — who owns it and when is it due?`
+        : template
+          ? "Adjust the template fields if needed, then save."
+          : "Title, people, and due date — under a minute.";
+
+  const initiativeLink =
+    strategicLink.initiativeId
+      ? {
+          id: strategicLink.initiativeId,
+          goalCategory: areaParam ?? undefined,
+        }
+      : undefined;
+
+  const strip: SimpleAction[] = [
+    { label: "All actions", href: "/actions", icon: "layers" },
+    { label: "Clear my queue", href: "/work/queue?queue=my", icon: "list" },
+  ];
+
+  const templatePicker =
+    !template && !relatedSummary && templates.length > 0 ? (
+      <SimpleListCard title="Start from a template">
+        {templates.slice(0, 6).map((t) => (
+          <SimpleRow
+            key={t.id}
+            href={`/actions/new?template=${t.id}`}
+            icon="bolt"
+            name={t.name}
+            what={t.description ?? undefined}
+            related={t.category ?? undefined}
+          />
+        ))}
+      </SimpleListCard>
+    ) : null;
+
   return (
-    <div className="page-shell">
-      <Link
-        href="/actions"
-        style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)", textDecoration: "none" }}
-      >
-        ← Action Tracker
-      </Link>
-      <ActionTrackerBack />
-
-      <div className="topbar" style={{ marginTop: 16 }}>
-        <div>
-          <p className="badge">Action Tracker</p>
-          <h1 className="page-title" style={{ marginTop: 8 }}>
-            {sourceHeader ?? "New action"}
-          </h1>
-          <p className="page-subtitle">
-            {strategicLinkLabel
-              ? `Linked to ${strategicLinkLabel}.`
-              : relatedSummary
-                ? `Linked to ${relatedSummary.typeLabel.toLowerCase()} “${relatedSummary.label}.”`
-                : sourceLabel
-                  ? `${sourceLabel} — who owns it and when is it due?`
-                  : template
-                    ? `From “${template.name}” template — adjust if needed.`
-                    : "Title, owner, due date — that's enough to start."}
-          </p>
-        </div>
-      </div>
-
-      {!template && !relatedSummary && templates.length > 0 ? (
-        <details style={{ marginTop: 16 }}>
-          <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
-            Start from a template ({templates.length})
-          </summary>
-          <div
-            style={{
-              display: "grid",
-              gap: 10,
-              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-              marginTop: 12,
-            }}
-          >
-            {templates.map((t) => (
-              <Link
-                key={t.id}
-                href={`/actions/new?template=${t.id}`}
-                className="card"
-                style={{ padding: "12px 14px", textDecoration: "none", color: "inherit" }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
-                  <strong style={{ fontSize: 14 }}>{t.name}</strong>
-                  {t.category ? (
-                    <span style={{ fontSize: 11, color: "var(--muted)" }}>{t.category}</span>
-                  ) : null}
-                </div>
-                {t.description ? (
-                  <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--muted)" }}>{t.description}</p>
-                ) : null}
-              </Link>
-            ))}
-          </div>
-        </details>
-      ) : null}
-
-      <div className="ps-form-card" style={{ marginTop: 18, maxWidth: 760 }}>
-        {template ? (
-          <p style={{ margin: "0 0 12px" }}>
-            <Link href="/actions/new" className="button outline small">
-              ← Choose a different template
-            </Link>
-          </p>
-        ) : null}
-        <ActionItemForm
-          users={users}
-          departments={departments}
-          initial={initial}
-          currentUserId={viewer.id}
-          variant={useFullForm ? "full" : "simple"}
+    <SimpleSurface
+      maxWidth={720}
+      header={
+        <PageHeaderV2
+          eyebrow="Work"
+          backHref="/actions"
+          backLabel="Actions"
+          title={pageTitle}
+          subtitle={pageSubtitle}
+          actions={<CommandModeToggle />}
         />
-      </div>
-    </div>
+      }
+      calm={undefined}
+      aboveBrowse={
+        <div className="flex flex-col gap-5">
+          {useFullForm ? (
+            <div className={calmFormCard}>
+              {template ? (
+                <p className="m-0 mb-4">
+                  <ButtonLink href="/actions/new" variant="secondary" size="sm">
+                    ← Choose a different template
+                  </ButtonLink>
+                </p>
+              ) : null}
+              <ActionItemForm
+                users={users}
+                departments={departments}
+                initial={initial}
+                currentUserId={viewer.id}
+                variant={useFullForm ? "full" : "simple"}
+              />
+            </div>
+          ) : (
+            <ActionCreateForm
+              users={users}
+              departments={departments}
+              currentUserId={viewer.id}
+              redirectTo="/actions"
+              cancelHref="/actions"
+              initiativeLink={initiativeLink}
+            />
+          )}
+          {templatePicker}
+          <SimpleActionStrip actions={strip} />
+        </div>
+      }
+    />
   );
 }

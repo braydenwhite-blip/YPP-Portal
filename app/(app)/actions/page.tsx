@@ -112,7 +112,8 @@ export default async function ActionsPage({
   const params = (await searchParams) ?? {};
   const qParam = firstParam(params.q)?.trim().toLowerCase() ?? "";
   const whoParam = firstParam(params.who);
-  const createOpen = firstParam(params.create) === "1";
+  const createParam = firstParam(params.create) === "1";
+  if (createParam) redirect("/actions/new");
 
   const initiativeParam = firstParam(params.initiative)?.trim() ?? "";
   const initiativeDef = initiativeParam ? getInitiativeDef(initiativeParam) : null;
@@ -164,6 +165,10 @@ export default async function ActionsPage({
 
   // The one obvious lead: the most urgent thing if something's stuck, else the
   // next action by deadline, else an all-clear.
+  const createHref = initiativeDef
+    ? `/actions/new?initiativeId=${encodeURIComponent(initiativeDef.id)}`
+    : "/actions/new";
+
   const focus = topSignal ? (
     <PrimaryFocusCard
       eyebrow={leadershipView ? "Most urgent" : "Start here"}
@@ -194,7 +199,7 @@ export default async function ActionsPage({
       icon="check"
       tone="success"
       ctaLabel={canCreate ? "Add an action" : "Open My Queue"}
-      ctaHref={canCreate ? "/actions/new" : "/work/queue?queue=my"}
+      ctaHref={canCreate ? createHref : "/work/queue?queue=my"}
     />
   );
 
@@ -223,7 +228,7 @@ export default async function ActionsPage({
 
   const strip: SimpleAction[] = [
     ...(canCreate
-      ? [{ label: "Add action", href: "/actions/new", icon: "bolt", primary: true } as SimpleAction]
+      ? [{ label: "Add action", href: createHref, icon: "bolt", primary: true } as SimpleAction]
       : []),
     {
       label: leadershipView ? "Run leadership queue" : "Clear my queue",
@@ -333,7 +338,8 @@ export default async function ActionsPage({
           who={who}
           q={qParam}
           initiativeId={initiativeDef?.id}
-          defaultOpenCreate={createOpen}
+          defaultOpenCreate={false}
+          showQuickCreate={false}
           showAttentionBoard={false}
           initiativeLink={
             initiativeDef
