@@ -3,9 +3,9 @@ import { completeMentorshipSession } from "@/lib/mentorship-hub-actions";
 /**
  * Session completion (Calm Mentorship, Phase 6) — a calm, two-field close: a
  * short "what happened" recap (private to the mentor and support circle) and one
- * optional commitment that becomes a tracked action item. Marking complete is
+ * optional next step that becomes a tracked action. Marking complete is
  * idempotent. The mentee sees the session as completed and any shared
- * commitment, but never the private recap.
+ * next step, but never the private recap.
  */
 export function SessionCompleteForm({
   sessionId,
@@ -62,12 +62,12 @@ export function SessionCompleteForm({
           </label>
         </div>
         <div className="form-row">
-          <label htmlFor={`complete-commitment-${sessionId}`}>One commitment (optional)</label>
+          <label htmlFor={`complete-commitment-${sessionId}`}>One next step (optional)</label>
           <input
             id={`complete-commitment-${sessionId}`}
             name="commitmentTitle"
             className="input"
-            placeholder="The single next step from this session"
+            placeholder="The single next step from this check-in"
           />
         </div>
         <div className="form-row">
@@ -80,7 +80,6 @@ export function SessionCompleteForm({
           >
             <option value={menteeId}>{menteeName}</option>
             <option value={mentorUserId}>Me (mentor)</option>
-            <option value="">Shared</option>
           </select>
         </div>
         <button type="submit" className="button primary small">

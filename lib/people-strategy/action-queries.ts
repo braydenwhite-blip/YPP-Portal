@@ -53,6 +53,15 @@ const ACTION_ITEM_INCLUDE = {
   // meeting follow-up / agenda item it carries officerMeetingId. Surfaced as a
   // "Source: Meeting" badge that links back to the Weekly Command Center.
   officerMeeting: { select: { id: true, title: true, date: true, category: true } },
+  mentorshipSession: {
+    select: {
+      id: true,
+      mentorshipId: true,
+      title: true,
+      scheduledAt: true,
+      completedAt: true,
+    },
+  },
   assignments: {
     select: {
       id: true,

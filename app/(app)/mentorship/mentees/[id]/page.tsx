@@ -20,6 +20,7 @@ import {
 } from "@/lib/mentorship-hub";
 import {
   createMentorshipActionItem,
+  createMentorshipNextStep,
   createMentorshipSession,
   updateMentorshipActionItemStatus,
 } from "@/lib/mentorship-hub-actions";
@@ -34,7 +35,6 @@ import {
   getActionsForEntities,
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
-import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import type { RelatedEntityRef } from "@/lib/people-strategy/constants";
 import {
   formatClassDateRange,
@@ -94,7 +94,7 @@ const WORKSPACE_GUIDE_ITEMS = [
       "Use 'schedule it' when the meeting is still coming up and 'log it now' when you already met and want the session recorded immediately.",
   },
   {
-    label: "Create an Action Item",
+    label: "Create a Next Step",
     meaning:
       "Action items are the concrete next steps that come out of a session.",
     howToUse:
@@ -181,7 +181,7 @@ export default async function MenteeDetailPage({
   // People Strategy Operating System — cross-team connections for this mentee.
   // Double-flagged (Operations Hub + Action Tracker, since the loaders are
   // tracker-gated). Surfaces GLOBAL Action Tracker items linked to this
-  // mentorship/person — kept distinct from the mentorship's own action items
+  // person — kept distinct from the mentorship's own canonical next steps
   // (workspace.actionItems) rendered further down — plus teaching + readiness.
   const operationsEnabled = isOperationsHubEnabled() && isActionTrackerEnabled();
   const viewer = {
@@ -195,9 +195,6 @@ export default async function MenteeDetailPage({
   let readiness: Awaited<ReturnType<typeof getInstructorReadiness>> | null = null;
   if (operationsEnabled) {
     const refs: RelatedEntityRef[] = [{ type: "USER", id: workspace.mentee.id }];
-    if (workspace.mentorship) {
-      refs.push({ type: "MENTORSHIP", id: workspace.mentorship.id });
-    }
     const [actionMap, classes, rdy] = await Promise.all([
       getActionsForEntities(refs, viewer),
       getMyTeachingClasses(workspace.mentee.id),
@@ -219,7 +216,6 @@ export default async function MenteeDetailPage({
     teachingClasses = classes;
     readiness = rdy;
   }
-  const canCreateTrackerAction = canCreateAction(viewer);
 
   // Calm summary — the single "act on this relationship" lead. Built entirely
   // from data already loaded above; Executive supersedes it with the full record.
@@ -256,7 +252,7 @@ export default async function MenteeDetailPage({
     ownerName: item.owner?.name ?? null,
     dueLabel: item.dueAt ? `Due ${new Date(item.dueAt).toLocaleDateString()}` : null,
     overdue: Boolean(item.dueAt && item.dueAt.getTime() < Date.now()),
-    linked: Boolean(item.linkedActionId),
+    linked: true,
   }));
 
   let calmFocus: CalmDetailFocus;
@@ -317,7 +313,7 @@ export default async function MenteeDetailPage({
         canManageActionPlan ? (
           <CommitmentsCalm
             commitments={calmCommitmentItems}
-            canConvert={canCreateTrackerAction && isActionTrackerEnabled()}
+            canConvert={false}
           />
         ) : undefined
       }
@@ -341,7 +337,7 @@ export default async function MenteeDetailPage({
           </Link>
           <h1 className="page-title">{workspace.mentee.name}</h1>
           <p className="page-subtitle">
-            Full mentee workspace: people, sessions, action plan, requests, resources, and progress signals.
+            Full mentee workspace: people, sessions, next steps, requests, resources, and progress signals.
           </p>
         </div>
         {!isSelfWorkspace && (
@@ -390,7 +386,7 @@ export default async function MenteeDetailPage({
 
       <CalmCollapse
         label="Open the full workspace"
-        hint="sessions, action plan, requests, resources, and progress"
+        hint="sessions, next steps, requests, resources, and progress"
       >
       {isMentorship2Enabled() && workspace.mentorship && (
         <div className="card" style={{ marginBottom: 16, display: "grid", gap: 8 }}>
@@ -412,15 +408,9 @@ export default async function MenteeDetailPage({
         <div style={{ marginBottom: 16, display: "grid", gap: 16 }}>
           <LinkedActionsPanel
             actions={linkedTrackerActions}
-            heading="Action Tracker items (cross-team)"
-            createHref={
-              workspace.mentorship
-                ? `/actions/new?relatedType=MENTORSHIP&relatedId=${workspace.mentorship.id}`
-                : null
-            }
-            createLabel="Create a tracker action for this mentorship"
-            canCreate={canCreateTrackerAction && Boolean(workspace.mentorship)}
-            emptyHint="No Action Tracker items are linked to this mentorship or person yet. The mentorship's own action items appear in the action plan below."
+            heading="Cross-team actions"
+            canCreate={false}
+            emptyHint="No separate cross-team actions are linked to this person right now. Relationship next steps appear below."
           />
 
           {(teachingClasses.length > 0 || (readiness && readiness.featureEnabled)) && (
@@ -522,7 +512,7 @@ export default async function MenteeDetailPage({
         <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--gray-300, #d1d5db)" }}>
           <strong>No active mentorship yet</strong>
           <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
-            You can still review this mentee&apos;s history, requests, and progress signals below. Session logging, action items, and monthly reviews stay disabled until an active mentor or support circle is assigned.
+            You can still review this mentee&apos;s history, requests, and progress signals below. Session logging, next steps, and monthly reviews stay disabled until an active mentor or support circle is assigned.
           </p>
         </section>
       ) : null}
@@ -560,7 +550,7 @@ export default async function MenteeDetailPage({
           </p>
         </div>
         <div className="card">
-          <div className="section-title">Action Plan</div>
+          <div className="section-title">Next steps</div>
           <p style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 700 }}>
             {openActionItems.length}
           </p>
@@ -673,7 +663,7 @@ export default async function MenteeDetailPage({
         <div className="section-title" style={{ marginBottom: 14 }}>Support Circle Roster</div>
         {workspace.circleMembers.length === 0 ? (
           <p style={{ color: "var(--muted)", margin: 0 }}>
-            No mentor or support-circle members are assigned yet. The action plan can still move while the chapter decides who should step in first.
+            No mentor or support-circle members are assigned yet. Next steps can still move while the chapter decides who should step in first.
           </p>
         ) : (
           <div className="grid two">
@@ -868,17 +858,23 @@ export default async function MenteeDetailPage({
           <summary
             style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.95rem", listStyle: "revert" }}
           >
-            Create an action item
+            Create a next step
           </summary>
           <div style={{ marginTop: 14 }}>
           {canManageActionPlan ? (
-            <form action={createMentorshipActionItem} className="form-grid">
+            <form
+              action={workspace.mentorship ? createMentorshipNextStep : createMentorshipActionItem}
+              className="form-grid"
+            >
               <input type="hidden" name="menteeId" value={workspace.mentee.id} />
+              {workspace.mentorship ? (
+                <input type="hidden" name="mentorshipId" value={workspace.mentorship.id} />
+              ) : null}
               <div className="form-row">
                 <FieldLabel
                   label="Title"
                   help={{
-                    title: "Action Item Title",
+                    title: "Next Step Title",
                     guidance:
                       "Write the next step as one small job that someone can clearly finish.",
                     example: "Draft the project pitch outline",
@@ -890,14 +886,13 @@ export default async function MenteeDetailPage({
                 <FieldLabel
                   label="Owner"
                   help={{
-                    title: "Action Item Owner",
+                    title: "Next Step Owner",
                     guidance:
                       "This says who is mainly responsible for completing the next step.",
-                    example: "Pick the mentee for independent work, a mentor for follow-up, or leave it shared when more than one person owns it.",
+                    example: "Pick the mentee for independent work or a mentor for follow-up.",
                   }}
                 />
                 <select name="ownerId" className="input" defaultValue={workspace.mentee.id}>
-                  <option value="">Shared responsibility</option>
                   <option value={workspace.mentee.id}>{workspace.mentee.name}</option>
                   {workspace.circleMembers.map((member) => (
                     <option key={member.user.id} value={member.user.id}>
@@ -922,7 +917,7 @@ export default async function MenteeDetailPage({
                 <FieldLabel
                   label="Details"
                   help={{
-                    title: "Action Item Details",
+                    title: "Next Step Details",
                     guidance:
                       "Describe what good completion looks like so the owner knows exactly what success means.",
                     example: "Bring a 5-slide draft and one sentence for the main pitch message.",
@@ -931,14 +926,14 @@ export default async function MenteeDetailPage({
                 <textarea name="details" className="input" rows={4} placeholder="What does success look like for this next step?" />
               </div>
               <button type="submit" className="button primary small">
-                Add Action Item
+                Add Next Step
               </button>
             </form>
           ) : (
             <p style={{ color: "var(--muted)", margin: 0 }}>
               {workspace.mentorship || workspace.intakePlanLaunch
-                ? "Only mentors, chapter leaders, and support-circle members can create action items from this workspace."
-                : "Launch an intake plan or assign an active mentor before action items can be created here."}
+                ? "Only mentors, chapter leaders, and support-circle members can create next steps from this workspace."
+                : "Launch an intake plan or assign an active mentor before next steps can be created here."}
             </p>
           )}
           </div>
@@ -975,7 +970,7 @@ export default async function MenteeDetailPage({
                   {isSelfWorkspace && sessionItem.completedAt && (
                     <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>
                       Completed {new Date(sessionItem.completedAt).toLocaleDateString()} · any next steps
-                      appear in your action plan.
+                      appear in your next steps.
                     </p>
                   )}
                 </div>
@@ -985,10 +980,10 @@ export default async function MenteeDetailPage({
         </section>
 
         <section className="card">
-          <div className="section-title">Action Plan</div>
+          <div className="section-title">Next steps</div>
           {workspace.actionItems.length === 0 ? (
             <p style={{ color: "var(--muted)", margin: 0 }}>
-              No action items yet. Action items turn sessions into next steps the mentee can actually follow.
+              No next steps yet. Next steps turn check-ins into work the mentee can actually follow.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

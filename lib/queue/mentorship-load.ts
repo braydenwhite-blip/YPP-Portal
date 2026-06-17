@@ -1,4 +1,4 @@
-import type { MentorshipCycleStage } from "@prisma/client";
+import type { ActionItemStatus, MentorshipCycleStage } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { isMentorship2Enabled } from "@/lib/feature-flags";
@@ -46,6 +46,24 @@ function cycleSignals(stage: MentorshipCycleStage, kickoffCompleted: boolean) {
   };
 }
 
+function actionStatusToMentorshipCommitmentStatus(
+  status: ActionItemStatus
+): MentorshipRelationshipFact["commitments"][number]["status"] {
+  switch (status) {
+    case "COMPLETE":
+      return "COMPLETE";
+    case "IN_PROGRESS":
+    case "OVERDUE":
+      return "IN_PROGRESS";
+    case "BLOCKED":
+      return "BLOCKED";
+    case "NOT_STARTED":
+    case "DROPPED":
+    default:
+      return "OPEN";
+  }
+}
+
 export async function loadMentorshipQueueItems(
   viewer: ActionViewer,
   now: Date
@@ -83,6 +101,7 @@ export async function loadMentorshipQueueItems(
             ownerId: true,
             owner: { select: { name: true } },
             dueAt: true,
+            linkedActionId: true,
           },
         },
         supportRequests: {
@@ -98,9 +117,51 @@ export async function loadMentorshipQueueItems(
         },
       },
     });
+    const mentorshipIds = pairings.map((pairing) => pairing.id);
+    const canonicalOverdueActions =
+      mentorshipIds.length > 0
+        ? await prisma.actionItem.findMany({
+            where: {
+              relatedEntityType: "MENTORSHIP",
+              relatedEntityId: { in: mentorshipIds },
+              status: { notIn: ["COMPLETE", "DROPPED"] },
+              OR: [
+                { deadlineEnd: { lt: now } },
+                { deadlineEnd: null, deadlineStart: { lt: now } },
+              ],
+            },
+            take: 200,
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              leadId: true,
+              lead: { select: { name: true } },
+              deadlineStart: true,
+              deadlineEnd: true,
+              relatedEntityId: true,
+            },
+          })
+        : [];
+    const canonicalOverdueActionsByMentorship = new Map<
+      string,
+      typeof canonicalOverdueActions
+    >();
+    for (const action of canonicalOverdueActions) {
+      if (!action.relatedEntityId) continue;
+      const list =
+        canonicalOverdueActionsByMentorship.get(action.relatedEntityId) ?? [];
+      list.push(action);
+      canonicalOverdueActionsByMentorship.set(action.relatedEntityId, list);
+    }
 
     const facts: MentorshipRelationshipFact[] = pairings.map((p) => {
       const sig = cycleSignals(p.cycleStage, Boolean(p.kickoffCompletedAt));
+      const canonicalCommitments =
+        canonicalOverdueActionsByMentorship.get(p.id) ?? [];
+      const unlinkedLegacyCommitments = p.actionItems.filter(
+        (action) => !action.linkedActionId
+      );
       return {
         id: p.id,
         mentorId: p.mentorId,
@@ -127,14 +188,24 @@ export async function loadMentorshipQueueItems(
           cancelledISO: null,
         })),
         goals: [],
-        commitments: p.actionItems.map((a) => ({
-          id: a.id,
-          title: a.title,
-          status: a.status,
-          ownerId: a.ownerId,
-          ownerName: a.owner?.name ?? null,
-          dueISO: a.dueAt?.toISOString() ?? null,
-        })),
+        commitments: [
+          ...canonicalCommitments.map((a) => ({
+            id: a.id,
+            title: a.title,
+            status: actionStatusToMentorshipCommitmentStatus(a.status),
+            ownerId: a.leadId,
+            ownerName: a.lead?.name ?? null,
+            dueISO: (a.deadlineEnd ?? a.deadlineStart).toISOString(),
+          })),
+          ...unlinkedLegacyCommitments.map((a) => ({
+            id: a.id,
+            title: a.title,
+            status: a.status,
+            ownerId: a.ownerId,
+            ownerName: a.owner?.name ?? null,
+            dueISO: a.dueAt?.toISOString() ?? null,
+          })),
+        ],
         feedback: [],
         support: p.supportRequests.map((r) => ({
           id: r.id,
