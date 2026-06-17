@@ -7,7 +7,7 @@ import {
   categoryForReviewItem,
   deriveApplicantAttention,
   deriveClassSetupAttention,
-  deriveMentorshipAttention,
+  deriveStalledMentorshipAttention,
   derivePartnerAttention,
   groupAttentionItems,
   partnerIsActive,
@@ -137,9 +137,9 @@ function mentorship(
   };
 }
 
-describe("deriveMentorshipAttention", () => {
+describe("deriveStalledMentorshipAttention", () => {
   it("flags quiet pairings with the quiet-day count and a concrete ask", () => {
-    const items = deriveMentorshipAttention([mentorship()], NOW);
+    const items = deriveStalledMentorshipAttention([mentorship()], NOW);
     expect(items).toHaveLength(1);
     expect(items[0].title).toBe("Ian Chen → Maya Johnson has been quiet 60 days");
     expect(items[0].category).toBe("stalled");
@@ -153,7 +153,7 @@ describe("deriveMentorshipAttention", () => {
 
   it("skips recently active pairings", () => {
     expect(
-      deriveMentorshipAttention([mentorship({ lastActivityAt: daysAgo(10) })], NOW)
+      deriveStalledMentorshipAttention([mentorship({ lastActivityAt: daysAgo(10) })], NOW)
     ).toEqual([]);
   });
 });

@@ -1,6 +1,9 @@
+import type { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { instructorApplicationVisibilityWhere } from "@/lib/applications/application-visibility";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { getMentorshipAccessibleMenteeIds } from "@/lib/mentorship-access";
 import { isOfficerTier, type ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { STRATEGIC_INITIATIVES } from "@/lib/people-strategy/strategic-initiatives";
 import { whereActiveMember } from "@/lib/user-role-where";
@@ -453,6 +456,121 @@ async function searchActions(q: string): Promise<HelpAgentResult[]> {
   }));
 }
 
+/**
+ * The Mentorship relationship a search hit may NOT reveal to an unauthorized
+ * viewer. Authorization mirrors `hasMentorshipMenteeAccess`:
+ *   - ADMIN → every relationship
+ *   - CHAPTER_PRESIDENT → relationships for their chapter's mentees
+ *   - mentor / chair → the relationships they run
+ *   - the mentee → their own relationship
+ * Everyone else gets nothing. The href is role-appropriate so an admin URL is
+ * never handed to a non-admin.
+ */
+const MENTORSHIP_RESULT_SELECT = {
+  id: true,
+  type: true,
+  status: true,
+  menteeId: true,
+  mentorId: true,
+  chairId: true,
+  mentor: { select: { name: true, email: true } },
+  mentee: { select: { name: true, email: true } },
+} as const;
+
+type MentorshipResultRow = {
+  id: string;
+  type: string | null;
+  status: string;
+  menteeId: string;
+  mentorId: string | null;
+  chairId: string | null;
+  mentor: { name: string | null; email: string } | null;
+  mentee: { name: string | null; email: string } | null;
+};
+
+/** The where-clause that scopes Mentorship rows to what `viewer` may see. */
+function mentorshipAuthorizationWhere(
+  viewer: ActionViewer,
+  accessibleMenteeIds: string[] | null
+): Prisma.MentorshipWhereInput {
+  if (accessibleMenteeIds === null) return {}; // ADMIN — all relationships
+  return {
+    OR: [
+      { mentorId: viewer.id },
+      { chairId: viewer.id },
+      { menteeId: viewer.id },
+      ...(accessibleMenteeIds.length > 0
+        ? [{ menteeId: { in: accessibleMenteeIds } }]
+        : []),
+    ],
+  };
+}
+
+function mentorshipResultHref(viewer: ActionViewer, row: MentorshipResultRow): string {
+  if (canOpenAdminRecord(viewer)) return `/admin/mentorship/relationships/${row.id}`;
+  if (row.menteeId === viewer.id) return "/my-mentor";
+  return `/mentorship/mentees/${row.menteeId}`;
+}
+
+function mentorshipResult(viewer: ActionViewer, row: MentorshipResultRow): HelpAgentResult {
+  const mentorName = row.mentor?.name ?? row.mentor?.email ?? "Unassigned";
+  const menteeName = row.mentee?.name ?? row.mentee?.email ?? "Unassigned";
+  return {
+    type: "mentorship",
+    id: row.id,
+    title: `${mentorName} → ${menteeName}`,
+    subtitle:
+      [row.type ? prettyStatus(row.type) : null, prettyStatus(row.status)]
+        .filter(Boolean)
+        .join(" · ") || null,
+    href: mentorshipResultHref(viewer, row),
+  };
+}
+
+/**
+ * Mentorship relationships (Unification Phase 5E). Privacy-sensitive: the index
+ * hit is only a candidate — every result is re-checked against the live
+ * per-viewer membership filter (like applicants), so the OFFICER-tier index can
+ * never widen access. Runs for every viewer, since an assigned mentor or a
+ * mentee may be a plain member.
+ */
+async function searchMentorships(q: string, viewer: ActionViewer): Promise<HelpAgentResult[]> {
+  const accessibleMenteeIds = await getMentorshipAccessibleMenteeIds(viewer.id, viewer.roles);
+  const authWhere = mentorshipAuthorizationWhere(viewer, accessibleMenteeIds);
+
+  // Index path: text-match the index, then authorize the hits against the DB.
+  const docs = await searchIndexGroup("mentorship", "OFFICER", q).catch(() => null);
+  if (docs !== null) {
+    const authorized = await prisma.mentorship.findMany({
+      where: { AND: [{ id: { in: docs.map((d) => d.entityId) } }, authWhere] },
+      select: MENTORSHIP_RESULT_SELECT,
+    });
+    return authorized.map((row) => mentorshipResult(viewer, row));
+  }
+
+  // Live fallback (index never backfilled): authorize and text-match together.
+  const where: Prisma.MentorshipWhereInput = {
+    AND: [
+      authWhere,
+      { status: { in: ["ACTIVE", "PAUSED"] } },
+      {
+        OR: [
+          { mentor: { name: { contains: q, mode: "insensitive" } } },
+          { mentor: { email: { contains: q, mode: "insensitive" } } },
+          { mentee: { name: { contains: q, mode: "insensitive" } } },
+          { mentee: { email: { contains: q, mode: "insensitive" } } },
+        ],
+      },
+    ],
+  };
+  const rows = await prisma.mentorship.findMany({
+    where,
+    select: MENTORSHIP_RESULT_SELECT,
+    take: PER_GROUP_LIMIT * 3,
+  });
+  return rows.map((row) => mentorshipResult(viewer, row));
+}
+
 function searchInitiatives(q: string): HelpAgentResult[] {
   return STRATEGIC_INITIATIVES.filter(
     (i) =>
@@ -482,7 +600,7 @@ export async function runHelpAgentSearch(
   }
 
   const tracker = isActionTrackerEnabled();
-  const [people, partners, applications, classes, meetings, actions] =
+  const [people, partners, applications, classes, meetings, actions, mentorships] =
     await Promise.all([
       searchPeople(q),
       officer ? searchPartners(q, viewer) : Promise.resolve([]),
@@ -490,6 +608,9 @@ export async function runHelpAgentSearch(
       officer ? searchClasses(q, viewer) : Promise.resolve([]),
       officer && tracker ? searchMeetings(q) : Promise.resolve([]),
       officer && tracker ? searchActions(q) : Promise.resolve([]),
+      // Runs for every viewer — an assigned mentor or the mentee may be a plain
+      // member; the per-relationship membership re-check is the access gate.
+      searchMentorships(q, viewer),
     ]);
   const initiatives = officer && tracker ? searchInitiatives(q) : [];
 
@@ -501,6 +622,7 @@ export async function runHelpAgentSearch(
       ["class", classes],
       ["meeting", meetings],
       ["action", actions],
+      ["mentorship", mentorships],
       ["initiative", initiatives],
     ] as Array<[Entity360Type, HelpAgentResult[]]>
   )

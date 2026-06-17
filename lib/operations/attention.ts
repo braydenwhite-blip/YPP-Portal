@@ -258,7 +258,16 @@ export type MentorshipAttentionInput = {
   lastActivityAt: Date;
 };
 
-export function deriveMentorshipAttention(
+/**
+ * The COARSE, program-wide "this pairing has gone silent" sweep for the
+ * cross-domain Data 360 queue — a single `lastActivityAt` signal at
+ * {@link MENTORSHIP_QUIET_DAYS} (45d). This is deliberately distinct from the
+ * canonical PER-RELATIONSHIP derivation in `lib/mentorship/attention.ts`
+ * (`deriveMentorshipAttention`), which reads actual next steps + check-ins. Keep
+ * the two separate: this one spans the whole org with one cheap signal; that one
+ * answers "what's the next move on THIS relationship?".
+ */
+export function deriveStalledMentorshipAttention(
   mentorships: MentorshipAttentionInput[],
   now: Date = new Date()
 ): AttentionItem[] {
@@ -429,7 +438,7 @@ export function buildNeedsAttention(input: {
     ...input.reviewItems.map(attentionFromReviewItem),
     ...derivePartnerAttention(input.partners, now),
     ...deriveApplicantAttention(input.applicants, now),
-    ...deriveMentorshipAttention(input.mentorships, now),
+    ...deriveStalledMentorshipAttention(input.mentorships, now),
     ...deriveClassSetupAttention(input.classes, now),
   ];
   items.sort(

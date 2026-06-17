@@ -134,7 +134,16 @@ export type Entity360MentorshipPairing = {
   cycleLabel: string;
   /** The single next move for this pairing, when one is known. */
   nextFocus: string | null;
-  openCommitments: number;
+  /** Canonical open next-step count (ActionItem + unlinked legacy, no double-count). */
+  openNextSteps: number;
+  /** Canonical overdue next-step count. */
+  overdueNextSteps: number;
+  /** True when a canonical next step is blocked. */
+  blocked: boolean;
+  /** Canonical attention headline ("Check-in overdue", "Next step overdue", …). */
+  attentionReason: string;
+  /** Last completed check-in (`MentorshipSession`), ISO. */
+  lastCheckInISO: string | null;
   nextSessionISO: string | null;
   href: string;
 };
@@ -376,7 +385,13 @@ export type MentorshipPairingInput = {
   partnerId: string | null;
   cycleStage: string;
   kickoffCompleted: boolean;
-  openCommitments: number;
+  /** Canonical open next-step count (the loader runs the canonical merge). */
+  openNextSteps: number;
+  overdueNextSteps: number;
+  blocked: boolean;
+  /** Canonical attention headline from `deriveMentorshipAttention`. */
+  attentionReason: string;
+  lastCheckInISO: string | null;
   nextSessionISO: string | null;
 };
 
@@ -425,7 +440,11 @@ export function buildMentorshipPanel(
       partnerId: p.partnerId,
       cycleLabel: E360_CYCLE_LABEL[p.cycleStage] ?? "Active",
       nextFocus: mentorshipPairingFocus(p.role, p.cycleStage, p.kickoffCompleted),
-      openCommitments: p.openCommitments,
+      openNextSteps: p.openNextSteps,
+      overdueNextSteps: p.overdueNextSteps,
+      blocked: p.blocked,
+      attentionReason: p.attentionReason,
+      lastCheckInISO: p.lastCheckInISO,
       nextSessionISO: p.nextSessionISO,
       href: `/admin/mentorship/relationships/${p.id}`,
     })),
