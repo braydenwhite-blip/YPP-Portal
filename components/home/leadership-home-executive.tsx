@@ -380,10 +380,10 @@ export function LeadershipHomeExecutive({
 
           <RecordSection title="Quick actions" description="The common next moves.">
             <div className="flex flex-wrap gap-2">
-              <ButtonLink href="/actions?create=1" size="sm">
+              <ButtonLink href="/actions/new" size="sm">
                 Create action
               </ButtonLink>
-              <ButtonLink href="/actions/meetings?new=1" size="sm">
+              <ButtonLink href="/actions/meetings/new" size="sm">
                 Log meeting
               </ButtonLink>
               <ButtonLink href="/work" size="sm">

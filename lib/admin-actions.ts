@@ -204,6 +204,9 @@ export async function createUser(formData: FormData) {
 
   await syncPersonSearchDocument(newUser.id);
   revalidatePath("/admin");
+  revalidatePath("/people");
+
+  return { id: newUser.id };
 }
 
 export async function createCourse(formData: FormData) {

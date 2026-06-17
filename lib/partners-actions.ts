@@ -135,7 +135,7 @@ async function buildPartnerUpdateData(
   return data;
 }
 
-export async function createPartner(formData: FormData): Promise<void> {
+export async function createPartner(formData: FormData): Promise<{ id: string }> {
   await requireAdmin();
 
   const name = getString(formData, "name");
@@ -155,6 +155,9 @@ export async function createPartner(formData: FormData): Promise<void> {
   await syncPartnerSearchDocument(partner.id);
 
   revalidatePath("/admin/partners");
+  revalidatePath("/partners");
+
+  return { id: partner.id };
 }
 
 export async function updatePartner(formData: FormData): Promise<void> {

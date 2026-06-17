@@ -4,13 +4,25 @@ import ActionDetailCard, {
   type ActionDetailDTO,
   type RelatedActionLite,
 } from "@/components/people-strategy/action-detail-card";
+import { CommandModeToggle } from "@/components/command-center/command-mode";
+import {
+  PrimaryFocusCard,
+  SimpleListCard,
+  SimpleRow,
+  SimpleSurface,
+  type SimpleAction,
+} from "@/components/command-center/simple";
+import { ActionIntelPanel } from "@/components/people-strategy/action-intel-panel";
+import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
+import { ButtonLink, PageHeaderV2, type StatusTone } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import {
   isActionTrackerEnabled,
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
-import { deriveStrategicContextForAction } from "@/lib/people-strategy/strategic-context";
-import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
+import { formatMonthDay } from "@/lib/leadership-action-center/dates";
+import { deriveActionSignals } from "@/lib/people-strategy/action-attention";
+import { effectiveStatus } from "@/lib/people-strategy/action-filters";
 import {
   deriveActionNextMove,
   deriveActionQualityLabels,
@@ -20,23 +32,19 @@ import {
   deriveActionSource,
   deriveActionStrategicLinkage,
 } from "@/lib/people-strategy/action-source";
-import { ActionIntelPanel } from "@/components/people-strategy/action-intel-panel";
-import { ActionAttentionCallout } from "@/components/people-strategy/action-attention-callout";
-import { deriveActionSignals } from "@/lib/people-strategy/action-attention";
 import {
   getActionItemById,
   getActionsForEntity,
   getActionsForMeeting,
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
-import { effectiveStatus } from "@/lib/people-strategy/action-filters";
-import { effectiveDeadline } from "@/lib/people-strategy/my-actions-selectors";
+import { ACTION_STATUS_LABELS, isRelatedEntityType } from "@/lib/people-strategy/constants";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 import {
   areaForRelatedEntityType,
   operationalAreaLabel,
 } from "@/lib/people-strategy/operational-context";
-import { isRelatedEntityType } from "@/lib/people-strategy/constants";
+import { effectiveDeadline } from "@/lib/people-strategy/my-actions-selectors";
 import {
   canEditAction,
   canDeleteAction,
@@ -44,9 +52,10 @@ import {
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
+import { deriveStrategicContextForAction } from "@/lib/people-strategy/strategic-context";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Action Detail · People Strategy" };
+export const metadata = { title: "Action · Work" };
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -61,9 +70,18 @@ type PersonSource = {
   profile?: { avatarUrl: string | null } | null;
 };
 
+const STATUS_TONE: Record<string, StatusTone> = {
+  OVERDUE: "danger",
+  BLOCKED: "danger",
+  IN_PROGRESS: "info",
+  NOT_STARTED: "neutral",
+  COMPLETE: "success",
+  DROPPED: "neutral",
+};
+
+const SEVERITY_RANK = { critical: 0, high: 1, medium: 2, low: 3 } as const;
+
 function personDTO(person: PersonSource | null) {
-  // System-authored audit entries (e.g. the Board roll-up record) have no
-  // user; render them as a synthetic "System" person.
   if (!person) {
     return {
       id: "system",
@@ -180,15 +198,15 @@ function toLiteAction(item: ActionItemWithRelations, now: Date): RelatedActionLi
   };
 }
 
+function ownerLabel(item: NonNullable<Awaited<ReturnType<typeof getActionItemById>>>): string {
+  return item.lead?.name ?? item.lead?.email ?? "Unassigned";
+}
+
 export default async function ActionDetailPage({ params }: PageProps) {
   const { id } = await params;
 
-  // Step 1: the feature flag is the outer gate. If it is off, this page does
-  // not exist to the app.
   if (!isActionTrackerEnabled()) notFound();
 
-  // Step 2: a signed-out visitor goes to login. A signed-in but unauthorized
-  // visitor gets notFound below after the per-record guard runs.
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -199,8 +217,6 @@ export default async function ActionDetailPage({ params }: PageProps) {
     adminSubtypes: session.user.adminSubtypes,
   };
 
-  // Step 3: getActionItemById applies the server-side view guard. It returns
-  // null for missing records, unauthorized viewers, and flag-off states.
   const item = await getActionItemById(id, viewer);
   if (!item) notFound();
 
@@ -215,15 +231,19 @@ export default async function ActionDetailPage({ params }: PageProps) {
 
   const now = new Date();
   const detail = toDetailDTO(item);
+  const status = effectiveStatus(item, now);
+  const due = effectiveDeadline(item);
+  const dueLabel =
+    status === "OVERDUE" ? "Overdue" : `Due ${formatMonthDay(due)}`;
 
-  // Action-shaped Needs Attention for THIS action: the same deterministic
-  // engine the work hub uses, scoped to one item, so every permitted viewer
-  // sees plainly why it is stuck and the recommended next move — not just officers.
   const attentionSignals = deriveActionSignals(item, now);
+  const topSignal =
+    attentionSignals.length > 0
+      ? [...attentionSignals].sort(
+          (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]
+        )[0]
+      : null;
 
-  // Cross-portal connective tissue: resolve the linked entity for a real link +
-  // pull the nearby work (same entity / same source meeting) so the action never
-  // reads as an island. Each load fails safe.
   const hasEntity =
     item.relatedEntityType != null &&
     item.relatedEntityId != null &&
@@ -259,14 +279,9 @@ export default async function ActionDetailPage({ params }: PageProps) {
     .slice(0, 6)
     .map((a) => toLiteAction(a, now));
 
-  // Strategic context (3.0): which initiative / project does this action ladder
-  // up to? Pure derivation from the action's own fields — no DB, officer-only.
   const strategicContext =
     officer && isStrategicInitiativesEnabled() ? deriveStrategicContextForAction(item) : null;
 
-  // Action System 4.0 — the per-action "mini command center": the next best
-  // move, quality labels, honest source provenance, and the EXPLICIT strategic
-  // linkage (authoritative, distinct from the derived suggestion above).
   const intel = {
     nextMove: deriveActionNextMove(item, now),
     labels: deriveActionQualityLabels(item, now),
@@ -275,28 +290,127 @@ export default async function ActionDetailPage({ params }: PageProps) {
     urgency: deriveActionUrgency(item, now),
   };
   const intelCtaHref = canEdit ? `/actions/${item.id}/edit` : `/actions/${item.id}`;
-  const meetingHref = item.officerMeetingId
-    ? `/actions/meetings/${item.officerMeetingId}`
-    : null;
+  const meetingHref = item.officerMeetingId ? `/actions/meetings/${item.officerMeetingId}` : null;
+
+  const focusReason = topSignal
+    ? `${topSignal.reason}. Next: ${topSignal.nextStep}`
+    : `${intel.nextMove.move} — ${intel.nextMove.why}`;
+
+  const focus = (
+    <PrimaryFocusCard
+      eyebrow={topSignal ? "Needs attention" : "Next step"}
+      title={item.title}
+      reason={focusReason}
+      icon={topSignal?.severity === "critical" || status === "OVERDUE" ? "bolt" : "target"}
+      tone={status === "COMPLETE" ? "success" : "brand"}
+      ctaLabel={canEdit ? intel.nextMove.ctaLabel : "Back to actions"}
+      ctaHref={canEdit ? `/actions/${item.id}/edit` : closeHref}
+    />
+  );
+
+  const calmRows = [
+    <SimpleRow
+      key="lead"
+      href={item.leadId ? `/people/${item.leadId}` : `/actions/${item.id}`}
+      icon="user"
+      name={ownerLabel(item)}
+      what="Lead"
+      status={{
+        label: ACTION_STATUS_LABELS[status] ?? status,
+        tone: STATUS_TONE[status] ?? "neutral",
+      }}
+      meta={dueLabel}
+    />,
+    ...(item.officerMeetingId
+      ? [
+          <SimpleRow
+            key="meeting"
+            href={`/actions/meetings/${item.officerMeetingId}`}
+            icon="calendar"
+            name={item.officerMeeting?.title ?? "Source meeting"}
+            what="From meeting"
+          />,
+        ]
+      : []),
+    ...(detail.relatedEntityHref && detail.relatedEntityLabel
+      ? [
+          <SimpleRow
+            key="related"
+            href={detail.relatedEntityHref}
+            icon="layers"
+            name={detail.relatedEntityLabel}
+            what={detail.relatedArea ?? "Related"}
+          />,
+        ]
+      : []),
+    ...sameEntityActions.slice(0, 2).map((related) => (
+      <SimpleRow
+        key={related.id}
+        href={`/actions/${related.id}`}
+        icon="bolt"
+        name={related.title}
+        what={related.leadName}
+        status={{
+          label: ACTION_STATUS_LABELS[related.status] ?? related.status,
+          tone: STATUS_TONE[related.status] ?? "neutral",
+        }}
+      />
+    )),
+  ];
+
+  const calm = <SimpleListCard title="At a glance">{calmRows}</SimpleListCard>;
+
+  const strip: SimpleAction[] = [
+    ...(canEdit
+      ? [{ label: "Edit action", href: `/actions/${item.id}/edit`, icon: "bolt" as const, primary: true }]
+      : []),
+    { label: "All actions", href: closeHref, icon: "layers" as const },
+    { label: "My queue", href: "/work/queue?queue=my", icon: "list" as const },
+  ];
 
   return (
-    <div className="page-shell" style={{ maxWidth: 720 }}>
-      <ActionAttentionCallout signals={attentionSignals} />
-      <ActionDetailCard
-        item={detail}
-        canEdit={canEdit}
-        canDelete={canDelete}
-        canFlag={canFlag}
-        closeHref={closeHref}
-        sameEntityActions={sameEntityActions}
-        sameMeetingActions={sameMeetingActions}
-      />
-      {officer ? (
-        <details style={{ marginTop: 16 }}>
-          <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 13, color: "var(--muted)" }}>
-            More details
-          </summary>
-          <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+    <SimpleSurface
+      maxWidth={720}
+      header={
+        <div className="flex flex-col gap-4">
+          <PageHeaderV2
+            eyebrow="Work"
+            backHref={closeHref}
+            backLabel="Actions"
+            title="Action"
+            subtitle={`${ownerLabel(item)} · ${dueLabel}`}
+            actions={
+              <div className="flex flex-wrap items-center gap-2">
+                {canEdit ? (
+                  <ButtonLink href={`/actions/${item.id}/edit`} variant="secondary" size="sm">
+                    Edit
+                  </ButtonLink>
+                ) : null}
+                <CommandModeToggle />
+              </div>
+            }
+          />
+        </div>
+      }
+      focus={focus}
+      calm={calm}
+      actions={strip}
+      browseLabel="Update & full detail"
+      browseHint="Status, people, comments, files, and connected work."
+    >
+      <div className="flex flex-col gap-5">
+        <ActionDetailCard
+          item={detail}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          canFlag={canFlag}
+          closeHref={closeHref}
+          sameEntityActions={sameEntityActions}
+          sameMeetingActions={sameMeetingActions}
+          calmLayout
+        />
+        {officer ? (
+          <div className="flex flex-col gap-4">
             <ActionIntelPanel
               nextMove={intel.nextMove}
               labels={intel.labels}
@@ -310,8 +424,8 @@ export default async function ActionDetailPage({ params }: PageProps) {
               <StrategicContextSection context={strategicContext} kind="action" />
             ) : null}
           </div>
-        </details>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </SimpleSurface>
   );
 }

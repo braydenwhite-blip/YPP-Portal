@@ -306,7 +306,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
     label: "Create action",
     description: "Create an action item",
-    href: "/actions?create=1",
+    href: "/actions/new",
     icon: "＋",
     tier: "OFFICER",
     kind: "shortcut",
@@ -314,7 +314,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
     label: "Log meeting",
     description: "Log or schedule an officer meeting",
-    href: "/actions/meetings?new=1",
+    href: "/actions/meetings/new",
     icon: "＋",
     tier: "OFFICER",
     kind: "shortcut",

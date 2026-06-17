@@ -305,6 +305,7 @@ export default function ActionDetailCard({
   closeHref,
   sameEntityActions = [],
   sameMeetingActions = [],
+  calmLayout = false,
 }: {
   item: ActionDetailDTO;
   canEdit: boolean;
@@ -315,6 +316,8 @@ export default function ActionDetailCard({
   sameEntityActions?: RelatedActionLite[];
   /** Other actions generated from the same meeting (excludes this one). */
   sameMeetingActions?: RelatedActionLite[];
+  /** When true, omit the legacy page header — the Calm OS shell owns the chrome. */
+  calmLayout?: boolean;
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -416,6 +419,7 @@ export default function ActionDetailCard({
         initial="initial"
         animate="animate"
       >
+      {!calmLayout ? (
       <div
         style={{
           background: theme.bg,
@@ -450,6 +454,7 @@ export default function ActionDetailCard({
           </Link>
         </div>
       </div>
+      ) : null}
 
       <FeedbackBanner
         message={error ?? message}

@@ -3,16 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { createActionItem } from "@/lib/people-strategy/action-items-actions";
+import { FeedbackBanner } from "@/components/people-strategy/motion";
 import {
-  ACTION_PRIORITY_LABELS,
-  ACTION_PRIORITY_VALUES,
-  ACTION_STATUS_LABELS,
-  ACTION_STATUS_SELECTABLE,
-  DEFAULT_ACTION_DEADLINE_DAYS,
-} from "@/lib/people-strategy/constants";
-import type { ActionDepartmentOption } from "@/lib/people-strategy/action-queries";
+  ActionUserPicker,
+  type ActionUserOption,
+} from "@/components/people-strategy/action-user-picker";
 import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
+import { createActionItem } from "@/lib/people-strategy/action-items-actions";
+import type { ActionDepartmentOption } from "@/lib/people-strategy/action-queries";
 import {
   ACTION_DEADLINE_PRESETS,
   actionDeadlinePresetHint,
@@ -20,11 +18,13 @@ import {
   matchActionDeadlinePreset,
   type ActionDeadlinePresetId,
 } from "@/lib/people-strategy/action-deadline-presets";
-import { FeedbackBanner } from "@/components/people-strategy/motion";
 import {
-  ActionUserPicker,
-  type ActionUserOption,
-} from "@/components/people-strategy/action-user-picker";
+  ACTION_PRIORITY_LABELS,
+  ACTION_PRIORITY_VALUES,
+  ACTION_STATUS_LABELS,
+  ACTION_STATUS_SELECTABLE,
+  DEFAULT_ACTION_DEADLINE_DAYS,
+} from "@/lib/people-strategy/constants";
 
 type UserOption = ActionUserOption;
 
@@ -37,7 +37,8 @@ function defaultAssigneeIds(users: UserOption[], currentUserId: string): string[
 }
 
 /**
- * Add an action — portal-styled form with 3 required fields and optional details.
+ * Add an action — inline expander on initiative panels and the action tracker.
+ * For the dedicated `/actions/new` page, use {@link ActionCreateForm} instead.
  */
 export function ActionQuickCreate({
   users,
@@ -53,7 +54,7 @@ export function ActionQuickCreate({
   redirectTo?: string;
   /** When set, new actions are linked to this initiative (plan → work). */
   initiativeLink?: { id: string; goalCategory?: string };
-  /** Open the form on load (e.g. /actions?create=1). */
+  /** Open the inline form on load. */
   defaultOpen?: boolean;
 }) {
   const router = useRouter();
@@ -148,7 +149,7 @@ export function ActionQuickCreate({
 
   if (!open) {
     return (
-      <div id="create-action" ref={rootRef} style={{ marginTop: 16 }}>
+      <div id="create-action" ref={rootRef} className="mt-4">
         <button
           type="button"
           className="group flex w-full cursor-pointer items-center gap-3.5 rounded-xl border border-[rgba(107,33,200,0.28)] bg-[linear-gradient(135deg,rgba(107,33,200,0.14)_0%,rgba(139,63,232,0.08)_48%,rgba(255,255,255,0.92)_100%)] px-[18px] py-4 text-left font-[inherit] shadow-[var(--ps-accent-glow)] transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-0.5 hover:border-[rgba(107,33,200,0.45)] hover:shadow-[0_14px_32px_rgba(107,33,200,0.28)] active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[var(--ps-accent)]"
@@ -180,20 +181,10 @@ export function ActionQuickCreate({
   }
 
   return (
-    <div id="create-action" ref={rootRef} className="ps-form-card" style={{ marginTop: 16 }}>
+    <div id="create-action" ref={rootRef} className="ps-form-card mt-4">
       <form onSubmit={handleSubmit} className="ps-form">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-            gap: 12,
-            marginBottom: 4,
-          }}
-        >
-          <h2 className="ps-section-title" style={{ margin: 0 }}>
-            Add action
-          </h2>
+        <div className="mb-1 flex items-baseline justify-between gap-3">
+          <h2 className="ps-section-title m-0">Add action</h2>
           <button
             type="button"
             className="button outline small"
@@ -204,18 +195,18 @@ export function ActionQuickCreate({
           </button>
         </div>
 
-        <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--ps-ink-soft, var(--muted))" }}>
+        <p className="mb-3 text-[13px] text-[var(--ps-ink-soft,var(--muted))]">
           Title, people, and due date are required. Everything in More details is optional.
         </p>
 
         <FeedbackBanner message={error} tone="error" style={{ padding: "8px 12px" }} />
 
         <div className="ps-field">
-          <label className="ps-label" htmlFor="quick-action-title">
+          <label className="ps-label" htmlFor="quick-action-title-inline">
             What needs to get done? <span className="ps-required">*</span>
           </label>
           <input
-            id="quick-action-title"
+            id="quick-action-title-inline"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="ps-input"
@@ -226,7 +217,7 @@ export function ActionQuickCreate({
         </div>
 
         <ActionUserPicker
-          id="quick-action-people"
+          id="quick-action-people-inline"
           label="Who's involved?"
           required
           users={users}
@@ -234,21 +225,16 @@ export function ActionQuickCreate({
           onChange={setAssignedUserIds}
           emptyHint="No assignable users found."
         />
-        <p
-          style={{
-            margin: "-4px 0 0",
-            fontSize: 12,
-            color: "var(--ps-ink-soft, var(--muted))",
-          }}
-        >
+        <p className="-mt-1 text-[12px] text-[var(--ps-ink-soft,var(--muted))]">
           Add everyone who should see this. The first person is the lead.
         </p>
 
-        {currentUserId && users.some((u) => u.id === currentUserId) && !assignedUserIds.includes(currentUserId) ? (
+        {currentUserId &&
+        users.some((u) => u.id === currentUserId) &&
+        !assignedUserIds.includes(currentUserId) ? (
           <button
             type="button"
-            className="button outline small"
-            style={{ justifySelf: "start", marginTop: -4 }}
+            className="button outline small -mt-1 justify-self-start"
             onClick={() => setAssignedUserIds((current) => [currentUserId, ...current])}
           >
             Add me
@@ -256,17 +242,17 @@ export function ActionQuickCreate({
         ) : null}
 
         <div className="ps-field">
-          <label className="ps-label" htmlFor="quick-action-deadline">
+          <label className="ps-label" htmlFor="quick-action-deadline-inline">
             Due date <span className="ps-required">*</span>
           </label>
           <input
-            id="quick-action-deadline"
+            id="quick-action-deadline-inline"
             type="date"
             value={deadline}
             onChange={(e) => setDeadline(e.target.value)}
             className="ps-input"
           />
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
             {DEADLINE_PRESETS.map((preset) => {
               const active = activePreset === preset.id;
               return (
@@ -274,8 +260,7 @@ export function ActionQuickCreate({
                   key={preset.id}
                   type="button"
                   onClick={() => applyPreset(preset.id)}
-                  className={`pill pill-${active ? "purple" : "neutral"} pill-small`}
-                  style={{ cursor: "pointer", border: "1px solid var(--border)" }}
+                  className={`pill pill-${active ? "purple" : "neutral"} pill-small cursor-pointer border border-[var(--border)]`}
                 >
                   {preset.label}
                 </button>
@@ -283,29 +268,21 @@ export function ActionQuickCreate({
             })}
           </div>
           {presetHint ? (
-            <p
-              style={{
-                margin: "6px 0 0",
-                fontSize: 12,
-                color: "var(--ps-ink-soft, var(--muted))",
-              }}
-            >
-              {presetHint}
-            </p>
+            <p className="mt-1.5 text-[12px] text-[var(--ps-ink-soft,var(--muted))]">{presetHint}</p>
           ) : null}
         </div>
 
-        <details style={{ marginTop: 4 }}>
-          <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--ps-ink-soft, var(--muted))" }}>
+        <details className="mt-1">
+          <summary className="cursor-pointer text-[13px] font-semibold text-[var(--ps-ink-soft,var(--muted))]">
             More details (optional)
           </summary>
-          <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+          <div className="mt-3 grid gap-3">
             <div className="ps-field">
-              <label className="ps-label" htmlFor="quick-action-description">
+              <label className="ps-label" htmlFor="quick-action-description-inline">
                 Notes / context
               </label>
               <textarea
-                id="quick-action-description"
+                id="quick-action-description-inline"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="ps-textarea"
@@ -316,11 +293,11 @@ export function ActionQuickCreate({
 
             <div className="ps-field-grid">
               <div className="ps-field">
-                <label className="ps-label" htmlFor="quick-action-status">
+                <label className="ps-label" htmlFor="quick-action-status-inline">
                   Status
                 </label>
                 <select
-                  id="quick-action-status"
+                  id="quick-action-status-inline"
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
                   className="ps-select"
@@ -333,11 +310,11 @@ export function ActionQuickCreate({
                 </select>
               </div>
               <div className="ps-field">
-                <label className="ps-label" htmlFor="quick-action-priority">
+                <label className="ps-label" htmlFor="quick-action-priority-inline">
                   Priority
                 </label>
                 <select
-                  id="quick-action-priority"
+                  id="quick-action-priority-inline"
                   value={priority}
                   onChange={(e) => setPriority(e.target.value)}
                   className="ps-select"
@@ -350,11 +327,11 @@ export function ActionQuickCreate({
                 </select>
               </div>
               <div className="ps-field">
-                <label className="ps-label" htmlFor="quick-action-department">
+                <label className="ps-label" htmlFor="quick-action-department-inline">
                   Department
                 </label>
                 <select
-                  id="quick-action-department"
+                  id="quick-action-department-inline"
                   value={departmentId}
                   onChange={(e) => setDepartmentId(e.target.value)}
                   className="ps-select"
@@ -370,7 +347,7 @@ export function ActionQuickCreate({
             </div>
 
             <ActionUserPicker
-              id="quick-action-input"
+              id="quick-action-input-inline"
               label="Input (optional)"
               users={users}
               selected={inputUserIds}
@@ -381,14 +358,7 @@ export function ActionQuickCreate({
           </div>
         </details>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            marginTop: 8,
-          }}
-        >
+        <div className="mt-2 flex justify-end gap-2">
           <button type="submit" className="button small" disabled={pending}>
             {pending ? "Saving…" : "Add action"}
           </button>

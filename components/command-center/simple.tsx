@@ -193,6 +193,7 @@ export function SimpleSurface({
   focus,
   calm,
   actions,
+  aboveBrowse,
   browseLabel = "Browse all",
   browseHint,
   children,
@@ -206,6 +207,8 @@ export function SimpleSurface({
   calm?: ReactNode;
   /** Quiet CTAs. Shown in both modes. */
   actions?: SimpleAction[];
+  /** Always-visible block above the collapsed browse section (e.g. inline create). */
+  aboveBrowse?: ReactNode;
   /** Disclosure label for the demoted dense detail. */
   browseLabel?: string;
   browseHint?: string;
@@ -220,6 +223,7 @@ export function SimpleSurface({
       {focus}
       {calm ? <CalmOnly>{calm}</CalmOnly> : null}
       {actions && actions.length > 0 ? <SimpleActionStrip actions={actions} /> : null}
+      {aboveBrowse}
       {children ? (
         <CalmCollapse label={browseLabel} hint={browseHint}>
           {children}

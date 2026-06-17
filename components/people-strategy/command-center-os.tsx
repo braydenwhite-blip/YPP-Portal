@@ -191,7 +191,7 @@ export function LeadershipRhythm() {
     { href: "/operations/weekly-execution", label: "Run weekly execution meeting", primary: true },
     { href: "/actions/all?status=OVERDUE", label: "Review overdue actions" },
     { href: "/actions/meetings", label: "Follow up on meetings" },
-    { href: "/actions/meetings?new=1", label: "Schedule a meeting" },
+    { href: "/actions/meetings/new", label: "Schedule a meeting" },
     { href: "/actions/new", label: "Create an action" },
   ];
   return (
