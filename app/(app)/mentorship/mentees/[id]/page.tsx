@@ -51,6 +51,7 @@ import {
 } from "@/components/mentorship/calm";
 import type { StatusTone } from "@/components/ui-v2";
 import { SessionLiveCapture } from "../../_components/session-live-capture";
+import { SessionCompleteForm } from "../../_components/session-complete-form";
 
 /** Plain-language cycle labels for the Calm relationship summary. */
 const CALM_CYCLE_LABEL: Record<string, string> = {
@@ -297,6 +298,14 @@ export default async function MenteeDetailPage({
       focus={calmFocus}
       goals={calmGoals}
       commitments={calmCommitments}
+      recentSession={
+        recentSessions[0]?.completedAt
+          ? {
+              title: recentSessions[0].title,
+              whenLabel: new Date(recentSessions[0].completedAt).toLocaleDateString(),
+            }
+          : null
+      }
     />
   ) : null;
 
@@ -473,6 +482,14 @@ export default async function MenteeDetailPage({
             sessionTitle={nextUpcomingSession.title}
             defaultAgenda={nextUpcomingSession.agenda}
             defaultNotes={nextUpcomingSession.notes}
+            menteeAttended={nextUpcomingSession.attendedIds.includes(workspace.mentee.id)}
+          />
+          <SessionCompleteForm
+            sessionId={nextUpcomingSession.id}
+            menteeId={workspace.mentee.id}
+            menteeName={workspace.mentee.name}
+            mentorUserId={session.user.id}
+            sessionTitle={nextUpcomingSession.title}
             menteeAttended={nextUpcomingSession.attendedIds.includes(workspace.mentee.id)}
           />
         </div>
@@ -928,7 +945,16 @@ export default async function MenteeDetailPage({
                     </span>
                   </div>
                   {sessionItem.agenda && <p style={{ margin: "8px 0 0", fontSize: 13 }}>{sessionItem.agenda}</p>}
-                  {sessionItem.notes && <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--muted)" }}>{sessionItem.notes}</p>}
+                  {/* Private recap — mentor & support circle only, never the mentee's own view. */}
+                  {!isSelfWorkspace && sessionItem.notes && (
+                    <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--muted)" }}>{sessionItem.notes}</p>
+                  )}
+                  {isSelfWorkspace && sessionItem.completedAt && (
+                    <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)", fontStyle: "italic" }}>
+                      Completed {new Date(sessionItem.completedAt).toLocaleDateString()} · any next steps
+                      appear in your action plan.
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

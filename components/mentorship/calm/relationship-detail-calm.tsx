@@ -53,6 +53,7 @@ export function RelationshipDetailCalm({
   goalsEmpty = "No active goals on file yet.",
   commitments,
   commitmentsEmpty = "No open commitments right now.",
+  recentSession,
 }: {
   status: { label: string; tone: StatusTone };
   contextLine?: string | null;
@@ -61,6 +62,8 @@ export function RelationshipDetailCalm({
   goalsEmpty?: string;
   commitments: CalmDetailFact[];
   commitmentsEmpty?: string;
+  /** Latest completed session — title + a friendly when-label. Mentee-safe. */
+  recentSession?: { title: string; whenLabel: string } | null;
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -70,6 +73,13 @@ export function RelationshipDetailCalm({
           <span className="text-[13px] text-ink-muted">{contextLine}</span>
         ) : null}
       </div>
+
+      {recentSession ? (
+        <p className="m-0 text-[12.5px] text-ink-muted">
+          Last session: <span className="font-semibold text-ink">{recentSession.title}</span> ·{" "}
+          {recentSession.whenLabel}
+        </p>
+      ) : null}
 
       <PrimaryFocusCard
         eyebrow={focus.eyebrow}

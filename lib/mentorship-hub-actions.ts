@@ -599,6 +599,96 @@ export async function recordMentorshipSessionCapture(formData: FormData) {
   revalidatePath("/mentorship");
 }
 
+/**
+ * Session completion (Calm Mentorship, Phase 6) — close a session in two calm
+ * fields: a short "what happened" recap (private to mentor / circle) and one
+ * optional commitment that becomes a MentorshipActionItem. Idempotent: a repeat
+ * submit won't re-stamp completion or duplicate the commitment. The mentee never
+ * sees the private recap — only the derived summary + any shared commitment.
+ */
+export async function completeMentorshipSession(formData: FormData) {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  const userId = session.user.id;
+  const sessionId = getString(formData, "sessionId");
+  const menteeId = getString(formData, "menteeId");
+
+  if (!(await canSupportMentee(userId, roles, menteeId))) {
+    throw new Error("Unauthorized");
+  }
+
+  const existing = await prisma.mentorshipSession.findUnique({
+    where: { id: sessionId },
+    select: {
+      id: true,
+      menteeId: true,
+      mentorshipId: true,
+      type: true,
+      completedAt: true,
+      attendedIds: true,
+    },
+  });
+  if (!existing || existing.menteeId !== menteeId) {
+    throw new Error("Session not found for this mentee.");
+  }
+
+  const recap = getString(formData, "notes", false);
+  const menteeAttended = getString(formData, "menteeAttended", false) === "true";
+  const commitmentTitle = getString(formData, "commitmentTitle", false);
+  const commitmentOwner = getString(formData, "commitmentOwnerId", false);
+
+  const completedAt = existing.completedAt ?? new Date();
+  const attended = new Set(existing.attendedIds);
+  if (menteeAttended) {
+    attended.add(menteeId);
+    attended.add(userId);
+  }
+
+  await prisma.mentorshipSession.update({
+    where: { id: sessionId },
+    data: {
+      completedAt,
+      attendedIds: Array.from(attended),
+      ledById: userId,
+      ...(recap ? { notes: recap } : {}),
+    },
+  });
+
+  // Turn the session into at most one commitment. Idempotent on (session, title).
+  if (commitmentTitle && existing.mentorshipId) {
+    const ownerId =
+      commitmentOwner === menteeId || commitmentOwner === userId ? commitmentOwner : null;
+    const duplicate = await prisma.mentorshipActionItem.findFirst({
+      where: { sessionId, title: commitmentTitle },
+      select: { id: true },
+    });
+    if (!duplicate) {
+      await prisma.mentorshipActionItem.create({
+        data: {
+          mentorshipId: existing.mentorshipId,
+          menteeId,
+          sessionId,
+          title: commitmentTitle,
+          ownerId,
+          createdById: userId,
+        },
+      });
+    }
+  }
+
+  // Kickoff completion side-effect (parity with createMentorshipSession).
+  if (existing.type === MentorshipSessionType.KICKOFF && existing.mentorshipId) {
+    await prisma.mentorship.updateMany({
+      where: { id: existing.mentorshipId, kickoffCompletedAt: null },
+      data: { kickoffCompletedAt: completedAt },
+    });
+  }
+
+  revalidatePath(`/mentorship/mentees/${menteeId}`);
+  revalidatePath("/mentorship");
+  revalidatePath("/my-mentor");
+}
+
 export async function createMentorshipActionItem(formData: FormData) {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];

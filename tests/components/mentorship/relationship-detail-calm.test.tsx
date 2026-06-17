@@ -31,6 +31,25 @@ describe("RelationshipDetailCalm", () => {
     expect(screen.getByText("Send the outline")).toBeInTheDocument();
   });
 
+  it("surfaces the latest completed session when provided", () => {
+    render(
+      <RelationshipDetailCalm
+        status={{ label: "Active", tone: "success" }}
+        focus={{
+          eyebrow: "On track",
+          title: "Stay close to Sam",
+          ctaLabel: "Open G&R",
+          ctaHref: "/mentorship/mentees/u-mentee/gr",
+        }}
+        goals={[]}
+        commitments={[]}
+        recentSession={{ title: "April check-in", whenLabel: "Jun 10, 2026" }}
+      />
+    );
+    expect(screen.getByText(/Last session:/)).toBeInTheDocument();
+    expect(screen.getByText("April check-in")).toBeInTheDocument();
+  });
+
   it("shows supportive empty copy when there are no goals or commitments", () => {
     render(
       <RelationshipDetailCalm

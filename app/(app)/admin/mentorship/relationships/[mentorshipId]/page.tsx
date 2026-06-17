@@ -262,6 +262,8 @@ export default async function AdminMentorshipRelationshipDetailPage({
     .toLowerCase()}${
     mentorship.cycleStage ? ` · ${CALM_CYCLE_LABEL[mentorship.cycleStage] ?? ""}` : ""
   }`;
+  const latestCompletedSession =
+    mentorship.sessions.find((s) => s.completedAt) ?? null;
   const calmSummary = (
     <RelationshipDetailCalm
       status={{ label: calmStatusLabel, tone: calmStatusTone }}
@@ -273,6 +275,14 @@ export default async function AdminMentorshipRelationshipDetailPage({
       goalsEmpty="No active G&R goals tracked yet."
       commitments={[]}
       commitmentsEmpty="Action items live in the mentee workspace."
+      recentSession={
+        latestCompletedSession?.completedAt
+          ? {
+              title: latestCompletedSession.title,
+              whenLabel: new Date(latestCompletedSession.completedAt).toLocaleDateString(),
+            }
+          : null
+      }
     />
   );
 
