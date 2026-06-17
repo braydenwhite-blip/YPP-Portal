@@ -4,7 +4,7 @@ import { getSchedulePageData } from "@/lib/mentorship-scheduling-actions";
 import { ScheduleSurface } from "@/app/(app)/mentorship/schedule/schedule-surface";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 
-export const metadata = { title: "Schedule — My Mentorship" };
+export const metadata = { title: "Schedule — My Mentor" };
 
 export default async function MyMentorSchedulePage() {
   const session = await getSession();

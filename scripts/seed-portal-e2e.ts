@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import {
+  AdminSubtype,
   CourseFormat,
   GoalRatingColor,
   GoalReviewStatus,
@@ -57,6 +58,7 @@ async function ensureUser(input: {
   phone?: string | null;
   passwordHash: string;
   roles: RoleType[];
+  adminSubtypes?: AdminSubtype[];
 }) {
   const user = await prisma.user.upsert({
     where: { email: input.email },
@@ -90,6 +92,21 @@ async function ensureUser(input: {
     })),
     skipDuplicates: true,
   });
+
+  if (input.adminSubtypes) {
+    await prisma.userAdminSubtype.deleteMany({
+      where: { userId: user.id },
+    });
+
+    await prisma.userAdminSubtype.createMany({
+      data: input.adminSubtypes.map((subtype, index) => ({
+        userId: user.id,
+        subtype,
+        isDefaultOwner: index === 0,
+      })),
+      skipDuplicates: true,
+    });
+  }
 
   return user;
 }
@@ -214,6 +231,7 @@ async function main() {
     chapterId: alphaChapter.id,
     passwordHash,
     roles: [RoleType.ADMIN, RoleType.INSTRUCTOR],
+    adminSubtypes: [AdminSubtype.SUPER_ADMIN, AdminSubtype.MENTORSHIP_ADMIN],
   });
   const chapterLead = await ensureUser({
     email: "e2e.chapter.lead.alpha@ypp.test",

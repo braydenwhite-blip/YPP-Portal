@@ -885,8 +885,8 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Mentorship",
       icon: "🤝",
       roles: MENTOR_ROLES,
-      searchAliases: ["Support Hub", "Mentor Workspace"],
-      dashboardDescription: "Open the mentor and operator workspace for circles, queues, and support operations.",
+      searchAliases: ["Support Hub", "Mentees", "Relationships"],
+      dashboardDescription: "Open mentorship relationships, check-ins, next steps, and review work.",
       dashboardPriority: 16,
     },
     {
@@ -894,7 +894,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "My Mentor",
       icon: "🤝",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
-      searchAliases: ["My Mentorship", "Mentorship", "Mentor"],
+      searchAliases: ["Mentorship", "Mentor", "Goals", "Next steps"],
       dashboardDescription: "See your mentor, goals, resources, progress, reflection, and next steps.",
       dashboardPriority: 4,
     },
@@ -959,7 +959,7 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "🎯",
       roles: MY_PROGRAM_ROLES,
       searchAliases: ["My Mentor", "Support Hub", "Program Hub"],
-      dashboardDescription: "Open your support hub for reflections, action items, awards, rewards, and recognition.",
+      dashboardDescription: "Open your support hub for reflections, next steps, awards, rewards, and recognition.",
     },
     {
       href: "/my-program/gr",

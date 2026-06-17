@@ -7,7 +7,7 @@ import ReflectionForm from "@/app/(app)/my-program/reflect/reflection-form";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 import Link from "next/link";
 
-export const metadata = { title: "My Reflection — My Mentorship" };
+export const metadata = { title: "My Reflection — My Mentor" };
 
 export default async function ReflectionPage() {
   const session = await getSession();
@@ -43,7 +43,7 @@ export default async function ReflectionPage() {
       <div>
         <div className="topbar">
           <div>
-            <p className="badge">My Mentorship</p>
+            <p className="badge">My Mentor</p>
             <h1 className="page-title">Monthly Reflection</h1>
           </div>
         </div>
@@ -67,7 +67,7 @@ export default async function ReflectionPage() {
             className="button ghost small"
             style={{ marginTop: "1.5rem", display: "inline-block" }}
           >
-            ← Back to My Mentorship
+            ← Back to My Mentor
           </Link>
         </div>
       </div>
@@ -82,7 +82,7 @@ export default async function ReflectionPage() {
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">My Mentorship</p>
+          <p className="badge">My Mentor</p>
           <h1 className="page-title">Monthly Reflection</h1>
           <p className="page-subtitle">
             Cycle {cycleNumber}

@@ -9,7 +9,6 @@ import { getLanesForChair } from "@/lib/mentorship-chair-access";
 import { getSimplifiedMentorKanban } from "@/lib/mentorship-kanban-actions";
 import { getMentorshipPendingActionCount } from "@/lib/mentorship-notifications";
 import { getMentorEngagementSnapshot } from "@/lib/mentor-overview";
-import { isMentorship2Enabled } from "@/lib/feature-flags";
 import { CalmOnly, ExecutiveOnly } from "@/components/command-center/command-mode";
 import { buildMentorHomeViewModel } from "@/lib/mentorship/load";
 import { mentorCardNeedsAttention } from "./_components/mentor-priority-list";
@@ -41,7 +40,7 @@ export default async function MentorshipPage() {
         <div className="topbar">
           <div>
             <p className="badge">Mentorship</p>
-            <h1 className="page-title">Mentor Workspace</h1>
+            <h1 className="page-title">Mentorship</h1>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Link href="/my-mentor" className="button secondary small">
@@ -131,7 +130,7 @@ export default async function MentorshipPage() {
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>
-          <h1 className="page-title">Mentor Workspace</h1>
+          <h1 className="page-title">Mentorship</h1>
           <p className="page-subtitle">{subtitle}</p>
           {pendingActionCount > 0 && (
             <Link
@@ -151,11 +150,6 @@ export default async function MentorshipPage() {
           )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {isMentorship2Enabled() && (
-            <Link href="/mentorship/dashboard" className="button secondary small">
-              Dashboard →
-            </Link>
-          )}
           {membership.isMentee && (
             <Link href="/my-mentor" className="button secondary small">
               My Mentor →

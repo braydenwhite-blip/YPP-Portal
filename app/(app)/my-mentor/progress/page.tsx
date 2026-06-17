@@ -20,7 +20,7 @@ const RATING_TONE: Record<string, HeaderStatusTone> = {
   BEHIND_SCHEDULE: "warning",
 };
 
-export const metadata = { title: "My Progress — My Mentorship" };
+export const metadata = { title: "My Progress — My Mentor" };
 
 function formatMonth(value: Date | string) {
   return new Date(value).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -62,7 +62,7 @@ export default async function MyProgressPage() {
   return (
     <div>
       <ActionSummaryHeader
-        badge="My Mentorship"
+        badge="My Mentor"
         title="My Progress"
         purpose="How far you've come — and the feedback your mentor has shared with you."
         status={

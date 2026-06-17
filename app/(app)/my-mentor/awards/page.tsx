@@ -8,7 +8,7 @@ import { ActionSummaryHeader } from "@/components/mentorship/action-summary-head
 import { LearnMore } from "@/components/mentorship/learn-more";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 
-export const metadata = { title: "My Awards — My Mentorship" };
+export const metadata = { title: "My Awards — My Mentor" };
 
 const TIER_ORDER = ["BRONZE", "SILVER", "GOLD", "LIFETIME"] as const;
 
@@ -36,7 +36,7 @@ export default async function MyMentorAwardsPage() {
   return (
     <div>
       <ActionSummaryHeader
-        badge="My Mentorship"
+        badge="My Mentor"
         title="My Recognition & Awards"
         purpose="A celebration of your consistency, growth, and reflection — not a grade."
         status={{ label: statusLabel, tone: currentTier ? "success" : "info" }}

@@ -530,7 +530,7 @@ export async function RelationshipWorkspace({
             {openActionItems.length}
           </p>
           <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-            open action item{openActionItems.length === 1 ? "" : "s"}
+            open next step{openActionItems.length === 1 ? "" : "s"}
           </p>
           <p style={{ margin: "10px 0 0", color: "var(--muted)", fontSize: 13 }}>
             {overdueActionItems.length} overdue and {workspace.requests.filter((item) => item.status === "OPEN").length} open

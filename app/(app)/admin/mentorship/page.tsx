@@ -60,17 +60,17 @@ import {
 } from "@/components/ui-v2";
 
 export const dynamic = "force-dynamic";
-export const ADMIN_MENTORSHIP_PAGE_TITLE = "Instructor Mentorship Oversight";
-export const metadata = { title: "Instructor Mentorship Admin — Pathways Portal" };
+export const ADMIN_MENTORSHIP_PAGE_TITLE = "Mentorship Admin";
+export const metadata = { title: "Mentorship Admin — Pathways Portal" };
 
 const TABS = [
-  { key: "overview", label: "Overview / Pulse" },
-  { key: "needs-attention", label: "Needs Attention" },
-  { key: "assignments", label: "Assignments" },
-  { key: "capacity", label: "Capacity / Workload" },
-  { key: "approvals", label: "Approvals" },
-  { key: "templates", label: "Goals & Resources" },
-  { key: "committees", label: "Committees & Chairs" },
+  { key: "overview", label: "Overview" },
+  { key: "needs-attention", label: "Relationships" },
+  { key: "assignments", label: "Matching" },
+  { key: "capacity", label: "Workload" },
+  { key: "approvals", label: "Review" },
+  { key: "templates", label: "Goals" },
+  { key: "committees", label: "Chairs" },
   { key: "analytics", label: "Analytics" },
  ] as const;
 
@@ -389,9 +389,9 @@ export default async function AdminMentorshipPage(props: PageProps) {
   return (
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
       <PageHeaderV2
-        eyebrow="Admin · Instructor Mentorship"
+        eyebrow="Admin · Mentorship"
         title={ADMIN_MENTORSHIP_PAGE_TITLE}
-        subtitle="Program health, approvals, pairings, goals, and committees for the instructor mentorship program."
+        subtitle="Program health, relationships, matching, reviews, goals, and support roles."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {isMentorship2Enabled() && (
@@ -413,7 +413,7 @@ export default async function AdminMentorshipPage(props: PageProps) {
 
       <CalmCollapse
         label="Full oversight cockpit"
-        hint="pulse, approvals, pairings, goals & analytics"
+        hint="overview, relationships, matching, review, goals & analytics"
         defaultOpen={tab !== "overview"}
       >
         <div className="flex flex-col gap-6">
