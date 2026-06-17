@@ -124,7 +124,6 @@ export type MentorshipPermissions = {
   canRespondFeedback: boolean;
   canUpdateGoals: boolean;
   canCreateCommitment: boolean;
-  canConvertToAction: boolean;
   canScheduleSession: boolean;
   canCompleteSession: boolean;
   canAssign: boolean;

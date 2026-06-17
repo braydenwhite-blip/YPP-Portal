@@ -291,10 +291,7 @@ export async function RelationshipWorkspace({
       commitments={calmCommitments}
       commitmentsSlot={
         canManageActionPlan ? (
-          <CommitmentsCalm
-            commitments={calmCommitmentItems}
-            canConvert={false}
-          />
+          <CommitmentsCalm commitments={calmCommitmentItems} />
         ) : undefined
       }
       recentSession={

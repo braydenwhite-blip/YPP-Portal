@@ -1,19 +1,13 @@
 import { SimpleListCard } from "@/components/command-center/simple";
 import { StatusBadge } from "@/components/ui-v2";
-import {
-  convertMentorshipCommitmentToAction,
-  updateMentorshipActionItemStatus,
-} from "@/lib/mentorship-hub-actions";
+import { updateMentorshipActionItemStatus } from "@/lib/mentorship-hub-actions";
 
 /**
- * Calm open-commitments list (Phase 7) — the interactive counterpart to the
- * static commitments column in `RelationshipDetailCalm`. Each open commitment
- * shows its owner + due label and the single next move: mark it complete, or
- * bridge it into the org Action Tracker (one click, idempotent). Once bridged,
- * the row shows a quiet "Tracked" badge instead of the convert button so the
- * commitment is never tracked in two places. The bridge button only renders
- * when the viewer can create org Actions (`canConvert`); completion is always
- * available to anyone who can act on the relationship.
+ * Calm open-commitments list — each open commitment shows its owner + due label
+ * and the single next move: mark it complete. Mentorship next steps are now
+ * canonical `ActionItem`s created directly by the relationship flow, so the old
+ * one-click "convert to Action" bridge is gone; an already-bridged legacy row
+ * still shows a quiet "Tracked" badge so it is never acted on in two places.
  */
 
 export type CalmCommitment = {
@@ -22,18 +16,15 @@ export type CalmCommitment = {
   ownerName?: string | null;
   dueLabel?: string | null;
   overdue?: boolean;
-  /** True once this commitment has been bridged into a live org Action. */
+  /** True for a legacy row already represented by a canonical Action. */
   linked?: boolean;
 };
 
 export function CommitmentsCalm({
   commitments,
-  canConvert,
   empty = "No open commitments right now.",
 }: {
   commitments: CalmCommitment[];
-  /** Whether the viewer may bridge a commitment into an org Action. */
-  canConvert: boolean;
   empty?: string;
 }) {
   return (
@@ -77,17 +68,6 @@ export function CommitmentsCalm({
                   Mark complete
                 </button>
               </form>
-              {canConvert && !commitment.linked ? (
-                <form action={convertMentorshipCommitmentToAction}>
-                  <input type="hidden" name="itemId" value={commitment.id} />
-                  <button
-                    type="submit"
-                    className="inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold text-brand-700 transition-colors hover:bg-surface-soft"
-                  >
-                    Create Action →
-                  </button>
-                </form>
-              ) : null}
             </div>
           </div>
         );

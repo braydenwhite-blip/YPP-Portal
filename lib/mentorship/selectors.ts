@@ -391,7 +391,6 @@ function derivePermissions(role: CurrentUserRole): MentorshipPermissions {
     canRespondFeedback: officer,
     canUpdateGoals: officer,
     canCreateCommitment: officer || has("mentee"),
-    canConvertToAction: officer,
     canScheduleSession: officer,
     canCompleteSession: officer,
     canAssign: has("admin"),
