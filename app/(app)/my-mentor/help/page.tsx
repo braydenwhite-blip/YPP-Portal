@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { createMentorshipRequest } from "@/lib/mentorship-hub-actions";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 
-export const metadata = { title: "Get Help — My Mentorship" };
+export const metadata = { title: "Get Help — My Mentor" };
 
 async function submitHelpRequest(formData: FormData) {
   "use server";
@@ -27,7 +27,7 @@ export default async function GetHelpPage({
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">My Mentorship</p>
+          <p className="badge">My Mentor</p>
           <h1 className="page-title">Get Help</h1>
           <p className="page-subtitle">Stuck or unsure? Reaching out is always the right move.</p>
         </div>

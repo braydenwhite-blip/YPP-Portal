@@ -14,7 +14,7 @@ import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 import Link from "next/link";
 import type { GoalRatingColor } from "@prisma/client";
 
-export const metadata = { title: "My Goals — My Mentorship" };
+export const metadata = { title: "My Goals — My Mentor" };
 
 export default async function MyGoalsPage() {
   const session = await getSession();
@@ -34,7 +34,7 @@ export default async function MyGoalsPage() {
       <div>
         <div className="topbar">
           <div>
-            <p className="badge">My Mentorship</p>
+            <p className="badge">My Mentor</p>
             <h1 className="page-title">My Goals &amp; Resources</h1>
           </div>
         </div>
@@ -64,7 +64,7 @@ export default async function MyGoalsPage() {
               together here. There&apos;s nothing you need to do yet.
             </p>
             <Link href="/my-mentor" className="button" style={{ marginTop: 16 }}>
-              Back to My Mentorship
+              Back to My Mentor
             </Link>
           </div>
         </div>
@@ -77,7 +77,7 @@ export default async function MyGoalsPage() {
       <div>
         <div className="topbar">
           <div>
-            <p className="badge">My Mentorship</p>
+            <p className="badge">My Mentor</p>
             <h1 className="page-title">My Goals &amp; Resources</h1>
           </div>
         </div>
@@ -101,7 +101,7 @@ export default async function MyGoalsPage() {
             Your mentor is finalizing your goals. You&apos;ll be notified once they&apos;re ready.
           </p>
           <Link href="/my-mentor" className="button" style={{ marginTop: "1.5rem" }}>
-            Back to My Mentorship
+            Back to My Mentor
           </Link>
         </div>
       </div>
@@ -259,7 +259,7 @@ export default async function MyGoalsPage() {
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">My Mentorship</p>
+          <p className="badge">My Mentor</p>
           <h1 className="page-title">My Goals &amp; Resources</h1>
           <p className="page-subtitle">{doc.template.title}</p>
         </div>

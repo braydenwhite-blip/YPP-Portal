@@ -41,7 +41,7 @@ export default async function MyMentorPage() {
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>
-          <h1 className="page-title">My Mentorship</h1>
+          <h1 className="page-title">My Mentor</h1>
           {stage && (
             <p
               className="page-subtitle"
@@ -63,7 +63,7 @@ export default async function MyMentorPage() {
           </Link>
           {mentorsOthers && (
             <Link href="/mentorship" className="button small">
-              Mentor Workspace →
+              Mentorship →
             </Link>
           )}
         </div>
@@ -106,7 +106,7 @@ export default async function MyMentorPage() {
               </p>
             </div>
             <Link href="/mentorship" className="button secondary small">
-              Open Mentor Workspace
+              Open Mentorship
             </Link>
           </div>
         )}

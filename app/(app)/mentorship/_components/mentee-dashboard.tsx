@@ -142,8 +142,8 @@ export async function MenteeDashboard({ userId }: Props) {
   if (!mentorship) {
     return (
       <EmptyStateEditorial
-        title="Your pairing is on the way."
-        body="You haven't been paired with an instructor mentor yet. Reach out to your chapter leadership and they'll match you. Until then, the leadership pathway is the same rubric you'll grow against."
+        title="Your relationship is on the way."
+        body="You haven't been matched with an instructor mentor yet. Reach out to your chapter leadership and they'll match you. Until then, the leadership pathway is the same rubric you'll grow against."
         link={{ label: "See the leadership pathway", href: "/leadership-pathway" }}
       />
     );

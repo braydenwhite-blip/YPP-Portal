@@ -150,7 +150,7 @@ export default function AppShell({
       case "PARENT":
         return "Family Portal";
       case "MENTOR":
-        return "Mentor Workspace";
+        return "Mentorship";
       case "APPLICANT":
         return "Application Center";
       default:

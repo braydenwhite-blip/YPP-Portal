@@ -49,6 +49,7 @@
     "journey-editor:adopt-modules:apply": "node scripts/adopt-interactive-journeys-into-editor.mjs --apply",
     "backfill:email-verified": "node scripts/backfill-email-verified.mjs",
     "backfill:mentorship-redesign": "node scripts/backfill-mentorship-redesign.mjs",
+    "backfill:mentorship-actions": "tsx scripts/backfill-mentorship-actions.ts",
     "backfill:application-last-names": "tsx scripts/backfill-application-last-names.ts",
     "search:reconcile": "tsx scripts/backfill-search-documents.ts",
     "migrate:users:validate-csv": "node scripts/import-users-from-csv.mjs",

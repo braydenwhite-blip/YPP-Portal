@@ -147,10 +147,10 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
             &larr; Back to {menteeName}
           </Link>
           <p className="badge">Mentor view</p>
-          <h1 className="page-title">{menteeName}'s Goals &amp; Resources</h1>
+          <h1 className="page-title">{menteeName}&apos;s Goals &amp; Resources</h1>
           <p className="page-subtitle">
             {menteeRoleLabel}
-            {mentorship?.mentor?.name ? ` · Mentored by ${mentorship.mentor.name}` : " · No active pairing"}
+            {mentorship?.mentor?.name ? ` · Mentored by ${mentorship.mentor.name}` : " · No active relationship"}
             {mentorship?.chair?.name ? ` · Chair ${mentorship.chair.name}` : ""}
           </p>
         </div>
@@ -178,8 +178,8 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
         <div className="card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
           <h3 style={{ marginTop: 0 }}>No G&amp;R has been created for this mentee yet.</h3>
           <p style={{ color: "var(--muted)", maxWidth: 520, margin: "0 auto 1.25rem" }}>
-            A Goals &amp; Resources document is assigned at kickoff. Once it's in
-            place you'll be able to see the mentee's 90-day, annual, and
+            A Goals &amp; Resources document is assigned at kickoff. Once it&apos;s in
+            place you&apos;ll be able to see the mentee&apos;s 90-day, annual, and
             multi-year goals here, along with the latest plan of action.
           </p>
           {isAdmin ? (
@@ -377,7 +377,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
               Propose a G&amp;R change
             </summary>
             <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--muted)" }}>
-              Suggest a new goal, an edit to an existing one, or removal of a goal that's no
+              Suggest a new goal, an edit to an existing one, or removal of a goal that&apos;s no
               longer relevant. An admin reviews every proposal before it changes the document.
             </p>
             <ProposeChangeForm
@@ -395,7 +395,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
 
       {isChapterPresident && !isAdmin && (
         <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 18 }}>
-          You're viewing this G&amp;R as chapter leadership. Goal edits go through admin or the mentor's monthly review.
+          You&apos;re viewing this G&amp;R as chapter leadership. Goal edits go through admin or the mentor&apos;s monthly review.
         </p>
       )}
     </div>

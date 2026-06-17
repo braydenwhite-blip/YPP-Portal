@@ -174,7 +174,7 @@ export async function getAdminMentorshipCommandCenterData() {
               ],
             },
           },
-          select: { id: true, dueAt: true },
+          select: { id: true, dueAt: true, linkedActionId: true },
         },
         monthlyReviews: {
           orderBy: { month: "desc" },
@@ -295,6 +295,33 @@ export async function getAdminMentorshipCommandCenterData() {
   const activeMentorshipByMenteeId = new Map(
     mentorships.map((mentorship) => [mentorship.menteeId, mentorship])
   );
+  const mentorshipIds = mentorships.map((mentorship) => mentorship.id);
+  const canonicalOpenActions =
+    mentorshipIds.length > 0
+      ? await prisma.actionItem.findMany({
+          where: {
+            relatedEntityType: "MENTORSHIP",
+            relatedEntityId: { in: mentorshipIds },
+            status: { notIn: ["COMPLETE", "DROPPED"] },
+          },
+          select: {
+            id: true,
+            relatedEntityId: true,
+            deadlineStart: true,
+            deadlineEnd: true,
+          },
+        })
+      : [];
+  const canonicalOpenActionsByMentorship = new Map<
+    string,
+    typeof canonicalOpenActions
+  >();
+  for (const action of canonicalOpenActions) {
+    if (!action.relatedEntityId) continue;
+    const list = canonicalOpenActionsByMentorship.get(action.relatedEntityId) ?? [];
+    list.push(action);
+    canonicalOpenActionsByMentorship.set(action.relatedEntityId, list);
+  }
 
   const reviewCountByStatus = new Map(
     reviewCounts.map((item) => [item.status, item._count.id])
@@ -341,9 +368,16 @@ export async function getAdminMentorshipCommandCenterData() {
         latestSession?.completedAt?.toISOString() ??
         latestSession?.scheduledAt.toISOString() ??
         null;
-      const overdueActionItems = mentorship.actionItems.filter(
-        (item) => item.dueAt && item.dueAt < now
-      ).length;
+      const canonicalActions =
+        canonicalOpenActionsByMentorship.get(mentorship.id) ?? [];
+      const unlinkedLegacyActions = mentorship.actionItems.filter(
+        (item) => !item.linkedActionId
+      );
+      const overdueActionItems =
+        canonicalActions.filter(
+          (item) => (item.deadlineEnd ?? item.deadlineStart) < now
+        ).length +
+        unlinkedLegacyActions.filter((item) => item.dueAt && item.dueAt < now).length;
 
       return {
         mentorshipId: mentorship.id,
@@ -364,7 +398,7 @@ export async function getAdminMentorshipCommandCenterData() {
         latestReviewToneClass: latestReviewMeta
           ? getToneClass(latestReviewMeta.tone)
           : null,
-        openActionItems: mentorship.actionItems.length,
+        openActionItems: canonicalActions.length + unlinkedLegacyActions.length,
         overdueActionItems,
         currentRoles: rolesPresent.map((role) => getSupportRoleLabel(role)),
         missingRoles: getSupportRoleGapLabels(rolesPresent),
@@ -417,9 +451,16 @@ export async function getAdminMentorshipCommandCenterData() {
       return [];
     }
 
-    const overdueActions = mentorship.actionItems.filter(
-      (item) => item.dueAt && item.dueAt < now
-    ).length;
+    const canonicalActions =
+      canonicalOpenActionsByMentorship.get(mentorship.id) ?? [];
+    const unlinkedLegacyActions = mentorship.actionItems.filter(
+      (item) => !item.linkedActionId
+    );
+    const overdueActions =
+      canonicalActions.filter(
+        (item) => (item.deadlineEnd ?? item.deadlineStart) < now
+      ).length +
+      unlinkedLegacyActions.filter((item) => item.dueAt && item.dueAt < now).length;
     const lastSessionLabel = latestSession
       ? (latestSession.completedAt ?? latestSession.scheduledAt).toLocaleDateString()
       : "No session logged yet";

@@ -2,6 +2,8 @@
 
 import { getSession } from "@/lib/auth-supabase";
 import {
+  type ActionAssignmentRole,
+  type ActionItemStatus,
   MentorshipActionItemStatus,
   MentorshipRequestKind,
   MentorshipRequestStatus,
@@ -32,7 +34,13 @@ import {
 import { prisma } from "@/lib/prisma";
 import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
-import { createActionItem } from "@/lib/people-strategy/action-items-actions";
+import { syncActionSearchDocument } from "@/lib/help-agent/search-indexing";
+import { startOfDay } from "@/lib/leadership-action-center/dates";
+import { notifyNewActionAssignments } from "@/lib/people-strategy/action-emails";
+import {
+  canEditAction,
+  type ActionAccessShape,
+} from "@/lib/people-strategy/action-permissions";
 
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
@@ -71,6 +79,89 @@ async function requireAuth() {
 
 async function canManageMentee(userId: string, roles: string[], menteeId: string) {
   return hasMentorshipMenteeAccess(userId, roles, menteeId);
+}
+
+async function getAuthorizedMentorshipForNextStep(params: {
+  mentorshipId: string;
+  userId: string;
+  roles: string[];
+  allowMentee?: boolean;
+}) {
+  const { mentorshipId, userId, roles, allowMentee = false } = params;
+  const flags = getMentorshipRoleFlags(roles);
+  const mentorship = await prisma.mentorship.findUnique({
+    where: { id: mentorshipId },
+    select: {
+      id: true,
+      mentorId: true,
+      menteeId: true,
+      chairId: true,
+      status: true,
+      circleMembers: {
+        where: { isActive: true },
+        select: { userId: true, role: true },
+      },
+    },
+  });
+
+  if (!mentorship) {
+    throw new Error("Mentorship not found");
+  }
+
+  const isRelationshipMember =
+    mentorship.mentorId === userId ||
+    mentorship.chairId === userId ||
+    mentorship.circleMembers.some((member) => member.userId === userId);
+  const chapterLeadCanAccess =
+    flags.isChapterLead &&
+    (await hasMentorshipMenteeAccess(userId, roles, mentorship.menteeId));
+  const menteeCanAct = allowMentee && mentorship.menteeId === userId;
+
+  if (!flags.isAdmin && !isRelationshipMember && !chapterLeadCanAccess && !menteeCanAct) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!allowMentee && mentorship.menteeId === userId && !flags.isAdmin) {
+    throw new Error("Unauthorized");
+  }
+
+  return mentorship;
+}
+
+function mentorshipActionStatusToActionStatus(
+  status: MentorshipActionItemStatus
+): ActionItemStatus {
+  switch (status) {
+    case MentorshipActionItemStatus.OPEN:
+      return "NOT_STARTED";
+    case MentorshipActionItemStatus.IN_PROGRESS:
+      return "IN_PROGRESS";
+    case MentorshipActionItemStatus.BLOCKED:
+      return "BLOCKED";
+    case MentorshipActionItemStatus.COMPLETE:
+      return "COMPLETE";
+    default:
+      return "NOT_STARTED";
+  }
+}
+
+function actionCompletedAtForStatus(
+  previousStatus: ActionItemStatus,
+  nextStatus: ActionItemStatus,
+  now: Date
+) {
+  if (nextStatus === previousStatus) return undefined;
+  if (nextStatus === "COMPLETE") return now;
+  if (previousStatus === "COMPLETE") return null;
+  return undefined;
+}
+
+function revalidateMentorshipNextStepSurfaces(menteeId: string) {
+  revalidatePath("/mentorship");
+  revalidatePath(`/mentorship/mentees/${menteeId}`);
+  revalidatePath("/my-mentor");
+  revalidatePath("/my-program");
+  revalidatePath("/actions");
 }
 
 async function canSupportMentee(userId: string, roles: string[], menteeId: string) {
@@ -118,6 +209,139 @@ async function getLaunchedIntakePlanContext(menteeId: string) {
     },
     orderBy: { mentorPlanLaunchedAt: "desc" },
   });
+}
+
+type CreateMentorshipNextStepInput = {
+  actorId: string;
+  roles: string[];
+  mentorshipId: string;
+  title: string;
+  details?: string | null;
+  ownerId?: string | null;
+  dueAt?: Date | null;
+  sessionId?: string | null;
+  sourceLegacyActionItemId?: string | null;
+};
+
+async function createMentorshipNextStepForUser(input: CreateMentorshipNextStepInput) {
+  if (!isActionTrackerEnabled()) {
+    throw new Error("Action Tracker is not enabled");
+  }
+
+  const title = input.title.trim();
+  if (!title) {
+    throw new Error("Missing title");
+  }
+
+  const mentorship = await getAuthorizedMentorshipForNextStep({
+    mentorshipId: input.mentorshipId,
+    userId: input.actorId,
+    roles: input.roles,
+  });
+  if (mentorship.status !== "ACTIVE") {
+    throw new Error("Next steps can only be created for active mentorship relationships.");
+  }
+
+  const allowedOwnerIds = new Set([
+    mentorship.menteeId,
+    mentorship.mentorId,
+    ...(mentorship.chairId ? [mentorship.chairId] : []),
+    ...mentorship.circleMembers.map((member) => member.userId),
+  ]);
+  const ownerId = input.ownerId?.trim() || mentorship.menteeId;
+  if (!allowedOwnerIds.has(ownerId)) {
+    throw new Error("Owners must be the mentee, assigned mentor, chair, or an active support-circle member.");
+  }
+
+  const sessionId = input.sessionId?.trim() || null;
+  if (sessionId) {
+    const linkedSession = await prisma.mentorshipSession.findUnique({
+      where: { id: sessionId },
+      select: { id: true, menteeId: true, mentorshipId: true },
+    });
+
+    if (
+      !linkedSession ||
+      linkedSession.menteeId !== mentorship.menteeId ||
+      linkedSession.mentorshipId !== mentorship.id
+    ) {
+      throw new Error("Next steps can only be attached to check-ins for this mentorship relationship.");
+    }
+  }
+
+  const sourceId = input.sourceLegacyActionItemId ?? sessionId ?? mentorship.id;
+  const existing = input.sourceLegacyActionItemId
+    ? await prisma.actionItem.findFirst({
+        where: {
+          sourceType: "ENTITY",
+          sourceId,
+          relatedEntityType: "MENTORSHIP",
+          relatedEntityId: mentorship.id,
+          status: { not: "DROPPED" },
+        },
+        select: { id: true },
+      })
+    : await prisma.actionItem.findFirst({
+        where: {
+          relatedEntityType: "MENTORSHIP",
+          relatedEntityId: mentorship.id,
+          mentorshipSessionId: sessionId,
+          title,
+          leadId: ownerId,
+          status: { not: "DROPPED" },
+        },
+        select: { id: true },
+      });
+
+  if (existing) {
+    return { id: existing.id, created: false };
+  }
+
+  const deadlineStart = startOfDay(input.dueAt ?? new Date());
+  const assignmentRows: Array<{ userId: string; role: ActionAssignmentRole }> = [
+    { userId: ownerId, role: "LEAD" },
+    { userId: ownerId, role: "EXECUTING" },
+  ];
+
+  const created = await prisma.$transaction(async (tx) => {
+    const action = await tx.actionItem.create({
+      data: {
+        title,
+        description: input.details?.trim() || null,
+        actionType: "FOLLOW_UP",
+        status: "NOT_STARTED",
+        priority: "MEDIUM",
+        deadlineStart,
+        completedAt: null,
+        visibility: "ALL_LEADERSHIP",
+        leadId: ownerId,
+        createdById: input.actorId,
+        relatedEntityType: "MENTORSHIP",
+        relatedEntityId: mentorship.id,
+        sourceType: "ENTITY",
+        sourceId,
+        mentorshipSessionId: sessionId,
+        assignments: {
+          create: assignmentRows,
+        },
+        comments: {
+          create: {
+            authorId: input.actorId,
+            type: "NOTE",
+            body: "Mentorship next step created",
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    return action;
+  });
+
+  await notifyNewActionAssignments(created.id, assignmentRows);
+  await syncActionSearchDocument(created.id);
+  revalidateMentorshipNextStepSurfaces(mentorship.menteeId);
+  return { id: created.id, created: true };
 }
 
 async function resolveSupportCircleChairId(params: {
@@ -602,11 +826,11 @@ export async function recordMentorshipSessionCapture(formData: FormData) {
 }
 
 /**
- * Session completion (Calm Mentorship, Phase 6) — close a session in two calm
- * fields: a short "what happened" recap (private to mentor / circle) and one
- * optional commitment that becomes a MentorshipActionItem. Idempotent: a repeat
- * submit won't re-stamp completion or duplicate the commitment. The mentee never
- * sees the private recap — only the derived summary + any shared commitment.
+ * Session completion — close a mentorship-owned check-in and optionally create
+ * one canonical Action Tracker next step with source-session provenance.
+ * Idempotent: a repeat submit won't re-stamp completion or duplicate the next
+ * step. The mentee never sees the private recap — only the completed check-in
+ * and any assigned next step.
  */
 export async function completeMentorshipSession(formData: FormData) {
   const session = await requireAuth();
@@ -656,26 +880,19 @@ export async function completeMentorshipSession(formData: FormData) {
     },
   });
 
-  // Turn the session into at most one commitment. Idempotent on (session, title).
+  // Turn the session into at most one canonical next step. The helper checks
+  // duplicate (relationship + session + title + owner) before writing.
   if (commitmentTitle && existing.mentorshipId) {
     const ownerId =
-      commitmentOwner === menteeId || commitmentOwner === userId ? commitmentOwner : null;
-    const duplicate = await prisma.mentorshipActionItem.findFirst({
-      where: { sessionId, title: commitmentTitle },
-      select: { id: true },
+      commitmentOwner === menteeId || commitmentOwner === userId ? commitmentOwner : menteeId;
+    await createMentorshipNextStepForUser({
+      actorId: userId,
+      roles,
+      mentorshipId: existing.mentorshipId,
+      title: commitmentTitle,
+      ownerId,
+      sessionId,
     });
-    if (!duplicate) {
-      await prisma.mentorshipActionItem.create({
-        data: {
-          mentorshipId: existing.mentorshipId,
-          menteeId,
-          sessionId,
-          title: commitmentTitle,
-          ownerId,
-          createdById: userId,
-        },
-      });
-    }
   }
 
   // Kickoff completion side-effect (parity with createMentorshipSession).
@@ -738,9 +955,23 @@ export async function createMentorshipActionItem(formData: FormData) {
     }
   }
 
+  if (activeMentorship) {
+    await createMentorshipNextStepForUser({
+      actorId: userId,
+      roles,
+      mentorshipId: activeMentorship.id,
+      title,
+      details: details || null,
+      ownerId: ownerId || null,
+      dueAt,
+      sessionId: sessionId || null,
+    });
+    return;
+  }
+
   await prisma.mentorshipActionItem.create({
     data: {
-      mentorshipId: activeMentorship?.id ?? null,
+      mentorshipId: null,
       menteeId,
       sessionId: sessionId || null,
       title,
@@ -757,12 +988,120 @@ export async function createMentorshipActionItem(formData: FormData) {
   revalidatePath("/my-program");
 }
 
+export async function createMentorshipNextStep(formData: FormData) {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  const mentorshipId = getString(formData, "mentorshipId");
+  const title = getString(formData, "title");
+  const details = getString(formData, "details", false);
+  const ownerId = getString(formData, "ownerId", false);
+  const sessionId = getString(formData, "sessionId", false);
+  const dueAt = getOptionalDate(formData.get("dueAt"));
+
+  return createMentorshipNextStepForUser({
+    actorId: session.user.id,
+    roles,
+    mentorshipId,
+    title,
+    details: details || null,
+    ownerId: ownerId || null,
+    dueAt,
+    sessionId: sessionId || null,
+  });
+}
+
 export async function updateMentorshipActionItemStatus(formData: FormData) {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];
   const userId = session.user.id;
   const itemId = getString(formData, "itemId");
   const status = getString(formData, "status") as MentorshipActionItemStatus;
+
+  const canonical = await prisma.actionItem.findFirst({
+    where: {
+      id: itemId,
+      relatedEntityType: "MENTORSHIP",
+      relatedEntityId: { not: null },
+    },
+    select: {
+      id: true,
+      leadId: true,
+      createdById: true,
+      visibility: true,
+      status: true,
+      relatedEntityId: true,
+      assignments: { select: { userId: true, role: true } },
+    },
+  });
+
+  if (canonical?.relatedEntityId) {
+    const viewer = {
+      id: userId,
+      roles,
+      primaryRole: session.user.primaryRole ?? null,
+      adminSubtypes: session.user.adminSubtypes ?? [],
+    };
+    const access: ActionAccessShape = {
+      leadId: canonical.leadId,
+      createdById: canonical.createdById,
+      visibility: canonical.visibility,
+      assignments: canonical.assignments,
+    };
+    let canUpdate = canEditAction(viewer, access);
+    let menteeIdForRevalidation: string | null = null;
+
+    if (!canUpdate) {
+      const mentorship = await getAuthorizedMentorshipForNextStep({
+        mentorshipId: canonical.relatedEntityId,
+        userId,
+        roles,
+        allowMentee: true,
+      });
+      menteeIdForRevalidation = mentorship.menteeId;
+      canUpdate = mentorship.menteeId !== userId;
+    }
+
+    if (!canUpdate) {
+      throw new Error("Unauthorized");
+    }
+
+    const nextStatus = mentorshipActionStatusToActionStatus(status);
+    const completedAt = actionCompletedAtForStatus(canonical.status, nextStatus, new Date());
+    await prisma.$transaction(async (tx) => {
+      await tx.actionItem.update({
+        where: { id: canonical.id },
+        data: {
+          status: nextStatus,
+          ...(completedAt !== undefined ? { completedAt } : {}),
+        },
+      });
+      await tx.actionComment.create({
+        data: {
+          actionItemId: canonical.id,
+          authorId: userId,
+          type: "NOTE",
+          body: `Mentorship next step status changed from ${canonical.status} to ${nextStatus}`,
+        },
+      });
+    });
+
+    await syncActionSearchDocument(canonical.id);
+    if (!menteeIdForRevalidation) {
+      const mentorship = await prisma.mentorship.findUnique({
+        where: { id: canonical.relatedEntityId },
+        select: { menteeId: true },
+      });
+      menteeIdForRevalidation = mentorship?.menteeId ?? null;
+    }
+    if (menteeIdForRevalidation) {
+      revalidateMentorshipNextStepSurfaces(menteeIdForRevalidation);
+    } else {
+      revalidatePath("/mentorship");
+      revalidatePath("/my-mentor");
+      revalidatePath("/actions");
+    }
+    return;
+  }
 
   const item = await prisma.mentorshipActionItem.findUnique({
     where: { id: itemId },
@@ -828,6 +1167,7 @@ export async function convertMentorshipCommitmentToAction(formData: FormData) {
       title: true,
       details: true,
       dueAt: true,
+      sessionId: true,
       linkedActionId: true,
     },
   });
@@ -853,20 +1193,16 @@ export async function convertMentorshipCommitmentToAction(formData: FormData) {
     }
   }
 
-  // Lead is the commitment owner when one is set, else the converting mentor —
-  // a valid User either way (createActionItem re-validates existence + the
-  // related-entity link, and applies the org create-permission policy).
-  const leadId = item.ownerId ?? userId;
-  const today = new Date().toISOString().slice(0, 10);
-  const created = await createActionItem({
+  const created = await createMentorshipNextStepForUser({
+    actorId: userId,
+    roles,
+    mentorshipId: item.mentorshipId,
     title: item.title,
-    description: item.details ?? undefined,
-    leadId,
-    deadlineStart: today,
-    deadlineEnd: item.dueAt ? item.dueAt.toISOString().slice(0, 10) : undefined,
-    relatedEntityType: "MENTORSHIP",
-    relatedEntityId: item.mentorshipId,
-    sourceType: "ENTITY",
+    details: item.details ?? null,
+    ownerId: item.ownerId ?? null,
+    dueAt: item.dueAt,
+    sessionId: item.sessionId ?? null,
+    sourceLegacyActionItemId: item.id,
   });
 
   await prisma.mentorshipActionItem.update({
