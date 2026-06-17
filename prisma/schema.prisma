@@ -2865,6 +2865,7 @@ model MentorshipSession {
   ledById                  String?
   ledBy                    User?                      @relation("MentorshipSessionsLed", fields: [ledById], references: [id], onDelete: SetNull)
   actionItems              MentorshipActionItem[]
+  canonicalActionItems     ActionItem[]                @relation("MentorshipSessionActionItems")
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
 
@@ -12721,6 +12722,12 @@ model ActionItem {
   officerMeetingId String?
   officerMeeting   OfficerMeeting? @relation("OfficerMeetingActionItems", fields: [officerMeetingId], references: [id], onDelete: SetNull)
 
+  /// Optional source check-in for mentorship-created next steps. Mentorship
+  /// check-ins stay in MentorshipSession; this only preserves provenance for
+  /// canonical Action Tracker records.
+  mentorshipSessionId String?
+  mentorshipSession   MentorshipSession? @relation("MentorshipSessionActionItems", fields: [mentorshipSessionId], references: [id], onDelete: SetNull)
+
   /// Per-meeting discussion notes captured when this item is linked to a
   /// meeting (one note row per meeting it has been discussed at).
   meetingNotes MeetingNote[] @relation("ActionItemMeetingNotes")
@@ -12816,6 +12823,7 @@ model ActionItem {
   @@index([leadId])
   @@index([createdById])
   @@index([officerMeetingId])
+  @@index([mentorshipSessionId])
   @@index([flaggedAt])
   @@index([escalatedToLeadershipAt])
   @@index([resolvedAt])
