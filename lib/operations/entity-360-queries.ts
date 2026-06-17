@@ -41,6 +41,7 @@ import {
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
 
 import {
+  buildMentorshipPanel,
   buildPersonTimeline,
   entityInitials,
   meetingOutcomeLine,
@@ -48,6 +49,7 @@ import {
   personFootnote,
   tenureLabel,
   type Entity360,
+  type MentorshipPairingInput,
   type Entity360Glance,
   type Entity360MeetingRef,
   type Entity360Signal,
@@ -156,7 +158,16 @@ async function loadPerson360(
           select: {
             id: true,
             startDate: true,
+            cycleStage: true,
+            kickoffCompletedAt: true,
             mentor: { select: { id: true, name: true, email: true } },
+            actionItems: { where: { status: { not: "COMPLETE" } }, select: { id: true } },
+            sessions: {
+              where: { completedAt: null, cancelledAt: null, scheduledAt: { gte: now } },
+              orderBy: { scheduledAt: "asc" },
+              take: 1,
+              select: { scheduledAt: true },
+            },
           },
         },
         mentorPairs: {
@@ -164,7 +175,16 @@ async function loadPerson360(
           select: {
             id: true,
             startDate: true,
+            cycleStage: true,
+            kickoffCompletedAt: true,
             mentee: { select: { id: true, name: true, email: true } },
+            actionItems: { where: { status: { not: "COMPLETE" } }, select: { id: true } },
+            sessions: {
+              where: { completedAt: null, cancelledAt: null, scheduledAt: { gte: now } },
+              orderBy: { scheduledAt: "asc" },
+              take: 1,
+              select: { scheduledAt: true },
+            },
           },
         },
         classOfferingsInstructed: {
@@ -476,6 +496,35 @@ async function loadPerson360(
     { limit: DRAWER_LIMITS.timeline }
   );
 
+  // Mentorship panel (Calm Mentorship Phase 10): the person's active pairings
+  // with cycle, next focus, open commitments, and next session. Officer-gated —
+  // the operational cycle read is leadership-facing, like the rest of the panel.
+  const mentorshipPairings: MentorshipPairingInput[] = officer
+    ? [
+        ...extra.menteePairs.map((p) => ({
+          id: p.id,
+          role: "mentee" as const,
+          partnerName: p.mentor.name ?? p.mentor.email,
+          partnerId: p.mentor.id,
+          cycleStage: String(p.cycleStage),
+          kickoffCompleted: Boolean(p.kickoffCompletedAt),
+          openCommitments: p.actionItems.length,
+          nextSessionISO: p.sessions[0]?.scheduledAt.toISOString() ?? null,
+        })),
+        ...extra.mentorPairs.map((p) => ({
+          id: p.id,
+          role: "mentor" as const,
+          partnerName: p.mentee.name ?? p.mentee.email,
+          partnerId: p.mentee.id,
+          cycleStage: String(p.cycleStage),
+          kickoffCompleted: Boolean(p.kickoffCompletedAt),
+          openCommitments: p.actionItems.length,
+          nextSessionISO: p.sessions[0]?.scheduledAt.toISOString() ?? null,
+        })),
+      ]
+    : [];
+  const mentorshipPanel = buildMentorshipPanel(mentorshipPairings);
+
   // "Open full page": admins land on the role-specific full-360 record pages
   // (Knowledge OS V2 Phase 2B); everyone else gets the member profile. The
   // record pages gate on ADMIN themselves, so never link non-admins there.
@@ -531,6 +580,7 @@ async function loadPerson360(
     nextStep: advisorNextStep ?? nextStepFromWork(openWork),
     risks,
     footnote: personFootnote(officer),
+    mentorship: mentorshipPanel,
   };
 }
 

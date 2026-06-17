@@ -197,6 +197,15 @@ export type QueueInline =
       kind: "follow_up";
       /** MeetingFollowUp id — `setFollowUpStatus` / `convertFollowUpToAction`. */
       followUpId: string;
+    }
+  | {
+      kind: "mentorship_commitment";
+      /** MentorshipActionItem id — `updateMentorshipActionItemStatus` (→ COMPLETE). */
+      actionItemId: string;
+      /** The mentee the commitment belongs to (re-checked server-side for access). */
+      menteeId: string;
+      /** Shown in the panel so the mentor confirms the right commitment. */
+      title: string;
     };
 
 /**
