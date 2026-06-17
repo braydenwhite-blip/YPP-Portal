@@ -24,7 +24,7 @@ import { whereActiveMember } from "@/lib/user-role-where";
  */
 
 export type SearchDocumentRow = {
-  entityType: "person" | "partner" | "applicant" | "class" | "meeting" | "action";
+  entityType: "person" | "partner" | "applicant" | "class" | "meeting" | "action" | "mentorship";
   entityId: string;
   title: string;
   subtitle: string | null;
@@ -146,6 +146,38 @@ export function buildActionDocument(action: {
       action.lead?.email,
       action.officerMeeting?.title,
     ]),
+    visibilityTier: "OFFICER",
+  };
+}
+
+export function buildMentorshipDocument(mentorship: {
+  id: string;
+  type: string | null;
+  status: string;
+  mentor: { name: string | null; email: string } | null;
+  mentee: { name: string | null; email: string } | null;
+}): SearchDocumentRow {
+  const mentorName = mentorship.mentor?.name ?? mentorship.mentor?.email ?? "Unassigned";
+  const menteeName = mentorship.mentee?.name ?? mentorship.mentee?.email ?? "Unassigned";
+  return {
+    entityType: "mentorship",
+    entityId: mentorship.id,
+    // "Mentor → Mentee" reads as the relationship in one glance.
+    title: `${mentorName} → ${menteeName}`,
+    subtitle:
+      [mentorship.type ? prettyStatusWord(mentorship.type) : null, prettyStatusWord(mentorship.status)]
+        .filter(Boolean)
+        .join(" · ") || null,
+    // Match either party by name or email so "find Maya's mentorship" works.
+    keywords: joinKeywords([
+      mentorship.mentor?.name,
+      mentorship.mentor?.email,
+      mentorship.mentee?.name,
+      mentorship.mentee?.email,
+    ]),
+    // OFFICER ceiling: the read path additionally re-checks every hit against
+    // the live per-relationship membership filter (mentor / mentee / chair /
+    // admin), so this row never reveals a pairing to an unauthorized viewer.
     visibilityTier: "OFFICER",
   };
 }
@@ -324,6 +356,36 @@ export async function syncActionSearchDocument(actionId: string): Promise<void> 
   }
 }
 
+/**
+ * Mentorship relationships are indexed while they are live (ACTIVE / PAUSED);
+ * a completed pairing drops out so search stays about current relationships.
+ */
+const MENTORSHIP_INDEXABLE_STATUSES = ["ACTIVE", "PAUSED"] as const;
+
+const MENTORSHIP_DOCUMENT_SELECT = {
+  id: true,
+  type: true,
+  status: true,
+  mentor: { select: { name: true, email: true } },
+  mentee: { select: { name: true, email: true } },
+} as const;
+
+export async function syncMentorshipSearchDocument(mentorshipId: string): Promise<void> {
+  try {
+    const mentorship = await prisma.mentorship.findFirst({
+      where: { id: mentorshipId, status: { in: [...MENTORSHIP_INDEXABLE_STATUSES] } },
+      select: MENTORSHIP_DOCUMENT_SELECT,
+    });
+    if (!mentorship) {
+      await removeSearchDocument("mentorship", mentorshipId);
+      return;
+    }
+    await upsertSearchDocument(buildMentorshipDocument(mentorship));
+  } catch (err) {
+    logIndexError("mentorship", mentorshipId, err);
+  }
+}
+
 export async function syncMeetingSearchDocument(meetingId: string): Promise<void> {
   try {
     const meeting = await prisma.officerMeeting.findUnique({
@@ -415,6 +477,15 @@ async function collectAllRows(): Promise<SearchDocumentRow[]> {
     },
   });
   for (const a of actions) rows.push(buildActionDocument(a));
+
+  // Mentorship relationships (Unification Phase 5E). Canonical mentorship next
+  // steps already index as `action` rows, so only the relationship itself is a
+  // new document — no per-action duplication.
+  const mentorships = await prisma.mentorship.findMany({
+    where: { status: { in: [...MENTORSHIP_INDEXABLE_STATUSES] } },
+    select: MENTORSHIP_DOCUMENT_SELECT,
+  });
+  for (const m of mentorships) rows.push(buildMentorshipDocument(m));
 
   return rows;
 }

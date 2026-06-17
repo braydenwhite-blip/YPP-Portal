@@ -14,7 +14,11 @@ function pairing(overrides: Partial<MentorshipPairingInput> = {}): MentorshipPai
     partnerId: "mentee-1",
     cycleStage: "REFLECTION_SUBMITTED",
     kickoffCompleted: true,
-    openCommitments: 2,
+    openNextSteps: 2,
+    overdueNextSteps: 1,
+    blocked: false,
+    attentionReason: "Next step overdue",
+    lastCheckInISO: "2026-06-10T15:00:00.000Z",
     nextSessionISO: "2026-06-20T15:00:00.000Z",
     ...overrides,
   };
@@ -31,7 +35,9 @@ describe("buildMentorshipPanel", () => {
     const p = panel!.pairings[0];
     expect(p.cycleLabel).toBe("Review due");
     expect(p.nextFocus).toBe("Write the review");
-    expect(p.openCommitments).toBe(2);
+    expect(p.openNextSteps).toBe(2);
+    expect(p.overdueNextSteps).toBe(1);
+    expect(p.attentionReason).toBe("Next step overdue");
     expect(p.href).toBe("/admin/mentorship/relationships/ms-1");
   });
 

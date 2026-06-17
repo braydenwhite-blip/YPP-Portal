@@ -46,7 +46,6 @@ import {
   createMentorshipSession,
   createMentorshipActionItem,
   createMentorshipNextStep,
-  convertMentorshipCommitmentToAction,
   promoteMentorshipResponseToResource,
   respondToMentorshipRequest,
   setMentorTag,
@@ -213,86 +212,38 @@ describe("mentorship-hub-actions", () => {
     });
   });
 
-  it("bridges a commitment into exactly one linked org Action", async () => {
-    (prisma as any).mentorship.findUnique.mockResolvedValue({
+  it("routes an ACTIVE relationship to a canonical ActionItem, never the legacy table", async () => {
+    const active = {
       id: "mentorship-1",
       mentorId: "mentor-2",
       menteeId: "student-1",
       chairId: null,
       status: "ACTIVE",
       circleMembers: [{ userId: "mentor-2", role: "PRIMARY_MENTOR" }],
-    });
+    };
+    // getActiveMentorshipContext + the next-step authorization both read mentorship.
+    (prisma as any).mentorship.findFirst = vi.fn().mockResolvedValue(active);
+    (prisma as any).mentorship.findUnique.mockResolvedValue(active);
     (prisma as any).actionItem.findFirst.mockResolvedValue(null);
     (prisma as any).actionItem.create.mockResolvedValue({ id: "action-1" });
-    (prisma as any).mentorshipActionItem.findUnique.mockResolvedValue({
-      id: "commit-1",
-      menteeId: "student-1",
-      mentorshipId: "mentorship-1",
-      ownerId: "student-1",
-      title: "Send the workshop outline",
-      details: "Bring a five-slide draft.",
-      dueAt: new Date("2026-06-30T00:00:00.000Z"),
-      sessionId: "session-1",
-      linkedActionId: null,
-    });
-    (prisma as any).mentorshipSession.findUnique.mockResolvedValue({
-      id: "session-1",
-      mentorshipId: "mentorship-1",
-      menteeId: "student-1",
-    });
 
     const formData = new FormData();
-    formData.set("itemId", "commit-1");
+    formData.set("menteeId", "student-1");
+    formData.set("title", "Draft the project outline");
+    formData.set("ownerId", "student-1");
 
-    const result = await convertMentorshipCommitmentToAction(formData);
+    await createMentorshipActionItem(formData);
 
-    expect((prisma as any).actionItem.create).toHaveBeenCalledTimes(1);
+    // Canonical write happened; the pre-assignment legacy write did NOT.
     expect((prisma as any).actionItem.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          title: "Send the workshop outline",
-          description: "Bring a five-slide draft.",
-          leadId: "student-1",
           relatedEntityType: "MENTORSHIP",
           relatedEntityId: "mentorship-1",
-          sourceType: "ENTITY",
-          sourceId: "commit-1",
-          mentorshipSessionId: "session-1",
-          visibility: "ALL_LEADERSHIP",
         }),
       })
     );
-    expect((prisma as any).mentorshipActionItem.update).toHaveBeenCalledWith({
-      where: { id: "commit-1" },
-      data: { linkedActionId: "action-1" },
-    });
-    expect(result).toEqual({ id: "action-1", created: true });
-  });
-
-  it("is a no-op when the commitment is already linked to a live Action", async () => {
-    (prisma as any).mentorshipActionItem.findUnique.mockResolvedValue({
-      id: "commit-1",
-      menteeId: "student-1",
-      mentorshipId: "mentorship-1",
-      ownerId: null,
-      title: "Draft the deck",
-      details: null,
-      dueAt: null,
-      linkedActionId: "action-1",
-    });
-    (prisma as any).actionItem.findUnique.mockResolvedValue({
-      id: "action-1",
-      status: "IN_PROGRESS",
-    });
-
-    const formData = new FormData();
-    formData.set("itemId", "commit-1");
-
-    const result = await convertMentorshipCommitmentToAction(formData);
-
-    expect((prisma as any).actionItem.create).not.toHaveBeenCalled();
-    expect((prisma as any).mentorshipActionItem.update).not.toHaveBeenCalled();
-    expect(result).toEqual({ id: "action-1", created: false });
+    expect((prisma as any).mentorshipActionItem.create).not.toHaveBeenCalled();
   });
 
   it("allows the assigned mentor to create a canonical next step", async () => {

@@ -908,6 +908,50 @@ export async function completeMentorshipSession(formData: FormData) {
   revalidatePath("/my-mentor");
 }
 
+/**
+ * LEGACY / PRE-ASSIGNMENT ONLY — the one remaining `MentorshipActionItem` write.
+ *
+ * Intake action plans are launched before a mentor is matched, so there is no
+ * `Mentorship` to scope a canonical relationship `ActionItem` to. Until
+ * pre-assignment intake gets a canonical home, this writes an unattached legacy
+ * row (`mentorshipId: null`).
+ *
+ * Invariants (do not weaken):
+ *  - It is NEVER called for an active relationship — `createMentorshipActionItem`
+ *    routes those to `createMentorshipNextStepForUser` (canonical) and returns
+ *    before reaching here. So a normal relationship never maintains two action
+ *    records.
+ *  - `mentorshipId` is hard-coded null (not a parameter), so this can never
+ *    masquerade as a relationship next step or be double-counted next to a
+ *    canonical twin (the canonical merge only keeps unlinked legacy rows).
+ *
+ * Deletion condition: remove once pre-assignment intake plans create canonical
+ * `ActionItem`s (or are migrated to one), the operator backfill has run, and no
+ * `MentorshipActionItem` rows with `mentorshipId = null` remain unmigrated.
+ */
+async function createPreAssignmentIntakeActionItem(input: {
+  menteeId: string;
+  sessionId: string | null;
+  title: string;
+  details: string | null;
+  ownerId: string | null;
+  createdById: string;
+  dueAt: Date | null;
+}) {
+  await prisma.mentorshipActionItem.create({
+    data: {
+      mentorshipId: null, // pre-assignment: no relationship exists yet
+      menteeId: input.menteeId,
+      sessionId: input.sessionId,
+      title: input.title,
+      details: input.details,
+      ownerId: input.ownerId,
+      createdById: input.createdById,
+      dueAt: input.dueAt,
+    },
+  });
+}
+
 export async function createMentorshipActionItem(formData: FormData) {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];
@@ -956,6 +1000,9 @@ export async function createMentorshipActionItem(formData: FormData) {
   }
 
   if (activeMentorship) {
+    // Active relationship → ALWAYS a canonical ActionItem, never a
+    // MentorshipActionItem. This early return is what guarantees the legacy
+    // write below can never run for a real relationship.
     await createMentorshipNextStepForUser({
       actorId: userId,
       roles,
@@ -969,17 +1016,15 @@ export async function createMentorshipActionItem(formData: FormData) {
     return;
   }
 
-  await prisma.mentorshipActionItem.create({
-    data: {
-      mentorshipId: null,
-      menteeId,
-      sessionId: sessionId || null,
-      title,
-      details: details || null,
-      ownerId: ownerId || null,
-      createdById: userId,
-      dueAt,
-    },
+  // Pre-assignment exception only (no Mentorship exists yet — see helper).
+  await createPreAssignmentIntakeActionItem({
+    menteeId,
+    sessionId: sessionId || null,
+    title,
+    details: details || null,
+    ownerId: ownerId || null,
+    createdById: userId,
+    dueAt,
   });
 
   revalidatePath("/mentorship");
@@ -1135,86 +1180,6 @@ export async function updateMentorshipActionItemStatus(formData: FormData) {
   revalidatePath(`/mentorship/mentees/${item.menteeId}`);
   revalidatePath("/my-mentor");
   revalidatePath("/my-program");
-}
-
-/**
- * Calm Mentorship (Phase 7) — bridge an in-relationship commitment into the
- * org-wide Action Tracker, so a follow-up that needs cross-team visibility is
- * tracked in exactly one place instead of two. Idempotent: once a commitment
- * carries a `linkedActionId` pointing at a live Action, a repeat convert is a
- * no-op. It reuses `createActionItem`, which enforces its own tracker gate +
- * create permission and stamps `relatedEntityType:"MENTORSHIP"` — so there's no
- * duplicate tracking logic here. Requires support/manage access to the mentee
- * and a commitment on an active mentorship.
- */
-export async function convertMentorshipCommitmentToAction(formData: FormData) {
-  const session = await requireAuth();
-  const roles = session.user.roles ?? [];
-  const userId = session.user.id;
-  const itemId = getString(formData, "itemId");
-
-  if (!isActionTrackerEnabled()) {
-    throw new Error("Action Tracker is not enabled");
-  }
-
-  const item = await prisma.mentorshipActionItem.findUnique({
-    where: { id: itemId },
-    select: {
-      id: true,
-      menteeId: true,
-      mentorshipId: true,
-      ownerId: true,
-      title: true,
-      details: true,
-      dueAt: true,
-      sessionId: true,
-      linkedActionId: true,
-    },
-  });
-  if (!item) {
-    throw new Error("Action item not found");
-  }
-  if (!item.mentorshipId) {
-    throw new Error("Only commitments on an active mentorship can become tracked Actions.");
-  }
-  if (!(await canManageMentee(userId, roles, item.menteeId))) {
-    throw new Error("Unauthorized");
-  }
-
-  // Idempotent: a commitment already linked to a live Action stays linked. A
-  // dropped Action reads as unlinked, so a fresh convert is allowed.
-  if (item.linkedActionId) {
-    const existing = await prisma.actionItem.findUnique({
-      where: { id: item.linkedActionId },
-      select: { id: true, status: true },
-    });
-    if (existing && existing.status !== "DROPPED") {
-      return { id: existing.id, created: false };
-    }
-  }
-
-  const created = await createMentorshipNextStepForUser({
-    actorId: userId,
-    roles,
-    mentorshipId: item.mentorshipId,
-    title: item.title,
-    details: item.details ?? null,
-    ownerId: item.ownerId ?? null,
-    dueAt: item.dueAt,
-    sessionId: item.sessionId ?? null,
-    sourceLegacyActionItemId: item.id,
-  });
-
-  await prisma.mentorshipActionItem.update({
-    where: { id: item.id },
-    data: { linkedActionId: created.id },
-  });
-
-  revalidatePath("/mentorship");
-  revalidatePath(`/mentorship/mentees/${item.menteeId}`);
-  revalidatePath("/my-mentor");
-  revalidatePath("/actions");
-  return { id: created.id, created: true };
 }
 
 export async function createMentorshipRequest(formData: FormData) {

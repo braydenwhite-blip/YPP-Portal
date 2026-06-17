@@ -9,6 +9,7 @@ vi.mock("@/lib/prisma", () => ({
     officerMeeting: { findMany: vi.fn(), findUnique: vi.fn() },
     actionItem: { findMany: vi.fn(), findUnique: vi.fn() },
     instructorApplication: { findMany: vi.fn(), findUnique: vi.fn() },
+    mentorship: { findMany: vi.fn() },
     recentEntityView: { findMany: vi.fn() },
   },
 }));
@@ -21,8 +22,13 @@ vi.mock("@/lib/applications/application-visibility", () => ({
   instructorApplicationVisibilityWhere: vi.fn(() => Promise.resolve({})),
 }));
 
+vi.mock("@/lib/mentorship-access", () => ({
+  getMentorshipAccessibleMenteeIds: vi.fn(() => Promise.resolve([] as string[] | null)),
+}));
+
 import { prisma } from "@/lib/prisma";
 import { instructorApplicationVisibilityWhere } from "@/lib/applications/application-visibility";
+import { getMentorshipAccessibleMenteeIds } from "@/lib/mentorship-access";
 import { runHelpAgentSearch } from "@/lib/help-agent/search";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 
@@ -59,6 +65,7 @@ beforeEach(() => {
     prisma.officerMeeting,
     prisma.actionItem,
     prisma.instructorApplication,
+    prisma.mentorship,
     prisma.recentEntityView,
   ]) {
     mock((model as { findMany: unknown }).findMany).mockResolvedValue([]);
@@ -66,6 +73,124 @@ beforeEach(() => {
   mock(prisma.searchDocument.count).mockResolvedValue(0);
   mock(prisma.searchDocument.findMany).mockResolvedValue([]);
   mock(instructorApplicationVisibilityWhere).mockResolvedValue({});
+  mock(getMentorshipAccessibleMenteeIds).mockResolvedValue([]);
+});
+
+const REL_ROW = {
+  id: "ms-1",
+  type: "INSTRUCTOR",
+  status: "ACTIVE",
+  menteeId: "u-mentee",
+  mentorId: "u-mentor",
+  chairId: null,
+  mentor: { name: "Morgan Mentor", email: "morgan@test.dev" },
+  mentee: { name: "Sam Mentee", email: "sam@test.dev" },
+};
+
+function mentorshipGroup(response: Awaited<ReturnType<typeof runHelpAgentSearch>>) {
+  return response.groups.find((g) => g.type === "mentorship");
+}
+
+describe("runHelpAgentSearch — mentorship relationships (privacy)", () => {
+  it("gives an admin every relationship with the admin URL", async () => {
+    mock(getMentorshipAccessibleMenteeIds).mockResolvedValue(null); // ADMIN — all
+    mock(prisma.mentorship.findMany).mockResolvedValue([REL_ROW]);
+
+    const res = await runHelpAgentSearch("morgan", OFFICER);
+    const group = mentorshipGroup(res);
+    expect(group?.items).toHaveLength(1);
+    expect(group?.items[0].href).toBe("/admin/mentorship/relationships/ms-1");
+    expect(group?.items[0].title).toBe("Morgan Mentor → Sam Mentee");
+
+    // Admin authorization places NO menteeId restriction on the query.
+    const where = mock(prisma.mentorship.findMany).mock.calls[0][0].where;
+    const authClause = where.AND[0];
+    expect(authClause).toEqual({});
+  });
+
+  it("gives an assigned mentor (member tier) their relationship with the mentor URL", async () => {
+    const mentor: ActionViewer = {
+      id: "u-mentor",
+      roles: ["INSTRUCTOR"],
+      primaryRole: "INSTRUCTOR",
+      adminSubtypes: [],
+    };
+    mock(getMentorshipAccessibleMenteeIds).mockResolvedValue(["u-mentee"]);
+    mock(prisma.mentorship.findMany).mockResolvedValue([REL_ROW]);
+
+    const res = await runHelpAgentSearch("sam", mentor);
+    const group = mentorshipGroup(res);
+    expect(group?.items[0].href).toBe("/mentorship/mentees/u-mentee");
+
+    // Non-admin authorization scopes to the viewer's own relationships.
+    const where = mock(prisma.mentorship.findMany).mock.calls[0][0].where;
+    expect(where.AND[0].OR).toEqual(
+      expect.arrayContaining([
+        { mentorId: "u-mentor" },
+        { chairId: "u-mentor" },
+        { menteeId: "u-mentor" },
+        { menteeId: { in: ["u-mentee"] } },
+      ])
+    );
+  });
+
+  it("gives the mentee their own relationship with the /my-mentor URL", async () => {
+    const mentee: ActionViewer = {
+      id: "u-mentee",
+      roles: ["INSTRUCTOR"],
+      primaryRole: "INSTRUCTOR",
+      adminSubtypes: [],
+    };
+    mock(getMentorshipAccessibleMenteeIds).mockResolvedValue([]);
+    mock(prisma.mentorship.findMany).mockResolvedValue([REL_ROW]);
+
+    const res = await runHelpAgentSearch("morgan", mentee);
+    expect(mentorshipGroup(res)?.items[0].href).toBe("/my-mentor");
+  });
+
+  it("returns nothing to an unrelated viewer", async () => {
+    const stranger: ActionViewer = {
+      id: "u-stranger",
+      roles: ["INSTRUCTOR"],
+      primaryRole: "INSTRUCTOR",
+      adminSubtypes: [],
+    };
+    mock(getMentorshipAccessibleMenteeIds).mockResolvedValue([]);
+    mock(prisma.mentorship.findMany).mockResolvedValue([]); // authWhere matched nothing
+
+    const res = await runHelpAgentSearch("morgan", stranger);
+    expect(mentorshipGroup(res)).toBeUndefined();
+  });
+
+  it("re-checks index hits against live membership (the index can't widen access)", async () => {
+    // Index has a mentorship hit…
+    mock(prisma.searchDocument.count).mockResolvedValue(1);
+    mock(prisma.searchDocument.findMany).mockResolvedValue([
+      { entityId: "ms-1", title: "Morgan Mentor → Sam Mentee", subtitle: "Instructor · Active" },
+    ]);
+    // …but the per-viewer re-check authorizes none.
+    mock(getMentorshipAccessibleMenteeIds).mockResolvedValue([]);
+    mock(prisma.mentorship.findMany).mockResolvedValue([]);
+
+    const stranger: ActionViewer = {
+      id: "u-stranger",
+      roles: ["INSTRUCTOR"],
+      primaryRole: "INSTRUCTOR",
+      adminSubtypes: [],
+    };
+    const res = await runHelpAgentSearch("morgan", stranger);
+    expect(mentorshipGroup(res)).toBeUndefined();
+    // The re-check queried the live table by the index hit's id.
+    const where = mock(prisma.mentorship.findMany).mock.calls[0][0].where;
+    expect(where.AND[0]).toEqual({ id: { in: ["ms-1"] } });
+  });
+
+  it("produces a single result per relationship (no duplicate)", async () => {
+    mock(getMentorshipAccessibleMenteeIds).mockResolvedValue(null);
+    mock(prisma.mentorship.findMany).mockResolvedValue([REL_ROW]);
+    const res = await runHelpAgentSearch("mentee", OFFICER);
+    expect(mentorshipGroup(res)?.items).toHaveLength(1);
+  });
 });
 
 describe("runHelpAgentSearch — permission tiers", () => {

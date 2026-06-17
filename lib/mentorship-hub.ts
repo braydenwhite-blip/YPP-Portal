@@ -11,6 +11,11 @@ import {
 
 import { getMentorshipAccessibleMenteeIds } from "@/lib/mentorship-access";
 import { mentorshipRequiresMonthlyReflection } from "@/lib/mentorship-canonical";
+import {
+  mergeMentorshipActionFacts,
+  summarizeMentorshipActionFacts,
+  MENTORSHIP_ATTENTION_THRESHOLDS,
+} from "@/lib/mentorship/attention";
 import { prisma } from "@/lib/prisma";
 
 const MENTOR_ROLES = ["MENTOR", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as const;
@@ -617,9 +622,12 @@ export async function getMentorshipHubData(params: {
           },
           select: {
             id: true,
+            title: true,
+            status: true,
             relatedEntityId: true,
             deadlineStart: true,
             deadlineEnd: true,
+            mentorshipSessionId: true,
           },
         })
       : [];
@@ -634,12 +642,15 @@ export async function getMentorshipHubData(params: {
     canonicalOpenActionsByMentorship.set(action.relatedEntityId, list);
   }
 
+  const nowDate = new Date(now);
   const circles = mentorships.map((mentorship) => {
-    const canonicalActions =
-      canonicalOpenActionsByMentorship.get(mentorship.id) ?? [];
-    const unlinkedLegacyActions = mentorship.actionItems.filter((item) => {
-      return !item.linkedActionId;
-    });
+    // ONE canonical merge (ActionItem + unlinked legacy, no double-count) feeds
+    // both the open and overdue counts — no more per-surface merge logic.
+    const openActions = mergeMentorshipActionFacts(
+      canonicalOpenActionsByMentorship.get(mentorship.id) ?? [],
+      mentorship.actionItems
+    );
+    const actionSummary = summarizeMentorshipActionFacts(openActions, nowDate);
     const nextSession =
       mentorship.sessions.find(
         (session) => !session.completedAt && session.scheduledAt.getTime() >= now
@@ -649,11 +660,7 @@ export async function getMentorshipHubData(params: {
     const daysSinceContact = latestSession
       ? Math.floor((now - latestSession.completedAt!.getTime()) / (1000 * 60 * 60 * 24))
       : null;
-    const overdueActions =
-      canonicalActions.filter(
-        (item) => (item.deadlineEnd ?? item.deadlineStart).getTime() < now
-      ).length +
-      unlinkedLegacyActions.filter((item) => item.dueAt && item.dueAt.getTime() < now).length;
+    const overdueActions = actionSummary.overdue;
     const needsReflection =
       mentorshipRequiresMonthlyReflection({
         programGroup: mentorship.programGroup,
@@ -682,7 +689,7 @@ export async function getMentorshipHubData(params: {
       needsReflection,
       pendingRequests,
       reviewStatus: currentReview?.status ?? null,
-      openActionItems: canonicalActions.length + unlinkedLegacyActions.length,
+      openActionItems: actionSummary.open,
       highlightedResources: mentorship.resources,
     };
   });
@@ -690,7 +697,9 @@ export async function getMentorshipHubData(params: {
   const relationshipHealth = {
     circlesWithNoUpcomingSession: circles.filter((circle) => !circle.nextSession).length,
     staleCircles: circles.filter(
-      (circle) => circle.daysSinceContact == null || circle.daysSinceContact > 21
+      (circle) =>
+        circle.daysSinceContact == null ||
+        circle.daysSinceContact > MENTORSHIP_ATTENTION_THRESHOLDS.checkInOverdueDays
     ).length,
     lowSupportCoverage: circles.filter((circle) => circle.supportCount < 2).length,
   };
@@ -1251,7 +1260,9 @@ export async function getMentorshipResourceLibrary(params: {
 
 export async function getMentorshipGovernanceSnapshot() {
   const now = Date.now();
-  const threeWeeksAgo = new Date(now - 21 * 24 * 60 * 60 * 1000);
+  const threeWeeksAgo = new Date(
+    now - MENTORSHIP_ATTENTION_THRESHOLDS.checkInOverdueDays * 24 * 60 * 60 * 1000
+  );
 
   const [mentorships, openRequests, resources] = await Promise.all([
     prisma.mentorship.findMany({

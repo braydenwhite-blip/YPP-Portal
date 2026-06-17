@@ -126,13 +126,21 @@ function MentorshipSection({ panel }: { panel: Entity360MentorshipPanel }) {
     <Section title={`Mentorship (${panel.pairings.length})`}>
       <div className="e360-item-list">
         {panel.pairings.map((p) => {
+          const openLabel =
+            p.openNextSteps > 0
+              ? `${p.openNextSteps} open next step${p.openNextSteps === 1 ? "" : "s"}${
+                  p.overdueNextSteps > 0 ? ` (${p.overdueNextSteps} overdue)` : ""
+                }${p.blocked ? " · blocked" : ""}`
+              : null;
           const meta = [
             p.role === "mentee" ? `Mentor: ${p.partnerName}` : `Mentee: ${p.partnerName}`,
-            p.nextFocus,
-            p.openCommitments > 0
-              ? `${p.openCommitments} open commitment${p.openCommitments === 1 ? "" : "s"}`
-              : null,
-            p.nextSessionISO ? `Next session ${fmtDay(p.nextSessionISO)}` : null,
+            p.attentionReason,
+            openLabel,
+            p.nextSessionISO
+              ? `Next check-in ${fmtDay(p.nextSessionISO)}`
+              : p.lastCheckInISO
+                ? `Last check-in ${fmtDay(p.lastCheckInISO)}`
+                : null,
           ]
             .filter(Boolean)
             .join(" · ");
