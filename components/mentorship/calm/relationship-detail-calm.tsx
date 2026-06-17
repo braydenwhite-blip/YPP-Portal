@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
   PrimaryFocusCard,
   SimpleListCard,
@@ -53,6 +55,7 @@ export function RelationshipDetailCalm({
   goalsEmpty = "No active goals on file yet.",
   commitments,
   commitmentsEmpty = "No open commitments right now.",
+  commitmentsSlot,
   recentSession,
 }: {
   status: { label: string; tone: StatusTone };
@@ -62,6 +65,13 @@ export function RelationshipDetailCalm({
   goalsEmpty?: string;
   commitments: CalmDetailFact[];
   commitmentsEmpty?: string;
+  /**
+   * When provided, replaces the static commitments list with a richer
+   * (interactive) surface — e.g. the Phase 7 `CommitmentsCalm` with complete /
+   * convert-to-Action CTAs. `commitments` is still used as the read-only
+   * fallback when this is omitted (admin / mentee-safe views).
+   */
+  commitmentsSlot?: ReactNode;
   /** Latest completed session — title + a friendly when-label. Mentee-safe. */
   recentSession?: { title: string; whenLabel: string } | null;
 }) {
@@ -104,18 +114,20 @@ export function RelationshipDetailCalm({
           ))}
         </SimpleListCard>
 
-        <SimpleListCard
-          title="Open commitments"
-          empty={
-            commitments.length === 0 ? (
-              <p className="m-0 text-[12.5px] text-ink-muted">{commitmentsEmpty}</p>
-            ) : undefined
-          }
-        >
-          {commitments.map((commitment) => (
-            <CalmFactRow key={commitment.id} fact={commitment} />
-          ))}
-        </SimpleListCard>
+        {commitmentsSlot ?? (
+          <SimpleListCard
+            title="Open commitments"
+            empty={
+              commitments.length === 0 ? (
+                <p className="m-0 text-[12.5px] text-ink-muted">{commitmentsEmpty}</p>
+              ) : undefined
+            }
+          >
+            {commitments.map((commitment) => (
+              <CalmFactRow key={commitment.id} fact={commitment} />
+            ))}
+          </SimpleListCard>
+        )}
       </div>
     </div>
   );

@@ -2934,6 +2934,13 @@ model MentorshipActionItem {
   createdBy    User                       @relation("MentorshipActionItemsCreated", fields: [createdById], references: [id], onDelete: Cascade)
   dueAt        DateTime?
   completedAt  DateTime?
+  // Calm Mentorship (Phase 7): back-link to the org Action this commitment was
+  // bridged into, so the "convert to Action" one-click is idempotent (a second
+  // convert is a no-op). Nullable + backfill-free; cleared if the Action is
+  // dropped, in which case a fresh convert creates a new one. No FK — the org
+  // ActionItem links back via relatedEntityType:"MENTORSHIP", and this side
+  // tolerates a stale id (the read path treats a missing target as unlinked).
+  linkedActionId String?
   createdAt    DateTime                   @default(now())
   updatedAt    DateTime                   @updatedAt
 
@@ -2941,6 +2948,7 @@ model MentorshipActionItem {
   @@index([menteeId, status])
   @@index([ownerId, status])
   @@index([sessionId])
+  @@index([linkedActionId])
 }
 
 // ============================================

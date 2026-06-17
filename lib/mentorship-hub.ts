@@ -766,6 +766,7 @@ export async function getSupportWorkspaceData(params: {
             createdBy: { select: { id: true, name: true } },
             dueAt: true,
             completedAt: true,
+            linkedActionId: true,
             createdAt: true,
             updatedAt: true,
           },

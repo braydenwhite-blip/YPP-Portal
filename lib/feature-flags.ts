@@ -109,17 +109,18 @@ export function isProvisionalClockEnabled(): boolean {
 }
 
 /**
- * Mentorship 2.0 (Action Tracker 3.0, Phase M1). Gates the mentor expertise
- * taxonomy editor, mentee application intake, and the COMPLETE -> Alumni
- * transition surfaces. The schema/migration ship regardless of this flag; the
- * flag gates the runtime pages and server actions added in this phase.
+ * Mentorship 2.0 (Action Tracker 3.0). Gates the mentor expertise taxonomy
+ * editor, the mentee application intake → scored matching → pair flow, and the
+ * COMPLETE -> Alumni transition surfaces. The schema/migration ship regardless
+ * of this flag; the flag gates the runtime pages and server actions.
  *
- * Defaults OFF — set `ENABLE_MENTORSHIP_2=true` to expose the surfaces. With the
- * flag off, the new server actions throw and the new pages return notFound(), so
- * existing mentorship behavior is unchanged.
+ * Defaults ON as of Calm Mentorship Phase 9 (the intake→match→pair flow is
+ * calm-ified and verified) — set `ENABLE_MENTORSHIP_2=false` as a kill-switch
+ * to hide the application/matching/expertise surfaces and make their server
+ * actions throw. Rollback for the production exposure is exactly that env flip.
  */
 export function isMentorship2Enabled(): boolean {
-  return process.env.ENABLE_MENTORSHIP_2 === "true";
+  return process.env.ENABLE_MENTORSHIP_2 !== "false";
 }
 
 /**

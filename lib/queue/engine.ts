@@ -53,7 +53,19 @@ export type QueueEngine = {
   triageGroups: TriageGroup[];
 };
 
-export function buildQueueEngine(data: WorkHubData, now: Date): QueueEngine {
+export function buildQueueEngine(
+  data: WorkHubData,
+  now: Date,
+  options: {
+    /**
+     * Mentorship loops (Phase 10) folded in alongside the Work Hub loops. The
+     * server loader builds these from canonical mentorship state; pure callers
+     * (tests) may omit them. Ranked together so a mentor's review-due sits in
+     * the same worst-first order as their overdue actions.
+     */
+    mentorshipItems?: QueueItem[];
+  } = {}
+): QueueEngine {
   const workItems = [...data.rows, ...data.meetingRows].map((row) =>
     queueItemFromWorkHubRow(row, now)
   );
@@ -63,7 +75,12 @@ export function buildQueueEngine(data: WorkHubData, now: Date): QueueEngine {
   const decisionItems = data.decisionsWithoutActions.map(queueItemFromDecision);
 
   const items = rankQueueItems(
-    [...workItems, ...initiativeItems, ...decisionItems],
+    [
+      ...workItems,
+      ...initiativeItems,
+      ...decisionItems,
+      ...(options.mentorshipItems ?? []),
+    ],
     now
   );
 

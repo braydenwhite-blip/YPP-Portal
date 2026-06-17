@@ -25,10 +25,19 @@ vi.mock("@/lib/mentorship-access", () => ({
   hasMentorshipMenteeAccess: vi.fn(),
 }));
 
+vi.mock("@/lib/feature-flags", () => ({
+  isActionTrackerEnabled: vi.fn(() => true),
+}));
+
+vi.mock("@/lib/people-strategy/action-items-actions", () => ({
+  createActionItem: vi.fn(),
+}));
+
 import { prisma } from "@/lib/prisma";
 import {
   createMentorshipSession,
   createMentorshipActionItem,
+  convertMentorshipCommitmentToAction,
   promoteMentorshipResponseToResource,
   respondToMentorshipRequest,
   setMentorTag,
@@ -36,6 +45,7 @@ import {
 } from "@/lib/mentorship-hub-actions";
 import { getMentorshipRoleFlags } from "@/lib/mentorship-hub";
 import { hasMentorshipMenteeAccess } from "@/lib/mentorship-access";
+import { createActionItem } from "@/lib/people-strategy/action-items-actions";
 
 describe("mentorship-hub-actions", () => {
   beforeEach(() => {
@@ -70,6 +80,11 @@ describe("mentorship-hub-actions", () => {
     };
     (prisma as any).mentorshipActionItem = {
       create: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    };
+    (prisma as any).actionItem = {
+      findUnique: vi.fn(),
     };
     (prisma as any).mentorshipSession = {
       create: vi.fn(),
@@ -164,6 +179,66 @@ describe("mentorship-hub-actions", () => {
         createdById: "mentor-2",
       }),
     });
+  });
+
+  it("bridges a commitment into exactly one linked org Action", async () => {
+    (prisma as any).mentorshipActionItem.findUnique.mockResolvedValue({
+      id: "commit-1",
+      menteeId: "student-1",
+      mentorshipId: "mentorship-1",
+      ownerId: "student-1",
+      title: "Send the workshop outline",
+      details: "Bring a five-slide draft.",
+      dueAt: new Date("2026-06-30T00:00:00.000Z"),
+      linkedActionId: null,
+    });
+    vi.mocked(createActionItem).mockResolvedValue({ id: "action-1" } as any);
+
+    const formData = new FormData();
+    formData.set("itemId", "commit-1");
+
+    const result = await convertMentorshipCommitmentToAction(formData);
+
+    expect(createActionItem).toHaveBeenCalledTimes(1);
+    expect(createActionItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Send the workshop outline",
+        leadId: "student-1",
+        relatedEntityType: "MENTORSHIP",
+        relatedEntityId: "mentorship-1",
+      })
+    );
+    expect((prisma as any).mentorshipActionItem.update).toHaveBeenCalledWith({
+      where: { id: "commit-1" },
+      data: { linkedActionId: "action-1" },
+    });
+    expect(result).toEqual({ id: "action-1", created: true });
+  });
+
+  it("is a no-op when the commitment is already linked to a live Action", async () => {
+    (prisma as any).mentorshipActionItem.findUnique.mockResolvedValue({
+      id: "commit-1",
+      menteeId: "student-1",
+      mentorshipId: "mentorship-1",
+      ownerId: null,
+      title: "Draft the deck",
+      details: null,
+      dueAt: null,
+      linkedActionId: "action-1",
+    });
+    (prisma as any).actionItem.findUnique.mockResolvedValue({
+      id: "action-1",
+      status: "IN_PROGRESS",
+    });
+
+    const formData = new FormData();
+    formData.set("itemId", "commit-1");
+
+    const result = await convertMentorshipCommitmentToAction(formData);
+
+    expect(createActionItem).not.toHaveBeenCalled();
+    expect((prisma as any).mentorshipActionItem.update).not.toHaveBeenCalled();
+    expect(result).toEqual({ id: "action-1", created: false });
   });
 
   it("syncs kickoff milestones when a completed kickoff session is logged", async () => {

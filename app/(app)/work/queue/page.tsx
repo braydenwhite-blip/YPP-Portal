@@ -9,6 +9,7 @@ import {
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
 import { loadWorkHub } from "@/lib/work/work-hub";
+import { loadMentorshipQueueItems } from "@/lib/queue/mentorship-load";
 
 export const dynamic = "force-dynamic";
 
@@ -38,8 +39,11 @@ export default async function QueueRunnerPage({
   const key: QueueKey = isQueueKey(queueParam) ? queueParam : "my";
 
   const now = new Date();
-  const data = await loadWorkHub(viewer, { now });
-  const engine = buildQueueEngine(data, now);
+  const [data, mentorshipItems] = await Promise.all([
+    loadWorkHub(viewer, { now }),
+    loadMentorshipQueueItems(viewer, now),
+  ]);
+  const engine = buildQueueEngine(data, now, { mentorshipItems });
   const items = getEngineQueue(engine, key, now);
 
   return (
