@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { getSchedulePageData } from "@/lib/mentorship-scheduling-actions";
-import ScheduleClient from "../../my-program/schedule/schedule-client";
+import { ScheduleSurface } from "./schedule-surface";
 
 export const metadata = { title: "Mentor Schedule — YPP Mentorship" };
 
@@ -14,5 +14,5 @@ export default async function MentorshipSchedulePage() {
 
   const data = await getSchedulePageData();
 
-  return <ScheduleClient data={data} />;
+  return <ScheduleSurface data={data} />;
 }

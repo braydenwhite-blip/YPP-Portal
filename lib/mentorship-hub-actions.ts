@@ -549,6 +549,56 @@ export async function createMentorshipSession(formData: FormData) {
   revalidatePath("/admin/mentorship");
 }
 
+/**
+ * Live capture (Calm Mentorship, Phase 5) — save an in-progress session's
+ * agenda, running notes, and attendance without completing it. Writes only to
+ * existing `MentorshipSession` fields; attendance is additive so re-saving never
+ * drops someone already marked present. Notes stay private (mentor / circle).
+ */
+export async function recordMentorshipSessionCapture(formData: FormData) {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  const userId = session.user.id;
+  const sessionId = getString(formData, "sessionId");
+  const menteeId = getString(formData, "menteeId");
+
+  if (!(await canSupportMentee(userId, roles, menteeId))) {
+    throw new Error("Unauthorized");
+  }
+
+  const existing = await prisma.mentorshipSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, menteeId: true, attendedIds: true },
+  });
+  if (!existing || existing.menteeId !== menteeId) {
+    throw new Error("Session not found for this mentee.");
+  }
+
+  const agenda = getString(formData, "agenda", false);
+  const notes = getString(formData, "notes", false);
+  const menteeAttended = getString(formData, "menteeAttended", false) === "true";
+
+  const attended = new Set(existing.attendedIds);
+  if (menteeAttended) {
+    attended.add(menteeId);
+    attended.add(userId);
+  } else {
+    attended.delete(menteeId);
+  }
+
+  await prisma.mentorshipSession.update({
+    where: { id: sessionId },
+    data: {
+      agenda: agenda || null,
+      notes: notes || null,
+      attendedIds: Array.from(attended),
+    },
+  });
+
+  revalidatePath(`/mentorship/mentees/${menteeId}`);
+  revalidatePath("/mentorship");
+}
+
 export async function createMentorshipActionItem(formData: FormData) {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];

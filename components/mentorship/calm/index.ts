@@ -6,3 +6,5 @@ export {
   type CalmDetailFact,
   type CalmDetailFocus,
 } from "./relationship-detail-calm";
+export { SessionFocusCard } from "./session-focus-card";
+export { SessionPrepChecklist } from "./session-prep-checklist";

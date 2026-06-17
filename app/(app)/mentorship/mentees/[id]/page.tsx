@@ -50,6 +50,7 @@ import {
   type CalmDetailFocus,
 } from "@/components/mentorship/calm";
 import type { StatusTone } from "@/components/ui-v2";
+import { SessionLiveCapture } from "../../_components/session-live-capture";
 
 /** Plain-language cycle labels for the Calm relationship summary. */
 const CALM_CYCLE_LABEL: Record<string, string> = {
@@ -167,6 +168,7 @@ export default async function MenteeDetailPage({
   const upcomingSessions = workspace.sessions.filter(
     (item) => !item.completedAt && item.scheduledAt.getTime() >= Date.now()
   );
+  const nextUpcomingSession = upcomingSessions[0] ?? null;
   const recentSessions = workspace.sessions.filter((item) => item.completedAt).slice(0, 4);
   const openActionItems = workspace.actionItems.filter((item) => item.status !== "COMPLETE");
   const overdueActionItems = openActionItems.filter(
@@ -461,6 +463,19 @@ export default async function MenteeDetailPage({
           />
           <ReviewSpine cycles={reviewSpineCycles} title="Cycle timeline" />
         </>
+      )}
+
+      {canScheduleSessions && nextUpcomingSession && (
+        <div style={{ marginBottom: 24, display: "grid", gap: 12 }}>
+          <SessionLiveCapture
+            sessionId={nextUpcomingSession.id}
+            menteeId={workspace.mentee.id}
+            sessionTitle={nextUpcomingSession.title}
+            defaultAgenda={nextUpcomingSession.agenda}
+            defaultNotes={nextUpcomingSession.notes}
+            menteeAttended={nextUpcomingSession.attendedIds.includes(workspace.mentee.id)}
+          />
+        </div>
       )}
 
       {!workspace.mentorship && !workspace.intakePlanLaunch ? (
