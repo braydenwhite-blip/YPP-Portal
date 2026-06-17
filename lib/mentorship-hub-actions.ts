@@ -31,6 +31,8 @@ import {
 } from "@/lib/mentorship-access";
 import { prisma } from "@/lib/prisma";
 import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
+import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { createActionItem } from "@/lib/people-strategy/action-items-actions";
 
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
@@ -794,6 +796,89 @@ export async function updateMentorshipActionItemStatus(formData: FormData) {
   revalidatePath(`/mentorship/mentees/${item.menteeId}`);
   revalidatePath("/my-mentor");
   revalidatePath("/my-program");
+}
+
+/**
+ * Calm Mentorship (Phase 7) — bridge an in-relationship commitment into the
+ * org-wide Action Tracker, so a follow-up that needs cross-team visibility is
+ * tracked in exactly one place instead of two. Idempotent: once a commitment
+ * carries a `linkedActionId` pointing at a live Action, a repeat convert is a
+ * no-op. It reuses `createActionItem`, which enforces its own tracker gate +
+ * create permission and stamps `relatedEntityType:"MENTORSHIP"` — so there's no
+ * duplicate tracking logic here. Requires support/manage access to the mentee
+ * and a commitment on an active mentorship.
+ */
+export async function convertMentorshipCommitmentToAction(formData: FormData) {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  const userId = session.user.id;
+  const itemId = getString(formData, "itemId");
+
+  if (!isActionTrackerEnabled()) {
+    throw new Error("Action Tracker is not enabled");
+  }
+
+  const item = await prisma.mentorshipActionItem.findUnique({
+    where: { id: itemId },
+    select: {
+      id: true,
+      menteeId: true,
+      mentorshipId: true,
+      ownerId: true,
+      title: true,
+      details: true,
+      dueAt: true,
+      linkedActionId: true,
+    },
+  });
+  if (!item) {
+    throw new Error("Action item not found");
+  }
+  if (!item.mentorshipId) {
+    throw new Error("Only commitments on an active mentorship can become tracked Actions.");
+  }
+  if (!(await canManageMentee(userId, roles, item.menteeId))) {
+    throw new Error("Unauthorized");
+  }
+
+  // Idempotent: a commitment already linked to a live Action stays linked. A
+  // dropped Action reads as unlinked, so a fresh convert is allowed.
+  if (item.linkedActionId) {
+    const existing = await prisma.actionItem.findUnique({
+      where: { id: item.linkedActionId },
+      select: { id: true, status: true },
+    });
+    if (existing && existing.status !== "DROPPED") {
+      return { id: existing.id, created: false };
+    }
+  }
+
+  // Lead is the commitment owner when one is set, else the converting mentor —
+  // a valid User either way (createActionItem re-validates existence + the
+  // related-entity link, and applies the org create-permission policy).
+  const leadId = item.ownerId ?? userId;
+  const today = new Date().toISOString().slice(0, 10);
+  const created = await createActionItem({
+    title: item.title,
+    description: item.details ?? undefined,
+    leadId,
+    deadlineStart: today,
+    deadlineEnd: item.dueAt ? item.dueAt.toISOString().slice(0, 10) : undefined,
+    relatedEntityType: "MENTORSHIP",
+    relatedEntityId: item.mentorshipId,
+    sourceType: "ENTITY",
+  });
+
+  await prisma.mentorshipActionItem.update({
+    where: { id: item.id },
+    data: { linkedActionId: created.id },
+  });
+
+  revalidatePath("/mentorship");
+  revalidatePath(`/mentorship/mentees/${item.menteeId}`);
+  revalidatePath("/my-mentor");
+  revalidatePath("/actions");
+  return { id: created.id, created: true };
 }
 
 export async function createMentorshipRequest(formData: FormData) {

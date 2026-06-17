@@ -45,7 +45,9 @@ import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { LinkedActionsPanel } from "@/components/people-strategy/linked-actions-panel";
 import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
 import {
+  CommitmentsCalm,
   RelationshipDetailCalm,
+  type CalmCommitment,
   type CalmDetailFact,
   type CalmDetailFocus,
 } from "@/components/mentorship/calm";
@@ -244,6 +246,19 @@ export default async function MenteeDetailPage({
         : null,
   }));
 
+  // Phase 7: the interactive commitments surface — complete or bridge each
+  // commitment into the org Action Tracker (one click, idempotent). Only the
+  // mentor side (canManageActionPlan) gets the actionable variant; the mentee's
+  // self-view falls back to the read-only list inside RelationshipDetailCalm.
+  const calmCommitmentItems: CalmCommitment[] = openActionItems.slice(0, 6).map((item) => ({
+    id: item.id,
+    title: item.title,
+    ownerName: item.owner?.name ?? null,
+    dueLabel: item.dueAt ? `Due ${new Date(item.dueAt).toLocaleDateString()}` : null,
+    overdue: Boolean(item.dueAt && item.dueAt.getTime() < Date.now()),
+    linked: Boolean(item.linkedActionId),
+  }));
+
   let calmFocus: CalmDetailFocus;
   if (!canScheduleSessions) {
     calmFocus = {
@@ -298,6 +313,14 @@ export default async function MenteeDetailPage({
       focus={calmFocus}
       goals={calmGoals}
       commitments={calmCommitments}
+      commitmentsSlot={
+        canManageActionPlan ? (
+          <CommitmentsCalm
+            commitments={calmCommitmentItems}
+            canConvert={canCreateTrackerAction && isActionTrackerEnabled()}
+          />
+        ) : undefined
+      }
       recentSession={
         recentSessions[0]?.completedAt
           ? {
