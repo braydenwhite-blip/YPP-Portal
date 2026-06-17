@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
@@ -139,7 +139,7 @@ function MeetingTrackerFocus({ cards, now }: { cards: MeetingCardDTO[]; now: Dat
         icon="check"
         tone="success"
         ctaLabel="Schedule a meeting"
-        ctaHref="/actions/meetings?new=1"
+        ctaHref="/actions/meetings/new"
       />
     );
   }
@@ -200,6 +200,18 @@ export default async function WeeklyCommandCenterPage({
 
   const now = new Date();
   const sp = (await searchParams) ?? {};
+
+  if (sp.new === "1") {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(sp)) {
+      if (key === "new" || key === "week") continue;
+      const v = Array.isArray(value) ? value[0] : value;
+      if (v) params.set(key, v);
+    }
+    const qs = params.toString();
+    redirect(qs ? `/actions/meetings/new?${qs}` : "/actions/meetings/new");
+  }
+
   const weekOffset = parseWeekOffset(sp.week);
   const { start, end } = weekRangeForOffset(weekOffset, now);
 
@@ -362,7 +374,7 @@ export default async function WeeklyCommandCenterPage({
   );
 
   const strip: SimpleAction[] = [
-    { label: "New meeting", href: "/actions/meetings?new=1", icon: "calendar", primary: true },
+    { label: "New meeting", href: "/actions/meetings/new", icon: "calendar", primary: true },
     { label: "Previous week", href: `/actions/meetings?week=${weekOffset - 1}`, icon: "arrowRight" },
     { label: "Next week", href: `/actions/meetings?week=${weekOffset + 1}`, icon: "arrowRight" },
   ];

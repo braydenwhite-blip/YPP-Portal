@@ -188,12 +188,11 @@ describe("meeting prefill builders", () => {
     expect(p.relatedId).toBe("cls1");
   });
 
-  it("serializes a meeting prefill to an auto-open href", () => {
+  it("serializes a meeting prefill to the new-meeting page href", () => {
     const href = meetingPrefillToQuery(
       buildMeetingPrefillFromEntity({ type: "PARTNER", id: "p1", label: "Lincoln HS" })
     );
-    expect(href).toContain("/actions/meetings?");
-    expect(href).toContain("new=1");
+    expect(href).toContain("/actions/meetings/new?");
     expect(href).toContain("relatedType=PARTNER");
     expect(href).toContain("relatedId=p1");
     expect(href).toContain("area=PARTNERSHIPS");

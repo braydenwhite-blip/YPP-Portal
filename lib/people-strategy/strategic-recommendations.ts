@@ -232,7 +232,7 @@ export function deriveInitiativeRecommendations(
           ? "No meeting on record while work is open."
           : `No meeting in ${signals.daysSinceLastMeeting} days.`,
       severity: "watch",
-      href: "/actions/meetings?new=1",
+      href: "/actions/meetings/new",
       score: 50,
     });
   }

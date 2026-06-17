@@ -499,13 +499,12 @@ export const MEETING_PREFILL_PARAM_KEYS = {
   area: "area",
 } as const;
 
-/** Serialize a meeting prefill to a `/actions/meetings?new=1&…` href. */
+/** Serialize a meeting prefill to a `/actions/meetings/new?…` href. */
 export function meetingPrefillToQuery(
   prefill: MeetingPrefillSpec,
-  base = "/actions/meetings"
+  base = "/actions/meetings/new"
 ): string {
   const params = new URLSearchParams();
-  params.set("new", "1");
   const k = MEETING_PREFILL_PARAM_KEYS;
   if (prefill.relatedType && prefill.relatedId) {
     params.set(k.relatedType, prefill.relatedType);

@@ -5,6 +5,8 @@ import "./ui-v2.css";
 import type { Metadata, Viewport } from "next";
 import { Inter, EB_Garamond } from "next/font/google";
 
+import { MotionInitScript } from "@/components/motion-init-script";
+
 // Professional two-font system. We keep the original CSS variable names
 // (--font-dm-sans / --font-nunito / --font-playfair / --font-lora) so the
 // rest of the design system needs no changes — we simply repoint the
@@ -63,16 +65,10 @@ export default function RootLayout({
 }) {
   const fontVars = `${inter.variable} ${ebGaramond.variable} ${interLabel.variable} ${ebGaramondAlt.variable}`;
 
-  // Apply the saved motion preference before first paint so a forced "always
-  // on" choice never flashes a reduced-motion frame. Mirrors lib/motion-preference.ts.
-  const motionInit = `(function(){try{if(localStorage.getItem('ypp-motion-pref')==='on'){document.documentElement.setAttribute('data-motion','on');}}catch(e){}})();`;
-
   return (
     <html lang="en" className={fontVars}>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: motionInit }} />
-      </head>
       <body suppressHydrationWarning>
+        <MotionInitScript />
         {children}
       </body>
     </html>

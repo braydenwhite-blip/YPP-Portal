@@ -216,8 +216,8 @@ export default async function PeoplePage({
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {canUseAdminPeopleTools ? (
-              <ButtonLink href="/admin/bulk-users" variant="secondary" size="sm">
-                Add person
+              <ButtonLink href="/people/find" variant="secondary" size="sm">
+                Find or add person
               </ButtonLink>
             ) : null}
             <CommandModeToggle />

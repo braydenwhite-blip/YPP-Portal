@@ -383,7 +383,7 @@ export function LeadershipHomeExecutive({
               <ButtonLink href="/actions/new" size="sm">
                 Create action
               </ButtonLink>
-              <ButtonLink href="/actions/meetings?new=1" size="sm">
+              <ButtonLink href="/actions/meetings/new" size="sm">
                 Log meeting
               </ButtonLink>
               <ButtonLink href="/work" size="sm">

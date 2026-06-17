@@ -96,7 +96,7 @@ export default async function PartnersPage({
               <ButtonLink href="/admin/partners/report" variant="ghost" size="md">
                 Report
               </ButtonLink>
-              <ButtonLink href="/admin/partners" variant="secondary" size="md">
+              <ButtonLink href="/partners/new" variant="secondary" size="md">
                 Add partner
               </ButtonLink>
             </>
