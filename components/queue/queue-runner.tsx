@@ -182,7 +182,15 @@ export function QueueRunner({
           <span className="shrink-0 text-[12.5px] font-bold uppercase tracking-[0.06em] text-brand-700">
             {queueLabel}
           </span>
-          <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-brand-100">
+          <div
+            className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-brand-100"
+            role="progressbar"
+            aria-label={`${queueLabel} progress`}
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuetext={`${resolvedCount} resolved, ${total} left`}
+          >
             <div
               className="h-full rounded-full bg-brand-600 transition-[width] duration-300 ease-out motion-reduce:transition-none"
               style={{ width: `${progress}%` }}

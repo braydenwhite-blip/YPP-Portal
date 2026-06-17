@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  CalmCollapse,
   CalmOnly,
   CommandModeProvider,
   CommandModeToggle,
@@ -145,6 +146,40 @@ describe("CommandModeProvider — global view mode", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Executive" }));
     expect(screen.queryByText("calm-content")).not.toBeInTheDocument();
     expect(screen.getByText("executive-content")).toBeInTheDocument();
+  });
+
+  it("CalmCollapse hides detail in Calm but renders it inline in Executive", () => {
+    render(
+      <CommandModeProvider initialMode="calm">
+        <CommandModeToggle />
+        <CalmCollapse label="Full cockpit">
+          <span>dense-detail</span>
+        </CalmCollapse>
+      </CommandModeProvider>
+    );
+    // Calm: the detail lives inside a closed <details> (present but not open).
+    const summary = screen.getByText("Full cockpit");
+    const details = summary.closest("details");
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute("open");
+
+    // Executive: no disclosure chrome — the detail renders inline.
+    fireEvent.click(screen.getByRole("radio", { name: "Executive" }));
+    expect(screen.queryByText("Full cockpit")).not.toBeInTheDocument();
+    expect(screen.getByText("dense-detail")).toBeInTheDocument();
+  });
+
+  it("CalmCollapse defaultOpen starts the disclosure expanded in Calm", () => {
+    render(
+      <CommandModeProvider initialMode="calm">
+        <CalmCollapse label="Full cockpit" defaultOpen>
+          <span>dense-detail</span>
+        </CalmCollapse>
+      </CommandModeProvider>
+    );
+    const details = screen.getByText("Full cockpit").closest("details");
+    expect(details).toHaveAttribute("open");
+    expect(screen.getByText("dense-detail")).toBeInTheDocument();
   });
 
   it("syncs across tabs via the storage event", () => {

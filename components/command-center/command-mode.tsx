@@ -177,20 +177,30 @@ export function CalmOnly({ children }: { children: ReactNode }) {
  * disclosure (advanced panels hidden until asked for); in Executive mode they
  * render inline. Keeps Calm to a single focus + a few supporting items while
  * keeping everything one click away.
+ *
+ * `defaultOpen` starts the disclosure expanded (still toggleable). Use it when a
+ * Calm surface deep-links into its own demoted detail — e.g. a triage card that
+ * jumps to a specific tab — so the target is visible on arrival instead of
+ * hidden behind "Show".
  */
 export function CalmCollapse({
   label,
   hint,
   children,
+  defaultOpen = false,
 }: {
   label: string;
   hint?: string;
   children: ReactNode;
+  defaultOpen?: boolean;
 }) {
   const executive = useIsExecutive();
   if (executive) return <>{children}</>;
   return (
-    <details className="group rounded-[14px] border border-line-soft bg-surface/70 shadow-card [&_summary::-webkit-details-marker]:hidden">
+    <details
+      open={defaultOpen}
+      className="group rounded-[14px] border border-line-soft bg-surface/70 shadow-card [&_summary::-webkit-details-marker]:hidden"
+    >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
         <span className="flex items-center gap-2">
           <span className="text-[13.5px] font-bold text-ink">{label}</span>
