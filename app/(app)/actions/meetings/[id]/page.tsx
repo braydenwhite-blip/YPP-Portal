@@ -21,6 +21,7 @@ import { effectiveStatus } from "@/lib/people-strategy/action-filters";
 import {
   getMeetingById,
   getMeetingsForEntity,
+  listMeetingsInRange,
   mapMeetingToDetailDTO,
   meetingDisplayTitle,
   type MeetingDetailDTO,
@@ -119,6 +120,22 @@ export default async function MeetingDetailPage({
   };
   const meetingActions = await getActionsForMeeting(id, meetingViewer).catch(() => []);
   const preparedPresentations = await loadPreparedPresentationsForOfficerMeeting(id).catch(() => []);
+  const targetMeetingWindowEnd = new Date(now);
+  targetMeetingWindowEnd.setUTCDate(targetMeetingWindowEnd.getUTCDate() + 90);
+  const targetMeetingOptions = [
+    {
+      id: meeting.id,
+      title: meetingDisplayTitle(meeting),
+      dateISO: meeting.date.toISOString(),
+    },
+    ...(await listMeetingsInRange(startOfDay(now), targetMeetingWindowEnd).catch(() => []))
+      .filter((m) => m.id !== meeting.id)
+      .map((m) => ({
+        id: m.id,
+        title: meetingDisplayTitle(m),
+        dateISO: m.date.toISOString(),
+      })),
+  ];
   const followUpPack = deriveMeetingFollowUpPack(
     {
       decisions: meeting.decisions.map((d) => ({
@@ -260,6 +277,7 @@ export default async function MeetingDetailPage({
       <OfficerPreparedPresentationsPanel
         officerMeetingId={id}
         items={preparedPresentations}
+        targetMeetings={targetMeetingOptions}
       />
 
       <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
