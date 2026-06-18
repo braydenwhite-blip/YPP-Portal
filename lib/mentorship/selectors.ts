@@ -100,8 +100,13 @@ function candidate(
   };
 }
 
-function detailHref(role: MentorshipRole, relationshipId: string): string {
-  return role === "mentee" ? "/my-mentor" : `/mentorship/mentees/${relationshipId}`;
+function detailHref(role: MentorshipRole, menteeId: string): string {
+  // The `/mentorship/mentees/[id]` route resolves `[id]` as the mentee's USER
+  // id (RelationshipWorkspace looks the mentee up by it and calls notFound()
+  // otherwise). Pass `fact.menteeId`, never `fact.id` (the mentorship/relation
+  // id) — that mismatch 404s every Calm-mode roster row and focus CTA. Mirrors
+  // the canonical builder in lib/queue/from-mentorship.ts.
+  return role === "mentee" ? "/my-mentor" : `/mentorship/mentees/${menteeId}`;
 }
 
 function upcomingSession(fact: MentorshipRelationshipFact, now: Date) {
@@ -126,7 +131,7 @@ function candidatesForFact(
   const chairSide = role === "chair" || role === "admin" || viewer.userId === fact.chairId;
   const menteeSide = role === "mentee";
   const otherName = menteeSide ? fact.mentorName : fact.menteeName;
-  const href = detailHref(role, fact.id);
+  const href = detailHref(role, fact.menteeId);
   const out: FocusCandidate[] = [];
 
   if (mentorSide && fact.reviewChangesRequested) {
@@ -306,7 +311,7 @@ function toSummary(
     cycleStage: fact.cycleStage,
     cycleNumber: fact.cycleNumber,
     colorStatus: fact.releasedColorStatus,
-    href: detailHref(role, fact.id),
+    href: detailHref(role, fact.menteeId),
   };
 }
 
