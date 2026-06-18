@@ -30,9 +30,11 @@ async function createExpectationFromOfficerMeeting(formData: FormData) {
 export function OfficerPreparedPresentationsPanel({
   officerMeetingId,
   items,
+  targetMeetings,
 }: {
   officerMeetingId: string;
   items: PreparedItem[];
+  targetMeetings: Array<{ id: string; title: string; dateISO: string }>;
 }) {
   if (items.length === 0) return null;
   return (
@@ -54,6 +56,7 @@ export function OfficerPreparedPresentationsPanel({
             key={item.id}
             item={item}
             officerMeetingId={officerMeetingId}
+            targetMeetings={targetMeetings}
           />
         ))}
       </div>
@@ -64,9 +67,11 @@ export function OfficerPreparedPresentationsPanel({
 function PreparedPresentationCard({
   item,
   officerMeetingId,
+  targetMeetings,
 }: {
   item: PreparedItem;
   officerMeetingId: string;
+  targetMeetings: Array<{ id: string; title: string; dateISO: string }>;
 }) {
   const briefHref = `/operations/initiatives/${item.initiativeId}/teams/${item.workstreamId}/brief/${item.briefWeekKey}`;
   const acceptAction = acceptPreparedPresentationForOfficerMeeting.bind(null, {
@@ -164,7 +169,6 @@ function PreparedPresentationCard({
           <input type="hidden" name="workstreamId" value={item.workstreamId} />
           <input type="hidden" name="actionItemId" value={item.actionItemId ?? ""} />
           <input type="hidden" name="sourceMeetingId" value={officerMeetingId} />
-          <input type="hidden" name="targetOfficerMeetingId" value={officerMeetingId} />
           <input type="hidden" name="responsibleOwnerId" value={item.presenter?.id ?? ""} />
           <input type="hidden" name="presenterId" value={item.presenter?.id ?? ""} />
           <div className="grid gap-2 sm:grid-cols-[170px_1fr_150px]">
@@ -186,6 +190,17 @@ function PreparedPresentationCard({
               className="rounded-md border border-[var(--border)] px-2.5 py-2 text-sm"
             />
           </div>
+          <select
+            name="targetOfficerMeetingId"
+            defaultValue={officerMeetingId}
+            className="rounded-md border border-[var(--border)] px-2.5 py-2 text-sm"
+          >
+            {targetMeetings.map((meeting) => (
+              <option key={meeting.id} value={meeting.id}>
+                {meeting.title} · {meeting.dateISO.slice(0, 10)}
+              </option>
+            ))}
+          </select>
           <div className="grid gap-2 sm:grid-cols-2">
             <input
               name="requiredQuestion"
