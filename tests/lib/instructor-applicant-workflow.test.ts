@@ -73,6 +73,17 @@ vi.mock("@/lib/auth-supabase", () => ({
   getSession: vi.fn(),
 }));
 
+// Single-active-Chair gate: keep the real pure `canMakeFinalApplicantDecision`
+// helper and stub the active-Chair lookup to the session user used by the
+// chairDecide test ("chair-1"). Plain fn so it survives `vi.resetAllMocks()`.
+vi.mock("@/lib/active-chair", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/active-chair")>();
+  return {
+    ...actual,
+    getActiveChairUserId: async () => "chair-1",
+  };
+});
+
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));

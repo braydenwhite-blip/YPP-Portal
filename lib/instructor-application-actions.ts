@@ -43,11 +43,15 @@ import {
   getHiringActor,
   assertCanManageApplication,
   assertCanAssignInterviewers,
-  assertCanActAsChair,
   isAdmin,
   isChapterLead,
   isHiringChair,
 } from "@/lib/chapter-hiring-permissions";
+import {
+  canMakeFinalApplicantDecision,
+  getActiveChairUserId,
+  NON_CHAIR_DECISION_MESSAGE,
+} from "@/lib/active-chair";
 import { ApplicantWorkflowError } from "@/lib/applicant-workflow-error";
 import { shouldSendAssignmentNotification } from "@/lib/notification-policy";
 import { trackApplicantEvent } from "@/lib/telemetry";
@@ -2342,12 +2346,13 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
     }
 
     const actor = await getHiringActor(session.user.id);
-    try {
-      assertCanActAsChair(actor);
-    } catch (authErr) {
+    // Final-decision authority is the single active Chair — NOT a role. Only
+    // the user currently assigned as active Chair may commit a decision.
+    const activeChairId = await getActiveChairUserId();
+    if (!canMakeFinalApplicantDecision({ id: session.user.id }, activeChairId)) {
       return {
         success: false,
-        error: authErr instanceof Error ? authErr.message : "Unauthorized",
+        error: NON_CHAIR_DECISION_MESSAGE,
         code: "UNAUTHORIZED",
       };
     }
@@ -2952,8 +2957,9 @@ export async function rescindChairDecision(
       return { success: false, error: "Rescind reason exceeds the 2 000 character limit." };
     }
 
-    // RBAC: SUPER_ADMIN only. Pull the actor's adminSubtypes inline to avoid
-    // adding a heavy helper to the request path.
+    // RBAC: changing an existing final decision is a Chair power. The currently
+    // assigned active Chair may rescind their own decision; a SUPER_ADMIN is
+    // also allowed as an operational safety valve. Pull adminSubtypes inline.
     const actorRow = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -2963,10 +2969,12 @@ export async function rescindChairDecision(
     });
     if (!actorRow) return { success: false, error: "Actor not found." };
     const isSuper = actorRow.adminSubtypes.some((s) => s.subtype === "SUPER_ADMIN");
-    if (!isSuper) {
+    const activeChairId = await getActiveChairUserId();
+    const isActiveChair = canMakeFinalApplicantDecision({ id: session.user.id }, activeChairId);
+    if (!isActiveChair && !isSuper) {
       return {
         success: false,
-        error: "Only Super Admins can rescind chair decisions.",
+        error: "Only the currently assigned Chair (or a Super Admin) can change a final decision.",
       };
     }
 

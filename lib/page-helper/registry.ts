@@ -3815,6 +3815,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/instructor-applicants/chair-settings",
+    title: "Chair Assignment",
+    content: {
+      purpose: "This admin page designates the single active Chair — the only person who can submit or change a final applicant decision.",
+      firstStep: "Review the current Chair, then search the eligible Admins and Hiring Chairs to pick a replacement.",
+      nextStep: "Confirm the change to instantly transfer decision authority; every reassignment is recorded in the change history."
+    }
+  },
+  {
     pattern: "/admin/instructor-applicants/chair-queue",
     title: "Chair Decision Queue",
     content: {

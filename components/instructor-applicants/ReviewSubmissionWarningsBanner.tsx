@@ -17,6 +17,10 @@ const SAVE_NOTICES = new Set([
   "interview-review-saved",
 ]);
 
+const LOCKED_NOTICE = "initial-review-locked";
+const LOCKED_MESSAGE =
+  "Initial reviews are locked after the applicant advances to the interview stage.";
+
 function parseWarnings(raw: string | null | undefined): string[] {
   if (!raw) return [];
   try {
@@ -36,6 +40,51 @@ export default function ReviewSubmissionWarningsBanner({ notice, warningsJson }:
 
   const isSubmit = notice ? SUBMIT_NOTICES.has(notice) : false;
   const isSave = notice ? SAVE_NOTICES.has(notice) : false;
+  const isLocked = notice === LOCKED_NOTICE;
+
+  if (isLocked) {
+    return (
+      <div
+        role="alert"
+        className="review-submission-warnings-banner"
+        style={{
+          background: "#fef2f2",
+          border: "1px solid #fecaca",
+          borderRadius: 8,
+          padding: "12px 16px",
+          margin: "12px 0",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: "0 0 6px", fontWeight: 600, color: "#991b1b", fontSize: 14 }}>
+            Initial review locked
+          </p>
+          <p style={{ margin: 0, color: "#991b1b", fontSize: 13 }}>{LOCKED_MESSAGE}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setDismissed(true)}
+          aria-label="Dismiss"
+          style={{
+            flexShrink: 0,
+            background: "transparent",
+            border: "none",
+            color: "#991b1b",
+            fontSize: 18,
+            fontWeight: 700,
+            cursor: "pointer",
+            lineHeight: 1,
+            padding: "0 4px",
+          }}
+        >
+          ×
+        </button>
+      </div>
+    );
+  }
 
   if (!isSubmit && !isSave && warnings.length === 0) return null;
 

@@ -66,6 +66,12 @@ interface ApplicationReviewEditorProps {
   initialReview: ReviewSnapshot;
   roughPlan: RoughPlan;
   canEdit: boolean;
+  /**
+   * When set, explains why the editor is locked (e.g. the applicant advanced
+   * past the initial-review stage). Takes precedence over the generic
+   * already-submitted lock notice.
+   */
+  lockedReason?: string | null;
   isLeadReviewer: boolean;
   hasLeadInterviewer: boolean;
 }
@@ -103,6 +109,7 @@ export default function ApplicationReviewEditor({
   initialReview,
   roughPlan,
   canEdit,
+  lockedReason,
   isLeadReviewer,
   hasLeadInterviewer,
 }: ApplicationReviewEditorProps) {
@@ -164,7 +171,9 @@ export default function ApplicationReviewEditor({
       {!canEdit ? (
         <div className={EDITOR_NOTICE}>
           <p>
-            This screen is locked because it has already been submitted. An admin can still edit it if needed.
+            {lockedReason
+              ? lockedReason
+              : "This screen is locked because it has already been submitted. An admin can still edit it if needed."}
           </p>
         </div>
       ) : null}
