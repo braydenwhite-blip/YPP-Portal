@@ -50,6 +50,12 @@ enum AdminSubtype {
   CPO
 }
 
+/// Org authority ladders (Phase 3 of the Roles/Mentorship/Reviews/Access plan).
+enum OrgLadder {
+  INSTRUCTION
+  LEADERSHIP
+}
+
 enum WorkflowKind {
   INSTRUCTOR_APPLICATION
   CHAPTER_PRESIDENT_APPLICATION
@@ -227,6 +233,14 @@ enum MentorshipStatus {
   ACTIVE
   PAUSED
   COMPLETE
+}
+
+/// Whether a mentorship is for instruction development or organizational
+/// leadership — lets a person have different mentors for each (Phase 4 of the
+/// Roles/Mentorship/Reviews/Access plan). Null = general / unspecified.
+enum MentorshipFocusArea {
+  INSTRUCTION
+  LEADERSHIP
 }
 
 enum MentorshipPointCategory {
@@ -806,6 +820,17 @@ model User {
   chapterId    String?
   chapter      Chapter? @relation(fields: [chapterId], references: [id])
 
+  // Org authority spine (Phase 3 of the Roles/Mentorship/Reviews/Access plan).
+  // All additive + nullable. `resolvePersonAuthority` (lib/org/levels.ts) reads
+  // these first and otherwise derives them from primaryRole/title/adminSubtypes,
+  // so existing rows keep working until the backfill populates them.
+  internalLevel        Int?
+  ladder               OrgLadder?
+  canonicalTitle       String?
+  cohortId             String?
+  cohort               Cohort?               @relation(fields: [cohortId], references: [id])
+  committeeMemberships CommitteeMembership[] @relation("CommitteeMembershipUser")
+
   // Existing relations
   roles                                    UserRole[]
   courses                                  Course[]                                 @relation("InstructorCourses")
@@ -841,6 +866,13 @@ model User {
   mentorAvailabilityOverrides              MentorAvailabilityOverride[]             @relation("MentorAvailabilityOverrides")
   menteePairs                              Mentorship[]                             @relation("MenteeLinks")
   chairedMentorships                       Mentorship[]                             @relation("MentorshipChairs")
+  mentorshipHistoryAsMentee                MentorshipAssignmentHistory[]            @relation("MentorshipHistoryMentee")
+  mentorshipHistoryAsMentor                MentorshipAssignmentHistory[]            @relation("MentorshipHistoryMentor")
+  mentorshipHistoryAsActor                 MentorshipAssignmentHistory[]            @relation("MentorshipHistoryActor")
+  missingChapterFlagsCreated               MissingChapterFlag[]                     @relation("MissingChapterCreatedBy")
+  missingChapterFlagsResolved              MissingChapterFlag[]                     @relation("MissingChapterResolvedBy")
+  promotionRecords                         PromotionRecord[]                        @relation("PromotionRecordsUser")
+  promotionRecordsActed                    PromotionRecord[]                        @relation("PromotionRecordsActor")
   supportCircleMemberships                 MentorshipCircleMember[]                 @relation("SupportCircleUsers")
   supportCircleForMentees                  MentorshipCircleMember[]                 @relation("SupportCircleMentees")
   mentorshipSessionsCreated                MentorshipSession[]                      @relation("MentorshipSessionsCreated")
@@ -1398,6 +1430,13 @@ model User {
   advisorAssignmentsCreated        StudentAdvisorAssignment[]       @relation("StudentAdvisorAssignmentAssignedBy")
   advisingNotesAuthored            AdvisingNote[]                   @relation("AdvisingNoteAuthor")
   advisingRecommendationsAuthored  AdvisingRecommendation[]         @relation("AdvisingRecommendationAuthor")
+
+  // Single active Chair (final applicant decision authority)
+  activeChairAssignment            ActiveChairAssignment?           @relation("ActiveChairUser")
+  activeChairAssignmentsMade       ActiveChairAssignment[]          @relation("ActiveChairAssignedBy")
+  chairAssignmentsAsPrevious       ChairAssignmentHistory[]         @relation("ChairAssignmentPrev")
+  chairAssignmentsAsNew            ChairAssignmentHistory[]         @relation("ChairAssignmentNew")
+  chairAssignmentChangesMade       ChairAssignmentHistory[]         @relation("ChairAssignmentChangedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2287,6 +2326,40 @@ model InstructorApplicationTimelineEvent {
   @@index([actorId])
 }
 
+/// Single, app-wide "active Chair" — the one user with final applicant
+/// decision authority at any given time. Stored centrally (one singleton row
+/// keyed by a fixed `id`) rather than per-applicant, so reassigning the Chair
+/// is a single write that instantly moves decision permission. There can only
+/// ever be one row; `setActiveChair()` upserts it. Every change is mirrored
+/// into `ChairAssignmentHistory` for audit.
+model ActiveChairAssignment {
+  id           String   @id
+  chairUserId  String   @unique
+  chair        User     @relation("ActiveChairUser", fields: [chairUserId], references: [id])
+  assignedById String
+  assignedBy   User     @relation("ActiveChairAssignedBy", fields: [assignedById], references: [id])
+  assignedAt   DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([chairUserId])
+}
+
+/// Append-only audit trail of every Chair reassignment: who the previous Chair
+/// was, who the new Chair is, who made the change, and when.
+model ChairAssignmentHistory {
+  id              String   @id @default(cuid())
+  previousChairId String?
+  previousChair   User?    @relation("ChairAssignmentPrev", fields: [previousChairId], references: [id])
+  newChairId      String
+  newChair        User     @relation("ChairAssignmentNew", fields: [newChairId], references: [id])
+  changedById     String
+  changedBy       User     @relation("ChairAssignmentChangedBy", fields: [changedById], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([newChairId])
+}
+
 enum ReviewSignalKind {
   COMMENT
   PIN_NOTE
@@ -2775,6 +2848,10 @@ model Mentorship {
   startDate               DateTime                 @default(now())
   endDate                 DateTime?
   notes                   String?
+  /// Instruction-development vs organizational-leadership mentorship (Phase 4).
+  focusArea               MentorshipFocusArea?
+  /// Temporary assignment that is expected to be handed back / reassigned.
+  isTemporary             Boolean                  @default(false)
   trackId                 String?
   chairId                 String?
   kickoffScheduledAt      DateTime?
@@ -2837,6 +2914,8 @@ model MentorshipCircleMember {
   source            String?
   isPrimary         Boolean     @default(false)
   isActive          Boolean     @default(true)
+  /// Temporary advisor assignment (Phase 4).
+  isTemporary       Boolean     @default(false)
   notes             String?
   availabilityNotes String?
   capacityOverride  Int?
@@ -14357,4 +14436,163 @@ model RecentEntityView {
 
   @@unique([userId, entityType, entityId])
   @@index([userId, viewedAt])
+}
+
+// ============================================
+// ORG AUTHORITY SPINE (Phase 3)
+// Roles/Mentorship/Reviews/Access plan — see
+// docs/ROLES_ACCESS_REVIEWS_MENTORSHIP_PLAN.md. Person cohorts and general
+// committees are transferable and non-destructive: leaving a committee or
+// cohort is recorded via isActive / endDate, never by deleting history.
+// ============================================
+
+/// A people cohort (distinct from the training/application/incubator cohorts).
+/// A person belongs to at most one at a time via `User.cohortId`; changing it
+/// preserves the account and all history.
+model Cohort {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  members User[]
+}
+
+/// A committee / additional role group, separate from a person's primary title
+/// (Instruction Committee, Interview Committee, Review Committee, Outreach Team,
+/// Board, Temporary Working Group, …). Membership adds the committee's
+/// permissions without changing the person's title.
+model Committee {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String?   @unique
+  /// Free-text classification (validated in app code), e.g. "Instruction Committee".
+  kind        String?
+  description String?   @db.Text
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  memberships CommitteeMembership[]
+
+  @@index([archivedAt])
+}
+
+/// Join row: a person's membership in a committee. `isActive` / `endDate` make
+/// leaving non-destructive (the row stays as history).
+model CommitteeMembership {
+  id          String    @id @default(cuid())
+  committeeId String
+  committee   Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation("CommitteeMembershipUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// Optional role within the committee (e.g. "chair", "member").
+  role        String?
+  startDate   DateTime  @default(now())
+  endDate     DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([committeeId, userId])
+  @@index([userId, isActive])
+  @@index([committeeId, isActive])
+}
+
+/// Explicit, queryable history of who mentored whom (Phase 4 of the
+/// Roles/Mentorship/Reviews/Access plan). A new row opens when an assignment
+/// starts; `endedAt` is stamped when it ends (on reassignment), so a person's
+/// full mentor/mentee history survives any number of transfers without touching
+/// the account, notes, or reviews. Append-only — rows are never deleted.
+model MentorshipAssignmentHistory {
+  id        String               @id @default(cuid())
+  menteeId  String
+  mentee    User                 @relation("MentorshipHistoryMentee", fields: [menteeId], references: [id], onDelete: Cascade)
+  mentorId  String
+  mentor    User                 @relation("MentorshipHistoryMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  /// Mirrors Mentorship.focusArea so instruction vs leadership history is distinct.
+  focusArea MentorshipFocusArea?
+  /// Role in the relationship, e.g. "PRIMARY_MENTOR" or "ADVISOR".
+  role      String               @default("PRIMARY_MENTOR")
+  /// Provenance link to the live Mentorship row, when one exists.
+  mentorshipId String?
+  isTemporary  Boolean           @default(false)
+  startedAt    DateTime          @default(now())
+  /// Null while the assignment is current; set when it ends (on reassignment).
+  endedAt      DateTime?
+  /// Why the change happened (free text), for the audit trail.
+  reason       String?
+  /// Who made the change (admin/officer), when known.
+  actorId      String?
+  actor        User?             @relation("MentorshipHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+
+  @@index([menteeId, endedAt])
+  @@index([mentorId, endedAt])
+  @@index([mentorshipId])
+}
+
+/// Tracks a record (instructor, class, partner, meeting, …) that is in the
+/// temporary "Missing Chapter" status — it has no valid chapter assignment yet
+/// (Phase 6 of the Roles/Mentorship/Reviews/Access plan). Central + additive so
+/// the queue, age, auto-action, and "fully set up" gate work without retrofitting
+/// a status column onto every domain model. `recordType`+`recordId` identify the
+/// record; an unresolved row means the chapter still needs to be assigned.
+model MissingChapterFlag {
+  id           String    @id @default(cuid())
+  /// Domain of the record, e.g. "USER" | "COURSE" | "PARTNER" | "CLASS_OFFERING" | "MEETING".
+  recordType   String
+  recordId     String
+  /// Human label for the queue row (e.g. the person/class name).
+  label        String
+  /// The auto-created "assign a chapter" action this flag spawned.
+  actionItemId String?
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("MissingChapterResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  createdById  String?
+  createdBy    User?     @relation("MissingChapterCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([recordType, recordId])
+  @@index([resolvedAt])
+}
+
+/// An APPLIED promotion / role change (Phase 8 of the Roles/Mentorship/Reviews/
+/// Access plan), distinct from the recommendation workflow. Captures the before
+/// and after of a non-destructive change made from the person profile, plus the
+/// reason, effective date, actor, and whether the new role's setup (mentor /
+/// chapter / committee) is still pending — which drives the Promotion Setup
+/// queue. Append-only history; nothing about the account is deleted.
+model PromotionRecord {
+  id                    String     @id @default(cuid())
+  userId                String
+  user                  User       @relation("PromotionRecordsUser", fields: [userId], references: [id], onDelete: Cascade)
+  effectiveDate         DateTime
+  reason                String?
+  previousTitle         String?
+  newTitle              String?
+  previousInternalLevel Int?
+  newInternalLevel      Int?
+  previousLadder        OrgLadder?
+  newLadder             OrgLadder?
+  previousChapterId     String?
+  newChapterId          String?
+  previousCohortId      String?
+  newCohortId           String?
+  /// JSON arrays of committee names added / removed by this promotion.
+  committeesAdded       String?
+  committeesRemoved     String?
+  /// Unresolved setup item codes (JSON array) and whether setup is finished.
+  pendingSetup          String?
+  setupComplete         Boolean    @default(false)
+  actorId               String?
+  actor                 User?      @relation("PromotionRecordsActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt             DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([setupComplete])
 }

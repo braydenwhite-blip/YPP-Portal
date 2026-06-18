@@ -73,6 +73,17 @@ vi.mock("@/lib/chapter-hiring-permissions", () => ({
   isHiringChair: vi.fn(() => true),
 }));
 
+// Single-active-Chair gate: keep the real pure `canMakeFinalApplicantDecision`
+// helper and stub only the DB-backed active-Chair lookup to the session user.
+// Plain function (not vi.fn) so it survives `vi.resetAllMocks()`.
+vi.mock("@/lib/active-chair", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/active-chair")>();
+  return {
+    ...actual,
+    getActiveChairUserId: async () => "chair-1",
+  };
+});
+
 vi.mock("@/lib/portal-auth-utils", () => ({
   getBaseUrl: vi.fn(async () => "https://portal.test"),
 }));

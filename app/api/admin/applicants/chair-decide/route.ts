@@ -2,21 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { chairDecide } from "@/lib/instructor-application-actions";
 import { getSession } from "@/lib/auth-supabase";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { canMakeFinalApplicantDecision, getActiveChairUserId } from "@/lib/active-chair";
 
 export async function POST(req: NextRequest) {
   try {
-    // Defense-in-depth handler-level gate. chairDecide() itself enforces
-    // ADMIN/HIRING_CHAIR via assertCanActAsChair, but the API handler
-    // previously had no auth precheck — any signed-in or even unsigned
-    // request would land in the action, and a future refactor weakening
-    // chairDecide's check would silently expose this endpoint. Also
-    // rate-limit per-user so a logged-in caller can't flood.
+    // Defense-in-depth handler-level gate. chairDecide() itself enforces the
+    // single-active-Chair rule, but we re-check here so a direct API request
+    // from a non-Chair user is rejected before reaching the action. Final
+    // decision authority is identity-based: the caller must be the currently
+    // assigned active Chair (not merely an ADMIN/HIRING_CHAIR role holder).
+    // Also rate-limit per-user so a logged-in caller can't flood.
     const session = await getSession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const roles = session.user.roles ?? [];
-    if (!roles.includes("ADMIN") && !roles.includes("HIRING_CHAIR")) {
+    const activeChairId = await getActiveChairUserId();
+    if (!canMakeFinalApplicantDecision({ id: session.user.id }, activeChairId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const rate = checkRateLimit(`chair-decide:user:${session.user.id}`, 60, 60 * 1000);

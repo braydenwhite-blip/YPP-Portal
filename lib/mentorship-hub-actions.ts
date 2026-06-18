@@ -33,6 +33,7 @@ import {
 } from "@/lib/mentorship-access";
 import { prisma } from "@/lib/prisma";
 import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
+import { recordPrimaryMentorAssignment } from "@/lib/mentorship-reassign-actions";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { syncActionSearchDocument } from "@/lib/help-agent/search-indexing";
 import { startOfDay } from "@/lib/leadership-action-center/dates";
@@ -645,6 +646,22 @@ export async function assignSupportCircleMember(formData: FormData) {
       role: SupportRole.PRIMARY_MENTOR,
       keepUserId: targetUser.id,
     });
+
+    // Record the change in the append-only mentor-assignment history (Phase 4).
+    // `activeMentorship` holds the PRIOR mentor (read before the update above),
+    // so a transfer is captured even though the live row is updated in place.
+    if (mentorshipId) {
+      await recordPrimaryMentorAssignment({
+        menteeId,
+        newMentorId: supporterId,
+        mentorshipId,
+        previousMentorId: activeMentorship?.mentorId ?? null,
+        previousMentorshipId: activeMentorship?.id ?? null,
+        previousStartedAt: activeMentorship?.startDate ?? null,
+        actorId: session.user.id,
+        reason: "Assigned via support circle.",
+      });
+    }
   }
 
   if (role === SupportRole.CHAIR && activeMentorship) {

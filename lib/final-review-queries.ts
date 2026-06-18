@@ -9,6 +9,12 @@
 import { prisma } from "@/lib/prisma";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import {
+  computeApplicantOverview,
+  type ApplicantOverview,
+  type EvidenceInitialReview,
+  type EvidenceInterviewReview,
+} from "@/lib/applicant-evidence";
+import {
   getChairQueue,
   getChairQueueItem,
 } from "@/lib/instructor-applicant-board-queries";
@@ -405,6 +411,130 @@ export async function getApplicationForFinalReview(
     return serializeApplication(normalized as unknown as RawChairQueueItem);
   }
   return serializeApplication(item);
+}
+
+export type ApplicantEvidenceRecord = {
+  initialReviews: EvidenceInitialReview[];
+  interviewReviews: EvidenceInterviewReview[];
+  overview: ApplicantOverview;
+};
+
+/**
+ * Consolidated, read-only evidence record for the Chair's decision workspace:
+ * every submitted initial review (full reasoning + scores), every submitted
+ * interview review for the current round (notes, recommendation, scores), and
+ * a grounded overview (averages, consensus, disagreement, missing feedback).
+ *
+ * This is intentionally separate from the queue-item query so the queue list
+ * stays lean — only the single-applicant workspace pays for the full payload.
+ */
+export async function getApplicantEvidenceRecord(
+  applicationId: string
+): Promise<ApplicantEvidenceRecord | null> {
+  const application = await prisma.instructorApplication.findUnique({
+    where: { id: applicationId },
+    select: {
+      interviewRound: true,
+      legalName: true,
+      lastName: true,
+      teachingExperience: true,
+      availability: true,
+      applicationReviews: {
+        where: { status: "SUBMITTED" },
+        orderBy: [{ isLeadReview: "desc" }, { submittedAt: "asc" }],
+        select: {
+          reviewerId: true,
+          reviewer: { select: { name: true } },
+          isLeadReview: true,
+          submittedAt: true,
+          updatedAt: true,
+          nextStep: true,
+          overallRating: true,
+          summary: true,
+          notes: true,
+          concerns: true,
+          categories: { select: { category: true, rating: true, notes: true } },
+        },
+      },
+      interviewReviews: {
+        where: { status: "SUBMITTED" },
+        orderBy: [{ isLeadReview: "desc" }, { submittedAt: "asc" }],
+        select: {
+          reviewerId: true,
+          reviewer: { select: { name: true } },
+          round: true,
+          recommendation: true,
+          overallRating: true,
+          revisionRequirements: true,
+          applicantMessage: true,
+          categories: { select: { category: true, rating: true, notes: true } },
+        },
+      },
+      interviewerAssignments: {
+        where: { removedAt: null },
+        select: { round: true },
+      },
+    },
+  });
+  if (!application) return null;
+
+  const currentRound = application.interviewRound ?? 1;
+  const interviewReviews: EvidenceInterviewReview[] = application.interviewReviews
+    .filter((review) => (review.round ?? 1) === currentRound)
+    .map((review) => ({
+      reviewerId: review.reviewerId,
+      reviewerName: review.reviewer?.name ?? null,
+      round: review.round,
+      recommendation: review.recommendation,
+      overallRating: review.overallRating,
+      revisionRequirements: review.revisionRequirements,
+      applicantMessage: review.applicantMessage,
+      categories: review.categories.map((c) => ({
+        category: c.category,
+        rating: c.rating,
+        notes: c.notes,
+      })),
+    }));
+
+  const initialReviews: EvidenceInitialReview[] = application.applicationReviews.map(
+    (review) => ({
+      reviewerId: review.reviewerId,
+      reviewerName: review.reviewer?.name ?? null,
+      isLead: review.isLeadReview,
+      reviewDate: toIso(review.submittedAt ?? review.updatedAt),
+      nextStep: review.nextStep,
+      overallRating: review.overallRating,
+      summary: review.summary,
+      notes: review.notes,
+      concerns: review.concerns,
+      categories: review.categories.map((c) => ({
+        category: c.category,
+        rating: c.rating,
+        notes: c.notes,
+      })),
+    })
+  );
+
+  const assignedInterviewerCount = application.interviewerAssignments.filter(
+    (a) => (a.round ?? 1) === currentRound
+  ).length;
+
+  const missingInformation: string[] = [];
+  if (!application.teachingExperience?.trim()) {
+    missingInformation.push("Teaching experience is missing");
+  }
+  if (!application.availability?.trim()) {
+    missingInformation.push("Availability is missing");
+  }
+
+  const overview = computeApplicantOverview({
+    initialReviews,
+    interviewReviews,
+    assignedInterviewerCount,
+    missingInformation,
+  });
+
+  return { initialReviews, interviewReviews, overview };
 }
 
 export async function getChairQueueNeighbors(

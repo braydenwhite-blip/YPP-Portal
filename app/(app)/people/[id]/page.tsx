@@ -30,6 +30,40 @@ import { StrategicEntityPanel } from "@/components/people-strategy/strategic-ent
 import { LeadershipStageContext } from "@/components/people-strategy/leadership-stage-context";
 import { ProfileBody, activeLabel } from "@/components/people-strategy/profile-body";
 import { AskAboutThis } from "@/components/help-agent/ask-about-this";
+import { getPersonAccessSummary } from "@/lib/org/access-summary";
+import { AccessSummaryPanel } from "@/components/people-strategy/access-summary-panel";
+import type { AccessFact } from "@/lib/org/access-explainer";
+import { prisma } from "@/lib/prisma";
+import {
+  getMentorshipAssignmentHistory,
+  type MentorshipHistoryEntry,
+} from "@/lib/mentorship-reassign-actions";
+import { MentorHistoryPanel } from "@/components/people-strategy/mentor-history-panel";
+import { ReassignMentorForm } from "@/components/people-strategy/reassign-mentor-form";
+import {
+  getPersonPromotionHistory,
+  type PromotionHistoryEntry,
+} from "@/lib/org/promotion-queries";
+import { PromotionHistoryPanel } from "@/components/people-strategy/promotion-history-panel";
+import { PromotePersonForm } from "@/components/people-strategy/promote-person-form";
+import { INSTRUCTION_TITLES, LEADERSHIP_TITLES } from "@/lib/org/levels";
+
+const PROMOTION_TITLE_OPTIONS = [...INSTRUCTION_TITLES, ...LEADERSHIP_TITLES];
+
+/** Eligible primary-mentor candidates (excludes the person being viewed). */
+async function loadMentorCandidates(
+  excludeUserId: string
+): Promise<Array<{ id: string; name: string }>> {
+  return prisma.user.findMany({
+    where: {
+      id: { not: excludeUserId },
+      primaryRole: { in: ["MENTOR", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"] },
+    },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+    take: 300,
+  });
+}
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Member Profile" };
@@ -78,15 +112,38 @@ export default async function PublicProfilePage({ params }: PageProps) {
   let leadershipStage: LeadershipStage | null = null;
   let leadershipNextStage: LeadershipStage | null = null;
   let personAttention: AttentionItem[] = [];
+  // "Why This Person Has Access" — admin/officer-only access summary (Phase 2 of
+  // docs/ROLES_ACCESS_REVIEWS_MENTORSHIP_PLAN.md).
+  let accessFacts: AccessFact[] = [];
+  // Mentor history + reassign (Phase 4 surface), admin/officer-only.
+  let mentorHistory: MentorshipHistoryEntry[] = [];
+  let mentorCandidates: Array<{ id: string; name: string }> = [];
+  // Promotion history + promote form (Phase 8 surface), admin/officer-only.
+  let promotionHistory: PromotionHistoryEntry[] = [];
+  let chapterOptions: Array<{ id: string; name: string }> = [];
+  let committeeOptions: string[] = [];
   if (showLinkedActions) {
-    const [context, leadership, attention] = await Promise.all([
-      getOperationalContextForEntity("USER", id, viewer),
-      getLeadershipContext(id),
-      loadPersonAttention(id, viewer),
-    ]);
+    const [context, leadership, attention, access, history, candidates, promotions, chapters, committeeRows] =
+      await Promise.all([
+        getOperationalContextForEntity("USER", id, viewer),
+        getLeadershipContext(id),
+        loadPersonAttention(id, viewer),
+        getPersonAccessSummary(id),
+        getMentorshipAssignmentHistory(id),
+        loadMentorCandidates(id),
+        getPersonPromotionHistory(id),
+        prisma.chapter.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" }, take: 300 }),
+        prisma.committee.findMany({ where: { archivedAt: null }, select: { name: true }, orderBy: { name: "asc" } }),
+      ]);
     opsContext = context;
     leadershipStage = leadership?.stage ?? null;
     leadershipNextStage = leadership?.nextStage ?? null;
+    accessFacts = access ?? [];
+    mentorHistory = history;
+    mentorCandidates = candidates;
+    promotionHistory = promotions;
+    chapterOptions = chapters;
+    committeeOptions = committeeRows.map((c) => c.name);
     // Person-level People Strategy signals (mentor, kickoff, check-in,
     // provisional) are Leadership/Board-confidential; a scoped officer sees only
     // this person's own work signals (overdue / blocked / stale actions).
@@ -175,6 +232,17 @@ export default async function PublicProfilePage({ params }: PageProps) {
             />
           </section>
           <LeadershipStageContext stage={leadershipStage} nextStage={leadershipNextStage} />
+          <AccessSummaryPanel personName={profile.name} facts={accessFacts} />
+          <MentorHistoryPanel personName={profile.name} entries={mentorHistory} />
+          <ReassignMentorForm menteeId={id} candidates={mentorCandidates} />
+          <PromotionHistoryPanel personName={profile.name} entries={promotionHistory} />
+          <PromotePersonForm
+            userId={id}
+            canonicalTitles={PROMOTION_TITLE_OPTIONS}
+            chapters={chapterOptions}
+            mentors={mentorCandidates}
+            committees={committeeOptions}
+          />
           <OperationalContextPanel
             title="Accountability"
             subtitle={`Meetings & actions for ${profile.name}`}

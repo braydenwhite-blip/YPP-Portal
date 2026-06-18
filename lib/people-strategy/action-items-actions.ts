@@ -41,6 +41,7 @@ import {
   isOfficerTier,
   type ActionAccessShape,
 } from "./action-permissions";
+import { assertActionLeadEligible } from "@/lib/org/action-lead-guard";
 import { notifyNewActionAssignments } from "./action-emails";
 
 /**
@@ -408,6 +409,13 @@ export async function createActionItem(input: CreateActionItemInput) {
     ...data.inputUserIds,
   ]);
 
+  // Phase 5: the accountable Lead must be eligible (internal level >= 3, or a
+  // Manager/Senior Manager authorized by the officer making the assignment).
+  // Flag-gated (ORG_ACTION_LEAD_ELIGIBILITY_ENFORCED); no-op by default.
+  await assertActionLeadEligible(data.leadId, {
+    authorizedByOfficer: isOfficerTier(session),
+  });
+
   // `ok` is guaranteed by the schema's superRefine; re-derive to get the
   // normalized ref (or null when no link was supplied).
   const parsedRelated = parseRelatedEntityRef(data);
@@ -640,6 +648,11 @@ export async function updateActionItem(input: UpdateActionItemInput) {
 
   if (data.departmentId) await assertDepartmentExists(data.departmentId);
   if (data.leadId !== undefined) await assertUsersExist([data.leadId]);
+
+  // Phase 5: enforce Lead eligibility when the lead actually changes (flag-gated).
+  if (data.leadId !== undefined && data.leadId !== existing.leadId) {
+    await assertActionLeadEligible(data.leadId, { authorizedByOfficer: officer });
+  }
 
   // Interpret the related-entity link as a unit: unchanged (both omitted),
   // intentionally cleared (sent empty), or set to a new, existence-checked ref.
@@ -1062,6 +1075,13 @@ export async function addActionAssignment(
 
   await loadAccess(data.actionId); // 404 if missing
   await assertUsersExist([data.userId]);
+
+  // Phase 5: a user promoted to LEAD must be eligible (flag-gated, no-op by default).
+  if (data.role === "LEAD") {
+    await assertActionLeadEligible(data.userId, {
+      authorizedByOfficer: isOfficerTier(session),
+    });
+  }
 
   // Only a genuinely-new (actionItem, user, role) row should trigger an email.
   // An unchanged re-assignment of the same role to the same user is a no-op.
