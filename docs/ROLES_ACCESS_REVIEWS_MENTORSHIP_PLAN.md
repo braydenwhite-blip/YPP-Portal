@@ -1,12 +1,35 @@
 # Roles, Mentorship, Reviews & Access — Implementation Plan
 
-Status: **In progress** · Owner: Brayden · Last updated: 2026-06-18
+Status: **Phases 0–8 delivered** · Owner: Brayden · Last updated: 2026-06-18
 
 **Delivered:** Phase 0 (authority foundation), Phase 1 (review approval + exceptions,
-flag-gated), Phase 2 ("Why This Person Has Access" + Access Problems detector), and
+flag-gated), Phase 2 ("Why This Person Has Access" + Access Problems detector),
 Phase 3 (person spine: `internalLevel`/`ladder`/`canonicalTitle`/cohort + committees,
-migration `20260618120000_org_person_spine`, backfill `scripts/backfill-org-authority.ts`).
-After deploying Phase 3, run `npm run backfill:org-authority` (dry run) then `--apply`.
+migration `20260618120000_org_person_spine`, backfill `scripts/backfill-org-authority.ts`),
+Phase 4 (mentorship transferability: `focusArea`/`isTemporary`,
+`MentorshipAssignmentHistory`, non-destructive `reassignPrimaryMentor`, migration
+`20260618130000_mentorship_transferability`), Phase 5 (flag-gated action-Lead
+eligibility on assignment + Owner Needed queue), Phase 6 (Missing Chapter:
+`MissingChapterFlag`, owner auto-action, resolution queue, migration
+`20260618140000_missing_chapter_flag`), and Phase 7 (operational queues —
+Reviews to Draft/Approve, Curriculum to Review, Interviews Assigned, Missing
+Chapter, at `/queues`). Mentor history + a non-destructive reassign form are now
+on the person profile, and the legacy support-circle assign path also records
+mentor history.
+
+Phase 8 (promotions + profile history + audit): preview-then-apply promotions on
+the person profile (`previewPromotion` / `applyPromotion`), the `PromotionRecord`
+history (migration `20260618150000_promotion_record`), the now-live Promotion
+Setup queue, and a `ROLE_CHANGED` AuditLog entry on every promotion. Changing a
+person's internal level is Board-only.
+
+Optional follow-ups (not blocking): auto-wire `flagMissingChapter` into
+record-create flows so Missing Chapter is detected automatically, and aggregate
+the broader "complete history" (classes/reviews/actions already live on the
+profile via existing panels).
+After deploying Phases 3-4, 6 & 8, run `npm run backfill:org-authority` (dry run) then `--apply`.
+Enforcement flags default OFF: `ORG_REVIEW_AUTHORITY_ENFORCED`,
+`ORG_ACTION_LEAD_ELIGIBILITY_ENFORCED`. Missing Chapter owner: `MISSING_CHAPTER_OWNER_EMAIL`.
 
 This plan maps the *"YPP Portal Roles, Mentorship, Reviews, and Access Proposal"* onto
 the existing codebase. It is a sequencing + impact document, not code. No code lands
