@@ -44,7 +44,32 @@ const MEETING_INCLUDE = {
   agendaItems: {
     include: {
       owner: { select: PERSON_SELECT },
+      presenter: { select: PERSON_SELECT },
       convertedAction: { select: { id: true, status: true } },
+      sourceAction: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          fileLinks: {
+            select: { id: true, label: true, url: true },
+            orderBy: [{ addedAt: "desc" }, { id: "desc" }],
+          },
+        },
+      },
+      brief: { select: { id: true, initiativeId: true, workstreamId: true, weekStart: true } },
+      teamMeeting: { select: { id: true, title: true, status: true } },
+      presentationExpectation: { select: { id: true, kind: true, prompt: true } },
+      preparedPresentationItem: {
+        select: {
+          id: true,
+          reasonForOfficerReview: true,
+          statusSummary: true,
+          requestedDecision: true,
+          readiness: true,
+          deliverableLinkIds: true,
+        },
+      },
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   },
@@ -59,6 +84,9 @@ const MEETING_INCLUDE = {
     include: {
       owner: { select: PERSON_SELECT },
       linkedAction: { select: { id: true, status: true } },
+      sourceAction: { select: { id: true, title: true } },
+      brief: { select: { id: true, initiativeId: true, workstreamId: true, weekStart: true } },
+      presentationExpectation: { select: { id: true, kind: true, prompt: true } },
     },
     orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
   },
@@ -90,7 +118,29 @@ export interface AgendaItemDTO {
   status: "OPEN" | "DISCUSSED" | "DEFERRED" | "CONVERTED";
   notes: string | null;
   owner: PersonDTO | null;
+  presenter: PersonDTO | null;
   convertedActionId: string | null;
+  itemKind: string | null;
+  sourceInitiativeId: string | null;
+  sourceWorkstreamId: string | null;
+  briefId: string | null;
+  briefWeekStartISO: string | null;
+  teamMeetingId: string | null;
+  preparedPresentationItemId: string | null;
+  sourceActionId: string | null;
+  sourceActionTitle: string | null;
+  deliverables: Array<{ id: string; label: string; url: string }>;
+  presentationExpectationId: string | null;
+  presentationExpectationPrompt: string | null;
+  requestedDecision: string | null;
+  readinessState: string | null;
+  preparedPresentation: {
+    reasonForOfficerReview: string;
+    statusSummary: string | null;
+    requestedDecision: string | null;
+    readiness: string;
+    deliverableLinkIds: string[];
+  } | null;
 }
 
 export interface DecisionDTO {
@@ -113,6 +163,13 @@ export interface FollowUpDTO {
   area: string | null;
   areaLabel: string;
   linkedActionId: string | null;
+  initiativeId: string | null;
+  workstreamId: string | null;
+  sourceActionId: string | null;
+  sourceActionTitle: string | null;
+  briefId: string | null;
+  presentationExpectationId: string | null;
+  presentationExpectationPrompt: string | null;
 }
 
 export interface LinkedActionDTO {
@@ -293,6 +350,13 @@ export function mapMeetingToCardDTO(
       area: f.area,
       areaLabel: meetingCategoryLabel(f.area),
       linkedActionId: f.linkedActionId,
+      initiativeId: f.initiativeId,
+      workstreamId: f.workstreamId,
+      sourceActionId: f.sourceActionId,
+      sourceActionTitle: f.sourceAction?.title ?? null,
+      briefId: f.briefId,
+      presentationExpectationId: f.presentationExpectationId,
+      presentationExpectationPrompt: f.presentationExpectation?.prompt ?? null,
     }));
   const linkedActionsPreview = m.actionItems.slice(0, 3).map((a) => ({
     id: a.id,
@@ -356,7 +420,36 @@ export function mapMeetingToDetailDTO(
       status: a.status,
       notes: a.notes,
       owner: personDTO(a.owner),
+      presenter: personDTO(a.presenter),
       convertedActionId: a.convertedActionId,
+      itemKind: a.itemKind,
+      sourceInitiativeId: a.sourceInitiativeId,
+      sourceWorkstreamId: a.sourceWorkstreamId,
+      briefId: a.briefId,
+      briefWeekStartISO: a.brief?.weekStart.toISOString() ?? null,
+      teamMeetingId: a.teamMeetingId,
+      preparedPresentationItemId: a.preparedPresentationItemId,
+      sourceActionId: a.sourceActionId,
+      sourceActionTitle: a.sourceAction?.title ?? null,
+      deliverables: (a.sourceAction?.fileLinks ?? [])
+        .filter((link) => {
+          const ids = a.preparedPresentationItem?.deliverableLinkIds ?? [];
+          return ids.length === 0 || ids.includes(link.id);
+        })
+        .map((link) => ({ id: link.id, label: link.label, url: link.url })),
+      presentationExpectationId: a.presentationExpectationId,
+      presentationExpectationPrompt: a.presentationExpectation?.prompt ?? null,
+      requestedDecision: a.requestedDecision,
+      readinessState: a.readinessState,
+      preparedPresentation: a.preparedPresentationItem
+        ? {
+            reasonForOfficerReview: a.preparedPresentationItem.reasonForOfficerReview,
+            statusSummary: a.preparedPresentationItem.statusSummary,
+            requestedDecision: a.preparedPresentationItem.requestedDecision,
+            readiness: a.preparedPresentationItem.readiness,
+            deliverableLinkIds: a.preparedPresentationItem.deliverableLinkIds,
+          }
+        : null,
     })),
     decisions: m.decisions.map((d) => ({
       id: d.id,
@@ -377,6 +470,13 @@ export function mapMeetingToDetailDTO(
       area: f.area,
       areaLabel: meetingCategoryLabel(f.area),
       linkedActionId: f.linkedActionId,
+      initiativeId: f.initiativeId,
+      workstreamId: f.workstreamId,
+      sourceActionId: f.sourceActionId,
+      sourceActionTitle: f.sourceAction?.title ?? null,
+      briefId: f.briefId,
+      presentationExpectationId: f.presentationExpectationId,
+      presentationExpectationPrompt: f.presentationExpectation?.prompt ?? null,
     })),
     linkedActions: m.actionItems.map((a) => ({
       id: a.id,

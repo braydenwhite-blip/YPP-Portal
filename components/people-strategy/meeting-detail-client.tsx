@@ -526,10 +526,32 @@ function AgendaSection({ meeting, pending, run }: { meeting: MeetingDetailDTO; p
   );
 }
 
+function agendaKindLabel(kind: string | null): string | null {
+  if (!kind) return null;
+  const labels: Record<string, string> = {
+    INITIATIVE_OVERVIEW: "Initiative overview",
+    TEAM_STATUS: "Team status",
+    DELIVERABLE_REVIEW: "Deliverable review",
+    DECISION: "Decision needed",
+    LEADERSHIP_INPUT: "Leadership input",
+    CROSS_TEAM_COORDINATION: "Cross-team coordination",
+    ESCALATED_BLOCKER: "Escalated blocker",
+    MISSED_COMMITMENT_REVIEW: "Missed commitment",
+    WRITTEN_REVIEW: "Written review",
+    EXPECTATION_SETTING: "Next expectation",
+  };
+  return labels[kind] ?? kind.replaceAll("_", " ").toLowerCase();
+}
+
 function AgendaItem({ item, meetingId, pending, run }: { item: AgendaItemDTO; meetingId: string; pending: boolean; run: RunFn }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const done = item.status === "DISCUSSED" || item.status === "CONVERTED";
+  const kindLabel = agendaKindLabel(item.itemKind);
+  const briefHref =
+    item.sourceInitiativeId && item.sourceWorkstreamId && item.briefWeekStartISO
+      ? `/operations/initiatives/${item.sourceInitiativeId}/teams/${item.sourceWorkstreamId}/brief/${item.briefWeekStartISO.slice(0, 10)}`
+      : null;
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--surface)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
@@ -560,8 +582,24 @@ function AgendaItem({ item, meetingId, pending, run }: { item: AgendaItemDTO; me
           {item.notes && !notesOpen && (
             <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.notes}</div>
           )}
+          {(kindLabel || item.sourceActionTitle || item.presenter || item.preparedPresentation) && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 7, alignItems: "center" }}>
+              {kindLabel && <Pill tone={item.itemKind === "DELIVERABLE_REVIEW" ? "purple" : item.itemKind === "DECISION" ? "warning" : "neutral"}>{kindLabel}</Pill>}
+              {item.presenter && <Pill tone="info">Presenter: {item.presenter.name}</Pill>}
+              {item.sourceActionTitle && (
+                <Link href={`/actions/${item.sourceActionId}`} style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ypp-purple-700)", textDecoration: "none" }}>
+                  Task: {item.sourceActionTitle}
+                </Link>
+              )}
+              {briefHref && (
+                <Link href={briefHref} style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ypp-purple-700)", textDecoration: "none" }}>
+                  Source team brief
+                </Link>
+              )}
+            </div>
+          )}
         </div>
-        {item.owner && <Avatar name={item.owner.name} size={24} />}
+        {(item.presenter ?? item.owner) && <Avatar name={(item.presenter ?? item.owner)!.name} size={24} />}
         <AgendaStatusBadge status={item.status} />
         <div style={{ position: "relative", flex: "0 0 auto" }}>
           <button
@@ -587,6 +625,44 @@ function AgendaItem({ item, meetingId, pending, run }: { item: AgendaItemDTO; me
       </div>
       {notesOpen && item.notes && (
         <div style={{ padding: "0 14px 13px 48px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.55 }}>{item.notes}</div>
+      )}
+      {item.preparedPresentation && (
+        <div style={{ borderTop: "1px solid var(--border)", padding: "11px 14px 13px 48px", display: "grid", gap: 8 }}>
+          <div style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            <strong style={{ color: "var(--ypp-ink)" }}>Why officers are seeing this:</strong>{" "}
+            {item.preparedPresentation.reasonForOfficerReview}
+          </div>
+          {item.requestedDecision && (
+            <div style={{ fontSize: 12.5, color: "var(--warn-fg, #854d0e)", lineHeight: 1.5 }}>
+              <strong>Decision/input requested:</strong> {item.requestedDecision}
+            </div>
+          )}
+          {item.presentationExpectationPrompt && (
+            <div style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--ypp-ink)" }}>Expectation:</strong> {item.presentationExpectationPrompt}
+            </div>
+          )}
+          {item.deliverables.length ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {item.deliverables.map((link) => (
+                <a
+                  key={link.id}
+                  href={link.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid var(--border)", borderRadius: 8, padding: "6px 9px", fontSize: 12.5, fontWeight: 700, color: "var(--ypp-purple-700)", textDecoration: "none", background: "var(--rail)" }}
+                >
+                  <MeetingIcon name="link" size={13} />
+                  Open {link.label}
+                </a>
+              ))}
+            </div>
+          ) : item.itemKind === "DELIVERABLE_REVIEW" ? (
+            <div style={{ fontSize: 12.5, color: "var(--danger-fg, #b42318)", fontWeight: 700 }}>
+              Deliverable missing. Ask the team to attach the actual work product before presentation.
+            </div>
+          ) : null}
+        </div>
       )}
     </div>
   );

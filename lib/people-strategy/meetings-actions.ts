@@ -457,6 +457,11 @@ const AddFollowUpSchema = z.object({
   priority: z.enum(PRIORITY_VALUES).default("MEDIUM"),
   area: z.string().trim().optional(),
   createAction: z.boolean().optional().default(false),
+  initiativeId: OptionalId,
+  workstreamId: OptionalId,
+  sourceActionId: OptionalId,
+  briefId: OptionalId,
+  presentationExpectationId: OptionalId,
 });
 
 export type AddFollowUpInput = z.input<typeof AddFollowUpSchema>;
@@ -480,6 +485,11 @@ export async function addFollowUp(input: AddFollowUpInput) {
       dueDate,
       priority: data.priority,
       area,
+      initiativeId: data.initiativeId,
+      workstreamId: data.workstreamId,
+      sourceActionId: data.sourceActionId,
+      briefId: data.briefId,
+      presentationExpectationId: data.presentationExpectationId,
     },
     select: { id: true },
   });
@@ -576,7 +586,8 @@ export async function convertFollowUpToAction(followUpId: string) {
     relatedEntityId: fu.officerMeeting.relatedEntityId ?? undefined,
     sourceType: "FOLLOW_UP",
     sourceId: fu.id,
-    strategicInitiativeId: strategicLink.strategicInitiativeId,
+    sourceActionId: fu.sourceActionId ?? undefined,
+    strategicInitiativeId: fu.initiativeId ?? strategicLink.strategicInitiativeId,
     strategicProjectId: strategicLink.strategicProjectId,
   });
 

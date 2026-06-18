@@ -21,6 +21,7 @@ import { effectiveStatus } from "@/lib/people-strategy/action-filters";
 import {
   getMeetingById,
   getMeetingsForEntity,
+  listMeetingsInRange,
   mapMeetingToDetailDTO,
   meetingDisplayTitle,
   type MeetingDetailDTO,
@@ -39,8 +40,10 @@ import {
   MeetingDetailClient,
   type MeetingRelatedContext,
 } from "@/components/people-strategy/meeting-detail-client";
+import { OfficerPreparedPresentationsPanel } from "@/components/people-strategy/officer-prepared-presentations";
 import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
 import { SuggestedActionsPanel } from "@/components/people-strategy/suggested-actions-panel";
+import { loadPreparedPresentationsForOfficerMeeting } from "@/lib/people-strategy/weekly-team-briefs";
 import type { PersonOption } from "@/components/people-strategy/new-meeting-drawer";
 
 export const dynamic = "force-dynamic";
@@ -116,6 +119,23 @@ export default async function MeetingDetailPage({
     adminSubtypes: viewer.adminSubtypes,
   };
   const meetingActions = await getActionsForMeeting(id, meetingViewer).catch(() => []);
+  const preparedPresentations = await loadPreparedPresentationsForOfficerMeeting(id).catch(() => []);
+  const targetMeetingWindowEnd = new Date(now);
+  targetMeetingWindowEnd.setUTCDate(targetMeetingWindowEnd.getUTCDate() + 90);
+  const targetMeetingOptions = [
+    {
+      id: meeting.id,
+      title: meetingDisplayTitle(meeting),
+      dateISO: meeting.date.toISOString(),
+    },
+    ...(await listMeetingsInRange(startOfDay(now), targetMeetingWindowEnd).catch(() => []))
+      .filter((m) => m.id !== meeting.id)
+      .map((m) => ({
+        id: m.id,
+        title: meetingDisplayTitle(m),
+        dateISO: m.date.toISOString(),
+      })),
+  ];
   const followUpPack = deriveMeetingFollowUpPack(
     {
       decisions: meeting.decisions.map((d) => ({
@@ -254,6 +274,12 @@ export default async function MeetingDetailPage({
       </CalmOnly>
 
       {/* The room — notes, agenda, decisions, follow-ups, linked actions. */}
+      <OfficerPreparedPresentationsPanel
+        officerMeetingId={id}
+        items={preparedPresentations}
+        targetMeetings={targetMeetingOptions}
+      />
+
       <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
 
       {/* Secondary tools & context — demoted out of the calm default, one click

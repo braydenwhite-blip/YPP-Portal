@@ -192,6 +192,10 @@ export type WorkstreamDef = {
   description?: string;
   /** The accountable owner of this workstream, when named. Derived when absent. */
   owner?: string;
+  /** User id of the team/workstream lead when the owner is linked to a portal user. */
+  leadUserId?: string;
+  /** Additional user ids who can lead this team/workstream. */
+  leadUserIds?: string[];
   /** Optional target date (ISO) for the workstream's own timeline + schedule risk. */
   targetDateISO?: string;
   /** Display order within the initiative (ascending). */
@@ -206,6 +210,10 @@ export type StrategicInitiativeDef = {
   description: string;
   /** The accountable leader, when named. Ownership clarity is derived when absent. */
   owner?: string;
+  /** Named co-leads for display/back-compat with initiatives that do not map to users. */
+  leads?: string[];
+  /** User ids of initiative leads when leadership is linked to portal users. */
+  leadUserIds?: string[];
   /** The operating area this initiative rolls up to (drives the strategic map grouping). */
   area: OperationalArea;
   status: InitiativeStatus;

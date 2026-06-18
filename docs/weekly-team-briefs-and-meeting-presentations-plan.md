@@ -11,6 +11,20 @@
 
 ## 1. Executive summary
 
+### Product correction after approval: Team Meetings are distinct from Officer Meetings
+
+The approved implementation must represent two meeting types as separate workflow steps.
+The **Team Meeting** is the operating meeting for one initiative workstream/team and uses
+the Weekly Team Brief as its working document. The **Officer Meeting** remains the
+leadership meeting backed by the existing `OfficerMeeting` agenda, decision, and follow-up
+infrastructure. Prepared items may move from a finalized or submitted Team Meeting into an
+Officer Meeting, but routine task updates stay inside the team workflow.
+
+This changes the original plan's "build on `OfficerMeeting` only" recommendation. The
+implementation should preserve `OfficerMeeting` for leadership, add only a thin
+`TeamMeeting` layer connected to `WeeklyTeamBrief`, and use explicit source links when a
+prepared Team Meeting item is accepted onto an Officer Meeting agenda.
+
 **Problem.** Strategic initiatives at YPP (e.g. *Communication and Expansion Priorities*,
 led by Aveena and Sanvi) are run by teams (Social Media, School Outreach, Partnerships,
 Chapter Expansion). Each team owns tasks (Instagram, Facebook, content calendar). Today the
