@@ -12,6 +12,7 @@ import {
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getHiringActor, isAdmin, isChapterLead, isAssignedInterviewer } from "@/lib/chapter-hiring-permissions";
+import { isInitialReviewLocked } from "@/lib/applicant-review-stage";
 import {
   approveInstructorApplication,
   holdInstructorApplication,
@@ -730,6 +731,14 @@ export async function claimInstructorApplicationLeadReviewerAction(formData: For
     throw new Error("Unauthorized");
   }
 
+  // Stage lock: an initial review can only be started while the applicant is
+  // still in the initial-review stage. Once they advance to interview (or any
+  // later stage) the review is permanently read-only — return safely to the
+  // workspace with a clear message instead of mutating anything.
+  if (isInitialReviewLocked(application.status)) {
+    redirect(appendNotice(returnTo, "initial-review-locked"));
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.instructorApplication.update({
       where: { id: applicationId },
@@ -769,8 +778,14 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
 
   const { actor, application } = await assertApplicationReviewAccess(applicationId, session.user.id);
 
-  if (isFinalApplicationStatus(application.status) && !isAdmin(actor)) {
-    throw new Error("This application is already finalized.");
+  // Stage lock (enforced server-side, independent of any UI gating): initial
+  // reviews can only be created or edited while the applicant is in the
+  // initial-review stage. Once advanced to interview or later, every initial
+  // review is permanently read-only — for everyone, including admins. We do
+  // NOT throw here; we redirect back to the workspace with a clear message so
+  // a direct POST to this action lands the user somewhere safe.
+  if (isInitialReviewLocked(application.status)) {
+    redirect(appendNotice(returnTo, "initial-review-locked"));
   }
 
   let leadReviewerId = application.reviewerId;

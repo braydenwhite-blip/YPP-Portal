@@ -189,6 +189,17 @@ const prismaMock: any = {
   application: {
     findUnique: vi.fn(),
   },
+  activeChairAssignment: {
+    findUnique: vi.fn(),
+    upsert: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+  chairAssignmentHistory: {
+    create: vi.fn(),
+    findMany: vi.fn(),
+  },
 };
 
 prismaMock.$transaction = vi.fn(async (arg: unknown) => {

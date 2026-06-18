@@ -4,6 +4,7 @@ import { getHiringActor, isAdmin } from "@/lib/chapter-hiring-permissions";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import { requireChairPage } from "@/lib/page-guards";
 import {
+  getApplicantEvidenceRecord,
   getApplicationForFinalReview,
   getChairDraft,
   getChairQueueNeighbors,
@@ -12,6 +13,11 @@ import {
   getReviewSignalsForApplication,
 } from "@/lib/final-review-queries";
 import { prisma } from "@/lib/prisma";
+import {
+  canMakeFinalApplicantDecision,
+  getActiveChair,
+  NON_CHAIR_DECISION_MESSAGE,
+} from "@/lib/active-chair";
 import FinalReviewCockpit from "@/components/instructor-applicants/final-review/FinalReviewCockpit";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +39,7 @@ export default async function FinalReviewCockpitPage({
   const { id } = await params;
   const [
     application,
+    evidence,
     queue,
     draft,
     notificationSnapshot,
@@ -43,6 +50,7 @@ export default async function FinalReviewCockpitPage({
     actorAdminSubtypes,
   ] = await Promise.all([
     getApplicationForFinalReview(id),
+    getApplicantEvidenceRecord(id),
     getChairQueueNeighbors(id),
     getChairDraft(id, actor.id),
     getNotificationSnapshot(id),
@@ -70,6 +78,15 @@ export default async function FinalReviewCockpitPage({
     notFound();
   }
 
+  // Final-decision authority is the single active Chair, resolved by identity.
+  // Other authorized viewers (admins, reviewers) still see the full evidence
+  // record but cannot submit or change the final decision.
+  const activeChair = await getActiveChair();
+  const canMakeFinalDecision = canMakeFinalApplicantDecision(
+    { id: actor.id },
+    activeChair
+  );
+
   const isCrossChapter = Boolean(
     actor.chapterId &&
       application.applicant.chapterId &&
@@ -90,6 +107,10 @@ export default async function FinalReviewCockpitPage({
       hasPriorSupersededDecision={supersededCount > 0}
       isSuperAdmin={isSuperAdmin}
       actorId={actor.id}
+      canMakeFinalDecision={canMakeFinalDecision}
+      activeChairName={activeChair?.name ?? activeChair?.email ?? null}
+      decisionLockMessage={NON_CHAIR_DECISION_MESSAGE}
+      evidence={evidence}
     />
   );
 }

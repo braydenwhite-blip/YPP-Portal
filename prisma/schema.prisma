@@ -1387,6 +1387,13 @@ model User {
   advisingNotesAuthored            AdvisingNote[]                   @relation("AdvisingNoteAuthor")
   advisingRecommendationsAuthored  AdvisingRecommendation[]         @relation("AdvisingRecommendationAuthor")
 
+  // Single active Chair (final applicant decision authority)
+  activeChairAssignment            ActiveChairAssignment?           @relation("ActiveChairUser")
+  activeChairAssignmentsMade       ActiveChairAssignment[]          @relation("ActiveChairAssignedBy")
+  chairAssignmentsAsPrevious       ChairAssignmentHistory[]         @relation("ChairAssignmentPrev")
+  chairAssignmentsAsNew            ChairAssignmentHistory[]         @relation("ChairAssignmentNew")
+  chairAssignmentChangesMade       ChairAssignmentHistory[]         @relation("ChairAssignmentChangedBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2273,6 +2280,40 @@ model InstructorApplicationTimelineEvent {
 
   @@index([applicationId, createdAt])
   @@index([actorId])
+}
+
+/// Single, app-wide "active Chair" — the one user with final applicant
+/// decision authority at any given time. Stored centrally (one singleton row
+/// keyed by a fixed `id`) rather than per-applicant, so reassigning the Chair
+/// is a single write that instantly moves decision permission. There can only
+/// ever be one row; `setActiveChair()` upserts it. Every change is mirrored
+/// into `ChairAssignmentHistory` for audit.
+model ActiveChairAssignment {
+  id           String   @id
+  chairUserId  String   @unique
+  chair        User     @relation("ActiveChairUser", fields: [chairUserId], references: [id])
+  assignedById String
+  assignedBy   User     @relation("ActiveChairAssignedBy", fields: [assignedById], references: [id])
+  assignedAt   DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([chairUserId])
+}
+
+/// Append-only audit trail of every Chair reassignment: who the previous Chair
+/// was, who the new Chair is, who made the change, and when.
+model ChairAssignmentHistory {
+  id              String   @id @default(cuid())
+  previousChairId String?
+  previousChair   User?    @relation("ChairAssignmentPrev", fields: [previousChairId], references: [id])
+  newChairId      String
+  newChair        User     @relation("ChairAssignmentNew", fields: [newChairId], references: [id])
+  changedById     String
+  changedBy       User     @relation("ChairAssignmentChangedBy", fields: [changedById], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([newChairId])
 }
 
 enum ReviewSignalKind {
