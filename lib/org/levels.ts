@@ -99,7 +99,12 @@ export function normalizeTitle(raw: string | null | undefined): CanonicalTitle |
   return canonicalKeyLookup(raw);
 }
 
-export type AuthoritySource = "TITLE" | "ADMIN_SUBTYPE" | "PRIMARY_ROLE" | "UNKNOWN";
+export type AuthoritySource =
+  | "PERSISTED"
+  | "TITLE"
+  | "ADMIN_SUBTYPE"
+  | "PRIMARY_ROLE"
+  | "UNKNOWN";
 
 export interface PersonAuthority {
   title: CanonicalTitle | null;
@@ -134,23 +139,44 @@ export interface AuthorityResolvable {
   title?: string | null;
   primaryRole?: string | null;
   adminSubtypes?: Array<string | null | undefined> | null;
+  // Phase 3 persisted spine — preferred when present.
+  internalLevel?: number | null;
+  ladder?: Ladder | string | null;
+  canonicalTitle?: string | null;
 }
 
 /**
- * Resolve a person's authority from the existing identity model. Resolution
- * order (first hit wins), mirroring `getUserTitle()`'s philosophy:
+ * Resolve a person's authority. Resolution order (first hit wins):
+ *   0. the persisted Phase 3 spine (`internalLevel` + `ladder`/`canonicalTitle`),
  *   1. an explicit canonical `title`,
  *   2. an admin subtype (SUPER_ADMIN → Board Member, LEADERSHIP → Senior Officer),
  *   3. the `primaryRole` (CHAPTER_PRESIDENT, INSTRUCTOR, STAFF→Manager, ADMIN→Officer).
  *
  * The subtype/role derivations are provisional defaults documented in the plan;
- * an explicit `title` always overrides them, and Phase 3 will read persisted
- * `internalLevel`/`ladder` columns ahead of all of this.
+ * an explicit `title` always overrides them, and the persisted columns override
+ * everything once the Phase 3 backfill has populated them.
  */
 export function resolvePersonAuthority(
   user: AuthorityResolvable | null | undefined
 ): PersonAuthority {
   if (!user) return UNKNOWN_AUTHORITY;
+
+  // 0. Persisted spine wins when an internal level has been recorded.
+  if (user.internalLevel != null) {
+    const persistedTitle = normalizeTitle(user.canonicalTitle);
+    const meta = persistedTitle ? TITLE_AUTHORITY[persistedTitle] : null;
+    const ladder =
+      user.ladder === "INSTRUCTION" || user.ladder === "LEADERSHIP"
+        ? user.ladder
+        : meta?.ladder ?? null;
+    return {
+      title: persistedTitle,
+      ladder,
+      ladderLevel: meta?.ladderLevel ?? null,
+      internalLevel: user.internalLevel,
+      source: "PERSISTED",
+    };
+  }
 
   const canonical = normalizeTitle(user.title);
   if (canonical) return authorityForTitle(canonical, "TITLE");

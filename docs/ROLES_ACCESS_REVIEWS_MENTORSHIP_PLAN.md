@@ -1,6 +1,12 @@
 # Roles, Mentorship, Reviews & Access — Implementation Plan
 
-Status: **Draft for approval** · Owner: Brayden · Last updated: 2026-06-18
+Status: **In progress** · Owner: Brayden · Last updated: 2026-06-18
+
+**Delivered:** Phase 0 (authority foundation), Phase 1 (review approval + exceptions,
+flag-gated), Phase 2 ("Why This Person Has Access" + Access Problems detector), and
+Phase 3 (person spine: `internalLevel`/`ladder`/`canonicalTitle`/cohort + committees,
+migration `20260618120000_org_person_spine`, backfill `scripts/backfill-org-authority.ts`).
+After deploying Phase 3, run `npm run backfill:org-authority` (dry run) then `--apply`.
 
 This plan maps the *"YPP Portal Roles, Mentorship, Reviews, and Access Proposal"* onto
 the existing codebase. It is a sequencing + impact document, not code. No code lands

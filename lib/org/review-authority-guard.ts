@@ -31,6 +31,9 @@ async function loadParticipant(userId: string): Promise<ReviewParticipant | null
       name: true,
       title: true,
       primaryRole: true,
+      internalLevel: true,
+      ladder: true,
+      canonicalTitle: true,
       adminSubtypes: { select: { subtype: true } },
     },
   });
@@ -40,6 +43,9 @@ async function loadParticipant(userId: string): Promise<ReviewParticipant | null
     authority: resolvePersonAuthority({
       title: user.title,
       primaryRole: user.primaryRole,
+      internalLevel: user.internalLevel,
+      ladder: user.ladder,
+      canonicalTitle: user.canonicalTitle,
       adminSubtypes: user.adminSubtypes.map((s) => s.subtype),
     }),
   };
