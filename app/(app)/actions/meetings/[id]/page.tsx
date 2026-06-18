@@ -39,8 +39,10 @@ import {
   MeetingDetailClient,
   type MeetingRelatedContext,
 } from "@/components/people-strategy/meeting-detail-client";
+import { OfficerPreparedPresentationsPanel } from "@/components/people-strategy/officer-prepared-presentations";
 import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
 import { SuggestedActionsPanel } from "@/components/people-strategy/suggested-actions-panel";
+import { loadPreparedPresentationsForOfficerMeeting } from "@/lib/people-strategy/weekly-team-briefs";
 import type { PersonOption } from "@/components/people-strategy/new-meeting-drawer";
 
 export const dynamic = "force-dynamic";
@@ -116,6 +118,7 @@ export default async function MeetingDetailPage({
     adminSubtypes: viewer.adminSubtypes,
   };
   const meetingActions = await getActionsForMeeting(id, meetingViewer).catch(() => []);
+  const preparedPresentations = await loadPreparedPresentationsForOfficerMeeting(id).catch(() => []);
   const followUpPack = deriveMeetingFollowUpPack(
     {
       decisions: meeting.decisions.map((d) => ({
@@ -254,6 +257,11 @@ export default async function MeetingDetailPage({
       </CalmOnly>
 
       {/* The room — notes, agenda, decisions, follow-ups, linked actions. */}
+      <OfficerPreparedPresentationsPanel
+        officerMeetingId={id}
+        items={preparedPresentations}
+      />
+
       <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
 
       {/* Secondary tools & context — demoted out of the calm default, one click
