@@ -8,6 +8,10 @@ import {
   meetingCategoryLabel,
   meetingCategoryTone,
 } from "@/lib/people-strategy/meeting-categories";
+import {
+  MEETING_TYPE_VALUES,
+  meetingOperatingModel,
+} from "@/lib/people-strategy/meeting-operating-model";
 import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
 import { MeetingCard } from "./meeting-card";
 import { MeetingNowNextCard } from "./meeting-now-next";
@@ -62,13 +66,29 @@ export interface PulseRow {
 interface Filters {
   status: string;
   category: string;
+  meetingType: string;
   owner: string;
   overdue: boolean;
   hasActions: boolean;
 }
 
-const EMPTY_FILTERS: Filters = { status: "", category: "", owner: "", overdue: false, hasActions: false };
-type SimpleMeetingView = "upcoming" | "needs" | "recent" | "all";
+const EMPTY_FILTERS: Filters = {
+  status: "",
+  category: "",
+  meetingType: "",
+  owner: "",
+  overdue: false,
+  hasActions: false,
+};
+type SimpleMeetingView =
+  | "upcoming"
+  | "needs"
+  | "impact"
+  | "officer"
+  | "chapter"
+  | "followups"
+  | "recent"
+  | "all";
 
 const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "today", label: "Today" },
@@ -78,6 +98,134 @@ const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "needs_follow_up", label: "Needs Follow-Up" },
   { value: "canceled", label: "Canceled" },
 ];
+
+function isImpactPresentation(m: MeetingCardDTO): boolean {
+  return (
+    m.meetingType === "GLOBAL_OPERATIONS_IMPACT_PRESENTATION" ||
+    m.meetingType === "CHAPTER_IMPACT_PRESENTATION"
+  );
+}
+
+function meetingNeedsAttention(m: MeetingCardDTO): boolean {
+  const needsPrep =
+    (m.effectiveStatus === "today" ||
+      m.effectiveStatus === "in_progress" ||
+      m.effectiveStatus === "upcoming") &&
+    (m.agendaCount === 0 || m.attendeeCount === 0);
+  const needsSummary =
+    (m.effectiveStatus === "completed" || m.effectiveStatus === "needs_follow_up") &&
+    !m.hasNotes;
+  return (
+    needsPrep ||
+    needsSummary ||
+    m.effectiveStatus === "needs_follow_up" ||
+    m.openFollowUps > 0 ||
+    m.overdueFollowUps > 0 ||
+    (m.attendanceConcernCount ?? 0) > 0 ||
+    (m.followUpsNeedingOwner ?? 0) > 0 ||
+    (m.followUpsNeedingDueDate ?? 0) > 0
+  );
+}
+
+interface AttentionRowData {
+  meetingId: string;
+  title: string;
+  reason: string;
+  tone: "danger" | "warning" | "info";
+  href: string;
+}
+
+interface DecisionQueueRowData {
+  id: string;
+  meetingId: string;
+  meetingTitle: string;
+  decision: string;
+  decidedByName: string | null;
+}
+
+function buildMeetingAttentionRows(meetings: MeetingCardDTO[]): AttentionRowData[] {
+  const rows: AttentionRowData[] = [];
+  for (const m of meetings) {
+    if (m.overdueFollowUps > 0) {
+      rows.push({
+        meetingId: m.id,
+        title: m.title,
+        reason: `${m.overdueFollowUps} overdue follow-up${m.overdueFollowUps === 1 ? "" : "s"}`,
+        tone: "danger",
+        href: `/actions/meetings/${m.id}#followups`,
+      });
+    }
+    if (m.agendaCount === 0 && ["today", "in_progress", "upcoming"].includes(m.effectiveStatus)) {
+      rows.push({
+        meetingId: m.id,
+        title: m.title,
+        reason: "Agenda missing",
+        tone: "warning",
+        href: `/actions/meetings/${m.id}#agenda`,
+      });
+    }
+    if (m.attendeeCount === 0 && ["today", "in_progress", "upcoming"].includes(m.effectiveStatus)) {
+      rows.push({
+        meetingId: m.id,
+        title: m.title,
+        reason: "Required attendees missing",
+        tone: "warning",
+        href: `/actions/meetings/${m.id}#attendance`,
+      });
+    }
+    if ((m.attendanceConcernCount ?? 0) > 0) {
+      rows.push({
+        meetingId: m.id,
+        title: m.title,
+        reason: `${m.attendanceConcernCount ?? 0} attendance concern${m.attendanceConcernCount === 1 ? "" : "s"}`,
+        tone: "danger",
+        href: `/actions/meetings/${m.id}#attendance`,
+      });
+    }
+    if ((m.followUpsNeedingOwner ?? 0) > 0) {
+      rows.push({
+        meetingId: m.id,
+        title: m.title,
+        reason: `${m.followUpsNeedingOwner} follow-up${m.followUpsNeedingOwner === 1 ? "" : "s"} need owner`,
+        tone: "warning",
+        href: `/actions/meetings/${m.id}#followups`,
+      });
+    }
+    if ((m.followUpsNeedingDueDate ?? 0) > 0) {
+      rows.push({
+        meetingId: m.id,
+        title: m.title,
+        reason: `${m.followUpsNeedingDueDate} follow-up${m.followUpsNeedingDueDate === 1 ? "" : "s"} need due date`,
+        tone: "warning",
+        href: `/actions/meetings/${m.id}#followups`,
+      });
+    }
+    const decisionsMissingActions = (m.decisionsPreview ?? []).filter((d) => !d.linkedActionId).length;
+    if (decisionsMissingActions > 0) {
+      rows.push({
+        meetingId: m.id,
+        title: m.title,
+        reason: `${decisionsMissingActions} decision${decisionsMissingActions === 1 ? "" : "s"} need action`,
+        tone: "warning",
+        href: `/actions/meetings/${m.id}#decisions`,
+      });
+    }
+    if (
+      (m.effectiveStatus === "completed" || m.effectiveStatus === "needs_follow_up") &&
+      !m.hasNotes
+    ) {
+      rows.push({
+        meetingId: m.id,
+        title: m.title,
+        reason: "Summary notes missing",
+        tone: "info",
+        href: `/actions/meetings/${m.id}#notes`,
+      });
+    }
+  }
+  const rank = { danger: 0, warning: 1, info: 2 };
+  return rows.sort((a, b) => rank[a.tone] - rank[b.tone] || a.title.localeCompare(b.title));
+}
 
 export function WeeklyCommandCenterClient({
   meetings,
@@ -112,7 +260,13 @@ export function WeeklyCommandCenterClient({
   const [showNew, setShowNew] = useState(autoOpenNew);
 
   const anyAdvancedFilter =
-    !!q || !!filters.status || !!filters.category || !!filters.owner || filters.overdue || filters.hasActions;
+    !!q ||
+    !!filters.status ||
+    !!filters.category ||
+    !!filters.meetingType ||
+    !!filters.owner ||
+    filters.overdue ||
+    filters.hasActions;
   const anyFilter = anyAdvancedFilter || simpleView !== "upcoming";
 
   const filtered = useMemo(() => {
@@ -128,9 +282,25 @@ export function WeeklyCommandCenterClient({
       }
       if (
         simpleView === "needs" &&
-        m.effectiveStatus !== "needs_follow_up" &&
+        !meetingNeedsAttention(m)
+      ) {
+        return false;
+      }
+      if (simpleView === "impact" && !isImpactPresentation(m)) {
+        return false;
+      }
+      if (simpleView === "officer" && m.meetingType !== "OFFICER_MEETING") {
+        return false;
+      }
+      if (simpleView === "chapter" && m.meetingType !== "CHAPTER_IMPACT_PRESENTATION") {
+        return false;
+      }
+      if (
+        simpleView === "followups" &&
         m.openFollowUps === 0 &&
-        m.overdueFollowUps === 0
+        m.overdueFollowUps === 0 &&
+        (m.followUpsNeedingOwner ?? 0) === 0 &&
+        (m.followUpsNeedingDueDate ?? 0) === 0
       ) {
         return false;
       }
@@ -144,6 +314,7 @@ export function WeeklyCommandCenterClient({
       if (needle && !`${m.title} ${m.purpose ?? ""} ${m.categoryLabel}`.toLowerCase().includes(needle)) return false;
       if (filters.status && m.effectiveStatus !== filters.status) return false;
       if (filters.category && m.category !== filters.category) return false;
+      if (filters.meetingType && m.meetingType !== filters.meetingType) return false;
       if (filters.owner && !m.participantIds.includes(filters.owner)) return false;
       if (filters.overdue && m.overdueFollowUps === 0) return false;
       if (filters.hasActions && m.openLinkedActions === 0 && m.openFollowUps === 0) return false;
@@ -177,11 +348,33 @@ export function WeeklyCommandCenterClient({
     (m) => m.effectiveStatus === "completed" || m.effectiveStatus === "canceled"
   );
   const allNeedsFollowUpCount = meetings.filter(
-    (m) =>
-      m.effectiveStatus === "needs_follow_up" ||
-      m.openFollowUps > 0 ||
-      m.overdueFollowUps > 0
+    meetingNeedsAttention
   ).length;
+  const allImpactMeetings = meetings.filter(isImpactPresentation);
+  const allOfficerMeetings = meetings.filter((m) => m.meetingType === "OFFICER_MEETING");
+  const allChapterMeetings = meetings.filter((m) => m.meetingType === "CHAPTER_IMPACT_PRESENTATION");
+  const allFollowUpMeetings = meetings.filter(
+    (m) =>
+      m.openFollowUps > 0 ||
+      m.overdueFollowUps > 0 ||
+      (m.followUpsNeedingOwner ?? 0) > 0 ||
+      (m.followUpsNeedingDueDate ?? 0) > 0
+  );
+  const allAttentionRows = buildMeetingAttentionRows(meetings);
+  const attentionRows = allAttentionRows.slice(0, 8);
+  const decisionQueueRows: DecisionQueueRowData[] = meetings
+    .flatMap((meeting) =>
+      (meeting.decisionsPreview ?? [])
+        .filter((decision) => !decision.linkedActionId)
+        .map((decision) => ({
+          id: decision.id,
+          meetingId: meeting.id,
+          meetingTitle: meeting.title,
+          decision: decision.decision,
+          decidedByName: decision.decidedBy?.name ?? null,
+        }))
+    )
+    .slice(0, 6);
 
   const weekHref = (offset: number) => (offset === 0 ? "/actions/meetings" : `/actions/meetings?week=${offset}`);
 
@@ -205,7 +398,7 @@ export function WeeklyCommandCenterClient({
             Meetings
           </h1>
           <p style={{ margin: "7px 0 0", fontSize: 14.5, color: "var(--muted)", maxWidth: 560, lineHeight: 1.45 }}>
-            Your meetings at a glance.
+            Weekly accountability, decisions, attendance, follow-ups, and Action Tracker handoffs.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -233,6 +426,7 @@ export function WeeklyCommandCenterClient({
         <>
           {/* What matters right now — the page's primary entry point. */}
           <MeetingNowNextCard meetings={meetings} nowISO={nowISO} />
+          <OperatingRhythmSummary meetings={meetings} attentionCount={allAttentionRows.length} />
 
           <Card style={{ padding: "11px 12px" }}>
             <MeetingViewSwitcher
@@ -241,6 +435,10 @@ export function WeeklyCommandCenterClient({
               counts={{
                 upcoming: allUpcomingMeetings.length,
                 needs: allNeedsFollowUpCount,
+                impact: allImpactMeetings.length,
+                officer: allOfficerMeetings.length,
+                chapter: allChapterMeetings.length,
+                followups: allFollowUpMeetings.length,
                 recent: allRecentMeetings.length,
                 all: meetings.length,
               }}
@@ -275,10 +473,38 @@ export function WeeklyCommandCenterClient({
                 <>
                   {simpleView === "needs" ? (
                     <MeetingSection
-                      title="Needs follow-up"
+                      title="Needs attention"
                       icon="flag"
                       meetings={filtered}
-                      empty={{ icon: "check", title: "No meetings need follow-up", body: "Every meeting in this view is closed out." }}
+                      empty={{ icon: "check", title: "No meetings need attention", body: "Agendas, attendees, summaries, and follow-ups are covered." }}
+                    />
+                  ) : simpleView === "impact" ? (
+                    <MeetingSection
+                      title="Impact presentations this week"
+                      icon="target"
+                      meetings={filtered}
+                      empty={{ icon: "target", title: "No impact presentations this week", body: "Global and chapter accountability meetings will appear here." }}
+                    />
+                  ) : simpleView === "officer" ? (
+                    <MeetingSection
+                      title="Officer meetings"
+                      icon="compass"
+                      meetings={filtered}
+                      empty={{ icon: "compass", title: "No officer meeting this week", body: "Decision-focused officer meetings will appear here." }}
+                    />
+                  ) : simpleView === "chapter" ? (
+                    <MeetingSection
+                      title="Chapter impact presentations"
+                      icon="map"
+                      meetings={filtered}
+                      empty={{ icon: "map", title: "No chapter presentation this week", body: "Chapter President updates will appear here." }}
+                    />
+                  ) : simpleView === "followups" ? (
+                    <MeetingSection
+                      title="Meeting follow-ups"
+                      icon="flag"
+                      meetings={filtered}
+                      empty={{ icon: "check", title: "No meeting follow-ups open", body: "Every meeting commitment is closed or tracked." }}
                     />
                   ) : simpleView === "recent" ? (
                     <MeetingSection
@@ -290,9 +516,19 @@ export function WeeklyCommandCenterClient({
                   ) : simpleView === "all" ? (
                     <>
                       <MeetingSection
-                        title="Needs follow-up"
+                        title="Needs attention"
                         icon="flag"
-                        meetings={groups.needs}
+                        meetings={meetings.filter(meetingNeedsAttention)}
+                      />
+                      <MeetingSection
+                        title="Officer meetings"
+                        icon="compass"
+                        meetings={meetings.filter((m) => m.meetingType === "OFFICER_MEETING")}
+                      />
+                      <MeetingSection
+                        title="Impact presentations"
+                        icon="target"
+                        meetings={meetings.filter(isImpactPresentation)}
                       />
                       <MeetingSection
                         title="Upcoming"
@@ -321,6 +557,30 @@ export function WeeklyCommandCenterClient({
 
             {/* SIDEBAR */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <Widget title="Leadership attention" icon="alert" count={attentionRows.length}>
+                {attentionRows.length ? (
+                  <div>
+                    {attentionRows.map((row) => (
+                      <AttentionRow key={`${row.meetingId}-${row.reason}`} row={row} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState compact icon="checkCircle" title="No attention items" body="No missing prep, summaries, attendance concerns, or stale follow-ups in this week." />
+                )}
+              </Widget>
+
+              <Widget title="Decision queue" icon="checkCircle" count={decisionQueueRows.length}>
+                {decisionQueueRows.length ? (
+                  <div>
+                    {decisionQueueRows.map((row) => (
+                      <DecisionActionRow key={row.id} row={row} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState compact icon="check" title="No decisions waiting" body="Every previewed decision this week has been converted or linked to an action." />
+                )}
+              </Widget>
+
               <Widget title="Follow-ups still open" icon="flag" count={followQueue.length}>
                 {followQueue.length ? (
                   <div>
@@ -396,7 +656,11 @@ function MeetingViewSwitcher({
 }) {
   const views: Array<{ key: SimpleMeetingView; label: string }> = [
     { key: "upcoming", label: "Upcoming" },
-    { key: "needs", label: "Needs follow-up" },
+    { key: "needs", label: "Needs attention" },
+    { key: "impact", label: "Impact" },
+    { key: "officer", label: "Officer" },
+    { key: "chapter", label: "Chapter" },
+    { key: "followups", label: "Follow-ups" },
     { key: "recent", label: "Recent" },
     { key: "all", label: "All" },
   ];
@@ -489,6 +753,198 @@ function WeekNav({
   );
 }
 
+function OperatingRhythmSummary({
+  meetings,
+  attentionCount,
+}: {
+  meetings: MeetingCardDTO[];
+  attentionCount: number;
+}) {
+  const stats = [
+    {
+      label: "Total meetings",
+      value: meetings.length,
+      icon: "calendar" as MeetingIconName,
+      tone: "purple",
+    },
+    {
+      label: "Upcoming",
+      value: meetings.filter(
+        (m) =>
+          m.effectiveStatus === "today" ||
+          m.effectiveStatus === "in_progress" ||
+          m.effectiveStatus === "upcoming"
+      ).length,
+      icon: "clock" as MeetingIconName,
+      tone: "purple",
+    },
+    {
+      label: "Completed",
+      value: meetings.filter((m) => m.effectiveStatus === "completed").length,
+      icon: "checkCircle" as MeetingIconName,
+      tone: "success",
+    },
+    {
+      label: "Impact",
+      value: meetings.filter(isImpactPresentation).length,
+      icon: "target" as MeetingIconName,
+      tone: "neutral",
+    },
+    {
+      label: "Attendance",
+      value: attendancePercentLabel(meetings),
+      icon: "user" as MeetingIconName,
+      tone: meetings.some((m) => (m.attendanceConcernCount ?? 0) > 0) ? "danger" : "success",
+    },
+    {
+      label: "Needs attention",
+      value: attentionCount,
+      icon: "alert" as MeetingIconName,
+      tone: attentionCount > 0 ? "danger" : "success",
+    },
+  ];
+
+  return (
+    <Card style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))" }}>
+        {stats.map((stat, index) => (
+          <div
+            key={stat.label}
+            style={{
+              padding: "14px 15px",
+              borderLeft: index === 0 ? "none" : "1px solid var(--border)",
+              borderTop: index === 0 ? "none" : undefined,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              minWidth: 0,
+            }}
+          >
+            <span
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 9,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background:
+                  stat.tone === "danger"
+                    ? "var(--danger-bg)"
+                    : stat.tone === "warning"
+                      ? "var(--warn-bg, #fdf0d9)"
+                      : stat.tone === "success"
+                        ? "var(--success-bg)"
+                        : "var(--ypp-purple-100)",
+                color:
+                  stat.tone === "danger"
+                    ? "var(--danger-fg)"
+                    : stat.tone === "warning"
+                      ? "var(--warn-fg, #a45a09)"
+                      : stat.tone === "success"
+                        ? "var(--success-fg)"
+                        : "var(--ypp-purple-600)",
+              }}
+            >
+              <MeetingIcon name={stat.icon} size={15} />
+            </span>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 18, fontWeight: 800, color: "var(--ypp-ink)", lineHeight: 1 }}>
+                {stat.value}
+              </span>
+              <span style={{ display: "block", marginTop: 3, fontSize: 11.5, fontWeight: 700, color: "var(--muted)" }}>
+                {stat.label}
+              </span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function attendancePercentLabel(meetings: MeetingCardDTO[]): string {
+  const required = meetings.reduce((sum, m) => sum + (m.requiredAttendeeCount ?? m.attendeeCount ?? 0), 0);
+  const recorded = meetings.reduce((sum, m) => sum + (m.attendanceRecordedCount ?? 0), 0);
+  if (required <= 0) return "0%";
+  return `${Math.round((recorded / required) * 100)}%`;
+}
+
+function AttentionRow({ row }: { row: AttentionRowData }) {
+  const color =
+    row.tone === "danger"
+      ? "var(--danger-fg)"
+      : row.tone === "warning"
+        ? "var(--warn-fg, #a45a09)"
+        : "var(--ypp-purple-600)";
+  return (
+    <Link
+      href={row.href}
+      style={{ display: "flex", gap: 10, padding: "10px 0", textDecoration: "none", borderTop: "1px solid var(--border)" }}
+    >
+      <span
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: 8,
+          flex: "0 0 auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: row.tone === "danger" ? "var(--danger-bg)" : "var(--chip-bg)",
+          color,
+        }}
+      >
+        <MeetingIcon name={row.tone === "danger" ? "alert" : "flag"} size={14} />
+      </span>
+      <span style={{ minWidth: 0, flex: 1 }}>
+        <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: "var(--ypp-ink)", lineHeight: 1.35 }}>
+          {row.reason}
+        </span>
+        <span style={{ display: "block", marginTop: 3, fontSize: 11.5, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {row.title}
+        </span>
+      </span>
+      <MeetingIcon name="arrowR" size={13} style={{ color: "var(--muted)", marginTop: 6 }} />
+    </Link>
+  );
+}
+
+function DecisionActionRow({ row }: { row: DecisionQueueRowData }) {
+  return (
+    <Link
+      href={`/actions/meetings/${row.meetingId}#decisions`}
+      style={{ display: "flex", gap: 10, padding: "10px 0", textDecoration: "none", borderTop: "1px solid var(--border)" }}
+    >
+      <span
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: 8,
+          flex: "0 0 auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--warn-bg, #fdf0d9)",
+          color: "var(--warn-fg, #a45a09)",
+        }}
+      >
+        <MeetingIcon name="checkCircle" size={14} />
+      </span>
+      <span style={{ minWidth: 0, flex: 1 }}>
+        <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: "var(--ypp-ink)", lineHeight: 1.35 }}>
+          {row.decision}
+        </span>
+        <span style={{ display: "block", marginTop: 3, fontSize: 11.5, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {row.decidedByName ? `${row.decidedByName} · ` : ""}
+          {row.meetingTitle}
+        </span>
+      </span>
+      <MeetingIcon name="arrowR" size={13} style={{ color: "var(--muted)", marginTop: 6 }} />
+    </Link>
+  );
+}
+
 // --- filter bar -------------------------------------------------------------
 
 const SELECT_STYLE: React.CSSProperties = {
@@ -551,6 +1007,14 @@ function FilterBar({
         {MEETING_CATEGORY_VALUES.map((c) => (
           <option key={c} value={c}>
             {meetingCategoryLabel(c)}
+          </option>
+        ))}
+      </select>
+      <select value={filters.meetingType} onChange={(e) => set("meetingType", e.target.value)} style={SELECT_STYLE} aria-label="Filter by meeting type">
+        <option value="">All meeting types</option>
+        {MEETING_TYPE_VALUES.map((type) => (
+          <option key={type} value={type}>
+            {meetingOperatingModel(type).label}
           </option>
         ))}
       </select>

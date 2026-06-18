@@ -9,6 +9,11 @@ import {
   meetingCategoryLabel,
   meetingCategoryTone,
 } from "@/lib/people-strategy/meeting-categories";
+import {
+  MEETING_OPERATING_MODELS,
+  MEETING_TYPE_VALUES,
+  meetingTypeLabel,
+} from "@/lib/people-strategy/meeting-operating-model";
 import { MEETING_TEMPLATES, findMeetingTemplate } from "@/lib/people-strategy/meeting-templates";
 import { createMeeting } from "@/lib/people-strategy/meetings-actions";
 import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
@@ -26,6 +31,7 @@ export interface PersonOption {
  * new meeting is born already connected to the right part of the portal.
  */
 export interface MeetingPrefill {
+  meetingType?: string | null;
   category?: string | null;
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
@@ -67,6 +73,7 @@ export function NewMeetingDrawer({
   const [tpl, setTpl] = useState<string | null>(null);
   const [title, setTitle] = useState(prefill?.title ?? "");
   const [purpose, setPurpose] = useState(prefill?.purpose ?? "");
+  const [meetingType, setMeetingType] = useState<string>(prefill?.meetingType ?? "OFFICER_MEETING");
   const [category, setCategory] = useState<string>(prefill?.category ?? "LEADERSHIP");
   const [priority, setPriority] = useState<string>("MEDIUM");
   const [date, setDate] = useState(todayISO());
@@ -84,9 +91,12 @@ export function NewMeetingDrawer({
     setTpl(id);
     if (id !== "t_blank") {
       setTitle(t.name);
+      setPurpose(t.purpose);
+      setMeetingType(t.meetingType);
       setCategory(t.category);
     }
     setEnd(addMinutes(start, t.durationMinutes));
+    setRecurring(t.recurrence === "WEEKLY");
     setAgenda(t.agenda);
   }
 
@@ -109,6 +119,7 @@ export function NewMeetingDrawer({
         const res = await createMeeting({
           title,
           purpose,
+          meetingType,
           category,
           priority: priority as (typeof PRIORITIES)[number],
           date,
@@ -242,7 +253,25 @@ export function NewMeetingDrawer({
         <textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} rows={2} placeholder="What this meeting is for…" style={{ ...fieldStyle, resize: "vertical" }} />
       </Field>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+        <Field label="Meeting type">
+          <select
+            value={meetingType}
+            onChange={(e) => {
+              const next = e.target.value;
+              setMeetingType(next);
+              const model = MEETING_OPERATING_MODELS[next as keyof typeof MEETING_OPERATING_MODELS];
+              if (model) setCategory(model.defaultCategory);
+            }}
+            style={fieldStyle}
+          >
+            {MEETING_TYPE_VALUES.map((type) => (
+              <option key={type} value={type}>
+                {meetingTypeLabel(type)}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field label="Category / YPP area">
           <select value={category} onChange={(e) => setCategory(e.target.value)} style={fieldStyle}>
             {MEETING_CATEGORY_VALUES.map((c) => (
@@ -252,7 +281,7 @@ export function NewMeetingDrawer({
             ))}
           </select>
         </Field>
-        <Field label="Priority">
+        <Field label="Urgency">
           <select value={priority} onChange={(e) => setPriority(e.target.value)} style={fieldStyle}>
             {PRIORITIES.map((p) => (
               <option key={p} value={p}>

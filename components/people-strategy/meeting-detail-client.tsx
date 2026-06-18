@@ -10,6 +10,7 @@ import type {
   DecisionDTO,
   FollowUpDTO,
   LinkedActionDTO,
+  MeetingAttendeeDTO,
   MeetingDetailDTO,
 } from "@/lib/people-strategy/meetings-queries";
 import {
@@ -22,8 +23,17 @@ import {
   saveMeetingNotes,
   setAgendaItemStatus,
   setFollowUpStatus,
+  setMeetingAttendeeStatus,
   setMeetingStatus,
 } from "@/lib/people-strategy/meetings-actions";
+import {
+  MEETING_ATTENDANCE_STATUS_LABELS,
+  MEETING_ATTENDANCE_STATUS_VALUES,
+} from "@/lib/people-strategy/meeting-attendance";
+import {
+  meetingOperatingModel,
+  type MeetingOperatingModel,
+} from "@/lib/people-strategy/meeting-operating-model";
 import { findSimilarActionTitles } from "@/lib/people-strategy/action-prefill";
 import { meetingOutcomeFromDetail } from "@/lib/people-strategy/meeting-outcome";
 import { AskAboutThis } from "@/components/help-agent/ask-about-this";
@@ -77,6 +87,7 @@ export function MeetingDetailClient({
   const [gateOpen, setGateOpen] = useState(false);
 
   const c = meetingCategoryTone(meeting.category);
+  const operatingModel = meetingOperatingModel(meeting.meetingType);
   const overdue = meeting.overdueFollowUps;
   const run = (fn: () => Promise<unknown>) => startTransition(() => void fn().then(() => router.refresh()));
 
@@ -96,16 +107,18 @@ export function MeetingDetailClient({
         <div style={{ background: c.bg, borderBottom: `1px solid ${c.border}`, padding: "20px 22px", display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
           <div style={{ minWidth: 0, flex: "1 1 380px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              <Pill tone="purple" style={{ fontWeight: 800 }}>
+                {operatingModel.label}
+              </Pill>
               <CategoryBadge category={meeting.category} />
               <MeetingStatusBadge status={meeting.effectiveStatus} />
-              <PriorityBadge priority={meeting.priority} />
             </div>
             <h1 style={{ margin: 0, fontSize: 27, fontWeight: 800, color: "var(--ypp-ink)", letterSpacing: "-.02em", lineHeight: 1.15 }}>
               {meeting.title}
             </h1>
-            {meeting.purpose && (
-              <p style={{ margin: "9px 0 0", fontSize: 14.5, color: "var(--text-secondary)", maxWidth: 620, lineHeight: 1.5 }}>{meeting.purpose}</p>
-            )}
+            <p style={{ margin: "9px 0 0", fontSize: 14.5, color: "var(--text-secondary)", maxWidth: 680, lineHeight: 1.5 }}>
+              {meeting.purpose || operatingModel.description}
+            </p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -137,6 +150,12 @@ export function MeetingDetailClient({
             <MeetingOutcomeBadge outcome={meetingOutcomeFromDetail(meeting)} withHeadline />
           </div>
           <HealthStat icon="list" value={`${meeting.agendaDoneCount}/${meeting.agendaCount}`} label="Agenda done" />
+          <HealthStat
+            icon="user"
+            value={`${meeting.attendanceRecordedCount ?? 0}/${meeting.requiredAttendeeCount ?? meeting.attendeeCount ?? 0}`}
+            label="Attendance"
+            danger={(meeting.attendanceConcernCount ?? 0) > 0}
+          />
           <HealthStat icon="checkCircle" value={meeting.decisionCount} label="Decisions" />
           <HealthStat icon="flag" value={meeting.openFollowUps} label="Open follow-ups" />
           <HealthStat icon="bolt" value={meeting.linkedActions.length} label="Actions created" />
@@ -164,6 +183,7 @@ export function MeetingDetailClient({
       {/* body two-col */}
       <div className="detail-cols" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 16, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <OperatingModelSection meeting={meeting} model={operatingModel} />
           <div id="followups" style={{ scrollMarginTop: 80 }}>
             <FollowUpsSection meeting={meeting} pending={pending} run={run} onAdd={() => setDrawer({ create: false })} />
           </div>
@@ -255,20 +275,7 @@ export function MeetingDetailClient({
               <span style={{ fontSize: 13, color: "var(--muted)" }}>No facilitator assigned.</span>
             )}
           </Card>
-          <Card style={{ padding: "16px 17px" }}>
-            <SectionTitle icon="people" count={meeting.attendees.length}>
-              Attendees
-            </SectionTitle>
-            {meeting.attendees.length ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                {meeting.attendees.map((p) => (
-                  <PersonChip key={p.id} name={p.name} size={28} />
-                ))}
-              </div>
-            ) : (
-              <span style={{ fontSize: 13, color: "var(--muted)" }}>No attendees added yet.</span>
-            )}
-          </Card>
+          <AttendanceSection meeting={meeting} model={operatingModel} pending={pending} run={run} />
         </div>
       </div>
 
@@ -318,16 +325,21 @@ function CompletionGate({
   const hasDecisions = meeting.decisionCount > 0;
   const hasActions = meeting.linkedActions.length > 0;
   const openFollowUps = meeting.openFollowUps;
+  const attendanceMissing =
+    meeting.attendeeCount > 0 &&
+    (meeting.attendanceRecordedCount ?? 0) < (meeting.requiredAttendeeCount ?? meeting.attendeeCount);
 
   const [noDecisions, setNoDecisions] = useState(false);
   const [noActions, setNoActions] = useState(false);
   const [noActionsReason, setNoActionsReason] = useState("");
   const [followUpsAck, setFollowUpsAck] = useState(false);
+  const [attendanceAck, setAttendanceAck] = useState(false);
 
   const decisionsOk = hasDecisions || noDecisions;
   const actionsOk = hasActions || (noActions && noActionsReason.trim().length > 0);
   const followUpsOk = openFollowUps === 0 || followUpsAck;
-  const canComplete = decisionsOk && actionsOk && followUpsOk;
+  const attendanceOk = !attendanceMissing || attendanceAck;
+  const canComplete = decisionsOk && actionsOk && followUpsOk && attendanceOk;
 
   return (
     <div
@@ -391,6 +403,23 @@ function CompletionGate({
           </GateRow>
 
           {/* Follow-ups */}
+          <GateRow
+            label="Attendance"
+            ok={attendanceOk}
+            status={
+              attendanceMissing
+                ? `${meeting.attendanceRecordedCount ?? 0}/${meeting.requiredAttendeeCount ?? meeting.attendeeCount} recorded`
+                : "Recorded"
+            }
+          >
+            {attendanceMissing && (
+              <label style={gateCheckStyle}>
+                <input type="checkbox" checked={attendanceAck} onChange={(e) => setAttendanceAck(e.target.checked)} />
+                Complete anyway and record remaining attendance later
+              </label>
+            )}
+          </GateRow>
+
           <GateRow
             label="Follow-Ups"
             ok={followUpsOk}
@@ -476,6 +505,221 @@ function MetaItem({ label, children }: { label: string; children: ReactNode }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
       <TinyLabel>{label}</TinyLabel>
       <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ypp-ink)" }}>{children}</div>
+    </div>
+  );
+}
+
+function OperatingModelSection({
+  meeting,
+  model,
+}: {
+  meeting: MeetingDetailDTO;
+  model: MeetingOperatingModel;
+}) {
+  const phaseRows = [model.before, model.during, model.after];
+  return (
+    <SectionBlock title={`${model.label} workflow`} icon="compass">
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+          {phaseRows.map((phase) => (
+            <div key={phase.title} style={{ border: "1px solid var(--border)", borderRadius: 12, background: "var(--rail)", padding: "12px 13px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                <span style={{ width: 22, height: 22, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ypp-purple-100)", color: "var(--ypp-purple-700)" }}>
+                  <MeetingIcon name={phase.title === "Before" ? "calendar" : phase.title === "During" ? "list" : "checkCircle"} size={13} />
+                </span>
+                <strong style={{ fontSize: 13.5, color: "var(--ypp-ink)" }}>{phase.title}</strong>
+              </div>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 7 }}>
+                {phase.items.map((item) => (
+                  <li key={item} style={{ display: "flex", gap: 7, fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                    <MeetingIcon name="check" size={12} style={{ color: "var(--success-fg)", marginTop: 2 }} />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <Pill tone="neutral">Lead: {model.leadText}</Pill>
+          <Pill tone={meeting.agendaCount > 0 ? "success" : "warning"}>
+            {meeting.agendaCount > 0 ? `${meeting.agendaCount} agenda items` : "Agenda needed"}
+          </Pill>
+          <Pill tone={meeting.attendeeCount > 0 ? "success" : "warning"}>
+            {meeting.attendeeCount > 0 ? `${meeting.attendeeCount} attendees` : "Attendees needed"}
+          </Pill>
+          <Pill tone={meeting.openFollowUps > 0 ? "warning" : "success"}>
+            {meeting.openFollowUps} open follow-up{meeting.openFollowUps === 1 ? "" : "s"}
+          </Pill>
+          {meeting.relatedTeam ? <Pill tone="info">Team: {meeting.relatedTeam}</Pill> : null}
+          {meeting.relatedChapter ? <Pill tone="info">Chapter: {meeting.relatedChapter}</Pill> : null}
+        </div>
+
+        {model.presentationSections.length > 0 ? (
+          <ImpactPresentationReadiness meeting={meeting} model={model} />
+        ) : null}
+        {meeting.meetingType === "OFFICER_MEETING" ? <OfficerMeetingFocus meeting={meeting} /> : null}
+      </div>
+    </SectionBlock>
+  );
+}
+
+function ImpactPresentationReadiness({
+  meeting,
+  model,
+}: {
+  meeting: MeetingDetailDTO;
+  model: MeetingOperatingModel;
+}) {
+  const globalSlots =
+    meeting.meetingType === "GLOBAL_OPERATIONS_IMPACT_PRESENTATION"
+      ? ["Communications: Sanvi and Alina", "Expansion: Jackson and Jennifer", "Tech: Anthea and Wesley"]
+      : ["Chapter President update", "Partners/outreach", "Applicants/students", "Blockers and next steps"];
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "13px 14px", background: "var(--surface)" }}>
+      <SectionTitle icon="target">Impact presentation expectations</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, .9fr) minmax(0, 1.1fr)", gap: 14 }}>
+        <div>
+          <TinyLabel>Slots</TinyLabel>
+          <ul style={{ margin: "8px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 7 }}>
+            {globalSlots.map((slot) => (
+              <li key={slot} style={{ display: "flex", gap: 7, fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                <MeetingIcon name="clock" size={12} style={{ color: "var(--ypp-purple-600)", marginTop: 2 }} />
+                <span>{slot}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <TinyLabel>Each presenter should cover</TinyLabel>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 8 }}>
+            {model.presentationSections.map((section) => (
+              <Pill key={section} tone="neutral" style={{ fontSize: 11.5 }}>
+                {section}
+              </Pill>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+        <Pill tone={meeting.linkedActions.length > 0 ? "success" : "warning"}>
+          {meeting.linkedActions.length} linked action{meeting.linkedActions.length === 1 ? "" : "s"}
+        </Pill>
+        <Pill tone={meeting.decisionCount > 0 ? "success" : "neutral"}>
+          {meeting.decisionCount} decision{meeting.decisionCount === 1 ? "" : "s"}
+        </Pill>
+        <Pill tone={meeting.openFollowUps > 0 ? "warning" : "success"}>
+          {meeting.openFollowUps} next commitment{meeting.openFollowUps === 1 ? "" : "s"}
+        </Pill>
+      </div>
+    </div>
+  );
+}
+
+function OfficerMeetingFocus({ meeting }: { meeting: MeetingDetailDTO }) {
+  const focusRows = [
+    { label: "Decisions needed this week", value: meeting.decisions.filter((d) => !d.linkedActionId).length, href: "#decisions" },
+    { label: "Escalations from Impact Presentations", value: meeting.agenda.filter((a) => a.itemKind === "ESCALATED_BLOCKER").length, href: "#agenda" },
+    { label: "Overdue strategic actions", value: meeting.linkedActions.filter((a) => a.status === "OVERDUE").length, href: "#actions" },
+    { label: "Follow-ups still open", value: meeting.openFollowUps, href: "#followups" },
+    { label: "People or role ownership gaps", value: meeting.agenda.filter((a) => a.itemKind === "MISSED_COMMITMENT_REVIEW" || a.itemKind === "EXPECTATION_SETTING").length, href: "#agenda" },
+  ];
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "13px 14px", background: "var(--surface)" }}>
+      <SectionTitle icon="checkCircle">Officer decision focus</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 9 }}>
+        {focusRows.map((row) => (
+          <a
+            key={row.label}
+            href={row.href}
+            style={{ textDecoration: "none", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 11px", background: "var(--rail)", display: "flex", justifyContent: "space-between", gap: 10 }}
+          >
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-secondary)", lineHeight: 1.35 }}>{row.label}</span>
+            <span style={{ fontSize: 16, fontWeight: 800, color: row.value > 0 ? "var(--warn-fg, #a45a09)" : "var(--ypp-ink)", fontVariantNumeric: "tabular-nums" }}>
+              {row.value}
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AttendanceSection({
+  meeting,
+  model,
+  pending,
+  run,
+}: {
+  meeting: MeetingDetailDTO;
+  model: MeetingOperatingModel;
+  pending: boolean;
+  run: RunFn;
+}) {
+  return (
+    <div id="attendance" style={{ scrollMarginTop: 80 }}>
+      <Card style={{ padding: "16px 17px" }}>
+        <SectionTitle icon="people" count={meeting.attendees.length}>
+          Attendance
+        </SectionTitle>
+        <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+          {model.requiredAttendees.length > 0 ? (
+            <div>
+              <TinyLabel>Expected required attendees</TinyLabel>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 7 }}>
+                {model.requiredAttendees.map((name) => (
+                  <Pill key={name} tone="neutral" style={{ fontSize: 11.5 }}>
+                    {name}
+                  </Pill>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {meeting.attendees.length ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {meeting.attendees.map((p) => (
+                <AttendeeStatusRow key={p.attendeeId} attendee={p} pending={pending} run={run} />
+              ))}
+            </div>
+          ) : (
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+              No attendees added yet. Add required attendees before this meeting runs.
+            </span>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function AttendeeStatusRow({
+  attendee,
+  pending,
+  run,
+}: {
+  attendee: MeetingAttendeeDTO;
+  pending: boolean;
+  run: RunFn;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+      <PersonChip name={attendee.name} size={28} />
+      <select
+        value={attendee.attendanceStatus}
+        disabled={pending}
+        onChange={(e) =>
+          run(() => setMeetingAttendeeStatus({ id: attendee.attendeeId, status: e.target.value }))
+        }
+        style={{ ...fieldStyle, flex: "0 0 150px", padding: "7px 9px", fontSize: 12.5 }}
+        aria-label={`Attendance for ${attendee.name}`}
+      >
+        {MEETING_ATTENDANCE_STATUS_VALUES.map((status) => (
+          <option key={status} value={status}>
+            {MEETING_ATTENDANCE_STATUS_LABELS[status]}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

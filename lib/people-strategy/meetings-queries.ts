@@ -10,6 +10,16 @@ import {
 } from "./constants";
 import { meetingCategoryLabel, isMeetingCategory } from "./meeting-categories";
 import {
+  inferMeetingType,
+  meetingTypeLabel,
+  type MeetingType,
+} from "./meeting-operating-model";
+import {
+  meetingAttendanceStatusLabel,
+  normalizeMeetingAttendanceStatus,
+  type MeetingAttendanceStatus,
+} from "./meeting-attendance";
+import {
   computeFollowUpStatus,
   computeMeetingStatus,
   type EffectiveFollowUpStatus,
@@ -111,6 +121,16 @@ export interface PersonDTO {
   initials: string;
 }
 
+export interface MeetingAttendeeDTO extends PersonDTO {
+  attendeeId: string;
+  attendanceRole: string;
+  attendanceStatus: MeetingAttendanceStatus;
+  attendanceStatusLabel: string;
+  responsivenessStatus: string | null;
+  attendanceNotes: string | null;
+  attendanceRecordedISO: string | null;
+}
+
 export interface AgendaItemDTO {
   id: string;
   title: string;
@@ -186,6 +206,8 @@ export interface MeetingCardDTO {
   id: string;
   title: string;
   purpose: string | null;
+  meetingType?: MeetingType;
+  meetingTypeLabel?: string;
   category: string | null;
   categoryLabel: string;
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
@@ -194,8 +216,17 @@ export interface MeetingCardDTO {
   durationLabel: string | null;
   recurrence: string | null;
   location: string | null;
+  relatedTeam?: string | null;
+  relatedChapter?: string | null;
+  strategicPriority?: string | null;
+  summaryStatus?: string;
+  rescheduleStatus?: string | null;
+  escalationStatus?: string | null;
   facilitator: PersonDTO | null;
   attendeeCount: number;
+  requiredAttendeeCount?: number;
+  attendanceRecordedCount?: number;
+  attendanceConcernCount?: number;
   /** Facilitator + attendee user ids, for the dashboard's owner filter. */
   participantIds: string[];
   effectiveStatus: EffectiveMeetingStatus;
@@ -237,7 +268,7 @@ export interface MeetingCardDTO {
 
 export interface MeetingDetailDTO extends MeetingCardDTO {
   notesText: string | null;
-  attendees: PersonDTO[];
+  attendees: MeetingAttendeeDTO[];
   agenda: AgendaItemDTO[];
   decisions: DecisionDTO[];
   followUps: FollowUpDTO[];
@@ -328,6 +359,30 @@ export function mapMeetingToCardDTO(
 ): MeetingCardDTO {
   const view = mapMeetingToView(m);
   const counts = cardCounts(m, now);
+  const meetingType = inferMeetingType({
+    meetingType: m.meetingType,
+    title: m.title,
+    category: m.category,
+    relatedEntityType: m.relatedEntityType,
+  });
+  const attendanceRecordedStatuses = new Set([
+    "PRESENT",
+    "ABSENT",
+    "EXCUSED",
+    "LATE",
+    "DID_NOT_RESPOND",
+    "RESCHEDULED",
+    "FOLLOW_UP_NEEDED",
+  ]);
+  const attendanceConcernStatuses = new Set([
+    "ABSENT",
+    "DID_NOT_RESPOND",
+    "FOLLOW_UP_NEEDED",
+  ]);
+  const attendeeStatusCounts = m.attendees.map((a) => ({
+    role: a.attendanceRole,
+    status: normalizeMeetingAttendanceStatus(a.attendanceStatus),
+  }));
   const decisionsPreview = m.decisions.slice(0, 3).map((d) => ({
     id: d.id,
     decision: d.decision,
@@ -371,6 +426,8 @@ export function mapMeetingToCardDTO(
     id: m.id,
     title: meetingDisplayTitle(m),
     purpose: m.purpose,
+    meetingType,
+    meetingTypeLabel: meetingTypeLabel(meetingType),
     category: m.category,
     categoryLabel: meetingCategoryLabel(m.category),
     priority: m.priority,
@@ -379,8 +436,21 @@ export function mapMeetingToCardDTO(
     durationLabel: durationLabel(m.date, m.endTime),
     recurrence: m.recurrence,
     location: m.location,
+    relatedTeam: m.relatedTeam,
+    relatedChapter: m.relatedChapter,
+    strategicPriority: m.strategicPriority,
+    summaryStatus: m.summaryStatus,
+    rescheduleStatus: m.rescheduleStatus,
+    escalationStatus: m.escalationStatus,
     facilitator: personDTO(m.facilitator),
     attendeeCount: m.attendees.length,
+    requiredAttendeeCount: attendeeStatusCounts.filter((a) => a.role !== "OPTIONAL").length,
+    attendanceRecordedCount: attendeeStatusCounts.filter((a) =>
+      a.role !== "OPTIONAL" && attendanceRecordedStatuses.has(a.status)
+    ).length,
+    attendanceConcernCount: attendeeStatusCounts.filter((a) =>
+      attendanceConcernStatuses.has(a.status)
+    ).length,
     participantIds: [
       ...(m.facilitatorId ? [m.facilitatorId] : []),
       ...m.attendees.map((a) => a.userId),
@@ -412,7 +482,25 @@ export function mapMeetingToDetailDTO(
   return {
     ...mapMeetingToCardDTO(m, now),
     notesText: m.notesText,
-    attendees: m.attendees.map((a) => personDTO(a.user)).filter((p): p is PersonDTO => !!p),
+    attendees: m.attendees
+      .map((a) => {
+        const person = personDTO(a.user);
+        if (!person) return null;
+        const status = normalizeMeetingAttendanceStatus(a.attendanceStatus);
+        return {
+          ...person,
+          attendeeId: a.id,
+          attendanceRole: a.attendanceRole,
+          attendanceStatus: status,
+          attendanceStatusLabel: meetingAttendanceStatusLabel(status),
+          responsivenessStatus: a.responsivenessStatus,
+          attendanceNotes: a.attendanceNotes,
+          attendanceRecordedISO: a.attendanceRecordedAt
+            ? a.attendanceRecordedAt.toISOString()
+            : null,
+        };
+      })
+      .filter((p): p is MeetingAttendeeDTO => !!p),
     agenda: m.agendaItems.map((a) => ({
       id: a.id,
       title: a.title,

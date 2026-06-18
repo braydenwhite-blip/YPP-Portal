@@ -15,6 +15,10 @@ import {
   parseRelatedEntityUpdate,
   type RelatedEntityRef,
 } from "./constants";
+import {
+  isMeetingAttendanceStatus,
+} from "./meeting-attendance";
+import { normalizeMeetingType } from "./meeting-operating-model";
 import { buildActionPrefillFromDecision } from "./action-prefill";
 import { createActionItem } from "./action-items-actions";
 import { deriveStrategicContextForMeeting } from "./strategic-context";
@@ -116,6 +120,7 @@ function parseRelatedRefOrThrow(
 const CreateMeetingSchema = z.object({
   title: NonEmptyString.max(300),
   purpose: OptionalText,
+  meetingType: z.string().trim().optional(),
   category: z.string().trim().optional(),
   priority: z.enum(PRIORITY_VALUES).default("MEDIUM"),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "A valid date is required"),
@@ -126,6 +131,9 @@ const CreateMeetingSchema = z.object({
   facilitatorId: OptionalId,
   relatedEntityType: z.string().trim().optional(),
   relatedEntityId: z.string().trim().optional(),
+  relatedTeam: OptionalText,
+  relatedChapter: OptionalText,
+  strategicPriority: OptionalText,
   attendeeIds: z.array(z.string().trim().min(1)).optional().default([]),
   agendaTitles: z.array(z.string().trim().min(1)).optional().default([]),
 });
@@ -146,6 +154,7 @@ export async function createMeeting(input: CreateMeetingInput) {
     data: {
       title: data.title,
       purpose: data.purpose,
+      meetingType: normalizeMeetingType(data.meetingType),
       category,
       priority: data.priority,
       date: start,
@@ -155,6 +164,9 @@ export async function createMeeting(input: CreateMeetingInput) {
       facilitatorId: data.facilitatorId,
       relatedEntityType: relatedRef?.type ?? null,
       relatedEntityId: relatedRef?.id ?? null,
+      relatedTeam: data.relatedTeam,
+      relatedChapter: data.relatedChapter,
+      strategicPriority: data.strategicPriority,
       attendees: data.attendeeIds.length
         ? {
             create: [...new Set(data.attendeeIds)].map((userId) => ({ userId })),
@@ -180,6 +192,7 @@ const UpdateMeetingSchema = z.object({
   id: NonEmptyString,
   title: NonEmptyString.max(300).optional(),
   purpose: OptionalText,
+  meetingType: z.string().trim().optional(),
   category: z.string().trim().optional(),
   priority: z.enum(PRIORITY_VALUES).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -190,6 +203,12 @@ const UpdateMeetingSchema = z.object({
   facilitatorId: OptionalId,
   relatedEntityType: z.string().trim().optional(),
   relatedEntityId: z.string().trim().optional(),
+  relatedTeam: OptionalText,
+  relatedChapter: OptionalText,
+  strategicPriority: OptionalText,
+  summaryStatus: OptionalText,
+  rescheduleStatus: OptionalText,
+  escalationStatus: OptionalText,
   status: z.enum(MEETING_STATUS_VALUES).optional(),
 });
 
@@ -219,6 +238,8 @@ export async function updateMeeting(input: z.input<typeof UpdateMeetingSchema>) 
     data: {
       title: data.title,
       purpose: data.purpose ?? undefined,
+      meetingType:
+        data.meetingType !== undefined ? normalizeMeetingType(data.meetingType) : undefined,
       category:
         data.category !== undefined ? parseCategoryOrThrow(data.category) : undefined,
       priority: data.priority,
@@ -236,6 +257,12 @@ export async function updateMeeting(input: z.input<typeof UpdateMeetingSchema>) 
         relatedEntityType: data.relatedEntityType,
         relatedEntityId: data.relatedEntityId,
       }),
+      relatedTeam: data.relatedTeam ?? undefined,
+      relatedChapter: data.relatedChapter ?? undefined,
+      strategicPriority: data.strategicPriority ?? undefined,
+      summaryStatus: data.summaryStatus ?? undefined,
+      rescheduleStatus: data.rescheduleStatus ?? undefined,
+      escalationStatus: data.escalationStatus ?? undefined,
       status: data.status,
     },
   });
@@ -249,6 +276,31 @@ export async function setMeetingStatus(
   status: (typeof MEETING_STATUS_VALUES)[number]
 ) {
   return updateMeeting({ id, status });
+}
+
+const SetAttendeeStatusSchema = z.object({
+  id: NonEmptyString,
+  status: z.string().trim(),
+});
+
+export async function setMeetingAttendeeStatus(input: z.input<typeof SetAttendeeStatusSchema>) {
+  ensureEnabled();
+  await requireOfficer();
+  const data = SetAttendeeStatusSchema.parse(input);
+  const status = data.status.trim().toUpperCase();
+  if (!isMeetingAttendanceStatus(status)) {
+    throw new Error("Unknown attendance status");
+  }
+
+  const attendee = await prisma.meetingAttendee.update({
+    where: { id: data.id },
+    data: {
+      attendanceStatus: status,
+      attendanceRecordedAt: new Date(),
+    },
+    select: { officerMeetingId: true },
+  });
+  revalidate(attendee.officerMeetingId);
 }
 
 const SaveNotesSchema = z.object({

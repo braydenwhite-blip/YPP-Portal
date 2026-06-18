@@ -13559,6 +13559,11 @@ model OfficerMeeting {
   /// typed (no Postgres enum) to mirror `ActionItem.actionType`; validated in
   /// application code (lib/people-strategy/meeting-categories.ts). Null = Other.
   category   String?
+  /// YPP meeting workflow type (OFFICER_MEETING /
+  /// GLOBAL_OPERATIONS_IMPACT_PRESENTATION / CHAPTER_IMPACT_PRESENTATION /
+  /// MENTORSHIP_CHECK_IN / GENERAL_MEETING). String-typed so the operating model
+  /// can evolve without a database enum migration for every new meeting format.
+  meetingType String @default("GENERAL_MEETING")
   /// Reuses the shared ActionPriority enum so meetings and actions speak one
   /// priority vocabulary.
   priority   ActionPriority @default(MEDIUM)
@@ -13581,6 +13586,16 @@ model OfficerMeeting {
   /// concrete linked record.
   relatedEntityType String?
   relatedEntityId   String?
+  /// Optional lightweight operating-model links for Impact Presentation meetings
+  /// before a dedicated Team/Chapter meeting model is worth introducing here.
+  relatedTeam       String?
+  relatedChapter    String?
+  strategicPriority String?
+  /// Copy-ready post-meeting summary workflow state. Kept string-typed for the
+  /// same reason as `meetingType`.
+  summaryStatus    String @default("NOT_STARTED")
+  rescheduleStatus String?
+  escalationStatus String?
 
   actionItems                       ActionItem[]                  @relation("OfficerMeetingActionItems")
   notes                             MeetingNote[]                 @relation("OfficerMeetingNotes")
@@ -13601,8 +13616,11 @@ model OfficerMeeting {
   @@index([date])
   @@index([status, date])
   @@index([category])
+  @@index([meetingType])
   @@index([facilitatorId])
   @@index([relatedEntityType, relatedEntityId])
+  @@index([relatedTeam])
+  @@index([relatedChapter])
 }
 
 /// Join row: a user invited to / attending an officer meeting. Unique per
@@ -13613,12 +13631,24 @@ model MeetingAttendee {
   officerMeeting   OfficerMeeting @relation("OfficerMeetingAttendees", fields: [officerMeetingId], references: [id], onDelete: Cascade)
   userId           String
   user             User           @relation("MeetingAttendeeUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// REQUIRED / OPTIONAL. Separate from attendanceStatus so "required attendee"
+  /// and "present" do not overwrite each other.
+  attendanceRole   String         @default("REQUIRED")
+  /// REQUIRED / OPTIONAL / PRESENT / ABSENT / EXCUSED / LATE /
+  /// DID_NOT_RESPOND / RESCHEDULED / FOLLOW_UP_NEEDED. String-typed so the
+  /// meeting operating model can add states without expanding the shared class
+  /// AttendanceStatus enum.
+  attendanceStatus String         @default("REQUIRED")
+  responsivenessStatus String?
+  attendanceNotes      String?    @db.Text
+  attendanceRecordedAt DateTime?
 
   createdAt DateTime @default(now())
 
   @@unique([officerMeetingId, userId])
   @@index([officerMeetingId])
   @@index([userId])
+  @@index([attendanceStatus])
 }
 
 /// Status of one agenda item within a meeting. CONVERTED means it became a
