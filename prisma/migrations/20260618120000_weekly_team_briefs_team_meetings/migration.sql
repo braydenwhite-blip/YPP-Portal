@@ -251,6 +251,7 @@ CREATE INDEX IF NOT EXISTS "TeamPresentationExpectation_targetOfficerMeetingId_i
 CREATE INDEX IF NOT EXISTS "TeamPresentationExpectation_addressedInBriefId_idx" ON "TeamPresentationExpectation"("addressedInBriefId");
 CREATE INDEX IF NOT EXISTS "TeamPresentationExpectation_dueDate_idx" ON "TeamPresentationExpectation"("dueDate");
 CREATE INDEX IF NOT EXISTS "TeamPresentationExpectation_dueWeekStart_idx" ON "TeamPresentationExpectation"("dueWeekStart");
+CREATE INDEX IF NOT EXISTS "TeamPresentationExpectation_responsibleOwnerId_idx" ON "TeamPresentationExpectation"("responsibleOwnerId");
 CREATE INDEX IF NOT EXISTS "TeamPresentationExpectation_presenterId_idx" ON "TeamPresentationExpectation"("presenterId");
 CREATE INDEX IF NOT EXISTS "TeamPresentationExpectation_createdById_idx" ON "TeamPresentationExpectation"("createdById");
 
@@ -367,6 +368,13 @@ END $$;
 DO $$ BEGIN
   ALTER TABLE "TeamPresentationExpectation" ADD CONSTRAINT "TeamPresentationExpectation_actionItemId_fkey"
     FOREIGN KEY ("actionItemId") REFERENCES "ActionItem"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "TeamPresentationExpectation" ADD CONSTRAINT "TeamPresentationExpectation_responsibleOwnerId_fkey"
+    FOREIGN KEY ("responsibleOwnerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;

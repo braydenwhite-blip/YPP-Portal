@@ -8,6 +8,7 @@ import { isWeeklyTeamBriefsEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
 import type { ActionViewer } from "./action-permissions";
+import { getInitiativeDef, getWorkstreamDef } from "./strategic-initiatives";
 import {
   canEditWeeklyBriefOverall,
   canEditWeeklyTaskUpdate,
@@ -66,6 +67,20 @@ function revalidateBrief(input: { initiativeId: string; workstreamId: string; we
   revalidatePath("/actions/meetings");
 }
 
+function configuredBriefAccess(initiativeId: string, workstreamId: string) {
+  const def = getInitiativeDef(initiativeId);
+  const ws = getWorkstreamDef(initiativeId, workstreamId);
+  if (!def || !ws) throw new Error("Initiative team config not found");
+  return {
+    teamLeadId: ws.leadUserId ?? ws.leadUserIds?.[0] ?? null,
+    workstreamLeadUserIds: [ws.leadUserId, ...(ws.leadUserIds ?? [])].filter(
+      (id): id is string => Boolean(id)
+    ),
+    initiativeLeadUserIds: def.leadUserIds ?? [],
+    taskUpdates: [],
+  };
+}
+
 async function requireBriefMutationAccess(briefId: string) {
   ensureEnabled();
   const session = await requireSessionUser();
@@ -86,7 +101,11 @@ export async function generateTeamBriefForWeek(
 ) {
   ensureEnabled();
   const session = await requireSessionUser();
+  const viewer = viewerFromSession(session);
   const data = GenerateBriefSchema.parse(input);
+  if (!canEditWeeklyBriefOverall(viewer, configuredBriefAccess(data.initiativeId, data.workstreamId))) {
+    throw new Error("Unauthorized");
+  }
   const weekStart = parseWeekStart(data.weekStart);
   await generateWeeklyTeamBriefs(weekStart, {
     initiativeId: data.initiativeId,
@@ -379,6 +398,7 @@ const ExpectationSchema = z.object({
   prompt: NonEmptyString.max(4000),
   requiredQuestion: OptionalText,
   requiredDeliverable: OptionalText,
+  responsibleOwnerId: OptionalId,
   presenterId: OptionalId,
   dueDate: z.string().optional(),
   targetOfficerMeetingId: OptionalId,
@@ -405,6 +425,7 @@ export async function createTeamPresentationExpectation(
       prompt: data.prompt,
       requiredQuestion: data.requiredQuestion,
       requiredDeliverable: data.requiredDeliverable,
+      responsibleOwnerId: data.responsibleOwnerId,
       presenterId: data.presenterId,
       dueDate,
       dueWeekStart: dueDate ? startOfUTCWeek(dueDate) : null,

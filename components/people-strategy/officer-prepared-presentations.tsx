@@ -18,6 +18,7 @@ async function createExpectationFromOfficerMeeting(formData: FormData) {
     prompt: String(formData.get("prompt") ?? ""),
     requiredQuestion: String(formData.get("requiredQuestion") ?? ""),
     requiredDeliverable: String(formData.get("requiredDeliverable") ?? ""),
+    responsibleOwnerId: String(formData.get("responsibleOwnerId") ?? ""),
     presenterId: String(formData.get("presenterId") ?? ""),
     dueDate: String(formData.get("dueDate") ?? ""),
     sourceMeetingId: String(formData.get("sourceMeetingId") ?? ""),
@@ -164,6 +165,7 @@ function PreparedPresentationCard({
           <input type="hidden" name="actionItemId" value={item.actionItemId ?? ""} />
           <input type="hidden" name="sourceMeetingId" value={officerMeetingId} />
           <input type="hidden" name="targetOfficerMeetingId" value={officerMeetingId} />
+          <input type="hidden" name="responsibleOwnerId" value={item.presenter?.id ?? ""} />
           <input type="hidden" name="presenterId" value={item.presenter?.id ?? ""} />
           <div className="grid gap-2 sm:grid-cols-[170px_1fr_150px]">
             <select name="kind" className="rounded-md border border-[var(--border)] px-2.5 py-2 text-sm">
