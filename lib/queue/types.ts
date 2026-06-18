@@ -341,8 +341,8 @@ export const QUEUE_DESCRIPTORS: Record<QueueKey, QueueDescriptor> = {
   },
   "owner-accountability": {
     key: "owner-accountability",
-    label: "Owner accountability",
-    tagline: "Work nobody is on the hook for.",
+    label: "Owner Needed",
+    tagline: "Active work with no eligible accountable Lead.",
     accent: "warning",
   },
   "initiative-cleanup": {

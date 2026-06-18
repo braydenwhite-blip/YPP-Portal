@@ -235,6 +235,14 @@ enum MentorshipStatus {
   COMPLETE
 }
 
+/// Whether a mentorship is for instruction development or organizational
+/// leadership — lets a person have different mentors for each (Phase 4 of the
+/// Roles/Mentorship/Reviews/Access plan). Null = general / unspecified.
+enum MentorshipFocusArea {
+  INSTRUCTION
+  LEADERSHIP
+}
+
 enum MentorshipPointCategory {
   STUDENT
   INSTRUCTOR
@@ -858,6 +866,9 @@ model User {
   mentorAvailabilityOverrides              MentorAvailabilityOverride[]             @relation("MentorAvailabilityOverrides")
   menteePairs                              Mentorship[]                             @relation("MenteeLinks")
   chairedMentorships                       Mentorship[]                             @relation("MentorshipChairs")
+  mentorshipHistoryAsMentee                MentorshipAssignmentHistory[]            @relation("MentorshipHistoryMentee")
+  mentorshipHistoryAsMentor                MentorshipAssignmentHistory[]            @relation("MentorshipHistoryMentor")
+  mentorshipHistoryAsActor                 MentorshipAssignmentHistory[]            @relation("MentorshipHistoryActor")
   supportCircleMemberships                 MentorshipCircleMember[]                 @relation("SupportCircleUsers")
   supportCircleForMentees                  MentorshipCircleMember[]                 @relation("SupportCircleMentees")
   mentorshipSessionsCreated                MentorshipSession[]                      @relation("MentorshipSessionsCreated")
@@ -2780,6 +2791,10 @@ model Mentorship {
   startDate               DateTime                 @default(now())
   endDate                 DateTime?
   notes                   String?
+  /// Instruction-development vs organizational-leadership mentorship (Phase 4).
+  focusArea               MentorshipFocusArea?
+  /// Temporary assignment that is expected to be handed back / reassigned.
+  isTemporary             Boolean                  @default(false)
   trackId                 String?
   chairId                 String?
   kickoffScheduledAt      DateTime?
@@ -2842,6 +2857,8 @@ model MentorshipCircleMember {
   source            String?
   isPrimary         Boolean     @default(false)
   isActive          Boolean     @default(true)
+  /// Temporary advisor assignment (Phase 4).
+  isTemporary       Boolean     @default(false)
   notes             String?
   availabilityNotes String?
   capacityOverride  Int?
@@ -14049,4 +14066,37 @@ model CommitteeMembership {
   @@unique([committeeId, userId])
   @@index([userId, isActive])
   @@index([committeeId, isActive])
+}
+
+/// Explicit, queryable history of who mentored whom (Phase 4 of the
+/// Roles/Mentorship/Reviews/Access plan). A new row opens when an assignment
+/// starts; `endedAt` is stamped when it ends (on reassignment), so a person's
+/// full mentor/mentee history survives any number of transfers without touching
+/// the account, notes, or reviews. Append-only — rows are never deleted.
+model MentorshipAssignmentHistory {
+  id        String               @id @default(cuid())
+  menteeId  String
+  mentee    User                 @relation("MentorshipHistoryMentee", fields: [menteeId], references: [id], onDelete: Cascade)
+  mentorId  String
+  mentor    User                 @relation("MentorshipHistoryMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  /// Mirrors Mentorship.focusArea so instruction vs leadership history is distinct.
+  focusArea MentorshipFocusArea?
+  /// Role in the relationship, e.g. "PRIMARY_MENTOR" or "ADVISOR".
+  role      String               @default("PRIMARY_MENTOR")
+  /// Provenance link to the live Mentorship row, when one exists.
+  mentorshipId String?
+  isTemporary  Boolean           @default(false)
+  startedAt    DateTime          @default(now())
+  /// Null while the assignment is current; set when it ends (on reassignment).
+  endedAt      DateTime?
+  /// Why the change happened (free text), for the audit trail.
+  reason       String?
+  /// Who made the change (admin/officer), when known.
+  actorId      String?
+  actor        User?             @relation("MentorshipHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+
+  @@index([menteeId, endedAt])
+  @@index([mentorId, endedAt])
+  @@index([mentorshipId])
 }

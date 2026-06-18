@@ -3,10 +3,16 @@
 Status: **In progress** · Owner: Brayden · Last updated: 2026-06-18
 
 **Delivered:** Phase 0 (authority foundation), Phase 1 (review approval + exceptions,
-flag-gated), Phase 2 ("Why This Person Has Access" + Access Problems detector), and
+flag-gated), Phase 2 ("Why This Person Has Access" + Access Problems detector),
 Phase 3 (person spine: `internalLevel`/`ladder`/`canonicalTitle`/cohort + committees,
-migration `20260618120000_org_person_spine`, backfill `scripts/backfill-org-authority.ts`).
-After deploying Phase 3, run `npm run backfill:org-authority` (dry run) then `--apply`.
+migration `20260618120000_org_person_spine`, backfill `scripts/backfill-org-authority.ts`),
+Phase 4 (mentorship transferability: `focusArea`/`isTemporary`,
+`MentorshipAssignmentHistory`, non-destructive `reassignPrimaryMentor`, migration
+`20260618130000_mentorship_transferability`), and Phase 5 (flag-gated action-Lead
+eligibility on assignment + Owner Needed queue).
+After deploying Phases 3-4, run `npm run backfill:org-authority` (dry run) then `--apply`.
+Enforcement flags default OFF: `ORG_REVIEW_AUTHORITY_ENFORCED`,
+`ORG_ACTION_LEAD_ELIGIBILITY_ENFORCED`.
 
 This plan maps the *"YPP Portal Roles, Mentorship, Reviews, and Access Proposal"* onto
 the existing codebase. It is a sequencing + impact document, not code. No code lands
