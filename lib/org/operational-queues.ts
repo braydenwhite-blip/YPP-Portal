@@ -21,6 +21,7 @@ import { prisma } from "@/lib/prisma";
 import { getMyReviewQueue } from "@/lib/goal-review-actions";
 import { getApprovableGoalReviewsForUser } from "@/lib/mentorship-chair-access";
 import { getMissingChapterQueue } from "@/lib/org/missing-chapter";
+import { getPendingPromotionSetups } from "@/lib/org/promotion-queries";
 import {
   OPERATIONAL_QUEUE_KEYS,
   OPERATIONAL_QUEUE_LABELS,
@@ -156,8 +157,17 @@ export async function getMissingChapterRows(): Promise<OperationalQueueRow[]> {
 // ─── Promotion Setup (Phase 8 placeholder) ────────────────────────────────────
 
 export async function getPromotionSetupRows(): Promise<OperationalQueueRow[]> {
-  // Depends on the Phase 8 promotion flow; intentionally empty until then.
-  return [];
+  const pending = await getPendingPromotionSetups();
+  return pending.map((p) => ({
+    id: p.id,
+    title: p.personName,
+    subtitle:
+      p.pendingSetup.length > 0
+        ? `New role setup pending: ${p.pendingSetup.join(", ")}`
+        : "New role setup pending",
+    href: `/people/${p.userId}`,
+    ageLabel: null,
+  }));
 }
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

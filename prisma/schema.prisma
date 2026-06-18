@@ -871,6 +871,8 @@ model User {
   mentorshipHistoryAsActor                 MentorshipAssignmentHistory[]            @relation("MentorshipHistoryActor")
   missingChapterFlagsCreated               MissingChapterFlag[]                     @relation("MissingChapterCreatedBy")
   missingChapterFlagsResolved              MissingChapterFlag[]                     @relation("MissingChapterResolvedBy")
+  promotionRecords                         PromotionRecord[]                        @relation("PromotionRecordsUser")
+  promotionRecordsActed                    PromotionRecord[]                        @relation("PromotionRecordsActor")
   supportCircleMemberships                 MentorshipCircleMember[]                 @relation("SupportCircleUsers")
   supportCircleForMentees                  MentorshipCircleMember[]                 @relation("SupportCircleMentees")
   mentorshipSessionsCreated                MentorshipSession[]                      @relation("MentorshipSessionsCreated")
@@ -14128,4 +14130,40 @@ model MissingChapterFlag {
 
   @@unique([recordType, recordId])
   @@index([resolvedAt])
+}
+
+/// An APPLIED promotion / role change (Phase 8 of the Roles/Mentorship/Reviews/
+/// Access plan), distinct from the recommendation workflow. Captures the before
+/// and after of a non-destructive change made from the person profile, plus the
+/// reason, effective date, actor, and whether the new role's setup (mentor /
+/// chapter / committee) is still pending — which drives the Promotion Setup
+/// queue. Append-only history; nothing about the account is deleted.
+model PromotionRecord {
+  id                    String     @id @default(cuid())
+  userId                String
+  user                  User       @relation("PromotionRecordsUser", fields: [userId], references: [id], onDelete: Cascade)
+  effectiveDate         DateTime
+  reason                String?
+  previousTitle         String?
+  newTitle              String?
+  previousInternalLevel Int?
+  newInternalLevel      Int?
+  previousLadder        OrgLadder?
+  newLadder             OrgLadder?
+  previousChapterId     String?
+  newChapterId          String?
+  previousCohortId      String?
+  newCohortId           String?
+  /// JSON arrays of committee names added / removed by this promotion.
+  committeesAdded       String?
+  committeesRemoved     String?
+  /// Unresolved setup item codes (JSON array) and whether setup is finished.
+  pendingSetup          String?
+  setupComplete         Boolean    @default(false)
+  actorId               String?
+  actor                 User?      @relation("PromotionRecordsActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt             DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([setupComplete])
 }

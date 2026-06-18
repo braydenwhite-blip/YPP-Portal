@@ -1,6 +1,6 @@
 # Roles, Mentorship, Reviews & Access — Implementation Plan
 
-Status: **In progress** · Owner: Brayden · Last updated: 2026-06-18
+Status: **Phases 0–8 delivered** · Owner: Brayden · Last updated: 2026-06-18
 
 **Delivered:** Phase 0 (authority foundation), Phase 1 (review approval + exceptions,
 flag-gated), Phase 2 ("Why This Person Has Access" + Access Problems detector),
@@ -17,9 +17,17 @@ Chapter, at `/queues`). Mentor history + a non-destructive reassign form are now
 on the person profile, and the legacy support-circle assign path also records
 mentor history.
 
-Remaining: Phase 8 (promotions + profile history + admin authority/audit) — the
-Promotion Setup queue is stubbed until it lands.
-After deploying Phases 3-4 & 6, run `npm run backfill:org-authority` (dry run) then `--apply`.
+Phase 8 (promotions + profile history + audit): preview-then-apply promotions on
+the person profile (`previewPromotion` / `applyPromotion`), the `PromotionRecord`
+history (migration `20260618150000_promotion_record`), the now-live Promotion
+Setup queue, and a `ROLE_CHANGED` AuditLog entry on every promotion. Changing a
+person's internal level is Board-only.
+
+Optional follow-ups (not blocking): auto-wire `flagMissingChapter` into
+record-create flows so Missing Chapter is detected automatically, and aggregate
+the broader "complete history" (classes/reviews/actions already live on the
+profile via existing panels).
+After deploying Phases 3-4, 6 & 8, run `npm run backfill:org-authority` (dry run) then `--apply`.
 Enforcement flags default OFF: `ORG_REVIEW_AUTHORITY_ENFORCED`,
 `ORG_ACTION_LEAD_ELIGIBILITY_ENFORCED`. Missing Chapter owner: `MISSING_CHAPTER_OWNER_EMAIL`.
 
