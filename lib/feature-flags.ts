@@ -51,6 +51,23 @@ export function isStrategicInitiativesEnabled(): boolean {
 }
 
 /**
+ * People Strategy — Weekly Team Briefs and Team Meetings. Adds the team-facing
+ * weekly brief → Team Meeting → prepared presentation → Officer Meeting loop.
+ *
+ * Defaults OFF while the workflow rolls out. The schema/migration can safely
+ * ship first; with the flag off, new pages return notFound(), server actions
+ * throw, and cron/generation paths no-op.
+ */
+export function isWeeklyTeamBriefsEnabled(): boolean {
+  return (
+    process.env.ENABLE_WEEKLY_TEAM_BRIEFS === "true" &&
+    isActionTrackerEnabled() &&
+    isOperationsHubEnabled() &&
+    isStrategicInitiativesEnabled()
+  );
+}
+
+/**
  * Temporary deprecation gate for the older Leadership Action Center sidebar
  * entry. The route remains reachable during migration, but the nav should
  * point people at the newer People Strategy Action Tracker by default.
