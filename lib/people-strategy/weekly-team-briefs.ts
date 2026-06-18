@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 
 import type { ActionViewer } from "./action-permissions";
 import {
+  canEditWeeklyBriefOverall,
   canViewWeeklyBrief,
   type WeeklyBriefAccessShape,
   type WeeklyBriefTaskAccess,
@@ -369,12 +370,20 @@ export async function loadWeeklyBriefWorkspace(input: {
 
   const weekStart = parseWeekStart(input.weekStart);
   if (input.autoGenerate) {
-    await generateWeeklyTeamBriefs(weekStart, {
-      initiativeId: def.id,
-      workstreamId: ws.id,
-      createdById: input.viewer.id,
-      forceEmptyTeam: true,
-    });
+    const seedAccess: WeeklyBriefAccessShape = {
+      teamLeadId: firstConfiguredLeadId(ws),
+      workstreamLeadUserIds: workstreamLeadIds(ws),
+      initiativeLeadUserIds: initiativeLeadIds(def),
+      taskUpdates: [],
+    };
+    if (canEditWeeklyBriefOverall(input.viewer, seedAccess)) {
+      await generateWeeklyTeamBriefs(weekStart, {
+        initiativeId: def.id,
+        workstreamId: ws.id,
+        createdById: input.viewer.id,
+        forceEmptyTeam: true,
+      });
+    }
   }
 
   const brief = await prisma.weeklyTeamBrief.findUnique({
