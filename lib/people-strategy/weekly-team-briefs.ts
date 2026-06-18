@@ -4,6 +4,8 @@ import type {
   PreparedPresentationStatus,
   PresentationExpectationKind,
   Prisma,
+  TeamMeetingStatus,
+  WeeklyBriefStatus,
 } from "@prisma/client";
 
 import { isWeeklyTeamBriefsEnabled } from "@/lib/feature-flags";
@@ -84,7 +86,136 @@ type ActionForBrief = Prisma.ActionItemGetPayload<{
   include: typeof ACTION_FOR_BRIEF_INCLUDE;
 }>;
 
-export type WeeklyBriefWorkspace = ReturnType<typeof mapBriefWorkspace>;
+export type BriefPersonDTO = { id: string; name: string };
+
+export type BriefMeetingDTO = { id: string; title: string; dateISO: string };
+
+export type BriefDeliverableDTO = {
+  id: string;
+  label: string;
+  url: string;
+  addedAtISO: string;
+};
+
+export type WeeklyBriefTaskUpdateDTO = {
+  id: string;
+  actionItemId: string | null;
+  taskTitle: string;
+  liveStatus: ActionItemStatus | null;
+  owner: BriefPersonDTO | null;
+  commitment: string | null;
+  statusNarrative: string | null;
+  workCompleted: string | null;
+  currentResult: string | null;
+  remainingWork: string | null;
+  blockerNote: string | null;
+  explanation: string | null;
+  decisionNeeded: string | null;
+  nextAction: string | null;
+  teamMeetingReady: boolean;
+  officerMeetingReady: boolean;
+  escalationNeeded: boolean;
+  officerReviewRequested: boolean;
+  teamMeetingPresenter: BriefPersonDTO | null;
+  officerMeetingPresenter: BriefPersonDTO | null;
+  deliverables: BriefDeliverableDTO[];
+  allDeliverables: BriefDeliverableDTO[];
+  expectationIds: string[];
+};
+
+export type WeeklyBriefWorkspace = {
+  id: string;
+  initiativeId: string;
+  initiativeTitle: string;
+  initiativeLeadNames: string[];
+  workstreamId: string;
+  workstreamTitle: string;
+  workstreamDescription: string | null;
+  weekStartISO: string;
+  weekEndISO: string;
+  weekKey: string;
+  status: WeeklyBriefStatus;
+  teamObjective: string | null;
+  overallStatus: string | null;
+  lastCommitments: string | null;
+  blockersSummary: string | null;
+  decisionsNeeded: string | null;
+  nextActionsSummary: string | null;
+  nextCycleCommitments: string | null;
+  readyForTeamMeeting: boolean;
+  readyForOfficerMeeting: boolean;
+  teamLead: BriefPersonDTO | null;
+  officerMeeting: BriefMeetingDTO | null;
+  teamMeeting: {
+    id: string;
+    title: string;
+    status: TeamMeetingStatus;
+    targetOfficerMeeting: BriefMeetingDTO | null;
+    finalizedAtISO: string | null;
+  } | null;
+  taskUpdates: WeeklyBriefTaskUpdateDTO[];
+  expectations: Array<{
+    id: string;
+    kind: PresentationExpectationKind;
+    prompt: string;
+    requiredQuestion: string | null;
+    requiredDeliverable: string | null;
+    actionItemId: string | null;
+    actionTitle: string | null;
+    presenter: BriefPersonDTO | null;
+    dueDateISO: string | null;
+    dueWeekStartISO: string | null;
+    sourceMeeting: BriefMeetingDTO | null;
+    targetOfficerMeeting: BriefMeetingDTO | null;
+  }>;
+  preparedPresentationItems: Array<{
+    id: string;
+    title: string;
+    reasonForOfficerReview: string;
+    statusSummary: string | null;
+    requestedDecision: string | null;
+    readiness: PreparedPresentationStatus;
+    actionItemId: string | null;
+    actionTitle: string | null;
+    presenter: BriefPersonDTO | null;
+    targetOfficerMeeting: BriefMeetingDTO | null;
+    agendaItemId: string | null;
+    deliverableLinkIds: string[];
+    expectationPrompt: string | null;
+  }>;
+  followUps: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    status: string;
+    owner: BriefPersonDTO | null;
+    sourceActionTitle: string | null;
+    dueDateISO: string | null;
+  }>;
+};
+
+export type OfficerPreparedPresentation = {
+  id: string;
+  title: string;
+  reasonForOfficerReview: string;
+  statusSummary: string | null;
+  requestedDecision: string | null;
+  readiness: PreparedPresentationStatus;
+  initiativeId: string;
+  initiativeTitle: string;
+  workstreamId: string;
+  workstreamTitle: string;
+  briefId: string;
+  briefWeekKey: string;
+  teamMeetingId: string | null;
+  teamMeetingTitle: string;
+  actionItemId: string | null;
+  actionTitle: string | null;
+  presenter: BriefPersonDTO | null;
+  expectationPrompt: string | null;
+  agendaItemId: string | null;
+  deliverables: Array<{ id: string; label: string; url: string }>;
+};
 
 export function startOfUTCWeek(input: Date): Date {
   const day = input.getUTCDay();
@@ -409,7 +540,9 @@ export async function loadWeeklyBriefWorkspace(input: {
   return mapBriefWorkspace(brief, def, ws, expectations, input.viewer, access);
 }
 
-export async function loadPreparedPresentationsForOfficerMeeting(officerMeetingId: string) {
+export async function loadPreparedPresentationsForOfficerMeeting(
+  officerMeetingId: string
+): Promise<OfficerPreparedPresentation[]> {
   if (!isWeeklyTeamBriefsEnabled()) return [];
   const items = await prisma.preparedPresentationItem.findMany({
     where: {
@@ -536,7 +669,7 @@ function mapBriefWorkspace(
   expectations: Array<Prisma.TeamPresentationExpectationGetPayload<{ include: typeof EXPECTATION_INCLUDE }>>,
   viewer: ActionViewer,
   access: WeeklyBriefAccessShape
-) {
+): WeeklyBriefWorkspace {
   const viewerCanSeeAll =
     canViewWeeklyBrief(viewer, { ...access, taskUpdates: [] }) ||
     access.teamLeadId === viewer.id;

@@ -4,9 +4,9 @@ import {
   acceptPreparedPresentationForOfficerMeeting,
   createTeamPresentationExpectation,
 } from "@/lib/people-strategy/weekly-team-brief-actions";
-import type { loadPreparedPresentationsForOfficerMeeting } from "@/lib/people-strategy/weekly-team-briefs";
+import type { OfficerPreparedPresentation } from "@/lib/people-strategy/weekly-team-briefs";
 
-type PreparedItem = Awaited<ReturnType<typeof loadPreparedPresentationsForOfficerMeeting>>[number];
+type PreparedItem = OfficerPreparedPresentation;
 
 async function createExpectationFromOfficerMeeting(formData: FormData) {
   "use server";

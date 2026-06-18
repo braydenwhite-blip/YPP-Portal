@@ -13,7 +13,10 @@ import {
   updateWeeklyBriefOverall,
   updateWeeklyTaskUpdate,
 } from "@/lib/people-strategy/weekly-team-brief-actions";
-import { loadWeeklyBriefWorkspace } from "@/lib/people-strategy/weekly-team-briefs";
+import {
+  loadWeeklyBriefWorkspace,
+  type WeeklyBriefTaskUpdateDTO,
+} from "@/lib/people-strategy/weekly-team-briefs";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { PageHeaderV2, RecordSection, StatusBadge } from "@/components/ui-v2";
 
@@ -334,7 +337,7 @@ function TaskUpdateCard({
   people,
   officerMeetingId,
 }: {
-  task: NonNullable<Awaited<ReturnType<typeof loadWeeklyBriefWorkspace>>>["taskUpdates"][number];
+  task: WeeklyBriefTaskUpdateDTO;
   finalized: boolean;
   people: Array<{ id: string; name: string }>;
   officerMeetingId: string;
