@@ -10,10 +10,13 @@
  * append-only MentorshipAssignmentHistory trail records the change with actor +
  * reason. Supports per-focus-area mentors (instruction vs leadership) and
  * temporary assignments.
+ *
+ * `recordPrimaryMentorAssignment` lets other assignment paths (e.g. the support
+ * circle assign flow) keep the same history trail without duplicating logic.
  */
 
 import { revalidatePath } from "next/cache";
-import { MentorshipType } from "@prisma/client";
+import { MentorshipType, type Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser, hasRole, hasAnyAdminSubtype } from "@/lib/authorization";
@@ -39,6 +42,125 @@ async function requireMentorshipAssigner() {
     throw new Error("Unauthorized: only officers and mentorship admins can reassign mentors.");
   }
   return session;
+}
+
+interface ReconcileHistoryArgs {
+  menteeId: string;
+  newMentorId: string;
+  previousMentorId?: string | null;
+  previousMentorshipId?: string | null;
+  previousStartedAt?: Date | null;
+  mentorshipId: string;
+  focusArea: FocusArea | null;
+  role: string;
+  isTemporary: boolean;
+  reason?: string | null;
+  actorId?: string | null;
+  now: Date;
+}
+
+/**
+ * Reconcile the assignment-history rows so the only OPEN row for this mentee +
+ * focus area is the incoming mentor's. Closes the outgoing mentor's open row
+ * (backfilling one for legacy assignments that predate the trail), defensively
+ * closes any other stray open rows, and ensures exactly one open row for the new
+ * mentor. Idempotent. Runs inside the caller's transaction.
+ */
+async function reconcileMentorHistory(
+  tx: Prisma.TransactionClient,
+  args: ReconcileHistoryArgs
+): Promise<void> {
+  const { menteeId, newMentorId, focusArea, now } = args;
+
+  if (args.previousMentorId && args.previousMentorId !== newMentorId) {
+    const closed = await tx.mentorshipAssignmentHistory.updateMany({
+      where: { menteeId, focusArea, mentorId: args.previousMentorId, endedAt: null },
+      data: { endedAt: now },
+    });
+    if (closed.count === 0) {
+      await tx.mentorshipAssignmentHistory.create({
+        data: {
+          menteeId,
+          mentorId: args.previousMentorId,
+          focusArea,
+          role: args.role,
+          mentorshipId: args.previousMentorshipId ?? null,
+          startedAt: args.previousStartedAt ?? now,
+          endedAt: now,
+          reason: "Closed on reassignment (backfilled history).",
+          actorId: args.actorId ?? null,
+        },
+      });
+    }
+  }
+
+  // Any other stray open rows for this focus area belong to a prior mentor.
+  await tx.mentorshipAssignmentHistory.updateMany({
+    where: { menteeId, focusArea, endedAt: null, mentorId: { not: newMentorId } },
+    data: { endedAt: now },
+  });
+
+  // Ensure exactly one open row for the incoming mentor.
+  const open = await tx.mentorshipAssignmentHistory.findFirst({
+    where: { menteeId, focusArea, mentorId: newMentorId, endedAt: null },
+    select: { id: true },
+  });
+  if (!open) {
+    await tx.mentorshipAssignmentHistory.create({
+      data: {
+        menteeId,
+        mentorId: newMentorId,
+        focusArea,
+        role: args.role,
+        mentorshipId: args.mentorshipId,
+        isTemporary: args.isTemporary,
+        reason: args.reason ?? null,
+        actorId: args.actorId ?? null,
+        startedAt: now,
+      },
+    });
+  }
+}
+
+export interface RecordPrimaryMentorAssignmentInput {
+  menteeId: string;
+  newMentorId: string;
+  mentorshipId: string;
+  previousMentorId?: string | null;
+  previousMentorshipId?: string | null;
+  previousStartedAt?: Date | null;
+  focusArea?: FocusArea | null;
+  role?: string;
+  isTemporary?: boolean;
+  reason?: string | null;
+  actorId?: string | null;
+}
+
+/**
+ * Record (reconcile) the mentor-assignment history for a mentee whose primary
+ * mentor was set or changed by some other flow. Safe to call after the live
+ * Mentorship row has already been updated/created. No-op-safe and idempotent.
+ */
+export async function recordPrimaryMentorAssignment(
+  input: RecordPrimaryMentorAssignmentInput
+): Promise<void> {
+  const now = new Date();
+  await prisma.$transaction((tx) =>
+    reconcileMentorHistory(tx, {
+      menteeId: input.menteeId,
+      newMentorId: input.newMentorId,
+      previousMentorId: input.previousMentorId ?? null,
+      previousMentorshipId: input.previousMentorshipId ?? null,
+      previousStartedAt: input.previousStartedAt ?? null,
+      mentorshipId: input.mentorshipId,
+      focusArea: input.focusArea ?? null,
+      role: input.role?.trim() || "PRIMARY_MENTOR",
+      isTemporary: Boolean(input.isTemporary),
+      reason: input.reason ?? null,
+      actorId: input.actorId ?? null,
+      now,
+    })
+  );
 }
 
 export interface ReassignPrimaryMentorInput {
@@ -84,7 +206,7 @@ export async function reassignPrimaryMentor(
   // primary relationship).
   const existing = await prisma.mentorship.findFirst({
     where: { menteeId: input.menteeId, status: "ACTIVE", focusArea },
-    select: { id: true, mentorId: true, focusArea: true, type: true },
+    select: { id: true, mentorId: true, focusArea: true, type: true, startDate: true },
     orderBy: { startDate: "desc" },
   });
 
@@ -113,32 +235,6 @@ export async function reassignPrimaryMentor(
         where: { id: plan.completeMentorshipId },
         data: { status: "COMPLETE", endDate: now },
       });
-
-      // Close the outgoing mentor's open history row, or synthesize a closed row
-      // for legacy assignments that predate this trail.
-      const closed = await tx.mentorshipAssignmentHistory.updateMany({
-        where: {
-          menteeId: input.menteeId,
-          mentorId: plan.previousMentorId ?? undefined,
-          focusArea,
-          endedAt: null,
-        },
-        data: { endedAt: now },
-      });
-      if (closed.count === 0 && plan.previousMentorId) {
-        await tx.mentorshipAssignmentHistory.create({
-          data: {
-            menteeId: input.menteeId,
-            mentorId: plan.previousMentorId,
-            focusArea,
-            role,
-            mentorshipId: plan.completeMentorshipId,
-            endedAt: now,
-            reason: "Closed on reassignment (backfilled history).",
-            actorId: session.id,
-          },
-        });
-      }
     }
 
     // 2. Create the incoming mentorship.
@@ -154,18 +250,20 @@ export async function reassignPrimaryMentor(
       select: { id: true },
     });
 
-    // 3. Open the incoming mentor's history row.
-    await tx.mentorshipAssignmentHistory.create({
-      data: {
-        menteeId: input.menteeId,
-        mentorId: input.newMentorId,
-        focusArea,
-        role,
-        mentorshipId: created.id,
-        isTemporary,
-        reason: input.reason?.trim() || null,
-        actorId: session.id,
-      },
+    // 3. Reconcile the append-only assignment-history trail.
+    await reconcileMentorHistory(tx, {
+      menteeId: input.menteeId,
+      newMentorId: input.newMentorId,
+      previousMentorId: plan.previousMentorId,
+      previousMentorshipId: plan.completeMentorshipId,
+      previousStartedAt: existing?.startDate ?? null,
+      mentorshipId: created.id,
+      focusArea,
+      role,
+      isTemporary,
+      reason: input.reason ?? null,
+      actorId: session.id,
+      now,
     });
 
     return created.id;
@@ -187,6 +285,27 @@ export async function reassignPrimaryMentor(
   revalidatePath("/admin/mentorship");
 
   return { status: "reassigned", mentorshipId: newMentorshipId };
+}
+
+/**
+ * FormData wrapper so a profile <form action={…}> can reassign a mentor.
+ */
+export async function reassignPrimaryMentorFromForm(formData: FormData): Promise<void> {
+  const menteeId = String(formData.get("menteeId") ?? "").trim();
+  const newMentorId = String(formData.get("newMentorId") ?? "").trim();
+  if (!menteeId || !newMentorId) throw new Error("Mentee and new mentor are required.");
+
+  const focusRaw = String(formData.get("focusArea") ?? "").trim().toUpperCase();
+  const focusArea: FocusArea | null =
+    focusRaw === "INSTRUCTION" || focusRaw === "LEADERSHIP" ? focusRaw : null;
+
+  await reassignPrimaryMentor({
+    menteeId,
+    newMentorId,
+    focusArea,
+    reason: String(formData.get("reason") ?? "").trim() || null,
+    isTemporary: formData.get("isTemporary") === "on" || formData.get("isTemporary") === "true",
+  });
 }
 
 export interface MentorshipHistoryEntry {

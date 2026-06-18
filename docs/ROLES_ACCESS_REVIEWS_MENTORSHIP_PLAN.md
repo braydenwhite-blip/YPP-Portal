@@ -8,11 +8,20 @@ Phase 3 (person spine: `internalLevel`/`ladder`/`canonicalTitle`/cohort + commit
 migration `20260618120000_org_person_spine`, backfill `scripts/backfill-org-authority.ts`),
 Phase 4 (mentorship transferability: `focusArea`/`isTemporary`,
 `MentorshipAssignmentHistory`, non-destructive `reassignPrimaryMentor`, migration
-`20260618130000_mentorship_transferability`), and Phase 5 (flag-gated action-Lead
-eligibility on assignment + Owner Needed queue).
-After deploying Phases 3-4, run `npm run backfill:org-authority` (dry run) then `--apply`.
+`20260618130000_mentorship_transferability`), Phase 5 (flag-gated action-Lead
+eligibility on assignment + Owner Needed queue), Phase 6 (Missing Chapter:
+`MissingChapterFlag`, owner auto-action, resolution queue, migration
+`20260618140000_missing_chapter_flag`), and Phase 7 (operational queues —
+Reviews to Draft/Approve, Curriculum to Review, Interviews Assigned, Missing
+Chapter, at `/queues`). Mentor history + a non-destructive reassign form are now
+on the person profile, and the legacy support-circle assign path also records
+mentor history.
+
+Remaining: Phase 8 (promotions + profile history + admin authority/audit) — the
+Promotion Setup queue is stubbed until it lands.
+After deploying Phases 3-4 & 6, run `npm run backfill:org-authority` (dry run) then `--apply`.
 Enforcement flags default OFF: `ORG_REVIEW_AUTHORITY_ENFORCED`,
-`ORG_ACTION_LEAD_ELIGIBILITY_ENFORCED`.
+`ORG_ACTION_LEAD_ELIGIBILITY_ENFORCED`. Missing Chapter owner: `MISSING_CHAPTER_OWNER_EMAIL`.
 
 This plan maps the *"YPP Portal Roles, Mentorship, Reviews, and Access Proposal"* onto
 the existing codebase. It is a sequencing + impact document, not code. No code lands

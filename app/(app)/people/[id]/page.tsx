@@ -33,6 +33,28 @@ import { AskAboutThis } from "@/components/help-agent/ask-about-this";
 import { getPersonAccessSummary } from "@/lib/org/access-summary";
 import { AccessSummaryPanel } from "@/components/people-strategy/access-summary-panel";
 import type { AccessFact } from "@/lib/org/access-explainer";
+import { prisma } from "@/lib/prisma";
+import {
+  getMentorshipAssignmentHistory,
+  type MentorshipHistoryEntry,
+} from "@/lib/mentorship-reassign-actions";
+import { MentorHistoryPanel } from "@/components/people-strategy/mentor-history-panel";
+import { ReassignMentorForm } from "@/components/people-strategy/reassign-mentor-form";
+
+/** Eligible primary-mentor candidates (excludes the person being viewed). */
+async function loadMentorCandidates(
+  excludeUserId: string
+): Promise<Array<{ id: string; name: string }>> {
+  return prisma.user.findMany({
+    where: {
+      id: { not: excludeUserId },
+      primaryRole: { in: ["MENTOR", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"] },
+    },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+    take: 300,
+  });
+}
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Member Profile" };
@@ -84,17 +106,24 @@ export default async function PublicProfilePage({ params }: PageProps) {
   // "Why This Person Has Access" — admin/officer-only access summary (Phase 2 of
   // docs/ROLES_ACCESS_REVIEWS_MENTORSHIP_PLAN.md).
   let accessFacts: AccessFact[] = [];
+  // Mentor history + reassign (Phase 4 surface), admin/officer-only.
+  let mentorHistory: MentorshipHistoryEntry[] = [];
+  let mentorCandidates: Array<{ id: string; name: string }> = [];
   if (showLinkedActions) {
-    const [context, leadership, attention, access] = await Promise.all([
+    const [context, leadership, attention, access, history, candidates] = await Promise.all([
       getOperationalContextForEntity("USER", id, viewer),
       getLeadershipContext(id),
       loadPersonAttention(id, viewer),
       getPersonAccessSummary(id),
+      getMentorshipAssignmentHistory(id),
+      loadMentorCandidates(id),
     ]);
     opsContext = context;
     leadershipStage = leadership?.stage ?? null;
     leadershipNextStage = leadership?.nextStage ?? null;
     accessFacts = access ?? [];
+    mentorHistory = history;
+    mentorCandidates = candidates;
     // Person-level People Strategy signals (mentor, kickoff, check-in,
     // provisional) are Leadership/Board-confidential; a scoped officer sees only
     // this person's own work signals (overdue / blocked / stale actions).
@@ -184,6 +213,8 @@ export default async function PublicProfilePage({ params }: PageProps) {
           </section>
           <LeadershipStageContext stage={leadershipStage} nextStage={leadershipNextStage} />
           <AccessSummaryPanel personName={profile.name} facts={accessFacts} />
+          <MentorHistoryPanel personName={profile.name} entries={mentorHistory} />
+          <ReassignMentorForm menteeId={id} candidates={mentorCandidates} />
           <OperationalContextPanel
             title="Accountability"
             subtitle={`Meetings & actions for ${profile.name}`}
