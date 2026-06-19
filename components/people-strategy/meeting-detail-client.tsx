@@ -574,7 +574,7 @@ function ImpactPresentationReadiness({
 }) {
   const globalSlots =
     meeting.meetingType === "GLOBAL_OPERATIONS_IMPACT_PRESENTATION"
-      ? ["Communications: Sanvi and Alina", "Expansion: Jackson and Jennifer", "Tech: Anthea and Wesley"]
+      ? ["Tech", "Fundraising", "Expansion", "Socials"]
       : ["Chapter President update", "Partners/outreach", "Applicants/students", "Blockers and next steps"];
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "13px 14px", background: "var(--surface)" }}>

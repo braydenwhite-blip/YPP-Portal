@@ -93,15 +93,20 @@ export function MeetingCreateForm({
   const [title, setTitle] = useState(prefill?.title ?? "");
   const [purpose, setPurpose] = useState(prefill?.purpose ?? "");
   const [meetingType, setMeetingType] = useState<string>(prefill?.meetingType ?? "OFFICER_MEETING");
-  const [category, setCategory] = useState<string>(prefill?.category ?? "LEADERSHIP");
+  const prefillModel = MEETING_OPERATING_MODELS[prefill?.meetingType as keyof typeof MEETING_OPERATING_MODELS];
+  const [category, setCategory] = useState<string>(
+    prefill?.category ?? prefillModel?.defaultCategory ?? "LEADERSHIP"
+  );
   const [priority, setPriority] = useState<string>("MEDIUM");
-  const [date, setDate] = useState(todayISO());
-  const [start, setStart] = useState("18:00");
-  const [end, setEnd] = useState("19:00");
-  const [facilitatorId, setFacilitatorId] = useState(people[0]?.id ?? "");
-  const [recurring, setRecurring] = useState(true);
-  const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
-  const [agenda, setAgenda] = useState<string[]>([]);
+  const [date, setDate] = useState(prefill?.date ?? todayISO());
+  const [start, setStart] = useState(prefill?.startTime ?? "18:00");
+  const [end, setEnd] = useState(prefill?.endTime ?? "19:00");
+  const [facilitatorId, setFacilitatorId] = useState(prefill?.facilitatorId ?? people[0]?.id ?? "");
+  const [recurring, setRecurring] = useState(
+    prefill?.recurrence ? prefill.recurrence === "WEEKLY" : true
+  );
+  const [attendeeIds, setAttendeeIds] = useState<string[]>(prefill?.attendeeIds ?? []);
+  const [agenda, setAgenda] = useState<string[]>(prefill?.agendaTitles ?? []);
   const [newItem, setNewItem] = useState("");
 
   function applyTemplate(id: string) {

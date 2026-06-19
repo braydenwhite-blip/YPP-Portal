@@ -102,6 +102,7 @@ export type WeeklyBriefTaskUpdateDTO = {
   actionItemId: string | null;
   taskTitle: string;
   liveStatus: ActionItemStatus | null;
+  deadlineISO: string | null;
   owner: BriefPersonDTO | null;
   commitment: string | null;
   statusNarrative: string | null;
@@ -714,6 +715,7 @@ function mapBriefWorkspace(
       actionItemId: u.actionItemId,
       taskTitle: u.taskTitleSnapshot,
       liveStatus: u.actionItem?.status ?? null,
+      deadlineISO: u.actionItem?.deadlineStart.toISOString() ?? null,
       owner: personDTO(u.actionItem?.lead ?? null),
       commitment: u.commitmentSnapshot,
       statusNarrative: u.statusNarrative,

@@ -9,6 +9,13 @@ import {
 import { loadApplicationRecord } from "@/lib/applications/application-record";
 import { readinessSignalLabel } from "@/lib/readiness-signals";
 import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { canCreateAction } from "@/lib/people-strategy/action-permissions";
+import {
+  getMeetingsForEntity,
+  meetingDisplayTitle,
+} from "@/lib/people-strategy/meetings-queries";
+import { meetingTypeLabel } from "@/lib/people-strategy/meeting-operating-model";
+import { meetingPrefillToQuery } from "@/lib/people-strategy/action-prefill";
 import { EntityActionPanel } from "@/components/work/entity-action-panel";
 import {
   ButtonLink,
@@ -34,6 +41,16 @@ function fmtDate(iso: string | null | undefined): string {
     month: "short",
     day: "numeric",
     year: "numeric",
+  });
+}
+
+function fmtDateTime(date: Date): string {
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 }
 
@@ -125,13 +142,42 @@ export default async function ApplicationRecordPage({
     notFound();
   }
 
-  // Action System 4.0 — tracker actions linked to this application.
-  const linkedActions = await getActionsForEntity("INSTRUCTOR_APPLICATION", id, {
+  const trackerViewer = {
     id: sessionUser.id,
     roles: sessionUser.roles,
     primaryRole: sessionUser.primaryRole ?? null,
     adminSubtypes: sessionUser.adminSubtypes ?? [],
-  }).catch(() => []);
+  };
+  const canUseMeetingTracker = canCreateAction(trackerViewer);
+  const interviewerIds = Array.from(
+    new Set(record.interviewerAssignments.map((assignment) => assignment.interviewer.id))
+  );
+  const interviewMeetingHref = meetingPrefillToQuery({
+    relatedType: "INSTRUCTOR_APPLICATION",
+    relatedId: record.id,
+    area: "APPLICATIONS",
+    meetingType: "INSTRUCTOR_APPLICANT_INTERVIEW",
+    title: `Instructor applicant interview: ${record.displayName}`,
+    purpose: `Interview ${record.displayName}, capture notes, concerns, recommendation, and applicant follow-up actions.`,
+    facilitatorId: interviewerIds[0],
+    attendeeIds: interviewerIds,
+    agendaTitles: [
+      "Applicant identity and current stage",
+      "Teaching motivation and availability",
+      "Curriculum or class idea discussion",
+      "Scores, notes, and concerns",
+      "Recommended next step",
+      "Follow-up actions",
+    ],
+  });
+
+  // Action System 4.0 — tracker actions linked to this application.
+  const [linkedActions, linkedMeetings] = await Promise.all([
+    getActionsForEntity("INSTRUCTOR_APPLICATION", id, trackerViewer).catch(() => []),
+    canUseMeetingTracker
+      ? getMeetingsForEntity("INSTRUCTOR_APPLICATION", id, 8).catch(() => [])
+      : Promise.resolve([]),
+  ]);
 
   const viewerIsChair = canSeeChairQueue(actor);
 
@@ -219,8 +265,8 @@ export default async function ApplicationRecordPage({
               ? {
                   title: "Schedule the interview",
                   detail: "Pre-approved; no interview is on the calendar yet.",
-                  href: detailHref,
-                  cta: "Schedule interview",
+                  href: canUseMeetingTracker ? interviewMeetingHref : detailHref,
+                  cta: canUseMeetingTracker ? "Schedule interview meeting" : "Schedule interview",
                 }
               : record.status === "INTERVIEW_SCHEDULED"
                 ? {
@@ -318,6 +364,11 @@ export default async function ApplicationRecordPage({
             {record.status === "CHAIR_REVIEW" && viewerIsChair ? (
               <ButtonLink href={cockpitHref} size="md">
                 Decision cockpit
+              </ButtonLink>
+            ) : null}
+            {canUseMeetingTracker ? (
+              <ButtonLink href={interviewMeetingHref} variant="secondary" size="md">
+                Schedule interview
               </ButtonLink>
             ) : null}
           </>
@@ -496,6 +547,71 @@ export default async function ApplicationRecordPage({
         </div>
       </RecordSection>
 
+      {canUseMeetingTracker ? (
+        <RecordSection
+          id="interview-meetings"
+          title="Interview meetings"
+          description="Meeting Tracker records linked to this applicant — agenda, notes, decisions, and follow-up actions stay connected here."
+          action={
+            <ButtonLink href={interviewMeetingHref} variant="secondary" size="sm">
+              Schedule interview →
+            </ButtonLink>
+          }
+        >
+          {linkedMeetings.length === 0 ? (
+            <p className="m-0 text-[13px] text-ink-muted">
+              No interview meeting is linked yet. Schedule one here so notes and follow-up
+              actions attach back to this application.
+            </p>
+          ) : (
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {linkedMeetings.map((meeting) => (
+                <li
+                  key={meeting.id}
+                  className="rounded-[8px] border border-line-soft px-3.5 py-2.5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <ButtonLink
+                        href={`/actions/meetings/${meeting.id}`}
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto justify-start px-0 py-0 text-[13.5px]"
+                      >
+                        {meetingDisplayTitle(meeting)} →
+                      </ButtonLink>
+                      <p className="m-0 mt-1 text-[12px] text-ink-muted">
+                        {fmtDateTime(meeting.date)} ·{" "}
+                        {meetingTypeLabel(meeting.meetingType)}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      tone={
+                        meeting.summaryStatus === "SENT"
+                          ? "success"
+                          : meeting.status === "CANCELLED"
+                            ? "neutral"
+                            : "info"
+                      }
+                    >
+                      {pretty(meeting.status)}
+                    </StatusBadge>
+                  </div>
+                  <p className="m-0 mt-2 text-[12.5px] text-ink-muted">
+                    {meeting.agendaItems.length} agenda item
+                    {meeting.agendaItems.length === 1 ? "" : "s"} ·{" "}
+                    {meeting.followUps.length} follow-up
+                    {meeting.followUps.length === 1 ? "" : "s"} ·{" "}
+                    {meeting.actionItems.length} linked action
+                    {meeting.actionItems.length === 1 ? "" : "s"}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </RecordSection>
+      ) : null}
+
       <RecordSection
         id="materials"
         title="Materials & documents"
@@ -612,12 +728,7 @@ export default async function ApplicationRecordPage({
       >
         <EntityActionPanel
           actions={linkedActions}
-          viewer={{
-            id: sessionUser.id,
-            roles: sessionUser.roles,
-            primaryRole: sessionUser.primaryRole ?? null,
-            adminSubtypes: sessionUser.adminSubtypes ?? [],
-          }}
+          viewer={trackerViewer}
           entityType="INSTRUCTOR_APPLICATION"
           entityId={record.id}
           entityLabel={record.displayName}

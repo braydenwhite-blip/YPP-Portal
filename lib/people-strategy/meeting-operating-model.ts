@@ -10,6 +10,11 @@ export const MEETING_TYPE_VALUES = [
   "GLOBAL_OPERATIONS_IMPACT_PRESENTATION",
   "CHAPTER_IMPACT_PRESENTATION",
   "MENTORSHIP_CHECK_IN",
+  "MENTOR_KICKOFF_MEETING",
+  "MONTHLY_CHECK_IN",
+  "QUARTERLY_MENTOR_COMMITTEE_REVIEW",
+  "APPLICANT_INTERVIEW",
+  "INSTRUCTOR_APPLICANT_INTERVIEW",
   "GENERAL_MEETING",
 ] as const;
 
@@ -105,14 +110,16 @@ export const MEETING_OPERATING_MODELS: Record<MeetingType, MeetingOperatingModel
     requiredAttendees: [
       "Aveena",
       "Brayden",
-      "Communications: Sanvi and Alina",
-      "Expansion: Jackson and Jennifer",
-      "Tech: Anthea and Wesley",
+      "Tech presenter",
+      "Fundraising presenter",
+      "Expansion presenter",
+      "Socials presenter",
     ],
     agenda: [
-      "Communications 30 min: progress, deliverables, blockers, next commitments",
-      "Expansion 30 min: progress, parent/alumni outreach, blockers, next commitments",
-      "Tech 30 min: development, testing, rollout, data/process automation",
+      "Tech: portal updates, bugs fixed, features shipped, data/automation, testing blockers",
+      "Fundraising: outreach completed, donor/sponsor progress, materials, responses, decisions",
+      "Expansion: new areas contacted, parent/alumni outreach, chapter leads, partner conversations",
+      "Socials: posts created/scheduled, campaign results, approvals needed, upcoming content",
       "Leadership decisions and follow-up actions",
       "Attendance or responsiveness concerns",
     ],
@@ -245,6 +252,235 @@ export const MEETING_OPERATING_MODELS: Record<MeetingType, MeetingOperatingModel
       items: ["Link actions", "Update notes", "Feed review context where supported"],
     },
   },
+  MENTOR_KICKOFF_MEETING: {
+    type: "MENTOR_KICKOFF_MEETING",
+    label: "Mentor Kickoff Meeting",
+    shortLabel: "Kickoff",
+    navLabel: "Mentor Kickoffs",
+    description:
+      "First mentor and mentee meeting for expectations, goals, cadence, support roles, and next steps.",
+    defaultCategory: "MENTORSHIP",
+    defaultDurationMinutes: 45,
+    defaultRecurrence: "NONE",
+    leadText: "Mentor or mentor committee lead",
+    requiredAttendees: ["Mentor", "Mentee"],
+    agenda: [
+      "Introductions and support roles",
+      "Mentee goals and current commitments",
+      "Meeting cadence and communication preferences",
+      "Known blockers or support needs",
+      "First next steps",
+    ],
+    presentationSections: [],
+    before: {
+      title: "Before",
+      items: [
+        "Review the mentee profile and G&R plan",
+        "Confirm mentor and mentee availability",
+        "Prepare the first goal and resource questions",
+      ],
+    },
+    during: {
+      title: "During",
+      items: [
+        "Agree on expectations",
+        "Capture goals, concerns, and support preferences",
+        "Create first next-step actions",
+      ],
+    },
+    after: {
+      title: "After",
+      items: [
+        "Confirm kickoff completion",
+        "Link follow-up actions to the mentorship",
+        "Schedule the next monthly check-in",
+      ],
+    },
+  },
+  MONTHLY_CHECK_IN: {
+    type: "MONTHLY_CHECK_IN",
+    label: "Monthly Check-in",
+    shortLabel: "Monthly",
+    navLabel: "Monthly Check-ins",
+    description:
+      "Monthly people and mentorship workflow for self-reflection, feedback, progress, sign-off, and next steps.",
+    defaultCategory: "MENTORSHIP",
+    defaultDurationMinutes: 30,
+    defaultRecurrence: "NONE",
+    leadText: "Mentor, review lead, or People Chair",
+    requiredAttendees: ["Mentor", "Mentee"],
+    agenda: [
+      "Self-reflection status",
+      "Feedback gathered",
+      "Current work and missed work",
+      "Goal progress and wellbeing notes",
+      "Rating and next steps",
+      "Actions created from the check-in",
+    ],
+    presentationSections: [],
+    before: {
+      title: "Before",
+      items: [
+        "Confirm self-reflection is ready",
+        "Review feedback and current actions",
+        "Check overdue work and recent completed work",
+      ],
+    },
+    during: {
+      title: "During",
+      items: [
+        "Discuss progress and blockers",
+        "Agree on rating and development notes",
+        "Create next-step actions with owners and dates",
+      ],
+    },
+    after: {
+      title: "After",
+      items: [
+        "Mark check-in complete",
+        "Link actions to the person and mentorship",
+        "Prepare review context for the next cycle",
+      ],
+    },
+  },
+  QUARTERLY_MENTOR_COMMITTEE_REVIEW: {
+    type: "QUARTERLY_MENTOR_COMMITTEE_REVIEW",
+    label: "Quarterly Mentor Committee Review",
+    shortLabel: "Quarterly Review",
+    navLabel: "Quarterly Reviews",
+    description:
+      "Quarterly review connecting check-ins, action history, feedback, mentor recommendations, ratings, decisions, and follow-up actions.",
+    defaultCategory: "MENTORSHIP",
+    defaultDurationMinutes: 60,
+    defaultRecurrence: "NONE",
+    leadText: "Mentor committee or review lead",
+    requiredAttendees: ["Mentor committee", "Review lead"],
+    agenda: [
+      "Monthly check-in evidence",
+      "Action history and missed work",
+      "Feedback and mentor recommendation",
+      "Performance and potential ratings",
+      "Pathway decision",
+      "Updated goals and follow-up actions",
+    ],
+    presentationSections: [],
+    before: {
+      title: "Before",
+      items: [
+        "Gather monthly check-ins and action history",
+        "Review feedback and mentor notes",
+        "Draft rating and pathway recommendation",
+      ],
+    },
+    during: {
+      title: "During",
+      items: [
+        "Discuss evidence",
+        "Record decision and rationale",
+        "Assign follow-up actions",
+      ],
+    },
+    after: {
+      title: "After",
+      items: [
+        "Publish or save review outcome according to permissions",
+        "Update goals",
+        "Schedule next check-in or support plan",
+      ],
+    },
+  },
+  APPLICANT_INTERVIEW: {
+    type: "APPLICANT_INTERVIEW",
+    label: "Applicant Interview",
+    shortLabel: "Applicant",
+    navLabel: "Applicant Interviews",
+    description:
+      "Structured applicant interview for identity, stage, review evidence, concerns, decision needs, and next step.",
+    defaultCategory: "APPLICATIONS",
+    defaultDurationMinutes: 30,
+    defaultRecurrence: "NONE",
+    leadText: "Interviewer or hiring lead",
+    requiredAttendees: ["Applicant", "Interviewer"],
+    agenda: [
+      "Applicant identity and current stage",
+      "Interview questions",
+      "Submitted review evidence",
+      "Concerns or flags",
+      "Recommended next step",
+      "Follow-up actions",
+    ],
+    presentationSections: [],
+    before: {
+      title: "Before",
+      items: [
+        "Review application materials",
+        "Confirm interviewer assignments",
+        "Prepare stage-specific questions",
+      ],
+    },
+    during: {
+      title: "During",
+      items: [
+        "Capture interview notes",
+        "Name concerns or flags",
+        "Record recommended next step",
+      ],
+    },
+    after: {
+      title: "After",
+      items: [
+        "Submit interviewer review",
+        "Link follow-up actions",
+        "Move applicant to the correct next stage",
+      ],
+    },
+  },
+  INSTRUCTOR_APPLICANT_INTERVIEW: {
+    type: "INSTRUCTOR_APPLICANT_INTERVIEW",
+    label: "Instructor Applicant Interview",
+    shortLabel: "Instructor Interview",
+    navLabel: "Instructor Interviews",
+    description:
+      "Instructor applicant interview focused on teaching readiness, curriculum thinking, concerns, recommendation, and final decision inputs.",
+    defaultCategory: "APPLICATIONS",
+    defaultDurationMinutes: 30,
+    defaultRecurrence: "NONE",
+    leadText: "Interviewer or hiring lead",
+    requiredAttendees: ["Instructor applicant", "Interviewer"],
+    agenda: [
+      "Applicant stage and current decision needed",
+      "Teaching motivation and availability",
+      "Curriculum or class idea discussion",
+      "Scores, notes, and concerns",
+      "Recommended next step",
+      "Follow-up actions",
+    ],
+    presentationSections: [],
+    before: {
+      title: "Before",
+      items: [
+        "Review submitted materials",
+        "Check prior reviews and interviewer assignments",
+        "Prepare teaching-readiness questions",
+      ],
+    },
+    during: {
+      title: "During",
+      items: [
+        "Capture interview notes and scores",
+        "Record concerns or flags",
+        "Choose a recommended next step",
+      ],
+    },
+    after: {
+      title: "After",
+      items: [
+        "Submit interviewer review",
+        "Create any applicant follow-up actions",
+        "Queue final decision when ready",
+      ],
+    },
+  },
   GENERAL_MEETING: {
     type: "GENERAL_MEETING",
     label: "General Meeting",
@@ -305,17 +541,45 @@ export function inferMeetingType(input: {
 
   const title = input.title?.toLowerCase() ?? "";
   const category = input.category?.toUpperCase() ?? "";
+  const relatedType = input.relatedEntityType?.toUpperCase() ?? "";
   if (title.includes("global operations impact") || title.includes("impact presentation")) {
     return "GLOBAL_OPERATIONS_IMPACT_PRESENTATION";
   }
   if (title.includes("chapter impact") || category === "CHAPTERS") {
     return "CHAPTER_IMPACT_PRESENTATION";
   }
+  if (title.includes("mentor kickoff") || title.includes("kickoff meeting")) {
+    return "MENTOR_KICKOFF_MEETING";
+  }
+  if (
+    title.includes("quarterly mentor") ||
+    title.includes("mentor committee") ||
+    title.includes("quarterly review")
+  ) {
+    return "QUARTERLY_MENTOR_COMMITTEE_REVIEW";
+  }
+  if (title.includes("monthly check") || title.includes("monthly review")) {
+    return "MONTHLY_CHECK_IN";
+  }
+  if (title.includes("instructor applicant interview")) {
+    return "INSTRUCTOR_APPLICANT_INTERVIEW";
+  }
+  if (
+    title.includes("applicant interview") ||
+    (category === "APPLICATIONS" && title.includes("interview"))
+  ) {
+    return relatedType === "INSTRUCTOR_APPLICATION"
+      ? "INSTRUCTOR_APPLICANT_INTERVIEW"
+      : "APPLICANT_INTERVIEW";
+  }
   if (title.includes("officer") || title.includes("leadership sync") || category === "LEADERSHIP") {
     return "OFFICER_MEETING";
   }
-  if (category === "MENTORSHIP" || input.relatedEntityType === "MENTORSHIP") {
+  if (category === "MENTORSHIP" || relatedType === "MENTORSHIP") {
     return "MENTORSHIP_CHECK_IN";
+  }
+  if (relatedType === "INSTRUCTOR_APPLICATION" || category === "APPLICATIONS") {
+    return "APPLICANT_INTERVIEW";
   }
   return explicit;
 }

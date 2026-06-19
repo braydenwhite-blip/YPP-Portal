@@ -16,6 +16,14 @@ import {
   type AgendaActionInput,
 } from "@/lib/people-strategy/meeting-agenda-summary";
 import { MeetingAgendaSummaryPanel } from "@/components/people-strategy/meeting-agenda-summary-panel";
+import { ImpactMeetingAgendaPanel } from "@/components/people-strategy/impact-meeting-agenda-panel";
+import {
+  attachImpactAgendaItemState,
+  generateImpactMeetingAgendaText,
+  generateImpactMeetingSummary,
+  GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE,
+  loadGlobalOperationsImpactAgendaForMeeting,
+} from "@/lib/people-strategy/impact-meetings";
 import { startOfDay } from "@/lib/leadership-action-center/dates";
 import { effectiveStatus } from "@/lib/people-strategy/action-filters";
 import {
@@ -120,6 +128,24 @@ export default async function MeetingDetailPage({
   };
   const meetingActions = await getActionsForMeeting(id, meetingViewer).catch(() => []);
   const preparedPresentations = await loadPreparedPresentationsForOfficerMeeting(id).catch(() => []);
+  const impactAgenda =
+    detail.meetingType === GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE
+      ? attachImpactAgendaItemState(
+          await loadGlobalOperationsImpactAgendaForMeeting({
+            meetingId: id,
+            meetingTitle: detail.title,
+            meetingDate: meeting.date,
+            viewer: meetingViewer,
+          }),
+          detail.agenda.map((item) => ({
+            id: item.id,
+            status: item.status,
+            notes: item.notes,
+            sourceInitiativeId: item.sourceInitiativeId,
+            sourceWorkstreamId: item.sourceWorkstreamId,
+          }))
+        )
+      : null;
   const targetMeetingWindowEnd = new Date(now);
   targetMeetingWindowEnd.setUTCDate(targetMeetingWindowEnd.getUTCDate() + 90);
   const targetMeetingOptions = [
@@ -216,38 +242,55 @@ export default async function MeetingDetailPage({
       dueSoon,
     };
   });
-  const agendaText = generateAgendaText({
-    title: detail.title,
-    dateISO: detail.startISO,
-    actions: agendaActions,
-    agendaItems: detail.agenda.map((i) => ({
-      title: i.title,
-      status: i.status,
-      ownerName: i.owner?.name ?? null,
-    })),
-    openFollowUps: detail.followUps
-      .filter((f) => f.effectiveStatus !== "completed")
-      .map((f) => ({ title: f.title, ownerName: f.owner?.name ?? null, dueISO: f.dueISO })),
-  });
-  const summary = generateMeetingSummary({
-    title: detail.title,
-    dateISO: detail.startISO,
-    decisions: detail.decisions.map((d) => ({
-      decision: d.decision,
-      decidedByName: d.decidedBy?.name ?? null,
-    })),
-    actions: agendaActions,
-    followUps: detail.followUps.map((f) => ({
-      title: f.title,
-      ownerName: f.owner?.name ?? null,
-      dueISO: f.dueISO,
-      status: f.effectiveStatus === "completed" ? "COMPLETED" : "OPEN",
-    })),
-    deferredAgendaItems: detail.agenda
-      .filter((i) => i.status === "DEFERRED")
-      .map((i) => ({ title: i.title })),
-    notesText: detail.notesText,
-  });
+  const agendaText = impactAgenda
+    ? generateImpactMeetingAgendaText(impactAgenda)
+    : generateAgendaText({
+        title: detail.title,
+        dateISO: detail.startISO,
+        actions: agendaActions,
+        agendaItems: detail.agenda.map((i) => ({
+          title: i.title,
+          status: i.status,
+          ownerName: i.owner?.name ?? null,
+        })),
+        openFollowUps: detail.followUps
+          .filter((f) => f.effectiveStatus !== "completed")
+          .map((f) => ({ title: f.title, ownerName: f.owner?.name ?? null, dueISO: f.dueISO })),
+      });
+  const summary = impactAgenda
+    ? generateImpactMeetingSummary({
+        agenda: impactAgenda,
+        decisions: detail.decisions.map((d) => ({
+          decision: d.decision,
+          decidedByName: d.decidedBy?.name ?? null,
+        })),
+        followUps: detail.followUps.map((f) => ({
+          title: f.title,
+          ownerName: f.owner?.name ?? null,
+          dueISO: f.dueISO,
+          status: f.effectiveStatus === "completed" ? "COMPLETED" : "OPEN",
+        })),
+        notesText: detail.notesText,
+      })
+    : generateMeetingSummary({
+        title: detail.title,
+        dateISO: detail.startISO,
+        decisions: detail.decisions.map((d) => ({
+          decision: d.decision,
+          decidedByName: d.decidedBy?.name ?? null,
+        })),
+        actions: agendaActions,
+        followUps: detail.followUps.map((f) => ({
+          title: f.title,
+          ownerName: f.owner?.name ?? null,
+          dueISO: f.dueISO,
+          status: f.effectiveStatus === "completed" ? "COMPLETED" : "OPEN",
+        })),
+        deferredAgendaItems: detail.agenda
+          .filter((i) => i.status === "DEFERRED")
+          .map((i) => ({ title: i.title })),
+        notesText: detail.notesText,
+      });
 
   const strategicContext = isStrategicInitiativesEnabled()
     ? deriveStrategicContextForMeeting({
@@ -280,6 +323,8 @@ export default async function MeetingDetailPage({
         targetMeetings={targetMeetingOptions}
       />
 
+      {impactAgenda ? <ImpactMeetingAgendaPanel agenda={impactAgenda} people={people} /> : null}
+
       <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
 
       {/* Secondary tools & context — demoted out of the calm default, one click
@@ -290,10 +335,12 @@ export default async function MeetingDetailPage({
       >
         <div className="flex flex-col gap-4 pt-2">
           <MeetingAgendaSummaryPanel
+            meetingId={id}
             agendaText={agendaText}
             summaryText={summary.text}
             summaryWarnings={summary.warnings}
             summaryMissingNotes={summary.missingNotes}
+            summaryStatus={detail.summaryStatus}
           />
           <SuggestedActionsPanel
             meetingId={id}

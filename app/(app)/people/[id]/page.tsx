@@ -26,6 +26,7 @@ import { OperationalContextPanel } from "@/components/people-strategy/operationa
 import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
 import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
 import { deriveStrategicEntityContext } from "@/lib/people-strategy/strategic-entity-context";
+import { meetingPrefillToQuery } from "@/lib/people-strategy/action-prefill";
 import { StrategicEntityPanel } from "@/components/people-strategy/strategic-entity-panel";
 import { LeadershipStageContext } from "@/components/people-strategy/leadership-stage-context";
 import { ProfileBody, activeLabel } from "@/components/people-strategy/profile-body";
@@ -97,6 +98,21 @@ export default async function PublicProfilePage({ params }: PageProps) {
   // existence of a non-member account).
   const profile = await loadPublicProfile(id, viewer);
   if (!profile) notFound();
+  const personMeetingHref = meetingPrefillToQuery({
+    relatedType: "USER",
+    relatedId: id,
+    area: "MENTORSHIP",
+    meetingType: "MONTHLY_CHECK_IN",
+    title: `Check-in: ${profile.name}`,
+    purpose: `Review current work, check-ins, reviews, feedback, and next steps for ${profile.name}.`,
+    agendaTitles: [
+      "Current responsibilities and actions",
+      "Upcoming and overdue deadlines",
+      "Recent meetings and follow-ups",
+      "Check-in and review status",
+      "Next best action",
+    ],
+  });
 
   // People Strategy Operating System — Action Tracker items linked to this
   // person. Additive + double-flagged; an officer-only operating panel (peers
@@ -253,7 +269,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
             recentDecisions={opsContext.recentDecisions}
             canCreate={canCreateAction(viewer)}
             createActionHref={`/actions/new?relatedType=USER&relatedId=${id}`}
-            createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
+            createMeetingHref={personMeetingHref}
             emptyActionsHint="No Action Tracker items are linked to this person yet."
             emptyMeetingsHint="This person hasn't been the focus of a tracked meeting yet."
           />
@@ -275,7 +291,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
             })}
             compact
             createActionHref={`/actions/new?relatedType=USER&relatedId=${id}`}
-            createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
+            createMeetingHref={personMeetingHref}
           />
         </div>
       ) : null}

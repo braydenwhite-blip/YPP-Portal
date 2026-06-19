@@ -28,6 +28,7 @@ import {
 import { getCompactRecognitionSnapshot } from "@/lib/my-program-portal";
 import {
   isOperationsHubEnabled,
+  isActionTrackerEnabled,
   isMentorship2Enabled,
 } from "@/lib/feature-flags";
 import { GraduateToAlumniButton } from "@/components/mentorship-2/graduate-button";
@@ -48,6 +49,10 @@ import {
 import type { StatusTone } from "@/components/ui-v2";
 import { SessionLiveCapture } from "@/app/(app)/mentorship/_components/session-live-capture";
 import { SessionCompleteForm } from "@/app/(app)/mentorship/_components/session-complete-form";
+import { canCreateAction, type ActionViewer } from "@/lib/people-strategy/action-permissions";
+import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
+import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
+import { meetingPrefillToQuery } from "@/lib/people-strategy/action-prefill";
 
 /** Plain-language cycle labels for the Calm relationship summary. */
 const CALM_CYCLE_LABEL: Record<string, string> = {
@@ -124,6 +129,12 @@ export async function RelationshipWorkspace({
   if (!session?.user?.id) {
     redirect("/login");
   }
+  const actionViewer: ActionViewer = {
+    id: session.user.id,
+    roles: session.user.roles ?? [],
+    primaryRole: session.user.primaryRole ?? null,
+    adminSubtypes: session.user.adminSubtypes ?? [],
+  };
 
   const [workspace, recognition] = await Promise.all([
     getSupportWorkspaceData({
@@ -186,6 +197,77 @@ export async function RelationshipWorkspace({
   // Related teaching/readiness context stays progressive. The single visible
   // action surface below is the canonical relationship Next steps list.
   const operationsEnabled = isOperationsHubEnabled();
+  const trackerEnabled = isActionTrackerEnabled();
+  const canUseMeetingTracker = trackerEnabled && canCreateAction(actionViewer);
+  const mentorshipMeetingType =
+    cycleStage === "KICKOFF_PENDING"
+      ? "MENTOR_KICKOFF_MEETING"
+      : cycleStage === "REFLECTION_SUBMITTED" || cycleStage === "CHANGES_REQUESTED"
+        ? "QUARTERLY_MENTOR_COMMITTEE_REVIEW"
+        : "MONTHLY_CHECK_IN";
+  const mentorshipParticipantIds = workspace.mentorship
+    ? Array.from(
+        new Set(
+          [
+            workspace.mentorship.mentorId,
+            workspace.mentorship.menteeId,
+            workspace.mentorship.chair?.id,
+            ...workspace.circleMembers.map((member) => member.user.id),
+          ].filter((id): id is string => Boolean(id))
+        )
+      )
+    : [];
+  const mentorshipMeetingHref = workspace.mentorship
+    ? meetingPrefillToQuery({
+        relatedType: "MENTORSHIP",
+        relatedId: workspace.mentorship.id,
+        area: "MENTORSHIP",
+        meetingType: mentorshipMeetingType,
+        title:
+          mentorshipMeetingType === "MENTOR_KICKOFF_MEETING"
+            ? `Mentor kickoff: ${workspace.mentee.name}`
+            : mentorshipMeetingType === "QUARTERLY_MENTOR_COMMITTEE_REVIEW"
+              ? `Quarterly mentor review: ${workspace.mentee.name}`
+              : `Monthly check-in: ${workspace.mentee.name}`,
+        purpose: `Review goals, check-ins, feedback, next steps, and support needs for ${workspace.mentee.name}.`,
+        facilitatorId: workspace.mentorship.mentorId,
+        attendeeIds: mentorshipParticipantIds,
+        agendaTitles:
+          mentorshipMeetingType === "MENTOR_KICKOFF_MEETING"
+            ? [
+                "Introductions and support roles",
+                "Mentee goals and current commitments",
+                "Meeting cadence and communication preferences",
+                "Known blockers or support needs",
+                "First next steps",
+              ]
+            : mentorshipMeetingType === "QUARTERLY_MENTOR_COMMITTEE_REVIEW"
+              ? [
+                  "Monthly check-in evidence",
+                  "Action history and missed work",
+                  "Feedback and mentor recommendation",
+                  "Performance and potential ratings",
+                  "Pathway decision",
+                  "Updated goals and follow-up actions",
+                ]
+              : [
+                  "Self-reflection status",
+                  "Feedback gathered",
+                  "Current work and missed work",
+                  "Goal progress and wellbeing notes",
+                  "Rating and next steps",
+                  "Actions created from this check-in",
+                ],
+      })
+    : null;
+  const mentorshipOpsContext =
+    canUseMeetingTracker && workspace.mentorship
+      ? await getOperationalContextForEntity(
+          "MENTORSHIP",
+          workspace.mentorship.id,
+          actionViewer
+        ).catch(() => null)
+      : null;
   let teachingClasses: Awaited<ReturnType<typeof getMyTeachingClasses>> = [];
   let readiness: Awaited<ReturnType<typeof getInstructorReadiness>> | null = null;
   if (operationsEnabled) {
@@ -433,6 +515,25 @@ export async function RelationshipWorkspace({
               </p>
             )}
           </section>
+        </div>
+      ) : null}
+
+      {canUseMeetingTracker && workspace.mentorship && mentorshipOpsContext ? (
+        <div style={{ marginBottom: 16 }}>
+          <OperationalContextPanel
+            title="Formal meeting tracker"
+            subtitle="Meeting Tracker records and org-level actions linked to this mentorship."
+            health={mentorshipOpsContext.health}
+            meetings={mentorshipOpsContext.meetings}
+            actions={mentorshipOpsContext.actions}
+            openFollowUps={mentorshipOpsContext.openFollowUps}
+            recentDecisions={mentorshipOpsContext.recentDecisions}
+            canCreate={canUseMeetingTracker}
+            createActionHref={`/actions/new?relatedType=MENTORSHIP&relatedId=${workspace.mentorship.id}`}
+            createMeetingHref={mentorshipMeetingHref}
+            emptyActionsHint="No org-level actions are linked to this mentorship yet."
+            emptyMeetingsHint="No formal Meeting Tracker record is linked yet. Use this for kickoff, monthly check-in, or quarterly review meetings that need leadership follow-up."
+          />
         </div>
       ) : null}
 

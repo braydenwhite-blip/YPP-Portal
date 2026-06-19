@@ -319,6 +319,61 @@ export async function saveMeetingNotes(input: z.input<typeof SaveNotesSchema>) {
   revalidate(data.meetingId);
 }
 
+const SaveMeetingDraftsSchema = z.object({
+  meetingId: NonEmptyString,
+  agendaText: z.string().trim().max(50_000).optional(),
+  summaryText: z.string().trim().max(50_000).optional(),
+});
+
+export async function saveGeneratedMeetingDrafts(
+  input: z.input<typeof SaveMeetingDraftsSchema>
+) {
+  ensureEnabled();
+  await requireOfficer();
+  const data = SaveMeetingDraftsSchema.parse(input);
+  const update: {
+    agendaText?: string | null;
+    summaryEmailText?: string | null;
+    summaryStatus?: string;
+  } = {};
+
+  if (data.agendaText !== undefined) {
+    update.agendaText = data.agendaText.length ? data.agendaText : null;
+  }
+  if (data.summaryText !== undefined) {
+    update.summaryEmailText = data.summaryText.length ? data.summaryText : null;
+    update.summaryStatus = data.summaryText.length ? "DRAFT_READY" : "NOT_STARTED";
+  }
+  if (Object.keys(update).length === 0) return;
+
+  await prisma.officerMeeting.update({
+    where: { id: data.meetingId },
+    data: update,
+  });
+  await syncMeetingSearchDocument(data.meetingId);
+  revalidate(data.meetingId);
+}
+
+const MarkSummarySentSchema = z.object({
+  meetingId: NonEmptyString,
+  summaryText: z.string().trim().max(50_000),
+});
+
+export async function markMeetingSummarySent(input: z.input<typeof MarkSummarySentSchema>) {
+  ensureEnabled();
+  await requireOfficer();
+  const data = MarkSummarySentSchema.parse(input);
+  await prisma.officerMeeting.update({
+    where: { id: data.meetingId },
+    data: {
+      summaryEmailText: data.summaryText.length ? data.summaryText : null,
+      summaryStatus: "SENT",
+    },
+  });
+  await syncMeetingSearchDocument(data.meetingId);
+  revalidate(data.meetingId);
+}
+
 // --- agenda ------------------------------------------------------------------
 
 const AddAgendaSchema = z.object({
@@ -364,6 +419,25 @@ export async function setAgendaItemStatus(
   const item = await prisma.meetingAgendaItem.update({
     where: { id: data.id },
     data: { status: data.status },
+    select: { officerMeetingId: true },
+  });
+  revalidate(item.officerMeetingId);
+}
+
+const SaveAgendaItemNotesSchema = z.object({
+  id: NonEmptyString,
+  notes: z.string().trim().max(20_000),
+});
+
+export async function saveAgendaItemNotes(
+  input: z.input<typeof SaveAgendaItemNotesSchema>
+) {
+  ensureEnabled();
+  await requireOfficer();
+  const data = SaveAgendaItemNotesSchema.parse(input);
+  const item = await prisma.meetingAgendaItem.update({
+    where: { id: data.id },
+    data: { notes: data.notes.length ? data.notes : null },
     select: { officerMeetingId: true },
   });
   revalidate(item.officerMeetingId);

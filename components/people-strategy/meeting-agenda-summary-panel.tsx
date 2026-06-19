@@ -1,6 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+
+import {
+  markMeetingSummarySent,
+  saveGeneratedMeetingDrafts,
+} from "@/lib/people-strategy/meetings-actions";
 
 /**
  * Meeting workspace — deterministic Agenda / Summary generator panel.
@@ -16,20 +22,28 @@ import { useState } from "react";
 type Tab = "agenda" | "summary";
 
 export function MeetingAgendaSummaryPanel({
+  meetingId,
   agendaText,
   summaryText,
   summaryWarnings,
   summaryMissingNotes,
+  summaryStatus,
 }: {
+  meetingId: string;
   agendaText: string;
   summaryText: string;
   summaryWarnings: string[];
   summaryMissingNotes: boolean;
+  summaryStatus?: string | null;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("agenda");
   const [agenda, setAgenda] = useState(agendaText);
   const [summary, setSummary] = useState(summaryText);
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [sent, setSent] = useState(summaryStatus === "SENT");
+  const [pending, startTransition] = useTransition();
 
   const value = tab === "agenda" ? agenda : summary;
   const setValue = tab === "agenda" ? setAgenda : setSummary;
@@ -42,6 +56,27 @@ export function MeetingAgendaSummaryPanel({
     } catch {
       // Clipboard can be blocked; the textarea is selectable as a fallback.
     }
+  }
+
+  function saveDraft() {
+    startTransition(async () => {
+      if (tab === "agenda") {
+        await saveGeneratedMeetingDrafts({ meetingId, agendaText: agenda });
+      } else {
+        await saveGeneratedMeetingDrafts({ meetingId, summaryText: summary });
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+      router.refresh();
+    });
+  }
+
+  function markSent() {
+    startTransition(async () => {
+      await markMeetingSummarySent({ meetingId, summaryText: summary });
+      setSent(true);
+      router.refresh();
+    });
   }
 
   return (
@@ -104,7 +139,7 @@ export function MeetingAgendaSummaryPanel({
         className="mt-3 w-full resize-y rounded-[10px] border border-line-soft bg-surface-muted p-3 font-mono text-[12.5px] leading-relaxed text-ink"
       />
 
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={copy}
@@ -112,7 +147,27 @@ export function MeetingAgendaSummaryPanel({
         >
           {copied ? "Copied ✓" : `Copy ${tab}`}
         </button>
-        <span className="text-[11.5px] text-ink-muted">Paste into your meeting channel.</span>
+        <button
+          type="button"
+          onClick={saveDraft}
+          disabled={pending}
+          className="rounded-[8px] border border-line-soft bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-ink disabled:opacity-60"
+        >
+          {saved ? "Saved" : `Save ${tab}`}
+        </button>
+        {tab === "summary" ? (
+          <button
+            type="button"
+            onClick={markSent}
+            disabled={pending}
+            className="rounded-[8px] border border-line-soft bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-ink disabled:opacity-60"
+          >
+            {sent ? "Summary sent" : "Mark summary sent"}
+          </button>
+        ) : null}
+        <span className="text-[11.5px] text-ink-muted">
+          {tab === "summary" && sent ? "Marked sent on this meeting." : "Paste into your meeting channel."}
+        </span>
       </div>
     </section>
   );

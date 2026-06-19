@@ -5,6 +5,7 @@ import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
 import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
+import { meetingPrefillToQuery } from "@/lib/people-strategy/action-prefill";
 import { AskAboutThis } from "@/components/help-agent/ask-about-this";
 import { ClassPublishControls } from "./_components/publish-controls";
 import { ClassReviewBanner } from "./_components/header";
@@ -52,6 +53,21 @@ export default async function AdminClassOverviewPage({
   ]
     .filter(Boolean)
     .join(" · ");
+  const classMeetingHref = meetingPrefillToQuery({
+    relatedType: "CLASS_OFFERING",
+    relatedId: detail.id,
+    area: "CLASSES",
+    meetingType: "GENERAL_MEETING",
+    title: `Class setup meeting: ${detail.title}`,
+    purpose: `Review instructor coverage, schedule, curriculum review, setup actions, and launch blockers for ${detail.title}.`,
+    agendaTitles: [
+      "Instructor and support coverage",
+      "Curriculum review state",
+      "Schedule, location, and virtual link",
+      "Enrollment and parent/student communication",
+      "Setup actions and owners",
+    ],
+  });
 
   return (
     <div className="flex flex-col gap-5">
@@ -107,7 +123,7 @@ export default async function AdminClassOverviewPage({
           recentDecisions={opsContext.recentDecisions}
           canCreate={canCreate}
           createActionHref={`/actions/new?relatedType=CLASS_OFFERING&relatedId=${detail.id}`}
-          createMeetingHref={`/actions/meetings?new=1&relatedType=CLASS_OFFERING&relatedId=${detail.id}`}
+          createMeetingHref={classMeetingHref}
           emptyActionsHint="No actions are linked to this class yet. Add a follow-up so nothing slips."
           emptyMeetingsHint="No meeting has been tracked about this class yet."
         />
