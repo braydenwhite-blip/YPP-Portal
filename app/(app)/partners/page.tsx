@@ -10,6 +10,7 @@ import {
   UrlSyncedSearchInput,
   ViewSwitcher,
 } from "@/components/ui-v2";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import {
@@ -85,6 +86,7 @@ export default async function PartnersPage({
   const filtered = filterPartnerRows(rows, { view, flag, type, q });
 
   return (
+    <div className={skin.portalSkin}>
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
       <PageHeaderV2
         eyebrow="Knowledge OS"
@@ -214,6 +216,7 @@ export default async function PartnersPage({
         actionTrackerEnabled={isActionTrackerEnabled()}
         canManagePartners={canManagePartners}
       />
+    </div>
     </div>
   );
 }

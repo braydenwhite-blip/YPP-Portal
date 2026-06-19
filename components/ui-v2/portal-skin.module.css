@@ -1,0 +1,65 @@
+/* ============================================================
+   YPP Portal reskin — scoped base treatment.
+
+   Applied as a wrapper class on the reskinned leadership page roots so
+   the calm/premium mockup look (real DM Sans, soft ambient background,
+   tighter tracking) is opt-in per surface. Nothing here touches the
+   frozen app/globals.css; tokens come from app/ui-v2.css @theme.
+   Pattern mirrors components/ui-v2/sidebar-marble.module.css.
+   ============================================================ */
+
+@keyframes portalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.portalSkin {
+  font-family: var(--font-sans-mockup);
+  letter-spacing: -0.01em;
+  color: #15181f;
+  /* Soft ambient wash — purple top-left, faint teal top-right — over the
+     mockup's neutral page tone. Sits behind the existing main surface. */
+  background-image:
+    radial-gradient(
+      1100px 460px at 16% -180px,
+      rgba(139, 63, 232, 0.08),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 420px at 100% -140px,
+      rgba(13, 148, 136, 0.05),
+      transparent 55%
+    );
+  background-repeat: no-repeat;
+}
+
+.portalSkin :where(h1, h2, h3) {
+  letter-spacing: -0.02em;
+}
+
+/* Entry animation for the content column; respects reduced motion. */
+.fadeIn {
+  animation: portalFadeIn 0.4s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="on"]) .fadeIn {
+    animation: none;
+  }
+}
+
+/* The signature brand gradient — for primary CTAs, logo chips, avatars. */
+.brandGradient {
+  background-image: linear-gradient(
+    135deg,
+    #5a1da8 0%,
+    #6b21c8 52%,
+    #8b3fe8 100%
+  );
+}

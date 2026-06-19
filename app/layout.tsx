@@ -3,7 +3,7 @@ import "./globals.css";
 // so ui-v2 utilities win on source order during the hybrid period.
 import "./ui-v2.css";
 import type { Metadata, Viewport } from "next";
-import { Inter, EB_Garamond } from "next/font/google";
+import { Inter, EB_Garamond, DM_Sans, Nunito } from "next/font/google";
 
 import { MotionInitScript } from "@/components/motion-init-script";
 
@@ -45,6 +45,24 @@ const ebGaramondAlt = EB_Garamond({
   display: "swap",
 });
 
+// Real DM Sans + Nunito for the reskinned "YPP Portal" leadership surfaces.
+// These are exposed as their OWN CSS variables and applied scoped (via the
+// .portalSkin module) so the global UI font (Inter, aliased to --font-dm-sans)
+// is left exactly as-is.
+const dmSansReal = DM_Sans({
+  variable: "--font-dm-sans-real",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
+const nunitoReal = Nunito({
+  variable: "--font-nunito-real",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Youth Passion Project - Pathways Portal",
   description: "Portal for Youth Passion Project curriculum, training, mentorship, and chapter management.",
@@ -63,7 +81,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const fontVars = `${inter.variable} ${ebGaramond.variable} ${interLabel.variable} ${ebGaramondAlt.variable}`;
+  const fontVars = `${inter.variable} ${ebGaramond.variable} ${interLabel.variable} ${ebGaramondAlt.variable} ${dmSansReal.variable} ${nunitoReal.variable}`;
 
   return (
     <html lang="en" className={fontVars}>

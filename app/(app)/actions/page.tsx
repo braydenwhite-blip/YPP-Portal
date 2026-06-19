@@ -15,7 +15,8 @@ import {
   leadershipActionAttention,
   personalActionAttention,
 } from "@/lib/people-strategy/action-attention";
-import { ButtonLink, PageHeaderV2, type StatusTone } from "@/components/ui-v2";
+import { ButtonLink, PageHeaderV2, StatCardV2, type StatusTone } from "@/components/ui-v2";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { CommandModeToggle } from "@/components/command-center/command-mode";
 import {
   EmptySimpleState,
@@ -238,7 +239,72 @@ export default async function ActionsPage({
     { label: "All actions", href: "/actions/all", icon: "layers" },
   ];
 
+  // YPP Portal reskin: the mockup's stat-filter cards for the personal
+  // "My Actions" view, with live counts derived from the loaded action items.
+  // TODO(reskin): once /actions gains per-bucket filter params (?flag=overdue
+  // etc.), point each card at its own filtered slice instead of the queue/all.
+  const involvesRole = (item: ActionItemWithRelations, role: string) =>
+    (item.assignments ?? []).some((a) => a.role === role && a.user?.id === viewer.id);
+  const overdueCount = myItems.filter((i) => effectiveStatus(i, now) === "OVERDUE").length;
+  const blockedCount = myItems.filter((i) => effectiveStatus(i, now) === "BLOCKED").length;
+  const waitingCount = myItems.filter(
+    (i) => i.status !== "COMPLETE" && involvesRole(i, "INPUT")
+  ).length;
+  const delegatedCount = myItems.filter(
+    (i) =>
+      i.leadId === viewer.id && i.status !== "COMPLETE" && !involvesRole(i, "EXECUTING")
+  ).length;
+  const completedCount = myItems.filter((i) => i.status === "COMPLETE").length;
+
+  const statFilters = leadershipView ? null : (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <StatCardV2
+        label="Overdue"
+        value={overdueCount}
+        accent="danger"
+        detail={overdueCount ? "Past deadline" : "All clear"}
+        href="/work/queue?queue=my"
+      />
+      <StatCardV2
+        label="Blocked"
+        value={blockedCount}
+        accent="danger"
+        detail={blockedCount ? "Waiting on others" : "None"}
+        href="/work/queue?queue=my"
+      />
+      <StatCardV2
+        label="Waiting on you"
+        value={waitingCount}
+        accent="warning"
+        detail={waitingCount ? "Input requested" : "None"}
+        href="/actions?who=me"
+      />
+      <StatCardV2
+        label="Delegated"
+        value={delegatedCount}
+        accent="brand"
+        detail="You own · others run"
+        href={officer ? "/actions/all" : "/actions?who=me"}
+      />
+      <StatCardV2
+        label="Completed"
+        value={completedCount}
+        accent="success"
+        detail="Recently closed"
+        href="/actions?who=me"
+      />
+    </div>
+  );
+
+  const focusWithStats = (
+    <div className="flex flex-col gap-4">
+      {focus}
+      {statFilters}
+    </div>
+  );
+
   return (
+    <div className={skin.portalSkin}>
     <SimpleSurface
       maxWidth={820}
       header={
@@ -273,7 +339,7 @@ export default async function ActionsPage({
           <ActionTrackerTabsV2 active="my" />
         </div>
       }
-      focus={focus}
+      focus={focusWithStats}
       calm={calm}
       actions={strip}
       browseLabel="Browse all actions"
@@ -352,5 +418,6 @@ export default async function ActionsPage({
         />
       </div>
     </SimpleSurface>
+    </div>
   );
 }
