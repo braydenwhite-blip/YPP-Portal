@@ -89,6 +89,7 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/actions/command-center",
   "/actions/responsibility",
   "/actions/meetings",
+  "/impact-meetings",
   "/mentorship/mentees",
   "/mentorship/reviews",
   "/mentorship/schedule",

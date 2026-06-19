@@ -69,6 +69,7 @@ export const OFFICER_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
  */
 export const OFFICER_UNHIDE_HREFS: ReadonlySet<string> = new Set<string>([
   "/actions/meetings",
+  "/impact-meetings",
   "/actions/all",
   "/actions/responsibility",
 ]);
@@ -86,6 +87,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/actions": { group: "Work", label: "Actions", icon: "✅" },
   "/operations/initiatives": { group: "Work", label: "Initiatives", icon: "🎯" },
   "/actions/meetings": { group: "Work", label: "Meetings", icon: "📅" },
+  "/impact-meetings": { group: "Work", label: "Impact Meetings", icon: "📊" },
   "/follow-up": { group: "Work", label: "Follow Ups", icon: "🔔" },
   "/operations": { group: "Work", label: "Needs Attention", icon: "🧭" },
   "/actions/all": { group: "Work", label: "All Actions", icon: "🗂️" },
@@ -153,6 +155,7 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/actions",
   "/operations/initiatives",
   "/actions/meetings",
+  "/impact-meetings",
   "/follow-up",
   "/operations",
   "/actions/all",
