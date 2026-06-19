@@ -9,6 +9,8 @@ import {
 } from "@/components/ui-v2";
 import { PeopleHubNav } from "@/components/people/people-hub-nav";
 import { PeoplePerformanceClient } from "@/components/people-strategy/people-performance-client";
+import { PerformanceNineBox } from "@/components/people/performance-nine-box";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { requireLeadership } from "@/lib/authorization";
 import {
   isPeopleDashboardEnabled,
@@ -102,6 +104,7 @@ export default async function PeoplePerformancePage({
   const hubAccess = getPeopleHubAccess(hubViewer);
 
   return (
+    <div className={skin.portalSkin}>
     <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-5">
       <PeopleHubNav
         active="performance"
@@ -123,6 +126,8 @@ export default async function PeoplePerformancePage({
           ) : null
         }
       />
+
+      <PerformanceNineBox rows={rows} />
 
       <PeoplePerformanceClient
         cockpit={cockpit}
@@ -160,6 +165,7 @@ export default async function PeoplePerformancePage({
           </>
         }
       />
+    </div>
     </div>
   );
 }

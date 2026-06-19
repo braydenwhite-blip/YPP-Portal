@@ -84,12 +84,10 @@ function BoardSection({
 }) {
   if (items.length === 0) return null;
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: "0.01em" }}>
-          {title}
-        </h2>
-        <span style={{ fontSize: 12, color: "var(--text-secondary, #64748b)" }}>
+    <section className="flex flex-col gap-2">
+      <div className="flex items-baseline gap-2">
+        <h2 className="m-0 text-[13px] font-bold tracking-[0.01em] text-ink">{title}</h2>
+        <span className="text-[12px] text-ink-muted">
           {items.length}
           {hint ? ` · ${hint}` : ""}
         </span>
@@ -216,7 +214,7 @@ export function ActionTrackerDashboard({
           }
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="flex flex-col gap-5">
           {showAttentionBoard ? (
             <BoardSection
               title="Needs attention"

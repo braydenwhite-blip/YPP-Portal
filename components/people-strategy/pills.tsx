@@ -10,6 +10,7 @@ import {
   ACTION_STATUS_LABELS,
 } from "@/lib/people-strategy/constants";
 import { actionTypeLabel } from "@/lib/people-strategy/action-types";
+import { cn } from "@/components/ui-v2";
 
 /**
  * Shared pill primitives for the People Strategy / Action Tracker surfaces.
@@ -33,6 +34,20 @@ export type PillTone =
   | "warning"
   | "purple";
 
+/**
+ * YPP Portal reskin: pills render with the mockup's calm token palette
+ * (mirrors the ui-v2 StatusBadge) instead of the legacy globals.css `.pill.*`
+ * classes, so every status/priority pill across the tracker stays consistent.
+ */
+const PILL_TONE: Record<PillTone, string> = {
+  neutral: "bg-idle-50 text-idle-700",
+  info: "bg-info-100 text-info-700",
+  success: "bg-complete-50 text-complete-700",
+  overdue: "bg-blocked-50 text-blocked-700",
+  warning: "bg-progress-50 text-progress-700",
+  purple: "bg-brand-50 text-brand-700",
+};
+
 export function Pill({
   tone = "neutral",
   className,
@@ -43,16 +58,24 @@ export function Pill({
   children: React.ReactNode;
 }) {
   return (
-    <span className={`pill pill-${tone} pill-small${className ? ` ${className}` : ""}`}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-[7px] px-2 py-[3px] text-[11.5px] font-semibold tracking-[0.01em]",
+        PILL_TONE[tone],
+        className
+      )}
+    >
       {children}
     </span>
   );
 }
 
+// In Progress reads amber and Blocked reads red, matching the mockup's status
+// language (the tracker previously used blue for in-progress, amber for blocked).
 const ACTION_STATUS_TONE: Record<ActionItemStatus, PillTone> = {
   NOT_STARTED: "neutral",
-  IN_PROGRESS: "info",
-  BLOCKED: "warning",
+  IN_PROGRESS: "warning",
+  BLOCKED: "overdue",
   COMPLETE: "success",
   OVERDUE: "overdue",
   DROPPED: "neutral",
