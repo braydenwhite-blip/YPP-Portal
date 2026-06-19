@@ -5,7 +5,7 @@ import type { AdminClassOperationsListItem } from "@/lib/admin-class-operations"
 import { getAdminClassOperationsList } from "@/lib/admin-class-operations";
 import type { ClassCommandCenter as ClassCommandCenterData } from "@/lib/classes/command-center";
 import { ClassCommandCenter } from "@/components/classes/class-command-center";
-import { ButtonLink, CardV2, PageHeaderV2 } from "@/components/ui-v2";
+import { ButtonLink, CardV2, PageHeaderV2, ViewSwitcher, type SwitcherView } from "@/components/ui-v2";
 import { PeopleHubNav } from "@/components/people/people-hub-nav";
 
 type ProposalQueueItem = Parameters<typeof ClassOperationsList>[0]["proposals"][number];
@@ -148,33 +148,13 @@ function ClassViewTabs({
     { value: "archive", label: "Past" },
   ];
 
-  return (
-    <nav className="ps-tabs m-0 w-full max-w-none" aria-label="Class views">
-      {tabs.map((t) => {
-        const href = t.value === "operations" ? "/people/classes" : `/people/classes?tab=${t.value}`;
-        const isActive = active === t.value;
-        const count = counts[t.value];
+  const views: SwitcherView[] = tabs.map((t) => ({
+    key: t.value,
+    label: t.label,
+    href: t.value === "operations" ? "/people/classes" : `/people/classes?tab=${t.value}`,
+    active: active === t.value,
+    count: counts[t.value] > 0 ? counts[t.value] : undefined,
+  }));
 
-        return isActive ? (
-          <span key={t.value} className="ps-tab" aria-current="page">
-            {t.label}
-            {count > 0 ? (
-              <span className="ml-1.5 rounded-full bg-white/20 px-1.5 text-[10px] font-bold">
-                {count}
-              </span>
-            ) : null}
-          </span>
-        ) : (
-          <Link key={t.value} href={href} className="ps-tab">
-            {t.label}
-            {count > 0 ? (
-              <span className="ml-1.5 rounded-full bg-brand-50 px-1.5 text-[10px] font-bold text-brand-700">
-                {count}
-              </span>
-            ) : null}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  return <ViewSwitcher views={views} aria-label="Class views" className="w-full" />;
 }

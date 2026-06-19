@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui-v2";
 
 export function ArchiveAllButton() {
   const router = useRouter();
@@ -34,15 +35,16 @@ export function ArchiveAllButton() {
   }
 
   return (
-    <button
+    <Button
       type="button"
       onClick={handleClick}
-      disabled={busy}
-      className="button secondary small"
+      loading={busy}
+      variant="secondary"
+      size="sm"
       aria-label="Archive every applicant submission across all submission types"
     >
       {busy ? "Archiving..." : "Archive All"}
-    </button>
+    </Button>
   );
 }
 
@@ -83,14 +85,15 @@ export function ArchiveOneButton({
   }
 
   return (
-    <button
+    <Button
       type="button"
       onClick={handleClick}
-      disabled={busy}
-      className="button secondary small"
+      loading={busy}
+      variant="secondary"
+      size="sm"
       aria-label="Archive this application"
     >
       {busy ? "Archiving..." : "Archive"}
-    </button>
+    </Button>
   );
 }

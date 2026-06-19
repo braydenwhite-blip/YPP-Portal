@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import Link from "next/link";
+import { ButtonLink, CardV2, PageHeaderV2 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import {
   canAccessMentorship,
@@ -38,21 +39,21 @@ export default async function MentorshipPage() {
 
   if (!showMentorSection) {
     return (
-      <div>
-        <div className="topbar">
-          <div>
-            <p className="badge">Mentorship</p>
-            <h1 className="page-title">Mentorship</h1>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Link href="/my-mentor" className="button secondary small">
-              My Mentor →
-            </Link>
-            <Link href="/leadership-pathway" className="button secondary small">
-              Pathway →
-            </Link>
-          </div>
-        </div>
+      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+        <PageHeaderV2
+          eyebrow="Mentorship"
+          title="Mentorship"
+          actions={
+            <>
+              <ButtonLink href="/my-mentor" variant="secondary" size="sm">
+                My Mentor →
+              </ButtonLink>
+              <ButtonLink href="/leadership-pathway" variant="secondary" size="sm">
+                Pathway →
+              </ButtonLink>
+            </>
+          }
+        />
         <EmptyStateEditorial
           title="Your mentor workspace is on the way."
           body="Once you're assigned to mentor an instructor, this becomes the place you'll work from each month. If you're looking for your own mentor, open My Mentor."
@@ -127,49 +128,39 @@ export default async function MentorshipPage() {
     now: new Date(),
   });
 
-  // TODO(reskin): mentorship home still uses the legacy `.topbar` layout
-  // rather than the calm SimpleSurface primitives, so it inherits the new
-  // tokens but not the YPP Portal mockup's card/lane composition. Rebuild on
-  // SimpleSurface + the reskinned ui-v2 primitives and apply the `.portalSkin`
-  // scope (mockup view: "Mentorship" — lanes for needs-review / needs-check-in
-  // / missing G&Rs / active pairs / follow-ups).
+  // Reskinned onto the ui-v2 primitives (PageHeaderV2 + CardV2 + ButtonLink)
+  // under the `.portalSkin` scope; the Calm/Executive bodies already compose
+  // the SimpleSurface kit (mentor-home-calm / mentor-home-executive).
   return (
-    <div className={skin.portalSkin}>
-      <div className="topbar">
-        <div>
-          <p className="badge">Mentorship</p>
-          <h1 className="page-title">Mentorship</h1>
-          <p className="page-subtitle">{subtitle}</p>
-          {pendingActionCount > 0 && (
-            <Link
-              href="/notifications"
-              className="pill"
-              style={{
-                marginTop: 8,
-                display: "inline-block",
-                background: "#fef3c7",
-                color: "#92400e",
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
-              {pendingActionCount} mentorship update{pendingActionCount === 1 ? "" : "s"} unread →
-            </Link>
-          )}
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {membership.isMentee && (
-            <Link href="/my-mentor" className="button secondary small">
-              My Mentor →
-            </Link>
-          )}
-          {isAdmin && (
-            <Link href="/admin/mentorship" className="button secondary small">
-              Admin Oversight →
-            </Link>
-          )}
-        </div>
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship"
+        title="Mentorship"
+        subtitle={subtitle}
+        actions={
+          <>
+            {membership.isMentee && (
+              <ButtonLink href="/my-mentor" variant="secondary" size="sm">
+                My Mentor →
+              </ButtonLink>
+            )}
+            {isAdmin && (
+              <ButtonLink href="/admin/mentorship" variant="secondary" size="sm">
+                Admin Oversight →
+              </ButtonLink>
+            )}
+          </>
+        }
+      >
+        {pendingActionCount > 0 && (
+          <Link
+            href="/notifications"
+            className="inline-flex w-fit items-center gap-1.5 rounded-full bg-progress-50 px-3 py-1 text-[12.5px] font-semibold text-progress-700 no-underline transition-[filter] hover:brightness-[0.97]"
+          >
+            {pendingActionCount} mentorship update{pendingActionCount === 1 ? "" : "s"} unread →
+          </Link>
+        )}
+      </PageHeaderV2>
 
       {mentorBlock.total === 0 ? (
         <EmptyStateEditorial
@@ -181,30 +172,25 @@ export default async function MentorshipPage() {
           }}
         />
       ) : (
-        <div style={{ display: "grid", gap: 24 }}>
+        <div className="grid gap-6">
           {membership.isMentee && (
-            <div
-              className="card"
-              style={{
-                borderLeft: "4px solid var(--color-primary)",
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 16,
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
+            <CardV2
+              padding="md"
+              className="flex flex-wrap items-center justify-between gap-4 border-l-4 border-l-brand-600"
             >
-              <div>
-                <strong>You&apos;re also being mentored.</strong>
-                <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
+              <div className="min-w-0">
+                <strong className="text-[14px] text-ink">
+                  You&apos;re also being mentored.
+                </strong>
+                <p className="mt-1 text-[13px] text-ink-muted">
                   Your own goals, released feedback, resources, and check-ins live
                   in My Mentor.
                 </p>
               </div>
-              <Link href="/my-mentor" className="button secondary small">
+              <ButtonLink href="/my-mentor" variant="secondary" size="sm">
                 Open My Mentor
-              </Link>
-            </div>
+              </ButtonLink>
+            </CardV2>
           )}
 
           <CalmOnly>
