@@ -604,6 +604,34 @@ export async function getMeetingById(
   });
 }
 
+/**
+ * The Global Operations Impact Presentation the standalone Impact Meetings hub
+ * should open on: the next upcoming one if any is scheduled, otherwise the most
+ * recent past one. Returns null when none exist (the hub shows a schedule CTA).
+ * The literal mirrors `GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE` in impact-meetings.ts.
+ */
+export async function findCurrentGlobalImpactMeeting(
+  now: Date = new Date()
+): Promise<MeetingWithCommandCenter | null> {
+  if (!isActionTrackerEnabled()) return null;
+  const startOfToday = new Date(now);
+  startOfToday.setUTCHours(0, 0, 0, 0);
+  const upcoming = await prisma.officerMeeting.findFirst({
+    where: {
+      meetingType: "GLOBAL_OPERATIONS_IMPACT_PRESENTATION",
+      date: { gte: startOfToday },
+    },
+    include: MEETING_INCLUDE,
+    orderBy: [{ date: "asc" }],
+  });
+  if (upcoming) return upcoming;
+  return prisma.officerMeeting.findFirst({
+    where: { meetingType: "GLOBAL_OPERATIONS_IMPACT_PRESENTATION" },
+    include: MEETING_INCLUDE,
+    orderBy: [{ date: "desc" }],
+  });
+}
+
 // --- related-entity reads (cross-portal nervous system) ---------------------
 
 /**

@@ -862,6 +862,24 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 5,
     },
     {
+      href: "/impact-meetings",
+      label: "Impact Meetings",
+      icon: "📊",
+      // Officer-tier and above only (mirrors requireOfficer()).
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
+      searchAliases: [
+        "Impact Meetings",
+        "Impact Presentation",
+        "Global Operations Impact",
+        "Weekly Updates",
+        "Team Updates",
+      ],
+      dashboardDescription:
+        "Collect weekly team updates, build the agenda, run the impact presentation live, and send the summary.",
+      dashboardPriority: 5,
+    },
+    {
       href: "/leadership-pathway",
       label: "Leadership Pathway",
       icon: "🪜",
