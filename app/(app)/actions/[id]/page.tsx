@@ -15,6 +15,7 @@ import {
 import { ActionIntelPanel } from "@/components/people-strategy/action-intel-panel";
 import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
 import { ButtonLink, PageHeaderV2, type StatusTone } from "@/components/ui-v2";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { getSession } from "@/lib/auth-supabase";
 import {
   isActionTrackerEnabled,
@@ -369,6 +370,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
   ];
 
   return (
+    <div className={skin.portalSkin}>
     <SimpleSurface
       maxWidth={720}
       header={
@@ -427,5 +429,6 @@ export default async function ActionDetailPage({ params }: PageProps) {
         ) : null}
       </div>
     </SimpleSurface>
+    </div>
   );
 }

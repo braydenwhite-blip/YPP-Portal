@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { redirect } from "next/navigation";
 
 import { PeopleDirectory } from "@/components/people/people-directory";
@@ -203,6 +205,7 @@ export default async function PeoplePage({
   );
 
   return (
+    <div className={skin.portalSkin}>
     <div className="mx-auto flex w-full max-w-[960px] flex-col gap-5 pb-10">
       <PeopleHubNav
         active="directory"
@@ -273,6 +276,7 @@ export default async function PeoplePage({
           </CalmCollapse>
         </>
       )}
+    </div>
     </div>
   );
 }

@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import {
@@ -125,8 +127,14 @@ export default async function MentorshipPage() {
     now: new Date(),
   });
 
+  // TODO(reskin): mentorship home still uses the legacy `.topbar` layout
+  // rather than the calm SimpleSurface primitives, so it inherits the new
+  // tokens but not the YPP Portal mockup's card/lane composition. Rebuild on
+  // SimpleSurface + the reskinned ui-v2 primitives and apply the `.portalSkin`
+  // scope (mockup view: "Mentorship" — lanes for needs-review / needs-check-in
+  // / missing G&Rs / active pairs / follow-ups).
   return (
-    <div>
+    <div className={skin.portalSkin}>
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>

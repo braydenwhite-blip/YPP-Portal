@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
+import skin from "@/components/ui-v2/portal-skin.module.css";
+
 import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { startOfDay } from "@/lib/leadership-action-center/dates";
@@ -380,6 +382,7 @@ export default async function WeeklyCommandCenterPage({
   ];
 
   return (
+    <div className={skin.portalSkin}>
     <SimpleSurface
       maxWidth={1120}
       header={
@@ -424,5 +427,6 @@ export default async function WeeklyCommandCenterPage({
         />
       </div>
     </SimpleSurface>
+    </div>
   );
 }
