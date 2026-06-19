@@ -24,7 +24,14 @@ function isFinalStatus(status: LegacyApplicationStatus) {
   // WITHDRAWN is applicant-initiated and equally terminal — reviewers must
   // not re-open a withdrawn application via "schedule interview" or
   // "request info" actions.
-  return status === "APPROVED" || status === "REJECTED" || status === "WITHDRAWN";
+  return [
+    "APPROVED",
+    "REJECTED",
+    "WITHDRAWN",
+    "WAITLISTED",
+    "DECLINED",
+    "ACTIVE_CP",
+  ].includes(status);
 }
 
 export function getLegacyApplicationTransitionError(input: {
@@ -42,13 +49,13 @@ export function getLegacyApplicationTransitionError(input: {
 
   switch (action) {
     case "mark_under_review":
-      return status === "SUBMITTED" || status === "ON_HOLD"
+      return status === "SUBMITTED" || status === "ON_HOLD" || status === "NEEDS_MORE_INFO"
         ? null
         : "Only newly submitted or on-hold applications can move into review.";
     case "request_info":
       return null;
     case "schedule_interview":
-      return status === "INTERVIEW_COMPLETED"
+      return status === "INTERVIEW_COMPLETED" || status === "INTERVIEW_COMPLETE" || status === "DECISION_NEEDED"
         ? "Completed interviews cannot be rescheduled from this flow."
         : null;
     case "mark_interview_complete":
@@ -56,11 +63,14 @@ export function getLegacyApplicationTransitionError(input: {
         ? null
         : "Only scheduled interviews can be marked complete.";
     case "submit_recommendation":
-      return status === "INTERVIEW_COMPLETED"
+      return status === "INTERVIEW_COMPLETED" || status === "INTERVIEW_COMPLETE" || status === "DECISION_NEEDED"
         ? null
         : "Complete the interview before submitting a recommendation.";
     case "approve":
-      return status === "INTERVIEW_COMPLETED" || status === "RECOMMENDATION_SUBMITTED"
+      return status === "INTERVIEW_COMPLETED" ||
+        status === "INTERVIEW_COMPLETE" ||
+        status === "DECISION_NEEDED" ||
+        status === "RECOMMENDATION_SUBMITTED"
         ? null
         : "Complete the interview before approving this application.";
     case "reject":

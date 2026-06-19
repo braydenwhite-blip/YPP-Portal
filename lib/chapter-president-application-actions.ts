@@ -16,6 +16,7 @@ import {
   type LegacyApplicationReviewAction,
 } from "@/lib/legacy-application-review";
 import { syncChapterPresidentApplicationWorkflow } from "@/lib/workflow";
+import { CP_STARTER_ACTIONS } from "@/lib/chapter-president-lifecycle";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -110,6 +111,7 @@ export async function submitChapterPresidentApplication(
 
     // Academic
     const schoolName = getString(formData, "schoolName", false);
+    const grade = getString(formData, "grade", false);
     const graduationYearRaw = getString(formData, "graduationYear", false);
     const graduationYear = graduationYearRaw ? parseInt(graduationYearRaw, 10) : null;
     const gpa = getString(formData, "gpa", false);
@@ -118,6 +120,10 @@ export async function submitChapterPresidentApplication(
     // Chapter-specific essays
     const whyChapterPresident = getString(formData, "whyChapterPresident", false);
     const partnerSchool = getString(formData, "partnerSchool", false);
+    const currentYppInvolvement = getString(formData, "currentYppInvolvement", false);
+    const communityServiceExperience = getString(formData, "communityServiceExperience", false);
+    const potentialChapterLocation = getString(formData, "potentialChapterLocation", false);
+    const firstThreeActions = getString(formData, "firstThreeActions", false);
     const recruitmentPlan = getString(formData, "recruitmentPlan", false);
     const launchPlan = getString(formData, "launchPlan", false);
     const extracurriculars = getString(formData, "extracurriculars", false);
@@ -210,11 +216,16 @@ export async function submitChapterPresidentApplication(
           zipCode: zipCode || null,
           country: country === "Other" ? (countryOther || "Other") : country,
           schoolName: schoolName || null,
+          grade: grade || null,
           graduationYear: graduationYear && !isNaN(graduationYear) ? graduationYear : null,
           gpa: gpa || null,
           classRank: classRank || null,
           whyChapterPresident: whyChapterPresident || null,
           partnerSchool: partnerSchool || null,
+          currentYppInvolvement: currentYppInvolvement || null,
+          communityServiceExperience: communityServiceExperience || null,
+          potentialChapterLocation: potentialChapterLocation || null,
+          firstThreeActions: firstThreeActions || null,
           recruitmentPlan: recruitmentPlan || null,
           launchPlan: launchPlan || null,
           extracurriculars: extracurriculars || null,
@@ -295,7 +306,7 @@ export async function reviewChapterPresidentApplication(
       case "mark_under_review":
         await prisma.chapterPresidentApplication.update({
           where: { id: applicationId },
-          data: { status: ChapterPresidentApplicationStatus.UNDER_REVIEW, reviewerId: session.user.id },
+          data: { status: "INITIAL_REVIEW", reviewerId: session.user.id },
         });
         await syncChapterPresidentApplicationWorkflow(applicationId);
         break;
@@ -310,15 +321,21 @@ export async function reviewChapterPresidentApplication(
 
         const notes = getString(formData, "notes", false);
         const chapterId = application.chapterId;
+        const now = new Date();
 
         await prisma.$transaction(async (tx) => {
           await tx.chapterPresidentApplication.update({
             where: { id: applicationId },
             data: {
-              status: ChapterPresidentApplicationStatus.APPROVED,
+              status: "ONBOARDING",
               reviewerId: session.user.id,
               reviewerNotes: notes || null,
-              approvedAt: new Date(),
+              approvedAt: now,
+              decisionMakerId: session.user.id,
+              decisionAt: now,
+              linkedPersonId: application.applicantId,
+              roleAssignedAt: now,
+              onboardingStartedAt: now,
             },
           });
 
@@ -340,10 +357,11 @@ export async function reviewChapterPresidentApplication(
           if (chapterId) {
             await tx.chapterPresidentOnboarding.upsert({
               where: { userId: application.applicantId },
-              update: { chapterId, status: "NOT_STARTED" },
+              update: { chapterId, status: "IN_PROGRESS" },
               create: {
                 userId: application.applicantId,
                 chapterId,
+                status: "IN_PROGRESS",
               },
             });
           }
@@ -358,10 +376,9 @@ export async function reviewChapterPresidentApplication(
           console.error("[approveCPApplication] email failed:", e);
         }
 
-        revalidatePath("/admin/chapter-president-applicants");
-        revalidatePath("/application-status");
         await syncChapterPresidentApplicationWorkflow(applicationId);
-        return { status: "success", message: "Application approved. Applicant is now a Chapter President." };
+        await revalidateCPApplicantPaths(applicationId);
+        return { status: "success", message: "Application accepted. Onboarding is ready." };
       }
 
       case "reject": {
@@ -369,10 +386,12 @@ export async function reviewChapterPresidentApplication(
         await prisma.chapterPresidentApplication.update({
           where: { id: applicationId },
           data: {
-            status: ChapterPresidentApplicationStatus.REJECTED,
+            status: "DECLINED",
             reviewerId: session.user.id,
             rejectionReason: reason,
             rejectedAt: new Date(),
+            decisionMakerId: session.user.id,
+            decisionAt: new Date(),
           },
         });
         try {
@@ -393,13 +412,13 @@ export async function reviewChapterPresidentApplication(
         await prisma.chapterPresidentApplication.update({
           where: { id: applicationId },
           data: {
-            status: ChapterPresidentApplicationStatus.INFO_REQUESTED,
+            status: "NEEDS_MORE_INFO",
             reviewerId: session.user.id,
             infoRequest: message,
           },
         });
         const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = await getBaseUrl();
+        const baseUrl = await getBaseUrl();
         try {
           await sendInfoRequestEmail({
             to: application.applicant.email,
@@ -436,7 +455,7 @@ export async function reviewChapterPresidentApplication(
           },
         });
         const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = await getBaseUrl();
+        const baseUrl = await getBaseUrl();
         try {
           await sendInterviewScheduledEmail({
             to: application.applicant.email,
@@ -457,9 +476,11 @@ export async function reviewChapterPresidentApplication(
         await prisma.chapterPresidentApplication.update({
           where: { id: applicationId },
           data: {
-            status: ChapterPresidentApplicationStatus.INTERVIEW_COMPLETED,
+            status: "DECISION_NEEDED",
             reviewerId: session.user.id,
             reviewerNotes: notes || null,
+            interviewNotes: notes || null,
+            interviewSummary: notes || null,
           },
         });
         await syncChapterPresidentApplicationWorkflow(applicationId);
@@ -476,7 +497,7 @@ export async function reviewChapterPresidentApplication(
         await prisma.chapterPresidentApplication.update({
           where: { id: applicationId },
           data: {
-            status: ChapterPresidentApplicationStatus.RECOMMENDATION_SUBMITTED,
+            status: "DECISION_NEEDED",
             reviewerId: session.user.id,
             decisionRecommendation: recommendationRaw as HiringRecommendation,
             recommendationRationale: rationale,
@@ -524,7 +545,10 @@ export async function submitCPInfoResponse(
     if (application.applicantId !== session.user.id) {
       return { status: "error", message: "Unauthorized." };
     }
-    if (application.status !== ChapterPresidentApplicationStatus.INFO_REQUESTED) {
+    if (
+      application.status !== ChapterPresidentApplicationStatus.INFO_REQUESTED &&
+      application.status !== ("NEEDS_MORE_INFO" as ChapterPresidentApplicationStatus)
+    ) {
       return {
         status: "error",
         message: "Your application is not waiting on an information response right now.",
@@ -552,4 +576,452 @@ export async function submitCPInfoResponse(
     console.error("[submitCPInfoResponse]", error);
     return { status: "error", message: "Something went wrong. Please try again." };
   }
+}
+
+function getOptionalString(formData: FormData, key: string) {
+  return String(formData.get(key) ?? "").trim();
+}
+
+function getOptionalScore(formData: FormData, key: string): number | null {
+  const raw = getOptionalString(formData, key);
+  if (!raw) return null;
+  const value = Number.parseInt(raw, 10);
+  return Number.isFinite(value) && value >= 1 && value <= 5 ? value : null;
+}
+
+async function revalidateCPApplicantPaths(applicationId: string) {
+  revalidatePath("/admin");
+  revalidatePath("/admin/chapter-president-applicants");
+  revalidatePath(`/admin/chapter-president-applicants/${applicationId}`);
+  revalidatePath("/application-status");
+  revalidatePath("/my-interview");
+  revalidatePath("/follow-up");
+}
+
+export async function beginCPInitialReviewAction(formData: FormData) {
+  const session = await requireAdmin();
+  const applicationId = getString(formData, "applicationId");
+
+  await prisma.chapterPresidentApplication.update({
+    where: { id: applicationId },
+    data: {
+      status: "INITIAL_REVIEW",
+      reviewerId: session.user.id,
+    },
+  });
+  await syncChapterPresidentApplicationWorkflow(applicationId);
+  await revalidateCPApplicantPaths(applicationId);
+}
+
+export async function assignCPReviewerAction(formData: FormData) {
+  await requireAdmin();
+  const applicationId = getString(formData, "applicationId");
+  const reviewerId = getOptionalString(formData, "reviewerId");
+
+  await prisma.chapterPresidentApplication.update({
+    where: { id: applicationId },
+    data: { reviewerId: reviewerId || null },
+  });
+  await syncChapterPresidentApplicationWorkflow(applicationId);
+  await revalidateCPApplicantPaths(applicationId);
+}
+
+export async function assignCPChapterAction(formData: FormData) {
+  await requireAdmin();
+  const applicationId = getString(formData, "applicationId");
+  const chapterId = getOptionalString(formData, "chapterId");
+
+  if (chapterId) {
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: chapterId },
+      select: { id: true },
+    });
+    if (!chapter) throw new Error("Chapter not found.");
+  }
+
+  await prisma.chapterPresidentApplication.update({
+    where: { id: applicationId },
+    data: { chapterId: chapterId || null },
+  });
+  await syncChapterPresidentApplicationWorkflow(applicationId);
+  await revalidateCPApplicantPaths(applicationId);
+}
+
+export async function saveCPReviewAction(formData: FormData) {
+  const session = await requireAdmin();
+  const applicationId = getString(formData, "applicationId");
+  const recommendation = getOptionalString(formData, "reviewRecommendation");
+  const infoRequest = getOptionalString(formData, "infoRequest");
+  const reviewerNotes = getOptionalString(formData, "reviewerNotes");
+
+  let nextStatus: ChapterPresidentApplicationStatus | undefined;
+  if (recommendation === "interview") nextStatus = "INTERVIEW_NEEDED" as ChapterPresidentApplicationStatus;
+  if (recommendation === "decision") nextStatus = "DECISION_NEEDED" as ChapterPresidentApplicationStatus;
+  if (recommendation === "needs_more_info") nextStatus = "NEEDS_MORE_INFO" as ChapterPresidentApplicationStatus;
+
+  await prisma.chapterPresidentApplication.update({
+    where: { id: applicationId },
+    data: {
+      reviewerId: session.user.id,
+      ...(nextStatus ? { status: nextStatus } : {}),
+      scoreFit: getOptionalScore(formData, "scoreFit"),
+      scoreLeadership: getOptionalScore(formData, "scoreLeadership"),
+      scoreCommunication: getOptionalScore(formData, "scoreCommunication"),
+      scoreCommitment: getOptionalScore(formData, "scoreCommitment"),
+      scoreRecruiting: getOptionalScore(formData, "scoreRecruiting"),
+      scoreOrganization: getOptionalScore(formData, "scoreOrganization"),
+      scoreVision: getOptionalScore(formData, "scoreVision"),
+      scoreOverallConfidence: getOptionalScore(formData, "scoreOverallConfidence"),
+      reviewerNotes: reviewerNotes || null,
+      infoRequest: recommendation === "needs_more_info" ? infoRequest || null : undefined,
+    },
+  });
+  await syncChapterPresidentApplicationWorkflow(applicationId);
+  await revalidateCPApplicantPaths(applicationId);
+}
+
+export async function scheduleCPInterviewAction(formData: FormData) {
+  const session = await requireAdmin();
+  const applicationId = getString(formData, "applicationId");
+  const scheduledAtRaw = getString(formData, "scheduledAt");
+  const scheduledAt = new Date(scheduledAtRaw);
+  if (Number.isNaN(scheduledAt.getTime())) {
+    throw new Error("Pick a valid interview date and time.");
+  }
+  const meetingUrl = getOptionalString(formData, "meetingUrl");
+  if (meetingUrl && !/^https?:\/\//i.test(meetingUrl)) {
+    throw new Error("Meeting link must start with http:// or https://.");
+  }
+
+  const application = await prisma.chapterPresidentApplication.update({
+    where: { id: applicationId },
+    data: {
+      status: "INTERVIEW_SCHEDULED",
+      reviewerId: session.user.id,
+      interviewScheduledAt: scheduledAt,
+      interviewMeetingUrl: meetingUrl || null,
+      schedulingNoMatchAt: null,
+    },
+    include: { applicant: { select: { email: true, name: true } } },
+  });
+
+  const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = await getBaseUrl();
+  sendInterviewScheduledEmail({
+    to: application.applicant.email,
+    applicantName: application.applicant.name,
+    scheduledAt,
+    statusUrl: `${baseUrl}/application-status`,
+    meetingUrl: meetingUrl || null,
+  }).catch((e) => console.error("[scheduleCPInterviewAction] email failed:", e));
+
+  await syncChapterPresidentApplicationWorkflow(applicationId);
+  await revalidateCPApplicantPaths(applicationId);
+}
+
+export async function completeCPInterviewAction(formData: FormData) {
+  const session = await requireAdmin();
+  const applicationId = getString(formData, "applicationId");
+  const interviewNotes = getString(formData, "interviewNotes");
+  const concerns = getOptionalString(formData, "interviewConcerns");
+  const followUps = getOptionalString(formData, "interviewFollowUpQuestions");
+
+  await prisma.chapterPresidentApplication.update({
+    where: { id: applicationId },
+    data: {
+      status: "DECISION_NEEDED",
+      reviewerId: session.user.id,
+      interviewNotes,
+      interviewSummary: interviewNotes,
+      interviewScore: getOptionalScore(formData, "interviewScore"),
+      interviewConcerns: concerns || null,
+      interviewFollowUpQuestions: followUps || null,
+    },
+  });
+  await syncChapterPresidentApplicationWorkflow(applicationId);
+  await revalidateCPApplicantPaths(applicationId);
+}
+
+export async function makeCPDecisionAction(formData: FormData) {
+  const session = await requireAdmin();
+  const applicationId = getString(formData, "applicationId");
+  const decision = getString(formData, "decision");
+  const note = getOptionalString(formData, "finalDecisionNote");
+  const infoRequest = getOptionalString(formData, "infoRequest");
+
+  const application = await prisma.chapterPresidentApplication.findUnique({
+    where: { id: applicationId },
+    include: { applicant: { select: { email: true, name: true } } },
+  });
+  if (!application) throw new Error("Application not found.");
+
+  if (decision === "ACCEPT") {
+    await prisma.chapterPresidentApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: "ONBOARDING",
+        decisionRecommendation: "YES",
+        finalDecisionNote: note || null,
+        decisionMakerId: session.user.id,
+        decisionAt: new Date(),
+        approvedAt: new Date(),
+        onboardingStartedAt: new Date(),
+      },
+    });
+  } else if (decision === "WAITLIST") {
+    await prisma.chapterPresidentApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: "WAITLISTED",
+        decisionRecommendation: "MAYBE",
+        finalDecisionNote: note || null,
+        decisionMakerId: session.user.id,
+        decisionAt: new Date(),
+      },
+    });
+  } else if (decision === "DECLINE") {
+    await prisma.chapterPresidentApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: "DECLINED",
+        decisionRecommendation: "NO",
+        finalDecisionNote: note || null,
+        rejectionReason: note || null,
+        decisionMakerId: session.user.id,
+        decisionAt: new Date(),
+        rejectedAt: new Date(),
+      },
+    });
+    sendApplicationRejectedEmail({
+      to: application.applicant.email,
+      applicantName: application.applicant.name,
+      reason: note || "We are not moving forward at this time.",
+    }).catch((e) => console.error("[makeCPDecisionAction] rejection email failed:", e));
+  } else if (decision === "NEEDS_MORE_INFO") {
+    await prisma.chapterPresidentApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: "NEEDS_MORE_INFO",
+        decisionRecommendation: "MAYBE",
+        finalDecisionNote: note || null,
+        infoRequest: infoRequest || note || null,
+        decisionMakerId: session.user.id,
+        decisionAt: new Date(),
+      },
+    });
+    const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+    const baseUrl = await getBaseUrl();
+    sendInfoRequestEmail({
+      to: application.applicant.email,
+      applicantName: application.applicant.name,
+      message: infoRequest || note || "Please provide the requested follow-up information.",
+      statusUrl: `${baseUrl}/application-status`,
+    }).catch((e) => console.error("[makeCPDecisionAction] info email failed:", e));
+  } else {
+    throw new Error("Pick a valid decision.");
+  }
+
+  await syncChapterPresidentApplicationWorkflow(applicationId);
+  await revalidateCPApplicantPaths(applicationId);
+}
+
+export async function markCPAcceptanceEmailSentAction(formData: FormData) {
+  await requireAdmin();
+  const applicationId = getString(formData, "applicationId");
+  const application = await prisma.chapterPresidentApplication.findUnique({
+    where: { id: applicationId },
+    include: { applicant: { select: { email: true, name: true } } },
+  });
+  if (!application) throw new Error("Application not found.");
+
+  try {
+    await sendApplicationApprovedEmail({
+      to: application.applicant.email,
+      applicantName: application.applicant.name,
+    });
+  } catch (e) {
+    console.error("[markCPAcceptanceEmailSentAction] email failed:", e);
+  }
+
+  await prisma.chapterPresidentApplication.update({
+    where: { id: applicationId },
+    data: { acceptanceEmailSentAt: new Date() },
+  });
+  await revalidateCPApplicantPaths(applicationId);
+}
+
+export async function linkCPPersonAndRoleAction(formData: FormData) {
+  const session = await requireAdmin();
+  const applicationId = getString(formData, "applicationId");
+  const mentorAdvisorId = getOptionalString(formData, "mentorAdvisorId");
+
+  const application = await prisma.chapterPresidentApplication.findUnique({
+    where: { id: applicationId },
+    select: { applicantId: true, chapterId: true, applicant: { select: { chapterId: true } } },
+  });
+  if (!application) throw new Error("Application not found.");
+  const chapterId = application.chapterId ?? application.applicant.chapterId;
+  if (!chapterId) throw new Error("Assign a chapter before linking the CP profile.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: application.applicantId },
+      data: {
+        primaryRole: RoleType.CHAPTER_PRESIDENT,
+        title: "Chapter President",
+        canonicalTitle: "Chapter President",
+        internalLevel: 4,
+        ladder: "INSTRUCTION",
+        chapterId,
+      },
+    });
+    await tx.userRole.upsert({
+      where: {
+        userId_role: {
+          userId: application.applicantId,
+          role: RoleType.CHAPTER_PRESIDENT,
+        },
+      },
+      update: {},
+      create: {
+        userId: application.applicantId,
+        role: RoleType.CHAPTER_PRESIDENT,
+      },
+    });
+    await tx.chapterPresidentOnboarding.upsert({
+      where: { userId: application.applicantId },
+      update: { chapterId, status: "IN_PROGRESS" },
+      create: {
+        userId: application.applicantId,
+        chapterId,
+        status: "IN_PROGRESS",
+      },
+    });
+    await tx.chapterPresidentApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: "ONBOARDING",
+        linkedPersonId: application.applicantId,
+        roleAssignedAt: new Date(),
+        mentorAdvisorId: mentorAdvisorId || null,
+        onboardingStartedAt: new Date(),
+        reviewerId: session.user.id,
+      },
+    });
+  });
+
+  await syncChapterPresidentApplicationWorkflow(applicationId);
+  await revalidateCPApplicantPaths(applicationId);
+}
+
+export async function createCPStarterActionsAction(formData: FormData) {
+  const session = await requireAdmin();
+  const applicationId = getString(formData, "applicationId");
+  await syncChapterPresidentApplicationWorkflow(applicationId);
+
+  const workflowItem = await prisma.workflowItem.findUnique({
+    where: {
+      sourceType_sourceId_kind: {
+        sourceType: "ChapterPresidentApplication",
+        sourceId: applicationId,
+        kind: "CHAPTER_PRESIDENT_APPLICATION",
+      },
+    },
+    include: {
+      actionItems: { select: { title: true } },
+    },
+  });
+  if (!workflowItem) throw new Error("Workflow item not found.");
+
+  const existingTitles = new Set(workflowItem.actionItems.map((item) => item.title));
+  const now = new Date();
+  const missingActions = CP_STARTER_ACTIONS.filter((title) => !existingTitles.has(title));
+
+  if (missingActions.length > 0) {
+    await prisma.workflowActionItem.createMany({
+      data: missingActions.map((title, index) => ({
+        workflowItemId: workflowItem.id,
+        title,
+        details: "Chapter President launch onboarding task.",
+        ownerId: workflowItem.subjectUserId,
+        createdById: session.user.id,
+        dueAt: new Date(now.getTime() + (index + 3) * 24 * 60 * 60 * 1000),
+      })),
+    });
+  }
+
+  await prisma.chapterPresidentApplication.update({
+    where: { id: applicationId },
+    data: {
+      status: "ONBOARDING",
+      starterActionsCreatedAt: new Date(),
+    },
+  });
+
+  await syncChapterPresidentApplicationWorkflow(applicationId);
+  await revalidateCPApplicantPaths(applicationId);
+}
+
+export async function completeCPOnboardingAction(formData: FormData) {
+  const session = await requireAdmin();
+  const applicationId = getString(formData, "applicationId");
+
+  const application = await prisma.chapterPresidentApplication.findUnique({
+    where: { id: applicationId },
+    select: {
+      applicantId: true,
+      chapterId: true,
+      linkedPersonId: true,
+      roleAssignedAt: true,
+      starterActionsCreatedAt: true,
+      applicant: { select: { chapterId: true } },
+    },
+  });
+  if (!application) throw new Error("Application not found.");
+  if (!application.linkedPersonId || !application.roleAssignedAt) {
+    throw new Error("Create the linked Chapter President profile first.");
+  }
+  if (!application.starterActionsCreatedAt) {
+    throw new Error("Create the first chapter launch actions before completing onboarding.");
+  }
+
+  const chapterId = application.chapterId ?? application.applicant.chapterId;
+  if (!chapterId) throw new Error("Assign a chapter before completing onboarding.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.chapterPresidentOnboarding.upsert({
+      where: { userId: application.applicantId },
+      update: {
+        chapterId,
+        metTeam: true,
+        setChapterGoals: true,
+        reviewedResources: true,
+        introMessageSent: true,
+        status: "COMPLETED",
+        completedAt: new Date(),
+      },
+      create: {
+        userId: application.applicantId,
+        chapterId,
+        metTeam: true,
+        setChapterGoals: true,
+        reviewedResources: true,
+        introMessageSent: true,
+        status: "COMPLETED",
+        completedAt: new Date(),
+      },
+    });
+    await tx.chapterPresidentApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: "ACTIVE_CP",
+        onboardingCompletedAt: new Date(),
+        activeAt: new Date(),
+        reviewerId: session.user.id,
+      },
+    });
+  });
+
+  await syncChapterPresidentApplicationWorkflow(applicationId);
+  await revalidateCPApplicantPaths(applicationId);
 }
