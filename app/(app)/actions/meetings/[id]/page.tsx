@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled, isStrategicInitiativesEnabled } from "@/lib/feature-flags";
 import { deriveStrategicContextForMeeting } from "@/lib/people-strategy/strategic-context";
@@ -303,7 +304,7 @@ export default async function MeetingDetailPage({
     : null;
 
   return (
-    <div className="page-shell" style={{ maxWidth: 1180 }}>
+    <div className={`${skin.portalSkin} page-shell`} style={{ maxWidth: 1180 }}>
       <div className="mx-auto flex w-full max-w-[1180px] justify-end pb-1">
         <CommandModeToggle />
       </div>

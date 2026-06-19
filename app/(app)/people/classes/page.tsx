@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import {
   ClassOperationsHub,
   deriveClassOperationsCounts,
@@ -65,6 +66,7 @@ export default async function PeopleClassesPage({
     tab === "operations" ? await loadClassCommandCenter(operationsPage.items) : null;
 
   return (
+    <div className={skin.portalSkin}>
     <ClassOperationsHub
       tab={tab}
       operationsPage={operationsPage}
@@ -74,5 +76,6 @@ export default async function PeopleClassesPage({
       showPeopleNav
       showPerformanceTab={hubAccess.showPerformance}
     />
+    </div>
   );
 }

@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import {
@@ -132,7 +134,7 @@ export default async function MentorshipPage() {
   // scope (mockup view: "Mentorship" — lanes for needs-review / needs-check-in
   // / missing G&Rs / active pairs / follow-ups).
   return (
-    <div>
+    <div className={skin.portalSkin}>
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>

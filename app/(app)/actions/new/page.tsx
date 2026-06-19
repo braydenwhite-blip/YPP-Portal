@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { ActionCreateForm } from "@/components/command-center/action-create-form";
 import { CommandModeToggle } from "@/components/command-center/command-mode";
 import { SimpleListCard, SimpleRow, SimpleSurface, SimpleActionStrip, type SimpleAction } from "@/components/command-center/simple";
@@ -222,6 +223,7 @@ export default async function NewActionInTrackerPage({
     ) : null;
 
   return (
+    <div className={skin.portalSkin}>
     <SimpleSurface
       maxWidth={720}
       header={
@@ -269,5 +271,6 @@ export default async function NewActionInTrackerPage({
         </div>
       }
     />
+    </div>
   );
 }
