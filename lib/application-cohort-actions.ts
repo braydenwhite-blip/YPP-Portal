@@ -149,18 +149,25 @@ function deriveCPAction(
   newStatus: ChapterPresidentApplicationStatus
 ): LegacyApplicationReviewAction | null {
   switch (newStatus) {
+    case "INITIAL_REVIEW" as ChapterPresidentApplicationStatus:
     case ChapterPresidentApplicationStatus.UNDER_REVIEW:
       return "mark_under_review";
+    case "NEEDS_MORE_INFO" as ChapterPresidentApplicationStatus:
     case ChapterPresidentApplicationStatus.INFO_REQUESTED:
       return "request_info";
     case ChapterPresidentApplicationStatus.INTERVIEW_SCHEDULED:
       return "schedule_interview";
+    case "INTERVIEW_COMPLETE" as ChapterPresidentApplicationStatus:
     case ChapterPresidentApplicationStatus.INTERVIEW_COMPLETED:
       return "mark_interview_complete";
+    case "DECISION_NEEDED" as ChapterPresidentApplicationStatus:
     case ChapterPresidentApplicationStatus.RECOMMENDATION_SUBMITTED:
       return "submit_recommendation";
+    case "ACCEPTED" as ChapterPresidentApplicationStatus:
+    case "ONBOARDING" as ChapterPresidentApplicationStatus:
     case ChapterPresidentApplicationStatus.APPROVED:
       return "approve";
+    case "DECLINED" as ChapterPresidentApplicationStatus:
     case ChapterPresidentApplicationStatus.REJECTED:
       return "reject";
     default:
@@ -397,7 +404,12 @@ export async function batchUpdateStatus(
     let emailed = 0;
     let emailFailures = 0;
 
-    if (toStatus === ChapterPresidentApplicationStatus.APPROVED) {
+    if (
+      toStatus === ChapterPresidentApplicationStatus.APPROVED ||
+      toStatus === ("ACCEPTED" as ChapterPresidentApplicationStatus) ||
+      toStatus === ("ONBOARDING" as ChapterPresidentApplicationStatus) ||
+      toStatus === ("ACTIVE_CP" as ChapterPresidentApplicationStatus)
+    ) {
       for (const a of toEmail) {
         try {
           await sendApplicationApprovedEmail({ to: a.email, applicantName: a.name });
@@ -407,7 +419,10 @@ export async function batchUpdateStatus(
           emailFailures++;
         }
       }
-    } else if (toStatus === ChapterPresidentApplicationStatus.REJECTED) {
+    } else if (
+      toStatus === ChapterPresidentApplicationStatus.REJECTED ||
+      toStatus === ("DECLINED" as ChapterPresidentApplicationStatus)
+    ) {
       for (const a of toEmail) {
         try {
           await sendApplicationRejectedEmail({ to: a.email, applicantName: a.name, reason: "Batch cohort decision." });
@@ -417,7 +432,10 @@ export async function batchUpdateStatus(
           emailFailures++;
         }
       }
-    } else if (toStatus === ChapterPresidentApplicationStatus.INFO_REQUESTED) {
+    } else if (
+      toStatus === ChapterPresidentApplicationStatus.INFO_REQUESTED ||
+      toStatus === ("NEEDS_MORE_INFO" as ChapterPresidentApplicationStatus)
+    ) {
       const { getBaseUrl } = await import("@/lib/portal-auth-utils");
       const baseUrl = await getBaseUrl();
       for (const a of toEmail) {

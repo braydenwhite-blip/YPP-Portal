@@ -480,13 +480,23 @@ enum InterviewAnswerTag {
 
 enum ChapterPresidentApplicationStatus {
   SUBMITTED
+  INITIAL_REVIEW
   UNDER_REVIEW
+  NEEDS_MORE_INFO
   INFO_REQUESTED
+  INTERVIEW_NEEDED
   INTERVIEW_SCHEDULED
+  INTERVIEW_COMPLETE
   INTERVIEW_COMPLETED
+  DECISION_NEEDED
   RECOMMENDATION_SUBMITTED
+  ACCEPTED
   APPROVED
+  WAITLISTED
+  DECLINED
   REJECTED
+  ONBOARDING
+  ACTIVE_CP
 }
 
 enum ApplicationFormFieldType {
@@ -1261,10 +1271,13 @@ model User {
   reviewRevisionsMade                    InstructorApplicationReviewRevision[] @relation("ReviewRevisionEditor")
 
   // Chapter President Application Relations
-  chapterPresidentApplication          ChapterPresidentApplication?  @relation("ChapterPresidentApplications")
-  chapterPresidentApplicationsReviewed ChapterPresidentApplication[] @relation("ChapterPresidentApplicationReviews")
-  applicationCohortsCreated            ApplicationCohort[]           @relation("ApplicationCohortsCreated")
-  chapterPresidentOnboarding           ChapterPresidentOnboarding?   @relation("ChapterPresidentOnboarding")
+  chapterPresidentApplication               ChapterPresidentApplication?  @relation("ChapterPresidentApplications")
+  chapterPresidentApplicationsReviewed      ChapterPresidentApplication[] @relation("ChapterPresidentApplicationReviews")
+  chapterPresidentApplicationsDecided       ChapterPresidentApplication[] @relation("ChapterPresidentApplicationDecisionMaker")
+  chapterPresidentApplicationsLinkedPerson  ChapterPresidentApplication[] @relation("ChapterPresidentApplicationLinkedPerson")
+  chapterPresidentApplicationsMentorAdvisor ChapterPresidentApplication[] @relation("ChapterPresidentApplicationMentorAdvisor")
+  applicationCohortsCreated                 ApplicationCohort[]           @relation("ApplicationCohortsCreated")
+  chapterPresidentOnboarding                ChapterPresidentOnboarding?   @relation("ChapterPresidentOnboarding")
 
   // Chapter Join Request Relations
   chapterJoinRequests         ChapterJoinRequest[]
@@ -1432,11 +1445,11 @@ model User {
   advisingRecommendationsAuthored  AdvisingRecommendation[]         @relation("AdvisingRecommendationAuthor")
 
   // Single active Chair (final applicant decision authority)
-  activeChairAssignment            ActiveChairAssignment?           @relation("ActiveChairUser")
-  activeChairAssignmentsMade       ActiveChairAssignment[]          @relation("ActiveChairAssignedBy")
-  chairAssignmentsAsPrevious       ChairAssignmentHistory[]         @relation("ChairAssignmentPrev")
-  chairAssignmentsAsNew            ChairAssignmentHistory[]         @relation("ChairAssignmentNew")
-  chairAssignmentChangesMade       ChairAssignmentHistory[]         @relation("ChairAssignmentChangedBy")
+  activeChairAssignment      ActiveChairAssignment?   @relation("ActiveChairUser")
+  activeChairAssignmentsMade ActiveChairAssignment[]  @relation("ActiveChairAssignedBy")
+  chairAssignmentsAsPrevious ChairAssignmentHistory[] @relation("ChairAssignmentPrev")
+  chairAssignmentsAsNew      ChairAssignmentHistory[] @relation("ChairAssignmentNew")
+  chairAssignmentChangesMade ChairAssignmentHistory[] @relation("ChairAssignmentChangedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -9971,18 +9984,23 @@ model ChapterPresidentApplication {
 
   // --- Academic Background ---
   schoolName     String?
+  grade          String?
   graduationYear Int?
   gpa            String?
   classRank      String?
 
   // --- Chapter-specific essays ---
-  whyChapterPresident String? @db.Text
-  partnerSchool       String?
-  recruitmentPlan     String? @db.Text
-  launchPlan          String? @db.Text
-  extracurriculars    String? @db.Text
-  priorOrganizing     String? @db.Text
-  specialSkills       String? @db.Text
+  whyChapterPresident        String? @db.Text
+  partnerSchool              String?
+  currentYppInvolvement      String? @db.Text
+  communityServiceExperience String? @db.Text
+  potentialChapterLocation   String?
+  firstThreeActions          String? @db.Text
+  recruitmentPlan            String? @db.Text
+  launchPlan                 String? @db.Text
+  extracurriculars           String? @db.Text
+  priorOrganizing            String? @db.Text
+  specialSkills              String? @db.Text
 
   // --- Referral ---
   referralEmails String? @db.Text
@@ -10003,34 +10021,54 @@ model ChapterPresidentApplication {
   ethnicity String?
 
   // --- Reviewer scoring rubric ---
-  scoreLeadership   Int?
-  scoreVision       Int?
-  scoreOrganization Int?
-  scoreCommitment   Int?
-  scoreFit          Int?
+  scoreLeadership        Int?
+  scoreVision            Int?
+  scoreOrganization      Int?
+  scoreCommitment        Int?
+  scoreFit               Int?
+  scoreRecruiting        Int?
+  scoreOverallConfidence Int?
 
   // --- Interview-specific scoring rubric ---
-  scoreCommunication Int?
-  interviewSummary   String? @db.Text
+  scoreCommunication         Int?
+  interviewSummary           String? @db.Text
+  interviewNotes             String? @db.Text
+  interviewScore             Int?
+  interviewConcerns          String? @db.Text
+  interviewFollowUpQuestions String? @db.Text
 
   // --- Final recommendation (input to the chair / final decision) ---
   decisionRecommendation  HiringRecommendation?
   recommendationRationale String?               @db.Text
+  finalDecisionNote       String?               @db.Text
+  decisionMakerId         String?
+  decisionMaker           User?                 @relation("ChapterPresidentApplicationDecisionMaker", fields: [decisionMakerId], references: [id])
+  decisionAt              DateTime?
+  acceptanceEmailSentAt   DateTime?
 
   // --- Review workflow ---
-  reviewerId           String?
-  reviewer             User?                     @relation("ChapterPresidentApplicationReviews", fields: [reviewerId], references: [id])
-  reviewerNotes        String?                   @db.Text
-  infoRequest          String?                   @db.Text
-  applicantResponse    String?                   @db.Text
-  rejectionReason      String?                   @db.Text
-  interviewScheduledAt DateTime?
-  interviewMeetingUrl  String?
-  approvedAt           DateTime?
-  rejectedAt           DateTime?
-  customResponses      ApplicationFormResponse[] @relation("CPAppFormResponses")
-  cohortId             String?
-  cohort               ApplicationCohort?        @relation("CPAppCohort", fields: [cohortId], references: [id])
+  reviewerId              String?
+  reviewer                User?                     @relation("ChapterPresidentApplicationReviews", fields: [reviewerId], references: [id])
+  reviewerNotes           String?                   @db.Text
+  infoRequest             String?                   @db.Text
+  applicantResponse       String?                   @db.Text
+  rejectionReason         String?                   @db.Text
+  interviewScheduledAt    DateTime?
+  interviewMeetingUrl     String?
+  approvedAt              DateTime?
+  rejectedAt              DateTime?
+  linkedPersonId          String?
+  linkedPerson            User?                     @relation("ChapterPresidentApplicationLinkedPerson", fields: [linkedPersonId], references: [id])
+  roleAssignedAt          DateTime?
+  mentorAdvisorId         String?
+  mentorAdvisor           User?                     @relation("ChapterPresidentApplicationMentorAdvisor", fields: [mentorAdvisorId], references: [id])
+  onboardingStartedAt     DateTime?
+  starterActionsCreatedAt DateTime?
+  onboardingCompletedAt   DateTime?
+  activeAt                DateTime?
+  customResponses         ApplicationFormResponse[] @relation("CPAppFormResponses")
+  cohortId                String?
+  cohort                  ApplicationCohort?        @relation("CPAppCohort", fields: [cohortId], references: [id])
 
   // --- Automated scheduling ---
   availabilityWindows ApplicantAvailabilityWindow[] @relation("CPAvailabilityWindows")
@@ -10055,11 +10093,15 @@ model ChapterPresidentApplication {
   @@index([reviewerId])
   @@index([chapterId])
   @@index([cohortId])
+  @@index([decisionMakerId])
+  @@index([linkedPersonId])
+  @@index([mentorAdvisorId])
   @@index([graduationYear])
   @@index([stateProvince])
   @@index([source])
   @@index([importedById])
   @@index([archivedAt])
+  @@index([activeAt])
 }
 
 // ============================================
@@ -13552,29 +13594,29 @@ model OfficerMeeting {
   // --- Weekly Command Center fields (all additive / optional) ---
   /// Human title (e.g. "Weekly Leadership Sync"). Null falls back to a generated
   /// "Officer Meeting · <date>" label so legacy rows still render.
-  title      String?
+  title       String?
   /// What the meeting is for — shown under the title on the detail workspace.
-  purpose    String?        @db.Text
+  purpose     String?        @db.Text
   /// YPP operating category/area (LEADERSHIP / CLASSES / MENTORSHIP / …). String-
   /// typed (no Postgres enum) to mirror `ActionItem.actionType`; validated in
   /// application code (lib/people-strategy/meeting-categories.ts). Null = Other.
-  category   String?
+  category    String?
   /// YPP meeting workflow type (OFFICER_MEETING /
   /// GLOBAL_OPERATIONS_IMPACT_PRESENTATION / CHAPTER_IMPACT_PRESENTATION /
   /// MENTORSHIP_CHECK_IN / GENERAL_MEETING). String-typed so the operating model
   /// can evolve without a database enum migration for every new meeting format.
-  meetingType String @default("GENERAL_MEETING")
+  meetingType String         @default("GENERAL_MEETING")
   /// Reuses the shared ActionPriority enum so meetings and actions speak one
   /// priority vocabulary.
-  priority   ActionPriority @default(MEDIUM)
+  priority    ActionPriority @default(MEDIUM)
   /// Meeting end datetime (paired with `date` as the start). Null = open-ended.
-  endTime    DateTime?
+  endTime     DateTime?
   /// Cadence label: NONE / WEEKLY / BIWEEKLY / MONTHLY (string for flexibility).
-  recurrence String?
+  recurrence  String?
   /// Where it happens (Zoom link, room, …).
-  location   String?
+  location    String?
   /// Free-text meeting notes / summary (distinct from the generated agendaText).
-  notesText  String?        @db.Text
+  notesText   String?        @db.Text
 
   /// Optional facilitator / owner who runs the meeting.
   facilitatorId String?
@@ -13593,9 +13635,9 @@ model OfficerMeeting {
   strategicPriority String?
   /// Copy-ready post-meeting summary workflow state. Kept string-typed for the
   /// same reason as `meetingType`.
-  summaryStatus    String @default("NOT_STARTED")
-  rescheduleStatus String?
-  escalationStatus String?
+  summaryStatus     String  @default("NOT_STARTED")
+  rescheduleStatus  String?
+  escalationStatus  String?
 
   actionItems                       ActionItem[]                  @relation("OfficerMeetingActionItems")
   notes                             MeetingNote[]                 @relation("OfficerMeetingNotes")
@@ -13626,21 +13668,21 @@ model OfficerMeeting {
 /// Join row: a user invited to / attending an officer meeting. Unique per
 /// (meeting, user) so adding the same attendee twice is idempotent.
 model MeetingAttendee {
-  id               String         @id @default(cuid())
-  officerMeetingId String
-  officerMeeting   OfficerMeeting @relation("OfficerMeetingAttendees", fields: [officerMeetingId], references: [id], onDelete: Cascade)
-  userId           String
-  user             User           @relation("MeetingAttendeeUser", fields: [userId], references: [id], onDelete: Cascade)
+  id                   String         @id @default(cuid())
+  officerMeetingId     String
+  officerMeeting       OfficerMeeting @relation("OfficerMeetingAttendees", fields: [officerMeetingId], references: [id], onDelete: Cascade)
+  userId               String
+  user                 User           @relation("MeetingAttendeeUser", fields: [userId], references: [id], onDelete: Cascade)
   /// REQUIRED / OPTIONAL. Separate from attendanceStatus so "required attendee"
   /// and "present" do not overwrite each other.
-  attendanceRole   String         @default("REQUIRED")
+  attendanceRole       String         @default("REQUIRED")
   /// REQUIRED / OPTIONAL / PRESENT / ABSENT / EXCUSED / LATE /
   /// DID_NOT_RESPOND / RESCHEDULED / FOLLOW_UP_NEEDED. String-typed so the
   /// meeting operating model can add states without expanding the shared class
   /// AttendanceStatus enum.
-  attendanceStatus String         @default("REQUIRED")
+  attendanceStatus     String         @default("REQUIRED")
   responsivenessStatus String?
-  attendanceNotes      String?    @db.Text
+  attendanceNotes      String?        @db.Text
   attendanceRecordedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -14537,27 +14579,27 @@ model CommitteeMembership {
 /// full mentor/mentee history survives any number of transfers without touching
 /// the account, notes, or reviews. Append-only — rows are never deleted.
 model MentorshipAssignmentHistory {
-  id        String               @id @default(cuid())
-  menteeId  String
-  mentee    User                 @relation("MentorshipHistoryMentee", fields: [menteeId], references: [id], onDelete: Cascade)
-  mentorId  String
-  mentor    User                 @relation("MentorshipHistoryMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  id           String               @id @default(cuid())
+  menteeId     String
+  mentee       User                 @relation("MentorshipHistoryMentee", fields: [menteeId], references: [id], onDelete: Cascade)
+  mentorId     String
+  mentor       User                 @relation("MentorshipHistoryMentor", fields: [mentorId], references: [id], onDelete: Cascade)
   /// Mirrors Mentorship.focusArea so instruction vs leadership history is distinct.
-  focusArea MentorshipFocusArea?
+  focusArea    MentorshipFocusArea?
   /// Role in the relationship, e.g. "PRIMARY_MENTOR" or "ADVISOR".
-  role      String               @default("PRIMARY_MENTOR")
+  role         String               @default("PRIMARY_MENTOR")
   /// Provenance link to the live Mentorship row, when one exists.
   mentorshipId String?
-  isTemporary  Boolean           @default(false)
-  startedAt    DateTime          @default(now())
+  isTemporary  Boolean              @default(false)
+  startedAt    DateTime             @default(now())
   /// Null while the assignment is current; set when it ends (on reassignment).
   endedAt      DateTime?
   /// Why the change happened (free text), for the audit trail.
   reason       String?
   /// Who made the change (admin/officer), when known.
   actorId      String?
-  actor        User?             @relation("MentorshipHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
-  createdAt    DateTime          @default(now())
+  actor        User?                @relation("MentorshipHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt    DateTime             @default(now())
 
   @@index([menteeId, endedAt])
   @@index([mentorId, endedAt])

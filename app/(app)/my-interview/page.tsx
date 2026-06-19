@@ -221,9 +221,13 @@ export default async function MyInterviewPage() {
                 />
               </>
             )
-          ) : cpApp.status === "INTERVIEW_COMPLETED" ? (
+          ) : ["INTERVIEW_COMPLETE", "INTERVIEW_COMPLETED", "DECISION_NEEDED", "RECOMMENDATION_SUBMITTED"].includes(cpApp.status) ? (
             <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
               Your interview is complete. A final decision is pending.
+            </p>
+          ) : cpApp.status === "INTERVIEW_NEEDED" ? (
+            <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
+              Your application is moving to the interview step. We&apos;ll share scheduling details here.
             </p>
           ) : (
             <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
