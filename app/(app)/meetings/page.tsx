@@ -16,44 +16,20 @@ import {
   bucketMeetings,
   isImpactMeetingType,
   meetingDetailHref,
-  meetingStatusLabel,
 } from "@/lib/people-strategy/meetings-home";
-import type { EffectiveMeetingStatus } from "@/lib/people-strategy/meetings-status";
-import {
-  ButtonLink,
-  CardV2,
-  PageHeaderV2,
-  type StatusTone,
-} from "@/components/ui-v2";
-import {
-  EmptySimpleState,
-  PrimaryFocusCard,
-  SimpleActionStrip,
-  SimpleListCard,
-  SimpleRow,
-  type SimpleAction,
-} from "@/components/command-center/simple";
+import { ButtonLink, CardV2, PageHeaderV2, StatusBadge, type StatusTone } from "@/components/ui-v2";
+import { EmptySimpleState } from "@/components/command-center/simple";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Meetings" };
 
-/**
- * `/meetings` — the canonical Meetings home and the single front door for the
- * whole meetings experience. It reads the same `OfficerMeeting` records the two
- * type-specific hubs read (no second data source), groups them into four
- * plain-language sections, and points every card at the ONE canonical detail for
- * its type. The two meeting types stay clearly distinct:
- *   • Officer Meetings — leadership coordination (decisions, escalations, accountability)
- *   • Impact Meetings  — team-by-team weekly operating meeting (updates feed the agenda)
- */
+type MeetingStage = "Prepare" | "Ready" | "Live" | "Follow-up";
 
-const STATUS_TONE: Record<EffectiveMeetingStatus, StatusTone> = {
-  in_progress: "info",
-  today: "brand",
-  upcoming: "neutral",
-  completed: "success",
-  needs_follow_up: "warning",
-  canceled: "neutral",
+const STAGE_TONE: Record<MeetingStage, StatusTone> = {
+  Prepare: "warning",
+  Ready: "success",
+  Live: "brand",
+  "Follow-up": "info",
 };
 
 function fmtWhen(iso: string): string {
@@ -66,112 +42,183 @@ function fmtWhen(iso: string): string {
   }).format(new Date(iso));
 }
 
-function fmtDay(iso: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(iso));
+function groupLabel(card: MeetingCardDTO): string {
+  if (card.relatedTeam) return card.relatedTeam;
+  if (card.relatedChapter) return card.relatedChapter;
+  if (isImpactMeetingType(card.meetingType)) return "Impact team meeting";
+  return card.meetingTypeLabel ?? card.categoryLabel ?? "Meeting";
 }
 
-/** Short, leader-friendly type label for a card (avoids the long internal names). */
-function typeLabel(card: MeetingCardDTO): string {
-  if (isImpactMeetingType(card.meetingType)) return "Impact meeting";
-  if (card.meetingType === "OFFICER_MEETING") return "Officer meeting";
-  return card.meetingTypeLabel ?? "Meeting";
+function ownerLabel(card: MeetingCardDTO): string {
+  return card.facilitator?.name ? `Owner: ${card.facilitator.name}` : "Owner: not assigned";
 }
 
-function MeetingRow({ card, needsPrep = false }: { card: MeetingCardDTO; needsPrep?: boolean }) {
-  const status = needsPrep
-    ? { label: "Needs prep", tone: "warning" as StatusTone }
-    : { label: meetingStatusLabel(card.effectiveStatus), tone: STATUS_TONE[card.effectiveStatus] };
-  return (
-    <SimpleRow
-      href={meetingDetailHref(card.meetingType, card.id)}
-      icon="calendar"
-      name={card.title}
-      what={`${typeLabel(card)} · ${fmtWhen(card.startISO)}`}
-      related={card.facilitator?.name ?? null}
-      status={status}
-    />
-  );
-}
-
-/** The single meeting that matters right now, with its one next move. Impact
- *  meetings open into the Impact workspace; everything else into the officer
- *  workspace — so the CTA always lands on the canonical detail for its type. */
-function MeetingsFocus({ cards, now }: { cards: MeetingCardDTO[]; now: Date }) {
-  const selection = selectPrimaryMeeting(
-    cards.map((c) => ({ ...c, hasRelatedEntity: !!c.relatedEntityType && !!c.relatedEntityId })),
-    now
-  );
-  if (!selection) {
-    return (
-      <PrimaryFocusCard
-        eyebrow="Meetings"
-        title="No meeting needs you right now."
-        reason="Nothing is live, nothing is coming up, and finished meetings are wrapped up. Schedule one when you're ready."
-        icon="check"
-        tone="success"
-        ctaLabel="Schedule a meeting"
-        ctaHref="/actions/meetings/new"
-      />
-    );
+function stageFor(card: MeetingCardDTO): MeetingStage {
+  if (card.effectiveStatus === "in_progress") return "Live";
+  if (card.effectiveStatus === "completed" || card.effectiveStatus === "needs_follow_up") {
+    return "Follow-up";
   }
-  const card = selection.meeting;
-  const next = meetingNextAction(card);
-  const when = selection.mode === "current" ? "Happening now" : fmtWhen(card.startISO);
-  const bits = [when, card.facilitator?.name ?? null].filter(Boolean).join(" · ");
-  // Impact meetings live at /impact-meetings/[id]; the officer next-action hash
-  // (#agenda, #notes…) only applies to the officer workspace.
-  const ctaHref = isImpactMeetingType(card.meetingType)
-    ? meetingDetailHref(card.meetingType, card.id)
-    : next.href;
+  if (card.agendaCount === 0 || card.attendeeCount === 0 || !card.facilitator) return "Prepare";
+  return "Ready";
+}
+
+function plainLabel(card: MeetingCardDTO): string {
+  const stage = stageFor(card);
+  if (stage === "Live") return "Live now";
+  if (stage === "Follow-up") return card.openFollowUps > 0 ? "Follow-ups open" : "Ready to close";
+  if (card.agendaCount === 0) return "Needs agenda";
+  if (card.attendeeCount === 0) return "Missing attendees";
+  if (!card.facilitator) return "Needs owner";
+  return "Ready to run";
+}
+
+function whyItMatters(card: MeetingCardDTO): string {
+  const stage = stageFor(card);
+  if (stage === "Live") return "This meeting is happening now, so notes and decisions should be captured here.";
+  if (stage === "Follow-up") {
+    return card.openFollowUps > 0
+      ? "There are loose ends from this meeting that need owners, due dates, or action links."
+      : "The meeting is done; use the summary and action links as the record.";
+  }
+  if (stage === "Prepare") return "A little prep now keeps the meeting from turning into a vague check-in.";
+  return "The agenda is ready; open it when it is time to run the room.";
+}
+
+function concreteSteps(card: MeetingCardDTO): string[] {
+  const next = meetingNextAction({
+    ...card,
+    hasRelatedEntity: !!card.relatedEntityType && !!card.relatedEntityId,
+  });
+  const steps: string[] = [next.reason];
+  if (card.agendaCount === 0) steps.push("Add the first agenda item.");
+  else steps.push("Review the agenda before the meeting starts.");
+  if (card.openFollowUps > 0) {
+    steps.push(`Review ${card.openFollowUps} open follow-up${card.openFollowUps === 1 ? "" : "s"}.`);
+  } else if (card.decisionCount > 0) {
+    steps.push("Check decisions and action links.");
+  } else {
+    steps.push("Capture decisions during the meeting.");
+  }
+  return Array.from(new Set(steps)).slice(0, 3);
+}
+
+function MeetingHomeCard({ card }: { card: MeetingCardDTO }) {
+  const stage = stageFor(card);
+  const href = meetingDetailHref(card.meetingType, card.id);
+  const next = meetingNextAction({
+    ...card,
+    hasRelatedEntity: !!card.relatedEntityType && !!card.relatedEntityId,
+  });
+
   return (
-    <PrimaryFocusCard
-      eyebrow={typeLabel(card)}
-      title={card.title}
-      reason={`${bits}. ${next.reason}`}
-      icon="calendar"
-      ctaLabel={next.label}
-      ctaHref={ctaHref}
-    />
+    <article className="flex min-h-[174px] flex-col rounded-[12px] border border-line-card bg-surface p-4 shadow-card">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="m-0 text-[17px] font-bold leading-snug text-ink">{card.title}</h3>
+          <p className="m-0 mt-1 text-[13px] font-semibold text-ink-muted">{fmtWhen(card.startISO)}</p>
+        </div>
+        <StatusBadge tone={STAGE_TONE[stage]}>{plainLabel(card)}</StatusBadge>
+      </div>
+      <p className="m-0 mt-3 text-[13px] leading-relaxed text-ink-muted">{whyItMatters(card)}</p>
+      <div className="mt-3 grid gap-1.5 text-[12.5px] font-semibold text-ink-muted">
+        <span>{groupLabel(card)}</span>
+        <span>{ownerLabel(card)}</span>
+        <span>Next: {next.label}</span>
+      </div>
+      <div className="mt-auto pt-4">
+        <ButtonLink href={href} variant="secondary" size="sm">
+          Open meeting
+        </ButtonLink>
+      </div>
+    </article>
   );
 }
 
-function TypeLane({
+function MeetingLane({
   title,
-  blurb,
-  ctaLabel,
-  ctaHref,
-  secondary,
   hint,
+  cards,
+  empty,
 }: {
   title: string;
-  blurb: string;
-  ctaLabel: string;
-  ctaHref: string;
-  secondary?: { label: string; href: string };
-  hint: string | null;
+  hint: string;
+  cards: MeetingCardDTO[];
+  empty: string;
 }) {
   return (
-    <CardV2 className="flex h-full flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h2 className="m-0 text-[15.5px] font-bold text-ink">{title}</h2>
-        <p className="m-0 text-[12.5px] leading-relaxed text-ink-muted">{blurb}</p>
+    <section className="flex flex-col gap-3">
+      <div>
+        <h2 className="m-0 text-[18px] font-bold text-ink">{title}</h2>
+        <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink-muted">{hint}</p>
       </div>
-      <p className="m-0 text-[12.5px] font-semibold text-ink">{hint ?? "Nothing scheduled yet."}</p>
-      <div className="mt-auto flex flex-wrap gap-2 pt-1">
-        <ButtonLink href={ctaHref} variant="primary" size="sm">
-          {ctaLabel}
+      {cards.length > 0 ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {cards.map((card) => (
+            <MeetingHomeCard key={card.id} card={card} />
+          ))}
+        </div>
+      ) : (
+        <CardV2 className="text-[13.5px] font-semibold text-ink-muted">{empty}</CardV2>
+      )}
+    </section>
+  );
+}
+
+function NextMeetingCard({ cards, now }: { cards: MeetingCardDTO[]; now: Date }) {
+  const selection = selectPrimaryMeeting(
+    cards.map((card) => ({
+      ...card,
+      hasRelatedEntity: !!card.relatedEntityType && !!card.relatedEntityId,
+    })),
+    now
+  );
+
+  if (!selection) {
+    return (
+      <CardV2 className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="m-0 text-[12px] font-bold uppercase text-brand-700">Next Meeting</p>
+          <h2 className="m-0 mt-1 text-[24px] font-bold text-ink">No meeting needs attention right now.</h2>
+          <p className="m-0 mt-2 text-[13.5px] text-ink-muted">
+            Nothing is live, coming up, or waiting on follow-up in this window.
+          </p>
+        </div>
+        <ButtonLink href="/actions/meetings/new" variant="primary" size="sm">
+          Schedule meeting
         </ButtonLink>
-        {secondary ? (
-          <ButtonLink href={secondary.href} variant="secondary" size="sm">
-            {secondary.label}
-          </ButtonLink>
-        ) : null}
+      </CardV2>
+    );
+  }
+
+  const card = selection.meeting;
+  const stage = stageFor(card);
+  const steps = concreteSteps(card);
+
+  return (
+    <section className="rounded-[18px] border border-line-card bg-surface p-5 shadow-card sm:p-6">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="m-0 text-[12px] font-bold uppercase text-brand-700">Next Meeting</p>
+            <StatusBadge tone={STAGE_TONE[stage]}>{stage}</StatusBadge>
+          </div>
+          <h1 className="m-0 mt-2 text-[30px] font-bold leading-tight text-ink">{card.title}</h1>
+          <p className="m-0 mt-2 text-[14px] font-semibold text-ink-muted">
+            {fmtWhen(card.startISO)} · {groupLabel(card)} · {ownerLabel(card)}
+          </p>
+          <ul className="m-0 mt-4 grid list-none gap-2 p-0">
+            {steps.map((step) => (
+              <li key={step} className="rounded-[10px] border border-line-soft bg-surface-muted px-3 py-2 text-[13px] font-semibold text-ink">
+                {step}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <ButtonLink href={meetingDetailHref(card.meetingType, card.id)} variant="primary" size="md">
+          Open meeting
+        </ButtonLink>
       </div>
-    </CardV2>
+    </section>
   );
 }
 
@@ -181,126 +228,65 @@ export default async function MeetingsHomePage() {
   if (!viewer) notFound();
 
   const now = new Date();
-  // One window, one query — the home reads the canonical OfficerMeeting records
-  // (3 weeks back → 3 weeks ahead) and groups them; it never holds its own data.
   const windowStart = new Date(now);
   windowStart.setUTCDate(windowStart.getUTCDate() - 21);
   const windowEnd = new Date(now);
-  windowEnd.setUTCDate(windowEnd.getUTCDate() + 21);
+  windowEnd.setUTCDate(windowEnd.getUTCDate() + 45);
 
   const meetings = await listMeetingsInRange(windowStart, windowEnd);
-  const cards = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  const cards = meetings.map((meeting) => mapMeetingToCardDTO(meeting, now));
   const { today, needsPrep, upcoming, recent } = bucketMeetings(cards, now);
 
-  // Type-lane hints derived from the same in-range cards (no extra query). The
-  // soonest still-ahead meeting of each type, falling back to the latest impact
-  // meeting so the Impact lane stays useful right after a meeting wraps.
-  const ahead = (c: MeetingCardDTO) =>
-    c.effectiveStatus === "upcoming" ||
-    c.effectiveStatus === "today" ||
-    c.effectiveStatus === "in_progress";
-  const sortedByStart = [...cards].sort((a, b) => a.startISO.localeCompare(b.startISO));
-  const nextOfficer = sortedByStart.find((c) => ahead(c) && !isImpactMeetingType(c.meetingType));
-  const nextImpact =
-    sortedByStart.find((c) => ahead(c) && isImpactMeetingType(c.meetingType)) ??
-    [...cards]
-      .filter((c) => isImpactMeetingType(c.meetingType))
-      .sort((a, b) => b.startISO.localeCompare(a.startISO))[0];
-
-  const officerHint = nextOfficer ? `Next: ${fmtDay(nextOfficer.startISO)}` : null;
-  const impactHint = nextImpact
-    ? `${ahead(nextImpact) ? "Next" : "Latest"}: ${fmtDay(nextImpact.startISO)}`
-    : null;
-
-  const hasAny =
-    today.length > 0 || needsPrep.length > 0 || upcoming.length > 0 || recent.length > 0;
-
-  const strip: SimpleAction[] = [
-    { label: "Schedule meeting", href: "/actions/meetings/new", icon: "calendar", primary: true },
-    { label: "Officer meetings", href: "/actions/meetings", icon: "calendar" },
-    { label: "Impact meeting", href: "/impact-meetings", icon: "activity" },
-    { label: "Submit weekly update", href: "/my-weekly-impact", icon: "send" },
-  ];
+  const upcomingLane = [...today, ...upcoming].slice(0, 6);
+  const prepLane = needsPrep.slice(0, 6);
+  const followUpLane = recent
+    .filter((card) => card.openFollowUps > 0 || card.effectiveStatus === "needs_follow_up")
+    .slice(0, 6);
+  const hasAny = cards.length > 0;
 
   return (
     <div className={skin.portalSkin}>
-      <div className="mx-auto flex w-full max-w-[980px] flex-col gap-6 pb-12">
+      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-7 pb-12">
         <PageHeaderV2
-          eyebrow="Work"
-          backHref="/work"
-          backLabel="Work"
+          eyebrow="Meetings"
           title="Meetings"
-          subtitle="One place for every meeting. See what's today, what's coming up, what still needs prep, and what just happened — then open the meeting to run it."
+          subtitle="Prepare, run, and follow up on YPP meetings from one place."
           actions={
             <ButtonLink href="/actions/meetings/new" variant="primary" size="sm">
-              ＋ Schedule meeting
+              Schedule meeting
             </ButtonLink>
           }
         />
 
-        <MeetingsFocus cards={cards} now={now} />
-
-        {/* The two meeting types — clearly different, same system. */}
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <TypeLane
-            title="Officer Meetings"
-            blurb="Leadership coordination — decisions, org-wide issues, officer updates, escalations, and accountability."
-            ctaLabel="Open officer meetings"
-            ctaHref="/actions/meetings"
-            secondary={{ label: "Schedule", href: "/actions/meetings/new" }}
-            hint={officerHint}
-          />
-          <TypeLane
-            title="Impact Meetings"
-            blurb="Team-by-team operating meeting — Tech, Fundraising, Expansion, and Socials present progress, blockers, and next commitments. Weekly team updates feed the agenda."
-            ctaLabel="Open impact meeting"
-            ctaHref="/impact-meetings"
-            secondary={{ label: "Submit my update", href: "/my-weekly-impact" }}
-            hint={impactHint}
-          />
-        </section>
-
         {hasAny ? (
-          <div className="flex flex-col gap-4">
-            {today.length > 0 ? (
-              <SimpleListCard title="Today">
-                {today.map((card) => (
-                  <MeetingRow key={card.id} card={card} />
-                ))}
-              </SimpleListCard>
-            ) : null}
-
-            {needsPrep.length > 0 ? (
-              <SimpleListCard title="Needs prep">
-                {needsPrep.map((card) => (
-                  <MeetingRow key={card.id} card={card} needsPrep />
-                ))}
-              </SimpleListCard>
-            ) : null}
-
-            {upcoming.length > 0 ? (
-              <SimpleListCard title="Upcoming">
-                {upcoming.map((card) => (
-                  <MeetingRow key={card.id} card={card} />
-                ))}
-              </SimpleListCard>
-            ) : null}
-
-            {recent.length > 0 ? (
-              <SimpleListCard title="Recent">
-                {recent.slice(0, 6).map((card) => (
-                  <MeetingRow key={card.id} card={card} />
-                ))}
-              </SimpleListCard>
-            ) : null}
-          </div>
+          <>
+            <NextMeetingCard cards={cards} now={now} />
+            <div className="grid gap-7">
+              <MeetingLane
+                title="Upcoming"
+                hint="Meetings that are ready or close to ready."
+                cards={upcomingLane}
+                empty="No upcoming meetings in this window."
+              />
+              <MeetingLane
+                title="Needs Prep"
+                hint="Meetings missing an agenda, attendees, or owner."
+                cards={prepLane}
+                empty="No meetings need prep right now."
+              />
+              <MeetingLane
+                title="Follow-Ups"
+                hint="Finished meetings with loose ends still open."
+                cards={followUpLane}
+                empty="No meeting follow-ups are open right now."
+              />
+            </div>
+          </>
         ) : (
           <EmptySimpleState icon="calendar">
-            No meetings in the last three weeks or the next three. Schedule one to get started.
+            No meetings in the last three weeks or the next six weeks. Schedule one to get started.
           </EmptySimpleState>
         )}
-
-        <SimpleActionStrip actions={strip} />
       </div>
     </div>
   );

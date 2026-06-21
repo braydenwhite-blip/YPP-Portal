@@ -217,8 +217,8 @@ export function ImpactMeetingsHub({
 }) {
   const { stats } = data;
   const meetingBaseHref = data.meetingId
-    ? `/impact-meetings/${data.meetingId}`
-    : data.meetingHref ?? "/impact-meetings/current";
+    ? `/meetings/${data.meetingId}`
+    : data.meetingHref ?? "/meetings";
   return (
     <div className="mx-auto flex w-full max-w-[920px] flex-col gap-6 pb-10">
       <PageHeaderV2
@@ -233,7 +233,7 @@ export function ImpactMeetingsHub({
               <ButtonLink href="/my-weekly-impact" variant="secondary" size="sm">
                 Submit weekly update
               </ButtonLink>
-              <ButtonLink href="/impact-meetings/current" variant="primary" size="sm">
+              <ButtonLink href={meetingBaseHref} variant="primary" size="sm">
                 Open current meeting
               </ButtonLink>
             </>
@@ -267,20 +267,20 @@ export function ImpactMeetingsHub({
             <ButtonLink href="/my-weekly-impact" variant="secondary" size="sm">
               Submit weekly update
             </ButtonLink>
-            <ButtonLink href={`${meetingBaseHref}/agenda`} variant="secondary" size="sm">
+            <ButtonLink href={`${meetingBaseHref}#during`} variant="secondary" size="sm">
               Generate/open agenda
             </ButtonLink>
-            <ButtonLink href={`${meetingBaseHref}/presentation`} variant="secondary" size="sm">
+            <ButtonLink href={`${meetingBaseHref}#before`} variant="secondary" size="sm">
               Team update detail
             </ButtonLink>
-            <ButtonLink href={`${meetingBaseHref}/live`} variant="secondary" size="sm">
+            <ButtonLink href={`${meetingBaseHref}#during`} variant="secondary" size="sm">
               Start/open live meeting
             </ButtonLink>
-            <ButtonLink href={`${meetingBaseHref}/summary`} variant="secondary" size="sm">
+            <ButtonLink href={`${meetingBaseHref}#after`} variant="secondary" size="sm">
               View summary
             </ButtonLink>
             <ButtonLink
-              href={`${meetingBaseHref}/live#impact-follow-up-${data.teams[0]?.teamId ?? "tech"}`}
+              href={`${meetingBaseHref}#impact-follow-up-${data.teams[0]?.teamId ?? "tech"}`}
               variant="secondary"
               size="sm"
             >

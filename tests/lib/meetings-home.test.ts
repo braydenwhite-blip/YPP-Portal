@@ -30,25 +30,25 @@ function card(
   };
 }
 
-describe("meetingDetailHref — canonical detail per type", () => {
-  it("routes impact meetings to the dedicated impact workspace", () => {
+describe("meetingDetailHref — one canonical detail room", () => {
+  it("routes impact meetings to the unified meeting room", () => {
     expect(meetingDetailHref(GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE, "m1")).toBe(
-      "/impact-meetings/m1"
+      "/meetings/m1"
     );
     expect(isImpactMeetingType(GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE)).toBe(true);
   });
 
-  it("routes officer and every other meeting type to the officer workspace", () => {
-    expect(meetingDetailHref("OFFICER_MEETING", "m2")).toBe("/actions/meetings/m2");
-    expect(meetingDetailHref("APPLICANT_INTERVIEW", "m3")).toBe("/actions/meetings/m3");
-    expect(meetingDetailHref(null, "m4")).toBe("/actions/meetings/m4");
+  it("routes officer and every other meeting type to the same room", () => {
+    expect(meetingDetailHref("OFFICER_MEETING", "m2")).toBe("/meetings/m2");
+    expect(meetingDetailHref("APPLICANT_INTERVIEW", "m3")).toBe("/meetings/m3");
+    expect(meetingDetailHref(null, "m4")).toBe("/meetings/m4");
     expect(isImpactMeetingType("OFFICER_MEETING")).toBe(false);
   });
 
-  it("never points two types at the same detail route", () => {
+  it("does not create type-specific detail routes", () => {
     const officer = meetingDetailHref("OFFICER_MEETING", "same");
     const impact = meetingDetailHref(GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE, "same");
-    expect(officer).not.toBe(impact);
+    expect(officer).toBe(impact);
   });
 });
 

@@ -70,8 +70,6 @@ export const OFFICER_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
  */
 export const OFFICER_UNHIDE_HREFS: ReadonlySet<string> = new Set<string>([
   "/meetings",
-  "/actions/meetings",
-  "/impact-meetings",
   "/actions/all",
   "/actions/responsibility",
   "/admin/chapters",
@@ -97,10 +95,8 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/admin/training": { group: "Programs", label: "Training", icon: "🎒" },
   "/pathways": { group: "Programs", label: "Pathways", icon: "🗺" },
 
-  // Meetings — one umbrella front door, then the two clearly-distinct types.
+  // Meetings — one umbrella front door for prep, run, and follow-up.
   "/meetings": { group: "Meetings", label: "Meetings", icon: "📅" },
-  "/actions/meetings": { group: "Meetings", label: "Officer Meetings", icon: "🏛️" },
-  "/impact-meetings": { group: "Meetings", label: "Impact Meetings", icon: "📊" },
   "/scheduling": { group: "Meetings", label: "Scheduling", icon: "🗓" },
 
   // Actions — every action item in one place.
@@ -158,8 +154,6 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/pathways",
   // Meetings
   "/meetings",
-  "/actions/meetings",
-  "/impact-meetings",
   "/scheduling",
   // Actions
   "/actions",

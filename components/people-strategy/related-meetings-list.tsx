@@ -64,7 +64,7 @@ export function MeetingLine({ meeting }: { meeting: MeetingCardDTO }) {
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
           <Link
-            href={`/actions/meetings/${meeting.id}`}
+            href={`/meetings/${meeting.id}`}
             style={{ fontSize: 13, fontWeight: 600, color: "inherit", textDecoration: "none", minWidth: 0 }}
           >
             {meeting.title}

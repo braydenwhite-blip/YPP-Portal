@@ -101,7 +101,7 @@ function osFixture(overrides: Partial<WeeklyExecutionOS> = {}): WeeklyExecutionO
         owner: null,
         dueISO: null,
         meetingTitle: "Officer meeting",
-        href: "/actions/meetings/m1",
+        href: "/meetings/m1",
       },
     ],
     communications: [

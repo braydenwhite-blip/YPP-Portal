@@ -160,7 +160,7 @@ export default async function NewMeetingPage({
     : "Title, date, and who's involved — under a minute.";
 
   const strip: SimpleAction[] = [
-    { label: "All meetings", href: "/actions/meetings", icon: "calendar" },
+    { label: "All meetings", href: "/meetings", icon: "calendar" },
     { label: "Add action", href: "/actions/new", icon: "bolt" },
   ];
 
@@ -169,8 +169,8 @@ export default async function NewMeetingPage({
       maxWidth={720}
       header={
         <PageHeaderV2
-          eyebrow="Work"
-          backHref="/actions/meetings"
+          eyebrow="Meetings"
+          backHref="/meetings"
           backLabel="Meetings"
           title={pageTitle}
           subtitle={pageSubtitle}
@@ -179,7 +179,7 @@ export default async function NewMeetingPage({
       }
       aboveBrowse={
         <div className="flex flex-col gap-5">
-          <MeetingCreateForm people={people} prefill={meetingPrefill} cancelHref="/actions/meetings" />
+          <MeetingCreateForm people={people} prefill={meetingPrefill} cancelHref="/meetings" />
           <SimpleActionStrip actions={strip} />
         </div>
       }

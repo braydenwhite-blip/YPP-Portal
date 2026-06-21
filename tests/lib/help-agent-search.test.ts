@@ -512,7 +512,7 @@ describe("runHelpAgentSearch — SearchDocument meeting cutover", () => {
       id: "m1",
       title: "Leadership sync",
       subtitle: "LEADERSHIP · Jun 15, 2026",
-      href: "/actions/meetings/m1",
+      href: "/meetings/m1",
     });
     // The live meeting query is skipped when the index answers.
     expect(prisma.officerMeeting.findMany).not.toHaveBeenCalled();
@@ -535,7 +535,7 @@ describe("runHelpAgentSearch — SearchDocument meeting cutover", () => {
     expect(res.groups.find((g) => g.type === "meeting")?.items[0]).toMatchObject({
       id: "m2",
       title: "Camp planning",
-      href: "/actions/meetings/m2",
+      href: "/meetings/m2",
     });
   });
 

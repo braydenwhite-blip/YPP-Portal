@@ -68,7 +68,7 @@ function decisionItem(overrides: Partial<QueueItem> = {}): QueueItem {
     title: "Move interviews to Tuesdays",
     why: "Decided in Ops sync but never became a tracked action.",
     inline: { kind: "decision", decisionId: "7" },
-    href: "/actions/meetings/m1",
+    href: "/meetings/m1",
     ...overrides,
   });
 }

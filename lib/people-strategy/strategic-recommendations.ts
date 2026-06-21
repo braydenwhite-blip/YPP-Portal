@@ -181,7 +181,7 @@ export function deriveInitiativeRecommendations(
           ? `${plural(signals.overdueFollowUps, "overdue follow-up")} from recent meetings.`
           : `${plural(signals.openFollowUps, "open follow-up")} from recent meetings.`,
       severity: signals.overdueFollowUps > 0 ? "warning" : "watch",
-      href: "/actions/meetings",
+      href: "/meetings",
       score: 60 + signals.overdueFollowUps * 4,
     });
   }

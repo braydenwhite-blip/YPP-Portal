@@ -531,7 +531,7 @@ export default function ActionDetailCard({
                 </span>
               )}
             </span>
-            <Link href={`/actions/meetings/${item.officerMeetingId}`} className={BTN_SECONDARY_SM}>
+            <Link href={`/meetings/${item.officerMeetingId}`} className={BTN_SECONDARY_SM}>
               Open meeting
             </Link>
           </div>

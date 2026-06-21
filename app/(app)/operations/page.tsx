@@ -153,7 +153,7 @@ const ENTRY_POINTS: Array<{
     description: "Every action item — filter by person or by initiative.",
   },
   {
-    href: "/actions/meetings",
+    href: "/meetings",
     title: "Meetings",
     description: "Review meeting history, decisions, and follow-ups.",
   },

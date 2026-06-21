@@ -10,7 +10,6 @@ const action = (o: Partial<AgendaActionInput> = {}): AgendaActionInput => ({
   id: "a",
   title: "Action",
   status: "IN_PROGRESS",
-  priority: "MEDIUM",
   ownerName: "Riya",
   deadlineISO: "2026-07-01T00:00:00Z",
   blocked: false,
@@ -20,12 +19,11 @@ const action = (o: Partial<AgendaActionInput> = {}): AgendaActionInput => ({
 });
 
 describe("generateAgendaText", () => {
-  it("groups actions into urgent / blocked / due-soon / updates", () => {
+  it("groups actions into blocked / due-soon / updates", () => {
     const text = generateAgendaText({
       title: "Weekly sync",
       dateISO: "2026-06-15T00:00:00Z",
       actions: [
-        action({ id: "u", title: "Sign partnership", priority: "URGENT" }),
         action({ id: "b", title: "Unblock venue", blocked: true }),
         action({ id: "d", title: "Confirm roster", overdue: true }),
         action({ id: "n", title: "Update website" }),
@@ -34,8 +32,6 @@ describe("generateAgendaText", () => {
       openFollowUps: [],
     });
 
-    expect(text).toContain("## Urgent decisions");
-    expect(text).toContain("Sign partnership");
     expect(text).toContain("## Blocked actions");
     expect(text).toContain("Unblock venue");
     expect(text).toContain("## Due soon / overdue");
@@ -45,15 +41,15 @@ describe("generateAgendaText", () => {
     expect(text).toContain("Budget review");
   });
 
-  it("does not list an urgent action twice under updates", () => {
+  it("does not list a blocked action twice under updates", () => {
     const text = generateAgendaText({
       title: "Sync",
       dateISO: "2026-06-15T00:00:00Z",
-      actions: [action({ id: "u", title: "Sign partnership", priority: "HIGH" })],
+      actions: [action({ id: "b", title: "Unblock venue", blocked: true })],
       agendaItems: [],
       openFollowUps: [],
     });
-    expect(text.match(/Sign partnership/g)?.length).toBe(1);
+    expect(text.match(/Unblock venue/g)?.length).toBe(1);
   });
 
   it("surfaces carry-forward from deferred items and open follow-ups", () => {

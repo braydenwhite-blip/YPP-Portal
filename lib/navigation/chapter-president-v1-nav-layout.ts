@@ -40,8 +40,7 @@ export const CHAPTER_PRESIDENT_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/pathways",
   "/my-mentor",
   // Meetings
-  "/actions/meetings",
-  "/impact-meetings",
+  "/meetings",
   "/scheduling",
   "/interviews",
   // Actions
@@ -94,8 +93,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/my-mentor": { group: "Programs", label: "My Mentor", icon: "🌱" },
 
   // Meetings — prepare, run, and follow up
-  "/actions/meetings": { group: "Meetings", label: "Meetings", icon: "📅" },
-  "/impact-meetings": { group: "Meetings", label: "Impact Meetings", icon: "📊" },
+  "/meetings": { group: "Meetings", label: "Meetings", icon: "📅" },
   "/scheduling": { group: "Meetings", label: "Scheduling", icon: "🗓" },
   "/interviews": { group: "Meetings", label: "Interviews", icon: "🎤" },
 
@@ -137,8 +135,7 @@ export const CHAPTER_PRESIDENT_SIDEBAR_LINK_ORDER: string[] = [
   "/pathways",
   "/my-mentor",
   // Meetings
-  "/actions/meetings",
-  "/impact-meetings",
+  "/meetings",
   "/scheduling",
   "/interviews",
   // Actions

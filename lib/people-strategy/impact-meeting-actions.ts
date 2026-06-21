@@ -20,7 +20,7 @@ import {
   type ImpactTeamId,
 } from "./impact-meetings";
 
-const MEETINGS_PATH = "/actions/meetings";
+const MEETINGS_PATH = "/meetings";
 
 function ensureEnabled() {
   if (!isActionTrackerEnabled()) {
@@ -31,13 +31,6 @@ function ensureEnabled() {
 function revalidateMeeting(meetingId: string) {
   revalidatePath(MEETINGS_PATH);
   revalidatePath(`${MEETINGS_PATH}/${meetingId}`);
-  revalidatePath("/impact-meetings");
-  revalidatePath("/impact-meetings/current");
-  revalidatePath(`/impact-meetings/${meetingId}`);
-  revalidatePath(`/impact-meetings/${meetingId}/agenda`);
-  revalidatePath(`/impact-meetings/${meetingId}/presentation`);
-  revalidatePath(`/impact-meetings/${meetingId}/live`);
-  revalidatePath(`/impact-meetings/${meetingId}/summary`);
   revalidatePath("/my-actions");
   revalidatePath("/actions/all");
   revalidatePath("/work");
@@ -367,7 +360,7 @@ export async function sendImpactMeetingSummary(
     recipientName: null,
     weekLabel,
     summaryMarkdown: summary.text,
-    meetingUrl: toAbsoluteAppUrl(`/actions/meetings/${meeting.id}`),
+    meetingUrl: toAbsoluteAppUrl(`/meetings/${meeting.id}`),
   });
 
   if (result.success) {

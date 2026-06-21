@@ -48,9 +48,6 @@ export interface MeetingPrefill {
   agendaTitles?: string[];
 }
 
-const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
-const PRIORITY_LABELS: Record<string, string> = { LOW: "Low", MEDIUM: "Normal", HIGH: "High", URGENT: "Urgent" };
-
 function addMinutes(time: string, mins: number): string {
   const [h, m] = time.split(":").map(Number);
   const total = h * 60 + m + mins;
@@ -85,7 +82,6 @@ export function NewMeetingDrawer({
   const [category, setCategory] = useState<string>(
     prefill?.category ?? prefillModel?.defaultCategory ?? "LEADERSHIP"
   );
-  const [priority, setPriority] = useState<string>("MEDIUM");
   const [date, setDate] = useState(prefill?.date ?? todayISO());
   const [start, setStart] = useState(prefill?.startTime ?? "18:00");
   const [end, setEnd] = useState(prefill?.endTime ?? "19:00");
@@ -133,7 +129,6 @@ export function NewMeetingDrawer({
           purpose,
           meetingType,
           category,
-          priority: priority as (typeof PRIORITIES)[number],
           date,
           startTime: start,
           endTime: end,
@@ -144,7 +139,7 @@ export function NewMeetingDrawer({
           attendeeIds,
           agendaTitles: agenda,
         });
-        router.push(`/actions/meetings/${res.id}`);
+        router.push(`/meetings/${res.id}`);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not create the meeting.");
@@ -289,15 +284,6 @@ export function NewMeetingDrawer({
             {MEETING_CATEGORY_VALUES.map((c) => (
               <option key={c} value={c}>
                 {meetingCategoryLabel(c)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Urgency">
-          <select value={priority} onChange={(e) => setPriority(e.target.value)} style={fieldStyle}>
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_LABELS[p]}
               </option>
             ))}
           </select>

@@ -70,7 +70,7 @@ function Snapshot({ os }: { os: WeeklyExecutionOS }) {
     { label: "Urgent", value: os.snapshot.urgent, icon: "alert", tone: os.snapshot.urgent > 0 ? "danger" : "default", href: "/actions/all?status=OVERDUE" },
     { label: "Blocked", value: os.snapshot.blocked, icon: "flag", tone: os.snapshot.blocked > 0 ? "warning" : "default", href: "/actions/all?status=BLOCKED" },
     { label: "Due this week", value: os.snapshot.dueThisWeek, icon: "calendar", href: "/actions/all?preset=due_soon" },
-    { label: "Meetings this week", value: os.snapshot.meetingsThisWeek, icon: "users", href: "/actions/meetings" },
+    { label: "Meetings this week", value: os.snapshot.meetingsThisWeek, icon: "users", href: "/meetings" },
     { label: "Decisions needed", value: os.snapshot.decisionsNeeded, icon: "check", tone: os.snapshot.decisionsNeeded > 0 ? "warning" : "default" },
     { label: "Communications", value: os.snapshot.communicationsNeeded, icon: "inbox", tone: os.snapshot.communicationsNeeded > 0 ? "warning" : "default" },
     { label: "Initiatives", value: os.snapshot.initiativesNeedingAttention, icon: "target", tone: os.snapshot.initiativesNeedingAttention > 0 ? "warning" : "default", href: "/operations/initiatives" },

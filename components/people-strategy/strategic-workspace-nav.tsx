@@ -51,7 +51,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { key: "weekly-execution", label: "Weekly Execution", href: "/operations/weekly-execution" },
   { key: "initiatives", label: "Initiatives", href: "/operations/initiatives" },
   { key: "actions", label: "Actions", href: "/actions" },
-  { key: "meetings", label: "Meetings", href: "/actions/meetings" },
+  { key: "meetings", label: "Meetings", href: "/meetings" },
 ];
 
 /**

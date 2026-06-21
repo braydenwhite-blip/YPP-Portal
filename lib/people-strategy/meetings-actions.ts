@@ -37,7 +37,7 @@ import { deriveStrategicContextForMeeting } from "./strategic-context";
  * new action's id back on the follow-up / agenda item so the two stay in sync.
  */
 
-const MEETINGS_PATH = "/actions/meetings";
+const MEETINGS_PATH = "/meetings";
 
 function revalidate(meetingId?: string) {
   revalidatePath(MEETINGS_PATH);

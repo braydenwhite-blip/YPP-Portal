@@ -101,11 +101,11 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/actions/all",
   "/actions/command-center",
   "/actions/responsibility",
-  // Meetings are hidden by default and un-hidden for officers (OFFICER_UNHIDE_HREFS),
-  // who reach the umbrella `/meetings` plus the two type hubs from the Work section.
+  // Meetings are hidden by default and un-hidden for officers as one doorway:
+  // `/meetings`.
   "/meetings",
-  "/actions/meetings",
-  "/impact-meetings",
+  "/meetings",
+  "/meetings",
   "/mentorship/mentees",
   "/mentorship/reviews",
   "/mentorship/schedule",
@@ -432,7 +432,7 @@ function navHrefMatchesPathnameForActive(
     return true;
   }
   if (
-    href === "/actions/meetings" &&
+    href === "/meetings" &&
     (pathname === "/officer-meetings" || pathname.startsWith("/officer-meetings/"))
   ) {
     return true;

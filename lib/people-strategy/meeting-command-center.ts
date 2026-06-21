@@ -118,7 +118,7 @@ function isPastStatus(status: EffectiveMeetingStatus): boolean {
 export function meetingNextAction(m: MeetingWorkflowInput): MeetingNextAction {
   const { key, reason } = resolveMeetingNextAction(m);
   const focus = NEXT_ACTION_FOCUS[key];
-  const href = focus ? `/actions/meetings/${m.id}#${focus}` : `/actions/meetings/${m.id}`;
+  const href = focus ? `/meetings/${m.id}#${focus}` : `/meetings/${m.id}`;
   return { key, label: NEXT_ACTION_LABELS[key], reason, href, focus };
 }
 

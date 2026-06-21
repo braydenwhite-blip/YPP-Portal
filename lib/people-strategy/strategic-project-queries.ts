@@ -373,7 +373,7 @@ export async function getStrategicCommandData(
       meetingId: d.meetingId,
       meetingTitle: d.meetingTitle,
       decidedByName: d.decidedByName,
-      href: `/actions/meetings/${d.meetingId}`,
+      href: `/meetings/${d.meetingId}`,
     }));
 
   const overdueStrategicActions = projects.reduce((sum, p) => sum + p.counts.overdueActions, 0);

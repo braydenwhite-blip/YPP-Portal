@@ -63,7 +63,7 @@ function meeting(overrides: Partial<MeetingLite> = {}): MeetingLite {
     linkedActionTitles: [],
     unconvertedFollowUps: [],
     outcome: "productive",
-    href: "/actions/meetings/m1",
+    href: "/meetings/m1",
     ...overrides,
   } as MeetingLite;
 }
@@ -80,7 +80,7 @@ function decision(overrides: Partial<DecisionLite> = {}): DecisionLite {
     hasLinkedAction: false,
     relatedType: null,
     relatedId: null,
-    href: "/actions/meetings/m1",
+    href: "/meetings/m1",
     ...overrides,
   };
 }

@@ -19,14 +19,6 @@ import {
 import { MEETING_TEMPLATES, findMeetingTemplate } from "@/lib/people-strategy/meeting-templates";
 import { createMeeting } from "@/lib/people-strategy/meetings-actions";
 
-const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
-const PRIORITY_LABELS: Record<string, string> = {
-  LOW: "Low",
-  MEDIUM: "Normal",
-  HIGH: "High",
-  URGENT: "Urgent",
-};
-
 const inputClass =
   "w-full rounded-[12px] border border-line-soft bg-surface px-3.5 py-2.5 text-[14px] text-ink shadow-sm transition-colors placeholder:text-ink-muted/70 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100";
 const titleInputClass = cn(inputClass, "py-3.5 text-[16px] font-medium tracking-[-0.01em]");
@@ -78,7 +70,7 @@ function FormSection({
 export function MeetingCreateForm({
   people,
   prefill,
-  cancelHref = "/actions/meetings",
+  cancelHref = "/meetings",
 }: {
   people: PersonOption[];
   prefill?: MeetingPrefill;
@@ -97,7 +89,6 @@ export function MeetingCreateForm({
   const [category, setCategory] = useState<string>(
     prefill?.category ?? prefillModel?.defaultCategory ?? "LEADERSHIP"
   );
-  const [priority, setPriority] = useState<string>("MEDIUM");
   const [date, setDate] = useState(prefill?.date ?? todayISO());
   const [start, setStart] = useState(prefill?.startTime ?? "18:00");
   const [end, setEnd] = useState(prefill?.endTime ?? "19:00");
@@ -151,7 +142,6 @@ export function MeetingCreateForm({
           purpose,
           meetingType,
           category,
-          priority: priority as (typeof PRIORITIES)[number],
           date,
           startTime: start,
           endTime: end,
@@ -162,7 +152,7 @@ export function MeetingCreateForm({
           attendeeIds,
           agendaTitles: agenda,
         });
-        router.push(`/actions/meetings/${res.id}`);
+        router.push(`/meetings/${res.id}`);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not create the meeting.");
@@ -417,23 +407,6 @@ export function MeetingCreateForm({
                       {MEETING_CATEGORY_VALUES.map((c) => (
                         <option key={c} value={c}>
                           {meetingCategoryLabel(c)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[13px] font-semibold text-ink" htmlFor="meeting-create-priority">
-                      Urgency
-                    </label>
-                    <select
-                      id="meeting-create-priority"
-                      value={priority}
-                      onChange={(e) => setPriority(e.target.value)}
-                      className={inputClass}
-                    >
-                      {PRIORITIES.map((p) => (
-                        <option key={p} value={p}>
-                          {PRIORITY_LABELS[p]}
                         </option>
                       ))}
                     </select>

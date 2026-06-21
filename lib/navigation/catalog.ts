@@ -820,44 +820,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
-      href: "/actions/meetings",
-      label: "Officer Meetings",
-      icon: "📅",
-      // Officer-tier and above only (mirrors requireOfficer()).
-      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
-      requiresActionTracker: true,
-      searchAliases: [
-        "Officer Meetings",
-        "Weekly Meeting",
-        "Meetings Tracker",
-        "Officer Meeting",
-        "Agenda",
-        "Decisions",
-        "Follow-ups",
-      ],
-      dashboardDescription:
-        "Leadership coordination — log decisions and follow-ups and turn them into tracked actions.",
-      dashboardPriority: 5,
-    },
-    {
-      href: "/impact-meetings",
-      label: "Impact Meetings",
-      icon: "📊",
-      // Officer-tier and above only (mirrors requireOfficer()).
-      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
-      requiresActionTracker: true,
-      searchAliases: [
-        "Impact Meetings",
-        "Impact Presentation",
-        "Global Operations Impact",
-        "Weekly Updates",
-        "Team Updates",
-      ],
-      dashboardDescription:
-        "One combined presentation per team — collect each team's update, build the agenda, run the meeting live, and send the summary.",
-      dashboardPriority: 5,
-    },
-    {
       href: "/my-weekly-impact",
       label: "My Weekly Impact",
       icon: "📝",

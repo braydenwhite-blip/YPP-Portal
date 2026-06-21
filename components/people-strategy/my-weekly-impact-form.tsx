@@ -190,7 +190,7 @@ export function MyWeeklyImpactForm({ team }: { team: MyWeeklyImpactTeamForm }) {
             </Link>
             {team.officerMeeting ? (
               <Link
-                href={`/actions/meetings/${team.officerMeeting.id}`}
+                href={`/meetings/${team.officerMeeting.id}`}
                 className="text-sm font-semibold text-brand-700 no-underline hover:underline"
               >
                 This week&apos;s meeting →

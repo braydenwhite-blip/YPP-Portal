@@ -355,7 +355,7 @@ export async function loadMentorshipDashboard(
         : "Application has not been reviewed — assign a committee reviewer.",
       statusLabel: underReview ? "Interview" : "Review",
       statusTone: underReview ? "brand" : "warning",
-      meetingsHref: "/actions/meetings",
+      meetingsHref: "/meetings",
       personHref: `/people/${app.applicantId}`,
     };
   });

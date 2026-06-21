@@ -489,7 +489,7 @@ function ApplicantDetail({
           </div>
           {app.status === "CHAIR_REVIEW" ? (
             <Link
-              href="/actions/meetings"
+              href="/meetings"
               className="mt-3.5 flex items-center gap-2 rounded-[10px] border border-[#e4d8f7] bg-[#f3ecff] px-3 py-2.5 text-[12.5px] font-semibold text-[#5a1da8] no-underline hover:bg-[#ebe0ff]"
             >
               <span aria-hidden>⬡</span>

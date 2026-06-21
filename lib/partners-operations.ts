@@ -433,7 +433,7 @@ export async function loadPartnerOperationsDetail(
       id: m.id,
       title: m.title,
       dateLabel: shortDate(m.date, now),
-      href: `/actions/meetings/${m.id}`,
+      href: `/meetings/${m.id}`,
     })),
   };
 }

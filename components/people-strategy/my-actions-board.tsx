@@ -149,7 +149,7 @@ function ActionCard({
 
       {item.officerMeeting ? (
         <Link
-          href={`/actions/meetings/${item.officerMeeting.id}`}
+          href={`/meetings/${item.officerMeeting.id}`}
           className="mx-[18px] mb-3 flex items-center gap-2 rounded-[9px] border px-2.5 py-2 no-underline"
           style={{ background: "#f3ecff", borderColor: "#e4d8f7" }}
         >
@@ -294,7 +294,7 @@ export function MyActionsBoard({
             {execOnAgenda > 0 ? (
               <div className="px-[18px] pt-3">
                 <Link
-                  href="/actions/meetings"
+                  href="/meetings"
                   className="flex items-center gap-2.5 rounded-[10px] border px-3 py-2.5 no-underline"
                   style={{ background: "#f3ecff", borderColor: "#e4d8f7" }}
                 >

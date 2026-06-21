@@ -1453,7 +1453,7 @@ async function loadMeeting360(
     meta: fmtDate(new Date(dto.startISO)),
     initials: entityInitials(dto.title),
     avatarUrl: null,
-    pageHref: `/actions/meetings/${id}`,
+    pageHref: `/meetings/${id}`,
     glance: [
       { label: "Decisions", value: String(dto.decisionCount) },
       {

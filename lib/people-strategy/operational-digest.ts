@@ -328,7 +328,7 @@ export function actionHref(id: string): string {
 }
 
 export function meetingHref(id: string): string {
-  return `/actions/meetings/${id}`;
+  return `/meetings/${id}`;
 }
 
 function relatedRefKey(type: string, id: string): string {

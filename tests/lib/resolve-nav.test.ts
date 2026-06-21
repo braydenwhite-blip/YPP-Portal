@@ -170,7 +170,7 @@ describe("resolveNavModel", () => {
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).not.toContain("/actions");
     expect(visibleHrefs).not.toContain("/actions/all");
-    expect(visibleHrefs).not.toContain("/actions/meetings");
+    expect(visibleHrefs).not.toContain("/meetings");
   });
 
   it("shows My Actions to non-officers without exposing Officer-only action views", () => {
@@ -187,7 +187,7 @@ describe("resolveNavModel", () => {
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).toContain("/actions");
     expect(visibleHrefs).not.toContain("/actions/all");
-    expect(visibleHrefs).not.toContain("/actions/meetings");
+    expect(visibleHrefs).not.toContain("/meetings");
   });
 
   it("never shows the retired Leadership Action Center nav entry (Phase 5 consolidation)", () => {
@@ -368,9 +368,10 @@ describe("resolveNavModel", () => {
       expect(visibleHrefs).toContain("/admin/bulk-users");
       expect(visibleHrefs).toContain("/people");
       expect(visibleHrefs).toContain("/actions");
-      // Both the canonical Meetings home and the Officer Meetings hub are present.
+      // The single Meetings home is present; type-specific hubs are retired.
       expect(visibleHrefs).toContain("/meetings");
-      expect(visibleHrefs).toContain("/actions/meetings");
+      expect(visibleHrefs).not.toContain("/actions/meetings");
+      expect(visibleHrefs).not.toContain("/impact-meetings");
       expect(visibleHrefs).toContain("/operations/initiatives");
       // The retired Work hub and Command Center are gone from the nav entirely.
       expect(visibleHrefs).not.toContain("/work");
@@ -521,8 +522,6 @@ describe("officer section navigation (9-section IA)", () => {
       "/admin/chapter-president-applicants",
       "/actions",
       "/meetings",
-      "/actions/meetings",
-      "/impact-meetings",
       "/follow-up",
       "/delegate",
       "/partners",
@@ -539,8 +538,8 @@ describe("officer section navigation (9-section IA)", () => {
     const model = officerModel();
     expect(groupOf(model, "/people")).toBe("People");
     expect(groupOf(model, "/meetings")).toBe("Meetings");
-    expect(groupOf(model, "/actions/meetings")).toBe("Meetings");
-    expect(groupOf(model, "/impact-meetings")).toBe("Meetings");
+    expect(groupOf(model, "/actions/meetings")).toBeUndefined();
+    expect(groupOf(model, "/impact-meetings")).toBeUndefined();
     expect(groupOf(model, "/actions")).toBe("Actions");
     expect(groupOf(model, "/admin/instructor-applicants")).toBe("Applicants");
     expect(groupOf(model, "/partners")).toBe("Partners");
@@ -566,7 +565,7 @@ describe("chapter-president section navigation", () => {
     // Cross-cutting object sections are now reachable for CPs.
     expect(visibleHrefs).toContain("/people");
     expect(visibleHrefs).toContain("/actions");
-    expect(visibleHrefs).toContain("/actions/meetings");
+    expect(visibleHrefs).toContain("/meetings");
     expect(visibleHrefs).toContain("/mentorship");
     // Chapter operations stay.
     expect(visibleHrefs).toContain("/chapter");
@@ -577,7 +576,7 @@ describe("chapter-president section navigation", () => {
 
     const groupOf = (href: string) => model.visible.find((i) => i.href === href)?.group;
     expect(groupOf("/people")).toBe("People");
-    expect(groupOf("/actions/meetings")).toBe("Meetings");
+    expect(groupOf("/meetings")).toBe("Meetings");
     expect(groupOf("/actions")).toBe("Actions");
     expect(groupOf("/mentorship")).toBe("Programs");
   });

@@ -156,7 +156,7 @@ export function WeeklyMeetingCaptureClient({
           });
         }
 
-        router.push(`/actions/meetings/${created.id}`);
+        router.push(`/meetings/${created.id}`);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not create the meeting workspace.");

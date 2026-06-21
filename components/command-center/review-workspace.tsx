@@ -280,7 +280,7 @@ function ReviewInner({ vm }: { vm: ReviewWorkspaceVM }) {
             {[
               { href: "/work", label: "All work" },
               { href: "/operations/initiatives", label: "Initiatives" },
-              { href: "/actions/meetings", label: "Meetings" },
+              { href: "/meetings", label: "Meetings" },
               { href: "/decide", label: "Decisions" },
             ].map((link) => (
               <Link key={link.href} href={link.href} className="rounded-full border border-line-soft bg-surface px-3 py-1 text-[12.5px] font-semibold text-brand-700 hover:bg-surface-soft">

@@ -106,7 +106,7 @@ function followUpLite(overrides: Partial<MeetingFollowUpLite> = {}): MeetingFoll
     relatedType: "CLASS_OFFERING",
     relatedId: "cls1",
     relatedLabel: "STEM pilot",
-    href: "/actions/meetings/m1",
+    href: "/meetings/m1",
     ...overrides,
   };
 }
@@ -138,7 +138,7 @@ function meetingLite(overrides: Partial<MeetingLite> = {}): MeetingLite {
       reasons: ["1 open follow-up"],
       suggestedNextSteps: ["Close out or convert the open follow-ups into tracked actions."],
     },
-    href: "/actions/meetings/m1",
+    href: "/meetings/m1",
     ...overrides,
   };
 }
@@ -245,7 +245,7 @@ describe("MeetingFollowThroughCard", () => {
     });
     render(<MeetingFollowThroughCard meeting={meeting} />);
     expect(screen.getByText(/2 decisions, no action/i)).toBeInTheDocument();
-    expect(screen.getByRole("link")).toHaveAttribute("href", "/actions/meetings/m1");
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/meetings/m1");
   });
 });
 
@@ -261,7 +261,7 @@ describe("DecisionFollowThroughCard", () => {
     hasLinkedAction: false,
     relatedType: "PARTNER",
     relatedId: "p1",
-    href: "/actions/meetings/m1",
+    href: "/meetings/m1",
   };
 
   it("builds a fully prefilled create-action href carrying the decision + meeting", () => {
@@ -277,7 +277,7 @@ describe("DecisionFollowThroughCard", () => {
     render(<DecisionFollowThroughCard decision={decision} />);
     expect(screen.getByText("Pilot the new onboarding")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Create action from decision" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open meeting" })).toHaveAttribute("href", "/actions/meetings/m1");
+    expect(screen.getByRole("link", { name: "Open meeting" })).toHaveAttribute("href", "/meetings/m1");
   });
 });
 
@@ -297,7 +297,7 @@ describe("UnresolvedMeetingFollowUpsList", () => {
     expect(screen.getByText("Confirm broader STEM direction before emailing partner")).toBeInTheDocument();
     expect(screen.getByText(/Curriculum sync/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Create action" }).getAttribute("href")).toContain("/actions/new?");
-    expect(screen.getByRole("link", { name: "Open meeting" })).toHaveAttribute("href", "/actions/meetings/m1");
+    expect(screen.getByRole("link", { name: "Open meeting" })).toHaveAttribute("href", "/meetings/m1");
   });
 
   it("renders the empty state", () => {
@@ -393,14 +393,14 @@ describe("ActionMeetings360Workboard", () => {
           hasLinkedAction: false,
           relatedType: "CLASS_OFFERING",
           relatedId: "cls1",
-          href: "/actions/meetings/m1",
+          href: "/meetings/m1",
         },
       ],
       unresolvedMeetingFollowUps: [followUpLite()],
       meetingsNeedingFollowThrough: [meetingLite()],
       recentlyCompletedActions: [actionLite({ id: "done", title: "Completed instructor acceptance", status: "COMPLETE" })],
       areaHealth: [],
-      recommendedReviewOrder: [review({ id: "meeting:upcoming", kind: "meeting", title: "Officer weekly sync", href: "/actions/meetings/upcoming" })],
+      recommendedReviewOrder: [review({ id: "meeting:upcoming", kind: "meeting", title: "Officer weekly sync", href: "/meetings/upcoming" })],
     };
   }
 

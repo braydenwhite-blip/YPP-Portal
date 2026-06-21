@@ -4007,7 +4007,7 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
-    pattern: "/actions/meetings",
+    pattern: "/meetings",
     title: "Meetings",
     content: {
       purpose: "Meetings shows upcoming meetings, open follow-ups, recent decisions, and actions created from meetings.",
@@ -4016,7 +4016,7 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
-    pattern: "/actions/meetings/[id]",
+    pattern: "/meetings/[id]",
     title: "Meeting Workspace",
     content: {
       purpose: "This meeting workspace holds everything about one meeting — agenda, notes, decisions, follow-ups, and the action items it generated.",

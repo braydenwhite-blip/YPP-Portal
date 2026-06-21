@@ -86,7 +86,7 @@ export function timelineEventToHref(event: {
     case "meeting":
     case "decision":
     case "follow_up":
-      return event.meetingId ? `/actions/meetings/${event.meetingId}` : initiativeHref(event.initiativeId);
+      return event.meetingId ? `/meetings/${event.meetingId}` : initiativeHref(event.initiativeId);
     case "action_created":
     case "action_completed":
       return event.sourceId ? `/actions/${event.sourceId}` : initiativeHref(event.initiativeId);

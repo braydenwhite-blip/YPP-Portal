@@ -152,7 +152,7 @@ function buildMeetingAttentionRows(meetings: MeetingCardDTO[]): AttentionRowData
         title: m.title,
         reason: `${m.overdueFollowUps} overdue follow-up${m.overdueFollowUps === 1 ? "" : "s"}`,
         tone: "danger",
-        href: `/actions/meetings/${m.id}#followups`,
+        href: `/meetings/${m.id}#followups`,
       });
     }
     if (m.agendaCount === 0 && ["today", "in_progress", "upcoming"].includes(m.effectiveStatus)) {
@@ -161,7 +161,7 @@ function buildMeetingAttentionRows(meetings: MeetingCardDTO[]): AttentionRowData
         title: m.title,
         reason: "Agenda missing",
         tone: "warning",
-        href: `/actions/meetings/${m.id}#agenda`,
+        href: `/meetings/${m.id}#agenda`,
       });
     }
     if (m.attendeeCount === 0 && ["today", "in_progress", "upcoming"].includes(m.effectiveStatus)) {
@@ -170,7 +170,7 @@ function buildMeetingAttentionRows(meetings: MeetingCardDTO[]): AttentionRowData
         title: m.title,
         reason: "Required attendees missing",
         tone: "warning",
-        href: `/actions/meetings/${m.id}#attendance`,
+        href: `/meetings/${m.id}#attendance`,
       });
     }
     if ((m.attendanceConcernCount ?? 0) > 0) {
@@ -179,7 +179,7 @@ function buildMeetingAttentionRows(meetings: MeetingCardDTO[]): AttentionRowData
         title: m.title,
         reason: `${m.attendanceConcernCount ?? 0} attendance concern${m.attendanceConcernCount === 1 ? "" : "s"}`,
         tone: "danger",
-        href: `/actions/meetings/${m.id}#attendance`,
+        href: `/meetings/${m.id}#attendance`,
       });
     }
     if ((m.followUpsNeedingOwner ?? 0) > 0) {
@@ -188,7 +188,7 @@ function buildMeetingAttentionRows(meetings: MeetingCardDTO[]): AttentionRowData
         title: m.title,
         reason: `${m.followUpsNeedingOwner} follow-up${m.followUpsNeedingOwner === 1 ? "" : "s"} need owner`,
         tone: "warning",
-        href: `/actions/meetings/${m.id}#followups`,
+        href: `/meetings/${m.id}#followups`,
       });
     }
     if ((m.followUpsNeedingDueDate ?? 0) > 0) {
@@ -197,7 +197,7 @@ function buildMeetingAttentionRows(meetings: MeetingCardDTO[]): AttentionRowData
         title: m.title,
         reason: `${m.followUpsNeedingDueDate} follow-up${m.followUpsNeedingDueDate === 1 ? "" : "s"} need due date`,
         tone: "warning",
-        href: `/actions/meetings/${m.id}#followups`,
+        href: `/meetings/${m.id}#followups`,
       });
     }
     const decisionsMissingActions = (m.decisionsPreview ?? []).filter((d) => !d.linkedActionId).length;
@@ -207,7 +207,7 @@ function buildMeetingAttentionRows(meetings: MeetingCardDTO[]): AttentionRowData
         title: m.title,
         reason: `${decisionsMissingActions} decision${decisionsMissingActions === 1 ? "" : "s"} need action`,
         tone: "warning",
-        href: `/actions/meetings/${m.id}#decisions`,
+        href: `/meetings/${m.id}#decisions`,
       });
     }
     if (
@@ -219,7 +219,7 @@ function buildMeetingAttentionRows(meetings: MeetingCardDTO[]): AttentionRowData
         title: m.title,
         reason: "Summary notes missing",
         tone: "info",
-        href: `/actions/meetings/${m.id}#notes`,
+        href: `/meetings/${m.id}#notes`,
       });
     }
   }
@@ -376,7 +376,7 @@ export function WeeklyCommandCenterClient({
     )
     .slice(0, 6);
 
-  const weekHref = (offset: number) => (offset === 0 ? "/actions/meetings" : `/actions/meetings?week=${offset}`);
+  const weekHref = (offset: number) => (offset === 0 ? "/meetings" : `/actions/meetings?week=${offset}`);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -913,7 +913,7 @@ function AttentionRow({ row }: { row: AttentionRowData }) {
 function DecisionActionRow({ row }: { row: DecisionQueueRowData }) {
   return (
     <Link
-      href={`/actions/meetings/${row.meetingId}#decisions`}
+      href={`/meetings/${row.meetingId}#decisions`}
       style={{ display: "flex", gap: 10, padding: "10px 0", textDecoration: "none", borderTop: "1px solid var(--border)" }}
     >
       <span
@@ -1105,7 +1105,7 @@ function FollowupRow({ f }: { f: FollowQueueRow }) {
   const dot = f.effectiveStatus === "overdue" ? "var(--danger-fg)" : meetingCategoryTone(f.area).dot;
   return (
     <Link
-      href={`/actions/meetings/${f.meetingId}`}
+      href={`/meetings/${f.meetingId}`}
       style={{ display: "flex", gap: 10, padding: "10px 0", textDecoration: "none", borderTop: "1px solid var(--border)" }}
     >
       <span style={{ width: 7, height: 7, borderRadius: 999, marginTop: 6, flex: "0 0 auto", background: dot }} />
@@ -1149,7 +1149,7 @@ function ActionMini({ a }: { a: OverdueActionRow }) {
     </div>
   );
   return a.meetingId ? (
-    <Link href={`/actions/meetings/${a.meetingId}`} style={{ textDecoration: "none" }}>
+    <Link href={`/meetings/${a.meetingId}`} style={{ textDecoration: "none" }}>
       {inner}
     </Link>
   ) : (
@@ -1168,7 +1168,7 @@ function DecisionRow({ dec }: { dec: RecentDecisionRow }) {
           {fmtDate(dec.dateISO)}
         </span>
         <Link
-          href={`/actions/meetings/${dec.meetingId}`}
+          href={`/meetings/${dec.meetingId}`}
           style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ypp-purple-600)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 3 }}
         >
           {dec.meetingTitle.split(" ").slice(0, 2).join(" ")}
