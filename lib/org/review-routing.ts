@@ -81,6 +81,22 @@ export function evaluateReviewApproval(args: {
 }): ApprovalDecision {
   const { approver, author, subject, now } = args;
 
+  // Fail open while the org-authority spine is being populated: if either
+  // party's internal level is unknown we cannot evaluate the level comparison,
+  // so this additive guard defers to the existing chair/admin approval checks
+  // rather than blocking. Once levels are backfilled the rules below apply.
+  if (
+    approver.authority.internalLevel == null ||
+    author.authority.internalLevel == null
+  ) {
+    return {
+      allowed: true,
+      viaException: false,
+      reason:
+        "Internal levels not yet populated; deferring to existing approval checks.",
+    };
+  }
+
   const isSelf = refsMatch(approver.ref, author.ref);
 
   if (isSelf) {

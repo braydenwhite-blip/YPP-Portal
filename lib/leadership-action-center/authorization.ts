@@ -1,8 +1,9 @@
 import { getSession } from "@/lib/auth-supabase";
 import { hasAnyRole } from "@/lib/authorization";
+import { LEADERSHIP_ACTION_CENTER_ROLES } from "@/lib/org/role-sets";
 
 /** Roles that can access the Leadership Action Center. Admins + STAFF. */
-export const LEADERSHIP_ROLES = ["ADMIN", "STAFF"] as const;
+export const LEADERSHIP_ROLES = LEADERSHIP_ACTION_CENTER_ROLES;
 
 export type LeadershipSession = {
   userId: string;

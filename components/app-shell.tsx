@@ -12,6 +12,7 @@ import type { PageHelperRole } from "@/lib/page-helper/types";
 import { getUserTitle } from "@/lib/user-title";
 import { Entity360Provider } from "@/components/operations/entity-360-drawer";
 import { HelpAgentProvider } from "@/components/help-agent/help-agent-provider";
+import { isOfficerTierFromAuth } from "@/lib/org/role-sets";
 import {
   cn,
   SidebarUserCard,
@@ -20,14 +21,6 @@ import {
   sidebarHeaderClass,
   sidebarSurfaceClass,
 } from "@/components/ui-v2";
-
-/** Mirrors OFFICER_TIER_ROLES in lib/authorization.ts (server-only module). */
-const OFFICER_TIER_NAV_ROLES = new Set([
-  "ADMIN",
-  "STAFF",
-  "CHAPTER_PRESIDENT",
-  "HIRING_CHAIR",
-]);
 
 /**
  * The app shell — one chassis for all nine roles (Knowledge OS V2).
@@ -120,10 +113,10 @@ export default function AppShell({
   }, [userName]);
 
   // Officer tier gates which entity types the Help Agent searches/suggests.
-  const officerTier = useMemo(() => {
-    if (primaryRole && OFFICER_TIER_NAV_ROLES.has(primaryRole)) return true;
-    return (roles ?? []).some((role) => OFFICER_TIER_NAV_ROLES.has(role));
-  }, [primaryRole, roles]);
+  const officerTier = useMemo(
+    () => isOfficerTierFromAuth(roles, primaryRole),
+    [primaryRole, roles]
+  );
   const adminTier = useMemo(() => {
     if (primaryRole === "ADMIN") return true;
     return (roles ?? []).includes("ADMIN");

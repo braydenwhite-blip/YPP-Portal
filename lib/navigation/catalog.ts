@@ -1,10 +1,11 @@
 import type { NavGroup, NavLink, NavRole } from "@/lib/navigation/types";
+import { INSTRUCTOR_SURFACE_ROLES } from "@/lib/org/role-sets";
 
 type CatalogInput = Omit<NavLink, "group" | "priority" | "coreEligible"> & {
   coreEligible?: boolean;
 };
 
-const INSTRUCTOR_ROLES: NavRole[] = ["INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT"];
+const INSTRUCTOR_ROLES: NavRole[] = [...INSTRUCTOR_SURFACE_ROLES];
 const INSTRUCTOR_AND_APPLICANT_ROLES: NavRole[] = ["APPLICANT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT"];
 const MENTOR_ROLES: NavRole[] = ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"];
 const MY_PROGRAM_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"];

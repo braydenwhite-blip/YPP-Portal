@@ -8,6 +8,7 @@ import {
   getHiringActor,
   isAdmin,
   isAssignedInterviewer,
+  assertCanViewApplicant,
 } from "@/lib/chapter-hiring-permissions";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import InterviewReviewEditor from "@/components/instructor-review/interview-review-editor";
@@ -95,7 +96,15 @@ export default async function InterviewerWorkspacePage({
   const actorIsAdmin = isAdmin(actor);
   const actorIsInterviewer = isAssignedInterviewer(actor, appCtx);
 
-  if (!actorIsAdmin && !actorIsInterviewer) {
+  // Read access mirrors assertCanViewApplicant — Admins/Officers/Board, Hiring
+  // Chairs, same-chapter Chapter Presidents, assigned reviewers/interviewers,
+  // and the applicant. Previously this only allowed Admins or the assigned
+  // interviewer, so Officers and Hiring Chairs could not click into interview
+  // reviews (the bug the proposal calls out). Cross-chapter Chapter Presidents
+  // stay correctly scoped because assertCanViewApplicant enforces the chapter.
+  try {
+    assertCanViewApplicant(actor, appCtx);
+  } catch {
     redirect(`/applications/instructor/${id}`);
   }
 

@@ -150,34 +150,13 @@ export function isAllowedPublicPath(pathname: string): boolean {
   );
 }
 
-const OFFICER_TIER_ROLE_SET = new Set([
-  "ADMIN",
-  "STAFF",
-  "CHAPTER_PRESIDENT",
-  "HIRING_CHAIR",
-]);
-
-/** Edge-safe officer check for middleware (Supabase user_metadata.roles). */
-export function isOfficerTierFromAuth(
-  roles: unknown,
-  primaryRole?: unknown
-): boolean {
-  const roleSet = new Set<string>();
-  if (typeof primaryRole === "string" && primaryRole.trim()) {
-    roleSet.add(primaryRole.trim().toUpperCase());
-  }
-  if (Array.isArray(roles)) {
-    for (const role of roles) {
-      if (typeof role === "string" && role.trim()) {
-        roleSet.add(role.trim().toUpperCase());
-      }
-    }
-  }
-  for (const role of roleSet) {
-    if (OFFICER_TIER_ROLE_SET.has(role)) return true;
-  }
-  return false;
-}
+/**
+ * Edge-safe officer check for middleware. Defined once in
+ * `@/lib/org/role-sets` (alongside the canonical OFFICER_TIER_ROLES) and
+ * re-exported here so existing importers (`proxy.ts`, `resolve-nav.ts`,
+ * `app/(app)/page.tsx`) keep working.
+ */
+export { isOfficerTierFromAuth } from "@/lib/org/role-sets";
 
 // ---------------------------------------------------------------------------
 // Preview cookie signing/verification

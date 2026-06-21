@@ -161,3 +161,33 @@ describe("resolvePersonAuthority integrates with routing", () => {
     ).toBe(true);
   });
 });
+
+describe("evaluateReviewApproval — fail open while the spine is unpopulated", () => {
+  it("allows (defers to existing checks) when the approver's level is unknown", () => {
+    const decision = evaluateReviewApproval({
+      approver: participant("Approver", null),
+      author: participant("Author", 2),
+      subject: { name: "Mentee" },
+    });
+    expect(decision.allowed).toBe(true);
+    expect(decision.reason).toMatch(/not yet populated/i);
+  });
+
+  it("allows when the author's level is unknown", () => {
+    const decision = evaluateReviewApproval({
+      approver: participant("Approver", 6),
+      author: participant("Author", null),
+      subject: { name: "Mentee" },
+    });
+    expect(decision.allowed).toBe(true);
+  });
+
+  it("still enforces the level rule once both levels are known", () => {
+    const denied = evaluateReviewApproval({
+      approver: participant("Approver", 2),
+      author: participant("Author", 3),
+      subject: { name: "Mentee" },
+    });
+    expect(denied.allowed).toBe(false);
+  });
+});

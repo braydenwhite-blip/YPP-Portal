@@ -1,8 +1,5 @@
 import { prisma } from "@/lib/prisma";
-
-function hasRole(roles: string[], role: string) {
-  return roles.includes(role);
-}
+import { hasRole } from "@/lib/authorization";
 
 export function canAccessMentorship(primaryRole: string): boolean {
   return primaryRole !== "STUDENT" && primaryRole !== "APPLICANT" && primaryRole !== "PARENT";

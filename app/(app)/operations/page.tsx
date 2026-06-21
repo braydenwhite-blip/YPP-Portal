@@ -15,21 +15,12 @@ import {
 } from "@/lib/people-strategy/class-tracker";
 import { effectiveStatus } from "@/lib/people-strategy/action-filters";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
+// Roles offered the hub (mirrors the catalog entry). The page itself is
+// role-aware and every panel is permission- + flag-filtered.
+import { OPERATIONS_HUB_ROLES } from "@/lib/org/role-sets";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Operations Hub · People Strategy" };
-
-// Roles offered the hub (mirrors the catalog entry). The page itself is
-// role-aware and every panel is permission- + flag-filtered.
-const OPERATIONS_HUB_ROLES = [
-  "ADMIN",
-  "STAFF",
-  "CHAPTER_PRESIDENT",
-  "HIRING_CHAIR",
-  "INSTRUCTOR",
-  "MENTOR",
-  "STUDENT",
-];
 
 const ROLE_INTRO: Record<OperationsHubData["role"], { badge: string; title: string; subtitle: string }> = {
   leadership: {

@@ -3,8 +3,17 @@ import { z } from "zod";
 import { normalizeRoleValue, normalizeRoleValues } from "@/lib/role-utils";
 import {
   normalizeAdminSubtypes,
+  hasAdminSubtype,
+  hasAnyAdminSubtype,
   type AdminSubtypeValue,
 } from "@/lib/admin-subtypes";
+import { OFFICER_TIER_ROLES } from "@/lib/org/role-sets";
+
+// Canonical re-exports. These helpers and the officer-tier role set live in one
+// place each (`@/lib/admin-subtypes`, `@/lib/org/role-sets`); re-exporting here
+// keeps every existing `import { … } from "@/lib/authorization"` working.
+export { hasAdminSubtype, hasAnyAdminSubtype } from "@/lib/admin-subtypes";
+export { OFFICER_TIER_ROLES } from "@/lib/org/role-sets";
 
 // Zod schema for validating user-supplied RoleType values before DB writes.
 export const RoleTypeSchema = z.enum([
@@ -103,21 +112,6 @@ export function hasAnyRole(
   return requiredRoles.some((role) => roleSet.has(role));
 }
 
-export function hasAdminSubtype(
-  adminSubtypes: Array<string | null | undefined> | undefined | null,
-  expectedSubtype: AdminSubtypeValue
-): boolean {
-  return normalizeAdminSubtypes(adminSubtypes ?? []).includes(expectedSubtype);
-}
-
-export function hasAnyAdminSubtype(
-  adminSubtypes: Array<string | null | undefined> | undefined | null,
-  requiredSubtypes: readonly AdminSubtypeValue[]
-): boolean {
-  const subtypeSet = new Set(normalizeAdminSubtypes(adminSubtypes ?? []));
-  return requiredSubtypes.some((subtype) => subtypeSet.has(subtype));
-}
-
 export async function requireSessionUser(): Promise<SessionUser> {
   const user = await getSupabaseSessionUser();
   if (!user) {
@@ -154,14 +148,6 @@ export async function requireAnyAdminSubtype(
  * People Strategy tiers, mapped onto the real roles/subtypes in this codebase.
  * See INTEGRATION_MAP.md → "Role tiers" for the full table.
  */
-
-/** Roles considered "Officer-tier and above" for the People Strategy layer. */
-export const OFFICER_TIER_ROLES = [
-  "ADMIN",
-  "STAFF",
-  "CHAPTER_PRESIDENT",
-  "HIRING_CHAIR",
-] as const;
 
 /**
  * Leadership guard. The Co-President & Chief People Officer is modelled as the

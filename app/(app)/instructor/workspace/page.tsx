@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { isInstructorSurface } from "@/lib/org/role-sets";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { toggleInstructorPathwaySpec } from "@/lib/instructor-pathway-actions";
 import { INSTRUCTOR_MILESTONES } from "@/lib/xp-config";
@@ -47,7 +48,7 @@ export default async function InstructorWorkspacePage({
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
-  const canAccess = roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
+  const canAccess = isInstructorSurface(roles);
   if (!canAccess) redirect("/");
 
   const tab = safeTab((await searchParams).tab);

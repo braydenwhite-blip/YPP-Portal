@@ -21,6 +21,16 @@ export type Ladder = "INSTRUCTION" | "LEADERSHIP";
 /** The top org-wide internal level (Board Member). */
 export const TOP_INTERNAL_LEVEL = 7;
 
+/**
+ * Named internal-level thresholds. These are the single source of truth for the
+ * cross-ladder comparison bars the proposal pins; consume them instead of inline
+ * integers so the spine and its explainers can never drift.
+ */
+/** Officer-tier and above (universal operational access) starts here. */
+export const OFFICER_MIN_LEVEL = 5;
+/** Minimum internal level (either ladder) to be the accountable Lead on an action. */
+export const LEAD_MIN_LEVEL = 3;
+
 export const INSTRUCTION_TITLES = [
   "Instructor",
   "Senior Instructor",
@@ -218,8 +228,8 @@ export function canLeadAction(
   if (internalLevel == null) {
     return { eligible: false, reason: "No internal level could be determined." };
   }
-  if (internalLevel >= 3) {
-    return { eligible: true, reason: `Internal level ${internalLevel} (>= 3) can lead actions.` };
+  if (internalLevel >= LEAD_MIN_LEVEL) {
+    return { eligible: true, reason: `Internal level ${internalLevel} (>= ${LEAD_MIN_LEVEL}) can lead actions.` };
   }
   if (ladder === "LEADERSHIP" && (ladderLevel === 1 || ladderLevel === 2) && opts.authorizedByOfficer) {
     return {
