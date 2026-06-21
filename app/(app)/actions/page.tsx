@@ -17,6 +17,8 @@ import {
 } from "@/lib/people-strategy/action-attention";
 import { ButtonLink, PageHeaderV2, StatCardV2, type StatusTone } from "@/components/ui-v2";
 import skin from "@/components/ui-v2/portal-skin.module.css";
+import { MyActionsBoard } from "@/components/people-strategy/my-actions-board";
+import { getUserTitle } from "@/lib/user-title";
 import { CommandModeToggle } from "@/components/command-center/command-mode";
 import {
   EmptySimpleState,
@@ -302,6 +304,26 @@ export default async function ActionsPage({
       {statFilters}
     </div>
   );
+
+  // Personal "My Actions" hero — the YPP Portal redesign: stat-filter cards and
+  // executing / delegated / waiting-on-you / deadlines lanes, all on real data.
+  // The leadership cross-team view (who=all) keeps the full tracker below.
+  if (!leadershipView) {
+    return (
+      <div className={skin.portalSkin}>
+        <MyActionsBoard
+          items={myItems}
+          userId={viewer.id}
+          now={now}
+          userName={session.user.name ?? "You"}
+          userTitle={getUserTitle({
+            primaryRole: viewer.primaryRole,
+            adminSubtypes: viewer.adminSubtypes,
+          })}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={skin.portalSkin}>
