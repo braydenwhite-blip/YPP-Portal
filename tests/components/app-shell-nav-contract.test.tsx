@@ -33,15 +33,21 @@ describe("app shell nav contract", () => {
     expect(screen.getByRole("link", { name: /Home/i })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: /^People$/i })).toHaveAttribute("href", "/people");
     expect(screen.getByRole("link", { name: /^Actions$/i })).toHaveAttribute("href", "/actions");
+    expect(screen.getByRole("link", { name: /^Meetings$/i })).toHaveAttribute(
+      "href",
+      "/actions/meetings"
+    );
+    // The retired "Work" hub and "Command Center" are gone from the nav.
+    expect(screen.queryByRole("link", { name: /^Work$/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Command Center/i })).toBeNull();
+    // Initiatives still lives in the Actions section (no longer pinned in core).
     expect(screen.getByRole("link", { name: /Initiatives/i })).toHaveAttribute(
       "href",
       "/operations/initiatives"
     );
-    expect(screen.getByRole("link", { name: /^Work$/i })).toHaveAttribute("href", "/work");
 
-    // Officers get the grouped operating-system sections (no "More Tools"
-    // accordion), and admin configuration is reachable — not hidden behind the
-    // old 5-link slim stack.
+    // Officers get the grouped object sections (no "More Tools" accordion), and
+    // admin configuration is reachable — not hidden behind the old slim stack.
     expect(screen.getByRole("region", { name: "Navigation sections" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /more navigation links/i })).toBeNull();
     expect(screen.getByRole("link", { name: /Administration/i })).toHaveAttribute("href", "/admin");

@@ -1,12 +1,14 @@
 import type { LeadershipHomeData } from "@/lib/home/leadership-home";
 
-import { LeadershipHomeExecutive } from "./leadership-home-executive";
+import { LeadershipHomeSections } from "./leadership-home-sections";
 
 /**
- * Leadership Home — one front door. The previous calm/executive split is now a
- * single executive-style operating page with the calm focus/queue intelligence
- * embedded near the top, so leaders get both the daily next move and the full
- * operating picture without switching modes.
+ * Leadership Home — one calm front door, organized around the real YPP sections.
+ *
+ * The old executive "operating system" cockpit (and its Command Center framing)
+ * was retired in the navigation overhaul. Home is now just the starting point:
+ * search, what needs attention, upcoming meetings, your actions, what you opened
+ * recently, quick-create, and a one-click jump into any section.
  */
 export function LeadershipHome({
   firstName,
@@ -15,5 +17,5 @@ export function LeadershipHome({
   firstName: string;
   data: LeadershipHomeData;
 }) {
-  return <LeadershipHomeExecutive firstName={firstName} data={data} />;
+  return <LeadershipHomeSections firstName={firstName} data={data} />;
 }

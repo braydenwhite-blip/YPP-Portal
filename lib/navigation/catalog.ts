@@ -452,8 +452,8 @@ export const NAV_CATALOG: NavLink[] = [
         "Action Tracker",
         "My Action Items",
         "All Actions",
-        "Meetings",
-        "Command Center",
+        "Overdue",
+        "Waiting on",
       ],
       dashboardDescription: "Everything you lead, are executing, or owe input on — sorted by deadline.",
       dashboardPriority: 5,
@@ -476,56 +476,10 @@ export const NAV_CATALOG: NavLink[] = [
         "Quarterly initiatives — open one to see linked actions and next steps.",
       dashboardPriority: 4,
     },
-    {
-      href: "/work",
-      label: "Work",
-      icon: "🎛️",
-      // Work Hub (Knowledge OS V2 §15) — the unified front door for actions,
-      // meeting follow-ups, initiatives, partner requests, advisor check-ins,
-      // and applicant next steps. Officer-tier (mirrors /people, /partners).
-      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: [
-        "Work Hub",
-        "Command Center",
-        "Attention Queue",
-        "All Work",
-        "My Queue",
-        "Follow-ups",
-        "Overdue",
-      ],
-      dashboardDescription:
-        "Actions, meeting follow-ups, blockers, and next steps across YPP.",
-      dashboardPriority: 6,
-    },
-    {
-      href: "/command-center",
-      label: "Command Center",
-      icon: "🧭",
-      // Command Center OS — the daily operating cockpit (mission, Now/Next/Later,
-      // today's meeting, decisions, waiting-on). Officer-tier, like /work.
-      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: [
-        "Command Center",
-        "Today",
-        "Daily cockpit",
-        "Good morning",
-        "Mission",
-        "What matters today",
-      ],
-      dashboardDescription:
-        "Start here — your mission, your next move, today's meeting, and decisions.",
-      dashboardPriority: 5,
-    },
-    {
-      href: "/work/queue",
-      label: "My Queue",
-      icon: "📥",
-      // The one-card-at-a-time queue runner (Resolve / Delegate / Discuss / Defer).
-      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: ["My Queue", "Queue", "Run my queue", "Triage", "Loops", "Clear work"],
-      dashboardDescription: "Clear your work one item at a time.",
-      dashboardPriority: 6,
-    },
+    // The separate Work hub and Command Center were retired in the navigation
+    // overhaul — the portal is organized around real YPP objects with Home as the
+    // single starting point. Their routes (/work, /command-center) now redirect,
+    // so they are intentionally absent from the catalog (nav + search + site-map).
     {
       href: "/browse",
       label: "Browse",
@@ -851,7 +805,7 @@ export const NAV_CATALOG: NavLink[] = [
       requiresActionTracker: true,
       searchAliases: [
         "Meetings",
-        "Weekly Command Center",
+        "Weekly Meeting",
         "Meetings Tracker",
         "Officer Meeting",
         "Agenda",
@@ -1166,7 +1120,7 @@ export const NAV_CATALOG: NavLink[] = [
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Run your chapter: members, action queues, and what needs attention.",
       dashboardPriority: 1,
-      searchAliases: ["Dashboard", "Chapter OS", "President Dashboard", "Overview", "Command Center"],
+      searchAliases: ["Dashboard", "Chapter Home", "President Home", "Overview"],
     },
     {
       href: "/chapter/president",

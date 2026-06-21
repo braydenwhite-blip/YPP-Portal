@@ -51,17 +51,30 @@ import {
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
 const CRITICAL_CORE_LINKS = ["/messages"];
 
-/** Always pinned in officer-tier sidebars when visible (People Strategy front doors). */
+/** Always pinned in officer-tier sidebars when visible (the leadership front doors). */
 const OFFICER_CRITICAL_CORE_LINKS = [
   "/people",
   "/actions",
-  "/operations/initiatives",
-  "/work",
+  "/actions/meetings",
 ];
 
 type RoleGroupOrder = Record<NavRole, NavGroup[]>;
 
 const ALWAYS_HIDDEN_HREFS = new Set([
+  /**
+   * Retired "operating system" modes. The Work hub and Command Center were
+   * deleted as separate destinations (their routes now redirect to Home /
+   * Actions), and the advanced modes are reachable from the records they belong
+   * to instead of competing as top-level nav. The real work lives in the
+   * object sections (Meetings, Actions, People, …). See officer-nav-layout.ts.
+   */
+  "/work",
+  "/command-center",
+  "/work/queue",
+  "/browse",
+  "/decide",
+  "/meet",
+  "/review",
   "/admin/portal-rollout",
   "/chapter-lead/portal-rollout",
   "/admin/rollout-comms",
@@ -150,9 +163,13 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   CHAPTER_PRESIDENT: [
     "Start Here",
     "Chapters",
+    "People",
+    "Programs",
+    "Meetings",
+    "Actions",
+    "Profile & Settings",
     "Recruiting",
     "Growth",
-    "Profile & Settings",
     "Progress",
     "People & Support",
     "Learning",
@@ -719,10 +736,11 @@ export function resolveNavModel(
     }
   }
 
-  // Admin UX: keep chapter-related links inside the same "info/tools" section.
-  // This matches the mental model of "one place to find chapter + support surfaces"
-  // rather than splitting them across separate "Chapters" and "People & Support" groups.
-  if (primaryRole === "ADMIN") {
+  // Legacy admin UX folded long-tail chapter catalog links into "People &
+  // Support". The officer layout now has a first-class "Chapters" object section,
+  // so only fold when the officer layout is NOT active (e.g. a subtype-less admin
+  // on a non-officer surface) to avoid collapsing the new Chapters section.
+  if (primaryRole === "ADMIN" && !officerLayoutActive) {
     const chapters = grouped.get("Chapters");
     if (chapters && chapters.length > 0) {
       const support = grouped.get("People & Support") ?? [];
