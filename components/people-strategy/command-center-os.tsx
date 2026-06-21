@@ -82,8 +82,8 @@ export function CommandCenterHero({
 }) {
   return (
     <ActionCommandBar
-      eyebrow="People Strategy · Leadership"
-      title="Command Center"
+      eyebrow="Operations"
+      title="Overview"
       subtitle="What's urgent, what's stuck, what's due, and what to review this week — across every part of YPP."
       meta={`Week of ${fmt(windowStartISO)} · generated ${fmt(generatedAtISO)} · based on ${consideredCount} ${
         consideredCount === 1 ? "action" : "actions"

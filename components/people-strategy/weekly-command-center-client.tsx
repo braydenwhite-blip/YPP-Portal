@@ -403,9 +403,9 @@ export function WeeklyCommandCenterClient({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <WeekNav weekLabel={weekLabel} weekOffset={weekOffset} hrefFor={weekHref} />
-          <Link href="/work" style={{ textDecoration: "none" }}>
+          <Link href="/actions" style={{ textDecoration: "none" }}>
             <MeetingButton variant="outline" icon="bolt">
-              Open Work
+              Open Actions
             </MeetingButton>
           </Link>
           <MeetingButton icon="plus" onClick={() => setShowNew(true)}>

@@ -1,32 +1,34 @@
 import type { NavGroup, NavLink, NavRole } from "@/lib/navigation/types";
 
 /**
- * Officer (leadership) navigation layout — the YPP operating system.
+ * Officer (leadership) navigation layout — organized around real YPP objects.
  *
- * Admins, staff, and hiring chairs run the whole organization, so their sidebar
- * is organized into one coherent set of human-readable sections instead of a
- * pile of separate tools. The model collapses to three primary choices:
+ * Admins, staff, and hiring chairs run the whole organization. Instead of a pile
+ * of separate operating "modes" (the old Work hub, Command Center, My Queue,
+ * Browse, Decisions, Owners, Weekly Review, Meet), the sidebar is now a small,
+ * obvious set of plain-noun sections — one home per thing people actually look
+ * for:
  *
- *   Start     — the three primary choices: Command Center, My Queue, Browse
- *   Work      — the core workspaces: People, Meetings, Initiatives, Actions, Follow Ups
- *   More      — advanced modes (Decisions, Owners, Weekly Review, Meet), collapsed
- *               by default — reach them from Home and the records they belong to
- *   People    — the people directory, instructors, applicants, reviews
- *   Programs  — classes, curriculum, training, chapters
- *   Partners  — partner relationships and the partner pipeline
- *   Data      — Data 360 and organizational memory
- *   Admin     — configuration, imports, analytics, settings
+ *   Home        — the pinned starting point ("what do I need to know or do today")
+ *   People      — find and understand any person
+ *   Programs    — classes, cohorts, mentorship, advising, reviews, instructor dev
+ *   Meetings    — find, prep, run, and follow up on meetings
+ *   Actions     — every action item in one place
+ *   Applicants  — application review workflows
+ *   Partners    — partner & organization relationships
+ *   Chapters    — chapter operations
+ *   Admin       — true configuration (users, settings)
  *
  * This file is the single source of truth for how officer links are grouped,
  * labeled, and ordered, mirroring the student / instructor / chapter-president
  * `v1` layout pattern (group/label/icon remap applied in resolveNavModel). It
  * never adds or removes routes — every href below is a real catalog entry that
- * already passed role + feature gating; we only re-skin it for the leadership
- * mental model. Links that aren't mapped here keep their catalog group and fall
- * into the (collapsed) sections below the operating-system groups.
+ * already passed role + feature gating; we only re-skin it into the section
+ * model. Links that aren't mapped here keep their catalog group and fall into
+ * the (collapsed) long-tail sections below.
  */
 
-/** Officer roles that get the leadership operating-system sidebar. */
+/** Officer roles that get the leadership section sidebar. */
 const OFFICER_LAYOUT_ROLES: ReadonlySet<NavRole> = new Set<NavRole>([
   "ADMIN",
   "STAFF",
@@ -34,38 +36,37 @@ const OFFICER_LAYOUT_ROLES: ReadonlySet<NavRole> = new Set<NavRole>([
 ]);
 
 /**
- * Operating-system sections shown expanded by default so the toolset is visible
- * at a glance. "More" is deliberately NOT here: the advanced modes (Decisions /
- * Owners / Weekly Review / Meet) stay collapsed so they don't compete with the
- * three primary choices in Start. Personal / long-tail sections (Profile &
- * Settings, etc.) also stay collapsed beneath these to keep it calm.
+ * The eight object sections, shown expanded by default so the whole toolset is
+ * visible at a glance. (Home is a pinned core link, not a group.) Personal /
+ * long-tail sections (Profile & Settings, etc.) stay collapsed beneath these.
  */
 export const OFFICER_PRIMARY_GROUPS: ReadonlySet<NavGroup> = new Set<NavGroup>([
-  "Start",
-  "Work",
   "People",
   "Programs",
+  "Meetings",
+  "Actions",
+  "Applicants",
   "Partners",
-  "Data",
+  "Chapters",
   "Admin",
 ]);
 
 /** Section emoji shown on each officer sidebar group header. */
 export const OFFICER_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
-  Start: "🧭",
-  Work: "🎛️",
-  More: "🧰",
   People: "👥",
   Programs: "🎓",
+  Meetings: "📅",
+  Actions: "✅",
+  Applicants: "📝",
   Partners: "🤝",
-  Data: "🧠",
+  Chapters: "🏘",
   Admin: "🛠",
 };
 
 /**
- * Hidden-from-everyone-else hrefs that officers should still reach directly from
- * the Work section (the rest of the org gets to them through in-page subnav).
- * resolveNavModel un-hides only these specific routes for officer layouts.
+ * Hrefs that sit in ALWAYS_HIDDEN_HREFS (to keep other roles' sidebars compact)
+ * but that officers should reach directly from their sections. resolveNavModel
+ * un-hides only these specific routes for the officer layout.
  */
 export const OFFICER_UNHIDE_HREFS: ReadonlySet<string> = new Set<string>([
   "/meetings",
@@ -73,70 +74,60 @@ export const OFFICER_UNHIDE_HREFS: ReadonlySet<string> = new Set<string>([
   "/impact-meetings",
   "/actions/all",
   "/actions/responsibility",
+  "/admin/chapters",
 ]);
 
 const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: string }> = {
-  // Start — the three primary choices. Start here, clear work, or browse records.
-  // (Home is pinned in the "Start" Top-of-sidebar strip via the core map.)
-  "/": { group: "Start", label: "Home", icon: "▣" },
-  "/command-center": { group: "Start", label: "Command Center", icon: "🛰️" },
-  "/work/queue": { group: "Start", label: "My Queue", icon: "📥" },
-  "/browse": { group: "Start", label: "Browse", icon: "🗂️" },
-
-  // Work — the core workspaces: people, meetings, initiatives, actions, follow-ups.
-  "/work": { group: "Work", label: "Work", icon: "🎛️" },
-  "/actions": { group: "Work", label: "Actions", icon: "✅" },
-  "/operations/initiatives": { group: "Work", label: "Initiatives", icon: "🎯" },
-  // Meetings — one umbrella front door, then the two clearly-distinct types.
-  "/meetings": { group: "Work", label: "Meetings", icon: "📅" },
-  "/actions/meetings": { group: "Work", label: "Officer Meetings", icon: "🏛️" },
-  "/impact-meetings": { group: "Work", label: "Impact Meetings", icon: "📊" },
-  "/follow-up": { group: "Work", label: "Follow Ups", icon: "🔔" },
-  "/operations": { group: "Work", label: "Needs Attention", icon: "🧭" },
-  "/actions/all": { group: "Work", label: "All Actions", icon: "🗂️" },
-  "/actions/responsibility": { group: "Work", label: "Responsibility Map", icon: "🗺️" },
-  "/scheduling": { group: "Work", label: "Scheduling", icon: "🗓" },
-
-  // More — advanced operating modes, collapsed by default. Home / Meetings /
-  // Actions / Initiatives link into each; they don't compete as primary tabs.
-  "/decide": { group: "More", label: "Decisions", icon: "⚖️" },
-  "/delegate": { group: "More", label: "Owners", icon: "🤝" },
-  "/review": { group: "More", label: "Weekly Review", icon: "📊" },
-  "/meet": { group: "More", label: "Meet", icon: "🛎️" },
-
-  // People — find anyone, run leadership & review workflows
+  // People — find and understand any person.
   "/people": { group: "People", label: "People", icon: "👥" },
   "/admin/instructors": { group: "People", label: "Instructors", icon: "👩‍🏫" },
-  "/admin/instructor-applicants": { group: "People", label: "Applicants", icon: "📝" },
-  "/admin/instructor-applicants/chair-queue": { group: "People", label: "Hiring Chair Queue", icon: "⚖️" },
   "/admin/students": { group: "People", label: "Students", icon: "🎓" },
   "/admin/leadership": { group: "People", label: "Leadership Roles", icon: "🏛️" },
-  "/admin/parent-feedback": { group: "People", label: "Feedback", icon: "💬" },
-  "/interviews": { group: "People", label: "Interviews", icon: "🎤" },
-  "/positions": { group: "People", label: "Open Positions", icon: "📌" },
+  "/admin/parent-feedback": { group: "People", label: "Parent Feedback", icon: "💬" },
+  "/operations/advising": { group: "People", label: "Advising Center", icon: "🧭" },
+  "/operations/instructor-pairing": { group: "People", label: "Instructor Pairing", icon: "🧩" },
+  "/operations/data-360": { group: "People", label: "Connected Data", icon: "🧠" },
+  "/operations": { group: "People", label: "Operations", icon: "🗺️" },
 
-  // Programs — classes, curriculum, training, chapters
+  // Programs — operate classes, cohorts, mentorship, advising, reviews, dev.
   "/admin/classes": { group: "Programs", label: "Classes", icon: "🏫" },
   "/admin/programs": { group: "Programs", label: "Programs", icon: "📦" },
   "/curriculum": { group: "Programs", label: "Curriculum", icon: "📖" },
   "/admin/curricula": { group: "Programs", label: "Curriculum Review", icon: "📝" },
   "/admin/training": { group: "Programs", label: "Training", icon: "🎒" },
-  "/instructor-onboarding": { group: "Programs", label: "Instructor Orientation", icon: "🧭" },
-  "/chapter/hub": { group: "Programs", label: "Chapters", icon: "🏘" },
   "/pathways": { group: "Programs", label: "Pathways", icon: "🗺" },
 
-  // Guided operating cockpits (pairing + advising)
-  "/operations/instructor-pairing": { group: "People", label: "Instructor Pairing", icon: "🧩" },
-  "/operations/advising": { group: "People", label: "Advising Center", icon: "🎓" },
+  // Meetings — one umbrella front door, then the two clearly-distinct types.
+  "/meetings": { group: "Meetings", label: "Meetings", icon: "📅" },
+  "/actions/meetings": { group: "Meetings", label: "Officer Meetings", icon: "🏛️" },
+  "/impact-meetings": { group: "Meetings", label: "Impact Meetings", icon: "📊" },
+  "/scheduling": { group: "Meetings", label: "Scheduling", icon: "🗓" },
 
-  // Partners — external relationships
+  // Actions — every action item in one place.
+  "/actions": { group: "Actions", label: "Actions", icon: "✅" },
+  "/operations/initiatives": { group: "Actions", label: "Initiatives", icon: "🎯" },
+  "/follow-up": { group: "Actions", label: "Follow Ups", icon: "🔔" },
+  "/delegate": { group: "Actions", label: "Owners", icon: "🤝" },
+  "/actions/all": { group: "Actions", label: "All Actions", icon: "🗂️" },
+  "/actions/responsibility": { group: "Actions", label: "Responsibility Map", icon: "🗺️" },
+
+  // Applicants — application review workflows.
+  "/admin/instructor-applicants": { group: "Applicants", label: "Instructor Applicants", icon: "📝" },
+  "/admin/instructor-applicants/chair-queue": { group: "Applicants", label: "Hiring Chair Queue", icon: "⚖️" },
+  "/admin/chapter-president-applicants": { group: "Applicants", label: "CP Applicants", icon: "👑" },
+  "/interviews": { group: "Applicants", label: "Interviews", icon: "🎤" },
+  "/positions": { group: "Applicants", label: "Open Positions", icon: "📌" },
+
+  // Partners — partner & organization relationships.
   "/partners": { group: "Partners", label: "Partner Directory", icon: "🤝" },
   "/admin/partners": { group: "Partners", label: "Partner Pipeline", icon: "📊" },
 
-  // Data — connected knowledge & organizational memory
-  "/operations/data-360": { group: "Data", label: "Data 360", icon: "🧠" },
+  // Chapters — chapter operations.
+  "/chapter/hub": { group: "Chapters", label: "Chapter Hub", icon: "🏘" },
+  "/admin/chapters": { group: "Chapters", label: "Chapter Directory", icon: "🏢" },
+  "/admin/chapter-reports": { group: "Chapters", label: "Chapter Reports", icon: "📊" },
 
-  // Admin — configuration & utilities
+  // Admin — true configuration & utilities.
   "/admin": { group: "Admin", label: "Administration", icon: "🛠" },
   "/admin/bulk-users": { group: "Admin", label: "Imports & Users", icon: "👥" },
   "/admin/analytics": { group: "Admin", label: "Analytics", icon: "📈" },
@@ -148,54 +139,48 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
 
 /** Order of links within the officer sidebar (lower = earlier). */
 export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
-  // Start — the three primary choices
-  "/",
-  "/command-center",
-  "/work/queue",
-  "/browse",
-  // Work — the core workspaces
-  "/work",
-  "/actions",
-  "/operations/initiatives",
-  "/meetings",
-  "/actions/meetings",
-  "/impact-meetings",
-  "/follow-up",
-  "/operations",
-  "/actions/all",
-  "/actions/responsibility",
-  "/scheduling",
-  // More — advanced modes (collapsed)
-  "/decide",
-  "/delegate",
-  "/review",
-  "/meet",
   // People
   "/people",
   "/admin/instructors",
-  "/admin/instructor-applicants",
-  "/admin/instructor-applicants/chair-queue",
   "/admin/students",
-  "/operations/instructor-pairing",
-  "/operations/advising",
   "/admin/leadership",
   "/admin/parent-feedback",
-  "/interviews",
-  "/positions",
+  "/operations/advising",
+  "/operations/instructor-pairing",
+  "/operations/data-360",
+  "/operations",
   // Programs
   "/admin/classes",
   "/admin/programs",
   "/curriculum",
   "/admin/curricula",
   "/admin/training",
-  "/instructor-onboarding",
-  "/chapter/hub",
   "/pathways",
+  // Meetings
+  "/meetings",
+  "/actions/meetings",
+  "/impact-meetings",
+  "/scheduling",
+  // Actions
+  "/actions",
+  "/operations/initiatives",
+  "/follow-up",
+  "/delegate",
+  "/actions/all",
+  "/actions/responsibility",
+  // Applicants
+  "/admin/instructor-applicants",
+  "/admin/instructor-applicants/chair-queue",
+  "/admin/chapter-president-applicants",
+  "/interviews",
+  "/positions",
   // Partners
   "/partners",
   "/admin/partners",
-  // Data
-  "/operations/data-360",
+  // Chapters
+  "/chapter/hub",
+  "/admin/chapters",
+  "/admin/chapter-reports",
   // Admin
   "/admin",
   "/admin/bulk-users",
@@ -206,24 +191,23 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/notifications",
 ];
 
-/** Officer group order: the operating-system sections first, personal/long-tail last. */
+/** Officer group order: the eight object sections first, personal / long-tail last. */
 export const OFFICER_GROUP_ORDER: NavGroup[] = [
-  "Start",
-  "Work",
-  "More",
   "People",
   "Programs",
+  "Meetings",
+  "Actions",
+  "Applicants",
   "Partners",
-  "Data",
+  "Chapters",
   "Admin",
-  // Long-tail / personal surfaces stay reachable but collapsed below the OS.
+  // Long-tail / personal surfaces stay reachable but collapsed below the sections.
   "Start Here",
   "Learning",
   "Progress",
   "Recruiting",
   "Growth",
   "People & Support",
-  "Chapters",
   "Opportunities",
   "Schedule",
   "Community",
@@ -237,6 +221,13 @@ export const OFFICER_GROUP_ORDER: NavGroup[] = [
   "Admin Content",
   "Admin Reports",
   "Admin Operations",
+  // Retired operating-system groups (kept for back-compat; normally empty).
+  "Start",
+  "Work",
+  "More",
+  "Modes",
+  "Command",
+  "Data",
 ];
 
 export function officerLinkOrderIndex(href: string): number {
@@ -256,9 +247,9 @@ export function applyOfficerNavLayout(link: NavLink): NavLink {
 }
 
 /**
- * Whether the leadership operating-system layout applies. True for admins,
- * staff, and hiring chairs (chapter presidents have their own chapter-scoped
- * layout, applicants/students/instructors have their own minimal navs).
+ * Whether the leadership section layout applies. True for admins, staff, and
+ * hiring chairs (chapter presidents have their own chapter-scoped layout,
+ * applicants/students/instructors have their own minimal navs).
  */
 export function shouldApplyOfficerNavLayout(primaryRole: NavRole): boolean {
   return OFFICER_LAYOUT_ROLES.has(primaryRole);

@@ -27,10 +27,9 @@ import {
   EntityHealthList,
 } from "@/components/people-strategy/command-center-os";
 import { StrategicWorkspaceNav } from "@/components/people-strategy/strategic-workspace-nav";
-import { LegacySurfaceBanner } from "@/components/ui-v2";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Command Center · Operations" };
+export const metadata = { title: "Overview · Operations" };
 
 /**
  * Command Center — the main 360 view. It answers one question: what matters
@@ -73,12 +72,6 @@ export default async function CommandCenterOsPage() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 1180 }}>
-      <LegacySurfaceBanner
-        title="Work is the simpler command surface now."
-        body="The attention queue, who owns what, and the weekly action review live at /work — this page keeps the operations summary view."
-        ctaLabel="Open Work"
-        ctaHref="/work"
-      />
       <div className="ps-workspace-header">
         <CommandCenterHero
           windowStartISO={digest.window.start.toISOString()}

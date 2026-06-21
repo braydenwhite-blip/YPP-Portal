@@ -145,8 +145,8 @@ export function QueueReceipt({
             Run this queue again
           </button>
         ) : null}
-        <ButtonLink href="/work" variant="secondary" size="md">
-          Back to Mission Control
+        <ButtonLink href="/actions" variant="secondary" size="md">
+          Back to Actions
         </ButtonLink>
       </footer>
     </div>

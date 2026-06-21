@@ -46,7 +46,7 @@ type NavItem = { key: StrategicNavKey; label: string; href: string };
  * the old Weekly Review redirects into Weekly Execution.
  */
 const NAV_ITEMS: readonly NavItem[] = [
-  { key: "command-center", label: "Command Center", href: "/operations/command-center" },
+  { key: "command-center", label: "Overview", href: "/operations/command-center" },
   { key: "data-360", label: "Data 360", href: "/operations/data-360" },
   { key: "weekly-execution", label: "Weekly Execution", href: "/operations/weekly-execution" },
   { key: "initiatives", label: "Initiatives", href: "/operations/initiatives" },

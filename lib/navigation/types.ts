@@ -30,22 +30,27 @@ export type NavGroup =
   | "Schedule"
   | "Community"
   | "Profile"
-  // Officer operating-system sections (Start → Work → Modes → People → Programs →
-  // Partners → Data → Admin). These are the human-readable groups the leadership
-  // sidebar is organized into; see lib/navigation/officer-nav-layout.ts.
-  // "Start" holds the three primary choices (Command Center · My Queue · Browse);
-  // "More" holds the demoted advanced modes (Decisions · Owners · Weekly Review ·
-  // Meet), collapsed by default. "Command"/"Modes" are retained for back-compat.
+  // Leadership sidebar sections — the nine real-world YPP objects the officer
+  // nav is organized into (Home is a pinned link, not a group). See
+  // lib/navigation/officer-nav-layout.ts. These plain-noun sections replaced the
+  // old "operating system" model (Start / Work / Modes / Command / Data), whose
+  // labels are retained below only for back-compat with code that still imports
+  // them — they are no longer used by the officer layout.
+  | "People"
+  | "Programs"
+  | "Meetings"
+  | "Actions"
+  | "Applicants"
+  | "Partners"
+  | "Admin"
+  // Deprecated officer "operating system" groups (no longer used by the layout;
+  // kept in the union so older references still compile).
   | "Command"
   | "Start"
   | "Modes"
   | "More"
   | "Work"
-  | "People"
-  | "Programs"
-  | "Partners"
   | "Data"
-  | "Admin"
   | "Admin People"
   | "Admin Content"
   | "Admin Reports"
