@@ -14,5 +14,5 @@ export default async function CurrentImpactMeetingPage() {
   const meeting = await findCurrentGlobalImpactMeeting(new Date());
   if (!meeting) redirect("/impact-meetings");
 
-  redirect(`/actions/meetings/${meeting.id}`);
+  redirect(`/impact-meetings/${meeting.id}`);
 }

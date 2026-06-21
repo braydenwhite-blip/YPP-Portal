@@ -72,7 +72,16 @@ function revalidateBrief(input: { initiativeId: string; workstreamId: string; we
   revalidatePath(`/operations/initiatives/${input.initiativeId}`);
   revalidatePath("/operations/weekly-execution");
   revalidatePath("/work");
-  if (input.officerMeetingId) revalidatePath(`/actions/meetings/${input.officerMeetingId}`);
+  revalidatePath("/my-weekly-impact");
+  revalidatePath("/impact-meetings");
+  if (input.officerMeetingId) {
+    revalidatePath(`/actions/meetings/${input.officerMeetingId}`);
+    revalidatePath(`/impact-meetings/${input.officerMeetingId}`);
+    revalidatePath(`/impact-meetings/${input.officerMeetingId}/agenda`);
+    revalidatePath(`/impact-meetings/${input.officerMeetingId}/presentation`);
+    revalidatePath(`/impact-meetings/${input.officerMeetingId}/live`);
+    revalidatePath(`/impact-meetings/${input.officerMeetingId}/summary`);
+  }
   revalidatePath("/actions/meetings");
 }
 

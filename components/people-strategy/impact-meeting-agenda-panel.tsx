@@ -111,7 +111,10 @@ function TeamSection({
   }
 
   return (
-    <article className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-sm">
+    <article
+      id={`team-${section.teamId}`}
+      className="scroll-mt-24 rounded-[12px] border border-line-soft bg-surface p-4 shadow-sm"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -138,12 +141,9 @@ function TeamSection({
               </button>
             </form>
           ) : (
-            <button
-              disabled
-              className="rounded-[8px] border border-line-soft bg-surface-muted px-3 py-1.5 text-[12.5px] font-bold text-ink-muted"
-            >
-              Pull first
-            </button>
+            <span className="rounded-[8px] border border-line-soft bg-surface-muted px-3 py-1.5 text-[12.5px] font-bold text-ink-muted">
+              Pull updates first
+            </span>
           )}
         </div>
       </div>
@@ -230,7 +230,10 @@ function TeamSection({
           </div>
         )}
 
-        <div className="grid gap-2 rounded-[10px] border border-line-soft bg-surface-muted p-3">
+        <div
+          id={`impact-follow-up-${section.teamId}`}
+          className="scroll-mt-24 grid gap-2 rounded-[10px] border border-line-soft bg-surface-muted p-3"
+        >
           <form action={createFollowUp} className="grid gap-2">
             <label className="text-[12px] font-bold uppercase tracking-normal text-ink-muted" htmlFor={`fu-title-${section.teamId}`}>
               Create follow-up action
@@ -324,6 +327,18 @@ export function ImpactMeetingAgendaPanel({
           </button>
         </form>
       </div>
+
+      <nav aria-label="Impact team order" className="mt-3 flex flex-wrap gap-2">
+        {agenda.sections.map((section) => (
+          <a
+            key={section.teamId}
+            href={`#team-${section.teamId}`}
+            className="rounded-[8px] border border-line-soft bg-surface px-3 py-1.5 text-[12.5px] font-bold text-ink no-underline"
+          >
+            {section.teamName}
+          </a>
+        ))}
+      </nav>
 
       {agenda.needsAttention.length ? (
         <div className="mt-3 rounded-[10px] border border-[#fed7aa] bg-[#fff7ed] p-3">

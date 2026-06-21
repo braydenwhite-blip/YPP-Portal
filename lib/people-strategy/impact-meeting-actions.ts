@@ -31,6 +31,17 @@ function ensureEnabled() {
 function revalidateMeeting(meetingId: string) {
   revalidatePath(MEETINGS_PATH);
   revalidatePath(`${MEETINGS_PATH}/${meetingId}`);
+  revalidatePath("/impact-meetings");
+  revalidatePath("/impact-meetings/current");
+  revalidatePath(`/impact-meetings/${meetingId}`);
+  revalidatePath(`/impact-meetings/${meetingId}/agenda`);
+  revalidatePath(`/impact-meetings/${meetingId}/presentation`);
+  revalidatePath(`/impact-meetings/${meetingId}/live`);
+  revalidatePath(`/impact-meetings/${meetingId}/summary`);
+  revalidatePath("/my-actions");
+  revalidatePath("/actions/all");
+  revalidatePath("/work");
+  revalidatePath("/command-center");
 }
 
 function teamById(teamId: string) {
