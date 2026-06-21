@@ -55,7 +55,7 @@ const CRITICAL_CORE_LINKS = ["/messages"];
 const OFFICER_CRITICAL_CORE_LINKS = [
   "/people",
   "/actions",
-  "/actions/meetings",
+  "/meetings",
 ];
 
 type RoleGroupOrder = Record<NavRole, NavGroup[]>;
@@ -101,6 +101,9 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/actions/all",
   "/actions/command-center",
   "/actions/responsibility",
+  // Meetings are hidden by default and un-hidden for officers (OFFICER_UNHIDE_HREFS),
+  // who reach the umbrella `/meetings` plus the two type hubs from the Work section.
+  "/meetings",
   "/actions/meetings",
   "/impact-meetings",
   "/mentorship/mentees",

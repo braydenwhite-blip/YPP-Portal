@@ -28,7 +28,7 @@ const QUICK_CREATE: QuickCreate[] = [
 const SECTIONS: { label: string; href: string; icon: string; blurb: string }[] = [
   { label: "People", href: "/people", icon: "👥", blurb: "Find and understand anyone" },
   { label: "Programs", href: "/admin/classes", icon: "🎓", blurb: "Classes, cohorts, mentorship" },
-  { label: "Meetings", href: "/actions/meetings", icon: "📅", blurb: "Prep, run, follow up" },
+  { label: "Meetings", href: "/meetings", icon: "📅", blurb: "Prep, run, follow up" },
   { label: "Actions", href: "/actions", icon: "✅", blurb: "Every action item" },
   { label: "Applicants", href: "/admin/instructor-applicants", icon: "📝", blurb: "Review workflows" },
   { label: "Partners", href: "/partners", icon: "🤝", blurb: "Camps, schools, orgs" },

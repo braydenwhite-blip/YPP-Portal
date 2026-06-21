@@ -5,18 +5,69 @@ import { useRouter } from "next/navigation";
 import {
   createExternalInstructorApplicantFromForm,
   createExternalChapterPresidentApplicantFromForm,
+  createExternalStaffApplicantFromForm,
 } from "@/lib/external-applicant-intake";
+
+interface StaffPosition {
+  id: string;
+  title: string;
+  chapterName: string | null;
+}
 
 interface Props {
   chapters: Array<{ id: string; name: string }>;
+  staffPositions: StaffPosition[];
   scopedChapterId: string | null;
   isAdmin: boolean;
 }
 
-type ApplicantKind = "INSTRUCTOR" | "CHAPTER_PRESIDENT";
+type ApplicantKind = "INSTRUCTOR" | "CHAPTER_PRESIDENT" | "STAFF";
+
+function InterviewSchedulingFields() {
+  return (
+    <div
+      className="card"
+      style={{
+        padding: 16,
+        background: "var(--surface-alt)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600 }}>
+        Interview scheduling (optional)
+      </p>
+      <div className="grid two" style={{ gap: 16 }}>
+        <label className="form-row">
+          Interview date &amp; time
+          <input
+            className="input"
+            type="datetime-local"
+            name="interviewScheduledAt"
+          />
+          <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+            When set, the application is created with the interview already scheduled.
+          </span>
+        </label>
+        <label className="form-row">
+          Interview meeting link
+          <input
+            className="input"
+            type="text"
+            name="interviewMeetingUrl"
+            placeholder="zoom.us/j/... (https:// added automatically)"
+          />
+          <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+            Shown to the applicant on their application page. Requires an interview time.
+          </span>
+        </label>
+      </div>
+    </div>
+  );
+}
 
 export default function ExternalApplicantIntakeForm({
   chapters,
+  staffPositions,
   scopedChapterId,
   isAdmin,
 }: Props) {
@@ -24,13 +75,25 @@ export default function ExternalApplicantIntakeForm({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState<"GOOGLE_FORMS" | "MANUAL_ADMIN_ENTRY">("GOOGLE_FORMS");
-  // Chapter President intake is admin-only — chapter leads only see instructors.
   const [kind, setKind] = useState<ApplicantKind>("INSTRUCTOR");
   const isCP = kind === "CHAPTER_PRESIDENT";
+  const isStaff = kind === "STAFF";
 
   const submit = (formData: FormData) => {
     setError(null);
     startTransition(async () => {
+      if (isStaff) {
+        const result = await createExternalStaffApplicantFromForm(formData);
+        if (result.ok) {
+          router.push(
+            `/admin/external-applicants/new?created=${result.applicationId}&pipeline=staff`,
+          );
+          router.refresh();
+        } else {
+          setError(result.error);
+        }
+        return;
+      }
       if (isCP) {
         const result = await createExternalChapterPresidentApplicantFromForm(formData);
         if (result.ok) {
@@ -43,7 +106,9 @@ export default function ExternalApplicantIntakeForm({
       }
       const result = await createExternalInstructorApplicantFromForm(formData);
       if (result.ok) {
-        router.push(`/admin/external-applicants/new?created=${result.applicationId}`);
+        router.push(
+          `/admin/external-applicants/new?created=${result.applicationId}&pipeline=instructor`,
+        );
         router.refresh();
       } else {
         setError(result.error);
@@ -83,6 +148,16 @@ export default function ExternalApplicantIntakeForm({
                 <input
                   type="radio"
                   name="kind"
+                  value="STAFF"
+                  checked={kind === "STAFF"}
+                  onChange={() => setKind("STAFF")}
+                />
+                Staff / Org Role
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="radio"
+                  name="kind"
                   value="CHAPTER_PRESIDENT"
                   checked={kind === "CHAPTER_PRESIDENT"}
                   onChange={() => setKind("CHAPTER_PRESIDENT")}
@@ -90,6 +165,12 @@ export default function ExternalApplicantIntakeForm({
                 Chapter President
               </label>
             </div>
+            {isStaff && (
+              <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
+                For Technology Manager and other org staff hires. Routes into Admin
+                Recruiting and the interview scheduler.
+              </p>
+            )}
           </fieldset>
         )}
 
@@ -184,64 +265,50 @@ export default function ExternalApplicantIntakeForm({
           </label>
         </div>
 
-        {!isCP && (
-          <>
-            <div className="grid two" style={{ gap: 16 }}>
-              <label className="form-row">
-                Application track
-                <select
-                  className="input"
-                  name="applicationTrack"
-                  defaultValue="STANDARD_INSTRUCTOR"
-                >
-                  <option value="STANDARD_INSTRUCTOR">Standard Instructor</option>
-                  <option value="SUMMER_WORKSHOP_INSTRUCTOR">
-                    Summer Workshop Instructor
+        {isStaff && (
+          <div className="grid two" style={{ gap: 16 }}>
+            <label className="form-row">
+              Staff opening
+              <select className="input" name="positionId" defaultValue="">
+                <option value="">Create or match by title below</option>
+                {staffPositions.map((position) => (
+                  <option key={position.id} value={position.id}>
+                    {position.title}
+                    {position.chapterName ? ` · ${position.chapterName}` : ""}
                   </option>
-                </select>
-              </label>
-              <label className="form-row">
-                External submitted date (optional)
-                <input
-                  className="input"
-                  type="datetime-local"
-                  name="externalSubmittedAt"
-                />
-              </label>
-            </div>
-
-            <div className="grid two" style={{ gap: 16 }}>
-              <label className="form-row">
-                Interview date &amp; time (optional)
-                <input
-                  className="input"
-                  type="datetime-local"
-                  name="interviewScheduledAt"
-                />
-                <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-                  When set, the application is created with the interview already
-                  scheduled.
-                </span>
-              </label>
-              <label className="form-row">
-                Interview meeting link (optional)
-                <input
-                  className="input"
-                  type="text"
-                  name="interviewMeetingUrl"
-                  placeholder="zoom.us/j/... (https:// added automatically)"
-                />
-                <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-                  Shown to the applicant on their interview page. Requires an
-                  interview time.
-                </span>
-              </label>
-            </div>
-          </>
+                ))}
+              </select>
+            </label>
+            <label className="form-row">
+              Position title
+              <input
+                className="input"
+                name="positionTitle"
+                defaultValue="Technology Manager"
+                placeholder="Technology Manager"
+              />
+              <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                Used when no opening is selected — finds an open match or creates one.
+              </span>
+            </label>
+          </div>
         )}
 
-        {isCP && (
+        {!isCP && !isStaff && (
           <div className="grid two" style={{ gap: 16 }}>
+            <label className="form-row">
+              Application track
+              <select
+                className="input"
+                name="applicationTrack"
+                defaultValue="STANDARD_INSTRUCTOR"
+              >
+                <option value="STANDARD_INSTRUCTOR">Standard Instructor</option>
+                <option value="SUMMER_WORKSHOP_INSTRUCTOR">
+                  Summer Workshop Instructor
+                </option>
+              </select>
+            </label>
             <label className="form-row">
               External submitted date (optional)
               <input
@@ -250,32 +317,17 @@ export default function ExternalApplicantIntakeForm({
                 name="externalSubmittedAt"
               />
             </label>
-            <label className="form-row">
-              Interview date &amp; time (optional)
-              <input
-                className="input"
-                type="datetime-local"
-                name="interviewScheduledAt"
-              />
-              <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-                When set, the application is created with the interview already
-                scheduled.
-              </span>
-            </label>
           </div>
         )}
 
-        {isCP && (
+        {(isCP || isStaff) && (
           <label className="form-row">
-            Interview meeting link (optional)
-            <input
-              className="input"
-              type="text"
-              name="interviewMeetingUrl"
-              placeholder="zoom.us/j/... (https:// added automatically)"
-            />
+            External submitted date (optional)
+            <input className="input" type="datetime-local" name="externalSubmittedAt" />
           </label>
         )}
+
+        <InterviewSchedulingFields />
 
         {source === "GOOGLE_FORMS" && (
           <label className="form-row">
@@ -305,7 +357,7 @@ export default function ExternalApplicantIntakeForm({
           />
         </label>
 
-        {!isCP && (
+        {!isCP && !isStaff && (
           <>
             <div className="grid two" style={{ gap: 16 }}>
               <label className="form-row">
@@ -338,6 +390,18 @@ export default function ExternalApplicantIntakeForm({
               />
             </label>
           </>
+        )}
+
+        {isStaff && (
+          <label className="form-row">
+            Cover letter / background (optional)
+            <textarea
+              className="input"
+              name="coverLetter"
+              rows={4}
+              placeholder="Resume summary, relevant experience, or why they're a fit for this role."
+            />
+          </label>
         )}
 
         {isCP && (

@@ -48,7 +48,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/",
     "/people",
     "/actions",
-    "/actions/meetings",
+    "/meetings",
     "/messages",
   ],
   HIRING_CHAIR: [
@@ -57,7 +57,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/admin/instructor-applicants/chair-queue",
     "/people",
     "/actions",
-    "/actions/meetings",
+    "/meetings",
     "/messages",
   ],
   PARENT: [
@@ -87,7 +87,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/",
     "/people",
     "/actions",
-    "/actions/meetings",
+    "/meetings",
     "/messages",
   ],
 };

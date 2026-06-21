@@ -35,7 +35,7 @@ describe("app shell nav contract", () => {
     expect(screen.getByRole("link", { name: /^Actions$/i })).toHaveAttribute("href", "/actions");
     expect(screen.getByRole("link", { name: /^Meetings$/i })).toHaveAttribute(
       "href",
-      "/actions/meetings"
+      "/meetings"
     );
     // The retired "Work" hub and "Command Center" are gone from the nav.
     expect(screen.queryByRole("link", { name: /^Work$/i })).toBeNull();

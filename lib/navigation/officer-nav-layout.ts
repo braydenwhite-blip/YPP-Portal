@@ -69,6 +69,7 @@ export const OFFICER_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
  * un-hides only these specific routes for the officer layout.
  */
 export const OFFICER_UNHIDE_HREFS: ReadonlySet<string> = new Set<string>([
+  "/meetings",
   "/actions/meetings",
   "/impact-meetings",
   "/actions/all",
@@ -96,8 +97,9 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/admin/training": { group: "Programs", label: "Training", icon: "🎒" },
   "/pathways": { group: "Programs", label: "Pathways", icon: "🗺" },
 
-  // Meetings — find, prep, run, and follow up on meetings.
-  "/actions/meetings": { group: "Meetings", label: "Meetings", icon: "📅" },
+  // Meetings — one umbrella front door, then the two clearly-distinct types.
+  "/meetings": { group: "Meetings", label: "Meetings", icon: "📅" },
+  "/actions/meetings": { group: "Meetings", label: "Officer Meetings", icon: "🏛️" },
   "/impact-meetings": { group: "Meetings", label: "Impact Meetings", icon: "📊" },
   "/scheduling": { group: "Meetings", label: "Scheduling", icon: "🗓" },
 
@@ -155,6 +157,7 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/admin/training",
   "/pathways",
   // Meetings
+  "/meetings",
   "/actions/meetings",
   "/impact-meetings",
   "/scheduling",

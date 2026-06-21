@@ -305,7 +305,8 @@ describe("resolveNavModel", () => {
     const coreHrefs = model.core.map((item) => item.href);
     expect(coreHrefs).toContain("/people");
     expect(coreHrefs).toContain("/actions");
-    expect(coreHrefs).toContain("/actions/meetings");
+    // The canonical Meetings umbrella is the pinned front door.
+    expect(coreHrefs).toContain("/meetings");
     // The retired Work hub is no longer pinned (or present at all).
     expect(coreHrefs).not.toContain("/work");
   });
@@ -367,6 +368,8 @@ describe("resolveNavModel", () => {
       expect(visibleHrefs).toContain("/admin/bulk-users");
       expect(visibleHrefs).toContain("/people");
       expect(visibleHrefs).toContain("/actions");
+      // Both the canonical Meetings home and the Officer Meetings hub are present.
+      expect(visibleHrefs).toContain("/meetings");
       expect(visibleHrefs).toContain("/actions/meetings");
       expect(visibleHrefs).toContain("/operations/initiatives");
       // The retired Work hub and Command Center are gone from the nav entirely.
@@ -377,7 +380,7 @@ describe("resolveNavModel", () => {
         "/",
         "/people",
         "/actions",
-        "/actions/meetings",
+        "/meetings",
         "/messages",
       ]);
     });
@@ -517,6 +520,7 @@ describe("officer section navigation (9-section IA)", () => {
       "/admin/instructor-applicants",
       "/admin/chapter-president-applicants",
       "/actions",
+      "/meetings",
       "/actions/meetings",
       "/impact-meetings",
       "/follow-up",
@@ -534,6 +538,7 @@ describe("officer section navigation (9-section IA)", () => {
   it("assigns each surface to the right object section", () => {
     const model = officerModel();
     expect(groupOf(model, "/people")).toBe("People");
+    expect(groupOf(model, "/meetings")).toBe("Meetings");
     expect(groupOf(model, "/actions/meetings")).toBe("Meetings");
     expect(groupOf(model, "/impact-meetings")).toBe("Meetings");
     expect(groupOf(model, "/actions")).toBe("Actions");
