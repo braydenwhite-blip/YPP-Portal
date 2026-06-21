@@ -26,6 +26,7 @@
 import { revalidatePath } from "next/cache";
 import {
   ApplicationSource,
+  ApplicationStatus,
   ApplicationTrack,
   ChapterPresidentApplicationStatus,
   InstructorApplicationStatus,
@@ -629,6 +630,316 @@ export async function createExternalChapterPresidentApplicant(
  * FormData adapter for the admin "Add External Applicant" page when the
  * Chapter President role is selected.
  */
+// ─── Staff / org-role external intake ────────────────────────────────────────
+
+export interface CreateExternalStaffApplicantInput {
+  name: string;
+  lastName: string;
+  email: string;
+  phone?: string | null;
+  source: ExternalApplicantSource;
+  chapterId?: string | null;
+  /** Existing staff opening. When omitted, `positionTitle` is used to find or create one. */
+  positionId?: string | null;
+  /** Used when no `positionId` — defaults to "Technology Manager". */
+  positionTitle?: string | null;
+  externalResponseUrl?: string | null;
+  externalAnswersCopy?: string | null;
+  externalSubmittedAt?: Date | null;
+  internalNotes?: string | null;
+  coverLetter?: string | null;
+  interviewScheduledAt?: Date | null;
+  interviewMeetingUrl?: string | null;
+  interviewerId?: string | null;
+}
+
+export interface CreateExternalStaffApplicantResult {
+  applicationId: string;
+  applicantUserId: string;
+  createdNewUser: boolean;
+  positionId: string;
+}
+
+async function resolveStaffPosition(opts: {
+  positionId?: string | null;
+  positionTitle?: string | null;
+  chapterId?: string | null;
+  openedById: string;
+}) {
+  if (opts.positionId?.trim()) {
+    const position = await prisma.position.findUnique({
+      where: { id: opts.positionId.trim() },
+      select: { id: true, title: true, chapterId: true, type: true },
+    });
+    if (!position) {
+      throw new Error("Selected position not found.");
+    }
+    if (position.type !== "STAFF") {
+      throw new Error("Selected position is not a staff opening.");
+    }
+    return position;
+  }
+
+  const title = (opts.positionTitle ?? "").trim() || "Technology Manager";
+  const existing = await prisma.position.findFirst({
+    where: {
+      type: "STAFF",
+      title: { equals: title, mode: "insensitive" },
+      isOpen: true,
+      ...(opts.chapterId ? { chapterId: opts.chapterId } : {}),
+    },
+    select: { id: true, title: true, chapterId: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (existing) {
+    return existing;
+  }
+
+  return prisma.position.create({
+    data: {
+      title,
+      type: "STAFF",
+      chapterId: opts.chapterId ?? null,
+      openedById: opts.openedById,
+      hiringLeadId: opts.openedById,
+      visibility: "NETWORK_WIDE",
+      interviewRequired: true,
+      isOpen: true,
+    },
+    select: { id: true, title: true, chapterId: true },
+  });
+}
+
+export async function seedDefaultManualEmailTasksForGenericApplication(opts: {
+  applicationId: string;
+  applicantName: string | null;
+  positionTitle: string;
+  createdById: string | null;
+}): Promise<{ created: number; skipped: number }> {
+  let created = 0;
+  let skipped = 0;
+  for (const kind of DEFAULT_EXTERNAL_INTAKE_EMAIL_KINDS) {
+    const existing = await prisma.manualEmailTask.findFirst({
+      where: { genericApplicationId: opts.applicationId, kind },
+      select: { id: true },
+    });
+    if (existing) {
+      skipped++;
+      continue;
+    }
+    const template = buildManualEmailTemplate(kind, {
+      applicantName: opts.applicantName,
+      applicationLabel: opts.positionTitle,
+    });
+    await prisma.manualEmailTask.create({
+      data: {
+        genericApplicationId: opts.applicationId,
+        kind,
+        suggestedSubject: template.subject,
+        suggestedBody: template.body,
+        createdById: opts.createdById,
+      },
+    });
+    created++;
+  }
+  return { created, skipped };
+}
+
+/**
+ * Create a staff/org-role application from an external source. Mirrors the
+ * instructor intake pattern but routes into the recruiting Application +
+ * InterviewSlot pipeline used by `/admin/applications` and `/interviews`.
+ */
+export async function createExternalStaffApplicant(
+  input: CreateExternalStaffApplicantInput,
+): Promise<CreateExternalStaffApplicantResult> {
+  const { session, isAdmin } = await requireAdminOrChapterLead();
+  const importedById = session.user.id;
+
+  const name = (input.name ?? "").trim();
+  const lastName = (input.lastName ?? "").trim();
+  const email = normalizeEmail(input.email ?? "");
+  if (!name) throw new Error("Applicant name is required.");
+  if (!lastName) throw new Error("Applicant last name is required.");
+  if (lastName.length > 100) throw new Error("Applicant last name should be under 100 characters.");
+  if (!email || !email.includes("@")) throw new Error("A valid applicant email is required.");
+  if (input.source !== "GOOGLE_FORMS" && input.source !== "MANUAL_ADMIN_ENTRY") {
+    throw new Error("Source must be GOOGLE_FORMS or MANUAL_ADMIN_ENTRY.");
+  }
+
+  let chapterId = input.chapterId?.trim() || null;
+  if (!isAdmin) {
+    const me = await prisma.user.findUnique({
+      where: { id: importedById },
+      select: { chapterId: true },
+    });
+    chapterId = me?.chapterId ?? null;
+    if (!chapterId) {
+      throw new Error("Chapter Presidents must have a chapter assigned before adding applicants.");
+    }
+  }
+
+  const interviewMeetingUrl = normalizeMeetingLink(input.interviewMeetingUrl);
+  const interviewScheduledAt = input.interviewScheduledAt ?? null;
+  if (interviewScheduledAt && Number.isNaN(interviewScheduledAt.getTime())) {
+    throw new Error("Interview date/time is invalid.");
+  }
+  if (!interviewScheduledAt && interviewMeetingUrl) {
+    throw new Error("Set an interview time before adding a meeting link.");
+  }
+
+  const position = await resolveStaffPosition({
+    positionId: input.positionId,
+    positionTitle: input.positionTitle,
+    chapterId,
+    openedById: importedById,
+  });
+
+  if (!isAdmin && position.chapterId && position.chapterId !== chapterId) {
+    throw new Error("You can only add applicants to staff openings in your chapter.");
+  }
+
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  let applicantUser = existingUser;
+  let createdNewUser = false;
+  if (!applicantUser) {
+    applicantUser = await prisma.user.create({
+      data: {
+        name,
+        email,
+        phone: input.phone?.trim() || null,
+        passwordHash: "IMPORTED",
+        primaryRole: RoleType.APPLICANT,
+        chapterId: chapterId ?? position.chapterId,
+      },
+    });
+    createdNewUser = true;
+  } else if ((chapterId ?? position.chapterId) && !applicantUser.chapterId) {
+    applicantUser = await prisma.user.update({
+      where: { id: applicantUser.id },
+      data: { chapterId: chapterId ?? position.chapterId },
+    });
+  }
+
+  const duplicateApplication = await prisma.application.findFirst({
+    where: {
+      positionId: position.id,
+      applicantId: applicantUser.id,
+      status: { notIn: ["REJECTED", "WITHDRAWN"] as ApplicationStatus[] },
+    },
+    select: { id: true },
+  });
+  if (duplicateApplication) {
+    throw new Error("This applicant already has an active application for this position.");
+  }
+
+  const externalImportedAt = new Date();
+  const externalSubmittedAt = input.externalSubmittedAt ?? null;
+  const initialStatus: ApplicationStatus = interviewScheduledAt
+    ? "INTERVIEW_SCHEDULED"
+    : "SUBMITTED";
+
+  const application = await prisma.application.create({
+    data: {
+      positionId: position.id,
+      applicantId: applicantUser.id,
+      source: input.source,
+      importedById,
+      externalImportedAt,
+      externalSubmittedAt,
+      externalResponseUrl: input.externalResponseUrl?.trim() || null,
+      externalAnswersCopy: input.externalAnswersCopy?.trim() || null,
+      internalNotes: input.internalNotes?.trim() || null,
+      coverLetter: input.coverLetter?.trim() || null,
+      status: initialStatus,
+    },
+    select: { id: true },
+  });
+
+  if (interviewScheduledAt) {
+    const interviewerId = input.interviewerId?.trim() || importedById;
+    const confirmed = Boolean(interviewMeetingUrl);
+    await prisma.interviewSlot.create({
+      data: {
+        applicationId: application.id,
+        status: confirmed ? "CONFIRMED" : "POSTED",
+        scheduledAt: interviewScheduledAt,
+        duration: 30,
+        meetingLink: interviewMeetingUrl,
+        interviewerId,
+        isConfirmed: confirmed,
+        confirmedAt: confirmed ? externalImportedAt : null,
+      },
+    });
+  }
+
+  await seedDefaultManualEmailTasksForGenericApplication({
+    applicationId: application.id,
+    applicantName: applicantUser.name,
+    positionTitle: position.title,
+    createdById: importedById,
+  });
+
+  revalidatePath("/admin/applications");
+  revalidatePath("/admin/recruiting");
+  revalidatePath("/admin/external-applicants");
+  revalidatePath("/interviews");
+  revalidatePath("/positions");
+  revalidatePath(`/applications/${application.id}`);
+
+  return {
+    applicationId: application.id,
+    applicantUserId: applicantUser.id,
+    createdNewUser,
+    positionId: position.id,
+  };
+}
+
+export async function createExternalStaffApplicantFromForm(
+  formData: FormData,
+): Promise<{ ok: true; applicationId: string } | { ok: false; error: string }> {
+  try {
+    const sourceRaw = String(formData.get("source") ?? "").trim();
+    const source: ExternalApplicantSource =
+      sourceRaw === "MANUAL_ADMIN_ENTRY" ? "MANUAL_ADMIN_ENTRY" : "GOOGLE_FORMS";
+
+    const submittedAtRaw = String(formData.get("externalSubmittedAt") ?? "").trim();
+    const externalSubmittedAt = submittedAtRaw ? new Date(submittedAtRaw) : null;
+    if (externalSubmittedAt && Number.isNaN(externalSubmittedAt.getTime())) {
+      return { ok: false, error: "External submitted-at must be a valid date." };
+    }
+
+    const interviewRaw = String(formData.get("interviewScheduledAt") ?? "").trim();
+    const interviewScheduledAt = interviewRaw ? new Date(interviewRaw) : null;
+    if (interviewScheduledAt && Number.isNaN(interviewScheduledAt.getTime())) {
+      return { ok: false, error: "Interview date/time must be a valid date." };
+    }
+
+    const result = await createExternalStaffApplicant({
+      name: String(formData.get("name") ?? ""),
+      lastName: String(formData.get("lastName") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      phone: String(formData.get("phone") ?? "") || null,
+      source,
+      chapterId: String(formData.get("chapterId") ?? "") || null,
+      positionId: String(formData.get("positionId") ?? "") || null,
+      positionTitle: String(formData.get("positionTitle") ?? "") || null,
+      externalResponseUrl: String(formData.get("externalResponseUrl") ?? "") || null,
+      externalAnswersCopy: String(formData.get("externalAnswersCopy") ?? "") || null,
+      externalSubmittedAt,
+      internalNotes: String(formData.get("internalNotes") ?? "") || null,
+      coverLetter: String(formData.get("coverLetter") ?? "") || null,
+      interviewScheduledAt,
+      interviewMeetingUrl: String(formData.get("interviewMeetingUrl") ?? "") || null,
+      interviewerId: String(formData.get("interviewerId") ?? "") || null,
+    });
+    return { ok: true, applicationId: result.applicationId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { ok: false, error: message };
+  }
+}
+
 export async function createExternalChapterPresidentApplicantFromForm(
   formData: FormData,
 ): Promise<{ ok: true; applicationId: string } | { ok: false; error: string }> {

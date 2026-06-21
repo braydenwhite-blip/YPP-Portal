@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function NewExternalApplicantPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string; error?: string }>;
+  searchParams: Promise<{ created?: string; error?: string; pipeline?: string }>;
 }) {
   const sessionUser = await requirePageRoles(["ADMIN", "CHAPTER_PRESIDENT"]);
   const roles = sessionUser.roles;
@@ -41,6 +41,18 @@ export default async function NewExternalApplicantPage({
     scopedChapterId = me?.chapterId ?? null;
     chapters = me?.chapter ? [me.chapter] : [];
   }
+
+  const staffPositions = isAdmin
+    ? await prisma.position.findMany({
+        where: { type: "STAFF", isOpen: true },
+        select: {
+          id: true,
+          title: true,
+          chapter: { select: { name: true } },
+        },
+        orderBy: { title: "asc" },
+      })
+    : [];
 
   return (
     <div className="page-shell">
@@ -90,8 +102,9 @@ export default async function NewExternalApplicantPage({
           <li>
             An application is created in the matching review pipeline — an
             InstructorApplication routed to your chapter&apos;s default reviewer
-            (if configured), or a ChapterPresidentApplication on the chapter
-            president board — so it lands in the review queue immediately.
+            (if configured), a staff/org application in Admin Recruiting, or a
+            ChapterPresidentApplication on the chapter president board — so it
+            lands in the review queue immediately.
           </li>
           <li>
             A &quot;Send application confirmation&quot; task is queued in the
@@ -117,11 +130,15 @@ export default async function NewExternalApplicantPage({
             Applicant added to the pipeline.
           </p>
           <Link
-            href={`/applications/instructor/${params.created}`}
+            href={
+              params.pipeline === "staff"
+                ? `/applications/${params.created}`
+                : `/applications/instructor/${params.created}`
+            }
             className="link"
             style={{ color: "#065f46", textDecoration: "underline" }}
           >
-            Open applicant cockpit →
+            Open applicant record →
           </Link>
         </div>
       )}
@@ -143,6 +160,11 @@ export default async function NewExternalApplicantPage({
 
       <ExternalApplicantIntakeForm
         chapters={chapters}
+        staffPositions={staffPositions.map((position) => ({
+          id: position.id,
+          title: position.title,
+          chapterName: position.chapter?.name ?? null,
+        }))}
         scopedChapterId={scopedChapterId}
         isAdmin={isAdmin}
       />
