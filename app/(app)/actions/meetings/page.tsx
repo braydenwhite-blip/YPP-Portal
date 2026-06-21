@@ -20,11 +20,6 @@ import {
   meetingDisplayTitle,
   type MeetingCardDTO,
 } from "@/lib/people-strategy/meetings-queries";
-import {
-  meetingNextAction,
-  PRIMARY_MEETING_MODE_META,
-  selectPrimaryMeeting,
-} from "@/lib/people-strategy/meeting-command-center";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 import { isMeetingCategory } from "@/lib/people-strategy/meeting-categories";
 import {
@@ -32,11 +27,11 @@ import {
   normalizeRelatedEntityType,
 } from "@/lib/people-strategy/operational-context";
 import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
+import { OfficerMeetingsHero } from "@/components/people-strategy/officer-meetings-hero";
 import { PageHeaderV2, type StatusTone } from "@/components/ui-v2";
 import { CommandModeToggle } from "@/components/command-center/command-mode";
 import {
   EmptySimpleState,
-  PrimaryFocusCard,
   SimpleListCard,
   SimpleRow,
   SimpleSurface,
@@ -105,10 +100,6 @@ const FOLLOWUP_TONE: Record<string, StatusTone> = {
   completed: "success",
 };
 
-function withRelated(m: MeetingCardDTO) {
-  return { ...m, hasRelatedEntity: !!m.relatedEntityType && !!m.relatedEntityId };
-}
-
 /** One meeting as a calm row: title · when · facilitator · status · output. */
 function MeetingRowSimple({ meeting }: { meeting: MeetingCardDTO }) {
   const status = MEETING_STATUS[meeting.effectiveStatus];
@@ -125,39 +116,6 @@ function MeetingRowSimple({ meeting }: { meeting: MeetingCardDTO }) {
       related={meeting.facilitator?.name ?? null}
       status={status ? { label: status.label, tone: status.tone } : null}
       meta={outputs.length > 0 ? outputs.join(" · ") : null}
-    />
-  );
-}
-
-/** The one obvious lead: the meeting that matters now, with its next move. */
-function MeetingTrackerFocus({ cards, now }: { cards: MeetingCardDTO[]; now: Date }) {
-  const selection = selectPrimaryMeeting(cards.map(withRelated), now);
-  if (!selection) {
-    return (
-      <PrimaryFocusCard
-        eyebrow="Meetings"
-        title="No meeting needs you right now."
-        reason="Nothing is live, nothing is coming up this week, and finished meetings are wrapped up."
-        icon="check"
-        tone="success"
-        ctaLabel="Schedule a meeting"
-        ctaHref="/actions/meetings/new"
-      />
-    );
-  }
-  const m = selection.meeting;
-  const meta = PRIMARY_MEETING_MODE_META[selection.mode];
-  const next = meetingNextAction(m);
-  const when = selection.mode === "current" ? "Happening now" : fmtWhen(m.startISO);
-  const bits = [when, m.facilitator?.name ?? null].filter(Boolean).join(" · ");
-  return (
-    <PrimaryFocusCard
-      eyebrow={meta.eyebrow}
-      title={m.title}
-      reason={`${bits}. ${next.reason}`}
-      icon="calendar"
-      ctaLabel={next.label}
-      ctaHref={next.href}
     />
   );
 }
@@ -398,7 +356,7 @@ export default async function WeeklyCommandCenterPage({
           <ActionTrackerTabsV2 active="meetings" />
         </div>
       }
-      focus={<MeetingTrackerFocus cards={cards} now={now} />}
+      focus={<OfficerMeetingsHero cards={cards} now={now} />}
       calm={calm}
       actions={strip}
       browseLabel="Browse the full meeting tracker"
