@@ -12,7 +12,7 @@ export default async function CurrentImpactMeetingPage() {
   if (!viewer) notFound();
 
   const meeting = await findCurrentGlobalImpactMeeting(new Date());
-  if (!meeting) redirect("/impact-meetings");
+  if (!meeting) redirect("/meetings");
 
-  redirect(`/impact-meetings/${meeting.id}`);
+  redirect(`/meetings/${meeting.id}`);
 }

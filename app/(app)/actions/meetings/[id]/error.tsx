@@ -14,7 +14,7 @@ export default function MeetingDetailError({
       error={error}
       reset={reset}
       surface="Meeting"
-      backHref="/actions/meetings"
+      backHref="/meetings"
     />
   );
 }

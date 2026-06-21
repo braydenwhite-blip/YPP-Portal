@@ -214,13 +214,13 @@ describe("meetingNextAction priority order (spec §10)", () => {
 
   it("points at the right workspace section via the href focus", () => {
     expect(meetingNextAction(meeting({ effectiveStatus: "completed", hasNotes: false })).href).toBe(
-      "/actions/meetings/m1#notes"
+      "/meetings/m1#notes"
     );
     expect(meetingNextAction(meeting({ effectiveStatus: "upcoming", agendaCount: 0 })).href).toBe(
-      "/actions/meetings/m1#agenda"
+      "/meetings/m1#agenda"
     );
     expect(meetingNextAction(meeting({ effectiveStatus: "in_progress" })).href).toBe(
-      "/actions/meetings/m1"
+      "/meetings/m1"
     );
   });
 });

@@ -12,10 +12,8 @@ import type { EffectiveMeetingStatus } from "./meetings-status";
  * (pure, `now` injected) makes them unit-testable with light fixtures and keeps
  * the page a thin presentation layer.
  *
- * Two meeting types, two consistent detail experiences — never duplicated:
- *   • Impact Meetings  → the dedicated tabbed Impact workspace, /impact-meetings/[id]
- *   • Officer (+ all   → the officer meeting workspace,          /actions/meetings/[id]
- *     other types)
+ * Every meeting type opens the same detail experience:
+ *   • `/meetings/[id]` — prepare, run, and follow up in one place.
  */
 
 /** True only for the Global Operations Impact Presentation — the one type that
@@ -26,13 +24,12 @@ export function isImpactMeetingType(type: string | null | undefined): boolean {
 }
 
 /**
- * The ONE canonical detail route for a meeting, chosen by type so a card never
- * links to a stale or duplicate page:
- *   • Impact meeting → `/impact-meetings/{id}` (its own Overview/Agenda/Live/Summary workspace)
- *   • Everything else → `/actions/meetings/{id}` (the officer meeting workspace)
+ * The ONE canonical detail route for every meeting. Meeting type still matters
+ * inside the room (Impact Meetings show team updates and agenda generation),
+ * but the URL never forks the workflow.
  */
-export function meetingDetailHref(type: string | null | undefined, id: string): string {
-  return isImpactMeetingType(type) ? `/impact-meetings/${id}` : `/actions/meetings/${id}`;
+export function meetingDetailHref(_type: string | null | undefined, id: string): string {
+  return `/meetings/${id}`;
 }
 
 /**

@@ -16,7 +16,7 @@ const TABS: TabDef[] = [
   { key: "initiatives", label: "Initiatives", href: "/operations/initiatives" },
   { key: "my", label: "My actions", href: "/actions" },
   { key: "all", label: "All actions", href: "/actions/all" },
-  { key: "meetings", label: "Meetings", href: "/actions/meetings" },
+  { key: "meetings", label: "Meetings", href: "/meetings" },
   { key: "classes", label: "Class tracker", href: "/actions/all/classes" },
   { key: "responsibility", label: "Responsibility Map", href: "/actions/responsibility" },
 ];

@@ -27,7 +27,7 @@ const QUEUE_SURFACES = [
   "/decide",
   "/delegate",
   "/review",
-  "/actions/meetings",
+  "/meetings",
 ] as const;
 
 export async function revalidateQueueSurfaces(): Promise<void> {

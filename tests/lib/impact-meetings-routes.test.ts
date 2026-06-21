@@ -3,23 +3,15 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { NAV_CATALOG } from "@/lib/navigation/catalog";
-import {
-  OFFICER_SIDEBAR_LINK_ORDER,
-  OFFICER_UNHIDE_HREFS,
-} from "@/lib/navigation/officer-nav-layout";
-
 /**
  * Impact Meetings route regression check.
  *
- * The Impact Meetings / Impact Presentations workflow has one canonical hub and
- * Impact-specific meeting workspaces. This suite pins the public entry points and
- * guards legacy entry links with redirect aliases so none of them 404. It is a
- * filesystem + config contract (no DB, no Playwright) so it runs in plain
- * vitest and fails the build the moment a route drifts.
+ * Impact Meetings are now a meeting type inside the unified `/meetings` system.
+ * These old URLs stay alive as redirects, so bookmarks and team-update links do
+ * not 404, but they no longer render a separate Impact Meetings product.
  */
 
-const CANONICAL = "/impact-meetings";
+const CANONICAL = "/meetings";
 const APP_ROOT = path.join(process.cwd(), "app", "(app)");
 
 function pagePath(route: string): string {
@@ -27,23 +19,14 @@ function pagePath(route: string): string {
 }
 
 describe("impact meetings routes", () => {
-  it("ships the canonical hub page", () => {
+  it("ships the unified Meetings home and detail pages", () => {
     expect(existsSync(pagePath(CANONICAL))).toBe(true);
+    expect(existsSync(pagePath("/meetings/[id]"))).toBe(true);
   });
 
-  it("points the nav catalog entry at the canonical route", () => {
-    const entry = NAV_CATALOG.find((link) => link.label === "Impact Meetings");
-    expect(entry).toBeDefined();
-    expect(entry?.href).toBe(CANONICAL);
-  });
-
-  it("keeps the officer sidebar wired to the canonical route", () => {
-    expect(OFFICER_SIDEBAR_LINK_ORDER).toContain(CANONICAL);
-    expect(OFFICER_UNHIDE_HREFS.has(CANONICAL)).toBe(true);
-  });
-
-  it("redirects every older Impact Meetings deep link to the canonical route", () => {
+  it("redirects every older Impact Meetings hub link to /meetings", () => {
     const aliases = [
+      "/impact-meetings",
       "/impact-presentations",
       "/operations/impact-meetings",
       "/meetings/impact",
@@ -54,57 +37,38 @@ describe("impact meetings routes", () => {
       const file = pagePath(alias);
       expect(existsSync(file), `${alias} alias page should exist`).toBe(true);
       const source = readFileSync(file, "utf8");
-      expect(source, `${alias} should redirect to ${CANONICAL}`).toContain(
-        `redirect("${CANONICAL}")`
-      );
+      expect(source, `${alias} should redirect`).toContain("redirect(");
+      expect(source, `${alias} should redirect to ${CANONICAL}`).toContain('"/meetings');
     }
   });
 
-  it("ships direct meeting entry points for current, agenda, presentation, live, and summary", () => {
+  it("redirects current and old Impact detail subroutes into the unified room", () => {
     const current = pagePath("/impact-meetings/current");
     expect(existsSync(current), "current meeting route should exist").toBe(true);
     const currentSource = readFileSync(current, "utf8");
     expect(currentSource).toContain("findCurrentGlobalImpactMeeting");
-    expect(currentSource).toContain("redirect(`/impact-meetings/${meeting.id}`)");
+    expect(currentSource).toContain("redirect(`/meetings/${meeting.id}`)");
 
     const routes = [
-      {
-        route: "/impact-meetings/[id]",
-        target: 'renderImpactMeetingPage(params, "overview")',
-      },
-      {
-        route: "/impact-meetings/[id]/agenda",
-        target: 'renderImpactMeetingPage(params, "agenda")',
-      },
-      {
-        route: "/impact-meetings/[id]/presentation",
-        target: 'renderImpactMeetingPage(params, "presentation")',
-      },
-      {
-        route: "/impact-meetings/[id]/live",
-        target: 'renderImpactMeetingPage(params, "live")',
-      },
-      {
-        route: "/impact-meetings/[id]/summary",
-        target: 'renderImpactMeetingPage(params, "summary")',
-      },
+      "/impact-meetings/[id]",
+      "/impact-meetings/[id]/agenda",
+      "/impact-meetings/[id]/presentation",
+      "/impact-meetings/[id]/live",
+      "/impact-meetings/[id]/summary",
     ];
 
     for (const route of routes) {
-      const file = pagePath(route.route);
-      expect(existsSync(file), `${route.route} page should exist`).toBe(true);
-      const source = readFileSync(file, "utf8");
-      expect(source).toContain(route.target);
-      expect(source).not.toContain("redirect(`/actions/meetings");
+      const file = pagePath(route);
+      expect(existsSync(file), `${route} page should exist`).toBe(true);
+      expect(readFileSync(file, "utf8")).toContain("redirect(`/meetings/${id}");
     }
   });
 
-  it("gates Impact Meeting deep links to the Impact meeting type", () => {
-    const routeHelper = path.join(APP_ROOT, "impact-meetings", "[id]", "impact-page.tsx");
-    const loader = path.join(process.cwd(), "lib", "people-strategy", "impact-meeting-route-data.ts");
-    expect(existsSync(routeHelper), "Impact meeting route helper should exist").toBe(true);
-    expect(existsSync(loader), "Impact meeting route data loader should exist").toBe(true);
-    expect(readFileSync(routeHelper, "utf8")).toContain("ImpactMeetingWorkspace");
-    expect(readFileSync(loader, "utf8")).toContain("GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE");
+  it("keeps Impact functionality loaded inside the canonical detail page", () => {
+    const detail = pagePath("/meetings/[id]");
+    const source = readFileSync(detail, "utf8");
+    expect(source).toContain("GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE");
+    expect(source).toContain("loadGlobalOperationsImpactAgendaForMeeting");
+    expect(source).toContain("ImpactMeetingAgendaPanel");
   });
 });

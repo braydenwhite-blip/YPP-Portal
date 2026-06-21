@@ -70,7 +70,7 @@ describe("ActionIntelPanel", () => {
         linkage={linkedLinkage}
         urgency={urgency}
         ctaHref="/actions/a1/edit"
-        meetingHref="/actions/meetings/mtg_1"
+        meetingHref="/meetings/mtg_1"
       />
     );
     expect(screen.getByText("What matters now")).toBeInTheDocument();

@@ -260,7 +260,7 @@ describe("StrategicCommandSection", () => {
           meetingId: "m1",
           meetingTitle: "Pilot sync",
           decidedByName: "Alice",
-          href: "/actions/meetings/m1",
+          href: "/meetings/m1",
         },
       ],
       recommendedMoves: [

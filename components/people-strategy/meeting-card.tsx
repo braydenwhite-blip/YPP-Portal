@@ -218,7 +218,7 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
               {next.label} →
             </Link>
             <Link
-              href={`/actions/meetings/${m.id}#attendance`}
+              href={`/meetings/${m.id}#attendance`}
               title="Mark attendance"
               style={{
                 fontSize: 12.5,

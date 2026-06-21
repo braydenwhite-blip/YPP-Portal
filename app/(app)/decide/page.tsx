@@ -57,8 +57,8 @@ export default async function DecidePage() {
       decision: decision.decision,
       meetingTitle: decision.officerMeeting?.title ?? "Meeting",
       meetingHref: decision.officerMeeting
-        ? `/actions/meetings/${decision.officerMeeting.id}`
-        : "/actions/meetings",
+        ? `/meetings/${decision.officerMeeting.id}`
+        : "/meetings",
       decidedByName,
       decidedByInitials: decidedByName ? initialsFromName(decidedByName) : null,
       whenISO,

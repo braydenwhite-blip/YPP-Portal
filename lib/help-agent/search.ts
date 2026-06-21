@@ -386,7 +386,7 @@ async function searchMeetingsFromIndex(q: string): Promise<HelpAgentResult[] | n
     id: d.entityId,
     title: d.title,
     subtitle: d.subtitle,
-    href: `/actions/meetings/${d.entityId}`,
+    href: `/meetings/${d.entityId}`,
   }));
 }
 
@@ -414,7 +414,7 @@ async function searchMeetings(q: string): Promise<HelpAgentResult[]> {
     ]
       .filter(Boolean)
       .join(" · ") || null,
-    href: `/actions/meetings/${m.id}`,
+    href: `/meetings/${m.id}`,
   }));
 }
 
@@ -720,7 +720,7 @@ async function hydrateRecent(
         select: { id: true, title: true, category: true },
       });
       if (!m) return null;
-      return { type: "meeting", id: m.id, title: m.title || "Officer meeting", subtitle: m.category, href: `/actions/meetings/${m.id}` };
+      return { type: "meeting", id: m.id, title: m.title || "Officer meeting", subtitle: m.category, href: `/meetings/${m.id}` };
     }
     case "action": {
       const a = await prisma.actionItem.findUnique({

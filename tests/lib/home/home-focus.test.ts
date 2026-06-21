@@ -59,7 +59,7 @@ describe("buildHomeFocus", () => {
       NOW
     );
     expect(focus?.category).toBe("Meeting today");
-    expect(focus?.primaryHref).toBe("/actions/meetings/m1");
+    expect(focus?.primaryHref).toBe("/meetings/m1");
     expect(focus?.primaryLabel).toBe("Open meeting prep");
   });
 
@@ -76,7 +76,7 @@ describe("buildHomeFocus", () => {
             suggestedStep: "Convert it to an action.",
             ageLabel: "4 days",
             severity: "high",
-            href: "/actions/meetings/m9",
+            href: "/meetings/m9",
           }),
         ],
       }),

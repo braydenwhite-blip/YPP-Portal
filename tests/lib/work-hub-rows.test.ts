@@ -76,7 +76,7 @@ describe("workHubRowFromWorkItem", () => {
         kind: "follow_up",
         meetingTitle: "Leadership sync",
         meetingId: "m1",
-        href: "/actions/meetings/m1",
+        href: "/meetings/m1",
         convertHref: "title=Do+it",
       })
     );
@@ -121,7 +121,7 @@ describe("workHubRowFromMeeting", () => {
       relatedType: null,
       relatedId: null,
       relatedLabel: null,
-      href: "/actions/meetings/m1",
+      href: "/meetings/m1",
       ...overrides,
     } as MeetingLite;
   }
@@ -363,7 +363,7 @@ describe("sorting / filtering / search", () => {
           kind: "follow_up",
           meetingTitle: "Leadership sync",
           meetingId: "m1",
-          href: "/actions/meetings/m1",
+          href: "/meetings/m1",
         })
       ),
       // Unrelated work.

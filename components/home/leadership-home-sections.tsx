@@ -171,7 +171,7 @@ export function LeadershipHomeSections({
         </Card>
 
         {/* Upcoming meetings */}
-        <Card title="Upcoming meetings" href="/actions/meetings">
+        <Card title="Upcoming meetings" href="/meetings">
           {data.upcomingMeetings.length === 0 ? (
             <EmptyRow>No meetings scheduled.</EmptyRow>
           ) : (

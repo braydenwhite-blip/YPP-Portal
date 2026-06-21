@@ -54,7 +54,7 @@ describe("OperationsItemCard", () => {
           why: "This meeting created 2 decisions, 3 actions, and 1 loose end.",
           meetingTitle: "Officer meeting",
           initiativeTitle: null,
-          href: "/actions/meetings/m1",
+          href: "/meetings/m1",
         })}
       />
     );
@@ -162,7 +162,7 @@ describe("OperationsTimelineList", () => {
         title: "Confirm broader K-5 STEM",
         occurredAtISO: "2026-06-09T00:00:00.000Z",
         detail: "Decided in Officer meeting",
-        href: "/actions/meetings/m1",
+        href: "/meetings/m1",
       },
       {
         id: "completed:a1",

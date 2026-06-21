@@ -93,7 +93,7 @@ export function MeetingNowNextCard({
             )}
           </span>
           <h2 style={{ margin: "7px 0 0", fontSize: 21, fontWeight: 800, color: "var(--ypp-ink)", letterSpacing: "-.01em" }}>
-            <Link href={`/actions/meetings/${m.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+            <Link href={`/meetings/${m.id}`} style={{ color: "inherit", textDecoration: "none" }}>
               {m.title}
             </Link>
           </h2>
@@ -185,7 +185,7 @@ export function MeetingNowNextCard({
               {next.reason}
             </span>
           ) : null}
-          <Link href={`/actions/meetings/${m.id}`} style={{ textDecoration: "none" }}>
+          <Link href={`/meetings/${m.id}`} style={{ textDecoration: "none" }}>
             <MeetingButton variant="outline" icon="calendar">
               Open workspace
             </MeetingButton>

@@ -402,7 +402,7 @@ describe("rankReviewItems", () => {
       entities,
       meetingsNeedingFollowThrough: [],
       decisionsNeedingAction: [
-        { ...decision(), id: "d1", decision: "Open decision", href: "/actions/meetings/m1", areaLabel: "Classes", createdISO: NOW.toISOString(), relatedType: null, relatedId: null },
+        { ...decision(), id: "d1", decision: "Open decision", href: "/meetings/m1", areaLabel: "Classes", createdISO: NOW.toISOString(), relatedType: null, relatedId: null },
       ] as never,
       upcomingMeetings: [],
       urgentActions: [],
@@ -661,7 +661,7 @@ describe("lite mappers", () => {
       NOW,
       new Map([classLabel("cls1", "STEM pilot")])
     );
-    expect(lite).toMatchObject({ id: "m1", title: "Sync", href: "/actions/meetings/m1", relatedType: "CLASS_OFFERING", relatedId: "cls1", relatedLabel: "STEM pilot" });
+    expect(lite).toMatchObject({ id: "m1", title: "Sync", href: "/meetings/m1", relatedType: "CLASS_OFFERING", relatedId: "cls1", relatedLabel: "STEM pilot" });
     expect(lite.keyDecisions).toEqual(["Use broader STEM for the pilot."]);
     expect(lite.linkedActionTitles).toEqual(["Draft options"]);
     expect(lite.unconvertedFollowUps[0]).toMatchObject({ title: "Confirm before emailing partner", ownerName: "Alice" });

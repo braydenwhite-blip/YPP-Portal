@@ -8,12 +8,11 @@
  * copy / save; this module is pure (no DB, no React) and unit-testable.
  *
  * Agenda groups (in running order):
- *   1. Urgent decisions      — urgent / high-priority open actions
- *   2. Blocked actions       — work that can't proceed
- *   3. Due soon / overdue    — deadlines at or past the line
- *   4. Updates               — the rest of the open linked work
- *   5. New / misc            — open agenda items not yet converted
- *   6. Carry-forward         — deferred items + open follow-ups
+ *   1. Blocked actions       — work that can't proceed
+ *   2. Due soon / overdue    — deadlines at or past the line
+ *   3. Updates               — the rest of the open linked work
+ *   4. New / misc            — open agenda items not yet converted
+ *   5. Carry-forward         — deferred items + open follow-ups
  *
  * Summary groups:
  *   1. Decisions made
@@ -24,13 +23,10 @@
  *   6. Next-meeting carry-forward
  */
 
-export type AgendaActionPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-
 export interface AgendaActionInput {
   id: string;
   title: string;
   status: string;
-  priority: AgendaActionPriority;
   ownerName: string | null;
   deadlineISO: string | null;
   blocked: boolean;
@@ -97,14 +93,12 @@ function section(heading: string, lines: string[]): string | null {
 export function generateAgendaText(input: MeetingAgendaInput): string {
   const open = input.actions.filter((a) => !SETTLED.has(a.status));
 
-  const urgent = open.filter((a) => a.priority === "URGENT" || a.priority === "HIGH");
-  const urgentIds = new Set(urgent.map((a) => a.id));
-  const blocked = open.filter((a) => a.blocked && !urgentIds.has(a.id));
+  const blocked = open.filter((a) => a.blocked);
   const blockedIds = new Set(blocked.map((a) => a.id));
   const dueSoon = open.filter(
-    (a) => (a.overdue || a.dueSoon) && !urgentIds.has(a.id) && !blockedIds.has(a.id)
+    (a) => (a.overdue || a.dueSoon) && !blockedIds.has(a.id)
   );
-  const handled = new Set([...urgentIds, ...blockedIds, ...dueSoon.map((a) => a.id)]);
+  const handled = new Set([...blockedIds, ...dueSoon.map((a) => a.id)]);
   const updates = open.filter((a) => !handled.has(a.id));
 
   const newItems = input.agendaItems.filter((i) => i.status === "OPEN");
@@ -124,7 +118,6 @@ export function generateAgendaText(input: MeetingAgendaInput): string {
   }`;
 
   const blocks = [
-    section("Urgent decisions", urgent.map(actionLine)),
     section("Blocked actions", blocked.map(actionLine)),
     section("Due soon / overdue", dueSoon.map(actionLine)),
     section("Updates", updates.map(actionLine)),

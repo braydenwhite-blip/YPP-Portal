@@ -94,7 +94,7 @@ describe("deriveTimelineEvents", () => {
 
 describe("timelineEventToHref", () => {
   it("routes each source type to a useful target", () => {
-    expect(timelineEventToHref({ type: "meeting", initiativeId: "i", meetingId: "m1" })).toBe("/actions/meetings/m1");
+    expect(timelineEventToHref({ type: "meeting", initiativeId: "i", meetingId: "m1" })).toBe("/meetings/m1");
     expect(timelineEventToHref({ type: "action_completed", initiativeId: "i", sourceId: "a1" })).toBe("/actions/a1");
     expect(timelineEventToHref({ type: "milestone_reached", initiativeId: "i", milestoneId: "ms1" })).toBe("/operations/initiatives/i#milestone-ms1");
     expect(timelineEventToHref({ type: "initiative_created", initiativeId: "i" })).toBe("/operations/initiatives/i");

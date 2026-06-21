@@ -69,7 +69,7 @@ function revalidateAll() {
   // The meeting workspace is a dynamic route; revalidate every instance so a
   // meeting's linked-action counts and wrap-up state reflect an action change
   // even when it was completed/edited from the Action Tracker, not the meeting.
-  revalidatePath("/actions/meetings/[id]", "page");
+  revalidatePath("/meetings/[id]", "page");
 }
 
 /** Throws using the existing convention when the feature flag is off. */

@@ -18,13 +18,13 @@ describe("deriveActionContextLabel — where the action came from", () => {
       })
     );
     expect(ctx?.text).toContain("From Leadership Meeting —");
-    expect(ctx?.href).toBe("/actions/meetings/m1");
+    expect(ctx?.href).toBe("/meetings/m1");
   });
 
   it("falls back to a generic meeting label when only the id is present", () => {
     const ctx = deriveActionContextLabel(actionItem({ officerMeetingId: "m2", officerMeeting: null }));
     expect(ctx?.text).toBe("From a meeting");
-    expect(ctx?.href).toBe("/actions/meetings/m2");
+    expect(ctx?.href).toBe("/meetings/m2");
   });
 
   it("labels the related entity by its plain noun", () => {

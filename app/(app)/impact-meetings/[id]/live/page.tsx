@@ -1,9 +1,10 @@
-import { renderImpactMeetingPage } from "../impact-page";
+import { redirect } from "next/navigation";
 
 export default async function ImpactMeetingLiveAliasPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  return renderImpactMeetingPage(params, "live");
+  const { id } = await params;
+  redirect(`/meetings/${id}#during`);
 }

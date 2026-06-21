@@ -125,7 +125,7 @@ export function QueueDrawer({
               <Row label="Owner">{item.ownerName ?? <span className="text-ink-muted">Unassigned</span>}</Row>
               {item.relatedMeeting ? (
                 <Row label="Meeting">
-                  <Link href={`/actions/meetings/${item.relatedMeeting.id}`} className="text-brand-700 hover:underline">
+                  <Link href={`/meetings/${item.relatedMeeting.id}`} className="text-brand-700 hover:underline">
                     {item.relatedMeeting.title}
                   </Link>
                 </Row>

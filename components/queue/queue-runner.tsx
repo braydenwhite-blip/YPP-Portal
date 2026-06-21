@@ -39,7 +39,7 @@ const toneAccent: Record<QueueItem["tone"], string> = {
 
 function relatedHref(item: QueueItem): { label: string; href: string } | null {
   if (item.relatedMeeting) {
-    return { label: item.relatedMeeting.title, href: `/actions/meetings/${item.relatedMeeting.id}` };
+    return { label: item.relatedMeeting.title, href: `/meetings/${item.relatedMeeting.id}` };
   }
   if (item.relatedInitiative) {
     return {

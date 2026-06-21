@@ -73,16 +73,10 @@ function revalidateBrief(input: { initiativeId: string; workstreamId: string; we
   revalidatePath("/operations/weekly-execution");
   revalidatePath("/work");
   revalidatePath("/my-weekly-impact");
-  revalidatePath("/impact-meetings");
+  revalidatePath("/meetings");
   if (input.officerMeetingId) {
-    revalidatePath(`/actions/meetings/${input.officerMeetingId}`);
-    revalidatePath(`/impact-meetings/${input.officerMeetingId}`);
-    revalidatePath(`/impact-meetings/${input.officerMeetingId}/agenda`);
-    revalidatePath(`/impact-meetings/${input.officerMeetingId}/presentation`);
-    revalidatePath(`/impact-meetings/${input.officerMeetingId}/live`);
-    revalidatePath(`/impact-meetings/${input.officerMeetingId}/summary`);
+    revalidatePath(`/meetings/${input.officerMeetingId}`);
   }
-  revalidatePath("/actions/meetings");
 }
 
 function configuredBriefAccess(initiativeId: string, workstreamId: string) {
@@ -403,8 +397,8 @@ export async function acceptPreparedPresentationForOfficerMeeting(
   if (!canManageOfficerMeetingOutputs(viewerFromSession(session))) throw new Error("Unauthorized");
   const data = AcceptPreparedSchema.parse(input);
   const agenda = await promotePreparedPresentationToOfficerAgenda(data);
-  revalidatePath("/actions/meetings");
-  if (data.officerMeetingId) revalidatePath(`/actions/meetings/${data.officerMeetingId}`);
+  revalidatePath("/meetings");
+  if (data.officerMeetingId) revalidatePath(`/meetings/${data.officerMeetingId}`);
   return agenda;
 }
 
@@ -462,8 +456,8 @@ export async function createTeamPresentationExpectation(
     });
   }
   revalidatePath(`/operations/initiatives/${data.initiativeId}`);
-  if (data.sourceMeetingId) revalidatePath(`/actions/meetings/${data.sourceMeetingId}`);
-  if (data.targetOfficerMeetingId) revalidatePath(`/actions/meetings/${data.targetOfficerMeetingId}`);
+  if (data.sourceMeetingId) revalidatePath(`/meetings/${data.sourceMeetingId}`);
+  if (data.targetOfficerMeetingId) revalidatePath(`/meetings/${data.targetOfficerMeetingId}`);
   return expectation;
 }
 

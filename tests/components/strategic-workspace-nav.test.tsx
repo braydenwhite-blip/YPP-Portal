@@ -17,7 +17,7 @@ describe("StrategicWorkspaceNav", () => {
       ["Weekly Execution", "/operations/weekly-execution"],
       ["Initiatives", "/operations/initiatives"],
       ["Actions", "/actions"],
-      ["Meetings", "/actions/meetings"],
+      ["Meetings", "/meetings"],
     ];
     for (const [label, href] of expected) {
       expect(within(nav).getByRole("link", { name: label })).toHaveAttribute("href", href);

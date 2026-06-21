@@ -103,7 +103,7 @@ function ContextRail({ item, queueKey }: { item: QueueItem; queueKey: QueueKey }
             <CalendarIcon className="size-4" /> Related meeting
           </p>
           <Link
-            href={`/actions/meetings/${item.relatedMeeting.id}`}
+            href={`/meetings/${item.relatedMeeting.id}`}
             className="mt-1.5 block text-[14px] font-bold text-brand-700 hover:underline"
           >
             {item.relatedMeeting.title}

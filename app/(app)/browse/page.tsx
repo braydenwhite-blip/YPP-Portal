@@ -42,7 +42,7 @@ const RECORD_GROUPS: { heading: string; cards: BrowseCard[] }[] = [
     heading: "Work",
     cards: [
       { href: "/actions", icon: "✅", title: "Actions", description: "Everything you lead, run, or owe input on." },
-      { href: "/actions/meetings", icon: "📅", title: "Meetings", description: "Agendas, decisions, and follow-ups." },
+      { href: "/meetings", icon: "📅", title: "Meetings", description: "Agendas, decisions, and follow-ups." },
       { href: "/operations/initiatives", icon: "🎯", title: "Initiatives", description: "Quarterly initiatives and their linked work." },
       { href: "/work", icon: "🎛️", title: "All work", description: "The full work table with filters and search." },
     ],

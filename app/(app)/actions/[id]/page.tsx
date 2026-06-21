@@ -291,7 +291,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
     urgency: deriveActionUrgency(item, now),
   };
   const intelCtaHref = canEdit ? `/actions/${item.id}/edit` : `/actions/${item.id}`;
-  const meetingHref = item.officerMeetingId ? `/actions/meetings/${item.officerMeetingId}` : null;
+  const meetingHref = item.officerMeetingId ? `/meetings/${item.officerMeetingId}` : null;
 
   const focusReason = topSignal
     ? `${topSignal.reason}. Next: ${topSignal.nextStep}`
@@ -326,7 +326,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
       ? [
           <SimpleRow
             key="meeting"
-            href={`/actions/meetings/${item.officerMeetingId}`}
+            href={`/meetings/${item.officerMeetingId}`}
             icon="calendar"
             name={item.officerMeeting?.title ?? "Source meeting"}
             what="From meeting"

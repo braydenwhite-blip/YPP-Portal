@@ -145,18 +145,14 @@ export default async function WeeklyTeamBriefPage({
     name: person.name ?? person.email,
   }));
   const isImpactBrief = initiativeId === GLOBAL_OPERATIONS_IMPACT_INITIATIVE_ID;
-  const targetMeetingHref = brief.officerMeeting
-    ? isImpactBrief
-      ? `/impact-meetings/${brief.officerMeeting.id}`
-      : `/actions/meetings/${brief.officerMeeting.id}`
-    : null;
+  const targetMeetingHref = brief.officerMeeting ? `/meetings/${brief.officerMeeting.id}` : null;
 
   return (
     <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-5 pb-10">
       <PageHeaderV2
         eyebrow="Team presentation"
-        backHref="/impact-meetings"
-        backLabel="Impact Meetings"
+        backHref="/meetings"
+        backLabel="Meetings"
         title={`${brief.workstreamTitle} — Weekly Impact`}
         subtitle={`${brief.initiativeTitle} · Week of ${brief.weekKey} · one combined presentation${
           brief.members.length ? ` from ${brief.members.length} contributor${brief.members.length === 1 ? "" : "s"}` : ""
@@ -175,7 +171,7 @@ export default async function WeeklyTeamBriefPage({
           <>
             ; it&apos;s presented at{" "}
             <Link
-              href={targetMeetingHref ?? "/impact-meetings"}
+              href={targetMeetingHref ?? "/meetings"}
               className="font-semibold text-brand-700 no-underline hover:underline"
             >
               this week&apos;s {isImpactBrief ? "Impact Meeting" : "meeting"}
@@ -220,12 +216,12 @@ export default async function WeeklyTeamBriefPage({
           </Link>
         ) : null}
         {brief.officerMeeting && isImpactBrief && targetMeetingHref ? (
-          <Link href={`${targetMeetingHref}/agenda#team-${workstreamId}`} className="rounded-md border border-[var(--border)] px-3 py-2 text-sm font-semibold text-brand-700 no-underline">
+          <Link href={`${targetMeetingHref}#team-${workstreamId}`} className="rounded-md border border-[var(--border)] px-3 py-2 text-sm font-semibold text-brand-700 no-underline">
             Add to agenda
           </Link>
         ) : null}
         {brief.officerMeeting && isImpactBrief && targetMeetingHref ? (
-          <Link href={`${targetMeetingHref}/live#impact-follow-up-${workstreamId}`} className="rounded-md border border-[var(--border)] px-3 py-2 text-sm font-semibold text-brand-700 no-underline">
+          <Link href={`${targetMeetingHref}#impact-follow-up-${workstreamId}`} className="rounded-md border border-[var(--border)] px-3 py-2 text-sm font-semibold text-brand-700 no-underline">
             Create follow-up
           </Link>
         ) : null}

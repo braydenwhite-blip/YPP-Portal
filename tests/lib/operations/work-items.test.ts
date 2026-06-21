@@ -62,7 +62,7 @@ function followUp(overrides: Partial<MeetingFollowUpLite> = {}): MeetingFollowUp
     relatedType: "PARTNER",
     relatedId: "p1",
     relatedLabel: "Beth El Day Camp",
-    href: "/actions/meetings/m1",
+    href: "/meetings/m1",
     ...overrides,
   };
 }

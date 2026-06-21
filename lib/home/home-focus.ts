@@ -86,7 +86,7 @@ export function buildHomeFocus(data: LeadershipHomeData, now: Date): HomeFocus |
         meetingToday.facilitatorName ? ` · ${meetingToday.facilitatorName}` : ""
       }`,
       primaryLabel: "Open meeting prep",
-      primaryHref: `/actions/meetings/${meetingToday.id}`,
+      primaryHref: `/meetings/${meetingToday.id}`,
       sourceId: `meeting:${meetingToday.id}`,
     };
   }
@@ -134,7 +134,7 @@ export function buildHomeFocus(data: LeadershipHomeData, now: Date): HomeFocus |
       why: "Your next meeting — glance at the agenda so nothing surprises you.",
       meta: nextMeeting.categoryLabel,
       primaryLabel: "Open meeting",
-      primaryHref: `/actions/meetings/${nextMeeting.id}`,
+      primaryHref: `/meetings/${nextMeeting.id}`,
       sourceId: `meeting:${nextMeeting.id}`,
     };
   }
