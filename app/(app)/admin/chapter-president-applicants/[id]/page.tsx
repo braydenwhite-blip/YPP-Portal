@@ -7,6 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/page-guards";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import {
+  canMakeFinalApplicantDecision,
+  getActiveChairUserId,
+  NON_CHAIR_DECISION_MESSAGE,
+} from "@/lib/active-chair";
+import {
   CP_INTERVIEW_QUESTION_GROUPS,
   CP_RUBRIC_FIELDS,
   CP_SCORE_OPTIONS,
@@ -123,10 +128,10 @@ function ScoreSelect({
 }
 
 export default async function CPApplicantWorkspacePage({ params }: PageProps) {
-  await requireAdminPage();
+  const viewer = await requireAdminPage();
   const { id } = await params;
 
-  const [app, reviewers, chapters, mentorOptions, workflowItem] = await Promise.all([
+  const [app, reviewers, chapters, mentorOptions, workflowItem, activeChairId] = await Promise.all([
     prisma.chapterPresidentApplication.findUnique({
       where: { id },
       include: {
@@ -187,9 +192,15 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
         },
       },
     }),
+    getActiveChairUserId(),
   ]);
 
   if (!app) notFound();
+
+  const canMakeFinalDecision = canMakeFinalApplicantDecision(
+    { id: viewer.id },
+    activeChairId
+  );
 
   const displayName = formatApplicantDisplayName(app);
   const missing = cpMissingRequirements(app);
@@ -405,23 +416,41 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
             <TextBlock label="Recommendation rationale" value={app.recommendationRationale} />
             <TextBlock label="Final decision note" value={app.finalDecisionNote} />
 
-            <form action={makeCPDecisionAction} style={{ display: "grid", gap: 12, marginTop: 12 }}>
-              <HiddenId id={app.id} />
-              <label style={{ fontSize: 12, color: "var(--muted)" }}>
-                Final decision note
-                <textarea className="input" name="finalDecisionNote" rows={3} defaultValue={app.finalDecisionNote ?? ""} />
-              </label>
-              <label style={{ fontSize: 12, color: "var(--muted)" }}>
-                Request-more-info message
-                <input className="input" name="infoRequest" defaultValue={app.infoRequest ?? ""} />
-              </label>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button className="button small" name="decision" value="ACCEPT" type="submit">Accept</button>
-                <button className="button secondary small" name="decision" value="WAITLIST" type="submit">Waitlist</button>
-                <button className="button secondary small" name="decision" value="NEEDS_MORE_INFO" type="submit">Request more info</button>
-                <button className="button secondary small" name="decision" value="DECLINE" type="submit">Decline</button>
+            {canMakeFinalDecision ? (
+              <form action={makeCPDecisionAction} style={{ display: "grid", gap: 12, marginTop: 12 }}>
+                <HiddenId id={app.id} />
+                <label style={{ fontSize: 12, color: "var(--muted)" }}>
+                  Final decision note
+                  <textarea className="input" name="finalDecisionNote" rows={3} defaultValue={app.finalDecisionNote ?? ""} />
+                </label>
+                <label style={{ fontSize: 12, color: "var(--muted)" }}>
+                  Request-more-info message
+                  <input className="input" name="infoRequest" defaultValue={app.infoRequest ?? ""} />
+                </label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button className="button small" name="decision" value="ACCEPT" type="submit">Accept</button>
+                  <button className="button secondary small" name="decision" value="WAITLIST" type="submit">Waitlist</button>
+                  <button className="button secondary small" name="decision" value="NEEDS_MORE_INFO" type="submit">Request more info</button>
+                  <button className="button secondary small" name="decision" value="DECLINE" type="submit">Decline</button>
+                </div>
+              </form>
+            ) : (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: "12px 14px",
+                  borderRadius: 8,
+                  background: "var(--surface-2, #f5f5f7)",
+                  border: "1px solid var(--border, #e3e3e8)",
+                  fontSize: 13,
+                  color: "var(--muted)",
+                }}
+              >
+                {NON_CHAIR_DECISION_MESSAGE} You can review, interview, and record a
+                recommendation, but the final accept / waitlist / decline decision is
+                reserved for the active Chair.
               </div>
-            </form>
+            )}
           </Section>
         </div>
 

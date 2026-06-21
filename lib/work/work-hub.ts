@@ -37,6 +37,7 @@ import {
   sortWorkHubRows,
   workHubRowFromAdvisorCheckIn,
   workHubRowFromApplication,
+  workHubRowFromCPApplication,
   workHubRowFromMeeting,
   workHubRowFromPartnerFollowUp,
   workHubRowFromPartnerRequest,
@@ -193,6 +194,61 @@ async function loadOverdueAdvisorCheckIns(now: Date) {
   }));
 }
 
+/** CP lifecycle statuses where the ball is in YPP's court — drives the Work Hub. */
+const CP_OPEN_STATUSES = [
+  "SUBMITTED",
+  "INITIAL_REVIEW",
+  "UNDER_REVIEW",
+  "INTERVIEW_NEEDED",
+  "INTERVIEW_COMPLETE",
+  "INTERVIEW_COMPLETED",
+  "DECISION_NEEDED",
+  "RECOMMENDATION_SUBMITTED",
+  "ACCEPTED",
+  "APPROVED",
+  "ONBOARDING",
+] as const;
+
+async function loadCPApplicationWork() {
+  const applications = await prisma.chapterPresidentApplication.findMany({
+    where: {
+      archivedAt: null,
+      status: { in: [...CP_OPEN_STATUSES] },
+    },
+    orderBy: { updatedAt: "asc" },
+    take: 100,
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      interviewScheduledAt: true,
+      preferredFirstName: true,
+      lastName: true,
+      legalName: true,
+      reviewerId: true,
+      reviewer: { select: { name: true, email: true } },
+      applicant: { select: { name: true, email: true } },
+    },
+  });
+  return applications.map((app) => ({
+    id: app.id,
+    status: app.status as string,
+    displayName: formatApplicantDisplayName({
+      preferredFirstName: app.preferredFirstName,
+      lastName: app.lastName,
+      legalName: app.legalName,
+      applicant: { name: app.applicant?.name ?? null, email: app.applicant?.email ?? "" },
+    }),
+    reviewerId: app.reviewerId,
+    reviewerName: app.reviewer?.name ?? app.reviewer?.email ?? null,
+    submittedAt: app.createdAt,
+    updatedAt: app.updatedAt,
+    interviewScheduledAt: app.interviewScheduledAt,
+    updatedISO: app.updatedAt.toISOString(),
+  }));
+}
+
 async function loadApplicationWork(viewer: ActionViewer) {
   const visibilityWhere = await instructorApplicationVisibilityWhere(viewer.id);
   if (!visibilityWhere) return [];
@@ -260,6 +316,7 @@ export async function loadWorkHub(
     partnerRequests,
     advisorCheckIns,
     applications,
+    cpApplications,
   ] = await Promise.all([
     loadDigestInputs(viewer, now),
     loadPartnerInputs().catch(() => []),
@@ -271,6 +328,7 @@ export async function loadWorkHub(
     loadOpenPartnerRequests().catch(() => []),
     loadOverdueAdvisorCheckIns(now).catch(() => []),
     loadApplicationWork(viewer).catch(() => []),
+    loadCPApplicationWork().catch(() => []),
   ]);
 
   const digest = deriveWeeklyOperationalDigest({ ...pool, now });
@@ -363,6 +421,13 @@ export async function loadWorkHub(
         })
       )
       .filter((row): row is WorkHubRow => row !== null),
+    ...cpApplications
+      .map((application) =>
+        workHubRowFromCPApplication(application, {
+          mine: application.reviewerId === viewer.id,
+        })
+      )
+      .filter((row): row is WorkHubRow => row !== null),
     ...mentorships
       .filter(
         (m) => now.getTime() - m.lastActivityAt.getTime() >= MENTORSHIP_QUIET_DAYS * dayMs
@@ -407,6 +472,14 @@ export async function loadWorkHub(
     reviewItems: digest.recommendedReviewOrder,
     partners,
     applicants: applications.map((app) => ({
+      id: app.id,
+      name: app.displayName,
+      status: app.status,
+      submittedAt: app.submittedAt,
+      updatedAt: app.updatedAt,
+      interviewScheduledAt: app.interviewScheduledAt,
+    })),
+    cpApplicants: cpApplications.map((app) => ({
       id: app.id,
       name: app.displayName,
       status: app.status,
