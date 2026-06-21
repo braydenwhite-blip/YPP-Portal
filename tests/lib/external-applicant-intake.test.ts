@@ -28,6 +28,12 @@ const {
   createInstructorApplication,
   findManualEmailTaskFirst,
   createManualEmailTask,
+  findFirstPosition,
+  findUniquePosition,
+  createPosition,
+  findFirstApplication,
+  createApplication,
+  createInterviewSlot,
 } = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
   findUniqueUser: vi.fn(),
@@ -37,6 +43,12 @@ const {
   createInstructorApplication: vi.fn(),
   findManualEmailTaskFirst: vi.fn(),
   createManualEmailTask: vi.fn(),
+  findFirstPosition: vi.fn(),
+  findUniquePosition: vi.fn(),
+  createPosition: vi.fn(),
+  findFirstApplication: vi.fn(),
+  createApplication: vi.fn(),
+  createInterviewSlot: vi.fn(),
 }));
 
 vi.mock("@/lib/auth-supabase", () => ({
@@ -53,6 +65,18 @@ vi.mock("@/lib/prisma", () => ({
     },
     instructorApplication: {
       create: createInstructorApplication,
+    },
+    position: {
+      findFirst: findFirstPosition,
+      findUnique: findUniquePosition,
+      create: createPosition,
+    },
+    application: {
+      findFirst: findFirstApplication,
+      create: createApplication,
+    },
+    interviewSlot: {
+      create: createInterviewSlot,
     },
     manualEmailTask: {
       findFirst: findManualEmailTaskFirst,
@@ -71,7 +95,10 @@ vi.mock("next/cache", () => ({
 
 // ─── Imports under test (after mocks) ────────────────────────────────────────
 
-import { createExternalInstructorApplicant } from "@/lib/external-applicant-intake";
+import {
+  createExternalInstructorApplicant,
+  createExternalStaffApplicant,
+} from "@/lib/external-applicant-intake";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -85,10 +112,21 @@ beforeEach(() => {
   createUser.mockImplementation(async ({ data }) => ({
     id: "user-1",
     chapterId: data.chapterId ?? null,
+    name: data.name,
     ...data,
   }));
   findManualEmailTaskFirst.mockResolvedValue(null);
   createManualEmailTask.mockResolvedValue({ id: "task-1" });
+  findFirstPosition.mockResolvedValue(null);
+  findUniquePosition.mockResolvedValue(null);
+  createPosition.mockResolvedValue({
+    id: "pos-1",
+    title: "Technology Manager",
+    chapterId: null,
+  });
+  findFirstApplication.mockResolvedValue(null);
+  createApplication.mockResolvedValue({ id: "staff-app-1" });
+  createInterviewSlot.mockResolvedValue({ id: "slot-1" });
 });
 
 describe("createExternalInstructorApplicant", () => {
@@ -247,5 +285,50 @@ describe("createExternalInstructorApplicant", () => {
       source: "GOOGLE_FORMS",
     });
     expect(createManualEmailTask).not.toHaveBeenCalled();
+  });
+});
+
+describe("createExternalStaffApplicant", () => {
+  it("creates a staff application with an interview slot when a time is supplied", async () => {
+    const interviewAt = new Date("2026-07-01T15:00:00.000Z");
+    const result = await createExternalStaffApplicant({
+      name: "Jordan Lee",
+      lastName: "Lee",
+      email: "jordan@example.com",
+      source: "MANUAL_ADMIN_ENTRY",
+      positionTitle: "Technology Manager",
+      interviewScheduledAt: interviewAt,
+      interviewMeetingUrl: "zoom.us/j/123",
+    });
+
+    expect(createPosition).toHaveBeenCalled();
+    expect(createApplication).toHaveBeenCalledTimes(1);
+    const appArgs = createApplication.mock.calls[0][0];
+    expect(appArgs.data.status).toBe("INTERVIEW_SCHEDULED");
+    expect(appArgs.data.source).toBe("MANUAL_ADMIN_ENTRY");
+
+    expect(createInterviewSlot).toHaveBeenCalledTimes(1);
+    const slotArgs = createInterviewSlot.mock.calls[0][0];
+    expect(slotArgs.data.status).toBe("CONFIRMED");
+    expect(slotArgs.data.meetingLink).toBe("https://zoom.us/j/123");
+
+    expect(createManualEmailTask).toHaveBeenCalled();
+    expect(createManualEmailTask.mock.calls[0][0].data.genericApplicationId).toBe("staff-app-1");
+
+    expect(result.applicationId).toBe("staff-app-1");
+    expect(result.positionId).toBe("pos-1");
+  });
+
+  it("rejects a meeting link without an interview time", async () => {
+    await expect(
+      createExternalStaffApplicant({
+        name: "Jordan Lee",
+        lastName: "Lee",
+        email: "jordan@example.com",
+        source: "MANUAL_ADMIN_ENTRY",
+        positionTitle: "Technology Manager",
+        interviewMeetingUrl: "zoom.us/j/123",
+      }),
+    ).rejects.toThrow(/interview time/);
   });
 });
