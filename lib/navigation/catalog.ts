@@ -1618,6 +1618,14 @@ export const NAV_CATALOG: NavLink[] = [
     },
     { href: "/admin/reminders", label: "Reminders", icon: "🔔", roles: ADMIN_ONLY },
     {
+      href: "/admin/email-templates",
+      label: "Email Templates",
+      icon: "✉️",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Customize the subject and body of automated portal emails.",
+      searchAliases: ["Email Templates", "Edit Emails", "Email Copy"],
+    },
+    {
       href: "/admin/emergency-broadcast",
       label: "Emergency Broadcast",
       icon: "🚨",

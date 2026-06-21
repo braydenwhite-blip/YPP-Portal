@@ -25,7 +25,10 @@ import {
   sendChairDecisionEmail,
   sendInterviewTimesDeclinedEmail,
   sendChairReviewQueuedEmail,
+  type EmailResult,
 } from "@/lib/email";
+import { sendTemplatedEmailWithOverride } from "@/lib/email-templates/render";
+import { sanitizeEmailHtml } from "@/lib/email-templates/sanitize";
 import {
   getLegacyApplicationTransitionError,
   type LegacyApplicationReviewAction,
@@ -2234,6 +2237,19 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
     const conditionsRaw = formData.get("conditions");
     const rationale = String(formData.get("rationale") ?? "").trim() || null;
     const comparisonNotes = String(formData.get("comparisonNotes") ?? "").trim() || null;
+    // Optional one-off inline edit of the decision email made by the chair in
+    // the confirm modal. When present it overrides the template for THIS send
+    // only (it is never persisted as the template default). Sanitized here
+    // because it originates from a human editing HTML in the UI.
+    const emailOverrideSubject = String(formData.get("emailOverrideSubject") ?? "").trim();
+    const emailOverrideBodyRaw = String(formData.get("emailOverrideBody") ?? "");
+    const oneOffEmail =
+      emailOverrideSubject && emailOverrideBodyRaw.trim()
+        ? {
+            subject: emailOverrideSubject,
+            bodyHtml: sanitizeEmailHtml(emailOverrideBodyRaw),
+          }
+        : null;
     if (!applicationId || !actionRaw) {
       return {
         success: false,
@@ -2619,6 +2635,13 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
     // instead so the chair still has a clear "send manually" surface.
     let emailKind: string = action;
     let emailError: Error | null = null;
+    // When the chair inline-edited the email, send their one-off version for
+    // this decision instead of the template default (still routed through the
+    // suppression gate below).
+    const sendDecisionEmail = (fallback: () => Promise<EmailResult>) =>
+      oneOffEmail
+        ? sendTemplatedEmailWithOverride(app.applicant.email, oneOffEmail)
+        : fallback();
     try {
       if (action === "APPROVE") {
         emailKind = "APPROVE";
@@ -2631,10 +2654,12 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
             applicationTrack: app.applicationTrack,
           },
           send: () =>
-            sendApplicationApprovedEmail({
-              to: app.applicant.email,
-              applicantName: app.applicant.name,
-            }),
+            sendDecisionEmail(() =>
+              sendApplicationApprovedEmail({
+                to: app.applicant.email,
+                applicantName: app.applicant.name,
+              })
+            ),
         });
       } else if (action === "REJECT") {
         emailKind = "REJECT";
@@ -2648,11 +2673,13 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
             contextNote: rationale ?? null,
           },
           send: () =>
-            sendApplicationRejectedEmail({
-              to: app.applicant.email,
-              applicantName: app.applicant.name,
-              reason: rationale ?? "The chair review did not result in approval.",
-            }),
+            sendDecisionEmail(() =>
+              sendApplicationRejectedEmail({
+                to: app.applicant.email,
+                applicantName: app.applicant.name,
+                reason: rationale ?? "The chair review did not result in approval.",
+              })
+            ),
         });
       } else if (action === "REQUEST_INFO") {
         emailKind = "REQUEST_INFO";
@@ -2668,12 +2695,14 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
             contextNote: rationale ?? null,
           },
           send: () =>
-            sendInfoRequestEmail({
-              to: app.applicant.email,
-              applicantName: app.applicant.name,
-              message: rationale ?? "Please provide the requested follow-up information.",
-              statusUrl: `${baseUrl}/application-status`,
-            }),
+            sendDecisionEmail(() =>
+              sendInfoRequestEmail({
+                to: app.applicant.email,
+                applicantName: app.applicant.name,
+                message: rationale ?? "Please provide the requested follow-up information.",
+                statusUrl: `${baseUrl}/application-status`,
+              })
+            ),
         });
       } else {
         emailKind = action;
@@ -2696,7 +2725,10 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
             applicationTrack: app.applicationTrack,
             contextNote: rationale ?? null,
           },
-          send: () => sendChairDecisionEmail(app.applicant.email, applicationId, action),
+          send: () =>
+            sendDecisionEmail(() =>
+              sendChairDecisionEmail(app.applicant.email, applicationId, action)
+            ),
         });
       }
       // Email succeeded — clear any prior failure flags.

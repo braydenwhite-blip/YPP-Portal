@@ -15,7 +15,6 @@ import {
   readinessPercentage,
 } from "@/lib/readiness-signals";
 import RecommendationBadge from "@/components/instructor-applicants/shared/RecommendationBadge";
-import EmailPreviewSnippet from "./EmailPreviewSnippet";
 import { AlertTriangleIcon } from "./cockpit-icons";
 
 const HEADLINE: Record<ChairDecisionAction, (n: string, c: string | null) => string> = {
@@ -156,13 +155,6 @@ export default function DecisionSummaryCard(props: DecisionSummaryCardProps) {
           ) : null}
         </div>
       ) : null}
-      <EmailPreviewSnippet
-        action={props.action}
-        applicantDisplayName={props.applicantDisplayName}
-        rationale={props.rationale}
-        rejectReasonCode={props.rejectReasonCode ?? null}
-        rejectFreeText={props.rejectFreeText ?? null}
-      />
     </div>
   );
 }

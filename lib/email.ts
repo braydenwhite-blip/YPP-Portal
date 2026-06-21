@@ -1,6 +1,10 @@
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
 import { isHttpUrl } from "@/lib/meeting-details";
+import { escapeHtml } from "@/lib/email-templates/interpolate";
+import { emailShell } from "@/lib/email-templates/shell";
+import { sendTemplatedEmail } from "@/lib/email-templates/render";
+import { chairDecisionTemplateKey } from "@/lib/email-templates/registry";
 
 // Initialize Resend client (lazy - only when API key is set)
 let resendClient: Resend | null = null;
@@ -609,14 +613,8 @@ export async function sendAnnouncementEmail({
 }
 
 // Utility functions
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+// `escapeHtml` is imported from `@/lib/email-templates/interpolate` (single
+// shared definition used by the template render layer as well).
 
 function renderMeetingDetailsBlock(meetingDetails: string | null | undefined): string {
   const details = meetingDetails?.trim();
@@ -644,23 +642,8 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-const emailShell = (body: string) => `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
-  </div>
-  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
-    ${body}
-  </div>
-  <p style="text-align: center; color: #78716c; font-size: 12px; margin-top: 24px;">Youth Passion Project · This is an automated notification.</p>
-</body>
-</html>`;
+// `emailShell` is imported from `@/lib/email-templates/shell` (single shared
+// definition used by the template render layer as well).
 
 /**
  * People Strategy — "New Assignment" notification.
@@ -1351,19 +1334,12 @@ export async function sendApplicationApprovedEmail({
   to: string;
   applicantName: string;
 }): Promise<EmailResult> {
-  const subject = "Your YPP Instructor Application Has Been Approved!";
   const { getPublicAppUrl } = await import("@/lib/public-app-url");
   const baseUrl = getPublicAppUrl();
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Congratulations, ${applicantName}!</h2>
-    <p>We are thrilled to let you know that your application to become an instructor at Youth Passion Project has been <strong>approved</strong>.</p>
-    <p>You can now log in to the portal and begin your instructor training. Once you complete training and your interview, you will be fully certified to teach.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${baseUrl}/instructor-training" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Start Instructor Training</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">Welcome to the team! We look forward to working with you.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("application.approved", to, {
+    applicantName,
+    trainingUrl: `${baseUrl}/instructor-training`,
+  });
 }
 
 /**
@@ -1378,16 +1354,7 @@ export async function sendApplicationRejectedEmail({
   applicantName: string;
   reason: string;
 }): Promise<EmailResult> {
-  const subject = "Update on Your YPP Instructor Application";
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Thank You for Applying, ${applicantName}</h2>
-    <p>Thank you for your interest in becoming an instructor at Youth Passion Project. After careful consideration, we are unfortunately not moving forward with your application at this time.</p>
-    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px; margin: 20px 0;">
-      <p style="margin: 0; font-size: 14px; color: #44403c;"><strong>Reviewer notes:</strong> ${reason}</p>
-    </div>
-    <p>We encourage you to reapply in the future as your situation or our needs change. Thank you again for your interest in our mission.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("application.rejected", to, { applicantName, reason });
 }
 
 /**
@@ -1404,20 +1371,11 @@ export async function sendInfoRequestEmail({
   message: string;
   statusUrl: string;
 }): Promise<EmailResult> {
-  const subject = "YPP Needs More Information About Your Application";
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Additional Information Needed</h2>
-    <p>Hi ${applicantName}, a reviewer has reviewed your instructor application and has a follow-up question or request before proceeding.</p>
-    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px; margin: 20px 0;">
-      <p style="margin: 0; font-size: 14px; color: #44403c;"><strong>Message from reviewer:</strong></p>
-      <p style="margin: 8px 0 0; font-size: 14px; color: #1c1917;">${message}</p>
-    </div>
-    <p>Please log in to your application status page to submit your response.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Respond to Request</a>
-    </div>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("application.info_request", to, {
+    applicantName,
+    message,
+    statusUrl,
+  });
 }
 
 /**
@@ -2194,42 +2152,8 @@ export async function sendChairDecisionEmail(
   const baseUrl = await getBaseUrl();
   const statusUrl = `${baseUrl}/application-status`;
 
-  type ActionContent = { subject: string; body: string };
-  const contentByAction: Record<string, ActionContent> = {
-    APPROVE: {
-      subject: "Congratulations — Your YPP Instructor Application is Approved!",
-      body: `<p>We are delighted to let you know that your instructor application has been <strong>approved</strong> by our review committee. Welcome to the YPP instructor team!</p><p>Check your training academy for next steps.</p>`,
-    },
-    REJECT: {
-      subject: "Update on Your YPP Instructor Application",
-      body: `<p>Thank you for your interest in teaching at Youth Passion Project. After careful review, we are not moving forward with your application at this time.</p><p>We encourage you to reapply in the future as our needs evolve.</p>`,
-    },
-    HOLD: {
-      subject: "Your YPP Instructor Application is on Hold",
-      body: `<p>Your application has been placed on hold while the committee gathers additional information. We will follow up when a decision is ready.</p>`,
-    },
-    REQUEST_INFO: {
-      subject: "YPP Needs More Information About Your Application",
-      body: `<p>The review committee has requested additional information before making a final decision. Please log in to your application page to respond.</p>`,
-    },
-    REQUEST_SECOND_INTERVIEW: {
-      subject: "Your YPP Application — Second Interview Requested",
-      body: `<p>The committee would like to schedule a second interview before making a final decision. Your reviewer will be in touch with available times shortly.</p>`,
-    },
-  };
-
-  const content = contentByAction[action] ?? {
-    subject: "Update on Your YPP Instructor Application",
-    body: `<p>There has been an update to your instructor application. Please log in to view the latest status.</p>`,
-  };
-
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">${content.subject}</h2>
-    <p>Hi ${escapeHtml(applicantName)},</p>
-    ${content.body}
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(statusUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
-    </div>
-  `);
-  return sendEmail({ to, subject: content.subject, html });
+  return sendTemplatedEmail(chairDecisionTemplateKey(action), to, {
+    applicantName,
+    statusUrl,
+  });
 }

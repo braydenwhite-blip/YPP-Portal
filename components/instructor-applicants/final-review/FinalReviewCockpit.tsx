@@ -263,6 +263,7 @@ function CockpitInner({
         rejectReasonCode: payload.rejectReasonCode,
         rejectFreeText: payload.rejectFreeText,
         conditions: payload.conditions,
+        emailOverride: payload.emailOverride,
         // Any HIGH_RISK warning that's been ack'd is implicitly an override.
         overrideWarnings: warnings
           .filter((w) => w.severity === "HIGH_RISK")

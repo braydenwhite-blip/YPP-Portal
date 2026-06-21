@@ -98,6 +98,7 @@ const ADMIN_SEGMENT_DOMAIN: Record<string, AdminRouteDomain> = {
 
   // Communications domain.
   announcements: "COMMUNICATIONS_ADMIN",
+  "email-templates": "COMMUNICATIONS_ADMIN",
   "emergency-broadcast": "COMMUNICATIONS_ADMIN",
   feedback: "COMMUNICATIONS_ADMIN",
   "parent-feedback": "COMMUNICATIONS_ADMIN",
