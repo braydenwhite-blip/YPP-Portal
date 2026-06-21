@@ -165,20 +165,21 @@ function TeamCard({ team }: { team: ImpactTeamCardData }) {
         <div className="flex flex-col gap-3 px-4 py-3.5">
           <div className="flex items-center gap-2 text-[12.5px] text-progress-700">
             <span aria-hidden>⚠</span>
-            <span>Nothing added to this presentation yet</span>
+            <span>Missing update</span>
           </div>
           <div className="flex flex-wrap gap-2">
             <ButtonLink href={team.briefHref} variant="primary" size="sm">
-              Open team presentation
+              Open team update
             </ButtonLink>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3 px-4 py-3.5">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <TeamStat value={team.completedCount} label="completed" />
             <TeamStat value={team.deliverableCount} label="deliverables" />
             <TeamStat value={team.decisionCount} label="decisions" />
+            <TeamStat value={team.blockerCount} label="blockers" />
           </div>
           {team.warnText ? (
             <div className="flex items-start gap-1.5 rounded-[8px] bg-progress-50 px-2.5 py-1.5 text-[12px] text-progress-700">
@@ -188,7 +189,7 @@ function TeamCard({ team }: { team: ImpactTeamCardData }) {
           ) : null}
           <div className="flex flex-wrap gap-2">
             <ButtonLink href={team.briefHref} variant="secondary" size="sm">
-              Open team presentation
+              Open team update
             </ButtonLink>
           </div>
         </div>
@@ -226,13 +227,23 @@ export function ImpactMeetingsHub({
         subtitle={`One combined presentation per team — each person adds their part, it merges into the team's presentation, then leadership runs the meeting and a summary goes out. ${data.weekLabel}.`}
         actions={
           data.meetingHref ? (
-            <ButtonLink href="/impact-meetings/current" variant="primary" size="sm">
-              Open current meeting
-            </ButtonLink>
+            <>
+              <ButtonLink href="/my-weekly-impact" variant="secondary" size="sm">
+                Submit weekly update
+              </ButtonLink>
+              <ButtonLink href="/impact-meetings/current" variant="primary" size="sm">
+                Open current meeting
+              </ButtonLink>
+            </>
           ) : (
-            <ButtonLink href="/actions/meetings" variant="secondary" size="sm">
-              Open meetings
-            </ButtonLink>
+            <>
+              <ButtonLink href="/my-weekly-impact" variant="secondary" size="sm">
+                Submit weekly update
+              </ButtonLink>
+              <ButtonLink href="/actions/meetings" variant="secondary" size="sm">
+                Open meetings
+              </ButtonLink>
+            </>
           )
         }
       />
@@ -251,17 +262,27 @@ export function ImpactMeetingsHub({
 
         {data.meetingHref ? (
           <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/my-weekly-impact" variant="secondary" size="sm">
+              Submit weekly update
+            </ButtonLink>
             <ButtonLink href={`${meetingBaseHref}/agenda`} variant="secondary" size="sm">
-              Prepared agenda
+              Generate/open agenda
             </ButtonLink>
             <ButtonLink href={`${meetingBaseHref}/presentation`} variant="secondary" size="sm">
-              Presentation board
+              Team update detail
             </ButtonLink>
             <ButtonLink href={`${meetingBaseHref}/live`} variant="secondary" size="sm">
-              Live room
+              Start/open live meeting
             </ButtonLink>
             <ButtonLink href={`${meetingBaseHref}/summary`} variant="secondary" size="sm">
-              Summary draft
+              View summary
+            </ButtonLink>
+            <ButtonLink
+              href={`${meetingBaseHref}/live#impact-follow-up-${data.teams[0]?.teamId ?? "tech"}`}
+              variant="secondary"
+              size="sm"
+            >
+              Create follow-up action
             </ButtonLink>
             {summaryAction}
           </div>

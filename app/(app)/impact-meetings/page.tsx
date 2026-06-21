@@ -177,7 +177,7 @@ export default async function ImpactMeetingsPage() {
       month: "short",
       day: "numeric",
     }).format(meeting.date),
-    meetingHref: `/actions/meetings/${meeting.id}`,
+    meetingHref: `/impact-meetings/${meeting.id}`,
     leadLabel,
     stats: { submitted, total, missing, decisions, blockers },
     stageSteps,
