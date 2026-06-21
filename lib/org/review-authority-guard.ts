@@ -6,7 +6,7 @@
  * OFF BY DEFAULT: unless `ORG_REVIEW_AUTHORITY_ENFORCED=true`, the guard is a
  * no-op so existing approval flows are completely unchanged. When enabled it
  * layers the "approver outranks author (or has a configured exception)" rule on
- * top of the existing chair/admin checks — it can only ever *restrict*, never
+ * top of the existing chair/admin checks - it can only ever *restrict*, never
  * widen, who may finalize a review.
  */
 
@@ -69,19 +69,20 @@ export async function assertReviewApprovalAuthority(args: {
 }): Promise<ApprovalDecision | null> {
   if (!isReviewAuthorityEnforced()) return null;
 
-  const [approver, author] = await Promise.all([
+  const [approver, author, subject] = await Promise.all([
     loadParticipant(args.approverId),
     loadParticipant(args.authorId),
+    loadParticipant(args.subject.id),
   ]);
 
-  // If we cannot resolve both participants, fail open (do not block existing
+  // If we cannot resolve participants, fail open (do not block existing
   // flows on incomplete data while the spine is still being populated).
-  if (!approver || !author) return null;
+  if (!approver || !author || !subject) return null;
 
   const decision = evaluateReviewApproval({
     approver,
     author,
-    subject: { id: args.subject.id, name: args.subject.name ?? null },
+    subject,
   });
 
   if (!decision.allowed) {

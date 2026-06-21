@@ -10,12 +10,19 @@ import {
 } from "@/lib/org/review-routing";
 import { findSelfFinalizeException } from "@/lib/org/review-exceptions";
 
-function authority(internalLevel: number | null): PersonAuthority {
-  return { title: null, ladder: null, ladderLevel: null, internalLevel, source: "TITLE" };
+function authority(
+  internalLevel: number | null,
+  ladder: PersonAuthority["ladder"] = null
+): PersonAuthority {
+  return { title: null, ladder, ladderLevel: null, internalLevel, source: "TITLE" };
 }
 
-function participant(name: string, internalLevel: number | null): ReviewParticipant {
-  return { ref: { name }, authority: authority(internalLevel) };
+function participant(
+  name: string,
+  internalLevel: number | null,
+  ladder: PersonAuthority["ladder"] = null
+): ReviewParticipant {
+  return { ref: { name }, authority: authority(internalLevel, ladder) };
 }
 
 describe("hasApprovalLevelAuthority", () => {
@@ -36,13 +43,13 @@ describe("hasApprovalLevelAuthority", () => {
 });
 
 describe("requiredApproverLevel / requiresBoardApproval", () => {
-  it("needs author level + 1, capped at the top", () => {
+  it("needs subject role + 1, capped at the top", () => {
     expect(requiredApproverLevel(authority(2))).toBe(3);
     expect(requiredApproverLevel(authority(7))).toBe(7);
     expect(requiredApproverLevel(authority(null))).toBeNull();
   });
 
-  it("flags Board approval for Officer-and-above authors", () => {
+  it("flags Board approval for Officer-and-above subjects", () => {
     expect(requiresBoardApproval(authority(5))).toBe(true);
     expect(requiresBoardApproval(authority(6))).toBe(true);
     expect(requiresBoardApproval(authority(4))).toBe(false);
@@ -50,48 +57,48 @@ describe("requiredApproverLevel / requiresBoardApproval", () => {
 });
 
 describe("evaluateReviewApproval — proposal examples", () => {
-  it("Senior Instructor draft → Lead Instructor approves", () => {
+  it("approves when the approver is above the person being reviewed", () => {
     const decision = evaluateReviewApproval({
       author: participant("Sahil", 2),
-      approver: participant("Lina", 3),
-      subject: { name: "Trainee" },
+      approver: participant("Lina", 2),
+      subject: participant("Trainee", 1),
     });
     expect(decision.allowed).toBe(true);
     expect(decision.viaException).toBe(false);
   });
 
-  it("Officer draft → Senior Officer approves; Senior Officer draft → Board approves", () => {
+  it("routes Officer and Senior Officer subjects to Board approval", () => {
     expect(
       evaluateReviewApproval({
-        author: participant("Officer A", 5),
+        author: participant("Mentor A", 4),
         approver: participant("Senior Officer B", 6),
-        subject: { name: "X" },
+        subject: participant("Officer Subject", 5),
       }).allowed
-    ).toBe(true);
+    ).toBe(false);
     expect(
       evaluateReviewApproval({
-        author: participant("Senior Officer B", 6),
+        author: participant("Mentor A", 4),
         approver: participant("Board C", 7),
-        subject: { name: "X" },
+        subject: participant("Senior Officer Subject", 6),
       }).allowed
     ).toBe(true);
   });
 
-  it("Board draft → another (different) Board approves", () => {
+  it("Board subject → another Board approves", () => {
     expect(
       evaluateReviewApproval({
-        author: participant("Board One", 7),
+        author: participant("Mentor", 7),
         approver: participant("Board Two", 7),
-        subject: { name: "X" },
+        subject: participant("Board Subject", 7),
       }).allowed
     ).toBe(true);
   });
 
-  it("denies an equal-level approver below the top", () => {
+  it("denies an equal-role approver below Board", () => {
     const decision = evaluateReviewApproval({
-      author: participant("Peer A", 4),
+      author: participant("Mentor A", 2),
       approver: participant("Peer B", 4),
-      subject: { name: "X" },
+      subject: participant("Subject", 4),
     });
     expect(decision.allowed).toBe(false);
   });
@@ -100,10 +107,63 @@ describe("evaluateReviewApproval — proposal examples", () => {
     const decision = evaluateReviewApproval({
       author: participant("Dana", 6),
       approver: participant("Dana", 6),
-      subject: { name: "Some Mentee" },
+      subject: participant("Some Mentee", 1),
     });
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toMatch(/cannot give final approval/i);
+  });
+});
+
+describe("Board approval review routes", () => {
+  it("routes Aveena's listed mentees to Board approval", () => {
+    const seniorOfficer = evaluateReviewApproval({
+      author: participant("Aveena", 6),
+      approver: participant("Senior Officer", 6),
+      subject: participant("Jackson", 2),
+    });
+    expect(seniorOfficer.allowed).toBe(false);
+    expect(seniorOfficer.reason).toMatch(/Board approval/i);
+
+    const board = evaluateReviewApproval({
+      author: participant("Aveena", 6),
+      approver: participant("Board", 7),
+      subject: participant("Jackson", 2),
+    });
+    expect(board.allowed).toBe(true);
+  });
+
+  it("routes Ian's review for Milo to Board approval", () => {
+    expect(
+      evaluateReviewApproval({
+        author: participant("Ian", 4),
+        approver: participant("Director", 4),
+        subject: participant("Milo", 1),
+      }).allowed
+    ).toBe(false);
+    expect(
+      evaluateReviewApproval({
+        author: participant("Ian", 4),
+        approver: participant("Board", 7),
+        subject: participant("Milo", 1),
+      }).allowed
+    ).toBe(true);
+  });
+
+  it("routes Brayden's top-instructor reviews to Board approval", () => {
+    expect(
+      evaluateReviewApproval({
+        author: participant("Brayden", 6),
+        approver: participant("Chapter President", 4),
+        subject: participant("Lead Instructor", 3, "INSTRUCTION"),
+      }).allowed
+    ).toBe(false);
+    expect(
+      evaluateReviewApproval({
+        author: participant("Brayden", 6),
+        approver: participant("Board", 7),
+        subject: participant("Lead Instructor", 3, "INSTRUCTION"),
+      }).allowed
+    ).toBe(true);
   });
 });
 
@@ -113,7 +173,7 @@ describe("self-finalize exceptions (Sam / Zach)", () => {
       const decision = evaluateReviewApproval({
         author: participant("Sam", 6),
         approver: participant("Sam", 6),
-        subject: { name: mentee },
+        subject: participant(mentee, 5),
       });
       expect(decision.allowed).toBe(true);
       expect(decision.viaException).toBe(true);
@@ -125,7 +185,7 @@ describe("self-finalize exceptions (Sam / Zach)", () => {
       const decision = evaluateReviewApproval({
         author: participant("Zach", 6),
         approver: participant("Zach", 6),
-        subject: { name: mentee },
+        subject: participant(mentee, 5),
       });
       expect(decision.allowed).toBe(true);
     }
@@ -135,7 +195,7 @@ describe("self-finalize exceptions (Sam / Zach)", () => {
     const decision = evaluateReviewApproval({
       author: participant("Sam", 6),
       approver: participant("Sam", 6),
-      subject: { name: "Milo" },
+      subject: participant("Milo", 1),
     });
     expect(decision.allowed).toBe(false);
   });
@@ -156,8 +216,12 @@ describe("resolvePersonAuthority integrates with routing", () => {
       ref: { id: "cp1", name: "Prez" },
       authority: resolvePersonAuthority({ primaryRole: "CHAPTER_PRESIDENT" }),
     };
+    const subject: ReviewParticipant = {
+      ref: { id: "i1", name: "Instructor" },
+      authority: resolvePersonAuthority({ primaryRole: "INSTRUCTOR" }),
+    };
     expect(
-      evaluateReviewApproval({ author, approver, subject: author.ref }).allowed
+      evaluateReviewApproval({ author, approver, subject }).allowed
     ).toBe(true);
   });
 });
@@ -167,26 +231,26 @@ describe("evaluateReviewApproval — fail open while the spine is unpopulated", 
     const decision = evaluateReviewApproval({
       approver: participant("Approver", null),
       author: participant("Author", 2),
-      subject: { name: "Mentee" },
+      subject: participant("Mentee", 1),
     });
     expect(decision.allowed).toBe(true);
-    expect(decision.reason).toMatch(/not yet populated/i);
+    expect(decision.reason).toMatch(/not complete/i);
   });
 
-  it("allows when the author's level is unknown", () => {
+  it("allows when the subject's role is unknown", () => {
     const decision = evaluateReviewApproval({
       approver: participant("Approver", 6),
-      author: participant("Author", null),
-      subject: { name: "Mentee" },
+      author: participant("Author", 2),
+      subject: participant("Mentee", null),
     });
     expect(decision.allowed).toBe(true);
   });
 
-  it("still enforces the level rule once both levels are known", () => {
+  it("still enforces the role rule once the approver and subject are known", () => {
     const denied = evaluateReviewApproval({
       approver: participant("Approver", 2),
-      author: participant("Author", 3),
-      subject: { name: "Mentee" },
+      author: participant("Author", null),
+      subject: participant("Mentee", 3),
     });
     expect(denied.allowed).toBe(false);
   });

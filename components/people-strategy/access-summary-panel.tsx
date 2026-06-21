@@ -24,7 +24,7 @@ export function AccessSummaryPanel({
       </h2>
       <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 13 }}>
         Access for {personName} explained in plain language — calculated from their
-        title, internal level, relationships, and assignments.
+        role setup, relationships, and assignments.
       </p>
 
       {grants.length > 0 ? (

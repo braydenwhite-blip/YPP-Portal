@@ -317,16 +317,46 @@ export default async function MeetingDetailPage({
         </div>
       </CalmOnly>
 
+      {impactAgenda ? (
+        <nav
+          aria-label="Impact meeting sections"
+          className="mx-auto mb-3 flex w-full max-w-[1180px] flex-wrap gap-2"
+        >
+          {[
+            ["Agenda", "#agenda"],
+            ["Presentation", "#presentation"],
+            ["Live room", "#live"],
+            ["Summary", "#summary"],
+          ].map(([label, href]) => (
+            <a
+              key={href}
+              href={href}
+              className="rounded-md border border-line-card bg-surface px-3 py-2 text-[13px] font-semibold text-ink no-underline"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+      ) : null}
+
       {/* The room — notes, agenda, decisions, follow-ups, linked actions. */}
-      <OfficerPreparedPresentationsPanel
-        officerMeetingId={id}
-        items={preparedPresentations}
-        targetMeetings={targetMeetingOptions}
-      />
+      <section id="presentation" className="scroll-mt-24">
+        <OfficerPreparedPresentationsPanel
+          officerMeetingId={id}
+          items={preparedPresentations}
+          targetMeetings={targetMeetingOptions}
+        />
+      </section>
 
-      {impactAgenda ? <ImpactMeetingAgendaPanel agenda={impactAgenda} people={people} /> : null}
+      {impactAgenda ? (
+        <section id="agenda" className="scroll-mt-24">
+          <ImpactMeetingAgendaPanel agenda={impactAgenda} people={people} />
+        </section>
+      ) : null}
 
-      <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
+      <section id="live" className="scroll-mt-24">
+        <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
+      </section>
 
       {/* Secondary tools & context — demoted out of the calm default, one click
           away, and always inline in Executive mode. Nothing is removed. */}
@@ -335,14 +365,16 @@ export default async function MeetingDetailPage({
         hint="Agenda & summary drafts, suggested actions, the follow-up pack, and strategy links."
       >
         <div className="flex flex-col gap-4 pt-2">
-          <MeetingAgendaSummaryPanel
-            meetingId={id}
-            agendaText={agendaText}
-            summaryText={summary.text}
-            summaryWarnings={summary.warnings}
-            summaryMissingNotes={summary.missingNotes}
-            summaryStatus={detail.summaryStatus}
-          />
+          <section id="summary" className="scroll-mt-24">
+            <MeetingAgendaSummaryPanel
+              meetingId={id}
+              agendaText={agendaText}
+              summaryText={summary.text}
+              summaryWarnings={summary.warnings}
+              summaryMissingNotes={summary.missingNotes}
+              summaryStatus={detail.summaryStatus}
+            />
+          </section>
           <SuggestedActionsPanel
             meetingId={id}
             people={people}

@@ -135,12 +135,14 @@ export function summarizePersonAccess(input: PersonAccessInput): AccessFact[] {
       ? {
           kind: "grant",
           code: "action_lead",
-          statement: "Can be the accountable Lead on actions because their internal level is 3 or higher.",
+          statement:
+            "Can be the accountable Lead on actions because this role is lead-eligible.",
         }
       : {
           kind: "limit",
           code: "action_lead",
-          statement: "Cannot be the accountable Lead on actions because their internal level is below 3.",
+          statement:
+            "Can help execute actions or give input, but should not be the accountable Lead until promoted to a lead-eligible role.",
         }
   );
 
@@ -183,19 +185,25 @@ export function summarizePersonAccess(input: PersonAccessInput): AccessFact[] {
     facts.push({
       kind: "limit",
       code: "review_approval",
-      statement: "Cannot approve reviews because no internal level could be determined.",
+      statement: "Review approval path still needs role setup before this person can give final approval.",
     });
   } else if (level <= 1) {
     facts.push({
       kind: "limit",
       code: "review_approval",
-      statement: "Cannot give final approval to reviews because no one drafts below their internal level.",
+      statement: "Can draft or receive reviews, but cannot give final approval yet.",
+    });
+  } else if (level >= TOP_INTERNAL_LEVEL) {
+    facts.push({
+      kind: "grant",
+      code: "review_approval",
+      statement: "Can approve any review, including officer review routes that require Board approval.",
     });
   } else {
     facts.push({
       kind: "grant",
       code: "review_approval",
-      statement: `Can give final approval to reviews authored below internal level ${level}.`,
+      statement: "Can give final approval to reviews for people in roles below theirs.",
     });
   }
 

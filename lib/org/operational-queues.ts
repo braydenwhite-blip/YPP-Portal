@@ -149,7 +149,7 @@ export async function getMissingChapterRows(): Promise<OperationalQueueRow[]> {
     id: r.id,
     title: r.label,
     subtitle: `${r.recordType} · needs a chapter assignment`,
-    href: r.actionItemId ? `/actions/${r.actionItemId}` : null,
+    href: `/admin/missing-chapter#${r.id}`,
     ageLabel: r.ageLabel,
   }));
 }

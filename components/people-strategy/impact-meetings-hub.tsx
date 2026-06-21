@@ -171,9 +171,6 @@ function TeamCard({ team }: { team: ImpactTeamCardData }) {
             <ButtonLink href={team.briefHref} variant="primary" size="sm">
               Start update
             </ButtonLink>
-            <ButtonLink href={team.briefHref} variant="secondary" size="sm">
-              Open form
-            </ButtonLink>
           </div>
         </div>
       ) : (
@@ -218,6 +215,9 @@ export function ImpactMeetingsHub({
   summaryAction?: ReactNode;
 }) {
   const { stats } = data;
+  const meetingBaseHref = data.meetingId
+    ? `/impact-meetings/${data.meetingId}`
+    : data.meetingHref ?? "/impact-meetings/current";
   return (
     <div className="mx-auto flex w-full max-w-[920px] flex-col gap-6 pb-10">
       <PageHeaderV2
@@ -226,8 +226,8 @@ export function ImpactMeetingsHub({
         subtitle={`Teams submit a quick weekly update, the agenda pulls them in, leadership runs the meeting, and a summary goes out. ${data.weekLabel}.`}
         actions={
           data.meetingHref ? (
-            <ButtonLink href={data.meetingHref} variant="primary" size="sm">
-              ▶ Run live meeting
+            <ButtonLink href="/impact-meetings/current" variant="primary" size="sm">
+              Open current meeting
             </ButtonLink>
           ) : (
             <ButtonLink href="/actions/meetings" variant="secondary" size="sm">
@@ -251,17 +251,19 @@ export function ImpactMeetingsHub({
 
         {data.meetingHref ? (
           <div className="flex flex-wrap gap-2">
-            <ButtonLink href={data.meetingHref} variant="secondary" size="sm">
-              Generate / view agenda
+            <ButtonLink href={`${meetingBaseHref}/agenda`} variant="secondary" size="sm">
+              Prepared agenda
             </ButtonLink>
-            <ButtonLink href={data.meetingHref} variant="secondary" size="sm">
-              Live meeting mode
+            <ButtonLink href={`${meetingBaseHref}/presentation`} variant="secondary" size="sm">
+              Presentation board
             </ButtonLink>
-            {summaryAction ?? (
-              <ButtonLink href={data.meetingHref} variant="secondary" size="sm">
-                Post-meeting summary
-              </ButtonLink>
-            )}
+            <ButtonLink href={`${meetingBaseHref}/live`} variant="secondary" size="sm">
+              Live room
+            </ButtonLink>
+            <ButtonLink href={`${meetingBaseHref}/summary`} variant="secondary" size="sm">
+              Summary draft
+            </ButtonLink>
+            {summaryAction}
           </div>
         ) : null}
       </CardV2>

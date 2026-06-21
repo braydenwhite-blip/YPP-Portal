@@ -758,6 +758,7 @@ model Chapter {
   invites                        ChapterInvite[]
   achievementMilestones          ChapterAchievementMilestone[]
   courses                        Course[]
+  partners                       Partner[]
   events                         Event[]
   eventSeries                    EventSeries[]
   feedbacks                      Feedback[]
@@ -7410,6 +7411,9 @@ model Partner {
   /// The YPP person who owns this partner relationship.
   relationshipLeadId      String?
   relationshipLead        User?                    @relation("PartnerRelationshipLead", fields: [relationshipLeadId], references: [id])
+  /// The chapter this partner belongs to. Null means it is still in Missing Chapter setup or global work.
+  chapterId               String?
+  chapter                 Chapter?                 @relation(fields: [chapterId], references: [id], onDelete: SetNull)
   classOfferings          ClassOffering[]          @relation("PartnerClassOfferings")
   /// Leadership Roles & Contributions — partner-relationship-lead contributions
   /// pointing at this partner (ENABLE_LEADERSHIP_ROLES).
@@ -7461,6 +7465,7 @@ model Partner {
   agreements PartnerAgreement[]
 
   @@index([relationshipLeadId])
+  @@index([chapterId])
   @@index([archivedAt])
   @@index([stage])
   @@index([nextFollowUpAt])

@@ -6,10 +6,11 @@
  * configurable carve-outs (`lib/org/review-exceptions.ts`).
  *
  * Proposal rules encoded here:
- *   - The approver must have a HIGHER internal level than the review author.
+ *   - The approver must be in a HIGHER role than the person being reviewed.
  *   - A mentor should not normally finalize a review they drafted
  *     (conflict of interest), UNLESS a self-finalize exception applies.
- *   - Board-on-Board: when the author is a Board Member (top level), another
+ *   - Officer and Senior Officer reviews require Board approval.
+ *   - Board-on-Board: when the subject is a Board Member (top level), another
  *     (different) Board Member may approve at the same level.
  */
 
@@ -18,41 +19,41 @@ import {
   type PersonAuthority,
 } from "@/lib/org/levels";
 import {
+  findBoardApprovalReviewRoute,
   findSelfFinalizeException,
   refsMatch,
   type PersonRef,
 } from "@/lib/org/review-exceptions";
 
 /**
- * Does `approverLevel` clear the level bar to approve a review authored at
- * `authorLevel`? Strictly higher, except Board-on-Board where equal (top) passes.
+ * Does `approverLevel` clear the role bar to approve a review for someone at
+ * `subjectLevel`? Strictly higher, except Board-on-Board where equal (top) passes.
  * Returns false when either level is unknown.
  */
 export function hasApprovalLevelAuthority(
   approverLevel: number | null,
-  authorLevel: number | null
+  subjectLevel: number | null
 ): boolean {
-  if (approverLevel == null || authorLevel == null) return false;
-  if (authorLevel >= TOP_INTERNAL_LEVEL) {
+  if (approverLevel == null || subjectLevel == null) return false;
+  if (subjectLevel >= TOP_INTERNAL_LEVEL) {
     return approverLevel >= TOP_INTERNAL_LEVEL;
   }
-  return approverLevel > authorLevel;
+  return approverLevel > subjectLevel;
 }
 
-/** The minimum internal level required to approve a review by `author`. */
-export function requiredApproverLevel(author: PersonAuthority): number | null {
-  if (author.internalLevel == null) return null;
-  if (author.internalLevel >= TOP_INTERNAL_LEVEL) return TOP_INTERNAL_LEVEL;
-  return author.internalLevel + 1;
+/** The minimum role bar required to approve a review about `subject`. */
+export function requiredApproverLevel(subject: PersonAuthority): number | null {
+  if (subject.internalLevel == null) return null;
+  if (subject.internalLevel >= TOP_INTERNAL_LEVEL) return TOP_INTERNAL_LEVEL;
+  return subject.internalLevel + 1;
 }
 
 /**
- * True when finalizing this author's review requires Board-Member approval —
- * i.e. the author is an Officer (5) or above. Surfaces the proposal's rule that
- * Senior Officers cannot self-finalize when Board approval is required.
+ * True when finalizing this subject's review requires Board-Member approval.
+ * Officer, Senior Officer, and Board reviews go to Board approval.
  */
-export function requiresBoardApproval(author: PersonAuthority): boolean {
-  return author.internalLevel != null && author.internalLevel >= 5;
+export function requiresBoardApproval(subject: PersonAuthority): boolean {
+  return subject.internalLevel != null && subject.internalLevel >= 5;
 }
 
 export interface ReviewParticipant {
@@ -76,31 +77,31 @@ export interface ApprovalDecision {
 export function evaluateReviewApproval(args: {
   approver: ReviewParticipant;
   author: ReviewParticipant;
-  subject: PersonRef;
+  subject: ReviewParticipant;
   now?: Date;
 }): ApprovalDecision {
   const { approver, author, subject, now } = args;
 
-  // Fail open while the org-authority spine is being populated: if either
-  // party's internal level is unknown we cannot evaluate the level comparison,
+  // Fail open while the org-authority spine is being populated: if either the
+  // approver or subject role is unknown we cannot evaluate the comparison,
   // so this additive guard defers to the existing chair/admin approval checks
   // rather than blocking. Once levels are backfilled the rules below apply.
   if (
     approver.authority.internalLevel == null ||
-    author.authority.internalLevel == null
+    subject.authority.internalLevel == null
   ) {
     return {
       allowed: true,
       viaException: false,
       reason:
-        "Internal levels not yet populated; deferring to existing approval checks.",
+        "Role setup is not complete yet; deferring to existing approval checks.",
     };
   }
 
   const isSelf = refsMatch(approver.ref, author.ref);
 
   if (isSelf) {
-    const exception = findSelfFinalizeException(author.ref, subject, now);
+    const exception = findSelfFinalizeException(author.ref, subject.ref, now);
     if (exception) {
       return {
         allowed: true,
@@ -117,21 +118,42 @@ export function evaluateReviewApproval(args: {
     };
   }
 
-  if (hasApprovalLevelAuthority(approver.authority.internalLevel, author.authority.internalLevel)) {
+  const boardRoute = findBoardApprovalReviewRoute(
+    author.ref,
+    subject.ref,
+    subject.authority,
+    now
+  );
+  if (boardRoute || requiresBoardApproval(subject.authority)) {
+    if (approver.authority.internalLevel >= TOP_INTERNAL_LEVEL) {
+      return {
+        allowed: true,
+        viaException: false,
+        reason: boardRoute?.note ?? "Board approval is required and the approver is Board.",
+      };
+    }
     return {
-      allowed: true,
+      allowed: false,
       viaException: false,
-      reason: `Approver internal level ${approver.authority.internalLevel} outranks author level ${author.authority.internalLevel}.`,
+      reason: boardRoute?.note ?? "Officer and Senior Officer reviews require Board approval.",
     };
   }
 
-  const needed = requiredApproverLevel(author.authority);
+  if (hasApprovalLevelAuthority(approver.authority.internalLevel, subject.authority.internalLevel)) {
+    return {
+      allowed: true,
+      viaException: false,
+      reason: "Approver is in a higher role than the person being reviewed.",
+    };
+  }
+
+  const needed = requiredApproverLevel(subject.authority);
   return {
     allowed: false,
     viaException: false,
     reason:
       needed == null
-        ? "Cannot determine the author's internal level, so approval authority is unknown."
-        : `Approver internal level ${approver.authority.internalLevel ?? "unknown"} is below the required level ${needed}.`,
+        ? "Cannot determine the person's role, so approval authority is unknown."
+        : "This review needs approval from someone in a higher role than the person being reviewed.",
   };
 }
