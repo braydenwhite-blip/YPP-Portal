@@ -222,7 +222,9 @@ export function ImpactMeetingsHub({
   return (
     <div className="mx-auto flex w-full max-w-[920px] flex-col gap-6 pb-10">
       <PageHeaderV2
-        eyebrow="Impact Meetings"
+        eyebrow="Meetings"
+        backHref="/meetings"
+        backLabel="Meetings"
         title="Impact Meetings"
         subtitle={`One combined presentation per team — each person adds their part, it merges into the team's presentation, then leadership runs the meeting and a summary goes out. ${data.weekLabel}.`}
         actions={
@@ -240,8 +242,8 @@ export function ImpactMeetingsHub({
               <ButtonLink href="/my-weekly-impact" variant="secondary" size="sm">
                 Submit weekly update
               </ButtonLink>
-              <ButtonLink href="/actions/meetings" variant="secondary" size="sm">
-                Open meetings
+              <ButtonLink href="/meetings" variant="secondary" size="sm">
+                All meetings
               </ButtonLink>
             </>
           )
