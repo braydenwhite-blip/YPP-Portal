@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import nodemailer from "nodemailer";
 import { isHttpUrl } from "@/lib/meeting-details";
 import { escapeHtml } from "@/lib/email-templates/interpolate";
+import { emailShell } from "@/lib/email-templates/shell";
 import { sendTemplatedEmail } from "@/lib/email-templates/render";
 import { chairDecisionTemplateKey } from "@/lib/email-templates/registry";
 

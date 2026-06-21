@@ -1,6 +1,6 @@
 import { type MentorshipType, type SupportRole } from "@prisma/client";
 
-import { SUPPORT_ROLE_META } from "@/lib/mentorship-hub";
+import { SUPPORT_ROLE_META } from "@/lib/mentorship-hub-constants";
 
 export type AdminMentorshipLane = "STUDENTS" | "INSTRUCTORS" | "LEADERSHIP";
 
