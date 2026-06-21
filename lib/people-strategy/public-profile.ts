@@ -1,12 +1,19 @@
 import type { GrowthTag } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { OFFICER_MIN_LEVEL, TOP_INTERNAL_LEVEL, resolvePersonAuthority } from "@/lib/org/levels";
+import {
+  findBoardApprovalReviewRoute,
+  findSelfFinalizeException,
+} from "@/lib/org/review-exceptions";
+import { requiresBoardApproval } from "@/lib/org/review-routing";
 import { whereActiveMember } from "@/lib/user-role-where";
 import { getUserTitle } from "@/lib/user-title";
 
 import { getMyActionItems } from "./action-queries";
 import { isOfficerTier, type ActionViewer } from "./action-permissions";
 import { formatClassSchedule, getMyTeachingClasses } from "./class-tracker";
+import { roleExpectsMentor } from "./people-performance-selectors";
 
 /**
  * People Strategy — read-only public member profile (`/people/[id]`).
@@ -63,6 +70,18 @@ export interface PublicProfileKudos {
   giverName: string;
 }
 
+export interface PublicProfileProgression {
+  currentRole: string;
+  ladder: string;
+  mentor: string;
+  mentees: number;
+  reviewPath: string;
+  access: string;
+  assignedActions: number;
+  chapter: string;
+  needsSetup: string[];
+}
+
 export interface PublicProfile {
   id: string;
   name: string;
@@ -88,6 +107,7 @@ export interface PublicProfile {
   kudos: PublicProfileKudos[];
   actionsLed: PublicProfileActionRef[];
   actionsExecuting: PublicProfileActionRef[];
+  progression: PublicProfileProgression;
   /** Officer-tier viewers only; null when the viewer may not see assessments. */
   growthSignals: PublicProfileGrowthSignal[] | null;
 }
@@ -139,6 +159,67 @@ function locationLabel(
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
+function ladderLabel(ladder: string | null): string {
+  if (ladder === "INSTRUCTION") return "Instruction ladder";
+  if (ladder === "LEADERSHIP") return "Leadership ladder";
+  return "Needs role setup";
+}
+
+function accessLabel(authority: ReturnType<typeof resolvePersonAuthority>): string {
+  const level = authority.internalLevel;
+  if (level == null) return "Assigned work only until role setup is complete";
+  if (level >= TOP_INTERNAL_LEVEL) return "Board access across the portal";
+  if (level >= OFFICER_MIN_LEVEL) return "Operational access across teams";
+  if (authority.title === "Chapter President") return "Chapter operations and assigned work";
+  if (authority.title === "Lead Instructor") return "Instruction data and assigned work";
+  if (authority.ladder === "LEADERSHIP") return "Global Action Tracker and assigned work";
+  return "Own profile, classes, and assigned work";
+}
+
+function reviewPathLabel(input: {
+  name: string;
+  id: string;
+  authority: ReturnType<typeof resolvePersonAuthority>;
+  mentors: PublicProfilePerson[];
+  primaryRole: string | null;
+}): string {
+  const mentor = input.mentors[0];
+  if (!mentor) {
+    return roleExpectsMentor(input.primaryRole)
+      ? "Assign mentor to create review path"
+      : "No mentor review path assigned";
+  }
+
+  const mentorRef = { id: mentor.id, name: mentor.name };
+  const subjectRef = { id: input.id, name: input.name };
+  if (findSelfFinalizeException(mentorRef, subjectRef)) {
+    return `${mentor.name} drafts and finalizes`;
+  }
+  if (
+    findBoardApprovalReviewRoute(mentorRef, subjectRef, input.authority) ||
+    requiresBoardApproval(input.authority)
+  ) {
+    return `${mentor.name} drafts; Board approval required`;
+  }
+  if (input.authority.internalLevel == null) {
+    return `${mentor.name} drafts; approval path needs role setup`;
+  }
+  return `${mentor.name} drafts; higher-role approval required`;
+}
+
+function buildNeedsSetup(input: {
+  authority: ReturnType<typeof resolvePersonAuthority>;
+  chapterName: string | null;
+  mentorCount: number;
+  primaryRole: string | null;
+}): string[] {
+  const needs: string[] = [];
+  if (!input.authority.title && input.authority.internalLevel == null) needs.push("Role/title");
+  if (!input.chapterName) needs.push("Chapter");
+  if (roleExpectsMentor(input.primaryRole) && input.mentorCount === 0) needs.push("Mentor");
+  return needs;
+}
+
 /**
  * Load the public profile for `subjectUserId` as seen by `viewer`. Returns null
  * when the subject does not exist, is archived, or is an applicant-only user —
@@ -157,6 +238,9 @@ export async function loadPublicProfile(
       phone: true,
       title: true,
       primaryRole: true,
+      internalLevel: true,
+      ladder: true,
+      canonicalTitle: true,
       createdAt: true,
       adminSubtypes: { select: { subtype: true } },
       chapter: { select: { name: true } },
@@ -245,6 +329,48 @@ export async function loadPublicProfile(
         )
     )
     .map(toRef);
+  const assignedActions = activeItems.filter(
+    (item) =>
+      item.leadId === subjectUserId ||
+      item.assignments.some((a) => a.user.id === subjectUserId)
+  ).length;
+  const displayName = user.name?.trim() || user.email;
+  const authority = resolvePersonAuthority({
+    title: user.title,
+    primaryRole: user.primaryRole,
+    internalLevel: user.internalLevel,
+    ladder: user.ladder,
+    canonicalTitle: user.canonicalTitle,
+    adminSubtypes: user.adminSubtypes.map((s) => s.subtype),
+  });
+  const chapterName = user.chapter?.name ?? null;
+  const profileTitle = getUserTitle({
+    title: user.title,
+    primaryRole: user.primaryRole,
+    adminSubtypes: user.adminSubtypes.map((s) => s.subtype),
+  });
+  const progression: PublicProfileProgression = {
+    currentRole: authority.title ?? profileTitle,
+    ladder: ladderLabel(authority.ladder),
+    mentor: mentors.length > 0 ? mentors.map((m) => m.name).join(", ") : "None assigned",
+    mentees: mentees.length,
+    reviewPath: reviewPathLabel({
+      id: user.id,
+      name: displayName,
+      authority,
+      mentors,
+      primaryRole: user.primaryRole,
+    }),
+    access: accessLabel(authority),
+    assignedActions,
+    chapter: chapterName ?? "Missing Chapter",
+    needsSetup: buildNeedsSetup({
+      authority,
+      chapterName,
+      mentorCount: mentors.length,
+      primaryRole: user.primaryRole,
+    }),
+  };
 
   // Growth Signals: officer-tier only (leadership assessment, not public).
   let growthSignals: PublicProfileGrowthSignal[] | null = null;
@@ -259,14 +385,10 @@ export async function loadPublicProfile(
 
   return {
     id: user.id,
-    name: user.name?.trim() || user.email,
-    title: getUserTitle({
-      title: user.title,
-      primaryRole: user.primaryRole,
-      adminSubtypes: user.adminSubtypes.map((s) => s.subtype),
-    }),
+    name: displayName,
+    title: profileTitle,
     primaryRole: user.primaryRole,
-    chapterName: user.chapter?.name ?? null,
+    chapterName,
     bio: user.profile?.bio ?? null,
     avatarUrl: user.profile?.avatarUrl ?? null,
     location: locationLabel(user.profile?.city, user.profile?.stateProvince),
@@ -281,6 +403,7 @@ export async function loadPublicProfile(
     kudos,
     actionsLed,
     actionsExecuting,
+    progression,
     growthSignals,
   };
 }

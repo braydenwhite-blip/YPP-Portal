@@ -10,6 +10,9 @@
  * Current exceptions:
  *   - Sam may self-finalize reviews for Aveena, Brayden, and Sanvi.
  *   - Zach may self-finalize reviews for Ian and Anthea.
+ *   - Aveena's reviews for Jackson, Jennifer, Alina, and Wesley require Board approval.
+ *   - Ian's review for Milo requires Board approval.
+ *   - Brayden's reviews for top instructors require Board approval.
  *
  * NOTE: entries are keyed by a `PersonRef` (id and/or name). Until Phase 4
  * seeds stable user ids, the `name` fields below are placeholders to be replaced
@@ -31,6 +34,18 @@ export interface SelfFinalizeException {
   note?: string;
 }
 
+export interface BoardApprovalReviewRoute {
+  /** The mentor/author whose drafts use this approval route. */
+  mentor: PersonRef;
+  /** Specific mentees whose reviews need Board approval. */
+  mentees?: PersonRef[];
+  /** Applies when the subject is a top instructor under this mentor. */
+  topInstructionMentees?: boolean;
+  /** When the route takes effect (ISO date). Absent = always in effect. */
+  effectiveFrom?: string;
+  note?: string;
+}
+
 export const SELF_FINALIZE_EXCEPTIONS: SelfFinalizeException[] = [
   {
     mentor: { name: "Sam" },
@@ -41,6 +56,29 @@ export const SELF_FINALIZE_EXCEPTIONS: SelfFinalizeException[] = [
     mentor: { name: "Zach" },
     mentees: [{ name: "Ian" }, { name: "Anthea" }],
     note: "Zach conducts and finalizes these reviews without additional approval.",
+  },
+];
+
+export const BOARD_APPROVAL_REVIEW_ROUTES: BoardApprovalReviewRoute[] = [
+  {
+    mentor: { name: "Aveena" },
+    mentees: [
+      { name: "Jackson" },
+      { name: "Jennifer" },
+      { name: "Alina" },
+      { name: "Wesley" },
+    ],
+    note: "This review route requires Board approval.",
+  },
+  {
+    mentor: { name: "Ian" },
+    mentees: [{ name: "Milo" }],
+    note: "This review route requires Board approval.",
+  },
+  {
+    mentor: { name: "Brayden" },
+    topInstructionMentees: true,
+    note: "Brayden's reviews for top instructors require Board approval.",
   },
 ];
 
@@ -66,6 +104,13 @@ function exceptionIsActive(exception: SelfFinalizeException, now: Date): boolean
   return now >= from;
 }
 
+function boardRouteIsActive(route: BoardApprovalReviewRoute, now: Date): boolean {
+  if (!route.effectiveFrom) return true;
+  const from = new Date(route.effectiveFrom);
+  if (Number.isNaN(from.getTime())) return true;
+  return now >= from;
+}
+
 /**
  * Returns the matching exception when `mentor` is allowed to self-finalize a
  * review whose subject (mentee) is `mentee`, or null when none applies.
@@ -79,6 +124,31 @@ export function findSelfFinalizeException(
     if (!exceptionIsActive(exception, now)) continue;
     if (!refsMatch(exception.mentor, mentor)) continue;
     if (exception.mentees.some((m) => refsMatch(m, mentee))) return exception;
+  }
+  return null;
+}
+
+/**
+ * Returns the matching Board-approval route when `mentor` drafted a review for
+ * `mentee`, or null when the standard role comparison can decide the approver.
+ */
+export function findBoardApprovalReviewRoute(
+  mentor: PersonRef,
+  mentee: PersonRef,
+  subjectAuthority?: { ladder?: string | null; internalLevel?: number | null } | null,
+  now: Date = new Date()
+): BoardApprovalReviewRoute | null {
+  for (const route of BOARD_APPROVAL_REVIEW_ROUTES) {
+    if (!boardRouteIsActive(route, now)) continue;
+    if (!refsMatch(route.mentor, mentor)) continue;
+    if (route.mentees?.some((m) => refsMatch(m, mentee))) return route;
+    if (
+      route.topInstructionMentees &&
+      subjectAuthority?.ladder === "INSTRUCTION" &&
+      (subjectAuthority.internalLevel ?? 0) >= 3
+    ) {
+      return route;
+    }
   }
   return null;
 }
