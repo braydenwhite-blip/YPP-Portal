@@ -6,7 +6,7 @@
     "dev": "node scripts/dev-vercel-preview.mjs",
     "dev:local": "node ./node_modules/next/dist/bin/next dev",
     "dev:vercel-preview": "node scripts/dev-vercel-preview.mjs",
-  "vercel-preview:url": "echo https://youthpassionproject-portal-io1acmvjv-brayden-whites-projects.vercel.app/",
+    "vercel-preview:url": "echo https://youthpassionproject-portal-git-preview-brayden-portal-brayden-whites-projects.vercel.app/",
     "dev:user-view": "node scripts/dev-user-view.mjs",
     "build": "node scripts/maybe-db-sync.mjs && node scripts/clean-build-dirs.mjs && prisma generate && node --max-old-space-size=6144 ./node_modules/next/dist/bin/next build",
     "vercel-build": "npm run build",

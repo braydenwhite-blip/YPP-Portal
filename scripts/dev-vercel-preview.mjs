@@ -1,10 +1,15 @@
 /**
- * Run local dev to mirror this Vercel Preview deployment:
- * https://youthpassionproject-portal-io1acmvjv-brayden-whites-projects.vercel.app/
+ * Run local dev to mirror the Brayden Vercel Preview deployment.
+ *
+ * Canonical preview (this branch, auto-updates on push):
+ *   https://youthpassionproject-portal-git-preview-brayden-portal-brayden-whites-projects.vercel.app/
+ *
+ * Legacy pinned deployment (older build, frozen hash):
+ *   https://youthpassionproject-portal-io1acmvjv-brayden-whites-projects.vercel.app/
  *
  * Localhost is always http://localhost:3000 — it cannot become the .vercel.app URL.
- * This script matches that deployment's env behavior (gate, flags). Code must match
- * whatever commit Vercel built for that preview (see VERCEL_PREVIEW_URL in package.json).
+ * This script matches preview env behavior (gate, flags). Push branch
+ * `preview/brayden-portal` on GitHub to refresh the canonical preview on Brayden's Vercel team.
  *
  * Optional: `.env.vercel-preview.local` with Preview DATABASE_URL + DIRECT_URL from
  * Vercel → Project → Settings → Environment Variables → Preview.
@@ -15,7 +20,7 @@ import { resolve } from "node:path";
 import dotenv from "dotenv";
 
 const VERCEL_PREVIEW_URL =
-  "https://youthpassionproject-portal-io1acmvjv-brayden-whites-projects.vercel.app";
+  "https://youthpassionproject-portal-git-preview-brayden-portal-brayden-whites-projects.vercel.app";
 
 const root = resolve(import.meta.dirname, "..");
 
