@@ -6,6 +6,7 @@ import {
   listInstructorScopedParentFeedback,
   summarizeParentFeedback,
 } from "@/lib/parent-feedback-service";
+import { isInstructorSurface } from "@/lib/org/role-sets";
 
 export async function GET() {
   const session = await getSession();
@@ -14,8 +15,7 @@ export async function GET() {
   }
 
   const roles = session.user.roles ?? [];
-  const canAccess =
-    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
+  const canAccess = isInstructorSurface(roles);
 
   if (!canAccess) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

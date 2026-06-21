@@ -8,6 +8,7 @@ import {
   summarizeParentFeedback,
 } from "@/lib/parent-feedback-service";
 import { prisma } from "@/lib/prisma";
+import { isInstructorSurface } from "@/lib/org/role-sets";
 
 export const metadata = { title: "Parent Feedback | YPP" };
 
@@ -18,8 +19,7 @@ export default async function InstructorParentFeedbackPage() {
   }
 
   const roles = session.user.roles ?? [];
-  const canAccess =
-    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
+  const canAccess = isInstructorSurface(roles);
 
   if (!canAccess) {
     redirect("/");

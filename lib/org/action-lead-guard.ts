@@ -21,9 +21,15 @@ import {
   type PersonAuthority,
 } from "@/lib/org/levels";
 
-/** Whether action-lead eligibility enforcement is turned on. */
+/**
+ * Whether action-lead eligibility enforcement is turned on. Default ON
+ * (canonical model) with an explicit kill-switch:
+ * `ORG_ACTION_LEAD_ELIGIBILITY_ENFORCED=false` disables it. `assertActionLeadEligible`
+ * fails open when the user or their internal level can't be resolved, so flipping
+ * this on before the org-authority backfill never blocks a lead assignment.
+ */
 export function isActionLeadEligibilityEnforced(): boolean {
-  return process.env.ORG_ACTION_LEAD_ELIGIBILITY_ENFORCED === "true";
+  return process.env.ORG_ACTION_LEAD_ELIGIBILITY_ENFORCED !== "false";
 }
 
 /** Pure: is this authority allowed to be an accountable Lead? */
@@ -85,6 +91,13 @@ export async function assertActionLeadEligible(
     canonicalTitle: user.canonicalTitle,
     adminSubtypes: user.adminSubtypes.map((s) => s.subtype),
   });
+
+  // Fail open while the spine is being populated: when we cannot determine an
+  // internal level, do not block the assignment. `canLeadAction` treats a null
+  // level as ineligible, so without this short-circuit enabling the flag before
+  // the backfill would invert into a block — the opposite of the intended
+  // additive, backfill-safe behavior.
+  if (authority.internalLevel == null) return;
 
   const verdict = canLeadAction(authority, opts);
   if (!verdict.eligible) {

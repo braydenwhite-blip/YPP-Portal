@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession, type SessionUser } from "@/lib/auth-supabase";
 import { normalizeRoleList } from "@/lib/authorization";
+import { APPLICATION_REVIEWER_ROLES } from "@/lib/org/role-sets";
 
 /**
  * Page-level role guards for server components.
@@ -14,7 +15,7 @@ import { normalizeRoleList } from "@/lib/authorization";
  * belong on the page; this only enforces the coarse role gate.
  */
 export async function requirePageRoles(
-  allowedRoles: string[],
+  allowedRoles: readonly string[],
   opts?: { redirectTo?: string }
 ): Promise<SessionUser> {
   const session = await getSession();
@@ -31,7 +32,7 @@ export async function requirePageRoles(
 }
 
 /** Application-workflow review surfaces are open to all reviewer roles. */
-export const APPLICATION_REVIEWER_ROLES = ["ADMIN", "HIRING_CHAIR", "CHAPTER_PRESIDENT"];
+export { APPLICATION_REVIEWER_ROLES } from "@/lib/org/role-sets";
 
 /** ADMIN-only admin route. */
 export function requireAdminPage(): Promise<SessionUser> {

@@ -18,9 +18,15 @@ import {
   type ReviewParticipant,
 } from "@/lib/org/review-routing";
 
-/** Whether level/exception-based review approval enforcement is turned on. */
+/**
+ * Whether level/exception-based review approval enforcement is turned on.
+ * Default ON (canonical model) with an explicit kill-switch:
+ * `ORG_REVIEW_AUTHORITY_ENFORCED=false` disables it. The guard still fails open
+ * when participants or internal levels can't be resolved, so flipping this on
+ * before the org-authority backfill never locks anyone out.
+ */
 export function isReviewAuthorityEnforced(): boolean {
-  return process.env.ORG_REVIEW_AUTHORITY_ENFORCED === "true";
+  return process.env.ORG_REVIEW_AUTHORITY_ENFORCED !== "false";
 }
 
 async function loadParticipant(userId: string): Promise<ReviewParticipant | null> {

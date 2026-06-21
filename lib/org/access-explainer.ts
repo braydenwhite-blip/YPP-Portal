@@ -10,9 +10,11 @@
 
 import {
   TOP_INTERNAL_LEVEL,
+  OFFICER_MIN_LEVEL,
+  LEAD_MIN_LEVEL,
+  canLeadAction,
   type PersonAuthority,
 } from "@/lib/org/levels";
-import { canLeadAction } from "@/lib/org/levels";
 
 export type AccessFactKind = "grant" | "limit";
 
@@ -63,7 +65,7 @@ function authorityStatements(name: string, authority: PersonAuthority): AccessFa
     return facts;
   }
 
-  if (internalLevel >= 5) {
+  if (internalLevel >= OFFICER_MIN_LEVEL) {
     facts.push({
       kind: "grant",
       code: "officer_universal",
@@ -73,7 +75,7 @@ function authorityStatements(name: string, authority: PersonAuthority): AccessFa
 
   // Leadership ladder unlocks the global Action Tracker (proposal: "Can access
   // the global Action Tracker because they are a Manager.").
-  if (ladder === "LEADERSHIP" && internalLevel < 5) {
+  if (ladder === "LEADERSHIP" && internalLevel < OFFICER_MIN_LEVEL) {
     facts.push({
       kind: "grant",
       code: "global_action_tracker",
@@ -83,7 +85,7 @@ function authorityStatements(name: string, authority: PersonAuthority): AccessFa
 
   // Lead Instructors (and above on the instruction ladder) see instructional
   // data for all instructors.
-  if (ladder === "INSTRUCTION" && internalLevel >= 3) {
+  if (ladder === "INSTRUCTION" && internalLevel >= LEAD_MIN_LEVEL) {
     facts.push({
       kind: "grant",
       code: "instruction_all_instructors",

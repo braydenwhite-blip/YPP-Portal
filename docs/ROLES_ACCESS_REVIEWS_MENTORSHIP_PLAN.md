@@ -28,8 +28,32 @@ record-create flows so Missing Chapter is detected automatically, and aggregate
 the broader "complete history" (classes/reviews/actions already live on the
 profile via existing panels).
 After deploying Phases 3-4, 6 & 8, run `npm run backfill:org-authority` (dry run) then `--apply`.
-Enforcement flags default OFF: `ORG_REVIEW_AUTHORITY_ENFORCED`,
-`ORG_ACTION_LEAD_ELIGIBILITY_ENFORCED`. Missing Chapter owner: `MISSING_CHAPTER_OWNER_EMAIL`.
+
+**Consolidation (Phase 9 — spine is now canonical):** the legacy role-string
+groupings that used to be copy-pasted across server, client, and edge modules are
+unified in `lib/org/role-sets.ts` (the single owner of `OFFICER_TIER_ROLES`,
+`APPLICATION_REVIEWER_ROLES`, `INSTRUCTOR_SURFACE_ROLES`, … plus spine-derived tier
+predicates `isOfficerTierAuthority`/`isBoardAuthority`/…). `lib/authorization.ts`,
+`lib/page-guards.ts`, `lib/public-gate.ts`, `components/app-shell.tsx`, and the nav
+catalog now re-export/import from there instead of redefining. Duplicate helpers
+were collapsed: `hasAdminSubtype`/`hasAnyAdminSubtype` live only in
+`lib/admin-subtypes.ts` (authorization re-exports), and `lib/mentorship-access.ts`
+uses the shared `hasRole`. Internal-level thresholds (`OFFICER_MIN_LEVEL`,
+`LEAD_MIN_LEVEL`, `TOP_INTERNAL_LEVEL`) are named in `lib/org/levels.ts` and consumed
+by the access-explainer. The "Officers can't click into interview reviews" bug is
+fixed: the interview workspace now gates on `assertCanViewApplicant` (Admins/Officers,
+Hiring Chairs, same-chapter Chapter Presidents, assigned reviewers/interviewers), and
+global Hiring Chairs are no longer chapter-locked in `assertCanManageHiringInterviews`.
+Follow-up (mechanical, non-blocking): ~50 remaining inline
+`roles.includes("INSTRUCTOR")||…("ADMIN")||…("CHAPTER_PRESIDENT")` triples can be
+swept onto `isInstructorSurface(roles)` (8 of the regular shapes already converted).
+
+**Enforcement is now ON by default** (canonical model) with kill-switches:
+`ORG_REVIEW_AUTHORITY_ENFORCED=false` / `ORG_ACTION_LEAD_ELIGIBILITY_ENFORCED=false`
+disable them. Both guards **fail open** when a participant or internal level can't be
+resolved, so enabling them before the backfill never locks anyone out. Deploy order:
+run `npm run backfill:org-authority --apply` so `User.internalLevel` is populated, then
+the level-based rules apply in full. Missing Chapter owner: `MISSING_CHAPTER_OWNER_EMAIL`.
 
 This plan maps the *"YPP Portal Roles, Mentorship, Reviews, and Access Proposal"* onto
 the existing codebase. It is a sequencing + impact document, not code. No code lands
