@@ -68,6 +68,19 @@ export function isWeeklyTeamBriefsEnabled(): boolean {
 }
 
 /**
+ * Weekly Impact Meeting — manual summary email. The Impact Meeting can always be
+ * built and a summary generated in-portal; this flag is the kill-switch for the
+ * single human-triggered "Send summary" email. There are NO automatic impact
+ * emails — generation and the cron never send. This is the only email path, and
+ * even it stays off until explicitly enabled.
+ *
+ * Defaults OFF — set `ENABLE_IMPACT_SUMMARY_EMAIL=true` to arm the Send button.
+ */
+export function isImpactSummaryEmailEnabled(): boolean {
+  return process.env.ENABLE_IMPACT_SUMMARY_EMAIL === "true";
+}
+
+/**
  * Temporary deprecation gate for the older Leadership Action Center sidebar
  * entry. The route remains reachable during migration, but the nav should
  * point people at the newer People Strategy Action Tracker by default.

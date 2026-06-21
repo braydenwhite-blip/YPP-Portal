@@ -59,6 +59,10 @@ const BRIEF_INCLUDE = {
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
+  memberUpdates: {
+    include: { user: { select: PERSON_SELECT } },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  },
   preparedPresentationItems: {
     include: {
       presenter: { select: PERSON_SELECT },
@@ -124,6 +128,30 @@ export type WeeklyBriefTaskUpdateDTO = {
   expectationIds: string[];
 };
 
+/**
+ * One person's Weekly Impact form inside a team brief: their Section 1 (objective
+ * + deliverable + target date) and Section 4 (input needed) header, plus the
+ * Section 2/3 task rows they own (grouped from the brief's task updates).
+ */
+export type WeeklyMemberFormDTO = {
+  id: string;
+  user: BriefPersonDTO;
+  /** True when this form belongs to the viewer (drives "My Weekly Impact"). */
+  isSelf: boolean;
+  status: WeeklyBriefStatus;
+  submittedAtISO: string | null;
+  personalObjective: string | null;
+  personalDeliverable: string | null;
+  targetDateISO: string | null;
+  inputNeeded: string | null;
+  inputNeededFrom: string | null;
+  inputNeededByISO: string | null;
+  /** This week's Input Needed was carried forward from last week (still open). */
+  inputNeededCarried: boolean;
+  carriedForwardFromId: string | null;
+  taskUpdates: WeeklyBriefTaskUpdateDTO[];
+};
+
 export type WeeklyBriefWorkspace = {
   id: string;
   initiativeId: string;
@@ -155,6 +183,7 @@ export type WeeklyBriefWorkspace = {
     finalizedAtISO: string | null;
   } | null;
   taskUpdates: WeeklyBriefTaskUpdateDTO[];
+  members: WeeklyMemberFormDTO[];
   expectations: Array<{
     id: string;
     kind: PresentationExpectationKind;
@@ -345,7 +374,13 @@ export async function generateWeeklyTeamBriefs(
   } = {}
 ) {
   if (!isWeeklyTeamBriefsEnabled()) {
-    return { createdBriefs: 0, touchedBriefs: 0, seededTaskUpdates: 0, createdTeamMeetings: 0 };
+    return {
+      createdBriefs: 0,
+      touchedBriefs: 0,
+      seededTaskUpdates: 0,
+      seededMemberUpdates: 0,
+      createdTeamMeetings: 0,
+    };
   }
 
   const weekStart = startOfUTCWeek(now);
@@ -381,6 +416,7 @@ export async function generateWeeklyTeamBriefs(
   let createdBriefs = 0;
   let touchedBriefs = 0;
   let seededTaskUpdates = 0;
+  let seededMemberUpdates = 0;
   let createdTeamMeetings = 0;
 
   for (const def of listInitiativeDefs()) {
@@ -453,6 +489,39 @@ export async function generateWeeklyTeamBriefs(
 
       if (brief.status === "FINALIZED") continue;
 
+      // Load last week's brief once so this week's forms can carry forward
+      // unfinished commitments (Section 3 next steps) and unanswered input
+      // (Section 4) — the accountability the paper form can't enforce.
+      const prevWeekStart = new Date(weekStart);
+      prevWeekStart.setUTCDate(prevWeekStart.getUTCDate() - 7);
+      const prevBrief = await prisma.weeklyTeamBrief.findUnique({
+        where: {
+          initiativeId_workstreamId_weekStart: {
+            initiativeId: def.id,
+            workstreamId: ws.id,
+            weekStart: prevWeekStart,
+          },
+        },
+        select: {
+          taskUpdates: { select: { actionItemId: true, nextAction: true } },
+          memberUpdates: {
+            select: {
+              id: true,
+              userId: true,
+              inputNeeded: true,
+              inputNeededFrom: true,
+              inputNeededBy: true,
+            },
+          },
+        },
+      });
+      const prevNextActionByAction = new Map<string, string>();
+      for (const prev of prevBrief?.taskUpdates ?? []) {
+        if (prev.actionItemId && prev.nextAction?.trim()) {
+          prevNextActionByAction.set(prev.actionItemId, prev.nextAction);
+        }
+      }
+
       for (const action of teamActions) {
         const matchingExpectationIds = teamExpectations
           .filter((e) => !e.actionItemId || e.actionItemId === action.id)
@@ -462,6 +531,11 @@ export async function generateWeeklyTeamBriefs(
           select: { id: true },
         });
         if (!updateExists) seededTaskUpdates += 1;
+        // Carry forward: last week promised a next step on this task and the task
+        // is still open → flag it so the form shows "carried from last week".
+        const carriedForward =
+          Boolean(prevNextActionByAction.get(action.id)) &&
+          ACTIVE_STATUSES.includes(action.status);
         await prisma.weeklyTaskUpdate.upsert({
           where: { briefId_actionItemId: { briefId: brief.id, actionItemId: action.id } },
           create: {
@@ -475,6 +549,7 @@ export async function generateWeeklyTeamBriefs(
             expectationIds: matchingExpectationIds,
             officerReviewRequested: matchingExpectationIds.length > 0,
             escalationNeeded: action.status === "BLOCKED",
+            carriedForward,
           },
           update: {
             expectationIds: { set: matchingExpectationIds },
@@ -482,10 +557,51 @@ export async function generateWeeklyTeamBriefs(
           },
         });
       }
+
+      // Per-person ("Both") seeding: every person on the team this week gets
+      // exactly one Weekly Impact form header, pre-seeded with last week's
+      // unanswered Input Needed. Existing rows are never overwritten, so the
+      // generator stays idempotent and never clobbers typed content.
+      const teamPeople = new Set<string>(workstreamLeadIds(ws));
+      for (const action of teamActions) {
+        if (action.leadId) teamPeople.add(action.leadId);
+        for (const assignment of action.assignments) teamPeople.add(assignment.userId);
+      }
+      const prevMemberByUser = new Map(
+        (prevBrief?.memberUpdates ?? []).map((m) => [m.userId, m])
+      );
+      for (const userId of teamPeople) {
+        const memberExists = await prisma.weeklyMemberUpdate.findUnique({
+          where: { briefId_userId: { briefId: brief.id, userId } },
+          select: { id: true },
+        });
+        if (memberExists) continue;
+        seededMemberUpdates += 1;
+        const prevMember = prevMemberByUser.get(userId);
+        const carryInput = Boolean(prevMember?.inputNeeded?.trim());
+        await prisma.weeklyMemberUpdate.create({
+          data: {
+            briefId: brief.id,
+            userId,
+            createdById: opts.createdById ?? null,
+            inputNeeded: carryInput ? prevMember?.inputNeeded ?? null : null,
+            inputNeededFrom: carryInput ? prevMember?.inputNeededFrom ?? null : null,
+            inputNeededBy: carryInput ? prevMember?.inputNeededBy ?? null : null,
+            inputNeededCarried: carryInput,
+            carriedForwardFromId: carryInput ? prevMember?.id ?? null : null,
+          },
+        });
+      }
     }
   }
 
-  return { createdBriefs, touchedBriefs, seededTaskUpdates, createdTeamMeetings };
+  return {
+    createdBriefs,
+    touchedBriefs,
+    seededTaskUpdates,
+    seededMemberUpdates,
+    createdTeamMeetings,
+  };
 }
 
 export async function loadWeeklyBriefWorkspace(input: {
@@ -678,6 +794,61 @@ function mapBriefWorkspace(
     ? brief.taskUpdates
     : brief.taskUpdates.filter((u) => u.actionItem && canViewWeeklyBrief(viewer, { ...access, taskUpdates: [{ actionItem: taskAccess(u.actionItem) }] }));
 
+  const taskUpdateDTOs: WeeklyBriefTaskUpdateDTO[] = visibleTaskUpdates.map((u) => ({
+    id: u.id,
+    actionItemId: u.actionItemId,
+    taskTitle: u.taskTitleSnapshot,
+    liveStatus: u.actionItem?.status ?? null,
+    deadlineISO: u.actionItem?.deadlineStart.toISOString() ?? null,
+    owner: personDTO(u.actionItem?.lead ?? null),
+    commitment: u.commitmentSnapshot,
+    statusNarrative: u.statusNarrative,
+    workCompleted: u.workCompleted,
+    currentResult: u.currentResult,
+    remainingWork: u.remainingWork,
+    blockerNote: u.blockerNote,
+    explanation: u.explanation,
+    decisionNeeded: u.decisionNeeded,
+    nextAction: u.nextAction,
+    teamMeetingReady: u.teamMeetingReady,
+    officerMeetingReady: u.officerMeetingReady,
+    escalationNeeded: u.escalationNeeded,
+    officerReviewRequested: u.officerReviewRequested,
+    teamMeetingPresenter: personDTO(u.teamMeetingPresenter),
+    officerMeetingPresenter: personDTO(u.officerMeetingPresenter),
+    deliverables: u.actionItem ? deliverablesForIds(u.deliverableLinkIds, u.actionItem.fileLinks) : [],
+    allDeliverables: (u.actionItem?.fileLinks ?? []).map((link) => ({
+      id: link.id,
+      label: link.label,
+      url: link.url,
+      addedAtISO: link.addedAt.toISOString(),
+    })),
+    expectationIds: u.expectationIds,
+  }));
+
+  // Per-person forms: leads/officers see everyone; an individual contributor
+  // sees only their own Section 1/4 header (their tasks were already visibility-
+  // filtered above). Each member's Section 2/3 detail is the task rows they lead.
+  const visibleMembers = viewerCanSeeAll
+    ? brief.memberUpdates
+    : brief.memberUpdates.filter((m) => m.userId === viewer.id);
+  const members: WeeklyMemberFormDTO[] = visibleMembers.map((m) => ({
+    id: m.id,
+    user: personDTO(m.user) ?? { id: m.userId, name: "Unknown" },
+    isSelf: m.userId === viewer.id,
+    status: m.status,
+    submittedAtISO: m.submittedAt?.toISOString() ?? null,
+    personalObjective: m.personalObjective,
+    personalDeliverable: m.personalDeliverable,
+    targetDateISO: m.targetDate?.toISOString() ?? null,
+    inputNeeded: m.inputNeeded,
+    inputNeededFrom: m.inputNeededFrom,
+    inputNeededByISO: m.inputNeededBy?.toISOString() ?? null,
+    inputNeededCarried: m.inputNeededCarried,
+    carriedForwardFromId: m.carriedForwardFromId,
+    taskUpdates: taskUpdateDTOs.filter((t) => t.owner?.id === m.userId),
+  }));
+
   return {
     id: brief.id,
     initiativeId: def.id,
@@ -710,37 +881,8 @@ function mapBriefWorkspace(
           finalizedAtISO: brief.teamMeeting.finalizedAt?.toISOString() ?? null,
         }
       : null,
-    taskUpdates: visibleTaskUpdates.map((u) => ({
-      id: u.id,
-      actionItemId: u.actionItemId,
-      taskTitle: u.taskTitleSnapshot,
-      liveStatus: u.actionItem?.status ?? null,
-      deadlineISO: u.actionItem?.deadlineStart.toISOString() ?? null,
-      owner: personDTO(u.actionItem?.lead ?? null),
-      commitment: u.commitmentSnapshot,
-      statusNarrative: u.statusNarrative,
-      workCompleted: u.workCompleted,
-      currentResult: u.currentResult,
-      remainingWork: u.remainingWork,
-      blockerNote: u.blockerNote,
-      explanation: u.explanation,
-      decisionNeeded: u.decisionNeeded,
-      nextAction: u.nextAction,
-      teamMeetingReady: u.teamMeetingReady,
-      officerMeetingReady: u.officerMeetingReady,
-      escalationNeeded: u.escalationNeeded,
-      officerReviewRequested: u.officerReviewRequested,
-      teamMeetingPresenter: personDTO(u.teamMeetingPresenter),
-      officerMeetingPresenter: personDTO(u.officerMeetingPresenter),
-      deliverables: u.actionItem ? deliverablesForIds(u.deliverableLinkIds, u.actionItem.fileLinks) : [],
-      allDeliverables: (u.actionItem?.fileLinks ?? []).map((link) => ({
-        id: link.id,
-        label: link.label,
-        url: link.url,
-        addedAtISO: link.addedAt.toISOString(),
-      })),
-      expectationIds: u.expectationIds,
-    })),
+    taskUpdates: taskUpdateDTOs,
+    members,
     expectations: expectations.map((e) => ({
       id: e.id,
       kind: e.kind,
@@ -1003,6 +1145,17 @@ export async function snapshotAndFinalizeTeamMeeting(briefId: string) {
     workstreamId: brief.workstreamId,
     weekStart: brief.weekStart.toISOString(),
     overallStatus: brief.overallStatus,
+    memberUpdates: brief.memberUpdates.map((m) => ({
+      id: m.id,
+      userId: m.userId,
+      status: m.status,
+      personalObjective: m.personalObjective,
+      personalDeliverable: m.personalDeliverable,
+      targetDate: m.targetDate?.toISOString() ?? null,
+      inputNeeded: m.inputNeeded,
+      inputNeededFrom: m.inputNeededFrom,
+      inputNeededBy: m.inputNeededBy?.toISOString() ?? null,
+    })),
     taskUpdates: brief.taskUpdates.map((u) => ({
       id: u.id,
       actionItemId: u.actionItemId,

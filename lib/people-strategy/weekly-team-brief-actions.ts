@@ -8,6 +8,7 @@ import { isWeeklyTeamBriefsEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
 import type { ActionViewer } from "./action-permissions";
+import { validateMemberSubmission, type TaggedImpactIssue } from "./impact-specificity";
 import { getInitiativeDef, getWorkstreamDef } from "./strategic-initiatives";
 import {
   canEditWeeklyBriefOverall,
@@ -38,6 +39,14 @@ const OptionalId = z
   .string()
   .optional()
   .transform((v) => (v && v.trim() ? v.trim() : null));
+const OptionalDate = z
+  .string()
+  .optional()
+  .transform((v) =>
+    v && /^\d{4}-\d{2}-\d{2}$/.test(v.trim())
+      ? new Date(`${v.trim()}T00:00:00.000Z`)
+      : null
+  );
 
 function ensureEnabled() {
   if (!isWeeklyTeamBriefsEnabled()) {
@@ -470,4 +479,137 @@ export async function reopenWeeklyBrief(input: z.input<typeof FinalizeSchema>) {
     data: { status: "IN_PROGRESS" },
   });
   revalidateBrief(brief);
+}
+
+// ---------------------------------------------------------------------------
+// Per-person ("Both") Weekly Impact form: each person fills their own Section 1
+// (objective + deliverable) and Section 4 (input needed) header and submits it.
+// Their Section 2/3 detail lives in the WeeklyTaskUpdate rows they lead (edited
+// via updateWeeklyTaskUpdate above). A person may always act on their own form;
+// team leads / officers may act on any member's form on their team's brief.
+// ---------------------------------------------------------------------------
+
+async function loadMemberContext(memberUpdateId: string) {
+  ensureEnabled();
+  const session = await requireSessionUser();
+  const viewer = viewerFromSession(session);
+  const member = await prisma.weeklyMemberUpdate.findUnique({
+    where: { id: memberUpdateId },
+    select: { id: true, userId: true, briefId: true },
+  });
+  if (!member) throw new Error("Weekly Impact form not found");
+  const loaded = await getBriefForMutation(member.briefId);
+  const isSelf = member.userId === session.id;
+  if (!isSelf && !canEditWeeklyBriefOverall(viewer, loaded.access)) {
+    throw new Error("Unauthorized");
+  }
+  if (loaded.brief.status === "FINALIZED") {
+    throw new Error("Finalized briefs must be reopened first");
+  }
+  return { member, session, viewer, ...loaded };
+}
+
+const EnsureMemberSchema = z.object({ briefId: NonEmptyString });
+
+/** Give the signed-in person their own blank Weekly Impact form on this brief —
+ *  covers people who have no Action Items yet, so their form is never missing. */
+export async function ensureMyMemberUpdate(input: z.input<typeof EnsureMemberSchema>) {
+  ensureEnabled();
+  const session = await requireSessionUser();
+  const data = EnsureMemberSchema.parse(input);
+  const loaded = await getBriefForMutation(data.briefId);
+  if (loaded.brief.status === "FINALIZED") {
+    throw new Error("Finalized briefs must be reopened first");
+  }
+  const member = await prisma.weeklyMemberUpdate.upsert({
+    where: { briefId_userId: { briefId: data.briefId, userId: session.id } },
+    create: { briefId: data.briefId, userId: session.id, createdById: session.id },
+    update: {},
+    select: { id: true },
+  });
+  revalidateBrief(loaded.brief);
+  return { id: member.id };
+}
+
+const UpdateMemberSchema = z.object({
+  memberUpdateId: NonEmptyString,
+  personalObjective: OptionalText,
+  personalDeliverable: OptionalText,
+  targetDate: OptionalDate,
+  inputNeeded: OptionalText,
+  inputNeededFrom: OptionalText,
+  inputNeededBy: OptionalDate,
+});
+
+/** Save a draft of the person's Section 1/4 header. Drafts never run the
+ *  specificity guard — only submit does — so saving partial work is friction-free. */
+export async function updateMyMemberUpdate(input: z.input<typeof UpdateMemberSchema>) {
+  const data = UpdateMemberSchema.parse(input);
+  const { member, brief } = await loadMemberContext(data.memberUpdateId);
+  await prisma.weeklyMemberUpdate.update({
+    where: { id: member.id },
+    data: {
+      personalObjective: data.personalObjective,
+      personalDeliverable: data.personalDeliverable,
+      targetDate: data.targetDate,
+      inputNeeded: data.inputNeeded,
+      inputNeededFrom: data.inputNeededFrom,
+      inputNeededBy: data.inputNeededBy,
+      // Once a human edits the carried-forward input, it is no longer "auto-carried".
+      inputNeededCarried: false,
+    },
+  });
+  revalidateBrief(brief);
+  return { ok: true as const };
+}
+
+const SubmitMemberSchema = z.object({ memberUpdateId: NonEmptyString });
+
+export type SubmitMemberResult =
+  | { ok: true }
+  | { ok: false; issues: TaggedImpactIssue[] };
+
+/** Submit the person's Weekly Impact form. Runs the specificity guard across
+ *  their Section 1/4 header and the Section 2/3 task rows they lead; if anything
+ *  is vague, returns the per-field issues (does NOT throw) so the form can show
+ *  exactly what to fix and stays editable. */
+export async function submitMyMemberUpdate(
+  input: z.input<typeof SubmitMemberSchema>
+): Promise<SubmitMemberResult> {
+  const data = SubmitMemberSchema.parse(input);
+  const { member, brief } = await loadMemberContext(data.memberUpdateId);
+
+  const memberRow = await prisma.weeklyMemberUpdate.findUnique({
+    where: { id: member.id },
+    select: { personalObjective: true, personalDeliverable: true, inputNeeded: true },
+  });
+  // Section 2/3 detail: the task rows this person leads within the brief.
+  const tasks = await prisma.weeklyTaskUpdate.findMany({
+    where: { briefId: member.briefId, actionItem: { leadId: member.userId } },
+    select: { id: true, workCompleted: true, currentResult: true, nextAction: true },
+  });
+
+  const issues = validateMemberSubmission({
+    member: {
+      personalObjective: memberRow?.personalObjective,
+      personalDeliverable: memberRow?.personalDeliverable,
+      inputNeeded: memberRow?.inputNeeded,
+    },
+    tasks: tasks.map((t) => ({
+      taskUpdateId: t.id,
+      workCompleted: t.workCompleted,
+      currentResult: t.currentResult,
+      nextAction: t.nextAction,
+    })),
+  });
+  if (issues.length > 0) {
+    return { ok: false, issues };
+  }
+
+  await prisma.weeklyMemberUpdate.update({
+    where: { id: member.id },
+    data: { status: "SUBMITTED", submittedAt: new Date() },
+  });
+  revalidateBrief(brief);
+  return { ok: true };
 }
