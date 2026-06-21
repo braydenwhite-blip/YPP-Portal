@@ -345,10 +345,10 @@ async function WeekGridView({
       header={
         <div className="flex flex-col gap-4">
           <PageHeaderV2
-            eyebrow="Work"
-            backHref="/work"
-            backLabel="Work"
-            title="Meetings · week grid"
+            eyebrow="Meetings"
+            backHref="/meetings"
+            backLabel="Meetings"
+            title="Officer Meetings · week grid"
             subtitle="Every meeting this week, prep lanes, decisions, and department pulse."
             actions={<CommandModeToggle />}
           />
@@ -451,9 +451,9 @@ export default async function OfficerMeetingsPage({
     <div className="mx-auto w-full max-w-[1200px] px-1 pb-12 pt-2">
       <div className="mb-4 flex flex-col gap-4">
         <PageHeaderV2
-          eyebrow="Work"
-          backHref="/work"
-          backLabel="Work"
+          eyebrow="Meetings"
+          backHref="/meetings"
+          backLabel="Meetings"
           title="Officer Meetings"
           subtitle="Leadership operating sessions — decisions, blockers, ownerless items, and cross-team escalations. Distinct from Impact Meetings, which collect weekly team updates."
           actions={

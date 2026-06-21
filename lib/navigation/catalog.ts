@@ -843,7 +843,9 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
-      href: "/actions/meetings",
+      // Canonical Meetings home — the single front door for every meeting
+      // (officer + impact). It previews and routes; it is not a second hub.
+      href: "/meetings",
       label: "Meetings",
       icon: "📅",
       // Officer-tier and above only (mirrors requireOfficer()).
@@ -851,6 +853,27 @@ export const NAV_CATALOG: NavLink[] = [
       requiresActionTracker: true,
       searchAliases: [
         "Meetings",
+        "Meetings home",
+        "All meetings",
+        "Officer Meetings",
+        "Impact Meetings",
+        "Agenda",
+        "Decisions",
+        "Follow-ups",
+      ],
+      dashboardDescription:
+        "One place for every meeting — today, upcoming, needs prep, and recent. Open any meeting to run it.",
+      dashboardPriority: 6,
+    },
+    {
+      href: "/actions/meetings",
+      label: "Officer Meetings",
+      icon: "📅",
+      // Officer-tier and above only (mirrors requireOfficer()).
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
+      searchAliases: [
+        "Officer Meetings",
         "Weekly Command Center",
         "Meetings Tracker",
         "Officer Meeting",
@@ -859,7 +882,7 @@ export const NAV_CATALOG: NavLink[] = [
         "Follow-ups",
       ],
       dashboardDescription:
-        "Run leadership meetings, log decisions and follow-ups, and turn them into tracked actions.",
+        "Leadership coordination — log decisions and follow-ups and turn them into tracked actions.",
       dashboardPriority: 5,
     },
     {

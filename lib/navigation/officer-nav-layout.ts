@@ -68,6 +68,7 @@ export const OFFICER_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
  * resolveNavModel un-hides only these specific routes for officer layouts.
  */
 export const OFFICER_UNHIDE_HREFS: ReadonlySet<string> = new Set<string>([
+  "/meetings",
   "/actions/meetings",
   "/impact-meetings",
   "/actions/all",
@@ -86,7 +87,9 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/work": { group: "Work", label: "Work", icon: "🎛️" },
   "/actions": { group: "Work", label: "Actions", icon: "✅" },
   "/operations/initiatives": { group: "Work", label: "Initiatives", icon: "🎯" },
-  "/actions/meetings": { group: "Work", label: "Meetings", icon: "📅" },
+  // Meetings — one umbrella front door, then the two clearly-distinct types.
+  "/meetings": { group: "Work", label: "Meetings", icon: "📅" },
+  "/actions/meetings": { group: "Work", label: "Officer Meetings", icon: "🏛️" },
   "/impact-meetings": { group: "Work", label: "Impact Meetings", icon: "📊" },
   "/follow-up": { group: "Work", label: "Follow Ups", icon: "🔔" },
   "/operations": { group: "Work", label: "Needs Attention", icon: "🧭" },
@@ -154,6 +157,7 @@ export const OFFICER_SIDEBAR_LINK_ORDER: string[] = [
   "/work",
   "/actions",
   "/operations/initiatives",
+  "/meetings",
   "/actions/meetings",
   "/impact-meetings",
   "/follow-up",
