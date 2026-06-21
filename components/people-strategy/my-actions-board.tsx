@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { StatCardV2, StatusBadge, type StatCardAccent, type StatusTone } from "@/components/ui-v2";
+import { StatCardV2, type StatCardAccent } from "@/components/ui-v2";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import { effectiveStatus } from "@/lib/people-strategy/action-filters";
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
@@ -12,74 +12,22 @@ import {
   selectUpcoming,
   summarizeMyActions,
 } from "@/lib/people-strategy/my-actions-selectors";
+import {
+  ActionStatusBadge,
+  InitialsAvatar,
+  MeetingSourceChip,
+  STATUS_LABEL,
+  STATUS_RAIL,
+  dueLabel,
+} from "@/components/people-strategy/action-presentation";
 
 /**
  * My Actions — the personal "what to do now" hero, built to the YPP Portal
- * redesign mockup. Composes ui-v2 primitives (StatCardV2, StatusBadge) and the
- * shared `my-actions-selectors`, so the counts and lanes match the rest of the
- * tracker and there is no one-off query logic to drift. Pure render over the
- * already-loaded, access-filtered `items`.
+ * redesign mockup. Composes ui-v2 primitives (StatCardV2) and the shared
+ * `my-actions-selectors` + `action-presentation` bits, so the counts and lanes
+ * match the rest of the tracker and there is no one-off query logic to drift.
+ * Pure render over the already-loaded, access-filtered `items`.
  */
-
-// Lane accent palette — small, named, mockup-faithful (mirrors the StatCardV2
-// ACCENT pattern). Structure/typography use the shared @theme tokens.
-const RAIL: Record<string, string> = {
-  OVERDUE: "#e5484d",
-  BLOCKED: "#e5484d",
-  IN_PROGRESS: "#6b21c8",
-  NOT_STARTED: "#c9c9d6",
-  COMPLETE: "#0e9f6e",
-  DROPPED: "#c9c9d6",
-};
-
-const STATUS_TONE: Record<string, StatusTone> = {
-  OVERDUE: "danger",
-  BLOCKED: "danger",
-  IN_PROGRESS: "info",
-  NOT_STARTED: "neutral",
-  COMPLETE: "success",
-  DROPPED: "neutral",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  OVERDUE: "Overdue",
-  BLOCKED: "Blocked",
-  IN_PROGRESS: "In progress",
-  NOT_STARTED: "Not started",
-  COMPLETE: "Done",
-  DROPPED: "Dropped",
-};
-
-const AVATAR_COLORS = ["#6b21c8", "#0e9f6e", "#d9a300", "#2563eb", "#db2777", "#0891b2"];
-
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase() || "?";
-}
-
-function avatarColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
-function InitialsAvatar({ name, size = 21 }: { name: string; size?: number }) {
-  return (
-    <span
-      aria-hidden
-      className="flex shrink-0 items-center justify-center rounded-full font-bold text-white"
-      style={{ width: size, height: size, fontSize: size * 0.42, background: avatarColor(name) }}
-    >
-      {initialsOf(name)}
-    </span>
-  );
-}
-
-function dueLabel(item: ActionItemWithRelations, now: Date): { label: string; danger: boolean } {
-  if (isActionOverdue(item, now)) return { label: "Overdue", danger: true };
-  return { label: formatMonthDay(effectiveDeadline(item)), danger: false };
-}
 
 function isExecutingByMe(item: ActionItemWithRelations, userId: string): boolean {
   return item.assignments.some((a) => a.role === "EXECUTING" && a.user.id === userId);
@@ -109,9 +57,7 @@ function Lane({
       <div
         className="flex items-center gap-2.5 border-b px-[18px] py-3.5"
         style={
-          tinted
-            ? { background: "#fdf8ec", borderColor: "#f3ecd4" }
-            : { borderColor: "#f1f1f6" }
+          tinted ? { background: "#fdf8ec", borderColor: "#f3ecd4" } : { borderColor: "#f1f1f6" }
         }
       >
         <span className="size-2 shrink-0 rounded-full" style={{ background: dot }} />
@@ -136,19 +82,17 @@ function Lane({
 
 function ActionCard({
   item,
-  userId,
   now,
   showExecutors = false,
 }: {
   item: ActionItemWithRelations;
-  userId: string;
   now: Date;
   /** Delegated lane: show the executor avatars instead of the single owner. */
   showExecutors?: boolean;
 }) {
   const status = effectiveStatus(item, now);
   const due = dueLabel(item, now);
-  const rail = RAIL[status] ?? "#c9c9d6";
+  const rail = STATUS_RAIL[status] ?? "#c9c9d6";
   const lead = item.lead;
   const executors = item.assignments.filter((a) => a.role === "EXECUTING").map((a) => a.user);
 
@@ -166,16 +110,8 @@ function ActionCard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge tone={STATUS_TONE[status] ?? "neutral"}>
-            {STATUS_LABEL[status] ?? status}
-          </StatusBadge>
-
-          {item.officerMeeting ? (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700">
-              <span className="size-1.5 rounded-full bg-brand-600" />
-              {item.officerMeeting.title}
-            </span>
-          ) : null}
+          <ActionStatusBadge item={item} now={now} />
+          <MeetingSourceChip item={item} />
 
           <span className="ml-auto flex items-center gap-3">
             {showExecutors && executors.length > 0 ? (
@@ -376,9 +312,7 @@ export function MyActionsBoard({
               </div>
             ) : null}
             {executing.length > 0 ? (
-              executing.map((item) => (
-                <ActionCard key={item.id} item={item} userId={userId} now={now} />
-              ))
+              executing.map((item) => <ActionCard key={item.id} item={item} now={now} />)
             ) : (
               <EmptyLane
                 title="Nothing to execute right now"
@@ -389,9 +323,7 @@ export function MyActionsBoard({
 
           <Lane dot="#6b21c8" title="You own — delegated to others" count={`${delegated.length} items`}>
             {delegated.length > 0 ? (
-              delegated.map((item) => (
-                <ActionCard key={item.id} item={item} userId={userId} now={now} showExecutors />
-              ))
+              delegated.map((item) => <ActionCard key={item.id} item={item} now={now} showExecutors />)
             ) : (
               <EmptyLane
                 title="Nothing delegated"
@@ -414,7 +346,9 @@ export function MyActionsBoard({
                     </span>
                   </div>
                   <p className="m-0 mb-3 text-[12.5px] text-[#8a7320]">
-                    {item.lead ? `${item.lead.name ?? item.lead.email} has requested your input.` : "Your input is requested."}
+                    {item.lead
+                      ? `${item.lead.name ?? item.lead.email} has requested your input.`
+                      : "Your input is requested."}
                   </p>
                   <Link
                     href={`/actions/${item.id}`}

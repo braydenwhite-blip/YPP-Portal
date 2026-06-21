@@ -18,6 +18,7 @@ import {
 import { ButtonLink, PageHeaderV2, StatCardV2, type StatusTone } from "@/components/ui-v2";
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { MyActionsBoard } from "@/components/people-strategy/my-actions-board";
+import { AllActionsBoard } from "@/components/people-strategy/all-actions-board";
 import { getUserTitle } from "@/lib/user-title";
 import { CommandModeToggle } from "@/components/command-center/command-mode";
 import {
@@ -327,6 +328,20 @@ export default async function ActionsPage({
 
   return (
     <div className={skin.portalSkin}>
+    <AllActionsBoard
+      items={allItems}
+      now={now}
+      activeLane={firstParam(params.lane)}
+      createHref={createHref}
+    />
+    <details className="mx-auto mt-7 w-full max-w-[1180px] overflow-hidden rounded-[14px] border border-line-card bg-surface/60 [&_summary::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3.5">
+        <span className="text-[13px] font-bold text-ink">
+          Full tracker — create, filter, export &amp; batch-assign
+        </span>
+        <span className="ml-auto text-[12px] font-semibold text-brand-700">Open ▾</span>
+      </summary>
+      <div className="border-t border-line-soft p-4">
     <SimpleSurface
       maxWidth={820}
       header={
@@ -440,6 +455,8 @@ export default async function ActionsPage({
         />
       </div>
     </SimpleSurface>
+      </div>
+    </details>
     </div>
   );
 }
