@@ -270,7 +270,7 @@ export function PeopleFindStart({
       ) : (
         <form onSubmit={handleAddPerson}>
           <div className="space-y-8 px-5 py-6 sm:px-7 sm:py-7">
-            {error ? <FeedbackBanner tone="error" message={error} /> : null}
+            {error ? <FeedbackBanner message={error} tone="error" /> : null}
 
             <FormSection step={1} title="Who is this?" hint="Name and email for their portal account.">
               <input

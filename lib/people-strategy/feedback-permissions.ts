@@ -1,4 +1,4 @@
-import { hasRole, hasAdminSubtype, hasAnyAdminSubtype } from "@/lib/authorization";
+import { hasRole, hasAdminSubtype, hasAnyAdminSubtype } from "@/lib/authorization-roles";
 import type { SessionUser } from "@/lib/auth-supabase";
 
 /**

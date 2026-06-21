@@ -115,12 +115,12 @@ export default async function ChairQueuePage() {
     <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-6 py-6">
       <PageHeaderV2
         eyebrow="Hiring Chair"
-        title="Chair Queue"
+        title="Instructor Applicants"
         subtitle={`${applications.length} application${applications.length !== 1 ? "s" : ""} awaiting chair decision.${
           oldestDays !== null
             ? ` Oldest has been waiting ${oldestDays} day${oldestDays === 1 ? "" : "s"}.`
             : ""
-        } Open any row to launch the full chair review workspace.`}
+        } Reviews already written come first — confirm the recommended next step.`}
         actions={
           <Link
             href="/admin/instructor-applicants/activity"

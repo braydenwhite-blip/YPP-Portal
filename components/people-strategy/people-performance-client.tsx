@@ -1,129 +1,107 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { CheckInsDrawer } from "@/components/people-strategy/check-ins-drawer";
 import { FeedbackRequestDrawer } from "@/components/people-strategy/feedback-request-drawer";
 import { FeedbackReviewDrawer } from "@/components/people-strategy/feedback-review-drawer";
-import { PeopleCockpitView } from "@/components/people-strategy/people-cockpit";
 import { PersonDetailDrawer } from "@/components/people-strategy/person-detail-drawer";
 import { PeoplePerformanceTable } from "@/components/people-strategy/people-performance-table";
-import { deriveNextAction } from "@/lib/people-strategy/people-performance-selectors";
-import type { CockpitItem, PeopleCockpit } from "@/lib/people-strategy/people-cockpit";
+import {
+  PeopleReviewsFiltersBar,
+  type PeopleReviewsFilterOptions,
+} from "@/components/people-strategy/people-reviews-filters";
+import {
+  paginateRows,
+  PeopleReviewsPagination,
+} from "@/components/people-strategy/people-reviews-pagination";
+import {
+  sortPerformanceRowsByUrgency,
+  type PeopleReviewsTableFilters,
+} from "@/lib/people-strategy/people-performance-selectors";
 import type { PeoplePerformanceRow } from "@/lib/people-strategy/people-performance";
-
-/**
- * People & Performance — interactive shell (the cockpit host).
- *
- * Renders the guided decision-lane cockpit as the primary view and owns the
- * three drawers (person detail, feedback request, feedback review). Every person
- * action — from a cockpit card or the detail drawer's main button — routes
- * through the SAME Next Action helper so the page always suggests one consistent
- * step per person. The full roster table is demoted behind a disclosure for
- * power users who want to look someone up.
- */
 
 type Member = { id: string; name: string };
 
 export function PeoplePerformanceClient({
-  cockpit,
   rows,
   tableRows,
-  browseControls,
+  tableFilters,
+  filterOptions,
+  clearFiltersHref,
+  page,
+  basePath = "/people",
   monthLabel,
   monthShortLabel,
   quarter,
   quarterlyEnabled,
 }: {
-  cockpit: PeopleCockpit;
-  /** All performance rows — the cockpit's person cards resolve against these. */
   rows: PeoplePerformanceRow[];
-  /** The (search/filter-narrowed) rows shown in the Browse-all table. */
   tableRows: PeoplePerformanceRow[];
-  /** Server-rendered search + filter controls, shown inside the Browse-all zone. */
-  browseControls?: ReactNode;
+  tableFilters: PeopleReviewsTableFilters;
+  filterOptions: PeopleReviewsFilterOptions;
+  clearFiltersHref: string;
+  page: number;
+  basePath?: string;
   monthLabel: string;
   monthShortLabel: string;
   quarter: string;
   quarterlyEnabled: boolean;
 }) {
   const [detailRow, setDetailRow] = useState<PeoplePerformanceRow | null>(null);
+  const [checkInsMember, setCheckInsMember] = useState<Member | null>(null);
   const [reviewMember, setReviewMember] = useState<Member | null>(null);
   const [requestMember, setRequestMember] = useState<Member | null>(null);
-  const [showTable, setShowTable] = useState(false);
+
+  // Keep the open drawer in sync after router.refresh().
+  useEffect(() => {
+    if (!detailRow) return;
+    const fresh = rows.find((r) => r.id === detailRow.id);
+    if (fresh) setDetailRow(fresh);
+  }, [rows, detailRow?.id]);
 
   const ctx = useMemo(() => ({ monthLabel, quarter }), [monthLabel, quarter]);
-  const rowById = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
+  const sortedRows = useMemo(
+    () => sortPerformanceRowsByUrgency(tableRows, ctx),
+    [tableRows, ctx]
+  );
+  const pageRows = useMemo(() => paginateRows(sortedRows, page), [sortedRows, page]);
 
-  function openPerson(personId: string) {
-    const row = rowById.get(personId);
-    if (row) setDetailRow(row);
-  }
-
-  // The one place an action is dispatched — keeps the cockpit cards, the table
-  // rows, and the detail drawer consistent with the Next Action helper.
-  function dispatchRow(row: PeoplePerformanceRow) {
-    const action = deriveNextAction(row.facts, ctx);
-    const member = { id: row.id, name: row.name || row.email };
-    switch (action.kind) {
-      case "review-feedback":
-      case "await-feedback":
-        setReviewMember(member);
-        break;
-      case "request-feedback":
-        setRequestMember(member);
-        break;
-      default:
-        setDetailRow(row);
-        break;
-    }
-  }
-
-  function runPersonAction(item: CockpitItem) {
-    if (!item.person.id) return;
-    const row = rowById.get(item.person.id);
-    if (row) dispatchRow(row);
+  function memberFromRow(row: PeoplePerformanceRow): Member {
+    return { id: row.id, name: row.name || row.email };
   }
 
   return (
     <>
-      <PeopleCockpitView
-        cockpit={cockpit}
-        onOpenPerson={openPerson}
-        onRunPersonAction={runPersonAction}
-      />
+      <div className="flex flex-col gap-4">
+        <PeopleReviewsFiltersBar
+          filters={tableFilters}
+          options={filterOptions}
+          clearHref={clearFiltersHref}
+          basePath={basePath}
+        />
 
-      <div className="flex flex-col gap-3 border-t border-line-soft pt-4">
-        <button
-          type="button"
-          onClick={() => setShowTable((v) => !v)}
-          aria-expanded={showTable}
-          className="self-start text-[12.5px] font-semibold text-brand-700 hover:underline"
-        >
-          {showTable
-            ? "Hide the full team directory"
-            : `Browse the full team directory (${rows.length})`}
-        </button>
-        {showTable ? (
-          <>
-            {browseControls}
-            {tableRows.length > 0 ? (
-              <PeoplePerformanceTable
-                rows={tableRows}
-                monthLabel={monthLabel}
-                monthShortLabel={monthShortLabel}
-                quarter={quarter}
-                quarterlyEnabled={quarterlyEnabled}
-                onOpenPerson={setDetailRow}
-                onRunAction={dispatchRow}
-              />
-            ) : (
-              <p className="m-0 text-[13px] text-ink-muted">
-                No one matches this search or filter.
-              </p>
-            )}
-          </>
-        ) : null}
+        {pageRows.length > 0 ? (
+          <div className="overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+            <PeoplePerformanceTable
+              rows={pageRows}
+              monthLabel={monthLabel}
+              monthShortLabel={monthShortLabel}
+              quarter={quarter}
+              quarterlyEnabled={quarterlyEnabled}
+              onOpenPerson={setDetailRow}
+              onOpenCheckIns={(row) => setCheckInsMember(memberFromRow(row))}
+            />
+            <PeopleReviewsPagination total={sortedRows.length} page={page} basePath={basePath} />
+          </div>
+        ) : (
+          <div className="rounded-[14px] border border-[#ebebf2] bg-white px-5 py-12 text-center text-[13px] text-[#9a9ab0] shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+            No one matches this search or filter.
+          </div>
+        )}
       </div>
+
+      <CheckInsDrawer member={checkInsMember} onClose={() => setCheckInsMember(null)} />
 
       <PersonDetailDrawer
         row={detailRow}

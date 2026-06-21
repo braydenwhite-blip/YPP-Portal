@@ -56,7 +56,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
     label: "Who needs attention?",
     description: "People & Performance: members with a check-in, review, feedback, or mentor gap",
-    href: "/people/performance?view=needs-attention",
+    href: "/people?view=needs-attention",
     icon: "🫶",
     tier: "OFFICER",
     adminOnly: true,
@@ -65,7 +65,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
     label: "Who needs a check-in?",
     description: "People missing this month's compiled monthly check-in",
-    href: "/people/performance?view=needs-checkin",
+    href: "/people?view=needs-checkin",
     icon: "🗓️",
     tier: "OFFICER",
     adminOnly: true,
@@ -74,7 +74,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
     label: "Feedback waiting to review",
     description: "People with collaborator feedback in and a reply still pending",
-    href: "/people/performance?view=feedback-pending",
+    href: "/people?view=feedback-pending",
     icon: "💬",
     tier: "OFFICER",
     adminOnly: true,
@@ -83,7 +83,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
     label: "Quarterly reviews due",
     description: "People with no quarterly review yet for the current quarter",
-    href: "/people/performance?view=reviews-due",
+    href: "/people?view=reviews-due",
     icon: "📊",
     tier: "OFFICER",
     adminOnly: true,
@@ -92,7 +92,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
     label: "People with no mentor",
     description: "Mentor-eligible members with no active mentor assigned",
-    href: "/people/performance?view=no-mentor",
+    href: "/people?view=no-mentor",
     icon: "🧑‍🏫",
     tier: "OFFICER",
     adminOnly: true,
@@ -101,7 +101,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
     label: "Who's ready for more?",
     description: "People carrying a 'Ready for more' or 'Potential team lead' signal",
-    href: "/people/performance?view=growth",
+    href: "/people?view=growth",
     icon: "🌱",
     tier: "OFFICER",
     adminOnly: true,

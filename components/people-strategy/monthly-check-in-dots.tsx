@@ -19,6 +19,7 @@ const RATED_DOT_CLASS: Record<GoalRatingColor, string> = {
 };
 
 function dotTitle(dot: CheckInCalendarDot): string {
+  if (dot.state === "not_due") return `${dot.monthLabel}: not due yet`;
   if (dot.state === "missing") return `${dot.monthLabel}: no check-in`;
   if (dot.state === "completed") return `${dot.monthLabel}: check-in completed (no rating)`;
   return `${dot.monthLabel}: ${dot.rating ? RATING_LABELS[dot.rating] : "rated"}`;
@@ -46,6 +47,7 @@ export function MonthlyCheckInDots({
               aria-label={title}
               className={cn(
                 "size-3 rounded-full",
+                dot.state === "not_due" && "bg-surface-soft",
                 dot.state === "missing" && "border-2 border-line bg-transparent",
                 dot.state === "completed" && "bg-ink-muted",
                 dot.state === "rated" && dot.rating && RATED_DOT_CLASS[dot.rating]

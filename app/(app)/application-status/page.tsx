@@ -16,7 +16,6 @@ import InstructorApplicationMotivationResponse from "@/components/instructor-app
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 import { isHttpUrl } from "@/lib/meeting-details";
 import type { WorkshopOutline } from "@/lib/summer-workshop";
-import { cpApplicantFacingStatusLabel } from "@/lib/chapter-president-lifecycle";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
   switch (status) {
@@ -40,13 +39,36 @@ function instructorStatusLabel(status: InstructorApplicationStatus): string {
 }
 
 function cpStatusLabel(status: ChapterPresidentApplicationStatus): string {
-  return cpApplicantFacingStatusLabel(status);
+  switch (status) {
+    case "SUBMITTED": return "Submitted";
+    case "INITIAL_REVIEW": return "Initial Review";
+    case "UNDER_REVIEW": return "Under Review";
+    case "NEEDS_MORE_INFO": return "More Info Requested";
+    case "INFO_REQUESTED": return "More Info Requested";
+    case "INTERVIEW_NEEDED": return "Interview Needed";
+    case "INTERVIEW_SCHEDULED": return "Interview Scheduled";
+    case "INTERVIEW_COMPLETE": return "Interview Completed";
+    case "INTERVIEW_COMPLETED": return "Interview Completed";
+    case "DECISION_NEEDED": return "Decision Needed";
+    case "RECOMMENDATION_SUBMITTED": return "Under Final Review";
+    case "ACCEPTED": return "Accepted";
+    case "APPROVED": return "Approved";
+    case "WAITLISTED": return "Waitlisted";
+    case "DECLINED": return "Not Accepted";
+    case "REJECTED": return "Not Accepted";
+    case "ONBOARDING": return "Onboarding";
+    case "ACTIVE_CP": return "Active Chapter President";
+    default: {
+      const exhaustiveCheck: never = status;
+      return exhaustiveCheck;
+    }
+  }
 }
 
 function statusColor(status: string): string {
-  if (["APPROVED", "ACCEPTED", "ONBOARDING", "ACTIVE_CP"].includes(status)) return "#16a34a";
-  if (["REJECTED", "DECLINED"].includes(status)) return "#dc2626";
-  if (["INFO_REQUESTED", "NEEDS_MORE_INFO"].includes(status)) return "#d97706";
+  if (status === "APPROVED") return "#16a34a";
+  if (status === "REJECTED") return "#dc2626";
+  if (status === "INFO_REQUESTED") return "#d97706";
   if (status === "ON_HOLD") return "#71717a";
   if (status === "PRE_APPROVED") return "#7c3aed";
   return "#6b21c8";
@@ -54,8 +76,8 @@ function statusColor(status: string): string {
 
 function currentStageIndex(status: string): number {
   if (status === "SUBMITTED") return 0;
-  if (["UNDER_REVIEW", "INITIAL_REVIEW", "INFO_REQUESTED", "NEEDS_MORE_INFO", "ON_HOLD"].includes(status)) return 1;
-  if (["PRE_APPROVED", "INTERVIEW_NEEDED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETE", "INTERVIEW_COMPLETED"].includes(status)) return 2;
+  if (status === "UNDER_REVIEW" || status === "INFO_REQUESTED" || status === "ON_HOLD") return 1;
+  if (status === "PRE_APPROVED" || status === "INTERVIEW_SCHEDULED" || status === "INTERVIEW_COMPLETED") return 2;
   return 3;
 }
 
@@ -657,7 +679,7 @@ export default async function ApplicationStatusPage() {
                 </p>
               </>
             )}
-            {["UNDER_REVIEW", "INITIAL_REVIEW"].includes(cpApp.status) && (
+            {cpApp.status === "UNDER_REVIEW" && (
               <>
                 <h3 className="section-title">Under Review</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
@@ -665,7 +687,7 @@ export default async function ApplicationStatusPage() {
                 </p>
               </>
             )}
-            {["INFO_REQUESTED", "NEEDS_MORE_INFO"].includes(cpApp.status) && (
+            {cpApp.status === "INFO_REQUESTED" && (
               <>
                 <h3 className="section-title">Additional Information Needed</h3>
                 {cpApp.infoRequest && (
@@ -683,14 +705,6 @@ export default async function ApplicationStatusPage() {
                   </div>
                 )}
                 <CPInfoResponseForm />
-              </>
-            )}
-            {cpApp.status === "INTERVIEW_NEEDED" && (
-              <>
-                <h3 className="section-title">Interview Needed</h3>
-                <p style={{ color: "var(--muted)", fontSize: 14 }}>
-                  Your application is moving to the interview step. A reviewer will share scheduling details here.
-                </p>
               </>
             )}
             {cpApp.status === "INTERVIEW_SCHEDULED" && (
@@ -731,7 +745,7 @@ export default async function ApplicationStatusPage() {
                 )}
               </>
             )}
-            {["DECISION_NEEDED", "RECOMMENDATION_SUBMITTED"].includes(cpApp.status) && (
+            {cpApp.status === "RECOMMENDATION_SUBMITTED" && (
               <>
                 <h3 className="section-title">Under Final Review</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
@@ -739,13 +753,13 @@ export default async function ApplicationStatusPage() {
                 </p>
               </>
             )}
-            {["INTERVIEW_COMPLETE", "INTERVIEW_COMPLETED"].includes(cpApp.status) && (
+            {cpApp.status === "INTERVIEW_COMPLETED" && (
               <>
                 <h3 className="section-title">Interview Completed</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>A final decision is pending.</p>
               </>
             )}
-            {["APPROVED", "ACCEPTED", "ONBOARDING", "ACTIVE_CP"].includes(cpApp.status) && (
+            {cpApp.status === "APPROVED" && (
               <>
                 <h3 className="section-title" style={{ color: "#16a34a" }}>Approved!</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
@@ -761,7 +775,7 @@ export default async function ApplicationStatusPage() {
                 </div>
               </>
             )}
-            {["REJECTED", "DECLINED"].includes(cpApp.status) && (
+            {cpApp.status === "REJECTED" && (
               <>
                 <h3 className="section-title">Application Not Accepted</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
@@ -774,6 +788,12 @@ export default async function ApplicationStatusPage() {
                   </div>
                 )}
               </>
+            )}
+            {cpApp.reviewerNotes && cpApp.status !== "REJECTED" && (
+              <div style={{ marginTop: 16, background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px" }}>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Feedback from reviewer:</strong></p>
+                <p style={{ fontSize: 14, margin: 0 }}>{cpApp.reviewerNotes}</p>
+              </div>
             )}
           </div>
 

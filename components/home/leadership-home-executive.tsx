@@ -73,8 +73,8 @@ export function LeadershipHomeExecutive({
   const [activeTab, setActiveTab] = useState<"upcoming" | "completed">("upcoming");
   const [eventFilter, setEventFilter] = useState<EventType>("all");
 
-  const filteredEvents = eventFilter === "all" 
-    ? data.upcomingEvents 
+  const filteredEvents = eventFilter === "all"
+    ? data.upcomingEvents
     : data.upcomingEvents.filter(e => e.type === eventFilter);
 
   return (
@@ -318,11 +318,11 @@ export function LeadershipHomeExecutive({
 
           <div className="flex min-w-0 flex-col gap-5">
             {/* OVERDUE ACTIONS - Highlighted when there are overdue items */}
-            <section 
+            <section
               className={cn(
                 "scroll-mt-24 rounded-[12px] border p-6 shadow-card transition-all duration-200",
-                data.overdueActions.length > 0 
-                  ? "border-[#e5484d] bg-[#fdf3f2]" 
+                data.overdueActions.length > 0
+                  ? "border-[#e5484d] bg-[#fdf3f2]"
                   : "border-line-soft bg-surface"
               )}
             >
@@ -434,7 +434,7 @@ export function LeadershipHomeExecutive({
                       Your upcoming deadlines
                     </h3>
                   </div>
-                  
+
                   {/* Filter tabs */}
                   <div className="mb-4 flex flex-wrap gap-2">
                     {(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((type) => (
@@ -464,9 +464,9 @@ export function LeadershipHomeExecutive({
                           <li
                             key={event.id}
                             className="flex items-center gap-3.5 border-b border-line-soft px-0 py-3 last:border-b-0 transition-all duration-200 hover:bg-surface-soft"
-                            style={{ 
+                            style={{
                               borderColor: "#f4f4f8",
-                              background: overdue ? "#fdf3f2" : undefined 
+                              background: overdue ? "#fdf3f2" : undefined
                             }}
                           >
                             <a href={event.href} className="flex w-full items-center gap-3.5 no-underline">

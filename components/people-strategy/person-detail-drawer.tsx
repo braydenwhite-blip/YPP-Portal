@@ -29,6 +29,27 @@ import {
 } from "@/lib/people-strategy/people-performance-selectors";
 import type { PeoplePerformanceRow } from "@/lib/people-strategy/people-performance";
 
+/** Leadership destinations for the full person record (beyond the quick drawer). */
+function resolvePersonRecordLinks(row: PeoplePerformanceRow) {
+  const profileHref = `/people/${row.id}`;
+  const strategyHref = `/admin/instructors/${row.id}/manage/strategy`;
+  const role = (row.role ?? "").toUpperCase();
+  const adminHref =
+    role === "STUDENT"
+      ? `/admin/students/${row.id}`
+      : role === "INSTRUCTOR" ||
+          role === "STAFF" ||
+          role === "MENTOR" ||
+          role === "CHAPTER_PRESIDENT" ||
+          role === "ADMIN" ||
+          role === "HIRING_CHAIR"
+        ? `/admin/instructors/${row.id}`
+        : null;
+  const adminLabel =
+    role === "STUDENT" ? "Student admin" : role === "INSTRUCTOR" ? "Instructor admin" : "Admin record";
+  return { profileHref, strategyHref, adminHref, adminLabel };
+}
+
 /**
  * Person Detail drawer — answers "what is going on with this person?" without
  * bouncing across the portal. One header, one primary action, then the five
@@ -43,6 +64,7 @@ const DOT_TONE: Record<CheckInDotState, string> = {
   rated: "bg-success-500",
   completed: "bg-brand-400",
   missing: "bg-line",
+  not_due: "bg-surface-soft",
 };
 
 function CheckInDots({ row }: { row: PeoplePerformanceRow }) {
@@ -127,6 +149,16 @@ export function PersonDetailDrawer({
     });
   }, [memberId]);
 
+  async function refreshCheckInDetail() {
+    if (!memberId) return;
+    try {
+      const detail = await loadLatestCheckInDetail({ subjectUserId: memberId });
+      setCheckIn(detail);
+    } catch {
+      setCheckIn(null);
+    }
+  }
+
   if (!row) {
     return (
       <ModalV2 open={false} onClose={onClose} labelledBy="person-detail-title">
@@ -145,7 +177,7 @@ export function PersonDetailDrawer({
   const activeActions = [...row.leadActions, ...row.executingActions];
   const topActions = activeActions.slice(0, 3);
   const nextDeadline = activeActions.find((a) => a.overdue) ?? activeActions[0] ?? null;
-  const strategyHref = `/admin/instructors/${row.id}/manage/strategy`;
+  const { profileHref, strategyHref, adminHref, adminLabel } = resolvePersonRecordLinks(row);
 
   function handleCompile() {
     if (!memberId || compiling || !quarterlyEnabled) return;
@@ -165,6 +197,7 @@ export function PersonDetailDrawer({
             newResponses: result.newResponses,
           })
         );
+        await refreshCheckInDetail();
         router.refresh();
       } catch (err) {
         setCompileError(true);
@@ -293,25 +326,19 @@ export function PersonDetailDrawer({
             <CheckInDots row={row} />
           </div>
           {checkInLoading ? (
-            <p className="m-0 text-[12.5px] text-ink-muted">Loading latest check-in…</p>
+            <p className="m-0 text-[12.5px] text-ink-muted">Loading…</p>
+          ) : checkIn?.performanceRating ? (
+            <p className="m-0 text-[12.5px] text-ink-muted">
+              Latest: {checkIn.monthLabel} · {RATING_LABELS[checkIn.performanceRating]}
+            </p>
           ) : checkIn ? (
-            <div className="rounded-[8px] bg-surface-soft px-3 py-2">
-              <p className="m-0 text-[12px] font-semibold text-ink">
-                {checkIn.monthLabel} check-in
-                {checkIn.performanceRating
-                  ? ` · ${RATING_LABELS[checkIn.performanceRating]}`
-                  : ""}
-              </p>
-              {checkIn.compiledNotes ? (
-                <p className="m-0 mt-1 whitespace-pre-wrap text-[12.5px] leading-relaxed text-ink-muted">
-                  {checkIn.compiledNotes}
-                </p>
-              ) : null}
-            </div>
+            <p className="m-0 text-[12.5px] text-ink-muted">
+              {checkIn.monthLabel} check-in saved.
+            </p>
           ) : (
-            <p className="m-0 text-[12.5px] text-ink-muted">No check-in compiled yet.</p>
+            <p className="m-0 text-[12.5px] text-ink-muted">No check-in yet this month.</p>
           )}
-          {quarterlyEnabled ? (
+          {quarterlyEnabled && row.facts.needsCheckIn ? (
             <div>
               <Button
                 variant="secondary"
@@ -319,11 +346,7 @@ export function PersonDetailDrawer({
                 onClick={handleCompile}
                 disabled={compiling}
               >
-                {compiling
-                  ? "Compiling…"
-                  : row.facts.needsCheckIn
-                    ? `Compile ${monthShortLabel} check-in`
-                    : `Recompile ${monthShortLabel} check-in`}
+                {compiling ? "Saving…" : `Compile ${monthShortLabel} check-in`}
               </Button>
               {compileNote ? (
                 <p
@@ -433,13 +456,38 @@ export function PersonDetailDrawer({
             </p>
           )}
         </Section>
+
+        <Section title="Full record">
+          <p className="m-0 text-[12.5px] leading-relaxed text-ink-muted">
+            This drawer is the quick leadership view. Open a full page for history, classes,
+            applications, and admin tools.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href={profileHref} variant="secondary" size="sm">
+              People profile →
+            </ButtonLink>
+            {adminHref ? (
+              <ButtonLink href={adminHref} variant="secondary" size="sm">
+                {adminLabel} →
+              </ButtonLink>
+            ) : null}
+            <ButtonLink href={strategyHref} variant="ghost" size="sm">
+              People strategy →
+            </ButtonLink>
+          </div>
+        </Section>
       </div>
 
       <ModalFooterV2>
         <Button variant="ghost" size="md" onClick={onClose}>
           Close
         </Button>
-        {renderMainAction()}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <ButtonLink href={profileHref} variant="secondary" size="md">
+            Full profile
+          </ButtonLink>
+          {renderMainAction()}
+        </div>
       </ModalFooterV2>
     </ModalV2>
   );

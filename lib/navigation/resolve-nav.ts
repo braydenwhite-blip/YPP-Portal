@@ -397,7 +397,7 @@ function navHrefMatchesPathnameForActive(
     return true;
   }
   if (href === "/people") {
-    return pathname === "/people";
+    return pathname === "/people" || pathname.startsWith("/people/");
   }
   if (href === "/actions" && (pathname === "/my-actions" || pathname.startsWith("/my-actions/"))) {
     return true;

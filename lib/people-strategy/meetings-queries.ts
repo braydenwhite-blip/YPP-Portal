@@ -230,6 +230,7 @@ export interface MeetingCardDTO {
   /** Facilitator + attendee user ids, for the dashboard's owner filter. */
   participantIds: string[];
   effectiveStatus: EffectiveMeetingStatus;
+  storedStatus: "SCHEDULED" | "COMPLETED" | "CANCELLED";
   agendaCount: number;
   agendaDoneCount: number;
   decisionCount: number;
@@ -456,6 +457,7 @@ export function mapMeetingToCardDTO(
       ...m.attendees.map((a) => a.userId),
     ],
     effectiveStatus: computeMeetingStatus(view, now),
+    storedStatus: m.status,
     agendaCount: m.agendaItems.length,
     agendaDoneCount: m.agendaItems.filter((a) => a.status !== "OPEN").length,
     decisionCount: m.decisions.length,

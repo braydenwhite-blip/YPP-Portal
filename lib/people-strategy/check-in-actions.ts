@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { GoalRatingColor } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { requireOfficer } from "@/lib/authorization";
+import { requireLeadership } from "@/lib/authorization";
 import { isQuarterlyReviewsEnabled } from "@/lib/feature-flags";
 import { derivePerformanceRating, RATING_LABELS } from "./check-in-rating";
 
@@ -123,7 +123,7 @@ export async function compileCheckIn(
   input: CompileCheckInInput
 ): Promise<CompiledCheckIn> {
   ensureEnabled();
-  await requireOfficer();
+  await requireLeadership();
 
   const { userId, month } = CompileSchema.parse(input);
   const monthStart = firstOfMonthUTC(month);
@@ -197,6 +197,7 @@ export async function compileCheckIn(
   });
 
   revalidatePath("/admin/people");
+  revalidatePath("/people");
   revalidatePath("/people/performance");
 
   return {

@@ -298,11 +298,11 @@ describe("buildNeedsAttention", () => {
     });
     expect(items[0].severity).toBe("critical");
     expect(items[1].severity).toBe("critical");
-    
+
     // Explicit array loop typing to prevent index signatures conflicts
     const severities = items.map((i: any) => i.severity);
     const rank: Record<string, number> = { critical: 3, warning: 2, watch: 1, neutral: 0 };
-    
+
     for (let i = 1; i < severities.length; i++) {
       expect(rank[severities[i - 1]]).toBeGreaterThanOrEqual(rank[severities[i]]);
     }

@@ -315,9 +315,9 @@ export function QueueRunner({
             >
               ← Back
             </button>
-            <button 
-              type="button" 
-              onClick={skip} 
+            <button
+              type="button"
+              onClick={skip}
               className="rounded-lg border border-line-soft bg-surface px-4 py-2 text-[13px] font-semibold text-ink hover:bg-surface-soft transition-colors"
             >
               Skip for now

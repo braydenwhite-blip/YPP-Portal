@@ -1,6 +1,10 @@
 import Link from "next/link";
 
-export type PeopleHubTab = "directory" | "performance" | "classes";
+export type PeopleHubTab =
+  | "reviews"
+  | "check-ins"
+  | "mentorship"
+  | "quarterly-reviews";
 
 type TabDef = {
   key: PeopleHubTab;
@@ -9,31 +13,28 @@ type TabDef = {
 };
 
 const TABS: TabDef[] = [
-  { key: "directory", label: "Directory", href: "/people" },
-  { key: "performance", label: "Attention", href: "/people/performance" },
-  { key: "classes", label: "Classes", href: "/people/classes" },
+  { key: "reviews", label: "People & Reviews", href: "/people" },
+  { key: "check-ins", label: "Monthly Check-ins", href: "/people/check-ins" },
+  { key: "mentorship", label: "Mentorship", href: "/people/mentorship" },
+  { key: "quarterly-reviews", label: "Quarterly Reviews", href: "/people/quarterly-reviews" },
 ];
 
 /** Primary switcher for the People hub. */
 export function PeopleHubNav({
   active,
   showPerformance = false,
-  showClasses = false,
 }: {
-  active: PeopleHubTab;
+  /** Omit when the current page is not one of the hub tabs (e.g. legacy directory). */
+  active?: PeopleHubTab;
+  /** Shows leadership tabs (People & Reviews, check-ins, mentorship, quarterly reviews). */
   showPerformance?: boolean;
-  showClasses?: boolean;
 }) {
-  const visible = TABS.filter((tab) => {
-    if (tab.key === "performance") return showPerformance;
-    if (tab.key === "classes") return showClasses;
-    return true;
-  });
+  if (!showPerformance) return null;
 
   return (
     <nav className="ps-workspace-nav" aria-label="People hub">
       <div className="ps-tabs">
-        {visible.map((tab) => {
+        {TABS.map((tab) => {
           const isActive = tab.key === active;
           return isActive ? (
             <span key={tab.key} className="ps-tab" aria-current="page">

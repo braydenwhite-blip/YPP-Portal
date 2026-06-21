@@ -1,6 +1,5 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-
-import skin from "@/components/ui-v2/portal-skin.module.css";
 
 import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
@@ -20,18 +19,25 @@ import {
   meetingDisplayTitle,
   type MeetingCardDTO,
 } from "@/lib/people-strategy/meetings-queries";
+import {
+  meetingNextAction,
+  PRIMARY_MEETING_MODE_META,
+  selectPrimaryMeeting,
+} from "@/lib/people-strategy/meeting-command-center";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 import { isMeetingCategory } from "@/lib/people-strategy/meeting-categories";
 import {
   areaForRelatedEntityType,
   normalizeRelatedEntityType,
 } from "@/lib/people-strategy/operational-context";
+import { loadOfficerMeetingPrep } from "@/lib/people-strategy/officer-meeting-prep-queries";
 import { ActionTrackerTabsV2 } from "@/components/people-strategy/action-tracker-tabs-v2";
-import { OfficerMeetingsHero } from "@/components/people-strategy/officer-meetings-hero";
+import { OfficerMeetingsPrepClient } from "@/components/people-strategy/officer-meetings-prep-client";
 import { PageHeaderV2, type StatusTone } from "@/components/ui-v2";
 import { CommandModeToggle } from "@/components/command-center/command-mode";
 import {
   EmptySimpleState,
+  PrimaryFocusCard,
   SimpleListCard,
   SimpleRow,
   SimpleSurface,
@@ -53,12 +59,11 @@ import type {
 } from "@/components/people-strategy/new-meeting-drawer";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Meetings · Operations" };
+export const metadata = { title: "Officer Meetings · Operations" };
 
 function parseWeekOffset(value: string | undefined): number {
   const n = Number.parseInt(value ?? "", 10);
   if (Number.isNaN(n)) return 0;
-  // Bound the offset so a hand-edited URL can't wander years away.
   return Math.max(-52, Math.min(52, n));
 }
 
@@ -100,7 +105,10 @@ const FOLLOWUP_TONE: Record<string, StatusTone> = {
   completed: "success",
 };
 
-/** One meeting as a calm row: title · when · facilitator · status · output. */
+function withRelated(m: MeetingCardDTO) {
+  return { ...m, hasRelatedEntity: !!m.relatedEntityType && !!m.relatedEntityId };
+}
+
 function MeetingRowSimple({ meeting }: { meeting: MeetingCardDTO }) {
   const status = MEETING_STATUS[meeting.effectiveStatus];
   const outputs: string[] = [];
@@ -120,7 +128,38 @@ function MeetingRowSimple({ meeting }: { meeting: MeetingCardDTO }) {
   );
 }
 
-/** One open follow-up as a calm row: title · owner · status · due. */
+function MeetingTrackerFocus({ cards, now }: { cards: MeetingCardDTO[]; now: Date }) {
+  const selection = selectPrimaryMeeting(cards.map(withRelated), now);
+  if (!selection) {
+    return (
+      <PrimaryFocusCard
+        eyebrow="Meetings"
+        title="No meeting needs you right now."
+        reason="Nothing is live, nothing is coming up this week, and finished meetings are wrapped up."
+        icon="check"
+        tone="success"
+        ctaLabel="Schedule a meeting"
+        ctaHref="/actions/meetings/new"
+      />
+    );
+  }
+  const m = selection.meeting;
+  const meta = PRIMARY_MEETING_MODE_META[selection.mode];
+  const next = meetingNextAction(m);
+  const when = selection.mode === "current" ? "Happening now" : fmtWhen(m.startISO);
+  const bits = [when, m.facilitator?.name ?? null].filter(Boolean).join(" · ");
+  return (
+    <PrimaryFocusCard
+      eyebrow={meta.eyebrow}
+      title={m.title}
+      reason={`${bits}. ${next.reason}`}
+      icon="calendar"
+      ctaLabel={next.label}
+      ctaHref={next.href}
+    />
+  );
+}
+
 function FollowUpRowSimple({ row }: { row: FollowQueueRow }) {
   return (
     <SimpleRow
@@ -137,56 +176,27 @@ function FollowUpRowSimple({ row }: { row: FollowQueueRow }) {
   );
 }
 
-export default async function WeeklyCommandCenterPage({
+async function WeekGridView({
+  viewer,
+  now,
   searchParams,
 }: {
-  searchParams?: Promise<{
-    week?: string;
-    new?: string;
-    relatedType?: string;
-    relatedId?: string;
-    title?: string;
-    purpose?: string;
-    area?: string;
-  }>;
+  viewer: NonNullable<Awaited<ReturnType<typeof requireOfficer>>>;
+  now: Date;
+  searchParams: Record<string, string | undefined>;
 }) {
-  // Outer gate: with ENABLE_ACTION_TRACKER off the route does not exist.
-  if (!isActionTrackerEnabled()) notFound();
-
-  // Officer-tier and above only (mirrors requireOfficer()); deny with a 404 so
-  // the route's existence is not leaked to members.
-  const viewer = await requireOfficer().catch(() => null);
-  if (!viewer) notFound();
-
-  const now = new Date();
-  const sp = (await searchParams) ?? {};
-
-  if (sp.new === "1") {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(sp)) {
-      if (key === "new" || key === "week") continue;
-      const v = Array.isArray(value) ? value[0] : value;
-      if (v) params.set(key, v);
-    }
-    const qs = params.toString();
-    redirect(qs ? `/actions/meetings/new?${qs}` : "/actions/meetings/new");
-  }
-
-  const weekOffset = parseWeekOffset(sp.week);
+  const weekOffset = parseWeekOffset(searchParams.week);
   const { start, end } = weekRangeForOffset(weekOffset, now);
 
-  // Create-from-context: an entity page can deep-link here with ?new=1 plus the
-  // entity to link, so a meeting is born already connected to that surface.
-  const prefillType = normalizeRelatedEntityType(sp.relatedType);
-  const prefillId = sp.relatedId?.trim() || null;
-  // Scalar prefill (title / purpose / area) so a digest "schedule a meeting" CTA
-  // can suggest what the meeting is for. Sanitized; an unknown area is dropped.
-  const titleParam = typeof sp.title === "string" ? sp.title.trim().slice(0, 300) : "";
-  const purposeParam = typeof sp.purpose === "string" ? sp.purpose.trim().slice(0, 2000) : "";
+  const prefillType = normalizeRelatedEntityType(searchParams.relatedType);
+  const prefillId = searchParams.relatedId?.trim() || null;
+  const titleParam = searchParams.title?.trim().slice(0, 300) ?? "";
+  const purposeParam = searchParams.purpose?.trim().slice(0, 2000) ?? "";
   const areaParam =
-    sp.area && isMeetingCategory(sp.area.trim().toUpperCase())
-      ? sp.area.trim().toUpperCase()
+    searchParams.area && isMeetingCategory(searchParams.area.trim().toUpperCase())
+      ? searchParams.area.trim().toUpperCase()
       : null;
+
   let meetingPrefill: MeetingPrefill | undefined;
   if (prefillType && prefillId) {
     const summary = await loadRelatedEntitySummary(prefillType, prefillId).catch(() => null);
@@ -201,16 +211,12 @@ export default async function WeeklyCommandCenterPage({
       };
     }
   } else if (titleParam || purposeParam || areaParam) {
-    // An issue-driven meeting with no entity link still carries its context.
     meetingPrefill = {
       category: areaParam,
       title: titleParam || null,
       purpose: purposeParam || null,
     };
   }
-  // ?new=1 opens the New Meeting drawer (with context when deep-linked, blank
-  // otherwise) — this is what the "New meeting" CTA below points at.
-  const autoOpenNew = sp.new === "1";
 
   const [meetings, recentDecisions, assignableUsers] = await Promise.all([
     listMeetingsInRange(start, end),
@@ -226,7 +232,6 @@ export default async function WeeklyCommandCenterPage({
     overdue: r.overdue,
   }));
 
-  // Sidebar: open follow-ups across the week, overdue first then soonest-due.
   const followQueue: FollowQueueRow[] = meetings
     .flatMap((m) =>
       m.followUps
@@ -252,7 +257,6 @@ export default async function WeeklyCommandCenterPage({
       return 0;
     });
 
-  // Sidebar: meeting-generated Action Items that are overdue and still open.
   const overdueActions: OverdueActionRow[] = meetings
     .flatMap((m) =>
       m.actionItems
@@ -282,7 +286,6 @@ export default async function WeeklyCommandCenterPage({
     name: personName(u),
   }));
 
-  // Owner filter: just the people who actually facilitate / attend this week.
   const ownerIds = new Set<string>();
   for (const m of meetings) {
     if (m.facilitatorId) ownerIds.add(m.facilitatorId);
@@ -290,9 +293,6 @@ export default async function WeeklyCommandCenterPage({
   }
   const owners: PersonOption[] = people.filter((p) => ownerIds.has(p.id));
 
-  // Meeting operating rhythm — fold the Queue Engine's prep + post-meeting lanes
-  // in above the week grid so meetings answer "what do I review before this?"
-  // and "what follow-ups are still open?". Degrades gracefully if it can't load.
   const actionViewer = {
     id: viewer.id,
     roles: viewer.roles,
@@ -322,7 +322,6 @@ export default async function WeeklyCommandCenterPage({
           <EmptySimpleState icon="calendar">No meetings scheduled this week.</EmptySimpleState>
         )}
       </SimpleListCard>
-
       {followQueue.length > 0 ? (
         <SimpleListCard title="Open follow-ups">
           {openFollowUps.map((row) => (
@@ -334,13 +333,13 @@ export default async function WeeklyCommandCenterPage({
   );
 
   const strip: SimpleAction[] = [
-    { label: "New meeting", href: "/actions/meetings/new", icon: "calendar", primary: true },
-    { label: "Previous week", href: `/actions/meetings?week=${weekOffset - 1}`, icon: "arrowRight" },
-    { label: "Next week", href: `/actions/meetings?week=${weekOffset + 1}`, icon: "arrowRight" },
+    { label: "Officer prep", href: "/actions/meetings", icon: "calendar", primary: true },
+    { label: "New meeting", href: "/actions/meetings/new", icon: "calendar" },
+    { label: "Previous week", href: `/actions/meetings?view=week&week=${weekOffset - 1}`, icon: "arrowRight" },
+    { label: "Next week", href: `/actions/meetings?view=week&week=${weekOffset + 1}`, icon: "arrowRight" },
   ];
 
   return (
-    <div className={skin.portalSkin}>
     <SimpleSurface
       maxWidth={1120}
       header={
@@ -349,18 +348,18 @@ export default async function WeeklyCommandCenterPage({
             eyebrow="Work"
             backHref="/work"
             backLabel="Work"
-            title="Meetings"
-            subtitle="What meeting matters now — and what came out of it."
+            title="Meetings · week grid"
+            subtitle="Every meeting this week, prep lanes, decisions, and department pulse."
             actions={<CommandModeToggle />}
           />
           <ActionTrackerTabsV2 active="meetings" />
         </div>
       }
-      focus={<OfficerMeetingsHero cards={cards} now={now} />}
+      focus={<MeetingTrackerFocus cards={cards} now={now} />}
       calm={calm}
       actions={strip}
-      browseLabel="Browse the full meeting tracker"
-      browseHint="Every meeting this week, prep lanes, decisions, and the department pulse."
+      browseLabel="Full meeting tracker"
+      browseHint="Filter, search, and open any meeting workspace."
     >
       <div className="flex flex-col gap-5">
         {meetingPrepItems.length > 0 || postMeetingItems.length > 0 ? (
@@ -381,10 +380,98 @@ export default async function WeeklyCommandCenterPage({
           people={people}
           owners={owners}
           meetingPrefill={meetingPrefill}
-          autoOpenNew={autoOpenNew}
+          autoOpenNew={false}
         />
       </div>
     </SimpleSurface>
+  );
+}
+
+export default async function OfficerMeetingsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    view?: string;
+    week?: string;
+    new?: string;
+    relatedType?: string;
+    relatedId?: string;
+    title?: string;
+    purpose?: string;
+    area?: string;
+  }>;
+}) {
+  if (!isActionTrackerEnabled()) notFound();
+
+  const viewer = await requireOfficer().catch(() => null);
+  if (!viewer) notFound();
+
+  const now = new Date();
+  const sp = (await searchParams) ?? {};
+
+  if (sp.new === "1") {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(sp)) {
+      if (key === "new" || key === "week" || key === "view") continue;
+      const v = Array.isArray(value) ? value[0] : value;
+      if (v) params.set(key, v);
+    }
+    const qs = params.toString();
+    redirect(qs ? `/actions/meetings/new?${qs}` : "/actions/meetings/new");
+  }
+
+  if (sp.view === "week") {
+    return (
+      <WeekGridView
+        viewer={viewer}
+        now={now}
+        searchParams={{
+          week: sp.week,
+          relatedType: sp.relatedType,
+          relatedId: sp.relatedId,
+          title: sp.title,
+          purpose: sp.purpose,
+          area: sp.area,
+        }}
+      />
+    );
+  }
+
+  const prep = await loadOfficerMeetingPrep(
+    {
+      id: viewer.id,
+      roles: viewer.roles,
+      primaryRole: viewer.primaryRole,
+      adminSubtypes: viewer.adminSubtypes,
+    },
+    now
+  );
+
+  return (
+    <div className="mx-auto w-full max-w-[1200px] px-1 pb-12 pt-2">
+      <div className="mb-4 flex flex-col gap-4">
+        <PageHeaderV2
+          eyebrow="Work"
+          backHref="/work"
+          backLabel="Work"
+          title="Officer Meetings"
+          subtitle="Leadership operating sessions — decisions, blockers, ownerless items, and cross-team escalations. Distinct from Impact Meetings, which collect weekly team updates."
+          actions={
+            <div className="flex items-center gap-2">
+              <CommandModeToggle />
+              <Link
+                href="/actions/meetings/new"
+                className="inline-flex h-9 items-center gap-1.5 rounded-[9px] bg-gradient-to-br from-[#5a1da8] via-[#6b21c8] to-[#8b3fe8] px-3.5 text-[12.5px] font-semibold text-white no-underline hover:opacity-95"
+              >
+                + Schedule meeting
+              </Link>
+            </div>
+          }
+        />
+        <ActionTrackerTabsV2 active="meetings" />
+      </div>
+
+      <OfficerMeetingsPrepClient data={prep} />
     </div>
   );
 }

@@ -5,8 +5,7 @@ import type { AdminClassOperationsListItem } from "@/lib/admin-class-operations"
 import { getAdminClassOperationsList } from "@/lib/admin-class-operations";
 import type { ClassCommandCenter as ClassCommandCenterData } from "@/lib/classes/command-center";
 import { ClassCommandCenter } from "@/components/classes/class-command-center";
-import { ButtonLink, CardV2, PageHeaderV2, ViewSwitcher, type SwitcherView } from "@/components/ui-v2";
-import { PeopleHubNav } from "@/components/people/people-hub-nav";
+import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
 
 type ProposalQueueItem = Parameters<typeof ClassOperationsList>[0]["proposals"][number];
 
@@ -42,8 +41,6 @@ export function ClassOperationsHub({
   proposals,
   counts,
   commandCenter,
-  showPeopleNav,
-  showPerformanceTab,
 }: {
   tab: ClassOperationsTab;
   operationsPage: Awaited<ReturnType<typeof getAdminClassOperationsList>>;
@@ -51,8 +48,6 @@ export function ClassOperationsHub({
   counts: ClassOperationsCounts;
   /** Enriched operations view; present only on the operations tab. */
   commandCenter?: ClassCommandCenterData | null;
-  showPeopleNav?: boolean;
-  showPerformanceTab?: boolean;
 }) {
   const operations = operationsPage.items;
   const reviewCount =
@@ -68,7 +63,7 @@ export function ClassOperationsHub({
   };
 
   const nextPageHref = operationsPage.nextCursor
-    ? `/people/classes?tab=${tab}&cursor=${encodeURIComponent(operationsPage.nextCursor)}`
+    ? `/admin/classes?tab=${tab}&cursor=${encodeURIComponent(operationsPage.nextCursor)}`
     : null;
 
   const visibleCount =
@@ -79,19 +74,10 @@ export function ClassOperationsHub({
         : liveCount;
 
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6">
-      {showPeopleNav ? (
-        <PeopleHubNav
-          active="classes"
-          showPerformance={showPerformanceTab}
-          showClasses
-        />
-      ) : null}
-
+    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 pb-10">
       <PageHeaderV2
-        eyebrow="People Hub"
         title="Classes"
-        subtitle="See what needs attention, then tap any class for the full picture."
+        subtitle="How classes fit into chapters, partners, instructors, and curriculum. Setup gaps surface first."
         actions={
           <ButtonLink href="/admin/classes/reports" variant="ghost" size="sm">
             Reports
@@ -99,38 +85,34 @@ export function ClassOperationsHub({
         }
       />
 
-      <CardV2 padding="none" className="overflow-hidden">
-        <div className="border-b border-line-soft bg-surface-soft/80 px-4 py-3 sm:px-5">
-          <ClassViewTabs active={tab} counts={tabCounts} />
+      <ClassViewTabs active={tab} counts={tabCounts} />
+
+      <div>
+        {tab === "operations" && commandCenter ? (
+          <ClassCommandCenter data={commandCenter} />
+        ) : (
+          <>
+            <p className="mb-4 mt-0 text-[12.5px] text-ink-muted">
+              {visibleCount} {visibleCount === 1 ? "class" : "classes"}
+              {tab === "review" ? " need your attention" : null}
+              {tab === "archive" ? " in history" : null}
+            </p>
+
+            <ClassOperationsList tab={tab} operations={operations} proposals={proposals} />
+          </>
+        )}
+      </div>
+
+      {nextPageHref && tab !== "review" ? (
+        <div className="border-t border-line-soft pt-4 text-center">
+          <Link
+            href={nextPageHref}
+            className="inline-flex rounded-[8px] px-4 py-2 text-[13px] font-semibold text-brand-700 no-underline transition-colors hover:bg-brand-50"
+          >
+            Load more classes
+          </Link>
         </div>
-
-        <div className="px-3 py-4 sm:px-4 sm:py-5">
-          {tab === "operations" && commandCenter ? (
-            <ClassCommandCenter data={commandCenter} />
-          ) : (
-            <>
-              <p className="mb-4 mt-0 px-1 text-[12.5px] text-ink-muted">
-                {visibleCount} {visibleCount === 1 ? "class" : "classes"}
-                {tab === "review" ? " need your attention" : null}
-                {tab === "archive" ? " in history" : null}
-              </p>
-
-              <ClassOperationsList tab={tab} operations={operations} proposals={proposals} />
-            </>
-          )}
-        </div>
-
-        {nextPageHref && tab !== "review" ? (
-          <div className="border-t border-line-soft bg-surface-soft/50 px-4 py-3 text-center sm:px-5">
-            <Link
-              href={nextPageHref}
-              className="inline-flex rounded-[8px] px-4 py-2 text-[13px] font-semibold text-brand-700 no-underline transition-colors hover:bg-brand-50"
-            >
-              Load more classes
-            </Link>
-          </div>
-        ) : null}
-      </CardV2>
+      ) : null}
     </div>
   );
 }
@@ -148,13 +130,35 @@ function ClassViewTabs({
     { value: "archive", label: "Past" },
   ];
 
-  const views: SwitcherView[] = tabs.map((t) => ({
-    key: t.value,
-    label: t.label,
-    href: t.value === "operations" ? "/people/classes" : `/people/classes?tab=${t.value}`,
-    active: active === t.value,
-    count: counts[t.value] > 0 ? counts[t.value] : undefined,
-  }));
+  return (
+    <nav className="ps-workspace-nav" aria-label="Class views">
+      <div className="ps-tabs m-0 w-full max-w-none">
+        {tabs.map((t) => {
+          const href = t.value === "operations" ? "/admin/classes" : `/admin/classes?tab=${t.value}`;
+          const isActive = active === t.value;
+          const count = counts[t.value];
 
-  return <ViewSwitcher views={views} aria-label="Class views" className="w-full" />;
+          return isActive ? (
+            <span key={t.value} className="ps-tab" aria-current="page">
+              {t.label}
+              {count > 0 ? (
+                <span className="ml-1.5 rounded-full bg-white/20 px-1.5 text-[10px] font-bold">
+                  {count}
+                </span>
+              ) : null}
+            </span>
+          ) : (
+            <Link key={t.value} href={href} className="ps-tab">
+              {t.label}
+              {count > 0 ? (
+                <span className="ml-1.5 rounded-full bg-brand-50 px-1.5 text-[10px] font-bold text-brand-700">
+                  {count}
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
 }

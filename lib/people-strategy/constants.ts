@@ -127,8 +127,8 @@ export const ACTION_ITEM_PATHS = [
   "/actions/meetings", // Meetings command center — open/overdue action chips
   "/admin/classes", // Classes command center — open/overdue actions per class
   "/people/classes", // same command center, under the People hub
-  "/people", // People directory — per-person workload
-  "/people/performance", // People & Performance — active/overdue action counts
+  "/people", // People & Reviews — active/overdue action counts
+  "/people/performance", // legacy alias (redirects to /people)
 ] as const;
 
 /**

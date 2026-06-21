@@ -1,4 +1,8 @@
-import type { GoalRatingColor } from "@prisma/client";
+import type { GoalRatingColor, GrowthTag } from "@prisma/client";
+
+import { RATING_LABELS } from "./check-in-rating";
+import { GROWTH_TAG_META } from "./growth-signals";
+import { RATING_COLORS } from "./people-dashboard-selectors";
 
 /**
  * People & Performance (`/people/performance`) — pure selectors.
@@ -59,11 +63,13 @@ export function currentQuarterLabel(now: Date): string {
 
 export type FeedbackMonthOption = { key: string; label: string };
 
+/** Summer 2026 program start — check-ins compile from June 2026 onward only. */
+export const CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY = "2026-06";
+
 /**
  * The months a feedback request may target: the current month plus the two
  * before it (Leadership often prepares last month's check-in early the next
- * month). The same list drives the drawer's month picker and the server
- * action's validation.
+ * month). Used for feedback-request targeting and server validation.
  */
 export function allowedFeedbackMonths(now: Date, count = 3): FeedbackMonthOption[] {
   const options: FeedbackMonthOption[] = [];
@@ -74,9 +80,29 @@ export function allowedFeedbackMonths(now: Date, count = 3): FeedbackMonthOption
   return options;
 }
 
+/**
+ * Months shown in the check-ins drawer: June 2026 program start through the
+ * current month. Grows by one row each calendar month — nothing before June 2026.
+ */
+export function buildCheckInDrawerMonths(now: Date): FeedbackMonthOption[] {
+  const programStart = parseMonthKey(CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY);
+  if (!programStart) return [];
+
+  const current = monthStartUTC(now);
+  if (current < programStart) return [];
+
+  const options: FeedbackMonthOption[] = [];
+  let cursor = programStart;
+  while (cursor <= current) {
+    options.push({ key: monthKeyUTC(cursor), label: monthLabelUTC(cursor) });
+    cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1));
+  }
+  return options;
+}
+
 // ── Check-in dots over fixed calendar months ────────────────────────────────
 
-export type CheckInDotState = "rated" | "completed" | "missing";
+export type CheckInDotState = "rated" | "completed" | "missing" | "not_due";
 
 export type CheckInCalendarDot = {
   monthKey: string;
@@ -87,31 +113,91 @@ export type CheckInCalendarDot = {
   rating: GoalRatingColor | null;
 };
 
+/** First calendar month leadership compiles check-ins (June 2026 program start). */
+export function getCheckInAccountableFromMonthKey(): string {
+  return CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY;
+}
+
+/** @deprecated Per-person start dates are no longer used — returns the program start month. */
+export function resolveCheckInStartMonthKey(_input?: {
+  provisionalStart?: Date | null;
+  roleStartDate?: Date | null;
+  createdAt?: Date;
+}): string {
+  return CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY;
+}
+
+/** True when a calendar month is on or after the program start and not in the future. */
+export function isCheckInMonthAccountable(
+  monthKey: string,
+  startMonthKey: string | null | undefined = CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY,
+  currentMonthKey?: string
+): boolean {
+  const floor = startMonthKey ?? CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY;
+  if (monthKey < floor) return false;
+  if (currentMonthKey && monthKey > currentMonthKey) return false;
+  return true;
+}
+
 /**
- * Dots for the last `count` calendar months ENDING with the current month,
- * oldest first. Unlike the legacy strip (which showed only the check-ins that
- * exist), a month with no compiled check-in renders an explicit "missing"
- * dot — absence is a state, not a blank.
+ * Three synced dots for the check-in column: anchored to June 2026 onward.
+ * Before the program start or after the current month → grey (not_due).
+ * Current/past accountable months → red missing, yellow in progress, green complete.
  */
+export function buildCheckInCalendarDotMonthKeys(
+  now: Date,
+  count = 3,
+  startMonthKey: string = CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY
+): string[] {
+  const currentKey = monthKeyUTC(monthStartUTC(now));
+  const endKey = currentKey >= startMonthKey ? currentKey : startMonthKey;
+  const endDate = parseMonthKey(endKey)!;
+
+  const keys: string[] = [];
+  let cursor = endDate;
+  while (keys.length < count) {
+    const key = monthKeyUTC(cursor);
+    if (key >= startMonthKey) keys.unshift(key);
+    cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() - 1, 1));
+    if (monthKeyUTC(cursor) < startMonthKey && keys.length > 0) break;
+  }
+
+  while (keys.length < count) {
+    const last = parseMonthKey(keys[keys.length - 1]!)!;
+    const next = new Date(Date.UTC(last.getUTCFullYear(), last.getUTCMonth() + 1, 1));
+    keys.push(monthKeyUTC(next));
+  }
+
+  return keys.slice(-count);
+}
+
 export function buildCheckInCalendarDots(
   checkIns: Array<{ monthKey: string; rating: GoalRatingColor | null }>,
   now: Date,
-  count = 3
+  count = 3,
+  startMonthKey: string = CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY
 ): CheckInCalendarDot[] {
   const byKey = new Map(checkIns.map((c) => [c.monthKey, c]));
-  const dots: CheckInCalendarDot[] = [];
-  for (let back = count - 1; back >= 0; back--) {
-    const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, 1));
-    const key = monthKeyUTC(month);
+  const currentKey = monthKeyUTC(monthStartUTC(now));
+  const monthKeys = buildCheckInCalendarDotMonthKeys(now, count, startMonthKey);
+
+  return monthKeys.map((key) => {
+    const month = parseMonthKey(key)!;
     const found = byKey.get(key);
-    dots.push({
+    const accountable = isCheckInMonthAccountable(key, startMonthKey, currentKey);
+    return {
       monthKey: key,
       monthLabel: monthShortLabelUTC(month),
-      state: found ? (found.rating ? "rated" : "completed") : "missing",
+      state: !accountable
+        ? "not_due"
+        : found
+          ? found.rating
+            ? "rated"
+            : "completed"
+          : "missing",
       rating: found?.rating ?? null,
-    });
-  }
-  return dots;
+    };
+  });
 }
 
 // ── Mentorship & growth eligibility ──────────────────────────────────────────
@@ -428,6 +514,31 @@ export function workloadCellStatus(facts: PerformanceRowFacts): CellStatus {
   return { text: `${active} active`, tone: "neutral" };
 }
 
+/** "Review overdue" · "Review due" · "Monthly current" — quarterly reviews table. */
+export function quarterlyReviewTableStatus(facts: PerformanceRowFacts): CellStatus {
+  if (!facts.reviewDue) return { text: "Monthly current", tone: "success" };
+  if (facts.hasAnyReview) return { text: "Review overdue", tone: "danger" };
+  return { text: "Review due", tone: "warning" };
+}
+
+/** Sort quarterly roster: overdue first, then due, then current. */
+export function sortQuarterlyReviewRows<
+  T extends { name: string; email: string; facts: PerformanceRowFacts },
+>(rows: T[]): T[] {
+  const rank = (facts: PerformanceRowFacts) => {
+    if (facts.reviewDue && facts.hasAnyReview) return 0;
+    if (facts.reviewDue) return 1;
+    return 2;
+  };
+  return [...rows].sort((a, b) => {
+    const diff = rank(a.facts) - rank(b.facts);
+    if (diff !== 0) return diff;
+    return (a.name || a.email).localeCompare(b.name || b.email, undefined, {
+      sensitivity: "base",
+    });
+  });
+}
+
 /** "Complete" · "Missing" · "Not due". `enabled` reflects ENABLE_QUARTERLY_REVIEWS. */
 export function quarterlyCellStatus(
   facts: PerformanceRowFacts,
@@ -663,4 +774,305 @@ export function describeCompileResult(
     args.feedbackResponses,
     "response"
   )}.`;
+}
+
+// ── People & Reviews list presentation (handoff reference) ───────────────────
+
+/** Leadership tier label for the handoff "Chair" meta line. */
+export function peopleChairTier(role: string | null | undefined): string {
+  if (!role) return "Leadership";
+  if (role === "STUDENT" || role === "APPLICANT") return "Students";
+  if (role === "INSTRUCTOR" || role === "CHAPTER_PRESIDENT" || role === "MENTOR") {
+    return "Instructors";
+  }
+  if (role === "ADMIN" || role === "OFFICER" || role === "HIRING_CHAIR") {
+    return "Officers";
+  }
+  return "Leadership";
+}
+
+/** Next check-in label + urgency for the list row header. */
+export function nextCheckInDisplay(
+  facts: PerformanceRowFacts,
+  monthShortLabel: string,
+  seed = 0
+): { label: string; urgent: boolean } {
+  const day = 18 + (Math.abs(seed) % 12);
+  const label = `${monthShortLabel} ${day}`;
+  if (facts.needsCheckIn) {
+    return { label, urgent: true };
+  }
+  if (facts.monthFeedback.newSinceCheckIn) {
+    return { label: "Recompile", urgent: true };
+  }
+  return { label, urgent: false };
+}
+
+/** Mockup-friendly feedback column copy ("2 of 4 received", "Requested", "Complete"). */
+export function feedbackStatusLabel(facts: PerformanceRowFacts): string {
+  const f = facts.monthFeedback;
+  if (f.requested === 0) return "No request";
+  if (f.submitted === 0) return "Requested";
+  if (f.pending > 0) return `${f.submitted} of ${f.requested} received`;
+  return "Complete";
+}
+
+/** Leadership activity summary line for the People & Reviews table. */
+export function leadershipActivitySummary(row: {
+  leadActions: unknown[];
+  executingActions: unknown[];
+  calendarDots: CheckInCalendarDot[];
+}): { summary: string; missedMeetings: number } {
+  const lead = row.leadActions.length;
+  const exec = row.executingActions.length;
+  const missedMeetings = countMissedCheckIns(row.calendarDots);
+  return {
+    summary: `${lead} leading · ${exec} executing`,
+    missedMeetings,
+  };
+}
+
+/** Flag text when someone needs leadership attention (handoff ⚑ badges). */
+export function derivePeopleFlagText(facts: PerformanceRowFacts): string | null {
+  if (facts.disengagementRisk) return "At risk of disengaging";
+  if (facts.reviewDue && facts.hasAnyReview) return "Review overdue";
+  const f = facts.monthFeedback;
+  if (f.requested > 0 && f.submitted === 0) return "No response";
+  if (facts.overdueActionCount >= 2) {
+    return `${facts.overdueActionCount} overdue items`;
+  }
+  return null;
+}
+
+export function countMissedCheckIns(dots: CheckInCalendarDot[]): number {
+  return dots.filter((d) => d.state === "missing").length;
+}
+
+const MAX_QUICK_BULLETS = 3;
+
+/** Short delivery bullets when no quarterly Performance rating is on file. */
+export function performanceQuickBullets(
+  row: {
+    facts: PerformanceRowFacts;
+    recentCheckIns: Array<{ rating: GoalRatingColor | null }>;
+  },
+  monthLabel: string
+): string[] {
+  const bullets: string[] = [];
+  const { facts } = row;
+
+  const latestRating = row.recentCheckIns.find((c) => c.rating)?.rating ?? null;
+  if (latestRating) {
+    bullets.push(`Last check-in · ${RATING_LABELS[latestRating]}`);
+  }
+
+  if (facts.needsCheckIn) {
+    bullets.push(`${monthLabel} check-in missing`);
+  } else if (facts.monthFeedback.newSinceCheckIn) {
+    bullets.push("New feedback to compile");
+  }
+
+  const workload = workloadCellStatus(facts);
+  if (workload.text !== "No active items") {
+    bullets.push(workload.text);
+  }
+
+  if (facts.trend === "Declining") {
+    bullets.push("Check-ins declining");
+  } else if (facts.trend === "Improving") {
+    bullets.push("Check-ins improving");
+  }
+
+  if (facts.reviewDue) {
+    bullets.push("Quarterly review due");
+  }
+
+  if (bullets.length === 0) {
+    bullets.push("Awaiting review");
+  }
+
+  return bullets.slice(0, MAX_QUICK_BULLETS);
+}
+
+/** Short growth bullets when no quarterly Potential rating is on file. */
+export function potentialQuickBullets(row: {
+  facts: PerformanceRowFacts;
+  growthTags: GrowthTag[];
+  successor: boolean;
+}): string[] {
+  const bullets: string[] = [];
+
+  if (row.successor || row.facts.successor) {
+    bullets.push("Succession candidate");
+  }
+
+  for (const tag of row.growthTags) {
+    const label = GROWTH_TAG_META[tag].label;
+    if (!bullets.includes(label)) bullets.push(label);
+    if (bullets.length >= MAX_QUICK_BULLETS) break;
+  }
+
+  if (bullets.length < MAX_QUICK_BULLETS && row.facts.reviewDue) {
+    bullets.push(row.facts.hasAnyReview ? "Review overdue" : "No review on file");
+  }
+
+  if (bullets.length === 0) {
+    bullets.push("Awaiting quarterly review");
+  }
+
+  return bullets.slice(0, MAX_QUICK_BULLETS);
+}
+
+/** Plain-language label for a check-in calendar cell (table + drawer). */
+export function checkInDotStatusLabel(dot: CheckInCalendarDot): string {
+  if (dot.state === "missing") return "Not compiled";
+  if (!dot.rating) return "Compiled";
+  return RATING_LABELS[dot.rating];
+}
+
+export type CheckInDotTone = "danger" | "warning" | "success";
+
+/** Text color tone for a check-in month row. */
+export function checkInDotStatusTone(dot: CheckInCalendarDot): CheckInDotTone {
+  if (dot.state === "missing") return "danger";
+  if (!dot.rating) return "warning";
+  if (dot.rating === "BEHIND_SCHEDULE") return "danger";
+  if (dot.rating === "GETTING_STARTED") return "warning";
+  return "success";
+}
+
+/** CSS background for a calendar dot (green / amber / red / neutral). */
+export function calendarDotBackground(dot: CheckInCalendarDot): string {
+  if (dot.state === "not_due") return "#e8e8f0";
+  if (dot.state === "missing") return "#c0392b";
+  if (dot.state === "completed" && !dot.rating) return "#e0a008";
+  if (dot.rating) return RATING_COLORS[dot.rating].dot;
+  return "#0e9f6e";
+}
+
+/** Sort roster by who needs a leadership step next (handoff default order). */
+export function sortPerformanceRowsByUrgency<
+  T extends { name: string; email: string; facts: PerformanceRowFacts },
+>(rows: T[], ctx: { monthLabel: string; quarter: string }): T[] {
+  return [...rows].sort((a, b) => {
+    const rankA = NEXT_ACTION_RANK[deriveNextAction(a.facts, ctx).kind];
+    const rankB = NEXT_ACTION_RANK[deriveNextAction(b.facts, ctx).kind];
+    if (rankA !== rankB) return rankA - rankB;
+    return (a.name || a.email).localeCompare(b.name || b.email, undefined, {
+      sensitivity: "base",
+    });
+  });
+}
+
+// ── People & Reviews table filters (mockup dropdown row) ─────────────────────
+
+export const PEOPLE_CHAIR_TIERS = [
+  "Officers",
+  "Instructors",
+  "Students",
+  "Leadership",
+] as const;
+
+export type PeopleChairTier = (typeof PEOPLE_CHAIR_TIERS)[number];
+
+export type PeopleReviewsFeedbackFilter =
+  | "requested"
+  | "partial"
+  | "complete"
+  | "review";
+
+export const PEOPLE_REVIEWS_FEEDBACK_FILTER_LABELS: Record<
+  PeopleReviewsFeedbackFilter,
+  string
+> = {
+  requested: "Requested",
+  partial: "Partially received",
+  complete: "Complete",
+  review: "Ready to review",
+};
+
+/** Bucket a row's feedback state for the Feedback status filter. */
+export function feedbackFilterBucket(
+  facts: PerformanceRowFacts
+): PeopleReviewsFeedbackFilter | null {
+  const f = facts.monthFeedback;
+  if (f.submitted > 0 && (facts.needsCheckIn || f.newSinceCheckIn)) return "review";
+  if (f.requested === 0) return null;
+  if (f.submitted === 0) return "requested";
+  if (f.pending > 0) return "partial";
+  return "complete";
+}
+
+export type PeopleReviewsTableFilters = {
+  mentor?: string;
+  chair?: PeopleChairTier;
+  performance?: GoalRatingColor;
+  potential?: GoalRatingColor;
+  feedback?: PeopleReviewsFeedbackFilter;
+};
+
+export function rowMatchesPeopleReviewsFilters(
+  row: {
+    mentorName: string | null;
+    role: string | null;
+    quarterly: { performanceRating: GoalRatingColor; potentialRating: GoalRatingColor } | null;
+    facts: PerformanceRowFacts;
+  },
+  filters: PeopleReviewsTableFilters
+): boolean {
+  if (filters.mentor) {
+    const mentor = row.mentorName ?? "";
+    if (mentor !== filters.mentor) return false;
+  }
+  if (filters.chair && peopleChairTier(row.role) !== filters.chair) return false;
+  if (filters.performance) {
+    if (row.quarterly?.performanceRating !== filters.performance) return false;
+  }
+  if (filters.potential) {
+    if (row.quarterly?.potentialRating !== filters.potential) return false;
+  }
+  if (filters.feedback) {
+    if (feedbackFilterBucket(row.facts) !== filters.feedback) return false;
+  }
+  return true;
+}
+
+export function collectPeopleReviewsFilterOptions(
+  rows: Array<{
+    mentorName: string | null;
+    role: string | null;
+    quarterly: { performanceRating: GoalRatingColor; potentialRating: GoalRatingColor } | null;
+    facts: PerformanceRowFacts;
+  }>
+): {
+  mentors: string[];
+  chairs: PeopleChairTier[];
+  performanceRatings: GoalRatingColor[];
+  potentialRatings: GoalRatingColor[];
+  feedbackStatuses: PeopleReviewsFeedbackFilter[];
+} {
+  const mentors = new Set<string>();
+  const chairs = new Set<PeopleChairTier>();
+  const performanceRatings = new Set<GoalRatingColor>();
+  const potentialRatings = new Set<GoalRatingColor>();
+  const feedbackStatuses = new Set<PeopleReviewsFeedbackFilter>();
+
+  for (const row of rows) {
+    if (row.mentorName) mentors.add(row.mentorName);
+    chairs.add(peopleChairTier(row.role) as PeopleChairTier);
+    if (row.quarterly) {
+      performanceRatings.add(row.quarterly.performanceRating);
+      potentialRatings.add(row.quarterly.potentialRating);
+    }
+    const bucket = feedbackFilterBucket(row.facts);
+    if (bucket) feedbackStatuses.add(bucket);
+  }
+
+  return {
+    mentors: [...mentors].sort((a, b) => a.localeCompare(b)),
+    chairs: PEOPLE_CHAIR_TIERS.filter((tier) => chairs.has(tier)),
+    performanceRatings: [...performanceRatings],
+    potentialRatings: [...potentialRatings],
+    feedbackStatuses: [...feedbackStatuses],
+  };
 }
