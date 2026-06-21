@@ -440,6 +440,114 @@ export function workHubRowFromApplication(
   };
 }
 
+/**
+ * Chapter President pipeline → Work Hub. Mirrors the instructor application
+ * mapping but with the CP lifecycle statuses and the CP admin cockpit href, so
+ * leadership sees "3 CP applicants need first review" / "2 ready for final
+ * decision" right next to instructor applications instead of on a buried page.
+ */
+const CP_APPLICATION_NEXT_STEPS: Record<
+  string,
+  { status: string; nextStep: string; tone: WorkHubTone; overdue?: boolean }
+> = {
+  SUBMITTED: {
+    status: "Needs first review",
+    nextStep: "Assign a reviewer and start the review",
+    tone: "warning",
+  },
+  INITIAL_REVIEW: {
+    status: "Review in progress",
+    nextStep: "Finish the review and recommend the next step",
+    tone: "info",
+  },
+  UNDER_REVIEW: {
+    status: "Review in progress",
+    nextStep: "Finish the review and recommend the next step",
+    tone: "info",
+  },
+  INTERVIEW_NEEDED: {
+    status: "Needs interview",
+    nextStep: "Schedule the chapter president interview",
+    tone: "warning",
+  },
+  INTERVIEW_COMPLETE: {
+    status: "Interview done",
+    nextStep: "Record interview notes and send to final decision",
+    tone: "warning",
+  },
+  INTERVIEW_COMPLETED: {
+    status: "Interview done",
+    nextStep: "Record interview notes and send to final decision",
+    tone: "warning",
+  },
+  DECISION_NEEDED: {
+    status: "Decision needed",
+    nextStep: "Chair makes the final decision",
+    tone: "danger",
+    overdue: true,
+  },
+  RECOMMENDATION_SUBMITTED: {
+    status: "Decision needed",
+    nextStep: "Chair makes the final decision",
+    tone: "danger",
+    overdue: true,
+  },
+  ACCEPTED: {
+    status: "Needs onboarding",
+    nextStep: "Create starter actions and schedule onboarding",
+    tone: "info",
+  },
+  APPROVED: {
+    status: "Needs onboarding",
+    nextStep: "Create starter actions and schedule onboarding",
+    tone: "info",
+  },
+  ONBOARDING: {
+    status: "Onboarding in progress",
+    nextStep: "Confirm onboarding tasks are complete",
+    tone: "info",
+  },
+};
+
+export function workHubRowFromCPApplication(
+  application: {
+    id: string;
+    displayName: string;
+    status: string;
+    reviewerName: string | null;
+    updatedISO: string;
+  },
+  options: { mine?: boolean } = {}
+): WorkHubRow | null {
+  const step = CP_APPLICATION_NEXT_STEPS[application.status];
+  if (!step) return null;
+  return {
+    id: `cp-application:${application.id}`,
+    kind: "application",
+    kindLabel: "CP applicant",
+    title: application.displayName,
+    status: step.status,
+    tone: step.tone,
+    ownerName: application.reviewerName,
+    dueISO: null,
+    priorityLabel: null,
+    sourceLabel: "Chapter President pipeline",
+    entityType: null,
+    entityId: null,
+    entityLabel: application.displayName,
+    nextStep: step.nextStep,
+    overdue: step.overdue ?? false,
+    blocked: false,
+    unassigned: !application.reviewerName,
+    mine: options.mine ?? false,
+    href: `/admin/chapter-president-applicants/${application.id}`,
+    quickActionLabel: "Open application",
+    quickActionHref: `/admin/chapter-president-applicants/${application.id}`,
+    previewType: null,
+    previewId: null,
+  };
+}
+
 /** A mentorship with no recorded activity for `quietDays` — needs a follow-up. */
 export function workHubRowFromQuietMentorship(
   mentorship: {

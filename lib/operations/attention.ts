@@ -247,6 +247,91 @@ export function deriveApplicantAttention(
   return items;
 }
 
+// --- chapter president applicant signals ---------------------------------------
+
+export type CPApplicantAttentionInput = {
+  id: string;
+  name: string;
+  /** ChapterPresidentApplicationStatus string. */
+  status: string;
+  submittedAt: Date;
+  /** Last touch on the application row. */
+  updatedAt: Date;
+  interviewScheduledAt: Date | null;
+};
+
+/** CP statuses where YPP owns the next move and a decision is imminent. */
+const CP_DECISION_STATUSES = new Set(["DECISION_NEEDED", "RECOMMENDATION_SUBMITTED"]);
+/** CP statuses where the ball is in YPP's court (review / interview / onboarding). */
+const CP_WAITING_STATUSES = new Set([
+  "SUBMITTED",
+  "INITIAL_REVIEW",
+  "UNDER_REVIEW",
+  "INTERVIEW_NEEDED",
+  "INTERVIEW_COMPLETE",
+  "INTERVIEW_COMPLETED",
+  "DECISION_NEEDED",
+  "RECOMMENDATION_SUBMITTED",
+  "ACCEPTED",
+  "APPROVED",
+]);
+
+/**
+ * Chapter President applicants that need a leadership move — a pending final
+ * decision (surfaced immediately) or any open application that has gone quiet
+ * past {@link APPLICANT_STUCK_DAYS}. Mirrors the instructor sweep but points at
+ * the CP cockpit so accepted/decision-ready chapter presidents don't stall.
+ */
+export function deriveChapterPresidentApplicantAttention(
+  applicants: CPApplicantAttentionInput[],
+  now: Date = new Date()
+): AttentionItem[] {
+  const items: AttentionItem[] = [];
+  for (const applicant of applicants) {
+    if (!CP_WAITING_STATUSES.has(applicant.status)) continue;
+    const idleDays = daysBetween(applicant.updatedAt, now);
+
+    if (CP_DECISION_STATUSES.has(applicant.status)) {
+      items.push({
+        id: `cp-applicant:${applicant.id}:decision`,
+        kind: "applicant",
+        category: "urgent",
+        title: `${applicant.name}'s chapter president application needs a final decision`,
+        why: "The review is done — only the Chair's decision is left before they can launch.",
+        suggestedStep: "Open the CP cockpit and make the final decision.",
+        ageLabel: idleDays > 0 ? `${idleDays} days awaiting decision` : "Awaiting decision",
+        severity: "warning",
+        score: 30 + Math.min(idleDays, 30),
+        href: `/admin/chapter-president-applicants/${applicant.id}`,
+        relatedLabel: applicant.name,
+      });
+      continue;
+    }
+
+    if (
+      applicant.interviewScheduledAt &&
+      applicant.interviewScheduledAt.getTime() > now.getTime()
+    ) {
+      continue; // An upcoming interview means the pipeline is moving.
+    }
+    if (idleDays < APPLICANT_STUCK_DAYS) continue;
+    items.push({
+      id: `cp-applicant:${applicant.id}:stuck`,
+      kind: "applicant",
+      category: "stalled",
+      title: `${applicant.name}'s chapter president application has sat ${idleDays} days`,
+      why: "Chapter president candidates who wait this long without movement usually walk away.",
+      suggestedStep: "Assign a reviewer, schedule the interview, or move it forward.",
+      ageLabel: `${idleDays} days without movement`,
+      severity: idleDays >= APPLICANT_STUCK_DAYS * 2 ? "warning" : "watch",
+      score: 12 + Math.min(idleDays, 40),
+      href: `/admin/chapter-president-applicants/${applicant.id}`,
+      relatedLabel: applicant.name,
+    });
+  }
+  return items;
+}
+
 // --- mentorship signals ------------------------------------------------------------
 
 export type MentorshipAttentionInput = {
@@ -428,6 +513,7 @@ export function buildNeedsAttention(input: {
   reviewItems: OperationalReviewItem[];
   partners: PartnerAttentionInput[];
   applicants: ApplicantAttentionInput[];
+  cpApplicants?: CPApplicantAttentionInput[];
   mentorships: MentorshipAttentionInput[];
   classes: ClassSetupAttentionInput[];
   now?: Date;
@@ -438,6 +524,7 @@ export function buildNeedsAttention(input: {
     ...input.reviewItems.map(attentionFromReviewItem),
     ...derivePartnerAttention(input.partners, now),
     ...deriveApplicantAttention(input.applicants, now),
+    ...deriveChapterPresidentApplicantAttention(input.cpApplicants ?? [], now),
     ...deriveStalledMentorshipAttention(input.mentorships, now),
     ...deriveClassSetupAttention(input.classes, now),
   ];

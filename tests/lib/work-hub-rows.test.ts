@@ -12,6 +12,7 @@ import {
   sortWorkHubRows,
   workHubRowFromAdvisorCheckIn,
   workHubRowFromApplication,
+  workHubRowFromCPApplication,
   workHubRowFromMeeting,
   workHubRowFromPartnerFollowUp,
   workHubRowFromPartnerRequest,
@@ -378,5 +379,38 @@ describe("sorting / filtering / search", () => {
     expect(asWorkHubFlag("bogus")).toBeNull();
     expect(searchWorkHubRows(rows, "stuck").map((r) => r.id)).toEqual(["action:stuck"]);
     expect(searchWorkHubRows(rows, "jordan").length).toBe(3);
+  });
+});
+
+describe("workHubRowFromCPApplication", () => {
+  const cpApp = {
+    id: "cp1",
+    displayName: "Jordan Lee",
+    status: "SUBMITTED",
+    reviewerName: null,
+    updatedISO: NOW.toISOString(),
+  };
+
+  it("maps a new CP application to a 'needs first review' row pointing at the CP cockpit", () => {
+    const row = workHubRowFromCPApplication(cpApp);
+    expect(row).not.toBeNull();
+    expect(row?.id).toBe("cp-application:cp1");
+    expect(row?.kindLabel).toBe("CP applicant");
+    expect(row?.status).toBe("Needs first review");
+    expect(row?.sourceLabel).toBe("Chapter President pipeline");
+    expect(row?.unassigned).toBe(true);
+    expect(row?.href).toBe("/admin/chapter-president-applicants/cp1");
+  });
+
+  it("marks a decision-needed CP application as overdue/danger", () => {
+    const row = workHubRowFromCPApplication({ ...cpApp, status: "DECISION_NEEDED" });
+    expect(row?.status).toBe("Decision needed");
+    expect(row?.tone).toBe("danger");
+    expect(row?.overdue).toBe(true);
+  });
+
+  it("returns null for terminal CP statuses that need no leadership move", () => {
+    expect(workHubRowFromCPApplication({ ...cpApp, status: "ACTIVE_CP" })).toBeNull();
+    expect(workHubRowFromCPApplication({ ...cpApp, status: "DECLINED" })).toBeNull();
   });
 });

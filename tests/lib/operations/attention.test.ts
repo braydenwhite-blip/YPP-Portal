@@ -6,12 +6,14 @@ import {
   buildNeedsAttention,
   categoryForReviewItem,
   deriveApplicantAttention,
+  deriveChapterPresidentApplicantAttention,
   deriveClassSetupAttention,
   deriveStalledMentorshipAttention,
   derivePartnerAttention,
   groupAttentionItems,
   partnerIsActive,
   type ApplicantAttentionInput,
+  type CPApplicantAttentionInput,
   type ClassSetupAttentionInput,
   type MentorshipAttentionInput,
   type PartnerAttentionInput,
@@ -121,6 +123,60 @@ describe("deriveApplicantAttention", () => {
       )
     ).toEqual([]);
     expect(deriveApplicantAttention([applicant({ status: "APPROVED" })], NOW)).toEqual([]);
+  });
+});
+
+function cpApplicant(
+  overrides: Partial<CPApplicantAttentionInput> = {}
+): CPApplicantAttentionInput {
+  return {
+    id: "cp1",
+    name: "Jordan Lee",
+    status: "UNDER_REVIEW",
+    submittedAt: daysAgo(30),
+    updatedAt: daysAgo(20),
+    interviewScheduledAt: null,
+    ...overrides,
+  };
+}
+
+describe("deriveChapterPresidentApplicantAttention", () => {
+  it("flags CP applicants idle past the threshold, pointing at the CP cockpit", () => {
+    const items = deriveChapterPresidentApplicantAttention([cpApplicant()], NOW);
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("cp-applicant:cp1:stuck");
+    expect(items[0].title).toContain("chapter president application has sat 20 days");
+    expect(items[0].category).toBe("stalled");
+    expect(items[0].href).toBe("/admin/chapter-president-applicants/cp1");
+  });
+
+  it("surfaces a pending final decision immediately, regardless of idle time", () => {
+    const items = deriveChapterPresidentApplicantAttention(
+      [cpApplicant({ status: "DECISION_NEEDED", updatedAt: daysAgo(1) })],
+      NOW
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("cp-applicant:cp1:decision");
+    expect(items[0].category).toBe("urgent");
+    expect(items[0].title).toContain("needs a final decision");
+  });
+
+  it("skips fresh applications, scheduled interviews, and terminal statuses", () => {
+    expect(
+      deriveChapterPresidentApplicantAttention([cpApplicant({ updatedAt: daysAgo(5) })], NOW)
+    ).toEqual([]);
+    expect(
+      deriveChapterPresidentApplicantAttention(
+        [cpApplicant({ interviewScheduledAt: daysAhead(2) })],
+        NOW
+      )
+    ).toEqual([]);
+    expect(
+      deriveChapterPresidentApplicantAttention([cpApplicant({ status: "DECLINED" })], NOW)
+    ).toEqual([]);
+    expect(
+      deriveChapterPresidentApplicantAttention([cpApplicant({ status: "ACTIVE_CP" })], NOW)
+    ).toEqual([]);
   });
 });
 

@@ -17,6 +17,12 @@ import {
 } from "@/lib/legacy-application-review";
 import { syncChapterPresidentApplicationWorkflow } from "@/lib/workflow";
 import { CP_STARTER_ACTIONS } from "@/lib/chapter-president-lifecycle";
+import {
+  assertCanMakeFinalApplicantDecision,
+  canMakeFinalApplicantDecision,
+  getActiveChairUserId,
+  NON_CHAIR_DECISION_MESSAGE,
+} from "@/lib/active-chair";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -312,6 +318,10 @@ export async function reviewChapterPresidentApplication(
         break;
 
       case "approve": {
+        const chairId = await getActiveChairUserId();
+        if (!canMakeFinalApplicantDecision({ id: session.user.id }, chairId)) {
+          return { status: "error", message: NON_CHAIR_DECISION_MESSAGE };
+        }
         if (!application.chapterId) {
           return {
             status: "error",
@@ -382,6 +392,10 @@ export async function reviewChapterPresidentApplication(
       }
 
       case "reject": {
+        const chairId = await getActiveChairUserId();
+        if (!canMakeFinalApplicantDecision({ id: session.user.id }, chairId)) {
+          return { status: "error", message: NON_CHAIR_DECISION_MESSAGE };
+        }
         const reason = getString(formData, "reason");
         await prisma.chapterPresidentApplication.update({
           where: { id: applicationId },
@@ -744,6 +758,11 @@ export async function completeCPInterviewAction(formData: FormData) {
 
 export async function makeCPDecisionAction(formData: FormData) {
   const session = await requireAdmin();
+  // Final CP decisions are gated to the single active Chair — the same
+  // authority that owns instructor final decisions. Reviewers can score,
+  // interview, and recommend, but only the Chair accepts / waitlists /
+  // declines / requests more info.
+  await assertCanMakeFinalApplicantDecision(session.user.id);
   const applicationId = getString(formData, "applicationId");
   const decision = getString(formData, "decision");
   const note = getOptionalString(formData, "finalDecisionNote");
