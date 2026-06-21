@@ -1420,6 +1420,8 @@ model User {
   teamMeetingsCreated                 TeamMeeting[]                 @relation("TeamMeetingCreatedBy")
   weeklyTaskUpdatesTeamPresented      WeeklyTaskUpdate[]            @relation("WeeklyTaskUpdateTeamPresenter")
   weeklyTaskUpdatesOfficerPresented   WeeklyTaskUpdate[]            @relation("WeeklyTaskUpdateOfficerPresenter")
+  weeklyMemberUpdates                 WeeklyMemberUpdate[]          @relation("WeeklyMemberUpdateUser")
+  weeklyMemberUpdatesCreated          WeeklyMemberUpdate[]          @relation("WeeklyMemberUpdateCreatedBy")
   presentationExpectationsResponsible TeamPresentationExpectation[] @relation("TeamPresentationExpectationResponsibleOwner")
   presentationExpectationsPresented   TeamPresentationExpectation[] @relation("TeamPresentationExpectationPresenter")
   presentationExpectationsCreated     TeamPresentationExpectation[] @relation("TeamPresentationExpectationCreatedBy")
@@ -13357,6 +13359,7 @@ model WeeklyTeamBrief {
   createdBy   User?   @relation("WeeklyTeamBriefCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   taskUpdates               WeeklyTaskUpdate[]            @relation("WeeklyBriefTaskUpdates")
+  memberUpdates             WeeklyMemberUpdate[]          @relation("WeeklyBriefMemberUpdates")
   teamMeeting               TeamMeeting?                  @relation("BriefTeamMeeting")
   preparedPresentationItems PreparedPresentationItem[]    @relation("BriefPreparedPresentationItems")
   addressedExpectations     TeamPresentationExpectation[] @relation("ExpectationAddressedInBrief")
@@ -13464,6 +13467,53 @@ model WeeklyTaskUpdate {
   @@index([actionItemId])
   @@index([teamMeetingPresenterId])
   @@index([officerMeetingPresenterId])
+}
+
+/// One person's weekly Impact form header inside a single team brief. Holds the
+/// parts of the YPP Weekly Impact template that are person-level (not task-level):
+/// Section 1 (overall objective + deliverable + target date) and Section 4 (input
+/// needed), plus that person's own submit state. Their Section 2/3 task detail
+/// lives in the WeeklyTaskUpdate rows whose ActionItem they lead. A person with no
+/// ActionItems still gets exactly one of these, so their form is never blank.
+model WeeklyMemberUpdate {
+  id      String          @id @default(cuid())
+  briefId String
+  brief   WeeklyTeamBrief @relation("WeeklyBriefMemberUpdates", fields: [briefId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("WeeklyMemberUpdateUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Section 1 — Overall Objective & Deliverable
+  personalObjective   String?   @db.Text
+  personalDeliverable String?   @db.Text
+  targetDate          DateTime?
+
+  // Section 4 — Input Needed
+  inputNeeded     String?   @db.Text
+  inputNeededFrom String?   @db.Text
+  inputNeededBy   DateTime?
+
+  // Per-person submit state (mirrors WeeklyBriefStatus so the team rollup and the
+  // member form speak one status vocabulary).
+  status      WeeklyBriefStatus @default(DRAFT)
+  submittedAt DateTime?
+
+  // Carry-forward provenance: when this row was seeded from last week's unfinished
+  // input, `carriedForwardFromId` points at the prior WeeklyMemberUpdate and
+  // `inputNeededCarried` flags that the Input Needed text came from last week.
+  carriedForwardFromId String?
+  inputNeededCarried   Boolean @default(false)
+
+  createdById String?
+  createdBy   User?   @relation("WeeklyMemberUpdateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([briefId, userId])
+  @@index([briefId])
+  @@index([userId])
+  @@index([status])
 }
 
 /// Officer-set requirement for what a team/task must show or answer in a future

@@ -716,6 +716,46 @@ export async function sendLeadershipBriefingEmail({
   });
 }
 
+/**
+ * Weekly Impact Meeting — post-meeting summary (manual send only).
+ *
+ * This is the ONLY email the Weekly Impact feature ever sends, and only when a
+ * human clicks "Send summary" on the Impact Meeting hub (gated by
+ * ENABLE_IMPACT_SUMMARY_EMAIL at the call site). The body is rendered from the
+ * summary markdown produced by `generateImpactMeetingSummary` — the same text
+ * shown in-portal — so the email and the on-screen summary never drift.
+ */
+export async function sendImpactMeetingSummaryEmail({
+  to,
+  recipientName,
+  weekLabel,
+  summaryMarkdown,
+  meetingUrl,
+}: {
+  to: string | string[];
+  recipientName: string | null;
+  /** Pre-formatted "Month Day" of the meeting week, e.g. "Jun 21". */
+  weekLabel: string;
+  summaryMarkdown: string;
+  meetingUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "team";
+  const subject = `Weekly Impact Meeting summary — week of ${weekLabel}`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Weekly Impact Meeting summary</h2>
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>Here's the recap from this week's Impact Meeting — what each team showed, the decisions made, blockers raised, and what's committed for next week. Every item links through from the meeting in the portal.</p>
+    <div style="background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 10px; padding: 18px 22px; margin: 18px 0;">
+      ${renderBriefingHtml(summaryMarkdown)}
+    </div>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(meetingUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Open the meeting</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">You're receiving this because you were part of the Impact Meeting. It was sent manually after the meeting wrapped.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
 export async function sendActionDeadlineWarningEmail({
   to,
   recipientName,

@@ -2105,8 +2105,42 @@ async function seedMeetingsTracker() {
     },
   });
 
+  // 5) Global Operations Impact Presentation — the weekly accountability forum the
+  //    Impact Meetings hub attaches to. `findCurrentGlobalImpactMeeting` keys off
+  //    meetingType, and the Weekly Team Brief generator links its briefs to the
+  //    OfficerMeeting falling inside the current week — so this must exist (once,
+  //    recurring) for the feature to light up. Scheduled today so it's the
+  //    "current" impact meeting in a fresh dev/seed environment.
+  await prisma.officerMeeting.create({
+    data: {
+      title: "Global Operations Impact Presentation",
+      purpose:
+        "Weekly accountability forum where Tech, Fundraising, Expansion, and Socials show progress, proof, blockers, decisions, and next commitments.",
+      category: "OPERATIONS",
+      meetingType: "GLOBAL_OPERATIONS_IMPACT_PRESENTATION",
+      priority: "HIGH",
+      status: "SCHEDULED",
+      date: at(0, 17, 0),
+      endTime: at(0, 18, 30),
+      recurrence: "WEEKLY",
+      location: "Zoom · Operations Room",
+      facilitatorId: brayden.id,
+      attendees: { create: [{ userId: anthea.id }, { userId: carly.id }] },
+      agendaItems: {
+        create: [
+          { title: "Tech: portal updates, bugs fixed, features shipped, data/automation, testing blockers", status: "OPEN", sortOrder: 0 },
+          { title: "Fundraising: outreach completed, donor/sponsor progress, materials, responses, decisions", status: "OPEN", sortOrder: 1 },
+          { title: "Expansion: new areas contacted, parent/alumni outreach, chapter leads, partner conversations", status: "OPEN", sortOrder: 2 },
+          { title: "Socials: posts created/scheduled, campaign results, approvals needed, upcoming content", status: "OPEN", sortOrder: 3 },
+          { title: "Leadership decisions and follow-up actions", status: "OPEN", sortOrder: 4 },
+          { title: "Attendance or responsiveness concerns", status: "OPEN", sortOrder: 5 },
+        ],
+      },
+    },
+  });
+
   console.log(
-    "Meetings Tracker: seeded 4 sample meetings (leadership / classes / mentorship / partnerships) with agenda, decisions, follow-ups, and 2 linked actions."
+    "Meetings Tracker: seeded 5 sample meetings (leadership / classes / mentorship / partnerships / global operations impact) with agenda, decisions, follow-ups, and 2 linked actions."
   );
 }
 

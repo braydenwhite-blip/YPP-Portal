@@ -5,12 +5,15 @@ import { z } from "zod";
 import type { AgendaItemKind } from "@prisma/client";
 
 import { requireOfficer } from "@/lib/authorization";
-import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { sendImpactMeetingSummaryEmail } from "@/lib/email";
+import { isActionTrackerEnabled, isImpactSummaryEmailEnabled } from "@/lib/feature-flags";
 import { toDateInputValue } from "@/lib/leadership-action-center/dates";
 import { prisma } from "@/lib/prisma";
+import { toAbsoluteAppUrl } from "@/lib/public-app-url";
 import { addFollowUp } from "./meetings-actions";
 import {
   GLOBAL_OPERATIONS_IMPACT_INITIATIVE_ID,
+  generateImpactMeetingSummary,
   IMPACT_TEAMS,
   loadGlobalOperationsImpactAgendaForMeeting,
   type ImpactMeetingAgendaSection,
@@ -258,4 +261,116 @@ export async function createImpactFollowUpAction(
 
   revalidateMeeting(data.meetingId);
   return created;
+}
+
+const SendImpactSummarySchema = z.object({
+  meetingId: z.string().trim().min(1),
+  /** Optional explicit recipient list; defaults to the meeting's attendees. */
+  to: z.array(z.string().trim().email()).optional(),
+});
+
+/**
+ * The ONLY email this feature ever sends. Builds the Impact Meeting summary from
+ * all teams' updates + the meeting's decisions/blockers/follow-ups and emails it
+ * to the attendees — but only when an officer explicitly invokes it (the hub's
+ * "Send summary" button) AND `ENABLE_IMPACT_SUMMARY_EMAIL` is on. Generation and
+ * the weekly cron never send; this is the single human-triggered exit point.
+ */
+export async function sendImpactMeetingSummary(
+  input: z.input<typeof SendImpactSummarySchema>
+) {
+  ensureEnabled();
+  if (!isImpactSummaryEmailEnabled()) {
+    throw new Error(
+      "Impact summary email is turned off. Set ENABLE_IMPACT_SUMMARY_EMAIL=true to allow sending."
+    );
+  }
+  const viewer = await requireOfficer();
+  const data = SendImpactSummarySchema.parse(input);
+
+  const meeting = await prisma.officerMeeting.findUnique({
+    where: { id: data.meetingId },
+    include: {
+      attendees: { include: { user: { select: { id: true, name: true, email: true } } } },
+      decisions: {
+        include: { decidedBy: { select: { name: true } } },
+        orderBy: { createdAt: "asc" },
+      },
+      followUps: {
+        include: { owner: { select: { name: true } } },
+        orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
+      },
+    },
+  });
+  if (!meeting) throw new Error("Meeting not found");
+
+  const agenda = await loadGlobalOperationsImpactAgendaForMeeting({
+    meetingId: meeting.id,
+    meetingTitle: meeting.title ?? "Global Operations Impact Meeting",
+    meetingDate: meeting.date,
+    viewer: {
+      id: viewer.id,
+      roles: viewer.roles,
+      primaryRole: viewer.primaryRole,
+      adminSubtypes: viewer.adminSubtypes,
+    },
+  });
+
+  const summary = generateImpactMeetingSummary({
+    agenda,
+    notesText: meeting.notesText,
+    decisions: meeting.decisions.map((d) => ({
+      decision: d.decision,
+      decidedByName: d.decidedBy?.name ?? null,
+    })),
+    followUps: meeting.followUps.map((f) => ({
+      title: f.title,
+      ownerName: f.owner?.name ?? null,
+      dueISO: f.dueDate?.toISOString() ?? null,
+      status: f.status,
+    })),
+  });
+
+  const recipients = Array.from(
+    new Set(
+      (data.to && data.to.length > 0
+        ? data.to
+        : meeting.attendees.map((a) => a.user.email)
+      ).filter((email): email is string => Boolean(email && email.trim()))
+    )
+  );
+  if (recipients.length === 0) {
+    throw new Error(
+      "No recipients — add attendees with email addresses or pass an explicit recipient list."
+    );
+  }
+
+  const weekLabel = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(meeting.date);
+
+  const result = await sendImpactMeetingSummaryEmail({
+    to: recipients,
+    recipientName: null,
+    weekLabel,
+    summaryMarkdown: summary.text,
+    meetingUrl: toAbsoluteAppUrl(`/actions/meetings/${meeting.id}`),
+  });
+
+  if (result.success) {
+    await prisma.officerMeeting.update({
+      where: { id: meeting.id },
+      data: { summaryEmailText: summary.text, summaryStatus: "SENT" },
+    });
+  }
+
+  revalidateMeeting(meeting.id);
+  return {
+    sent: result.success,
+    recipientCount: recipients.length,
+    warnings: summary.warnings,
+    error: result.error ?? null,
+  };
 }

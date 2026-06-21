@@ -21,6 +21,7 @@ import {
   type ImpactStageStep,
   type ImpactTeamCardData,
 } from "@/components/people-strategy/impact-meetings-hub";
+import { ImpactSummarySendButton } from "@/components/people-strategy/impact-summary-send-button";
 
 export const dynamic = "force-dynamic";
 
@@ -173,7 +174,10 @@ export default async function ImpactMeetingsPage() {
 
   return (
     <div className={skin.portalSkin}>
-      <ImpactMeetingsHub data={data} />
+      <ImpactMeetingsHub
+        data={data}
+        summaryAction={<ImpactSummarySendButton meetingId={meeting.id} />}
+      />
     </div>
   );
 }
