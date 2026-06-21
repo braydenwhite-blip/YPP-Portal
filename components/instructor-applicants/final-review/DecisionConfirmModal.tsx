@@ -22,6 +22,7 @@ import ApproveWithConditionsEditor, {
   type DecisionCondition,
 } from "./ApproveWithConditionsEditor";
 import ConfirmModalRisks from "./ConfirmModalRisks";
+import DecisionEmailEditor, { type DecisionEmailOverride } from "./DecisionEmailEditor";
 
 export interface DecisionConfirmPayload {
   action: ChairDecisionAction;
@@ -30,6 +31,8 @@ export interface DecisionConfirmPayload {
   rejectReasonCode?: RejectReasonCode;
   rejectFreeText?: string;
   conditions?: DecisionCondition[];
+  /** One-off inline edit of the decision email, when the chair changed it. */
+  emailOverride?: DecisionEmailOverride;
 }
 
 export interface DecisionConfirmModalProps {
@@ -78,14 +81,23 @@ export default function DecisionConfirmModal(props: DecisionConfirmModalProps) {
   const [reasonCode, setReasonCode] = useState<RejectReasonCode | null>(null);
   const [reasonFreeText, setReasonFreeText] = useState<string>("");
   const [conditions, setConditions] = useState<DecisionCondition[]>([]);
+  const [emailOverride, setEmailOverride] = useState<DecisionEmailOverride | null>(null);
 
   useEffect(() => {
     if (!open) {
       setReasonCode(null);
       setReasonFreeText("");
       setConditions([]);
+      setEmailOverride(null);
     }
   }, [open]);
+
+  // Mirror the rationale formatting `useCommitDecision` applies before sending,
+  // so the email preview/resolve matches exactly what the applicant receives.
+  const formattedRationale =
+    action === "REJECT" && reasonCode
+      ? `[${reasonCode}] ${reasonFreeText.trim() || rationale.trim()}`
+      : rationale;
 
   const requiresReason = action === "REJECT";
   const requiresRationale = action === "REJECT" || action === "REQUEST_INFO";
@@ -111,6 +123,7 @@ export default function DecisionConfirmModal(props: DecisionConfirmModalProps) {
       rejectReasonCode: reasonCode ?? undefined,
       rejectFreeText: reasonCode === "OTHER" ? reasonFreeText.trim() : undefined,
       conditions: requiresConditions ? conditions : undefined,
+      emailOverride: emailOverride ?? undefined,
     });
   }
 
@@ -160,6 +173,12 @@ export default function DecisionConfirmModal(props: DecisionConfirmModalProps) {
           Add a rationale in the dock before continuing — it&apos;s required for this action.
         </p>
       ) : null}
+      <DecisionEmailEditor
+        applicationId={application.id}
+        action={action}
+        rationale={formattedRationale}
+        onOverrideChange={setEmailOverride}
+      />
       {error ? (
         <p
           role="alert"

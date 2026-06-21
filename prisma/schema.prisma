@@ -1404,6 +1404,8 @@ model User {
   growthTagsCreated           MemberGrowthTag[]  @relation("MemberGrowthTagsCreated")
   actionTemplatesCreated      ActionTemplate[]   @relation("ActionTemplatesCreated")
   savedActionViews            SavedActionView[]  @relation("SavedActionViews")
+  emailTemplateOverridesCreated EmailTemplateOverride[] @relation("EmailTemplateOverridesCreated")
+  emailTemplateOverridesUpdated EmailTemplateOverride[] @relation("EmailTemplateOverridesUpdated")
 
   // Meetings Tracker / Weekly Command Center (People Strategy)
   meetingsFacilitated                 OfficerMeeting[]              @relation("OfficerMeetingFacilitator")
@@ -13221,6 +13223,31 @@ model ActionTemplate {
 
   @@index([archivedAt])
   @@index([category])
+}
+
+/// A stored customization of a portal email template, keyed by the stable
+/// registry key (see lib/email-templates/registry.ts). When present and active,
+/// its subject/body supersede the code-defined default. Deleting the row (or
+/// setting isActive=false) reverts to the default. One row per template key.
+model EmailTemplateOverride {
+  id          String  @id @default(cuid())
+  templateKey String  @unique
+  subject     String
+  /// Rendered inner-body HTML (with {{var}} placeholders) used at send time.
+  body        String  @db.Text
+  /// Tiptap JSON source for loss-free re-editing in the admin UI.
+  bodyJson    Json?
+  isActive    Boolean @default(true)
+
+  createdById String?
+  createdBy   User?   @relation("EmailTemplateOverridesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?   @relation("EmailTemplateOverridesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([templateKey])
 }
 
 /// A user's saved filter set on the Action Tracker (All Actions). `query` is the
