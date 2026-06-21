@@ -12,7 +12,7 @@ import {
   computeMentorMatches,
   type MentorMatchGroup,
 } from "@/lib/mentor-match-actions";
-import { SUPPORT_ROLE_META } from "@/lib/mentorship-hub";
+import { SUPPORT_ROLE_META } from "@/lib/mentorship-hub-constants";
 
 type MatchSupportRole =
   | "PRIMARY_MENTOR"

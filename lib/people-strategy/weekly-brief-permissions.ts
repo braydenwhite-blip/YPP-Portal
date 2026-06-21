@@ -12,6 +12,8 @@ export type WeeklyBriefTeamAccess = {
   teamLeadId?: string | null;
   workstreamLeadUserIds?: readonly string[] | null;
   initiativeLeadUserIds?: readonly string[] | null;
+  /** People with a weekly update on this team — they can view its combined presentation. */
+  memberUserIds?: readonly string[] | null;
 };
 
 export type WeeklyBriefTaskAccess = {
@@ -46,6 +48,8 @@ export function canViewWeeklyBrief(
 ): boolean {
   if (isOfficerTier(viewer) || isLeadershipOrBoard(viewer)) return true;
   if (isConfiguredTeamLead(viewer, brief)) return true;
+  // Anyone who has their own weekly update on the team can see the combined presentation.
+  if (idInList(viewer.id, brief.memberUserIds)) return true;
   return (brief.taskUpdates ?? []).some(
     (update) => update.actionItem && canViewAction(viewer, update.actionItem)
   );

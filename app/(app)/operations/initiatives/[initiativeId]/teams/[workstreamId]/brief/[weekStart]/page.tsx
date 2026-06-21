@@ -147,14 +147,36 @@ export default async function WeeklyTeamBriefPage({
   return (
     <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-5 pb-10">
       <PageHeaderV2
-        eyebrow="Weekly team brief"
-        backHref={`/operations/initiatives/${brief.initiativeId}`}
-        backLabel="Initiative"
-        title={brief.workstreamTitle}
-        subtitle={`${brief.initiativeTitle} · Week of ${brief.weekKey}`}
+        eyebrow="Team presentation"
+        backHref="/impact-meetings"
+        backLabel="Impact Meetings"
+        title={`${brief.workstreamTitle} — Weekly Impact`}
+        subtitle={`${brief.initiativeTitle} · Week of ${brief.weekKey} · one combined presentation${
+          brief.members.length ? ` from ${brief.members.length} contributor${brief.members.length === 1 ? "" : "s"}` : ""
+        }`}
       >
         <StatusBadge tone={statusTone(brief.status)}>{brief.status}</StatusBadge>
       </PageHeaderV2>
+
+      <p className="m-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-[13px] leading-relaxed text-ink-muted">
+        This is {brief.workstreamTitle}&apos;s single weekly presentation — everyone&apos;s parts
+        combined. Contributors add their piece from{" "}
+        <Link href="/my-weekly-impact" className="font-semibold text-brand-700 no-underline hover:underline">
+          My Weekly Impact
+        </Link>
+        {brief.officerMeeting ? (
+          <>
+            ; it&apos;s presented at{" "}
+            <Link
+              href={`/actions/meetings/${brief.officerMeeting.id}`}
+              className="font-semibold text-brand-700 no-underline hover:underline"
+            >
+              this week&apos;s Impact Meeting
+            </Link>
+          </>
+        ) : null}
+        .
+      </p>
 
       <div className="flex flex-wrap gap-2">
         <form action={submitBriefForm}>

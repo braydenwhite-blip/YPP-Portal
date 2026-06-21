@@ -335,6 +335,7 @@ function briefAccessShape(
     teamLeadId: brief.teamLeadId,
     workstreamLeadUserIds: workstreamLeadIds(ws),
     initiativeLeadUserIds: initiativeLeadIds(def),
+    memberUserIds: brief.memberUpdates.map((m) => m.userId),
     taskUpdates: brief.taskUpdates.map((u) => ({
       actionItem: u.actionItem ? taskAccess(u.actionItem) : null,
     })),
@@ -938,12 +939,16 @@ function mapBriefWorkspace(
   viewer: ActionViewer,
   access: WeeklyBriefAccessShape
 ): WeeklyBriefWorkspace {
+  // Membership lets you open your team's combined presentation, but it must not
+  // bypass per-task visibility — strip the member path when deciding what detail
+  // to reveal (leads/officers still see everything).
+  const visibilityAccess = { ...access, memberUserIds: [] };
   const viewerCanSeeAll =
-    canViewWeeklyBrief(viewer, { ...access, taskUpdates: [] }) ||
+    canViewWeeklyBrief(viewer, { ...visibilityAccess, taskUpdates: [] }) ||
     access.teamLeadId === viewer.id;
   const visibleTaskUpdates = viewerCanSeeAll
     ? brief.taskUpdates
-    : brief.taskUpdates.filter((u) => u.actionItem && canViewWeeklyBrief(viewer, { ...access, taskUpdates: [{ actionItem: taskAccess(u.actionItem) }] }));
+    : brief.taskUpdates.filter((u) => u.actionItem && canViewWeeklyBrief(viewer, { ...visibilityAccess, taskUpdates: [{ actionItem: taskAccess(u.actionItem) }] }));
 
   const taskUpdateDTOs = visibleTaskUpdates.map(taskUpdateToDTO);
 

@@ -19,6 +19,45 @@ async function joinTeam(formData: FormData) {
   });
 }
 
+const FLOW_STEPS: Array<{ n: number; title: string; body: string }> = [
+  {
+    n: 1,
+    title: "Add your part",
+    body: "Fill what you did, what you'll show, and what you need. It's pre-filled from your live work.",
+  },
+  {
+    n: 2,
+    title: "It joins your team's one presentation",
+    body: "Everyone's parts combine into a single presentation per team — not one per person.",
+  },
+  {
+    n: 3,
+    title: "Your team presents once",
+    body: "Leadership runs the weekly Impact Meeting from each team's combined presentation.",
+  },
+];
+
+function FlowExplainer() {
+  return (
+    <ol className="m-0 grid list-none grid-cols-1 gap-2 p-0 sm:grid-cols-3">
+      {FLOW_STEPS.map((step) => (
+        <li
+          key={step.n}
+          className="flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
+        >
+          <div className="flex items-center gap-2">
+            <span className="flex size-6 items-center justify-center rounded-full bg-brand-600 text-[12px] font-bold text-white">
+              {step.n}
+            </span>
+            <span className="text-sm font-bold text-ink">{step.title}</span>
+          </div>
+          <p className="m-0 text-[12.5px] leading-relaxed text-ink-muted">{step.body}</p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export default async function MyWeeklyImpactPage() {
   if (!isWeeklyTeamBriefsEnabled()) notFound();
   const session = await requireSessionUser().catch(() => null);
@@ -37,18 +76,29 @@ export default async function MyWeeklyImpactPage() {
   });
   if (!data) notFound();
 
+  const teamCount = data.forms.length;
+
   return (
     <div className="mx-auto flex w-full max-w-[920px] flex-col gap-5 pb-10">
       <PageHeaderV2
         eyebrow="Weekly Impact"
         title="My Weekly Impact"
-        subtitle={`Week of ${data.weekKey} · ${data.initiativeTitle}. Fill in what you did, what you'll show, and what you need — it's already pre-filled from your live work.`}
+        subtitle={`Week of ${data.weekKey} · ${data.initiativeTitle}. Add your part to your team's one weekly presentation — what you did, what you'll show, and what you need.`}
       />
+
+      <FlowExplainer />
+
+      {teamCount > 1 ? (
+        <p className="m-0 text-[12.5px] text-ink-muted">
+          You contribute to {teamCount} teams — there&apos;s one section below for each. Each one
+          feeds that team&apos;s single presentation.
+        </p>
+      ) : null}
 
       {data.forms.length === 0 ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 text-sm text-ink-muted">
-          You&apos;re not on an Impact team&apos;s weekly form yet. Pick your team below to start
-          this week&apos;s update — it&apos;ll pre-fill from your tracked work.
+          You&apos;re not on an Impact team&apos;s weekly presentation yet. Pick your team below to
+          add your part — it&apos;ll pre-fill from your tracked work.
         </div>
       ) : (
         data.forms.map((team) => <MyWeeklyImpactForm key={team.briefId} team={team} />)
@@ -57,10 +107,10 @@ export default async function MyWeeklyImpactPage() {
       {data.joinableTeams.length ? (
         <section className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="m-0 text-base font-bold text-ink">
-            {data.forms.length === 0 ? "Pick your team" : "Also report for another team"}
+            {data.forms.length === 0 ? "Pick your team" : "Also contribute to another team"}
           </h2>
           <p className="m-0 mt-1 text-sm text-ink-muted">
-            Start a weekly form for a team you contribute to.
+            Add your part to another team&apos;s weekly presentation.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {data.joinableTeams.map((team) => (

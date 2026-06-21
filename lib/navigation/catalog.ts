@@ -877,7 +877,7 @@ export const NAV_CATALOG: NavLink[] = [
         "Team Updates",
       ],
       dashboardDescription:
-        "Collect weekly team updates, build the agenda, run the impact presentation live, and send the summary.",
+        "One combined presentation per team — collect each team's update, build the agenda, run the meeting live, and send the summary.",
       dashboardPriority: 5,
     },
     {
@@ -896,7 +896,7 @@ export const NAV_CATALOG: NavLink[] = [
         "My Impact",
       ],
       dashboardDescription:
-        "Fill out your weekly impact update — objective, what you did, what you'll show, and what you need.",
+        "Add your part to your team's one weekly Impact presentation — what you did, what you'll show, and what you need.",
       dashboardPriority: 4,
     },
     {

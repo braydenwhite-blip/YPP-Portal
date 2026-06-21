@@ -173,21 +173,35 @@ export function MyWeeklyImpactForm({ team }: { team: MyWeeklyImpactTeamForm }) {
 
   return (
     <section className="flex flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h2 className="m-0 text-lg font-bold text-ink">{team.workstreamTitle}</h2>
-          <StatusBadge tone={statusTone(form.status)}>
-            {form.status === "DRAFT" ? "Not submitted" : form.status}
-          </StatusBadge>
+      <header className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="m-0 text-lg font-bold text-ink">{team.workstreamTitle}</h2>
+            <StatusBadge tone={statusTone(form.status)}>
+              {form.status === "DRAFT" ? "Not submitted" : form.status}
+            </StatusBadge>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href={`/operations/initiatives/${team.initiativeId}/teams/${team.workstreamId}/brief/${team.weekKey}`}
+              className="text-sm font-semibold text-brand-700 no-underline hover:underline"
+            >
+              Full team presentation →
+            </Link>
+            {team.officerMeeting ? (
+              <Link
+                href={`/actions/meetings/${team.officerMeeting.id}`}
+                className="text-sm font-semibold text-brand-700 no-underline hover:underline"
+              >
+                This week&apos;s meeting →
+              </Link>
+            ) : null}
+          </div>
         </div>
-        {team.officerMeeting ? (
-          <Link
-            href={`/actions/meetings/${team.officerMeeting.id}`}
-            className="text-sm font-semibold text-brand-700 no-underline hover:underline"
-          >
-            This week&apos;s meeting →
-          </Link>
-        ) : null}
+        <p className="m-0 text-[12.5px] text-ink-muted">
+          Your part of {team.workstreamTitle}&apos;s one combined weekly presentation — everyone on
+          the team adds their piece here.
+        </p>
       </header>
 
       {form.inputNeededCarried ? (
