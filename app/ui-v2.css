@@ -48,8 +48,8 @@
 
   /* --- YPP Portal reskin: status pill fills (consumed by StatusBadge) ---
      The calm/premium mockup uses softer fills than the raw semantic set
-     above. These are additive so non-badge consumers of success-*/danger-*
-     are untouched. */
+     above. These are additive so non-badge consumers of the semantic
+     success / danger tokens are untouched. */
   --color-complete-700: #0e7c52;
   --color-complete-50: #e7f6ee;
   --color-progress-700: #b45309;
