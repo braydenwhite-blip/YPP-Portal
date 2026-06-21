@@ -1,15 +1,12 @@
-import { CalmOnly, ExecutiveOnly } from "@/components/command-center/command-mode";
 import type { LeadershipHomeData } from "@/lib/home/leadership-home";
 
-import { LeadershipHomeCalm } from "./leadership-home-calm";
 import { LeadershipHomeExecutive } from "./leadership-home-executive";
 
 /**
- * Leadership Home — one front door, two densities driven by the global view
- * mode. Calm (the default) is a single calm starting point: a greeting, the one
- * thing that matters most, a small queue preview, a few real counts, recent
- * changes — nobody is overwhelmed. Executive restores the full operating
- * cockpit. Both render the same loaded data; the mode just chooses how much.
+ * Leadership Home — one front door. The previous calm/executive split is now a
+ * single executive-style operating page with the calm focus/queue intelligence
+ * embedded near the top, so leaders get both the daily next move and the full
+ * operating picture without switching modes.
  */
 export function LeadershipHome({
   firstName,
@@ -18,14 +15,5 @@ export function LeadershipHome({
   firstName: string;
   data: LeadershipHomeData;
 }) {
-  return (
-    <>
-      <CalmOnly>
-        <LeadershipHomeCalm firstName={firstName} data={data} />
-      </CalmOnly>
-      <ExecutiveOnly>
-        <LeadershipHomeExecutive firstName={firstName} data={data} />
-      </ExecutiveOnly>
-    </>
-  );
+  return <LeadershipHomeExecutive firstName={firstName} data={data} />;
 }

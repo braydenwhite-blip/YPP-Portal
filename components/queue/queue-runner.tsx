@@ -306,23 +306,27 @@ export function QueueRunner({
           </article>
 
           {/* Move through the queue — simple, three controls. */}
-          <div className="mt-5 flex items-center justify-center gap-x-6 text-[12.5px] font-semibold text-ink-muted">
+          <div className="mt-6 flex items-center justify-center gap-3">
             <button
               type="button"
               onClick={() => goTo(currentIndex - 1)}
               disabled={currentIndex === 0}
-              className="transition-colors hover:text-ink disabled:opacity-40"
+              className="rounded-lg border border-line-soft bg-surface px-4 py-2 text-[13px] font-semibold text-ink hover:bg-surface-soft disabled:opacity-40 transition-colors"
             >
               ← Back
             </button>
-            <button type="button" onClick={skip} className="transition-colors hover:text-ink">
+            <button 
+              type="button" 
+              onClick={skip} 
+              className="rounded-lg border border-line-soft bg-surface px-4 py-2 text-[13px] font-semibold text-ink hover:bg-surface-soft transition-colors"
+            >
               Skip for now
             </button>
             <button
               type="button"
               onClick={() => goTo(currentIndex + 1)}
               disabled={currentIndex >= total - 1}
-              className="transition-colors hover:text-ink disabled:opacity-40"
+              className="rounded-lg border border-line-soft bg-surface px-4 py-2 text-[13px] font-semibold text-ink hover:bg-surface-soft disabled:opacity-40 transition-colors"
             >
               Next →
             </button>

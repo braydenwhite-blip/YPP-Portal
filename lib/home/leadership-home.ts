@@ -45,6 +45,7 @@ export type LeadershipHomeData = {
   };
   attention: AttentionItem[];
   upcomingMeetings: MeetingLite[];
+  upcomingEvents: LeadershipHomeUpcomingEvent[];
   overdueActions: ActionLite[];
   decisionQueue: Array<{
     id: string;
@@ -56,7 +57,38 @@ export type LeadershipHomeData = {
   recentActivity: TimelineEvent[];
 };
 
+export type LeadershipHomeUpcomingEventType =
+  | "meeting"
+  | "action"
+  | "decision"
+  | "advisor_check_in"
+  | "partner_follow_up";
+
+export type LeadershipHomeUpcomingEvent = {
+  id: string;
+  type: LeadershipHomeUpcomingEventType;
+  label: string;
+  title: string;
+  detail: string;
+  ownerLabel: string | null;
+  startISO: string;
+  href: string;
+  ctaLabel: string;
+  urgencyLabel: string | null;
+  urgencyTone: "neutral" | "success" | "warning" | "danger" | "info" | "brand";
+};
+
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+function daysFrom(now: Date, date: Date): number {
+  return Math.floor((now.getTime() - date.getTime()) / DAY_MS);
+}
+
+function overdueLabel(now: Date, date: Date): string | null {
+  const days = daysFrom(now, date);
+  if (days <= 0) return null;
+  return `${days} day${days === 1 ? "" : "s"} overdue`;
+}
 
 export async function loadLeadershipHome(
   viewer: ActionViewer,
@@ -70,7 +102,9 @@ export async function loadLeadershipHome(
     chairQueueTotal,
     studentsWithoutAdvisor,
     advisorCheckInsOverdue,
+    advisorCheckInRows,
     partnerFollowUpsOverdue,
+    partnerFollowUpRows,
     openPartnerRequests,
   ] = await Promise.all([
     loadData360(viewer, { now }),
@@ -108,8 +142,30 @@ export async function loadLeadershipHome(
         },
       },
     }),
+    prisma.studentAdvisorAssignment.findMany({
+      where: { isActive: true, nextCheckInDueAt: { lt: now } },
+      orderBy: { nextCheckInDueAt: "asc" },
+      take: 6,
+      select: {
+        id: true,
+        nextCheckInDueAt: true,
+        student: { select: { id: true, name: true } },
+        advisor: { select: { name: true } },
+      },
+    }),
     prisma.partner.count({
       where: { archivedAt: null, nextFollowUpAt: { lt: now } },
+    }),
+    prisma.partner.findMany({
+      where: { archivedAt: null, nextFollowUpAt: { lt: now } },
+      orderBy: { nextFollowUpAt: "asc" },
+      take: 6,
+      select: {
+        id: true,
+        name: true,
+        nextFollowUpAt: true,
+        relationshipLead: { select: { name: true } },
+      },
     }),
     prisma.partnerRequest.count({
       where: { status: { in: [...PARTNER_REQUEST_OPEN_STATUSES] } },
@@ -119,6 +175,102 @@ export async function loadLeadershipHome(
   const overdueActions = data360.digest.urgentActions
     .filter((action) => action.overdue)
     .slice(0, 6);
+  const upcomingMeetings = data360.digest.upcomingMeetings.slice(0, 8);
+  const decisionQueue = chairQueue.map((app) => ({
+    id: app.id,
+    displayName: formatApplicantDisplayName({
+      preferredFirstName: app.preferredFirstName,
+      lastName: app.lastName,
+      legalName: app.legalName,
+      applicant: { name: app.applicant.name, email: app.applicant.email },
+    }),
+    chapterName: app.applicant.chapter?.name ?? null,
+    track: app.applicationTrack,
+    daysInQueue: app.chairQueuedAt
+      ? Math.max(0, daysFrom(now, app.chairQueuedAt))
+      : null,
+  }));
+  const upcomingEvents: LeadershipHomeUpcomingEvent[] = [
+    ...upcomingMeetings.map((meeting) => ({
+      id: `meeting:${meeting.id}`,
+      type: "meeting" as const,
+      label: "Meeting",
+      title: meeting.title,
+      detail: meeting.categoryLabel,
+      ownerLabel: meeting.facilitatorName,
+      startISO: meeting.startISO,
+      href: meeting.href,
+      ctaLabel: "Open",
+      urgencyLabel: null,
+      urgencyTone: "neutral" as const,
+    })),
+    ...data360.digest.urgentActions
+      .filter((action) => action.dueISO)
+      .slice(0, 8)
+      .map((action) => ({
+        id: `action:${action.id}`,
+        type: "action" as const,
+        label: "Action",
+        title: action.title,
+        detail: action.relatedLabel
+          ? `${action.relatedTypeLabel ?? "Related"}: ${action.relatedLabel}`
+          : "Action due date",
+        ownerLabel: action.ownerName ?? "Unowned",
+        startISO: action.dueISO,
+        href: action.href,
+        ctaLabel: "Open",
+        urgencyLabel: action.overdue ? `${action.daysOverdue} day${action.daysOverdue === 1 ? "" : "s"} overdue` : null,
+        urgencyTone: action.overdue ? ("danger" as const) : ("warning" as const),
+      })),
+    ...decisionQueue.map((app) => ({
+      id: `decision:${app.id}`,
+      type: "decision" as const,
+      label: "Decision",
+      title: app.displayName,
+      detail: app.chapterName ? `${prettyTrack(app.track)} · ${app.chapterName}` : prettyTrack(app.track),
+      ownerLabel: null,
+      startISO:
+        chairQueue.find((raw) => raw.id === app.id)?.chairQueuedAt?.toISOString() ??
+        now.toISOString(),
+      href: `/admin/instructor-applicants/${app.id}`,
+      ctaLabel: "Decide",
+      urgencyLabel:
+        app.daysInQueue != null
+          ? `${app.daysInQueue} day${app.daysInQueue === 1 ? "" : "s"} waiting`
+          : "Waiting",
+      urgencyTone: "warning" as const,
+    })),
+    ...advisorCheckInRows
+      .filter((row) => row.nextCheckInDueAt)
+      .map((row) => ({
+        id: `advisor:${row.id}`,
+        type: "advisor_check_in" as const,
+        label: "Check-in",
+        title: row.student.name,
+        detail: "Advisor check-in due",
+        ownerLabel: row.advisor.name,
+        startISO: row.nextCheckInDueAt!.toISOString(),
+        href: `/people/${row.student.id}`,
+        ctaLabel: "Review",
+        urgencyLabel: overdueLabel(now, row.nextCheckInDueAt!),
+        urgencyTone: "info" as const,
+      })),
+    ...partnerFollowUpRows
+      .filter((partner) => partner.nextFollowUpAt)
+      .map((partner) => ({
+        id: `partner:${partner.id}`,
+        type: "partner_follow_up" as const,
+        label: "Partner",
+        title: partner.name,
+        detail: "Relationship follow-up due",
+        ownerLabel: partner.relationshipLead?.name ?? null,
+        startISO: partner.nextFollowUpAt!.toISOString(),
+        href: `/admin/partners/${partner.id}`,
+        ctaLabel: "Follow up",
+        urgencyLabel: overdueLabel(now, partner.nextFollowUpAt!),
+        urgencyTone: "warning" as const,
+      })),
+  ].sort((a, b) => new Date(a.startISO).getTime() - new Date(b.startISO).getTime());
 
   return {
     brief: data360.brief,
@@ -135,22 +287,17 @@ export async function loadLeadershipHome(
       openPartnerRequests,
     },
     attention: data360.attention.slice(0, 8),
-    upcomingMeetings: data360.digest.upcomingMeetings.slice(0, 5),
+    upcomingMeetings: upcomingMeetings.slice(0, 5),
+    upcomingEvents: upcomingEvents.slice(0, 24),
     overdueActions,
-    decisionQueue: chairQueue.map((app) => ({
-      id: app.id,
-      displayName: formatApplicantDisplayName({
-        preferredFirstName: app.preferredFirstName,
-        lastName: app.lastName,
-        legalName: app.legalName,
-        applicant: { name: app.applicant.name, email: app.applicant.email },
-      }),
-      chapterName: app.applicant.chapter?.name ?? null,
-      track: app.applicationTrack,
-      daysInQueue: app.chairQueuedAt
-        ? Math.max(0, Math.floor((now.getTime() - app.chairQueuedAt.getTime()) / DAY_MS))
-        : null,
-    })),
+    decisionQueue,
     recentActivity: data360.timeline.slice(0, 8),
   };
+}
+
+function prettyTrack(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/^./, (c) => c.toUpperCase());
 }

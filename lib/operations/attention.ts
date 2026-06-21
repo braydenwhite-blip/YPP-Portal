@@ -342,8 +342,8 @@ export function deriveClassSetupAttention(
       why: cls.instructorName
         ? `${cls.instructorName} cannot deliver this class until setup is finished.`
         : "This class has no path to delivery until setup is finished.",
-      suggestedStep: `Finish setup: ${missing.join(", ")}.`,
-      ageLabel: started ? "already running" : `starts in ${daysOut} day${daysOut === 1 ? "" : "s"}`,
+      suggestedStep: `Not completed: ${missing.join(", ")}.`,
+      ageLabel: started ? "already running" : `atarts in ${daysOut} day${daysOut === 1 ? "" : "s"}`,
       severity: started || daysOut <= 7 ? "critical" : "warning",
       score: 26 + (started ? 14 : Math.max(0, 14 - daysOut)) + missing.length * 4,
       href: `/admin/classes/${cls.id}`,

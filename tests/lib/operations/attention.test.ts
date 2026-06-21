@@ -1,3 +1,5 @@
+"use client";
+
 import { describe, expect, it } from "vitest";
 
 import type { OperationalReviewItem } from "@/lib/people-strategy/operational-digest";
@@ -17,16 +19,26 @@ import {
   type PartnerAttentionInput,
 } from "@/lib/operations/attention";
 
+// Mock static anchor date for deterministic date relative calculations
 const NOW = new Date("2026-06-11T12:00:00.000Z");
 
+/**
+ * Helper: Generates a past date offset relative to the static NOW anchor
+ */
 function daysAgo(days: number): Date {
   return new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000);
 }
 
+/**
+ * Helper: Generates a future date offset relative to the static NOW anchor
+ */
 function daysAhead(days: number): Date {
   return new Date(NOW.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+/**
+ * Mock generator for Partner attention rules testing
+ */
 function partner(overrides: Partial<PartnerAttentionInput> = {}): PartnerAttentionInput {
   return {
     id: "p1",
@@ -39,6 +51,9 @@ function partner(overrides: Partial<PartnerAttentionInput> = {}): PartnerAttenti
   };
 }
 
+// ==========================================
+// PARTNER ATTENTION ENGINE TESTS
+// ==========================================
 describe("derivePartnerAttention", () => {
   it("flags an active partner with no next step, explaining why and what to do", () => {
     const items = derivePartnerAttention([partner()], NOW);
@@ -85,6 +100,9 @@ describe("derivePartnerAttention", () => {
   });
 });
 
+/**
+ * Mock generator for Instructor Applicant testing
+ */
 function applicant(overrides: Partial<ApplicantAttentionInput> = {}): ApplicantAttentionInput {
   return {
     id: "app1",
@@ -97,6 +115,9 @@ function applicant(overrides: Partial<ApplicantAttentionInput> = {}): ApplicantA
   };
 }
 
+// ==========================================
+// APPLICANT ATTENTION ENGINE TESTS
+// ==========================================
 describe("deriveApplicantAttention", () => {
   it("flags applicants idle past the threshold", () => {
     const items = deriveApplicantAttention([applicant()], NOW);
@@ -106,7 +127,6 @@ describe("deriveApplicantAttention", () => {
     expect(items[0].category).toBe("stalled");
     expect(items[0].suggestedStep).toBe("Assign a reviewer or schedule the interview.");
     expect(items[0].ageLabel).toBe("20 days without movement");
-    // Clicking opens the Applicant 360 panel; the href deep-links the detail page.
     expect(items[0].entityType).toBe("applicant");
     expect(items[0].entityId).toBe("app1");
     expect(items[0].href).toBe("/admin/instructor-applicants/app1");
@@ -124,6 +144,9 @@ describe("deriveApplicantAttention", () => {
   });
 });
 
+/**
+ * Mock generator for Mentorship pairing tracking
+ */
 function mentorship(
   overrides: Partial<MentorshipAttentionInput> = {}
 ): MentorshipAttentionInput {
@@ -137,6 +160,9 @@ function mentorship(
   };
 }
 
+// ==========================================
+// MENTORSHIP RELATIONS ATTENTION TESTS
+// ==========================================
 describe("deriveStalledMentorshipAttention", () => {
   it("flags quiet pairings with the quiet-day count and a concrete ask", () => {
     const items = deriveStalledMentorshipAttention([mentorship()], NOW);
@@ -145,7 +171,6 @@ describe("deriveStalledMentorshipAttention", () => {
     expect(items[0].category).toBe("stalled");
     expect(items[0].suggestedStep).toContain("Ian Chen");
     expect(items[0].ageLabel).toBe("quiet 60 days");
-    // Clicking opens the Mentorship 360 panel; the href deep-links the pairing.
     expect(items[0].entityType).toBe("mentorship");
     expect(items[0].entityId).toBe("men1");
     expect(items[0].href).toBe("/admin/mentorship/relationships/men1");
@@ -158,6 +183,9 @@ describe("deriveStalledMentorshipAttention", () => {
   });
 });
 
+/**
+ * Mock generator for Class deployment validation metrics
+ */
 function classSetup(
   overrides: Partial<ClassSetupAttentionInput> = {}
 ): ClassSetupAttentionInput {
@@ -174,6 +202,9 @@ function classSetup(
   };
 }
 
+// ==========================================
+// CLASS COMPLIANCE & READINESS TESTS
+// ==========================================
 describe("deriveClassSetupAttention", () => {
   it("flags an imminent class missing sessions, naming the instructor", () => {
     const items = deriveClassSetupAttention([classSetup()], NOW);
@@ -224,6 +255,9 @@ describe("deriveClassSetupAttention", () => {
   });
 });
 
+// ==========================================
+// CORE QUEUE COMBINATOR AND AGGREGATOR TESTS
+// ==========================================
 describe("buildNeedsAttention", () => {
   const reviewItem: OperationalReviewItem = {
     id: "action:a1",
@@ -256,16 +290,19 @@ describe("buildNeedsAttention", () => {
   it("merges all sources, severity first then score, and respects the limit", () => {
     const items = buildNeedsAttention({
       reviewItems: [reviewItem],
-      partners: [partner({ nextFollowUpAt: daysAgo(20) })], // critical, score 44
-      applicants: [applicant()], // watch
-      mentorships: [mentorship()], // watch
-      classes: [classSetup({ startDate: daysAhead(15) })], // warning
+      partners: [partner({ nextFollowUpAt: daysAgo(20) })],
+      applicants: [applicant()],
+      mentorships: [mentorship()],
+      classes: [classSetup({ startDate: daysAhead(15) })],
       now: NOW,
     });
     expect(items[0].severity).toBe("critical");
     expect(items[1].severity).toBe("critical");
-    const severities = items.map((i) => i.severity);
-    const rank = { critical: 3, warning: 2, watch: 1, neutral: 0 } as const;
+    
+    // Explicit array loop typing to prevent index signatures conflicts
+    const severities = items.map((i: any) => i.severity);
+    const rank: Record<string, number> = { critical: 3, warning: 2, watch: 1, neutral: 0 };
+    
     for (let i = 1; i < severities.length; i++) {
       expect(rank[severities[i - 1]]).toBeGreaterThanOrEqual(rank[severities[i]]);
     }
@@ -295,21 +332,24 @@ describe("buildNeedsAttention", () => {
   });
 });
 
+// ==========================================
+// RENDERING & INTERFACE GROUPING BUCKETS
+// ==========================================
 describe("groupAttentionItems", () => {
-  it("groups a ranked queue into labeled categories in triage order", () => {
+  it("groups a ranked queue into labeled categories in order", () => {
     const items = buildNeedsAttention({
       reviewItems: [],
       partners: [
-        partner({ nextFollowUpAt: daysAgo(20) }), // urgent
-        partner({ id: "p2", name: "Hillside", lastContactedAt: daysAgo(5) }), // missing_next_step
+        partner({ nextFollowUpAt: daysAgo(20) }),
+        partner({ id: "p2", name: "Hillside", lastContactedAt: daysAgo(5) }),
       ],
-      applicants: [applicant()], // stalled
+      applicants: [applicant()],
       mentorships: [],
-      classes: [classSetup({ startDate: daysAhead(15) })], // upcoming_risk
+      classes: [classSetup({ startDate: daysAhead(15) })],
       now: NOW,
     });
     const groups = groupAttentionItems(items);
-    expect(groups.map((g) => g.category)).toEqual([
+    expect(groups.map((g: any) => g.category)).toEqual([
       "urgent",
       "missing_next_step",
       "stalled",
@@ -317,7 +357,6 @@ describe("groupAttentionItems", () => {
     ]);
     expect(groups[0].label).toBe("Urgent");
     expect(groups[0].items[0].relatedLabel).toBe("Mohawk Day Camp");
-    // Every item lands in exactly one group.
-    expect(groups.flatMap((g) => g.items)).toHaveLength(items.length);
+    expect(groups.flatMap((g: any) => g.items)).toHaveLength(items.length);
   });
 });
