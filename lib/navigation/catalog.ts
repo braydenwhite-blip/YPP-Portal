@@ -880,6 +880,25 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 5,
     },
     {
+      href: "/my-weekly-impact",
+      label: "My Weekly Impact",
+      icon: "📝",
+      // Any contributor on an Impact team fills this out (the page self-gates on
+      // the Weekly Team Briefs flag and the signed-in session).
+      roles: ["INSTRUCTOR", "MENTOR", "CHAPTER_PRESIDENT", "STAFF", "ADMIN", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
+      searchAliases: [
+        "My Weekly Impact",
+        "Weekly Impact Form",
+        "Weekly Update",
+        "Impact Update",
+        "My Impact",
+      ],
+      dashboardDescription:
+        "Fill out your weekly impact update — objective, what you did, what you'll show, and what you need.",
+      dashboardPriority: 4,
+    },
+    {
       href: "/leadership-pathway",
       label: "Leadership Pathway",
       icon: "🪜",

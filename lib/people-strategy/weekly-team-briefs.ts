@@ -126,6 +126,8 @@ export type WeeklyBriefTaskUpdateDTO = {
   deliverables: BriefDeliverableDTO[];
   allDeliverables: BriefDeliverableDTO[];
   expectationIds: string[];
+  /** Last week promised a next step on this task and it is still open. */
+  carriedForward?: boolean;
 };
 
 /**
@@ -764,6 +766,155 @@ function serializeMeeting(m: { id: string; title: string | null; date: Date } | 
   };
 }
 
+type BriefWithIncludes = Prisma.WeeklyTeamBriefGetPayload<{ include: typeof BRIEF_INCLUDE }>;
+type BriefTaskUpdateRow = BriefWithIncludes["taskUpdates"][number];
+type BriefMemberRow = BriefWithIncludes["memberUpdates"][number];
+
+function taskUpdateToDTO(u: BriefTaskUpdateRow): WeeklyBriefTaskUpdateDTO {
+  return {
+    id: u.id,
+    actionItemId: u.actionItemId,
+    taskTitle: u.taskTitleSnapshot,
+    liveStatus: u.actionItem?.status ?? null,
+    deadlineISO: u.actionItem?.deadlineStart.toISOString() ?? null,
+    owner: personDTO(u.actionItem?.lead ?? null),
+    commitment: u.commitmentSnapshot,
+    statusNarrative: u.statusNarrative,
+    workCompleted: u.workCompleted,
+    currentResult: u.currentResult,
+    remainingWork: u.remainingWork,
+    blockerNote: u.blockerNote,
+    explanation: u.explanation,
+    decisionNeeded: u.decisionNeeded,
+    nextAction: u.nextAction,
+    teamMeetingReady: u.teamMeetingReady,
+    officerMeetingReady: u.officerMeetingReady,
+    escalationNeeded: u.escalationNeeded,
+    officerReviewRequested: u.officerReviewRequested,
+    teamMeetingPresenter: personDTO(u.teamMeetingPresenter),
+    officerMeetingPresenter: personDTO(u.officerMeetingPresenter),
+    deliverables: u.actionItem ? deliverablesForIds(u.deliverableLinkIds, u.actionItem.fileLinks) : [],
+    allDeliverables: (u.actionItem?.fileLinks ?? []).map((link) => ({
+      id: link.id,
+      label: link.label,
+      url: link.url,
+      addedAtISO: link.addedAt.toISOString(),
+    })),
+    expectationIds: u.expectationIds,
+    carriedForward: u.carriedForward,
+  };
+}
+
+function memberFormToDTO(
+  m: BriefMemberRow,
+  tasks: BriefTaskUpdateRow[],
+  viewerId: string
+): WeeklyMemberFormDTO {
+  return {
+    id: m.id,
+    user: personDTO(m.user) ?? { id: m.userId, name: "Unknown" },
+    isSelf: m.userId === viewerId,
+    status: m.status,
+    submittedAtISO: m.submittedAt?.toISOString() ?? null,
+    personalObjective: m.personalObjective,
+    personalDeliverable: m.personalDeliverable,
+    targetDateISO: m.targetDate?.toISOString() ?? null,
+    inputNeeded: m.inputNeeded,
+    inputNeededFrom: m.inputNeededFrom,
+    inputNeededByISO: m.inputNeededBy?.toISOString() ?? null,
+    inputNeededCarried: m.inputNeededCarried,
+    carriedForwardFromId: m.carriedForwardFromId,
+    taskUpdates: tasks.map(taskUpdateToDTO),
+  };
+}
+
+export type MyWeeklyImpactTeamForm = {
+  briefId: string;
+  initiativeId: string;
+  workstreamId: string;
+  workstreamTitle: string;
+  weekKey: string;
+  briefStatus: WeeklyBriefStatus;
+  officerMeeting: BriefMeetingDTO | null;
+  form: WeeklyMemberFormDTO;
+};
+
+export type MyWeeklyImpact = {
+  weekKey: string;
+  weekStartISO: string;
+  initiativeId: string;
+  initiativeTitle: string;
+  forms: MyWeeklyImpactTeamForm[];
+  /** Impact teams the viewer is not on yet — offered as one-click "start my form". */
+  joinableTeams: Array<{ workstreamId: string; title: string }>;
+};
+
+/**
+ * The signed-in person's own Weekly Impact forms for the current week, one per
+ * team they're on (their Section 1/4 header + the Section 2/3 task rows they
+ * lead). Generates this week's team briefs first (idempotent) so anyone with
+ * matched work already has a pre-filled form, and lists the teams they could
+ * still join. Powers the `/my-weekly-impact` surface.
+ */
+export async function loadMyWeeklyImpact(input: {
+  initiativeId: string;
+  viewer: ActionViewer;
+  now?: Date;
+}): Promise<MyWeeklyImpact | null> {
+  if (!isWeeklyTeamBriefsEnabled()) return null;
+  const def = getInitiativeDef(input.initiativeId);
+  if (!def) return null;
+  const weekStart = startOfUTCWeek(input.now ?? new Date());
+
+  await generateWeeklyTeamBriefs(weekStart, {
+    initiativeId: input.initiativeId,
+    createdById: input.viewer.id,
+    forceEmptyTeam: true,
+  });
+
+  const briefs = await prisma.weeklyTeamBrief.findMany({
+    where: { initiativeId: input.initiativeId, weekStart },
+    include: BRIEF_INCLUDE,
+  });
+
+  const forms: MyWeeklyImpactTeamForm[] = [];
+  const myTeamIds = new Set<string>();
+  for (const brief of briefs) {
+    const ws = getWorkstreamDef(input.initiativeId, brief.workstreamId);
+    if (!ws) continue;
+    const mine = brief.memberUpdates.find((m) => m.userId === input.viewer.id);
+    if (!mine) continue;
+    myTeamIds.add(brief.workstreamId);
+    const myTasks = brief.taskUpdates.filter(
+      (u) => u.actionItem?.leadId === input.viewer.id
+    );
+    forms.push({
+      briefId: brief.id,
+      initiativeId: input.initiativeId,
+      workstreamId: brief.workstreamId,
+      workstreamTitle: ws.title,
+      weekKey: dateKey(brief.weekStart),
+      briefStatus: brief.status,
+      officerMeeting: serializeMeeting(brief.officerMeeting),
+      form: memberFormToDTO(mine, myTasks, input.viewer.id),
+    });
+  }
+  forms.sort((a, b) => a.workstreamTitle.localeCompare(b.workstreamTitle));
+
+  const joinableTeams = (def.workstreams ?? [])
+    .filter((ws) => !myTeamIds.has(ws.id))
+    .map((ws) => ({ workstreamId: ws.id, title: ws.title }));
+
+  return {
+    weekKey: dateKey(weekStart),
+    weekStartISO: weekStart.toISOString(),
+    initiativeId: input.initiativeId,
+    initiativeTitle: def.title,
+    forms,
+    joinableTeams,
+  };
+}
+
 function deliverablesForIds(
   ids: string[],
   links: Array<{ id: string; label: string; url: string; addedAt: Date }>
@@ -794,37 +945,7 @@ function mapBriefWorkspace(
     ? brief.taskUpdates
     : brief.taskUpdates.filter((u) => u.actionItem && canViewWeeklyBrief(viewer, { ...access, taskUpdates: [{ actionItem: taskAccess(u.actionItem) }] }));
 
-  const taskUpdateDTOs: WeeklyBriefTaskUpdateDTO[] = visibleTaskUpdates.map((u) => ({
-    id: u.id,
-    actionItemId: u.actionItemId,
-    taskTitle: u.taskTitleSnapshot,
-    liveStatus: u.actionItem?.status ?? null,
-    deadlineISO: u.actionItem?.deadlineStart.toISOString() ?? null,
-    owner: personDTO(u.actionItem?.lead ?? null),
-    commitment: u.commitmentSnapshot,
-    statusNarrative: u.statusNarrative,
-    workCompleted: u.workCompleted,
-    currentResult: u.currentResult,
-    remainingWork: u.remainingWork,
-    blockerNote: u.blockerNote,
-    explanation: u.explanation,
-    decisionNeeded: u.decisionNeeded,
-    nextAction: u.nextAction,
-    teamMeetingReady: u.teamMeetingReady,
-    officerMeetingReady: u.officerMeetingReady,
-    escalationNeeded: u.escalationNeeded,
-    officerReviewRequested: u.officerReviewRequested,
-    teamMeetingPresenter: personDTO(u.teamMeetingPresenter),
-    officerMeetingPresenter: personDTO(u.officerMeetingPresenter),
-    deliverables: u.actionItem ? deliverablesForIds(u.deliverableLinkIds, u.actionItem.fileLinks) : [],
-    allDeliverables: (u.actionItem?.fileLinks ?? []).map((link) => ({
-      id: link.id,
-      label: link.label,
-      url: link.url,
-      addedAtISO: link.addedAt.toISOString(),
-    })),
-    expectationIds: u.expectationIds,
-  }));
+  const taskUpdateDTOs = visibleTaskUpdates.map(taskUpdateToDTO);
 
   // Per-person forms: leads/officers see everyone; an individual contributor
   // sees only their own Section 1/4 header (their tasks were already visibility-
@@ -832,22 +953,13 @@ function mapBriefWorkspace(
   const visibleMembers = viewerCanSeeAll
     ? brief.memberUpdates
     : brief.memberUpdates.filter((m) => m.userId === viewer.id);
-  const members: WeeklyMemberFormDTO[] = visibleMembers.map((m) => ({
-    id: m.id,
-    user: personDTO(m.user) ?? { id: m.userId, name: "Unknown" },
-    isSelf: m.userId === viewer.id,
-    status: m.status,
-    submittedAtISO: m.submittedAt?.toISOString() ?? null,
-    personalObjective: m.personalObjective,
-    personalDeliverable: m.personalDeliverable,
-    targetDateISO: m.targetDate?.toISOString() ?? null,
-    inputNeeded: m.inputNeeded,
-    inputNeededFrom: m.inputNeededFrom,
-    inputNeededByISO: m.inputNeededBy?.toISOString() ?? null,
-    inputNeededCarried: m.inputNeededCarried,
-    carriedForwardFromId: m.carriedForwardFromId,
-    taskUpdates: taskUpdateDTOs.filter((t) => t.owner?.id === m.userId),
-  }));
+  const members: WeeklyMemberFormDTO[] = visibleMembers.map((m) =>
+    memberFormToDTO(
+      m,
+      visibleTaskUpdates.filter((u) => u.actionItem?.leadId === m.userId),
+      viewer.id
+    )
+  );
 
   return {
     id: brief.id,

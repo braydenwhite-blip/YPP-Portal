@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
   ButtonLink,
   CardV2,
@@ -207,7 +209,14 @@ function TeamStat({ value, label }: { value: number; label: string }) {
   );
 }
 
-export function ImpactMeetingsHub({ data }: { data: ImpactHubData }) {
+export function ImpactMeetingsHub({
+  data,
+  summaryAction,
+}: {
+  data: ImpactHubData;
+  /** The single manual "Send summary email" control (rendered after the meeting). */
+  summaryAction?: ReactNode;
+}) {
   const { stats } = data;
   return (
     <div className="mx-auto flex w-full max-w-[920px] flex-col gap-6 pb-10">
@@ -248,9 +257,11 @@ export function ImpactMeetingsHub({ data }: { data: ImpactHubData }) {
             <ButtonLink href={data.meetingHref} variant="secondary" size="sm">
               Live meeting mode
             </ButtonLink>
-            <ButtonLink href={data.meetingHref} variant="secondary" size="sm">
-              Post-meeting summary
-            </ButtonLink>
+            {summaryAction ?? (
+              <ButtonLink href={data.meetingHref} variant="secondary" size="sm">
+                Post-meeting summary
+              </ButtonLink>
+            )}
           </div>
         ) : null}
       </CardV2>

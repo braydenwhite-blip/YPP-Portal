@@ -2,6 +2,18 @@ import type { PageHelperEntry } from "@/lib/page-helper/types";
 
 export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   {
+    pattern: "/my-weekly-impact",
+    title: "My Weekly Impact",
+    content: {
+      purpose:
+        "Your weekly impact update for each team you're on — objective and deliverable, exactly what you did and the outcome, what you'll show next week, and what you need. It's pre-filled from your live work.",
+      firstStep:
+        "Fill in the Deliverable (what 'done' looks like) and, for each task, exactly what you did and the outcome — be specific; vague answers are blocked on submit.",
+      nextStep:
+        "Add the artifact you're showing, set your next step and any input you need, then press Submit my weekly impact.",
+    },
+  },
+  {
     pattern: "/command-center",
     title: "Command Center",
     content: {

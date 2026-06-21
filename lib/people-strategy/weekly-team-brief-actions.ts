@@ -509,6 +509,50 @@ async function loadMemberContext(memberUpdateId: string) {
   return { member, session, viewer, ...loaded };
 }
 
+const StartMyImpactSchema = z.object({
+  initiativeId: NonEmptyString,
+  workstreamId: NonEmptyString,
+});
+
+/** Join an Impact team's weekly form for the current week — generates the team's
+ *  brief if needed (idempotent) and ensures the signed-in person has their own
+ *  blank form. Lets a contributor with no Action Items yet start participating. */
+export async function startMyWeeklyImpact(input: z.input<typeof StartMyImpactSchema>) {
+  ensureEnabled();
+  const session = await requireSessionUser();
+  const data = StartMyImpactSchema.parse(input);
+  const def = getInitiativeDef(data.initiativeId);
+  const ws = getWorkstreamDef(data.initiativeId, data.workstreamId);
+  if (!def || !ws) throw new Error("Unknown Impact team");
+
+  const weekStart = startOfUTCWeek(new Date());
+  await generateWeeklyTeamBriefs(weekStart, {
+    initiativeId: def.id,
+    workstreamId: ws.id,
+    createdById: session.id,
+    forceEmptyTeam: true,
+  });
+  const brief = await prisma.weeklyTeamBrief.findUnique({
+    where: {
+      initiativeId_workstreamId_weekStart: {
+        initiativeId: def.id,
+        workstreamId: ws.id,
+        weekStart,
+      },
+    },
+    select: { id: true },
+  });
+  if (!brief) throw new Error("Could not start your weekly form");
+
+  await prisma.weeklyMemberUpdate.upsert({
+    where: { briefId_userId: { briefId: brief.id, userId: session.id } },
+    create: { briefId: brief.id, userId: session.id, createdById: session.id },
+    update: {},
+  });
+  revalidatePath("/my-weekly-impact");
+  return { briefId: brief.id };
+}
+
 const EnsureMemberSchema = z.object({ briefId: NonEmptyString });
 
 /** Give the signed-in person their own blank Weekly Impact form on this brief —
