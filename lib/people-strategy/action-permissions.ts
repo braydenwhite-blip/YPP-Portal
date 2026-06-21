@@ -8,7 +8,7 @@ import {
   hasAnyAdminSubtype,
   hasAnyRole,
   hasRole,
-} from "@/lib/authorization";
+} from "@/lib/authorization-roles";
 
 /**
  * People Strategy — Action Item access policy.

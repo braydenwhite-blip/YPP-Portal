@@ -1,4 +1,4 @@
-import type { GrowthTag } from "@prisma/client";
+import type { GoalReviewStatus, GrowthTag } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
@@ -14,21 +14,31 @@ import { loadPeopleDashboard, type PeopleDashboardRow } from "./people-dashboard
 import {
   buildCheckInCalendarDots,
   buildSignals,
+  CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY,
   computePerformanceStats,
   currentQuarterLabel,
   EMPTY_CURRENT_MONTH_FEEDBACK,
   factsMatchFilter,
+  isCheckInMonthAccountable,
   monthKeyUTC,
   parseMonthKey,
   roleExpectsMentor,
+  rowMatchesPeopleReviewsFilters,
   type CheckInCalendarDot,
   type CurrentMonthFeedback,
   type MemberFeedbackStatus,
+  type PeopleReviewsTableFilters,
   type PerformanceFilter,
   type PerformanceRowFacts,
   type PerformanceSignal,
   type PerformanceStats,
 } from "./people-performance-selectors";
+import { computeProvisionalStatus } from "./provisional";
+import {
+  deriveMonthlyCheckInQueueItem,
+  sortMonthlyCheckInQueue,
+  type MonthlyCheckInQueueItem,
+} from "./monthly-check-in-queue";
 
 /**
  * People & Performance (`/people/performance`) — data loader.
@@ -49,6 +59,8 @@ export type PeoplePerformanceRow = PeopleDashboardRow & {
   facts: PerformanceRowFacts;
   signals: PerformanceSignal[];
   calendarDots: CheckInCalendarDot[];
+  /** Within the provisional hire window and not yet confirmed. */
+  isProvisional: boolean;
   /** Human-curated growth signals on this member (officer assessment). */
   growthTags: GrowthTag[];
   /** Recent completed work — positive contribution evidence (deterministic). */
@@ -192,6 +204,105 @@ async function loadCurrentMonthFeedback(
   return result;
 }
 
+async function loadProvisionalFlags(
+  memberIds: string[],
+  now: Date
+): Promise<Map<string, boolean>> {
+  if (memberIds.length === 0) return new Map();
+  const users = await prisma.user.findMany({
+    where: { id: { in: memberIds } },
+    select: { id: true, provisionalStart: true, provisionalConfirmedAt: true },
+  });
+  return new Map(
+    users.map((user) => [
+      user.id,
+      computeProvisionalStatus(
+        user.provisionalStart,
+        user.provisionalConfirmedAt,
+        now
+      ).isProvisional,
+    ])
+  );
+}
+
+async function loadCurrentMonthReflectionFlags(
+  memberIds: string[],
+  monthStart: Date,
+  monthEnd: Date
+): Promise<Map<string, boolean>> {
+  if (memberIds.length === 0) return new Map();
+  const rows = await prisma.monthlySelfReflection.findMany({
+    where: {
+      menteeId: { in: memberIds },
+      cycleMonth: { gte: monthStart, lt: monthEnd },
+    },
+    select: { menteeId: true },
+  });
+  return new Map(rows.map((r) => [r.menteeId, true]));
+}
+
+async function loadCurrentMonthReviewStatus(
+  memberIds: string[],
+  monthStart: Date,
+  monthEnd: Date
+): Promise<Map<string, GoalReviewStatus>> {
+  if (memberIds.length === 0) return new Map();
+  const rows = await prisma.mentorGoalReview.findMany({
+    where: {
+      menteeId: { in: memberIds },
+      cycleMonth: { gte: monthStart, lt: monthEnd },
+    },
+    select: { menteeId: true, status: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const map = new Map<string, GoalReviewStatus>();
+  for (const row of rows) {
+    if (!map.has(row.menteeId)) map.set(row.menteeId, row.status);
+  }
+  return map;
+}
+
+export type MonthlyCheckInQueueResult = PeoplePerformanceResult & {
+  queue: MonthlyCheckInQueueItem[];
+  monthShortLabel: string;
+};
+
+/** People performance rows plus the mockup-style monthly check-in queue. */
+export async function loadMonthlyCheckInQueue(
+  now: Date = new Date()
+): Promise<MonthlyCheckInQueueResult> {
+  const base = await loadPeoplePerformance(now);
+  const monthStart =
+    parseMonthKey(base.currentMonthKey) ??
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const monthEnd = new Date(
+    Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1)
+  );
+  const memberIds = base.rows.map((r) => r.id);
+
+  const [reflectionFlags, reviewStatus] = await Promise.all([
+    loadCurrentMonthReflectionFlags(memberIds, monthStart, monthEnd),
+    loadCurrentMonthReviewStatus(memberIds, monthStart, monthEnd),
+  ]);
+
+  const monthShortLabel = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    timeZone: "UTC",
+  }).format(monthStart);
+
+  const queue = sortMonthlyCheckInQueue(
+    base.rows.map((row) =>
+      deriveMonthlyCheckInQueueItem(row, {
+        hasSelfReflection: reflectionFlags.get(row.id) ?? false,
+        reviewStatus: reviewStatus.get(row.id) ?? null,
+        monthShortLabel,
+      })
+    )
+  );
+
+  return { ...base, queue, monthShortLabel };
+}
+
 export async function loadPeoplePerformance(
   now: Date = new Date()
 ): Promise<PeoplePerformanceResult> {
@@ -204,12 +315,13 @@ export async function loadPeoplePerformance(
 
   const dashboardRows = await loadPeopleDashboard(now);
   const memberIds = dashboardRows.map((r) => r.id);
-  const [feedbackByMember, monthFeedbackByMember, growthByMember, completedByMember] =
+  const [feedbackByMember, monthFeedbackByMember, growthByMember, completedByMember, provisionalByMember] =
     await Promise.all([
       loadFeedbackStatusByMember(memberIds),
       loadCurrentMonthFeedback(memberIds, monthStart),
       loadGrowthSignalsByMember(memberIds),
       loadCompletedContributionsByMember(memberIds, { now }),
+      loadProvisionalFlags(memberIds, now),
     ]);
 
   const rows: PeoplePerformanceRow[] = dashboardRows.map((row) => {
@@ -230,7 +342,13 @@ export async function loadPeoplePerformance(
       hasOverdueAction: overdueActionCount > 0,
       trend: row.trend,
       successor: row.successor,
-      needsCheckIn: !row.recentCheckIns.some((c) => c.monthKey === currentMonthKey),
+      needsCheckIn:
+        isCheckInMonthAccountable(
+          currentMonthKey,
+          CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY,
+          currentMonthKey
+        ) &&
+        !row.recentCheckIns.some((c) => c.monthKey === currentMonthKey),
       reviewDue: !row.quarterly || row.quarterly.quarter !== currentQuarter,
       hasAnyReview: Boolean(row.quarterly),
       feedback,
@@ -248,7 +366,8 @@ export async function loadPeoplePerformance(
       ...row,
       facts,
       signals: buildSignals(facts),
-      calendarDots: buildCheckInCalendarDots(row.recentCheckIns, now),
+      calendarDots: buildCheckInCalendarDots(row.recentCheckIns, now, 3),
+      isProvisional: provisionalByMember.get(row.id) ?? false,
       growthTags,
       recentCompleted:
         completedByMember.get(row.id) ?? {
@@ -274,16 +393,19 @@ export async function loadPeoplePerformance(
 export function filterPerformanceRows(
   rows: PeoplePerformanceRow[],
   filter: PerformanceFilter,
-  q?: string
+  q?: string,
+  tableFilters?: PeopleReviewsTableFilters
 ): PeoplePerformanceRow[] {
   const query = q?.trim().toLowerCase();
   return rows.filter((row) => {
     if (!factsMatchFilter(row.facts, filter)) return false;
+    if (tableFilters && !rowMatchesPeopleReviewsFilters(row, tableFilters)) return false;
     if (query) {
       const haystack = [
         row.name,
         row.email,
         row.role ?? "",
+        row.mentorName ?? "",
         ...row.departments,
         ...row.expertise,
       ]

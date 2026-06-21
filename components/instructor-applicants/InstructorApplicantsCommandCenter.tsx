@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import KanbanBoard, { type KanbanColumnDef } from "@/components/kanban/kanban-board";
 import ApplicantPipelineCard from "./ApplicantPipelineCard";
 import ApplicantCommandFilters from "./ApplicantCommandFilters";
 import ApplicantQuickDrawer from "./ApplicantQuickDrawer";
 import ArchiveTable from "./ArchiveTable";
+import InstructorApplicantsWorkspace, {
+  type WorkspaceApplicant,
+} from "./InstructorApplicantsWorkspace";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import {
   completeInterviewStage,
@@ -68,6 +71,7 @@ interface InstructorApplicantsCommandCenterProps {
   interviewers?: FilterUser[];
   actorId?: string;
   isAdmin?: boolean;
+  workspaceApps?: WorkspaceApplicant[];
 }
 
 // Derived column → kanban column definition
@@ -164,7 +168,7 @@ const EXTENDED_COLUMNS: KanbanColumnDef[] = [
   { id: "decided", title: "Decided (30d)", statuses: ["APPROVED", "REJECTED"], color: "#71717a" },
 ];
 
-type TabValue = "pipeline" | "chair_queue" | "archive";
+type TabValue = "review" | "pipeline" | "archive";
 
 export default function InstructorApplicantsCommandCenter({
   pipelineApps,
@@ -176,6 +180,7 @@ export default function InstructorApplicantsCommandCenter({
   interviewers = [],
   actorId,
   isAdmin = false,
+  workspaceApps = [],
 }: InstructorApplicantsCommandCenterProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -229,16 +234,21 @@ export default function InstructorApplicantsCommandCenter({
     return result;
   }
 
-  const rawTab = searchParams.get("tab");
+  const rawTab = searchParams.get("view") ?? searchParams.get("tab");
   const activeTab: TabValue =
-    rawTab === "chair_queue" || rawTab === "archive" ? rawTab : "pipeline";
+    rawTab === "pipeline" || rawTab === "archive" ? rawTab : "review";
 
   function setTab(tab: TabValue) {
     const params = new URLSearchParams(searchParams.toString());
-    if (tab === "pipeline") {
+    if (tab === "review") {
+      params.set("view", "review");
+      params.delete("tab");
+    } else if (tab === "pipeline") {
+      params.set("view", "pipeline");
       params.delete("tab");
     } else {
-      params.set("tab", tab);
+      params.set("view", "archive");
+      params.delete("tab");
     }
     router.replace(`?${params.toString()}`, { scroll: false });
   }
@@ -282,30 +292,38 @@ export default function InstructorApplicantsCommandCenter({
         <button
           role="tab"
           type="button"
+          aria-selected={activeTab === "review"}
+          className={tabClass(activeTab === "review")}
+          onClick={() => setTab("review")}
+        >
+          Applicant review
+          {workspaceApps.length > 0 && (
+            <span
+              aria-label={`${workspaceApps.length} in review`}
+              className="inline-flex min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 py-0.5 text-[10.5px] font-bold text-white"
+            >
+              {workspaceApps.length}
+            </span>
+          )}
+        </button>
+        <button
+          role="tab"
+          type="button"
           aria-selected={activeTab === "pipeline"}
           className={tabClass(activeTab === "pipeline")}
           onClick={() => setTab("pipeline")}
         >
-          Pipeline
+          Pipeline board
         </button>
-        {canSeeChairQueue && (
-          <button
-            role="tab"
-            type="button"
-            aria-selected={activeTab === "chair_queue"}
-            className={tabClass(activeTab === "chair_queue")}
-            onClick={() => setTab("chair_queue")}
+        {canSeeChairQueue && chairQueueCount > 0 && (
+          <ButtonLink
+            href="/admin/instructor-applicants/chair-queue"
+            variant="ghost"
+            size="sm"
+            className="ml-auto text-[12.5px]"
           >
-            Chair Queue
-            {chairQueueCount > 0 && (
-              <span
-                aria-label={`${chairQueueCount} pending`}
-                className="inline-flex min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 py-0.5 text-[10.5px] font-bold text-white"
-              >
-                {chairQueueCount}
-              </span>
-            )}
-          </button>
+            Chair queue ({chairQueueCount}) →
+          </ButtonLink>
         )}
         <button
           role="tab"
@@ -317,6 +335,25 @@ export default function InstructorApplicantsCommandCenter({
           Archive
         </button>
       </div>
+
+      {activeTab === "review" && (
+        <div role="tabpanel" aria-label="Applicant review" className="flex flex-col gap-3">
+          <p className="m-0 text-[13.5px] text-[#717189]">
+            Ordered by where each applicant actually is in the process. The reviews already written
+            come first — not a new review form.
+          </p>
+          <Suspense
+            fallback={
+              <p className="text-[13px] text-[#9a9ab0]">Loading applicant workspace…</p>
+            }
+          >
+            <InstructorApplicantsWorkspace
+              applications={workspaceApps}
+              canDecide={canSeeChairQueue}
+            />
+          </Suspense>
+        </div>
+      )}
 
       {/* Pipeline tab */}
       {activeTab === "pipeline" && (
@@ -447,22 +484,6 @@ export default function InstructorApplicantsCommandCenter({
             searchPlaceholder="Search applicants..."
             emptyColumnLabel="No applicants"
           />
-        </div>
-      )}
-
-      {/* Chair Queue tab — redirects to dedicated page */}
-      {activeTab === "chair_queue" && canSeeChairQueue && (
-        <div
-          role="tabpanel"
-          aria-label="Chair queue"
-          className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed border-line px-6 py-10 text-center"
-        >
-          <p className="m-0 text-[13.5px] text-ink-muted">
-            The Chair Queue is now a dedicated page.
-          </p>
-          <ButtonLink href="/admin/instructor-applicants/chair-queue" variant="primary" size="md">
-            Open Chair Queue
-          </ButtonLink>
         </div>
       )}
 

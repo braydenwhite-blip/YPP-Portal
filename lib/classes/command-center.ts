@@ -12,6 +12,11 @@ import {
   type NeedsActionItem,
   type ThisTermCounts,
 } from "@/lib/class-next-action";
+import {
+  buildClassOperationsCard,
+  sortClassOperationsCards,
+  type ClassOperationsCardData,
+} from "@/lib/classes/class-operations-cards";
 import { countOpenActionsByRelatedEntity } from "@/lib/people-strategy/action-queries";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 
@@ -52,6 +57,7 @@ export type ClassCommandRow = {
 
 export type ClassCommandCenter = {
   rows: ClassCommandRow[];
+  cards: ClassOperationsCardData[];
   counts: ThisTermCounts;
   needsAction: NeedsActionItem[];
 };
@@ -137,6 +143,31 @@ async function coInstructorCountByOffering(ids: string[]): Promise<Map<string, n
   return result;
 }
 
+async function curriculumMentorByInstructor(
+  instructorIds: string[]
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  const unique = [...new Set(instructorIds.filter(Boolean))];
+  if (unique.length === 0) return result;
+  const rows = await prisma.mentorship.findMany({
+    where: {
+      menteeId: { in: unique },
+      status: "ACTIVE",
+      programGroup: "INSTRUCTOR",
+    },
+    select: {
+      menteeId: true,
+      mentor: { select: { name: true, email: true } },
+    },
+    orderBy: { startDate: "desc" },
+  });
+  for (const row of rows) {
+    if (result.has(row.menteeId)) continue;
+    result.set(row.menteeId, row.mentor.name ?? row.mentor.email ?? "Mentor");
+  }
+  return result;
+}
+
 function shortDate(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
@@ -176,7 +207,7 @@ export async function loadClassCommandCenter(
 ): Promise<ClassCommandCenter> {
   const ids = items.map((item) => item.id);
 
-  const [openActions, overdueActions, nextSessions, reflected, feedbackCounts, coInstructors] =
+  const [openActions, overdueActions, nextSessions, reflected, feedbackCounts, coInstructors, mentors] =
     await Promise.all([
       safe(() => countOpenActionsByRelatedEntity("CLASS_OFFERING", ids), new Map<string, number>()),
       safe(() => countOverdueActions(ids), new Map<string, number>()),
@@ -184,11 +215,16 @@ export async function loadClassCommandCenter(
       safe(() => reflectedOfferingIds(ids), new Set<string>()),
       safe(() => feedbackCountByOffering(ids), new Map<string, number>()),
       safe(() => coInstructorCountByOffering(ids), new Map<string, number>()),
+      safe(
+        () => curriculumMentorByInstructor(items.map((item) => item.instructor?.id ?? "")),
+        new Map<string, string>()
+      ),
     ]);
 
   const signalRows: Array<ClassSignals & { id: string; title: string; partnerName: string | null }> =
     [];
   const rows: ClassCommandRow[] = [];
+  const cards: ClassOperationsCardData[] = [];
 
   for (const item of items) {
     const nextSessionAt = nextSessions.get(item.id) ?? null;
@@ -224,10 +260,21 @@ export async function loadClassCommandCenter(
     });
 
     signalRows.push({ ...signals, id: item.id, title: item.title, partnerName: item.partner?.name ?? null });
+
+    cards.push(
+      buildClassOperationsCard(item, {
+        signals,
+        curriculumMentorName: item.instructor
+          ? mentors.get(item.instructor.id) ?? null
+          : null,
+        href: classNextActionHref(nextAction.kind, item.id),
+      })
+    );
   }
 
   return {
     rows,
+    cards: sortClassOperationsCards(cards),
     counts: deriveThisTermCounts(signalRows, now),
     needsAction: buildNeedsAction(signalRows, now, 6),
   };

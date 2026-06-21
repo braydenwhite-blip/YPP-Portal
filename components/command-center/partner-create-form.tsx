@@ -118,7 +118,7 @@ export function PartnerCreateForm({
       className="overflow-hidden rounded-[20px] border border-line-soft bg-gradient-to-br from-brand-50/40 via-surface to-surface shadow-card"
     >
       <div className="space-y-8 px-5 py-6 sm:px-7 sm:py-7">
-        {error ? <FeedbackBanner tone="danger">{error}</FeedbackBanner> : null}
+        {error ? <FeedbackBanner message={error} tone="error" /> : null}
 
         <FormSection step={1} title="Who is the partner?" hint="School, nonprofit, camp, or organization name.">
           <input

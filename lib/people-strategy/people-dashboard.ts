@@ -79,6 +79,9 @@ export interface PeopleDashboardRow {
   workloadWarning: string | null;
 }
 
+/** June 2026 — first month monthly check-ins are compiled. */
+const CHECK_IN_PROGRAM_START = new Date(Date.UTC(2026, 5, 1));
+
 const ACTION_SELECT = {
   id: true,
   title: true,
@@ -171,8 +174,8 @@ export async function loadPeopleDashboard(
         },
       },
       peopleCheckIns: {
+        where: { month: { gte: CHECK_IN_PROGRAM_START } },
         orderBy: { month: "desc" },
-        take: 3,
         select: { month: true, performanceRating: true },
       },
     },
@@ -214,7 +217,7 @@ export async function loadPeopleDashboard(
       monthLabel: c.month.toLocaleDateString("en-US", MONTH_FORMAT),
       rating: c.performanceRating,
     }));
-    const recentCheckIns = recent.map((c) => ({
+    const recentCheckIns = user.peopleCheckIns.map((c) => ({
       monthKey: monthKeyUTC(c.month),
       rating: c.performanceRating,
     }));

@@ -1,4 +1,4 @@
-import { hasRole } from "@/lib/authorization";
+import { hasRole } from "@/lib/authorization-roles";
 import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
 import {
   isLeadershipOrBoard,

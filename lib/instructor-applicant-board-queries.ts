@@ -347,6 +347,8 @@ const CHAIR_QUEUE_SELECT = {
   lastName: true,
   chairQueuedAt: true,
   materialsReadyAt: true,
+  interviewScheduledAt: true,
+  createdAt: true,
   interviewRound: true,
   applicationTrack: true,
   instructorSubtype: true,
@@ -470,6 +472,62 @@ export async function getChairQueue({
     where: buildChairQueueWhere({ scope, chapterId }),
     select: CHAIR_QUEUE_SELECT,
     orderBy: { chairQueuedAt: "asc" },
+  });
+
+  return applications.map((app) => normalizeChairQueueApplication(app));
+}
+
+const WORKSPACE_SELECT = CHAIR_QUEUE_SELECT;
+
+function buildWorkspaceWhere({
+  scope,
+  chapterId,
+  includeOrphans = true,
+}: {
+  scope: PipelineScope;
+  chapterId?: string;
+  includeOrphans?: boolean;
+}) {
+  const where: Record<string, unknown> = {
+    status: {
+      in: [
+        "CHAIR_REVIEW",
+        "INTERVIEW_COMPLETED",
+        "INTERVIEW_SCHEDULED",
+        "PRE_APPROVED",
+        "UNDER_REVIEW",
+        "INFO_REQUESTED",
+      ] as InstructorApplicationStatus[],
+    },
+    archivedAt: null,
+  };
+
+  if (scope === "chapter" && chapterId) {
+    where.applicant = includeOrphans
+      ? { OR: [{ chapterId }, { chapterId: null }] }
+      : { chapterId };
+  }
+
+  return where;
+}
+
+/** Applicants in active review/interview stages — powers the mockup-style workspace. */
+export async function getApplicantsWorkspace({
+  scope,
+  chapterId,
+}: {
+  scope: PipelineScope;
+  chapterId?: string;
+}) {
+  if (scope === "chapter" && !chapterId) {
+    return [];
+  }
+
+  const applications = await prisma.instructorApplication.findMany({
+    where: buildWorkspaceWhere({ scope, chapterId }),
+    select: WORKSPACE_SELECT,
+    orderBy: [{ updatedAt: "desc" }],
+    take: 100,
   });
 
   return applications.map((app) => normalizeChairQueueApplication(app));

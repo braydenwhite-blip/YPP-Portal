@@ -5,6 +5,7 @@ import { canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
 import { requireApplicationReviewerPage } from "@/lib/page-guards";
 import {
   getApplicantPipeline,
+  getApplicantsWorkspace,
   getArchivedApplications,
   getChairQueue,
 } from "@/lib/instructor-applicant-board-queries";
@@ -207,6 +208,7 @@ export default async function AdminInstructorApplicantsPage({
   let pipelineResult: Awaited<ReturnType<typeof getApplicantPipeline>>;
   let archiveResult: Awaited<ReturnType<typeof getArchivedApplications>>;
   let chairQueueItems: Awaited<ReturnType<typeof getChairQueue>>;
+  let workspaceApps: Awaited<ReturnType<typeof getApplicantsWorkspace>>;
   let chapters: Awaited<ReturnType<typeof loadChapters>>;
   let reviewerUsers: Awaited<ReturnType<typeof loadReviewerUsers>>;
   let interviewerUsers: Awaited<ReturnType<typeof loadInterviewerUsers>>;
@@ -241,9 +243,10 @@ export default async function AdminInstructorApplicantsPage({
     ]);
     archiveResult = { items: [], total: 0, skip: 0, take: 0 };
     chairQueueItems = [];
+    workspaceApps = [];
     interviewerUsers = reviewerUsers;
   } else {
-    const [pipelineRes, archiveRes, chairRes, chaptersRes, reviewerRes, interviewerRes, funnelRes] =
+    const [pipelineRes, archiveRes, chairRes, workspaceRes, chaptersRes, reviewerRes, interviewerRes, funnelRes] =
       await Promise.all([
         getApplicantPipeline({
           scope,
@@ -254,6 +257,7 @@ export default async function AdminInstructorApplicantsPage({
         showChairQueue
           ? getChairQueue({ scope, chapterId: effectiveChapterId })
           : Promise.resolve([]),
+        getApplicantsWorkspace({ scope, chapterId: effectiveChapterId }),
         loadChapters(),
         loadReviewerUsers(),
         loadInterviewerUsers(),
@@ -263,6 +267,7 @@ export default async function AdminInstructorApplicantsPage({
     pipelineResult = pipelineRes;
     archiveResult = archiveRes;
     chairQueueItems = chairRes;
+    workspaceApps = workspaceRes;
     chapters = chaptersRes;
     reviewerUsers = reviewerRes;
     interviewerUsers = interviewerRes;
@@ -391,7 +396,7 @@ export default async function AdminInstructorApplicantsPage({
           isAdmin ? "Admin" : isHiringChair ? "Hiring Chair" : "Chapter President"
         }
         title="Instructor Applicants"
-        subtitle="The application review board — pipeline, assignments, and decisions for every instructor applicant. Click a card for the quick view; the Application 360 and full workspace are one click further."
+        subtitle="The application review board — ordered by where each applicant is in the process. Reviews already written come first."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <a
@@ -482,6 +487,7 @@ export default async function AdminInstructorApplicantsPage({
         interviewers={interviewerUsers}
         actorId={sessionUser.id}
         isAdmin={isAdmin}
+        workspaceApps={workspaceApps as any}
       />
     </div>
   );

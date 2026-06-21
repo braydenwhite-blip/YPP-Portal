@@ -87,7 +87,7 @@ export function ClassAdminHeader({ detail }: { detail: ClassAdminDetail }) {
     <div className="flex flex-col gap-5">
       <PageHeaderV2
         eyebrow="Classes"
-        backHref="/people/classes"
+        backHref="/admin/classes"
         backLabel="All classes"
         title={detail.title}
         subtitle={

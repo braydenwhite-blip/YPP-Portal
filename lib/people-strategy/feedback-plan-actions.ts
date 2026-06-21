@@ -268,6 +268,7 @@ export async function sendPlannedFeedbackRequests(
     "feedback-plan: requests sent"
   );
 
+  revalidatePath("/people");
   revalidatePath("/people/performance");
   revalidatePath(`/admin/instructors/${subjectUserId}`);
 

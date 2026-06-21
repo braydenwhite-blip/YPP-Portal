@@ -4,23 +4,30 @@ import {
   allowedFeedbackMonths,
   asPerformanceFilter,
   buildCheckInCalendarDots,
+  buildCheckInDrawerMonths,
   buildMonthSnapshot,
   buildNeedsActionList,
   buildSignals,
   checkInCellStatus,
+  CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY,
   computePerformanceStats,
   countMatchingFilter,
+  countMissedCheckIns,
   currentQuarterLabel,
   deriveNextAction,
   describeCompileResult,
   factsMatchFilter,
   feedbackCellStatus,
+  isCheckInMonthAccountable,
   memberNeedsAttention,
   monthKeyUTC,
   monthLabelUTC,
   monthStartUTC,
   parseMonthKey,
+  performanceQuickBullets,
+  potentialQuickBullets,
   quarterlyCellStatus,
+  quarterlyReviewTableStatus,
   roleExpectsMentor,
   workloadCellStatus,
   type CurrentMonthFeedback,
@@ -88,26 +95,57 @@ describe("month & quarter keys", () => {
       allowedFeedbackMonths(new Date("2026-01-15T00:00:00Z")).map((m) => m.key)
     ).toEqual(["2026-01", "2025-12", "2025-11"]);
   });
+
+  it("lists check-in drawer months from June 2026 through the current month only", () => {
+    expect(buildCheckInDrawerMonths(NOW).map((m) => m.key)).toEqual(["2026-06"]);
+    expect(
+      buildCheckInDrawerMonths(new Date("2026-08-15T00:00:00Z")).map((m) => m.key)
+    ).toEqual(["2026-06", "2026-07", "2026-08"]);
+    expect(
+      buildCheckInDrawerMonths(new Date("2025-12-01T00:00:00Z")).map((m) => m.key)
+    ).toEqual([]);
+  });
 });
 
 describe("buildCheckInCalendarDots", () => {
-  it("anchors dots to the last three calendar months, oldest first, with explicit missing states", () => {
+  it("shows Jun–Aug 2026 in June with explicit missing / not-due future months", () => {
     const dots = buildCheckInCalendarDots(
-      [
-        { monthKey: "2026-06", rating: "ACHIEVED" },
-        { monthKey: "2026-04", rating: null },
-      ],
+      [{ monthKey: "2026-06", rating: "ACHIEVED" }],
       NOW
     );
-    expect(dots.map((d) => d.monthKey)).toEqual(["2026-04", "2026-05", "2026-06"]);
-    expect(dots.map((d) => d.state)).toEqual(["completed", "missing", "rated"]);
-    expect(dots[2].rating).toBe("ACHIEVED");
+    expect(dots.map((d) => d.monthKey)).toEqual(["2026-06", "2026-07", "2026-08"]);
+    expect(dots.map((d) => d.state)).toEqual(["rated", "not_due", "not_due"]);
+    expect(dots[0].rating).toBe("ACHIEVED");
   });
 
-  it("renders all-missing when the member has no check-ins", () => {
+  it("counts only the current accountable month as missing when none are compiled", () => {
     const dots = buildCheckInCalendarDots([], NOW);
     expect(dots).toHaveLength(3);
-    expect(dots.every((d) => d.state === "missing")).toBe(true);
+    expect(dots.map((d) => d.state)).toEqual(["missing", "not_due", "not_due"]);
+    expect(countMissedCheckIns(dots)).toBe(1);
+  });
+
+  it("ignores check-ins before June 2026", () => {
+    const dots = buildCheckInCalendarDots(
+      [{ monthKey: "2026-04", rating: "ACHIEVED" }],
+      NOW
+    );
+    expect(dots[0].state).toBe("missing");
+  });
+
+  it("treats months before June 2026 as not accountable", () => {
+    expect(
+      isCheckInMonthAccountable("2026-05", CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY, "2026-06")
+    ).toBe(false);
+    expect(
+      isCheckInMonthAccountable("2026-06", CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY, "2026-06")
+    ).toBe(true);
+  });
+
+  it("treats future months as not accountable", () => {
+    expect(
+      isCheckInMonthAccountable("2026-07", CHECK_IN_ACCOUNTABLE_FROM_MONTH_KEY, "2026-06")
+    ).toBe(false);
   });
 });
 
@@ -570,5 +608,49 @@ describe("describeCompileResult", () => {
         newResponses: 1,
       })
     ).toBe("Recompiled May 2026 check-in with 1 new response.");
+  });
+});
+
+describe("quarterlyReviewTableStatus", () => {
+  it("labels overdue, due, and current states for the quarterly table", () => {
+    expect(
+      quarterlyReviewTableStatus(makeFacts({ reviewDue: true, hasAnyReview: true }))
+    ).toEqual({ text: "Review overdue", tone: "danger" });
+    expect(
+      quarterlyReviewTableStatus(makeFacts({ reviewDue: true, hasAnyReview: false }))
+    ).toEqual({ text: "Review due", tone: "warning" });
+    expect(quarterlyReviewTableStatus(makeFacts({ reviewDue: false }))).toEqual({
+      text: "Monthly current",
+      tone: "success",
+    });
+  });
+});
+
+describe("performance & potential quick bullets", () => {
+  it("summarizes delivery from check-ins and workload when no quarterly rating", () => {
+    expect(
+      performanceQuickBullets(
+        {
+          facts: makeFacts({
+            needsCheckIn: true,
+            activeActionCount: 3,
+            overdueActionCount: 1,
+            hasOverdueAction: true,
+          }),
+          recentCheckIns: [{ rating: "ACHIEVED" }],
+        },
+        "Jun"
+      )
+    ).toEqual(["Last check-in · On Track", "Jun check-in missing", "3 active, 1 overdue"]);
+  });
+
+  it("summarizes growth signals when no quarterly potential rating", () => {
+    expect(
+      potentialQuickBullets({
+        facts: makeFacts({ needsMentor: true, reviewDue: true, hasAnyReview: false }),
+        growthTags: ["READY_FOR_MORE", "STRONG_COMMUNICATOR"],
+        successor: false,
+      })
+    ).toEqual(["Ready for more", "Strong communicator", "No review on file"]);
   });
 });

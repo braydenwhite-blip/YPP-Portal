@@ -1,31 +1,14 @@
 import { redirect } from "next/navigation";
 
-import { PartnerDirectory } from "@/components/partners/partner-directory";
-import {
-  AdvancedFilters,
-  ButtonLink,
-  FilterChipLink,
-  MetricStrip,
-  PageHeaderV2,
-  UrlSyncedSearchInput,
-  ViewSwitcher,
-} from "@/components/ui-v2";
+import { PartnersOperationsTable } from "@/components/partners/partners-operations-table";
+import { ButtonLink } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
-import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { hasRole } from "@/lib/authorization";
 import {
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
-import { hasRole } from "@/lib/authorization";
-import {
-  asPartnerFlagFilter,
-  asPartnerViewFilter,
-  filterPartnerRows,
-  loadPartnerDirectory,
-  PARTNER_FLAG_FILTER_LABELS,
-  PARTNER_VIEW_FILTER_LABELS,
-  PARTNER_VIEW_FILTERS,
-} from "@/lib/partners-directory";
+import { loadPartnersOperationsList } from "@/lib/partners-operations";
 
 export const dynamic = "force-dynamic";
 
@@ -33,34 +16,11 @@ export const metadata = {
   title: "Partners — Pathways Portal",
 };
 
-function partnersHref(params: {
-  view?: string;
-  flag?: string;
-  type?: string;
-  q?: string;
-}): string {
-  const search = new URLSearchParams();
-  if (params.view && params.view !== "all") search.set("view", params.view);
-  if (params.flag) search.set("flag", params.flag);
-  if (params.type) search.set("type", params.type);
-  if (params.q) search.set("q", params.q);
-  const qs = search.toString();
-  return qs ? `/partners?${qs}` : "/partners";
-}
-
 /**
- * Master Partner database (Knowledge OS V2 must-build, plan §10) — the
- * relationship-operations front door, promoted from the flag-gated admin
- * table. Who owns each relationship, who we talk to, what's linked, when we
- * last talked, what they've asked for, and what happens next. Rows open the
- * Partner 360 preview; the full profile (notes, pipeline editing, contacts &
- * requests management) stays one click away at /admin/partners/[id].
+ * Partners — relationship operations by chapter (handoff mockup).
+ * Row click opens the partner detail at /partners/[id].
  */
-export default async function PartnersPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+export default async function PartnersPage() {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -70,150 +30,36 @@ export default async function PartnersPage({
     primaryRole: session.user.primaryRole,
     adminSubtypes: session.user.adminSubtypes,
   };
-  // Partner relationships are an operations surface: officer-tier and above
-  // (mirrors the partner Entity 360 loader).
   if (!isOfficerTier(viewer)) redirect("/");
-  const canManagePartners = hasRole(viewer.roles, "ADMIN", viewer.primaryRole);
 
-  const sp = await searchParams;
-  const view = asPartnerViewFilter(typeof sp.view === "string" ? sp.view : undefined);
-  const flag = asPartnerFlagFilter(typeof sp.flag === "string" ? sp.flag : undefined);
-  const type = typeof sp.type === "string" ? sp.type : undefined;
-  const q = typeof sp.q === "string" ? sp.q : undefined;
-
-  const { rows, stats, typeLabels } = await loadPartnerDirectory();
-  const filtered = filterPartnerRows(rows, { view, flag, type, q });
+  const canManage = hasRole(viewer.roles, "ADMIN", viewer.primaryRole);
+  const rows = await loadPartnersOperationsList();
 
   return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
-      <PageHeaderV2
-        eyebrow="Knowledge OS"
-        title="Partners"
-        subtitle="Every organization YPP works with — who owns the relationship, what they've asked for, what's linked, and the next step so nothing goes cold."
-        actions={
-          canManagePartners ? (
-            <>
-              <ButtonLink href="/admin/partners/report" variant="ghost" size="md">
-                Report
-              </ButtonLink>
-              <ButtonLink href="/partners/new" variant="secondary" size="md">
-                Add partner
-              </ButtonLink>
-            </>
-          ) : null
-        }
-      >
-        <MetricStrip
-          aria-label="Partner summary"
-          metrics={[
-            { label: "Partners", value: stats.total, href: partnersHref({}) },
-            {
-              label: "Active conversations",
-              value: stats.activeConversations,
-              href: partnersHref({ view: "active" }),
-            },
-            {
-              label: "Needs follow-up",
-              value: stats.needsFollowUp,
-              detail: "overdue, no next step, or unowned",
-              tone: stats.needsFollowUp > 0 ? "attention" : "default",
-              href: partnersHref({ view: "follow-up" }),
-            },
-            {
-              label: "Open requests",
-              value: stats.openRequests,
-              detail: "asks being negotiated",
-              tone: stats.openRequests > 0 ? "attention" : "default",
-              href: partnersHref({ flag: "open-requests" }),
-            },
-            {
-              label: "Upcoming meetings",
-              value: stats.upcomingMeetings,
-              detail: "partners with a meeting scheduled",
-              href: partnersHref({ view: "meetings" }),
-            },
-          ]}
-        />
-      </PageHeaderV2>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ViewSwitcher
-          aria-label="Partner views"
-          views={PARTNER_VIEW_FILTERS.map((value) => ({
-            key: value,
-            label: PARTNER_VIEW_FILTER_LABELS[value],
-            href: partnersHref({ view: value, type, q }),
-            active: view === value && !flag,
-          }))}
-        />
-        <UrlSyncedSearchInput
-          placeholder="Search partners, contacts, leads…"
-          wrapClassName="w-full sm:w-72"
-          aria-label="Search partners"
-        />
+    <div className="mx-auto w-full max-w-[1200px] px-1 pb-12 pt-2">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="m-0 text-[26px] font-extrabold tracking-[-0.4px] text-[#1c1a2e]">
+            Partners
+          </h1>
+          <p className="m-0 mt-1.5 max-w-[560px] text-[13.5px] leading-relaxed text-[#717189]">
+            Relationships organized by chapter — with the lead, connected classes,
+            assigned instructors, and next follow-up.
+          </p>
+        </div>
+        {canManage ? (
+          <ButtonLink
+            href="/people/classes"
+            variant="primary"
+            size="md"
+            className="border-0 bg-gradient-to-br from-[#5a1da8] via-[#6b21c8] to-[#8b3fe8] shadow-none hover:opacity-95"
+          >
+            + Create class with partner
+          </ButtonLink>
+        ) : null}
       </div>
 
-      <AdvancedFilters
-        defaultOpen={!!flag || !!type}
-        hint={
-          flag
-            ? PARTNER_FLAG_FILTER_LABELS[flag]
-            : type
-              ? `Type: ${type}`
-              : undefined
-        }
-      >
-        <FilterChipLink href={partnersHref({ view, type, q })} active={!flag}>
-          Any status
-        </FilterChipLink>
-        <FilterChipLink
-          href={partnersHref({ flag: "no-lead", q })}
-          active={flag === "no-lead"}
-        >
-          {PARTNER_FLAG_FILTER_LABELS["no-lead"]}
-        </FilterChipLink>
-        <FilterChipLink
-          href={partnersHref({ flag: "open-requests", q })}
-          active={flag === "open-requests"}
-        >
-          {PARTNER_FLAG_FILTER_LABELS["open-requests"]}
-        </FilterChipLink>
-        {typeLabels.length > 1 ? (
-          <>
-            <span aria-hidden className="mx-1 h-5 w-px bg-line" />
-            <span className="text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink-muted">
-              Type
-            </span>
-            {typeLabels.map((label) => (
-              <FilterChipLink
-                key={label}
-                href={partnersHref({
-                  view,
-                  flag: flag ?? undefined,
-                  q,
-                  type: type === label ? undefined : label,
-                })}
-                active={type === label}
-              >
-                {label}
-              </FilterChipLink>
-            ))}
-          </>
-        ) : null}
-      </AdvancedFilters>
-
-      <p className="m-0 text-[12.5px] text-ink-muted">
-        {filtered.length === rows.length
-          ? `${rows.length} partner${rows.length === 1 ? "" : "s"}`
-          : `${filtered.length} of ${rows.length} partners`}
-        {q ? ` · matching “${q}”` : ""}
-      </p>
-
-      <PartnerDirectory
-        rows={filtered}
-        actionTrackerEnabled={isActionTrackerEnabled()}
-        canManagePartners={canManagePartners}
-      />
+      <PartnersOperationsTable rows={rows} />
     </div>
   );
 }

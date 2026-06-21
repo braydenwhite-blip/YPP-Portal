@@ -25,7 +25,11 @@ import { compileCheckIn } from "@/lib/people-strategy/check-in-actions";
 const mockGetSessionUser = vi.mocked(getSessionUser);
 const fn = (m: unknown) => m as unknown as ReturnType<typeof vi.fn>;
 
-function sessionAs(roles: string[], id = "officer-1") {
+function sessionAs(
+  roles: string[],
+  id = "officer-1",
+  adminSubtypes: string[] = ["LEADERSHIP"]
+) {
   mockGetSessionUser.mockResolvedValue({
     id,
     name: "Test",
@@ -33,7 +37,7 @@ function sessionAs(roles: string[], id = "officer-1") {
     roles,
     primaryRole: roles[0] ?? "STUDENT",
     chapterId: null,
-    adminSubtypes: [],
+    adminSubtypes,
   } as never);
 }
 
@@ -56,7 +60,7 @@ afterEach(() => {
 
 describe("compileCheckIn", () => {
   it("derives performanceRating from the existing mentor goal review and upserts on (userId, month)", async () => {
-    sessionAs(["STAFF"]);
+    sessionAs(["ADMIN"]);
     fn(prisma.monthlySelfReflection.findFirst).mockResolvedValue({ id: "refl1" });
     fn(prisma.mentorGoalReview.findFirst).mockResolvedValue({
       id: "rev1",
@@ -95,7 +99,7 @@ describe("compileCheckIn", () => {
   });
 
   it("is feedback-aware: counts responses, persists only aggregate counts, and reports new-on-recompile", async () => {
-    sessionAs(["STAFF"]);
+    sessionAs(["ADMIN"]);
     fn(prisma.monthlySelfReflection.findFirst).mockResolvedValue(null);
     fn(prisma.mentorGoalReview.findFirst).mockResolvedValue(null);
     // A check-in already exists, compiled before the newest response arrived.
@@ -120,8 +124,16 @@ describe("compileCheckIn", () => {
     expect(arg.create.compiledNotes).toContain("1 still pending");
   });
 
-  it("denies a user below officer-tier", async () => {
-    sessionAs(["STUDENT"]);
+  it("denies a user below leadership tier", async () => {
+    sessionAs(["STUDENT"], "student-1", []);
+    await expect(
+      compileCheckIn({ userId: "u1", month: "2026-05-01" })
+    ).rejects.toThrow("Unauthorized");
+    expect(prisma.checkIn.upsert).not.toHaveBeenCalled();
+  });
+
+  it("denies admin without leadership subtype", async () => {
+    sessionAs(["ADMIN"], "admin-1", []);
     await expect(
       compileCheckIn({ userId: "u1", month: "2026-05-01" })
     ).rejects.toThrow("Unauthorized");

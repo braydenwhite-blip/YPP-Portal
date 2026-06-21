@@ -1,63 +1,19 @@
 "use client";
 
-import ChairQueueBoard from "@/components/instructor-applicants/ChairQueueBoard";
+import { Suspense } from "react";
 
-type QueueItem = {
-  id: string;
-  motivation: string | null;
-  teachingExperience: string | null;
-  availability: string | null;
-  subjectsOfInterest: string | null;
-  courseIdea: string | null;
-  textbook: string | null;
-  courseOutline: string | null;
-  firstClassPlan: string | null;
-  materialsReadyAt: Date | null;
-  chairQueuedAt: Date | null;
-  preferredFirstName: string | null;
-  lastName: string | null;
-  legalName: string | null;
-  applicant: {
-    id: string;
-    name: string | null;
-    email: string;
-    chapterId: string | null;
-    chapter: { id: string; name: string } | null;
-  };
-  reviewer: { id: string; name: string | null } | null;
-  applicationReviews: Array<{
-    summary: string | null;
-    nextStep: string | null;
-    notes: string | null;
-    overallRating: string | null;
-    categories: Array<{ category: string; rating: string | null; notes: string | null }>;
-    editedAt: Date | null;
-    editedBy: { name: string | null } | null;
-  }>;
-  interviewReviews: Array<{
-    id: string;
-    reviewerId: string;
-    recommendation: string | null;
-    overallRating: string | null;
-    reviewer: { id: string; name: string | null };
-    categories: Array<{ category: string; rating: string | null; notes: string | null }>;
-  }>;
-  interviewerAssignments: Array<{
-    id: string;
-    role: string;
-    interviewer: { id: string; name: string | null };
-  }>;
-  documents: Array<{
-    kind: string;
-    fileUrl: string;
-    originalName: string | null;
-  }>;
-};
+import InstructorApplicantsWorkspace, {
+  type WorkspaceApplicant,
+} from "@/components/instructor-applicants/InstructorApplicantsWorkspace";
 
 export default function ChairQueueClientWrapper({
   initialApplications,
 }: {
-  initialApplications: QueueItem[];
+  initialApplications: WorkspaceApplicant[];
 }) {
-  return <ChairQueueBoard applications={initialApplications} />;
+  return (
+    <Suspense fallback={<p className="text-[13px] text-[#9a9ab0]">Loading…</p>}>
+      <InstructorApplicantsWorkspace applications={initialApplications} canDecide />
+    </Suspense>
+  );
 }
