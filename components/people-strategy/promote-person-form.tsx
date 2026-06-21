@@ -194,9 +194,6 @@ export function PromotePersonForm({
           <div className="card" style={{ padding: "12px 14px", background: "var(--ps-accent-soft, #f1f5ff)" }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
               {preview.titleFrom ?? "—"} → {preview.titleTo ?? "—"} · {preview.direction}
-              {preview.levelFrom !== preview.levelTo
-                ? ` (level ${preview.levelFrom ?? "?"} → ${preview.levelTo ?? "?"})`
-                : ""}
             </div>
             {preview.accessAdded.length > 0 ? (
               <PreviewList title="Access added" items={preview.accessAdded} />

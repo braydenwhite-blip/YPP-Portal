@@ -12,10 +12,10 @@ import {
 /**
  * Impact Meetings route regression check.
  *
- * The Impact Meetings / Impact Presentations workflow has a single canonical
- * route. This suite pins that route, proves the standalone hub page exists, and
- * guards every older deep link with a redirect alias so none of them 404. It is
- * a filesystem + config contract (no DB, no Playwright) so it runs in plain
+ * The Impact Meetings / Impact Presentations workflow has one canonical hub and
+ * one canonical meeting workspace. This suite pins the public entry points and
+ * guards every deep link with a redirect alias so none of them 404. It is a
+ * filesystem + config contract (no DB, no Playwright) so it runs in plain
  * vitest and fails the build the moment a route drifts.
  */
 
@@ -57,6 +57,43 @@ describe("impact meetings routes", () => {
       expect(source, `${alias} should redirect to ${CANONICAL}`).toContain(
         `redirect("${CANONICAL}")`
       );
+    }
+  });
+
+  it("ships direct meeting entry points for current, agenda, presentation, live, and summary", () => {
+    const current = pagePath("/impact-meetings/current");
+    expect(existsSync(current), "current meeting route should exist").toBe(true);
+    const currentSource = readFileSync(current, "utf8");
+    expect(currentSource).toContain("findCurrentGlobalImpactMeeting");
+    expect(currentSource).toContain("redirect(`/actions/meetings/${meeting.id}`)");
+
+    const aliases = [
+      {
+        route: "/impact-meetings/[id]",
+        target: "redirect(`/actions/meetings/${id}`)",
+      },
+      {
+        route: "/impact-meetings/[id]/agenda",
+        target: "redirect(`/actions/meetings/${id}#agenda`)",
+      },
+      {
+        route: "/impact-meetings/[id]/presentation",
+        target: "redirect(`/actions/meetings/${id}#presentation`)",
+      },
+      {
+        route: "/impact-meetings/[id]/live",
+        target: "redirect(`/actions/meetings/${id}#live`)",
+      },
+      {
+        route: "/impact-meetings/[id]/summary",
+        target: "redirect(`/actions/meetings/${id}#summary`)",
+      },
+    ];
+
+    for (const alias of aliases) {
+      const file = pagePath(alias.route);
+      expect(existsSync(file), `${alias.route} alias page should exist`).toBe(true);
+      expect(readFileSync(file, "utf8")).toContain(alias.target);
     }
   });
 });

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import { prisma } from "@/lib/prisma";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import {
   attachImpactAgendaItemState,
@@ -98,6 +99,19 @@ export default async function ImpactMeetingsPage() {
       sourceWorkstreamId: item.sourceWorkstreamId,
     }))
   );
+  const chapters = await prisma.chapter.findMany({
+    where: { archivedAt: null },
+    select: {
+      name: true,
+      users: {
+        where: { primaryRole: "CHAPTER_PRESIDENT", archivedAt: null },
+        select: { name: true, email: true },
+        take: 1,
+      },
+    },
+    orderBy: { name: "asc" },
+    take: 8,
+  });
 
   const total = agenda.sections.length;
   const submitted = agenda.submittedTeams.length;
@@ -169,7 +183,10 @@ export default async function ImpactMeetingsPage() {
     stageSteps,
     teams,
     needsAttention: agenda.needsAttention,
-    chapterCards: [],
+    chapterCards: chapters.map((chapter) => ({
+      name: chapter.name,
+      president: chapter.users[0]?.name ?? chapter.users[0]?.email ?? null,
+    })),
   };
 
   return (
