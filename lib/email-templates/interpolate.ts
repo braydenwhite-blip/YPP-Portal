@@ -28,6 +28,12 @@ export interface InterpolateOptions {
   escape?: boolean;
   /** What to do when a referenced variable has no value. Default: "empty". */
   onMissing?: MissingVarBehavior;
+  /**
+   * Names whose values are pre-rendered, trusted HTML fragments and must NOT be
+   * escaped (e.g. a code-generated digest list). Use sparingly — only for HTML
+   * the application itself produced, never for user input.
+   */
+  rawKeys?: Iterable<string>;
 }
 
 const VAR_PATTERN = /\{\{\s*(\w+)\s*\}\}/g;
@@ -45,6 +51,7 @@ export function interpolate(
 ): string {
   const escape = opts.escape ?? true;
   const onMissing = opts.onMissing ?? "empty";
+  const rawKeys = opts.rawKeys ? new Set(opts.rawKeys) : null;
 
   return template.replace(VAR_PATTERN, (match, name: string) => {
     const value = vars[name];
@@ -60,7 +67,8 @@ export function interpolate(
       }
       return "";
     }
-    return escape ? escapeHtml(String(value)) : String(value);
+    const shouldEscape = escape && !(rawKeys?.has(name) ?? false);
+    return shouldEscape ? escapeHtml(String(value)) : String(value);
   });
 }
 

@@ -7,13 +7,21 @@
  * `emailShell`. Send functions in `lib/email.ts` call `sendTemplatedEmail`
  * instead of building HTML inline.
  */
-import type { EmailResult } from "@/lib/email";
+import type { EmailResult, EmailAttachment } from "@/lib/email";
 import { emailShell } from "./shell";
 import { interpolate, interpolateSubject } from "./interpolate";
 import {
   getEmailTemplateDef,
   type EmailTemplateDef,
 } from "./registry";
+
+/** Raw (unescaped) variable names declared by a template definition. */
+function rawKeysFor(key: string): Set<string> {
+  const def = getEmailTemplateDef(key);
+  const raw = new Set<string>();
+  if (def) for (const v of def.variables) if (v.raw) raw.add(v.key);
+  return raw;
+}
 
 export interface ResolvedTemplate {
   subject: string;
@@ -58,31 +66,41 @@ export async function renderEmailTemplate(
   vars: Record<string, string | null | undefined>
 ): Promise<RenderedEmail> {
   const resolved = await resolveTemplate(key);
-  return renderResolved(resolved, vars);
+  return renderResolved(resolved, vars, rawKeysFor(key));
 }
 
 /** Interpolate + wrap an already-resolved template (no DB access). */
 export function renderResolved(
   resolved: ResolvedTemplate,
-  vars: Record<string, string | null | undefined>
+  vars: Record<string, string | null | undefined>,
+  rawKeys?: Iterable<string>
 ): RenderedEmail {
   const subject = interpolateSubject(resolved.subject, vars);
-  const body = interpolate(resolved.body, vars);
+  const body = interpolate(resolved.body, vars, { rawKeys });
   return { subject, html: emailShell(body), source: resolved.source };
+}
+
+/** Extra send options a templated email may carry (attachments, reply-to, headers). */
+export interface TemplatedEmailExtras {
+  attachments?: EmailAttachment[];
+  replyTo?: string;
+  headers?: Record<string, string>;
 }
 
 /**
  * Render a template and send it. The single helper the legacy `sendXxxEmail`
- * wrappers delegate to.
+ * wrappers delegate to. `extras` carries attachments / reply-to for the few
+ * emails (interview invites) that need them.
  */
 export async function sendTemplatedEmail(
   key: string,
-  to: string,
-  vars: Record<string, string | null | undefined>
+  to: string | string[],
+  vars: Record<string, string | null | undefined>,
+  extras?: TemplatedEmailExtras
 ): Promise<EmailResult> {
   const { subject, html } = await renderEmailTemplate(key, vars);
   const { sendEmail } = await import("@/lib/email");
-  return sendEmail({ to, subject, html });
+  return sendEmail({ to, subject, html, ...extras });
 }
 
 /**
