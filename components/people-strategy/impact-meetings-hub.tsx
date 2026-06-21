@@ -165,11 +165,11 @@ function TeamCard({ team }: { team: ImpactTeamCardData }) {
         <div className="flex flex-col gap-3 px-4 py-3.5">
           <div className="flex items-center gap-2 text-[12.5px] text-progress-700">
             <span aria-hidden>⚠</span>
-            <span>No update submitted yet</span>
+            <span>Nothing added to this presentation yet</span>
           </div>
           <div className="flex flex-wrap gap-2">
             <ButtonLink href={team.briefHref} variant="primary" size="sm">
-              Start update
+              Open team presentation
             </ButtonLink>
           </div>
         </div>
@@ -188,7 +188,7 @@ function TeamCard({ team }: { team: ImpactTeamCardData }) {
           ) : null}
           <div className="flex flex-wrap gap-2">
             <ButtonLink href={team.briefHref} variant="secondary" size="sm">
-              Open update
+              Open team presentation
             </ButtonLink>
           </div>
         </div>
@@ -223,7 +223,7 @@ export function ImpactMeetingsHub({
       <PageHeaderV2
         eyebrow="Impact Meetings"
         title="Impact Meetings"
-        subtitle={`Teams submit a quick weekly update, the agenda pulls them in, leadership runs the meeting, and a summary goes out. ${data.weekLabel}.`}
+        subtitle={`One combined presentation per team — each person adds their part, it merges into the team's presentation, then leadership runs the meeting and a summary goes out. ${data.weekLabel}.`}
         actions={
           data.meetingHref ? (
             <ButtonLink href="/impact-meetings/current" variant="primary" size="sm">
@@ -276,15 +276,18 @@ export function ImpactMeetingsHub({
         <StatTile value={String(stats.blockers)} label="Blockers raised" tone="warning" />
       </div>
 
-      {/* Team weekly updates */}
+      {/* Team presentations — one combined presentation per team */}
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
           <h2 className="m-0 text-[13px] font-bold uppercase tracking-[0.07em] text-ink-muted">
-            Team weekly updates
+            Team presentations · one per team
           </h2>
-          <span className="text-[12px] text-ink-muted">
-            {data.teams.map((t) => t.teamName).join(" · ")}
-          </span>
+          <a
+            href="/my-weekly-impact"
+            className="text-[12.5px] font-semibold text-brand-700 no-underline hover:underline"
+          >
+            + Add my part →
+          </a>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {data.teams.map((team) => (
