@@ -1,10 +1,8 @@
+import { INSTRUCTOR_TRAINING_ROLES } from "@/lib/org/role-sets";
+
 type RoleLike = string | null | undefined;
 
-const APPROVED_INSTRUCTOR_TRAINING_ROLES = new Set([
-  "ADMIN",
-  "CHAPTER_PRESIDENT",
-  "INSTRUCTOR",
-]);
+const APPROVED_INSTRUCTOR_TRAINING_ROLES = new Set<string>(INSTRUCTOR_TRAINING_ROLES);
 
 export function hasApprovedInstructorTrainingAccess(
   roles: RoleLike[] = []

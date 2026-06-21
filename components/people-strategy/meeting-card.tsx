@@ -8,6 +8,7 @@ import { PersonLink } from "@/components/people-strategy/person-link";
 import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
 import { meetingCategoryTone } from "@/lib/people-strategy/meeting-categories";
 import { meetingNextAction } from "@/lib/people-strategy/meeting-command-center";
+import { meetingOperatingModel } from "@/lib/people-strategy/meeting-operating-model";
 import { relatedEntityTypeLabel } from "@/lib/people-strategy/constants";
 import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
 import {
@@ -58,6 +59,7 @@ function timeString(m: MeetingCardDTO): string {
 
 export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
   const c = meetingCategoryTone(m.category);
+  const model = meetingOperatingModel(m.meetingType);
   // The one primary action for this meeting, chosen by the command-center
   // priority ladder (Open / Add agenda / Add notes / Create actions / …).
   const next = meetingNextAction({
@@ -96,6 +98,9 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
         <div style={{ padding: "15px 16px 13px", display: "flex", flexDirection: "column", gap: 11 }}>
           {/* badge row */}
           <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+            <Pill tone="purple" style={{ fontWeight: 800 }}>
+              {model.shortLabel}
+            </Pill>
             <CategoryBadge category={m.category} />
             <MeetingStatusBadge status={m.effectiveStatus} />
             {m.relatedEntityType ? (
@@ -103,6 +108,8 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
                 {relatedEntityTypeLabel(m.relatedEntityType)}
               </Pill>
             ) : null}
+            {m.relatedTeam ? <Pill tone="info">{m.relatedTeam}</Pill> : null}
+            {m.relatedChapter ? <Pill tone="info">{m.relatedChapter}</Pill> : null}
             <span style={{ flex: 1 }} />
             {m.overdueFollowUps > 0 && (
               <Pill tone="danger" style={{ fontWeight: 700 }}>
@@ -142,6 +149,10 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
               {timeString(m)}
             </span>
             {m.durationLabel && <span>{m.durationLabel}</span>}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <MeetingIcon name="people" size={13} />
+              {m.requiredAttendeeCount ?? m.attendeeCount} required
+            </span>
             {m.recurrence && (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <MeetingIcon name="repeat" size={13} />
@@ -184,7 +195,12 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 13, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <StatChip icon="user" value={m.attendeeCount} label="" />
+            <StatChip
+              icon="user"
+              value={`${m.attendanceRecordedCount ?? 0}/${m.requiredAttendeeCount ?? m.attendeeCount ?? 0}`}
+              label="attendance"
+              danger={(m.attendanceConcernCount ?? 0) > 0}
+            />
             <StatChip icon="list" value={`${m.agendaDoneCount}/${m.agendaCount}`} label="" />
             <StatChip icon="bolt" value={m.openLinkedActions} label="" />
             <StatChip icon="flag" value={m.openFollowUps} label="" danger={m.overdueFollowUps > 0} />
@@ -200,6 +216,19 @@ export function MeetingCard({ meeting: m }: { meeting: MeetingCardDTO }) {
               }}
             >
               {next.label} →
+            </Link>
+            <Link
+              href={`/actions/meetings/${m.id}#attendance`}
+              title="Mark attendance"
+              style={{
+                fontSize: 12.5,
+                fontWeight: 700,
+                color: "var(--text-secondary)",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Attendance
             </Link>
           </div>
         </div>

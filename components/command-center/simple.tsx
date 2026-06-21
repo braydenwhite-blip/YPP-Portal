@@ -43,7 +43,7 @@ export function PrimaryFocusCard({
   return (
     <section
       className={cn(
-        "flex flex-col gap-4 rounded-[20px] border border-line-soft bg-gradient-to-br via-surface to-surface/90 p-5 shadow-card backdrop-blur sm:flex-row sm:items-center sm:gap-5 sm:p-6",
+        "flex flex-col gap-4 rounded-[16px] border border-line-card bg-gradient-to-br via-surface to-surface/90 p-5 shadow-card sm:flex-row sm:items-center sm:gap-5 sm:p-6",
         accent.wrap
       )}
     >
@@ -57,7 +57,7 @@ export function PrimaryFocusCard({
       </div>
       <Link
         href={ctaHref}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand-600 px-5 py-2.5 text-[13.5px] font-bold text-white shadow-card transition-colors hover:bg-brand-700"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-[11px] bg-[linear-gradient(135deg,#5a1da8_0%,#6b21c8_52%,#8b3fe8_100%)] px-5 py-2.5 text-[13.5px] font-bold text-white shadow-card transition-[filter] hover:brightness-[1.07] active:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
       >
         {ctaLabel} <span aria-hidden>→</span>
       </Link>
@@ -135,7 +135,7 @@ export function SimpleListCard({
   empty?: ReactNode;
 }) {
   return (
-    <section className="flex flex-col rounded-[18px] border border-line-soft bg-surface/80 p-2 shadow-card backdrop-blur">
+    <section className="flex flex-col rounded-[14px] border border-line-card bg-surface p-2 shadow-card">
       {title ? (
         <header className="flex items-center justify-between gap-3 px-3 pt-2 pb-1">
           <h3 className="m-0 text-[13px] font-bold uppercase tracking-[0.08em] text-ink-muted">{title}</h3>
@@ -155,15 +155,15 @@ export type SimpleAction = { label: string; href: string; icon?: CcIconName; pri
 /** A non-fixed row of quiet actions, shown below the main content. */
 export function SimpleActionStrip({ actions }: { actions: SimpleAction[] }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-[16px] border border-line-soft bg-surface/70 p-2 shadow-card backdrop-blur">
+    <div className="flex flex-wrap items-center gap-2 rounded-[14px] border border-line-card bg-surface p-2 shadow-card">
       {actions.map((action) => (
         <Link
           key={action.label}
           href={action.href}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-semibold transition-colors",
+            "inline-flex items-center gap-1.5 rounded-[10px] px-3.5 py-2 text-[12.5px] font-semibold transition-[filter,background-color,color] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400",
             action.primary
-              ? "bg-brand-600 text-white hover:bg-brand-700"
+              ? "bg-[linear-gradient(135deg,#5a1da8_0%,#6b21c8_52%,#8b3fe8_100%)] text-white hover:brightness-[1.07] active:brightness-95"
               : "text-ink-muted hover:bg-surface-soft hover:text-ink"
           )}
         >

@@ -57,6 +57,8 @@ export function ProfileBody({ profile }: { profile: PublicProfile }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <ProgressionPanel profile={profile} />
+
       {/* Contact — public per the member-profile design. */}
       {contactItems.length > 0 ? (
         <section className="card" style={{ padding: "16px 18px" }}>
@@ -228,6 +230,72 @@ export function ProfileBody({ profile }: { profile: PublicProfile }) {
         </CollapsibleSection>
       ) : null}
     </div>
+  );
+}
+
+function ProgressionPanel({ profile }: { profile: PublicProfile }) {
+  const needs =
+    profile.progression.needsSetup.length > 0
+      ? profile.progression.needsSetup.join(", ")
+      : "Complete";
+  const facts: Array<{ label: string; value: React.ReactNode }> = [
+    { label: "Current role", value: profile.progression.currentRole },
+    { label: "Ladder", value: profile.progression.ladder },
+    { label: "Mentor", value: profile.progression.mentor },
+    { label: "Mentees", value: profile.progression.mentees },
+    { label: "Review path", value: profile.progression.reviewPath },
+    { label: "Access", value: profile.progression.access },
+    { label: "Assigned actions", value: profile.progression.assignedActions },
+    { label: "Chapter", value: profile.progression.chapter },
+    { label: "Needs setup", value: needs },
+  ];
+
+  return (
+    <section className="card" style={{ padding: "16px 18px" }}>
+      <h2 style={SECTION_LABEL}>People Progression</h2>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+          gap: 10,
+        }}
+      >
+        {facts.map((fact) => (
+          <div
+            key={fact.label}
+            style={{
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              padding: "10px 12px",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                textTransform: "uppercase",
+                letterSpacing: 0.4,
+                color: "var(--muted)",
+                fontWeight: 700,
+              }}
+            >
+              {fact.label}
+            </div>
+            <div
+              style={{
+                marginTop: 4,
+                fontSize: 14,
+                lineHeight: 1.35,
+                color: "var(--ypp-ink)",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {fact.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

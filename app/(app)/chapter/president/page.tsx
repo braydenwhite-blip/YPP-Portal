@@ -42,9 +42,33 @@ export default async function ChapterPresidentPage() {
     ? await prisma.chapterPresidentApplication.findFirst({
         where: { applicantId: chapterPresident.id },
         orderBy: { createdAt: "desc" },
-        select: { chapterVision: true },
+        select: {
+          id: true,
+          status: true,
+          schoolName: true,
+          city: true,
+          stateProvince: true,
+          potentialChapterLocation: true,
+          chapterVision: true,
+          createdAt: true,
+          mentorAdvisor: { select: { name: true, email: true } },
+        },
       })
     : null;
+
+  const starterActions = application
+    ? await prisma.workflowActionItem.findMany({
+        where: {
+          workflowItem: {
+            sourceType: "ChapterPresidentApplication",
+            sourceId: application.id,
+            kind: "CHAPTER_PRESIDENT_APPLICATION",
+          },
+        },
+        select: { id: true, title: true, status: true, dueAt: true },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
 
   const viewerIsPresident = chapterPresident?.id === currentUser.id;
 
@@ -127,6 +151,64 @@ export default async function ChapterPresidentPage() {
               >
                 {application.chapterVision}
               </p>
+            </div>
+          )}
+
+          {application && (
+            <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: 12,
+                  background: "var(--surface-2)",
+                  borderRadius: 8,
+                  padding: 14,
+                  fontSize: 13,
+                }}
+              >
+                <div>
+                  <strong>Role</strong>
+                  <p style={{ margin: "4px 0 0", color: "var(--muted)" }}>Chapter President</p>
+                </div>
+                <div>
+                  <strong>School/location</strong>
+                  <p style={{ margin: "4px 0 0", color: "var(--muted)" }}>
+                    {[application.schoolName, application.city, application.stateProvince].filter(Boolean).join(", ") || "Not listed"}
+                  </p>
+                </div>
+                <div>
+                  <strong>Chapter/community</strong>
+                  <p style={{ margin: "4px 0 0", color: "var(--muted)" }}>
+                    {application.potentialChapterLocation ?? currentUser.chapter.name}
+                  </p>
+                </div>
+                <div>
+                  <strong>Mentor/advisor</strong>
+                  <p style={{ margin: "4px 0 0", color: "var(--muted)" }}>
+                    {application.mentorAdvisor?.name ?? "Not assigned yet"}
+                  </p>
+                </div>
+              </div>
+
+              {starterActions.length > 0 && (
+                <div>
+                  <h3 className="section-title" style={{ marginTop: 0 }}>
+                    Current onboarding actions
+                  </h3>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {starterActions.map((action) => (
+                      <div key={action.id} style={{ borderTop: "1px solid var(--border)", paddingTop: 8 }}>
+                        <strong style={{ fontSize: 13 }}>{action.title}</strong>
+                        <p style={{ margin: "2px 0 0", color: "var(--muted)", fontSize: 12 }}>
+                          {action.status.replace(/_/g, " ")}
+                          {action.dueAt ? ` - due ${action.dueAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

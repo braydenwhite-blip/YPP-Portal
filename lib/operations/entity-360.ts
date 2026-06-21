@@ -118,6 +118,40 @@ export type Entity360Signal = {
   detail: string | null;
 };
 
+/**
+ * One of this person's active mentorship pairings, as the 360 drawer shows it:
+ * which side they're on, who their partner is, where the cycle stands, the one
+ * next focus, open commitments, and the next session. (Calm Mentorship Phase 10.)
+ */
+export type Entity360MentorshipPairing = {
+  /** The Mentorship id (opens the mentorship 360 / relationship record). */
+  id: string;
+  /** This person's side of the pairing. */
+  role: "mentor" | "mentee";
+  partnerName: string;
+  partnerId: string | null;
+  /** Plain-language cycle state ("Review due", "Up to date", "Kickoff pending"). */
+  cycleLabel: string;
+  /** The single next move for this pairing, when one is known. */
+  nextFocus: string | null;
+  /** Canonical open next-step count (ActionItem + unlinked legacy, no double-count). */
+  openNextSteps: number;
+  /** Canonical overdue next-step count. */
+  overdueNextSteps: number;
+  /** True when a canonical next step is blocked. */
+  blocked: boolean;
+  /** Canonical attention headline ("Check-in overdue", "Next step overdue", …). */
+  attentionReason: string;
+  /** Last completed check-in (`MentorshipSession`), ISO. */
+  lastCheckInISO: string | null;
+  nextSessionISO: string | null;
+  href: string;
+};
+
+export type Entity360MentorshipPanel = {
+  pairings: Entity360MentorshipPairing[];
+};
+
 export type Entity360 = {
   type: Entity360Type;
   id: string;
@@ -149,6 +183,8 @@ export type Entity360 = {
   risks: string[];
   /** Data-visibility note rendered as the panel footer. */
   footnote: string | null;
+  /** Active mentorship pairings (officer-gated, like the rest of the panel). */
+  mentorship?: Entity360MentorshipPanel | null;
 };
 
 // --- pure helpers ---------------------------------------------------------------
@@ -325,6 +361,94 @@ export function buildPersonTimeline(
       a.id.localeCompare(b.id)
   );
   return typeof options.limit === "number" ? events.slice(0, options.limit) : events;
+}
+
+// --- mentorship panel (Calm Mentorship Phase 10) -----------------------------
+
+/** Plain-language cycle labels for the 360 mentorship panel. */
+const E360_CYCLE_LABEL: Record<string, string> = {
+  KICKOFF_PENDING: "Kickoff pending",
+  REFLECTION_DUE: "Reflection due",
+  REFLECTION_SUBMITTED: "Review due",
+  REVIEW_SUBMITTED: "With the chair",
+  CHANGES_REQUESTED: "Changes requested",
+  APPROVED: "Up to date",
+  PAUSED: "Paused",
+  COMPLETE: "Cycle complete",
+};
+
+/** The raw pairing facts the loader feeds the pure builder. */
+export type MentorshipPairingInput = {
+  id: string;
+  role: "mentor" | "mentee";
+  partnerName: string;
+  partnerId: string | null;
+  cycleStage: string;
+  kickoffCompleted: boolean;
+  /** Canonical open next-step count (the loader runs the canonical merge). */
+  openNextSteps: number;
+  overdueNextSteps: number;
+  blocked: boolean;
+  /** Canonical attention headline from `deriveMentorshipAttention`. */
+  attentionReason: string;
+  lastCheckInISO: string | null;
+  nextSessionISO: string | null;
+};
+
+/**
+ * The one next focus for a pairing, from the cycle stage and the viewer's side.
+ * Mentee-side stages frame the mentee's move; mentor-side frame the mentor's.
+ */
+export function mentorshipPairingFocus(
+  role: "mentor" | "mentee",
+  cycleStage: string,
+  kickoffCompleted: boolean
+): string | null {
+  if (!kickoffCompleted || cycleStage === "KICKOFF_PENDING") {
+    return role === "mentor" ? "Hold the kickoff" : "Get ready for kickoff";
+  }
+  switch (cycleStage) {
+    case "REFLECTION_DUE":
+      return role === "mentor" ? "Waiting on their reflection" : "Submit this month's reflection";
+    case "REFLECTION_SUBMITTED":
+      return role === "mentor" ? "Write the review" : "Review in progress";
+    case "REVIEW_SUBMITTED":
+      return "Waiting on chair approval";
+    case "CHANGES_REQUESTED":
+      return role === "mentor" ? "Revise the review" : "Review being revised";
+    case "APPROVED":
+      return "On track";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Build the 360 mentorship panel from a person's active pairings. Pure (no I/O):
+ * the loader supplies only pairings the viewer may see. Returns null when there
+ * are none, so the section simply doesn't render.
+ */
+export function buildMentorshipPanel(
+  pairings: MentorshipPairingInput[]
+): Entity360MentorshipPanel | null {
+  if (pairings.length === 0) return null;
+  return {
+    pairings: pairings.map((p) => ({
+      id: p.id,
+      role: p.role,
+      partnerName: p.partnerName,
+      partnerId: p.partnerId,
+      cycleLabel: E360_CYCLE_LABEL[p.cycleStage] ?? "Active",
+      nextFocus: mentorshipPairingFocus(p.role, p.cycleStage, p.kickoffCompleted),
+      openNextSteps: p.openNextSteps,
+      overdueNextSteps: p.overdueNextSteps,
+      blocked: p.blocked,
+      attentionReason: p.attentionReason,
+      lastCheckInISO: p.lastCheckInISO,
+      nextSessionISO: p.nextSessionISO,
+      href: `/admin/mentorship/relationships/${p.id}`,
+    })),
+  };
 }
 
 /** Earliest-due open work item's title — the default "next step" for an entity. */

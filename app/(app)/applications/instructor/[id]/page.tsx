@@ -39,6 +39,10 @@ import {
   getInstructorApplicationReviewWorkspace,
 } from "@/lib/instructor-review-actions";
 import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
+import {
+  isInitialReviewLocked,
+  INITIAL_REVIEW_LOCKED_MESSAGE,
+} from "@/lib/applicant-review-stage";
 import NotificationFailureBanner from "@/components/instructor-applicants/NotificationFailureBanner";
 import ReviewSubmissionWarningsBanner from "@/components/instructor-applicants/ReviewSubmissionWarningsBanner";
 import WorkshopOutlinePanel from "@/components/instructor-applicants/WorkshopOutlinePanel";
@@ -411,7 +415,12 @@ export default async function ApplicantCockpitPage({
     }
   }
 
-  const isReadOnlyReview = !actorIsReviewer && !actorIsAdmin && !isChapterLead(actor);
+  // Initial reviews lock permanently once the applicant advances past the
+  // initial-review stage. After that the editor is read-only for everyone
+  // (including admins) and existing reviews stay visible as evidence.
+  const initialReviewLocked = isInitialReviewLocked(application.status);
+  const isReadOnlyReview =
+    initialReviewLocked || (!actorIsReviewer && !actorIsAdmin && !isChapterLead(actor));
   const isHidden = !canAssignReviewer && !canAssignInterviewers && !actorIsReviewer && !actorIsInterviewer && !canActAsChairBool;
 
   let reviewerCandidates: Awaited<ReturnType<typeof getCandidateReviewers>> = [];
@@ -649,14 +658,17 @@ export default async function ApplicantCockpitPage({
                     firstClassPlan: application.firstClassPlan,
                   }}
                   canEdit={!isReadOnlyReview}
+                  lockedReason={initialReviewLocked ? INITIAL_REVIEW_LOCKED_MESSAGE : null}
                   isLeadReviewer={reviewWorkspace.isLeadReviewer}
                   hasLeadInterviewer={hasLeadInterviewer}
                 />
               ) : (
                 <p className={MUTED}>
-                  {isReadOnlyReview
-                    ? "Review visible to assigned reviewer and admins only."
-                    : "Review not yet available for this application."}
+                  {initialReviewLocked
+                    ? INITIAL_REVIEW_LOCKED_MESSAGE
+                    : isReadOnlyReview
+                      ? "Review visible to assigned reviewer and admins only."
+                      : "Review not yet available for this application."}
                 </p>
               )}
               {canAssignReviewer && (

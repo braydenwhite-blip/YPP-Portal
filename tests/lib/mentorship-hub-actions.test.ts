@@ -25,17 +25,36 @@ vi.mock("@/lib/mentorship-access", () => ({
   hasMentorshipMenteeAccess: vi.fn(),
 }));
 
+vi.mock("@/lib/feature-flags", () => ({
+  isActionTrackerEnabled: vi.fn(() => true),
+}));
+
+vi.mock("@/lib/people-strategy/action-items-actions", () => ({
+  createActionItem: vi.fn(),
+}));
+
+vi.mock("@/lib/help-agent/search-indexing", () => ({
+  syncActionSearchDocument: vi.fn(),
+}));
+
+vi.mock("@/lib/people-strategy/action-emails", () => ({
+  notifyNewActionAssignments: vi.fn(),
+}));
+
 import { prisma } from "@/lib/prisma";
 import {
   createMentorshipSession,
   createMentorshipActionItem,
+  createMentorshipNextStep,
   promoteMentorshipResponseToResource,
   respondToMentorshipRequest,
   setMentorTag,
   markKickoffComplete,
+  updateMentorshipActionItemStatus,
 } from "@/lib/mentorship-hub-actions";
 import { getMentorshipRoleFlags } from "@/lib/mentorship-hub";
 import { hasMentorshipMenteeAccess } from "@/lib/mentorship-access";
+import { syncActionSearchDocument } from "@/lib/help-agent/search-indexing";
 
 describe("mentorship-hub-actions", () => {
   beforeEach(() => {
@@ -70,12 +89,39 @@ describe("mentorship-hub-actions", () => {
     };
     (prisma as any).mentorshipActionItem = {
       create: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    };
+    (prisma as any).actionItem = {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    };
+    (prisma as any).actionComment = {
+      create: vi.fn(),
     };
     (prisma as any).mentorshipSession = {
       create: vi.fn(),
+      findUnique: vi.fn(),
     };
     (prisma as any).mentorship.findFirst = vi.fn();
+    (prisma as any).mentorship.findUnique = vi.fn();
     (prisma as any).mentorship.update = vi.fn();
+    (prisma as any).$transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        actionItem: {
+          create: (prisma as any).actionItem.create,
+          update: (prisma as any).actionItem.update,
+        },
+        mentorshipActionItem: {
+          update: (prisma as any).mentorshipActionItem.update,
+        },
+        actionComment: {
+          create: (prisma as any).actionComment.create,
+        },
+      })
+    );
     vi.mocked(hasMentorshipMenteeAccess).mockResolvedValue(true);
   });
 
@@ -164,6 +210,169 @@ describe("mentorship-hub-actions", () => {
         createdById: "mentor-2",
       }),
     });
+  });
+
+  it("routes an ACTIVE relationship to a canonical ActionItem, never the legacy table", async () => {
+    const active = {
+      id: "mentorship-1",
+      mentorId: "mentor-2",
+      menteeId: "student-1",
+      chairId: null,
+      status: "ACTIVE",
+      circleMembers: [{ userId: "mentor-2", role: "PRIMARY_MENTOR" }],
+    };
+    // getActiveMentorshipContext + the next-step authorization both read mentorship.
+    (prisma as any).mentorship.findFirst = vi.fn().mockResolvedValue(active);
+    (prisma as any).mentorship.findUnique.mockResolvedValue(active);
+    (prisma as any).actionItem.findFirst.mockResolvedValue(null);
+    (prisma as any).actionItem.create.mockResolvedValue({ id: "action-1" });
+
+    const formData = new FormData();
+    formData.set("menteeId", "student-1");
+    formData.set("title", "Draft the project outline");
+    formData.set("ownerId", "student-1");
+
+    await createMentorshipActionItem(formData);
+
+    // Canonical write happened; the pre-assignment legacy write did NOT.
+    expect((prisma as any).actionItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          relatedEntityType: "MENTORSHIP",
+          relatedEntityId: "mentorship-1",
+        }),
+      })
+    );
+    expect((prisma as any).mentorshipActionItem.create).not.toHaveBeenCalled();
+  });
+
+  it("allows the assigned mentor to create a canonical next step", async () => {
+    (prisma as any).mentorship.findUnique.mockResolvedValue({
+      id: "mentorship-1",
+      mentorId: "mentor-2",
+      menteeId: "student-1",
+      chairId: null,
+      status: "ACTIVE",
+      circleMembers: [{ userId: "mentor-2", role: "PRIMARY_MENTOR" }],
+    });
+    (prisma as any).actionItem.findFirst.mockResolvedValue(null);
+    (prisma as any).actionItem.create.mockResolvedValue({ id: "action-1" });
+
+    const formData = new FormData();
+    formData.set("mentorshipId", "mentorship-1");
+    formData.set("title", "Draft the project outline");
+    formData.set("ownerId", "student-1");
+
+    await expect(createMentorshipNextStep(formData)).resolves.toEqual({
+      id: "action-1",
+      created: true,
+    });
+    expect((prisma as any).actionItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          relatedEntityType: "MENTORSHIP",
+          relatedEntityId: "mentorship-1",
+          leadId: "student-1",
+          visibility: "ALL_LEADERSHIP",
+          assignments: {
+            create: [
+              { userId: "student-1", role: "LEAD" },
+              { userId: "student-1", role: "EXECUTING" },
+            ],
+          },
+        }),
+      })
+    );
+    expect(syncActionSearchDocument).toHaveBeenCalledWith("action-1");
+  });
+
+  it("rejects a generic mentor who is not on the relationship", async () => {
+    (prisma as any).mentorship.findUnique.mockResolvedValue({
+      id: "mentorship-1",
+      mentorId: "someone-else",
+      menteeId: "student-1",
+      chairId: null,
+      status: "ACTIVE",
+      circleMembers: [],
+    });
+    vi.mocked(hasMentorshipMenteeAccess).mockResolvedValue(false);
+
+    const formData = new FormData();
+    formData.set("mentorshipId", "mentorship-1");
+    formData.set("title", "Draft the project outline");
+    formData.set("ownerId", "student-1");
+
+    await expect(createMentorshipNextStep(formData)).rejects.toThrow("Unauthorized");
+    expect((prisma as any).actionItem.create).not.toHaveBeenCalled();
+  });
+
+  it("lets an assigned mentee complete their canonical mentorship next step", async () => {
+    (prisma as any).actionItem.findFirst.mockResolvedValue({
+      id: "action-1",
+      leadId: "student-1",
+      createdById: "mentor-2",
+      visibility: "ALL_LEADERSHIP",
+      status: "NOT_STARTED",
+      relatedEntityId: "mentorship-1",
+      assignments: [{ userId: "student-1", role: "EXECUTING" }],
+    });
+    (prisma as any).mentorship.findUnique.mockResolvedValue({
+      menteeId: "student-1",
+    });
+    vi.mocked(getSession).mockResolvedValue({
+      user: {
+        id: "student-1",
+        roles: ["STUDENT"],
+      },
+    } as any);
+
+    const formData = new FormData();
+    formData.set("itemId", "action-1");
+    formData.set("status", "COMPLETE");
+
+    await updateMentorshipActionItemStatus(formData);
+
+    expect((prisma as any).actionItem.update).toHaveBeenCalledWith({
+      where: { id: "action-1" },
+      data: expect.objectContaining({
+        status: "COMPLETE",
+        completedAt: expect.any(Date),
+      }),
+    });
+    expect((prisma as any).actionComment.create).toHaveBeenCalled();
+  });
+
+  it("does not let a mentee complete an officer-only mentorship action", async () => {
+    (prisma as any).actionItem.findFirst.mockResolvedValue({
+      id: "action-1",
+      leadId: "student-1",
+      createdById: "mentor-2",
+      visibility: "OFFICERS_ONLY",
+      status: "NOT_STARTED",
+      relatedEntityId: "mentorship-1",
+      assignments: [{ userId: "student-1", role: "EXECUTING" }],
+    });
+    (prisma as any).mentorship.findUnique.mockResolvedValue({
+      id: "mentorship-1",
+      mentorId: "mentor-2",
+      menteeId: "student-1",
+      chairId: null,
+      status: "ACTIVE",
+      circleMembers: [],
+    });
+    vi.mocked(getSession).mockResolvedValue({
+      user: {
+        id: "student-1",
+        roles: ["STUDENT"],
+      },
+    } as any);
+
+    const formData = new FormData();
+    formData.set("itemId", "action-1");
+    formData.set("status", "COMPLETE");
+
+    await expect(updateMentorshipActionItemStatus(formData)).rejects.toThrow("Unauthorized");
+    expect((prisma as any).actionItem.update).not.toHaveBeenCalled();
   });
 
   it("syncs kickoff milestones when a completed kickoff session is logged", async () => {

@@ -51,6 +51,36 @@ export function isStrategicInitiativesEnabled(): boolean {
 }
 
 /**
+ * People Strategy — Weekly Team Briefs and Team Meetings. Adds the team-facing
+ * weekly brief → Team Meeting → prepared presentation → Officer Meeting loop.
+ *
+ * Defaults OFF while the workflow rolls out. The schema/migration can safely
+ * ship first; with the flag off, new pages return notFound(), server actions
+ * throw, and cron/generation paths no-op.
+ */
+export function isWeeklyTeamBriefsEnabled(): boolean {
+  return (
+    process.env.ENABLE_WEEKLY_TEAM_BRIEFS === "true" &&
+    isActionTrackerEnabled() &&
+    isOperationsHubEnabled() &&
+    isStrategicInitiativesEnabled()
+  );
+}
+
+/**
+ * Weekly Impact Meeting — manual summary email. The Impact Meeting can always be
+ * built and a summary generated in-portal; this flag is the kill-switch for the
+ * single human-triggered "Send summary" email. There are NO automatic impact
+ * emails — generation and the cron never send. This is the only email path, and
+ * even it stays off until explicitly enabled.
+ *
+ * Defaults OFF — set `ENABLE_IMPACT_SUMMARY_EMAIL=true` to arm the Send button.
+ */
+export function isImpactSummaryEmailEnabled(): boolean {
+  return process.env.ENABLE_IMPACT_SUMMARY_EMAIL === "true";
+}
+
+/**
  * Temporary deprecation gate for the older Leadership Action Center sidebar
  * entry. The route remains reachable during migration, but the nav should
  * point people at the newer People Strategy Action Tracker by default.
@@ -109,17 +139,18 @@ export function isProvisionalClockEnabled(): boolean {
 }
 
 /**
- * Mentorship 2.0 (Action Tracker 3.0, Phase M1). Gates the mentor expertise
- * taxonomy editor, mentee application intake, and the COMPLETE -> Alumni
- * transition surfaces. The schema/migration ship regardless of this flag; the
- * flag gates the runtime pages and server actions added in this phase.
+ * Mentorship 2.0 (Action Tracker 3.0). Gates the mentor expertise taxonomy
+ * editor, the mentee application intake → scored matching → pair flow, and the
+ * COMPLETE -> Alumni transition surfaces. The schema/migration ship regardless
+ * of this flag; the flag gates the runtime pages and server actions.
  *
- * Defaults OFF — set `ENABLE_MENTORSHIP_2=true` to expose the surfaces. With the
- * flag off, the new server actions throw and the new pages return notFound(), so
- * existing mentorship behavior is unchanged.
+ * Defaults ON as of Calm Mentorship Phase 9 (the intake→match→pair flow is
+ * calm-ified and verified) — set `ENABLE_MENTORSHIP_2=false` as a kill-switch
+ * to hide the application/matching/expertise surfaces and make their server
+ * actions throw. Rollback for the production exposure is exactly that env flip.
  */
 export function isMentorship2Enabled(): boolean {
-  return process.env.ENABLE_MENTORSHIP_2 === "true";
+  return process.env.ENABLE_MENTORSHIP_2 !== "false";
 }
 
 /**

@@ -10,6 +10,7 @@ import {
 } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { assertReviewApprovalAuthority } from "@/lib/org/review-authority-guard";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { syncMentorGoalReviewWorkflow } from "@/lib/workflow";
 import { computeTier } from "@/lib/achievement-tier-utils";
@@ -718,6 +719,15 @@ export async function approveGoalReview(formData: FormData) {
   });
 
   if (review.status === "APPROVED") throw new Error("Already approved");
+
+  // Phase 1 (org authority spine): when ORG_REVIEW_AUTHORITY_ENFORCED is on,
+  // require the approver to outrank the drafting mentor (or hold a configured
+  // self-finalize exception). No-op by default, so behavior is unchanged.
+  await assertReviewApprovalAuthority({
+    approverId: session.user.id,
+    authorId: review.mentor.id,
+    subject: { id: review.mentee.id, name: review.mentee.name },
+  });
 
   const menteeRoleType = toMenteeRoleType(review.mentee.primaryRole);
   if (!menteeRoleType) throw new Error("Mentee role not eligible for point awards");

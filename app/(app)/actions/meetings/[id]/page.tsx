@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled, isStrategicInitiativesEnabled } from "@/lib/feature-flags";
 import { deriveStrategicContextForMeeting } from "@/lib/people-strategy/strategic-context";
@@ -16,11 +17,20 @@ import {
   type AgendaActionInput,
 } from "@/lib/people-strategy/meeting-agenda-summary";
 import { MeetingAgendaSummaryPanel } from "@/components/people-strategy/meeting-agenda-summary-panel";
+import { ImpactMeetingAgendaPanel } from "@/components/people-strategy/impact-meeting-agenda-panel";
+import {
+  attachImpactAgendaItemState,
+  generateImpactMeetingAgendaText,
+  generateImpactMeetingSummary,
+  GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE,
+  loadGlobalOperationsImpactAgendaForMeeting,
+} from "@/lib/people-strategy/impact-meetings";
 import { startOfDay } from "@/lib/leadership-action-center/dates";
 import { effectiveStatus } from "@/lib/people-strategy/action-filters";
 import {
   getMeetingById,
   getMeetingsForEntity,
+  listMeetingsInRange,
   mapMeetingToDetailDTO,
   meetingDisplayTitle,
   type MeetingDetailDTO,
@@ -39,8 +49,10 @@ import {
   MeetingDetailClient,
   type MeetingRelatedContext,
 } from "@/components/people-strategy/meeting-detail-client";
+import { OfficerPreparedPresentationsPanel } from "@/components/people-strategy/officer-prepared-presentations";
 import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
 import { SuggestedActionsPanel } from "@/components/people-strategy/suggested-actions-panel";
+import { loadPreparedPresentationsForOfficerMeeting } from "@/lib/people-strategy/weekly-team-briefs";
 import type { PersonOption } from "@/components/people-strategy/new-meeting-drawer";
 
 export const dynamic = "force-dynamic";
@@ -116,6 +128,41 @@ export default async function MeetingDetailPage({
     adminSubtypes: viewer.adminSubtypes,
   };
   const meetingActions = await getActionsForMeeting(id, meetingViewer).catch(() => []);
+  const preparedPresentations = await loadPreparedPresentationsForOfficerMeeting(id).catch(() => []);
+  const impactAgenda =
+    detail.meetingType === GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE
+      ? attachImpactAgendaItemState(
+          await loadGlobalOperationsImpactAgendaForMeeting({
+            meetingId: id,
+            meetingTitle: detail.title,
+            meetingDate: meeting.date,
+            viewer: meetingViewer,
+          }),
+          detail.agenda.map((item) => ({
+            id: item.id,
+            status: item.status,
+            notes: item.notes,
+            sourceInitiativeId: item.sourceInitiativeId,
+            sourceWorkstreamId: item.sourceWorkstreamId,
+          }))
+        )
+      : null;
+  const targetMeetingWindowEnd = new Date(now);
+  targetMeetingWindowEnd.setUTCDate(targetMeetingWindowEnd.getUTCDate() + 90);
+  const targetMeetingOptions = [
+    {
+      id: meeting.id,
+      title: meetingDisplayTitle(meeting),
+      dateISO: meeting.date.toISOString(),
+    },
+    ...(await listMeetingsInRange(startOfDay(now), targetMeetingWindowEnd).catch(() => []))
+      .filter((m) => m.id !== meeting.id)
+      .map((m) => ({
+        id: m.id,
+        title: meetingDisplayTitle(m),
+        dateISO: m.date.toISOString(),
+      })),
+  ];
   const followUpPack = deriveMeetingFollowUpPack(
     {
       decisions: meeting.decisions.map((d) => ({
@@ -196,38 +243,55 @@ export default async function MeetingDetailPage({
       dueSoon,
     };
   });
-  const agendaText = generateAgendaText({
-    title: detail.title,
-    dateISO: detail.startISO,
-    actions: agendaActions,
-    agendaItems: detail.agenda.map((i) => ({
-      title: i.title,
-      status: i.status,
-      ownerName: i.owner?.name ?? null,
-    })),
-    openFollowUps: detail.followUps
-      .filter((f) => f.effectiveStatus !== "completed")
-      .map((f) => ({ title: f.title, ownerName: f.owner?.name ?? null, dueISO: f.dueISO })),
-  });
-  const summary = generateMeetingSummary({
-    title: detail.title,
-    dateISO: detail.startISO,
-    decisions: detail.decisions.map((d) => ({
-      decision: d.decision,
-      decidedByName: d.decidedBy?.name ?? null,
-    })),
-    actions: agendaActions,
-    followUps: detail.followUps.map((f) => ({
-      title: f.title,
-      ownerName: f.owner?.name ?? null,
-      dueISO: f.dueISO,
-      status: f.effectiveStatus === "completed" ? "COMPLETED" : "OPEN",
-    })),
-    deferredAgendaItems: detail.agenda
-      .filter((i) => i.status === "DEFERRED")
-      .map((i) => ({ title: i.title })),
-    notesText: detail.notesText,
-  });
+  const agendaText = impactAgenda
+    ? generateImpactMeetingAgendaText(impactAgenda)
+    : generateAgendaText({
+        title: detail.title,
+        dateISO: detail.startISO,
+        actions: agendaActions,
+        agendaItems: detail.agenda.map((i) => ({
+          title: i.title,
+          status: i.status,
+          ownerName: i.owner?.name ?? null,
+        })),
+        openFollowUps: detail.followUps
+          .filter((f) => f.effectiveStatus !== "completed")
+          .map((f) => ({ title: f.title, ownerName: f.owner?.name ?? null, dueISO: f.dueISO })),
+      });
+  const summary = impactAgenda
+    ? generateImpactMeetingSummary({
+        agenda: impactAgenda,
+        decisions: detail.decisions.map((d) => ({
+          decision: d.decision,
+          decidedByName: d.decidedBy?.name ?? null,
+        })),
+        followUps: detail.followUps.map((f) => ({
+          title: f.title,
+          ownerName: f.owner?.name ?? null,
+          dueISO: f.dueISO,
+          status: f.effectiveStatus === "completed" ? "COMPLETED" : "OPEN",
+        })),
+        notesText: detail.notesText,
+      })
+    : generateMeetingSummary({
+        title: detail.title,
+        dateISO: detail.startISO,
+        decisions: detail.decisions.map((d) => ({
+          decision: d.decision,
+          decidedByName: d.decidedBy?.name ?? null,
+        })),
+        actions: agendaActions,
+        followUps: detail.followUps.map((f) => ({
+          title: f.title,
+          ownerName: f.owner?.name ?? null,
+          dueISO: f.dueISO,
+          status: f.effectiveStatus === "completed" ? "COMPLETED" : "OPEN",
+        })),
+        deferredAgendaItems: detail.agenda
+          .filter((i) => i.status === "DEFERRED")
+          .map((i) => ({ title: i.title })),
+        notesText: detail.notesText,
+      });
 
   const strategicContext = isStrategicInitiativesEnabled()
     ? deriveStrategicContextForMeeting({
@@ -240,7 +304,7 @@ export default async function MeetingDetailPage({
     : null;
 
   return (
-    <div className="page-shell" style={{ maxWidth: 1180 }}>
+    <div className={`${skin.portalSkin} page-shell`} style={{ maxWidth: 1180 }}>
       <div className="mx-auto flex w-full max-w-[1180px] justify-end pb-1">
         <CommandModeToggle />
       </div>
@@ -253,8 +317,46 @@ export default async function MeetingDetailPage({
         </div>
       </CalmOnly>
 
+      {impactAgenda ? (
+        <nav
+          aria-label="Impact meeting sections"
+          className="mx-auto mb-3 flex w-full max-w-[1180px] flex-wrap gap-2"
+        >
+          {[
+            ["Agenda", "#agenda"],
+            ["Presentation", "#presentation"],
+            ["Live room", "#live"],
+            ["Summary", "#summary"],
+          ].map(([label, href]) => (
+            <a
+              key={href}
+              href={href}
+              className="rounded-md border border-line-card bg-surface px-3 py-2 text-[13px] font-semibold text-ink no-underline"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+      ) : null}
+
       {/* The room — notes, agenda, decisions, follow-ups, linked actions. */}
-      <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
+      <section id="presentation" className="scroll-mt-24">
+        <OfficerPreparedPresentationsPanel
+          officerMeetingId={id}
+          items={preparedPresentations}
+          targetMeetings={targetMeetingOptions}
+        />
+      </section>
+
+      {impactAgenda ? (
+        <section id="agenda" className="scroll-mt-24">
+          <ImpactMeetingAgendaPanel agenda={impactAgenda} people={people} />
+        </section>
+      ) : null}
+
+      <section id="live" className="scroll-mt-24">
+        <MeetingDetailClient meeting={detail} people={people} relatedContext={relatedContext} />
+      </section>
 
       {/* Secondary tools & context — demoted out of the calm default, one click
           away, and always inline in Executive mode. Nothing is removed. */}
@@ -263,12 +365,16 @@ export default async function MeetingDetailPage({
         hint="Agenda & summary drafts, suggested actions, the follow-up pack, and strategy links."
       >
         <div className="flex flex-col gap-4 pt-2">
-          <MeetingAgendaSummaryPanel
-            agendaText={agendaText}
-            summaryText={summary.text}
-            summaryWarnings={summary.warnings}
-            summaryMissingNotes={summary.missingNotes}
-          />
+          <section id="summary" className="scroll-mt-24">
+            <MeetingAgendaSummaryPanel
+              meetingId={id}
+              agendaText={agendaText}
+              summaryText={summary.text}
+              summaryWarnings={summary.warnings}
+              summaryMissingNotes={summary.missingNotes}
+              summaryStatus={detail.summaryStatus}
+            />
+          </section>
           <SuggestedActionsPanel
             meetingId={id}
             people={people}

@@ -7,7 +7,7 @@ import { cn } from "./cn";
  * `padding="md"` (20px) for dense lists, `"lg"` (24px) for primary content.
  */
 const cardVariants = cva(
-  "rounded-[12px] border border-line-soft bg-surface shadow-card",
+  "rounded-[14px] border border-line-card bg-surface shadow-card",
   {
     variants: {
       padding: {

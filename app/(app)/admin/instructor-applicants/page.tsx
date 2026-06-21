@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ApplicationTrack, ApplicationSource } from "@prisma/client";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import { canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
 import { requireApplicationReviewerPage } from "@/lib/page-guards";
@@ -390,7 +391,7 @@ export default async function AdminInstructorApplicantsPage({
   const overdueCount = serializedPipeline.filter((app) => app.overdue).length;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 px-6 py-6">
+    <div className={`${skin.portalSkin} mx-auto flex w-full max-w-[1600px] flex-col gap-5 px-6 py-6`}>
       <PageHeaderV2
         eyebrow={
           isAdmin ? "Admin" : isHiringChair ? "Hiring Chair" : "Chapter President"

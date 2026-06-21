@@ -10,6 +10,8 @@ import {
   type ApplicationQueueBucket,
   type ApplicationQueueItem,
 } from "@/lib/mentorship-2/recommendations/queries";
+import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
+import { EmptySimpleState, PrimaryFocusCard } from "@/components/command-center/simple";
 
 export const metadata = { title: "Mentorship matching queue — YPP" };
 
@@ -46,9 +48,20 @@ export default async function MentorshipApplicationsPage() {
     byBucket.set(item.bucket, list);
   }
 
-  const openCount = queue.filter(
+  const openItems = queue.filter(
     (i) => i.bucket !== "matched" && i.bucket !== "closed"
-  ).length;
+  );
+  const openCount = openItems.length;
+
+  // The single application Calm leads with: the most actionable open one
+  // (something just submitted or in review with no live recs first), so an
+  // officer always has one obvious next match to work.
+  const focusItem =
+    openItems.find((i) => i.bucket === "new" || i.bucket === "needsRecommendations") ??
+    openItems.find((i) => i.bucket === "hasRecommendations") ??
+    openItems.find((i) => i.bucket === "shortlisted") ??
+    openItems[0] ??
+    null;
 
   return (
     <div>
@@ -72,9 +85,29 @@ export default async function MentorshipApplicationsPage() {
         </p>
       ) : (
         <>
+          <CalmOnly>
+            <div style={{ marginBottom: 20 }}>
+              {focusItem ? (
+                <PrimaryFocusCard
+                  eyebrow="Match next"
+                  icon="users"
+                  title={`Match ${focusItem.applicantName ?? focusItem.applicantEmail}`}
+                  reason={focusReason(focusItem.bucket)}
+                  ctaLabel="Open application"
+                  ctaHref={`/admin/mentorship/applications/${focusItem.id}`}
+                />
+              ) : (
+                <EmptySimpleState icon="check">
+                  No applications are waiting on a match right now.
+                </EmptySimpleState>
+              )}
+            </div>
+          </CalmOnly>
+
           <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
             {openCount} open · {queue.length} total
           </p>
+          <CalmCollapse label="All applications by stage" hint="every bucket, grouped">
           <div style={{ display: "grid", gap: 28 }}>
             {BUCKETS.map(({ bucket, label, hint }) => {
               const items = byBucket.get(bucket) ?? [];
@@ -99,10 +132,29 @@ export default async function MentorshipApplicationsPage() {
               );
             })}
           </div>
+          </CalmCollapse>
         </>
       )}
     </div>
   );
+}
+
+/** Plain-language reason a given open bucket is the next thing to work. */
+function focusReason(bucket: ApplicationQueueBucket): string {
+  switch (bucket) {
+    case "new":
+      return "Just submitted — generate scored recommendations to start matching.";
+    case "needsRecommendations":
+      return "In review with no live recommendations — generate them.";
+    case "hasRecommendations":
+      return "Scored mentors are waiting on your decision.";
+    case "shortlisted":
+      return "A finalist is shortlisted — approve to pair them.";
+    case "held":
+      return "Parked earlier — revisit when you're ready.";
+    default:
+      return "Open this application to continue matching.";
+  }
 }
 
 function ApplicationRowLink({ item }: { item: ApplicationQueueItem }) {

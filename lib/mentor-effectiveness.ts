@@ -88,6 +88,49 @@ export async function getMentorEffectivenessScores(): Promise<MentorEffectivenes
       },
     },
   });
+  const allMentorshipIds = mentors.flatMap((mentor) =>
+    mentor.mentorPairs.map((mentorship) => mentorship.id)
+  );
+  const [canonicalActionItems, unlinkedLegacyActionItems] =
+    allMentorshipIds.length > 0
+      ? await Promise.all([
+          prisma.actionItem.findMany({
+            where: {
+              relatedEntityType: "MENTORSHIP",
+              relatedEntityId: { in: allMentorshipIds },
+              status: { not: "DROPPED" },
+            },
+            select: { relatedEntityId: true, status: true },
+          }),
+          prisma.mentorshipActionItem.findMany({
+            where: {
+              mentorshipId: { in: allMentorshipIds },
+              linkedActionId: null,
+            },
+            select: { mentorshipId: true, status: true },
+          }),
+        ])
+      : [[], []];
+  const canonicalActionsByMentorship = new Map<
+    string,
+    typeof canonicalActionItems
+  >();
+  for (const action of canonicalActionItems) {
+    if (!action.relatedEntityId) continue;
+    const list = canonicalActionsByMentorship.get(action.relatedEntityId) ?? [];
+    list.push(action);
+    canonicalActionsByMentorship.set(action.relatedEntityId, list);
+  }
+  const legacyActionsByMentorship = new Map<
+    string,
+    typeof unlinkedLegacyActionItems
+  >();
+  for (const action of unlinkedLegacyActionItems) {
+    if (!action.mentorshipId) continue;
+    const list = legacyActionsByMentorship.get(action.mentorshipId) ?? [];
+    list.push(action);
+    legacyActionsByMentorship.set(action.mentorshipId, list);
+  }
 
   const scores: MentorEffectivenessScore[] = [];
 
@@ -171,10 +214,10 @@ export async function getMentorEffectivenessScores(): Promise<MentorEffectivenes
     const totalCompletedSessions = mentorships.reduce((sum, m) => sum + m.sessions.length, 0);
     const sessionScore = Math.min(10, Math.round((totalCompletedSessions / Math.max(1, totalMenteeCount)) * 2.5));
 
-    const actionItems = await prisma.mentorshipActionItem.findMany({
-      where: { mentorshipId: { in: mentorships.map((m) => m.id) } },
-      select: { status: true },
-    });
+    const actionItems = mentorships.flatMap((m) => [
+      ...(canonicalActionsByMentorship.get(m.id) ?? []),
+      ...(legacyActionsByMentorship.get(m.id) ?? []),
+    ]);
     const completedItems = actionItems.filter((a) => a.status === "COMPLETE").length;
     const actionItemRate = actionItems.length > 0 ? completedItems / actionItems.length : 0;
     const actionItemScore = Math.round(actionItemRate * 10);

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { cache } from "react";
 import { headers } from "next/headers";
 import { createServerClientOrNull } from "@/lib/supabase/server";

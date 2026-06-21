@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { isInstructorSurface } from "@/lib/org/role-sets";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
   }
 
   const roles = session.user.roles ?? [];
-  const canClone = roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
+  const canClone = isInstructorSurface(roles);
   if (!canClone) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

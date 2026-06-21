@@ -1,10 +1,11 @@
 import type { NavGroup, NavLink, NavRole } from "@/lib/navigation/types";
+import { INSTRUCTOR_SURFACE_ROLES } from "@/lib/org/role-sets";
 
 type CatalogInput = Omit<NavLink, "group" | "priority" | "coreEligible"> & {
   coreEligible?: boolean;
 };
 
-const INSTRUCTOR_ROLES: NavRole[] = ["INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT"];
+const INSTRUCTOR_ROLES: NavRole[] = [...INSTRUCTOR_SURFACE_ROLES];
 const INSTRUCTOR_AND_APPLICANT_ROLES: NavRole[] = ["APPLICANT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT"];
 const MENTOR_ROLES: NavRole[] = ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"];
 const MY_PROGRAM_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"];
@@ -862,6 +863,43 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 5,
     },
     {
+      href: "/impact-meetings",
+      label: "Impact Meetings",
+      icon: "📊",
+      // Officer-tier and above only (mirrors requireOfficer()).
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
+      searchAliases: [
+        "Impact Meetings",
+        "Impact Presentation",
+        "Global Operations Impact",
+        "Weekly Updates",
+        "Team Updates",
+      ],
+      dashboardDescription:
+        "One combined presentation per team — collect each team's update, build the agenda, run the meeting live, and send the summary.",
+      dashboardPriority: 5,
+    },
+    {
+      href: "/my-weekly-impact",
+      label: "My Weekly Impact",
+      icon: "📝",
+      // Any contributor on an Impact team fills this out (the page self-gates on
+      // the Weekly Team Briefs flag and the signed-in session).
+      roles: ["INSTRUCTOR", "MENTOR", "CHAPTER_PRESIDENT", "STAFF", "ADMIN", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
+      searchAliases: [
+        "My Weekly Impact",
+        "Weekly Impact Form",
+        "Weekly Update",
+        "Impact Update",
+        "My Impact",
+      ],
+      dashboardDescription:
+        "Add your part to your team's one weekly Impact presentation — what you did, what you'll show, and what you need.",
+      dashboardPriority: 4,
+    },
+    {
       href: "/leadership-pathway",
       label: "Leadership Pathway",
       icon: "🪜",
@@ -885,8 +923,8 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Mentorship",
       icon: "🤝",
       roles: MENTOR_ROLES,
-      searchAliases: ["Support Hub", "Mentor Workspace"],
-      dashboardDescription: "Open the mentor and operator workspace for circles, queues, and support operations.",
+      searchAliases: ["Support Hub", "Mentees", "Relationships"],
+      dashboardDescription: "Open mentorship relationships, check-ins, next steps, and review work.",
       dashboardPriority: 16,
     },
     {
@@ -894,7 +932,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "My Mentor",
       icon: "🤝",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
-      searchAliases: ["My Mentorship", "Mentorship", "Mentor"],
+      searchAliases: ["Mentorship", "Mentor", "Goals", "Next steps"],
       dashboardDescription: "See your mentor, goals, resources, progress, reflection, and next steps.",
       dashboardPriority: 4,
     },
@@ -959,7 +997,7 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "🎯",
       roles: MY_PROGRAM_ROLES,
       searchAliases: ["My Mentor", "Support Hub", "Program Hub"],
-      dashboardDescription: "Open your support hub for reflections, action items, awards, rewards, and recognition.",
+      dashboardDescription: "Open your support hub for reflections, next steps, awards, rewards, and recognition.",
     },
     {
       href: "/my-program/gr",
@@ -1599,6 +1637,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "waitlist_waiting",
     },
     { href: "/admin/reminders", label: "Reminders", icon: "🔔", roles: ADMIN_ONLY },
+    {
+      href: "/admin/email-templates",
+      label: "Email Templates",
+      icon: "✉️",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Customize the subject and body of automated portal emails.",
+      searchAliases: ["Email Templates", "Edit Emails", "Email Copy"],
+    },
     {
       href: "/admin/emergency-broadcast",
       label: "Emergency Broadcast",

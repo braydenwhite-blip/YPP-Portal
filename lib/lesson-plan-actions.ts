@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
+import { isInstructorSurface } from "@/lib/org/role-sets";
 import { revalidatePath } from "next/cache";
 import { ActivityType } from "@prisma/client";
 import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
@@ -17,11 +18,7 @@ async function requireAuth() {
 async function requireInstructor() {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];
-  if (
-    !roles.includes("INSTRUCTOR") &&
-    !roles.includes("ADMIN") &&
-    !roles.includes("CHAPTER_PRESIDENT")
-  ) {
+  if (!isInstructorSurface(roles)) {
     throw new Error("Unauthorized - Instructor access required");
   }
   return session;

@@ -27,7 +27,7 @@ export function MyMentorSubnav() {
 
   return (
     <nav
-      aria-label="My Mentorship sections"
+      aria-label="My Mentor sections"
       style={{
         display: "flex",
         flexWrap: "wrap",

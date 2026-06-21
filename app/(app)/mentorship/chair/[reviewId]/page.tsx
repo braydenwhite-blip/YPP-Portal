@@ -14,7 +14,7 @@ import { RatingLegend } from "@/components/mentorship/rating-legend";
 import { LearnMore } from "@/components/mentorship/learn-more";
 import ChairActionsPanel from "./chair-actions-panel";
 
-export const metadata = { title: "Approve Review — Mentorship Program" };
+export const metadata = { title: "Approve Review — Mentorship" };
 
 function ratingLabel(rating: string): string {
   return getGoalRatingCopy(rating).label ?? formatEnum(rating);

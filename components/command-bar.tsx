@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { CommandModeToggle } from "@/components/command-center/command-mode";
 import { useHelpAgent } from "@/components/help-agent/help-agent-provider";
 import { cn } from "@/components/ui-v2";
 
@@ -169,20 +168,6 @@ export default function CommandBar({
             </div>
           ) : null}
         </div>
-      ) : null}
-
-      {/* View preference — Calm / Executive density, shared across every
-          operating surface. Officers only (member pages don't read it), but
-          always reachable: a compact pill on narrow screens, full on wider. */}
-      {officerTier ? (
-        <>
-          <div className="shrink-0 sm:hidden">
-            <CommandModeToggle compact />
-          </div>
-          <div className="hidden shrink-0 sm:block">
-            <CommandModeToggle />
-          </div>
-        </>
       ) : null}
 
       {/* Help Agent entry */}

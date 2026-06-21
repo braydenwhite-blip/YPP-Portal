@@ -340,7 +340,7 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toContain("/admin/bulk-users");
   });
 
-  describe("public preview slim nav", () => {
+  describe("public preview slim nav legacy flag", () => {
     beforeAll(() => {
       process.env.PORTAL_SLIM_NAV = "true";
     });
@@ -349,7 +349,7 @@ describe("resolveNavModel", () => {
       process.env.PORTAL_SLIM_NAV = "false";
     });
 
-    it("shows only the finished leadership stack for admins", () => {
+    it("keeps the full officer operating-system nav for admins", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["SUPER_ADMIN"],
@@ -360,20 +360,25 @@ describe("resolveNavModel", () => {
         publicGateActive: true,
       });
 
-      expect(hrefs(model).sort()).toEqual(
-        ["/", "/actions", "/operations/initiatives", "/people", "/work"].sort()
-      );
-      expect(model.more).toHaveLength(0);
+      const visibleHrefs = hrefs(model);
+      expect(visibleHrefs).toContain("/admin");
+      expect(visibleHrefs).toContain("/admin/bulk-users");
+      expect(visibleHrefs).toContain("/people");
+      expect(visibleHrefs).toContain("/actions");
+      expect(visibleHrefs).toContain("/operations/initiatives");
+      expect(visibleHrefs).toContain("/work");
+      expect(model.more.length).toBeGreaterThan(0);
       expect(model.core.map((item) => item.href)).toEqual([
         "/",
         "/people",
         "/actions",
         "/operations/initiatives",
         "/work",
+        "/messages",
       ]);
     });
 
-    it("adds hiring-chair applicant routes without restoring the full catalog", () => {
+    it("keeps hiring-chair applicant routes inside the full officer catalog", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["HIRING_ADMIN"],
@@ -387,9 +392,9 @@ describe("resolveNavModel", () => {
       const visibleHrefs = hrefs(model);
       expect(visibleHrefs).toContain("/admin/instructor-applicants");
       expect(visibleHrefs).toContain("/admin/instructor-applicants/chair-queue");
-      expect(visibleHrefs).not.toContain("/admin/bulk-users");
-      expect(visibleHrefs).not.toContain("/admin");
-      expect(model.more).toHaveLength(0);
+      expect(visibleHrefs).toContain("/admin/bulk-users");
+      expect(visibleHrefs).toContain("/admin");
+      expect(model.more.length).toBeGreaterThan(0);
     });
   });
 

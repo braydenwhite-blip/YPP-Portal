@@ -53,6 +53,15 @@ const ACTION_ITEM_INCLUDE = {
   // meeting follow-up / agenda item it carries officerMeetingId. Surfaced as a
   // "Source: Meeting" badge that links back to the Weekly Command Center.
   officerMeeting: { select: { id: true, title: true, date: true, category: true } },
+  mentorshipSession: {
+    select: {
+      id: true,
+      mentorshipId: true,
+      title: true,
+      scheduledAt: true,
+      completedAt: true,
+    },
+  },
   assignments: {
     select: {
       id: true,
@@ -134,8 +143,8 @@ function toAccessShape(item: {
 /**
  * Actions where `userId` is LEAD, EXECUTING, or INPUT ("My Actions").
  * Results are filtered to what `viewer` is allowed to see — so a member only
- * ever gets their own actions, and OFFICERS_ONLY items are hidden from
- * non-officers even if they were somehow assigned.
+ * ever gets their own actions, including OFFICERS_ONLY items they were
+ * explicitly assigned to.
  */
 export async function getMyActionItems(
   userId: string,

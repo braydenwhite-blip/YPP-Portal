@@ -13,6 +13,7 @@ vi.mock("@/lib/prisma", () => ({
     actionItem: { findUnique: vi.fn(), findMany: vi.fn() },
     classOffering: { findMany: vi.fn() },
     officerMeeting: { findUnique: vi.fn(), findMany: vi.fn() },
+    mentorship: { findFirst: vi.fn(), findMany: vi.fn() },
   },
 }));
 
@@ -26,11 +27,13 @@ import {
   buildActionDocument,
   buildApplicationDocument,
   buildMeetingDocument,
+  buildMentorshipDocument,
   buildPartnerDocument,
   buildPersonDocument,
   reconcileSearchDocuments,
   syncApplicationSearchDocument,
   syncMeetingSearchDocument,
+  syncMentorshipSearchDocument,
   syncPartnerSearchDocument,
   syncPersonSearchDocument,
 } from "@/lib/help-agent/search-indexing";
@@ -48,6 +51,7 @@ beforeEach(() => {
     prisma.actionItem,
     prisma.classOffering,
     prisma.officerMeeting,
+    prisma.mentorship,
   ]) {
     const m = model as { findMany?: unknown };
     if (m.findMany) mock(m.findMany).mockResolvedValue([]);
@@ -177,6 +181,50 @@ describe("document builders", () => {
     });
     expect(doc.subtitle).toContain("LEADERSHIP");
     expect(doc.subtitle).toMatch(/Jun 1[56], 2026/);
+  });
+});
+
+describe("mentorship document", () => {
+  it("builds a 'Mentor → Mentee' OFFICER row with both parties as keywords", () => {
+    const doc = buildMentorshipDocument({
+      id: "ms1",
+      type: "INSTRUCTOR",
+      status: "ACTIVE",
+      mentor: { name: "Morgan Mentor", email: "morgan@test.dev" },
+      mentee: { name: "Sam Mentee", email: "sam@test.dev" },
+    });
+    expect(doc.entityType).toBe("mentorship");
+    expect(doc.title).toBe("Morgan Mentor → Sam Mentee");
+    expect(doc.subtitle).toBe("Instructor · Active");
+    expect(doc.visibilityTier).toBe("OFFICER");
+    for (const term of ["Morgan Mentor", "morgan@test.dev", "Sam Mentee", "sam@test.dev"]) {
+      expect(doc.keywords).toContain(term);
+    }
+  });
+
+  it("upserts an active relationship and removes a completed one", async () => {
+    mock(prisma.mentorship.findFirst).mockResolvedValue({
+      id: "ms1",
+      type: "INSTRUCTOR",
+      status: "ACTIVE",
+      mentor: { name: "Morgan Mentor", email: "morgan@test.dev" },
+      mentee: { name: "Sam Mentee", email: "sam@test.dev" },
+    });
+    await syncMentorshipSearchDocument("ms1");
+    expect(prisma.searchDocument.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { entityType_entityId: { entityType: "mentorship", entityId: "ms1" } },
+      })
+    );
+
+    vi.clearAllMocks();
+    // A COMPLETE/PAUSED-out relationship fails the indexable-status filter → removed.
+    mock(prisma.mentorship.findFirst).mockResolvedValue(null);
+    await syncMentorshipSearchDocument("ms1");
+    expect(prisma.searchDocument.upsert).not.toHaveBeenCalled();
+    expect(prisma.searchDocument.deleteMany).toHaveBeenCalledWith({
+      where: { entityType: "mentorship", entityId: "ms1" },
+    });
   });
 });
 

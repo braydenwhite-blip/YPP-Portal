@@ -99,7 +99,9 @@ export function canChapterLeadDecidePositionType(type: PositionType): boolean {
 }
 
 export function assertCanManageHiringInterviews(actor: HiringActor, chapterId: string | null) {
-  if (isAdmin(actor)) {
+  // Global hiring authorities (Admin/Officer-tier and the org-wide Hiring Chair)
+  // manage interviews across every chapter — they are not chapter-scoped.
+  if (isAdmin(actor) || isHiringChair(actor)) {
     return;
   }
 

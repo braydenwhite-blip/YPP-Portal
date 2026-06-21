@@ -192,6 +192,10 @@ export type WorkstreamDef = {
   description?: string;
   /** The accountable owner of this workstream, when named. Derived when absent. */
   owner?: string;
+  /** User id of the team/workstream lead when the owner is linked to a portal user. */
+  leadUserId?: string;
+  /** Additional user ids who can lead this team/workstream. */
+  leadUserIds?: string[];
   /** Optional target date (ISO) for the workstream's own timeline + schedule risk. */
   targetDateISO?: string;
   /** Display order within the initiative (ascending). */
@@ -206,6 +210,10 @@ export type StrategicInitiativeDef = {
   description: string;
   /** The accountable leader, when named. Ownership clarity is derived when absent. */
   owner?: string;
+  /** Named co-leads for display/back-compat with initiatives that do not map to users. */
+  leads?: string[];
+  /** User ids of initiative leads when leadership is linked to portal users. */
+  leadUserIds?: string[];
   /** The operating area this initiative rolls up to (drives the strategic map grouping). */
   area: OperationalArea;
   status: InitiativeStatus;
@@ -238,6 +246,181 @@ export type StrategicInitiativeDef = {
  * "Camps" area — Summer Camps rolls up to CLASSES as a program of delivery).
  */
 export const STRATEGIC_INITIATIVES: StrategicInitiativeDef[] = [
+  {
+    id: "global-operations-impact",
+    title: "Global Operations Impact",
+    description:
+      "Run the weekly global-team accountability loop: Tech, Fundraising, Expansion, and Socials submit updates with proof, blockers, decisions, and next commitments.",
+    owner: "Senior leadership",
+    leads: ["Senior leadership"],
+    area: "OPERATIONS",
+    status: "active",
+    priority: "flagship",
+    relatedInitiatives: [
+      "chapter-expansion",
+      "partnership-growth",
+      "portal-modernization",
+      "action-tracker-4",
+    ],
+    match: {
+      areas: ["OPERATIONS", "TECHNOLOGY", "FINANCE", "CHAPTERS", "MARKETING", "PARTNERSHIPS"],
+      goalCategories: [
+        "Global Operations Impact",
+        "Impact Meeting",
+        "Team Impact Update",
+        "Fundraising",
+        "Expansion",
+        "Socials",
+        "Tech",
+      ],
+      keywords: [
+        "impact update",
+        "impact meeting",
+        "team update",
+        "global operations",
+        "fundraising",
+        "donor",
+        "sponsor",
+        "expansion",
+        "chapter expansion",
+        "social media",
+        "socials",
+        "instagram",
+        "content calendar",
+        "portal",
+        "bug",
+        "automation",
+        "rollout",
+      ],
+    },
+    workstreams: [
+      {
+        id: "tech",
+        title: "Tech",
+        order: 1,
+        description:
+          "Portal updates, bugs fixed, features shipped, data or automation work, testing, and rollout blockers.",
+        match: {
+          areas: ["TECHNOLOGY"],
+          actionTypes: ["ADMIN_TASK", "OPERATIONS"],
+          goalCategories: ["Tech", "Technology", "Portal", "Portal Modernization"],
+          keywords: [
+            "tech",
+            "technology",
+            "portal",
+            "bug",
+            "feature",
+            "automation",
+            "data",
+            "rollout",
+            "testing",
+            "qa",
+            "build",
+          ],
+        },
+      },
+      {
+        id: "fundraising",
+        title: "Fundraising",
+        order: 2,
+        description:
+          "Outreach completed, donor or sponsor progress, materials created, responses received, and funding decisions needed.",
+        match: {
+          areas: ["FINANCE", "PARTNERSHIPS"],
+          actionTypes: ["OUTREACH", "PARTNERSHIP", "EMAIL", "CALL"],
+          goalCategories: ["Fundraising", "Finance", "Sponsors", "Donors"],
+          keywords: [
+            "fundraising",
+            "fundraiser",
+            "donor",
+            "sponsor",
+            "donation",
+            "grant",
+            "pitch deck",
+            "pitch",
+            "outreach list",
+            "sponsor tracker",
+          ],
+        },
+      },
+      {
+        id: "expansion",
+        title: "Expansion",
+        order: 3,
+        description:
+          "New areas contacted, parent or alumni outreach, chapter leads, partner conversations, and launch blockers.",
+        match: {
+          areas: ["CHAPTERS", "PARTNERSHIPS", "OPERATIONS"],
+          actionTypes: ["OUTREACH", "PARTNERSHIP", "RELATIONSHIP"],
+          goalCategories: ["Expansion", "Chapter Expansion", "Parent Outreach", "Alumni Outreach"],
+          keywords: [
+            "expansion",
+            "new area",
+            "chapter lead",
+            "chapter president",
+            "parent outreach",
+            "alumni outreach",
+            "expansion tracker",
+            "chapter list",
+            "outreach script",
+          ],
+        },
+      },
+      {
+        id: "socials",
+        title: "Socials",
+        order: 4,
+        description:
+          "Posts created, posts scheduled, campaign results, needed approvals, upcoming content, and analytics.",
+        match: {
+          areas: ["MARKETING"],
+          actionTypes: ["OUTREACH", "EMAIL", "OPERATIONS"],
+          goalCategories: ["Socials", "Social Media", "Marketing", "Content"],
+          keywords: [
+            "socials",
+            "social media",
+            "instagram",
+            "facebook",
+            "tiktok",
+            "post",
+            "posts",
+            "content",
+            "campaign",
+            "graphic",
+            "canva",
+            "content calendar",
+            "analytics",
+          ],
+        },
+      },
+    ],
+    milestones: [
+      {
+        id: "weekly-team-updates",
+        title: "Collect weekly team updates",
+        order: 1,
+        match: { keywords: ["impact update", "team update", "weekly update"] },
+      },
+      {
+        id: "review-deliverables",
+        title: "Review deliverables",
+        order: 2,
+        match: { keywords: ["deliverable", "proof", "tracker", "draft", "calendar", "screenshot"] },
+      },
+      {
+        id: "resolve-blockers",
+        title: "Resolve blockers and decisions",
+        order: 3,
+        match: { keywords: ["blocker", "blocked", "decision", "approval", "stuck"] },
+      },
+      {
+        id: "create-follow-ups",
+        title: "Create follow-up actions",
+        order: 4,
+        match: { keywords: ["follow-up", "next commitment", "next action", "commitment"] },
+      },
+    ],
+  },
   {
     id: "summer-camps-2026",
     title: "Summer Camps 2026",

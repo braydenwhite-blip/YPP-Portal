@@ -39,6 +39,12 @@ export interface CommitDecisionInput {
   rejectFreeText?: string;
   conditions?: Array<{ id: string; label: string; source: "preset" | "custom"; presetId?: string }>;
   overrideWarnings?: boolean;
+  /**
+   * Optional one-off inline edit of the decision email. When set, the chair's
+   * edited subject/body is sent for this decision instead of the template
+   * default (it is not saved as the template).
+   */
+  emailOverride?: { subject: string; bodyHtml: string };
 }
 
 export type CommitDecisionState =
@@ -149,6 +155,10 @@ export function useCommitDecision(): UseCommitDecisionReturn {
       }
       if (input.action === "APPROVE_WITH_CONDITIONS" && input.conditions) {
         formData.set("conditions", JSON.stringify(input.conditions));
+      }
+      if (input.emailOverride) {
+        formData.set("emailOverrideSubject", input.emailOverride.subject);
+        formData.set("emailOverrideBody", input.emailOverride.bodyHtml);
       }
       formData.set("attempt", String(attempt));
       return chairDecide(formData);

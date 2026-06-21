@@ -5,6 +5,7 @@ import Link from "next/link";
 import type {
   Entity360,
   Entity360MeetingRef,
+  Entity360MentorshipPanel,
   Entity360Person,
 } from "@/lib/operations/entity-360";
 import type { TimelineEvent } from "@/lib/operations/timeline";
@@ -114,6 +115,48 @@ function PeopleSection({ people }: { people: Entity360Person[] }) {
           ))}
         </div>
       ))}
+    </Section>
+  );
+}
+
+// --- mentorship ----------------------------------------------------------------
+
+function MentorshipSection({ panel }: { panel: Entity360MentorshipPanel }) {
+  return (
+    <Section title={`Mentorship (${panel.pairings.length})`}>
+      <div className="e360-item-list">
+        {panel.pairings.map((p) => {
+          const openLabel =
+            p.openNextSteps > 0
+              ? `${p.openNextSteps} open next step${p.openNextSteps === 1 ? "" : "s"}${
+                  p.overdueNextSteps > 0 ? ` (${p.overdueNextSteps} overdue)` : ""
+                }${p.blocked ? " · blocked" : ""}`
+              : null;
+          const meta = [
+            p.role === "mentee" ? `Mentor: ${p.partnerName}` : `Mentee: ${p.partnerName}`,
+            p.attentionReason,
+            openLabel,
+            p.nextSessionISO
+              ? `Next check-in ${fmtDay(p.nextSessionISO)}`
+              : p.lastCheckInISO
+                ? `Last check-in ${fmtDay(p.lastCheckInISO)}`
+                : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          return (
+            <EntityLink key={p.id} type="mentorship" id={p.id} className="e360-item">
+              <div className="e360-item-top">
+                <span className="e360-item-title">
+                  {p.role === "mentee" ? "Being mentored" : "Mentoring"} {p.partnerName}
+                </span>
+                <Pill tone="neutral">{p.cycleLabel}</Pill>
+              </div>
+              {meta ? <div className="e360-item-meta">{meta}</div> : null}
+            </EntityLink>
+          );
+        })}
+      </div>
     </Section>
   );
 }
@@ -283,6 +326,10 @@ export function Entity360Body({ entity }: { entity: Entity360 }) {
       ) : null}
 
       {entity.people.length > 0 ? <PeopleSection people={entity.people} /> : null}
+
+      {entity.mentorship && entity.mentorship.pairings.length > 0 ? (
+        <MentorshipSection panel={entity.mentorship} />
+      ) : null}
 
       {entity.workItems.length > 0 ? (
         <Section title={`Projects & Actions (${entity.workItems.length})`}>

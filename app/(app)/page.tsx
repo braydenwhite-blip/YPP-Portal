@@ -24,9 +24,10 @@ import MyActionsCard from "@/components/people-strategy/my-actions-card";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { loadLeadershipHome } from "@/lib/home/leadership-home";
 import { LeadershipHome } from "@/components/home/leadership-home";
+import { APPLICATION_REVIEWER_ROLES } from "@/lib/org/role-sets";
 
 // Roles that work the hiring pipeline and should land on the applicant board.
-const REVIEWER_ROLES = ["ADMIN", "HIRING_CHAIR", "CHAPTER_PRESIDENT"];
+const REVIEWER_ROLES: readonly string[] = APPLICATION_REVIEWER_ROLES;
 
 function firstName(displayName: string | null | undefined): string {
   const trimmed = (displayName ?? "").trim();

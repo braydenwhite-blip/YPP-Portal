@@ -8,6 +8,7 @@ import LegacyMentorshipAwardsPage from "@/app/(app)/mentorship-program/awards/pa
 import LegacyMentorshipChairPage from "@/app/(app)/mentorship-program/chair/page";
 import LegacyQuarterlyReviewPage from "@/app/(app)/mentorship-program/quarterly/[reviewId]/page";
 import LegacyPrepPacketPage from "@/app/(app)/mentorship-program/chair/prep-packet/page";
+import MentorDashboardRedirectPage from "@/app/(app)/mentorship/dashboard/page";
 import LegacyAskMentorPage from "@/app/(app)/mentor/ask/page";
 import LegacyMentorResourcesPage from "@/app/(app)/mentor/resources/page";
 import LegacyMentorFeedbackPage from "@/app/(app)/mentor/feedback/page";
@@ -47,6 +48,7 @@ describe("mentorship legacy route redirects", () => {
     await expect(async () => LegacyMentorshipSchedulePage()).rejects.toThrow("redirect:/mentorship/schedule");
     await expect(async () => LegacyMentorshipAwardsPage()).rejects.toThrow("redirect:/mentorship/awards");
     await expect(async () => LegacyMentorshipChairPage()).rejects.toThrow("redirect:/mentorship/chair");
+    expect(() => MentorDashboardRedirectPage()).toThrow("redirect:/mentorship");
   });
 
   it("preserves quarterly and prep packet intent", async () => {

@@ -15,6 +15,10 @@ import {
   parseRelatedEntityUpdate,
   type RelatedEntityRef,
 } from "./constants";
+import {
+  isMeetingAttendanceStatus,
+} from "./meeting-attendance";
+import { normalizeMeetingType } from "./meeting-operating-model";
 import { buildActionPrefillFromDecision } from "./action-prefill";
 import { createActionItem } from "./action-items-actions";
 import { deriveStrategicContextForMeeting } from "./strategic-context";
@@ -116,6 +120,7 @@ function parseRelatedRefOrThrow(
 const CreateMeetingSchema = z.object({
   title: NonEmptyString.max(300),
   purpose: OptionalText,
+  meetingType: z.string().trim().optional(),
   category: z.string().trim().optional(),
   priority: z.enum(PRIORITY_VALUES).default("MEDIUM"),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "A valid date is required"),
@@ -126,6 +131,9 @@ const CreateMeetingSchema = z.object({
   facilitatorId: OptionalId,
   relatedEntityType: z.string().trim().optional(),
   relatedEntityId: z.string().trim().optional(),
+  relatedTeam: OptionalText,
+  relatedChapter: OptionalText,
+  strategicPriority: OptionalText,
   attendeeIds: z.array(z.string().trim().min(1)).optional().default([]),
   agendaTitles: z.array(z.string().trim().min(1)).optional().default([]),
 });
@@ -146,6 +154,7 @@ export async function createMeeting(input: CreateMeetingInput) {
     data: {
       title: data.title,
       purpose: data.purpose,
+      meetingType: normalizeMeetingType(data.meetingType),
       category,
       priority: data.priority,
       date: start,
@@ -155,6 +164,9 @@ export async function createMeeting(input: CreateMeetingInput) {
       facilitatorId: data.facilitatorId,
       relatedEntityType: relatedRef?.type ?? null,
       relatedEntityId: relatedRef?.id ?? null,
+      relatedTeam: data.relatedTeam,
+      relatedChapter: data.relatedChapter,
+      strategicPriority: data.strategicPriority,
       attendees: data.attendeeIds.length
         ? {
             create: [...new Set(data.attendeeIds)].map((userId) => ({ userId })),
@@ -180,6 +192,7 @@ const UpdateMeetingSchema = z.object({
   id: NonEmptyString,
   title: NonEmptyString.max(300).optional(),
   purpose: OptionalText,
+  meetingType: z.string().trim().optional(),
   category: z.string().trim().optional(),
   priority: z.enum(PRIORITY_VALUES).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -190,6 +203,12 @@ const UpdateMeetingSchema = z.object({
   facilitatorId: OptionalId,
   relatedEntityType: z.string().trim().optional(),
   relatedEntityId: z.string().trim().optional(),
+  relatedTeam: OptionalText,
+  relatedChapter: OptionalText,
+  strategicPriority: OptionalText,
+  summaryStatus: OptionalText,
+  rescheduleStatus: OptionalText,
+  escalationStatus: OptionalText,
   status: z.enum(MEETING_STATUS_VALUES).optional(),
 });
 
@@ -219,6 +238,8 @@ export async function updateMeeting(input: z.input<typeof UpdateMeetingSchema>) 
     data: {
       title: data.title,
       purpose: data.purpose ?? undefined,
+      meetingType:
+        data.meetingType !== undefined ? normalizeMeetingType(data.meetingType) : undefined,
       category:
         data.category !== undefined ? parseCategoryOrThrow(data.category) : undefined,
       priority: data.priority,
@@ -236,6 +257,12 @@ export async function updateMeeting(input: z.input<typeof UpdateMeetingSchema>) 
         relatedEntityType: data.relatedEntityType,
         relatedEntityId: data.relatedEntityId,
       }),
+      relatedTeam: data.relatedTeam ?? undefined,
+      relatedChapter: data.relatedChapter ?? undefined,
+      strategicPriority: data.strategicPriority ?? undefined,
+      summaryStatus: data.summaryStatus ?? undefined,
+      rescheduleStatus: data.rescheduleStatus ?? undefined,
+      escalationStatus: data.escalationStatus ?? undefined,
       status: data.status,
     },
   });
@@ -251,6 +278,31 @@ export async function setMeetingStatus(
   return updateMeeting({ id, status });
 }
 
+const SetAttendeeStatusSchema = z.object({
+  id: NonEmptyString,
+  status: z.string().trim(),
+});
+
+export async function setMeetingAttendeeStatus(input: z.input<typeof SetAttendeeStatusSchema>) {
+  ensureEnabled();
+  await requireOfficer();
+  const data = SetAttendeeStatusSchema.parse(input);
+  const status = data.status.trim().toUpperCase();
+  if (!isMeetingAttendanceStatus(status)) {
+    throw new Error("Unknown attendance status");
+  }
+
+  const attendee = await prisma.meetingAttendee.update({
+    where: { id: data.id },
+    data: {
+      attendanceStatus: status,
+      attendanceRecordedAt: new Date(),
+    },
+    select: { officerMeetingId: true },
+  });
+  revalidate(attendee.officerMeetingId);
+}
+
 const SaveNotesSchema = z.object({
   meetingId: NonEmptyString,
   notes: z.string().trim().max(20_000),
@@ -264,6 +316,61 @@ export async function saveMeetingNotes(input: z.input<typeof SaveNotesSchema>) {
     where: { id: data.meetingId },
     data: { notesText: data.notes.length ? data.notes : null },
   });
+  revalidate(data.meetingId);
+}
+
+const SaveMeetingDraftsSchema = z.object({
+  meetingId: NonEmptyString,
+  agendaText: z.string().trim().max(50_000).optional(),
+  summaryText: z.string().trim().max(50_000).optional(),
+});
+
+export async function saveGeneratedMeetingDrafts(
+  input: z.input<typeof SaveMeetingDraftsSchema>
+) {
+  ensureEnabled();
+  await requireOfficer();
+  const data = SaveMeetingDraftsSchema.parse(input);
+  const update: {
+    agendaText?: string | null;
+    summaryEmailText?: string | null;
+    summaryStatus?: string;
+  } = {};
+
+  if (data.agendaText !== undefined) {
+    update.agendaText = data.agendaText.length ? data.agendaText : null;
+  }
+  if (data.summaryText !== undefined) {
+    update.summaryEmailText = data.summaryText.length ? data.summaryText : null;
+    update.summaryStatus = data.summaryText.length ? "DRAFT_READY" : "NOT_STARTED";
+  }
+  if (Object.keys(update).length === 0) return;
+
+  await prisma.officerMeeting.update({
+    where: { id: data.meetingId },
+    data: update,
+  });
+  await syncMeetingSearchDocument(data.meetingId);
+  revalidate(data.meetingId);
+}
+
+const MarkSummarySentSchema = z.object({
+  meetingId: NonEmptyString,
+  summaryText: z.string().trim().max(50_000),
+});
+
+export async function markMeetingSummarySent(input: z.input<typeof MarkSummarySentSchema>) {
+  ensureEnabled();
+  await requireOfficer();
+  const data = MarkSummarySentSchema.parse(input);
+  await prisma.officerMeeting.update({
+    where: { id: data.meetingId },
+    data: {
+      summaryEmailText: data.summaryText.length ? data.summaryText : null,
+      summaryStatus: "SENT",
+    },
+  });
+  await syncMeetingSearchDocument(data.meetingId);
   revalidate(data.meetingId);
 }
 
@@ -312,6 +419,25 @@ export async function setAgendaItemStatus(
   const item = await prisma.meetingAgendaItem.update({
     where: { id: data.id },
     data: { status: data.status },
+    select: { officerMeetingId: true },
+  });
+  revalidate(item.officerMeetingId);
+}
+
+const SaveAgendaItemNotesSchema = z.object({
+  id: NonEmptyString,
+  notes: z.string().trim().max(20_000),
+});
+
+export async function saveAgendaItemNotes(
+  input: z.input<typeof SaveAgendaItemNotesSchema>
+) {
+  ensureEnabled();
+  await requireOfficer();
+  const data = SaveAgendaItemNotesSchema.parse(input);
+  const item = await prisma.meetingAgendaItem.update({
+    where: { id: data.id },
+    data: { notes: data.notes.length ? data.notes : null },
     select: { officerMeetingId: true },
   });
   revalidate(item.officerMeetingId);
@@ -457,6 +583,11 @@ const AddFollowUpSchema = z.object({
   priority: z.enum(PRIORITY_VALUES).default("MEDIUM"),
   area: z.string().trim().optional(),
   createAction: z.boolean().optional().default(false),
+  initiativeId: OptionalId,
+  workstreamId: OptionalId,
+  sourceActionId: OptionalId,
+  briefId: OptionalId,
+  presentationExpectationId: OptionalId,
 });
 
 export type AddFollowUpInput = z.input<typeof AddFollowUpSchema>;
@@ -480,6 +611,11 @@ export async function addFollowUp(input: AddFollowUpInput) {
       dueDate,
       priority: data.priority,
       area,
+      initiativeId: data.initiativeId,
+      workstreamId: data.workstreamId,
+      sourceActionId: data.sourceActionId,
+      briefId: data.briefId,
+      presentationExpectationId: data.presentationExpectationId,
     },
     select: { id: true },
   });
@@ -576,7 +712,8 @@ export async function convertFollowUpToAction(followUpId: string) {
     relatedEntityId: fu.officerMeeting.relatedEntityId ?? undefined,
     sourceType: "FOLLOW_UP",
     sourceId: fu.id,
-    strategicInitiativeId: strategicLink.strategicInitiativeId,
+    sourceActionId: fu.sourceActionId ?? undefined,
+    strategicInitiativeId: fu.initiativeId ?? strategicLink.strategicInitiativeId,
     strategicProjectId: strategicLink.strategicProjectId,
   });
 

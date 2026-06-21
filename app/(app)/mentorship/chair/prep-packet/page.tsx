@@ -40,7 +40,7 @@ export default async function PrepPacketPage({
           <h1 className="page-title">Committee Prep Packet</h1>
         </div>
         <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
-          <p style={{ color: "var(--muted)" }}>No mentorship selected. Go back and click "Generate Prep Packet" from a mentee's profile.</p>
+          <p style={{ color: "var(--muted)" }}>No mentorship selected. Go back and click &quot;Generate Prep Packet&quot; from a mentee&apos;s profile.</p>
           <Link href="/mentorship/chair" className="button secondary small" style={{ marginTop: "1rem", display: "inline-block" }}>
             ← Back to Chair Queue
           </Link>
@@ -238,7 +238,7 @@ export default async function PrepPacketPage({
                   Key Strengths
                 </p>
                 {packet.stakeholderFeedback.strengthsHighlights.map((s, i) => (
-                  <p key={i} style={{ fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.25rem" }}>"{s}"</p>
+                  <p key={i} style={{ fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.25rem" }}>&quot;{s}&quot;</p>
                 ))}
               </div>
             )}
@@ -248,7 +248,7 @@ export default async function PrepPacketPage({
                   Growth Areas
                 </p>
                 {packet.stakeholderFeedback.growthHighlights.map((s, i) => (
-                  <p key={i} style={{ fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.25rem" }}>"{s}"</p>
+                  <p key={i} style={{ fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.25rem" }}>&quot;{s}&quot;</p>
                 ))}
               </div>
             )}
@@ -256,11 +256,11 @@ export default async function PrepPacketPage({
         )}
       </div>
 
-      {/* Open Action Items */}
+      {/* Open next steps */}
       {packet.openActionItems.length > 0 && (
         <div className="card" style={{ marginBottom: "1.5rem" }}>
           <p style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "0.75rem" }}>
-            Open Action Items ({packet.openActionItems.length})
+            Open next steps ({packet.openActionItems.length})
           </p>
           {packet.openActionItems.map((item) => (
             <div

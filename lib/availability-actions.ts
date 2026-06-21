@@ -180,7 +180,7 @@ async function autoAssignSession(
       where: {
         reviewerId,
         interviewScheduledAt: { not: null },
-        status: { in: ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"] },
+        status: { in: ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETE", "INTERVIEW_COMPLETED", "DECISION_NEEDED", "RECOMMENDATION_SUBMITTED"] },
         id: { not: applicationId },
       },
       select: { interviewScheduledAt: true },

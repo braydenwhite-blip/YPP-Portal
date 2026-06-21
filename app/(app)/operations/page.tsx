@@ -15,21 +15,12 @@ import {
 } from "@/lib/people-strategy/class-tracker";
 import { effectiveStatus } from "@/lib/people-strategy/action-filters";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
+// Roles offered the hub (mirrors the catalog entry). The page itself is
+// role-aware and every panel is permission- + flag-filtered.
+import { OPERATIONS_HUB_ROLES } from "@/lib/org/role-sets";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Operations Hub · People Strategy" };
-
-// Roles offered the hub (mirrors the catalog entry). The page itself is
-// role-aware and every panel is permission- + flag-filtered.
-const OPERATIONS_HUB_ROLES = [
-  "ADMIN",
-  "STAFF",
-  "CHAPTER_PRESIDENT",
-  "HIRING_CHAIR",
-  "INSTRUCTOR",
-  "MENTOR",
-  "STUDENT",
-];
 
 const ROLE_INTRO: Record<OperationsHubData["role"], { badge: string; title: string; subtitle: string }> = {
   leadership: {
@@ -137,13 +128,13 @@ const ENTRY_POINTS: Array<{
   {
     href: "/operations/command-center",
     title: "Command Center",
-    description: "See what matters right now — needs attention, this week, recently decided.",
+    description: "See what matters right now and view and decide on actions.",
   },
   {
     href: "/operations/data-360",
     title: "Data 360",
     description:
-      "See how everything connects — people, classes, partners, meetings, and one board of all the work.",
+      "People, classes, partners, meetings, connected into one board of all the work.",
   },
   {
     href: "/operations/weekly-execution",
@@ -153,7 +144,7 @@ const ENTRY_POINTS: Array<{
   {
     href: "/operations/initiatives",
     title: "Initiatives",
-    description: "The strategic plan — open any initiative to see and add its actions.",
+    description: "Plan ahead by opening any initiative to see and add its actions.",
     strategicOnly: true,
   },
   {

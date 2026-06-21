@@ -6,6 +6,8 @@ import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { getMentorshipCommonsData } from "@/lib/mentorship-hub";
 import { promoteMentorshipResponseToResource } from "@/lib/mentorship-hub-actions";
+import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
+import { EmptySimpleState } from "@/components/command-center/simple";
 
 import { AskQuestionForm, AnswerForm, UpvoteButton } from "./client";
 
@@ -93,6 +95,39 @@ export default async function AskMentorPage({
         items={ASK_MENTOR_GUIDE_ITEMS}
       />
 
+      <CalmOnly>
+        <div style={{ marginBottom: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+          <section
+            className={`flex flex-col gap-1 rounded-[20px] border border-line-soft bg-gradient-to-br ${
+              unanswered.length > 0 ? "from-brand-50/70" : "from-success-100/40"
+            } via-surface to-surface/90 p-5 shadow-card`}
+          >
+            <p className="m-0 text-[21px] font-bold leading-snug tracking-[-0.01em] text-ink">
+              {isMentor
+                ? unanswered.length > 0
+                  ? `${unanswered.length} question${unanswered.length === 1 ? "" : "s"} waiting for an answer`
+                  : "The commons is all answered"
+                : "Ask a mentor whenever you're stuck"}
+            </p>
+            <p className="m-0 text-[13.5px] leading-relaxed text-ink-muted">
+              {isMentor
+                ? unanswered.length > 0
+                  ? "Open the commons below to add your answer — strong responses can be promoted into shared resources."
+                  : "New public questions will show up here as students post them."
+                : "Public questions help more than one person. Use the private feedback portal for personal work."}
+            </p>
+          </section>
+          {unanswered.length === 0 && answered.length === 0 ? (
+            <EmptySimpleState icon="check">
+              {isMentor
+                ? "No public questions in the commons yet."
+                : "Be the first to ask — open the commons below to post your question."}
+            </EmptySimpleState>
+          ) : null}
+        </div>
+      </CalmOnly>
+
+      <CalmCollapse label="Browse the full commons" hint="search, fresh + answered questions">
       <div className="card" style={{ marginBottom: 24 }}>
         <form method="GET" className="grid two" style={{ alignItems: "end" }}>
           <div className="form-row">
@@ -276,6 +311,7 @@ export default async function AskMentorPage({
           {!isMentor && <div style={{ marginTop: 16 }}><AskQuestionForm /></div>}
         </div>
       )}
+      </CalmCollapse>
     </div>
   );
 }
