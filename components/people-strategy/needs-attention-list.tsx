@@ -81,7 +81,7 @@ function hrefFor(item: AttentionItem): string {
     case "person":
       return `/people/${item.subjectId}`;
     case "meeting":
-      return `/actions/meetings/${item.subjectId}`;
+      return `/meetings/${item.subjectId}`;
     case "class":
       return `/people/classes`;
     default:

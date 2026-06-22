@@ -72,7 +72,7 @@ export function deriveOperationalTimeline(input: {
       occurredAt: new Date(m.startISO),
       title: m.title,
       description: describeMeeting(m),
-      href: `/actions/meetings/${m.id}`,
+      href: `/meetings/${m.id}`,
       severity: m.effectiveStatus === "needs_follow_up" ? "watch" : "neutral",
     });
   }
@@ -106,7 +106,7 @@ export function deriveOperationalTimeline(input: {
       occurredAt: new Date(d.createdISO),
       title: d.decision,
       description: d.decidedByName ? `Decided by ${d.decidedByName}` : undefined,
-      href: `/actions/meetings/${d.meetingId}`,
+      href: `/meetings/${d.meetingId}`,
       severity: "neutral",
       source: { type: "meeting", id: d.meetingId, label: d.meetingTitle },
     });
@@ -119,7 +119,7 @@ export function deriveOperationalTimeline(input: {
       occurredAt: f.dueISO ? new Date(f.dueISO) : now,
       title: f.title,
       description: `${f.meetingTitle}${f.ownerName ? ` · ${f.ownerName}` : ""}`,
-      href: `/actions/meetings/${f.meetingId}`,
+      href: `/meetings/${f.meetingId}`,
       severity: f.effectiveStatus === "overdue" ? "critical" : "watch",
       source: { type: "meeting", id: f.meetingId, label: f.meetingTitle },
     });

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition, type CSSProperties, type ReactNode } from "react";
 
 import { meetingCategoryTone } from "@/lib/people-strategy/meeting-categories";
 import type {
@@ -10,6 +10,7 @@ import type {
   DecisionDTO,
   FollowUpDTO,
   LinkedActionDTO,
+  MeetingAttendeeDTO,
   MeetingDetailDTO,
 } from "@/lib/people-strategy/meetings-queries";
 import {
@@ -22,10 +23,18 @@ import {
   saveMeetingNotes,
   setAgendaItemStatus,
   setFollowUpStatus,
+  setMeetingAttendeeStatus,
   setMeetingStatus,
 } from "@/lib/people-strategy/meetings-actions";
+import {
+  MEETING_ATTENDANCE_STATUS_LABELS,
+  MEETING_ATTENDANCE_STATUS_VALUES,
+} from "@/lib/people-strategy/meeting-attendance";
+import {
+  meetingOperatingModel,
+  type MeetingOperatingModel,
+} from "@/lib/people-strategy/meeting-operating-model";
 import { findSimilarActionTitles } from "@/lib/people-strategy/action-prefill";
-import { meetingOutcomeFromDetail } from "@/lib/people-strategy/meeting-outcome";
 import { AskAboutThis } from "@/components/help-agent/ask-about-this";
 import { AddFollowUpDrawer } from "./meeting-followup-drawer";
 import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
@@ -38,10 +47,8 @@ import {
   EmptyState,
   FollowUpStatusBadge,
   MeetingButton,
-  MeetingStatusBadge,
   PersonChip,
   Pill,
-  PriorityBadge,
   SectionTitle,
   TinyLabel,
   dueText,
@@ -49,7 +56,7 @@ import {
   fmtWeekday,
 } from "./meeting-ui";
 import type { PersonOption } from "./new-meeting-drawer";
-import { MeetingOutcomeBadge, RelatedEntityBadge } from "./operational-badges";
+import { RelatedEntityBadge } from "./operational-badges";
 
 /** The portal context a meeting is connected to (resolved server-side). */
 export type MeetingRelatedContext = {
@@ -66,10 +73,20 @@ export function MeetingDetailClient({
   meeting,
   people,
   relatedContext = null,
+  impactAgendaPanel = null,
+  summaryPanel = null,
+  preparedPresentationsPanel = null,
+  followUpPackPanel = null,
+  strategicContextPanel = null,
 }: {
   meeting: MeetingDetailDTO;
   people: PersonOption[];
   relatedContext?: MeetingRelatedContext | null;
+  impactAgendaPanel?: ReactNode;
+  summaryPanel?: ReactNode;
+  preparedPresentationsPanel?: ReactNode;
+  followUpPackPanel?: ReactNode;
+  strategicContextPanel?: ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -77,35 +94,44 @@ export function MeetingDetailClient({
   const [gateOpen, setGateOpen] = useState(false);
 
   const c = meetingCategoryTone(meeting.category);
+  const operatingModel = meetingOperatingModel(meeting.meetingType);
   const overdue = meeting.overdueFollowUps;
   const run = (fn: () => Promise<unknown>) => startTransition(() => void fn().then(() => router.refresh()));
+  const stage = meetingStage(meeting);
+  const groupLabel = meetingGroupLabel(meeting, operatingModel);
+  const missingPrep = meetingPrepLines(meeting);
+  const openFollowUps = meeting.followUps.filter((f) => f.effectiveStatus !== "completed");
+  const unresolvedAgenda = meeting.agenda.filter((item) => item.status === "DEFERRED");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 1180, margin: "0 auto" }}>
-      {/* breadcrumb */}
+    <div className="meeting-detail-flow" style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 1120, margin: "0 auto", paddingBottom: 48 }}>
       <Link
-        href="/actions/meetings"
+        href="/meetings"
         style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "var(--ypp-purple-600)", textDecoration: "none", alignSelf: "flex-start" }}
       >
         <MeetingIcon name="chevL" size={16} />
         Meetings
       </Link>
 
-      {/* header card */}
       <Card style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ background: c.bg, borderBottom: `1px solid ${c.border}`, padding: "20px 22px", display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
+        <div style={{ background: c.bg, borderBottom: `1px solid ${c.border}`, padding: "22px", display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
           <div style={{ minWidth: 0, flex: "1 1 380px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              <Pill tone="purple" style={{ fontWeight: 800 }}>{stage}</Pill>
               <CategoryBadge category={meeting.category} />
-              <MeetingStatusBadge status={meeting.effectiveStatus} />
-              <PriorityBadge priority={meeting.priority} />
+              <Pill tone="neutral">{groupLabel}</Pill>
             </div>
-            <h1 style={{ margin: 0, fontSize: 27, fontWeight: 800, color: "var(--ypp-ink)", letterSpacing: "-.02em", lineHeight: 1.15 }}>
+            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: "var(--ypp-ink)", letterSpacing: 0, lineHeight: 1.15 }}>
               {meeting.title}
             </h1>
-            {meeting.purpose && (
-              <p style={{ margin: "9px 0 0", fontSize: 14.5, color: "var(--text-secondary)", maxWidth: 620, lineHeight: 1.5 }}>{meeting.purpose}</p>
-            )}
+            <p style={{ margin: "9px 0 0", fontSize: 14.5, color: "var(--text-secondary)", maxWidth: 680, lineHeight: 1.5 }}>
+              {meeting.purpose || operatingModel.description}
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+              <PlainMeta label="When" value={`${fmtWeekday(meeting.startISO)} at ${fmtTime(meeting.startISO)}`} />
+              <PlainMeta label="Owner" value={meeting.facilitator?.name ?? "No owner yet"} />
+              <PlainMeta label="Team" value={groupLabel} />
+            </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -130,147 +156,116 @@ export function MeetingDetailClient({
             </div>
           </div>
         </div>
-        {/* health snapshot */}
-        <div style={{ display: "flex", alignItems: "center", padding: "14px 6px", flexWrap: "wrap", rowGap: 12 }}>
-          <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 5 }}>
-            <TinyLabel>Meeting outcome</TinyLabel>
-            <MeetingOutcomeBadge outcome={meetingOutcomeFromDetail(meeting)} withHeadline />
-          </div>
-          <HealthStat icon="list" value={`${meeting.agendaDoneCount}/${meeting.agendaCount}`} label="Agenda done" />
-          <HealthStat icon="checkCircle" value={meeting.decisionCount} label="Decisions" />
-          <HealthStat icon="flag" value={meeting.openFollowUps} label="Open follow-ups" />
-          <HealthStat icon="bolt" value={meeting.linkedActions.length} label="Actions created" />
-          <HealthStat icon="alert" value={overdue} label="Overdue" danger={overdue > 0} />
-        </div>
-        {/* What this meeting produced — a meeting is a source of operational
-            truth, never a dead note. */}
         <div style={{ borderTop: "1px solid var(--border)", padding: "11px 22px", fontSize: 13, color: "var(--text-secondary)" }}>
-          This meeting created{" "}
+          Next: {meetingNextSentence(meeting)} It has{" "}
           <strong style={{ color: "var(--ypp-ink)" }}>
-            {meeting.decisionCount} decision{meeting.decisionCount === 1 ? "" : "s"}
+            {meeting.agendaCount} agenda item{meeting.agendaCount === 1 ? "" : "s"}
           </strong>
           ,{" "}
           <strong style={{ color: "var(--ypp-ink)" }}>
-            {meeting.linkedActions.length} action{meeting.linkedActions.length === 1 ? "" : "s"}
+            {meeting.decisionCount} decision{meeting.decisionCount === 1 ? "" : "s"}
           </strong>
           , and{" "}
           <strong style={{ color: meeting.openFollowUps > 0 ? "var(--warn-fg, #854d0e)" : "var(--ypp-ink)" }}>
             {meeting.openFollowUps} follow-up{meeting.openFollowUps === 1 ? "" : "s"}
           </strong>
-          .{meeting.openFollowUps > 0 ? " Resolve the follow-ups below before they slip." : " Nothing is left hanging."}
+          .
         </div>
       </Card>
 
-      {/* body two-col */}
-      <div className="detail-cols" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 16, alignItems: "start" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div id="followups" style={{ scrollMarginTop: 80 }}>
-            <FollowUpsSection meeting={meeting} pending={pending} run={run} onAdd={() => setDrawer({ create: false })} />
-          </div>
-          <div id="actions" style={{ scrollMarginTop: 80 }}>
-            <LinkedActionsSection actions={meeting.linkedActions} />
-          </div>
-          <div id="decisions" style={{ scrollMarginTop: 80 }}>
-            <DecisionsSection meeting={meeting} people={people} pending={pending} run={run} />
-          </div>
-          <div id="agenda" style={{ scrollMarginTop: 80 }}>
-            <AgendaSection meeting={meeting} pending={pending} run={run} />
-          </div>
-          <div id="notes" style={{ scrollMarginTop: 80 }}>
-            <NotesSection meeting={meeting} pending={pending} run={run} />
-          </div>
+      <nav aria-label="Meeting phases" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {[
+          ["Before", "#before"],
+          ["During", "#during"],
+          ["After", "#after"],
+        ].map(([label, href]) => (
+          <a key={href} href={href} style={{ border: "1px solid var(--border)", borderRadius: 999, padding: "8px 13px", background: "var(--surface)", color: "var(--ypp-ink)", fontSize: 13, fontWeight: 800, textDecoration: "none" }}>
+            {label}
+          </a>
+        ))}
+      </nav>
+
+      <PhaseSection id="before" title="Before" subtitle="Know why this meeting exists, who needs to be there, and what still needs prep.">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+          <InfoCard title="Purpose" icon="compass">
+            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: "var(--text-secondary)" }}>
+              {meeting.purpose || operatingModel.description}
+            </p>
+          </InfoCard>
+          <InfoCard title="People" icon="people">
+            {meeting.facilitator ? (
+              <PersonChip name={meeting.facilitator.name} sub="Owner" size={34} />
+            ) : (
+              <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>No owner assigned yet.</p>
+            )}
+            <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--text-secondary)" }}>
+              {meeting.attendeeCount > 0
+                ? `${meeting.attendeeCount} attendee${meeting.attendeeCount === 1 ? "" : "s"} added.`
+                : "No attendees added yet."}
+            </p>
+          </InfoCard>
+          <InfoCard title="Prep needed" icon="list">
+            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 8 }}>
+              {missingPrep.map((line) => (
+                <li key={line} style={{ display: "flex", gap: 7, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                  <MeetingIcon name="check" size={13} style={{ color: "var(--ypp-purple-600)", marginTop: 2 }} />
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </InfoCard>
         </div>
 
-        {/* SIDE */}
-        <div className="detail-side" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {relatedContext ? (
-            <Card style={{ padding: "16px 17px" }}>
-              <SectionTitle icon="link">Related portal context</SectionTitle>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <RelatedEntityBadge
-                    type={relatedContext.entityType}
-                    id={relatedContext.entityId}
-                    label={relatedContext.entityLabel}
-                    href={relatedContext.entityHref}
-                  />
-                </div>
-                <div>
-                  <TinyLabel>Open actions for this {relatedContext.entityLabel}</TinyLabel>
-                  {relatedContext.openActions.length ? (
-                    <ul style={{ margin: "7px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
-                      {relatedContext.openActions.map((a) => (
-                        <li key={a.id} style={{ fontSize: 12.5, display: "flex", justifyContent: "space-between", gap: 8 }}>
-                          <Link href={`/actions/${a.id}`} style={{ color: "var(--ypp-ink)", fontWeight: 600, textDecoration: "none", minWidth: 0 }}>
-                            {a.title}
-                          </Link>
-                          <span style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{a.leadName}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "var(--muted)" }}>
-                      No open actions linked here yet.
-                    </p>
-                  )}
-                </div>
-                {relatedContext.otherMeetings.length ? (
-                  <div>
-                    <TinyLabel>Other meetings for this {relatedContext.entityLabel}</TinyLabel>
-                    <ul style={{ margin: "7px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
-                      {relatedContext.otherMeetings.map((m) => (
-                        <li key={m.id} style={{ fontSize: 12.5 }}>
-                          <Link href={`/actions/meetings/${m.id}`} style={{ color: "var(--ypp-ink)", fontWeight: 600, textDecoration: "none" }}>
-                            {m.title}
-                          </Link>
-                          <span style={{ color: "var(--muted)" }}> · {fmtWeekday(m.dateISO)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            </Card>
-          ) : null}
-          <Card style={{ padding: "16px 17px" }}>
-            <SectionTitle icon="calendar">Details</SectionTitle>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <MetaItem label="Date & time">
-                {fmtWeekday(meeting.startISO)} · {fmtTime(meeting.startISO)}
-                {meeting.endISO ? `–${fmtTime(meeting.endISO)}` : ""}
-              </MetaItem>
-              {meeting.durationLabel && <MetaItem label="Duration">{meeting.durationLabel}</MetaItem>}
-              <MetaItem label="Cadence">{recurrenceLabel(meeting.recurrence)}</MetaItem>
-              {meeting.location && <MetaItem label="Location">{meeting.location}</MetaItem>}
-              <MetaItem label="Related area">
-                <CategoryBadge category={meeting.category} />
-              </MetaItem>
-            </div>
-          </Card>
-          <Card style={{ padding: "16px 17px" }}>
-            <SectionTitle icon="user">Facilitator</SectionTitle>
-            {meeting.facilitator ? (
-              <PersonChip name={meeting.facilitator.name} sub="Facilitator" size={34} />
-            ) : (
-              <span style={{ fontSize: 13, color: "var(--muted)" }}>No facilitator assigned.</span>
-            )}
-          </Card>
-          <Card style={{ padding: "16px 17px" }}>
-            <SectionTitle icon="people" count={meeting.attendees.length}>
-              Attendees
-            </SectionTitle>
-            {meeting.attendees.length ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                {meeting.attendees.map((p) => (
-                  <PersonChip key={p.id} name={p.name} size={28} />
-                ))}
-              </div>
-            ) : (
-              <span style={{ fontSize: 13, color: "var(--muted)" }}>No attendees added yet.</span>
-            )}
-          </Card>
+        {relatedContext ? <RelatedContextSection relatedContext={relatedContext} /> : null}
+        <AttendanceSection meeting={meeting} model={operatingModel} pending={pending} run={run} />
+        {preparedPresentationsPanel}
+      </PhaseSection>
+
+      <PhaseSection id="during" title="During" subtitle="Work the agenda, write notes, mark items discussed, and capture decisions while the meeting is happening.">
+        <div id="agenda" style={{ scrollMarginTop: 80 }}>
+          {impactAgendaPanel ?? <AgendaSection meeting={meeting} pending={pending} run={run} />}
         </div>
-      </div>
+        <div id="notes" style={{ scrollMarginTop: 80 }}>
+          <NotesSection meeting={meeting} pending={pending} run={run} />
+        </div>
+        <div id="decisions" style={{ scrollMarginTop: 80 }}>
+          <DecisionsSection meeting={meeting} people={people} pending={pending} run={run} />
+        </div>
+        {overdue > 0 ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, fontWeight: 700, color: "var(--danger-fg)", background: "var(--danger-bg)", border: "1px solid #f3cccc", borderRadius: 12, padding: "11px 14px" }}>
+            <MeetingIcon name="alert" size={15} />
+            {overdue} follow-up{overdue === 1 ? "" : "s"} from this meeting are overdue.
+          </div>
+        ) : null}
+      </PhaseSection>
+
+      <PhaseSection id="after" title="After" subtitle="Send the summary, close loose ends, and make sure follow-ups are real actions.">
+        {summaryPanel}
+        <div id="followups" style={{ scrollMarginTop: 80 }}>
+          <FollowUpsSection meeting={meeting} pending={pending} run={run} onAdd={() => setDrawer({ create: false })} />
+        </div>
+        {unresolvedAgenda.length > 0 ? (
+          <InfoCard title="Unresolved agenda items" icon="clock">
+            <ul style={{ margin: 0, paddingLeft: 18, color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.5 }}>
+              {unresolvedAgenda.map((item) => (
+                <li key={item.id}>{item.title}</li>
+              ))}
+            </ul>
+          </InfoCard>
+        ) : null}
+        <div id="actions" style={{ scrollMarginTop: 80 }}>
+          <LinkedActionsSection actions={meeting.linkedActions} />
+        </div>
+        {followUpPackPanel}
+        {strategicContextPanel}
+        {openFollowUps.length === 0 && unresolvedAgenda.length === 0 ? (
+          <InfoCard title="Closeout" icon="checkCircle">
+            <p style={{ margin: 0, fontSize: 13.5, color: "var(--text-secondary)" }}>
+              No open follow-ups or carried agenda items are waiting on this meeting.
+            </p>
+          </InfoCard>
+        ) : null}
+      </PhaseSection>
 
       {drawer && (
         <AddFollowUpDrawer
@@ -318,16 +313,21 @@ function CompletionGate({
   const hasDecisions = meeting.decisionCount > 0;
   const hasActions = meeting.linkedActions.length > 0;
   const openFollowUps = meeting.openFollowUps;
+  const attendanceMissing =
+    meeting.attendeeCount > 0 &&
+    (meeting.attendanceRecordedCount ?? 0) < (meeting.requiredAttendeeCount ?? meeting.attendeeCount);
 
   const [noDecisions, setNoDecisions] = useState(false);
   const [noActions, setNoActions] = useState(false);
   const [noActionsReason, setNoActionsReason] = useState("");
   const [followUpsAck, setFollowUpsAck] = useState(false);
+  const [attendanceAck, setAttendanceAck] = useState(false);
 
   const decisionsOk = hasDecisions || noDecisions;
   const actionsOk = hasActions || (noActions && noActionsReason.trim().length > 0);
   const followUpsOk = openFollowUps === 0 || followUpsAck;
-  const canComplete = decisionsOk && actionsOk && followUpsOk;
+  const attendanceOk = !attendanceMissing || attendanceAck;
+  const canComplete = decisionsOk && actionsOk && followUpsOk && attendanceOk;
 
   return (
     <div
@@ -392,6 +392,23 @@ function CompletionGate({
 
           {/* Follow-ups */}
           <GateRow
+            label="Attendance"
+            ok={attendanceOk}
+            status={
+              attendanceMissing
+                ? `${meeting.attendanceRecordedCount ?? 0}/${meeting.requiredAttendeeCount ?? meeting.attendeeCount} recorded`
+                : "Recorded"
+            }
+          >
+            {attendanceMissing && (
+              <label style={gateCheckStyle}>
+                <input type="checkbox" checked={attendanceAck} onChange={(e) => setAttendanceAck(e.target.checked)} />
+                Complete anyway and record remaining attendance later
+              </label>
+            )}
+          </GateRow>
+
+          <GateRow
             label="Follow-Ups"
             ok={followUpsOk}
             status={openFollowUps === 0 ? "All resolved" : `${openFollowUps} unresolved`}
@@ -418,7 +435,7 @@ function CompletionGate({
   );
 }
 
-const gateCheckStyle: React.CSSProperties = {
+const gateCheckStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 8,
@@ -457,25 +474,222 @@ function SectionBlock({ title, icon, count, right, children }: { title: string; 
   );
 }
 
-function HealthStat({ icon, value, label, danger }: { icon: MeetingIconName; value: string | number; label: string; danger?: boolean }) {
+function PlainMeta({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 16px", borderLeft: "1px solid var(--border)" }}>
-      <span style={{ width: 32, height: 32, borderRadius: 9, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", background: danger ? "var(--danger-bg)" : "var(--ypp-purple-100)", color: danger ? "var(--danger-fg)" : "var(--ypp-purple-600)" }}>
-        <MeetingIcon name={icon} size={16} />
-      </span>
+    <span style={{ border: "1px solid var(--border)", borderRadius: 999, background: "var(--surface)", padding: "6px 10px", fontSize: 12.5, fontWeight: 700, color: "var(--text-secondary)" }}>
+      <span style={{ color: "var(--muted)" }}>{label}: </span>
+      <span style={{ color: "var(--ypp-ink)" }}>{value}</span>
+    </span>
+  );
+}
+
+function PhaseSection({
+  id,
+  title,
+  subtitle,
+  children,
+}: {
+  id: string;
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} style={{ scrollMarginTop: 88, display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
-        <div style={{ fontSize: 17, fontWeight: 800, color: danger ? "var(--danger-fg)" : "var(--ypp-ink)", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{value}</div>
-        <div style={{ fontSize: 11.5, color: "var(--muted)", fontWeight: 600, marginTop: 3 }}>{label}</div>
+        <p style={{ margin: 0, color: "var(--ypp-purple-700)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: 0 }}>
+          {title}
+        </p>
+        <h2 style={{ margin: "3px 0 0", color: "var(--ypp-ink)", fontSize: 23, fontWeight: 850, letterSpacing: 0 }}>
+          {title === "Before" ? "Prepare the room" : title === "During" ? "Run the meeting" : "Follow up"}
+        </h2>
+        <p style={{ margin: "4px 0 0", color: "var(--text-secondary)", fontSize: 13.5, lineHeight: 1.55 }}>
+          {subtitle}
+        </p>
       </div>
+      {children}
+    </section>
+  );
+}
+
+function InfoCard({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: MeetingIconName;
+  children: ReactNode;
+}) {
+  return (
+    <Card style={{ padding: "16px 17px" }}>
+      <SectionTitle icon={icon}>{title}</SectionTitle>
+      {children}
+    </Card>
+  );
+}
+
+function RelatedContextSection({
+  relatedContext,
+}: {
+  relatedContext: MeetingRelatedContext;
+}) {
+  return (
+    <InfoCard title="Related context" icon="link">
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <RelatedEntityBadge
+          type={relatedContext.entityType}
+          id={relatedContext.entityId}
+          label={relatedContext.entityLabel}
+          href={relatedContext.entityHref}
+        />
+        {relatedContext.openActions.length ? (
+          <div>
+            <TinyLabel>Open actions</TinyLabel>
+            <ul style={{ margin: "7px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
+              {relatedContext.openActions.slice(0, 4).map((a) => (
+                <li key={a.id} style={{ fontSize: 12.5, display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <Link href={`/actions/${a.id}`} style={{ color: "var(--ypp-ink)", fontWeight: 650, textDecoration: "none", minWidth: 0 }}>
+                    {a.title}
+                  </Link>
+                  <span style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{a.leadName}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {relatedContext.otherMeetings.length ? (
+          <div>
+            <TinyLabel>Other meetings</TinyLabel>
+            <ul style={{ margin: "7px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
+              {relatedContext.otherMeetings.slice(0, 3).map((m) => (
+                <li key={m.id} style={{ fontSize: 12.5 }}>
+                  <Link href={`/meetings/${m.id}`} style={{ color: "var(--ypp-ink)", fontWeight: 650, textDecoration: "none" }}>
+                    {m.title}
+                  </Link>
+                  <span style={{ color: "var(--muted)" }}> · {fmtWeekday(m.dateISO)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </InfoCard>
+  );
+}
+
+function meetingStage(meeting: MeetingDetailDTO): "Prepare" | "Ready" | "Live" | "Follow-up" {
+  if (meeting.effectiveStatus === "in_progress") return "Live";
+  if (meeting.effectiveStatus === "completed" || meeting.effectiveStatus === "needs_follow_up") {
+    return "Follow-up";
+  }
+  if (meeting.agendaCount === 0 || meeting.attendeeCount === 0 || !meeting.facilitator) {
+    return "Prepare";
+  }
+  return "Ready";
+}
+
+function meetingGroupLabel(meeting: MeetingDetailDTO, model: MeetingOperatingModel): string {
+  if (meeting.relatedTeam) return meeting.relatedTeam;
+  if (meeting.relatedChapter) return meeting.relatedChapter;
+  return meeting.meetingTypeLabel ?? model.label;
+}
+
+function meetingPrepLines(meeting: MeetingDetailDTO): string[] {
+  const lines: string[] = [];
+  if (meeting.agendaCount === 0) lines.push("Add an agenda so everyone knows what will be discussed.");
+  else lines.push(`${meeting.agendaCount} agenda item${meeting.agendaCount === 1 ? "" : "s"} ready to review.`);
+  if (meeting.attendeeCount === 0) lines.push("Add attendees or confirm who needs to be in the room.");
+  else lines.push(`${meeting.attendeeCount} attendee${meeting.attendeeCount === 1 ? "" : "s"} listed for this meeting.`);
+  if (!meeting.facilitator) lines.push("Choose an owner for the meeting.");
+  if (meeting.openFollowUps > 0) {
+    lines.push(`Review ${meeting.openFollowUps} open follow-up${meeting.openFollowUps === 1 ? "" : "s"} before the meeting.`);
+  }
+  return lines.slice(0, 4);
+}
+
+function meetingNextSentence(meeting: MeetingDetailDTO): string {
+  const stage = meetingStage(meeting);
+  if (stage === "Live") return "Work through the agenda and capture decisions.";
+  if (stage === "Prepare") return meeting.agendaCount === 0 ? "Add an agenda before this meeting starts." : "Confirm people and context before it starts.";
+  if (stage === "Follow-up") return meeting.openFollowUps > 0 ? "Close or convert the open follow-ups." : "Copy the summary and keep the record clean.";
+  return "Open it when the meeting starts.";
+}
+
+function AttendanceSection({
+  meeting,
+  model,
+  pending,
+  run,
+}: {
+  meeting: MeetingDetailDTO;
+  model: MeetingOperatingModel;
+  pending: boolean;
+  run: RunFn;
+}) {
+  return (
+    <div id="attendance" style={{ scrollMarginTop: 80 }}>
+      <Card style={{ padding: "16px 17px" }}>
+        <SectionTitle icon="people" count={meeting.attendees.length}>
+          Attendance
+        </SectionTitle>
+        <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+          {model.requiredAttendees.length > 0 ? (
+            <div>
+              <TinyLabel>Expected required attendees</TinyLabel>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 7 }}>
+                {model.requiredAttendees.map((name) => (
+                  <Pill key={name} tone="neutral" style={{ fontSize: 11.5 }}>
+                    {name}
+                  </Pill>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {meeting.attendees.length ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {meeting.attendees.map((p) => (
+                <AttendeeStatusRow key={p.attendeeId} attendee={p} pending={pending} run={run} />
+              ))}
+            </div>
+          ) : (
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+              No attendees added yet. Add required attendees before this meeting runs.
+            </span>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }
 
-function MetaItem({ label, children }: { label: string; children: ReactNode }) {
+function AttendeeStatusRow({
+  attendee,
+  pending,
+  run,
+}: {
+  attendee: MeetingAttendeeDTO;
+  pending: boolean;
+  run: RunFn;
+}) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
-      <TinyLabel>{label}</TinyLabel>
-      <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ypp-ink)" }}>{children}</div>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+      <PersonChip name={attendee.name} size={28} />
+      <select
+        value={attendee.attendanceStatus}
+        disabled={pending}
+        onChange={(e) =>
+          run(() => setMeetingAttendeeStatus({ id: attendee.attendeeId, status: e.target.value }))
+        }
+        style={{ ...fieldStyle, flex: "0 0 150px", padding: "7px 9px", fontSize: 12.5 }}
+        aria-label={`Attendance for ${attendee.name}`}
+      >
+        {MEETING_ATTENDANCE_STATUS_VALUES.map((status) => (
+          <option key={status} value={status}>
+            {MEETING_ATTENDANCE_STATUS_LABELS[status]}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -526,10 +740,32 @@ function AgendaSection({ meeting, pending, run }: { meeting: MeetingDetailDTO; p
   );
 }
 
+function agendaKindLabel(kind: string | null): string | null {
+  if (!kind) return null;
+  const labels: Record<string, string> = {
+    INITIATIVE_OVERVIEW: "Initiative overview",
+    TEAM_STATUS: "Team status",
+    DELIVERABLE_REVIEW: "Deliverable review",
+    DECISION: "Decision needed",
+    LEADERSHIP_INPUT: "Leadership input",
+    CROSS_TEAM_COORDINATION: "Cross-team coordination",
+    ESCALATED_BLOCKER: "Escalated blocker",
+    MISSED_COMMITMENT_REVIEW: "Missed commitment",
+    WRITTEN_REVIEW: "Written review",
+    EXPECTATION_SETTING: "Next expectation",
+  };
+  return labels[kind] ?? kind.replaceAll("_", " ").toLowerCase();
+}
+
 function AgendaItem({ item, meetingId, pending, run }: { item: AgendaItemDTO; meetingId: string; pending: boolean; run: RunFn }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const done = item.status === "DISCUSSED" || item.status === "CONVERTED";
+  const kindLabel = agendaKindLabel(item.itemKind);
+  const briefHref =
+    item.sourceInitiativeId && item.sourceWorkstreamId && item.briefWeekStartISO
+      ? `/operations/initiatives/${item.sourceInitiativeId}/teams/${item.sourceWorkstreamId}/brief/${item.briefWeekStartISO.slice(0, 10)}`
+      : null;
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--surface)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
@@ -560,8 +796,24 @@ function AgendaItem({ item, meetingId, pending, run }: { item: AgendaItemDTO; me
           {item.notes && !notesOpen && (
             <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.notes}</div>
           )}
+          {(kindLabel || item.sourceActionTitle || item.presenter || item.preparedPresentation) && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 7, alignItems: "center" }}>
+              {kindLabel && <Pill tone={item.itemKind === "DELIVERABLE_REVIEW" ? "purple" : item.itemKind === "DECISION" ? "warning" : "neutral"}>{kindLabel}</Pill>}
+              {item.presenter && <Pill tone="info">Presenter: {item.presenter.name}</Pill>}
+              {item.sourceActionTitle && (
+                <Link href={`/actions/${item.sourceActionId}`} style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ypp-purple-700)", textDecoration: "none" }}>
+                  Task: {item.sourceActionTitle}
+                </Link>
+              )}
+              {briefHref && (
+                <Link href={briefHref} style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ypp-purple-700)", textDecoration: "none" }}>
+                  Source team brief
+                </Link>
+              )}
+            </div>
+          )}
         </div>
-        {item.owner && <Avatar name={item.owner.name} size={24} />}
+        {(item.presenter ?? item.owner) && <Avatar name={(item.presenter ?? item.owner)!.name} size={24} />}
         <AgendaStatusBadge status={item.status} />
         <div style={{ position: "relative", flex: "0 0 auto" }}>
           <button
@@ -587,6 +839,44 @@ function AgendaItem({ item, meetingId, pending, run }: { item: AgendaItemDTO; me
       </div>
       {notesOpen && item.notes && (
         <div style={{ padding: "0 14px 13px 48px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.55 }}>{item.notes}</div>
+      )}
+      {item.preparedPresentation && (
+        <div style={{ borderTop: "1px solid var(--border)", padding: "11px 14px 13px 48px", display: "grid", gap: 8 }}>
+          <div style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            <strong style={{ color: "var(--ypp-ink)" }}>Why officers are seeing this:</strong>{" "}
+            {item.preparedPresentation.reasonForOfficerReview}
+          </div>
+          {item.requestedDecision && (
+            <div style={{ fontSize: 12.5, color: "var(--warn-fg, #854d0e)", lineHeight: 1.5 }}>
+              <strong>Decision/input requested:</strong> {item.requestedDecision}
+            </div>
+          )}
+          {item.presentationExpectationPrompt && (
+            <div style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+              <strong style={{ color: "var(--ypp-ink)" }}>Expectation:</strong> {item.presentationExpectationPrompt}
+            </div>
+          )}
+          {item.deliverables.length ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+              {item.deliverables.map((link) => (
+                <a
+                  key={link.id}
+                  href={link.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid var(--border)", borderRadius: 8, padding: "6px 9px", fontSize: 12.5, fontWeight: 700, color: "var(--ypp-purple-700)", textDecoration: "none", background: "var(--rail)" }}
+                >
+                  <MeetingIcon name="link" size={13} />
+                  Open {link.label}
+                </a>
+              ))}
+            </div>
+          ) : item.itemKind === "DELIVERABLE_REVIEW" ? (
+            <div style={{ fontSize: 12.5, color: "var(--danger-fg, #b42318)", fontWeight: 700 }}>
+              Deliverable missing. Ask the team to attach the actual work product before presentation.
+            </div>
+          ) : null}
+        </div>
       )}
     </div>
   );
@@ -847,7 +1137,6 @@ function FollowUpCard({ f, pending, run }: { f: FollowUpDTO; pending: boolean; r
               </span>
             )}
             <FollowUpStatusBadge status={f.effectiveStatus} />
-            <PriorityBadge priority={f.priority} />
             <CategoryBadge category={f.area} withIcon={false} style={{ fontSize: 11 }} />
             <span style={{ fontSize: 12.5, fontWeight: 700, color: du.overdue ? "var(--danger-fg)" : "var(--muted)", display: "inline-flex", alignItems: "center", gap: 4 }}>
               <MeetingIcon name="clock" size={12} />

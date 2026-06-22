@@ -34,7 +34,7 @@ export default async function MentorExpertisePage() {
           </p>
         </div>
         <Link href="/mentorship" className="button secondary small">
-          ← Back to Mentor Workspace
+          ← Back to Mentorship
         </Link>
       </div>
 

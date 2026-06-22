@@ -112,7 +112,7 @@ export const DEFAULT_ACTION_DEADLINE_DAYS = 3;
  * not just the Action Tracker. Without these, a meeting's "open actions" chip,
  * a class's "needs action" queue, or a person's workload cell would silently go
  * stale after an action changed (the bug the final integration pass closes).
- * The dynamic meeting workspace route (`/actions/meetings/[id]`) is revalidated
+ * The dynamic meeting workspace route (`/meetings/[id]`) is revalidated
  * separately in `revalidateAll()` because it needs the `"page"` type.
  */
 export const ACTION_ITEM_PATHS = [
@@ -124,7 +124,7 @@ export const ACTION_ITEM_PATHS = [
   "/admin/actions",
   "/operations",
   // Connected surfaces that surface action counts/status:
-  "/actions/meetings", // Meetings command center — open/overdue action chips
+  "/meetings", // Meetings command center — open/overdue action chips
   "/admin/classes", // Classes command center — open/overdue actions per class
   "/people/classes", // same command center, under the People hub
   "/people", // People & Reviews — active/overdue action counts

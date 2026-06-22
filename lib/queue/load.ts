@@ -2,6 +2,7 @@ import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { loadWorkHub } from "@/lib/work/work-hub";
 
 import { buildQueueEngine, type QueueEngine } from "./engine";
+import { loadMentorshipQueueItems } from "./mentorship-load";
 
 /**
  * Server entry point for the Queue Engine. One read (`loadWorkHub` — the same
@@ -14,6 +15,9 @@ export async function loadQueueEngine(
   options: { now?: Date } = {}
 ): Promise<QueueEngine> {
   const now = options.now ?? new Date();
-  const data = await loadWorkHub(viewer, { now });
-  return buildQueueEngine(data, now);
+  const [data, mentorshipItems] = await Promise.all([
+    loadWorkHub(viewer, { now }),
+    loadMentorshipQueueItems(viewer, now),
+  ]);
+  return buildQueueEngine(data, now, { mentorshipItems });
 }

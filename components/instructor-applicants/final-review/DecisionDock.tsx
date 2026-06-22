@@ -30,6 +30,8 @@ export interface DecisionDockProps {
   pendingAction: ChairDecisionAction | null;
   pending: boolean;
   readOnly?: boolean;
+  /** Overrides the default read-only copy (e.g. the non-Chair lock notice). */
+  readOnlyMessage?: string;
   warnings?: FinalReviewWarning[];
   acknowledgements?: Record<string, boolean>;
   onOpenRiskPreview?: () => void;
@@ -52,6 +54,7 @@ export default function DecisionDock(props: DecisionDockProps) {
     pendingAction,
     pending,
     readOnly,
+    readOnlyMessage,
     onDraftChange,
     onChoose,
     exposeQuoteHandler,
@@ -64,7 +67,8 @@ export default function DecisionDock(props: DecisionDockProps) {
         role="region"
         aria-label="Decision dock (read-only)"
       >
-        This application was already decided. The dock is read-only — see the audit trail above.
+        {readOnlyMessage ??
+          "This application was already decided. The dock is read-only — see the audit trail above."}
       </div>
     );
   }

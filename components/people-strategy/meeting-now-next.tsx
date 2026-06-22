@@ -9,6 +9,7 @@ import {
   meetingNextAction,
   selectPrimaryMeeting,
 } from "@/lib/people-strategy/meeting-command-center";
+import { meetingOperatingModel } from "@/lib/people-strategy/meeting-operating-model";
 import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
 import { MeetingIcon } from "./meeting-icons";
 import { Card, MeetingButton, Pill, fmtDate, fmtTime } from "./meeting-ui";
@@ -48,6 +49,7 @@ export function MeetingNowNextCard({
   }
 
   const { meeting: m, mode } = selection;
+  const model = meetingOperatingModel(m.meetingType);
   const meta = PRIMARY_MEETING_MODE_META[mode];
   const next = meetingNextAction({
     ...m,
@@ -91,7 +93,7 @@ export function MeetingNowNextCard({
             )}
           </span>
           <h2 style={{ margin: "7px 0 0", fontSize: 21, fontWeight: 800, color: "var(--ypp-ink)", letterSpacing: "-.01em" }}>
-            <Link href={`/actions/meetings/${m.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+            <Link href={`/meetings/${m.id}`} style={{ color: "inherit", textDecoration: "none" }}>
               {m.title}
             </Link>
           </h2>
@@ -119,6 +121,9 @@ export function MeetingNowNextCard({
                 {relatedEntityTypeLabel(m.relatedEntityType)}
               </Pill>
             ) : null}
+            <Pill tone="purple" style={{ fontWeight: 700 }}>
+              {model.shortLabel}
+            </Pill>
             {m.categoryLabel ? <span>{m.categoryLabel}</span> : null}
           </div>
 
@@ -136,6 +141,11 @@ export function MeetingNowNextCard({
               warn={m.agendaCount === 0}
             />
             <StatusChip label="Notes" value={m.hasNotes ? "Added" : "Missing"} warn={!m.hasNotes && mode !== "next"} />
+            <StatusChip
+              label="Attendance"
+              value={`${m.attendanceRecordedCount ?? 0}/${m.requiredAttendeeCount ?? m.attendeeCount ?? 0}`}
+              warn={(m.attendanceConcernCount ?? 0) > 0}
+            />
             <StatusChip label="Decisions" value={String(m.decisionCount)} />
             <StatusChip label="Open actions" value={String(m.openLinkedActions)} />
             {m.overdueFollowUps > 0 ? (
@@ -175,7 +185,7 @@ export function MeetingNowNextCard({
               {next.reason}
             </span>
           ) : null}
-          <Link href={`/actions/meetings/${m.id}`} style={{ textDecoration: "none" }}>
+          <Link href={`/meetings/${m.id}`} style={{ textDecoration: "none" }}>
             <MeetingButton variant="outline" icon="calendar">
               Open workspace
             </MeetingButton>

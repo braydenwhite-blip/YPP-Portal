@@ -5,7 +5,7 @@ import { getMyGRDocument } from "@/lib/gr-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 
-export const metadata = { title: "My Resources — My Mentorship" };
+export const metadata = { title: "My Resources — My Mentor" };
 
 export default async function MyResourcesPage() {
   const session = await getSession();
@@ -22,7 +22,7 @@ export default async function MyResourcesPage() {
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">My Mentorship</p>
+          <p className="badge">My Mentor</p>
           <h1 className="page-title">My Resources</h1>
           <p className="page-subtitle">Materials your mentor recommends to help you grow.</p>
         </div>

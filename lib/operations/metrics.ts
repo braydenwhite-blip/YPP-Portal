@@ -103,7 +103,7 @@ export function buildExecutiveSnapshot(input: {
       label: "Meetings this week",
       value: counts.meetingsThisWeek,
       tone: "default",
-      href: "/actions/meetings",
+      href: "/meetings",
       hint: counts.decisionsNeedingAction > 0
         ? `${counts.decisionsNeedingAction} decision${counts.decisionsNeedingAction === 1 ? "" : "s"} need an action`
         : null,

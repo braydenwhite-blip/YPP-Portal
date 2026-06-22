@@ -607,15 +607,27 @@ function nextChapterPresidentApplicationStage(status: ChapterPresidentApplicatio
   switch (status) {
     case "SUBMITTED":
       return "REVIEW";
+    case "INITIAL_REVIEW":
     case "UNDER_REVIEW":
+    case "NEEDS_MORE_INFO":
     case "INFO_REQUESTED":
       return "REVIEW";
+    case "INTERVIEW_NEEDED":
     case "INTERVIEW_SCHEDULED":
+    case "INTERVIEW_COMPLETE":
     case "INTERVIEW_COMPLETED":
-    case "RECOMMENDATION_SUBMITTED":
       return "INTERVIEW";
+    case "DECISION_NEEDED":
+    case "RECOMMENDATION_SUBMITTED":
+      return "DECISION";
+    case "ACCEPTED":
     case "APPROVED":
+    case "ONBOARDING":
+      return "LAUNCH";
+    case "WAITLISTED":
+    case "DECLINED":
     case "REJECTED":
+    case "ACTIVE_CP":
       return "COMPLETE";
     default:
       return "REVIEW";
@@ -700,14 +712,14 @@ export async function syncChapterPresidentApplicationWorkflow(applicationId: str
 
   if (!application) return null;
 
-  const isComplete = application.status === "APPROVED" || application.status === "REJECTED";
+  const isComplete = ["WAITLISTED", "DECLINED", "REJECTED", "ACTIVE_CP"].includes(application.status);
   return upsertWorkflowItem({
     kind: "CHAPTER_PRESIDENT_APPLICATION",
     stage: nextChapterPresidentApplicationStage(application.status),
     status: workflowStatusFromTerminalState(isComplete),
     title: `${application.applicant.name} chapter president application`,
     summary: `Status: ${application.status.replace(/_/g, " ")}`,
-    href: `/admin/chapter-president-applicants#${application.id}`,
+    href: `/admin/chapter-president-applicants/${application.id}`,
     sourceType: "ChapterPresidentApplication",
     sourceId: application.id,
     chapterId: application.chapterId ?? application.applicant.chapterId ?? null,
@@ -715,6 +727,8 @@ export async function syncChapterPresidentApplicationWorkflow(applicationId: str
     dueAt:
       application.status === "SUBMITTED"
         ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+        : application.status === "DECISION_NEEDED"
+          ? new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
         : null,
     allowedAdminSubtype: "HIRING_ADMIN",
     updatedById: application.reviewerId ?? undefined,

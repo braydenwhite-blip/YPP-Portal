@@ -55,7 +55,7 @@ async function loadMeetingsWithOpenFollowups(
       title: card.title,
       unresolvedCount: card.openFollowUps,
       metLabel: `Met ${formatMonthDay(new Date(card.startISO))}`,
-      href: `/actions/meetings/${card.id}`,
+      href: `/meetings/${card.id}`,
     });
   }
   return result;

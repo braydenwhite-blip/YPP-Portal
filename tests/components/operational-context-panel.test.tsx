@@ -81,7 +81,7 @@ describe("OperationalContextPanel", () => {
     expect(screen.getByText("Open actions")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Classes Operations Check-In" })).toHaveAttribute(
       "href",
-      "/actions/meetings/m1"
+      "/meetings/m1"
     );
     expect(screen.getByRole("link", { name: "Finalize class description" })).toHaveAttribute(
       "href",
@@ -156,7 +156,7 @@ describe("operational badges", () => {
 
   it("links a source meeting back to its workspace", () => {
     render(<SourceMeetingBadge id="m1" title="Sync" dateISO="2026-06-05T00:00:00.000Z" />);
-    expect(screen.getByRole("link")).toHaveAttribute("href", "/actions/meetings/m1");
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/meetings/m1");
   });
 
   it("labels operational health", () => {

@@ -53,6 +53,7 @@ import {
   hasMentorshipMenteeAccess,
 } from "@/lib/mentorship-access";
 import { ensureMentorshipSupportCircle } from "@/lib/mentorship-hub-actions";
+import { syncMentorshipSearchDocument } from "@/lib/help-agent/search-indexing";
 import { prisma } from "@/lib/prisma";
 import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 
@@ -314,6 +315,9 @@ export async function assignProgramMentor(formData: FormData) {
 
   await ensureMentorshipSupportCircle(mentorship.id);
 
+  // Index the new relationship for global search (self-heals via nightly reconcile).
+  await syncMentorshipSearchDocument(mentorship.id);
+
   // Auto-create kickoff meeting session
   await prisma.mentorshipSession.create({
     data: {
@@ -513,6 +517,10 @@ export async function reassignProgramMentor(formData: FormData) {
 
   await ensureMentorshipSupportCircle(created.id);
 
+  // The old pairing is now COMPLETE (drops from the index); the new one is ACTIVE.
+  await syncMentorshipSearchDocument(existing.id);
+  await syncMentorshipSearchDocument(created.id);
+
   revalidatePath("/admin/mentorship");
   revalidatePath("/admin/mentorship");
   revalidatePath(`/admin/mentorship/relationships/${existing.id}`);
@@ -577,6 +585,9 @@ export async function setProgramMentorshipStatus(formData: FormData) {
     targetId: mentorshipId,
     description: `Mentorship ${existing.mentor.name} -> ${existing.mentee.name} status changed: ${existing.status} → ${newStatus}${reason ? ` — ${reason}` : ""}`,
   });
+
+  // A PAUSED pairing stays indexed; COMPLETE drops out; ACTIVE re-enters.
+  await syncMentorshipSearchDocument(mentorshipId);
 
   revalidatePath("/admin/mentorship");
   revalidatePath("/admin/mentorship");

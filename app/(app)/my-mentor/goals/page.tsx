@@ -7,12 +7,14 @@ import GRDocumentView from "@/components/gr/gr-document-view";
 import { RoleStrip } from "@/components/leadership-pathway/role-strip";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
 import { LearnMore } from "@/components/mentorship/learn-more";
+import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
+import { GoalsCalm, type CalmGoal } from "@/components/mentorship/calm";
 import { getGrowthConnectLine } from "@/lib/growth-model";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 import Link from "next/link";
 import type { GoalRatingColor } from "@prisma/client";
 
-export const metadata = { title: "My Goals — My Mentorship" };
+export const metadata = { title: "My Goals — My Mentor" };
 
 export default async function MyGoalsPage() {
   const session = await getSession();
@@ -32,7 +34,7 @@ export default async function MyGoalsPage() {
       <div>
         <div className="topbar">
           <div>
-            <p className="badge">My Mentorship</p>
+            <p className="badge">My Mentor</p>
             <h1 className="page-title">My Goals &amp; Resources</h1>
           </div>
         </div>
@@ -62,7 +64,7 @@ export default async function MyGoalsPage() {
               together here. There&apos;s nothing you need to do yet.
             </p>
             <Link href="/my-mentor" className="button" style={{ marginTop: 16 }}>
-              Back to My Mentorship
+              Back to My Mentor
             </Link>
           </div>
         </div>
@@ -75,7 +77,7 @@ export default async function MyGoalsPage() {
       <div>
         <div className="topbar">
           <div>
-            <p className="badge">My Mentorship</p>
+            <p className="badge">My Mentor</p>
             <h1 className="page-title">My Goals &amp; Resources</h1>
           </div>
         </div>
@@ -99,7 +101,7 @@ export default async function MyGoalsPage() {
             Your mentor is finalizing your goals. You&apos;ll be notified once they&apos;re ready.
           </p>
           <Link href="/my-mentor" className="button" style={{ marginTop: "1.5rem" }}>
-            Back to My Mentorship
+            Back to My Mentor
           </Link>
         </div>
       </div>
@@ -235,11 +237,29 @@ export default async function MyGoalsPage() {
     reviewAck: null,
   };
 
+  // Calm lead (Phase 7): the few goals actually in motion, with their released
+  // rubric color in supportive language and one "update progress" move. The
+  // full G&R document is demoted behind a CalmCollapse in Calm mode and renders
+  // inline in Executive.
+  const calmGoals: CalmGoal[] = serialized.currentPriorities
+    .filter((g) => g.progressState !== "DONE")
+    .slice(0, 5)
+    .map((g) => ({
+      id: g.id,
+      title: g.title,
+      rating: g.rating,
+      meta: g.dueDate
+        ? `Due ${new Date(g.dueDate).toLocaleDateString()}`
+        : g.progressState
+          ? g.progressState.replace(/_/g, " ").toLowerCase()
+          : null,
+    }));
+
   return (
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">My Mentorship</p>
+          <p className="badge">My Mentor</p>
           <h1 className="page-title">My Goals &amp; Resources</h1>
           <p className="page-subtitle">{doc.template.title}</p>
         </div>
@@ -265,7 +285,15 @@ export default async function MyGoalsPage() {
         {getGrowthConnectLine("goals")}
       </p>
 
-      <GRDocumentView document={serialized} isOwner={true} />
+      <CalmOnly>
+        <div style={{ marginBottom: 16 }}>
+          <GoalsCalm goals={calmGoals} />
+        </div>
+      </CalmOnly>
+
+      <CalmCollapse label="Your full goals & resources" hint="every goal, KPIs, and history">
+        <GRDocumentView document={serialized} isOwner={true} />
+      </CalmCollapse>
 
       <div style={{ marginTop: 20 }}>
         <LearnMore summary="What do these goal status colors mean?">

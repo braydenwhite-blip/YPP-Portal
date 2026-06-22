@@ -9,5 +9,5 @@ export default async function LegacyOfficerMeetingsRedirect({
 }: {
   searchParams?: Promise<RedirectSearchParams>;
 }) {
-  redirect(appendSearchParams("/actions/meetings", await searchParams));
+  redirect(appendSearchParams("/meetings", await searchParams));
 }

@@ -1,7 +1,15 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { COMMAND_MODE_COOKIE, parseCommandMode } from "@/lib/command-mode-cookie";
+import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
+import {
+  AdminMentorshipTriage,
+  deriveTriageFocus,
+  toTriageItems,
+} from "@/app/(app)/admin/mentorship/_components/admin-triage-calm";
 import { isMentorship2Enabled } from "@/lib/feature-flags";
 import { getAdminMentorshipCommandCenterData } from "@/lib/admin-mentorship-command-center";
 import {
@@ -52,17 +60,17 @@ import {
 } from "@/components/ui-v2";
 
 export const dynamic = "force-dynamic";
-export const ADMIN_MENTORSHIP_PAGE_TITLE = "Instructor Mentorship Oversight";
-export const metadata = { title: "Instructor Mentorship Admin — Pathways Portal" };
+export const ADMIN_MENTORSHIP_PAGE_TITLE = "Mentorship Admin";
+export const metadata = { title: "Mentorship Admin — Pathways Portal" };
 
 const TABS = [
-  { key: "overview", label: "Overview / Pulse" },
-  { key: "needs-attention", label: "Needs Attention" },
-  { key: "assignments", label: "Assignments" },
-  { key: "capacity", label: "Capacity / Workload" },
-  { key: "approvals", label: "Approvals" },
-  { key: "templates", label: "Goals & Resources" },
-  { key: "committees", label: "Committees & Chairs" },
+  { key: "overview", label: "Overview" },
+  { key: "needs-attention", label: "Relationships" },
+  { key: "assignments", label: "Matching" },
+  { key: "capacity", label: "Workload" },
+  { key: "approvals", label: "Review" },
+  { key: "templates", label: "Goals" },
+  { key: "committees", label: "Chairs" },
   { key: "analytics", label: "Analytics" },
  ] as const;
 
@@ -302,6 +310,14 @@ export default async function AdminMentorshipPage(props: PageProps) {
   const lane = parseAdminMentorshipLane(searchParams.lane);
   const supportRole = parseSupportRole(searchParams.supportRole);
 
+  // Calm vs Executive — read the saved choice so the server renders the right
+  // density on first paint (no flash). Calm leads with a triage; Executive keeps
+  // the full eight-tab cockpit.
+  const cookieStore = await cookies();
+  const commandMode =
+    parseCommandMode(cookieStore.get(COMMAND_MODE_COOKIE)?.value) ?? "calm";
+  const isCalm = commandMode !== "executive";
+
   const [data, goalReviews, monthlyReviews, opsSummary] = await Promise.all([
     getAdminMentorshipCommandCenterData(),
     tab === "approvals" ? getMentorshipGoalReviews() : Promise.resolve([]),
@@ -310,8 +326,15 @@ export default async function AdminMentorshipPage(props: PageProps) {
   ]);
 
   const pulseData = await getPulseData();
-  const needsActionItems =
-    tab === "needs-attention" ? await getAdminMentorshipActionQueue() : null;
+  // The action queue powers both the Needs Attention tab and the Calm triage,
+  // so load it once when either needs it.
+  const actionQueue =
+    isCalm || tab === "needs-attention"
+      ? await getAdminMentorshipActionQueue()
+      : null;
+  const needsActionItems = actionQueue;
+  const triageFocus = deriveTriageFocus(opsSummary);
+  const triageItems = actionQueue ? toTriageItems(actionQueue) : [];
   const unassignedQueue =
     tab === "assignments" ? await getUnassignedInstructorQueue() : null;
   const workloadRows = tab === "capacity" ? await getMentorWorkload() : null;
@@ -366,9 +389,9 @@ export default async function AdminMentorshipPage(props: PageProps) {
   return (
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
       <PageHeaderV2
-        eyebrow="Admin · Instructor Mentorship"
+        eyebrow="Admin · Mentorship"
         title={ADMIN_MENTORSHIP_PAGE_TITLE}
-        subtitle="Program health, approvals, pairings, goals, and committees for the instructor mentorship program."
+        subtitle="Program health, relationships, matching, reviews, goals, and support roles."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {isMentorship2Enabled() && (
@@ -380,6 +403,20 @@ export default async function AdminMentorshipPage(props: PageProps) {
         }
       />
 
+      <CalmOnly>
+        <AdminMentorshipTriage
+          focus={triageFocus}
+          items={triageItems}
+          openCount={actionQueue?.length ?? 0}
+        />
+      </CalmOnly>
+
+      <CalmCollapse
+        label="Full oversight cockpit"
+        hint="overview, relationships, matching, review, goals & analytics"
+        defaultOpen={tab !== "overview"}
+      >
+        <div className="flex flex-col gap-6">
       <TrackerStartCard
         title="Oversight Pulse Summary"
         description="Monitor macro program metrics, unstaffed pipelines, performance thresholds, and cycle completions across cohorts."
@@ -695,6 +732,8 @@ export default async function AdminMentorshipPage(props: PageProps) {
           </RecordSection>
         </div>
       )}
+        </div>
+      </CalmCollapse>
     </div>
   );
 }

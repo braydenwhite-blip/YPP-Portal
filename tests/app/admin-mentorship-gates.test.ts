@@ -36,7 +36,7 @@ function makeRedirectThrow() {
 describe("/admin/mentorship heading", () => {
   it("exposes a stable title for nightly smoke tests to assert", () => {
     expect(ADMIN_MENTORSHIP_PAGE_TITLE).toBe(
-      "Instructor Mentorship Oversight"
+      "Mentorship Admin"
     );
   });
 });

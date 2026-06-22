@@ -310,7 +310,7 @@ function TodayInner({ vm, nowISO }: { vm: TodayWorkspaceVM; nowISO: string }) {
               {[
                 { href: "/browse", label: "Browse records" },
                 { href: "/work", label: "All work" },
-                { href: "/actions/meetings", label: "Meetings" },
+                { href: "/meetings", label: "Meetings" },
                 { href: "/operations/initiatives", label: "Initiatives" },
                 { href: "/people", label: "People" },
               ].map((link) => (

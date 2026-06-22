@@ -41,6 +41,7 @@ import {
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
 
 import {
+  buildMentorshipPanel,
   buildPersonTimeline,
   entityInitials,
   meetingOutcomeLine,
@@ -48,6 +49,8 @@ import {
   personFootnote,
   tenureLabel,
   type Entity360,
+  type Entity360MentorshipPanel,
+  type MentorshipPairingInput,
   type Entity360Glance,
   type Entity360MeetingRef,
   type Entity360Signal,
@@ -56,6 +59,12 @@ import {
   type Entity360Type,
 } from "./entity-360";
 import { APPLICANT_STUCK_DAYS, MENTORSHIP_QUIET_DAYS } from "./attention";
+import {
+  deriveMentorshipAttention,
+  mergeMentorshipActionFacts,
+  summarizeMentorshipActionFacts,
+  type MentorshipCheckInFact,
+} from "@/lib/mentorship/attention";
 import {
   deriveClassReadiness,
   derivePartnerHealth,
@@ -156,7 +165,27 @@ async function loadPerson360(
           select: {
             id: true,
             startDate: true,
+            cycleStage: true,
+            kickoffCompletedAt: true,
             mentor: { select: { id: true, name: true, email: true } },
+            actionItems: {
+              where: { status: { not: "COMPLETE" } },
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                dueAt: true,
+                completedAt: true,
+                linkedActionId: true,
+                sessionId: true,
+              },
+            },
+            sessions: {
+              where: { completedAt: null, cancelledAt: null, scheduledAt: { gte: now } },
+              orderBy: { scheduledAt: "asc" },
+              take: 1,
+              select: { scheduledAt: true },
+            },
           },
         },
         mentorPairs: {
@@ -164,7 +193,27 @@ async function loadPerson360(
           select: {
             id: true,
             startDate: true,
+            cycleStage: true,
+            kickoffCompletedAt: true,
             mentee: { select: { id: true, name: true, email: true } },
+            actionItems: {
+              where: { status: { not: "COMPLETE" } },
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                dueAt: true,
+                completedAt: true,
+                linkedActionId: true,
+                sessionId: true,
+              },
+            },
+            sessions: {
+              where: { completedAt: null, cancelledAt: null, scheduledAt: { gte: now } },
+              orderBy: { scheduledAt: "asc" },
+              take: 1,
+              select: { scheduledAt: true },
+            },
           },
         },
         classOfferingsInstructed: {
@@ -476,6 +525,119 @@ async function loadPerson360(
     { limit: DRAWER_LIMITS.timeline }
   );
 
+  // Mentorship panel: the person's active pairings, read through the ONE
+  // canonical derivation (lib/mentorship/attention). Open next-step counts come
+  // from canonical `ActionItem`s plus any unlinked legacy rows (never the legacy
+  // table alone, never double-counting a bridged row), and the attention reason
+  // is the same concrete headline every other mentorship surface shows.
+  // Officer-gated — the operational cycle read is leadership-facing.
+  let mentorshipPanel: Entity360MentorshipPanel | null = null;
+  if (officer) {
+    const pairs = [
+      ...extra.menteePairs.map((p) => ({ ...p, role: "mentee" as const, partner: p.mentor })),
+      ...extra.mentorPairs.map((p) => ({ ...p, role: "mentor" as const, partner: p.mentee })),
+    ];
+    const pairIds = pairs.map((p) => p.id);
+
+    const [canonicalActions, checkInRows] = pairIds.length
+      ? await Promise.all([
+          prisma.actionItem.findMany({
+            where: {
+              relatedEntityType: "MENTORSHIP",
+              relatedEntityId: { in: pairIds },
+              status: { notIn: ["COMPLETE", "DROPPED"] },
+            },
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              deadlineStart: true,
+              deadlineEnd: true,
+              relatedEntityId: true,
+              mentorshipSessionId: true,
+            },
+          }),
+          prisma.mentorshipSession.findMany({
+            where: { mentorshipId: { in: pairIds }, cancelledAt: null },
+            select: {
+              id: true,
+              mentorshipId: true,
+              scheduledAt: true,
+              completedAt: true,
+              cancelledAt: true,
+            },
+          }),
+        ])
+      : [[], []];
+
+    const canonicalByMentorship = new Map<string, typeof canonicalActions>();
+    for (const action of canonicalActions) {
+      if (!action.relatedEntityId) continue;
+      const list = canonicalByMentorship.get(action.relatedEntityId) ?? [];
+      list.push(action);
+      canonicalByMentorship.set(action.relatedEntityId, list);
+    }
+    const checkInsByMentorship = new Map<string, MentorshipCheckInFact[]>();
+    for (const session of checkInRows) {
+      if (!session.mentorshipId) continue;
+      const list = checkInsByMentorship.get(session.mentorshipId) ?? [];
+      list.push({
+        id: session.id,
+        scheduledAt: session.scheduledAt,
+        completedAt: session.completedAt,
+        cancelledAt: session.cancelledAt,
+      });
+      checkInsByMentorship.set(session.mentorshipId, list);
+    }
+
+    const pairings: MentorshipPairingInput[] = pairs.map((p) => {
+      const openActions = mergeMentorshipActionFacts(
+        canonicalByMentorship.get(p.id) ?? [],
+        p.actionItems
+      );
+      const checkIns = checkInsByMentorship.get(p.id) ?? [];
+      const cycleStage = String(p.cycleStage);
+      const reviewDue =
+        cycleStage === "REFLECTION_SUBMITTED" || cycleStage === "CHANGES_REQUESTED"
+          ? ({ kind: "REVIEW" as const, dueAt: null })
+          : null;
+      const partnerName = p.partner.name ?? p.partner.email;
+      const attention = deriveMentorshipAttention(
+        {
+          mentorshipId: p.id,
+          menteeId: p.role === "mentee" ? id : p.partner.id,
+          menteeName: p.role === "mentee" ? "" : partnerName,
+          mentorName: p.role === "mentee" ? partnerName : "",
+          status: "ACTIVE",
+          openActions,
+          checkIns,
+          reviewDue,
+          workspaceHref: `/admin/mentorship/relationships/${p.id}`,
+        },
+        now
+      );
+      const summary = summarizeMentorshipActionFacts(openActions, now);
+      const lastCheckIn = checkIns
+        .filter((c) => c.completedAt)
+        .sort((a, b) => (b.completedAt as Date).getTime() - (a.completedAt as Date).getTime())[0];
+      return {
+        id: p.id,
+        role: p.role,
+        partnerName,
+        partnerId: p.partner.id,
+        cycleStage,
+        kickoffCompleted: Boolean(p.kickoffCompletedAt),
+        openNextSteps: summary.open,
+        overdueNextSteps: summary.overdue,
+        blocked: summary.blocked > 0,
+        attentionReason: attention.headline,
+        lastCheckInISO: lastCheckIn?.completedAt?.toISOString() ?? null,
+        nextSessionISO: p.sessions[0]?.scheduledAt.toISOString() ?? null,
+      };
+    });
+    mentorshipPanel = buildMentorshipPanel(pairings);
+  }
+
   // "Open full page": admins land on the role-specific full-360 record pages
   // (Knowledge OS V2 Phase 2B); everyone else gets the member profile. The
   // record pages gate on ADMIN themselves, so never link non-admins there.
@@ -531,6 +693,7 @@ async function loadPerson360(
     nextStep: advisorNextStep ?? nextStepFromWork(openWork),
     risks,
     footnote: personFootnote(officer),
+    mentorship: mentorshipPanel,
   };
 }
 
@@ -1290,7 +1453,7 @@ async function loadMeeting360(
     meta: fmtDate(new Date(dto.startISO)),
     initials: entityInitials(dto.title),
     avatarUrl: null,
-    pageHref: `/actions/meetings/${id}`,
+    pageHref: `/meetings/${id}`,
     glance: [
       { label: "Decisions", value: String(dto.decisionCount) },
       {

@@ -1,53 +1,28 @@
 import {
+  type ActionItemStatus,
   MentorshipActionItemStatus,
   MentorshipRequestStatus,
   MentorshipRequestVisibility,
   MentorshipResourceType,
+  type Prisma,
   SupportRole,
   type MentorshipType,
 } from "@prisma/client";
 
 import { getMentorshipAccessibleMenteeIds } from "@/lib/mentorship-access";
 import { mentorshipRequiresMonthlyReflection } from "@/lib/mentorship-canonical";
+import {
+  mergeMentorshipActionFacts,
+  summarizeMentorshipActionFacts,
+  MENTORSHIP_ATTENTION_THRESHOLDS,
+} from "@/lib/mentorship/attention";
 import { prisma } from "@/lib/prisma";
 
 const MENTOR_ROLES = ["MENTOR", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as const;
 
-export const SUPPORT_ROLE_META: Record<
-  SupportRole,
-  { label: string; description: string; tone: string }
-> = {
-  PRIMARY_MENTOR: {
-    label: "Primary mentor",
-    description: "Owns the main mentoring relationship and monthly cadence.",
-    tone: "#1d4ed8",
-  },
-  CHAIR: {
-    label: "Committee chair",
-    description: "Approves reviews and handles escalation decisions.",
-    tone: "#6b21c8",
-  },
-  SPECIALIST_MENTOR: {
-    label: "Specialist mentor",
-    description: "Helps with subject-specific coaching and projects.",
-    tone: "#0f766e",
-  },
-  COLLEGE_ADVISOR: {
-    label: "College advisor",
-    description: "Supports college readiness and long-range planning.",
-    tone: "#b45309",
-  },
-  ALUMNI_ADVISOR: {
-    label: "Alumni advisor",
-    description: "Brings lived experience and future-facing perspective.",
-    tone: "#be185d",
-  },
-  PEER_SUPPORT: {
-    label: "Peer support",
-    description: "Adds accountability, check-ins, and encouragement.",
-    tone: "#166534",
-  },
-};
+// Pure role metadata lives in a server-free module so client components can use
+// it without dragging this file's auth/prisma chain into the browser bundle.
+export { SUPPORT_ROLE_META } from "@/lib/mentorship-hub-constants";
 
 export const MENTORSHIP_RESOURCE_TYPE_META: Record<
   MentorshipResourceType,
@@ -197,6 +172,108 @@ function buildParticipantLookup(
       },
     ])
   );
+}
+
+type CanonicalMentorshipActionRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: ActionItemStatus;
+  leadId: string;
+  lead: { id: string; name: string | null };
+  createdById: string;
+  createdBy: { id: string; name: string | null };
+  deadlineStart: Date;
+  deadlineEnd: Date | null;
+  completedAt: Date | null;
+  mentorshipSessionId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+async function loadCanonicalMentorshipActions(params: {
+  mentorshipId: string;
+  viewerId: string;
+  canSeeAll: boolean;
+}) {
+  const where: Prisma.ActionItemWhereInput = {
+    relatedEntityType: "MENTORSHIP",
+    relatedEntityId: params.mentorshipId,
+    status: { not: "DROPPED" },
+  };
+
+  if (!params.canSeeAll) {
+    where.OR = [
+      { leadId: params.viewerId },
+      { assignments: { some: { userId: params.viewerId } } },
+    ];
+  }
+
+  return prisma.actionItem.findMany({
+    where,
+    orderBy: [{ deadlineStart: "asc" }, { createdAt: "desc" }],
+    take: 50,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      status: true,
+      leadId: true,
+      lead: { select: { id: true, name: true } },
+      createdById: true,
+      createdBy: { select: { id: true, name: true } },
+      deadlineStart: true,
+      deadlineEnd: true,
+      completedAt: true,
+      mentorshipSessionId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+}
+
+function mapCanonicalMentorshipAction(
+  action: CanonicalMentorshipActionRow,
+  mentorshipId: string,
+  menteeId: string
+) {
+  return {
+    id: action.id,
+    mentorshipId,
+    menteeId,
+    sessionId: action.mentorshipSessionId,
+    title: action.title,
+    details: action.description,
+    status: actionStatusToMentorshipActionStatus(action.status),
+    ownerId: action.leadId,
+    owner: action.lead,
+    createdById: action.createdById,
+    createdBy: action.createdBy,
+    dueAt: action.deadlineEnd ?? action.deadlineStart,
+    completedAt: action.completedAt,
+    linkedActionId: action.id,
+    createdAt: action.createdAt,
+    updatedAt: action.updatedAt,
+    source: "canonical" as const,
+  };
+}
+
+function actionStatusToMentorshipActionStatus(
+  status: ActionItemStatus
+): MentorshipActionItemStatus {
+  switch (status) {
+    case "COMPLETE":
+      return MentorshipActionItemStatus.COMPLETE;
+    case "IN_PROGRESS":
+    case "OVERDUE":
+      return MentorshipActionItemStatus.IN_PROGRESS;
+    case "BLOCKED":
+      return MentorshipActionItemStatus.BLOCKED;
+    case "NOT_STARTED":
+    case "DROPPED":
+    default:
+      return MentorshipActionItemStatus.OPEN;
+  }
 }
 
 export async function getMentorshipHubData(params: {
@@ -366,6 +443,7 @@ export async function getMentorshipHubData(params: {
               createdById: true,
               dueAt: true,
               completedAt: true,
+              linkedActionId: true,
               createdAt: true,
               updatedAt: true,
             },
@@ -501,7 +579,46 @@ export async function getMentorshipHubData(params: {
     ]);
 
   const now = Date.now();
+  const mentorshipIds = mentorships.map((mentorship) => mentorship.id);
+  const canonicalOpenActions =
+    mentorshipIds.length > 0
+      ? await prisma.actionItem.findMany({
+          where: {
+            relatedEntityType: "MENTORSHIP",
+            relatedEntityId: { in: mentorshipIds },
+            status: { notIn: ["COMPLETE", "DROPPED"] },
+          },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            relatedEntityId: true,
+            deadlineStart: true,
+            deadlineEnd: true,
+            mentorshipSessionId: true,
+          },
+        })
+      : [];
+  const canonicalOpenActionsByMentorship = new Map<
+    string,
+    typeof canonicalOpenActions
+  >();
+  for (const action of canonicalOpenActions) {
+    if (!action.relatedEntityId) continue;
+    const list = canonicalOpenActionsByMentorship.get(action.relatedEntityId) ?? [];
+    list.push(action);
+    canonicalOpenActionsByMentorship.set(action.relatedEntityId, list);
+  }
+
+  const nowDate = new Date(now);
   const circles = mentorships.map((mentorship) => {
+    // ONE canonical merge (ActionItem + unlinked legacy, no double-count) feeds
+    // both the open and overdue counts — no more per-surface merge logic.
+    const openActions = mergeMentorshipActionFacts(
+      canonicalOpenActionsByMentorship.get(mentorship.id) ?? [],
+      mentorship.actionItems
+    );
+    const actionSummary = summarizeMentorshipActionFacts(openActions, nowDate);
     const nextSession =
       mentorship.sessions.find(
         (session) => !session.completedAt && session.scheduledAt.getTime() >= now
@@ -511,9 +628,7 @@ export async function getMentorshipHubData(params: {
     const daysSinceContact = latestSession
       ? Math.floor((now - latestSession.completedAt!.getTime()) / (1000 * 60 * 60 * 24))
       : null;
-    const overdueActions = mentorship.actionItems.filter(
-      (item) => item.dueAt && item.dueAt.getTime() < now
-    ).length;
+    const overdueActions = actionSummary.overdue;
     const needsReflection =
       mentorshipRequiresMonthlyReflection({
         programGroup: mentorship.programGroup,
@@ -542,7 +657,7 @@ export async function getMentorshipHubData(params: {
       needsReflection,
       pendingRequests,
       reviewStatus: currentReview?.status ?? null,
-      openActionItems: mentorship.actionItems.length,
+      openActionItems: actionSummary.open,
       highlightedResources: mentorship.resources,
     };
   });
@@ -550,7 +665,9 @@ export async function getMentorshipHubData(params: {
   const relationshipHealth = {
     circlesWithNoUpcomingSession: circles.filter((circle) => !circle.nextSession).length,
     staleCircles: circles.filter(
-      (circle) => circle.daysSinceContact == null || circle.daysSinceContact > 21
+      (circle) =>
+        circle.daysSinceContact == null ||
+        circle.daysSinceContact > MENTORSHIP_ATTENTION_THRESHOLDS.checkInOverdueDays
     ).length,
     lowSupportCoverage: circles.filter((circle) => circle.supportCount < 2).length,
   };
@@ -669,6 +786,7 @@ export async function getSupportWorkspaceData(params: {
       },
       select: {
         id: true,
+        menteeId: true,
         programGroup: true,
         governanceMode: true,
         mentorId: true,
@@ -766,6 +884,7 @@ export async function getSupportWorkspaceData(params: {
             createdBy: { select: { id: true, name: true } },
             dueAt: true,
             completedAt: true,
+            linkedActionId: true,
             createdAt: true,
             updatedAt: true,
           },
@@ -940,6 +1059,23 @@ export async function getSupportWorkspaceData(params: {
     mentorship?.monthlyReviews.find(
       (review) => review.month.getTime() === currentMonth.getTime()
     ) ?? null;
+  const canSeeAllCanonicalActions = !flags.isStudent || flags.isAdmin;
+  const canonicalActionItems = mentorship
+    ? await loadCanonicalMentorshipActions({
+        mentorshipId: mentorship.id,
+        viewerId,
+        canSeeAll: canSeeAllCanonicalActions,
+      })
+    : [];
+  const canonicalNextSteps = mentorship
+    ? canonicalActionItems.map((action) =>
+        mapCanonicalMentorshipAction(action, mentorship.id, mentorship.menteeId)
+      )
+    : [];
+  const unlinkedLegacyActionItems =
+    mentorship?.actionItems.filter((item) => {
+      return !item.linkedActionId;
+    }) ?? [];
 
   return {
     flags,
@@ -948,7 +1084,11 @@ export async function getSupportWorkspaceData(params: {
     intakePlanLaunch: launchedIntakeCase,
     circleMembers,
     sessions,
-    actionItems: [...(mentorship?.actionItems ?? []), ...preAssignmentActionItems],
+    actionItems: [
+      ...canonicalNextSteps,
+      ...unlinkedLegacyActionItems,
+      ...preAssignmentActionItems,
+    ],
     requests,
     resources,
     currentReview,
@@ -1088,7 +1228,9 @@ export async function getMentorshipResourceLibrary(params: {
 
 export async function getMentorshipGovernanceSnapshot() {
   const now = Date.now();
-  const threeWeeksAgo = new Date(now - 21 * 24 * 60 * 60 * 1000);
+  const threeWeeksAgo = new Date(
+    now - MENTORSHIP_ATTENTION_THRESHOLDS.checkInOverdueDays * 24 * 60 * 60 * 1000
+  );
 
   const [mentorships, openRequests, resources] = await Promise.all([
     prisma.mentorship.findMany({

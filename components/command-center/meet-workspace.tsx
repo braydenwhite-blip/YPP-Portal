@@ -426,7 +426,7 @@ function MeetInner({ vm, nowISO }: { vm: MeetWorkspaceVM; nowISO: string }) {
 
         <BrowseAllPanel label="Browse all meetings" hint="Explore all meetings, past and upcoming.">
           <div className="flex flex-wrap gap-2">
-            <Link href="/actions/meetings" className="rounded-full border border-line-soft bg-surface px-3 py-1 text-[12.5px] font-semibold text-brand-700 hover:bg-surface-soft">
+            <Link href="/meetings" className="rounded-full border border-line-soft bg-surface px-3 py-1 text-[12.5px] font-semibold text-brand-700 hover:bg-surface-soft">
               All meetings
             </Link>
             <Link href="/officer-meetings" className="rounded-full border border-line-soft bg-surface px-3 py-1 text-[12.5px] font-semibold text-brand-700 hover:bg-surface-soft">

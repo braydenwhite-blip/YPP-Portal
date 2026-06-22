@@ -2,6 +2,18 @@ import type { PageHelperEntry } from "@/lib/page-helper/types";
 
 export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   {
+    pattern: "/my-weekly-impact",
+    title: "My Weekly Impact",
+    content: {
+      purpose:
+        "Your weekly impact update for each team you're on — objective and deliverable, exactly what you did and the outcome, what you'll show next week, and what you need. It's pre-filled from your live work.",
+      firstStep:
+        "Fill in the Deliverable (what 'done' looks like) and, for each task, exactly what you did and the outcome — be specific; vague answers are blocked on submit.",
+      nextStep:
+        "Add the artifact you're showing, set your next step and any input you need, then press Submit my weekly impact.",
+    },
+  },
+  {
     pattern: "/command-center",
     title: "Command Center",
     content: {
@@ -3824,6 +3836,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/instructor-applicants/chair-settings",
+    title: "Chair Assignment",
+    content: {
+      purpose: "This admin page designates the single active Chair — the only person who can submit or change a final applicant decision.",
+      firstStep: "Review the current Chair, then search the eligible Admins and Hiring Chairs to pick a replacement.",
+      nextStep: "Confirm the change to instantly transfer decision authority; every reassignment is recorded in the change history."
+    }
+  },
+  {
     pattern: "/admin/instructor-applicants/chair-queue",
     title: "Chair Decision Queue",
     content: {
@@ -3986,7 +4007,7 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
-    pattern: "/actions/meetings",
+    pattern: "/meetings",
     title: "Meetings",
     content: {
       purpose: "Meetings shows upcoming meetings, open follow-ups, recent decisions, and actions created from meetings.",
@@ -3995,7 +4016,7 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
-    pattern: "/actions/meetings/[id]",
+    pattern: "/meetings/[id]",
     title: "Meeting Workspace",
     content: {
       purpose: "This meeting workspace holds everything about one meeting — agenda, notes, decisions, follow-ups, and the action items it generated.",

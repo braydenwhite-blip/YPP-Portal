@@ -77,8 +77,8 @@ describe("canViewAction", () => {
     expect(canViewAction(otherMember, leadershipMine)).toBe(false);
   });
 
-  it("hides an OFFICERS_ONLY action from a member even if assigned (stricter)", () => {
-    expect(canViewAction(member, officersOnlyMine)).toBe(false);
+  it("lets an assigned member view an OFFICERS_ONLY action in My Actions", () => {
+    expect(canViewAction(member, officersOnlyMine)).toBe(true);
   });
 
   it("lets an officer view all ALL_LEADERSHIP and OFFICERS_ONLY actions", () => {
@@ -137,7 +137,7 @@ describe("canFlagAction", () => {
   it("anyone who can view can flag; non-viewers cannot", () => {
     expect(canFlagAction(member, leadershipMine)).toBe(true);
     expect(canFlagAction(member, leadershipNotMine)).toBe(false);
-    expect(canFlagAction(member, officersOnlyMine)).toBe(false);
+    expect(canFlagAction(member, officersOnlyMine)).toBe(true);
     expect(canFlagAction(officer, leadershipNotMine)).toBe(true);
   });
 });

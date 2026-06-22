@@ -38,7 +38,7 @@ export default async function MentorshipApplyPage() {
           </p>
         </div>
         <Link href="/my-mentor" className="button secondary small">
-          ← Back to My Mentorship
+          ← Back to My Mentor
         </Link>
       </div>
 

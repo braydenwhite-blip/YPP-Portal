@@ -10,6 +10,7 @@ import {
   convertFollowUpToAction,
   setFollowUpStatus,
 } from "@/lib/people-strategy/meetings-actions";
+import { updateMentorshipActionItemStatus } from "@/lib/mentorship-hub-actions";
 import { revalidateQueueSurfaces } from "@/lib/queue/queue-actions";
 import type { QueueInline, QueueItem } from "@/lib/queue/types";
 
@@ -173,6 +174,52 @@ function ActionInlinePanel({
   );
 }
 
+/** Close a mentorship commitment in place — mark the action item COMPLETE. */
+function MentorshipCommitmentInlinePanel({
+  inline,
+  onResolved,
+}: {
+  inline: Extract<QueueInline, { kind: "mentorship_commitment" }>;
+  onResolved: () => void;
+}) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function complete() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.set("itemId", inline.actionItemId);
+        formData.set("status", "COMPLETE");
+        await updateMentorshipActionItemStatus(formData);
+        await revalidateQueueSurfaces();
+        onResolved();
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't update the commitment.");
+      }
+    });
+  }
+
+  return (
+    <div className={panelShellClass("neutral")}>
+      <p className={headingClass}>Close this commitment</p>
+      <p className={bodyClass}>
+        Mark “{inline.title}” complete once it&apos;s done. If the plan changed
+        instead, open the relationship below to update it.
+      </p>
+      {error ? <p className={errorClass}>{error}</p> : null}
+      <div className="flex items-center gap-2">
+        <Button variant="primary" size="sm" onClick={complete} disabled={pending}>
+          {pending ? "Saving…" : "Mark complete"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Render the inline work for a loop, when one exists. Returns null when the loop
  * has no safe inline action — the runner then leads with "open the full record".
@@ -193,6 +240,8 @@ export function QueueInlineWork({
       return <DecisionInlinePanel decisionId={inline.decisionId} onResolved={onResolved} />;
     case "follow_up":
       return <FollowUpInlinePanel followUpId={inline.followUpId} onResolved={onResolved} />;
+    case "mentorship_commitment":
+      return <MentorshipCommitmentInlinePanel inline={inline} onResolved={onResolved} />;
     default: {
       // Exhaustiveness guard — a new inline kind must add a panel here.
       const _never: never = inline;

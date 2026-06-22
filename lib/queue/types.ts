@@ -197,6 +197,15 @@ export type QueueInline =
       kind: "follow_up";
       /** MeetingFollowUp id — `setFollowUpStatus` / `convertFollowUpToAction`. */
       followUpId: string;
+    }
+  | {
+      kind: "mentorship_commitment";
+      /** MentorshipActionItem id — `updateMentorshipActionItemStatus` (→ COMPLETE). */
+      actionItemId: string;
+      /** The mentee the commitment belongs to (re-checked server-side for access). */
+      menteeId: string;
+      /** Shown in the panel so the mentor confirms the right commitment. */
+      title: string;
     };
 
 /**
@@ -332,8 +341,8 @@ export const QUEUE_DESCRIPTORS: Record<QueueKey, QueueDescriptor> = {
   },
   "owner-accountability": {
     key: "owner-accountability",
-    label: "Owner accountability",
-    tagline: "Work nobody is on the hook for.",
+    label: "Owner Needed",
+    tagline: "Active work with no eligible accountable Lead.",
     accent: "warning",
   },
   "initiative-cleanup": {

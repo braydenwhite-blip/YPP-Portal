@@ -34,7 +34,7 @@ export function OperatingModes({ summary }: { summary: QueueSummary }) {
     },
     {
       href: "/work/queue?queue=leadership",
-      title: "Triage stuck work",
+      title: "Sort stuck work",
       subtitle: "Overdue, blocked & owner-less",
       count: summary.overdue + summary.blocked + summary.unowned,
       Icon: TriageIcon,

@@ -333,7 +333,7 @@ export function meetingTouchpoint(
       workstreamTitle: null,
       entity,
       personName: meeting.facilitator?.name ?? null,
-      sourceHref: `/actions/meetings/${meeting.id}`,
+      sourceHref: `/meetings/${meeting.id}`,
     },
     now
   );
@@ -366,7 +366,7 @@ export function decisionTouchpoint(
       workstreamTitle: null,
       entity,
       personName: decision.decidedByName,
-      sourceHref: `/actions/meetings/${decision.meetingId}`,
+      sourceHref: `/meetings/${decision.meetingId}`,
     },
     now
   );
@@ -441,7 +441,7 @@ export function followUpTouchpoint(
       workstreamTitle: null,
       entity: null,
       personName: fu.ownerName ?? null,
-      sourceHref: `/actions/meetings/${fu.meetingId}`,
+      sourceHref: `/meetings/${fu.meetingId}`,
     },
     now
   );

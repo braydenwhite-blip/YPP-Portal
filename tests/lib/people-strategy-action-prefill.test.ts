@@ -197,6 +197,34 @@ describe("meeting prefill builders", () => {
     expect(href).toContain("relatedId=p1");
     expect(href).toContain("area=PARTNERSHIPS");
   });
+
+  it("serializes meeting type, time, attendees, and agenda items", () => {
+    const href = meetingPrefillToQuery({
+      relatedType: "INSTRUCTOR_APPLICATION",
+      relatedId: "app1",
+      area: "APPLICATIONS",
+      meetingType: "INSTRUCTOR_APPLICANT_INTERVIEW",
+      title: "Instructor applicant interview: Maya",
+      date: "2026-06-20",
+      startTime: "16:00",
+      endTime: "16:30",
+      facilitatorId: "u1",
+      attendeeIds: ["u1", "u2"],
+      agendaTitles: ["Teaching motivation", "Recommended next step"],
+    });
+    const url = new URL(href, "https://portal.test");
+    expect(url.pathname).toBe("/actions/meetings/new");
+    expect(url.searchParams.get("meetingType")).toBe("INSTRUCTOR_APPLICANT_INTERVIEW");
+    expect(url.searchParams.get("date")).toBe("2026-06-20");
+    expect(url.searchParams.get("start")).toBe("16:00");
+    expect(url.searchParams.get("end")).toBe("16:30");
+    expect(url.searchParams.get("facilitatorId")).toBe("u1");
+    expect(url.searchParams.getAll("attendeeIds")).toEqual(["u1", "u2"]);
+    expect(url.searchParams.getAll("agenda")).toEqual([
+      "Teaching motivation",
+      "Recommended next step",
+    ]);
+  });
 });
 
 describe("titleSimilarity", () => {

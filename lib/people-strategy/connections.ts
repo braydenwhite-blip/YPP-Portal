@@ -100,8 +100,6 @@ export async function loadRelatedEntitySummary(
       };
     }
     case "INSTRUCTOR_APPLICATION": {
-      // A valid link value, but its detail page is a risky redirect proxy, so we
-      // surface a label without a deep link (on-page panel deferred — plan §4).
       const app = await prisma.instructorApplication.findUnique({
         where: { id: entityId },
         select: {
@@ -123,7 +121,7 @@ export async function loadRelatedEntitySummary(
         app.applicant?.name ||
         app.applicant?.email ||
         "Instructor application";
-      return { type, id: entityId, label, typeLabel, href: null };
+      return { type, id: entityId, label, typeLabel, href: `/admin/instructor-applicants/${app.id}` };
     }
     case "PARTNER": {
       const partner = await prisma.partner.findUnique({
@@ -286,8 +284,13 @@ export async function loadRelatedEntityLabels(
               app.applicant?.name ||
               app.applicant?.email ||
               "Instructor application";
-            // No deep link — its detail page is a risky redirect proxy (plan §4).
-            put({ type: "INSTRUCTOR_APPLICATION", id: app.id, label, typeLabel, href: null });
+            put({
+              type: "INSTRUCTOR_APPLICATION",
+              id: app.id,
+              label,
+              typeLabel,
+              href: `/admin/instructor-applicants/${app.id}`,
+            });
           }
         })
     );

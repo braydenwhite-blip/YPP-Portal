@@ -121,7 +121,7 @@ describe("buildPeopleCockpit", () => {
     const meetingLane = lane(
       {
         meetingsWithOpenFollowups: [
-          { id: "m1", title: "Officer sync", unresolvedCount: 2, metLabel: "Met Jun 12", href: "/actions/meetings/m1" },
+          { id: "m1", title: "Officer sync", unresolvedCount: 2, metLabel: "Met Jun 12", href: "/meetings/m1" },
         ],
       },
       "meeting"
@@ -129,7 +129,7 @@ describe("buildPeopleCockpit", () => {
     expect(meetingLane?.items).toHaveLength(1);
     expect(meetingLane?.items[0]).toMatchObject({
       person: { id: null, name: "Officer sync" },
-      primaryAction: { kind: "navigate", href: "/actions/meetings/m1" },
+      primaryAction: { kind: "navigate", href: "/meetings/m1" },
     });
     expect(meetingLane?.items[0].reason).toMatch(/2 unresolved follow-ups/i);
   });

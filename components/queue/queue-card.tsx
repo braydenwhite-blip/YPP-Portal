@@ -43,7 +43,7 @@ function ContextChips({ item }: { item: QueueItem }) {
     chips.push(
       <Link
         key="meeting"
-        href={`/actions/meetings/${item.relatedMeeting.id}`}
+        href={`/meetings/${item.relatedMeeting.id}`}
         className="text-brand-700 hover:underline"
       >
         {item.relatedMeeting.title}

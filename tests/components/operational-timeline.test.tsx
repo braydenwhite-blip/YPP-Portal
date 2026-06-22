@@ -11,7 +11,7 @@ const events: OperationalTimelineEvent[] = [
     occurredAt: new Date("2026-06-05T18:00:00"),
     title: "Class sync",
     description: "Classes · 1 decision",
-    href: "/actions/meetings/m1",
+    href: "/meetings/m1",
     severity: "neutral",
   },
   {
@@ -31,7 +31,7 @@ describe("OperationalTimeline", () => {
     expect(screen.getByText("Completed")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Class sync" })).toHaveAttribute(
       "href",
-      "/actions/meetings/m1"
+      "/meetings/m1"
     );
     expect(screen.getByText("2 events")).toBeInTheDocument();
   });

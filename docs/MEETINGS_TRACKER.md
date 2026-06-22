@@ -15,9 +15,34 @@ Items. It does not introduce a second task system.
 | Route | What it is |
 | --- | --- |
 | `/actions/meetings` | **Weekly Command Center** — the weekly dashboard. `?week=<offset>` navigates between operating weeks (Mon–Sun). |
+| `/actions/meetings/new` | **New Meeting** — full-page creation flow for mobile/direct links. |
 | `/actions/meetings/[id]` | **Meeting workspace** — agenda, notes, decisions, follow-ups, and linked actions for one meeting. |
 
 The "Meetings" tab in the Action Tracker tab bar and the nav catalog point here.
+
+## Operating model
+
+The Meetings Tracker now treats the existing `OfficerMeeting` records as typed
+leadership workflows instead of generic calendar entries. The supported meeting
+types are defined in `lib/people-strategy/meeting-operating-model.ts`:
+
+- **Officer Meeting** — strategy, applicant review, staff performance,
+  escalations, people concerns, overdue strategic actions, role gaps, and
+  leadership decisions.
+- **Global Operations Impact Presentation** — Communications, Expansion, and
+  Tech present progress, proof of work, blockers, decisions needed, and next
+  commitments.
+- **Chapter Impact Presentation** — chapter presidents present outreach,
+  partner/applicant progress, blockers, decisions needed, and next commitments.
+- **Mentorship Check-in** — mentor/mentee progress, blockers, goals, review
+  history, and next actions.
+- **General Meeting** — legacy or one-off meetings that do not yet fit a typed
+  operating rhythm.
+
+The dashboard borrows the command-center structure from the Leadership OS
+reference: metrics first, typed views/tabs, a leadership attention queue, a
+decision queue, weekly agenda rows, follow-up/action surfaces, and area pulse
+signals. It keeps the portal's existing design system and data model.
 
 ## Data model (Prisma)
 
@@ -26,8 +51,11 @@ defaulted, so legacy Officer Meetings keep working) and four models were added:
 
 - `OfficerMeeting` + `title`, `purpose`, `category` (YPP area), `priority`
   (shared `ActionPriority`), `endTime`, `recurrence`, `location`, `notesText`,
-  `facilitatorId`, `relatedEntityType/Id`.
-- `MeetingAttendee` — join of meeting ↔ user.
+  `facilitatorId`, `relatedEntityType/Id`, `meetingType`, `relatedTeam`,
+  `relatedChapter`, `strategicPriority`, `summaryStatus`, `rescheduleStatus`,
+  and `escalationStatus`.
+- `MeetingAttendee` — join of meeting ↔ user, plus meeting-specific attendance
+  role/status, responsiveness status, attendance notes, and recorded-at time.
 - `MeetingAgendaItem` — `status` (`OPEN`/`DISCUSSED`/`DEFERRED`/`CONVERTED`),
   optional owner, `convertedActionId`.
 - `MeetingDecision` — `decision`, `rationale`, `decidedBy`, `linkedActionId`.
@@ -35,7 +63,13 @@ defaulted, so legacy Officer Meetings keep working) and four models were added:
   computed), `priority`, `dueDate`, `area`, and **`linkedActionId`** — the bridge
   to the Action Tracker.
 
-Migration: `prisma/migrations/20260608200000_add_meetings_command_center/`.
+Migrations:
+
+- `prisma/migrations/20260608200000_add_meetings_command_center/`
+- `prisma/migrations/20260618170000_meetings_operating_model/`
+
+Attendance status vocabulary lives in
+`lib/people-strategy/meeting-attendance.ts`.
 
 ## Status is computed, never stored
 
@@ -91,6 +125,10 @@ connected to the rest of the portal through one shared layer:
 ## Key files
 
 - `lib/people-strategy/meeting-categories.ts` — YPP operating-area vocabulary + tones
+- `lib/people-strategy/meeting-operating-model.ts` — typed meeting workflows,
+  default agendas, role expectations, and before/during/after checklists
+- `lib/people-strategy/meeting-attendance.ts` — meeting-specific attendance
+  vocabulary
 - `lib/people-strategy/meetings-status.ts` — computed status, metrics, pulse, grouping
 - `lib/people-strategy/meetings-queries.ts` — queries + serializable DTO mappers
 - `lib/people-strategy/meetings-actions.ts` — server actions + the Action bridge

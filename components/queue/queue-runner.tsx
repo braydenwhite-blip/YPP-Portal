@@ -39,7 +39,7 @@ const toneAccent: Record<QueueItem["tone"], string> = {
 
 function relatedHref(item: QueueItem): { label: string; href: string } | null {
   if (item.relatedMeeting) {
-    return { label: item.relatedMeeting.title, href: `/actions/meetings/${item.relatedMeeting.id}` };
+    return { label: item.relatedMeeting.title, href: `/meetings/${item.relatedMeeting.id}` };
   }
   if (item.relatedInitiative) {
     return {
@@ -182,7 +182,15 @@ export function QueueRunner({
           <span className="shrink-0 text-[12.5px] font-bold uppercase tracking-[0.06em] text-brand-700">
             {queueLabel}
           </span>
-          <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-brand-100">
+          <div
+            className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-brand-100"
+            role="progressbar"
+            aria-label={`${queueLabel} progress`}
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuetext={`${resolvedCount} resolved, ${total} left`}
+          >
             <div
               className="h-full rounded-full bg-brand-600 transition-[width] duration-300 ease-out motion-reduce:transition-none"
               style={{ width: `${progress}%` }}
@@ -298,23 +306,27 @@ export function QueueRunner({
           </article>
 
           {/* Move through the queue — simple, three controls. */}
-          <div className="mt-5 flex items-center justify-center gap-x-6 text-[12.5px] font-semibold text-ink-muted">
+          <div className="mt-6 flex items-center justify-center gap-3">
             <button
               type="button"
               onClick={() => goTo(currentIndex - 1)}
               disabled={currentIndex === 0}
-              className="transition-colors hover:text-ink disabled:opacity-40"
+              className="rounded-lg border border-line-soft bg-surface px-4 py-2 text-[13px] font-semibold text-ink hover:bg-surface-soft disabled:opacity-40 transition-colors"
             >
               ← Back
             </button>
-            <button type="button" onClick={skip} className="transition-colors hover:text-ink">
+            <button
+              type="button"
+              onClick={skip}
+              className="rounded-lg border border-line-soft bg-surface px-4 py-2 text-[13px] font-semibold text-ink hover:bg-surface-soft transition-colors"
+            >
               Skip for now
             </button>
             <button
               type="button"
               onClick={() => goTo(currentIndex + 1)}
               disabled={currentIndex >= total - 1}
-              className="transition-colors hover:text-ink disabled:opacity-40"
+              className="rounded-lg border border-line-soft bg-surface px-4 py-2 text-[13px] font-semibold text-ink hover:bg-surface-soft disabled:opacity-40 transition-colors"
             >
               Next →
             </button>

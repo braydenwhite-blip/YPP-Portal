@@ -10,6 +10,16 @@ import {
 } from "./constants";
 import { meetingCategoryLabel, isMeetingCategory } from "./meeting-categories";
 import {
+  inferMeetingType,
+  meetingTypeLabel,
+  type MeetingType,
+} from "./meeting-operating-model";
+import {
+  meetingAttendanceStatusLabel,
+  normalizeMeetingAttendanceStatus,
+  type MeetingAttendanceStatus,
+} from "./meeting-attendance";
+import {
   computeFollowUpStatus,
   computeMeetingStatus,
   type EffectiveFollowUpStatus,
@@ -44,7 +54,32 @@ const MEETING_INCLUDE = {
   agendaItems: {
     include: {
       owner: { select: PERSON_SELECT },
+      presenter: { select: PERSON_SELECT },
       convertedAction: { select: { id: true, status: true } },
+      sourceAction: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          fileLinks: {
+            select: { id: true, label: true, url: true },
+            orderBy: [{ addedAt: "desc" }, { id: "desc" }],
+          },
+        },
+      },
+      brief: { select: { id: true, initiativeId: true, workstreamId: true, weekStart: true } },
+      teamMeeting: { select: { id: true, title: true, status: true } },
+      presentationExpectation: { select: { id: true, kind: true, prompt: true } },
+      preparedPresentationItem: {
+        select: {
+          id: true,
+          reasonForOfficerReview: true,
+          statusSummary: true,
+          requestedDecision: true,
+          readiness: true,
+          deliverableLinkIds: true,
+        },
+      },
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   },
@@ -59,6 +94,9 @@ const MEETING_INCLUDE = {
     include: {
       owner: { select: PERSON_SELECT },
       linkedAction: { select: { id: true, status: true } },
+      sourceAction: { select: { id: true, title: true } },
+      brief: { select: { id: true, initiativeId: true, workstreamId: true, weekStart: true } },
+      presentationExpectation: { select: { id: true, kind: true, prompt: true } },
     },
     orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
   },
@@ -83,6 +121,16 @@ export interface PersonDTO {
   initials: string;
 }
 
+export interface MeetingAttendeeDTO extends PersonDTO {
+  attendeeId: string;
+  attendanceRole: string;
+  attendanceStatus: MeetingAttendanceStatus;
+  attendanceStatusLabel: string;
+  responsivenessStatus: string | null;
+  attendanceNotes: string | null;
+  attendanceRecordedISO: string | null;
+}
+
 export interface AgendaItemDTO {
   id: string;
   title: string;
@@ -90,7 +138,29 @@ export interface AgendaItemDTO {
   status: "OPEN" | "DISCUSSED" | "DEFERRED" | "CONVERTED";
   notes: string | null;
   owner: PersonDTO | null;
+  presenter: PersonDTO | null;
   convertedActionId: string | null;
+  itemKind: string | null;
+  sourceInitiativeId: string | null;
+  sourceWorkstreamId: string | null;
+  briefId: string | null;
+  briefWeekStartISO: string | null;
+  teamMeetingId: string | null;
+  preparedPresentationItemId: string | null;
+  sourceActionId: string | null;
+  sourceActionTitle: string | null;
+  deliverables: Array<{ id: string; label: string; url: string }>;
+  presentationExpectationId: string | null;
+  presentationExpectationPrompt: string | null;
+  requestedDecision: string | null;
+  readinessState: string | null;
+  preparedPresentation: {
+    reasonForOfficerReview: string;
+    statusSummary: string | null;
+    requestedDecision: string | null;
+    readiness: string;
+    deliverableLinkIds: string[];
+  } | null;
 }
 
 export interface DecisionDTO {
@@ -113,6 +183,13 @@ export interface FollowUpDTO {
   area: string | null;
   areaLabel: string;
   linkedActionId: string | null;
+  initiativeId: string | null;
+  workstreamId: string | null;
+  sourceActionId: string | null;
+  sourceActionTitle: string | null;
+  briefId: string | null;
+  presentationExpectationId: string | null;
+  presentationExpectationPrompt: string | null;
 }
 
 export interface LinkedActionDTO {
@@ -129,6 +206,8 @@ export interface MeetingCardDTO {
   id: string;
   title: string;
   purpose: string | null;
+  meetingType?: MeetingType;
+  meetingTypeLabel?: string;
   category: string | null;
   categoryLabel: string;
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
@@ -137,8 +216,17 @@ export interface MeetingCardDTO {
   durationLabel: string | null;
   recurrence: string | null;
   location: string | null;
+  relatedTeam?: string | null;
+  relatedChapter?: string | null;
+  strategicPriority?: string | null;
+  summaryStatus?: string;
+  rescheduleStatus?: string | null;
+  escalationStatus?: string | null;
   facilitator: PersonDTO | null;
   attendeeCount: number;
+  requiredAttendeeCount?: number;
+  attendanceRecordedCount?: number;
+  attendanceConcernCount?: number;
   /** Facilitator + attendee user ids, for the dashboard's owner filter. */
   participantIds: string[];
   effectiveStatus: EffectiveMeetingStatus;
@@ -181,7 +269,7 @@ export interface MeetingCardDTO {
 
 export interface MeetingDetailDTO extends MeetingCardDTO {
   notesText: string | null;
-  attendees: PersonDTO[];
+  attendees: MeetingAttendeeDTO[];
   agenda: AgendaItemDTO[];
   decisions: DecisionDTO[];
   followUps: FollowUpDTO[];
@@ -272,6 +360,30 @@ export function mapMeetingToCardDTO(
 ): MeetingCardDTO {
   const view = mapMeetingToView(m);
   const counts = cardCounts(m, now);
+  const meetingType = inferMeetingType({
+    meetingType: m.meetingType,
+    title: m.title,
+    category: m.category,
+    relatedEntityType: m.relatedEntityType,
+  });
+  const attendanceRecordedStatuses = new Set([
+    "PRESENT",
+    "ABSENT",
+    "EXCUSED",
+    "LATE",
+    "DID_NOT_RESPOND",
+    "RESCHEDULED",
+    "FOLLOW_UP_NEEDED",
+  ]);
+  const attendanceConcernStatuses = new Set([
+    "ABSENT",
+    "DID_NOT_RESPOND",
+    "FOLLOW_UP_NEEDED",
+  ]);
+  const attendeeStatusCounts = m.attendees.map((a) => ({
+    role: a.attendanceRole,
+    status: normalizeMeetingAttendanceStatus(a.attendanceStatus),
+  }));
   const decisionsPreview = m.decisions.slice(0, 3).map((d) => ({
     id: d.id,
     decision: d.decision,
@@ -294,6 +406,13 @@ export function mapMeetingToCardDTO(
       area: f.area,
       areaLabel: meetingCategoryLabel(f.area),
       linkedActionId: f.linkedActionId,
+      initiativeId: f.initiativeId,
+      workstreamId: f.workstreamId,
+      sourceActionId: f.sourceActionId,
+      sourceActionTitle: f.sourceAction?.title ?? null,
+      briefId: f.briefId,
+      presentationExpectationId: f.presentationExpectationId,
+      presentationExpectationPrompt: f.presentationExpectation?.prompt ?? null,
     }));
   const linkedActionsPreview = m.actionItems.slice(0, 3).map((a) => ({
     id: a.id,
@@ -308,6 +427,8 @@ export function mapMeetingToCardDTO(
     id: m.id,
     title: meetingDisplayTitle(m),
     purpose: m.purpose,
+    meetingType,
+    meetingTypeLabel: meetingTypeLabel(meetingType),
     category: m.category,
     categoryLabel: meetingCategoryLabel(m.category),
     priority: m.priority,
@@ -316,8 +437,21 @@ export function mapMeetingToCardDTO(
     durationLabel: durationLabel(m.date, m.endTime),
     recurrence: m.recurrence,
     location: m.location,
+    relatedTeam: m.relatedTeam,
+    relatedChapter: m.relatedChapter,
+    strategicPriority: m.strategicPriority,
+    summaryStatus: m.summaryStatus,
+    rescheduleStatus: m.rescheduleStatus,
+    escalationStatus: m.escalationStatus,
     facilitator: personDTO(m.facilitator),
     attendeeCount: m.attendees.length,
+    requiredAttendeeCount: attendeeStatusCounts.filter((a) => a.role !== "OPTIONAL").length,
+    attendanceRecordedCount: attendeeStatusCounts.filter((a) =>
+      a.role !== "OPTIONAL" && attendanceRecordedStatuses.has(a.status)
+    ).length,
+    attendanceConcernCount: attendeeStatusCounts.filter((a) =>
+      attendanceConcernStatuses.has(a.status)
+    ).length,
     participantIds: [
       ...(m.facilitatorId ? [m.facilitatorId] : []),
       ...m.attendees.map((a) => a.userId),
@@ -350,7 +484,25 @@ export function mapMeetingToDetailDTO(
   return {
     ...mapMeetingToCardDTO(m, now),
     notesText: m.notesText,
-    attendees: m.attendees.map((a) => personDTO(a.user)).filter((p): p is PersonDTO => !!p),
+    attendees: m.attendees
+      .map((a) => {
+        const person = personDTO(a.user);
+        if (!person) return null;
+        const status = normalizeMeetingAttendanceStatus(a.attendanceStatus);
+        return {
+          ...person,
+          attendeeId: a.id,
+          attendanceRole: a.attendanceRole,
+          attendanceStatus: status,
+          attendanceStatusLabel: meetingAttendanceStatusLabel(status),
+          responsivenessStatus: a.responsivenessStatus,
+          attendanceNotes: a.attendanceNotes,
+          attendanceRecordedISO: a.attendanceRecordedAt
+            ? a.attendanceRecordedAt.toISOString()
+            : null,
+        };
+      })
+      .filter((p): p is MeetingAttendeeDTO => !!p),
     agenda: m.agendaItems.map((a) => ({
       id: a.id,
       title: a.title,
@@ -358,7 +510,36 @@ export function mapMeetingToDetailDTO(
       status: a.status,
       notes: a.notes,
       owner: personDTO(a.owner),
+      presenter: personDTO(a.presenter),
       convertedActionId: a.convertedActionId,
+      itemKind: a.itemKind,
+      sourceInitiativeId: a.sourceInitiativeId,
+      sourceWorkstreamId: a.sourceWorkstreamId,
+      briefId: a.briefId,
+      briefWeekStartISO: a.brief?.weekStart.toISOString() ?? null,
+      teamMeetingId: a.teamMeetingId,
+      preparedPresentationItemId: a.preparedPresentationItemId,
+      sourceActionId: a.sourceActionId,
+      sourceActionTitle: a.sourceAction?.title ?? null,
+      deliverables: (a.sourceAction?.fileLinks ?? [])
+        .filter((link) => {
+          const ids = a.preparedPresentationItem?.deliverableLinkIds ?? [];
+          return ids.length === 0 || ids.includes(link.id);
+        })
+        .map((link) => ({ id: link.id, label: link.label, url: link.url })),
+      presentationExpectationId: a.presentationExpectationId,
+      presentationExpectationPrompt: a.presentationExpectation?.prompt ?? null,
+      requestedDecision: a.requestedDecision,
+      readinessState: a.readinessState,
+      preparedPresentation: a.preparedPresentationItem
+        ? {
+            reasonForOfficerReview: a.preparedPresentationItem.reasonForOfficerReview,
+            statusSummary: a.preparedPresentationItem.statusSummary,
+            requestedDecision: a.preparedPresentationItem.requestedDecision,
+            readiness: a.preparedPresentationItem.readiness,
+            deliverableLinkIds: a.preparedPresentationItem.deliverableLinkIds,
+          }
+        : null,
     })),
     decisions: m.decisions.map((d) => ({
       id: d.id,
@@ -379,6 +560,13 @@ export function mapMeetingToDetailDTO(
       area: f.area,
       areaLabel: meetingCategoryLabel(f.area),
       linkedActionId: f.linkedActionId,
+      initiativeId: f.initiativeId,
+      workstreamId: f.workstreamId,
+      sourceActionId: f.sourceActionId,
+      sourceActionTitle: f.sourceAction?.title ?? null,
+      briefId: f.briefId,
+      presentationExpectationId: f.presentationExpectationId,
+      presentationExpectationPrompt: f.presentationExpectation?.prompt ?? null,
     })),
     linkedActions: m.actionItems.map((a) => ({
       id: a.id,
@@ -415,6 +603,34 @@ export async function getMeetingById(
   return prisma.officerMeeting.findUnique({
     where: { id },
     include: MEETING_INCLUDE,
+  });
+}
+
+/**
+ * The Global Operations Impact Presentation the standalone Impact Meetings hub
+ * should open on: the next upcoming one if any is scheduled, otherwise the most
+ * recent past one. Returns null when none exist (the hub shows a schedule CTA).
+ * The literal mirrors `GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE` in impact-meetings.ts.
+ */
+export async function findCurrentGlobalImpactMeeting(
+  now: Date = new Date()
+): Promise<MeetingWithCommandCenter | null> {
+  if (!isActionTrackerEnabled()) return null;
+  const startOfToday = new Date(now);
+  startOfToday.setUTCHours(0, 0, 0, 0);
+  const upcoming = await prisma.officerMeeting.findFirst({
+    where: {
+      meetingType: "GLOBAL_OPERATIONS_IMPACT_PRESENTATION",
+      date: { gte: startOfToday },
+    },
+    include: MEETING_INCLUDE,
+    orderBy: [{ date: "asc" }],
+  });
+  if (upcoming) return upcoming;
+  return prisma.officerMeeting.findFirst({
+    where: { meetingType: "GLOBAL_OPERATIONS_IMPACT_PRESENTATION" },
+    include: MEETING_INCLUDE,
+    orderBy: [{ date: "desc" }],
   });
 }
 

@@ -1,6 +1,10 @@
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
 import { isHttpUrl } from "@/lib/meeting-details";
+import { escapeHtml } from "@/lib/email-templates/interpolate";
+import { emailShell } from "@/lib/email-templates/shell";
+import { sendTemplatedEmail } from "@/lib/email-templates/render";
+import { chairDecisionTemplateKey } from "@/lib/email-templates/registry";
 
 // Initialize Resend client (lazy - only when API key is set)
 let resendClient: Resend | null = null;
@@ -253,36 +257,7 @@ export async function sendPasswordResetEmail({
   name: string;
   resetUrl: string;
 }): Promise<EmailResult> {
-  const subject = "Reset Your Password - Youth Passion Project";
-
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
-  </div>
-  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Reset Your Password</h2>
-    <p>Hi ${escapeHtml(name)},</p>
-    <p>We received a request to reset your password. Click the button below to create a new password:</p>
-    <div style="text-align: center; margin: 32px 0;">
-      <a href="${escapeHtml(resetUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Reset Password</a>
-    </div>
-    <p style="color: #78716c; font-size: 14px;">This link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
-    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
-    <p style="color: #78716c; font-size: 12px; margin: 0;">If the button doesn't work, copy and paste this link into your browser:</p>
-    <p style="color: #6b21c8; font-size: 12px; word-break: break-all;">${escapeHtml(resetUrl)}</p>
-  </div>
-</body>
-</html>
-  `.trim();
-
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("account.password_reset", to, { name, resetUrl });
 }
 
 export async function sendAccountSetupEmail({
@@ -296,37 +271,12 @@ export async function sendAccountSetupEmail({
   roleLabel: string;
   setupUrl: string;
 }): Promise<EmailResult> {
-  const subject = `Set Up Your ${roleLabel} Account - Youth Passion Project`;
-
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
-  </div>
-  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Finish Setting Up Your Account</h2>
-    <p>Hi ${escapeHtml(name)},</p>
-    <p>A Youth Passion Project ${escapeHtml(roleLabel.toLowerCase())} account has been prepared for you.</p>
-    <p>Click the button below to choose your password and finish signing in for the first time.</p>
-    <div style="text-align: center; margin: 32px 0;">
-      <a href="${escapeHtml(setupUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Set Up Account</a>
-    </div>
-    <p style="color: #78716c; font-size: 14px;">This link is single-use. If you did not expect this account, you can safely ignore this email.</p>
-    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
-    <p style="color: #78716c; font-size: 12px; margin: 0;">If the button doesn't work, copy and paste this link into your browser:</p>
-    <p style="color: #6b21c8; font-size: 12px; word-break: break-all;">${escapeHtml(setupUrl)}</p>
-  </div>
-</body>
-</html>
-  `.trim();
-
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("account.setup", to, {
+    name,
+    roleLabel,
+    roleLabelLower: roleLabel.toLowerCase(),
+    setupUrl,
+  });
 }
 
 export async function sendEmailVerificationEmail({
@@ -338,36 +288,7 @@ export async function sendEmailVerificationEmail({
   name: string;
   verifyUrl: string;
 }): Promise<EmailResult> {
-  const subject = "Verify Your Email - Youth Passion Project";
-
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
-  </div>
-  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Verify Your Email Address</h2>
-    <p>Hi ${escapeHtml(name)},</p>
-    <p>Thanks for signing up! Click the button below to verify your email and activate your account:</p>
-    <div style="text-align: center; margin: 32px 0;">
-      <a href="${escapeHtml(verifyUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Verify Email Address</a>
-    </div>
-    <p style="color: #78716c; font-size: 14px;">This link will expire in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
-    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
-    <p style="color: #78716c; font-size: 12px; margin: 0;">If the button doesn't work, copy and paste this link into your browser:</p>
-    <p style="color: #6b21c8; font-size: 12px; word-break: break-all;">${escapeHtml(verifyUrl)}</p>
-  </div>
-</body>
-</html>
-  `.trim();
-
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("account.email_verification", to, { name, verifyUrl });
 }
 
 export async function sendMagicLinkEmail({
@@ -379,36 +300,7 @@ export async function sendMagicLinkEmail({
   name: string;
   magicUrl: string;
 }): Promise<EmailResult> {
-  const subject = "Your Magic Sign-In Link - Youth Passion Project";
-
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
-  </div>
-  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Sign In to Your Account</h2>
-    <p>Hi ${escapeHtml(name)},</p>
-    <p>Click the button below to sign in instantly — no password needed. This link is single-use and expires in 15 minutes.</p>
-    <div style="text-align: center; margin: 32px 0;">
-      <a href="${escapeHtml(magicUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Sign In Now</a>
-    </div>
-    <p style="color: #78716c; font-size: 14px;">If you didn't request this link, you can safely ignore this email.</p>
-    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
-    <p style="color: #78716c; font-size: 12px; margin: 0;">If the button doesn't work, copy and paste this link into your browser:</p>
-    <p style="color: #6b21c8; font-size: 12px; word-break: break-all;">${escapeHtml(magicUrl)}</p>
-  </div>
-</body>
-</html>
-  `.trim();
-
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("account.magic_link", to, { name, magicUrl });
 }
 
 /**
@@ -429,38 +321,18 @@ export async function sendNotificationEmail({
   link?: string;
   linkText?: string;
 }): Promise<EmailResult> {
-  const subject = `${title} - Youth Passion Project`;
-
   const linkHtml = link
     ? `<div style="text-align: center; margin: 24px 0;">
         <a href="${escapeHtml(link)}" style="display: inline-block; background: #6b21c8; color: white; padding: 12px 28px; border-radius: 9999px; text-decoration: none; font-weight: 600;">${escapeHtml(linkText)}</a>
       </div>`
     : "";
 
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
-  </div>
-  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
-    <h2 style="margin: 0 0 16px; color: #1c1917;">${escapeHtml(title)}</h2>
-    <p>Hi ${escapeHtml(name)},</p>
-    <p>${escapeHtml(body)}</p>
-    ${linkHtml}
-    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
-    <p style="color: #78716c; font-size: 12px; margin: 0;">This email was sent from the YPP Pathways Portal. Notification delivery follows a fixed portal-wide policy.</p>
-  </div>
-</body>
-</html>
-  `.trim();
-
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("notification.generic", to, {
+    title,
+    name,
+    body,
+    linkHtml,
+  });
 }
 
 /**
@@ -576,47 +448,18 @@ export async function sendAnnouncementEmail({
   authorName: string;
   portalUrl: string;
 }): Promise<EmailResult> {
-  const subject = `Announcement: ${announcementTitle} - Youth Passion Project`;
-
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
-    <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 14px;">New Announcement</p>
-  </div>
-  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
-    <p style="color: #78716c; font-size: 13px; margin: 0 0 8px;">Hi ${escapeHtml(recipientName)},</p>
-    <h2 style="margin: 0 0 16px; color: #1c1917;">${escapeHtml(announcementTitle)}</h2>
-    <p style="white-space: pre-wrap;">${escapeHtml(announcementContent)}</p>
-    <p style="color: #78716c; font-size: 13px; margin-top: 24px;">— ${escapeHtml(authorName)}</p>
-    <div style="text-align: center; margin: 24px 0;">
-      <a href="${escapeHtml(portalUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 12px 28px; border-radius: 9999px; text-decoration: none; font-weight: 600;">View in Portal</a>
-    </div>
-    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
-    <p style="color: #78716c; font-size: 12px; margin: 0;">You received this because you're a member of Youth Passion Project. Notification delivery follows a fixed portal-wide policy.</p>
-  </div>
-</body>
-</html>
-  `.trim();
-
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("notification.announcement", to, {
+    recipientName,
+    announcementTitle,
+    announcementContent,
+    authorName,
+    portalUrl,
+  });
 }
 
 // Utility functions
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+// `escapeHtml` is imported from `@/lib/email-templates/interpolate` (single
+// shared definition used by the template render layer as well).
 
 function renderMeetingDetailsBlock(meetingDetails: string | null | undefined): string {
   const details = meetingDetails?.trim();
@@ -643,24 +486,6 @@ function stripHtml(html: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
-
-const emailShell = (body: string) => `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
-  </div>
-  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
-    ${body}
-  </div>
-  <p style="text-align: center; color: #78716c; font-size: 12px; margin-top: 24px;">Youth Passion Project · This is an automated notification.</p>
-</body>
-</html>`;
 
 /**
  * People Strategy — "New Assignment" notification.
@@ -709,29 +534,15 @@ export async function sendNewAssignmentEmail({
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
   const roleCopy = ACTION_ASSIGNMENT_ROLE_COPY[role];
-  const subject = "You've Been Assigned a New Action";
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">You've been assigned a new action</h2>
-    <p>Hi ${escapeHtml(firstName)},</p>
-    <p>You've been added to an action item as <strong>${escapeHtml(roleCopy.label)}</strong>.</p>
-    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Lead</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(leadName)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
-      <p style="margin: 0; color: #1c1917; font-size: 15px;">${escapeHtml(deadline)}</p>
-    </div>
-    <div style="background: #f5f3ff; border-left: 4px solid #7c3aed; border-radius: 8px; padding: 16px 20px; margin: 0 0 24px;">
-      <p style="margin: 0; font-size: 14px; color: #5b21b6; font-weight: 600;">Your role — ${escapeHtml(roleCopy.label)}</p>
-      <p style="margin: 8px 0 0; font-size: 14px; color: #44403c;">${escapeHtml(roleCopy.explanation)}</p>
-    </div>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(actionUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Full Action Item</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">You're receiving this because you were assigned to this action in the YPP Pathways Portal.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("action.new_assignment", to, {
+    firstName,
+    roleLabel: roleCopy.label,
+    roleExplanation: roleCopy.explanation,
+    actionTitle,
+    leadName,
+    deadline,
+    actionUrl,
+  });
 }
 
 /**
@@ -798,23 +609,18 @@ export async function sendWeeklyActionDigestEmail({
   const firstName = recipientName?.split(" ")[0] || "there";
   const total =
     groups.overdue.length + groups.dueThisWeek.length + groups.upcoming.length;
-  const subject = `Your Weekly Action Digest — ${total} open ${total === 1 ? "item" : "items"}`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Your weekly action digest</h2>
-    <p>Hi ${escapeHtml(firstName)},</p>
-    <p>Here are your open action items for the week, grouped by urgency.</p>
-    ${renderDigestGroup("Overdue", groups.overdue, "#dc2626")}
-    ${renderDigestGroup("Due this week", groups.dueThisWeek, "#d97706")}
-    ${renderDigestGroup("Upcoming", groups.upcoming, "#2563eb")}
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(myActionsUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Open My Actions</a>
-    </div>
-    <div style="background: #fffbeb; border-left: 4px solid #d97706; border-radius: 8px; padding: 14px 18px; margin: 0 0 8px;">
-      <p style="margin: 0; font-size: 13px; color: #92400e;">Blocked or at risk of slipping? Flag the item to Leadership from its detail page so leadership can help unblock it.</p>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">You're receiving this because you lead or are assigned to open actions in the YPP Pathways Portal.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  const groupsHtml = [
+    renderDigestGroup("Overdue", groups.overdue, "#dc2626"),
+    renderDigestGroup("Due this week", groups.dueThisWeek, "#d97706"),
+    renderDigestGroup("Upcoming", groups.upcoming, "#2563eb"),
+  ].join("\n");
+  return sendTemplatedEmail("action.weekly_digest", to, {
+    firstName,
+    total: String(total),
+    itemWord: total === 1 ? "item" : "items",
+    groupsHtml,
+    myActionsUrl,
+  });
 }
 
 /**
@@ -903,18 +709,50 @@ export async function sendLeadershipBriefingEmail({
   commandCenterUrl: string;
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
-  const subject = `Weekly Leadership Briefing — week of ${weekLabel}`;
+  return sendTemplatedEmail("action.leadership_briefing", to, {
+    firstName,
+    weekLabel,
+    briefingHtml: renderBriefingHtml(briefingMarkdown),
+    commandCenterUrl,
+  });
+}
+
+/**
+ * Weekly Impact Meeting — post-meeting summary (manual send only).
+ *
+ * This is the ONLY email the Weekly Impact feature ever sends, and only when a
+ * human clicks "Send summary" on the Impact Meeting hub (gated by
+ * ENABLE_IMPACT_SUMMARY_EMAIL at the call site). The body is rendered from the
+ * summary markdown produced by `generateImpactMeetingSummary` — the same text
+ * shown in-portal — so the email and the on-screen summary never drift.
+ */
+export async function sendImpactMeetingSummaryEmail({
+  to,
+  recipientName,
+  weekLabel,
+  summaryMarkdown,
+  meetingUrl,
+}: {
+  to: string | string[];
+  recipientName: string | null;
+  /** Pre-formatted "Month Day" of the meeting week, e.g. "Jun 21". */
+  weekLabel: string;
+  summaryMarkdown: string;
+  meetingUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "team";
+  const subject = `Weekly Impact Meeting summary — week of ${weekLabel}`;
   const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Weekly Leadership Briefing</h2>
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Weekly Impact Meeting summary</h2>
     <p>Hi ${escapeHtml(firstName)},</p>
-    <p>Here's this week's People Strategy read — the pulse, what needs attention, who needs support, and the week's wins. The same summary lives on the Command Center, where every item links through.</p>
+    <p>Here's the recap from this week's Impact Meeting — what each team showed, the decisions made, blockers raised, and what's committed for next week. Every item links through from the meeting in the portal.</p>
     <div style="background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 10px; padding: 18px 22px; margin: 18px 0;">
-      ${renderBriefingHtml(briefingMarkdown)}
+      ${renderBriefingHtml(summaryMarkdown)}
     </div>
     <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(commandCenterUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Open the Command Center</a>
+      <a href="${escapeHtml(meetingUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Open the meeting</a>
     </div>
-    <p style="color: #78716c; font-size: 13px;">You're receiving this because you're part of YPP leadership. It replaces the old weekly action digest with a single shareable read.</p>
+    <p style="color: #78716c; font-size: 13px;">You're receiving this because you were part of the Impact Meeting. It was sent manually after the meeting wrapped.</p>
   `);
   return sendEmail({ to, subject, html });
 }
@@ -939,28 +777,15 @@ export async function sendActionDeadlineWarningEmail({
   flagToLeadershipUrl: string;
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
-  const subject = `Due tomorrow: ${actionTitle}`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">This action is due tomorrow</h2>
-    <p>Hi ${escapeHtml(firstName)},</p>
-    <p>An action you're assigned to is due <strong>tomorrow</strong>. Please update its status or flag a blocker before the deadline.</p>
-    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Your role</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(role)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Department</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(department)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
-      <p style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 600;">${escapeHtml(deadline)}</p>
-    </div>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(updateStatusUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Update Status</a>
-      <a href="${escapeHtml(flagToLeadershipUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to Leadership</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">The action's Lead has also been notified.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("action.deadline_warning", to, {
+    firstName,
+    actionTitle,
+    role,
+    department,
+    deadline,
+    updateStatusUrl,
+    flagToLeadershipUrl,
+  });
 }
 
 export async function sendActionDeadlineReachedEmail({
@@ -983,28 +808,15 @@ export async function sendActionDeadlineReachedEmail({
   flagToLeadershipUrl: string;
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
-  const subject = `Due today: ${actionTitle}`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">This action reaches its deadline today</h2>
-    <p>Hi ${escapeHtml(firstName)},</p>
-    <p>An action you're assigned to is due <strong>today</strong>. If it's done, mark it complete — otherwise update its status or flag a blocker. Items with no status update by end of day are marked <strong>Overdue</strong> and the Lead is notified.</p>
-    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Your role</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(role)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Department</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(department)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
-      <p style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 600;">${escapeHtml(deadline)}</p>
-    </div>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(updateStatusUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Update Status</a>
-      <a href="${escapeHtml(flagToLeadershipUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Flag to Leadership</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">You're receiving this because you're assigned to this action in the YPP Pathways Portal.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("action.deadline_reached", to, {
+    firstName,
+    actionTitle,
+    role,
+    department,
+    deadline,
+    updateStatusUrl,
+    flagToLeadershipUrl,
+  });
 }
 
 /** Sent to the Lead when an item passes its deadline with no status update. */
@@ -1024,25 +836,13 @@ export async function sendActionOverdueLeadEmail({
   actionUrl: string;
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
-  const subject = `Action overdue: ${actionTitle}`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">An action you lead is now overdue</h2>
-    <p>Hi ${escapeHtml(firstName)},</p>
-    <p>An action you're the <strong>Lead</strong> on passed its deadline with no status update and has been marked <strong>Overdue</strong>.</p>
-    <div style="background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Department</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(department)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
-      <p style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 600;">${escapeHtml(deadline)}</p>
-    </div>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(actionUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Review Action</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">As Lead you're accountable for the outcome — follow up with the executors or escalate to Leadership if it's blocked.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("action.overdue_lead", to, {
+    firstName,
+    actionTitle,
+    department,
+    deadline,
+    actionUrl,
+  });
 }
 
 /**
@@ -1080,30 +880,19 @@ export async function sendLeadershipEscalationEmail({
   actionUrl: string;
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
-  const subject = `Escalation: ${actionTitle} (${reason})`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">An action needs your attention</h2>
-    <p>Hi ${escapeHtml(firstName)},</p>
-    <p>The action below has been <strong>${escapeHtml(reason.toLowerCase())}</strong> for <strong>${escapeHtml(ageLabel)}</strong> without resolution, so it has been escalated to you as Leadership.</p>
-    <div style="background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Lead</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(leadName || "Unassigned")}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Department</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(department)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Status</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(statusLabel)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
-      <p style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 600;">${escapeHtml(deadline)}</p>
-    </div>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(queueUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Open Escalation Queue</a>
-      <a href="${escapeHtml(actionUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">View Action</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">Review the comment history and either help unblock the Lead or mark the escalation resolved from the People Dashboard.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("action.leadership_escalation", to, {
+    firstName,
+    reason,
+    reasonLower: reason.toLowerCase(),
+    ageLabel,
+    actionTitle,
+    leadName: leadName || "Unassigned",
+    department,
+    statusLabel,
+    deadline,
+    queueUrl,
+    actionUrl,
+  });
 }
 
 /**
@@ -1141,32 +930,18 @@ export async function sendBoardEscalationRollupEmail({
   actionUrl: string;
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
-  const subject = `Board roll-up: ${actionTitle}`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">An escalation has reached the Board</h2>
-    <p>Hi ${escapeHtml(firstName)},</p>
-    <p>The action below was escalated to Leadership <strong>${escapeHtml(leadershipEscalatedLabel)}</strong> and has remained unresolved since, so it has been rolled up to the Board for visibility.</p>
-    <div style="background: #fef2f2; border-left: 4px solid #991b1b; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Action</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 16px; font-weight: 600;">${escapeHtml(actionTitle)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Lead</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(leadName || "Unassigned")}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Department</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(department)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Status</p>
-      <p style="margin: 0 0 14px; color: #1c1917; font-size: 15px;">${escapeHtml(statusLabel)}</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Unresolved for</p>
-      <p style="margin: 0 0 14px; color: #991b1b; font-size: 15px; font-weight: 600;">${escapeHtml(daysUnresolvedLabel)} since Leadership escalation</p>
-      <p style="margin: 0 0 4px; color: #78716c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;">Deadline</p>
-      <p style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 600;">${escapeHtml(deadline)}</p>
-    </div>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(boardUrl)}" style="background: #6b21c8; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">Open Board Roll-up</a>
-      <a href="${escapeHtml(actionUrl)}" style="background: #ffffff; color: #6b21c8; border: 1px solid #6b21c8; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 0 6px 10px;">View Action</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">Review the full comment history on the Board roll-up list and direct Leadership on next steps, or mark it resolved.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("action.board_rollup", to, {
+    firstName,
+    leadershipEscalatedLabel,
+    actionTitle,
+    leadName: leadName || "Unassigned",
+    department,
+    statusLabel,
+    daysUnresolvedLabel,
+    deadline,
+    boardUrl,
+    actionUrl,
+  });
 }
 
 /**
@@ -1191,21 +966,12 @@ export async function sendFeedbackRequestEmail({
   formUrl: string;
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
-  const subject = `Feedback requested: ${subjectName} (${monthLabel})`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Your feedback has been requested</h2>
-    <p>Hi ${escapeHtml(firstName)},</p>
-    <p>As someone who has worked closely with <strong>${escapeHtml(subjectName)}</strong>, you're invited to share confidential feedback for <strong>${escapeHtml(monthLabel)}</strong>.</p>
-    <div style="background: #f5f3ff; border-left: 4px solid #7c3aed; border-radius: 8px; padding: 16px 20px; margin: 20px 0;">
-      <p style="margin: 0; font-size: 14px; color: #5b21b6; font-weight: 600;">This feedback is confidential</p>
-      <p style="margin: 8px 0 0; font-size: 14px; color: #44403c;">Only Leadership and the Board can read your response. ${escapeHtml(subjectName)} will not see what you write, so please be candid and constructive.</p>
-    </div>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(formUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Share Feedback</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">You're receiving this because our records show you recently collaborated with ${escapeHtml(subjectName)} in the YPP Pathways Portal.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("feedback.request", to, {
+    firstName,
+    subjectName,
+    monthLabel,
+    formUrl,
+  });
 }
 
 /**
@@ -1229,27 +995,25 @@ export async function sendMonthlyFeedbackRequestEmail({
   };
   formUrl: string;
 }): Promise<EmailResult> {
-  const intro = content.intro.map((p) => `<p>${escapeHtml(p)}</p>`).join("\n");
-  const workItems =
+  const introHtml = content.intro.map((p) => `<p>${escapeHtml(p)}</p>`).join("\n");
+  const workItemsHtml =
     content.workItems.length > 0
       ? `<ul style="color: #44403c; font-size: 14px; line-height: 1.8; padding-left: 20px; margin: 12px 0;">${content.workItems
           .map((item) => `<li>${escapeHtml(item)}</li>`)
           .join("")}</ul>`
       : "";
-  const closing = content.closing
+  const closingHtml = content.closing
     .map((p) => `<p style="color: #57534e; font-size: 14px;">${escapeHtml(p)}</p>`)
     .join("\n");
 
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">${escapeHtml(content.greeting)}</h2>
-    ${intro}
-    ${workItems}
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(formUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Share Feedback</a>
-    </div>
-    ${closing}
-  `);
-  return sendEmail({ to, subject: content.subject, html });
+  return sendTemplatedEmail("feedback.monthly_request", to, {
+    subject: content.subject,
+    greeting: content.greeting,
+    introHtml,
+    workItemsHtml,
+    closingHtml,
+    formUrl,
+  });
 }
 
 /**
@@ -1264,18 +1028,10 @@ export async function sendNewApplicationNotification({
   applicantName: string;
   reviewUrl: string;
 }): Promise<EmailResult> {
-  const subject = `New Instructor Application - ${applicantName}`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">New Instructor Application</h2>
-    <p><strong>${applicantName}</strong> has submitted an application to become an instructor at Youth Passion Project.</p>
-    <p>Please log in to review their application, check their motivation and experience, and take appropriate action.</p>
-    <p style="color: #57534e; font-size: 14px;">Frame the interview as a collaborative conversation about their teaching approach — not a scored exam.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${reviewUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Review Application</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">You are receiving this because you are an admin or chapter president.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("staff.new_application_notification", to, {
+    applicantName,
+    reviewUrl,
+  });
 }
 
 /**
@@ -1291,22 +1047,10 @@ export async function sendInstructorApplicationSubmittedEmail({
   statusUrl: string;
 }): Promise<EmailResult> {
   const firstName = applicantName.split(" ")[0] || applicantName;
-  const subject = "Your YPP Instructor Application Was Received";
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Thanks for applying, ${escapeHtml(firstName)}!</h2>
-    <p>We received your Youth Passion Project instructor application and we're excited to learn more about you.</p>
-    <p>Here's what happens next:</p>
-    <ul style="color: #57534e; font-size: 14px; line-height: 1.8; padding-left: 20px;">
-      <li>Our review team typically reaches out within <strong>3–5 business days</strong>.</li>
-      <li>After the interview, we'll make a final decision on your application.</li>
-    </ul>
-    <p>In the meantime you can check your application status in the portal at any time.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">Questions? Reach out to your chapter president or our team.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("applicant.application_submitted", to, {
+    firstName,
+    statusUrl,
+  });
 }
 
 /**
@@ -1323,22 +1067,10 @@ export async function sendInstructorPreApprovedEmail({
   trainingUrl: string;
 }): Promise<EmailResult> {
   const firstName = applicantName.split(" ")[0] || applicantName;
-  const subject = "Great News: Your YPP Application Has Been Pre-Approved";
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">You've been pre-approved, ${escapeHtml(firstName)}!</h2>
-    <p>We're excited to let you know that your instructor application has been reviewed and pre-approved by our team.</p>
-    <p><strong>What this means:</strong></p>
-    <ul style="color: #57534e; font-size: 14px; line-height: 1.8; padding-left: 20px;">
-      <li>You can now begin your <strong>instructor training</strong> in the portal.</li>
-      <li>We'll be in touch to schedule your <strong>interview</strong> — a collaborative conversation about your teaching approach and plans.</li>
-      <li>After the interview, we'll finalize your application and onboard you as a YPP instructor.</li>
-    </ul>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${trainingUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Start Instructor Training</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">Welcome to the journey — we're looking forward to working with you!</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("applicant.pre_approved", to, {
+    firstName,
+    trainingUrl,
+  });
 }
 
 /**
@@ -1351,19 +1083,12 @@ export async function sendApplicationApprovedEmail({
   to: string;
   applicantName: string;
 }): Promise<EmailResult> {
-  const subject = "Your YPP Instructor Application Has Been Approved!";
   const { getPublicAppUrl } = await import("@/lib/public-app-url");
   const baseUrl = getPublicAppUrl();
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Congratulations, ${applicantName}!</h2>
-    <p>We are thrilled to let you know that your application to become an instructor at Youth Passion Project has been <strong>approved</strong>.</p>
-    <p>You can now log in to the portal and begin your instructor training. Once you complete training and your interview, you will be fully certified to teach.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${baseUrl}/instructor-training" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Start Instructor Training</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">Welcome to the team! We look forward to working with you.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("application.approved", to, {
+    applicantName,
+    trainingUrl: `${baseUrl}/instructor-training`,
+  });
 }
 
 /**
@@ -1378,16 +1103,7 @@ export async function sendApplicationRejectedEmail({
   applicantName: string;
   reason: string;
 }): Promise<EmailResult> {
-  const subject = "Update on Your YPP Instructor Application";
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Thank You for Applying, ${applicantName}</h2>
-    <p>Thank you for your interest in becoming an instructor at Youth Passion Project. After careful consideration, we are unfortunately not moving forward with your application at this time.</p>
-    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px; margin: 20px 0;">
-      <p style="margin: 0; font-size: 14px; color: #44403c;"><strong>Reviewer notes:</strong> ${reason}</p>
-    </div>
-    <p>We encourage you to reapply in the future as your situation or our needs change. Thank you again for your interest in our mission.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("application.rejected", to, { applicantName, reason });
 }
 
 /**
@@ -1404,20 +1120,11 @@ export async function sendInfoRequestEmail({
   message: string;
   statusUrl: string;
 }): Promise<EmailResult> {
-  const subject = "YPP Needs More Information About Your Application";
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Additional Information Needed</h2>
-    <p>Hi ${applicantName}, a reviewer has reviewed your instructor application and has a follow-up question or request before proceeding.</p>
-    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px; margin: 20px 0;">
-      <p style="margin: 0; font-size: 14px; color: #44403c;"><strong>Message from reviewer:</strong></p>
-      <p style="margin: 8px 0 0; font-size: 14px; color: #1c1917;">${message}</p>
-    </div>
-    <p>Please log in to your application status page to submit your response.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Respond to Request</a>
-    </div>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("application.info_request", to, {
+    applicantName,
+    message,
+    statusUrl,
+  });
 }
 
 /**
@@ -1438,7 +1145,7 @@ export async function sendInterviewScheduledEmail({
   meetingUrl?: string | null;
   variant?: "default" | "instructor_application";
 }): Promise<EmailResult> {
-  const subject = "Your YPP Interview Has Been Scheduled";
+  void variant;
   const formattedDate = scheduledAt.toLocaleString("en-US", {
     weekday: "long",
     year: "numeric",
@@ -1454,19 +1161,13 @@ export async function sendInterviewScheduledEmail({
     <p style="color: #78716c; font-size: 13px;">You can also find the meeting details on your application status page.</p>`
     : `
     <div style="text-align: center; margin: 28px 0;">
-      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
+      <a href="${escapeHtml(statusUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
     </div>`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Interview scheduled, ${applicantName}!</h2>
-    <p>Great news — your interview with the review team has been scheduled.</p>
-    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
-      <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1c1917;">${formattedDate}</p>
-    </div>
-    <p>You can view your full application status and any additional details in the portal.</p>
-    ${meetingBlock}
-    <p style="color: #78716c; font-size: 13px;">If you have questions, please reach out to your chapter president or admin.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("applicant.interview_scheduled", to, {
+    applicantName,
+    formattedDate,
+    meetingBlock,
+  });
 }
 
 /**
@@ -1485,7 +1186,6 @@ export async function sendPickYourTimeEmail({
   statusUrl: string;
 }): Promise<EmailResult> {
   const firstName = applicantName.split(" ")[0] || applicantName;
-  const subject = "Action Needed: Pick a Time for Your Interview";
   const slotRows = slots
     .map((s) => {
       const formatted = s.scheduledAt.toLocaleString("en-US", {
@@ -1500,21 +1200,11 @@ export async function sendPickYourTimeEmail({
       return `<li style="margin-bottom: 6px;">${escapeHtml(formatted)} (${s.durationMinutes} min)</li>`;
     })
     .join("");
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Choose your time, ${escapeHtml(firstName)}!</h2>
-    <p>Great news — your lead interviewer would like to schedule your interview.</p>
-    <p><strong>Proposed times:</strong></p>
-    <ul style="color: #57534e; font-size: 14px; line-height: 1.8; padding-left: 20px;">
-      ${slotRows}
-    </ul>
-    <p>Log in to the portal and pick the time that works best for you.</p>
-    <p>After you choose a time, your confirmation email and status page will include the meeting details.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Choose Your Time</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">If none of these times work, use the option on your application status page and your lead interviewer will send a new set.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("applicant.pick_your_time", to, {
+    firstName,
+    slotRows,
+    statusUrl,
+  });
 }
 
 export async function sendInterviewTimesDeclinedEmail({
@@ -1529,17 +1219,11 @@ export async function sendInterviewTimesDeclinedEmail({
   workspaceUrl: string;
 }): Promise<EmailResult> {
   const firstName = recipientName?.split(" ")[0] || "there";
-  const subject = "Applicant needs new interview times";
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">New times needed</h2>
-    <p>Hi ${escapeHtml(firstName)},</p>
-    <p>${escapeHtml(applicantName)} marked that none of the proposed interview times work.</p>
-    <p>The previous unconfirmed times were cleared. Please send a new set of exactly 3 future options.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(workspaceUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Send New Times</a>
-    </div>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("applicant.interview_times_declined", to, {
+    firstName,
+    applicantName,
+    workspaceUrl,
+  });
 }
 
 /**
@@ -1568,7 +1252,6 @@ export async function sendInterviewConfirmedEmail({
   icsContent: string;
 }): Promise<EmailResult> {
   const firstName = recipientName.split(" ")[0] || recipientName;
-  const subject = "Confirmed: Interview Scheduled";
   const formattedDate = scheduledAt.toLocaleString("en-US", {
     weekday: "long",
     year: "numeric",
@@ -1582,35 +1265,31 @@ export async function sendInterviewConfirmedEmail({
     role === "applicant"
       ? `It's confirmed, ${escapeHtml(firstName)}!`
       : `${escapeHtml(applicantName)} has confirmed their time`;
-  const body =
+  const bodyText =
     role === "applicant"
       ? "Your interview is officially booked. This is a collaborative conversation — come prepared to talk about your teaching approach."
       : `${escapeHtml(applicantName)} has selected a time for their interview. A calendar invite is attached.`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">${heading}</h2>
-    <p>${body}</p>
-    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
-      <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1c1917;">${escapeHtml(formattedDate)}</p>
-      <p style="margin: 8px 0 0; font-size: 13px; color: #78716c;">Duration: ${durationMinutes} minutes</p>
-    </div>
-    ${renderMeetingDetailsBlock(meetingUrl)}
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${detailUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Details</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">A calendar invite (.ics) is attached to this email.</p>
-  `);
-  return sendEmail({
+  return sendTemplatedEmail(
+    "applicant.interview_confirmed",
     to,
-    subject,
-    html,
-    attachments: [
-      {
-        filename: "interview.ics",
-        content: icsContent,
-        contentType: "text/calendar",
-      },
-    ],
-  });
+    {
+      heading,
+      bodyText,
+      formattedDate,
+      durationMinutes: String(durationMinutes),
+      meetingBlock: renderMeetingDetailsBlock(meetingUrl),
+      detailUrl,
+    },
+    {
+      attachments: [
+        {
+          filename: "interview.ics",
+          content: icsContent,
+          contentType: "text/calendar",
+        },
+      ],
+    }
+  );
 }
 
 export async function sendInterviewChoiceReminderEmail({
@@ -1625,7 +1304,6 @@ export async function sendInterviewChoiceReminderEmail({
   statusUrl: string;
 }): Promise<EmailResult> {
   const firstName = applicantName.split(" ")[0] || applicantName;
-  const subject = "Reminder: Pick a Time for Your YPP Interview";
   const slotRows = slots
     .map((slot) => {
       const formatted = slot.scheduledAt.toLocaleString("en-US", {
@@ -1640,17 +1318,11 @@ export async function sendInterviewChoiceReminderEmail({
       return `<li style="margin-bottom: 6px;">${escapeHtml(formatted)} (${slot.durationMinutes} min)</li>`;
     })
     .join("");
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Choose your interview time, ${escapeHtml(firstName)}</h2>
-    <p>Your lead interviewer sent 3 possible interview times. Please pick the one that works best for you.</p>
-    <ul style="color: #57534e; font-size: 14px; line-height: 1.8; padding-left: 20px;">
-      ${slotRows}
-    </ul>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Pick Your Time</a>
-    </div>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("applicant.interview_choice_reminder", to, {
+    firstName,
+    slotRows,
+    statusUrl,
+  });
 }
 
 export async function sendInstructorInterviewReminderEmail({
@@ -1688,23 +1360,18 @@ export async function sendInstructorInterviewReminderEmail({
     minute: "2-digit",
     timeZoneName: "short",
   });
-  const body =
+  const bodyText =
     role === "applicant"
-      ? `Hi ${escapeHtml(firstName)}, this is your ${windowLabel} reminder for your YPP interview.`
-      : `Hi ${escapeHtml(firstName)}, this is your ${windowLabel} reminder that ${escapeHtml(applicantName)} has a YPP interview with you.`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Interview reminder</h2>
-    <p>${body}</p>
-    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
-      <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1c1917;">${escapeHtml(formattedDate)}</p>
-      <p style="margin: 8px 0 0; font-size: 13px; color: #78716c;">Duration: ${durationMinutes} minutes</p>
-    </div>
-    ${renderMeetingDetailsBlock(meetingDetails)}
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${detailUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Details</a>
-    </div>
-  `);
-  return sendEmail({ to, subject, html });
+      ? `Hi ${escapeHtml(firstName)}, this is your ${escapeHtml(windowLabel)} reminder for your YPP interview.`
+      : `Hi ${escapeHtml(firstName)}, this is your ${escapeHtml(windowLabel)} reminder that ${escapeHtml(applicantName)} has a YPP interview with you.`;
+  return sendTemplatedEmail("applicant.interview_reminder", to, {
+    subject,
+    bodyText,
+    formattedDate,
+    durationMinutes: String(durationMinutes),
+    meetingBlock: renderMeetingDetailsBlock(meetingDetails),
+    detailUrl,
+  });
 }
 
 // ============================================
@@ -1757,37 +1424,6 @@ export function generateIcsContent(params: IcsParams): string {
 }
 
 // ============================================
-// BRANDED EMAIL SHELL (upgraded)
-// ============================================
-
-/**
- * Bold, branded YPP email shell with deep purple gradient header and tagline.
- */
-function brandedShell(opts: { tagline: string; body: string }): string {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8f7ff;">
-  <div style="background: linear-gradient(135deg, #4c1d95 0%, #6b21c8 50%, #7c3aed 100%); padding: 40px 36px 32px; border-radius: 16px 16px 0 0; text-align: center;">
-    <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.15em; color: rgba(255,255,255,0.6); text-transform: uppercase; margin-bottom: 10px;">Youth Passion Project</div>
-    <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">YPP Pathways Portal</h1>
-    <p style="color: rgba(255,255,255,0.8); margin: 10px 0 0; font-size: 14px; font-style: italic;">${escapeHtml(opts.tagline)}</p>
-  </div>
-  <div style="background: #ffffff; padding: 36px; border: 1px solid #ede9fe; border-top: none; border-radius: 0 0 16px 16px;">
-    ${opts.body}
-  </div>
-  <p style="text-align: center; color: #a78bfa; font-size: 11px; margin-top: 20px; letter-spacing: 0.05em;">
-    Youth Passion Project &middot; Empowering youth through passion.<br>
-    <span style="color: #78716c;">This is an automated notification from the YPP Pathways Portal.</span>
-  </p>
-</body>
-</html>`;
-}
-
-// ============================================
 // AVAILABILITY REQUEST EMAIL
 // ============================================
 
@@ -1816,10 +1452,6 @@ export async function sendAvailabilityRequestEmail({
     ? "Your chapter presidency journey just got real."
     : "Your teaching journey with YPP is just getting started.";
 
-  const heading = isCp
-    ? `${escapeHtml(applicantName)}, you've been selected for an interview!`
-    : `${escapeHtml(applicantName)}, you've been invited to interview!`;
-
   const bodyText = isCp
     ? `YPP chapters are built by people exactly like you — driven, visionary, ready to lead. We've reviewed your application and we want to meet you. The next step is to let us know when you're available so we can lock in a time that works for everyone.`
     : `This isn't a test — it's a conversation. We want to hear how you think about teaching and get to know you better. Your lead interviewer will send exactly 3 proposed times for you to choose from.`;
@@ -1829,23 +1461,17 @@ export async function sendAvailabilityRequestEmail({
     ? "Log in, add your available time windows, and we'll automatically match you with a slot — no back-and-forth needed."
     : "Log in to your application status page. When your lead interviewer sends proposed times, you will be able to pick the one that works best.";
 
-  const html = brandedShell({
+  return sendTemplatedEmail("applicant.availability_request", to, {
+    subject,
     tagline,
-    body: `
-      <h2 style="margin: 0 0 20px; color: #1c1917; font-size: 22px; font-weight: 800;">${heading}</h2>
-      <p style="margin: 0 0 20px; color: #44403c; font-size: 15px; line-height: 1.7;">${escapeHtml(bodyText)}</p>
-      <div style="background: #f5f3ff; border-left: 4px solid #7c3aed; border-radius: 8px; padding: 16px 20px; margin: 0 0 28px;">
-        <p style="margin: 0; font-size: 14px; color: #5b21b6; font-weight: 600;">What happens next?</p>
-        <p style="margin: 8px 0 0; font-size: 14px; color: #44403c;">${escapeHtml(nextStepText)}</p>
-      </div>
-      <div style="text-align: center; margin: 28px 0;">
-        <a href="${escapeHtml(statusUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 36px; border-radius: 9999px; text-decoration: none; font-weight: 700; font-size: 15px; letter-spacing: 0.02em;">${escapeHtml(ctaLabel)}</a>
-      </div>
-      <p style="margin: 0; font-size: 13px; color: #78716c; text-align: center;">Can't click the button? Copy this link into your browser:<br><span style="color: #7c3aed; word-break: break-all;">${escapeHtml(statusUrl)}</span></p>
-    `,
+    heading: isCp
+      ? `${applicantName}, you've been selected for an interview!`
+      : `${applicantName}, you've been invited to interview!`,
+    bodyText,
+    nextStepText,
+    ctaLabel,
+    statusUrl,
   });
-
-  return sendEmail({ to, subject, html });
 }
 
 // ============================================
@@ -1899,21 +1525,21 @@ export async function sendInterviewAutoAssignedEmail({
   if (isApplicant && isCp) {
     subject = "Your YPP interview is confirmed — add it to your calendar";
     tagline = "The conversation that could change everything.";
-    heading = `It's official, ${escapeHtml(recipientName)}! Your interview is booked.`;
+    heading = `It's official, ${recipientName}! Your interview is booked.`;
     bodyText = "Come ready to talk about your leadership philosophy, your vision for your chapter, and why you believe in YPP's mission. There are no trick questions — we just want to get to know the leader you already are.";
   } else if (isApplicant && !isCp) {
     subject = "Your curriculum review session is confirmed — see you soon";
     tagline = "Great teaching starts with a great conversation.";
-    heading = `Looking forward to meeting you, ${escapeHtml(recipientName)}!`;
+    heading = `Looking forward to meeting you, ${recipientName}!`;
     bodyText = "This is an open conversation about how you teach. We'll discuss your teaching approach, walk through some curriculum, and explore how YPP materials fit your style. Come as you are — curious and prepared to share.";
   } else {
     // Interviewer
     subject = isCp
-      ? `Interview scheduled: ${escapeHtml(applicantName)}`
-      : `Curriculum review scheduled: ${escapeHtml(applicantName)}`;
+      ? `Interview scheduled: ${applicantName}`
+      : `Curriculum review scheduled: ${applicantName}`;
     tagline = "A new session has been auto-scheduled for you.";
     heading = `A ${sessionLabel} has been auto-scheduled`;
-    bodyText = `Your availability matched with ${escapeHtml(applicantName)}'s submitted windows. The details are below — the calendar invite is attached.`;
+    bodyText = `Your availability matched with ${applicantName}'s submitted windows. The details are below — the calendar invite is attached.`;
   }
 
   const meetingLinkHtml = meetingLink
@@ -1925,34 +1551,30 @@ export async function sendInterviewAutoAssignedEmail({
 
   const icsFilename = isCp ? "interview-details.ics" : "curriculum-review.ics";
 
-  const html = brandedShell({
-    tagline,
-    body: `
-      <h2 style="margin: 0 0 20px; color: #1c1917; font-size: 22px; font-weight: 800;">${heading}</h2>
-      <p style="margin: 0 0 20px; color: #44403c; font-size: 15px; line-height: 1.7;">${escapeHtml(bodyText)}</p>
-      <div style="background: #f5f3ff; border-radius: 10px; padding: 20px; margin: 0 0 20px; text-align: center; border: 1px solid #ede9fe;">
-        <p style="margin: 0 0 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #7c3aed;">Your ${escapeHtml(sessionLabelCap)}</p>
-        <p style="margin: 0; font-size: 18px; font-weight: 700; color: #4c1d95;">${escapeHtml(formattedDate)}</p>
-      </div>
-      ${meetingLinkHtml}
-      <p style="margin: 0; font-size: 13px; color: #78716c; text-align: center;">The calendar invite (.ics file) is attached — open it to add this event to your calendar.</p>
-    `,
-  });
-
-  return sendEmail({
+  return sendTemplatedEmail(
+    "applicant.interview_auto_assigned",
     to,
-    subject,
-    html,
-    attachments: [
-      {
-        filename: icsFilename,
-        content: icsContent,
-        contentType: "text/calendar",
-        encoding: "utf-8",
-        disposition: "attachment",
-      },
-    ],
-  });
+    {
+      subject,
+      tagline,
+      heading,
+      bodyText,
+      sessionLabelCap,
+      formattedDate,
+      meetingLinkHtml,
+    },
+    {
+      attachments: [
+        {
+          filename: icsFilename,
+          content: icsContent,
+          contentType: "text/calendar",
+          encoding: "utf-8",
+          disposition: "attachment",
+        },
+      ],
+    }
+  );
 }
 
 // ============================================
@@ -1974,30 +1596,11 @@ export async function sendNoMatchFoundEmail({
   variant: "cp" | "instructor";
 }): Promise<EmailResult> {
   const sessionLabel = variant === "cp" ? "interview" : "curriculum review session";
-  const subject = `[Action needed] No matching slot found for ${applicantName}`;
-
-  const html = brandedShell({
-    tagline: "Scheduling needs your attention.",
-    body: `
-      <h2 style="margin: 0 0 16px; color: #1c1917; font-size: 20px; font-weight: 800;">Scheduling couldn't auto-complete for ${escapeHtml(applicantName)}</h2>
-      <p style="margin: 0 0 16px; color: #44403c; font-size: 15px; line-height: 1.7;">
-        ${escapeHtml(applicantName)} submitted their availability windows for a ${escapeHtml(sessionLabel)}, but no overlap was found with the assigned reviewer's schedule.
-      </p>
-      <div style="background: #fff7ed; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px 20px; margin: 0 0 24px;">
-        <p style="margin: 0; font-size: 14px; color: #92400e; font-weight: 600;">What to do</p>
-        <ul style="margin: 8px 0 0; padding: 0 0 0 18px; font-size: 14px; color: #78350f; line-height: 1.8;">
-          <li>The applicant has been prompted to add more availability windows and will retry automatically.</li>
-          <li>You can also manually schedule the ${escapeHtml(sessionLabel)} from the admin panel.</li>
-          <li>Or ask the assigned reviewer to expand their availability rules.</li>
-        </ul>
-      </div>
-      <div style="text-align: center; margin: 28px 0;">
-        <a href="${escapeHtml(adminUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 36px; border-radius: 9999px; text-decoration: none; font-weight: 700; font-size: 15px;">View Application</a>
-      </div>
-    `,
+  return sendTemplatedEmail("applicant.no_match_found", to, {
+    applicantName,
+    sessionLabel,
+    adminUrl,
   });
-
-  return sendEmail({ to, subject, html });
 }
 
 /**
@@ -2031,17 +1634,11 @@ export async function sendReviewerAssignedEmail(
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
   const baseUrl = await getBaseUrl();
-  const subject = "You've been assigned to review an instructor application";
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Reviewer Assignment</h2>
-    <p>Hi ${escapeHtml(user.name)},</p>
-    <p>You have been assigned as the reviewer for <strong>${escapeHtml(application.applicant.name)}</strong>'s instructor application.</p>
-    <p>Please complete your structured review when you're ready.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(`${baseUrl}/applications/instructor/${applicationId}`)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application</a>
-    </div>
-  `);
-  return sendEmail({ to: user.email, subject, html });
+  return sendTemplatedEmail("staff.reviewer_assigned", user.email, {
+    reviewerName: user.name,
+    applicantName: application.applicant.name,
+    applicationUrl: `${baseUrl}/applications/instructor/${applicationId}`,
+  });
 }
 
 /**
@@ -2065,17 +1662,12 @@ export async function sendInterviewerAssignedEmail(
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
   const baseUrl = await getBaseUrl();
   const roleLabel = role === "LEAD" ? "Lead Interviewer" : "Second Interviewer";
-  const subject = `You've been assigned as ${roleLabel} for an instructor interview`;
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Interviewer Assignment — ${escapeHtml(roleLabel)}</h2>
-    <p>Hi ${escapeHtml(user.name)},</p>
-    <p>You have been assigned as the <strong>${escapeHtml(roleLabel)}</strong> for <strong>${escapeHtml(application.applicant.name)}</strong>'s instructor interview.</p>
-    <p>Please review the applicant's materials and complete your interview evaluation after the session.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(`${baseUrl}/applications/instructor/${applicationId}/interview`)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Interview Workspace</a>
-    </div>
-  `);
-  return sendEmail({ to: user.email, subject, html });
+  return sendTemplatedEmail("staff.interviewer_assigned", user.email, {
+    roleLabel,
+    interviewerName: user.name,
+    applicantName: application.applicant.name,
+    interviewUrl: `${baseUrl}/applications/instructor/${applicationId}/interview`,
+  });
 }
 
 /**
@@ -2088,22 +1680,11 @@ export async function sendMaterialsMissingReminderEmail(
 ): Promise<EmailResult> {
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
   const baseUrl = await getBaseUrl();
-  const subject = "Action required: upload your course materials before your interview";
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Materials needed before your interview</h2>
-    <p>Hi ${escapeHtml(applicantName)},</p>
-    <p>Your interview slot is confirmed — great! To help your interview team prepare, please upload your curriculum prep materials before your session:</p>
-    <ul style="color: #44403c; line-height: 2;">
-      <li><strong>One-class plan</strong> — a lesson plan for your first session</li>
-      <li><strong>Structure notes</strong> — a short outline of how the full class would fit together</li>
-    </ul>
-    <p>These are helpful context for the team. They are not a blocker for your confirmed interview.</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(`${baseUrl}/application-status`)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Upload Materials</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">If you've already uploaded these, you can ignore this reminder.</p>
-  `);
-  return sendEmail({ to: applicantEmail, subject, html });
+  void applicationId;
+  return sendTemplatedEmail("applicant.materials_missing", applicantEmail, {
+    applicantName,
+    uploadUrl: `${baseUrl}/application-status`,
+  });
 }
 
 /**
@@ -2119,7 +1700,6 @@ export async function sendChairDigestEmail(
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
   const baseUrl = await getBaseUrl();
-  const subject = `Chair Queue: ${pendingCount} application${pendingCount === 1 ? "" : "s"} awaiting your decision`;
 
   const rows = applications
     .slice(0, 10)
@@ -2130,25 +1710,19 @@ export async function sendChairDigestEmail(
     )
     .join("");
 
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Chair Queue — Daily Digest</h2>
-    <p>Hi ${escapeHtml(chairName)},</p>
-    <p>You have <strong>${pendingCount}</strong> instructor application${pendingCount === 1 ? "" : "s"} awaiting a chair decision.</p>
-    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
-      <thead>
-        <tr style="background: #f5f5f4;">
-          <th style="padding: 8px 12px; text-align: left; font-weight: 600;">Applicant</th>
-          <th style="padding: 8px 12px; text-align: left; font-weight: 600;">Wait time</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-    ${pendingCount > 10 ? `<p style="color: #78716c; font-size: 13px;">…and ${pendingCount - 10} more in the queue.</p>` : ""}
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(`${baseUrl}/admin/instructor-applicants/chair-queue`)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Open Chair Queue</a>
-    </div>
-  `);
-  return sendEmail({ to: chairEmail, subject, html });
+  const moreNote =
+    pendingCount > 10
+      ? `<p style="color: #78716c; font-size: 13px;">…and ${pendingCount - 10} more in the queue.</p>`
+      : "";
+
+  return sendTemplatedEmail("staff.chair_digest", chairEmail, {
+    chairName,
+    pendingCount: String(pendingCount),
+    applicationWord: pendingCount === 1 ? "application" : "applications",
+    rows,
+    moreNote,
+    queueUrl: `${baseUrl}/admin/instructor-applicants/chair-queue`,
+  });
 }
 
 /**
@@ -2163,18 +1737,10 @@ export async function sendChairReviewQueuedEmail({
   applicantName: string;
   statusUrl: string;
 }): Promise<EmailResult> {
-  const subject = "Your YPP instructor application is under final review";
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Great news, ${escapeHtml(applicantName)}!</h2>
-    <p>Your interviews have been completed and your instructor application has been passed to our hiring chair for final review.</p>
-    <p>The hiring chair typically completes their review within <strong>up to two weeks</strong>. You will receive another email as soon as a decision has been made.</p>
-    <p>In the meantime, you can check your current application status at any time:</p>
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(statusUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
-    </div>
-    <p style="color: #78716c; font-size: 13px;">Thank you for your patience — we appreciate your interest in joining the YPP instructor team.</p>
-  `);
-  return sendEmail({ to, subject, html });
+  return sendTemplatedEmail("applicant.chair_review_queued", to, {
+    applicantName,
+    statusUrl,
+  });
 }
 
 export async function sendChairDecisionEmail(
@@ -2194,42 +1760,8 @@ export async function sendChairDecisionEmail(
   const baseUrl = await getBaseUrl();
   const statusUrl = `${baseUrl}/application-status`;
 
-  type ActionContent = { subject: string; body: string };
-  const contentByAction: Record<string, ActionContent> = {
-    APPROVE: {
-      subject: "Congratulations — Your YPP Instructor Application is Approved!",
-      body: `<p>We are delighted to let you know that your instructor application has been <strong>approved</strong> by our review committee. Welcome to the YPP instructor team!</p><p>Check your training academy for next steps.</p>`,
-    },
-    REJECT: {
-      subject: "Update on Your YPP Instructor Application",
-      body: `<p>Thank you for your interest in teaching at Youth Passion Project. After careful review, we are not moving forward with your application at this time.</p><p>We encourage you to reapply in the future as our needs evolve.</p>`,
-    },
-    HOLD: {
-      subject: "Your YPP Instructor Application is on Hold",
-      body: `<p>Your application has been placed on hold while the committee gathers additional information. We will follow up when a decision is ready.</p>`,
-    },
-    REQUEST_INFO: {
-      subject: "YPP Needs More Information About Your Application",
-      body: `<p>The review committee has requested additional information before making a final decision. Please log in to your application page to respond.</p>`,
-    },
-    REQUEST_SECOND_INTERVIEW: {
-      subject: "Your YPP Application — Second Interview Requested",
-      body: `<p>The committee would like to schedule a second interview before making a final decision. Your reviewer will be in touch with available times shortly.</p>`,
-    },
-  };
-
-  const content = contentByAction[action] ?? {
-    subject: "Update on Your YPP Instructor Application",
-    body: `<p>There has been an update to your instructor application. Please log in to view the latest status.</p>`,
-  };
-
-  const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">${content.subject}</h2>
-    <p>Hi ${escapeHtml(applicantName)},</p>
-    ${content.body}
-    <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(statusUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
-    </div>
-  `);
-  return sendEmail({ to, subject: content.subject, html });
+  return sendTemplatedEmail(chairDecisionTemplateKey(action), to, {
+    applicantName,
+    statusUrl,
+  });
 }

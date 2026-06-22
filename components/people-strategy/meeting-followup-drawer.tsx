@@ -9,12 +9,9 @@ import {
 } from "@/lib/people-strategy/meeting-categories";
 import { addFollowUp } from "@/lib/people-strategy/meetings-actions";
 import { MeetingIcon } from "./meeting-icons";
-import { Drawer, Field, Label, Toggle, fieldStyle } from "./meeting-form-kit";
-import { Avatar, CategoryBadge, MeetingButton, PriorityBadge, Pill, TinyLabel, dueText, fmtDate } from "./meeting-ui";
+import { Drawer, Field, Toggle, fieldStyle } from "./meeting-form-kit";
+import { Avatar, CategoryBadge, MeetingButton, Pill, TinyLabel, dueText, fmtDate } from "./meeting-ui";
 import type { PersonOption } from "./new-meeting-drawer";
-
-const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
-const PRIORITY_LABELS: Record<string, string> = { LOW: "Low", MEDIUM: "Normal", HIGH: "High", URGENT: "Urgent" };
 
 /**
  * Add a follow-up to a meeting — optionally creating a linked Action Tracker
@@ -41,7 +38,6 @@ export function AddFollowUpDrawer({
   const [description, setDescription] = useState("");
   const [owner, setOwner] = useState(meeting.facilitatorId ?? people[0]?.id ?? "");
   const [due, setDue] = useState("");
-  const [priority, setPriority] = useState<string>("MEDIUM");
   const [area, setArea] = useState<string>(meeting.category ?? "OTHER");
   const [createAction, setCreateAction] = useState(defaultCreate);
 
@@ -57,7 +53,6 @@ export function AddFollowUpDrawer({
           description,
           ownerId: owner || undefined,
           dueDate: due || undefined,
-          priority: priority as (typeof PRIORITIES)[number],
           area,
           createAction,
         });
@@ -114,26 +109,15 @@ export function AddFollowUpDrawer({
             <input type="date" value={due} onChange={(e) => setDue(e.target.value)} style={fieldStyle} />
           </Field>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <Field label="Priority">
-            <select value={priority} onChange={(e) => setPriority(e.target.value)} style={fieldStyle}>
-              {PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {PRIORITY_LABELS[p]}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Related area">
-            <select value={area} onChange={(e) => setArea(e.target.value)} style={fieldStyle}>
-              {MEETING_CATEGORY_VALUES.map((c) => (
-                <option key={c} value={c}>
-                  {meetingCategoryLabel(c)}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
+        <Field label="Related area">
+          <select value={area} onChange={(e) => setArea(e.target.value)} style={fieldStyle}>
+            {MEETING_CATEGORY_VALUES.map((c) => (
+              <option key={c} value={c}>
+                {meetingCategoryLabel(c)}
+              </option>
+            ))}
+          </select>
+        </Field>
       </div>
 
       {/* the link toggle — the heart of the flow */}
@@ -180,7 +164,6 @@ export function AddFollowUpDrawer({
                 Source: Meeting
               </Pill>
               <CategoryBadge category={area} />
-              <PriorityBadge priority={priority} />
             </div>
             <div style={{ fontSize: 15, fontWeight: 800, color: "var(--ypp-ink)" }}>{title || "Untitled action"}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, paddingTop: 4 }}>

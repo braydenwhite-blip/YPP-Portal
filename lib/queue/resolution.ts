@@ -16,10 +16,10 @@ import {
  */
 
 /** The meetings hub — where a loop becomes an agenda item / discussion. */
-const MEETINGS_HREF = "/actions/meetings";
+const MEETINGS_HREF = "/meetings";
 
 function meetingHref(meetingId: string | null | undefined): string {
-  return meetingId ? `/actions/meetings/${meetingId}` : MEETINGS_HREF;
+  return meetingId ? `/meetings/${meetingId}` : MEETINGS_HREF;
 }
 
 export type ResolutionOverrides = Partial<Record<QueueResolution, QueueAction | null>>;

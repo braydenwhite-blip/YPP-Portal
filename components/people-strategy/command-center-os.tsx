@@ -82,8 +82,8 @@ export function CommandCenterHero({
 }) {
   return (
     <ActionCommandBar
-      eyebrow="People Strategy · Leadership"
-      title="Command Center"
+      eyebrow="Operations"
+      title="Overview"
       subtitle="What's urgent, what's stuck, what's due, and what to review this week — across every part of YPP."
       meta={`Week of ${fmt(windowStartISO)} · generated ${fmt(generatedAtISO)} · based on ${consideredCount} ${
         consideredCount === 1 ? "action" : "actions"
@@ -116,7 +116,7 @@ export function OperationalDigestStats({ counts }: { counts: OperationalDigestCo
     { label: "Overdue actions", value: counts.overdueActions, tone: counts.overdueActions > 0 ? "danger" : "default", icon: "alert", href: "/actions/all?status=OVERDUE" },
     { label: "Due this week", value: counts.dueSoonActions, icon: "calendar", href: "/actions/all?preset=due_soon" },
     { label: "Blocked items", value: counts.blockedActions, tone: counts.blockedActions > 0 ? "warning" : "default", icon: "flag", href: "/actions/all?status=BLOCKED" },
-    { label: "Meetings this week", value: counts.meetingsThisWeek, icon: "users", href: "/actions/meetings" },
+    { label: "Meetings this week", value: counts.meetingsThisWeek, icon: "users", href: "/meetings" },
     {
       label: "Uncaptured outputs",
       value: counts.decisionsNeedingAction + counts.unconvertedFollowUps,
@@ -190,7 +190,7 @@ export function LeadershipRhythm() {
   const moves: Array<{ href: string; label: string; primary?: boolean }> = [
     { href: "/operations/weekly-execution", label: "Run weekly execution meeting", primary: true },
     { href: "/actions/all?status=OVERDUE", label: "Review overdue actions" },
-    { href: "/actions/meetings", label: "Follow up on meetings" },
+    { href: "/meetings", label: "Follow up on meetings" },
     { href: "/actions/meetings/new", label: "Schedule a meeting" },
     { href: "/actions/new", label: "Create an action" },
   ];

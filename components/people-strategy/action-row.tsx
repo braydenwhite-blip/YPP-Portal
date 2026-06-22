@@ -81,40 +81,29 @@ export function ActionRow({
   const ctaHref =
     cta.behavior === "edit" ? `/actions/${item.id}/edit` : `/actions/${item.id}`;
 
+  // Left rail reads the action's signal: red when overdue, brand when it's on
+  // an officer-meeting agenda, otherwise quiet — matching the mockup's cards.
+  const railClass = overdue
+    ? "border-l-blocked-700"
+    : item.officerMeetingId
+      ? "border-l-brand-600"
+      : "border-l-transparent";
+
   return (
     <div
-      className="card ps-action-card"
-      style={{
-        display: "flex",
-        gap: 12,
-        padding: "12px 14px",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        borderLeft: `3px solid ${overdue ? "var(--error-color)" : "transparent"}`,
-      }}
+      className={`ps-action-card flex items-start justify-between gap-3 rounded-[12px] border border-l-[3px] border-line-card bg-surface p-3.5 shadow-card ${railClass}`}
     >
-      <div style={{ minWidth: 0, flex: 1 }}>
+      <div className="min-w-0 flex-1">
         <Link
           href={`/actions/${item.id}`}
-          className="ps-action-card-title"
-          style={{ fontSize: 14, fontWeight: 700, color: "inherit", textDecoration: "none" }}
+          className="ps-action-card-title text-[14px] font-semibold leading-snug text-ink no-underline hover:text-brand-700"
         >
           {item.title}
         </Link>
 
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 6,
-            fontSize: 12,
-            color: "var(--text-secondary, #64748b)",
-          }}
-        >
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-ink-muted">
           <StatusPill status={item.status} />
-          <span style={{ fontWeight: 600, color: overdue ? "var(--error-color)" : "inherit" }}>
+          <span className={overdue ? "font-semibold text-blocked-700" : "font-semibold"}>
             {duePhrase(item, now)}
           </span>
           <span aria-hidden>·</span>
@@ -123,7 +112,7 @@ export function ActionRow({
             <>
               <span aria-hidden>·</span>
               {context.href ? (
-                <Link href={context.href} style={{ color: "var(--ypp-purple-600, #6b21c8)", textDecoration: "none" }}>
+                <Link href={context.href} className="text-brand-700 no-underline hover:underline">
                   {context.text}
                 </Link>
               ) : (
@@ -134,30 +123,21 @@ export function ActionRow({
         </div>
 
         {reason ? (
-          <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--error-color)" }}>{reason}</p>
+          <p className="m-0 mt-1.5 text-[12px] text-blocked-700">{reason}</p>
         ) : item.successDefinition ? (
-          <p
-            style={{
-              margin: "6px 0 0",
-              fontSize: 12,
-              color: "var(--text-secondary, #64748b)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <p className="m-0 mt-1.5 truncate text-[12px] text-ink-muted">
             Next: {item.successDefinition}
           </p>
         ) : null}
 
         {error ? (
-          <p role="alert" style={{ margin: "6px 0 0", fontSize: 12, color: "var(--error-color)" }}>
+          <p role="alert" className="m-0 mt-1.5 text-[12px] text-blocked-700">
             {error}
           </p>
         ) : null}
       </div>
 
-      <div style={{ flexShrink: 0 }}>
+      <div className="shrink-0">
         {cta.behavior === "complete" ? (
           <Button variant="primary" size="sm" onClick={markDone} disabled={pending} title={cta.reason}>
             {pending ? "Saving…" : cta.label}

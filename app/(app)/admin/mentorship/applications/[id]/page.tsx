@@ -22,6 +22,8 @@ import {
   type RecommendationCard,
 } from "@/components/mentorship-2/matching-recommendations";
 import { ApplicationDecision } from "@/components/mentorship-2/application-decision";
+import { ApplicationMatchCalm } from "@/components/mentorship-2/application-match-calm";
+import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
 
 export const metadata = { title: "Application — Mentorship matching — YPP" };
 
@@ -121,6 +123,14 @@ export default async function MentorshipApplicationDetailPage({
   const usableMatch = cards.some((c) => c.score >= RECOMMENDATION_MIN_USEFUL_SCORE);
   const profile = application.applicant?.profile;
 
+  // The single highest-scoring live candidate — the one Calm leads the decision
+  // with. Closed (rejected/superseded) recommendations are never "the next
+  // move", so they're excluded.
+  const topRecommendation =
+    cards
+      .filter((c) => c.status !== "REJECTED" && c.status !== "SUPERSEDED")
+      .sort((a, b) => b.score - a.score)[0] ?? null;
+
   return (
     <div>
       <div className="topbar">
@@ -176,13 +186,24 @@ export default async function MentorshipApplicationDetailPage({
           )}
         </section>
 
-        <MatchingRecommendations
-          applicationId={id}
-          recommendations={cards}
-          applicationOpen={applicationOpen}
-          usableMatch={usableMatch}
-          showEmail
-        />
+        <CalmOnly>
+          <ApplicationMatchCalm
+            applicationId={id}
+            top={topRecommendation}
+            applicationOpen={applicationOpen}
+            usableMatch={usableMatch}
+          />
+        </CalmOnly>
+
+        <CalmCollapse label="Full scored board" hint="shortlist, hold, reject & the rest of the pool">
+          <MatchingRecommendations
+            applicationId={id}
+            recommendations={cards}
+            applicationOpen={applicationOpen}
+            usableMatch={usableMatch}
+            showEmail
+          />
+        </CalmCollapse>
 
         {applicationOpen && (
           <ApplicationDecision applicationId={id} status={status} />

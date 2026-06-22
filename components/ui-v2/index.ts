@@ -14,7 +14,7 @@ export { PageHeaderV2 } from "./page-header";
 export { SectionHeaderV2 } from "./section-header";
 export { StatusBadge, ENTITY_TONE_TO_BADGE, type StatusTone } from "./status-badge";
 export { EntityChip } from "./entity-chip";
-export { StatCardV2 } from "./stat-card";
+export { StatCardV2, type StatCardAccent } from "./stat-card";
 export { EmptyStateV2 } from "./empty-state";
 export { SearchInputV2 } from "./search-input";
 export { ActionButtonGroup } from "./action-button-group";

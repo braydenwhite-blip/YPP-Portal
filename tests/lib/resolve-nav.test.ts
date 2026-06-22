@@ -170,7 +170,7 @@ describe("resolveNavModel", () => {
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).not.toContain("/actions");
     expect(visibleHrefs).not.toContain("/actions/all");
-    expect(visibleHrefs).not.toContain("/actions/meetings");
+    expect(visibleHrefs).not.toContain("/meetings");
   });
 
   it("shows My Actions to non-officers without exposing Officer-only action views", () => {
@@ -187,7 +187,7 @@ describe("resolveNavModel", () => {
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).toContain("/actions");
     expect(visibleHrefs).not.toContain("/actions/all");
-    expect(visibleHrefs).not.toContain("/actions/meetings");
+    expect(visibleHrefs).not.toContain("/meetings");
   });
 
   it("never shows the retired Leadership Action Center nav entry (Phase 5 consolidation)", () => {
@@ -291,7 +291,7 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).not.toContain("/admin/portal-rollout");
   });
 
-  it("pins People Hub, Actions, and Initiatives for admins even when publicGateActive is true", () => {
+  it("pins People, Actions, and Meetings for admins even when publicGateActive is true", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       adminSubtypes: ["SUPER_ADMIN"],
@@ -305,7 +305,10 @@ describe("resolveNavModel", () => {
     const coreHrefs = model.core.map((item) => item.href);
     expect(coreHrefs).toContain("/people");
     expect(coreHrefs).toContain("/actions");
-    expect(coreHrefs).toContain("/operations/initiatives");
+    // The canonical Meetings umbrella is the pinned front door.
+    expect(coreHrefs).toContain("/meetings");
+    // The retired Work hub is no longer pinned (or present at all).
+    expect(coreHrefs).not.toContain("/work");
   });
 
   it("trims admin navigation to public-allowed routes when the public gate is active for non-officers", () => {
@@ -340,7 +343,7 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toContain("/admin/bulk-users");
   });
 
-  describe("public preview slim nav", () => {
+  describe("public preview slim nav legacy flag", () => {
     beforeAll(() => {
       process.env.PORTAL_SLIM_NAV = "true";
     });
@@ -349,7 +352,7 @@ describe("resolveNavModel", () => {
       process.env.PORTAL_SLIM_NAV = "false";
     });
 
-    it("shows only the finished leadership stack for admins", () => {
+    it("keeps the full officer section nav for admins", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["SUPER_ADMIN"],
@@ -360,20 +363,30 @@ describe("resolveNavModel", () => {
         publicGateActive: true,
       });
 
-      expect(hrefs(model).sort()).toEqual(
-        ["/", "/actions", "/operations/initiatives", "/people", "/work"].sort()
-      );
-      expect(model.more).toHaveLength(0);
+      const visibleHrefs = hrefs(model);
+      expect(visibleHrefs).toContain("/admin");
+      expect(visibleHrefs).toContain("/admin/bulk-users");
+      expect(visibleHrefs).toContain("/people");
+      expect(visibleHrefs).toContain("/actions");
+      // The single Meetings home is present; type-specific hubs are retired.
+      expect(visibleHrefs).toContain("/meetings");
+      expect(visibleHrefs).not.toContain("/actions/meetings");
+      expect(visibleHrefs).not.toContain("/impact-meetings");
+      expect(visibleHrefs).toContain("/operations/initiatives");
+      // The retired Work hub and Command Center are gone from the nav entirely.
+      expect(visibleHrefs).not.toContain("/work");
+      expect(visibleHrefs).not.toContain("/command-center");
+      expect(model.more.length).toBeGreaterThan(0);
       expect(model.core.map((item) => item.href)).toEqual([
         "/",
         "/people",
         "/actions",
-        "/operations/initiatives",
-        "/work",
+        "/meetings",
+        "/messages",
       ]);
     });
 
-    it("adds hiring-chair applicant routes without restoring the full catalog", () => {
+    it("keeps hiring-chair applicant routes inside the full officer catalog", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["HIRING_ADMIN"],
@@ -387,9 +400,9 @@ describe("resolveNavModel", () => {
       const visibleHrefs = hrefs(model);
       expect(visibleHrefs).toContain("/admin/instructor-applicants");
       expect(visibleHrefs).toContain("/admin/instructor-applicants/chair-queue");
-      expect(visibleHrefs).not.toContain("/admin/bulk-users");
-      expect(visibleHrefs).not.toContain("/admin");
-      expect(model.more).toHaveLength(0);
+      expect(visibleHrefs).toContain("/admin/bulk-users");
+      expect(visibleHrefs).toContain("/admin");
+      expect(model.more.length).toBeGreaterThan(0);
     });
   });
 
@@ -446,5 +459,125 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).toContain("/mentorship");
     expect(hrefs(model)).toContain("/admin/mentorship");
     expect(hrefs(model)).not.toContain("/mentorship/reviews");
+  });
+});
+
+describe("officer section navigation (9-section IA)", () => {
+  function officerModel() {
+    return resolveNavModel({
+      roles: ["ADMIN"],
+      adminSubtypes: ["SUPER_ADMIN"],
+      primaryRole: "ADMIN",
+      pathname: "/",
+      actionTrackerEnabled: true,
+      operationsHubEnabled: true,
+    });
+  }
+
+  function groupOf(model: ReturnType<typeof resolveNavModel>, href: string): string | undefined {
+    return model.visible.find((item) => item.href === href)?.group;
+  }
+
+  it("organizes the leadership sidebar into the eight object sections in order", () => {
+    const model = officerModel();
+    const sectionLabels = model.more.map((group) => group.label);
+    expect(sectionLabels.slice(0, 8)).toEqual([
+      "People",
+      "Programs",
+      "Meetings",
+      "Actions",
+      "Applicants",
+      "Partners",
+      "Chapters",
+      "Admin",
+    ]);
+  });
+
+  it("removes the Work hub, Command Center, and the old operating modes from the nav", () => {
+    const model = officerModel();
+    const visibleHrefs = hrefs(model);
+    for (const retired of [
+      "/work",
+      "/command-center",
+      "/work/queue",
+      "/browse",
+      "/decide",
+      "/meet",
+      "/review",
+    ]) {
+      expect(visibleHrefs).not.toContain(retired);
+    }
+    // No visible link should still be labelled "Work" or "Command Center".
+    const labels = model.visible.map((item) => item.label);
+    expect(labels).not.toContain("Work");
+    expect(labels).not.toContain("Command Center");
+  });
+
+  it("keeps every object section reachable from the sidebar", () => {
+    const model = officerModel();
+    const visibleHrefs = hrefs(model);
+    for (const href of [
+      "/people",
+      "/admin/instructor-applicants",
+      "/admin/chapter-president-applicants",
+      "/actions",
+      "/meetings",
+      "/follow-up",
+      "/delegate",
+      "/partners",
+      "/admin/partners",
+      "/admin/chapters",
+      "/admin/chapter-reports",
+      "/admin",
+    ]) {
+      expect(visibleHrefs).toContain(href);
+    }
+  });
+
+  it("assigns each surface to the right object section", () => {
+    const model = officerModel();
+    expect(groupOf(model, "/people")).toBe("People");
+    expect(groupOf(model, "/meetings")).toBe("Meetings");
+    expect(groupOf(model, "/actions/meetings")).toBeUndefined();
+    expect(groupOf(model, "/impact-meetings")).toBeUndefined();
+    expect(groupOf(model, "/actions")).toBe("Actions");
+    expect(groupOf(model, "/admin/instructor-applicants")).toBe("Applicants");
+    expect(groupOf(model, "/partners")).toBe("Partners");
+    expect(groupOf(model, "/admin/chapters")).toBe("Chapters");
+    expect(groupOf(model, "/admin")).toBe("Admin");
+  });
+});
+
+describe("chapter-president section navigation", () => {
+  function cpModel() {
+    return resolveNavModel({
+      roles: ["CHAPTER_PRESIDENT"],
+      primaryRole: "CHAPTER_PRESIDENT",
+      pathname: "/",
+      actionTrackerEnabled: true,
+      operationsHubEnabled: true,
+    });
+  }
+
+  it("gives chapter presidents the People/Programs/Meetings/Actions sections plus Chapter ops", () => {
+    const model = cpModel();
+    const visibleHrefs = model.visible.map((item) => item.href);
+    // Cross-cutting object sections are now reachable for CPs.
+    expect(visibleHrefs).toContain("/people");
+    expect(visibleHrefs).toContain("/actions");
+    expect(visibleHrefs).toContain("/meetings");
+    expect(visibleHrefs).toContain("/mentorship");
+    // Chapter operations stay.
+    expect(visibleHrefs).toContain("/chapter");
+    expect(visibleHrefs).toContain("/chapter/recruiting");
+    // The Work hub and Command Center never leak in.
+    expect(visibleHrefs).not.toContain("/work");
+    expect(visibleHrefs).not.toContain("/command-center");
+
+    const groupOf = (href: string) => model.visible.find((i) => i.href === href)?.group;
+    expect(groupOf("/people")).toBe("People");
+    expect(groupOf("/meetings")).toBe("Meetings");
+    expect(groupOf("/actions")).toBe("Actions");
+    expect(groupOf("/mentorship")).toBe("Programs");
   });
 });

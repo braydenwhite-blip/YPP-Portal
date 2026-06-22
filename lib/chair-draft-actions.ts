@@ -12,7 +12,11 @@
  */
 
 import { getSession } from "@/lib/auth-supabase";
-import { getHiringActor, assertCanActAsChair } from "@/lib/chapter-hiring-permissions";
+import {
+  canMakeFinalApplicantDecision,
+  getActiveChairUserId,
+  NON_CHAIR_DECISION_MESSAGE,
+} from "@/lib/active-chair";
 import { prisma } from "@/lib/prisma";
 
 const RATIONALE_HARD_LIMIT = 10_000;
@@ -42,20 +46,25 @@ export async function saveChairDraft(formData: FormData): Promise<SaveChairDraft
       return { success: false, error: "Comparison notes exceed the 10 000 character limit." };
     }
 
-    const actor = await getHiringActor(session.user.id);
-    assertCanActAsChair(actor);
+    // The final decision rationale is a Chair-only artifact — gate it on the
+    // single active Chair, not a role.
+    const activeChairId = await getActiveChairUserId();
+    if (!canMakeFinalApplicantDecision({ id: session.user.id }, activeChairId)) {
+      return { success: false, error: NON_CHAIR_DECISION_MESSAGE };
+    }
+    const chairId = session.user.id;
 
     const saved = await prisma.instructorApplicationChairDraft.upsert({
       where: {
         applicationId_chairId: {
           applicationId,
-          chairId: actor.id,
+          chairId,
         },
       },
       update: { rationale, comparisonNotes },
       create: {
         applicationId,
-        chairId: actor.id,
+        chairId,
         rationale,
         comparisonNotes,
       },

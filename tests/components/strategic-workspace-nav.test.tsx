@@ -12,12 +12,12 @@ describe("StrategicWorkspaceNav", () => {
     render(<StrategicWorkspaceNav current="initiatives" />);
     const nav = screen.getByRole("navigation", { name: "Strategic workspace" });
     const expected: Array<[string, string]> = [
-      ["Command Center", "/operations/command-center"],
+      ["Overview", "/operations/command-center"],
       ["Data 360", "/operations/data-360"],
       ["Weekly Execution", "/operations/weekly-execution"],
       ["Initiatives", "/operations/initiatives"],
-      ["Actions", "/actions/all"],
-      ["Meetings", "/actions/meetings"],
+      ["Actions", "/actions"],
+      ["Meetings", "/meetings"],
     ];
     for (const [label, href] of expected) {
       expect(within(nav).getByRole("link", { name: label })).toHaveAttribute("href", href);
@@ -32,7 +32,7 @@ describe("StrategicWorkspaceNav", () => {
   it("marks only the current destination as the active page", () => {
     render(<StrategicWorkspaceNav current="initiatives" />);
     expect(screen.getByRole("link", { name: "Initiatives" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Command Center" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Overview" })).not.toHaveAttribute("aria-current");
   });
 
   it("marks nothing active when current is omitted", () => {
@@ -43,7 +43,7 @@ describe("StrategicWorkspaceNav", () => {
   it("hides the strategic-flag-gated destinations when showStrategic is false", () => {
     render(<StrategicWorkspaceNav current="command-center" showStrategic={false} />);
     // Always-available destinations stay.
-    expect(screen.getByRole("link", { name: "Command Center" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Data 360" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Weekly Execution" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Actions" })).toBeInTheDocument();

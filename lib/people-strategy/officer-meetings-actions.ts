@@ -30,7 +30,7 @@ import {
  * `officer-meeting-generation.ts`; no Anthropic API is involved yet.
  */
 
-const MEETINGS_PATH = "/actions/meetings";
+const MEETINGS_PATH = "/meetings";
 
 function revalidate() {
   revalidatePath(MEETINGS_PATH);

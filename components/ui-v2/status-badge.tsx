@@ -10,16 +10,17 @@ import { cn } from "./cn";
  * render the reasons beside it) whenever the label is a derived level.
  */
 const statusBadgeVariants = cva(
-  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold uppercase tracking-[0.04em]",
+  "inline-flex items-center gap-1.5 rounded-[7px] px-2.5 py-[3px] text-[11.5px] font-semibold tracking-[0.01em]",
   {
     variants: {
       tone: {
-        neutral: "bg-brand-50 text-brand-800",
-        success: "bg-success-100 text-success-700",
-        warning: "bg-warning-100 text-warning-700",
-        danger: "bg-danger-100 text-danger-700",
+        // YPP Portal reskin: softer, calmer fills than the raw semantic set.
+        neutral: "bg-idle-50 text-idle-700",
+        success: "bg-complete-50 text-complete-700",
+        warning: "bg-progress-50 text-progress-700",
+        danger: "bg-blocked-50 text-blocked-700",
         info: "bg-info-100 text-info-700",
-        brand: "bg-brand-100 text-brand-700",
+        brand: "bg-brand-50 text-brand-700",
       },
     },
     defaultVariants: { tone: "neutral" },

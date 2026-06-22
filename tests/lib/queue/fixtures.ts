@@ -131,7 +131,7 @@ export function makeDecision(
     decision: "Move interviews to Tuesdays",
     meetingId: "meeting-1",
     meetingTitle: "Ops sync",
-    meetingHref: "/actions/meetings/meeting-1",
+    meetingHref: "/meetings/meeting-1",
     ...overrides,
   };
 }

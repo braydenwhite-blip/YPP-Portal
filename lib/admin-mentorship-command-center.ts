@@ -18,6 +18,13 @@ import {
 } from "@/lib/mentorship-admin-helpers";
 import { prisma } from "@/lib/prisma";
 import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
+import {
+  deriveMentorshipAttention,
+  mergeMentorshipActionFacts,
+  summarizeMentorshipActionFacts,
+  MENTORSHIP_ATTENTION_THRESHOLDS,
+  type MentorshipCheckInFact,
+} from "@/lib/mentorship/attention";
 
 // Mentorships included in the admin command center. Student mentorship is
 // not yet launched, so STUDENT is excluded everywhere on this surface.
@@ -108,7 +115,9 @@ export async function getAdminMentorshipCommandCenterData() {
   const now = new Date();
   const currentMonth = startOfMonth(now);
   const nextMonth = startOfNextMonth(now);
-  const threeWeeksAgo = new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000);
+  const threeWeeksAgo = new Date(
+    now.getTime() - MENTORSHIP_ATTENTION_THRESHOLDS.checkInOverdueDays * 24 * 60 * 60 * 1000
+  );
 
   const [
     mentorships,
@@ -174,7 +183,15 @@ export async function getAdminMentorshipCommandCenterData() {
               ],
             },
           },
-          select: { id: true, dueAt: true },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            dueAt: true,
+            completedAt: true,
+            linkedActionId: true,
+            sessionId: true,
+          },
         },
         monthlyReviews: {
           orderBy: { month: "desc" },
@@ -295,6 +312,36 @@ export async function getAdminMentorshipCommandCenterData() {
   const activeMentorshipByMenteeId = new Map(
     mentorships.map((mentorship) => [mentorship.menteeId, mentorship])
   );
+  const mentorshipIds = mentorships.map((mentorship) => mentorship.id);
+  const canonicalOpenActions =
+    mentorshipIds.length > 0
+      ? await prisma.actionItem.findMany({
+          where: {
+            relatedEntityType: "MENTORSHIP",
+            relatedEntityId: { in: mentorshipIds },
+            status: { notIn: ["COMPLETE", "DROPPED"] },
+          },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            relatedEntityId: true,
+            deadlineStart: true,
+            deadlineEnd: true,
+            mentorshipSessionId: true,
+          },
+        })
+      : [];
+  const canonicalOpenActionsByMentorship = new Map<
+    string,
+    typeof canonicalOpenActions
+  >();
+  for (const action of canonicalOpenActions) {
+    if (!action.relatedEntityId) continue;
+    const list = canonicalOpenActionsByMentorship.get(action.relatedEntityId) ?? [];
+    list.push(action);
+    canonicalOpenActionsByMentorship.set(action.relatedEntityId, list);
+  }
 
   const reviewCountByStatus = new Map(
     reviewCounts.map((item) => [item.status, item._count.id])
@@ -341,9 +388,16 @@ export async function getAdminMentorshipCommandCenterData() {
         latestSession?.completedAt?.toISOString() ??
         latestSession?.scheduledAt.toISOString() ??
         null;
-      const overdueActionItems = mentorship.actionItems.filter(
-        (item) => item.dueAt && item.dueAt < now
-      ).length;
+      const canonicalActions =
+        canonicalOpenActionsByMentorship.get(mentorship.id) ?? [];
+      const unlinkedLegacyActions = mentorship.actionItems.filter(
+        (item) => !item.linkedActionId
+      );
+      const overdueActionItems =
+        canonicalActions.filter(
+          (item) => (item.deadlineEnd ?? item.deadlineStart) < now
+        ).length +
+        unlinkedLegacyActions.filter((item) => item.dueAt && item.dueAt < now).length;
 
       return {
         mentorshipId: mentorship.id,
@@ -364,7 +418,7 @@ export async function getAdminMentorshipCommandCenterData() {
         latestReviewToneClass: latestReviewMeta
           ? getToneClass(latestReviewMeta.tone)
           : null,
-        openActionItems: mentorship.actionItems.length,
+        openActionItems: canonicalActions.length + unlinkedLegacyActions.length,
         overdueActionItems,
         currentRoles: rolesPresent.map((role) => getSupportRoleLabel(role)),
         missingRoles: getSupportRoleGapLabels(rolesPresent),
@@ -417,22 +471,51 @@ export async function getAdminMentorshipCommandCenterData() {
       return [];
     }
 
-    const overdueActions = mentorship.actionItems.filter(
-      (item) => item.dueAt && item.dueAt < now
-    ).length;
+    // ONE merge (canonical + unlinked legacy) and ONE derivation give the
+    // concrete reason — replacing the old "rhythm reset" copy and the hand-rolled
+    // overdue count that every surface used to compute differently.
+    const openActions = mergeMentorshipActionFacts(
+      canonicalOpenActionsByMentorship.get(mentorship.id) ?? [],
+      mentorship.actionItems
+    );
+    const checkIns: MentorshipCheckInFact[] = mentorship.sessions.map((session, index) => ({
+      id: `${mentorship.id}-s${index}`,
+      scheduledAt: session.scheduledAt,
+      completedAt: session.completedAt,
+      cancelledAt: null,
+    }));
+    const attention = deriveMentorshipAttention(
+      {
+        mentorshipId: mentorship.id,
+        menteeId: mentorship.menteeId,
+        menteeName: mentorship.mentee.name,
+        mentorName: mentorship.mentor.name,
+        status: "ACTIVE",
+        openActions,
+        checkIns,
+        reviewDue: null,
+        workspaceHref: `/mentorship/mentees/${mentorship.menteeId}`,
+      },
+      now
+    );
+    const summary = summarizeMentorshipActionFacts(openActions, now);
+    const overduePhrase =
+      summary.overdue > 0
+        ? `${summary.overdue} overdue next step${summary.overdue === 1 ? "" : "s"}`
+        : null;
     const lastSessionLabel = latestSession
       ? (latestSession.completedAt ?? latestSession.scheduledAt).toLocaleDateString()
-      : "No session logged yet";
+      : "No check-in logged yet";
 
     return [
       {
         id: `cadence-${mentorship.id}`,
         lane,
         kind: "CADENCE_RISK" as const,
-        title: `${mentorship.mentee.name} needs a rhythm reset`,
-        description: `${lastSessionLabel}${overdueActions > 0 ? ` · ${overdueActions} overdue action item${overdueActions === 1 ? "" : "s"}` : ""}.`,
-        emphasis: overdueActions > 0 ? `${overdueActions} overdue actions` : "Session cadence risk",
-        actionLabel: "Open circle",
+        title: `${mentorship.mentee.name}: ${attention.headline}`,
+        description: `${lastSessionLabel}${overduePhrase ? ` · ${overduePhrase}` : ""}.`,
+        emphasis: overduePhrase ?? attention.headline,
+        actionLabel: "Open relationship",
         actionHref: `/mentorship/mentees/${mentorship.menteeId}`,
         priority: latestSession ? 4 : 1,
       },

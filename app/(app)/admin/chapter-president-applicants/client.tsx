@@ -9,7 +9,7 @@ type Application = {
   [key: string]: unknown;
 };
 
-export default function CPApplicantsClient({ applications }: { applications: Application[] }) {
+export function CPApplicantsClient({ applications }: { applications: Application[] }) {
   const [exporting, setExporting] = useState(false);
 
   async function handleExport() {
@@ -38,3 +38,5 @@ export default function CPApplicantsClient({ applications }: { applications: App
     </button>
   );
 }
+
+export default CPApplicantsClient;

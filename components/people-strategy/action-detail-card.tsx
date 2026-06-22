@@ -26,6 +26,7 @@ import {
   RelatedEntityBadge,
 } from "@/components/people-strategy/operational-badges";
 import { deriveActionStrategicLinkage } from "@/lib/people-strategy/action-source";
+import { buttonVariants } from "@/components/ui-v2";
 
 /** A nearby action shown as a cross-link (other work on the same entity / meeting). */
 export type RelatedActionLite = {
@@ -117,6 +118,11 @@ const TINY_LABEL: React.CSSProperties = {
   textTransform: "uppercase",
 };
 
+// ui-v2 button class strings, reused by the card's many inline button/link
+// affordances in place of the legacy `.button outline small` / `.button small`.
+const BTN_SECONDARY_SM = buttonVariants({ variant: "secondary", size: "sm" });
+const BTN_PRIMARY_SM = buttonVariants({ variant: "primary", size: "sm" });
+
 function initials(person: PersonDTO): string {
   const label = person.name?.trim() || person.email;
   const parts = label.split(/[\s@.]+/).filter(Boolean);
@@ -169,20 +175,6 @@ function deadlineText(item: ActionDetailDTO): { label: string; overdue: boolean 
   if (days === 0) return { label: `${date} (today)`, overdue: false };
   if (days === 1) return { label: `${date} (tomorrow)`, overdue: false };
   return { label: date, overdue: false };
-}
-
-// Brand-tinted header for every department. The previous version applied an
-// off-brand rainbow (orange/cyan/green/indigo) keyed on the department name;
-// this keeps a single accessible brand tint so the detail card reads as part of
-// the portal's purple system rather than a separate dialect.
-function departmentTheme() {
-  // Professional, neutral header (#-3): a quiet accent tint on the neutral
-  // canvas rather than a washed-purple band.
-  return {
-    bg: "var(--ps-surface)",
-    border: "var(--border)",
-    fg: "var(--ps-ink)",
-  };
 }
 
 function PersonAvatar({ person }: { person: PersonDTO }) {
@@ -286,7 +278,9 @@ function Section({
           <span className="ad-chevron" aria-hidden style={{ color: "var(--muted)", fontSize: 12 }}>
             ▸
           </span>
-          <h2 className="section-title" style={{ margin: 0 }}>{title}</h2>
+          <h2 className="m-0 text-[13px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+            {title}
+          </h2>
         </span>
         {actions ? <span onClick={(e) => e.preventDefault()}>{actions}</span> : null}
       </summary>
@@ -328,7 +322,6 @@ export default function ActionDetailCard({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const theme = departmentTheme();
   const due = deadlineText(item);
   const strategic = deriveActionStrategicLinkage(item);
 
@@ -413,43 +406,31 @@ export default function ActionDetailCard({
   return (
     <MotionArea>
       <m.article
-        className="card"
-        style={{ padding: 0, overflow: "hidden", borderColor: "var(--border)" }}
+        className="overflow-hidden rounded-[14px] border border-line-card bg-surface shadow-card"
         variants={cardRevealVariants}
         initial="initial"
         animate="animate"
       >
       {!calmLayout ? (
-      <div
-        style={{
-          background: theme.bg,
-          borderBottom: `1px solid ${theme.border}`,
-          padding: "18px 20px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <p className="badge" style={{ margin: 0, color: theme.fg, background: "var(--surface)" }}>
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line-card bg-surface-soft px-5 py-[18px]">
+        <div className="min-w-0">
+          <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.08em] text-ink-muted">
             {item.departmentName} · {item.visibility === "OFFICERS_ONLY" ? "OFFICERS ONLY" : "LEADERSHIP"}
           </p>
-          <h1 className="page-title" style={{ marginTop: 8, overflowWrap: "anywhere" }}>
+          <h1 className="mt-2 break-words font-sans text-[24px] font-bold leading-tight tracking-[-0.01em] text-ink">
             {item.title}
           </h1>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "0 1 auto", flexWrap: "wrap" }}>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {canEdit && (
-            <Link href={`/actions/${item.id}/edit`} className="button outline small">
+            <Link href={`/actions/${item.id}/edit`} className={BTN_SECONDARY_SM}>
               Edit
             </Link>
           )}
           {canDelete && item.status !== "DROPPED" ? (
             <ActionDeleteButton actionId={item.id} redirectTo={closeHref} />
           ) : null}
-          <Link href={closeHref} className="button outline small" aria-label="Close action detail">
+          <Link href={closeHref} className={BTN_SECONDARY_SM} aria-label="Close action detail">
             ×
           </Link>
         </div>
@@ -501,7 +482,10 @@ export default function ActionDetailCard({
           {item.officerMeetingId && <Pill tone="purple">Source: Meeting</Pill>}
           {strategic.initiativeTitle ? (
             strategic.initiativeHref ? (
-              <Link href={strategic.initiativeHref} className="pill pill-purple pill-small" style={{ textDecoration: "none" }}>
+              <Link
+                href={strategic.initiativeHref}
+                className="inline-flex items-center rounded-[7px] bg-brand-50 px-2.5 py-[3px] text-[11.5px] font-semibold text-brand-700 no-underline hover:bg-brand-100"
+              >
                 Plan: {strategic.initiativeTitle}
               </Link>
             ) : (
@@ -530,29 +514,15 @@ export default function ActionDetailCard({
 
       {item.officerMeetingId && (
         <Section title="Source Meeting" defaultOpen>
-          <div
-            style={{
-              border: "1px solid var(--ypp-purple-200)",
-              background: "var(--ypp-purple-50)",
-              color: "var(--ypp-purple-800)",
-              borderRadius: "var(--radius-sm)",
-              padding: "12px 14px",
-              fontSize: 14,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span style={{ fontWeight: 700 }}>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-brand-200 bg-brand-50 px-3.5 py-3 text-[14px] text-brand-800">
+            <span className="flex flex-col gap-0.5">
+              <span className="font-bold">
                 {item.officerMeetingTitle
                   ? `From: ${item.officerMeetingTitle}`
                   : "This action came out of a meeting."}
               </span>
               {item.officerMeetingDate && (
-                <span style={{ fontSize: 12.5, opacity: 0.85 }}>
+                <span className="text-[12.5px] opacity-85">
                   {new Intl.DateTimeFormat("en-US", {
                     weekday: "short",
                     month: "short",
@@ -561,7 +531,7 @@ export default function ActionDetailCard({
                 </span>
               )}
             </span>
-            <Link href={`/actions/meetings/${item.officerMeetingId}`} className="button outline small">
+            <Link href={`/meetings/${item.officerMeetingId}`} className={BTN_SECONDARY_SM}>
               Open meeting
             </Link>
           </div>
@@ -614,13 +584,13 @@ export default function ActionDetailCard({
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
               type="button"
-              className="button outline small"
+              className={BTN_SECONDARY_SM}
               onClick={() => fileInputRef.current?.click()}
               disabled={pending || !canEdit}
             >
               Attach
             </button>
-            <button type="button" className="button outline small" onClick={handleLink} disabled={pending || !canEdit}>
+            <button type="button" className={BTN_SECONDARY_SM} onClick={handleLink} disabled={pending || !canEdit}>
               Link
             </button>
           </div>
@@ -683,7 +653,7 @@ export default function ActionDetailCard({
                     Added by {personName(file.addedBy)} · {formatDate(file.addedAt)}
                   </span>
                 </div>
-                <a className="button outline small" href={file.url} target="_blank" rel="noreferrer">
+                <a className={BTN_SECONDARY_SM} href={file.url} target="_blank" rel="noreferrer">
                   Open
                 </a>
               </div>
@@ -712,7 +682,7 @@ export default function ActionDetailCard({
               ? `Flagged to Leadership on ${formatDate(item.flaggedAt)}. Re-flag if the situation has changed.`
               : "Flag this action when progress is blocked, accountability is unclear, or a Leadership decision is needed."}
           </span>
-          <button type="button" className="button small" onClick={handleFlag} disabled={pending || !canFlag}>
+          <button type="button" className={BTN_PRIMARY_SM} onClick={handleFlag} disabled={pending || !canFlag}>
             {item.flaggedAt ? "Flag again" : "Flag to Leadership"}
           </button>
         </div>
@@ -724,7 +694,7 @@ export default function ActionDetailCard({
         actions={
           <button
             type="button"
-            className="button outline small"
+            className={BTN_SECONDARY_SM}
             onClick={() => handleComment("INPUT_REQUESTED")}
             disabled={pending}
           >
@@ -744,19 +714,19 @@ export default function ActionDetailCard({
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
               type="button"
-              className="button outline small"
+              className={BTN_SECONDARY_SM}
               onClick={() => fileInputRef.current?.click()}
               disabled={pending || !canEdit}
             >
               Attach
             </button>
-            <button type="button" className="button outline small" onClick={handleLink} disabled={pending || !canEdit}>
+            <button type="button" className={BTN_SECONDARY_SM} onClick={handleLink} disabled={pending || !canEdit}>
               Link
             </button>
           </div>
           <button
             type="button"
-            className="button small"
+            className={BTN_PRIMARY_SM}
             onClick={() => handleComment("NOTE")}
             disabled={pending || !comment.trim()}
           >

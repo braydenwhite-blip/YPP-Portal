@@ -1,70 +1,87 @@
 import Link from "next/link";
+
+import { CPApplicantsClient } from "./client";
 import { prisma } from "@/lib/prisma";
-import { RoleType } from "@prisma/client";
 import { requireAdminPage } from "@/lib/page-guards";
-import CPKanbanBoard from "./kanban-board";
-import CPApplicantsClient from "./client";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
+import {
+  CP_PIPELINE_LANES,
+  cpMissingRequirements,
+  cpNextAction,
+  cpPipelineLaneId,
+  cpStatusLabel,
+  cpStrongestSignal,
+} from "@/lib/chapter-president-lifecycle";
+
+function formatDate(value: Date) {
+  return value.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function statusCount(
+  applications: Awaited<ReturnType<typeof loadApplications>>,
+  statuses: string[]
+) {
+  const set = new Set(statuses);
+  return applications.filter((app) => set.has(app.status)).length;
+}
+
+async function loadApplications() {
+  return prisma.chapterPresidentApplication.findMany({
+    where: { archivedAt: null },
+    include: {
+      applicant: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          chapter: { select: { name: true } },
+        },
+      },
+      chapter: { select: { id: true, name: true, city: true, region: true } },
+      reviewer: { select: { name: true } },
+      linkedPerson: { select: { id: true, name: true } },
+      mentorAdvisor: { select: { id: true, name: true } },
+    },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+  });
+}
 
 export default async function AdminCPApplicantsPage() {
   await requireAdminPage();
 
-  // Fetch all applications, reviewers, and chapters in parallel
-  const [applications, reviewerUsers, allChapters] = await Promise.all([
-    prisma.chapterPresidentApplication.findMany({
-      where: { archivedAt: null },
-      include: {
-        applicant: { select: { id: true, name: true, email: true, chapter: { select: { name: true } } } },
-        chapter: { select: { id: true, name: true } },
-        reviewer: { select: { name: true } },
-        customResponses: { include: { field: { select: { label: true, fieldType: true } } } },
-        availabilityWindows: {
-          select: { id: true, dayOfWeek: true, startTime: true, endTime: true, timezone: true },
-          orderBy: { dayOfWeek: "asc" },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.user.findMany({
-      where: {
-        roles: {
-          some: {
-            role: { in: [RoleType.ADMIN, RoleType.CHAPTER_PRESIDENT] },
-          },
-        },
-      },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.chapter.findMany({
-      select: { id: true, name: true, city: true, region: true },
-      orderBy: { name: "asc" },
-    }),
-  ]);
-
-  // Serialize dates for client component
+  const applications = await loadApplications();
   const serialized = applications.map((app) => ({
-    ...app,
+    id: app.id,
+    status: app.status,
     createdAt: app.createdAt.toISOString(),
     updatedAt: app.updatedAt.toISOString(),
-    interviewScheduledAt: app.interviewScheduledAt?.toISOString() ?? null,
-    approvedAt: app.approvedAt?.toISOString() ?? null,
-    rejectedAt: app.rejectedAt?.toISOString() ?? null,
-    actionDueDate: null,
+    email: app.applicant.email,
+    name: formatApplicantDisplayName(app),
+    schoolName: app.schoolName,
+    location: [app.city, app.stateProvince].filter(Boolean).join(", "),
   }));
 
-  // KPI counts
-  const pending = applications.filter((a) =>
-    ["SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED"].includes(a.status)
-  ).length;
-  const interviewing = applications.filter((a) =>
-    ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED", "RECOMMENDATION_SUBMITTED"].includes(a.status)
-  ).length;
-  const thisMonth = applications.filter((a) => {
-    if (a.status !== "APPROVED" || !a.approvedAt) return false;
-    const now = new Date();
-    const d = new Date(a.approvedAt);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).length;
+  const grouped = CP_PIPELINE_LANES.map((lane) => ({
+    ...lane,
+    applications: applications.filter((app) => cpPipelineLaneId(app.status) === lane.id),
+  }));
+
+  const summaryCards = [
+    { label: "New CP applicants", value: statusCount(applications, ["SUBMITTED"]) },
+    {
+      label: "Ready for review",
+      value: applications.filter((app) =>
+        ["SUBMITTED", "INITIAL_REVIEW", "UNDER_REVIEW"].includes(app.status)
+      ).length,
+    },
+    { label: "Interview needed", value: statusCount(applications, ["INTERVIEW_NEEDED", "INTERVIEW_SCHEDULED"]) },
+    { label: "Decision needed", value: statusCount(applications, ["DECISION_NEEDED", "RECOMMENDATION_SUBMITTED"]) },
+    { label: "Accepted, needs onboarding", value: statusCount(applications, ["ACCEPTED", "APPROVED", "ONBOARDING"]) },
+    { label: "Active CPs created", value: statusCount(applications, ["ACTIVE_CP"]) },
+  ];
 
   return (
     <div className="page-shell">
@@ -72,43 +89,133 @@ export default async function AdminCPApplicantsPage() {
         <div>
           <span className="badge">Admin</span>
           <h1 className="page-title">Chapter President Applicants</h1>
-          <p className="page-subtitle">Review and manage chapter president applications.</p>
+          <p className="page-subtitle">
+            Move CP applicants from intake through review, interview, decision,
+            onboarding, and active Chapter President profiles.
+          </p>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <CPApplicantsClient applications={serialized as any} />
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <Link href="#final_decision" className="button secondary small" style={{ textDecoration: "none" }}>
+            Decision queue
+          </Link>
+          <Link href="#accepted_onboarding" className="button secondary small" style={{ textDecoration: "none" }}>
+            Onboarding queue
+          </Link>
+          <CPApplicantsClient applications={serialized} />
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 24 }}>
-        <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
-          The canonical chapter-president hiring flow also runs through{" "}
-          <Link href="/chapter/recruiting" className="link">Chapter Recruiting</Link> and{" "}
-          <Link href="/applications" className="link">Applications</Link>.
-        </p>
-      </div>
-
-      {/* KPI cards */}
       <div className="grid three" style={{ marginBottom: 24 }}>
-        <div className="card kpi">
-          <div className="kpi-value">{pending}</div>
-          <div className="kpi-label">Pending Review</div>
-        </div>
-        <div className="card kpi">
-          <div className="kpi-value">{interviewing}</div>
-          <div className="kpi-label">In Interview Stage</div>
-        </div>
-        <div className="card kpi">
-          <div className="kpi-value">{thisMonth}</div>
-          <div className="kpi-label">Approved This Month</div>
-        </div>
+        {summaryCards.map((card) => (
+          <div key={card.label} className="card kpi">
+            <div className="kpi-value">{card.value}</div>
+            <div className="kpi-label">{card.label}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Kanban board */}
-      <CPKanbanBoard
-        applications={serialized as any}
-        reviewers={reviewerUsers}
-        chapters={allChapters}
-      />
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: 16,
+          alignItems: "start",
+        }}
+      >
+        {grouped.map((lane) => (
+          <section
+            key={lane.id}
+            id={lane.id}
+            className="card"
+            style={{ padding: 14, minHeight: 220 }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 12 }}>
+              <h2 className="section-title" style={{ margin: 0, fontSize: 15 }}>
+                {lane.title}
+              </h2>
+              <span className="pill">{lane.applications.length}</span>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {lane.applications.length === 0 && (
+                <div
+                  style={{
+                    border: "1px dashed var(--border)",
+                    borderRadius: 8,
+                    padding: 14,
+                    color: "var(--muted)",
+                    fontSize: 13,
+                    textAlign: "center",
+                  }}
+                >
+                  No CP applicants here
+                </div>
+              )}
+
+              {lane.applications.map((app) => {
+                const displayName = formatApplicantDisplayName(app);
+                const location = [
+                  app.schoolName,
+                  app.chapter?.name ?? app.partnerSchool ?? app.potentialChapterLocation,
+                  [app.city, app.stateProvince].filter(Boolean).join(", "),
+                ]
+                  .filter(Boolean)
+                  .join(" - ");
+                const missing = cpMissingRequirements(app);
+
+                return (
+                  <Link
+                    key={app.id}
+                    href={`/admin/chapter-president-applicants/${app.id}`}
+                    className="card"
+                    style={{
+                      display: "block",
+                      textDecoration: "none",
+                      color: "inherit",
+                      borderRadius: 8,
+                      padding: 14,
+                      boxShadow: "none",
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                      <strong style={{ fontSize: 14 }}>{displayName}</strong>
+                      <span className="badge" style={{ whiteSpace: "nowrap" }}>
+                        {cpStatusLabel(app.status)}
+                      </span>
+                    </div>
+                    <p style={{ margin: "4px 0 8px", color: "var(--muted)", fontSize: 12 }}>
+                      {location || app.applicant.email}
+                    </p>
+                    <p style={{ margin: "0 0 10px", fontSize: 13, lineHeight: 1.45 }}>
+                      {cpStrongestSignal(app)}
+                    </p>
+                    <div style={{ display: "grid", gap: 5, fontSize: 12, color: "var(--muted)" }}>
+                      <span>
+                        <strong style={{ color: "var(--text)" }}>Next:</strong>{" "}
+                        {cpNextAction(app)}
+                      </span>
+                      <span>
+                        <strong style={{ color: "var(--text)" }}>Owner:</strong>{" "}
+                        {app.reviewer?.name ?? "Needs reviewer"}
+                      </span>
+                      <span>
+                        <strong style={{ color: "var(--text)" }}>Last activity:</strong>{" "}
+                        {formatDate(app.updatedAt)}
+                      </span>
+                      {missing.length > 0 && (
+                        <span style={{ color: "#b45309" }}>
+                          {missing.slice(0, 2).join(" - ")}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }

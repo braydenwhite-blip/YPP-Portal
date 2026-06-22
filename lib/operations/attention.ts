@@ -258,7 +258,16 @@ export type MentorshipAttentionInput = {
   lastActivityAt: Date;
 };
 
-export function deriveMentorshipAttention(
+/**
+ * The COARSE, program-wide "this pairing has gone silent" sweep for the
+ * cross-domain Data 360 queue — a single `lastActivityAt` signal at
+ * {@link MENTORSHIP_QUIET_DAYS} (45d). This is deliberately distinct from the
+ * canonical PER-RELATIONSHIP derivation in `lib/mentorship/attention.ts`
+ * (`deriveMentorshipAttention`), which reads actual next steps + check-ins. Keep
+ * the two separate: this one spans the whole org with one cheap signal; that one
+ * answers "what's the next move on THIS relationship?".
+ */
+export function deriveStalledMentorshipAttention(
   mentorships: MentorshipAttentionInput[],
   now: Date = new Date()
 ): AttentionItem[] {
@@ -333,8 +342,8 @@ export function deriveClassSetupAttention(
       why: cls.instructorName
         ? `${cls.instructorName} cannot deliver this class until setup is finished.`
         : "This class has no path to delivery until setup is finished.",
-      suggestedStep: `Finish setup: ${missing.join(", ")}.`,
-      ageLabel: started ? "already running" : `starts in ${daysOut} day${daysOut === 1 ? "" : "s"}`,
+      suggestedStep: `Not completed: ${missing.join(", ")}.`,
+      ageLabel: started ? "already running" : `atarts in ${daysOut} day${daysOut === 1 ? "" : "s"}`,
       severity: started || daysOut <= 7 ? "critical" : "warning",
       score: 26 + (started ? 14 : Math.max(0, 14 - daysOut)) + missing.length * 4,
       href: `/admin/classes/${cls.id}`,
@@ -429,7 +438,7 @@ export function buildNeedsAttention(input: {
     ...input.reviewItems.map(attentionFromReviewItem),
     ...derivePartnerAttention(input.partners, now),
     ...deriveApplicantAttention(input.applicants, now),
-    ...deriveMentorshipAttention(input.mentorships, now),
+    ...deriveStalledMentorshipAttention(input.mentorships, now),
     ...deriveClassSetupAttention(input.classes, now),
   ];
   items.sort(

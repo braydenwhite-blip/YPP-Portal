@@ -3,11 +3,12 @@ import Link from "next/link";
 
 import { getSession } from "@/lib/auth-supabase";
 import {
-  getPartnerById,
+  getPartnerDetailModel,
   listPartnerNotes,
   listPartnerRelations,
   resolveAuthorNames,
   listRelationshipLeadOptions,
+  type PartnerClass,
 } from "@/lib/partners-queries";
 import { updatePartner, addPartnerNote } from "@/lib/partners-actions";
 import { PartnerRelationsPanel } from "@/components/partners/partner-relations-panel";
@@ -20,6 +21,7 @@ import { OperationalTimeline } from "@/components/people-strategy/operational-ti
 import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
 import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
 import { canCreateAction } from "@/lib/people-strategy/action-permissions";
+import { meetingPrefillToQuery } from "@/lib/people-strategy/action-prefill";
 import {
   isActionTrackerEnabled,
   isStrategicInitiativesEnabled,
@@ -63,6 +65,157 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+function personName(person: { name: string | null; email: string | null } | null): string {
+  return person?.name ?? person?.email ?? "Unassigned";
+}
+
+function formatClassDateRange(start: Date, end: Date): string {
+  return `${formatDate(start)} - ${formatDate(end)}`;
+}
+
+function formatClassSchedule(cls: {
+  meetingDays: string[];
+  meetingTime: string;
+  timezone: string;
+}): string {
+  return [cls.meetingDays.join(", "), cls.meetingTime, cls.timezone].filter(Boolean).join(" · ");
+}
+
+function pretty(value: string): string {
+  return value.replace(/_/g, " ").toLowerCase();
+}
+
+function partnerMeetingHref(partner: { id: string; name: string }) {
+  return meetingPrefillToQuery({
+    relatedType: "PARTNER",
+    relatedId: partner.id,
+    area: "PARTNERSHIPS",
+    meetingType: "GENERAL_MEETING",
+    title: `Partner meeting: ${partner.name}`,
+    purpose: `Discuss relationship status, connected classes, open actions, and next follow-up for ${partner.name}.`,
+    agendaTitles: [
+      "Relationship status and last touchpoint",
+      "Classes connected to this partner",
+      "Instructor and curriculum review gaps",
+      "Open actions and follow-ups",
+      "Next owner, date, and decision needed",
+    ],
+  });
+}
+
+function PartnerClassCard({ cls, showActionButton }: { cls: PartnerClass; showActionButton: boolean }) {
+  const reviewStatus = cls.approval?.status ?? "NOT_REQUESTED";
+  const reviewer = cls.approval?.reviewedBy ?? null;
+  const schedule = formatClassSchedule(cls) || "Schedule not set";
+  const location =
+    cls.deliveryMode === "IN_PERSON"
+      ? [cls.locationName, cls.room, cls.locationAddress].filter(Boolean).join(", ") || "Location missing"
+      : cls.deliveryMode === "HYBRID"
+        ? cls.zoomLink
+          ? "Hybrid · virtual link on file"
+          : "Hybrid · virtual link missing"
+        : cls.zoomLink
+          ? "Virtual · link on file"
+          : "Virtual link missing";
+  const setupGaps: string[] = [];
+  if (reviewStatus === "CHANGES_REQUESTED") setupGaps.push("Curriculum changes requested");
+  else if (reviewStatus !== "APPROVED") setupGaps.push("Curriculum review pending");
+  if (cls._count.sessions === 0 && cls.status !== "DRAFT") setupGaps.push("No sessions scheduled");
+  if ((cls.deliveryMode === "VIRTUAL" || cls.deliveryMode === "HYBRID") && !cls.zoomLink) setupGaps.push("Missing meeting link");
+  if (cls.deliveryMode === "IN_PERSON" && !cls.locationName && !cls.locationAddress) setupGaps.push("Missing location");
+  if (cls.regularInstructorAssignments.length === 0) setupGaps.push("No active assignment workflow");
+
+  return (
+    <li
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: 12,
+        padding: 12,
+        display: "grid",
+        gap: 8,
+        background: "var(--surface-alt)",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <Link href={`/admin/classes/${cls.id}`} style={{ color: "var(--ypp-purple)", fontWeight: 700 }}>
+            {cls.title}
+          </Link>
+          <div style={{ marginTop: 2, fontSize: 12, color: "var(--muted)" }}>
+            {pretty(cls.status)} · {formatClassDateRange(cls.startDate, cls.endDate)}
+          </div>
+        </div>
+        <span className="badge">{cls._count.enrollments} enrolled</span>
+      </div>
+
+      <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))" }}>
+        <Field
+          label="Chapter"
+          value={cls.chapter ? <Link href={`/admin/chapters/${cls.chapter.id}`}>{cls.chapter.name}</Link> : "Unlinked"}
+        />
+        <Field
+          label="Instructor"
+          value={
+            <PersonLink id={cls.instructor.id} style={{ color: "var(--ypp-purple)", fontWeight: 600 }}>
+              {personName(cls.instructor)}
+            </PersonLink>
+          }
+        />
+        <Field
+          label="Curriculum reviewer"
+          value={
+            reviewer ? (
+              <PersonLink id={reviewer.id} style={{ color: "var(--ypp-purple)", fontWeight: 600 }}>
+                {personName(reviewer)}
+              </PersonLink>
+            ) : (
+              pretty(reviewStatus)
+            )
+          }
+        />
+        <Field label="Schedule" value={schedule} />
+        <Field label="Location" value={location} />
+        <Field label="Sessions" value={`${cls._count.sessions} scheduled`} />
+      </div>
+
+      {cls.regularInstructorAssignments.length > 0 ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {cls.regularInstructorAssignments.map((assignment) => (
+            <span key={assignment.id} className="badge">
+              {pretty(assignment.role)} · {personName(assignment.instructor)} · {pretty(assignment.status)}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {setupGaps.length > 0 ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {setupGaps.map((gap) => (
+            <span key={gap} className="badge" style={{ background: "#fef2f2", color: "#991b1b" }}>
+              {gap}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <span className="badge" style={{ width: "fit-content", background: "#ecfdf5", color: "#166534" }}>
+          Setup looks ready
+        </span>
+      )}
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <Link href={`/admin/classes/${cls.id}`} className="button outline small">
+          Open class
+        </Link>
+        {showActionButton ? (
+          <Link href={`/actions/new?relatedType=CLASS_OFFERING&relatedId=${cls.id}`} className="button outline small">
+            Add class action
+          </Link>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
 export default async function PartnerProfilePage({
   params,
 }: {
@@ -77,8 +230,9 @@ export default async function PartnerProfilePage({
   // "Open full 360" target from the master database. Still ADMIN-only.
 
   const { id } = await params;
-  const partner = await getPartnerById(id);
-  if (!partner) notFound();
+  const partnerModel = await getPartnerDetailModel(id);
+  if (!partnerModel) notFound();
+  const { partner, needsAttention } = partnerModel;
 
   const trackerEnabled = isActionTrackerEnabled();
   const viewer = {
@@ -110,6 +264,13 @@ export default async function PartnerProfilePage({
     { stage: partner.stage, nextFollowUpAt: partner.nextFollowUpAt, relationshipLeadId: partner.relationshipLeadId },
     new Date()
   );
+  const attentionLabels = Array.from(
+    new Set([
+      ...needsAttention.map((item) => item.label),
+      ...stuck,
+    ])
+  );
+  const meetingHref = partnerMeetingHref(partner);
 
   return (
     <div className="page-shell" style={{ maxWidth: 1040 }}>
@@ -140,16 +301,21 @@ export default async function PartnerProfilePage({
               + Create action
             </Link>
           ) : null}
+          {trackerEnabled ? (
+            <Link href={meetingHref} className="button" style={{ fontSize: 13 }}>
+              Schedule meeting
+            </Link>
+          ) : null}
         </div>
       </div>
 
-      {stuck.length > 0 ? (
+      {attentionLabels.length > 0 ? (
         <div
           className="card"
           style={{ marginTop: 12, padding: "10px 14px", borderLeft: "4px solid #b91c1c", background: "#fef2f2" }}
         >
           <strong style={{ color: "#b91c1c", fontSize: 13 }}>Needs attention:</strong>{" "}
-          <span style={{ fontSize: 13 }}>{stuck.join(" · ")}</span>
+          <span style={{ fontSize: 13 }}>{attentionLabels.join(" · ")}</span>
         </div>
       ) : null}
 
@@ -329,7 +495,7 @@ export default async function PartnerProfilePage({
               recentDecisions={opsContext.recentDecisions}
               canCreate={canCreate}
               createActionHref={`/actions/new?relatedType=PARTNER&relatedId=${partner.id}`}
-              createMeetingHref={`/actions/meetings?new=1&relatedType=PARTNER&relatedId=${partner.id}`}
+              createMeetingHref={meetingHref}
               emptyActionsHint="No actions are linked to this partner yet. Add a follow-up so it doesn't go cold."
               emptyMeetingsHint="No outreach meeting has been tracked for this partner yet."
             />
@@ -356,24 +522,41 @@ export default async function PartnerProfilePage({
               })}
               compact
               createActionHref={`/actions/new?relatedType=PARTNER&relatedId=${partner.id}`}
-              createMeetingHref={`/actions/meetings?new=1&relatedType=PARTNER&relatedId=${partner.id}`}
+              createMeetingHref={meetingHref}
             />
           ) : null}
 
           {/* Linked classes */}
           {partner.classOfferings.length > 0 ? (
             <section className="card">
-              <h2 className="section-title" style={{ marginTop: 0 }}>Linked classes</h2>
-              <ul style={{ listStyle: "none", margin: "8px 0 0", padding: 0, display: "grid", gap: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <div>
+                  <h2 className="section-title" style={{ marginTop: 0 }}>Linked classes</h2>
+                  <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--muted)" }}>
+                    Multiple classes can live under the same partner, each with its own instructor, schedule, review state, and setup work.
+                  </p>
+                </div>
+                <Link href="/people/classes" className="button outline small">
+                  Open classes
+                </Link>
+              </div>
+              <ul style={{ listStyle: "none", margin: "12px 0 0", padding: 0, display: "grid", gap: 10 }}>
                 {partner.classOfferings.map((c) => (
-                  <li key={c.id} style={{ fontSize: 13 }}>
-                    <Link href={`/admin/classes/${c.id}`} style={{ color: "var(--ypp-purple)" }}>{c.title}</Link>
-                    <span style={{ color: "var(--muted)" }}> · {c.status.replace(/_/g, " ").toLowerCase()}</span>
-                  </li>
+                  <PartnerClassCard key={c.id} cls={c} showActionButton={trackerEnabled} />
                 ))}
               </ul>
             </section>
-          ) : null}
+          ) : (
+            <section className="card">
+              <h2 className="section-title" style={{ marginTop: 0 }}>Linked classes</h2>
+              <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                No classes are connected to this partner yet. Use the Classes hub when a real class creation workflow is ready for this partner.
+              </p>
+              <Link href="/people/classes" className="button outline small" style={{ marginTop: 10 }}>
+                Open classes
+              </Link>
+            </section>
+          )}
 
           {/* Outcome */}
           {partner.outcome ? (
@@ -386,7 +569,7 @@ export default async function PartnerProfilePage({
       </div>
 
       {/* Edit details */}
-      <details className="card" style={{ marginTop: 18, padding: "14px 16px" }}>
+      <details id="edit" className="card" style={{ marginTop: 18, padding: "14px 16px", scrollMarginTop: 80 }}>
         <summary style={{ cursor: "pointer", fontWeight: 600 }}>Edit details</summary>
         <form action={updatePartner} className="form-grid" style={{ marginTop: 12 }}>
           <input type="hidden" name="id" value={partner.id} />

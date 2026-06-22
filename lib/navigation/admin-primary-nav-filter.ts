@@ -30,8 +30,12 @@ const ADMIN_PRIMARY_GROUP_KEEP_HREFS = new Set<string>([
   "/admin/classes",
   "/admin/programs",
   "/admin/curricula",
+  // Applicants
+  "/admin/chapter-president-applicants",
   // Partners
   "/admin/partners",
+  // Chapters
+  "/admin/chapter-reports",
   // Admin
   "/admin/analytics",
 ]);

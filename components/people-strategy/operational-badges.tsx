@@ -90,7 +90,7 @@ export function SourceMeetingBadge({
   const name = title?.trim() || "Meeting";
   const date = dateISO ? formatMonthDay(new Date(dateISO)) : null;
   return (
-    <Link href={`/actions/meetings/${id}`} style={{ textDecoration: "none" }} title="Open source meeting">
+    <Link href={`/meetings/${id}`} style={{ textDecoration: "none" }} title="Open source meeting">
       <Pill tone="purple">
         <MeetingIcon name="calendar" size={11} stroke={2.2} style={{ marginRight: 4, verticalAlign: "-1px" }} />
         {compact ? "Source: Meeting" : `Source: ${name}${date ? ` · ${date}` : ""}`}

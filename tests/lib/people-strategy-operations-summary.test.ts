@@ -92,7 +92,7 @@ function followUp(overrides: Partial<MeetingFollowUpLite> = {}): MeetingFollowUp
     relatedType: "USER",
     relatedId: "lily",
     relatedLabel: "Lily",
-    href: "/actions/meetings/m1",
+    href: "/meetings/m1",
     ...overrides,
   };
 }
@@ -124,7 +124,7 @@ function meeting(overrides: Partial<MeetingLite> = {}): MeetingLite {
       reasons: ["1 open follow-up"],
       suggestedNextSteps: ["Convert open follow-ups into actions."],
     },
-    href: "/actions/meetings/m1",
+    href: "/meetings/m1",
     ...overrides,
   };
 }
@@ -141,7 +141,7 @@ function decision(overrides: Partial<DecisionLite> = {}): DecisionLite {
     hasLinkedAction: false,
     relatedType: "USER",
     relatedId: "lily",
-    href: "/actions/meetings/m1",
+    href: "/meetings/m1",
     ...overrides,
   };
 }
@@ -297,7 +297,7 @@ function initiative(overrides: Deep = {}): InitiativeSummary {
           sourceType: "meeting",
           ownerName: "Brayden",
           entity: null,
-          href: "/actions/meetings/m1",
+          href: "/meetings/m1",
         },
       ],
       upcoming: [],

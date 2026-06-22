@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertCanActAsChair,
+  assertCanManageHiringInterviews,
   assertCanViewApplicant,
   canSeeChairQueue,
   isAdmin,
@@ -142,3 +143,25 @@ describe("chapter-hiring-permissions — HIRING_CHAIR coverage", () => {
     });
   });
 });
+
+describe("assertCanManageHiringInterviews — global authorities are not chapter-locked", () => {
+  it("allows an Admin in any chapter", () => {
+    const actor = makeActor({ roles: ["ADMIN"], chapterId: "chap-a" });
+    expect(() => assertCanManageHiringInterviews(actor, "chap-b")).not.toThrow();
+  });
+
+  it("allows a global Hiring Chair across chapters", () => {
+    const actor = makeActor({ roles: ["HIRING_CHAIR"], chapterId: "chap-a" });
+    expect(() => assertCanManageHiringInterviews(actor, "chap-b")).not.toThrow();
+  });
+
+  it("keeps a plain Chapter President scoped to their own chapter", () => {
+    const sameChapter = makeActor({ roles: ["CHAPTER_PRESIDENT"], chapterId: "chap-a" });
+    expect(() => assertCanManageHiringInterviews(sameChapter, "chap-a")).not.toThrow();
+
+    const crossChapter = makeActor({ roles: ["CHAPTER_PRESIDENT"], chapterId: "chap-a" });
+    expect(() => assertCanManageHiringInterviews(crossChapter, "chap-b")).toThrow(
+      /your own chapter/i
+    );
+  });
+})

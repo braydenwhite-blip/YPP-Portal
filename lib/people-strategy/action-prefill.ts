@@ -7,6 +7,7 @@ import {
   type RelatedEntityType,
 } from "./constants";
 import { isMeetingCategory } from "./meeting-categories";
+import type { MeetingType } from "./meeting-operating-model";
 import { areaForRelatedEntityType } from "./operational-context";
 import { type ActionType } from "./action-types";
 
@@ -485,18 +486,32 @@ export function findDuplicateActionCandidates(
 export type MeetingPrefillSpec = {
   title?: string;
   purpose?: string;
+  meetingType?: MeetingType;
   relatedType?: RelatedEntityType;
   relatedId?: string;
   /** Meeting category (operating area). */
   area?: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  facilitatorId?: string;
+  attendeeIds?: string[];
+  agendaTitles?: string[];
 };
 
 export const MEETING_PREFILL_PARAM_KEYS = {
   title: "title",
   purpose: "purpose",
+  meetingType: "meetingType",
   relatedType: "relatedType",
   relatedId: "relatedId",
   area: "area",
+  date: "date",
+  startTime: "start",
+  endTime: "end",
+  facilitatorId: "facilitatorId",
+  attendeeIds: "attendeeIds",
+  agendaTitles: "agenda",
 } as const;
 
 /** Serialize a meeting prefill to a `/actions/meetings/new?…` href. */
@@ -512,8 +527,21 @@ export function meetingPrefillToQuery(
   }
   if (prefill.title) params.set(k.title, prefill.title);
   if (prefill.purpose) params.set(k.purpose, prefill.purpose);
+  if (prefill.meetingType) params.set(k.meetingType, prefill.meetingType);
   if (prefill.area) params.set(k.area, prefill.area);
-  return `${base}?${params.toString()}`;
+  if (prefill.date) params.set(k.date, prefill.date);
+  if (prefill.startTime) params.set(k.startTime, prefill.startTime);
+  if (prefill.endTime) params.set(k.endTime, prefill.endTime);
+  if (prefill.facilitatorId) params.set(k.facilitatorId, prefill.facilitatorId);
+  for (const id of prefill.attendeeIds ?? []) {
+    if (id) params.append(k.attendeeIds, id);
+  }
+  for (const item of prefill.agendaTitles ?? []) {
+    const title = item.trim();
+    if (title) params.append(k.agendaTitles, title);
+  }
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
 }
 
 export type EntityMeetingPrefillSource = {

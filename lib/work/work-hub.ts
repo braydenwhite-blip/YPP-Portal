@@ -469,7 +469,7 @@ export async function loadWorkHub(
         decision: d.decision,
         meetingId: source?.meetingId ?? "",
         meetingTitle: source?.meetingTitle ?? "Meeting",
-        meetingHref: source ? meetingHref(source.meetingId) : "/actions/meetings",
+        meetingHref: source ? meetingHref(source.meetingId) : "/meetings",
       };
     });
 

@@ -50,6 +50,12 @@ enum AdminSubtype {
   CPO
 }
 
+/// Org authority ladders (Phase 3 of the Roles/Mentorship/Reviews/Access plan).
+enum OrgLadder {
+  INSTRUCTION
+  LEADERSHIP
+}
+
 enum WorkflowKind {
   INSTRUCTOR_APPLICATION
   CHAPTER_PRESIDENT_APPLICATION
@@ -227,6 +233,14 @@ enum MentorshipStatus {
   ACTIVE
   PAUSED
   COMPLETE
+}
+
+/// Whether a mentorship is for instruction development or organizational
+/// leadership — lets a person have different mentors for each (Phase 4 of the
+/// Roles/Mentorship/Reviews/Access plan). Null = general / unspecified.
+enum MentorshipFocusArea {
+  INSTRUCTION
+  LEADERSHIP
 }
 
 enum MentorshipPointCategory {
@@ -466,13 +480,23 @@ enum InterviewAnswerTag {
 
 enum ChapterPresidentApplicationStatus {
   SUBMITTED
+  INITIAL_REVIEW
   UNDER_REVIEW
+  NEEDS_MORE_INFO
   INFO_REQUESTED
+  INTERVIEW_NEEDED
   INTERVIEW_SCHEDULED
+  INTERVIEW_COMPLETE
   INTERVIEW_COMPLETED
+  DECISION_NEEDED
   RECOMMENDATION_SUBMITTED
+  ACCEPTED
   APPROVED
+  WAITLISTED
+  DECLINED
   REJECTED
+  ONBOARDING
+  ACTIVE_CP
 }
 
 enum ApplicationFormFieldType {
@@ -734,6 +758,7 @@ model Chapter {
   invites                        ChapterInvite[]
   achievementMilestones          ChapterAchievementMilestone[]
   courses                        Course[]
+  partners                       Partner[]
   events                         Event[]
   eventSeries                    EventSeries[]
   feedbacks                      Feedback[]
@@ -806,6 +831,17 @@ model User {
   chapterId    String?
   chapter      Chapter? @relation(fields: [chapterId], references: [id])
 
+  // Org authority spine (Phase 3 of the Roles/Mentorship/Reviews/Access plan).
+  // All additive + nullable. `resolvePersonAuthority` (lib/org/levels.ts) reads
+  // these first and otherwise derives them from primaryRole/title/adminSubtypes,
+  // so existing rows keep working until the backfill populates them.
+  internalLevel        Int?
+  ladder               OrgLadder?
+  canonicalTitle       String?
+  cohortId             String?
+  cohort               Cohort?               @relation(fields: [cohortId], references: [id])
+  committeeMemberships CommitteeMembership[] @relation("CommitteeMembershipUser")
+
   // Existing relations
   roles                                    UserRole[]
   courses                                  Course[]                                 @relation("InstructorCourses")
@@ -841,6 +877,13 @@ model User {
   mentorAvailabilityOverrides              MentorAvailabilityOverride[]             @relation("MentorAvailabilityOverrides")
   menteePairs                              Mentorship[]                             @relation("MenteeLinks")
   chairedMentorships                       Mentorship[]                             @relation("MentorshipChairs")
+  mentorshipHistoryAsMentee                MentorshipAssignmentHistory[]            @relation("MentorshipHistoryMentee")
+  mentorshipHistoryAsMentor                MentorshipAssignmentHistory[]            @relation("MentorshipHistoryMentor")
+  mentorshipHistoryAsActor                 MentorshipAssignmentHistory[]            @relation("MentorshipHistoryActor")
+  missingChapterFlagsCreated               MissingChapterFlag[]                     @relation("MissingChapterCreatedBy")
+  missingChapterFlagsResolved              MissingChapterFlag[]                     @relation("MissingChapterResolvedBy")
+  promotionRecords                         PromotionRecord[]                        @relation("PromotionRecordsUser")
+  promotionRecordsActed                    PromotionRecord[]                        @relation("PromotionRecordsActor")
   supportCircleMemberships                 MentorshipCircleMember[]                 @relation("SupportCircleUsers")
   supportCircleForMentees                  MentorshipCircleMember[]                 @relation("SupportCircleMentees")
   mentorshipSessionsCreated                MentorshipSession[]                      @relation("MentorshipSessionsCreated")
@@ -1229,10 +1272,13 @@ model User {
   reviewRevisionsMade                    InstructorApplicationReviewRevision[] @relation("ReviewRevisionEditor")
 
   // Chapter President Application Relations
-  chapterPresidentApplication          ChapterPresidentApplication?  @relation("ChapterPresidentApplications")
-  chapterPresidentApplicationsReviewed ChapterPresidentApplication[] @relation("ChapterPresidentApplicationReviews")
-  applicationCohortsCreated            ApplicationCohort[]           @relation("ApplicationCohortsCreated")
-  chapterPresidentOnboarding           ChapterPresidentOnboarding?   @relation("ChapterPresidentOnboarding")
+  chapterPresidentApplication               ChapterPresidentApplication?  @relation("ChapterPresidentApplications")
+  chapterPresidentApplicationsReviewed      ChapterPresidentApplication[] @relation("ChapterPresidentApplicationReviews")
+  chapterPresidentApplicationsDecided       ChapterPresidentApplication[] @relation("ChapterPresidentApplicationDecisionMaker")
+  chapterPresidentApplicationsLinkedPerson  ChapterPresidentApplication[] @relation("ChapterPresidentApplicationLinkedPerson")
+  chapterPresidentApplicationsMentorAdvisor ChapterPresidentApplication[] @relation("ChapterPresidentApplicationMentorAdvisor")
+  applicationCohortsCreated                 ApplicationCohort[]           @relation("ApplicationCohortsCreated")
+  chapterPresidentOnboarding                ChapterPresidentOnboarding?   @relation("ChapterPresidentOnboarding")
 
   // Chapter Join Request Relations
   chapterJoinRequests         ChapterJoinRequest[]
@@ -1345,27 +1391,43 @@ model User {
   partnersAsRelationshipLead Partner[] @relation("PartnerRelationshipLead")
 
   // Action Tracker (People Strategy)
-  actionItemsLed           ActionItem[]       @relation("ActionItemsLed")
-  actionItemsCreated       ActionItem[]       @relation("ActionItemsCreated")
-  actionAssignments        ActionAssignment[] @relation("ActionAssignments")
-  actionComments           ActionComment[]    @relation("ActionComments")
-  actionFileLinksAdded     ActionFileLink[]   @relation("ActionFileLinksAdded")
-  miscUpdatesAdded         MiscUpdate[]       @relation("MiscUpdateAddedBy")
-  actionEmailLogs          ActionEmailLog[]   @relation("ActionEmailLogRecipient")
-  feedbackRequestsAbout    FeedbackRequest[]  @relation("FeedbackRequestSubject")
-  feedbackRequestsToAnswer FeedbackRequest[]  @relation("FeedbackRequestCollaborator")
-  monthlyFeedbackRequestsSent FeedbackRequest[] @relation("MonthlyFeedbackRequestedBy")
-  growthTags               MemberGrowthTag[]  @relation("MemberGrowthTags")
-  growthTagsCreated        MemberGrowthTag[]  @relation("MemberGrowthTagsCreated")
-  actionTemplatesCreated   ActionTemplate[]   @relation("ActionTemplatesCreated")
-  savedActionViews         SavedActionView[]  @relation("SavedActionViews")
+  actionItemsLed              ActionItem[]       @relation("ActionItemsLed")
+  actionItemsCreated          ActionItem[]       @relation("ActionItemsCreated")
+  actionAssignments           ActionAssignment[] @relation("ActionAssignments")
+  actionComments              ActionComment[]    @relation("ActionComments")
+  actionFileLinksAdded        ActionFileLink[]   @relation("ActionFileLinksAdded")
+  miscUpdatesAdded            MiscUpdate[]       @relation("MiscUpdateAddedBy")
+  actionEmailLogs             ActionEmailLog[]   @relation("ActionEmailLogRecipient")
+  feedbackRequestsAbout       FeedbackRequest[]  @relation("FeedbackRequestSubject")
+  feedbackRequestsToAnswer    FeedbackRequest[]  @relation("FeedbackRequestCollaborator")
+  monthlyFeedbackRequestsSent FeedbackRequest[]  @relation("MonthlyFeedbackRequestedBy")
+  growthTags                  MemberGrowthTag[]  @relation("MemberGrowthTags")
+  growthTagsCreated           MemberGrowthTag[]  @relation("MemberGrowthTagsCreated")
+  actionTemplatesCreated      ActionTemplate[]   @relation("ActionTemplatesCreated")
+  savedActionViews            SavedActionView[]  @relation("SavedActionViews")
+  emailTemplateOverridesCreated EmailTemplateOverride[] @relation("EmailTemplateOverridesCreated")
+  emailTemplateOverridesUpdated EmailTemplateOverride[] @relation("EmailTemplateOverridesUpdated")
 
   // Meetings Tracker / Weekly Command Center (People Strategy)
-  meetingsFacilitated      OfficerMeeting[]    @relation("OfficerMeetingFacilitator")
-  meetingAttendances       MeetingAttendee[]   @relation("MeetingAttendeeUser")
-  meetingAgendaItemsOwned  MeetingAgendaItem[] @relation("MeetingAgendaItemOwner")
-  meetingDecisionsMade     MeetingDecision[]   @relation("MeetingDecisionDecidedBy")
-  meetingFollowUpsOwned    MeetingFollowUp[]   @relation("MeetingFollowUpOwner")
+  meetingsFacilitated                 OfficerMeeting[]              @relation("OfficerMeetingFacilitator")
+  meetingAttendances                  MeetingAttendee[]             @relation("MeetingAttendeeUser")
+  meetingAgendaItemsOwned             MeetingAgendaItem[]           @relation("MeetingAgendaItemOwner")
+  meetingAgendaItemsPresented         MeetingAgendaItem[]           @relation("MeetingAgendaItemPresenter")
+  meetingDecisionsMade                MeetingDecision[]             @relation("MeetingDecisionDecidedBy")
+  meetingFollowUpsOwned               MeetingFollowUp[]             @relation("MeetingFollowUpOwner")
+  weeklyBriefsLed                     WeeklyTeamBrief[]             @relation("WeeklyTeamBriefTeamLead")
+  weeklyBriefsCreated                 WeeklyTeamBrief[]             @relation("WeeklyTeamBriefCreatedBy")
+  teamMeetingsLed                     TeamMeeting[]                 @relation("TeamMeetingTeamLead")
+  teamMeetingsCreated                 TeamMeeting[]                 @relation("TeamMeetingCreatedBy")
+  weeklyTaskUpdatesTeamPresented      WeeklyTaskUpdate[]            @relation("WeeklyTaskUpdateTeamPresenter")
+  weeklyTaskUpdatesOfficerPresented   WeeklyTaskUpdate[]            @relation("WeeklyTaskUpdateOfficerPresenter")
+  weeklyMemberUpdates                 WeeklyMemberUpdate[]          @relation("WeeklyMemberUpdateUser")
+  weeklyMemberUpdatesCreated          WeeklyMemberUpdate[]          @relation("WeeklyMemberUpdateCreatedBy")
+  presentationExpectationsResponsible TeamPresentationExpectation[] @relation("TeamPresentationExpectationResponsibleOwner")
+  presentationExpectationsPresented   TeamPresentationExpectation[] @relation("TeamPresentationExpectationPresenter")
+  presentationExpectationsCreated     TeamPresentationExpectation[] @relation("TeamPresentationExpectationCreatedBy")
+  preparedPresentationItemsPresented  PreparedPresentationItem[]    @relation("PreparedPresentationItemPresenter")
+  preparedPresentationItemsCreated    PreparedPresentationItem[]    @relation("PreparedPresentationItemCreatedBy")
 
   // People Strategy — provisional 3-month confirmation clock
   // (ENABLE_PROVISIONAL_CLOCK). `provisionalStart` is set when a hire is
@@ -1386,6 +1448,13 @@ model User {
   advisorAssignmentsCreated        StudentAdvisorAssignment[]       @relation("StudentAdvisorAssignmentAssignedBy")
   advisingNotesAuthored            AdvisingNote[]                   @relation("AdvisingNoteAuthor")
   advisingRecommendationsAuthored  AdvisingRecommendation[]         @relation("AdvisingRecommendationAuthor")
+
+  // Single active Chair (final applicant decision authority)
+  activeChairAssignment      ActiveChairAssignment?   @relation("ActiveChairUser")
+  activeChairAssignmentsMade ActiveChairAssignment[]  @relation("ActiveChairAssignedBy")
+  chairAssignmentsAsPrevious ChairAssignmentHistory[] @relation("ChairAssignmentPrev")
+  chairAssignmentsAsNew      ChairAssignmentHistory[] @relation("ChairAssignmentNew")
+  chairAssignmentChangesMade ChairAssignmentHistory[] @relation("ChairAssignmentChangedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2275,6 +2344,40 @@ model InstructorApplicationTimelineEvent {
   @@index([actorId])
 }
 
+/// Single, app-wide "active Chair" — the one user with final applicant
+/// decision authority at any given time. Stored centrally (one singleton row
+/// keyed by a fixed `id`) rather than per-applicant, so reassigning the Chair
+/// is a single write that instantly moves decision permission. There can only
+/// ever be one row; `setActiveChair()` upserts it. Every change is mirrored
+/// into `ChairAssignmentHistory` for audit.
+model ActiveChairAssignment {
+  id           String   @id
+  chairUserId  String   @unique
+  chair        User     @relation("ActiveChairUser", fields: [chairUserId], references: [id])
+  assignedById String
+  assignedBy   User     @relation("ActiveChairAssignedBy", fields: [assignedById], references: [id])
+  assignedAt   DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([chairUserId])
+}
+
+/// Append-only audit trail of every Chair reassignment: who the previous Chair
+/// was, who the new Chair is, who made the change, and when.
+model ChairAssignmentHistory {
+  id              String   @id @default(cuid())
+  previousChairId String?
+  previousChair   User?    @relation("ChairAssignmentPrev", fields: [previousChairId], references: [id])
+  newChairId      String
+  newChair        User     @relation("ChairAssignmentNew", fields: [newChairId], references: [id])
+  changedById     String
+  changedBy       User     @relation("ChairAssignmentChangedBy", fields: [changedById], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([newChairId])
+}
+
 enum ReviewSignalKind {
   COMMENT
   PIN_NOTE
@@ -2763,6 +2866,10 @@ model Mentorship {
   startDate               DateTime                 @default(now())
   endDate                 DateTime?
   notes                   String?
+  /// Instruction-development vs organizational-leadership mentorship (Phase 4).
+  focusArea               MentorshipFocusArea?
+  /// Temporary assignment that is expected to be handed back / reassigned.
+  isTemporary             Boolean                  @default(false)
   trackId                 String?
   chairId                 String?
   kickoffScheduledAt      DateTime?
@@ -2825,6 +2932,8 @@ model MentorshipCircleMember {
   source            String?
   isPrimary         Boolean     @default(false)
   isActive          Boolean     @default(true)
+  /// Temporary advisor assignment (Phase 4).
+  isTemporary       Boolean     @default(false)
   notes             String?
   availabilityNotes String?
   capacityOverride  Int?
@@ -2865,6 +2974,7 @@ model MentorshipSession {
   ledById                  String?
   ledBy                    User?                      @relation("MentorshipSessionsLed", fields: [ledById], references: [id], onDelete: SetNull)
   actionItems              MentorshipActionItem[]
+  canonicalActionItems     ActionItem[]               @relation("MentorshipSessionActionItems")
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
 
@@ -2918,29 +3028,37 @@ model MentorAvailabilityOverride {
 }
 
 model MentorshipActionItem {
-  id           String                     @id @default(cuid())
-  mentorshipId String?
-  mentorship   Mentorship?                @relation(fields: [mentorshipId], references: [id], onDelete: SetNull)
-  menteeId     String
-  mentee       User                       @relation("MentorshipActionItemsForMentees", fields: [menteeId], references: [id], onDelete: Cascade)
-  sessionId    String?
-  session      MentorshipSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  title        String
-  details      String?
-  status       MentorshipActionItemStatus @default(OPEN)
-  ownerId      String?
-  owner        User?                      @relation("MentorshipActionItemsOwned", fields: [ownerId], references: [id], onDelete: SetNull)
-  createdById  String
-  createdBy    User                       @relation("MentorshipActionItemsCreated", fields: [createdById], references: [id], onDelete: Cascade)
-  dueAt        DateTime?
-  completedAt  DateTime?
-  createdAt    DateTime                   @default(now())
-  updatedAt    DateTime                   @updatedAt
+  id             String                     @id @default(cuid())
+  mentorshipId   String?
+  mentorship     Mentorship?                @relation(fields: [mentorshipId], references: [id], onDelete: SetNull)
+  menteeId       String
+  mentee         User                       @relation("MentorshipActionItemsForMentees", fields: [menteeId], references: [id], onDelete: Cascade)
+  sessionId      String?
+  session        MentorshipSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  title          String
+  details        String?
+  status         MentorshipActionItemStatus @default(OPEN)
+  ownerId        String?
+  owner          User?                      @relation("MentorshipActionItemsOwned", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdById    String
+  createdBy      User                       @relation("MentorshipActionItemsCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  dueAt          DateTime?
+  completedAt    DateTime?
+  // Calm Mentorship (Phase 7): back-link to the org Action this commitment was
+  // bridged into, so the "convert to Action" one-click is idempotent (a second
+  // convert is a no-op). Nullable + backfill-free; cleared if the Action is
+  // dropped, in which case a fresh convert creates a new one. No FK — the org
+  // ActionItem links back via relatedEntityType:"MENTORSHIP", and this side
+  // tolerates a stale id (the read path treats a missing target as unlinked).
+  linkedActionId String?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
 
   @@index([mentorshipId])
   @@index([menteeId, status])
   @@index([ownerId, status])
   @@index([sessionId])
+  @@index([linkedActionId])
 }
 
 // ============================================
@@ -7284,22 +7402,25 @@ model ClassOffering {
 /// (rather than overloading free-text fields like `partnerSchool`) so the
 /// directory stays tidy and the Relationship Lead is a real `User` relation.
 model Partner {
-  id                 String          @id @default(cuid())
-  name               String          @unique
+  id                      String                   @id @default(cuid())
+  name                    String                   @unique
   /// Free-text category, e.g. "School", "Nonprofit", "Corporate".
-  type               String?
-  website            String?
-  notes              String?         @db.Text
+  type                    String?
+  website                 String?
+  notes                   String?                  @db.Text
   /// The YPP person who owns this partner relationship.
-  relationshipLeadId String?
-  relationshipLead   User?           @relation("PartnerRelationshipLead", fields: [relationshipLeadId], references: [id])
-  classOfferings     ClassOffering[] @relation("PartnerClassOfferings")
+  relationshipLeadId      String?
+  relationshipLead        User?                    @relation("PartnerRelationshipLead", fields: [relationshipLeadId], references: [id])
+  /// The chapter this partner belongs to. Null means it is still in Missing Chapter setup or global work.
+  chapterId               String?
+  chapter                 Chapter?                 @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  classOfferings          ClassOffering[]          @relation("PartnerClassOfferings")
   /// Leadership Roles & Contributions — partner-relationship-lead contributions
   /// pointing at this partner (ENABLE_LEADERSHIP_ROLES).
   leadershipContributions LeadershipContribution[] @relation("LeadershipContributionPartner")
-  archivedAt         DateTime?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  archivedAt              DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
   // --- Partner Pipeline (Phase 4 — YPP Operating System pass) -----------------
   // Turns the bare directory into a relationship pipeline. `stage`, `priority`
@@ -7344,6 +7465,7 @@ model Partner {
   agreements PartnerAgreement[]
 
   @@index([relationshipLeadId])
+  @@index([chapterId])
   @@index([archivedAt])
   @@index([stage])
   @@index([nextFollowUpAt])
@@ -9871,18 +9993,23 @@ model ChapterPresidentApplication {
 
   // --- Academic Background ---
   schoolName     String?
+  grade          String?
   graduationYear Int?
   gpa            String?
   classRank      String?
 
   // --- Chapter-specific essays ---
-  whyChapterPresident String? @db.Text
-  partnerSchool       String?
-  recruitmentPlan     String? @db.Text
-  launchPlan          String? @db.Text
-  extracurriculars    String? @db.Text
-  priorOrganizing     String? @db.Text
-  specialSkills       String? @db.Text
+  whyChapterPresident        String? @db.Text
+  partnerSchool              String?
+  currentYppInvolvement      String? @db.Text
+  communityServiceExperience String? @db.Text
+  potentialChapterLocation   String?
+  firstThreeActions          String? @db.Text
+  recruitmentPlan            String? @db.Text
+  launchPlan                 String? @db.Text
+  extracurriculars           String? @db.Text
+  priorOrganizing            String? @db.Text
+  specialSkills              String? @db.Text
 
   // --- Referral ---
   referralEmails String? @db.Text
@@ -9903,34 +10030,54 @@ model ChapterPresidentApplication {
   ethnicity String?
 
   // --- Reviewer scoring rubric ---
-  scoreLeadership   Int?
-  scoreVision       Int?
-  scoreOrganization Int?
-  scoreCommitment   Int?
-  scoreFit          Int?
+  scoreLeadership        Int?
+  scoreVision            Int?
+  scoreOrganization      Int?
+  scoreCommitment        Int?
+  scoreFit               Int?
+  scoreRecruiting        Int?
+  scoreOverallConfidence Int?
 
   // --- Interview-specific scoring rubric ---
-  scoreCommunication Int?
-  interviewSummary   String? @db.Text
+  scoreCommunication         Int?
+  interviewSummary           String? @db.Text
+  interviewNotes             String? @db.Text
+  interviewScore             Int?
+  interviewConcerns          String? @db.Text
+  interviewFollowUpQuestions String? @db.Text
 
   // --- Final recommendation (input to the chair / final decision) ---
   decisionRecommendation  HiringRecommendation?
   recommendationRationale String?               @db.Text
+  finalDecisionNote       String?               @db.Text
+  decisionMakerId         String?
+  decisionMaker           User?                 @relation("ChapterPresidentApplicationDecisionMaker", fields: [decisionMakerId], references: [id])
+  decisionAt              DateTime?
+  acceptanceEmailSentAt   DateTime?
 
   // --- Review workflow ---
-  reviewerId           String?
-  reviewer             User?                     @relation("ChapterPresidentApplicationReviews", fields: [reviewerId], references: [id])
-  reviewerNotes        String?                   @db.Text
-  infoRequest          String?                   @db.Text
-  applicantResponse    String?                   @db.Text
-  rejectionReason      String?                   @db.Text
-  interviewScheduledAt DateTime?
-  interviewMeetingUrl  String?
-  approvedAt           DateTime?
-  rejectedAt           DateTime?
-  customResponses      ApplicationFormResponse[] @relation("CPAppFormResponses")
-  cohortId             String?
-  cohort               ApplicationCohort?        @relation("CPAppCohort", fields: [cohortId], references: [id])
+  reviewerId              String?
+  reviewer                User?                     @relation("ChapterPresidentApplicationReviews", fields: [reviewerId], references: [id])
+  reviewerNotes           String?                   @db.Text
+  infoRequest             String?                   @db.Text
+  applicantResponse       String?                   @db.Text
+  rejectionReason         String?                   @db.Text
+  interviewScheduledAt    DateTime?
+  interviewMeetingUrl     String?
+  approvedAt              DateTime?
+  rejectedAt              DateTime?
+  linkedPersonId          String?
+  linkedPerson            User?                     @relation("ChapterPresidentApplicationLinkedPerson", fields: [linkedPersonId], references: [id])
+  roleAssignedAt          DateTime?
+  mentorAdvisorId         String?
+  mentorAdvisor           User?                     @relation("ChapterPresidentApplicationMentorAdvisor", fields: [mentorAdvisorId], references: [id])
+  onboardingStartedAt     DateTime?
+  starterActionsCreatedAt DateTime?
+  onboardingCompletedAt   DateTime?
+  activeAt                DateTime?
+  customResponses         ApplicationFormResponse[] @relation("CPAppFormResponses")
+  cohortId                String?
+  cohort                  ApplicationCohort?        @relation("CPAppCohort", fields: [cohortId], references: [id])
 
   // --- Automated scheduling ---
   availabilityWindows ApplicantAvailabilityWindow[] @relation("CPAvailabilityWindows")
@@ -9955,11 +10102,15 @@ model ChapterPresidentApplication {
   @@index([reviewerId])
   @@index([chapterId])
   @@index([cohortId])
+  @@index([decisionMakerId])
+  @@index([linkedPersonId])
+  @@index([mentorAdvisorId])
   @@index([graduationYear])
   @@index([stateProvince])
   @@index([source])
   @@index([importedById])
   @@index([archivedAt])
+  @@index([activeAt])
 }
 
 // ============================================
@@ -12713,6 +12864,12 @@ model ActionItem {
   officerMeetingId String?
   officerMeeting   OfficerMeeting? @relation("OfficerMeetingActionItems", fields: [officerMeetingId], references: [id], onDelete: SetNull)
 
+  /// Optional source check-in for mentorship-created next steps. Mentorship
+  /// check-ins stay in MentorshipSession; this only preserves provenance for
+  /// canonical Action Tracker records.
+  mentorshipSessionId String?
+  mentorshipSession   MentorshipSession? @relation("MentorshipSessionActionItems", fields: [mentorshipSessionId], references: [id], onDelete: SetNull)
+
   /// Per-meeting discussion notes captured when this item is linked to a
   /// meeting (one note row per meeting it has been discussed at).
   meetingNotes MeetingNote[] @relation("ActionItemMeetingNotes")
@@ -12751,12 +12908,12 @@ model ActionItem {
   /// application code (lib/people-strategy/action-source.ts). Null on legacy
   /// rows → normalized to a derived source (MEETING when officerMeetingId is set,
   /// else MANUAL) so old actions still render an honest provenance.
-  sourceType String?
+  sourceType     String?
   /// The id of the source object when it is NOT already captured by a dedicated
   /// column — a MeetingDecision id, a strategic project/initiative registry id,
   /// or a free context id. The source MEETING itself stays on officerMeetingId
   /// (single source of truth); sourceId carries the finer-grained pointer.
-  sourceId   String?
+  sourceId       String?
   /// Action → parent action link for FOLLOW_UP actions ("a follow-up to X").
   /// Self-relation; SetNull keeps the follow-up if its parent is deleted.
   sourceActionId String?
@@ -12772,12 +12929,12 @@ model ActionItem {
   strategicProjectId    String?
 
   /// Definition of done — what "complete" actually means for this action.
-  successDefinition String? @db.Text
+  successDefinition String?   @db.Text
   /// Why this action is BLOCKED (paired with status = BLOCKED).
-  blockedReason     String? @db.Text
+  blockedReason     String?   @db.Text
   /// Captured when the action is completed: the outcome note and a short
   /// controlled outcome (DELIVERED / PARTIAL / SUPERSEDED / ABANDONED).
-  completionNote    String? @db.Text
+  completionNote    String?   @db.Text
   completionOutcome String?
   /// The next time this action should be revisited (distinct from the deadline).
   nextFollowUpAt    DateTime?
@@ -12790,9 +12947,14 @@ model ActionItem {
 
   /// Back-relations from the Meetings Tracker: an action can be the one a meeting
   /// agenda item / decision / follow-up was converted into or linked to.
-  convertedFromAgendaItems MeetingAgendaItem[] @relation("AgendaItemConvertedAction")
-  linkedFromDecisions      MeetingDecision[]   @relation("DecisionLinkedAction")
-  linkedFromFollowUps      MeetingFollowUp[]   @relation("FollowUpLinkedAction")
+  convertedFromAgendaItems  MeetingAgendaItem[]           @relation("AgendaItemConvertedAction")
+  linkedFromDecisions       MeetingDecision[]             @relation("DecisionLinkedAction")
+  linkedFromFollowUps       MeetingFollowUp[]             @relation("FollowUpLinkedAction")
+  weeklyTaskUpdates         WeeklyTaskUpdate[]            @relation("WeeklyTaskUpdateActionItem")
+  presentationExpectations  TeamPresentationExpectation[] @relation("TeamPresentationExpectationActionItem")
+  preparedPresentationItems PreparedPresentationItem[]    @relation("PreparedPresentationItemActionItem")
+  agendaItemsAsSource       MeetingAgendaItem[]           @relation("AgendaItemSourceAction")
+  followUpsAsSource         MeetingFollowUp[]             @relation("FollowUpSourceAction")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -12808,6 +12970,7 @@ model ActionItem {
   @@index([leadId])
   @@index([createdById])
   @@index([officerMeetingId])
+  @@index([mentorshipSessionId])
   @@index([flaggedAt])
   @@index([escalatedToLeadershipAt])
   @@index([resolvedAt])
@@ -12967,7 +13130,7 @@ model FeedbackRequest {
   /// Who created the request (the Leadership/Board member who sent it).
   /// Null on legacy rows created before the reviewable request workflow.
   requestedById String?
-  requestedBy   User?   @relation("MonthlyFeedbackRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  requestedBy   User?     @relation("MonthlyFeedbackRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
   /// Why this collaborator was chosen ("Worked with X on 3 action items…").
   /// Shown to the recipient on the form and in the request email.
   reason        String?   @db.Text
@@ -13069,6 +13232,31 @@ model ActionTemplate {
   @@index([category])
 }
 
+/// A stored customization of a portal email template, keyed by the stable
+/// registry key (see lib/email-templates/registry.ts). When present and active,
+/// its subject/body supersede the code-defined default. Deleting the row (or
+/// setting isActive=false) reverts to the default. One row per template key.
+model EmailTemplateOverride {
+  id          String  @id @default(cuid())
+  templateKey String  @unique
+  subject     String
+  /// Rendered inner-body HTML (with {{var}} placeholders) used at send time.
+  body        String  @db.Text
+  /// Tiptap JSON source for loss-free re-editing in the admin UI.
+  bodyJson    Json?
+  isActive    Boolean @default(true)
+
+  createdById String?
+  createdBy   User?   @relation("EmailTemplateOverridesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?   @relation("EmailTemplateOverridesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([templateKey])
+}
+
 /// A user's saved filter set on the Action Tracker (All Actions). `query` is the
 /// serialized filter query string; loading a view just re-applies it.
 model SavedActionView {
@@ -13083,6 +13271,372 @@ model SavedActionView {
 
   @@unique([userId, name])
   @@index([userId])
+}
+
+// ============================================
+// People Strategy — Weekly Team Briefs + Team Meetings
+// ============================================
+
+enum WeeklyBriefStatus {
+  DRAFT
+  SUBMITTED
+  PRESENTED
+  FINALIZED
+  REOPENED
+}
+
+enum TeamMeetingStatus {
+  DRAFT
+  IN_PROGRESS
+  FINALIZED
+  CANCELLED
+}
+
+enum PreparedPresentationStatus {
+  DRAFT
+  READY
+  SUBMITTED
+  ACCEPTED
+  REVISION_REQUESTED
+  PRESENTED
+  WITHDRAWN
+}
+
+enum PresentationExpectationKind {
+  PRESENT_DELIVERABLE
+  SHOW_STATUS
+  ANSWER_QUESTION
+  MAKE_DECISION
+}
+
+enum PresentationExpectationStatus {
+  OPEN
+  ADDRESSED
+  DISMISSED
+}
+
+enum AgendaItemKind {
+  INITIATIVE_OVERVIEW
+  TEAM_STATUS
+  DELIVERABLE_REVIEW
+  DECISION
+  LEADERSHIP_INPUT
+  CROSS_TEAM_COORDINATION
+  ESCALATED_BLOCKER
+  MISSED_COMMITMENT_REVIEW
+  WRITTEN_REVIEW
+  EXPECTATION_SETTING
+}
+
+/// One generated operating document for a single initiative workstream/team in
+/// one reporting week. This is team-facing and distinct from OfficerMeeting.
+model WeeklyTeamBrief {
+  id           String            @id @default(cuid())
+  initiativeId String
+  workstreamId String
+  weekStart    DateTime
+  weekEnd      DateTime
+  status       WeeklyBriefStatus @default(DRAFT)
+
+  teamObjective        String? @db.Text
+  overallStatus        String? @db.Text
+  lastCommitments      String? @db.Text
+  blockersSummary      String? @db.Text
+  decisionsNeeded      String? @db.Text
+  nextActionsSummary   String? @db.Text
+  nextCycleCommitments String? @db.Text
+
+  teamLeadId String?
+  teamLead   User?   @relation("WeeklyTeamBriefTeamLead", fields: [teamLeadId], references: [id], onDelete: SetNull)
+
+  readyForTeamMeeting    Boolean   @default(false)
+  readyForOfficerMeeting Boolean   @default(false)
+  submittedAt            DateTime?
+  finalizedAt            DateTime?
+  reopenedAt             DateTime?
+
+  officerMeetingId String?
+  officerMeeting   OfficerMeeting? @relation("WeeklyBriefOfficerMeeting", fields: [officerMeetingId], references: [id], onDelete: SetNull)
+
+  snapshotJson Json?
+
+  createdById String?
+  createdBy   User?   @relation("WeeklyTeamBriefCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  taskUpdates               WeeklyTaskUpdate[]            @relation("WeeklyBriefTaskUpdates")
+  memberUpdates             WeeklyMemberUpdate[]          @relation("WeeklyBriefMemberUpdates")
+  teamMeeting               TeamMeeting?                  @relation("BriefTeamMeeting")
+  preparedPresentationItems PreparedPresentationItem[]    @relation("BriefPreparedPresentationItems")
+  addressedExpectations     TeamPresentationExpectation[] @relation("ExpectationAddressedInBrief")
+  agendaItems               MeetingAgendaItem[]           @relation("AgendaItemBrief")
+  followUps                 MeetingFollowUp[]             @relation("FollowUpBrief")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([initiativeId, workstreamId, weekStart])
+  @@index([initiativeId, weekStart])
+  @@index([workstreamId, weekStart])
+  @@index([status])
+  @@index([officerMeetingId])
+  @@index([teamLeadId])
+  @@index([createdById])
+}
+
+/// The separate team operating meeting connected to a weekly brief. It prepares
+/// zero or more items for OfficerMeeting; it never replaces OfficerMeeting.
+model TeamMeeting {
+  id           String            @id @default(cuid())
+  initiativeId String
+  workstreamId String
+  weekStart    DateTime
+  weekEnd      DateTime
+  status       TeamMeetingStatus @default(DRAFT)
+  title        String?
+
+  briefId String          @unique
+  brief   WeeklyTeamBrief @relation("BriefTeamMeeting", fields: [briefId], references: [id], onDelete: Cascade)
+
+  teamLeadId String?
+  teamLead   User?   @relation("TeamMeetingTeamLead", fields: [teamLeadId], references: [id], onDelete: SetNull)
+
+  targetOfficerMeetingId String?
+  targetOfficerMeeting   OfficerMeeting? @relation("TeamMeetingTargetOfficerMeeting", fields: [targetOfficerMeetingId], references: [id], onDelete: SetNull)
+
+  agendaSnapshotJson Json?
+  commitmentsJson    Json?
+  startedAt          DateTime?
+  finalizedAt        DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("TeamMeetingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  preparedPresentationItems PreparedPresentationItem[] @relation("TeamMeetingPreparedPresentationItems")
+  agendaItems               MeetingAgendaItem[]        @relation("AgendaItemTeamMeeting")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([initiativeId, workstreamId, weekStart])
+  @@index([initiativeId, weekStart])
+  @@index([workstreamId, weekStart])
+  @@index([status])
+  @@index([targetOfficerMeetingId])
+  @@index([teamLeadId])
+  @@index([createdById])
+}
+
+/// Team-authored weekly overlay for one ActionItem. Factual task/deliverable
+/// data stays live on ActionItem and ActionFileLink until the brief is finalized.
+model WeeklyTaskUpdate {
+  id      String          @id @default(cuid())
+  briefId String
+  brief   WeeklyTeamBrief @relation("WeeklyBriefTaskUpdates", fields: [briefId], references: [id], onDelete: Cascade)
+
+  actionItemId String?
+  actionItem   ActionItem? @relation("WeeklyTaskUpdateActionItem", fields: [actionItemId], references: [id], onDelete: SetNull)
+
+  taskTitleSnapshot  String
+  commitmentSnapshot String? @db.Text
+  statusNarrative    String? @db.Text
+  workCompleted      String? @db.Text
+  currentResult      String? @db.Text
+  remainingWork      String? @db.Text
+  blockerNote        String? @db.Text
+  explanation        String? @db.Text
+  decisionNeeded     String? @db.Text
+  nextAction         String? @db.Text
+
+  teamMeetingPresenterId String?
+  teamMeetingPresenter   User?   @relation("WeeklyTaskUpdateTeamPresenter", fields: [teamMeetingPresenterId], references: [id], onDelete: SetNull)
+
+  officerMeetingPresenterId String?
+  officerMeetingPresenter   User?   @relation("WeeklyTaskUpdateOfficerPresenter", fields: [officerMeetingPresenterId], references: [id], onDelete: SetNull)
+
+  teamMeetingReady       Boolean  @default(false)
+  officerMeetingReady    Boolean  @default(false)
+  escalationNeeded       Boolean  @default(false)
+  officerReviewRequested Boolean  @default(false)
+  carriedForward         Boolean  @default(false)
+  deliverableLinkIds     String[] @default([])
+  expectationIds         String[] @default([])
+  snapshotJson           Json?
+
+  preparedPresentationItems PreparedPresentationItem[] @relation("WeeklyTaskUpdatePreparedPresentationItems")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([briefId, actionItemId])
+  @@index([briefId])
+  @@index([actionItemId])
+  @@index([teamMeetingPresenterId])
+  @@index([officerMeetingPresenterId])
+}
+
+/// One person's weekly Impact form header inside a single team brief. Holds the
+/// parts of the YPP Weekly Impact template that are person-level (not task-level):
+/// Section 1 (overall objective + deliverable + target date) and Section 4 (input
+/// needed), plus that person's own submit state. Their Section 2/3 task detail
+/// lives in the WeeklyTaskUpdate rows whose ActionItem they lead. A person with no
+/// ActionItems still gets exactly one of these, so their form is never blank.
+model WeeklyMemberUpdate {
+  id      String          @id @default(cuid())
+  briefId String
+  brief   WeeklyTeamBrief @relation("WeeklyBriefMemberUpdates", fields: [briefId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("WeeklyMemberUpdateUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Section 1 — Overall Objective & Deliverable
+  personalObjective   String?   @db.Text
+  personalDeliverable String?   @db.Text
+  targetDate          DateTime?
+
+  // Section 4 — Input Needed
+  inputNeeded     String?   @db.Text
+  inputNeededFrom String?   @db.Text
+  inputNeededBy   DateTime?
+
+  // Per-person submit state (mirrors WeeklyBriefStatus so the team rollup and the
+  // member form speak one status vocabulary).
+  status      WeeklyBriefStatus @default(DRAFT)
+  submittedAt DateTime?
+
+  // Carry-forward provenance: when this row was seeded from last week's unfinished
+  // input, `carriedForwardFromId` points at the prior WeeklyMemberUpdate and
+  // `inputNeededCarried` flags that the Input Needed text came from last week.
+  carriedForwardFromId String?
+  inputNeededCarried   Boolean @default(false)
+
+  createdById String?
+  createdBy   User?   @relation("WeeklyMemberUpdateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([briefId, userId])
+  @@index([briefId])
+  @@index([userId])
+  @@index([status])
+}
+
+/// Officer-set requirement for what a team/task must show or answer in a future
+/// Officer Meeting. This is presentation-specific; MeetingFollowUp remains the
+/// completion-commitment model.
+model TeamPresentationExpectation {
+  id           String @id @default(cuid())
+  initiativeId String
+  workstreamId String
+
+  actionItemId String?
+  actionItem   ActionItem? @relation("TeamPresentationExpectationActionItem", fields: [actionItemId], references: [id], onDelete: SetNull)
+
+  kind                PresentationExpectationKind
+  prompt              String                      @db.Text
+  requiredQuestion    String?                     @db.Text
+  requiredDeliverable String?                     @db.Text
+
+  responsibleOwnerId String?
+  responsibleOwner   User?   @relation("TeamPresentationExpectationResponsibleOwner", fields: [responsibleOwnerId], references: [id], onDelete: SetNull)
+  presenterId        String?
+  presenter          User?   @relation("TeamPresentationExpectationPresenter", fields: [presenterId], references: [id], onDelete: SetNull)
+
+  dueDate            DateTime?
+  dueWeekStart       DateTime?
+  returnToNextAgenda Boolean                       @default(true)
+  status             PresentationExpectationStatus @default(OPEN)
+
+  sourceMeetingId String?
+  sourceMeeting   OfficerMeeting? @relation("TeamPresentationExpectationSourceMeeting", fields: [sourceMeetingId], references: [id], onDelete: SetNull)
+
+  targetOfficerMeetingId String?
+  targetOfficerMeeting   OfficerMeeting? @relation("TeamPresentationExpectationTargetMeeting", fields: [targetOfficerMeetingId], references: [id], onDelete: SetNull)
+
+  addressedInBriefId String?
+  addressedInBrief   WeeklyTeamBrief? @relation("ExpectationAddressedInBrief", fields: [addressedInBriefId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation("TeamPresentationExpectationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  preparedPresentationItems PreparedPresentationItem[] @relation("PreparedPresentationExpectation")
+  agendaItems               MeetingAgendaItem[]        @relation("AgendaItemPresentationExpectation")
+  followUps                 MeetingFollowUp[]          @relation("FollowUpPresentationExpectation")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workstreamId, status])
+  @@index([initiativeId, status])
+  @@index([actionItemId])
+  @@index([sourceMeetingId])
+  @@index([targetOfficerMeetingId])
+  @@index([addressedInBriefId])
+  @@index([dueDate])
+  @@index([dueWeekStart])
+  @@index([responsibleOwnerId])
+  @@index([presenterId])
+  @@index([createdById])
+}
+
+/// Item explicitly prepared by a Team Meeting for possible Officer Meeting
+/// review. Not every task update gets one; routine work stays inside the team.
+model PreparedPresentationItem {
+  id           String @id @default(cuid())
+  initiativeId String
+  workstreamId String
+  dedupeKey    String @unique
+
+  briefId String
+  brief   WeeklyTeamBrief @relation("BriefPreparedPresentationItems", fields: [briefId], references: [id], onDelete: Cascade)
+
+  teamMeetingId String?
+  teamMeeting   TeamMeeting? @relation("TeamMeetingPreparedPresentationItems", fields: [teamMeetingId], references: [id], onDelete: SetNull)
+
+  weeklyTaskUpdateId String?
+  weeklyTaskUpdate   WeeklyTaskUpdate? @relation("WeeklyTaskUpdatePreparedPresentationItems", fields: [weeklyTaskUpdateId], references: [id], onDelete: SetNull)
+
+  actionItemId String?
+  actionItem   ActionItem? @relation("PreparedPresentationItemActionItem", fields: [actionItemId], references: [id], onDelete: SetNull)
+
+  presentationExpectationId String?
+  presentationExpectation   TeamPresentationExpectation? @relation("PreparedPresentationExpectation", fields: [presentationExpectationId], references: [id], onDelete: SetNull)
+
+  targetOfficerMeetingId String?
+  targetOfficerMeeting   OfficerMeeting? @relation("PreparedPresentationTargetOfficerMeeting", fields: [targetOfficerMeetingId], references: [id], onDelete: SetNull)
+
+  reasonForOfficerReview String                     @db.Text
+  title                  String
+  statusSummary          String?                    @db.Text
+  requestedDecision      String?                    @db.Text
+  readiness              PreparedPresentationStatus @default(DRAFT)
+  deliverableLinkIds     String[]                   @default([])
+
+  presenterId String?
+  presenter   User?   @relation("PreparedPresentationItemPresenter", fields: [presenterId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation("PreparedPresentationItemCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  submittedAt DateTime?
+  acceptedAt  DateTime?
+  presentedAt DateTime?
+
+  agendaItem MeetingAgendaItem? @relation("PreparedPresentationAgendaItem")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([initiativeId, workstreamId])
+  @@index([briefId])
+  @@index([teamMeetingId])
+  @@index([weeklyTaskUpdateId])
+  @@index([actionItemId])
+  @@index([presentationExpectationId])
+  @@index([targetOfficerMeetingId])
+  @@index([readiness])
+  @@index([presenterId])
+  @@index([createdById])
 }
 
 // ============================================
@@ -13122,24 +13676,29 @@ model OfficerMeeting {
   // --- Weekly Command Center fields (all additive / optional) ---
   /// Human title (e.g. "Weekly Leadership Sync"). Null falls back to a generated
   /// "Officer Meeting · <date>" label so legacy rows still render.
-  title           String?
+  title       String?
   /// What the meeting is for — shown under the title on the detail workspace.
-  purpose         String?   @db.Text
+  purpose     String?        @db.Text
   /// YPP operating category/area (LEADERSHIP / CLASSES / MENTORSHIP / …). String-
   /// typed (no Postgres enum) to mirror `ActionItem.actionType`; validated in
   /// application code (lib/people-strategy/meeting-categories.ts). Null = Other.
-  category        String?
+  category    String?
+  /// YPP meeting workflow type (OFFICER_MEETING /
+  /// GLOBAL_OPERATIONS_IMPACT_PRESENTATION / CHAPTER_IMPACT_PRESENTATION /
+  /// MENTORSHIP_CHECK_IN / GENERAL_MEETING). String-typed so the operating model
+  /// can evolve without a database enum migration for every new meeting format.
+  meetingType String         @default("GENERAL_MEETING")
   /// Reuses the shared ActionPriority enum so meetings and actions speak one
   /// priority vocabulary.
-  priority        ActionPriority @default(MEDIUM)
+  priority    ActionPriority @default(MEDIUM)
   /// Meeting end datetime (paired with `date` as the start). Null = open-ended.
-  endTime         DateTime?
+  endTime     DateTime?
   /// Cadence label: NONE / WEEKLY / BIWEEKLY / MONTHLY (string for flexibility).
-  recurrence      String?
+  recurrence  String?
   /// Where it happens (Zoom link, room, …).
-  location        String?
+  location    String?
   /// Free-text meeting notes / summary (distinct from the generated agendaText).
-  notesText       String?   @db.Text
+  notesText   String?        @db.Text
 
   /// Optional facilitator / owner who runs the meeting.
   facilitatorId String?
@@ -13151,14 +13710,29 @@ model OfficerMeeting {
   /// concrete linked record.
   relatedEntityType String?
   relatedEntityId   String?
+  /// Optional lightweight operating-model links for Impact Presentation meetings
+  /// before a dedicated Team/Chapter meeting model is worth introducing here.
+  relatedTeam       String?
+  relatedChapter    String?
+  strategicPriority String?
+  /// Copy-ready post-meeting summary workflow state. Kept string-typed for the
+  /// same reason as `meetingType`.
+  summaryStatus     String  @default("NOT_STARTED")
+  rescheduleStatus  String?
+  escalationStatus  String?
 
-  actionItems  ActionItem[]        @relation("OfficerMeetingActionItems")
-  notes        MeetingNote[]       @relation("OfficerMeetingNotes")
-  miscUpdates  MiscUpdate[]        @relation("OfficerMeetingMiscUpdates")
-  attendees    MeetingAttendee[]   @relation("OfficerMeetingAttendees")
-  agendaItems  MeetingAgendaItem[] @relation("OfficerMeetingAgendaItems")
-  decisions    MeetingDecision[]   @relation("OfficerMeetingDecisions")
-  followUps    MeetingFollowUp[]   @relation("OfficerMeetingFollowUps")
+  actionItems                       ActionItem[]                  @relation("OfficerMeetingActionItems")
+  notes                             MeetingNote[]                 @relation("OfficerMeetingNotes")
+  miscUpdates                       MiscUpdate[]                  @relation("OfficerMeetingMiscUpdates")
+  attendees                         MeetingAttendee[]             @relation("OfficerMeetingAttendees")
+  agendaItems                       MeetingAgendaItem[]           @relation("OfficerMeetingAgendaItems")
+  decisions                         MeetingDecision[]             @relation("OfficerMeetingDecisions")
+  followUps                         MeetingFollowUp[]             @relation("OfficerMeetingFollowUps")
+  weeklyTeamBriefs                  WeeklyTeamBrief[]             @relation("WeeklyBriefOfficerMeeting")
+  teamMeetings                      TeamMeeting[]                 @relation("TeamMeetingTargetOfficerMeeting")
+  preparedPresentationItems         PreparedPresentationItem[]    @relation("PreparedPresentationTargetOfficerMeeting")
+  presentationExpectationsSet       TeamPresentationExpectation[] @relation("TeamPresentationExpectationSourceMeeting")
+  presentationExpectationsTargeting TeamPresentationExpectation[] @relation("TeamPresentationExpectationTargetMeeting")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -13166,24 +13740,39 @@ model OfficerMeeting {
   @@index([date])
   @@index([status, date])
   @@index([category])
+  @@index([meetingType])
   @@index([facilitatorId])
   @@index([relatedEntityType, relatedEntityId])
+  @@index([relatedTeam])
+  @@index([relatedChapter])
 }
 
 /// Join row: a user invited to / attending an officer meeting. Unique per
 /// (meeting, user) so adding the same attendee twice is idempotent.
 model MeetingAttendee {
-  id               String         @id @default(cuid())
-  officerMeetingId String
-  officerMeeting   OfficerMeeting @relation("OfficerMeetingAttendees", fields: [officerMeetingId], references: [id], onDelete: Cascade)
-  userId           String
-  user             User           @relation("MeetingAttendeeUser", fields: [userId], references: [id], onDelete: Cascade)
+  id                   String         @id @default(cuid())
+  officerMeetingId     String
+  officerMeeting       OfficerMeeting @relation("OfficerMeetingAttendees", fields: [officerMeetingId], references: [id], onDelete: Cascade)
+  userId               String
+  user                 User           @relation("MeetingAttendeeUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// REQUIRED / OPTIONAL. Separate from attendanceStatus so "required attendee"
+  /// and "present" do not overwrite each other.
+  attendanceRole       String         @default("REQUIRED")
+  /// REQUIRED / OPTIONAL / PRESENT / ABSENT / EXCUSED / LATE /
+  /// DID_NOT_RESPOND / RESCHEDULED / FOLLOW_UP_NEEDED. String-typed so the
+  /// meeting operating model can add states without expanding the shared class
+  /// AttendanceStatus enum.
+  attendanceStatus     String         @default("REQUIRED")
+  responsivenessStatus String?
+  attendanceNotes      String?        @db.Text
+  attendanceRecordedAt DateTime?
 
   createdAt DateTime @default(now())
 
   @@unique([officerMeetingId, userId])
   @@index([officerMeetingId])
   @@index([userId])
+  @@index([attendanceStatus])
 }
 
 /// Status of one agenda item within a meeting. CONVERTED means it became a
@@ -13211,6 +13800,31 @@ model MeetingAgendaItem {
   ownerId String?
   owner   User?   @relation("MeetingAgendaItemOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
+  presenterId String?
+  presenter   User?   @relation("MeetingAgendaItemPresenter", fields: [presenterId], references: [id], onDelete: SetNull)
+
+  itemKind           AgendaItemKind?
+  sourceInitiativeId String?
+  sourceWorkstreamId String?
+
+  briefId String?
+  brief   WeeklyTeamBrief? @relation("AgendaItemBrief", fields: [briefId], references: [id], onDelete: SetNull)
+
+  teamMeetingId String?
+  teamMeeting   TeamMeeting? @relation("AgendaItemTeamMeeting", fields: [teamMeetingId], references: [id], onDelete: SetNull)
+
+  preparedPresentationItemId String?                   @unique
+  preparedPresentationItem   PreparedPresentationItem? @relation("PreparedPresentationAgendaItem", fields: [preparedPresentationItemId], references: [id], onDelete: SetNull)
+
+  sourceActionId String?
+  sourceAction   ActionItem? @relation("AgendaItemSourceAction", fields: [sourceActionId], references: [id], onDelete: SetNull)
+
+  presentationExpectationId String?
+  presentationExpectation   TeamPresentationExpectation? @relation("AgendaItemPresentationExpectation", fields: [presentationExpectationId], references: [id], onDelete: SetNull)
+
+  requestedDecision String? @db.Text
+  readinessState    String?
+
   /// Set when the agenda item is converted into a tracked Action Item.
   convertedActionId String?
   convertedAction   ActionItem? @relation("AgendaItemConvertedAction", fields: [convertedActionId], references: [id], onDelete: SetNull)
@@ -13221,6 +13835,13 @@ model MeetingAgendaItem {
   @@index([officerMeetingId, sortOrder])
   @@index([status])
   @@index([ownerId])
+  @@index([presenterId])
+  @@index([itemKind])
+  @@index([briefId])
+  @@index([teamMeetingId])
+  @@index([sourceInitiativeId, sourceWorkstreamId])
+  @@index([sourceActionId])
+  @@index([presentationExpectationId])
 }
 
 /// A decision logged at a meeting — the calls leadership made, with optional
@@ -13274,6 +13895,18 @@ model MeetingFollowUp {
   ownerId String?
   owner   User?   @relation("MeetingFollowUpOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
+  initiativeId String?
+  workstreamId String?
+
+  sourceActionId String?
+  sourceAction   ActionItem? @relation("FollowUpSourceAction", fields: [sourceActionId], references: [id], onDelete: SetNull)
+
+  briefId String?
+  brief   WeeklyTeamBrief? @relation("FollowUpBrief", fields: [briefId], references: [id], onDelete: SetNull)
+
+  presentationExpectationId String?
+  presentationExpectation   TeamPresentationExpectation? @relation("FollowUpPresentationExpectation", fields: [presentationExpectationId], references: [id], onDelete: SetNull)
+
   /// The tracked Action Item this follow-up became (null until converted).
   linkedActionId String?
   linkedAction   ActionItem? @relation("FollowUpLinkedAction", fields: [linkedActionId], references: [id], onDelete: SetNull)
@@ -13286,6 +13919,10 @@ model MeetingFollowUp {
   @@index([dueDate])
   @@index([ownerId])
   @@index([linkedActionId])
+  @@index([initiativeId, workstreamId])
+  @@index([sourceActionId])
+  @@index([briefId])
+  @@index([presentationExpectationId])
 }
 
 /// Editable discussion notes for one Action Item at one Officer Meeting. One
@@ -13811,16 +14448,16 @@ model StudentAdvisorAssignment {
 
   isActive Boolean @default(true)
 
-  advisingStatus AdvisingStatus @default(ENGAGED)
-  needsFollowUp  Boolean        @default(false)
-  followUpNote   String?
+  advisingStatus     AdvisingStatus @default(ENGAGED)
+  needsFollowUp      Boolean        @default(false)
+  followUpNote       String?
   /// Advisor-maintained "what this student needs next" summary, shown on the
   /// student profile and admin views.
-  nextSteps      String?        @db.Text
-  lastCheckInAt  DateTime?
+  nextSteps          String?        @db.Text
+  lastCheckInAt      DateTime?
   /// Knowledge OS V2 — check-in scheduling so "check-in overdue" is a stored,
   /// queryable fact instead of a reactive lastCheckInAt read (plan §12).
-  checkInCadenceDays Int       @default(14)
+  checkInCadenceDays Int            @default(14)
   nextCheckInDueAt   DateTime?
 
   assignedById String?
@@ -13901,22 +14538,22 @@ model AdvisingRecommendation {
 /// Populated by scripts/backfill-search-documents.ts (re-runnable reconcile);
 /// write-path upserts land in the next pass.
 model SearchDocument {
-  id         String   @id @default(cuid())
+  id             String    @id @default(cuid())
   /// Entity 360 type vocabulary: person | class | partner | initiative |
   /// meeting | action (matches lib/operations/entity-360.ts).
-  entityType String
-  entityId   String
-  title      String
-  subtitle   String?
+  entityType     String
+  entityId       String
+  title          String
+  subtitle       String?
   /// Space-joined extra match terms (email, aliases, partner type…).
-  keywords   String?
+  keywords       String?
   /// MEMBER (any signed-in user) | OFFICER (officer-tier and above).
-  visibilityTier String @default("OFFICER")
+  visibilityTier String    @default("OFFICER")
   /// When the entity is time-anchored (a meeting's start), its event time —
   /// lets date-aware groups order/render real dates from the index.
-  eventAt    DateTime?
-  updatedAt  DateTime @updatedAt
-  createdAt  DateTime @default(now())
+  eventAt        DateTime?
+  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
 
   @@unique([entityType, entityId])
   @@index([visibilityTier, entityType])
@@ -13953,4 +14590,163 @@ model RecentEntityView {
 
   @@unique([userId, entityType, entityId])
   @@index([userId, viewedAt])
+}
+
+// ============================================
+// ORG AUTHORITY SPINE (Phase 3)
+// Roles/Mentorship/Reviews/Access plan — see
+// docs/ROLES_ACCESS_REVIEWS_MENTORSHIP_PLAN.md. Person cohorts and general
+// committees are transferable and non-destructive: leaving a committee or
+// cohort is recorded via isActive / endDate, never by deleting history.
+// ============================================
+
+/// A people cohort (distinct from the training/application/incubator cohorts).
+/// A person belongs to at most one at a time via `User.cohortId`; changing it
+/// preserves the account and all history.
+model Cohort {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  members User[]
+}
+
+/// A committee / additional role group, separate from a person's primary title
+/// (Instruction Committee, Interview Committee, Review Committee, Outreach Team,
+/// Board, Temporary Working Group, …). Membership adds the committee's
+/// permissions without changing the person's title.
+model Committee {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String?   @unique
+  /// Free-text classification (validated in app code), e.g. "Instruction Committee".
+  kind        String?
+  description String?   @db.Text
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  memberships CommitteeMembership[]
+
+  @@index([archivedAt])
+}
+
+/// Join row: a person's membership in a committee. `isActive` / `endDate` make
+/// leaving non-destructive (the row stays as history).
+model CommitteeMembership {
+  id          String    @id @default(cuid())
+  committeeId String
+  committee   Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation("CommitteeMembershipUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// Optional role within the committee (e.g. "chair", "member").
+  role        String?
+  startDate   DateTime  @default(now())
+  endDate     DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([committeeId, userId])
+  @@index([userId, isActive])
+  @@index([committeeId, isActive])
+}
+
+/// Explicit, queryable history of who mentored whom (Phase 4 of the
+/// Roles/Mentorship/Reviews/Access plan). A new row opens when an assignment
+/// starts; `endedAt` is stamped when it ends (on reassignment), so a person's
+/// full mentor/mentee history survives any number of transfers without touching
+/// the account, notes, or reviews. Append-only — rows are never deleted.
+model MentorshipAssignmentHistory {
+  id           String               @id @default(cuid())
+  menteeId     String
+  mentee       User                 @relation("MentorshipHistoryMentee", fields: [menteeId], references: [id], onDelete: Cascade)
+  mentorId     String
+  mentor       User                 @relation("MentorshipHistoryMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  /// Mirrors Mentorship.focusArea so instruction vs leadership history is distinct.
+  focusArea    MentorshipFocusArea?
+  /// Role in the relationship, e.g. "PRIMARY_MENTOR" or "ADVISOR".
+  role         String               @default("PRIMARY_MENTOR")
+  /// Provenance link to the live Mentorship row, when one exists.
+  mentorshipId String?
+  isTemporary  Boolean              @default(false)
+  startedAt    DateTime             @default(now())
+  /// Null while the assignment is current; set when it ends (on reassignment).
+  endedAt      DateTime?
+  /// Why the change happened (free text), for the audit trail.
+  reason       String?
+  /// Who made the change (admin/officer), when known.
+  actorId      String?
+  actor        User?                @relation("MentorshipHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt    DateTime             @default(now())
+
+  @@index([menteeId, endedAt])
+  @@index([mentorId, endedAt])
+  @@index([mentorshipId])
+}
+
+/// Tracks a record (instructor, class, partner, meeting, …) that is in the
+/// temporary "Missing Chapter" status — it has no valid chapter assignment yet
+/// (Phase 6 of the Roles/Mentorship/Reviews/Access plan). Central + additive so
+/// the queue, age, auto-action, and "fully set up" gate work without retrofitting
+/// a status column onto every domain model. `recordType`+`recordId` identify the
+/// record; an unresolved row means the chapter still needs to be assigned.
+model MissingChapterFlag {
+  id           String    @id @default(cuid())
+  /// Domain of the record, e.g. "USER" | "COURSE" | "PARTNER" | "CLASS_OFFERING" | "MEETING".
+  recordType   String
+  recordId     String
+  /// Human label for the queue row (e.g. the person/class name).
+  label        String
+  /// The auto-created "assign a chapter" action this flag spawned.
+  actionItemId String?
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("MissingChapterResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  createdById  String?
+  createdBy    User?     @relation("MissingChapterCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([recordType, recordId])
+  @@index([resolvedAt])
+}
+
+/// An APPLIED promotion / role change (Phase 8 of the Roles/Mentorship/Reviews/
+/// Access plan), distinct from the recommendation workflow. Captures the before
+/// and after of a non-destructive change made from the person profile, plus the
+/// reason, effective date, actor, and whether the new role's setup (mentor /
+/// chapter / committee) is still pending — which drives the Promotion Setup
+/// queue. Append-only history; nothing about the account is deleted.
+model PromotionRecord {
+  id                    String     @id @default(cuid())
+  userId                String
+  user                  User       @relation("PromotionRecordsUser", fields: [userId], references: [id], onDelete: Cascade)
+  effectiveDate         DateTime
+  reason                String?
+  previousTitle         String?
+  newTitle              String?
+  previousInternalLevel Int?
+  newInternalLevel      Int?
+  previousLadder        OrgLadder?
+  newLadder             OrgLadder?
+  previousChapterId     String?
+  newChapterId          String?
+  previousCohortId      String?
+  newCohortId           String?
+  /// JSON arrays of committee names added / removed by this promotion.
+  committeesAdded       String?
+  committeesRemoved     String?
+  /// Unresolved setup item codes (JSON array) and whether setup is finished.
+  pendingSetup          String?
+  setupComplete         Boolean    @default(false)
+  actorId               String?
+  actor                 User?      @relation("PromotionRecordsActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt             DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([setupComplete])
 }

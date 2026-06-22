@@ -46,6 +46,23 @@
   --color-info-700: #1e40af;
   --color-info-100: #dbeafe;
 
+  /* --- YPP Portal reskin: status pill fills (consumed by StatusBadge) ---
+     The calm/premium mockup uses softer fills than the raw semantic set
+     above. These are additive so non-badge consumers of the semantic
+     success / danger tokens are untouched. */
+  --color-complete-700: #0e7c52;
+  --color-complete-50: #e7f6ee;
+  --color-progress-700: #b45309;
+  --color-progress-50: #fdf2e3;
+  --color-blocked-700: #c0392b;
+  --color-blocked-50: #fdecea;
+  --color-idle-700: #5c5c74;
+  --color-idle-50: #f0f0f5;
+  /* Accents the mockup leans on beyond brand/warning. */
+  --color-teal-700: #0d9488;
+  --color-teal-50: #e6f5f3;
+  --color-gold-600: #d9a300;
+
   /* --- Surfaces & lines --- */
   --color-surface: #ffffff;
   --color-surface-soft: #faf7ff;
@@ -53,9 +70,11 @@
   --color-ink-muted: #6b5f7a; /* --ypp-muted */
   --color-line: rgb(107 33 200 / 0.15); /* --ypp-line */
   --color-line-soft: rgb(107 33 200 / 0.08);
+  --color-line-card: #ebebf2; /* the mockup's crisp 1px card border */
 
   /* --- Shape --- */
   --radius-card: 12px;
+  --radius-card-lg: 14px; /* mockup cards sit at 13–14px */
   --radius-control: 8px;
 
   /* --- Elevation (one level per surface type) --- */
@@ -65,6 +84,12 @@
   /* --- Type --- */
   --font-sans:
     var(--font-dm-sans), "Inter", system-ui, -apple-system, sans-serif;
+  /* Real DM Sans (loaded via next/font as --font-dm-sans-real) for the
+     reskinned leadership surfaces only — applied through the .portalSkin
+     CSS module, never by repointing the global --font-sans above. */
+  --font-sans-mockup:
+    var(--font-dm-sans-real), var(--font-dm-sans), "DM Sans", system-ui,
+    -apple-system, sans-serif;
 
   /* --- Motion --- */
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);

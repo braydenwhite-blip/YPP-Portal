@@ -125,7 +125,7 @@ export function toCcMeeting(dto: MeetingCardDTO): CcMeeting {
     openFollowUps: dto.openFollowUps,
     overdueFollowUps: dto.overdueFollowUps,
     openActions: dto.openLinkedActions,
-    href: `/actions/meetings/${dto.id}`,
+    href: `/meetings/${dto.id}`,
   };
 }
 

@@ -451,7 +451,7 @@ export function OfficerMeetingsPrepClient({ data }: { data: OfficerMeetingPrepDa
                   ◆ Capture decision
                 </button>
                 <Link
-                  href={`/actions/meetings/${meetingId}`}
+                  href={`/meetings/${meetingId}`}
                   className="inline-flex h-[34px] items-center gap-1 rounded-lg border border-[#e4d8f7] bg-[#f3ecff] px-3 text-[12px] font-semibold text-[#5a1da8] no-underline"
                 >
                   ↗ Full workspace
@@ -466,7 +466,7 @@ export function OfficerMeetingsPrepClient({ data }: { data: OfficerMeetingPrepDa
                 Quick links
               </div>
               <Link
-                href={`/actions/meetings/${meetingId}`}
+                href={`/meetings/${meetingId}`}
                 className="text-[12.5px] font-semibold text-[#5a1da8] no-underline hover:underline"
               >
                 Open meeting workspace →
@@ -541,7 +541,7 @@ export function OfficerMeetingsPrepClient({ data }: { data: OfficerMeetingPrepDa
                   Copy summary for officers
                 </button>
                 <Link
-                  href={`/actions/meetings/${meetingId}`}
+                  href={`/meetings/${meetingId}`}
                   className="flex h-10 items-center justify-center rounded-[10px] border border-[#e4d8f7] text-[13px] font-semibold text-[#5a1da8] no-underline hover:bg-[#f5f0ff]"
                 >
                   Convert commitments to actions →
@@ -575,7 +575,7 @@ export function OfficerMeetingsPrepClient({ data }: { data: OfficerMeetingPrepDa
             {data.pastMeetings.map((m) => (
               <Link
                 key={m.id}
-                href={`/actions/meetings/${m.id}`}
+                href={`/meetings/${m.id}`}
                 className="flex items-center gap-3 border-b border-[#f4f4f8] px-[18px] py-3 no-underline last:border-b-0 hover:bg-[#fafafd]"
               >
                 <div className="w-10 text-center">

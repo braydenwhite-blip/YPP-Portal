@@ -194,7 +194,7 @@ function toMeetingLite(m: MeetingCardDTO): ProjectMeetingLite {
   return {
     id: m.id,
     title: m.title,
-    href: `/actions/meetings/${m.id}`,
+    href: `/meetings/${m.id}`,
     startISO: m.startISO,
     decisionCount: m.decisionCount,
     linkedActionCount: m.linkedActionCount,

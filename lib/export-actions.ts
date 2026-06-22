@@ -232,23 +232,31 @@ export async function exportCPApplicationsCsv(filters?: {
     "Account Name", "Email", "Current Chapter",
     "Legal Name", "Preferred First Name", "Last Name", "Phone", "Date of Birth",
     "City", "State/Province", "ZIP Code", "Country",
-    "School Name", "Graduation Year", "GPA", "Class Rank",
-    "Target Chapter", "Partner School",
+    "School Name", "Grade", "Graduation Year", "GPA", "Class Rank",
+    "Target Chapter", "Partner School", "Potential Chapter Location", "Current YPP Involvement",
     "Why Chapter President", "Leadership Experience", "Chapter Vision",
-    "Recruitment Plan", "Launch Plan", "Prior Organizing",
+    "Community Service Experience", "Recruitment Plan", "Launch Plan", "First 3 Actions", "Prior Organizing",
     "Extracurriculars", "Special Skills",
     "Availability", "Hours Per Week", "Preferred Launch Date",
     "Referral Emails", "Hear About YPP", "Ethnicity",
-    "Score: Leadership", "Score: Vision", "Score: Organization", "Score: Commitment", "Score: Fit",
+    "Score: Leadership", "Score: Vision", "Score: Organization", "Score: Commitment", "Score: Fit", "Score: Recruiting", "Score: Overall Confidence",
     "Composite Score",
-    "Reviewer", "Reviewer Notes",
-    "Interview Scheduled At", "Approved At", "Rejected At",
+    "Reviewer", "Reviewer Notes", "Interview Notes", "Interview Score", "Decision Note",
+    "Interview Scheduled At", "Approved At", "Rejected At", "Onboarding Started At", "Onboarding Completed At", "Active At",
   ];
 
   const lines = [headers.join(",")];
 
   for (const app of applications) {
-    const scores = [app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommitment, app.scoreFit];
+    const scores = [
+      app.scoreLeadership,
+      app.scoreVision,
+      app.scoreOrganization,
+      app.scoreCommitment,
+      app.scoreFit,
+      app.scoreRecruiting,
+      app.scoreOverallConfidence,
+    ];
     const valid = scores.filter((s) => s != null);
     const comp = valid.length > 0 ? (valid.reduce((a, b) => (a ?? 0) + (b ?? 0), 0) ?? 0) / valid.length : null;
 
@@ -257,19 +265,22 @@ export async function exportCPApplicationsCsv(filters?: {
       app.applicant.name, app.applicant.email, app.applicant.chapter?.name ?? "",
       app.legalName, app.preferredFirstName, app.lastName, app.phoneNumber, app.dateOfBirth,
       app.city, app.stateProvince, app.zipCode, app.country,
-      app.schoolName, app.graduationYear, app.gpa, app.classRank,
-      app.chapter?.name ?? "", app.partnerSchool,
+      app.schoolName, app.grade, app.graduationYear, app.gpa, app.classRank,
+      app.chapter?.name ?? "", app.partnerSchool, app.potentialChapterLocation, app.currentYppInvolvement,
       app.whyChapterPresident, app.leadershipExperience, app.chapterVision,
-      app.recruitmentPlan, app.launchPlan, app.priorOrganizing,
+      app.communityServiceExperience, app.recruitmentPlan, app.launchPlan, app.firstThreeActions, app.priorOrganizing,
       app.extracurriculars, app.specialSkills,
       app.availability, app.hoursPerWeek, app.preferredStartDate,
       app.referralEmails, app.hearAboutYPP, app.ethnicity,
-      app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommitment, app.scoreFit,
+      app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommitment, app.scoreFit, app.scoreRecruiting, app.scoreOverallConfidence,
       comp != null ? comp.toFixed(1) : "",
-      app.reviewer?.name ?? "", app.reviewerNotes,
+      app.reviewer?.name ?? "", app.reviewerNotes, app.interviewNotes, app.interviewScore, app.finalDecisionNote,
       app.interviewScheduledAt?.toISOString() ?? "",
       app.approvedAt?.toISOString() ?? "",
       app.rejectedAt?.toISOString() ?? "",
+      app.onboardingStartedAt?.toISOString() ?? "",
+      app.onboardingCompletedAt?.toISOString() ?? "",
+      app.activeAt?.toISOString() ?? "",
     ]));
   }
 

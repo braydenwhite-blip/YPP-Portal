@@ -41,7 +41,7 @@ export function CurrentSupportCard({ mentor }: CurrentSupportCardProps) {
             </p>
           </div>
           <Link href="/my-mentor" className="button small">
-            View My Mentorship →
+            View My Mentor →
           </Link>
         </div>
       </section>
@@ -62,7 +62,7 @@ export function CurrentSupportCard({ mentor }: CurrentSupportCardProps) {
         support that helps you move through this pathway.
       </p>
       <Link href="/my-mentor" className="button secondary small" style={{ justifySelf: "start" }}>
-        Go to My Mentorship →
+        Go to My Mentor →
       </Link>
     </section>
   );

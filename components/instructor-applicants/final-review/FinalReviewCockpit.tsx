@@ -22,7 +22,7 @@ import type {
   AuditChain,
   ReviewSignalThread,
 } from "@/lib/final-review-queries";
-import { getApplicationStatus } from "@/lib/final-review-queries";
+import { getApplicationStatus, type ApplicantEvidenceRecord } from "@/lib/final-review-queries";
 import { computeReadinessSignals } from "@/lib/readiness-signals";
 import {
   computeFinalReviewWarnings,
@@ -56,6 +56,7 @@ import AuditHistoryDrawer from "./AuditHistoryDrawer";
 import ScoreMatrix from "./ScoreMatrix";
 import ActivityFeed from "./ActivityFeed";
 import ReviewSignalFeed from "./ReviewSignalFeed";
+import ApplicantEvidenceRecordView from "./ApplicantEvidenceRecord";
 import PinnedSignalsRail from "./PinnedSignalsRail";
 import RecommendationBadge from "@/components/instructor-applicants/shared/RecommendationBadge";
 import ReviewerIdentityChip from "@/components/instructor-applicants/shared/ReviewerIdentityChip";
@@ -75,6 +76,18 @@ export interface FinalReviewCockpitProps {
   hasPriorSupersededDecision: boolean;
   isSuperAdmin: boolean;
   actorId: string;
+  /**
+   * Whether the viewer is the single active Chair and may submit/change the
+   * final decision. When false, the decision dock renders read-only with
+   * `decisionLockMessage` and no active decision buttons.
+   */
+  canMakeFinalDecision: boolean;
+  /** Display name of the currently assigned active Chair (for the lock notice). */
+  activeChairName?: string | null;
+  /** Message shown to non-Chair viewers in place of the decision actions. */
+  decisionLockMessage?: string;
+  /** Consolidated read-only evidence record (all reviews + grounded overview). */
+  evidence?: ApplicantEvidenceRecord | null;
 }
 
 const ROUTE_PREFIX = "/admin/instructor-applicants";
@@ -99,6 +112,10 @@ function CockpitInner({
   hasPriorSupersededDecision,
   isSuperAdmin,
   actorId,
+  canMakeFinalDecision,
+  activeChairName,
+  decisionLockMessage,
+  evidence,
 }: FinalReviewCockpitProps) {
   const router = useRouter();
   const { registerQuoteHandler } = useFinalReviewContext();
@@ -167,7 +184,16 @@ function CockpitInner({
   const redFlagCount = 0;
   const hasRedFlags = redFlagCount > 0;
 
-  const readOnly = application.status !== "CHAIR_REVIEW";
+  const decidedOrClosed = application.status !== "CHAIR_REVIEW";
+  // The dock is interactive only when the application is awaiting a decision
+  // AND the viewer is the active Chair. Everyone else gets a read-only dock.
+  const readOnly = decidedOrClosed || !canMakeFinalDecision;
+  const lockedToOtherChair = !decidedOrClosed && !canMakeFinalDecision;
+  const dockReadOnlyMessage = lockedToOtherChair
+    ? activeChairName
+      ? `${decisionLockMessage ?? "Only the currently assigned Chair can submit the final decision."} Current Chair: ${activeChairName}.`
+      : decisionLockMessage ?? "Only the currently assigned Chair can submit the final decision."
+    : undefined;
 
   const interviewSignals: InterviewSignal[] = useMemo(
     () =>
@@ -237,6 +263,7 @@ function CockpitInner({
         rejectReasonCode: payload.rejectReasonCode,
         rejectFreeText: payload.rejectFreeText,
         conditions: payload.conditions,
+        emailOverride: payload.emailOverride,
         // Any HIGH_RISK warning that's been ack'd is implicitly an override.
         overrideWarnings: warnings
           .filter((w) => w.severity === "HIGH_RISK")
@@ -355,7 +382,11 @@ function CockpitInner({
         readiness={readiness}
         queue={queue}
         latestDecision={application.latestDecision}
-        canRescind={isSuperAdmin && readOnly && Boolean(application.latestDecision)}
+        canRescind={
+          (canMakeFinalDecision || isSuperAdmin) &&
+          decidedOrClosed &&
+          Boolean(application.latestDecision)
+        }
         onRescindClick={() => setRescindOpen(true)}
         routeBuilder={buildReviewRoute}
       />
@@ -367,6 +398,13 @@ function CockpitInner({
               applicantDisplayName={displayName}
               redFlagCount={redFlagCount}
             />
+            {evidence ? (
+              <ApplicantEvidenceRecordView
+                overview={evidence.overview}
+                initialReviews={evidence.initialReviews}
+                interviewReviews={evidence.interviewReviews}
+              />
+            ) : null}
             <ScoreMatrix
               reviewers={application.interviewReviews.map((r) => ({
                 id: r.reviewerId,
@@ -396,7 +434,7 @@ function CockpitInner({
             ) : (
               <CockpitMaterialsCard application={application} />
             )}
-            <AuditHistoryDrawer chain={auditChain} initiallyOpen={readOnly} />
+            <AuditHistoryDrawer chain={auditChain} initiallyOpen={decidedOrClosed} />
           </FeedbackPanel>
           <SignalPanel>
             <div
@@ -447,6 +485,7 @@ function CockpitInner({
         pendingAction={pendingAction}
         pending={commit.state.status === "pending"}
         readOnly={readOnly}
+        readOnlyMessage={dockReadOnlyMessage}
         warnings={warnings}
         acknowledgements={acknowledgements}
         onOpenRiskPreview={() => {

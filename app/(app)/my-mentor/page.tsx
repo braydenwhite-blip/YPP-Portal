@@ -10,6 +10,8 @@ import { MyMentorSubnav } from "./_components/my-mentor-subnav";
 import { isMentorship2Enabled } from "@/lib/feature-flags";
 import { getMenteeMentorshipView } from "@/lib/mentorship-2/mentee-dashboard";
 import { MenteeCommandCenter } from "./_components/mentee-command-center";
+import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
+import { MenteeCalmNextStep } from "./_components/mentee-home-calm";
 
 export const metadata = {
   title: "My Mentor — YPP",
@@ -39,7 +41,7 @@ export default async function MyMentorPage() {
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>
-          <h1 className="page-title">My Mentorship</h1>
+          <h1 className="page-title">My Mentor</h1>
           {stage && (
             <p
               className="page-subtitle"
@@ -61,7 +63,7 @@ export default async function MyMentorPage() {
           </Link>
           {mentorsOthers && (
             <Link href="/mentorship" className="button small">
-              Mentor Workspace →
+              Mentorship →
             </Link>
           )}
         </div>
@@ -104,7 +106,7 @@ export default async function MyMentorPage() {
               </p>
             </div>
             <Link href="/mentorship" className="button secondary small">
-              Open Mentor Workspace
+              Open Mentorship
             </Link>
           </div>
         )}
@@ -127,6 +129,15 @@ export default async function MyMentorPage() {
               menteeStageId={ctx.stageId}
             />
           </div>
+        )}
+
+        {hasMentor && ctx.primaryMentor && (
+          <CalmOnly>
+            <MenteeCalmNextStep
+              mentorName={ctx.primaryMentor.name}
+              kickoffCompleted={!!ctx.primaryMentor.kickoffCompletedAt}
+            />
+          </CalmOnly>
         )}
 
         {m2Enabled && menteeView ? (
@@ -167,7 +178,14 @@ export default async function MyMentorPage() {
           )
         )}
 
-        {hasMentor && <MenteeDashboard userId={session.user.id} />}
+        {hasMentor && (
+          <CalmCollapse
+            label="Your full mentorship workspace"
+            hint="goals, resources, progress, and reflections"
+          >
+            <MenteeDashboard userId={session.user.id} />
+          </CalmCollapse>
+        )}
       </div>
     </div>
   );

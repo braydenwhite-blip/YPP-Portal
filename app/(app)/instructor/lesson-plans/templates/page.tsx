@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { isInstructorSurface } from "@/lib/org/role-sets";
 
 export default async function LessonPlanTemplatesPage() {
   const session = await getSession();
@@ -10,8 +11,7 @@ export default async function LessonPlanTemplatesPage() {
   }
 
   const roles = session.user.roles ?? [];
-  const isInstructor =
-    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
+  const isInstructor = isInstructorSurface(roles);
 
   if (!isInstructor) {
     redirect("/");

@@ -11,16 +11,13 @@ import {
   MEETING_CATEGORY_VALUES,
   meetingCategoryLabel,
 } from "@/lib/people-strategy/meeting-categories";
+import {
+  MEETING_OPERATING_MODELS,
+  MEETING_TYPE_VALUES,
+  meetingTypeLabel,
+} from "@/lib/people-strategy/meeting-operating-model";
 import { MEETING_TEMPLATES, findMeetingTemplate } from "@/lib/people-strategy/meeting-templates";
 import { createMeeting } from "@/lib/people-strategy/meetings-actions";
-
-const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
-const PRIORITY_LABELS: Record<string, string> = {
-  LOW: "Low",
-  MEDIUM: "Normal",
-  HIGH: "High",
-  URGENT: "Urgent",
-};
 
 const inputClass =
   "w-full rounded-[12px] border border-line-soft bg-surface px-3.5 py-2.5 text-[14px] text-ink shadow-sm transition-colors placeholder:text-ink-muted/70 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100";
@@ -73,7 +70,7 @@ function FormSection({
 export function MeetingCreateForm({
   people,
   prefill,
-  cancelHref = "/actions/meetings",
+  cancelHref = "/meetings",
 }: {
   people: PersonOption[];
   prefill?: MeetingPrefill;
@@ -87,15 +84,20 @@ export function MeetingCreateForm({
   const [tpl, setTpl] = useState<string | null>(null);
   const [title, setTitle] = useState(prefill?.title ?? "");
   const [purpose, setPurpose] = useState(prefill?.purpose ?? "");
-  const [category, setCategory] = useState<string>(prefill?.category ?? "LEADERSHIP");
-  const [priority, setPriority] = useState<string>("MEDIUM");
-  const [date, setDate] = useState(todayISO());
-  const [start, setStart] = useState("18:00");
-  const [end, setEnd] = useState("19:00");
-  const [facilitatorId, setFacilitatorId] = useState(people[0]?.id ?? "");
-  const [recurring, setRecurring] = useState(true);
-  const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
-  const [agenda, setAgenda] = useState<string[]>([]);
+  const [meetingType, setMeetingType] = useState<string>(prefill?.meetingType ?? "OFFICER_MEETING");
+  const prefillModel = MEETING_OPERATING_MODELS[prefill?.meetingType as keyof typeof MEETING_OPERATING_MODELS];
+  const [category, setCategory] = useState<string>(
+    prefill?.category ?? prefillModel?.defaultCategory ?? "LEADERSHIP"
+  );
+  const [date, setDate] = useState(prefill?.date ?? todayISO());
+  const [start, setStart] = useState(prefill?.startTime ?? "18:00");
+  const [end, setEnd] = useState(prefill?.endTime ?? "19:00");
+  const [facilitatorId, setFacilitatorId] = useState(prefill?.facilitatorId ?? people[0]?.id ?? "");
+  const [recurring, setRecurring] = useState(
+    prefill?.recurrence ? prefill.recurrence === "WEEKLY" : true
+  );
+  const [attendeeIds, setAttendeeIds] = useState<string[]>(prefill?.attendeeIds ?? []);
+  const [agenda, setAgenda] = useState<string[]>(prefill?.agendaTitles ?? []);
   const [newItem, setNewItem] = useState("");
 
   function applyTemplate(id: string) {
@@ -104,9 +106,12 @@ export function MeetingCreateForm({
     setTpl(id);
     if (id !== "t_blank") {
       setTitle(t.name);
+      setPurpose(t.purpose);
+      setMeetingType(t.meetingType);
       setCategory(t.category);
     }
     setEnd(addMinutes(start, t.durationMinutes));
+    setRecurring(t.recurrence === "WEEKLY");
     setAgenda(t.agenda);
   }
 
@@ -135,8 +140,8 @@ export function MeetingCreateForm({
         const res = await createMeeting({
           title: title.trim(),
           purpose,
+          meetingType,
           category,
-          priority: priority as (typeof PRIORITIES)[number],
           date,
           startTime: start,
           endTime: end,
@@ -147,7 +152,7 @@ export function MeetingCreateForm({
           attendeeIds,
           agendaTitles: agenda,
         });
-        router.push(`/actions/meetings/${res.id}`);
+        router.push(`/meetings/${res.id}`);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not create the meeting.");
@@ -175,7 +180,7 @@ export function MeetingCreateForm({
 
           <FormSection step={1} title="What's this meeting?" hint="Pick a template or name it yourself.">
             <div className="flex flex-wrap gap-2">
-              {MEETING_TEMPLATES.filter((t) => t.id !== "t_blank").slice(0, 4).map((t) => (
+              {MEETING_TEMPLATES.filter((t) => t.id !== "t_blank").slice(0, 5).map((t) => (
                 <button
                   key={t.id}
                   type="button"
@@ -341,7 +346,7 @@ export function MeetingCreateForm({
             >
               <span className="flex items-center gap-2">
                 <CcIcon name="layers" size={16} className="text-brand-600" />
-                <span className="text-[13.5px] font-semibold text-ink">Purpose, area & agenda</span>
+                <span className="text-[13.5px] font-semibold text-ink">Purpose, type & agenda</span>
                 <span className="text-[12px] text-ink-muted">Optional</span>
               </span>
               <CcIcon
@@ -366,7 +371,29 @@ export function MeetingCreateForm({
                     className={cn(inputClass, "min-h-[72px] resize-y")}
                   />
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[13px] font-semibold text-ink" htmlFor="meeting-create-type">
+                      Meeting type
+                    </label>
+                    <select
+                      id="meeting-create-type"
+                      value={meetingType}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setMeetingType(next);
+                        const model = MEETING_OPERATING_MODELS[next as keyof typeof MEETING_OPERATING_MODELS];
+                        if (model) setCategory(model.defaultCategory);
+                      }}
+                      className={inputClass}
+                    >
+                      {MEETING_TYPE_VALUES.map((type) => (
+                        <option key={type} value={type}>
+                          {meetingTypeLabel(type)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="space-y-1.5">
                     <label className="text-[13px] font-semibold text-ink" htmlFor="meeting-create-category">
                       YPP area
@@ -380,23 +407,6 @@ export function MeetingCreateForm({
                       {MEETING_CATEGORY_VALUES.map((c) => (
                         <option key={c} value={c}>
                           {meetingCategoryLabel(c)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[13px] font-semibold text-ink" htmlFor="meeting-create-priority">
-                      Priority
-                    </label>
-                    <select
-                      id="meeting-create-priority"
-                      value={priority}
-                      onChange={(e) => setPriority(e.target.value)}
-                      className={inputClass}
-                    >
-                      {PRIORITIES.map((p) => (
-                        <option key={p} value={p}>
-                          {PRIORITY_LABELS[p]}
                         </option>
                       ))}
                     </select>

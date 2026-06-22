@@ -25,11 +25,10 @@ import {
  *                         Leadership, Board/SUPER_ADMIN) carry ADMIN and pass.
  *   - Leadership / Board       → ADMIN + AdminSubtype Leadership or SUPER_ADMIN.
  *
- * VISIBILITY DECISION (kickoff: "If ambiguous, choose stricter access and
- * document it"): an OFFICERS_ONLY action is visible ONLY to officer-tier and
- * above (and Leadership/Board), even if a non-officer is explicitly assigned to it.
- * Assignment does NOT grant a member access to an OFFICERS_ONLY item — the
- * stricter reading. ALL_LEADERSHIP actions follow the assignment rule below.
+ * VISIBILITY DECISION: an assigned person can always see the action in their
+ * own My Actions list, including OFFICERS_ONLY items. That assignment does not
+ * grant global tracker access; it only lets them see the work they personally
+ * own, execute, or provide input on.
  */
 
 export type ActionViewer = {
@@ -90,15 +89,15 @@ export function hasAssignmentRole(
 /**
  * Who can SEE an action.
  * - Leadership / Board: all actions.
- * - OFFICERS_ONLY action: officer-tier and above only (stricter; assignment
- *   does not grant a member access).
- * - ALL_LEADERSHIP action: officer-tier sees all; members see only actions
- *   where they are LEAD, EXECUTING, or INPUT.
+ * - Officer-tier: all ALL_LEADERSHIP and OFFICERS_ONLY actions.
+ * - Assigned member: their own LEAD, EXECUTING, or INPUT actions.
+ * - Unassigned member: no global tracker visibility.
  */
 export function canViewAction(user: ActionViewer, action: ActionAccessShape): boolean {
   if (isLeadershipOrBoard(user)) return true;
 
   const officer = isOfficerTier(user);
+  if (isAssignedToAction(user, action)) return true;
 
   if (action.visibility === "OFFICERS_ONLY") {
     return officer;

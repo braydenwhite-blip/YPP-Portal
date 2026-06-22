@@ -82,7 +82,7 @@ function meetingEvent(id: string, iso: string, upcoming: boolean): StrategicTime
     initiativeId: "i1",
     initiativeTitle: "Test",
     entity: null,
-    href: `/actions/meetings/${id}`,
+    href: `/meetings/${id}`,
   };
 }
 

@@ -223,7 +223,7 @@ export function OperationalContextPanel({
                         <span style={{ color: "var(--error-color)", fontWeight: 700, marginRight: 5 }}>Overdue</span>
                       ) : null}
                       {f.title}
-                      <Link href={`/actions/meetings/${f.meetingId}`} style={{ color: "var(--muted)", marginLeft: 6, fontSize: 11.5, textDecoration: "none" }}>
+                      <Link href={`/meetings/${f.meetingId}`} style={{ color: "var(--muted)", marginLeft: 6, fontSize: 11.5, textDecoration: "none" }}>
                         · {f.meetingTitle}
                       </Link>
                     </span>
@@ -244,7 +244,7 @@ export function OperationalContextPanel({
                 {recentDecisions.map((d) => (
                   <li key={d.id} style={{ fontSize: 12.5 }}>
                     {d.decision}
-                    <Link href={`/actions/meetings/${d.meetingId}`} style={{ color: "var(--muted)", marginLeft: 6, fontSize: 11.5, textDecoration: "none" }}>
+                    <Link href={`/meetings/${d.meetingId}`} style={{ color: "var(--muted)", marginLeft: 6, fontSize: 11.5, textDecoration: "none" }}>
                       · {d.meetingTitle}
                     </Link>
                   </li>

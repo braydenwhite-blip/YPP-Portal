@@ -220,6 +220,18 @@ export default function ChapterPresidentApplicationForm({
         </div>
 
         <div className="form-row">
+          <label>Current grade <span style={{ color: "#dc2626" }}>*</span></label>
+          <select className="input" name="grade" required defaultValue="">
+            <option value="" disabled>Select your grade</option>
+            <option value="9th grade">9th grade</option>
+            <option value="10th grade">10th grade</option>
+            <option value="11th grade">11th grade</option>
+            <option value="12th grade">12th grade</option>
+            <option value="Gap year / other">Gap year / other</option>
+          </select>
+        </div>
+
+        <div className="form-row">
           <label>What year will you graduate from high school? <span style={{ color: "#dc2626" }}>*</span></label>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {["2026", "2027", "2028", "2029"].map((year) => (
@@ -269,6 +281,24 @@ export default function ChapterPresidentApplicationForm({
             If proposing a new chapter, what school would it be based at?
           </p>
           <input className="input" name="partnerSchool" placeholder="e.g. Lincoln High School" />
+        </div>
+
+        <div className="form-row">
+          <label>Potential chapter location / community <span style={{ color: "#dc2626" }}>*</span></label>
+          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
+            Name the school, neighborhood, library, or community where this chapter would meet.
+          </p>
+          <input className="input" name="potentialChapterLocation" placeholder="e.g. Lincoln High School library" required />
+        </div>
+
+        <div className="form-row">
+          <label>Current YPP involvement, if any</label>
+          <textarea
+            className="input"
+            name="currentYppInvolvement"
+            rows={2}
+            placeholder="Tell us if you are a student, instructor, volunteer, referral, or new to YPP."
+          />
         </div>
 
         {/* ── Section 5: Essays & Background ── */}
@@ -323,6 +353,20 @@ export default function ChapterPresidentApplicationForm({
             rows={3}
             required
             placeholder="Describe any experience founding, running, or coordinating clubs, teams, or events..."
+          />
+        </div>
+
+        <div className="form-row">
+          <label>Community or service experience <span style={{ color: "#dc2626" }}>*</span></label>
+          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
+            Share any volunteering, mentoring, outreach, service, or community-building work you have done.
+          </p>
+          <textarea
+            name="communityServiceExperience"
+            className="input"
+            rows={3}
+            required
+            placeholder="Describe where you served, who you worked with, and what you learned..."
           />
         </div>
 
@@ -405,6 +449,20 @@ export default function ChapterPresidentApplicationForm({
           <span style={{ fontSize: 11, color: launchPlan.length > 3000 ? "#dc2626" : "var(--muted)", marginTop: 4, display: "block", textAlign: "right" }}>
             {launchPlan.length} / 3,000
           </span>
+        </div>
+
+        <div className="form-row">
+          <label>First 3 actions if accepted <span style={{ color: "#dc2626" }}>*</span></label>
+          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
+            List the first three things you would do to start or strengthen the chapter.
+          </p>
+          <textarea
+            name="firstThreeActions"
+            className="input"
+            rows={3}
+            required
+            placeholder={"1. ...\n2. ...\n3. ..."}
+          />
         </div>
 
         {/* ── Section 7: Availability ── */}

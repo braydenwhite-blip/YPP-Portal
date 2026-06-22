@@ -40,11 +40,11 @@ export function deriveActionContextLabel(
     const title = item.officerMeeting.title?.trim() || "meeting";
     return {
       text: `From ${title} — ${formatDueDate(item.officerMeeting.date)}`,
-      href: `/actions/meetings/${item.officerMeetingId}`,
+      href: `/meetings/${item.officerMeetingId}`,
     };
   }
   if (item.officerMeetingId) {
-    return { text: "From a meeting", href: `/actions/meetings/${item.officerMeetingId}` };
+    return { text: "From a meeting", href: `/meetings/${item.officerMeetingId}` };
   }
 
   // An affirmed strategic initiative / project explains the "why".

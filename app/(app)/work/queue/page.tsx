@@ -1,50 +1,26 @@
 import { redirect } from "next/navigation";
 
-import { QueueRunner, WorkspaceShell } from "@/components/queue";
-import { getSession } from "@/lib/auth-supabase";
-import { buildQueueEngine, getEngineQueue } from "@/lib/queue/engine";
-import { isQueueKey, QUEUE_DESCRIPTORS, type QueueKey } from "@/lib/queue/types";
-import {
-  isOfficerTier,
-  type ActionViewer,
-} from "@/lib/people-strategy/action-permissions";
-import { loadWorkHub } from "@/lib/work/work-hub";
+import type { RedirectSearchParams } from "@/lib/navigation/redirect-search-params";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "My Queue — Pathways Portal",
-};
-
-export default async function QueueRunnerPage({
+/**
+ * The Work "My Queue" runner was retired with the Work hub. Your actions now
+ * live in one place — Actions, filtered to you — so old /work/queue links land
+ * on /actions?who=me.
+ */
+export default async function LegacyWorkQueueRedirect({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams?: Promise<RedirectSearchParams>;
 }) {
-  const session = await getSession();
-  if (!session?.user?.id) redirect("/login");
-
-  const viewer: ActionViewer = {
-    id: session.user.id,
-    roles: session.user.roles,
-    primaryRole: session.user.primaryRole,
-    adminSubtypes: session.user.adminSubtypes,
-  };
-  if (!isOfficerTier(viewer)) redirect("/");
-
-  const sp = await searchParams;
-  const queueParam = typeof sp.queue === "string" ? sp.queue : undefined;
-  // My Queue is the default front door — the loops you own, worst-first.
-  const key: QueueKey = isQueueKey(queueParam) ? queueParam : "my";
-
-  const now = new Date();
-  const data = await loadWorkHub(viewer, { now });
-  const engine = buildQueueEngine(data, now);
-  const items = getEngineQueue(engine, key, now);
-
-  return (
-    <WorkspaceShell className="px-1">
-      <QueueRunner queueLabel={QUEUE_DESCRIPTORS[key].label} items={items} />
-    </WorkspaceShell>
-  );
+  const params = (await searchParams) ?? {};
+  const qs = new URLSearchParams();
+  qs.set("who", "me");
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "who" || key === "queue") continue;
+    if (Array.isArray(value)) value.forEach((v) => qs.append(key, v));
+    else if (value) qs.set(key, value);
+  }
+  redirect(`/actions?${qs.toString()}`);
 }

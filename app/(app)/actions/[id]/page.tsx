@@ -15,6 +15,7 @@ import {
 import { ActionIntelPanel } from "@/components/people-strategy/action-intel-panel";
 import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
 import { ButtonLink, PageHeaderV2, type StatusTone } from "@/components/ui-v2";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { getSession } from "@/lib/auth-supabase";
 import {
   isActionTrackerEnabled,
@@ -290,7 +291,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
     urgency: deriveActionUrgency(item, now),
   };
   const intelCtaHref = canEdit ? `/actions/${item.id}/edit` : `/actions/${item.id}`;
-  const meetingHref = item.officerMeetingId ? `/actions/meetings/${item.officerMeetingId}` : null;
+  const meetingHref = item.officerMeetingId ? `/meetings/${item.officerMeetingId}` : null;
 
   const focusReason = topSignal
     ? `${topSignal.reason}. Next: ${topSignal.nextStep}`
@@ -325,7 +326,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
       ? [
           <SimpleRow
             key="meeting"
-            href={`/actions/meetings/${item.officerMeetingId}`}
+            href={`/meetings/${item.officerMeetingId}`}
             icon="calendar"
             name={item.officerMeeting?.title ?? "Source meeting"}
             what="From meeting"
@@ -369,6 +370,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
   ];
 
   return (
+    <div className={skin.portalSkin}>
     <SimpleSurface
       maxWidth={720}
       header={
@@ -427,5 +429,6 @@ export default async function ActionDetailPage({ params }: PageProps) {
         ) : null}
       </div>
     </SimpleSurface>
+    </div>
   );
 }

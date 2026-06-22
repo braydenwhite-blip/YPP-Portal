@@ -1,10 +1,11 @@
 import type { NavGroup, NavLink, NavRole } from "@/lib/navigation/types";
+import { INSTRUCTOR_SURFACE_ROLES } from "@/lib/org/role-sets";
 
 type CatalogInput = Omit<NavLink, "group" | "priority" | "coreEligible"> & {
   coreEligible?: boolean;
 };
 
-const INSTRUCTOR_ROLES: NavRole[] = ["INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT"];
+const INSTRUCTOR_ROLES: NavRole[] = [...INSTRUCTOR_SURFACE_ROLES];
 const INSTRUCTOR_AND_APPLICANT_ROLES: NavRole[] = ["APPLICANT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT"];
 const MENTOR_ROLES: NavRole[] = ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"];
 const MY_PROGRAM_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"];
@@ -451,8 +452,8 @@ export const NAV_CATALOG: NavLink[] = [
         "Action Tracker",
         "My Action Items",
         "All Actions",
-        "Meetings",
-        "Command Center",
+        "Overdue",
+        "Waiting on",
       ],
       dashboardDescription: "Everything you lead, are executing, or owe input on — sorted by deadline.",
       dashboardPriority: 5,
@@ -475,56 +476,10 @@ export const NAV_CATALOG: NavLink[] = [
         "Quarterly initiatives — open one to see linked actions and next steps.",
       dashboardPriority: 4,
     },
-    {
-      href: "/work",
-      label: "Work",
-      icon: "🎛️",
-      // Work Hub (Knowledge OS V2 §15) — the unified front door for actions,
-      // meeting follow-ups, initiatives, partner requests, advisor check-ins,
-      // and applicant next steps. Officer-tier (mirrors /people, /partners).
-      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: [
-        "Work Hub",
-        "Command Center",
-        "Attention Queue",
-        "All Work",
-        "My Queue",
-        "Follow-ups",
-        "Overdue",
-      ],
-      dashboardDescription:
-        "Actions, meeting follow-ups, blockers, and next steps across YPP.",
-      dashboardPriority: 6,
-    },
-    {
-      href: "/command-center",
-      label: "Command Center",
-      icon: "🧭",
-      // Command Center OS — the daily operating cockpit (mission, Now/Next/Later,
-      // today's meeting, decisions, waiting-on). Officer-tier, like /work.
-      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: [
-        "Command Center",
-        "Today",
-        "Daily cockpit",
-        "Good morning",
-        "Mission",
-        "What matters today",
-      ],
-      dashboardDescription:
-        "Start here — your mission, your next move, today's meeting, and decisions.",
-      dashboardPriority: 5,
-    },
-    {
-      href: "/work/queue",
-      label: "My Queue",
-      icon: "📥",
-      // The one-card-at-a-time queue runner (Resolve / Delegate / Discuss / Defer).
-      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: ["My Queue", "Queue", "Run my queue", "Triage", "Loops", "Clear work"],
-      dashboardDescription: "Clear your work one item at a time.",
-      dashboardPriority: 6,
-    },
+    // The separate Work hub and Command Center were retired in the navigation
+    // overhaul — the portal is organized around real YPP objects with Home as the
+    // single starting point. Their routes (/work, /command-center) now redirect,
+    // so they are intentionally absent from the catalog (nav + search + site-map).
     {
       href: "/browse",
       label: "Browse",
@@ -842,7 +797,9 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
-      href: "/actions/meetings",
+      // Canonical Meetings home — the single front door for every meeting
+      // (officer + impact). It previews and routes; it is not a second hub.
+      href: "/meetings",
       label: "Meetings",
       icon: "📅",
       // Officer-tier and above only (mirrors requireOfficer()).
@@ -850,16 +807,36 @@ export const NAV_CATALOG: NavLink[] = [
       requiresActionTracker: true,
       searchAliases: [
         "Meetings",
-        "Weekly Command Center",
-        "Meetings Tracker",
-        "Officer Meeting",
+        "Meetings home",
+        "All meetings",
+        "Officer Meetings",
+        "Impact Meetings",
         "Agenda",
         "Decisions",
         "Follow-ups",
       ],
       dashboardDescription:
-        "Run leadership meetings, log decisions and follow-ups, and turn them into tracked actions.",
-      dashboardPriority: 5,
+        "One place for every meeting — today, upcoming, needs prep, and recent. Open any meeting to run it.",
+      dashboardPriority: 6,
+    },
+    {
+      href: "/my-weekly-impact",
+      label: "My Weekly Impact",
+      icon: "📝",
+      // Any contributor on an Impact team fills this out (the page self-gates on
+      // the Weekly Team Briefs flag and the signed-in session).
+      roles: ["INSTRUCTOR", "MENTOR", "CHAPTER_PRESIDENT", "STAFF", "ADMIN", "HIRING_CHAIR"] as NavRole[],
+      requiresActionTracker: true,
+      searchAliases: [
+        "My Weekly Impact",
+        "Weekly Impact Form",
+        "Weekly Update",
+        "Impact Update",
+        "My Impact",
+      ],
+      dashboardDescription:
+        "Add your part to your team's one weekly Impact presentation — what you did, what you'll show, and what you need.",
+      dashboardPriority: 4,
     },
     {
       href: "/leadership-pathway",
@@ -885,8 +862,8 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Mentorship",
       icon: "🤝",
       roles: MENTOR_ROLES,
-      searchAliases: ["Support Hub", "Mentor Workspace"],
-      dashboardDescription: "Open the mentor and operator workspace for circles, queues, and support operations.",
+      searchAliases: ["Support Hub", "Mentees", "Relationships"],
+      dashboardDescription: "Open mentorship relationships, check-ins, next steps, and review work.",
       dashboardPriority: 16,
     },
     {
@@ -894,7 +871,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "My Mentor",
       icon: "🤝",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
-      searchAliases: ["My Mentorship", "Mentorship", "Mentor"],
+      searchAliases: ["Mentorship", "Mentor", "Goals", "Next steps"],
       dashboardDescription: "See your mentor, goals, resources, progress, reflection, and next steps.",
       dashboardPriority: 4,
     },
@@ -959,7 +936,7 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "🎯",
       roles: MY_PROGRAM_ROLES,
       searchAliases: ["My Mentor", "Support Hub", "Program Hub"],
-      dashboardDescription: "Open your support hub for reflections, action items, awards, rewards, and recognition.",
+      dashboardDescription: "Open your support hub for reflections, next steps, awards, rewards, and recognition.",
     },
     {
       href: "/my-program/gr",
@@ -1128,7 +1105,7 @@ export const NAV_CATALOG: NavLink[] = [
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Run your chapter: members, action queues, and what needs attention.",
       dashboardPriority: 1,
-      searchAliases: ["Dashboard", "Chapter OS", "President Dashboard", "Overview", "Command Center"],
+      searchAliases: ["Dashboard", "Chapter Home", "President Home", "Overview"],
     },
     {
       href: "/chapter/president",
@@ -1599,6 +1576,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "waitlist_waiting",
     },
     { href: "/admin/reminders", label: "Reminders", icon: "🔔", roles: ADMIN_ONLY },
+    {
+      href: "/admin/email-templates",
+      label: "Email Templates",
+      icon: "✉️",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Customize the subject and body of automated portal emails.",
+      searchAliases: ["Email Templates", "Edit Emails", "Email Copy"],
+    },
     {
       href: "/admin/emergency-broadcast",
       label: "Emergency Broadcast",

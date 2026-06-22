@@ -7,7 +7,9 @@ import {
   feedbackPortalSubtitle,
   feedbackPortalEmptyState,
 } from "@/lib/mentor-feedback-copy";
+import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
 import { RequestFeedbackForm, RespondForm, HelpfulButton } from "./client";
+import { FeedbackCalm } from "./_components/feedback-calm";
 
 const FEEDBACK_PORTAL_GUIDE_ITEMS = [
   {
@@ -89,6 +91,21 @@ export default async function MentorFeedbackPage() {
         items={FEEDBACK_PORTAL_GUIDE_ITEMS}
       />
 
+      <CalmOnly>
+        <div style={{ marginBottom: 24 }}>
+          <FeedbackCalm
+            isMentor={isMentor}
+            pending={pending.map((req: any) => ({
+              id: req.id,
+              question: req.question,
+              menteeName: req.mentee?.name ?? null,
+              topic: req.passionId ?? null,
+            }))}
+          />
+        </div>
+      </CalmOnly>
+
+      <CalmCollapse label="All feedback requests" hint="answered history + every thread">
       {/* Stats */}
       <div className="grid two" style={{ marginBottom: 24 }}>
         <div className="card" style={{ textAlign: "center" }}>
@@ -325,6 +342,7 @@ export default async function MentorFeedbackPage() {
           <p style={{ color: "var(--text-secondary)" }}>{feedbackPortalEmptyState(isMentor)}</p>
         </div>
       )}
+      </CalmCollapse>
     </div>
   );
 }

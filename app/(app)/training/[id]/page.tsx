@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { withPrismaFallback } from "@/lib/prisma-guard";
+import { isInstructorSurface } from "@/lib/org/role-sets";
 import { getPreferredCurriculumDraftForStudioSurface } from "@/lib/curriculum-draft-actions";
 import {
   getTrainingAccessRedirect,
@@ -87,10 +88,7 @@ export default async function TrainingModulePage({
 
   const learnerId = session.user.id;
   const isStudentOnly =
-    roles.includes("STUDENT") &&
-    !roles.includes("INSTRUCTOR") &&
-    !roles.includes("ADMIN") &&
-    !roles.includes("CHAPTER_PRESIDENT");
+    roles.includes("STUDENT") && !isInstructorSurface(roles);
 
   // ---------------------------------------------------------------------------
   // INTERACTIVE_JOURNEY branch — runs before the legacy fetch to avoid loading
