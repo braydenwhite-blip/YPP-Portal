@@ -8,7 +8,12 @@ import { isWeeklyTeamBriefsEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
 import type { ActionViewer } from "./action-permissions";
-import { validateMemberSubmission, type TaggedImpactIssue } from "./impact-specificity";
+import {
+  deriveImpactFlags,
+  hasBlockingFlags,
+  type ImpactFlag,
+  type ImpactFlagInput,
+} from "./impact-flags";
 import { getInitiativeDef, getWorkstreamDef } from "./strategic-initiatives";
 import {
   canEditWeeklyBriefOverall,
@@ -614,43 +619,66 @@ const SubmitMemberSchema = z.object({ memberUpdateId: NonEmptyString });
 
 export type SubmitMemberResult =
   | { ok: true }
-  | { ok: false; issues: TaggedImpactIssue[] };
+  | { ok: false; flags: ImpactFlag[] };
 
-/** Submit the person's Weekly Impact form. Runs the specificity guard across
- *  their Section 1/4 header and the Section 2/3 task rows they lead; if anything
- *  is vague, returns the per-field issues (does NOT throw) so the form can show
- *  exactly what to fix and stays editable. */
+/** Read every Weekly Impact row a person owns and shape it for the flags engine.
+ *  Section 2 progress = the tracked task rows they lead PLUS the ad-hoc rows they
+ *  authored on this brief. Shared by submit (gate) and by the agenda readers. */
+async function loadMemberFlagInput(memberId: string, briefId: string, userId: string): Promise<ImpactFlagInput> {
+  const [objectives, nextSteps, inputRequests, tasks] = await Promise.all([
+    prisma.weeklyImpactObjective.findMany({ where: { memberUpdateId: memberId } }),
+    prisma.weeklyImpactNextStep.findMany({ where: { memberUpdateId: memberId } }),
+    prisma.weeklyImpactInputRequest.findMany({ where: { memberUpdateId: memberId } }),
+    prisma.weeklyTaskUpdate.findMany({
+      where: {
+        briefId,
+        OR: [{ actionItem: { leadId: userId } }, { memberUpdateId: memberId }],
+      },
+      include: { actionItem: { select: { fileLinks: { select: { id: true } } } } },
+    }),
+  ]);
+
+  return {
+    objectives: objectives.map((o) => ({
+      id: o.id,
+      objective: o.objective,
+      deliverable: o.deliverable,
+      hasLink: Boolean(o.linkUrl),
+    })),
+    progress: tasks.map((t) => ({
+      id: t.id,
+      deliverable: t.taskTitleSnapshot,
+      whatYouDid: t.workCompleted,
+      outcome: t.currentResult,
+      hasLink: Boolean(t.adhocLinkUrl) || t.deliverableLinkIds.length > 0 || (t.actionItem?.fileLinks.length ?? 0) > 0,
+    })),
+    nextSteps: nextSteps.map((n) => ({
+      id: n.id,
+      action: n.action,
+      deliverableNextWeek: n.deliverableNextWeek,
+      hasDueDate: Boolean(n.dueDate),
+    })),
+    inputRequests: inputRequests.map((r) => ({
+      id: r.id,
+      request: r.request,
+      hasWho: Boolean(r.neededFrom?.trim()),
+    })),
+  };
+}
+
+/** Submit the person's Weekly Impact form. Recomputes flags across all four
+ *  sections; if any blocking flag remains, returns them (does NOT throw) so the
+ *  form can show exactly what to fix and stays editable. */
 export async function submitMyMemberUpdate(
   input: z.input<typeof SubmitMemberSchema>
 ): Promise<SubmitMemberResult> {
   const data = SubmitMemberSchema.parse(input);
   const { member, brief } = await loadMemberContext(data.memberUpdateId);
 
-  const memberRow = await prisma.weeklyMemberUpdate.findUnique({
-    where: { id: member.id },
-    select: { personalObjective: true, personalDeliverable: true, inputNeeded: true },
-  });
-  // Section 2/3 detail: the task rows this person leads within the brief.
-  const tasks = await prisma.weeklyTaskUpdate.findMany({
-    where: { briefId: member.briefId, actionItem: { leadId: member.userId } },
-    select: { id: true, workCompleted: true, currentResult: true, nextAction: true },
-  });
-
-  const issues = validateMemberSubmission({
-    member: {
-      personalObjective: memberRow?.personalObjective,
-      personalDeliverable: memberRow?.personalDeliverable,
-      inputNeeded: memberRow?.inputNeeded,
-    },
-    tasks: tasks.map((t) => ({
-      taskUpdateId: t.id,
-      workCompleted: t.workCompleted,
-      currentResult: t.currentResult,
-      nextAction: t.nextAction,
-    })),
-  });
-  if (issues.length > 0) {
-    return { ok: false, issues };
+  const flagInput = await loadMemberFlagInput(member.id, member.briefId, member.userId);
+  const flags = deriveImpactFlags(flagInput);
+  if (hasBlockingFlags(flags)) {
+    return { ok: false, flags };
   }
 
   await prisma.weeklyMemberUpdate.update({
@@ -659,4 +687,250 @@ export async function submitMyMemberUpdate(
   });
   revalidateBrief(brief);
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Repeatable Weekly Impact rows: Section 1 (Objective & Deliverables), Section 3
+// (Next Steps), Section 4 (Input Needed), and ad-hoc Section 2 (This Week's
+// Progress) rows. Each add returns the new row id so the form can edit it; each
+// update/remove re-checks the same member access as the header.
+// ---------------------------------------------------------------------------
+
+async function loadRowMember(memberUpdateId: string) {
+  return loadMemberContext(memberUpdateId);
+}
+
+function nextSortOrder(rows: Array<{ sortOrder: number }>): number {
+  return rows.reduce((max, r) => Math.max(max, r.sortOrder), -1) + 1;
+}
+
+// Section 1 — Objective & Deliverables
+const AddObjectiveSchema = z.object({ memberUpdateId: NonEmptyString });
+export async function addImpactObjectiveRow(input: z.input<typeof AddObjectiveSchema>) {
+  const data = AddObjectiveSchema.parse(input);
+  const { member, brief } = await loadRowMember(data.memberUpdateId);
+  const existing = await prisma.weeklyImpactObjective.findMany({
+    where: { memberUpdateId: member.id },
+    select: { sortOrder: true },
+  });
+  const row = await prisma.weeklyImpactObjective.create({
+    data: { memberUpdateId: member.id, sortOrder: nextSortOrder(existing) },
+    select: { id: true },
+  });
+  revalidateBrief(brief);
+  return { id: row.id };
+}
+
+const UpdateObjectiveSchema = z.object({
+  id: NonEmptyString,
+  objective: OptionalText,
+  deliverable: OptionalText,
+  targetDate: OptionalDate,
+  linkUrl: OptionalText,
+  linkLabel: OptionalText,
+});
+export async function updateImpactObjectiveRow(input: z.input<typeof UpdateObjectiveSchema>) {
+  const data = UpdateObjectiveSchema.parse(input);
+  const row = await prisma.weeklyImpactObjective.findUnique({
+    where: { id: data.id },
+    select: { memberUpdateId: true },
+  });
+  if (!row) throw new Error("Objective row not found");
+  const { brief } = await loadRowMember(row.memberUpdateId);
+  await prisma.weeklyImpactObjective.update({
+    where: { id: data.id },
+    data: {
+      objective: data.objective,
+      deliverable: data.deliverable,
+      targetDate: data.targetDate,
+      linkUrl: data.linkUrl,
+      linkLabel: data.linkLabel,
+    },
+  });
+  revalidateBrief(brief);
+  return { ok: true as const };
+}
+
+const RemoveRowSchema = z.object({ id: NonEmptyString });
+export async function removeImpactObjectiveRow(input: z.input<typeof RemoveRowSchema>) {
+  const data = RemoveRowSchema.parse(input);
+  const row = await prisma.weeklyImpactObjective.findUnique({
+    where: { id: data.id },
+    select: { memberUpdateId: true },
+  });
+  if (!row) return { ok: true as const };
+  const { brief } = await loadRowMember(row.memberUpdateId);
+  await prisma.weeklyImpactObjective.delete({ where: { id: data.id } });
+  revalidateBrief(brief);
+  return { ok: true as const };
+}
+
+// Section 3 — Next Steps
+const AddNextStepSchema = z.object({ memberUpdateId: NonEmptyString });
+export async function addImpactNextStepRow(input: z.input<typeof AddNextStepSchema>) {
+  const data = AddNextStepSchema.parse(input);
+  const { member, brief } = await loadRowMember(data.memberUpdateId);
+  const existing = await prisma.weeklyImpactNextStep.findMany({
+    where: { memberUpdateId: member.id },
+    select: { sortOrder: true },
+  });
+  const row = await prisma.weeklyImpactNextStep.create({
+    data: { memberUpdateId: member.id, sortOrder: nextSortOrder(existing) },
+    select: { id: true },
+  });
+  revalidateBrief(brief);
+  return { id: row.id };
+}
+
+const UpdateNextStepSchema = z.object({
+  id: NonEmptyString,
+  action: OptionalText,
+  deliverableNextWeek: OptionalText,
+  dueDate: OptionalDate,
+});
+export async function updateImpactNextStepRow(input: z.input<typeof UpdateNextStepSchema>) {
+  const data = UpdateNextStepSchema.parse(input);
+  const row = await prisma.weeklyImpactNextStep.findUnique({
+    where: { id: data.id },
+    select: { memberUpdateId: true },
+  });
+  if (!row) throw new Error("Next step row not found");
+  const { brief } = await loadRowMember(row.memberUpdateId);
+  await prisma.weeklyImpactNextStep.update({
+    where: { id: data.id },
+    data: {
+      action: data.action,
+      deliverableNextWeek: data.deliverableNextWeek,
+      dueDate: data.dueDate,
+    },
+  });
+  revalidateBrief(brief);
+  return { ok: true as const };
+}
+
+export async function removeImpactNextStepRow(input: z.input<typeof RemoveRowSchema>) {
+  const data = RemoveRowSchema.parse(input);
+  const row = await prisma.weeklyImpactNextStep.findUnique({
+    where: { id: data.id },
+    select: { memberUpdateId: true },
+  });
+  if (!row) return { ok: true as const };
+  const { brief } = await loadRowMember(row.memberUpdateId);
+  await prisma.weeklyImpactNextStep.delete({ where: { id: data.id } });
+  revalidateBrief(brief);
+  return { ok: true as const };
+}
+
+// Section 4 — Input Needed
+const AddInputSchema = z.object({ memberUpdateId: NonEmptyString });
+export async function addImpactInputRequestRow(input: z.input<typeof AddInputSchema>) {
+  const data = AddInputSchema.parse(input);
+  const { member, brief } = await loadRowMember(data.memberUpdateId);
+  const existing = await prisma.weeklyImpactInputRequest.findMany({
+    where: { memberUpdateId: member.id },
+    select: { sortOrder: true },
+  });
+  const row = await prisma.weeklyImpactInputRequest.create({
+    data: { memberUpdateId: member.id, sortOrder: nextSortOrder(existing) },
+    select: { id: true },
+  });
+  revalidateBrief(brief);
+  return { id: row.id };
+}
+
+const UpdateInputSchema = z.object({
+  id: NonEmptyString,
+  request: OptionalText,
+  neededFrom: OptionalText,
+  neededBy: OptionalDate,
+});
+export async function updateImpactInputRequestRow(input: z.input<typeof UpdateInputSchema>) {
+  const data = UpdateInputSchema.parse(input);
+  const row = await prisma.weeklyImpactInputRequest.findUnique({
+    where: { id: data.id },
+    select: { memberUpdateId: true },
+  });
+  if (!row) throw new Error("Input request row not found");
+  const { brief } = await loadRowMember(row.memberUpdateId);
+  await prisma.weeklyImpactInputRequest.update({
+    where: { id: data.id },
+    data: { request: data.request, neededFrom: data.neededFrom, neededBy: data.neededBy },
+  });
+  revalidateBrief(brief);
+  return { ok: true as const };
+}
+
+export async function removeImpactInputRequestRow(input: z.input<typeof RemoveRowSchema>) {
+  const data = RemoveRowSchema.parse(input);
+  const row = await prisma.weeklyImpactInputRequest.findUnique({
+    where: { id: data.id },
+    select: { memberUpdateId: true },
+  });
+  if (!row) return { ok: true as const };
+  const { brief } = await loadRowMember(row.memberUpdateId);
+  await prisma.weeklyImpactInputRequest.delete({ where: { id: data.id } });
+  revalidateBrief(brief);
+  return { ok: true as const };
+}
+
+// Section 2 — ad-hoc This Week's Progress rows (a WeeklyTaskUpdate with no tracked
+// ActionItem behind it). Tracked rows are edited via updateWeeklyTaskUpdate above.
+const AddProgressSchema = z.object({ memberUpdateId: NonEmptyString });
+export async function addAdhocProgressRow(input: z.input<typeof AddProgressSchema>) {
+  const data = AddProgressSchema.parse(input);
+  const { member, brief } = await loadRowMember(data.memberUpdateId);
+  const row = await prisma.weeklyTaskUpdate.create({
+    data: { briefId: member.briefId, memberUpdateId: member.id, taskTitleSnapshot: "" },
+    select: { id: true },
+  });
+  revalidateBrief(brief);
+  return { id: row.id };
+}
+
+const UpdateProgressSchema = z.object({
+  id: NonEmptyString,
+  deliverable: OptionalText,
+  whatYouDid: OptionalText,
+  outcome: OptionalText,
+  adhocLinkLabel: OptionalText,
+  adhocLinkUrl: OptionalText,
+});
+export async function updateAdhocProgressRow(input: z.input<typeof UpdateProgressSchema>) {
+  const data = UpdateProgressSchema.parse(input);
+  const row = await prisma.weeklyTaskUpdate.findUnique({
+    where: { id: data.id },
+    select: { memberUpdateId: true, actionItemId: true },
+  });
+  if (!row || !row.memberUpdateId || row.actionItemId) {
+    throw new Error("Ad-hoc progress row not found");
+  }
+  const { brief } = await loadRowMember(row.memberUpdateId);
+  await prisma.weeklyTaskUpdate.update({
+    where: { id: data.id },
+    data: {
+      taskTitleSnapshot: data.deliverable ?? "",
+      workCompleted: data.whatYouDid,
+      currentResult: data.outcome,
+      adhocLinkLabel: data.adhocLinkLabel,
+      adhocLinkUrl: data.adhocLinkUrl,
+    },
+  });
+  revalidateBrief(brief);
+  return { ok: true as const };
+}
+
+export async function removeAdhocProgressRow(input: z.input<typeof RemoveRowSchema>) {
+  const data = RemoveRowSchema.parse(input);
+  const row = await prisma.weeklyTaskUpdate.findUnique({
+    where: { id: data.id },
+    select: { memberUpdateId: true, actionItemId: true },
+  });
+  if (!row) return { ok: true as const };
+  if (!row.memberUpdateId || row.actionItemId) {
+    throw new Error("Only ad-hoc progress rows can be removed");
+  }
+  const { brief } = await loadRowMember(row.memberUpdateId);
+  await prisma.weeklyTaskUpdate.delete({ where: { id: data.id } });
+  revalidateBrief(brief);
+  return { ok: true as const };
 }

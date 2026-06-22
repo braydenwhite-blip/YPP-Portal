@@ -19,6 +19,7 @@ export const IMPACT_TEAMS = [
     id: "tech",
     name: "Tech",
     defaultArea: "TECHNOLOGY",
+    defaultMinutes: 15,
     helperContext: [
       "Portal updates",
       "Bugs fixed",
@@ -37,6 +38,7 @@ export const IMPACT_TEAMS = [
     id: "fundraising",
     name: "Fundraising",
     defaultArea: "FINANCE",
+    defaultMinutes: 15,
     helperContext: [
       "Outreach completed",
       "Donor or sponsor progress",
@@ -55,6 +57,7 @@ export const IMPACT_TEAMS = [
     id: "expansion",
     name: "Expansion",
     defaultArea: "CHAPTERS",
+    defaultMinutes: 15,
     helperContext: [
       "New areas contacted",
       "Parent or alumni outreach",
@@ -73,6 +76,7 @@ export const IMPACT_TEAMS = [
     id: "socials",
     name: "Socials",
     defaultArea: "MARKETING",
+    defaultMinutes: 10,
     helperContext: [
       "Posts created",
       "Posts scheduled",
@@ -85,6 +89,25 @@ export const IMPACT_TEAMS = [
       "Content calendar",
       "Graphics",
       "Analytics screenshot",
+    ],
+  },
+  {
+    id: "chapters",
+    name: "Chapter Updates",
+    defaultArea: "CHAPTERS",
+    defaultMinutes: 10,
+    helperContext: [
+      "Chapter health",
+      "New chapter launches",
+      "Chapter lead check-ins",
+      "Demo days",
+      "Cross-chapter coordination",
+    ],
+    suggestedDeliverables: [
+      "Chapter tracker",
+      "Launch checklist",
+      "Demo day plan",
+      "Chapter roster",
     ],
   },
 ] as const;
@@ -120,11 +143,15 @@ export type ImpactMeetingAgendaSection = {
   readiness: ImpactUpdateReadiness;
   presenterName: string | null;
   presenterId: string | null;
+  /** Rough time box for this team on the agenda, in minutes. */
+  estimatedMinutes: number;
   completedThisWeek: string[];
   deliverables: Array<BriefDeliverableDTO & { actionTitle: string }>;
   stillInProgress: string[];
   blockers: string[];
   decisionsNeeded: string[];
+  /** Section 4 "Input Needed" requests from this team's people. */
+  inputRequests: string[];
   nextWeekCommitments: string[];
   relatedActions: ImpactMeetingAgendaAction[];
   overdueOrAtRiskActions: ImpactMeetingAgendaAction[];
@@ -190,21 +217,34 @@ function hasUpdateContent(brief: WeeklyBriefWorkspace | null): boolean {
   ) {
     return true;
   }
-  return brief.taskUpdates.some((task) =>
-    [
-      task.statusNarrative,
-      task.workCompleted,
-      task.currentResult,
-      task.remainingWork,
-      task.blockerNote,
-      task.decisionNeeded,
-      task.nextAction,
-    ].some((value) => Boolean(value?.trim())) || task.allDeliverables.length > 0
-  );
+  if (
+    brief.taskUpdates.some(
+      (task) =>
+        [
+          task.statusNarrative,
+          task.workCompleted,
+          task.currentResult,
+          task.remainingWork,
+          task.blockerNote,
+          task.decisionNeeded,
+          task.nextAction,
+        ].some((value) => Boolean(value?.trim())) ||
+        task.allDeliverables.length > 0 ||
+        Boolean(task.adhocLink)
+    )
+  ) {
+    return true;
+  }
+  return memberHasContent(brief);
 }
 
 function readinessForBrief(brief: WeeklyBriefWorkspace | null): ImpactUpdateReadiness {
   if (!brief || !hasUpdateContent(brief)) return "missing";
+  // A person submitting their part counts the team as submitted even if the
+  // team-level brief status is still DRAFT.
+  if (memberSubmitted(brief)) {
+    return brief.status === "PRESENTED" || brief.status === "FINALIZED" ? "discussed" : "submitted";
+  }
   if (brief.status === "DRAFT" || brief.status === "REOPENED") return "draft";
   if (brief.status === "SUBMITTED") return "submitted";
   if (brief.status === "PRESENTED") return "discussed";
@@ -244,8 +284,69 @@ function uniqueDeliverables(
     for (const link of links) {
       byId.set(link.id, { ...link, actionTitle: task.taskTitle });
     }
+    // Ad-hoc Section 2 rows carry a single inline link instead of ActionFileLinks.
+    if (task.adhocLink) {
+      byId.set(task.adhocLink.id, {
+        ...task.adhocLink,
+        actionTitle: task.taskTitle || "This week's progress",
+      });
+    }
   }
   return Array.from(byId.values());
+}
+
+/** Section 1/3/4 lines a team's people typed on their per-person Weekly Impact forms. */
+function memberObjectiveLines(brief: WeeklyBriefWorkspace | null): string[] {
+  return (brief?.members ?? []).flatMap((m) =>
+    (m.objectives ?? [])
+      .map((o) => [o.objective?.trim(), o.deliverable?.trim()].filter(Boolean).join(" — "))
+      .filter(Boolean)
+  );
+}
+
+function memberNextStepLines(brief: WeeklyBriefWorkspace | null): string[] {
+  return (brief?.members ?? []).flatMap((m) =>
+    (m.nextSteps ?? [])
+      .map((n) => [n.action?.trim(), n.deliverableNextWeek?.trim()].filter(Boolean).join(" — "))
+      .filter(Boolean)
+  );
+}
+
+function memberInputLines(brief: WeeklyBriefWorkspace | null): string[] {
+  const members = brief?.members ?? [];
+  const fromRows = members.flatMap((m) =>
+    (m.inputRequests ?? [])
+      .filter((r) => r.request?.trim())
+      .map((r) =>
+        r.neededFrom?.trim() ? `${r.request!.trim()} (from ${r.neededFrom.trim()})` : r.request!.trim()
+      )
+  );
+  // Legacy single-field input, kept until everyone is on row-based forms.
+  const fromLegacy = members
+    .filter((m) => m.inputNeeded?.trim())
+    .map((m) =>
+      m.inputNeededFrom?.trim()
+        ? `${m.inputNeeded!.trim()} (from ${m.inputNeededFrom.trim()})`
+        : m.inputNeeded!.trim()
+    );
+  return uniq([...fromRows, ...fromLegacy]);
+}
+
+function memberHasContent(brief: WeeklyBriefWorkspace | null): boolean {
+  return (brief?.members ?? []).some(
+    (m) =>
+      (m.objectives ?? []).some((o) => o.objective?.trim() || o.deliverable?.trim()) ||
+      (m.nextSteps ?? []).some((n) => n.action?.trim() || n.deliverableNextWeek?.trim()) ||
+      (m.inputRequests ?? []).some((r) => r.request?.trim()) ||
+      Boolean(m.personalObjective?.trim()) ||
+      Boolean(m.inputNeeded?.trim())
+  );
+}
+
+function memberSubmitted(brief: WeeklyBriefWorkspace | null): boolean {
+  return (brief?.members ?? []).some(
+    (m) => m.status === "SUBMITTED" || m.status === "PRESENTED" || m.status === "FINALIZED"
+  );
 }
 
 function inferPresenter(brief: WeeklyBriefWorkspace | null): {
@@ -317,12 +418,15 @@ export function buildImpactMeetingAgendaSection(input: {
     ...tasks.flatMap((task) =>
       textLines(task.nextAction).map((line) => `${task.taskTitle}: ${line}`)
     ),
+    ...memberNextStepLines(brief),
   ]);
+  const inputRequests = memberInputLines(brief);
   const peopleIssues = tasks
     .filter((task) => task.escalationNeeded && !task.blockerNote?.trim())
     .map((task) => `${task.taskTitle}: escalation flagged`);
   const commentsOrNotes = uniq([
     ...textLines(brief?.teamObjective),
+    ...memberObjectiveLines(brief),
     ...tasks.flatMap((task) =>
       textLines(task.explanation).map((line) => `${task.taskTitle}: ${line}`)
     ),
@@ -333,6 +437,7 @@ export function buildImpactMeetingAgendaSection(input: {
   if (readiness === "draft") needsAttention.push(`${team.name} update still in draft`);
   if (submitted && deliverables.length === 0) needsAttention.push(`${team.name} deliverable missing`);
   if (decisionsNeeded.length > 0) needsAttention.push(`${team.name} has a decision needed`);
+  if (inputRequests.length > 0) needsAttention.push(`${team.name} has an input request`);
   if (blockers.length > 0) needsAttention.push(`${team.name} blocker unresolved`);
   if (overdueOrAtRiskActions.length > 0) {
     needsAttention.push(`${team.name} has overdue or at-risk action work`);
@@ -362,11 +467,13 @@ export function buildImpactMeetingAgendaSection(input: {
     readiness,
     presenterName: presenter.name,
     presenterId: presenter.id,
+    estimatedMinutes: team.defaultMinutes,
     completedThisWeek,
     deliverables,
     stillInProgress,
     blockers,
     decisionsNeeded,
+    inputRequests,
     nextWeekCommitments,
     relatedActions,
     overdueOrAtRiskActions,

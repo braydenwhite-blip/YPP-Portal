@@ -44,6 +44,9 @@ import {
   MeetingDetailClient,
   type MeetingRelatedContext,
 } from "@/components/people-strategy/meeting-detail-client";
+import { GlobalImpactWorkspace } from "@/components/people-strategy/global-impact-workspace";
+import { ImpactAgendaBoard } from "@/components/people-strategy/impact-agenda-board";
+import { ImpactMeetingCapture } from "@/components/people-strategy/impact-meeting-capture";
 import { OfficerPreparedPresentationsPanel } from "@/components/people-strategy/officer-prepared-presentations";
 import { loadPreparedPresentationsForOfficerMeeting } from "@/lib/people-strategy/weekly-team-briefs";
 import type { PersonOption } from "@/components/people-strategy/new-meeting-drawer";
@@ -247,6 +250,74 @@ export default async function MeetingDetailPage({
           .map((i) => ({ title: i.title })),
         notesText: detail.notesText,
       });
+
+  // Global Impact meetings get their own focused workflow (Agenda prep board →
+  // Meeting capture → Summary & follow-ups) instead of the generic detail client.
+  if (impactAgenda) {
+    const total = impactAgenda.sections.length;
+    const ready = impactAgenda.sections.filter(
+      (s) => s.readiness !== "missing" && s.readiness !== "draft" && s.needsAttention.length === 0
+    ).length;
+    const dateLabel = new Intl.DateTimeFormat("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(detail.startISO));
+    const weekDate = new Date(`${impactAgenda.weekKey}T00:00:00.000Z`);
+    const weekLabelStr = Number.isNaN(weekDate.getTime())
+      ? `Week of ${impactAgenda.weekKey}`
+      : `Week of ${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(weekDate)}`;
+
+    return (
+      <div className={`${skin.portalSkin} page-shell`} style={{ maxWidth: 1180 }}>
+        <GlobalImpactWorkspace
+          title={detail.title}
+          dateLabel={dateLabel}
+          weekLabel={weekLabelStr}
+          ready={ready}
+          total={total}
+          submitHref="/my-weekly-impact"
+          agendaNode={<ImpactAgendaBoard agenda={impactAgenda} />}
+          captureNode={
+            <ImpactMeetingCapture
+              agenda={impactAgenda}
+              meetingId={id}
+              people={people}
+              decisions={detail.decisions.map((d) => ({
+                id: d.id,
+                decision: d.decision,
+                decidedByName: d.decidedBy?.name ?? null,
+              }))}
+              followUps={detail.followUps.map((f) => ({
+                id: f.id,
+                title: f.title,
+                ownerName: f.owner?.name ?? null,
+                dueISO: f.dueISO,
+                status: f.effectiveStatus,
+              }))}
+            />
+          }
+          summaryNode={
+            <div className="flex flex-col gap-4">
+              <section id="summary" className="scroll-mt-24">
+                <MeetingAgendaSummaryPanel
+                  meetingId={id}
+                  agendaText={agendaText}
+                  summaryText={summary.text}
+                  summaryWarnings={summary.warnings}
+                  summaryMissingNotes={summary.missingNotes}
+                  summaryStatus={detail.summaryStatus}
+                />
+              </section>
+              <MeetingFollowUpPackSection pack={followUpPack} meetingId={id} />
+            </div>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`${skin.portalSkin} page-shell`} style={{ maxWidth: 1120 }}>
