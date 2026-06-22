@@ -93,7 +93,7 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   // or role checks server-side; listing here only bypasses the public gate
   // redirect so officers can navigate without a preview passcode).
   "/people",
-  "/work",
+  "/meetings",
   "/actions",
   "/operations",
   "/partners",
@@ -101,13 +101,9 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   "/notifications",
   "/help-agent",
 
-  // Command Center OS (Calm mode) — officer pages; each enforces role server-side.
-  "/command-center",
-  "/browse",
-  "/delegate",
-  "/follow-up",
-  "/review",
-  "/decide",
+  // Admin hiring intake — external applicant entry (staff, instructor, CP).
+  // Page enforces ADMIN / CHAPTER_PRESIDENT server-side.
+  "/admin/external-applicants",
 
   // Summer Workshop Proposals (workshop design studio + required
   // training surface that the Summer Workshop pathway depends on).

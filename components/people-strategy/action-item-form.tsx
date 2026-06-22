@@ -31,15 +31,14 @@ import {
   ActionUserPicker,
   type ActionUserOption,
 } from "@/components/people-strategy/action-user-picker";
+import { ActionDepartmentPicker } from "@/components/people-strategy/action-department-picker";
+import type { ActionDepartmentOption } from "@/lib/people-strategy/action-departments";
 import { deriveActionQualityWarnings } from "@/lib/people-strategy/action-quality";
 import { listInitiativeDefs } from "@/lib/people-strategy/strategic-initiatives";
 
 interface UserOption extends ActionUserOption {}
 
-interface DepartmentOption {
-  id: string;
-  name: string;
-}
+type DepartmentOption = ActionDepartmentOption;
 
 export interface ActionItemFormInitial {
   id?: string;
@@ -630,24 +629,13 @@ export default function ActionItemForm({
           </select>
           {typeGuidance ? <p className="ps-hint">{typeGuidance}</p> : null}
         </div>
-        <div className="ps-field">
-          <label className="ps-label" htmlFor="action-department-ext">
-            Department
-          </label>
-          <select
-            id="action-department-ext"
-            value={departmentId}
-            onChange={(e) => setDepartmentId(e.target.value)}
-            className="ps-select"
-          >
-            <option value="">— No department —</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <ActionDepartmentPicker
+          id="action-department-ext"
+          departments={departments}
+          value={departmentId}
+          onChange={setDepartmentId}
+          compact
+        />
       </div>
     </>
   );
@@ -725,6 +713,13 @@ export default function ActionItemForm({
                 })}
               </div>
             </div>
+
+            <ActionDepartmentPicker
+              id="action-department"
+              departments={departments}
+              value={departmentId}
+              onChange={setDepartmentId}
+            />
           </section>
 
           <details open={showMoreOptions} className="ps-form-more" style={{ marginTop: 4 }}>
@@ -1063,24 +1058,12 @@ export default function ActionItemForm({
               placeholder="Goal this ladders up to"
             />
           </div>
-          <div className="ps-field">
-            <label className="ps-label" htmlFor="action-department">
-              Department
-            </label>
-            <select
-              id="action-department"
-              value={departmentId}
-              onChange={(e) => setDepartmentId(e.target.value)}
-              className="ps-select"
-            >
-              <option value="">— No department —</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <ActionDepartmentPicker
+          id="action-department"
+          departments={departments}
+          value={departmentId}
+          onChange={setDepartmentId}
+        />
         </div>
 
         <fieldset className="ps-fieldset">

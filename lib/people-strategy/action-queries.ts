@@ -5,6 +5,18 @@ import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { whereActiveMember } from "@/lib/user-role-where";
 
 import {
+  ensureStandingActionDepartments,
+  sortActionDepartmentOptions,
+  type ActionDepartmentOption,
+} from "./action-departments";
+export type { ActionDepartmentOption } from "./action-departments";
+export {
+  ensureStandingActionDepartments,
+  groupActionDepartments,
+  sortActionDepartmentOptions,
+} from "./action-departments";
+
+import {
   canViewAction,
   type ActionAccessShape,
   type ActionViewer,
@@ -272,17 +284,18 @@ export async function listActionAssignableUsers(): Promise<ActionPickerUser[]> {
     );
 }
 
-export type ActionDepartmentOption = { id: string; name: string };
-
-/** Active (non-archived) functional departments for the Action form picker. */
+/** Active standing departments for the Action Tracker picker (grouped + sorted). */
 export async function listActionDepartments(): Promise<ActionDepartmentOption[]> {
   if (!isActionTrackerEnabled()) return [];
 
-  return prisma.department.findMany({
+  await ensureStandingActionDepartments();
+
+  const rows = await prisma.department.findMany({
     where: { archivedAt: null },
-    select: { id: true, name: true },
-    orderBy: [{ name: "asc" }],
+    select: { id: true, name: true, slug: true },
   });
+
+  return sortActionDepartmentOptions(rows);
 }
 
 // --- related-entity reads (People Strategy Operating System) -----------------
