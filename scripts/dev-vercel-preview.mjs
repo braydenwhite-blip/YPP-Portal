@@ -47,6 +47,8 @@ const childEnv = {
   // People & Reviews compile + table (match Vercel preview when set there).
   ENABLE_PEOPLE_DASHBOARD: process.env.ENABLE_PEOPLE_DASHBOARD ?? "true",
   ENABLE_QUARTERLY_REVIEWS: process.env.ENABLE_QUARTERLY_REVIEWS ?? "true",
+  ENABLE_ACTION_TRACKER: process.env.ENABLE_ACTION_TRACKER ?? "true",
+  ENABLE_OPERATIONS_HUB: process.env.ENABLE_OPERATIONS_HUB ?? "true",
 };
 
 const db = childEnv.DATABASE_URL ?? "";

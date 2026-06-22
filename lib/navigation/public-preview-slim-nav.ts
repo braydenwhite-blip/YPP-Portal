@@ -16,14 +16,15 @@ const LEADERSHIP_SLIM_HREFS = [
   "/",
   "/people",
   "/actions",
+  "/meetings",
   "/operations/initiatives",
-  "/work",
 ] as const;
 
 /** Hiring chair extras still needed during the instructor-applicant public ship. */
 const HIRING_CHAIR_SLIM_HREFS = [
   "/admin/instructor-applicants",
   "/admin/instructor-applicants/chair-queue",
+  "/admin/external-applicants",
 ] as const;
 
 /** Chapter president keeps chapter hub + the same leadership stack. */

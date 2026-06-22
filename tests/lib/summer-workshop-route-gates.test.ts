@@ -43,6 +43,10 @@ describe("Public portal gate allowlist", () => {
     "/settings",
     "/locked",
     "/preview",
+    "/people",
+    "/actions",
+    "/meetings",
+    "/admin/external-applicants",
   ];
 
   const GATED = [
@@ -51,7 +55,6 @@ describe("Public portal gate allowlist", () => {
     "/admin/action-center",
     "/admin/opportunities/123",
     "/admin/instructor-assignments/new",
-    "/admin/external-applicants",
     "/leadership-pathway",
     "/mentorship",
     "/mentorship/mentees/abc/gr",
