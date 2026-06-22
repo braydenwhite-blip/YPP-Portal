@@ -1760,6 +1760,21 @@ async function seedActionTracker() {
     create: { name: "Operations", slug: "operations", description: "Operations — platform, logistics, and internal operations." },
     update: {},
   });
+  for (const def of [
+    { name: "Chapters", slug: "chapters", description: "Chapter launches, expansion, and local chapter leads." },
+    { name: "Tech", slug: "tech", description: "Portal, tooling, automation, and technical delivery." },
+    { name: "Communications", slug: "communications", description: "Org-wide messaging, announcements, and comms strategy." },
+    { name: "Social Media", slug: "social-media", description: "Social content, campaigns, and channel management." },
+    { name: "Fundraising", slug: "fundraising", description: "Donor outreach, sponsorships, and fundraising campaigns." },
+    { name: "Officers", slug: "officers", description: "Officer-team work that spans multiple functions." },
+    { name: "Board", slug: "board", description: "Board-facing priorities, governance, and approvals." },
+  ]) {
+    await prisma.department.upsert({
+      where: { name: def.name },
+      create: def,
+      update: {},
+    });
+  }
 
   const now = new Date();
   const daysFromNow = (n: number) => {

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { ActionCreateForm } from "@/components/command-center/action-create-form";
 import { CommandModeToggle } from "@/components/command-center/command-mode";
-import { SimpleListCard, SimpleRow, SimpleSurface, SimpleActionStrip, type SimpleAction } from "@/components/command-center/simple";
+import { SimpleSurface, SimpleActionStrip, type SimpleAction } from "@/components/command-center/simple";
 import ActionItemForm, {
   type ActionItemFormInitial,
 } from "@/components/people-strategy/action-item-form";
@@ -26,7 +26,6 @@ import {
 } from "@/lib/people-strategy/action-source";
 import {
   getActionTemplate,
-  listActionTemplates,
   templateToFormInitial,
 } from "@/lib/people-strategy/action-templates";
 import { ACTION_PRIORITY_VALUES } from "@/lib/people-strategy/constants";
@@ -75,11 +74,10 @@ export default async function NewActionInTrackerPage({
     ? getMeetingById(meetingIdParam).catch(() => null)
     : Promise.resolve(null);
 
-  const [users, departments, templates, template, relatedSummary, sourceMeeting] =
+  const [users, departments, template, relatedSummary, sourceMeeting] =
     await Promise.all([
       listActionAssignableUsers(),
       listActionDepartments(),
-      listActionTemplates(),
       templateId ? getActionTemplate(templateId) : Promise.resolve(null),
       relatedPromise,
       meetingPromise,
@@ -206,22 +204,6 @@ export default async function NewActionInTrackerPage({
     { label: "Clear my queue", href: "/work/queue?queue=my", icon: "list" },
   ];
 
-  const templatePicker =
-    !template && !relatedSummary && templates.length > 0 ? (
-      <SimpleListCard title="Start from a template">
-        {templates.slice(0, 6).map((t) => (
-          <SimpleRow
-            key={t.id}
-            href={`/actions/new?template=${t.id}`}
-            icon="bolt"
-            name={t.name}
-            what={t.description ?? undefined}
-            related={t.category ?? undefined}
-          />
-        ))}
-      </SimpleListCard>
-    ) : null;
-
   return (
     <div className={skin.portalSkin}>
     <SimpleSurface
@@ -266,7 +248,6 @@ export default async function NewActionInTrackerPage({
               initiativeLink={initiativeLink}
             />
           )}
-          {templatePicker}
           <SimpleActionStrip actions={strip} />
         </div>
       }

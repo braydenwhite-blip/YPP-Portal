@@ -3,16 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { CcIcon } from "@/components/command-center/icons";
 import { Button, ButtonLink, cn } from "@/components/ui-v2";
 import { FeedbackBanner } from "@/components/people-strategy/motion";
 import {
   ActionUserPicker,
   type ActionUserOption,
 } from "@/components/people-strategy/action-user-picker";
+import { ActionDepartmentPicker } from "@/components/people-strategy/action-department-picker";
+import type { ActionDepartmentOption } from "@/lib/people-strategy/action-departments";
 import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
 import { createActionItem } from "@/lib/people-strategy/action-items-actions";
-import type { ActionDepartmentOption } from "@/lib/people-strategy/action-queries";
 import {
   ACTION_DEADLINE_PRESETS,
   actionDeadlinePresetHint,
@@ -21,8 +21,6 @@ import {
   type ActionDeadlinePresetId,
 } from "@/lib/people-strategy/action-deadline-presets";
 import {
-  ACTION_PRIORITY_LABELS,
-  ACTION_PRIORITY_VALUES,
   ACTION_STATUS_LABELS,
   ACTION_STATUS_SELECTABLE,
   DEFAULT_ACTION_DEADLINE_DAYS,
@@ -90,7 +88,6 @@ export function ActionCreateForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [showExtras, setShowExtras] = useState(false);
 
   const [title, setTitle] = useState("");
   const [assignedUserIds, setAssignedUserIds] = useState<string[]>(() =>
@@ -103,7 +100,6 @@ export function ActionCreateForm({
   const [description, setDescription] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [status, setStatus] = useState("NOT_STARTED");
-  const [priority, setPriority] = useState("MEDIUM");
 
   const activePreset = matchActionDeadlinePreset(deadline);
   const presetHint = activePreset ? actionDeadlinePresetHint(activePreset) : null;
@@ -140,7 +136,6 @@ export function ActionCreateForm({
           description: description.trim() || undefined,
           departmentId: departmentId || undefined,
           status,
-          priority,
           ...(initiativeLink
             ? {
                 strategicInitiativeId: initiativeLink.id,
@@ -244,108 +239,76 @@ export function ActionCreateForm({
             {presetHint ? <p className="m-0 text-[12.5px] text-ink-muted">{presetHint}</p> : null}
           </FormSection>
 
+          <div className="h-px bg-line-soft/80" aria-hidden />
+
+          <FormSection
+            step={4}
+            title="Which team owns it?"
+            hint="Chapters, tech, comms, social, officers, board, and the core teams."
+          >
+            <ActionDepartmentPicker
+              id="action-create-department"
+              label="Team / department"
+              hint={undefined}
+              departments={departments}
+              value={departmentId}
+              onChange={setDepartmentId}
+              compact
+            />
+          </FormSection>
+
           <div className="rounded-[14px] border border-dashed border-line-soft bg-surface/60">
-            <button
-              type="button"
-              onClick={() => setShowExtras((open) => !open)}
-              className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-surface-soft/80"
-              aria-expanded={showExtras}
-            >
-              <span className="flex items-center gap-2">
-                <CcIcon name="layers" size={16} className="text-brand-600" />
-                <span className="text-[13.5px] font-semibold text-ink">Notes & extras</span>
-                <span className="text-[12px] text-ink-muted">Optional</span>
-              </span>
-              <CcIcon
-                name="arrowRight"
-                size={15}
-                className={cn("text-ink-muted transition-transform", showExtras && "rotate-90")}
-              />
-            </button>
+            <div className="border-b border-line-soft px-4 py-3.5">
+              <p className="m-0 text-[13.5px] font-semibold text-ink">Notes & extras</p>
+              <p className="m-0 mt-0.5 text-[12px] text-ink-muted">Optional</p>
+            </div>
 
-            {showExtras ? (
-              <div className="space-y-4 border-t border-line-soft px-4 py-4">
-                <div className="space-y-1.5">
-                  <label className="text-[13px] font-semibold text-ink" htmlFor="action-create-notes">
-                    Notes
-                  </label>
-                  <textarea
-                    id="action-create-notes"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className={cn(inputClass, "min-h-[96px] resize-y")}
-                    rows={3}
-                    placeholder="Links, background, or next step…"
-                  />
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[13px] font-semibold text-ink" htmlFor="action-create-status">
-                      Status
-                    </label>
-                    <select
-                      id="action-create-status"
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className={selectClass}
-                    >
-                      {ACTION_STATUS_SELECTABLE.map((value) => (
-                        <option key={value} value={value}>
-                          {ACTION_STATUS_LABELS[value]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[13px] font-semibold text-ink" htmlFor="action-create-priority">
-                      Priority
-                    </label>
-                    <select
-                      id="action-create-priority"
-                      value={priority}
-                      onChange={(e) => setPriority(e.target.value)}
-                      className={selectClass}
-                    >
-                      {ACTION_PRIORITY_VALUES.map((p) => (
-                        <option key={p} value={p}>
-                          {ACTION_PRIORITY_LABELS[p]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[13px] font-semibold text-ink" htmlFor="action-create-department">
-                      Department
-                    </label>
-                    <select
-                      id="action-create-department"
-                      value={departmentId}
-                      onChange={(e) => setDepartmentId(e.target.value)}
-                      className={selectClass}
-                    >
-                      <option value="">None</option>
-                      {departments.map((department) => (
-                        <option key={department.id} value={department.id}>
-                          {department.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <ActionUserPicker
-                  id="action-create-input"
-                  variant="calm"
-                  label="Needs input from"
-                  users={users}
-                  selected={inputUserIds}
-                  onChange={setInputUserIds}
-                  excludeIds={assignedUserIds}
-                  emptyHint="No assignable users found."
+            <div className="space-y-4 border-t border-line-soft px-4 py-4">
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-semibold text-ink" htmlFor="action-create-notes">
+                  Notes
+                </label>
+                <textarea
+                  id="action-create-notes"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className={cn(inputClass, "min-h-[96px] resize-y")}
+                  rows={3}
+                  placeholder="Links, background, or next step…"
                 />
               </div>
-            ) : null}
+
+              <div className="grid gap-4 sm:grid-cols-1">
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-semibold text-ink" htmlFor="action-create-status">
+                    Status
+                  </label>
+                  <select
+                    id="action-create-status"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className={selectClass}
+                  >
+                    {ACTION_STATUS_SELECTABLE.map((value) => (
+                      <option key={value} value={value}>
+                        {ACTION_STATUS_LABELS[value]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <ActionUserPicker
+                id="action-create-input"
+                variant="calm"
+                label="Needs input from"
+                users={users}
+                selected={inputUserIds}
+                onChange={setInputUserIds}
+                excludeIds={assignedUserIds}
+                emptyHint="No assignable users found."
+              />
+            </div>
           </div>
         </div>
 

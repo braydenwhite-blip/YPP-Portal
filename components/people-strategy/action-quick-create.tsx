@@ -8,9 +8,10 @@ import {
   ActionUserPicker,
   type ActionUserOption,
 } from "@/components/people-strategy/action-user-picker";
+import { ActionDepartmentPicker } from "@/components/people-strategy/action-department-picker";
+import type { ActionDepartmentOption } from "@/lib/people-strategy/action-departments";
 import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
 import { createActionItem } from "@/lib/people-strategy/action-items-actions";
-import type { ActionDepartmentOption } from "@/lib/people-strategy/action-queries";
 import {
   ACTION_DEADLINE_PRESETS,
   actionDeadlinePresetHint,
@@ -272,6 +273,14 @@ export function ActionQuickCreate({
           ) : null}
         </div>
 
+        <ActionDepartmentPicker
+          id="quick-action-department-inline"
+          departments={departments}
+          value={departmentId}
+          onChange={setDepartmentId}
+          compact
+        />
+
         <details className="mt-1">
           <summary className="cursor-pointer text-[13px] font-semibold text-[var(--ps-ink-soft,var(--muted))]">
             More details (optional)
@@ -322,24 +331,6 @@ export function ActionQuickCreate({
                   {ACTION_PRIORITY_VALUES.map((p) => (
                     <option key={p} value={p}>
                       {ACTION_PRIORITY_LABELS[p]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="ps-field">
-                <label className="ps-label" htmlFor="quick-action-department-inline">
-                  Department
-                </label>
-                <select
-                  id="quick-action-department-inline"
-                  value={departmentId}
-                  onChange={(e) => setDepartmentId(e.target.value)}
-                  className="ps-select"
-                >
-                  <option value="">— No department —</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
                     </option>
                   ))}
                 </select>
