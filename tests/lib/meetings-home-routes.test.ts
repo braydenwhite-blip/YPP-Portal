@@ -30,9 +30,9 @@ describe("meetings routes", () => {
     const file = pagePath(HOME);
     expect(existsSync(file)).toBe(true);
     const source = readFileSync(file, "utf8");
-    expect(source).toContain("Next Meeting");
-    expect(source).toContain("Needs Prep");
-    expect(source).toContain("Follow-Ups");
+    expect(source).toContain("Your meetings");
+    expect(source).toContain("Recent meetings");
+    expect(source).toContain("Teams ready");
   });
 
   it("ships the canonical meeting detail/run page", () => {

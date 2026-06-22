@@ -107,9 +107,10 @@ describe("Impact Meeting agenda helpers", () => {
       "Fundraising",
       "Expansion",
       "Socials",
+      "Chapter Updates",
     ]);
     expect(agenda.submittedTeams).toEqual(["Tech"]);
-    expect(agenda.missingTeams).toEqual(["Fundraising", "Expansion", "Socials"]);
+    expect(agenda.missingTeams).toEqual(["Fundraising", "Expansion", "Socials", "Chapter Updates"]);
     expect(agenda.needsAttention).toContain("Fundraising update missing");
   });
 

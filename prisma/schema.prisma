@@ -13462,6 +13462,15 @@ model WeeklyTaskUpdate {
   expectationIds         String[] @default([])
   snapshotJson           Json?
 
+  // Ad-hoc Section 2 row authored directly on a person's Weekly Impact form (no
+  // tracked ActionItem behind it). `memberUpdateId` ties the row to its author so
+  // it shows on their form; `adhocLink*` holds the single "Link / file" for the row
+  // since there is no ActionItem to hang an ActionFileLink on.
+  memberUpdateId String?
+  memberUpdate   WeeklyMemberUpdate? @relation("MemberUpdateAdhocTasks", fields: [memberUpdateId], references: [id], onDelete: Cascade)
+  adhocLinkLabel String?
+  adhocLinkUrl   String?
+
   preparedPresentationItems PreparedPresentationItem[] @relation("WeeklyTaskUpdatePreparedPresentationItems")
 
   createdAt DateTime @default(now())
@@ -13470,6 +13479,7 @@ model WeeklyTaskUpdate {
   @@unique([briefId, actionItemId])
   @@index([briefId])
   @@index([actionItemId])
+  @@index([memberUpdateId])
   @@index([teamMeetingPresenterId])
   @@index([officerMeetingPresenterId])
 }
@@ -13509,6 +13519,16 @@ model WeeklyMemberUpdate {
   carriedForwardFromId String?
   inputNeededCarried   Boolean @default(false)
 
+  // Repeatable rows for the table-based Weekly Impact form. Section 1 (Objective &
+  // Deliverables), Section 3 (Next Steps), and Section 4 (Input Needed) each support
+  // unlimited add/remove rows. Section 2 (This Week's Progress) uses WeeklyTaskUpdate
+  // rows (tracked + ad-hoc via `adhocTaskUpdates`). The legacy single-value fields
+  // above are kept for backward compatibility and backfilled into row #1.
+  objectives       WeeklyImpactObjective[]    @relation("MemberUpdateObjectives")
+  nextSteps        WeeklyImpactNextStep[]     @relation("MemberUpdateNextSteps")
+  inputRequests    WeeklyImpactInputRequest[] @relation("MemberUpdateInputRequests")
+  adhocTaskUpdates WeeklyTaskUpdate[]         @relation("MemberUpdateAdhocTasks")
+
   createdById String?
   createdBy   User?   @relation("WeeklyMemberUpdateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
@@ -13519,6 +13539,59 @@ model WeeklyMemberUpdate {
   @@index([briefId])
   @@index([userId])
   @@index([status])
+}
+
+/// Section 1 of the Weekly Impact form — one Objective & Deliverable row.
+model WeeklyImpactObjective {
+  id             String             @id @default(cuid())
+  memberUpdateId String
+  memberUpdate   WeeklyMemberUpdate @relation("MemberUpdateObjectives", fields: [memberUpdateId], references: [id], onDelete: Cascade)
+
+  objective   String?   @db.Text
+  deliverable String?   @db.Text
+  targetDate  DateTime?
+  linkUrl     String?
+  linkLabel   String?
+  sortOrder   Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberUpdateId])
+}
+
+/// Section 3 of the Weekly Impact form — one Next Step row.
+model WeeklyImpactNextStep {
+  id             String             @id @default(cuid())
+  memberUpdateId String
+  memberUpdate   WeeklyMemberUpdate @relation("MemberUpdateNextSteps", fields: [memberUpdateId], references: [id], onDelete: Cascade)
+
+  action              String?   @db.Text
+  deliverableNextWeek String?   @db.Text
+  dueDate             DateTime?
+  sortOrder           Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberUpdateId])
+}
+
+/// Section 4 of the Weekly Impact form — one Input Needed request row.
+model WeeklyImpactInputRequest {
+  id             String             @id @default(cuid())
+  memberUpdateId String
+  memberUpdate   WeeklyMemberUpdate @relation("MemberUpdateInputRequests", fields: [memberUpdateId], references: [id], onDelete: Cascade)
+
+  request    String?   @db.Text
+  neededFrom String?
+  neededBy   DateTime?
+  sortOrder  Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberUpdateId])
 }
 
 /// Officer-set requirement for what a team/task must show or answer in a future

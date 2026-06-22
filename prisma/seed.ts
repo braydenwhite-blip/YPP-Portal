@@ -2115,7 +2115,7 @@ async function seedMeetingsTracker() {
     data: {
       title: "Global Operations Impact Presentation",
       purpose:
-        "Weekly accountability forum where Tech, Fundraising, Expansion, and Socials show progress, proof, blockers, decisions, and next commitments.",
+        "Weekly accountability forum where Tech, Fundraising, Expansion, Socials, and Chapter Updates show progress, proof, blockers, decisions, and next commitments.",
       category: "OPERATIONS",
       meetingType: "GLOBAL_OPERATIONS_IMPACT_PRESENTATION",
       priority: "HIGH",
@@ -2132,8 +2132,9 @@ async function seedMeetingsTracker() {
           { title: "Fundraising: outreach completed, donor/sponsor progress, materials, responses, decisions", status: "OPEN", sortOrder: 1 },
           { title: "Expansion: new areas contacted, parent/alumni outreach, chapter leads, partner conversations", status: "OPEN", sortOrder: 2 },
           { title: "Socials: posts created/scheduled, campaign results, approvals needed, upcoming content", status: "OPEN", sortOrder: 3 },
-          { title: "Leadership decisions and follow-up actions", status: "OPEN", sortOrder: 4 },
-          { title: "Attendance or responsiveness concerns", status: "OPEN", sortOrder: 5 },
+          { title: "Chapter Updates: chapter health, new launches, lead check-ins, demo days, cross-chapter coordination", status: "OPEN", sortOrder: 4 },
+          { title: "Leadership decisions and follow-up actions", status: "OPEN", sortOrder: 5 },
+          { title: "Attendance or responsiveness concerns", status: "OPEN", sortOrder: 6 },
         ],
       },
     },

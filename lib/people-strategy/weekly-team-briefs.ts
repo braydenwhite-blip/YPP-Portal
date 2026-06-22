@@ -60,7 +60,12 @@ const BRIEF_INCLUDE = {
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
   memberUpdates: {
-    include: { user: { select: PERSON_SELECT } },
+    include: {
+      user: { select: PERSON_SELECT },
+      objectives: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
+      nextSteps: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
+      inputRequests: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
+    },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
   preparedPresentationItems: {
@@ -128,6 +133,38 @@ export type WeeklyBriefTaskUpdateDTO = {
   expectationIds: string[];
   /** Last week promised a next step on this task and it is still open. */
   carriedForward?: boolean;
+  /** True for a Section 2 row a person typed in directly (no tracked ActionItem). */
+  isAdhoc: boolean;
+  /** Author of an ad-hoc Section 2 row, so it can be grouped onto their form. */
+  memberUpdateId: string | null;
+  /** The single inline link on an ad-hoc Section 2 row. */
+  adhocLink: BriefDeliverableDTO | null;
+};
+
+export type WeeklyImpactObjectiveDTO = {
+  id: string;
+  objective: string | null;
+  deliverable: string | null;
+  targetDateISO: string | null;
+  linkUrl: string | null;
+  linkLabel: string | null;
+  sortOrder: number;
+};
+
+export type WeeklyImpactNextStepDTO = {
+  id: string;
+  action: string | null;
+  deliverableNextWeek: string | null;
+  dueDateISO: string | null;
+  sortOrder: number;
+};
+
+export type WeeklyImpactInputRequestDTO = {
+  id: string;
+  request: string | null;
+  neededFrom: string | null;
+  neededByISO: string | null;
+  sortOrder: number;
 };
 
 /**
@@ -152,6 +189,12 @@ export type WeeklyMemberFormDTO = {
   inputNeededCarried: boolean;
   carriedForwardFromId: string | null;
   taskUpdates: WeeklyBriefTaskUpdateDTO[];
+  /** Section 1 rows — repeatable Objective & Deliverable. */
+  objectives: WeeklyImpactObjectiveDTO[];
+  /** Section 3 rows — repeatable Next Steps. */
+  nextSteps: WeeklyImpactNextStepDTO[];
+  /** Section 4 rows — repeatable Input Needed requests. */
+  inputRequests: WeeklyImpactInputRequestDTO[];
 };
 
 export type WeeklyBriefWorkspace = {
@@ -803,6 +846,68 @@ function taskUpdateToDTO(u: BriefTaskUpdateRow): WeeklyBriefTaskUpdateDTO {
     })),
     expectationIds: u.expectationIds,
     carriedForward: u.carriedForward,
+    isAdhoc: u.actionItemId == null,
+    memberUpdateId: u.memberUpdateId ?? null,
+    adhocLink: u.adhocLinkUrl
+      ? {
+          id: `adhoc-${u.id}`,
+          label: u.adhocLinkLabel?.trim() || "Link",
+          url: u.adhocLinkUrl,
+          addedAtISO: u.updatedAt.toISOString(),
+        }
+      : null,
+  };
+}
+
+function objectiveToDTO(o: {
+  id: string;
+  objective: string | null;
+  deliverable: string | null;
+  targetDate: Date | null;
+  linkUrl: string | null;
+  linkLabel: string | null;
+  sortOrder: number;
+}): WeeklyImpactObjectiveDTO {
+  return {
+    id: o.id,
+    objective: o.objective,
+    deliverable: o.deliverable,
+    targetDateISO: o.targetDate?.toISOString() ?? null,
+    linkUrl: o.linkUrl,
+    linkLabel: o.linkLabel,
+    sortOrder: o.sortOrder,
+  };
+}
+
+function nextStepToDTO(n: {
+  id: string;
+  action: string | null;
+  deliverableNextWeek: string | null;
+  dueDate: Date | null;
+  sortOrder: number;
+}): WeeklyImpactNextStepDTO {
+  return {
+    id: n.id,
+    action: n.action,
+    deliverableNextWeek: n.deliverableNextWeek,
+    dueDateISO: n.dueDate?.toISOString() ?? null,
+    sortOrder: n.sortOrder,
+  };
+}
+
+function inputRequestToDTO(r: {
+  id: string;
+  request: string | null;
+  neededFrom: string | null;
+  neededBy: Date | null;
+  sortOrder: number;
+}): WeeklyImpactInputRequestDTO {
+  return {
+    id: r.id,
+    request: r.request,
+    neededFrom: r.neededFrom,
+    neededByISO: r.neededBy?.toISOString() ?? null,
+    sortOrder: r.sortOrder,
   };
 }
 
@@ -826,6 +931,9 @@ function memberFormToDTO(
     inputNeededCarried: m.inputNeededCarried,
     carriedForwardFromId: m.carriedForwardFromId,
     taskUpdates: tasks.map(taskUpdateToDTO),
+    objectives: m.objectives.map(objectiveToDTO),
+    nextSteps: m.nextSteps.map(nextStepToDTO),
+    inputRequests: m.inputRequests.map(inputRequestToDTO),
   };
 }
 
@@ -887,7 +995,7 @@ export async function loadMyWeeklyImpact(input: {
     if (!mine) continue;
     myTeamIds.add(brief.workstreamId);
     const myTasks = brief.taskUpdates.filter(
-      (u) => u.actionItem?.leadId === input.viewer.id
+      (u) => u.actionItem?.leadId === input.viewer.id || u.memberUpdateId === mine.id
     );
     forms.push({
       briefId: brief.id,
@@ -946,9 +1054,22 @@ function mapBriefWorkspace(
   const viewerCanSeeAll =
     canViewWeeklyBrief(viewer, { ...visibilityAccess, taskUpdates: [] }) ||
     access.teamLeadId === viewer.id;
+  // Ad-hoc Section 2 rows have no ActionItem to gate on, so a contributor sees the
+  // ones they authored (memberUpdate belongs to them) even without see-all access.
+  const myMemberIds = new Set(
+    brief.memberUpdates.filter((m) => m.userId === viewer.id).map((m) => m.id)
+  );
   const visibleTaskUpdates = viewerCanSeeAll
     ? brief.taskUpdates
-    : brief.taskUpdates.filter((u) => u.actionItem && canViewWeeklyBrief(viewer, { ...visibilityAccess, taskUpdates: [{ actionItem: taskAccess(u.actionItem) }] }));
+    : brief.taskUpdates.filter(
+        (u) =>
+          (u.actionItem &&
+            canViewWeeklyBrief(viewer, {
+              ...visibilityAccess,
+              taskUpdates: [{ actionItem: taskAccess(u.actionItem) }],
+            })) ||
+          (u.memberUpdateId != null && myMemberIds.has(u.memberUpdateId))
+      );
 
   const taskUpdateDTOs = visibleTaskUpdates.map(taskUpdateToDTO);
 
@@ -961,7 +1082,9 @@ function mapBriefWorkspace(
   const members: WeeklyMemberFormDTO[] = visibleMembers.map((m) =>
     memberFormToDTO(
       m,
-      visibleTaskUpdates.filter((u) => u.actionItem?.leadId === m.userId),
+      visibleTaskUpdates.filter(
+        (u) => u.actionItem?.leadId === m.userId || u.memberUpdateId === m.id
+      ),
       viewer.id
     )
   );

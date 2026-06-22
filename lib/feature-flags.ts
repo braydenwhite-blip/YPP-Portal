@@ -54,13 +54,14 @@ export function isStrategicInitiativesEnabled(): boolean {
  * People Strategy — Weekly Team Briefs and Team Meetings. Adds the team-facing
  * weekly brief → Team Meeting → prepared presentation → Officer Meeting loop.
  *
- * Defaults OFF while the workflow rolls out. The schema/migration can safely
- * ship first; with the flag off, new pages return notFound(), server actions
- * throw, and cron/generation paths no-op.
+ * Defaults ON alongside its sibling people-suite flags — set
+ * `ENABLE_WEEKLY_TEAM_BRIEFS=false` to hide the weekly Impact form and its server
+ * actions. Still requires the action tracker, operations hub, and strategic
+ * initiatives to be on (the workflow builds on all three).
  */
 export function isWeeklyTeamBriefsEnabled(): boolean {
   return (
-    process.env.ENABLE_WEEKLY_TEAM_BRIEFS === "true" &&
+    process.env.ENABLE_WEEKLY_TEAM_BRIEFS !== "false" &&
     isActionTrackerEnabled() &&
     isOperationsHubEnabled() &&
     isStrategicInitiativesEnabled()

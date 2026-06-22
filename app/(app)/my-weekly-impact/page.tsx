@@ -77,6 +77,12 @@ export default async function MyWeeklyImpactPage() {
   if (!data) notFound();
 
   const teamCount = data.forms.length;
+  const roleLabel = (session.primaryRole ?? "")
+    .toLowerCase()
+    .split("_")
+    .filter(Boolean)
+    .map((w) => w[0]?.toUpperCase() + w.slice(1))
+    .join(" ");
 
   return (
     <div className="mx-auto flex w-full max-w-[920px] flex-col gap-5 pb-10">
@@ -101,7 +107,9 @@ export default async function MyWeeklyImpactPage() {
           add your part — it&apos;ll pre-fill from your tracked work.
         </div>
       ) : (
-        data.forms.map((team) => <MyWeeklyImpactForm key={team.briefId} team={team} />)
+        data.forms.map((team) => (
+          <MyWeeklyImpactForm key={team.briefId} team={team} roleLabel={roleLabel || undefined} />
+        ))
       )}
 
       {data.joinableTeams.length ? (
