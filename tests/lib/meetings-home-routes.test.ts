@@ -8,6 +8,7 @@ import {
   OFFICER_SIDEBAR_LINK_ORDER,
   OFFICER_UNHIDE_HREFS,
 } from "@/lib/navigation/officer-nav-layout";
+import { appendSearchParams } from "@/lib/navigation/redirect-search-params";
 
 /**
  * Canonical Meetings route + navigation contract.
@@ -99,5 +100,37 @@ describe("meetings routes", () => {
       expect(existsSync(file), `${route} page should exist`).toBe(true);
       expect(readFileSync(file, "utf8")).toContain("redirect(`/meetings/${id}");
     }
+  });
+
+  it("gives the Meetings home a clear create-meeting path (no dead self-links)", () => {
+    const source = readFileSync(pagePath(HOME), "utf8");
+    // The home must offer a visible way to schedule a meeting — previously the
+    // only header links pointed back at /meetings (the page you were already on).
+    expect(source).toContain("/actions/meetings/new");
+    expect(source).toContain("Schedule meeting");
+    // The old no-op self-links are gone.
+    expect(source).not.toContain("Find a meeting");
+    expect(source).not.toContain("All summaries");
+  });
+
+  it("wraps the canonical meeting routes in loading and error boundaries", () => {
+    for (const route of [HOME, DETAIL]) {
+      const dir = path.join(APP_ROOT, ...route.split("/").filter(Boolean));
+      expect(existsSync(path.join(dir, "loading.tsx")), `${route}/loading.tsx should exist`).toBe(true);
+      expect(existsSync(path.join(dir, "error.tsx")), `${route}/error.tsx should exist`).toBe(true);
+    }
+  });
+
+  it("preserves create-from-context params through the /actions/meetings redirect", () => {
+    const source = readFileSync(pagePath("/actions/meetings"), "utf8");
+    // ?new=1 forwards to the canonical new-meeting form, carrying the entity link
+    // (relatedType/relatedId) instead of dropping it on the floor.
+    expect(source).toContain("/actions/meetings/new");
+    expect(source).toContain("appendSearchParams");
+    expect(
+      appendSearchParams("/actions/meetings/new", { relatedType: "USER", relatedId: "u1" })
+    ).toBe("/actions/meetings/new?relatedType=USER&relatedId=u1");
+    // No params → plain path (the default redirect target stays clean).
+    expect(appendSearchParams("/meetings", undefined)).toBe("/meetings");
   });
 });

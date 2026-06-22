@@ -92,7 +92,7 @@ export default async function InstructorManageStrategyPage({
           recentDecisions={opsContext.recentDecisions}
           canCreate={canCreatePersonAction}
           createActionHref={`/actions/new?relatedType=USER&relatedId=${id}`}
-          createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
+          createMeetingHref={`/actions/meetings/new?relatedType=USER&relatedId=${id}`}
           emptyActionsHint="No Action Tracker items are linked to this instructor yet."
           emptyMeetingsHint="This instructor hasn't been the focus of a tracked meeting yet."
         />
@@ -119,7 +119,7 @@ export default async function InstructorManageStrategyPage({
           })}
           compact
           createActionHref={`/actions/new?relatedType=USER&relatedId=${id}`}
-          createMeetingHref={`/actions/meetings?new=1&relatedType=USER&relatedId=${id}`}
+          createMeetingHref={`/actions/meetings/new?relatedType=USER&relatedId=${id}`}
         />
       ) : null}
 

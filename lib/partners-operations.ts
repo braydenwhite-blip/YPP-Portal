@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatMeetingDays } from "@/lib/class-status";
 import { countOpenActionsByRelatedEntity } from "@/lib/people-strategy/action-queries";
 import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
-import { getMeetingsForEntity } from "@/lib/people-strategy/meetings-queries";
+import { getMeetingsForEntity, meetingDisplayTitle } from "@/lib/people-strategy/meetings-queries";
 import {
   asPartnerStage,
   isActivePartnerStage,
@@ -158,7 +158,7 @@ const OFFERING_SELECT = {
       instructor: { select: { id: true, name: true, email: true } },
       curriculumDraft: {
         select: {
-          createdBy: { select: { name: true, email: true } },
+          author: { select: { name: true, email: true } },
         },
       },
     },
@@ -379,8 +379,8 @@ export async function loadPartnerOperationsDetail(
           }
         : null;
     const curriculumLead =
-      leadAssignment?.curriculumDraft?.createdBy?.name ??
-      leadAssignment?.curriculumDraft?.createdBy?.email ??
+      leadAssignment?.curriculumDraft?.author?.name ??
+      leadAssignment?.curriculumDraft?.author?.email ??
       null;
     const missing = isClassMissingInstructor(
       o.status as ClassOfferingStatus,
@@ -415,7 +415,7 @@ export async function loadPartnerOperationsDetail(
           name: partner.relationshipLead.name ?? partner.relationshipLead.email ?? "Lead",
         }
       : null,
-    nextMeetingISO: nextMeeting?.date ?? partner.meetingDate?.toISOString() ?? null,
+    nextMeetingISO: nextMeeting?.date.toISOString() ?? partner.meetingDate?.toISOString() ?? null,
     nextFollowUpISO: partner.nextFollowUpAt?.toISOString() ?? null,
     classes,
     openActions,
@@ -431,7 +431,7 @@ export async function loadPartnerOperationsDetail(
     })),
     partnerMeetings: meetings.slice(0, 8).map((m) => ({
       id: m.id,
-      title: m.title,
+      title: meetingDisplayTitle(m),
       dateLabel: shortDate(m.date, now),
       href: `/meetings/${m.id}`,
     })),
