@@ -37,6 +37,10 @@ export default function AppShell({
   roles,
   adminSubtypes,
   primaryRole,
+  title,
+  internalLevel,
+  ladder,
+  canonicalTitle,
   awardTier,
   badges,
   enabledFeatureKeys,
@@ -61,6 +65,11 @@ export default function AppShell({
   roles?: string[];
   adminSubtypes?: string[];
   primaryRole?: string | null;
+  /** Org-ladder spine + stored title — drive the displayed canonical title. */
+  title?: string | null;
+  internalLevel?: number | null;
+  ladder?: string | null;
+  canonicalTitle?: string | null;
   awardTier?: string;
   badges?: NavBadges;
   enabledFeatureKeys?: string[];
@@ -124,10 +133,10 @@ export default function AppShell({
 
   const userTitle = useMemo(
     () =>
-      primaryRole || adminSubtypes?.length
-        ? getUserTitle({ primaryRole, adminSubtypes })
+      primaryRole || adminSubtypes?.length || canonicalTitle || internalLevel != null || title
+        ? getUserTitle({ primaryRole, adminSubtypes, title, internalLevel, ladder, canonicalTitle })
         : "Portal access",
-    [primaryRole, adminSubtypes],
+    [primaryRole, adminSubtypes, title, internalLevel, ladder, canonicalTitle],
   );
 
   // The operating context shown in the global command bar.

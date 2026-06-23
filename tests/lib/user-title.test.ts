@@ -31,19 +31,30 @@ describe("getUserTitle", () => {
     ).toBe("Chapter President");
   });
 
-  it("uses the admin-subtype label when no stored title (CPO → Leadership)", () => {
+  it("derives the canonical ladder title from a subtype (LEADERSHIP → Senior Officer)", () => {
     expect(
       getUserTitle({ title: null, primaryRole: "ADMIN", adminSubtypes: ["LEADERSHIP"] })
-    ).toBe("Leadership");
+    ).toBe("Senior Officer");
   });
 
-  it("prefers the most senior subtype label", () => {
+  it("prefers the most senior subtype (SUPER_ADMIN → Board Member)", () => {
     expect(
       getUserTitle({
         primaryRole: "ADMIN",
         adminSubtypes: ["HIRING_ADMIN", "SUPER_ADMIN"],
       })
-    ).toBe("Super Admin");
+    ).toBe("Board Member");
+  });
+
+  it("prefers a persisted canonical ladder title over derived/role labels", () => {
+    expect(
+      getUserTitle({
+        primaryRole: "INSTRUCTOR",
+        internalLevel: 2,
+        ladder: "INSTRUCTION",
+        canonicalTitle: "Senior Instructor",
+      })
+    ).toBe("Senior Instructor");
   });
 
   it("falls back to a formatted primaryRole when there is no subtype", () => {

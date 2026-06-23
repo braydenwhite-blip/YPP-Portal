@@ -98,6 +98,10 @@ export default async function AppLayout({
       roles={roles}
       adminSubtypes={(session.user as { adminSubtypes?: string[] }).adminSubtypes}
       primaryRole={primaryRole}
+      title={session.user.title}
+      internalLevel={session.user.internalLevel}
+      ladder={session.user.ladder}
+      canonicalTitle={session.user.canonicalTitle}
       awardTier={awardTier}
       badges={shellMetadata.badges}
       enabledFeatureKeys={shellMetadata.enabledFeatureKeysArray}

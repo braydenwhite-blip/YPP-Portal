@@ -23,6 +23,16 @@ import {
   OFFICER_TIER_ROLES,
   type SessionUser,
 } from "@/lib/authorization-roles";
+import { OFFICER_MIN_LEVEL, TOP_INTERNAL_LEVEL } from "@/lib/org/levels";
+
+/**
+ * The tier guards below are strictly ADDITIVE on the org ladder: they pass when
+ * the user's PERSISTED `internalLevel` (set via promotion/backfill) clears the
+ * bar, OR — for any user whose level hasn't been backfilled yet — via the exact
+ * legacy role/admin-subtype check. Only the persisted column is trusted for the
+ * ladder path; a level *derived* from a subtype is intentionally NOT, so a stray
+ * subtype on a non-admin can never escalate access.
+ */
 
 /**
  * Server-side session guards. Import role helpers from `@/lib/authorization-roles`
@@ -40,6 +50,10 @@ export async function requireSessionUser(): Promise<SessionUser> {
     roles: user.roles,
     primaryRole: user.primaryRole,
     adminSubtypes: normalizeAdminSubtypes(user.adminSubtypes ?? []),
+    internalLevel: user.internalLevel,
+    ladder: user.ladder,
+    canonicalTitle: user.canonicalTitle,
+    title: user.title,
   };
 }
 
@@ -70,14 +84,16 @@ export async function requireAnyAdminSubtype(
  */
 export async function requireLeadership(): Promise<SessionUser> {
   const sessionUser = await requireSessionUser();
-  const isAdmin = hasRole(sessionUser.roles, "ADMIN", sessionUser.primaryRole);
-  if (
-    !isAdmin ||
-    !hasAnyAdminSubtype(sessionUser.adminSubtypes, ["LEADERSHIP", "SUPER_ADMIN"])
-  ) {
-    throw new Error("Unauthorized");
+  // Ladder path: Officer-tier and above (internal level >= 5).
+  if (sessionUser.internalLevel != null && sessionUser.internalLevel >= OFFICER_MIN_LEVEL) {
+    return sessionUser;
   }
-  return sessionUser;
+  // Legacy fallback (unchanged): ADMIN role + Leadership/SUPER_ADMIN subtype.
+  const isAdmin = hasRole(sessionUser.roles, "ADMIN", sessionUser.primaryRole);
+  if (isAdmin && hasAnyAdminSubtype(sessionUser.adminSubtypes, ["LEADERSHIP", "SUPER_ADMIN"])) {
+    return sessionUser;
+  }
+  throw new Error("Unauthorized");
 }
 
 /**
@@ -89,11 +105,16 @@ export async function requireLeadership(): Promise<SessionUser> {
  */
 export async function requireBoard(): Promise<SessionUser> {
   const sessionUser = await requireSessionUser();
-  const isAdmin = hasRole(sessionUser.roles, "ADMIN", sessionUser.primaryRole);
-  if (!isAdmin || !hasAdminSubtype(sessionUser.adminSubtypes, "SUPER_ADMIN")) {
-    throw new Error("Unauthorized");
+  // Ladder path: Board (top internal level, 7).
+  if (sessionUser.internalLevel != null && sessionUser.internalLevel >= TOP_INTERNAL_LEVEL) {
+    return sessionUser;
   }
-  return sessionUser;
+  // Legacy fallback (unchanged): ADMIN role + SUPER_ADMIN subtype (Board stand-in).
+  const isAdmin = hasRole(sessionUser.roles, "ADMIN", sessionUser.primaryRole);
+  if (isAdmin && hasAdminSubtype(sessionUser.adminSubtypes, "SUPER_ADMIN")) {
+    return sessionUser;
+  }
+  throw new Error("Unauthorized");
 }
 
 /**
@@ -106,10 +127,15 @@ export async function requireBoard(): Promise<SessionUser> {
  */
 export async function requireOfficer(): Promise<SessionUser> {
   const sessionUser = await requireSessionUser();
-  if (!hasAnyRole(sessionUser.roles, [...OFFICER_TIER_ROLES])) {
-    throw new Error("Unauthorized");
+  // Ladder path: Officer-tier and above (internal level >= 5).
+  if (sessionUser.internalLevel != null && sessionUser.internalLevel >= OFFICER_MIN_LEVEL) {
+    return sessionUser;
   }
-  return sessionUser;
+  // Legacy fallback (unchanged): any officer-tier role.
+  if (hasAnyRole(sessionUser.roles, [...OFFICER_TIER_ROLES])) {
+    return sessionUser;
+  }
+  throw new Error("Unauthorized");
 }
 
 /**
