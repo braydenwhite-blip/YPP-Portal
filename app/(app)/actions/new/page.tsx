@@ -32,7 +32,6 @@ import { ACTION_PRIORITY_VALUES } from "@/lib/people-strategy/constants";
 import { isActionType } from "@/lib/people-strategy/action-types";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 import { isMeetingCategory } from "@/lib/people-strategy/meeting-categories";
-import { getMeetingById } from "@/lib/people-strategy/meetings-queries";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "New action · Work" };
@@ -62,7 +61,6 @@ export default async function NewActionInTrackerPage({
   const templateId = first(sp.template);
   const relatedTypeParam = first(sp.relatedType);
   const relatedIdParam = first(sp.relatedId);
-  const meetingIdParam = first(sp.fromMeeting)?.trim() || null;
   const ctx = actionPrefillFromQuery(sp);
 
   const relatedPromise =
@@ -70,17 +68,12 @@ export default async function NewActionInTrackerPage({
       ? loadRelatedEntitySummary(relatedTypeParam, relatedIdParam)
       : Promise.resolve(null);
 
-  const meetingPromise = meetingIdParam
-    ? getMeetingById(meetingIdParam).catch(() => null)
-    : Promise.resolve(null);
-
-  const [users, departments, template, relatedSummary, sourceMeeting] =
+  const [users, departments, template, relatedSummary] =
     await Promise.all([
       listActionAssignableUsers(),
       listActionDepartments(),
       templateId ? getActionTemplate(templateId) : Promise.resolve(null),
       relatedPromise,
-      meetingPromise,
     ]);
 
   const titleParam = ctx.title ? ctx.title.slice(0, 300) : "";
@@ -120,10 +113,9 @@ export default async function NewActionInTrackerPage({
 
   const sourceTypeParam = isActionSourceType(ctx.sourceType) ? ctx.sourceType : null;
   const sourceLabel =
-    sourceTypeParam || sourceMeeting || ctx.sourceActionId || relatedSummary
+    sourceTypeParam || ctx.sourceActionId || relatedSummary
       ? deriveActionSourceLabel({
           sourceType: sourceTypeParam,
-          officerMeetingId: sourceMeeting?.id ?? null,
           sourceActionId: ctx.sourceActionId ?? null,
           relatedEntityType: relatedSummary?.type ?? null,
           relatedEntityId: relatedSummary?.id ?? null,
@@ -143,7 +135,6 @@ export default async function NewActionInTrackerPage({
     ...(priorityParam ? { priority: priorityParam } : {}),
     ...(typeParam ? { actionType: typeParam } : {}),
     ...(deadlineStart ? { deadlineStart } : {}),
-    ...(sourceMeeting ? { officerMeetingId: sourceMeeting.id } : {}),
     ...(sourceTypeParam ? { sourceType: sourceTypeParam } : {}),
     ...(ctx.sourceId ? { sourceId: ctx.sourceId } : {}),
     ...(ctx.sourceActionId ? { sourceActionId: ctx.sourceActionId } : {}),
@@ -178,7 +169,7 @@ export default async function NewActionInTrackerPage({
         }
       : undefined;
 
-  const useFullForm = Boolean(relatedSummary || sourceMeeting || template || hasPrefill);
+  const useFullForm = Boolean(relatedSummary || template || hasPrefill);
 
   const pageTitle = sourceHeader ?? (template ? `From “${template.name}”` : "New action");
   const pageSubtitle = strategicLinkLabel

@@ -27,7 +27,6 @@ export async function createActionFromSuggestion(input: {
     title: input.title,
     leadId: input.leadId,
     deadlineStart: input.deadline,
-    officerMeetingId: input.meetingId,
     sourceType: "MEETING",
     ...linked,
   });

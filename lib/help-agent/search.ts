@@ -376,46 +376,11 @@ async function searchClasses(
  * match the live `date desc`. Officer-tier, like the live query; standard
  * three-way fallback (empty group / no text hit / index error → live).
  */
-async function searchMeetingsFromIndex(q: string): Promise<HelpAgentResult[] | null> {
-  const docs = await searchIndexGroup("meeting", "OFFICER", q, {
-    orderBy: "eventAtDesc",
-  });
-  if (docs === null) return null;
-  return docs.map((d) => ({
-    type: "meeting" as const,
-    id: d.entityId,
-    title: d.title,
-    subtitle: d.subtitle,
-    href: `/meetings/${d.entityId}`,
-  }));
-}
-
 async function searchMeetings(q: string): Promise<HelpAgentResult[]> {
-  const fromIndex = await searchMeetingsFromIndex(q).catch(() => null);
-  if (fromIndex !== null) return fromIndex;
-  const meetings = await prisma.officerMeeting.findMany({
-    where: {
-      OR: [
-        { title: { contains: q, mode: "insensitive" } },
-        { purpose: { contains: q, mode: "insensitive" } },
-      ],
-    },
-    select: { id: true, title: true, date: true, category: true },
-    orderBy: [{ date: "desc" }],
-    take: PER_GROUP_LIMIT * 3,
-  });
-  return meetings.map((m) => ({
-    type: "meeting" as const,
-    id: m.id,
-    title: m.title || "Officer meeting",
-    subtitle: [
-      m.category,
-      m.date ? new Date(m.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null,
-    ]
-      .filter(Boolean)
-      .join(" · ") || null,
-    href: `/meetings/${m.id}`,
-  }));
+  // The legacy OfficerMeeting model was removed in the weekly-meetings rebuild;
+  // meeting search is not re-indexed yet, so this group is empty for now.
+  void q;
+  return [];
 }
 
 /**
@@ -714,14 +679,9 @@ async function hydrateRecent(
         href: canOpenAdminRecord(viewer) ? `/admin/classes/${c.id}` : null,
       };
     }
-    case "meeting": {
-      const m = await prisma.officerMeeting.findUnique({
-        where: { id: entityId },
-        select: { id: true, title: true, category: true },
-      });
-      if (!m) return null;
-      return { type: "meeting", id: m.id, title: m.title || "Officer meeting", subtitle: m.category, href: `/meetings/${m.id}` };
-    }
+    case "meeting":
+      // Legacy OfficerMeeting removed in the weekly-meetings rebuild.
+      return null;
     case "action": {
       const a = await prisma.actionItem.findUnique({
         where: { id: entityId },

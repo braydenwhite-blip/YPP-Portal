@@ -68,12 +68,6 @@ export interface ActionItemFormInitial {
   relatedEntityLabel?: string | null;
   /** Type label for the chip (e.g. "Class" / "Mentorship" / "Person"). */
   relatedEntityTypeLabel?: string | null;
-  /**
-   * Source meeting this action was started from (a decision / recap). Carried
-   * through on create so the new action links back to the meeting workspace,
-   * exactly like the in-meeting converters do. Not user-editable here.
-   */
-  officerMeetingId?: string | null;
   // --- Action System 4.0 honest context (carried through on create) ---
   /** Definition of done — editable; seeded from a source when known. */
   successDefinition?: string | null;
@@ -429,9 +423,6 @@ export default function ActionItemForm({
             // Carry the read-only link through; the server re-validates it.
             relatedEntityType: relatedEntityType ?? undefined,
             relatedEntityId: relatedEntityId ?? undefined,
-            // Carry the source meeting through when the action was started from
-            // one (a decision / recap prefill); the server re-validates it.
-            officerMeetingId: initial?.officerMeetingId ?? undefined,
             // Action 4.0 honest context — all server-revalidated. Source
             // provenance + the explicit strategic link travel with the action.
             sourceType: initial?.sourceType ?? undefined,

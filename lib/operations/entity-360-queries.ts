@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { deriveClassNextAction } from "@/lib/class-next-action";
 import { deriveAdvisingLifecycle } from "@/lib/advising/relationship";
 import { instructorApplicationVisibilityWhere } from "@/lib/applications/application-visibility";
-import { isActionTrackerEnabled, isStrategicInitiativesEnabled } from "@/lib/feature-flags";
+import { isStrategicInitiativesEnabled } from "@/lib/feature-flags";
 import {
   isOfficerTier,
   type ActionViewer,
@@ -10,19 +10,12 @@ import {
 import {
   getActionItemById,
   getActionsForEntity,
-  getActionsForMeeting,
   getMyActionItems,
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 import { meetingCategoryLabel } from "@/lib/people-strategy/meeting-categories";
-import {
-  getMeetingById,
-  getMeetingsForEntity,
-  mapMeetingToCardDTO,
-  mapMeetingToDetailDTO,
-  type MeetingCardDTO,
-} from "@/lib/people-strategy/meetings-queries";
+import { type MeetingCardDTO } from "@/lib/people-strategy/meeting-card-types";
 import {
   toActionLite,
   toDecisionLite,
@@ -106,6 +99,21 @@ const DRAWER_LIMITS = {
   classes: 8,
   timeline: 20,
 } as const;
+
+/**
+ * Shape the person drawer's meeting list used to map from. The old Meetings
+ * Tracker was removed, so this list is always empty now — the type is kept so the
+ * mapping code below still type-checks against an empty array.
+ */
+type PersonMeetingRow = {
+  id: string;
+  title: string | null;
+  date: Date;
+  category: string | null;
+  status: string;
+  _count: { decisions: number; actionItems: number };
+  followUps: Array<{ id: string }>;
+};
 
 function canOpenAdminRecord(viewer: ActionViewer): boolean {
   return viewer.primaryRole === "ADMIN" || (viewer.roles ?? []).includes("ADMIN");
@@ -266,27 +274,8 @@ async function loadPerson360(
       },
     }),
     getMyActionItems(id, viewer).catch(() => [] as ActionItemWithRelations[]),
-    officer && isActionTrackerEnabled()
-      ? prisma.officerMeeting.findMany({
-          where: {
-            OR: [{ facilitatorId: id }, { attendees: { some: { userId: id } } }],
-          },
-          orderBy: { date: "desc" },
-          take: DRAWER_LIMITS.meetings,
-          select: {
-            id: true,
-            title: true,
-            date: true,
-            category: true,
-            status: true,
-            _count: { select: { decisions: true, actionItems: true } },
-            followUps: {
-              where: { status: { not: "COMPLETED" } },
-              select: { id: true },
-            },
-          },
-        })
-      : Promise.resolve([]),
+    // The old Meetings Tracker was removed — related meetings are always empty.
+    Promise.resolve([] as PersonMeetingRow[]),
     // Latest quarterly review (officer read) — instructor/staff records show
     // "last review" as a concrete fact, never a bare performance label (§19).
     officer
@@ -786,9 +775,8 @@ async function loadClass360(
     coverageLabel === "Partner confirmation needed" ||
     coverageLabel === "Training needed";
 
-  const [actions, meetings, nextSession, outcome, feedbackCount] = await Promise.all([
+  const [actions, nextSession, outcome, feedbackCount] = await Promise.all([
     getActionsForEntity("CLASS_OFFERING", id, viewer),
-    getMeetingsForEntity("CLASS_OFFERING", id, DRAWER_LIMITS.meetings),
     prisma.classSession
       .findFirst({
         where: { offeringId: id, isCancelled: false, date: { gte: now } },
@@ -802,7 +790,8 @@ async function loadClass360(
     prisma.classFeedback.count({ where: { offeringId: id } }).catch(() => 0),
   ]);
   const actionLites = actions.map((a) => toActionLite(a, now));
-  const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  // The old Meetings Tracker was removed — related meetings are always empty now.
+  const meetingDtos: MeetingCardDTO[] = [];
   const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
 
   // Readiness is THE shared judgment (signals.ts) — the same rule the
@@ -1018,12 +1007,10 @@ async function loadPartner360(
   });
   if (!partner) return null;
 
-  const [actions, meetings] = await Promise.all([
-    getActionsForEntity("PARTNER", id, viewer),
-    getMeetingsForEntity("PARTNER", id, DRAWER_LIMITS.meetings),
-  ]);
+  const actions = await getActionsForEntity("PARTNER", id, viewer);
   const actionLites = actions.map((a) => toActionLite(a, now));
-  const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  // The old Meetings Tracker was removed — related meetings are always empty now.
+  const meetingDtos: MeetingCardDTO[] = [];
   const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
 
   // Relationship health is THE shared judgment (signals.ts) — same rule as the
@@ -1393,116 +1380,14 @@ async function loadInitiative360(
 // --- meeting --------------------------------------------------------------------
 
 async function loadMeeting360(
-  id: string,
+  _id: string,
   viewer: ActionViewer,
-  now: Date
+  _now: Date
 ): Promise<Entity360 | null> {
   if (!isOfficerTier(viewer)) return null;
-  const meeting = await getMeetingById(id);
-  if (!meeting) return null;
-  const dto = mapMeetingToDetailDTO(meeting, now);
-  const lite = toMeetingLite(dto, now);
-
-  const [actions, related] = await Promise.all([
-    getActionsForMeeting(id, viewer),
-    meeting.relatedEntityType && meeting.relatedEntityId
-      ? loadRelatedEntitySummary(meeting.relatedEntityType, meeting.relatedEntityId)
-      : Promise.resolve(null),
-  ]);
-  const actionLites = actions.map((a) => toActionLite(a, now));
-  const workItems: WorkItem[] = [
-    ...lite.unconvertedFollowUps.map((f) => workItemFromFollowUp(f, now)),
-    ...actionLites.filter((a) => a.status !== "DROPPED").map(workItemFromAction),
-  ].slice(0, DRAWER_LIMITS.workItems);
-
-  const decisionEvents = meeting.decisions.map((d) => ({
-    id: `decision:${d.id}`,
-    kind: "decision" as const,
-    occurredAtISO: d.createdAt.toISOString(),
-    title: d.decision,
-    detail: d.linkedAction ? "Action assigned" : "No action yet",
-    actorName: d.decidedBy?.name ?? null,
-    relatedType: null,
-    relatedId: null,
-    relatedLabel: null,
-    href: null,
-  }));
-
-  const risks: string[] = [];
-  if (dto.overdueFollowUps > 0) {
-    risks.push(`${dto.overdueFollowUps} follow-up${dto.overdueFollowUps === 1 ? " is" : "s are"} overdue.`);
-  }
-  if (dto.decisionCount > 0 && dto.linkedActionCount === 0) {
-    risks.push("Decisions were made but no tracker action exists yet.");
-  }
-
-  const upcoming = dto.effectiveStatus === "upcoming" || dto.effectiveStatus === "today";
-  return {
-    type: "meeting",
-    id,
-    title: dto.title,
-    subtitle: dto.categoryLabel,
-    typeLabel: "Meeting",
-    status: upcoming
-      ? { label: "Upcoming", tone: "info" }
-      : dto.effectiveStatus === "needs_follow_up"
-        ? { label: "Needs follow-up", tone: "warning" }
-        : dto.effectiveStatus === "canceled"
-          ? { label: "Cancelled", tone: "neutral" }
-          : { label: "Completed", tone: "success" },
-    meta: fmtDate(new Date(dto.startISO)),
-    initials: entityInitials(dto.title),
-    avatarUrl: null,
-    pageHref: `/meetings/${id}`,
-    glance: [
-      { label: "Decisions", value: String(dto.decisionCount) },
-      {
-        label: "Open follow-ups",
-        value: String(dto.openFollowUps),
-        ...(dto.overdueFollowUps > 0 ? { tone: "overdue" as const } : {}),
-      },
-      { label: "Actions created", value: String(dto.linkedActionCount) },
-      { label: "Attendees", value: String(dto.attendeeCount) },
-    ],
-    facts: [
-      { label: "Date", value: fmtDate(new Date(dto.startISO)) },
-      { label: "Category", value: dto.categoryLabel },
-      ...(meeting.location ? [{ label: "Location", value: meeting.location }] : []),
-      ...(dto.recurrence && dto.recurrence !== "NONE"
-        ? [{ label: "Repeats", value: dto.recurrence.toLowerCase() }]
-        : []),
-      ...(related ? [{ label: related.typeLabel, value: related.label }] : []),
-    ],
-    people: [
-      ...(dto.facilitator
-        ? [
-            {
-              id: dto.facilitator.id,
-              name: dto.facilitator.name,
-              title: null,
-              relationship: "Facilitator",
-            },
-          ]
-        : []),
-      ...dto.attendees
-        .filter((a) => a.id !== dto.facilitator?.id)
-        .map((a) => ({
-          id: a.id,
-          name: a.name,
-          title: null,
-          relationship: "Attendee",
-        })),
-    ],
-    classes: [],
-    workItems,
-    meetings: [],
-    timeline: decisionEvents.slice(0, DRAWER_LIMITS.timeline),
-    nextStep:
-      lite.unconvertedFollowUps[0]?.title ??
-      (upcoming ? "Prepare the agenda before the meeting" : null),
-    risks,
-    footnote: OFFICER_FOOTNOTE,
-  };
+  // The old Meetings Tracker (and its OfficerMeeting model) was removed, so the
+  // meeting detail drawer no longer has a data source — there is nothing to load.
+  return null;
 }
 
 // --- action ---------------------------------------------------------------------
@@ -1648,12 +1533,10 @@ async function loadMentorship360(
   });
   if (!pairing) return null;
 
-  const [actions, meetings] = await Promise.all([
-    getActionsForEntity("MENTORSHIP", id, viewer),
-    getMeetingsForEntity("MENTORSHIP", id, DRAWER_LIMITS.meetings),
-  ]);
+  const actions = await getActionsForEntity("MENTORSHIP", id, viewer);
   const actionLites = actions.map((a) => toActionLite(a, now));
-  const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  // The old Meetings Tracker was removed — related meetings are always empty now.
+  const meetingDtos: MeetingCardDTO[] = [];
   const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
 
   const mentorName = pairing.mentor.name ?? pairing.mentor.email;
@@ -1814,12 +1697,10 @@ async function loadApplicant360(
   const name =
     composed || app.legalName || app.applicant?.name || app.applicant?.email || "Applicant";
 
-  const [actions, meetings] = await Promise.all([
-    getActionsForEntity("INSTRUCTOR_APPLICATION", id, viewer),
-    getMeetingsForEntity("INSTRUCTOR_APPLICATION", id, DRAWER_LIMITS.meetings),
-  ]);
+  const actions = await getActionsForEntity("INSTRUCTOR_APPLICATION", id, viewer);
   const actionLites = actions.map((a) => toActionLite(a, now));
-  const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  // The old Meetings Tracker was removed — related meetings are always empty now.
+  const meetingDtos: MeetingCardDTO[] = [];
   const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
 
   const daysInPipeline = Math.max(

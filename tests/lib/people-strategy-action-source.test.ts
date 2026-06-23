@@ -149,13 +149,6 @@ describe("deriveActionSource", () => {
     expect(src.parentActionId).toBe("act_1");
   });
 
-  it("infers MEETING from officerMeetingId on a legacy row", () => {
-    const src = deriveActionSource({ officerMeetingId: "mtg_1" });
-    expect(src.type).toBe("MEETING");
-    expect(src.explicit).toBe(false);
-    expect(src.meetingId).toBe("mtg_1");
-  });
-
   it("infers ENTITY from a related entity on a legacy row", () => {
     const src = deriveActionSource({
       relatedEntityType: "PARTNER",
@@ -174,7 +167,7 @@ describe("deriveActionSource", () => {
   it("prefers explicit over inferred signals", () => {
     const src = deriveActionSource({
       sourceType: "WEEKLY_REVIEW",
-      officerMeetingId: "mtg_1",
+      sourceActionId: "act_1",
     });
     expect(src.type).toBe("WEEKLY_REVIEW");
     expect(src.explicit).toBe(true);
@@ -186,7 +179,6 @@ describe("deriveActionSourceLabel", () => {
     expect(deriveActionSourceLabel({ sourceType: "MEETING_DECISION" })).toBe(
       "From a meeting decision"
     );
-    expect(deriveActionSourceLabel({ officerMeetingId: "m1" })).toBe("Looks like a meeting");
     expect(deriveActionSourceLabel({})).toBe("Manual");
   });
 });

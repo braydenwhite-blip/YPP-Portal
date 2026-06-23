@@ -1,4 +1,3 @@
-import { addDays, formatMonthDay } from "@/lib/leadership-action-center/dates";
 import { formatRoleLabel } from "@/lib/user-title";
 
 import {
@@ -8,7 +7,6 @@ import {
   type PeopleCockpit,
 } from "./people-cockpit";
 import type { PeoplePerformanceRow } from "./people-performance";
-import { listMeetingsInRange, mapMeetingToCardDTO } from "./meetings-queries";
 
 /**
  * People Strategy — cockpit loader.
@@ -20,9 +18,6 @@ import { listMeetingsInRange, mapMeetingToCardDTO } from "./meetings-queries";
  * from the live officer-meeting follow-up counts. No new schema — only existing
  * read-loaders, composed.
  */
-
-/** How far back to look for meetings that may still have open follow-ups. */
-const RECENT_MEETING_WINDOW_DAYS = 30;
 
 function personContext(row: PeoplePerformanceRow): string | null {
   const parts = [formatRoleLabel(row.role), ...row.departments].filter(Boolean);
@@ -40,35 +35,14 @@ function toCockpitPerformanceRow(row: PeoplePerformanceRow): CockpitPerformanceR
   };
 }
 
-async function loadMeetingsWithOpenFollowups(
-  now: Date
-): Promise<MeetingWithOpenFollowups[]> {
-  // Read-loaders fail safe (return []) when the Action Tracker flag is off, so
-  // this degrades to "no meeting lane" rather than throwing.
-  const meetings = await listMeetingsInRange(addDays(now, -RECENT_MEETING_WINDOW_DAYS), now);
-  const result: MeetingWithOpenFollowups[] = [];
-  for (const meeting of meetings) {
-    const card = mapMeetingToCardDTO(meeting, now);
-    if (card.openFollowUps <= 0) continue;
-    result.push({
-      id: card.id,
-      title: card.title,
-      unresolvedCount: card.openFollowUps,
-      metLabel: `Met ${formatMonthDay(new Date(card.startISO))}`,
-      href: `/meetings/${card.id}`,
-    });
-  }
-  return result;
-}
-
 export async function loadPeopleCockpit(args: {
   performanceRows: PeoplePerformanceRow[];
   monthLabel: string;
   quarter: string;
   now?: Date;
 }): Promise<PeopleCockpit> {
-  const now = args.now ?? new Date();
-  const meetingsWithOpenFollowups = await loadMeetingsWithOpenFollowups(now);
+  // The old Meetings Tracker was removed — the meeting lane is always empty now.
+  const meetingsWithOpenFollowups: MeetingWithOpenFollowups[] = [];
 
   return buildPeopleCockpit({
     performance: {

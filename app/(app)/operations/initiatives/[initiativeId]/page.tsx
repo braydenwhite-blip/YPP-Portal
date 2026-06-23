@@ -38,7 +38,6 @@ import {
 import { primaryNextStep } from "@/lib/people-strategy/strategic-initiative-attention";
 import { getInitiativePageData } from "@/lib/people-strategy/strategic-initiative-queries";
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
-import { loadInitiativeWeeklyBriefSummaries } from "@/lib/people-strategy/weekly-team-briefs";
 
 export const dynamic = "force-dynamic";
 
@@ -83,7 +82,6 @@ export default async function StrategicInitiativeDetailPage({
   ]);
 
   if (!pageData) notFound();
-  const weeklyBriefs = await loadInitiativeWeeklyBriefSummaries(initiativeId, now).catch(() => []);
 
   const { def, summary, actions } = pageData;
 
@@ -145,42 +143,6 @@ export default async function StrategicInitiativeDetailPage({
 
       <InitiativeMeetingsSection initiative={summary} />
 
-      {weeklyBriefs.length ? (
-        <RecordSection
-          id="weekly-team-briefs"
-          title="Teams & this week"
-          description="Team Meeting workspaces for the current reporting week."
-        >
-          <div className="grid gap-3">
-            {weeklyBriefs.map((brief) => (
-              <Link
-                key={brief.workstreamId}
-                href={brief.href}
-                className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 no-underline transition hover:border-brand-300"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="m-0 text-sm font-bold text-ink">{brief.workstreamTitle}</p>
-                    {brief.workstreamDescription ? (
-                      <p className="m-0 mt-1 text-sm text-ink-muted">{brief.workstreamDescription}</p>
-                    ) : null}
-                  </div>
-                  <StatusBadge tone={brief.status === "FINALIZED" ? "success" : brief.status === "SUBMITTED" ? "warning" : "neutral"}>
-                    {brief.status.replaceAll("_", " ")}
-                  </StatusBadge>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-ink-muted">
-                  <span>{brief.taskCount} task{brief.taskCount === 1 ? "" : "s"}</span>
-                  <span>{brief.readyTasks} ready for team</span>
-                  <span>{brief.officerReady} ready for officers</span>
-                  <span>{brief.preparedCount} prepared item{brief.preparedCount === 1 ? "" : "s"}</span>
-                  {brief.blockers ? <span className="text-red-700">{brief.blockers} blocker{brief.blockers === 1 ? "" : "s"}</span> : null}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </RecordSection>
-      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <OwnershipPanel ownership={summary.ownership} />

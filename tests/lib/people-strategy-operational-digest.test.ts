@@ -6,7 +6,7 @@ vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/feature-flags", () => ({ isActionTrackerEnabled: () => true }));
 
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
-import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
+import type { MeetingCardDTO } from "@/lib/people-strategy/meeting-card-types";
 import type { RelatedEntitySummary } from "@/lib/people-strategy/connections";
 import { computeOperationalHealth } from "@/lib/people-strategy/operational-context";
 import {
@@ -50,8 +50,6 @@ function action(overrides: Partial<ActionItemWithRelations> = {}): ActionItemWit
     completedAt: null,
     leadId: "alice",
     lead: { id: "alice", name: "Alice", email: "alice@x.org", primaryRole: "ADMIN", title: null, adminSubtypes: [], profile: null },
-    officerMeetingId: null,
-    officerMeeting: null,
     relatedEntityType: null,
     relatedEntityId: null,
     flaggedAt: null,
@@ -589,8 +587,6 @@ describe("lite mappers", () => {
         description: "Partner needs final schedule.",
         relatedEntityType: "PARTNER",
         relatedEntityId: "p1",
-        officerMeetingId: "m1",
-        officerMeeting: { id: "m1", title: "Partner sync", date: new Date("2026-06-01T00:00:00"), category: "PARTNERSHIPS" },
         deadlineStart: new Date("2026-05-20T00:00:00"),
         comments: [
           {
@@ -614,8 +610,8 @@ describe("lite mappers", () => {
       relatedType: "PARTNER",
       relatedId: "p1",
       relatedLabel: "Lincoln HS",
-      sourceMeetingId: "m1",
-      sourceMeetingTitle: "Partner sync",
+      sourceMeetingId: null,
+      sourceMeetingTitle: null,
       href: "/actions/a1",
     });
     expect(lite.latestUpdate).toBe("Waiting on the partner contact.");

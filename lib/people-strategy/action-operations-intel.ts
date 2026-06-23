@@ -128,7 +128,7 @@ export function deriveWeeklyActionReview(
     overdue: items.filter((i) => isActionOverdue(i, now)),
     createdThisWeek: items.filter((i) => i.createdAt.getTime() >= ws),
     fromMeetingsThisWeek: items.filter(
-      (i) => i.createdAt.getTime() >= ws && Boolean(i.officerMeetingId)
+      (i) => i.createdAt.getTime() >= ws && false
     ),
     unowned: items.filter(
       (i) => isOpen(i) && !i.assignments.some((a) => a.role === "EXECUTING")

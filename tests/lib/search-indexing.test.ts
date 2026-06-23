@@ -12,7 +12,6 @@ vi.mock("@/lib/prisma", () => ({
     instructorApplication: { findFirst: vi.fn(), findMany: vi.fn() },
     actionItem: { findUnique: vi.fn(), findMany: vi.fn() },
     classOffering: { findMany: vi.fn() },
-    officerMeeting: { findUnique: vi.fn(), findMany: vi.fn() },
     mentorship: { findFirst: vi.fn(), findMany: vi.fn() },
   },
 }));
@@ -26,13 +25,11 @@ import { logger } from "@/lib/logger";
 import {
   buildActionDocument,
   buildApplicationDocument,
-  buildMeetingDocument,
   buildMentorshipDocument,
   buildPartnerDocument,
   buildPersonDocument,
   reconcileSearchDocuments,
   syncApplicationSearchDocument,
-  syncMeetingSearchDocument,
   syncMentorshipSearchDocument,
   syncPartnerSearchDocument,
   syncPersonSearchDocument,
@@ -50,7 +47,6 @@ beforeEach(() => {
     prisma.instructorApplication,
     prisma.actionItem,
     prisma.classOffering,
-    prisma.officerMeeting,
     prisma.mentorship,
   ]) {
     const m = model as { findMany?: unknown };
@@ -127,7 +123,7 @@ describe("document builders", () => {
     ).toBe("fallback@test.dev");
   });
 
-  it("builds the action row with status/owner/due subtitle and owner + meeting keywords", () => {
+  it("builds the action row with status/owner/due subtitle and owner keywords", () => {
     const doc = buildActionDocument({
       id: "ac1",
       title: "Call the venue",
@@ -135,7 +131,6 @@ describe("document builders", () => {
       deadlineStart: new Date("2026-06-10T00:00:00.000Z"),
       deadlineEnd: new Date("2026-06-18T00:00:00.000Z"),
       lead: { name: "Maya Chen", email: "maya@test.dev" },
-      officerMeeting: { title: "Camp planning" },
     });
     expect(doc).toMatchObject({
       entityType: "action",
@@ -147,7 +142,7 @@ describe("document builders", () => {
     expect(doc.subtitle).toContain("In progress");
     expect(doc.subtitle).toContain("Maya Chen");
     expect(doc.subtitle).toMatch(/Due Jun 1[78], 2026/);
-    for (const term of ["Maya Chen", "maya@test.dev", "Camp planning"]) {
+    for (const term of ["Maya Chen", "maya@test.dev"]) {
       expect(doc.keywords).toContain(term);
     }
   });
@@ -160,27 +155,6 @@ describe("document builders", () => {
     });
     expect(doc.subtitle).toBe("Not started");
     expect(doc.keywords).toBeNull();
-  });
-
-  it("builds the meeting row with category · date subtitle and structured eventAt", () => {
-    const date = new Date("2026-06-15T17:00:00.000Z");
-    const doc = buildMeetingDocument({
-      id: "m1",
-      title: "Leadership sync",
-      purpose: "Weekly leadership operating rhythm",
-      category: "LEADERSHIP",
-      date,
-    });
-    expect(doc).toMatchObject({
-      entityType: "meeting",
-      entityId: "m1",
-      title: "Leadership sync",
-      keywords: "Weekly leadership operating rhythm",
-      visibilityTier: "OFFICER",
-      eventAt: date,
-    });
-    expect(doc.subtitle).toContain("LEADERSHIP");
-    expect(doc.subtitle).toMatch(/Jun 1[56], 2026/);
   });
 });
 
@@ -276,33 +250,6 @@ describe("write-path sync helpers", () => {
 
     expect(prisma.searchDocument.deleteMany).toHaveBeenCalledWith({
       where: { entityType: "applicant", entityId: "a-archived" },
-    });
-  });
-
-  it("upserts the meeting row (with eventAt) and removes it when the meeting is gone", async () => {
-    const date = new Date("2026-06-15T17:00:00.000Z");
-    mock(prisma.officerMeeting.findUnique).mockResolvedValue({
-      id: "m1",
-      title: "Leadership sync",
-      purpose: null,
-      category: "LEADERSHIP",
-      date,
-    });
-
-    await syncMeetingSearchDocument("m1");
-
-    expect(prisma.searchDocument.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { entityType_entityId: { entityType: "meeting", entityId: "m1" } },
-        create: expect.objectContaining({ title: "Leadership sync", eventAt: date }),
-        update: expect.objectContaining({ eventAt: date }),
-      })
-    );
-
-    mock(prisma.officerMeeting.findUnique).mockResolvedValue(null);
-    await syncMeetingSearchDocument("m-gone");
-    expect(prisma.searchDocument.deleteMany).toHaveBeenCalledWith({
-      where: { entityType: "meeting", entityId: "m-gone" },
     });
   });
 

@@ -5,20 +5,12 @@ import {
   buildDecideWorkspace,
   type CcDecisionLogEntry,
   type CcMeeting,
-  initialsFromName,
-  toCcMeeting,
-  whenLabel,
 } from "@/lib/command-center";
 import { getSession } from "@/lib/auth-supabase";
 import {
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
-import {
-  getMeetingById,
-  listRecentDecisions,
-  mapMeetingToCardDTO,
-} from "@/lib/people-strategy/meetings-queries";
 import { buildQueueEngine } from "@/lib/queue/engine";
 import { loadWorkHub } from "@/lib/work/work-hub";
 
@@ -42,37 +34,15 @@ export default async function DecidePage() {
 
   const now = new Date();
 
-  const [data, decisions] = await Promise.all([
-    loadWorkHub(viewer, { now }),
-    listRecentDecisions(8).catch(() => []),
-  ]);
+  const data = await loadWorkHub(viewer, { now });
 
   const engine = buildQueueEngine(data, now);
 
-  const recentDecisions: CcDecisionLogEntry[] = decisions.map((decision) => {
-    const decidedByName = decision.decidedBy?.name ?? null;
-    const whenISO = decision.createdAt.toISOString();
-    return {
-      id: decision.id,
-      decision: decision.decision,
-      meetingTitle: decision.officerMeeting?.title ?? "Meeting",
-      meetingHref: decision.officerMeeting
-        ? `/meetings/${decision.officerMeeting.id}`
-        : "/meetings",
-      decidedByName,
-      decidedByInitials: decidedByName ? initialsFromName(decidedByName) : null,
-      whenISO,
-      whenLabel: whenLabel(whenISO, now),
-    };
-  });
+  const recentDecisions: CcDecisionLogEntry[] = [];
 
   const vm = buildDecideWorkspace({ engine, recentDecisions, now });
 
-  let relatedMeeting: CcMeeting | null = null;
-  if (vm.focus?.relatedMeeting?.id) {
-    const record = await getMeetingById(vm.focus.relatedMeeting.id).catch(() => null);
-    if (record) relatedMeeting = toCcMeeting(mapMeetingToCardDTO(record, now));
-  }
+  const relatedMeeting: CcMeeting | null = null;
 
   return <DecideWorkspace vm={vm} relatedMeeting={relatedMeeting} nowISO={now.toISOString()} />;
 }

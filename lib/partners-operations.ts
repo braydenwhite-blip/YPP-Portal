@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { formatMeetingDays } from "@/lib/class-status";
 import { countOpenActionsByRelatedEntity } from "@/lib/people-strategy/action-queries";
 import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
-import { getMeetingsForEntity, meetingDisplayTitle } from "@/lib/people-strategy/meetings-queries";
 import {
   asPartnerStage,
   isActivePartnerStage,
@@ -186,28 +185,10 @@ export async function loadPartnersOperationsList(): Promise<PartnerOperationsLis
   });
 
   const ids = partners.map((p) => p.id);
-  const [openActions, upcomingMeetings] = await Promise.all([
-    countOpenActionsByRelatedEntity("PARTNER", ids),
-    ids.length > 0
-      ? prisma.officerMeeting.findMany({
-          where: {
-            relatedEntityType: "PARTNER",
-            relatedEntityId: { in: ids },
-            date: { gte: now },
-            status: { not: "CANCELLED" },
-          },
-          orderBy: { date: "asc" },
-          select: { relatedEntityId: true, date: true },
-        })
-      : Promise.resolve([]),
-  ]);
+  const openActions = await countOpenActionsByRelatedEntity("PARTNER", ids);
 
+  // The old Meetings Tracker was removed — partner meetings are always empty now.
   const nextMeetingByPartner = new Map<string, Date>();
-  for (const m of upcomingMeetings) {
-    if (m.relatedEntityId && !nextMeetingByPartner.has(m.relatedEntityId)) {
-      nextMeetingByPartner.set(m.relatedEntityId, m.date);
-    }
-  }
 
   return partners.map((partner) => {
     const offerings = partner.classOfferings;
@@ -321,10 +302,14 @@ export async function loadPartnerOperationsDetail(
   });
   if (!partner) return null;
 
-  const [actions, meetings] = await Promise.all([
-    getActionsForEntity("PARTNER", id, viewer).catch(() => []),
-    getMeetingsForEntity("PARTNER", id).catch(() => []),
-  ]);
+  const actions = await getActionsForEntity("PARTNER", id, viewer).catch(() => []);
+  // The old Meetings Tracker was removed — partner meetings are always empty now.
+  const meetings: Array<{
+    id: string;
+    title: string | null;
+    date: Date;
+    status: string;
+  }> = [];
 
   const openActions = actions
     .filter((a) => a.status !== "COMPLETE" && a.status !== "DROPPED")
@@ -431,7 +416,7 @@ export async function loadPartnerOperationsDetail(
     })),
     partnerMeetings: meetings.slice(0, 8).map((m) => ({
       id: m.id,
-      title: meetingDisplayTitle(m),
+      title: m.title?.trim() || "Meeting",
       dateLabel: shortDate(m.date, now),
       href: `/meetings/${m.id}`,
     })),

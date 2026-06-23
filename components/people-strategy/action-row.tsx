@@ -81,13 +81,9 @@ export function ActionRow({
   const ctaHref =
     cta.behavior === "edit" ? `/actions/${item.id}/edit` : `/actions/${item.id}`;
 
-  // Left rail reads the action's signal: red when overdue, brand when it's on
-  // an officer-meeting agenda, otherwise quiet — matching the mockup's cards.
-  const railClass = overdue
-    ? "border-l-blocked-700"
-    : item.officerMeetingId
-      ? "border-l-brand-600"
-      : "border-l-transparent";
+  // Left rail reads the action's signal: red when overdue, otherwise quiet —
+  // matching the mockup's cards.
+  const railClass = overdue ? "border-l-blocked-700" : "border-l-transparent";
 
   return (
     <div

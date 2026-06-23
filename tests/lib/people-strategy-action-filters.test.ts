@@ -43,7 +43,6 @@ function item(overrides: Partial<ActionItemWithRelations>): ActionItemWithRelati
     deadlineEnd: null,
     visibility: "ALL_LEADERSHIP",
     leadId: "lead",
-    officerMeetingId: null,
     flaggedAt: null,
     createdById: "lead",
     createdAt: NOW,
@@ -83,23 +82,22 @@ describe("parseActionFilters", () => {
     );
   });
 
-  it("filters by source (meeting-generated vs manual)", () => {
-    const items = [
-      item({ id: "fromMeeting", officerMeetingId: "m1" }),
-      item({ id: "manual", officerMeetingId: null }),
-    ];
+  it("filters by source (meeting lens matches nothing; manual matches everything)", () => {
+    const items = [item({ id: "a" }), item({ id: "b" })];
+    // The legacy meeting-source link column is gone: the "meeting" lens can no
+    // longer match anything.
     const meetingOnly = applyActionFilters(
       items,
       parseActionFilters({ source: "meeting" }),
       NOW
     );
-    expect(meetingOnly.map((i) => i.id)).toEqual(["fromMeeting"]);
+    expect(meetingOnly.map((i) => i.id)).toEqual([]);
     const manualOnly = applyActionFilters(
       items,
       parseActionFilters({ source: "manual" }),
       NOW
     );
-    expect(manualOnly.map((i) => i.id)).toEqual(["manual"]);
+    expect(manualOnly.map((i) => i.id)).toEqual(["a", "b"]);
   });
 
   it("validates enums and ignores junk", () => {

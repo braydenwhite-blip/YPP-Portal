@@ -127,14 +127,6 @@ export function ActionListCard({
         {item.relatedEntityType ? (
           <RelatedEntityBadge type={item.relatedEntityType} id={item.relatedEntityId} />
         ) : null}
-        {item.officerMeeting ? (
-          <StatusBadge tone="brand">
-            From meeting: {item.officerMeeting.title ?? "Meeting"} ·{" "}
-            {formatDueDate(item.officerMeeting.date)}
-          </StatusBadge>
-        ) : item.officerMeetingId ? (
-          <StatusBadge tone="brand">From meeting</StatusBadge>
-        ) : null}
         {strategic.initiativeTitle ? (
           <span className="text-[12px] text-ink-muted">
             Initiative: {strategic.initiativeTitle}

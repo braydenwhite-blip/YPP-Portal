@@ -137,27 +137,11 @@ export async function loadPartnerDirectory(): Promise<PartnerDirectoryResult> {
   });
 
   const ids = partners.map((p) => p.id);
-  const [meetingGroups, openActionCounts] = await Promise.all([
-    ids.length > 0
-      ? prisma.officerMeeting.groupBy({
-          by: ["relatedEntityId"],
-          where: {
-            relatedEntityType: "PARTNER",
-            relatedEntityId: { in: ids },
-            date: { gte: now },
-            status: { not: "CANCELLED" },
-          },
-          _count: { _all: true },
-        })
-      : Promise.resolve([] as Array<{ relatedEntityId: string | null; _count: { _all: number } }>),
-    countOpenActionsByRelatedEntity("PARTNER", ids),
-  ]);
+  const openActionCounts = await countOpenActionsByRelatedEntity("PARTNER", ids);
+
+  // The old Meetings Tracker was removed — upcoming partner meetings are always
+  // empty now, so every partner's meeting count is 0.
   const upcomingMeetings = new Map<string, number>();
-  for (const group of meetingGroups) {
-    if (group.relatedEntityId) {
-      upcomingMeetings.set(group.relatedEntityId, group._count._all);
-    }
-  }
 
   const rows: PartnerDirectoryRow[] = partners.map((partner) => {
     const stage = asPartnerStage(partner.stage);

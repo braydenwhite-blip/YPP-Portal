@@ -43,11 +43,6 @@ describe("Chief of Staff intent routing", () => {
 });
 
 describe("Chief of Staff page-aware prompts", () => {
-  it("offers meeting prompts on a meeting detail page", () => {
-    const prompts = pageAwarePrompts("/meetings/abc123");
-    expect(prompts.some((p) => /summarize this meeting/i.test(p.question))).toBe(true);
-  });
-
   it("offers person prompts on a person page", () => {
     const prompts = pageAwarePrompts("/people/u_42");
     expect(prompts.some((p) => /summarize this person/i.test(p.question))).toBe(true);

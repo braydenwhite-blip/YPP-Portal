@@ -24,7 +24,7 @@ import { whereActiveMember } from "@/lib/user-role-where";
  */
 
 export type SearchDocumentRow = {
-  entityType: "person" | "partner" | "applicant" | "class" | "meeting" | "action" | "mentorship";
+  entityType: "person" | "partner" | "applicant" | "class" | "action" | "mentorship";
   entityId: string;
   title: string;
   subtitle: string | null;
@@ -120,7 +120,6 @@ export function buildActionDocument(action: {
   deadlineStart?: Date | null;
   deadlineEnd?: Date | null;
   lead?: { name: string | null; email: string | null } | null;
-  officerMeeting?: { title: string | null } | null;
 }): SearchDocumentRow {
   const owner = action.lead?.name ?? action.lead?.email ?? null;
   const deadline = action.deadlineEnd ?? action.deadlineStart ?? null;
@@ -139,12 +138,10 @@ export function buildActionDocument(action: {
       ]
         .filter(Boolean)
         .join(" · ") || null,
-    // Match terms: the owner and the source meeting ("camp planning" finds
-    // the actions that meeting created).
+    // Match terms: the owner.
     keywords: joinKeywords([
       action.lead?.name,
       action.lead?.email,
-      action.officerMeeting?.title,
     ]),
     visibilityTier: "OFFICER",
   };
@@ -195,36 +192,6 @@ export function buildClassDocument(offering: {
     subtitle: offering.semester,
     keywords: offering.template?.title ?? null,
     visibilityTier: "OFFICER",
-  };
-}
-
-export function buildMeetingDocument(meeting: {
-  id: string;
-  title: string | null;
-  purpose: string | null;
-  category: string | null;
-  date?: Date | null;
-}): SearchDocumentRow {
-  return {
-    entityType: "meeting",
-    entityId: meeting.id,
-    title: meeting.title || "Officer meeting",
-    // Mirror the live meeting result's subtitle (category · date) so a future
-    // index cutover renders identically.
-    subtitle:
-      [
-        meeting.category,
-        meeting.date
-          ? meeting.date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" · ") || null,
-    keywords: meeting.purpose,
-    visibilityTier: "OFFICER",
-    // Structured date metadata — the live query orders meetings by date DESC;
-    // eventAt is what lets the index do the same.
-    eventAt: meeting.date ?? null,
   };
 }
 
@@ -343,7 +310,6 @@ export async function syncActionSearchDocument(actionId: string): Promise<void> 
         deadlineStart: true,
         deadlineEnd: true,
         lead: { select: { name: true, email: true } },
-        officerMeeting: { select: { title: true } },
       },
     });
     if (!action) {
@@ -383,22 +349,6 @@ export async function syncMentorshipSearchDocument(mentorshipId: string): Promis
     await upsertSearchDocument(buildMentorshipDocument(mentorship));
   } catch (err) {
     logIndexError("mentorship", mentorshipId, err);
-  }
-}
-
-export async function syncMeetingSearchDocument(meetingId: string): Promise<void> {
-  try {
-    const meeting = await prisma.officerMeeting.findUnique({
-      where: { id: meetingId },
-      select: { id: true, title: true, purpose: true, category: true, date: true },
-    });
-    if (!meeting) {
-      await removeSearchDocument("meeting", meetingId);
-      return;
-    }
-    await upsertSearchDocument(buildMeetingDocument(meeting));
-  } catch (err) {
-    logIndexError("meeting", meetingId, err);
   }
 }
 
@@ -460,11 +410,6 @@ async function collectAllRows(): Promise<SearchDocumentRow[]> {
   });
   for (const c of offerings) rows.push(buildClassDocument(c));
 
-  const meetings = await prisma.officerMeeting.findMany({
-    select: { id: true, title: true, purpose: true, category: true, date: true },
-  });
-  for (const m of meetings) rows.push(buildMeetingDocument(m));
-
   const actions = await prisma.actionItem.findMany({
     select: {
       id: true,
@@ -473,7 +418,6 @@ async function collectAllRows(): Promise<SearchDocumentRow[]> {
       deadlineStart: true,
       deadlineEnd: true,
       lead: { select: { name: true, email: true } },
-      officerMeeting: { select: { title: true } },
     },
   });
   for (const a of actions) rows.push(buildActionDocument(a));

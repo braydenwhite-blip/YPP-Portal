@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { whereActiveMember } from "@/lib/user-role-where";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
-import { getMeetingsForEntity } from "@/lib/people-strategy/meetings-queries";
 
 /**
  * Partner directory + pipeline reads.
@@ -163,9 +162,12 @@ export async function getActionsForPartner(partnerId: string, viewer: ActionView
   return getActionsForEntity("PARTNER", partnerId, viewer);
 }
 
-/** Meeting Tracker records linked to a partner through the shared related-entity fields. */
-export async function getMeetingsForPartner(partnerId: string, limit = 50) {
-  return getMeetingsForEntity("PARTNER", partnerId, limit);
+/**
+ * Meeting Tracker records linked to a partner. The old Meetings Tracker was
+ * removed, so this is always empty now — kept so existing callers still resolve.
+ */
+export async function getMeetingsForPartner(_partnerId: string, _limit = 50) {
+  return [] as const;
 }
 
 /** Deterministic partner attention logic shared by the profile and tests. */

@@ -37,7 +37,6 @@ function item(overrides: Partial<ActionItemWithRelations>): ActionItemWithRelati
     completedAt: null,
     visibility: "ALL_LEADERSHIP",
     leadId: "alice",
-    officerMeetingId: null,
     flaggedAt: null,
     escalatedToLeadershipAt: null,
     resolvedAt: null,

@@ -35,7 +35,6 @@ function item(overrides: Partial<ActionItemWithRelations>): ActionItemWithRelati
     completedAt: null,
     visibility: "ALL_LEADERSHIP",
     leadId: "alice",
-    officerMeetingId: null,
     flaggedAt: null,
     escalatedToLeadershipAt: null,
     resolvedAt: null,
@@ -118,7 +117,7 @@ describe("deriveWeeklyActionReview", () => {
       [
         item({ id: "won", status: "COMPLETE", completedAt: new Date("2026-06-08T12:00:00") }),
         item({ id: "overdue", deadlineStart: new Date("2026-06-01T00:00:00") }),
-        item({ id: "newFromMtg", createdAt: new Date("2026-06-09T09:00:00"), officerMeetingId: "m1" }),
+        item({ id: "newThisWeek", createdAt: new Date("2026-06-09T09:00:00") }),
         item({ id: "unowned", assignments: [assignment("alice", "LEAD")] }),
         item({ id: "blockedStale", status: "BLOCKED", updatedAt: new Date("2026-05-01T00:00:00"), blockedReason: "x" }),
       ],
@@ -126,8 +125,9 @@ describe("deriveWeeklyActionReview", () => {
     );
     expect(review.completedThisWeek.map((a) => a.id)).toContain("won");
     expect(review.overdue.map((a) => a.id)).toContain("overdue");
-    expect(review.createdThisWeek.map((a) => a.id)).toContain("newFromMtg");
-    expect(review.fromMeetingsThisWeek.map((a) => a.id)).toEqual(["newFromMtg"]);
+    expect(review.createdThisWeek.map((a) => a.id)).toContain("newThisWeek");
+    // The legacy meeting-source link is gone — no action can be "from a meeting".
+    expect(review.fromMeetingsThisWeek.map((a) => a.id)).toEqual([]);
     expect(review.unowned.map((a) => a.id)).toContain("unowned");
     expect(review.blockedNeedingEscalation.map((a) => a.id)).toContain("blockedStale");
   });

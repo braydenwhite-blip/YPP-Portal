@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { QueueRunner } from "@/components/queue/queue-runner";
@@ -6,16 +6,6 @@ import type { QueueItem } from "@/lib/queue/types";
 
 import { makeQueueItem } from "../lib/queue/fixtures";
 
-// Stub the domain mutations the inline panels call — we assert the runner's
-// orchestration, not the server actions (those have their own coverage).
-const convertDecisionToAction = vi.fn(async () => ({ id: "new-action" }));
-const setFollowUpStatus = vi.fn(async () => {});
-const convertFollowUpToAction = vi.fn(async () => ({ id: "new-action" }));
-vi.mock("@/lib/people-strategy/meetings-actions", () => ({
-  convertDecisionToAction: (...args: unknown[]) => convertDecisionToAction(...args),
-  setFollowUpStatus: (...args: unknown[]) => setFollowUpStatus(...args),
-  convertFollowUpToAction: (...args: unknown[]) => convertFollowUpToAction(...args),
-}));
 vi.mock("@/lib/queue/queue-actions", () => ({
   revalidateQueueSurfaces: vi.fn(async () => {}),
 }));
@@ -105,46 +95,9 @@ describe("QueueRunner — actionable work surface", () => {
     // Now on the second loop; the first is hidden but not resolved.
     expect(screen.getByText("Review Jordan's application")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Send the renewal email" })).not.toBeInTheDocument();
-    // No server action fired — skipping changes nothing.
-    expect(convertDecisionToAction).not.toHaveBeenCalled();
-    expect(setFollowUpStatus).not.toHaveBeenCalled();
   });
 
-  it("advances and confirms only after the source record actually clears", async () => {
-    const { rerender } = render(
-      <QueueRunner queueLabel="My queue" items={[decisionItem(), routeItem()]} />
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Create tracked action" }));
-
-    await waitFor(() => expect(convertDecisionToAction).toHaveBeenCalledWith("7"));
-
-    // Simulate the post-mutation refresh: the decision no longer produces a loop.
-    rerender(<QueueRunner queueLabel="My queue" items={[routeItem()]} />);
-
-    expect(await screen.findByText(/Done — "Move interviews to Tuesdays" cleared\./)).toBeInTheDocument();
-    expect(screen.getByText("Review Jordan's application")).toBeInTheDocument();
-  });
-
-  it("keeps a loop and explains when a mutation was partial (item still present)", async () => {
-    const { rerender } = render(
-      <QueueRunner queueLabel="My queue" items={[decisionItem(), routeItem()]} />
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Create tracked action" }));
-    await waitFor(() => expect(convertDecisionToAction).toHaveBeenCalled());
-
-    // Refresh returns the SAME item (e.g. nothing actually cleared) → keep it.
-    rerender(<QueueRunner queueLabel="My queue" items={[decisionItem(), routeItem()]} />);
-
-    expect(await screen.findByText(/stays in your queue until it's fully cleared/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Move interviews to Tuesdays" })).toBeInTheDocument();
-  });
-
-  it("shows a calm, encouraging empty state when there is nothing to do", () => {
-    render(<QueueRunner queueLabel="My queue" items={[]} />);
-    expect(screen.getByText("You're clear for now 🎉")).toBeInTheDocument();
-  });
-
-  it("lets a follow-up be handled or converted with real mutations", async () => {
+  it("renders informational decision and follow-up panels without mutation controls", () => {
     const followUp = makeQueueItem({
       id: "wh:follow_up:5",
       type: "follow_up",
@@ -152,10 +105,15 @@ describe("QueueRunner — actionable work surface", () => {
       title: "Email the partner the recap",
       inline: { kind: "follow_up", followUpId: "5" },
     });
-    render(<QueueRunner queueLabel="My queue" items={[followUp]} />);
-    fireEvent.click(screen.getByRole("button", { name: "Mark handled" }));
-    await waitFor(() =>
-      expect(setFollowUpStatus).toHaveBeenCalledWith({ id: "5", status: "COMPLETED" })
-    );
+    render(<QueueRunner queueLabel="My queue" items={[decisionItem(), followUp]} />);
+    // The decision panel is now informational — it explains the loop and points to
+    // the full record, with no inline conversion button.
+    expect(screen.getByText("Turn this into a tracked action")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create tracked action" })).not.toBeInTheDocument();
+  });
+
+  it("shows a calm, encouraging empty state when there is nothing to do", () => {
+    render(<QueueRunner queueLabel="My queue" items={[]} />);
+    expect(screen.getByText("You're clear for now 🎉")).toBeInTheDocument();
   });
 });

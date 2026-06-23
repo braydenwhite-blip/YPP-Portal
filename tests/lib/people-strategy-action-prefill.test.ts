@@ -242,19 +242,18 @@ describe("titleSimilarity", () => {
 
 describe("findDuplicateActionCandidates", () => {
   const existing: ExistingActionLite[] = [
-    { id: "a1", title: "Email Lincoln HS about cohort", status: "IN_PROGRESS", officerMeetingId: "m1", relatedEntityType: "PARTNER", relatedEntityId: "p1" },
-    { id: "a2", title: "Buy snacks", status: "IN_PROGRESS", officerMeetingId: "m9", relatedEntityType: null, relatedEntityId: null },
-    { id: "a3", title: "Email Lincoln HS about cohort", status: "COMPLETE", officerMeetingId: "m1", relatedEntityType: "PARTNER", relatedEntityId: "p1" },
+    { id: "a1", title: "Email Lincoln HS about cohort", status: "IN_PROGRESS", relatedEntityType: "PARTNER", relatedEntityId: "p1" },
+    { id: "a2", title: "Buy snacks", status: "IN_PROGRESS", relatedEntityType: null, relatedEntityId: null },
+    { id: "a3", title: "Email Lincoln HS about cohort", status: "COMPLETE", relatedEntityType: "PARTNER", relatedEntityId: "p1" },
   ];
 
-  it("flags an open action that shares the meeting, entity, or a similar title", () => {
+  it("flags an open action that shares the entity or a similar title", () => {
     const dups = findDuplicateActionCandidates(
       { title: "Email Lincoln HS about the cohort", sourceMeetingId: "m1", relatedType: "PARTNER", relatedId: "p1" },
       existing
     );
     expect(dups.map((d) => d.id)).toEqual(["a1"]);
     expect(dups[0].reasons).toContain("similar title");
-    expect(dups[0].reasons).toContain("from the same meeting");
     expect(dups[0].reasons).toContain("on the same entity");
   });
 

@@ -1,7 +1,7 @@
 import { actionPrefillToQuery, type ActionPrefill } from "./action-prefill";
 import type { ActionItemWithRelations } from "./action-queries";
 import type { RelatedEntitySummary } from "./connections";
-import type { MeetingCardDTO } from "./meetings-queries";
+import type { MeetingCardDTO } from "./meeting-card-types";
 import { operationalAreaLabel, type OperationalArea } from "./operational-context";
 import type { DigestDecisionInput } from "./operational-digest";
 import {

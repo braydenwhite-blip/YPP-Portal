@@ -36,7 +36,6 @@ import {
 import {
   getActionItemById,
   getActionsForEntity,
-  getActionsForMeeting,
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
 import { ACTION_STATUS_LABELS, isRelatedEntityType } from "@/lib/people-strategy/constants";
@@ -154,9 +153,6 @@ function toDetailDTO(
     deadlineStart: item.deadlineStart.toISOString(),
     deadlineEnd: item.deadlineEnd ? item.deadlineEnd.toISOString() : null,
     visibility: item.visibility,
-    officerMeetingId: item.officerMeetingId,
-    officerMeetingTitle: item.officerMeeting?.title ?? null,
-    officerMeetingDate: item.officerMeeting?.date ? item.officerMeeting.date.toISOString() : null,
     strategicInitiativeId: item.strategicInitiativeId,
     strategicProjectId: item.strategicProjectId,
     relatedEntityType: item.relatedEntityType,
@@ -250,17 +246,12 @@ export default async function ActionDetailPage({ params }: PageProps) {
     item.relatedEntityId != null &&
     isRelatedEntityType(item.relatedEntityType);
 
-  const [summary, sameEntityRaw, sameMeetingRaw] = await Promise.all([
+  const [summary, sameEntityRaw] = await Promise.all([
     hasEntity
       ? loadRelatedEntitySummary(item.relatedEntityType!, item.relatedEntityId!).catch(() => null)
       : Promise.resolve(null),
     hasEntity
       ? getActionsForEntity(item.relatedEntityType as never, item.relatedEntityId!, viewer).catch(
-          () => [] as ActionItemWithRelations[]
-        )
-      : Promise.resolve([] as ActionItemWithRelations[]),
-    item.officerMeetingId
-      ? getActionsForMeeting(item.officerMeetingId, viewer).catch(
           () => [] as ActionItemWithRelations[]
         )
       : Promise.resolve([] as ActionItemWithRelations[]),
@@ -272,10 +263,6 @@ export default async function ActionDetailPage({ params }: PageProps) {
   }
 
   const sameEntityActions = sameEntityRaw
-    .filter((a) => a.id !== item.id)
-    .slice(0, 6)
-    .map((a) => toLiteAction(a, now));
-  const sameMeetingActions = sameMeetingRaw
     .filter((a) => a.id !== item.id)
     .slice(0, 6)
     .map((a) => toLiteAction(a, now));
@@ -291,7 +278,6 @@ export default async function ActionDetailPage({ params }: PageProps) {
     urgency: deriveActionUrgency(item, now),
   };
   const intelCtaHref = canEdit ? `/actions/${item.id}/edit` : `/actions/${item.id}`;
-  const meetingHref = item.officerMeetingId ? `/meetings/${item.officerMeetingId}` : null;
 
   const focusReason = topSignal
     ? `${topSignal.reason}. Next: ${topSignal.nextStep}`
@@ -322,17 +308,6 @@ export default async function ActionDetailPage({ params }: PageProps) {
       }}
       meta={dueLabel}
     />,
-    ...(item.officerMeetingId
-      ? [
-          <SimpleRow
-            key="meeting"
-            href={`/meetings/${item.officerMeetingId}`}
-            icon="calendar"
-            name={item.officerMeeting?.title ?? "Source meeting"}
-            what="From meeting"
-          />,
-        ]
-      : []),
     ...(detail.relatedEntityHref && detail.relatedEntityLabel
       ? [
           <SimpleRow
@@ -408,7 +383,6 @@ export default async function ActionDetailPage({ params }: PageProps) {
           canFlag={canFlag}
           closeHref={closeHref}
           sameEntityActions={sameEntityActions}
-          sameMeetingActions={sameMeetingActions}
           calmLayout
         />
         {officer ? (
@@ -420,7 +394,6 @@ export default async function ActionDetailPage({ params }: PageProps) {
               linkage={intel.linkage}
               urgency={intel.urgency}
               ctaHref={intelCtaHref}
-              meetingHref={meetingHref}
             />
             {strategicContext ? (
               <StrategicContextSection context={strategicContext} kind="action" />

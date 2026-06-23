@@ -246,7 +246,7 @@ export async function suggestFeedbackCollaborators(
     return entry;
   };
 
-  const [actionItems, mentorships, offerings, meetings] = await Promise.all([
+  const [actionItems, mentorships, offerings] = await Promise.all([
     prisma.actionItem.findMany({
       where: {
         updatedAt: { gte: since },
@@ -301,22 +301,9 @@ export async function suggestFeedbackCollaborators(
         },
       },
     }),
-    prisma.officerMeeting.findMany({
-      where: {
-        date: { gte: since },
-        status: { not: "CANCELLED" },
-        attendees: { some: { userId: subjectUserId } },
-      },
-      select: {
-        id: true,
-        title: true,
-        date: true,
-        attendees: { select: { user: { select: USER_SELECT } } },
-      },
-      orderBy: { date: "desc" },
-      take: 40,
-    }),
   ]);
+
+  // The old Meetings Tracker was removed — shared-meeting evidence is empty now.
 
   for (const item of actionItems) {
     const deadline = item.deadlineEnd ?? item.deadlineStart;
@@ -359,21 +346,6 @@ export async function suggestFeedbackCollaborators(
     };
     collect(offering.instructor);
     for (const a of offering.regularInstructorAssignments) collect(a.instructor);
-  }
-
-  for (const meeting of meetings) {
-    const shared = {
-      id: meeting.id,
-      title:
-        meeting.title ??
-        `Officer Meeting · ${formatDueDate(meeting.date)}`,
-    };
-    const seen = new Set<string>();
-    for (const attendee of meeting.attendees) {
-      if (seen.has(attendee.user.id)) continue;
-      seen.add(attendee.user.id);
-      evidenceFor(attendee.user)?.sharedMeetings.push(shared);
-    }
   }
 
   return Array.from(evidence.values())
