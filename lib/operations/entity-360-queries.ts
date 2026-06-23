@@ -19,8 +19,10 @@ import {
   getMeetingById,
   getMeetingsForEntity,
   mapMeetingToCardDTO,
+  mapMeetingsToCardDTOs,
   type MeetingCardDTO,
 } from "@/lib/people-strategy/meetings-queries";
+import { getMeetingActionLinks } from "@/lib/people-strategy/action-queries";
 import {
   toActionLite,
   toDecisionLite,
@@ -799,7 +801,7 @@ async function loadClass360(
     prisma.classFeedback.count({ where: { offeringId: id } }).catch(() => 0),
   ]);
   const actionLites = actions.map((a) => toActionLite(a, now));
-  const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  const meetingDtos = await mapMeetingsToCardDTOs(meetings, now);
   const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
 
   // Readiness is THE shared judgment (signals.ts) — the same rule the
@@ -1020,7 +1022,7 @@ async function loadPartner360(
     getMeetingsForEntity("PARTNER", id, DRAWER_LIMITS.meetings),
   ]);
   const actionLites = actions.map((a) => toActionLite(a, now));
-  const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  const meetingDtos = await mapMeetingsToCardDTOs(meetings, now);
   const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
 
   // Relationship health is THE shared judgment (signals.ts) — same rule as the
@@ -1397,7 +1399,7 @@ async function loadMeeting360(
   if (!isOfficerTier(viewer)) return null;
   const meeting = await getMeetingById(id);
   if (!meeting) return null;
-  const dto = mapMeetingToCardDTO(meeting, now);
+  const dto = mapMeetingToCardDTO(meeting, now, await getMeetingActionLinks(meeting.id));
   const lite = toMeetingLite(dto, now);
 
   // New meetings are not linked to the polymorphic entity vocabulary.
@@ -1645,7 +1647,7 @@ async function loadMentorship360(
     getMeetingsForEntity("MENTORSHIP", id, DRAWER_LIMITS.meetings),
   ]);
   const actionLites = actions.map((a) => toActionLite(a, now));
-  const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  const meetingDtos = await mapMeetingsToCardDTOs(meetings, now);
   const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
 
   const mentorName = pairing.mentor.name ?? pairing.mentor.email;
@@ -1811,7 +1813,7 @@ async function loadApplicant360(
     getMeetingsForEntity("INSTRUCTOR_APPLICATION", id, DRAWER_LIMITS.meetings),
   ]);
   const actionLites = actions.map((a) => toActionLite(a, now));
-  const meetingDtos = meetings.map((m) => mapMeetingToCardDTO(m, now));
+  const meetingDtos = await mapMeetingsToCardDTOs(meetings, now);
   const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
 
   const daysInPipeline = Math.max(

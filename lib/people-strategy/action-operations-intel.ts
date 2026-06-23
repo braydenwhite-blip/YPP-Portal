@@ -11,6 +11,7 @@ import {
   rankActionAttention,
   type ActionNextMove,
 } from "./action-intel";
+import { isMeetingSourceType } from "./action-source";
 
 /**
  * Action System 4.0 — OPERATIONS INTELLIGENCE (pure).
@@ -128,7 +129,7 @@ export function deriveWeeklyActionReview(
     overdue: items.filter((i) => isActionOverdue(i, now)),
     createdThisWeek: items.filter((i) => i.createdAt.getTime() >= ws),
     fromMeetingsThisWeek: items.filter(
-      (i) => i.createdAt.getTime() >= ws && false
+      (i) => i.createdAt.getTime() >= ws && isMeetingSourceType(i.sourceType)
     ),
     unowned: items.filter(
       (i) => isOpen(i) && !i.assignments.some((a) => a.role === "EXECUTING")

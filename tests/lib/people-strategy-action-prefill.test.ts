@@ -159,7 +159,7 @@ describe("buildActionPrefillFromMeetingFollowUp", () => {
     expect(p.title).toBe("Confirm STEM scope before emailing partner");
     expect(p.description).toContain("Rockets and planes may be too narrow.");
     expect(p.sourceMeetingId).toBe("m1");
-    expect(p.sourceType).toBe("MEETING");
+    expect(p.sourceType).toBe("MEETING_FOLLOW_UP");
     expect(p.sourceId).toBe("f1");
     expect(p.suggestedOwnerId).toBe("u1");
     expect(p.dueDate).toBe("2026-06-07");

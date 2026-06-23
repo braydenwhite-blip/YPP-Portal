@@ -13362,6 +13362,14 @@ model Meeting {
   /// The reporting week this meeting reads impact rows from (Monday 00:00 UTC).
   weekStart DateTime?
 
+  /// Honest provenance for meetings BORN from another object (mirrors
+  /// ActionItem.sourceType/sourceId). String-typed (no FK) to keep cross-domain
+  /// linking flexible. e.g. sourceType "INTERVIEW" + sourceId =
+  /// InterviewSchedulingRequest.id, so scheduling an interview upserts exactly
+  /// one meeting instead of creating duplicates. Null = created directly.
+  sourceType String?
+  sourceId   String?
+
   attendees     MeetingAttendee[]  @relation("MeetingAttendees")
   presentations WeeklyImpactRow[]  @relation("MeetingPresentationRows")
   officerTopics OfficerTopic[]     @relation("MeetingOfficerTopics")
@@ -13380,6 +13388,7 @@ model Meeting {
   @@index([teamId])
   @@index([facilitatorId])
   @@index([weekStart])
+  @@index([sourceType, sourceId])
 }
 
 /// Attendance row for a meeting.

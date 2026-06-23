@@ -30,6 +30,7 @@ export const ACTION_SOURCE_TYPE_VALUES = [
   "MANUAL",
   "MEETING",
   "MEETING_DECISION",
+  "MEETING_FOLLOW_UP",
   "PROJECT",
   "INITIATIVE",
   "ENTITY",
@@ -37,6 +38,20 @@ export const ACTION_SOURCE_TYPE_VALUES = [
   "COMMAND_CENTER",
   "FOLLOW_UP",
 ] as const;
+
+/** Source types that mean "this action came out of a meeting". */
+export const MEETING_SOURCE_TYPES = [
+  "MEETING",
+  "MEETING_DECISION",
+  "MEETING_FOLLOW_UP",
+] as const satisfies readonly ActionSourceType[];
+
+export function isMeetingSourceType(value: unknown): value is ActionSourceType {
+  return (
+    typeof value === "string" &&
+    (MEETING_SOURCE_TYPES as readonly string[]).includes(value)
+  );
+}
 export type ActionSourceType = (typeof ACTION_SOURCE_TYPE_VALUES)[number];
 
 /** Short badge label. */
@@ -44,6 +59,7 @@ export const ACTION_SOURCE_TYPE_LABELS: Record<ActionSourceType, string> = {
   MANUAL: "Manual",
   MEETING: "Meeting",
   MEETING_DECISION: "Meeting decision",
+  MEETING_FOLLOW_UP: "Meeting follow-up",
   PROJECT: "Project",
   INITIATIVE: "Initiative",
   ENTITY: "Entity",
@@ -57,6 +73,7 @@ export const ACTION_SOURCE_HEADER: Record<ActionSourceType, string> = {
   MANUAL: "New manual action",
   MEETING: "Action from meeting",
   MEETING_DECISION: "Action from a meeting decision",
+  MEETING_FOLLOW_UP: "Action from a meeting follow-up",
   PROJECT: "Project action",
   INITIATIVE: "Initiative action",
   ENTITY: "Entity action",
@@ -70,6 +87,7 @@ export const ACTION_SOURCE_WHY: Record<ActionSourceType, string> = {
   MANUAL: "Created by hand — make sure it has an owner and a clear definition of done.",
   MEETING: "This came out of a meeting. Keep it tied to the meeting so the loop closes.",
   MEETING_DECISION: "This carries out a decision that was made — execution is the proof.",
+  MEETING_FOLLOW_UP: "This carries out a follow-up captured in a meeting — closing it closes the loop.",
   PROJECT: "This action moves a specific project forward.",
   INITIATIVE: "This action ladders up to a strategic initiative.",
   ENTITY: "This action is about a specific person, class, partner, or mentorship.",
@@ -273,14 +291,17 @@ function describe(
   explicit: boolean,
   input: ActionSourceInput
 ): ActionSourceDescriptor {
+  const sourceId = input.sourceId?.trim() || null;
   return {
     type,
     explicit,
     label: ACTION_SOURCE_TYPE_LABELS[type],
     header: ACTION_SOURCE_HEADER[type],
     why: ACTION_SOURCE_WHY[type],
-    sourceId: input.sourceId?.trim() || null,
-    meetingId: null,
+    sourceId,
+    // For a MEETING source the fine-grained sourceId IS the meeting id; the
+    // decision/follow-up variants point at the child record, not the meeting.
+    meetingId: type === "MEETING" ? sourceId : null,
     parentActionId: input.sourceActionId?.trim() || null,
   };
 }
@@ -321,6 +342,8 @@ export function deriveActionSourceLabel(input: ActionSourceInput): string {
       return `${prefix} a meeting`;
     case "MEETING_DECISION":
       return `${prefix} a meeting decision`;
+    case "MEETING_FOLLOW_UP":
+      return `${prefix} a meeting follow-up`;
     case "PROJECT":
       return `${prefix} a project`;
     case "INITIATIVE":

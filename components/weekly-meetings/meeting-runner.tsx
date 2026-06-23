@@ -36,6 +36,12 @@ import {
   setTopicOwners,
   updateOfficerTopic,
 } from "@/lib/weekly-meetings/meeting-actions";
+import {
+  actionPrefillToQuery,
+  buildActionPrefillFromDecision,
+  buildActionPrefillFromMeeting,
+  buildActionPrefillFromMeetingFollowUp,
+} from "@/lib/people-strategy/action-prefill";
 import { copyHtmlToClipboard, downloadDocx } from "./copy-docs";
 
 const inputCls =
@@ -105,7 +111,15 @@ export function MeetingRunner({
               {meeting.weekLabel && <span><b className="font-semibold text-ink">Week:</b> {meeting.weekLabel}</span>}
             </p>
           </div>
+          <div className="flex shrink-0 flex-col items-end gap-2">
           <StatusControl meeting={meeting} pending={pending} onSet={(status) => run(() => setMeetingStatus({ meetingId: meeting.id, status }))} />
+          <Link
+            href={actionPrefillToQuery(buildActionPrefillFromMeeting({ meetingId: meeting.id, title: `Follow-through: ${meeting.title}` }))}
+            className="text-[12.5px] font-medium text-brand-700 hover:underline"
+          >
+            + New action from this meeting
+          </Link>
+        </div>
         </div>
       </CardV2>
 
@@ -421,7 +435,26 @@ function DecisionsSection({
               <p className="m-0 text-[13.5px] text-ink">{d.decision}</p>
               {d.decidedBy && <p className="m-0 text-[11.5px] text-ink-muted">— {d.decidedBy.name}</p>}
             </div>
-            <button type="button" className="text-[12px] text-ink-muted hover:text-danger-700" onClick={() => run(() => deleteDecision({ decisionId: d.id }))}>✕</button>
+            <div className="flex shrink-0 items-center gap-3">
+              {d.linkedActionId ? (
+                <Link href={`/actions/${d.linkedActionId}`} className="text-[12px] font-medium text-success-700 hover:underline">✓ Action</Link>
+              ) : (
+                <Link
+                  href={actionPrefillToQuery(buildActionPrefillFromDecision({
+                    decision: d.decision,
+                    rationale: d.rationale,
+                    meetingId: meeting.id,
+                    decisionId: d.id,
+                    meetingTitle: meeting.title,
+                    suggestedOwnerId: d.decidedBy?.id ?? null,
+                  }))}
+                  className="text-[12px] font-medium text-brand-700 hover:underline"
+                >
+                  Create action
+                </Link>
+              )}
+              <button type="button" className="text-[12px] text-ink-muted hover:text-danger-700" onClick={() => run(() => deleteDecision({ decisionId: d.id }))}>✕</button>
+            </div>
           </div>
         ))}
         {meeting.decisions.length === 0 && <p className="m-0 text-[13px] text-ink-muted">No decisions recorded.</p>}
@@ -467,7 +500,27 @@ function FollowUpsSection({
                 <p className="m-0 text-[11.5px] text-ink-muted">{f.owner?.name ?? "Unassigned"}{f.dueISO ? ` · due ${new Date(f.dueISO).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</p>
               </div>
             </div>
-            <button type="button" className="text-[12px] text-ink-muted hover:text-danger-700" onClick={() => run(() => deleteFollowUp({ followUpId: f.id }))}>✕</button>
+            <div className="flex shrink-0 items-center gap-3">
+              {f.linkedActionId ? (
+                <Link href={`/actions/${f.linkedActionId}`} className="text-[12px] font-medium text-success-700 hover:underline">✓ Action</Link>
+              ) : (
+                <Link
+                  href={actionPrefillToQuery(buildActionPrefillFromMeetingFollowUp({
+                    followUpId: f.id,
+                    title: f.title,
+                    description: f.detail,
+                    meetingId: meeting.id,
+                    meetingTitle: meeting.title,
+                    suggestedOwnerId: f.owner?.id ?? null,
+                    dueDate: f.dueISO,
+                  }))}
+                  className="text-[12px] font-medium text-brand-700 hover:underline"
+                >
+                  Create action
+                </Link>
+              )}
+              <button type="button" className="text-[12px] text-ink-muted hover:text-danger-700" onClick={() => run(() => deleteFollowUp({ followUpId: f.id }))}>✕</button>
+            </div>
           </div>
         ))}
         {meeting.followUps.length === 0 && <p className="m-0 text-[13px] text-ink-muted">No follow-ups yet.</p>}

@@ -8,6 +8,7 @@ import {
   deriveActionStrategicLinkage,
   isActionCompletionOutcome,
   isActionSourceType,
+  isMeetingSourceType,
   parseActionCompletionOutcome,
   parseActionSourceType,
   parseStrategicLink,
@@ -171,6 +172,26 @@ describe("deriveActionSource", () => {
     });
     expect(src.type).toBe("WEEKLY_REVIEW");
     expect(src.explicit).toBe(true);
+  });
+
+  it("resolves meetingId from sourceId for a MEETING source only", () => {
+    const meeting = deriveActionSource({ sourceType: "MEETING", sourceId: "mtg_1" });
+    expect(meeting.meetingId).toBe("mtg_1");
+    // A decision/follow-up action points at the child record, not the meeting.
+    const decision = deriveActionSource({ sourceType: "MEETING_DECISION", sourceId: "dec_1" });
+    expect(decision.meetingId).toBeNull();
+    expect(decision.sourceId).toBe("dec_1");
+  });
+});
+
+describe("isMeetingSourceType", () => {
+  it("matches the three meeting source types and nothing else", () => {
+    for (const v of ["MEETING", "MEETING_DECISION", "MEETING_FOLLOW_UP"]) {
+      expect(isMeetingSourceType(v)).toBe(true);
+    }
+    for (const v of ["MANUAL", "PROJECT", "FOLLOW_UP", null, undefined]) {
+      expect(isMeetingSourceType(v)).toBe(false);
+    }
   });
 });
 

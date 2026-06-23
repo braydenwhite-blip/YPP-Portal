@@ -9,6 +9,7 @@ import {
 } from "./people-cockpit";
 import type { PeoplePerformanceRow } from "./people-performance";
 import { listMeetingsInRange, mapMeetingToCardDTO } from "./meetings-queries";
+import { getMeetingActionLinksForMeetings } from "./action-queries";
 
 /**
  * People Strategy — cockpit loader.
@@ -46,9 +47,10 @@ async function loadMeetingsWithOpenFollowups(
   // Read-loaders fail safe (return []) when the Action Tracker flag is off, so
   // this degrades to "no meeting lane" rather than throwing.
   const meetings = await listMeetingsInRange(addDays(now, -RECENT_MEETING_WINDOW_DAYS), now);
+  const actionLinks = await getMeetingActionLinksForMeetings(meetings.map((m) => m.id));
   const result: MeetingWithOpenFollowups[] = [];
   for (const meeting of meetings) {
-    const card = mapMeetingToCardDTO(meeting, now);
+    const card = mapMeetingToCardDTO(meeting, now, actionLinks.get(meeting.id));
     if (card.openFollowUps <= 0) continue;
     result.push({
       id: card.id,

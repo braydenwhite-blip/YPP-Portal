@@ -284,6 +284,9 @@ export function buildActionPrefillFromMeeting(src: MeetingActionPrefillSource): 
     title: src.title,
     sourceMeetingId: src.meetingId,
     sourceType: "MEETING",
+    // The meeting id IS this action's durable source pointer (sourceMeetingId is
+    // not persisted on the new model), so the read-side can resolve it back.
+    sourceId: src.meetingId,
     area:
       src.meetingCategory && isMeetingCategory(src.meetingCategory)
         ? src.meetingCategory
@@ -332,7 +335,10 @@ export function buildActionPrefillFromMeetingFollowUp(
     title,
     description: parts.join("\n\n"),
     sourceMeetingId: src.meetingId,
-    sourceType: "MEETING",
+    // Honest provenance: this action carries out a specific meeting follow-up,
+    // so the fine-grained sourceId is the follow-up id (distinct from a
+    // meeting-level action, whose sourceId is the meeting id).
+    sourceType: "MEETING_FOLLOW_UP",
     sourceId: src.followUpId,
     suggestedOwnerId: src.suggestedOwnerId ?? undefined,
     successDefinition: "Done when this follow-up is completed and confirmed in the meeting record.",
