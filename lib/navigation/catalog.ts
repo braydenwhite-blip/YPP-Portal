@@ -1333,6 +1333,24 @@ export const NAV_CATALOG: NavLink[] = [
     },
     { href: "/admin/bulk-users", label: "Bulk Users", icon: "👥", roles: ADMIN_ONLY },
     {
+      href: "/admin/role-management",
+      label: "Role Management",
+      icon: "🪪",
+      roles: ADMIN_ONLY,
+      searchAliases: [
+        "Roles",
+        "User roles",
+        "Set roles",
+        "Promote",
+        "Promotion",
+        "Promotional view",
+        "Role assignments",
+        "Admin subtypes",
+      ],
+      dashboardDescription:
+        "Set every user's exact roles, admin subtypes, and chapter from one place.",
+    },
+    {
       href: "/admin/teams",
       label: "Teams",
       icon: "🧩",
