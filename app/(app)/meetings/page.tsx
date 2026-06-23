@@ -279,12 +279,20 @@ export default async function MeetingsHomePage() {
   return (
     <div className={skin.portalSkin}>
       <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-7 pb-12">
-        <header>
-          <p className="m-0 text-[12px] font-bold uppercase tracking-wide text-ink-muted">{fmtEyebrow(now)}</p>
-          <h1 className="m-0 mt-1.5 text-[34px] font-bold leading-tight text-ink">
-            Good {greetingWord(now.getHours())}, {firstName}
-          </h1>
-          <p className="m-0 mt-2 text-[15px] leading-relaxed text-ink-muted">{statusSentence}</p>
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="m-0 text-[12px] font-bold uppercase tracking-wide text-ink-muted">{fmtEyebrow(now)}</p>
+            <h1 className="m-0 mt-1.5 text-[34px] font-bold leading-tight text-ink">
+              Good {greetingWord(now.getHours())}, {firstName}
+            </h1>
+            <p className="m-0 mt-2 text-[15px] leading-relaxed text-ink-muted">{statusSentence}</p>
+          </div>
+          <Link
+            href="/actions/meetings/new"
+            className="shrink-0 rounded-lg bg-brand-700 px-4 py-2.5 text-[14px] font-bold text-white no-underline shadow-sm transition-colors hover:bg-brand-800"
+          >
+            + Schedule meeting
+          </Link>
         </header>
 
         {hasAny ? (
@@ -336,8 +344,8 @@ export default async function MeetingsHomePage() {
               <section className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="m-0 text-[18px] font-bold text-ink">Your meetings</h2>
-                  <Link href="/meetings" className="text-[13px] font-semibold text-brand-700 hover:underline">
-                    Find a meeting
+                  <Link href="/my-weekly-impact" className="text-[13px] font-semibold text-brand-700 hover:underline">
+                    Submit weekly impact
                   </Link>
                 </div>
                 {yourMeetingsLane.length > 0 ? (
@@ -358,12 +366,7 @@ export default async function MeetingsHomePage() {
               </section>
 
               <section className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="m-0 text-[18px] font-bold text-ink">Recent meetings</h2>
-                  <Link href="/meetings" className="text-[13px] font-semibold text-brand-700 hover:underline">
-                    All summaries
-                  </Link>
-                </div>
+                <h2 className="m-0 text-[18px] font-bold text-ink">Recent meetings</h2>
                 {recentMeetings.length > 0 ? (
                   <CardV2 padding="none" className="divide-y divide-line-soft/70 p-2">
                     {recentMeetings.map((card) => (

@@ -34,11 +34,16 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "tests/**/*.ts",
-    "vitest.config.ts"
+    ".next/dev/types/**/*.ts"
   ],
+  // `tsc` (and `next build`'s type pass) validate shipping code. Test files are
+  // validated by `npm test` (vitest/esbuild, which ignores this config), and
+  // `vitest.config.ts` pulls in @vitejs/plugin-react whose .d.ts needs a newer
+  // TypeScript than the repo pins — so both are checked by their own runner.
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "vitest.config.ts",
+    "tests",
+    "playwright.config.ts"
   ]
 }

@@ -115,13 +115,9 @@ function TeamCard({ section }: { section: ImpactMeetingAgendaSection }) {
 
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-line-soft pt-3 text-[12.5px] font-bold">
         <Link href={section.briefHref} className="text-brand-700 no-underline hover:underline">
-          {section.readiness === "missing" ? "Open blank update →" : "View submission →"}
+          {section.readiness === "missing" ? "Open team update →" : "View submission →"}
         </Link>
-        {status.label === "Not submitted" ? (
-          <Link href={section.briefHref} className="text-amber-700 no-underline hover:underline">
-            Send reminder →
-          </Link>
-        ) : flagged > 0 ? (
+        {status.label !== "Not submitted" && flagged > 0 ? (
           <Link href={section.briefHref} className="text-amber-700 no-underline hover:underline">
             See flags →
           </Link>
