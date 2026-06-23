@@ -45,6 +45,9 @@ const ACTION_ITEM_INCLUDE = {
       email: true,
       primaryRole: true,
       title: true,
+      internalLevel: true,
+      ladder: true,
+      canonicalTitle: true,
       adminSubtypes: { select: { subtype: true } },
       profile: { select: { avatarUrl: true } },
     },
@@ -56,6 +59,9 @@ const ACTION_ITEM_INCLUDE = {
       email: true,
       primaryRole: true,
       title: true,
+      internalLevel: true,
+      ladder: true,
+      canonicalTitle: true,
       adminSubtypes: { select: { subtype: true } },
       profile: { select: { avatarUrl: true } },
     },
@@ -416,6 +422,9 @@ export type ActionPickerUser = {
   email: string;
   primaryRole: string | null;
   title: string | null;
+  internalLevel: number | null;
+  ladder: string | null;
+  canonicalTitle: string | null;
   adminSubtypes: string[];
 };
 
@@ -442,6 +451,9 @@ export async function listActionAssignableUsers(): Promise<ActionPickerUser[]> {
         email: true,
         primaryRole: true,
         title: true,
+        internalLevel: true,
+        ladder: true,
+        canonicalTitle: true,
         adminSubtypes: { select: { subtype: true } },
       },
       orderBy: [{ name: "asc" }, { email: "asc" }],
@@ -454,6 +466,9 @@ export async function listActionAssignableUsers(): Promise<ActionPickerUser[]> {
         email: user.email,
         primaryRole: user.primaryRole,
         title: user.title,
+        internalLevel: user.internalLevel,
+        ladder: user.ladder,
+        canonicalTitle: user.canonicalTitle,
         adminSubtypes: user.adminSubtypes.map((entry) => entry.subtype),
       }))
     );

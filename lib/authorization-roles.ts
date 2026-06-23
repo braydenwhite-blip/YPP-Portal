@@ -43,6 +43,11 @@ export type SessionUser = {
   roles: string[];
   primaryRole: string;
   adminSubtypes: AdminSubtypeValue[];
+  /** Org-authority spine (optional; preferred over roles/subtypes when present). */
+  internalLevel?: number | null;
+  ladder?: string | null;
+  canonicalTitle?: string | null;
+  title?: string | null;
 };
 
 export function normalizeRoleSet(

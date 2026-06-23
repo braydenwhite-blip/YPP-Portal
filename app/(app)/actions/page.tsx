@@ -117,6 +117,10 @@ export default async function ActionsPage({
       userTitle={getUserTitle({
         primaryRole: viewer.primaryRole,
         adminSubtypes: viewer.adminSubtypes,
+        title: session.user.title,
+        internalLevel: session.user.internalLevel,
+        ladder: session.user.ladder,
+        canonicalTitle: session.user.canonicalTitle,
       })}
     />
   );
