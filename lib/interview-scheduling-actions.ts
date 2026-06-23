@@ -1925,6 +1925,73 @@ function bookingInitialMessage({
   return `${actorName} booked a ${domain === "HIRING" ? "hiring" : "readiness"} interview for ${intervieweeName} with ${interviewerName} on ${when}.`;
 }
 
+/** Source tag stored on meetings that were born from a scheduled interview. */
+const MEETING_SOURCE_INTERVIEW = "INTERVIEW";
+
+/**
+ * Upsert the Meeting that mirrors a scheduled interview, keyed by the interview
+ * request id (`sourceType` = "INTERVIEW", `sourceId` = request id). Idempotent:
+ * booking creates it, rescheduling updates its time, cancelling marks it
+ * CANCELLED — never a duplicate. Best-effort: a meeting-sync failure must not
+ * fail the interview booking itself, so callers swallow errors.
+ */
+async function upsertMeetingForInterview(input: {
+  requestId: string;
+  title: string;
+  scheduledAt: Date;
+  durationMin: number;
+  facilitatorId: string | null;
+  meetingLink: string | null;
+  createdById: string | null;
+  status?: "SCHEDULED" | "CANCELLED";
+}): Promise<void> {
+  const endAt = new Date(input.scheduledAt.getTime() + Math.max(1, input.durationMin) * 60_000);
+  const existing = await prisma.meeting.findFirst({
+    where: { sourceType: MEETING_SOURCE_INTERVIEW, sourceId: input.requestId },
+    select: { id: true },
+  });
+
+  if (existing) {
+    await prisma.meeting.update({
+      where: { id: existing.id },
+      data: {
+        title: input.title,
+        scheduledAt: input.scheduledAt,
+        endAt,
+        location: input.meetingLink,
+        facilitatorId: input.facilitatorId,
+        status: input.status ?? "SCHEDULED",
+      },
+    });
+  } else {
+    await prisma.meeting.create({
+      data: {
+        type: "GENERIC",
+        status: input.status ?? "SCHEDULED",
+        title: input.title,
+        purpose: "Auto-created from a scheduled interview.",
+        scheduledAt: input.scheduledAt,
+        endAt,
+        location: input.meetingLink,
+        facilitatorId: input.facilitatorId,
+        createdById: input.createdById,
+        sourceType: MEETING_SOURCE_INTERVIEW,
+        sourceId: input.requestId,
+      },
+    });
+  }
+  revalidatePath("/meetings");
+}
+
+/** Cancel the interview-mirror meeting for a request, if one exists. */
+async function cancelMeetingForInterview(requestId: string): Promise<void> {
+  await prisma.meeting.updateMany({
+    where: { sourceType: MEETING_SOURCE_INTERVIEW, sourceId: requestId },
+    data: { status: "CANCELLED" },
+  });
+  revalidatePath("/meetings");
+}
+
 export async function bookInterviewWorkflowSlot(formData: FormData) {
   const viewer = await getViewerContext();
   const domain = getString(formData, "domain") as InterviewDomain;
@@ -2040,6 +2107,16 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
       duration: slotContext.duration,
       meetingLink: slotContext.meetingLink,
     });
+
+    await upsertMeetingForInterview({
+      requestId: request.id,
+      title: `Interview: ${application.applicant.name ?? "Applicant"} — ${application.position.title}`,
+      scheduledAt,
+      durationMin: slotContext.duration,
+      facilitatorId: interviewerId,
+      meetingLink: slotContext.meetingLink,
+      createdById: viewer.userId,
+    }).catch(() => {});
 
     await Promise.all([
       createSystemNotification(
@@ -2168,6 +2245,16 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
       meetingLink: slotContext.meetingLink,
       source: viewer.userId === gate.instructorId ? InterviewSlotSource.INSTRUCTOR_REQUESTED : InterviewSlotSource.REVIEWER_POSTED,
     });
+
+    await upsertMeetingForInterview({
+      requestId: request.id,
+      title: `Readiness interview: ${gate.instructor.name ?? "Instructor"}`,
+      scheduledAt,
+      durationMin: slotContext.duration,
+      facilitatorId: interviewerId,
+      meetingLink: slotContext.meetingLink,
+      createdById: viewer.userId,
+    }).catch(() => {});
 
     await Promise.all([
       createSystemNotification(
@@ -2387,6 +2474,19 @@ export async function confirmInterviewReschedule(formData: FormData) {
     },
   });
 
+  await upsertMeetingForInterview({
+    requestId: request.id,
+    title:
+      request.domain === "HIRING"
+        ? `Interview: ${request.application?.applicant.name ?? "Applicant"} — ${request.application?.position.title ?? "Role"}`
+        : `Readiness interview: ${request.gate?.instructor.name ?? "Instructor"}`,
+    scheduledAt,
+    durationMin: slotContext.duration,
+    facilitatorId: interviewerId,
+    meetingLink: slotContext.meetingLink,
+    createdById: viewer.userId,
+  }).catch(() => {});
+
   const interviewer = await prisma.user.findUnique({
     where: { id: interviewerId },
     select: { name: true, email: true },
@@ -2491,6 +2591,8 @@ export async function cancelInterviewWorkflow(formData: FormData) {
       note,
     },
   });
+
+  await cancelMeetingForInterview(requestId).catch(() => {});
 
   if (request.domain === "HIRING" && request.applicationId) {
     await prisma.$transaction([

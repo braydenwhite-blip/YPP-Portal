@@ -6,6 +6,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { getMeetingActionLinks, type MeetingLinkedAction } from "@/lib/people-strategy/action-queries";
 import { weekKey, weekLabel } from "./week";
 
 export type MeetingType = "OFFICER" | "WEEKLY_TEAM_IMPACT" | "CHAPTER_IMPACT" | "GENERIC";
@@ -68,6 +69,8 @@ export type DecisionDTO = {
   rationale: string | null;
   decidedBy: PersonDTO;
   createdISO: string;
+  /** The tracked action carrying out this decision, if one has been created. */
+  linkedActionId: string | null;
 };
 
 export type FollowUpDTO = {
@@ -77,6 +80,8 @@ export type FollowUpDTO = {
   status: "OPEN" | "IN_PROGRESS" | "COMPLETED";
   dueISO: string | null;
   owner: PersonDTO;
+  /** The tracked action carrying out this follow-up, if one has been created. */
+  linkedActionId: string | null;
 };
 
 export type MeetingDetail = {
@@ -99,6 +104,8 @@ export type MeetingDetail = {
   followUps: FollowUpDTO[];
   boardRows: PresentationDTO[];
   boardTopics: OfficerTopicDTO[];
+  /** Every tracked action that originated from this meeting. */
+  linkedActions: MeetingLinkedAction[];
 };
 
 function scopeLabelFor(m: {
@@ -220,6 +227,8 @@ export async function getMeeting(id: string): Promise<MeetingDetail | null> {
     weekStart: m.weekStart,
   });
 
+  const actionLinks = await getMeetingActionLinks(m.id);
+
   const officerTopics: OfficerTopicDTO[] = m.officerTopics.map((t) => ({
     id: t.id,
     sortOrder: t.sortOrder,
@@ -261,6 +270,7 @@ export async function getMeeting(id: string): Promise<MeetingDetail | null> {
       rationale: d.rationale,
       decidedBy: d.decidedBy ? { id: d.decidedBy.id, name: d.decidedBy.name } : null,
       createdISO: d.createdAt.toISOString(),
+      linkedActionId: actionLinks.decisionActionId.get(d.id) ?? null,
     })),
     followUps: m.followUps.map((f) => ({
       id: f.id,
@@ -269,8 +279,10 @@ export async function getMeeting(id: string): Promise<MeetingDetail | null> {
       status: f.status,
       dueISO: f.dueDate ? f.dueDate.toISOString() : null,
       owner: f.owner ? { id: f.owner.id, name: f.owner.name } : null,
+      linkedActionId: actionLinks.followUpActionId.get(f.id) ?? null,
     })),
     boardRows: presentations.filter((p) => p.sendToBoard),
     boardTopics: officerTopics.filter((t) => t.sendToBoard),
+    linkedActions: actionLinks.actions,
   };
 }

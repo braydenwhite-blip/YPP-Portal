@@ -14,6 +14,7 @@ import {
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
+import { getMeetingActionLinks } from "@/lib/people-strategy/action-queries";
 import {
   getMeetingById,
   listRecentDecisions,
@@ -69,7 +70,7 @@ export default async function DecidePage() {
   let relatedMeeting: CcMeeting | null = null;
   if (vm.focus?.relatedMeeting?.id) {
     const record = await getMeetingById(vm.focus.relatedMeeting.id).catch(() => null);
-    if (record) relatedMeeting = toCcMeeting(mapMeetingToCardDTO(record, now));
+    if (record) relatedMeeting = toCcMeeting(mapMeetingToCardDTO(record, now, await getMeetingActionLinks(record.id)));
   }
 
   return <DecideWorkspace vm={vm} relatedMeeting={relatedMeeting} nowISO={now.toISOString()} />;

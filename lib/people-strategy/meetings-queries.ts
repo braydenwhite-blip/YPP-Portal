@@ -17,6 +17,10 @@ import type { Prisma } from "@prisma/client";
 
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
+import {
+  getMeetingActionLinksForMeetings,
+  type MeetingActionLinks,
+} from "./action-queries";
 import { isRelatedEntityType, type RelatedEntityRef } from "./constants";
 import type { MeetingAttendanceStatus } from "./meeting-attendance";
 import { meetingCategoryLabel } from "./meeting-categories";
@@ -217,8 +221,37 @@ function followUpStatus(f: { status: string; dueDate: Date | null }, now: Date):
   return "open";
 }
 
-export function mapMeetingToCardDTO(m: MeetingWithCommandCenter, now: Date = new Date()): MeetingCardDTO {
+const OPEN_ACTION = (status: string) => status !== "COMPLETE" && status !== "DROPPED";
+
+function linkedActionToDTO(a: MeetingActionLinks["actions"][number]): LinkedActionDTO {
+  return {
+    id: a.id,
+    title: a.title,
+    owner: a.owner ? { id: a.owner.id, name: a.owner.name ?? a.owner.email, initials: initialsOf(a.owner.name ?? a.owner.email) } : null,
+    status: a.status,
+    priority: a.priority,
+    deadlineISO: a.deadlineISO ?? "",
+    departmentName: null,
+  };
+}
+
+/**
+ * Map a meeting to its card DTO. Pass `links` (from
+ * {@link getMeetingActionLinksForMeetings}) to populate the action-linkage
+ * fields — `linkedActionId` on decisions/follow-ups, the linked-action counts,
+ * and the preview. Omitting `links` keeps the safe empty defaults.
+ */
+export function mapMeetingToCardDTO(
+  m: MeetingWithCommandCenter,
+  now: Date = new Date(),
+  links?: MeetingActionLinks,
+): MeetingCardDTO {
   const openFollowUps = m.followUps.filter((f) => f.status !== "COMPLETED");
+  const linkedActions = links?.actions ?? [];
+  const decisionActionId = links?.decisionActionId;
+  const followUpActionId = links?.followUpActionId;
+  // Follow-ups that are still open AND have not yet become a tracked action.
+  const unconverted = openFollowUps.filter((f) => !followUpActionId?.has(f.id));
   return {
     id: m.id,
     title: meetingDisplayTitle(m),
@@ -248,17 +281,17 @@ export function mapMeetingToCardDTO(m: MeetingWithCommandCenter, now: Date = new
     decisionCount: m.decisions.length,
     openFollowUps: openFollowUps.length,
     overdueFollowUps: openFollowUps.filter((f) => f.dueDate && f.dueDate.getTime() < now.getTime()).length,
-    openLinkedActions: 0,
-    linkedActionCount: 0,
+    openLinkedActions: linkedActions.filter((a) => OPEN_ACTION(a.status)).length,
+    linkedActionCount: linkedActions.length,
     decisionsPreview: m.decisions.slice(0, 3).map((d) => ({
       id: d.id,
       decision: d.decision,
       rationale: d.rationale,
       decidedBy: personDTO(d.decidedBy),
       createdISO: d.createdAt.toISOString(),
-      linkedActionId: null,
+      linkedActionId: decisionActionId?.get(d.id) ?? null,
     })),
-    unconvertedFollowUps: openFollowUps.slice(0, 3).map((f) => ({
+    unconvertedFollowUps: unconverted.slice(0, 3).map((f) => ({
       id: f.id,
       title: f.title,
       description: f.detail,
@@ -277,10 +310,23 @@ export function mapMeetingToCardDTO(m: MeetingWithCommandCenter, now: Date = new
       presentationExpectationId: null,
       presentationExpectationPrompt: null,
     })),
-    linkedActionsPreview: [],
+    linkedActionsPreview: linkedActions.slice(0, 3).map(linkedActionToDTO),
     relatedEntityType: null,
     relatedEntityId: null,
   };
+}
+
+/**
+ * Map a list of meetings to card DTOs with action linkage resolved in a fixed
+ * number of queries (batched), so list surfaces show real linked-action counts
+ * without an N+1. Prefer this over `meetings.map(mapMeetingToCardDTO)`.
+ */
+export async function mapMeetingsToCardDTOs(
+  meetings: MeetingWithCommandCenter[],
+  now: Date = new Date(),
+): Promise<MeetingCardDTO[]> {
+  const links = await getMeetingActionLinksForMeetings(meetings.map((m) => m.id));
+  return meetings.map((m) => mapMeetingToCardDTO(m, now, links.get(m.id)));
 }
 
 // --- queries (new Meeting model) --------------------------------------------

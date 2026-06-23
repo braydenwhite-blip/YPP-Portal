@@ -10,7 +10,7 @@ import {
   getMeetingsForEntities,
   listMeetingsForArea,
   listMeetingsInRange,
-  mapMeetingToCardDTO,
+  mapMeetingsToCardDTOs,
   meetingDisplayTitle,
   type MeetingCardDTO,
   type MeetingWithCommandCenter,
@@ -150,7 +150,7 @@ async function loadDigestMeetingData(
   const raw = [...rawById.values()];
 
   return {
-    meetings: raw.map((m) => mapMeetingToCardDTO(m, now)),
+    meetings: await mapMeetingsToCardDTOs(raw, now),
     decisions: extractDigestDecisions(raw),
     labels,
   };
