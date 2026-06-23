@@ -2,7 +2,6 @@ import type {
   ActionItemStatus,
   ActionPriority,
   ClassOfferingStatus,
-  OfficerMeetingStatus,
 } from "@prisma/client";
 
 import {
@@ -122,24 +121,13 @@ const CLASS_STATUS: Record<ClassOfferingStatus, { tone: PillTone; label: string 
   CANCELLED: { tone: "overdue", label: "Cancelled" },
 };
 
-const MEETING_STATUS: Record<OfficerMeetingStatus, { tone: PillTone; label: string }> = {
-  SCHEDULED: { tone: "purple", label: "Scheduled" },
-  COMPLETED: { tone: "success", label: "Completed" },
-  CANCELLED: { tone: "neutral", label: "Cancelled" },
-};
-
 type StatusPillProps =
   | { kind?: "action"; status: ActionItemStatus }
-  | { kind: "class"; status: ClassOfferingStatus }
-  | { kind: "meeting"; status: OfficerMeetingStatus };
+  | { kind: "class"; status: ClassOfferingStatus };
 
 export function StatusPill(props: StatusPillProps) {
   if (props.kind === "class") {
     const { tone, label } = CLASS_STATUS[props.status];
-    return <Pill tone={tone}>{label}</Pill>;
-  }
-  if (props.kind === "meeting") {
-    const { tone, label } = MEETING_STATUS[props.status];
     return <Pill tone={tone}>{label}</Pill>;
   }
   return (

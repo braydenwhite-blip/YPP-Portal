@@ -15,7 +15,6 @@ import {
 import {
   ActionStatusBadge,
   InitialsAvatar,
-  MeetingSourceChip,
   STATUS_LABEL,
   STATUS_RAIL,
   dueLabel,
@@ -111,7 +110,6 @@ function ActionCard({
 
         <div className="flex flex-wrap items-center gap-2">
           <ActionStatusBadge item={item} now={now} />
-          <MeetingSourceChip item={item} />
 
           <span className="ml-auto flex items-center gap-3">
             {showExecutors && executors.length > 0 ? (
@@ -147,23 +145,6 @@ function ActionCard({
         ) : null}
       </Link>
 
-      {item.officerMeeting ? (
-        <Link
-          href={`/meetings/${item.officerMeeting.id}`}
-          className="mx-[18px] mb-3 flex items-center gap-2 rounded-[9px] border px-2.5 py-2 no-underline"
-          style={{ background: "#f3ecff", borderColor: "#e4d8f7" }}
-        >
-          <span className="flex size-5 items-center justify-center rounded-md bg-brand-600 text-[10px] text-white">
-            ⬡
-          </span>
-          <span className="text-[11.5px] font-bold text-brand-700">
-            On the agenda · {item.officerMeeting.title}
-          </span>
-          <span className="ml-auto whitespace-nowrap text-[11.5px] font-semibold text-brand-700">
-            Open meeting →
-          </span>
-        </Link>
-      ) : null}
     </div>
   );
 }
@@ -206,7 +187,6 @@ export function MyActionsBoard({
     .slice(0, 3);
   const deadlines = selectUpcoming(items).slice(0, 6);
 
-  const execOnAgenda = executing.filter((i) => i.officerMeeting).length;
   const nextItem = deadlines[0];
 
   const cards: Array<{
@@ -291,26 +271,6 @@ export function MyActionsBoard({
         {/* LEFT */}
         <div className="flex flex-col gap-[18px]">
           <Lane dot="#0e9f6e" title="You are executing" count={`${executing.length} items`}>
-            {execOnAgenda > 0 ? (
-              <div className="px-[18px] pt-3">
-                <Link
-                  href="/meetings"
-                  className="flex items-center gap-2.5 rounded-[10px] border px-3 py-2.5 no-underline"
-                  style={{ background: "#f3ecff", borderColor: "#e4d8f7" }}
-                >
-                  <span className="flex size-6 items-center justify-center rounded-[7px] bg-brand-600 text-[12px] text-white">
-                    ⬡
-                  </span>
-                  <span className="text-[12.5px] leading-snug text-[#3a3a52]">
-                    <strong className="font-bold text-brand-700">{execOnAgenda} of these</strong> are
-                    on the next officer meeting agenda
-                  </span>
-                  <span className="ml-auto whitespace-nowrap text-[12px] font-bold text-brand-700">
-                    Officer Meetings →
-                  </span>
-                </Link>
-              </div>
-            ) : null}
             {executing.length > 0 ? (
               executing.map((item) => <ActionCard key={item.id} item={item} now={now} />)
             ) : (

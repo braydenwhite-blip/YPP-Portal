@@ -137,19 +137,10 @@ export async function loadPartnerDirectory(): Promise<PartnerDirectoryResult> {
   });
 
   const ids = partners.map((p) => p.id);
+  // The new Meeting model does not link to partners, so partner-scoped upcoming
+  // meeting counts resolve to empty.
   const [meetingGroups, openActionCounts] = await Promise.all([
-    ids.length > 0
-      ? prisma.officerMeeting.groupBy({
-          by: ["relatedEntityId"],
-          where: {
-            relatedEntityType: "PARTNER",
-            relatedEntityId: { in: ids },
-            date: { gte: now },
-            status: { not: "CANCELLED" },
-          },
-          _count: { _all: true },
-        })
-      : Promise.resolve([] as Array<{ relatedEntityId: string | null; _count: { _all: number } }>),
+    Promise.resolve([] as Array<{ relatedEntityId: string | null; _count: { _all: number } }>),
     countOpenActionsByRelatedEntity("PARTNER", ids),
   ]);
   const upcomingMeetings = new Map<string, number>();

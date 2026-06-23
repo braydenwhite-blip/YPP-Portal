@@ -143,7 +143,7 @@ export function ActionCard({
         </Pill>
       </div>
 
-      {/* Pill row: status, priority, department, officer-meeting, visibility */}
+      {/* Pill row: status, priority, department, visibility */}
       <div
         style={{
           display: "flex",
@@ -166,13 +166,6 @@ export function ActionCard({
             type={item.relatedEntityType}
             id={item.relatedEntityId}
           />
-        ) : null}
-        {item.officerMeeting ? (
-          <Pill tone="purple">
-            Source: {item.officerMeeting.title ?? "Meeting"} · {formatDueDate(item.officerMeeting.date)}
-          </Pill>
-        ) : item.officerMeetingId ? (
-          <Pill tone="purple">Source: Meeting</Pill>
         ) : null}
         {strategic.initiativeTitle ? (
           <Pill tone="purple">Initiative: {strategic.initiativeTitle}</Pill>

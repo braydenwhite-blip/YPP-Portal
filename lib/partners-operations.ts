@@ -186,20 +186,11 @@ export async function loadPartnersOperationsList(): Promise<PartnerOperationsLis
   });
 
   const ids = partners.map((p) => p.id);
+  // The new Meeting model does not link to partners, so partner-scoped upcoming
+  // meetings resolve to empty.
   const [openActions, upcomingMeetings] = await Promise.all([
     countOpenActionsByRelatedEntity("PARTNER", ids),
-    ids.length > 0
-      ? prisma.officerMeeting.findMany({
-          where: {
-            relatedEntityType: "PARTNER",
-            relatedEntityId: { in: ids },
-            date: { gte: now },
-            status: { not: "CANCELLED" },
-          },
-          orderBy: { date: "asc" },
-          select: { relatedEntityId: true, date: true },
-        })
-      : Promise.resolve([]),
+    Promise.resolve([] as Array<{ relatedEntityId: string | null; date: Date }>),
   ]);
 
   const nextMeetingByPartner = new Map<string, Date>();
@@ -343,8 +334,8 @@ export async function loadPartnerOperationsDetail(
     }));
 
   const upcoming = meetings
-    .filter((m) => m.status !== "CANCELLED" && new Date(m.date) >= now)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .filter((m) => m.status !== "CANCELLED" && new Date(m.scheduledAt) >= now)
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
   const nextMeeting = upcoming[0] ?? null;
 
   const followUpOverdue = Boolean(
@@ -415,7 +406,7 @@ export async function loadPartnerOperationsDetail(
           name: partner.relationshipLead.name ?? partner.relationshipLead.email ?? "Lead",
         }
       : null,
-    nextMeetingISO: nextMeeting?.date.toISOString() ?? partner.meetingDate?.toISOString() ?? null,
+    nextMeetingISO: nextMeeting?.scheduledAt.toISOString() ?? partner.meetingDate?.toISOString() ?? null,
     nextFollowUpISO: partner.nextFollowUpAt?.toISOString() ?? null,
     classes,
     openActions,
@@ -432,7 +423,7 @@ export async function loadPartnerOperationsDetail(
     partnerMeetings: meetings.slice(0, 8).map((m) => ({
       id: m.id,
       title: meetingDisplayTitle(m),
-      dateLabel: shortDate(m.date, now),
+      dateLabel: shortDate(m.scheduledAt, now),
       href: `/meetings/${m.id}`,
     })),
   };

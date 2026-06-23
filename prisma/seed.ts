@@ -249,8 +249,8 @@ async function main() {
   // ── Action Tracker (People Strategy) seed ──────────────────────────────────
   await seedActionTracker();
 
-  // ── Meetings Tracker / Weekly Command Center seed ──────────────────────────
-  await seedMeetingsTracker();
+  // ── Weekly Meetings — default Teams seed ───────────────────────────────────
+  await seedTeams();
 
   // ── Instructor Assignment System (Phase 1) seed ────────────────────────────
   await seedInstructorAssignmentDemoData({
@@ -1879,285 +1879,24 @@ async function seedActionTracker() {
   );
 }
 
-async function seedMeetingsTracker() {
-  // Idempotent: command-center meetings carry a title; legacy officer meetings
-  // do not. Skip if any titled meeting already exists.
-  const existing = await prisma.officerMeeting.count({ where: { title: { not: null } } });
-  if (existing > 0) {
-    console.log("Meetings Tracker: existing meetings present, skipping seed.");
-    return;
-  }
-
-  const brayden = await prisma.user.findUnique({
-    where: { email: "brayden.white@youthpassionproject.org" },
-    select: { id: true },
-  });
-  const anthea = await prisma.user.findUnique({
-    where: { email: "anthea.zamir@youthpassionproject.org" },
-    select: { id: true },
-  });
-  const carly = await prisma.user.findUnique({
-    where: { email: "carly.gelles@youthpassionproject.org" },
-    select: { id: true },
-  });
-  if (!brayden || !anthea || !carly) {
-    console.log("Meetings Tracker: expected seed users missing, skipping seed.");
-    return;
-  }
-
-  const base = new Date();
-  const at = (dayOffset: number, hour: number, minute = 0) => {
-    const d = new Date(base);
-    d.setDate(d.getDate() + dayOffset);
-    d.setHours(hour, minute, 0, 0);
-    return d;
-  };
-  const dayStart = (dayOffset: number) => at(dayOffset, 0, 0);
-
-  // Helper: create a tracked Action Item from a follow-up and link it back.
-  async function linkAction(input: {
-    followUpId: string;
-    meetingId: string;
-    title: string;
-    leadId: string;
-    deadline: Date;
-    priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-    goalCategory: string;
-    overdue?: boolean;
-  }) {
-    const action = await prisma.actionItem.create({
-      data: {
-        title: input.title,
-        goalCategory: input.goalCategory,
-        actionType: "FOLLOW_UP",
-        status: input.overdue ? "OVERDUE" : "IN_PROGRESS",
-        priority: input.priority,
-        deadlineStart: input.deadline,
-        visibility: "ALL_LEADERSHIP",
-        leadId: input.leadId,
-        createdById: brayden!.id,
-        officerMeetingId: input.meetingId,
-        assignments: { create: [{ userId: input.leadId, role: "LEAD" }] },
-      },
-      select: { id: true },
+async function seedTeams() {
+  // Default admin-configurable teams for the Weekly Meetings module. Idempotent
+  // via the unique slug — re-running seed leaves existing teams untouched.
+  const defaults = [
+    { slug: "tech", name: "Tech" },
+    { slug: "expansion", name: "Expansion" },
+    { slug: "fundraising", name: "Fundraising" },
+    { slug: "social-media", name: "Social Media" },
+  ];
+  for (let i = 0; i < defaults.length; i++) {
+    const t = defaults[i];
+    await prisma.team.upsert({
+      where: { slug: t.slug },
+      update: {},
+      create: { slug: t.slug, name: t.name, sortOrder: i, status: "ACTIVE" },
     });
-    await prisma.meetingFollowUp.update({
-      where: { id: input.followUpId },
-      data: { linkedActionId: action.id },
-    });
-    return action.id;
   }
-
-  // 1) Weekly Leadership Sync — TODAY, with a decision + an overdue follow-up.
-  const leadSync = await prisma.officerMeeting.create({
-    data: {
-      title: "Weekly Leadership Sync",
-      purpose: "Review the week's priorities, blockers, and unresolved action items across every YPP area.",
-      category: "LEADERSHIP",
-      priority: "HIGH",
-      status: "SCHEDULED",
-      date: at(0, 18, 0),
-      endTime: at(0, 19, 0),
-      recurrence: "WEEKLY",
-      location: "Zoom · Leadership Room",
-      notesText:
-        "Strong week on classes; the recurring risk is instructor follow-through. Agreed to make weekly owner updates mandatory for anything overdue.",
-      facilitatorId: brayden.id,
-      attendees: { create: [{ userId: anthea.id }, { userId: carly.id }] },
-      agendaItems: {
-        create: [
-          { title: "Review overdue action items from last week", status: "DISCUSSED", notes: "3 items rolled over; 1 escalated.", ownerId: anthea.id, sortOrder: 0 },
-          { title: "Summer class signup numbers", status: "DISCUSSED", notes: "Up 18% WoW; two courses under-enrolled.", ownerId: anthea.id, sortOrder: 1 },
-          { title: "Instructor accountability issues", status: "OPEN", ownerId: carly.id, sortOrder: 2 },
-          { title: "Chapter follow-up progress", status: "OPEN", sortOrder: 3 },
-          { title: "New partnership outreach", status: "OPEN", sortOrder: 4 },
-        ],
-      },
-      decisions: {
-        create: [
-          {
-            decision: "All overdue action owners must post a weekly written update until the item closes.",
-            rationale: "Two items sat untouched for 9+ days with no visibility.",
-            decidedById: brayden.id,
-          },
-        ],
-      },
-    },
-    select: { id: true },
-  });
-  const leadFollowUps = await prisma.meetingFollowUp.createManyAndReturn({
-    data: [
-      { officerMeetingId: leadSync.id, title: "Create inactive chapter-lead escalation list", ownerId: carly.id, dueDate: at(4, 17), priority: "HIGH", area: "CHAPTERS", status: "OPEN" },
-      { officerMeetingId: leadSync.id, title: "Assign owners for missing instructor bios", ownerId: anthea.id, dueDate: dayStart(-2), priority: "URGENT", area: "INSTRUCTORS", status: "OPEN" },
-    ],
-    select: { id: true, title: true },
-  });
-  await linkAction({
-    followUpId: leadFollowUps[0].id,
-    meetingId: leadSync.id,
-    title: leadFollowUps[0].title,
-    leadId: carly.id,
-    deadline: at(4, 17),
-    priority: "HIGH",
-    goalCategory: "Chapters",
-  });
-
-  // 2) Classes Operations Check-In — UPCOMING this week.
-  await prisma.officerMeeting.create({
-    data: {
-      title: "Classes Operations Check-In",
-      purpose: "Review classes, instructors, signups, and the overall student experience heading into summer.",
-      category: "CLASSES",
-      priority: "MEDIUM",
-      status: "SCHEDULED",
-      date: at(2, 19, 30),
-      endTime: at(2, 20, 15),
-      recurrence: "WEEKLY",
-      location: "Zoom · Classes Room",
-      facilitatorId: anthea.id,
-      attendees: { create: [{ userId: brayden.id }] },
-      agendaItems: {
-        create: [
-          { title: "Classes missing instructors", status: "OPEN", sortOrder: 0 },
-          { title: "Signup numbers by course", status: "OPEN", sortOrder: 1 },
-          { title: "Instructor readiness for summer", status: "OPEN", sortOrder: 2 },
-          { title: "Parent / student communication plan", status: "OPEN", sortOrder: 3 },
-          { title: "Low-enrollment course decisions", status: "OPEN", sortOrder: 4 },
-        ],
-      },
-      followUps: {
-        create: [
-          { title: "Contact instructors with incomplete descriptions", ownerId: anthea.id, dueDate: at(5, 17), priority: "HIGH", area: "INSTRUCTORS", status: "OPEN" },
-          { title: "Review low-enrollment classes for merge/cancel", ownerId: anthea.id, dueDate: at(6, 17), priority: "MEDIUM", area: "CLASSES", status: "OPEN" },
-        ],
-      },
-    },
-  });
-
-  // 3) Mentorship Pipeline Review — COMPLETED with open + overdue follow-ups
-  //    (so it surfaces as "Needs Follow-Up"), and one linked overdue action.
-  const mentorship = await prisma.officerMeeting.create({
-    data: {
-      title: "Mentorship Pipeline Review",
-      purpose: "Review mentor/mentee matching, inactive mentors, ratings, and escalations.",
-      category: "MENTORSHIP",
-      priority: "HIGH",
-      status: "COMPLETED",
-      date: at(-3, 17, 0),
-      endTime: at(-3, 17, 45),
-      recurrence: "BIWEEKLY",
-      location: "Zoom · Mentorship Room",
-      notesText: "Matching backlog is the headline risk. Points bug deferred to Technology sync.",
-      facilitatorId: carly.id,
-      attendees: { create: [{ userId: anthea.id }] },
-      agendaItems: {
-        create: [
-          { title: "Unmatched mentees", status: "DISCUSSED", notes: "11 mentees waiting > 2 weeks.", ownerId: carly.id, sortOrder: 0 },
-          { title: "Inactive mentors", status: "CONVERTED", ownerId: carly.id, sortOrder: 1 },
-          { title: "Rating / points issues", status: "DEFERRED", notes: "Bug in points rollup; deferred to Tech sync.", sortOrder: 2 },
-          { title: "Escalations", status: "DISCUSSED", ownerId: anthea.id, sortOrder: 3 },
-        ],
-      },
-    },
-    select: { id: true },
-  });
-  const mentorFollowUps = await prisma.meetingFollowUp.createManyAndReturn({
-    data: [
-      { officerMeetingId: mentorship.id, title: "Create mentor inactivity list", ownerId: carly.id, dueDate: dayStart(-1), priority: "URGENT", area: "MENTORSHIP", status: "OPEN" },
-      { officerMeetingId: mentorship.id, title: "Send reminder to mentors with unanswered requests", ownerId: carly.id, dueDate: dayStart(-2), priority: "HIGH", area: "MENTORSHIP", status: "OPEN" },
-      { officerMeetingId: mentorship.id, title: "Match 11 waiting mentees to active mentors", ownerId: carly.id, dueDate: at(5, 17), priority: "HIGH", area: "MENTORSHIP", status: "IN_PROGRESS" },
-    ],
-    select: { id: true, title: true },
-  });
-  await linkAction({
-    followUpId: mentorFollowUps[0].id,
-    meetingId: mentorship.id,
-    title: mentorFollowUps[0].title,
-    leadId: carly.id,
-    deadline: dayStart(-1),
-    priority: "URGENT",
-    goalCategory: "Mentorship",
-    overdue: true,
-  });
-
-  // 4) Partnership Outreach Review — COMPLETED last meeting, decision logged.
-  await prisma.officerMeeting.create({
-    data: {
-      title: "Partnership Outreach Review",
-      purpose: "Track camp, school, and community-organization outreach for Summer 2026.",
-      category: "PARTNERSHIPS",
-      priority: "MEDIUM",
-      status: "COMPLETED",
-      date: at(-1, 15, 0),
-      endTime: at(-1, 15, 30),
-      recurrence: "WEEKLY",
-      location: "Zoom · Partnerships Room",
-      notesText: "Good momentum. Prioritizing camps with flexible elective blocks since they fit our instructor capacity.",
-      facilitatorId: anthea.id,
-      attendees: { create: [{ userId: brayden.id }, { userId: carly.id }] },
-      agendaItems: {
-        create: [
-          { title: "Summer 2026 camp outreach", status: "DISCUSSED", notes: "5 camps in pipeline; 2 close to yes.", ownerId: anthea.id, sortOrder: 0 },
-          { title: "Follow-up emails", status: "DISCUSSED", ownerId: anthea.id, sortOrder: 1 },
-          { title: "Local organization opportunities", status: "DISCUSSED", ownerId: carly.id, sortOrder: 2 },
-        ],
-      },
-      decisions: {
-        create: [
-          {
-            decision: "Prioritize camps with flexible elective blocks over fixed-schedule programs.",
-            rationale: "Flexible blocks fit our volunteer instructor capacity and reduce scheduling conflicts.",
-            decidedById: anthea.id,
-          },
-        ],
-      },
-      followUps: {
-        create: [
-          { title: "Send follow-up to two camp directors", ownerId: anthea.id, dueDate: at(3, 17), priority: "MEDIUM", area: "PARTNERSHIPS", status: "IN_PROGRESS" },
-          { title: "Prepare one-page YPP partnership overview", ownerId: carly.id, dueDate: at(4, 17), priority: "MEDIUM", area: "MARKETING", status: "OPEN" },
-        ],
-      },
-    },
-  });
-
-  // 5) Global Operations Impact Presentation — the weekly accountability forum the
-  //    Impact Meetings hub attaches to. `findCurrentGlobalImpactMeeting` keys off
-  //    meetingType, and the Weekly Team Brief generator links its briefs to the
-  //    OfficerMeeting falling inside the current week — so this must exist (once,
-  //    recurring) for the feature to light up. Scheduled today so it's the
-  //    "current" impact meeting in a fresh dev/seed environment.
-  await prisma.officerMeeting.create({
-    data: {
-      title: "Global Operations Impact Presentation",
-      purpose:
-        "Weekly accountability forum where Tech, Fundraising, Expansion, Socials, and Chapter Updates show progress, proof, blockers, decisions, and next commitments.",
-      category: "OPERATIONS",
-      meetingType: "GLOBAL_OPERATIONS_IMPACT_PRESENTATION",
-      priority: "HIGH",
-      status: "SCHEDULED",
-      date: at(0, 17, 0),
-      endTime: at(0, 18, 30),
-      recurrence: "WEEKLY",
-      location: "Zoom · Operations Room",
-      facilitatorId: brayden.id,
-      attendees: { create: [{ userId: anthea.id }, { userId: carly.id }] },
-      agendaItems: {
-        create: [
-          { title: "Tech: portal updates, bugs fixed, features shipped, data/automation, testing blockers", status: "OPEN", sortOrder: 0 },
-          { title: "Fundraising: outreach completed, donor/sponsor progress, materials, responses, decisions", status: "OPEN", sortOrder: 1 },
-          { title: "Expansion: new areas contacted, parent/alumni outreach, chapter leads, partner conversations", status: "OPEN", sortOrder: 2 },
-          { title: "Socials: posts created/scheduled, campaign results, approvals needed, upcoming content", status: "OPEN", sortOrder: 3 },
-          { title: "Chapter Updates: chapter health, new launches, lead check-ins, demo days, cross-chapter coordination", status: "OPEN", sortOrder: 4 },
-          { title: "Leadership decisions and follow-up actions", status: "OPEN", sortOrder: 5 },
-          { title: "Attendance or responsiveness concerns", status: "OPEN", sortOrder: 6 },
-        ],
-      },
-    },
-  });
-
-  console.log(
-    "Meetings Tracker: seeded 5 sample meetings (leadership / classes / mentorship / partnerships / global operations impact) with agenda, decisions, follow-ups, and 2 linked actions."
-  );
+  console.log("Teams: ensured " + defaults.length + " default teams (Tech, Expansion, Fundraising, Social Media).");
 }
 
 main()

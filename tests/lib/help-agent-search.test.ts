@@ -6,7 +6,6 @@ vi.mock("@/lib/prisma", () => ({
     user: { findMany: vi.fn(), findUnique: vi.fn() },
     partner: { findMany: vi.fn(), findUnique: vi.fn() },
     classOffering: { findMany: vi.fn(), findUnique: vi.fn() },
-    officerMeeting: { findMany: vi.fn(), findUnique: vi.fn() },
     actionItem: { findMany: vi.fn(), findUnique: vi.fn() },
     instructorApplication: { findMany: vi.fn(), findUnique: vi.fn() },
     mentorship: { findMany: vi.fn() },
@@ -62,7 +61,6 @@ beforeEach(() => {
     prisma.user,
     prisma.partner,
     prisma.classOffering,
-    prisma.officerMeeting,
     prisma.actionItem,
     prisma.instructorApplication,
     prisma.mentorship,
@@ -224,7 +222,6 @@ describe("runHelpAgentSearch — permission tiers", () => {
     const types = res.groups.map((g) => g.type);
     expect(types).toContain("partner");
     expect(prisma.partner.findMany).toHaveBeenCalled();
-    expect(prisma.officerMeeting.findMany).toHaveBeenCalled();
   });
 
   it("non-admin officers get preview-safe partner and class results without admin-page fallbacks", async () => {
@@ -496,56 +493,6 @@ describe("runHelpAgentSearch — SearchDocument action cutover", () => {
 
     const res = await runHelpAgentSearch("venue", MEMBER);
     expect(res.groups.map((g) => g.type)).not.toContain("action");
-  });
-});
-
-describe("runHelpAgentSearch — SearchDocument meeting cutover", () => {
-  it("uses the meeting index ordered by eventAt desc, with a category·date subtitle", async () => {
-    populateIndexGroup("meeting", [
-      { entityId: "m1", title: "Leadership sync", subtitle: "LEADERSHIP · Jun 15, 2026" },
-    ]);
-
-    const res = await runHelpAgentSearch("leadership", OFFICER);
-
-    expect(res.groups.find((g) => g.type === "meeting")?.items[0]).toMatchObject({
-      type: "meeting",
-      id: "m1",
-      title: "Leadership sync",
-      subtitle: "LEADERSHIP · Jun 15, 2026",
-      href: "/meetings/m1",
-    });
-    // The live meeting query is skipped when the index answers.
-    expect(prisma.officerMeeting.findMany).not.toHaveBeenCalled();
-    // The meeting group sorts newest-first off the indexed eventAt.
-    const findManyCalls = mock(prisma.searchDocument.findMany).mock.calls as Array<
-      [{ where: { entityType?: string }; orderBy?: unknown }]
-    >;
-    const meetingFind = findManyCalls.find(([args]) => args.where.entityType === "meeting");
-    expect(meetingFind?.[0].orderBy).toEqual([{ eventAt: "desc" }, { title: "asc" }]);
-  });
-
-  it("falls back to the live meeting query when the meeting index is empty", async () => {
-    mock(prisma.officerMeeting.findMany).mockResolvedValue([
-      { id: "m2", title: "Camp planning", date: new Date("2026-06-15T00:00:00.000Z"), category: "CLASSES" },
-    ]);
-
-    const res = await runHelpAgentSearch("camp", OFFICER);
-
-    expect(prisma.officerMeeting.findMany).toHaveBeenCalled();
-    expect(res.groups.find((g) => g.type === "meeting")?.items[0]).toMatchObject({
-      id: "m2",
-      title: "Camp planning",
-      href: "/meetings/m2",
-    });
-  });
-
-  it("members never get the meeting group, even with a populated index", async () => {
-    populateIndexGroup("meeting", [
-      { entityId: "m1", title: "Leadership sync", subtitle: null },
-    ]);
-
-    const res = await runHelpAgentSearch("leadership", MEMBER);
-    expect(res.groups.map((g) => g.type)).not.toContain("meeting");
   });
 });
 

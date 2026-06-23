@@ -5,11 +5,6 @@ import { useState, useTransition } from "react";
 
 import { EntityActionRowCapture } from "@/components/work/entity-action-row-capture";
 import { Button, cn } from "@/components/ui-v2";
-import {
-  convertDecisionToAction,
-  convertFollowUpToAction,
-  setFollowUpStatus,
-} from "@/lib/people-strategy/meetings-actions";
 import { updateMentorshipActionItemStatus } from "@/lib/mentorship-hub-actions";
 import { revalidateQueueSurfaces } from "@/lib/queue/queue-actions";
 import type { QueueInline, QueueItem } from "@/lib/queue/types";
@@ -38,110 +33,36 @@ const headingClass = "m-0 text-[13.5px] font-bold text-ink";
 const bodyClass = "m-0 text-[12.5px] leading-snug text-ink-muted";
 const errorClass = "m-0 text-[12.5px] font-semibold text-danger-700";
 
-/** Convert an unconverted meeting decision into an owned, tracked action. */
-function DecisionInlinePanel({
-  decisionId,
-  onResolved,
-}: {
-  decisionId: string;
-  onResolved: () => void;
-}) {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function convert() {
-    setError(null);
-    startTransition(async () => {
-      try {
-        await convertDecisionToAction(decisionId);
-        await revalidateQueueSurfaces();
-        // Mark the loop as acted-on BEFORE refreshing so the runner can confirm
-        // it actually left the queue once the fresh data arrives.
-        onResolved();
-        router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Couldn't create the action.");
-      }
-    });
-  }
-
+/**
+ * Decision loops once converted to tracked actions through the meeting system,
+ * which was removed in the weekly-meetings rebuild. The panel now just explains
+ * the loop; there is no inline mutation to run.
+ */
+function DecisionInlinePanel() {
   return (
     <div className={panelShellClass("neutral")}>
       <p className={headingClass}>Turn this into a tracked action</p>
       <p className={bodyClass}>
-        The decision was made but nobody is tracking the work. Create an owned
-        action so it actually happens — it stays linked to the meeting.
+        The decision was made but nobody is tracking the work. Open the full
+        record below to create an owned action so it actually happens.
       </p>
-      {error ? <p className={errorClass}>{error}</p> : null}
-      <div className="flex items-center gap-2">
-        <Button variant="primary" size="sm" onClick={convert} disabled={pending}>
-          {pending ? "Creating…" : "Create tracked action"}
-        </Button>
-      </div>
     </div>
   );
 }
 
-/** Handle a meeting follow-up: mark it done, or turn it into a tracked action. */
-function FollowUpInlinePanel({
-  followUpId,
-  onResolved,
-}: {
-  followUpId: string;
-  onResolved: () => void;
-}) {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"handled" | "action" | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function run(which: "handled" | "action") {
-    setError(null);
-    setBusy(which);
-    startTransition(async () => {
-      try {
-        if (which === "handled") {
-          await setFollowUpStatus({ id: followUpId, status: "COMPLETED" });
-        } else {
-          await convertFollowUpToAction(followUpId);
-        }
-        await revalidateQueueSurfaces();
-        onResolved();
-        router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Something went wrong.");
-        setBusy(null);
-      }
-    });
-  }
-
+/**
+ * Follow-up loops were handled through the meeting system, which was removed in
+ * the weekly-meetings rebuild. The panel now just explains the loop; there is no
+ * inline mutation to run.
+ */
+function FollowUpInlinePanel() {
   return (
     <div className={panelShellClass("neutral")}>
       <p className={headingClass}>Close this follow-up</p>
       <p className={bodyClass}>
-        Mark it handled once it&apos;s done, or turn it into a tracked action if
-        it needs an owner and a due date.
+        Open the full record below to mark it handled or turn it into a tracked
+        action with an owner and a due date.
       </p>
-      {error ? <p className={errorClass}>{error}</p> : null}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => run("handled")}
-          disabled={pending}
-        >
-          {pending && busy === "handled" ? "Saving…" : "Mark handled"}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => run("action")}
-          disabled={pending}
-        >
-          {pending && busy === "action" ? "Creating…" : "Create tracked action"}
-        </Button>
-      </div>
     </div>
   );
 }
@@ -237,9 +158,9 @@ export function QueueInlineWork({
     case "action":
       return <ActionInlinePanel inline={inline} onResolved={onResolved} />;
     case "decision":
-      return <DecisionInlinePanel decisionId={inline.decisionId} onResolved={onResolved} />;
+      return <DecisionInlinePanel />;
     case "follow_up":
-      return <FollowUpInlinePanel followUpId={inline.followUpId} onResolved={onResolved} />;
+      return <FollowUpInlinePanel />;
     case "mentorship_commitment":
       return <MentorshipCommitmentInlinePanel inline={inline} onResolved={onResolved} />;
     default: {

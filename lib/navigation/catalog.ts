@@ -535,24 +535,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
-      href: "/meet",
-      label: "Meet",
-      icon: "🛎️",
-      // Meetings as live operating rooms — before / during / after.
-      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: [
-        "Meet",
-        "Meeting room",
-        "Run a meeting",
-        "Agenda",
-        "Meeting prep",
-        "Live notes",
-      ],
-      dashboardDescription:
-        "Run your meetings — prep before, run during, wrap up after.",
-      dashboardPriority: 6,
-    },
-    {
       href: "/review",
       label: "Weekly Review",
       icon: "📊",
@@ -1350,6 +1332,15 @@ export const NAV_CATALOG: NavLink[] = [
       ],
     },
     { href: "/admin/bulk-users", label: "Bulk Users", icon: "👥", roles: ADMIN_ONLY },
+    {
+      href: "/admin/teams",
+      label: "Teams",
+      icon: "🧩",
+      roles: ADMIN_ONLY,
+      searchAliases: ["Teams", "Team config", "Weekly Impact teams", "Team membership"],
+      dashboardDescription:
+        "Create teams and assign members for Weekly Impact and team meetings.",
+    },
     {
       href: "/admin/parent-approvals",
       label: "Parent Approvals",

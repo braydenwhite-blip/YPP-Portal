@@ -370,9 +370,7 @@ function actionNextStep(item: ActionItemWithRelations, now: Date): string | null
   return (
     snippet(item.successDefinition, 140) ??
     snippet(item.description, 140) ??
-    (item.officerMeetingId
-      ? "Close the loop from the source meeting."
-      : "Confirm the next concrete move.")
+    "Confirm the next concrete move."
   );
 }
 
@@ -380,10 +378,6 @@ function actionContextSummary(
   item: ActionItemWithRelations,
   related: RelatedEntitySummary | null
 ): string | null {
-  if (item.officerMeeting) {
-    const title = item.officerMeeting.title?.trim() || "Officer Meeting";
-    return `Created from ${title}`;
-  }
   if (related) return `Linked to ${related.typeLabel}: ${related.label}`;
   return snippet(item.goalCategory ? `Goal: ${item.goalCategory}` : item.description, 140);
 }
@@ -417,9 +411,9 @@ export function toActionLite(
     relatedId,
     relatedLabel: related?.label ?? null,
     relatedTypeLabel: related?.typeLabel ?? (relatedType ? relatedEntityTypeLabel(relatedType) : null),
-    sourceMeetingId: item.officerMeetingId ?? null,
-    sourceMeetingTitle: item.officerMeeting?.title?.trim() || (item.officerMeeting ? "Officer Meeting" : null),
-    sourceMeetingStartISO: item.officerMeeting?.date.toISOString() ?? null,
+    sourceMeetingId: null,
+    sourceMeetingTitle: null,
+    sourceMeetingStartISO: null,
     latestUpdate: latestActionUpdate(item),
     nextStep: actionNextStep(item, now),
     contextSummary: actionContextSummary(item, related),

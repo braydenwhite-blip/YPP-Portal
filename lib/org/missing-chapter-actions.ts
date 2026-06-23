@@ -54,10 +54,9 @@ export async function assignMissingChapter(formData: FormData) {
       });
       break;
     case "MEETING":
-      await prisma.officerMeeting.update({
-        where: { id: input.recordId },
-        data: { relatedChapter: chapter.name },
-      });
+      // The old Meetings Tracker (OfficerMeeting) was removed — there is no
+      // meeting record to assign a chapter to anymore. Resolving the queue item
+      // below still clears it from the missing-chapter list.
       break;
   }
 

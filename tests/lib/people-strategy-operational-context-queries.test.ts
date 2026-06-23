@@ -7,7 +7,7 @@ vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/feature-flags", () => ({ isActionTrackerEnabled: () => true }));
 
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
-import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
+import type { MeetingCardDTO } from "@/lib/people-strategy/meeting-card-types";
 import {
   combineHealthSignals,
   deriveActionSignals,
@@ -39,7 +39,6 @@ function action(overrides: Partial<ActionItemWithRelations>): ActionItemWithRela
     deadlineEnd: null,
     completedAt: null,
     leadId: "alice",
-    officerMeetingId: null,
     flaggedAt: null,
     resolvedAt: null,
     createdAt: new Date("2026-05-01T00:00:00"),

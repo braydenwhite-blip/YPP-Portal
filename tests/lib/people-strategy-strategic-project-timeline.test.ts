@@ -16,7 +16,6 @@ describe("deriveProjectActionIntelligence", () => {
         action({ id: "overdue", status: "IN_PROGRESS", deadlineStart: new Date("2026-05-20") }),
         action({ id: "nodue", status: "IN_PROGRESS", deadlineStart: null }),
         action({ id: "unowned", status: "NOT_STARTED", lead: null, deadlineStart: new Date("2026-06-20") }),
-        action({ id: "frommtg", status: "IN_PROGRESS", officerMeetingId: "m1", deadlineStart: new Date("2026-06-15") }),
       ],
       NOW
     );
@@ -24,7 +23,8 @@ describe("deriveProjectActionIntelligence", () => {
     expect(intel.counts.overdue).toBe(1);
     expect(intel.counts.noDueDate).toBe(1);
     expect(intel.counts.unowned).toBe(1);
-    expect(intel.counts.fromMeetings).toBe(1);
+    // The legacy meeting link column is gone — no action is "from a meeting".
+    expect(intel.counts.fromMeetings).toBe(0);
   });
 
   it("recommends the overdue action first", () => {

@@ -76,14 +76,3 @@ export function dueLabel(item: ActionItemWithRelations, now: Date): { label: str
   if (isActionOverdue(item, now)) return { label: "Overdue", danger: true };
   return { label: formatMonthDay(effectiveDeadline(item)), danger: false };
 }
-
-/** A small purple "on the agenda" meeting chip, when the action came from a meeting. */
-export function MeetingSourceChip({ item }: { item: ActionItemWithRelations }) {
-  if (!item.officerMeeting) return null;
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-md bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700">
-      <span className="size-1.5 rounded-full bg-brand-600" />
-      {item.officerMeeting.title}
-    </span>
-  );
-}

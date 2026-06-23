@@ -84,7 +84,7 @@ export function toActionItemsCsv(
         item.lead?.name ?? item.lead?.email ?? "",
         assigneeNames(item, "EXECUTING"),
         assigneeNames(item, "INPUT"),
-        item.officerMeetingId ? "Yes" : "No",
+        "No",
         item.flaggedAt ? "Yes" : "No",
         item.comments.length,
         formatDate(item.createdAt),

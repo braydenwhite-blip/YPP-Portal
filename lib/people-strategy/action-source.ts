@@ -264,7 +264,6 @@ export type ActionSourceInput = {
   sourceType?: string | null;
   sourceId?: string | null;
   sourceActionId?: string | null;
-  officerMeetingId?: string | null;
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
 };
@@ -281,7 +280,7 @@ function describe(
     header: ACTION_SOURCE_HEADER[type],
     why: ACTION_SOURCE_WHY[type],
     sourceId: input.sourceId?.trim() || null,
-    meetingId: input.officerMeetingId?.trim() || null,
+    meetingId: null,
     parentActionId: input.sourceActionId?.trim() || null,
   };
 }
@@ -299,9 +298,6 @@ export function deriveActionSource(input: ActionSourceInput): ActionSourceDescri
   }
   if (input.sourceActionId && input.sourceActionId.trim()) {
     return describe("FOLLOW_UP", false, input);
-  }
-  if (input.officerMeetingId && input.officerMeetingId.trim()) {
-    return describe("MEETING", false, input);
   }
   if (
     input.relatedEntityType &&

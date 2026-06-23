@@ -188,7 +188,7 @@ function extractOpenFollowUps(
         dueISO: f.dueDate ? f.dueDate.toISOString() : null,
         effectiveStatus: status,
         ownerName: f.owner?.name ?? f.owner?.email ?? null,
-        areaLabel: meetingCategoryLabel(f.area ?? m.category),
+        areaLabel: meetingCategoryLabel(null),
         sortKey: f.dueDate ? f.dueDate.getTime() : Number.MAX_SAFE_INTEGER,
       });
     }

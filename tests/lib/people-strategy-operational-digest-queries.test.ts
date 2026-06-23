@@ -11,15 +11,6 @@ vi.mock("@/lib/people-strategy/action-queries", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/people-strategy/action-queries")>();
   return { ...actual, listVisibleActionItems: vi.fn() };
 });
-vi.mock("@/lib/people-strategy/meetings-queries", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/people-strategy/meetings-queries")>();
-  return {
-    ...actual,
-    listMeetingsInRange: vi.fn(),
-    getMeetingsForEntities: vi.fn(),
-    listMeetingsForArea: vi.fn(),
-  };
-});
 vi.mock("@/lib/people-strategy/connections", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/people-strategy/connections")>();
   return { ...actual, loadRelatedEntityLabels: vi.fn() };
@@ -31,12 +22,6 @@ vi.mock("@/lib/people-strategy/operational-context-queries", async (importOrigin
 
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { listVisibleActionItems, type ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
-import {
-  getMeetingsForEntities,
-  listMeetingsForArea,
-  listMeetingsInRange,
-  type MeetingWithCommandCenter,
-} from "@/lib/people-strategy/meetings-queries";
 import { loadRelatedEntityLabels, type RelatedEntitySummary } from "@/lib/people-strategy/connections";
 import {
   getOperationalContextForEntity,
@@ -73,8 +58,6 @@ function action(overrides: Partial<ActionItemWithRelations> = {}): ActionItemWit
     completedAt: null,
     leadId: "alice",
     lead: { id: "alice", name: "Alice", email: "alice@x.org", primaryRole: "ADMIN", title: null, adminSubtypes: [], profile: null },
-    officerMeetingId: null,
-    officerMeeting: null,
     relatedEntityType: null,
     relatedEntityId: null,
     flaggedAt: null,
@@ -87,45 +70,6 @@ function action(overrides: Partial<ActionItemWithRelations> = {}): ActionItemWit
   } as ActionItemWithRelations;
 }
 
-function rawMeeting(overrides: Record<string, unknown> = {}): MeetingWithCommandCenter {
-  return {
-    id: "rm" + Math.random().toString(36).slice(2),
-    title: "Ops Sync",
-    purpose: null,
-    date: new Date("2026-06-02T18:00:00"),
-    endTime: null,
-    category: "CLASSES",
-    priority: "MEDIUM",
-    recurrence: null,
-    location: null,
-    status: "COMPLETED",
-    notesText: null,
-    facilitatorId: null,
-    facilitator: null,
-    attendees: [],
-    agendaItems: [],
-    decisions: [],
-    followUps: [],
-    actionItems: [],
-    relatedEntityType: null,
-    relatedEntityId: null,
-    ...overrides,
-  } as unknown as MeetingWithCommandCenter;
-}
-
-function rawDecision(overrides: Record<string, unknown> = {}) {
-  return {
-    id: "d" + Math.random().toString(36).slice(2),
-    decision: "Ship the new flow",
-    rationale: null,
-    createdAt: new Date("2026-06-01T00:00:00"),
-    linkedActionId: null,
-    linkedAction: null,
-    decidedBy: { id: "u1", name: "Alice", email: "alice@x.org" },
-    ...overrides,
-  };
-}
-
 function classSummary(id: string, label: string): RelatedEntitySummary {
   return { type: "CLASS_OFFERING", id, label, typeLabel: "Class", href: `/admin/classes/${id}` };
 }
@@ -134,9 +78,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(isActionTrackerEnabled).mockReturnValue(true);
   vi.mocked(listVisibleActionItems).mockResolvedValue([]);
-  vi.mocked(listMeetingsInRange).mockResolvedValue([]);
-  vi.mocked(listMeetingsForArea).mockResolvedValue([]);
-  vi.mocked(getMeetingsForEntities).mockResolvedValue(new Map());
   vi.mocked(loadRelatedEntityLabels).mockResolvedValue(new Map());
 });
 
@@ -153,7 +94,6 @@ describe("getWeeklyOperationalDigestForViewer", () => {
     const d = await getWeeklyOperationalDigestForViewer(VIEWER, { now: NOW });
     expect(d.counts.overdueActions).toBe(0);
     expect(listVisibleActionItems).not.toHaveBeenCalled();
-    expect(listMeetingsInRange).not.toHaveBeenCalled();
   });
 
   it("surfaces one critical entity and ranks it first", async () => {
@@ -162,10 +102,6 @@ describe("getWeeklyOperationalDigestForViewer", () => {
       action({ relatedEntityType: "CLASS_OFFERING", relatedEntityId: "cls1", deadlineStart: new Date("2026-05-20T00:00:00") }),
       action({ relatedEntityType: "CLASS_OFFERING", relatedEntityId: "cls1", deadlineStart: new Date("2026-05-20T00:00:00") }),
     ]);
-    // The entity's last meeting is old (history loaded via getMeetingsForEntities).
-    vi.mocked(getMeetingsForEntities).mockResolvedValue(
-      new Map([["CLASS_OFFERING:cls1", [rawMeeting({ id: "old1", date: new Date("2026-04-01T18:00:00"), relatedEntityType: "CLASS_OFFERING", relatedEntityId: "cls1" })]]])
-    );
     vi.mocked(loadRelatedEntityLabels).mockResolvedValue(
       new Map([["CLASS_OFFERING:cls1", classSummary("cls1", "Algebra 101")]])
     );
@@ -173,29 +109,9 @@ describe("getWeeklyOperationalDigestForViewer", () => {
     const d = await getWeeklyOperationalDigestForViewer(VIEWER, { now: NOW });
     expect(d.counts.criticalEntities).toBe(1);
     expect(d.criticalEntities[0].label).toBe("Algebra 101");
-    expect(d.criticalEntities[0].daysSinceLastMeeting).toBe(64); // Apr 1 → Jun 4
+    // Meetings are no longer tracked, so there is no meeting on record for the entity.
+    expect(d.criticalEntities[0].daysSinceLastMeeting).toBeNull();
     expect(d.recommendedReviewOrder[0].kind).toBe("class");
-    // The class history meeting was loaded by the batched per-entity query.
-    expect(getMeetingsForEntities).toHaveBeenCalledWith([{ type: "CLASS_OFFERING", id: "cls1" }]);
-  });
-
-  it("extracts decisions-needing-action and meetings-without-actions from real mappers", async () => {
-    vi.mocked(listMeetingsInRange).mockResolvedValue([
-      // A recent completed meeting with a decision but no linked action.
-      rawMeeting({
-        id: "rmA",
-        date: new Date("2026-06-02T18:00:00"),
-        status: "COMPLETED",
-        decisions: [rawDecision({ createdAt: new Date("2026-06-02T00:00:00") })],
-        actionItems: [],
-      }),
-    ]);
-
-    const d = await getWeeklyOperationalDigestForViewer(VIEWER, { now: NOW });
-    expect(d.counts.decisionsNeedingAction).toBe(1);
-    expect(d.counts.meetingsWithoutActions).toBe(1);
-    expect(d.meetingsNeedingFollowThrough.length).toBeGreaterThan(0);
-    expect(d.decisionsNeedingAction[0].decision).toBe("Ship the new flow");
   });
 
   it("treats multiple entity types and counts warnings vs criticals", async () => {

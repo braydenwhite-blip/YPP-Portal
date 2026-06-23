@@ -25,7 +25,6 @@ export {
 } from "./simple";
 export { TodayWorkspace } from "./today-workspace";
 export { DecideWorkspace } from "./decide-workspace";
-export { MeetWorkspace } from "./meet-workspace";
 export { DelegateWorkspace } from "./delegate-workspace";
 export { ReviewWorkspace } from "./review-workspace";
 export { FollowUpWorkspace } from "./follow-up-workspace";

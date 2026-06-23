@@ -8,7 +8,6 @@ import { effectiveDeadline, isActionOverdue, sortByDeadline } from "@/lib/people
 import {
   ActionStatusBadge,
   InitialsAvatar,
-  MeetingSourceChip,
   dueLabel,
 } from "@/components/people-strategy/action-presentation";
 
@@ -123,7 +122,6 @@ function LaneRow({ item, now }: { item: ActionItemWithRelations; now: Date }) {
               {item.department.name}
             </span>
           ) : null}
-          <MeetingSourceChip item={item} />
           <span className="ml-auto flex items-center gap-2.5">
             {ownerless ? (
               <span className="rounded-md bg-[#fdf2e3] px-2 py-1 text-[11.5px] font-bold text-[#b45309]">

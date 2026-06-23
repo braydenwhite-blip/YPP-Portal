@@ -1,5 +1,5 @@
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
-import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
+import type { MeetingCardDTO } from "@/lib/people-strategy/meeting-card-types";
 import type { DigestDecisionInput } from "@/lib/people-strategy/operational-digest";
 import type { RelatedEntitySummary } from "@/lib/people-strategy/connections";
 
@@ -54,8 +54,6 @@ export function action(overrides: Partial<ActionItemWithRelations> = {}): Action
       adminSubtypes: [],
       profile: null,
     },
-    officerMeetingId: null,
-    officerMeeting: null,
     relatedEntityType: null,
     relatedEntityId: null,
     flaggedAt: null,

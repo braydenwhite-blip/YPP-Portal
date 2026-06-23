@@ -61,10 +61,6 @@ const ACTION_ITEM_INCLUDE = {
     },
   },
   department: { select: { id: true, name: true, slug: true } },
-  // Source meeting (Meetings Tracker): when an action was generated from a
-  // meeting follow-up / agenda item it carries officerMeetingId. Surfaced as a
-  // "Source: Meeting" badge that links back to the Weekly Command Center.
-  officerMeeting: { select: { id: true, title: true, date: true, category: true } },
   mentorshipSession: {
     select: {
       id: true,
@@ -336,25 +332,17 @@ export async function getActionsForEntity(
 }
 
 /**
- * Actions generated from one meeting (every action carrying its officerMeetingId),
- * newest first, visibility-filtered for `viewer`. Powers the "other actions from
- * this meeting" cross-link on the action detail view. Fails safe to [].
+ * Actions generated from one meeting. The legacy officer-meeting link column has
+ * been removed, so there is no longer a meeting→action relation to read; this
+ * always resolves to []. Kept as a stable no-op so existing callers (the action
+ * detail cross-link, the help-agent suggester, the entity 360 loader) keep
+ * compiling until they drop the call.
  */
 export async function getActionsForMeeting(
-  meetingId: string,
-  viewer: ActionViewer
+  _meetingId: string,
+  _viewer: ActionViewer
 ): Promise<ActionItemWithRelations[]> {
-  if (!isActionTrackerEnabled()) return [];
-  const id = meetingId?.trim();
-  if (!id) return [];
-
-  const items = await prisma.actionItem.findMany({
-    where: { officerMeetingId: id },
-    include: ACTION_ITEM_INCLUDE,
-    orderBy: [{ createdAt: "desc" }],
-  });
-
-  return items.filter((item) => canViewAction(viewer, toAccessShape(item)));
+  return [];
 }
 
 /**

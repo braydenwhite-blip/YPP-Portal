@@ -77,9 +77,6 @@ export type ActionDetailDTO = {
   deadlineStart: string;
   deadlineEnd: string | null;
   visibility: "OFFICERS_ONLY" | "ALL_LEADERSHIP";
-  officerMeetingId: string | null;
-  officerMeetingTitle?: string | null;
-  officerMeetingDate?: string | null;
   strategicInitiativeId?: string | null;
   strategicProjectId?: string | null;
   /** Polymorphic YPP entity this action is about (resolved for display). */
@@ -479,7 +476,6 @@ export default function ActionDetailCard({
               href={item.relatedEntityHref}
             />
           ) : null}
-          {item.officerMeetingId && <Pill tone="purple">Source: Meeting</Pill>}
           {strategic.initiativeTitle ? (
             strategic.initiativeHref ? (
               <Link
@@ -511,32 +507,6 @@ export default function ActionDetailCard({
           <PeopleColumn title="Input" people={item.people.input} />
         </div>
       </Section>
-
-      {item.officerMeetingId && (
-        <Section title="Source Meeting" defaultOpen>
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-brand-200 bg-brand-50 px-3.5 py-3 text-[14px] text-brand-800">
-            <span className="flex flex-col gap-0.5">
-              <span className="font-bold">
-                {item.officerMeetingTitle
-                  ? `From: ${item.officerMeetingTitle}`
-                  : "This action came out of a meeting."}
-              </span>
-              {item.officerMeetingDate && (
-                <span className="text-[12.5px] opacity-85">
-                  {new Intl.DateTimeFormat("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  }).format(new Date(item.officerMeetingDate))}
-                </span>
-              )}
-            </span>
-            <Link href={`/meetings/${item.officerMeetingId}`} className={BTN_SECONDARY_SM}>
-              Open meeting
-            </Link>
-          </div>
-        </Section>
-      )}
 
       {(item.relatedEntityType || sameEntityActions.length > 0 || sameMeetingActions.length > 0) && (
         <Section title="Connected work" defaultOpen>

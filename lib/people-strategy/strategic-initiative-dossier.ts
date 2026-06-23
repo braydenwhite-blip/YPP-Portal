@@ -1,5 +1,5 @@
 import type { ActionItemWithRelations } from "./action-queries";
-import type { MeetingCardDTO } from "./meetings-queries";
+import type { MeetingCardDTO } from "./meeting-card-types";
 import type { RelatedEntitySummary } from "./connections";
 import type { DigestDecisionInput } from "./operational-digest";
 import {

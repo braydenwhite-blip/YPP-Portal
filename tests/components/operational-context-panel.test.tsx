@@ -2,10 +2,9 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
-import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
+import type { MeetingCardDTO } from "@/lib/people-strategy/meeting-card-types";
 import { computeOperationalHealth } from "@/lib/people-strategy/operational-context";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
-import { RelatedMeetingsList } from "@/components/people-strategy/related-meetings-list";
 import {
   OperationalHealthBadge,
   RelatedEntityBadge,
@@ -54,9 +53,7 @@ function action(overrides: Partial<ActionItemWithRelations> = {}): ActionItemWit
     deadlineEnd: null,
     completedAt: null,
     leadId: "u2",
-    officerMeetingId: null,
     lead: { id: "u2", name: "Ian D", email: "ian@x.org", primaryRole: "ADMIN", title: null, adminSubtypes: [], profile: null },
-    officerMeeting: null,
     assignments: [{ id: "x", role: "EXECUTING", createdAt: NOW, user: { id: "u2", name: "Ian D", email: "ian@x.org", primaryRole: "ADMIN", title: null, adminSubtypes: [], profile: null } }],
     comments: [],
     ...overrides,
@@ -64,7 +61,7 @@ function action(overrides: Partial<ActionItemWithRelations> = {}): ActionItemWit
 }
 
 describe("OperationalContextPanel", () => {
-  it("renders the title, health, related meetings, and open actions", () => {
+  it("renders the title, health, and open actions", () => {
     render(
       <OperationalContextPanel
         title="Class Operations"
@@ -77,12 +74,7 @@ describe("OperationalContextPanel", () => {
     );
     expect(screen.getByRole("heading", { name: "Class Operations" })).toBeInTheDocument();
     expect(screen.getByText("Sports Business 101")).toBeInTheDocument();
-    expect(screen.getByText("Related meetings")).toBeInTheDocument();
     expect(screen.getByText("Open actions")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Classes Operations Check-In" })).toHaveAttribute(
-      "href",
-      "/meetings/m1"
-    );
     expect(screen.getByRole("link", { name: "Finalize class description" })).toHaveAttribute(
       "href",
       "/actions/a1"
@@ -111,38 +103,6 @@ describe("OperationalContextPanel", () => {
       "/actions/new?relatedType=CLASS_OFFERING&relatedId=cls1"
     );
     expect(screen.getByRole("link", { name: "Schedule meeting" })).toBeInTheDocument();
-  });
-
-  it("surfaces a source-meeting badge on actions generated from a meeting", () => {
-    render(
-      <OperationalContextPanel
-        title="Class Operations"
-        health={computeOperationalHealth({ openActions: 1 })}
-        meetings={[]}
-        actions={[
-          action({
-            officerMeetingId: "m9",
-            officerMeeting: { id: "m9", title: "Kickoff", date: new Date("2026-06-01T00:00:00"), category: "CLASSES" } as ActionItemWithRelations["officerMeeting"],
-          }),
-        ]}
-        now={NOW}
-      />
-    );
-    expect(screen.getByText(/Source: Meeting/i)).toBeInTheDocument();
-  });
-});
-
-describe("RelatedMeetingsList", () => {
-  it("lists meetings with a follow-up summary", () => {
-    render(<RelatedMeetingsList meetings={[meeting()]} />);
-    expect(screen.getByText("Related meetings")).toBeInTheDocument();
-    expect(screen.getByText(/1 need follow-up/)).toBeInTheDocument();
-    expect(screen.getByText("Needs follow-up")).toBeInTheDocument();
-  });
-
-  it("renders the empty state", () => {
-    render(<RelatedMeetingsList meetings={[]} emptyHint="No meetings yet." />);
-    expect(screen.getByText("No meetings yet.")).toBeInTheDocument();
   });
 });
 

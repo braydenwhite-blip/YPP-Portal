@@ -16,7 +16,7 @@ import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 
 import { MeetingIcon } from "./meeting-icons";
 import { MeetingLine } from "./related-meetings-list";
-import { OperationalHealthBadge, SourceMeetingBadge } from "./operational-badges";
+import { OperationalHealthBadge } from "./operational-badges";
 import { Pill } from "./pills";
 
 /**
@@ -68,14 +68,6 @@ function ActionLine({ item, now }: { item: ActionItemWithRelations; now: Date })
           <span>
             {leadName} · due {formatMonthDay(effectiveDeadline(item))}
           </span>
-          {item.officerMeeting ? (
-            <SourceMeetingBadge
-              id={item.officerMeeting.id}
-              title={item.officerMeeting.title}
-              dateISO={item.officerMeeting.date.toISOString()}
-              compact
-            />
-          ) : null}
         </div>
       </div>
       <span style={{ fontSize: 11, fontWeight: 600, color: STATUS_TONE[status], whiteSpace: "nowrap" }}>

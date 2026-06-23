@@ -106,8 +106,8 @@ function base(item: ActionItemWithRelations) {
     ownerName: leadName(item),
     priority: item.priority,
     href: `/actions/${item.id}`,
-    meetingId: item.officerMeetingId ?? null,
-    meetingTitle: item.officerMeeting?.title ?? null,
+    meetingId: null,
+    meetingTitle: null,
   };
 }
 
@@ -383,18 +383,6 @@ export function actionDataQuality(
         kind: "overdue_not_escalated",
         issue: `Overdue ${plural(daysOverdue(item, now))} with no escalation`,
         recommendedFix: "Escalate it or reset the plan",
-      });
-    }
-    if (
-      item.officerMeetingId != null &&
-      item.officerMeeting?.date != null &&
-      daysSince(item.officerMeeting.date, now) > STALE_ACTIVITY_DAYS
-    ) {
-      out.push({
-        ...b,
-        kind: "open_in_closed_meeting",
-        issue: "Still open under a meeting that's long past",
-        recommendedFix: "Close it out or move it to the next meeting",
       });
     }
   }

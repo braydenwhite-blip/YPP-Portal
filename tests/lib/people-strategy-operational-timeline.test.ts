@@ -4,7 +4,7 @@ vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/feature-flags", () => ({ isActionTrackerEnabled: () => true }));
 
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
-import type { MeetingCardDTO } from "@/lib/people-strategy/meetings-queries";
+import type { MeetingCardDTO } from "@/lib/people-strategy/meeting-card-types";
 import type {
   DecisionContextDTO,
   FollowUpContextDTO,

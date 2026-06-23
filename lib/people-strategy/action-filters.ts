@@ -420,8 +420,10 @@ export function applyActionFilters(
     if (filters.actionType !== "ALL" && item.actionType !== filters.actionType) {
       return false;
     }
-    if (filters.source === "meeting" && item.officerMeetingId == null) return false;
-    if (filters.source === "manual" && item.officerMeetingId != null) return false;
+    // The legacy meeting-source link column has been removed; the "from a
+    // meeting" lens can no longer match anything, and "manual" matches every
+    // item that isn't otherwise excluded.
+    if (filters.source === "meeting") return false;
     if (!matchesActionPreset(item, filters.preset, now)) return false;
     if (!matchesSearch(item, filters.search)) return false;
     return true;

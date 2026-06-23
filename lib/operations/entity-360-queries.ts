@@ -15,12 +15,10 @@ import {
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
-import { meetingCategoryLabel } from "@/lib/people-strategy/meeting-categories";
 import {
   getMeetingById,
   getMeetingsForEntity,
   mapMeetingToCardDTO,
-  mapMeetingToDetailDTO,
   type MeetingCardDTO,
 } from "@/lib/people-strategy/meetings-queries";
 import {
@@ -267,19 +265,18 @@ async function loadPerson360(
     }),
     getMyActionItems(id, viewer).catch(() => [] as ActionItemWithRelations[]),
     officer && isActionTrackerEnabled()
-      ? prisma.officerMeeting.findMany({
+      ? prisma.meeting.findMany({
           where: {
             OR: [{ facilitatorId: id }, { attendees: { some: { userId: id } } }],
           },
-          orderBy: { date: "desc" },
+          orderBy: { scheduledAt: "desc" },
           take: DRAWER_LIMITS.meetings,
           select: {
             id: true,
             title: true,
-            date: true,
-            category: true,
+            scheduledAt: true,
             status: true,
-            _count: { select: { decisions: true, actionItems: true } },
+            _count: { select: { decisions: true } },
             followUps: {
               where: { status: { not: "COMPLETED" } },
               select: { id: true },
@@ -328,7 +325,7 @@ async function loadPerson360(
   const overdueCount = openLites.filter((a) => a.overdue).length;
   const lastActivity = latestActivityISO([
     completedActions[0]?.completedAt,
-    meetings[0]?.date,
+    meetings[0]?.scheduledAt,
     extra.classOfferingsInstructed[0]?.startDate,
   ]);
   const glance: Entity360Glance[] = [
@@ -679,15 +676,15 @@ async function loadPerson360(
     workItems: openWork,
     meetings: meetings.map((m) => ({
       id: m.id,
-      title: m.title?.trim() || "Officer Meeting",
-      dateISO: m.date.toISOString(),
-      categoryLabel: m.category ? meetingCategoryLabel(m.category) : null,
+      title: m.title?.trim() || "Meeting",
+      dateISO: m.scheduledAt.toISOString(),
+      categoryLabel: null,
       outcome: meetingOutcomeLine({
         decisionCount: m._count.decisions,
-        linkedActionCount: m._count.actionItems,
+        linkedActionCount: 0,
         openFollowUps: m.followUps.length,
       }),
-      upcoming: m.date.getTime() >= now.getTime() && m.status !== "CANCELLED",
+      upcoming: m.scheduledAt.getTime() >= now.getTime() && m.status !== "CANCELLED",
     })),
     timeline,
     nextStep: advisorNextStep ?? nextStepFromWork(openWork),
@@ -1400,15 +1397,11 @@ async function loadMeeting360(
   if (!isOfficerTier(viewer)) return null;
   const meeting = await getMeetingById(id);
   if (!meeting) return null;
-  const dto = mapMeetingToDetailDTO(meeting, now);
+  const dto = mapMeetingToCardDTO(meeting, now);
   const lite = toMeetingLite(dto, now);
 
-  const [actions, related] = await Promise.all([
-    getActionsForMeeting(id, viewer),
-    meeting.relatedEntityType && meeting.relatedEntityId
-      ? loadRelatedEntitySummary(meeting.relatedEntityType, meeting.relatedEntityId)
-      : Promise.resolve(null),
-  ]);
+  // New meetings are not linked to the polymorphic entity vocabulary.
+  const actions = await getActionsForMeeting(id, viewer);
   const actionLites = actions.map((a) => toActionLite(a, now));
   const workItems: WorkItem[] = [
     ...lite.unconvertedFollowUps.map((f) => workItemFromFollowUp(f, now)),
@@ -1420,7 +1413,7 @@ async function loadMeeting360(
     kind: "decision" as const,
     occurredAtISO: d.createdAt.toISOString(),
     title: d.decision,
-    detail: d.linkedAction ? "Action assigned" : "No action yet",
+    detail: "No action yet",
     actorName: d.decidedBy?.name ?? null,
     relatedType: null,
     relatedId: null,
@@ -1471,7 +1464,6 @@ async function loadMeeting360(
       ...(dto.recurrence && dto.recurrence !== "NONE"
         ? [{ label: "Repeats", value: dto.recurrence.toLowerCase() }]
         : []),
-      ...(related ? [{ label: related.typeLabel, value: related.label }] : []),
     ],
     people: [
       ...(dto.facilitator
@@ -1484,11 +1476,11 @@ async function loadMeeting360(
             },
           ]
         : []),
-      ...dto.attendees
-        .filter((a) => a.id !== dto.facilitator?.id)
+      ...meeting.attendees
+        .filter((a) => a.user.id !== dto.facilitator?.id)
         .map((a) => ({
-          id: a.id,
-          name: a.name,
+          id: a.user.id,
+          name: a.user.name,
           title: null,
           relationship: "Attendee",
         })),
