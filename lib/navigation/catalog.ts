@@ -1345,10 +1345,14 @@ export const NAV_CATALOG: NavLink[] = [
         "Promotion",
         "Promotional view",
         "Role assignments",
-        "Admin subtypes",
+        "Cohort",
+        "Cohorts",
+        "Group",
+        "Ladder",
+        "Level",
       ],
       dashboardDescription:
-        "Set every user's exact roles, admin subtypes, and chapter from one place.",
+        "Set every user's exact roles, ladder/level, and cohort from one place.",
     },
     {
       href: "/admin/teams",

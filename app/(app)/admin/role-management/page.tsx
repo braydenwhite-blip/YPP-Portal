@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminRoleManagementPage() {
   await requireAdmin();
 
-  const [users, chapters] = await Promise.all([
+  const [users, chapters, cohorts] = await Promise.all([
     prisma.user.findMany({
       orderBy: [{ name: "asc" }],
       select: {
@@ -16,14 +16,21 @@ export default async function AdminRoleManagementPage() {
         name: true,
         email: true,
         primaryRole: true,
+        canonicalTitle: true,
+        ladder: true,
+        internalLevel: true,
         chapter: { select: { id: true, name: true } },
+        cohort: { select: { id: true, name: true } },
         roles: { select: { role: true } },
-        adminSubtypes: { select: { subtype: true, isDefaultOwner: true } },
       },
     }),
     prisma.chapter.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, city: true },
+    }),
+    prisma.cohort.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
     }),
   ]);
 
@@ -32,22 +39,24 @@ export default async function AdminRoleManagementPage() {
     name: user.name,
     email: user.email,
     primaryRole: user.primaryRole,
+    canonicalTitle: user.canonicalTitle,
+    ladder: user.ladder,
+    internalLevel: user.internalLevel,
     chapterId: user.chapter?.id ?? null,
     chapterName: user.chapter?.name ?? null,
+    cohortId: user.cohort?.id ?? null,
+    cohortName: user.cohort?.name ?? null,
     roles: user.roles.map((r) => r.role),
-    adminSubtypes: user.adminSubtypes.map((s) => s.subtype),
-    defaultOwnerSubtype:
-      user.adminSubtypes.find((s) => s.isDefaultOwner)?.subtype ?? null,
   }));
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-6 pb-16">
+    <div className="mx-auto flex max-w-[1200px] flex-col gap-6 pb-16">
       <PageHeaderV2
         eyebrow="Admin"
         title="Role Management"
-        subtitle="Set every user's exact roles, admin subtypes, and chapter from one place."
+        subtitle="Set every user's exact roles, ladder/level, and cohort from one place. Assign a different group inline, or open a user for the full editor."
       />
-      <RoleManagement users={initialUsers} chapters={chapters} />
+      <RoleManagement users={initialUsers} chapters={chapters} cohorts={cohorts} />
     </div>
   );
 }
