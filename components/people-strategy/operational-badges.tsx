@@ -5,11 +5,18 @@ import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import { RELATED_TO_ENTITY_360 } from "@/lib/operations/entity-360";
 import { relatedEntityTypeLabel } from "@/lib/people-strategy/constants";
 import {
+  meetingCategoryIdentity,
   meetingCategoryLabel,
   meetingCategoryTone,
 } from "@/lib/people-strategy/meeting-categories";
 import type { OperationalHealth } from "@/lib/people-strategy/operational-context";
+import {
+  meetingOutcomeMeta,
+  type MeetingOutcomeQuality,
+  type MeetingOutcomeTone,
+} from "@/lib/people-strategy/meeting-outcome";
 
+import { MeetingIcon, type MeetingIconName } from "./meeting-icons";
 import { Pill, type PillTone } from "./pills";
 
 /**
@@ -40,7 +47,12 @@ export function RelatedEntityBadge({
 }) {
   const typeLabel = relatedEntityTypeLabel(type);
   const text = label ? `${typeLabel} · ${label}` : typeLabel;
-  const inner = <Pill tone="info">{text}</Pill>;
+  const inner = (
+    <Pill tone="info">
+      <MeetingIcon name="link" size={11} stroke={2.2} style={{ marginRight: 4, verticalAlign: "-1px" }} />
+      {text}
+    </Pill>
+  );
   const drawerType = id ? RELATED_TO_ENTITY_360[type] : undefined;
   if (drawerType && id) {
     return (
@@ -80,6 +92,7 @@ export function SourceMeetingBadge({
   return (
     <Link href={`/meetings/${id}`} style={{ textDecoration: "none" }} title="Open source meeting">
       <Pill tone="purple">
+        <MeetingIcon name="calendar" size={11} stroke={2.2} style={{ marginRight: 4, verticalAlign: "-1px" }} />
         {compact ? "Source: Meeting" : `Source: ${name}${date ? ` · ${date}` : ""}`}
       </Pill>
     </Link>
@@ -90,6 +103,7 @@ export function SourceMeetingBadge({
 export function AreaBadge({ area }: { area: string | null | undefined }) {
   if (!area) return null;
   const tone = meetingCategoryTone(area);
+  const icon = meetingCategoryIdentity(area).icon as MeetingIconName;
   return (
     <span
       style={{
@@ -106,6 +120,7 @@ export function AreaBadge({ area }: { area: string | null | undefined }) {
         whiteSpace: "nowrap",
       }}
     >
+      <MeetingIcon name={icon} size={12} stroke={2} />
       {meetingCategoryLabel(area)}
     </span>
   );
@@ -155,34 +170,6 @@ export function OperationalHealthBadge({
       ) : null}
     </span>
   );
-}
-
-type MeetingOutcomeLevel =
-  | "strong"
-  | "adequate"
-  | "needs_follow_through"
-  | "empty"
-  | "stale";
-
-type MeetingOutcomeTone = "success" | "info" | "warning" | "neutral" | "overdue";
-
-export type MeetingOutcomeQuality = {
-  level: MeetingOutcomeLevel;
-  headline: string;
-  reasons?: string[];
-  suggestedNextSteps?: string[];
-};
-
-const MEETING_OUTCOME_META: Record<MeetingOutcomeLevel, { label: string; tone: MeetingOutcomeTone }> = {
-  stale: { label: "Stale", tone: "overdue" },
-  needs_follow_through: { label: "Needs follow-through", tone: "warning" },
-  empty: { label: "No outcome yet", tone: "neutral" },
-  adequate: { label: "Adequate", tone: "info" },
-  strong: { label: "Strong outcome", tone: "success" },
-};
-
-function meetingOutcomeMeta(level: MeetingOutcomeLevel) {
-  return MEETING_OUTCOME_META[level];
 }
 
 const OUTCOME_PILL_TONE: Record<MeetingOutcomeTone, PillTone> = {

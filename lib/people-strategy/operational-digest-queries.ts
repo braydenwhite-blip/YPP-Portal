@@ -6,7 +6,15 @@ import {
   listVisibleActionItems,
   type ActionItemWithRelations,
 } from "./action-queries";
-import { type MeetingCardDTO } from "./meeting-card-types";
+import {
+  getMeetingsForEntities,
+  listMeetingsForArea,
+  listMeetingsInRange,
+  mapMeetingToCardDTO,
+  meetingDisplayTitle,
+  type MeetingCardDTO,
+  type MeetingWithCommandCenter,
+} from "./meetings-queries";
 import {
   loadRelatedEntityLabels,
   type RelatedEntitySummary,
@@ -67,8 +75,11 @@ export type DigestQueryOptions = { now?: Date };
 
 // --- shared loaders ----------------------------------------------------------
 
-/** Distinct, validated related-entity refs across the loaded actions. */
-function collectEntityRefs(actions: ActionItemWithRelations[]): RelatedEntityRef[] {
+/** Distinct, validated related-entity refs across the loaded actions + meetings. */
+function collectEntityRefs(
+  actions: ActionItemWithRelations[],
+  meetings: Array<{ relatedEntityType: string | null; relatedEntityId: string | null }>
+): RelatedEntityRef[] {
   const seen = new Set<string>();
   const refs: RelatedEntityRef[] = [];
   const add = (type: string | null, id: string | null) => {
@@ -79,25 +90,70 @@ function collectEntityRefs(actions: ActionItemWithRelations[]): RelatedEntityRef
     refs.push({ type, id });
   };
   for (const a of actions) add(a.relatedEntityType, a.relatedEntityId);
+  for (const m of meetings) add(m.relatedEntityType, m.relatedEntityId);
   return refs;
 }
 
+/** Flatten raw meeting decisions into the digest's DB-free decision shape. */
+function extractDigestDecisions(
+  meetings: MeetingWithCommandCenter[]
+): DigestDecisionInput[] {
+  const out: DigestDecisionInput[] = [];
+  for (const m of meetings) {
+    const title = meetingDisplayTitle(m);
+    for (const d of m.decisions) {
+      out.push({
+        id: d.id,
+        decision: d.decision,
+        meetingId: m.id,
+        meetingTitle: title,
+        meetingCategory: null,
+        createdAt: d.createdAt,
+        decidedByName: d.decidedBy?.name ?? d.decidedBy?.email ?? null,
+        hasLinkedAction: false,
+        relatedEntityType: null,
+        relatedEntityId: null,
+      });
+    }
+  }
+  return out;
+}
+
 /**
- * The old Meetings Tracker was removed, so meetings + meeting-derived decisions
- * are always empty now. This still resolves the entity labels the digest uses to
- * name related-entity work.
+ * Merge a ranged meeting set with the per-entity meeting history (deduped by id)
+ * so the digest sees both the recent operating window AND the full history of
+ * every entity that carries open work — the latter is what makes
+ * `daysSinceLastMeeting` and entity health accurate even when an entity's last
+ * meeting predates the window.
  */
 async function loadDigestMeetingData(
-  refs: RelatedEntityRef[]
+  primaryMeetings: MeetingWithCommandCenter[],
+  refs: RelatedEntityRef[],
+  now: Date
 ): Promise<{
   meetings: MeetingCardDTO[];
   decisions: DigestDecisionInput[];
   labels: Map<string, RelatedEntitySummary>;
 }> {
-  const labels = await loadRelatedEntityLabels(refs).catch(
-    () => new Map<string, RelatedEntitySummary>()
-  );
-  return { meetings: [], decisions: [], labels };
+  const [meetingsByEntity, labels] = await Promise.all([
+    getMeetingsForEntities(refs).catch(
+      () => new Map<string, MeetingWithCommandCenter[]>()
+    ),
+    loadRelatedEntityLabels(refs).catch(() => new Map<string, RelatedEntitySummary>()),
+  ]);
+
+  const rawById = new Map<string, MeetingWithCommandCenter>();
+  for (const m of primaryMeetings) rawById.set(m.id, m);
+  for (const list of meetingsByEntity.values()) {
+    for (const m of list) rawById.set(m.id, m);
+  }
+  const raw = [...rawById.values()];
+
+  return {
+    meetings: raw.map((m) => mapMeetingToCardDTO(m, now)),
+    decisions: extractDigestDecisions(raw),
+    labels,
+  };
 }
 
 function emptyDigest(now: Date): WeeklyOperationalDigest {
@@ -137,12 +193,21 @@ export async function loadDigestInputs(
     return { actions: [], meetings: [], decisions: [], labels: new Map() };
   }
 
-  const actions = await listVisibleActionItems(viewer).catch(
-    () => [] as ActionItemWithRelations[]
-  );
+  const [actions, windowMeetings] = await Promise.all([
+    listVisibleActionItems(viewer).catch(() => [] as ActionItemWithRelations[]),
+    listMeetingsInRange(
+      addDays(now, -DIGEST_MEETING_LOOKBACK_DAYS),
+      addDays(now, DIGEST_MEETING_LOOKAHEAD_DAYS)
+    ).catch(() => [] as MeetingWithCommandCenter[]),
+  ]);
 
-  const refs = collectEntityRefs(actions);
-  const { meetings, decisions, labels } = await loadDigestMeetingData(refs);
+  // New meetings carry no polymorphic entity link, so they contribute no refs.
+  const refs = collectEntityRefs(actions, []);
+  const { meetings, decisions, labels } = await loadDigestMeetingData(
+    windowMeetings,
+    refs,
+    now
+  );
   return { actions, meetings, decisions, labels };
 }
 
@@ -196,9 +261,12 @@ export async function getOperationalDigestForArea(
     };
   }
 
-  const allActions = await listVisibleActionItems(viewer).catch(
-    () => [] as ActionItemWithRelations[]
-  );
+  const [allActions, areaMeetings] = await Promise.all([
+    listVisibleActionItems(viewer).catch(() => [] as ActionItemWithRelations[]),
+    listMeetingsForArea(area, {
+      since: addDays(now, -DIGEST_MEETING_LOOKBACK_DAYS),
+    }).catch(() => [] as MeetingWithCommandCenter[]),
+  ]);
 
   const actions = allActions.filter(
     (a) =>
@@ -207,8 +275,12 @@ export async function getOperationalDigestForArea(
       areaForRelatedEntityType(a.relatedEntityType) === area
   );
 
-  const refs = collectEntityRefs(actions);
-  const { meetings, decisions, labels } = await loadDigestMeetingData(refs);
+  const refs = collectEntityRefs(actions, []);
+  const { meetings, decisions, labels } = await loadDigestMeetingData(
+    areaMeetings,
+    refs,
+    now
+  );
 
   const digest = deriveWeeklyOperationalDigest({
     actions,

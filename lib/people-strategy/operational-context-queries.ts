@@ -19,9 +19,13 @@ import {
 } from "./connections";
 import { meetingCategoryLabel } from "./meeting-categories";
 import {
-  type EffectiveFollowUpStatus,
+  getMeetingsForEntity,
+  listMeetingsForArea,
+  mapMeetingToCardDTO,
   type MeetingCardDTO,
-} from "./meeting-card-types";
+  type MeetingWithCommandCenter,
+} from "./meetings-queries";
+import { computeFollowUpStatus } from "./meetings-status";
 import {
   areaForRelatedEntityType,
   computeOperationalHealth,
@@ -147,7 +151,7 @@ export type FollowUpContextDTO = {
   meetingId: string;
   meetingTitle: string;
   dueISO: string | null;
-  effectiveStatus: EffectiveFollowUpStatus;
+  effectiveStatus: ReturnType<typeof computeFollowUpStatus>;
   ownerName: string | null;
   areaLabel: string;
 };
@@ -161,8 +165,60 @@ export type DecisionContextDTO = {
   decidedByName: string | null;
 };
 
-// Meeting-derived follow-ups / decisions are no longer loaded (the old Meetings
-// Tracker was removed); these context sections are always empty now.
+function meetingTitleOf(m: MeetingWithCommandCenter): string {
+  return m.title?.trim() || "Officer Meeting";
+}
+
+/** Open follow-ups across the related meetings, soonest-due first. */
+function extractOpenFollowUps(
+  meetings: MeetingWithCommandCenter[],
+  now: Date,
+  limit = 6
+): FollowUpContextDTO[] {
+  const rows: Array<FollowUpContextDTO & { sortKey: number }> = [];
+  for (const m of meetings) {
+    for (const f of m.followUps) {
+      if (f.status === "COMPLETED") continue;
+      const status = computeFollowUpStatus({ status: f.status, dueDate: f.dueDate }, now);
+      rows.push({
+        id: f.id,
+        title: f.title,
+        meetingId: m.id,
+        meetingTitle: meetingTitleOf(m),
+        dueISO: f.dueDate ? f.dueDate.toISOString() : null,
+        effectiveStatus: status,
+        ownerName: f.owner?.name ?? f.owner?.email ?? null,
+        areaLabel: meetingCategoryLabel(null),
+        sortKey: f.dueDate ? f.dueDate.getTime() : Number.MAX_SAFE_INTEGER,
+      });
+    }
+  }
+  rows.sort((a, b) => a.sortKey - b.sortKey);
+  return rows.slice(0, limit).map(({ sortKey: _sortKey, ...row }) => row);
+}
+
+/** Recent decisions across the related meetings, newest first. */
+function extractRecentDecisions(
+  meetings: MeetingWithCommandCenter[],
+  limit = 4
+): DecisionContextDTO[] {
+  const rows: Array<DecisionContextDTO & { sortKey: number }> = [];
+  for (const m of meetings) {
+    for (const d of m.decisions) {
+      rows.push({
+        id: d.id,
+        decision: d.decision,
+        meetingId: m.id,
+        meetingTitle: meetingTitleOf(m),
+        createdISO: d.createdAt.toISOString(),
+        decidedByName: d.decidedBy?.name ?? d.decidedBy?.email ?? null,
+        sortKey: d.createdAt.getTime(),
+      });
+    }
+  }
+  rows.sort((a, b) => b.sortKey - a.sortKey);
+  return rows.slice(0, limit).map(({ sortKey: _sortKey, ...row }) => row);
+}
 
 // --- entity context loader ---------------------------------------------------
 
@@ -195,13 +251,13 @@ export async function getOperationalContextForEntity(
   const entityId = id?.trim();
   if (!entityId) return null;
 
-  const [actions, summary] = await Promise.all([
+  const [actions, rawMeetings, summary] = await Promise.all([
     getActionsForEntity(type, entityId, viewer).catch(() => [] as ActionItemWithRelations[]),
+    getMeetingsForEntity(type, entityId).catch(() => [] as MeetingWithCommandCenter[]),
     loadRelatedEntitySummary(type, entityId).catch(() => null),
   ]);
 
-  // The old Meetings Tracker was removed — related meetings are always empty now.
-  const meetings: MeetingCardDTO[] = [];
+  const meetings = rawMeetings.map((m) => mapMeetingToCardDTO(m, now));
 
   return {
     ref: { type, id: entityId },
@@ -209,8 +265,8 @@ export async function getOperationalContextForEntity(
     summary,
     meetings,
     actions,
-    openFollowUps: [],
-    recentDecisions: [],
+    openFollowUps: extractOpenFollowUps(rawMeetings, now),
+    recentDecisions: extractRecentDecisions(rawMeetings),
     health: deriveOperationalHealth(actions, meetings, now),
   };
 }
@@ -248,9 +304,10 @@ export async function getOperationalContextForArea(
   };
   if (!isActionTrackerEnabled()) return empty;
 
-  const allActions = await listVisibleActionItems(viewer).catch(
-    () => [] as ActionItemWithRelations[]
-  );
+  const [rawMeetings, allActions] = await Promise.all([
+    listMeetingsForArea(area).catch(() => [] as MeetingWithCommandCenter[]),
+    listVisibleActionItems(viewer).catch(() => [] as ActionItemWithRelations[]),
+  ]);
 
   // Actions belong to an area when their linked entity type rolls up to it.
   const actions = allActions.filter(
@@ -260,16 +317,15 @@ export async function getOperationalContextForArea(
       areaForRelatedEntityType(a.relatedEntityType) === area
   );
 
-  // The old Meetings Tracker was removed — area meetings are always empty now.
-  const meetings: MeetingCardDTO[] = [];
+  const meetings = rawMeetings.map((m) => mapMeetingToCardDTO(m, now));
 
   return {
     area,
     areaLabel: meetingCategoryLabel(area),
     meetings,
     actions,
-    openFollowUps: [],
-    recentDecisions: [],
+    openFollowUps: extractOpenFollowUps(rawMeetings, now),
+    recentDecisions: extractRecentDecisions(rawMeetings),
     health: deriveOperationalHealth(actions, meetings, now),
   };
 }

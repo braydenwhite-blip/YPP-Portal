@@ -13,7 +13,11 @@ import type { ActionItemWithRelations } from "./action-queries";
 import { effectiveStatus } from "./action-filters";
 import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
 import { daysOverdue, STALE_ACTIVITY_DAYS } from "./command-center-selectors";
-import type { MeetingCardDTO } from "./meeting-card-types";
+import type { MeetingCardDTO } from "./meetings-queries";
+import {
+  meetingOutcomeFromCard,
+  type MeetingOutcomeQuality,
+} from "./meeting-outcome";
 import { isMeetingCategory, meetingCategoryLabel } from "./meeting-categories";
 import {
   areaForRelatedEntityType,
@@ -157,6 +161,8 @@ export type MeetingLite = {
   keyDecisions: string[];
   linkedActionTitles: string[];
   unconvertedFollowUps: MeetingFollowUpLite[];
+  /** Deterministic operational outcome read (was the meeting useful?). */
+  outcome: MeetingOutcomeQuality;
   href: string;
 };
 
@@ -450,6 +456,7 @@ export function toMeetingLite(
     unconvertedFollowUps: (m.unconvertedFollowUps ?? []).map((f) =>
       toMeetingFollowUpLite(f, m, relatedType, relatedId, related)
     ),
+    outcome: meetingOutcomeFromCard(m, now),
     href: meetingHref(m.id),
   };
 }

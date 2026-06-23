@@ -1,3 +1,4 @@
+import type { MeetingCardDTO } from "@/lib/people-strategy/meeting-card-types";
 import type { OwnerLane, QueueItem, QueueTone } from "@/lib/queue/types";
 
 /**
@@ -45,6 +46,48 @@ export type CcMeetingStatus =
   | "needs_follow_up"
   | "completed"
   | "canceled";
+
+const CC_MEETING_STATUS_LABEL: Record<CcMeetingStatus, string> = {
+  in_progress: "In progress",
+  today: "Today",
+  upcoming: "Upcoming",
+  needs_follow_up: "Needs follow-up",
+  completed: "Completed",
+  canceled: "Canceled",
+};
+
+function ccTimeRange(startISO: string, endISO: string | null): string {
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return endISO ? `${fmt(startISO)} – ${fmt(endISO)}` : fmt(startISO);
+}
+
+/** Project a meeting view-model DTO into the operating surfaces' CcMeeting card. */
+export function toCcMeeting(dto: MeetingCardDTO): CcMeeting {
+  const status = dto.effectiveStatus as CcMeetingStatus;
+  return {
+    id: dto.id,
+    title: dto.title,
+    purpose: dto.purpose,
+    location: dto.location,
+    categoryLabel: dto.categoryLabel,
+    startISO: dto.startISO,
+    endISO: dto.endISO,
+    timeLabel: ccTimeRange(dto.startISO, dto.endISO),
+    status,
+    statusLabel: CC_MEETING_STATUS_LABEL[status],
+    live: status === "in_progress",
+    attendees: dto.facilitator ? [dto.facilitator] : [],
+    attendeeCount: dto.attendeeCount,
+    agendaCount: dto.agendaCount,
+    agendaDoneCount: dto.agendaDoneCount,
+    decisionCount: dto.decisionCount,
+    openFollowUps: dto.openFollowUps,
+    overdueFollowUps: dto.overdueFollowUps,
+    openActions: dto.openLinkedActions,
+    href: `/meetings/${dto.id}`,
+  };
+}
 
 /** A serializable "recently decided" row (real MeetingDecision data). */
 export type CcDecisionLogEntry = {

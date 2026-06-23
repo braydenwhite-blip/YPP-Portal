@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatMeetingDays } from "@/lib/class-status";
 import { countOpenActionsByRelatedEntity } from "@/lib/people-strategy/action-queries";
 import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { getMeetingsForEntity, meetingDisplayTitle } from "@/lib/people-strategy/meetings-queries";
 import {
   asPartnerStage,
   isActivePartnerStage,
@@ -185,10 +186,19 @@ export async function loadPartnersOperationsList(): Promise<PartnerOperationsLis
   });
 
   const ids = partners.map((p) => p.id);
-  const openActions = await countOpenActionsByRelatedEntity("PARTNER", ids);
+  // The new Meeting model does not link to partners, so partner-scoped upcoming
+  // meetings resolve to empty.
+  const [openActions, upcomingMeetings] = await Promise.all([
+    countOpenActionsByRelatedEntity("PARTNER", ids),
+    Promise.resolve([] as Array<{ relatedEntityId: string | null; date: Date }>),
+  ]);
 
-  // The old Meetings Tracker was removed — partner meetings are always empty now.
   const nextMeetingByPartner = new Map<string, Date>();
+  for (const m of upcomingMeetings) {
+    if (m.relatedEntityId && !nextMeetingByPartner.has(m.relatedEntityId)) {
+      nextMeetingByPartner.set(m.relatedEntityId, m.date);
+    }
+  }
 
   return partners.map((partner) => {
     const offerings = partner.classOfferings;
@@ -302,14 +312,10 @@ export async function loadPartnerOperationsDetail(
   });
   if (!partner) return null;
 
-  const actions = await getActionsForEntity("PARTNER", id, viewer).catch(() => []);
-  // The old Meetings Tracker was removed — partner meetings are always empty now.
-  const meetings: Array<{
-    id: string;
-    title: string | null;
-    date: Date;
-    status: string;
-  }> = [];
+  const [actions, meetings] = await Promise.all([
+    getActionsForEntity("PARTNER", id, viewer).catch(() => []),
+    getMeetingsForEntity("PARTNER", id).catch(() => []),
+  ]);
 
   const openActions = actions
     .filter((a) => a.status !== "COMPLETE" && a.status !== "DROPPED")
@@ -328,8 +334,8 @@ export async function loadPartnerOperationsDetail(
     }));
 
   const upcoming = meetings
-    .filter((m) => m.status !== "CANCELLED" && new Date(m.date) >= now)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .filter((m) => m.status !== "CANCELLED" && new Date(m.scheduledAt) >= now)
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
   const nextMeeting = upcoming[0] ?? null;
 
   const followUpOverdue = Boolean(
@@ -400,7 +406,7 @@ export async function loadPartnerOperationsDetail(
           name: partner.relationshipLead.name ?? partner.relationshipLead.email ?? "Lead",
         }
       : null,
-    nextMeetingISO: nextMeeting?.date.toISOString() ?? partner.meetingDate?.toISOString() ?? null,
+    nextMeetingISO: nextMeeting?.scheduledAt.toISOString() ?? partner.meetingDate?.toISOString() ?? null,
     nextFollowUpISO: partner.nextFollowUpAt?.toISOString() ?? null,
     classes,
     openActions,
@@ -416,8 +422,8 @@ export async function loadPartnerOperationsDetail(
     })),
     partnerMeetings: meetings.slice(0, 8).map((m) => ({
       id: m.id,
-      title: m.title?.trim() || "Meeting",
-      dateLabel: shortDate(m.date, now),
+      title: meetingDisplayTitle(m),
+      dateLabel: shortDate(m.scheduledAt, now),
       href: `/meetings/${m.id}`,
     })),
   };
