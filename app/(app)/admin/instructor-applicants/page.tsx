@@ -12,7 +12,6 @@ import {
 } from "@/lib/instructor-applicant-board-queries";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
 import { buttonVariants, PageHeaderV2, StatCardV2 } from "@/components/ui-v2";
-import ApplicantPipelineOverview from "@/components/instructor-applicants/ApplicantPipelineOverview";
 import { ArchiveAllButton } from "@/components/instructor-applicants/ArchiveActions";
 import { type FunnelCounts } from "@/components/instructor-applicants/ApplicantPipelineOverview";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
@@ -466,16 +465,6 @@ export default async function AdminInstructorApplicantsPage({
         </div>
       </PageHeaderV2>
 
-      <ApplicantPipelineOverview
-        filteredCounts={{
-          newApplications: newCount,
-          needsReview: toReviewCount,
-          interviewStage: toInterviewCount,
-          postInterview: postInterviewCount,
-        }}
-        funnelCounts={funnelCounts}
-      />
-
       <InstructorApplicantsCommandCenter
         scope={hasNetworkScope ? "global" : "chapter"}
         chapterId={chapterId}
@@ -489,6 +478,13 @@ export default async function AdminInstructorApplicantsPage({
         actorId={sessionUser.id}
         isAdmin={isAdmin}
         workspaceApps={workspaceApps as any}
+        pipelineFilteredCounts={{
+          newApplications: newCount,
+          needsReview: toReviewCount,
+          interviewStage: toInterviewCount,
+          postInterview: postInterviewCount,
+        }}
+        funnelCounts={funnelCounts}
       />
     </div>
   );

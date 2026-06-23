@@ -3,7 +3,10 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 
-import { startOfDay } from "@/lib/leadership-action-center/dates";
+import { startOfDay, addDays } from "@/lib/leadership-action-center/dates";
+import { meetingCategoryLabel, isMeetingCategory } from "./meeting-categories";
+import { inferMeetingType, meetingTypeLabel } from "./meeting-operating-model";
+import { meetingDetailHref } from "./meetings-home";
 
 /**
  * People Strategy — Officer Meetings read queries (Prompt 06A).
@@ -117,5 +120,66 @@ export async function listUnassignedActionItems(): Promise<UnassignedActionItem[
     },
     orderBy: [{ deadlineStart: "asc" }, { createdAt: "desc" }],
     take: 200,
+  });
+}
+
+export type MeetingPickerOption = {
+  id: string;
+  title: string;
+  dateISO: string;
+  kindLabel: string;
+  status: string;
+  href: string;
+};
+
+/**
+ * Lightweight meeting list for linking an action from the Actions hub — upcoming
+ * scheduled meetings plus recent active ones officers may still attach work to.
+ */
+export async function listMeetingsForActionPicker(
+  now: Date = new Date()
+): Promise<MeetingPickerOption[]> {
+  if (!isActionTrackerEnabled()) return [];
+
+  const start = addDays(startOfDay(now), -21);
+  const end = addDays(startOfDay(now), 120);
+
+  const rows = await prisma.officerMeeting.findMany({
+    where: {
+      status: { not: "CANCELLED" },
+      date: { gte: start, lte: end },
+    },
+    select: {
+      id: true,
+      title: true,
+      date: true,
+      category: true,
+      meetingType: true,
+      status: true,
+    },
+    orderBy: [{ date: "asc" }],
+    take: 40,
+  });
+
+  return rows.map((row) => {
+    const meetingType = inferMeetingType({
+      meetingType: row.meetingType,
+      category: row.category,
+      title: row.title,
+    });
+    const kindLabel =
+      meetingTypeLabel(meetingType) ??
+      (row.category && isMeetingCategory(row.category)
+        ? meetingCategoryLabel(row.category)
+        : "Meeting");
+
+    return {
+      id: row.id,
+      title: row.title,
+      dateISO: row.date.toISOString(),
+      kindLabel,
+      status: row.status,
+      href: meetingDetailHref(meetingType, row.id),
+    };
   });
 }

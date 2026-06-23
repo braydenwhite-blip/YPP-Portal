@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition, type CSSProperties, type ReactNode } from "react";
+import { useState, useTransition, Children, type CSSProperties, type ReactNode } from "react";
 
 import { meetingCategoryTone } from "@/lib/people-strategy/meeting-categories";
 import type {
@@ -507,7 +507,7 @@ function PhaseSection({
           {subtitle}
         </p>
       </div>
-      {children}
+      {Children.toArray(children)}
     </section>
   );
 }

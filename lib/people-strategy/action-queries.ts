@@ -60,6 +60,17 @@ const ACTION_ITEM_INCLUDE = {
       profile: { select: { avatarUrl: true } },
     },
   },
+  approvedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      primaryRole: true,
+      title: true,
+      adminSubtypes: { select: { subtype: true } },
+      profile: { select: { avatarUrl: true } },
+    },
+  },
   department: { select: { id: true, name: true, slug: true } },
   // Source meeting (Meetings Tracker): when an action was generated from a
   // meeting follow-up / agenda item it carries officerMeetingId. Surfaced as a

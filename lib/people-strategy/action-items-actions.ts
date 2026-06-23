@@ -32,6 +32,7 @@ import {
   parseStrategicLinkUpdate,
 } from "./action-source";
 import {
+  canApproveAction,
   canAssignAction,
   canCreateAction,
   canDeleteAction,
@@ -123,6 +124,17 @@ function completedAtForTransition(
   if (nextStatus === "COMPLETE") return now;
   if (previousStatus === "COMPLETE") return null;
   return undefined;
+}
+
+/** Clear officer approval when an item leaves COMPLETE or is dropped. */
+function approvalFieldsForTransition(
+  previousStatus: string,
+  nextStatus: string
+): { approvedAt: null; approvedById: null } | Record<string, never> {
+  if (previousStatus === "COMPLETE" && nextStatus !== "COMPLETE") {
+    return { approvedAt: null, approvedById: null };
+  }
+  return {};
 }
 
 /** Append a system-style NOTE comment (status / assignment / flag events). */
@@ -743,6 +755,7 @@ export async function updateActionItem(input: UpdateActionItemInput) {
         status: newStatus as never,
         priority: data.priority as never,
         completedAt,
+        ...approvalFieldsForTransition(existing.status, newStatus),
         visibility: data.visibility as never,
         deadlineStart: data.deadlineStart
           ? startOfDay(data.deadlineStart)
@@ -835,14 +848,57 @@ export async function updateActionStatus(
   await prisma.$transaction(async (tx) => {
     await tx.actionItem.update({
       where: { id: data.id },
-      data: { status: data.status as never, completedAt },
+      data: {
+        status: data.status as never,
+        completedAt,
+        ...approvalFieldsForTransition(existing.status, data.status),
+      },
     });
     await postSystemComment(
       tx,
       data.id,
       session.id,
-      `Status changed from ${existing.status} to ${data.status}`
+      data.status === "COMPLETE"
+        ? `Status changed from ${existing.status} to COMPLETE — waiting for officer approval`
+        : `Status changed from ${existing.status} to ${data.status}`
     );
+  });
+
+  await syncActionSearchDocument(data.id);
+  revalidateAll();
+}
+
+const ApproveActionSchema = z.object({
+  id: NonEmptyString,
+});
+
+/** Officer sign-off on a completed action. */
+export async function approveActionItem(id: string) {
+  ensureEnabled();
+  const session = await requireSessionUser();
+  if (!canApproveAction(session)) throw new Error("Unauthorized");
+
+  const data = ApproveActionSchema.parse({ id });
+  const access = await loadAccess(data.id);
+  if (!canViewAction(session, access)) throw new Error("Unauthorized");
+
+  const existing = await prisma.actionItem.findUnique({
+    where: { id: data.id },
+    select: { status: true, approvedAt: true },
+  });
+  if (!existing) throw new Error("Action item not found");
+  if (existing.status !== "COMPLETE") {
+    throw new Error("Only completed actions can be approved");
+  }
+  if (existing.approvedAt) return;
+
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.actionItem.update({
+      where: { id: data.id },
+      data: { approvedAt: now, approvedById: session.id },
+    });
+    await postSystemComment(tx, data.id, session.id, "Action approved by officer");
   });
 
   await syncActionSearchDocument(data.id);
@@ -1011,7 +1067,7 @@ export async function deleteActionItem(id: string) {
   await prisma.$transaction(async (tx) => {
     await tx.actionItem.update({
       where: { id: data.id },
-      data: { status: "DROPPED", completedAt: null },
+      data: { status: "DROPPED", completedAt: null, approvedAt: null, approvedById: null },
     });
     await postSystemComment(tx, data.id, session.id, "Action removed");
   });
@@ -1045,7 +1101,7 @@ export async function deleteActionItems(ids: string[]) {
 
       await tx.actionItem.update({
         where: { id },
-        data: { status: "DROPPED", completedAt: null },
+        data: { status: "DROPPED", completedAt: null, approvedAt: null, approvedById: null },
       });
       await postSystemComment(tx, id, session.id, "Action removed");
     }

@@ -129,6 +129,11 @@ export function canAssignAction(user: ActionViewer): boolean {
   return isOfficerTier(user);
 }
 
+/** Officers approve completed actions before they roll off the hub. */
+export function canApproveAction(user: ActionViewer): boolean {
+  return isOfficerTier(user);
+}
+
 /** Anyone who can view it may flag. */
 export function canFlagAction(user: ActionViewer, action: ActionAccessShape): boolean {
   return canViewAction(user, action);

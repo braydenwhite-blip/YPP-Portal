@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import ActionItemForm from "@/components/people-strategy/action-item-form";
-import { ActionTrackerBack } from "@/components/people-strategy/action-tracker-tabs";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { OFFICER_TIER_ROLES } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { requirePageRoles } from "@/lib/page-guards";
@@ -13,7 +13,7 @@ import {
 } from "@/lib/people-strategy/action-queries";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Edit action · Action Tracker" };
+export const metadata = { title: "Edit action" };
 
 export default async function EditActionInTrackerPage({
   params,
@@ -41,42 +41,43 @@ export default async function EditActionInTrackerPage({
     .map((a) => a.user.id);
 
   return (
-    <div className="page-shell" style={{ maxWidth: 760 }}>
-      <Link
-        href={`/actions/${item.id}`}
-        style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)", textDecoration: "none" }}
-      >
-        ← Back to action
-      </Link>
-      <ActionTrackerBack />
+    <div className={`${skin.portalSkin} ${skin.fadeIn}`}>
+      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 pb-12 pt-4">
+        <Link
+          href={`/actions/${item.id}`}
+          className="text-[13px] font-semibold text-brand-700 no-underline hover:underline"
+        >
+          ← Back to action
+        </Link>
 
-      <div style={{ marginTop: 16 }}>
-        <h1 className="page-title" style={{ fontSize: 22 }}>Edit action</h1>
-        <p className="page-subtitle">{item.title}</p>
-      </div>
+        <header>
+          <h1 className="m-0 text-[22px] font-extrabold tracking-[-0.02em] text-ink">Edit action</h1>
+          <p className="m-0 mt-1 text-[14px] text-ink-muted">{item.title}</p>
+        </header>
 
-      <div className="ps-form-card" style={{ marginTop: 16 }}>
-        <ActionItemForm
-          variant="simple"
-          users={users}
-          departments={departments}
-          initial={{
-            id: item.id,
-            title: item.title,
-            description: item.description,
-            goalCategory: item.goalCategory,
-            actionType: item.actionType,
-            departmentId: item.departmentId,
-            status: item.status,
-            priority: item.priority,
-            visibility: item.visibility,
-            deadlineStart: item.deadlineStart,
-            deadlineEnd: item.deadlineEnd,
-            leadId: item.leadId,
-            executingUserIds,
-            inputUserIds,
-          }}
-        />
+        <div className="overflow-hidden rounded-[14px] border border-line-card bg-surface p-5 shadow-card sm:p-6">
+          <ActionItemForm
+            variant="simple"
+            users={users}
+            departments={departments}
+            initial={{
+              id: item.id,
+              title: item.title,
+              description: item.description,
+              goalCategory: item.goalCategory,
+              actionType: item.actionType,
+              departmentId: item.departmentId,
+              status: item.status,
+              priority: item.priority,
+              visibility: item.visibility,
+              deadlineStart: item.deadlineStart,
+              deadlineEnd: item.deadlineEnd,
+              leadId: item.leadId,
+              executingUserIds,
+              inputUserIds,
+            }}
+          />
+        </div>
       </div>
     </div>
   );

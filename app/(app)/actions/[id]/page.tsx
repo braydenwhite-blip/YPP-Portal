@@ -1,62 +1,43 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 
 import ActionDetailCard, {
   type ActionDetailDTO,
   type RelatedActionLite,
 } from "@/components/people-strategy/action-detail-card";
-import { CommandModeToggle } from "@/components/command-center/command-mode";
-import {
-  PrimaryFocusCard,
-  SimpleListCard,
-  SimpleRow,
-  SimpleSurface,
-  type SimpleAction,
-} from "@/components/command-center/simple";
-import { ActionIntelPanel } from "@/components/people-strategy/action-intel-panel";
-import { StrategicContextSection } from "@/components/people-strategy/strategic-context";
-import { ButtonLink, PageHeaderV2, type StatusTone } from "@/components/ui-v2";
+import { ButtonLink } from "@/components/ui-v2";
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { getSession } from "@/lib/auth-supabase";
-import {
-  isActionTrackerEnabled,
-  isStrategicInitiativesEnabled,
-} from "@/lib/feature-flags";
+import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
-import { deriveActionSignals } from "@/lib/people-strategy/action-attention";
 import { effectiveStatus } from "@/lib/people-strategy/action-filters";
-import {
-  deriveActionNextMove,
-  deriveActionQualityLabels,
-  deriveActionUrgency,
-} from "@/lib/people-strategy/action-intel";
-import {
-  deriveActionSource,
-  deriveActionStrategicLinkage,
-} from "@/lib/people-strategy/action-source";
+import { deriveActionStrategicLinkage } from "@/lib/people-strategy/action-source";
 import {
   getActionItemById,
   getActionsForEntity,
   getActionsForMeeting,
+  listActionAssignableUsers,
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
-import { ACTION_STATUS_LABELS, isRelatedEntityType } from "@/lib/people-strategy/constants";
+import { ACTION_VISIBILITY_LABELS, isRelatedEntityType } from "@/lib/people-strategy/constants";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
-import {
-  areaForRelatedEntityType,
-  operationalAreaLabel,
-} from "@/lib/people-strategy/operational-context";
 import { effectiveDeadline } from "@/lib/people-strategy/my-actions-selectors";
 import {
+  canApproveAction,
+  canAssignAction,
   canEditAction,
   canDeleteAction,
   canFlagAction,
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
-import { deriveStrategicContextForAction } from "@/lib/people-strategy/strategic-context";
+import { departmentHeaderColor } from "@/lib/people-strategy/actions-hub-grouping";
+import {
+  ActionStatusBadge,
+} from "@/components/people-strategy/action-presentation";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Action · Work" };
+export const metadata = { title: "Action" };
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -70,17 +51,6 @@ type PersonSource = {
   title?: string | null;
   profile?: { avatarUrl: string | null } | null;
 };
-
-const STATUS_TONE: Record<string, StatusTone> = {
-  OVERDUE: "danger",
-  BLOCKED: "danger",
-  IN_PROGRESS: "info",
-  NOT_STARTED: "neutral",
-  COMPLETE: "success",
-  DROPPED: "neutral",
-};
-
-const SEVERITY_RANK = { critical: 0, high: 1, medium: 2, low: 3 } as const;
 
 function personDTO(person: PersonSource | null) {
   if (!person) {
@@ -112,8 +82,7 @@ function uniquePeople(people: ReturnType<typeof personDTO>[]) {
   });
 }
 
-function toActionShape(item: Awaited<ReturnType<typeof getActionItemById>>) {
-  if (!item) return null;
+function toActionShape(item: NonNullable<Awaited<ReturnType<typeof getActionItemById>>>) {
   return {
     leadId: item.leadId,
     createdById: item.createdById,
@@ -151,6 +120,10 @@ function toDetailDTO(
     status: item.status,
     priority: item.priority,
     completedAt: item.completedAt ? item.completedAt.toISOString() : null,
+    approvedAt: item.approvedAt ? item.approvedAt.toISOString() : null,
+    approvedByName: item.approvedBy
+      ? item.approvedBy.name?.trim() || item.approvedBy.email
+      : null,
     deadlineStart: item.deadlineStart.toISOString(),
     deadlineEnd: item.deadlineEnd ? item.deadlineEnd.toISOString() : null,
     visibility: item.visibility,
@@ -161,10 +134,9 @@ function toDetailDTO(
     strategicProjectId: item.strategicProjectId,
     relatedEntityType: item.relatedEntityType,
     relatedEntityId: item.relatedEntityId,
-    relatedArea:
-      item.relatedEntityType && isRelatedEntityType(item.relatedEntityType)
-        ? operationalAreaLabel(areaForRelatedEntityType(item.relatedEntityType))
-        : null,
+    relatedEntityLabel: null,
+    relatedEntityHref: null,
+    relatedArea: null,
     flaggedAt: item.flaggedAt ? item.flaggedAt.toISOString() : null,
     lead,
     people: {
@@ -199,10 +171,6 @@ function toLiteAction(item: ActionItemWithRelations, now: Date): RelatedActionLi
   };
 }
 
-function ownerLabel(item: NonNullable<Awaited<ReturnType<typeof getActionItemById>>>): string {
-  return item.lead?.name ?? item.lead?.email ?? "Unassigned";
-}
-
 export default async function ActionDetailPage({ params }: PageProps) {
   const { id } = await params;
 
@@ -222,28 +190,25 @@ export default async function ActionDetailPage({ params }: PageProps) {
   if (!item) notFound();
 
   const actionShape = toActionShape(item);
-  if (!actionShape) notFound();
-
   const canEdit = canEditAction(viewer, actionShape);
+  const canAssign = canAssignAction(viewer);
+  const canApprove = canApproveAction(viewer);
   const canDelete = canDeleteAction(viewer, actionShape);
   const canFlag = canFlagAction(viewer, actionShape);
   const officer = isOfficerTier(viewer);
   const closeHref = officer ? "/actions?who=all" : "/actions";
 
+  const assignableUsers = canAssign ? await listActionAssignableUsers() : [];
+
   const now = new Date();
   const detail = toDetailDTO(item);
   const status = effectiveStatus(item, now);
   const due = effectiveDeadline(item);
-  const dueLabel =
-    status === "OVERDUE" ? "Overdue" : `Due ${formatMonthDay(due)}`;
-
-  const attentionSignals = deriveActionSignals(item, now);
-  const topSignal =
-    attentionSignals.length > 0
-      ? [...attentionSignals].sort(
-          (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]
-        )[0]
-      : null;
+  const overdue = status === "OVERDUE";
+  const strategic = deriveActionStrategicLinkage(item);
+  const goal =
+    strategic.initiativeTitle ?? (item.goalCategory ? item.goalCategory : null);
+  const deptColor = departmentHeaderColor(item.department?.slug ?? null);
 
   const hasEntity =
     item.relatedEntityType != null &&
@@ -280,155 +245,88 @@ export default async function ActionDetailPage({ params }: PageProps) {
     .slice(0, 6)
     .map((a) => toLiteAction(a, now));
 
-  const strategicContext =
-    officer && isStrategicInitiativesEnabled() ? deriveStrategicContextForAction(item) : null;
-
-  const intel = {
-    nextMove: deriveActionNextMove(item, now),
-    labels: deriveActionQualityLabels(item, now),
-    source: deriveActionSource(item),
-    linkage: deriveActionStrategicLinkage(item),
-    urgency: deriveActionUrgency(item, now),
-  };
-  const intelCtaHref = canEdit ? `/actions/${item.id}/edit` : `/actions/${item.id}`;
-  const meetingHref = item.officerMeetingId ? `/meetings/${item.officerMeetingId}` : null;
-
-  const focusReason = topSignal
-    ? `${topSignal.reason}. Next: ${topSignal.nextStep}`
-    : `${intel.nextMove.move} — ${intel.nextMove.why}`;
-
-  const focus = (
-    <PrimaryFocusCard
-      eyebrow={topSignal ? "Needs attention" : "Next step"}
-      title={item.title}
-      reason={focusReason}
-      icon={topSignal?.severity === "critical" || status === "OVERDUE" ? "bolt" : "target"}
-      tone={status === "COMPLETE" ? "success" : "brand"}
-      ctaLabel={canEdit ? intel.nextMove.ctaLabel : "Back to actions"}
-      ctaHref={canEdit ? `/actions/${item.id}/edit` : closeHref}
-    />
-  );
-
-  const calmRows = [
-    <SimpleRow
-      key="lead"
-      href={item.leadId ? `/people/${item.leadId}` : `/actions/${item.id}`}
-      icon="user"
-      name={ownerLabel(item)}
-      what="Lead"
-      status={{
-        label: ACTION_STATUS_LABELS[status] ?? status,
-        tone: STATUS_TONE[status] ?? "neutral",
-      }}
-      meta={dueLabel}
-    />,
-    ...(item.officerMeetingId
-      ? [
-          <SimpleRow
-            key="meeting"
-            href={`/meetings/${item.officerMeetingId}`}
-            icon="calendar"
-            name={item.officerMeeting?.title ?? "Source meeting"}
-            what="From meeting"
-          />,
-        ]
-      : []),
-    ...(detail.relatedEntityHref && detail.relatedEntityLabel
-      ? [
-          <SimpleRow
-            key="related"
-            href={detail.relatedEntityHref}
-            icon="layers"
-            name={detail.relatedEntityLabel}
-            what={detail.relatedArea ?? "Related"}
-          />,
-        ]
-      : []),
-    ...sameEntityActions.slice(0, 2).map((related) => (
-      <SimpleRow
-        key={related.id}
-        href={`/actions/${related.id}`}
-        icon="bolt"
-        name={related.title}
-        what={related.leadName}
-        status={{
-          label: ACTION_STATUS_LABELS[related.status] ?? related.status,
-          tone: STATUS_TONE[related.status] ?? "neutral",
-        }}
-      />
-    )),
-  ];
-
-  const calm = <SimpleListCard title="At a glance">{calmRows}</SimpleListCard>;
-
-  const strip: SimpleAction[] = [
-    ...(canEdit
-      ? [{ label: "Edit action", href: `/actions/${item.id}/edit`, icon: "bolt" as const, primary: true }]
-      : []),
-    { label: "All actions", href: closeHref, icon: "layers" as const },
-    { label: "My queue", href: "/work/queue?queue=my", icon: "list" as const },
-  ];
-
   return (
-    <div className={skin.portalSkin}>
-    <SimpleSurface
-      maxWidth={720}
-      header={
-        <div className="flex flex-col gap-4">
-          <PageHeaderV2
-            eyebrow="Work"
-            backHref={closeHref}
-            backLabel="Actions"
-            title="Action"
-            subtitle={`${ownerLabel(item)} · ${dueLabel}`}
-            actions={
-              <div className="flex flex-wrap items-center gap-2">
-                {canEdit ? (
-                  <ButtonLink href={`/actions/${item.id}/edit`} variant="secondary" size="sm">
-                    Edit
-                  </ButtonLink>
-                ) : null}
-                <CommandModeToggle />
-              </div>
-            }
-          />
+    <div className={`${skin.portalSkin} ${skin.fadeIn}`}>
+      <div className="mx-auto flex w-full max-w-[880px] flex-col gap-5 pb-12 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href={closeHref}
+            className="text-[13px] font-semibold text-brand-700 no-underline hover:underline"
+          >
+            ← All actions
+          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {canEdit ? (
+              <ButtonLink href={`/actions/${item.id}/edit`} variant="primary" size="sm">
+                Edit action
+              </ButtonLink>
+            ) : null}
+          </div>
         </div>
-      }
-      focus={focus}
-      calm={calm}
-      actions={strip}
-      browseLabel="Update & full detail"
-      browseHint="Status, people, comments, files, and connected work."
-    >
-      <div className="flex flex-col gap-5">
+
+        <header
+          className="rounded-[14px] border border-line-card bg-surface px-5 py-4 shadow-card"
+          style={{ borderLeft: `4px solid ${deptColor}` }}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ background: deptColor }}
+                />
+                <span className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">
+                  {detail.departmentName}
+                </span>
+              </div>
+              <h1 className="m-0 text-[22px] font-extrabold leading-snug tracking-[-0.02em] text-ink">
+                {item.title}
+              </h1>
+            </div>
+            <span className="shrink-0 rounded-md bg-brand-50 px-2 py-1 text-[10.5px] font-bold uppercase tracking-[0.04em] text-brand-800">
+              {ACTION_VISIBILITY_LABELS[item.visibility]}
+            </span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span
+              className="inline-flex items-center gap-1 text-[13px] font-semibold"
+              style={{ color: overdue ? "#e5484d" : "#9a9ab0" }}
+            >
+              {overdue ? <span aria-hidden>⚠</span> : null}
+              {overdue ? "Overdue · " : ""}
+              {formatMonthDay(due)}
+            </span>
+            <ActionStatusBadge item={item} now={now} />
+            {item.officerMeeting ? (
+              <Link
+                href={`/meetings/${item.officerMeetingId}`}
+                className="inline-flex items-center rounded-md bg-[#fdf8ec] px-2 py-1 text-[11px] font-semibold text-[#7a5d00] no-underline hover:bg-[#f9f0dc]"
+              >
+                Ofcr Mtg: {formatMonthDay(item.officerMeeting.date)}
+              </Link>
+            ) : null}
+          </div>
+
+          {goal ? (
+            <p className="m-0 mt-2.5 text-[13px] font-medium text-brand-800">Goal: {goal}</p>
+          ) : null}
+        </header>
+
         <ActionDetailCard
           item={detail}
           canEdit={canEdit}
+          canAssign={canAssign}
+          canApprove={canApprove}
           canDelete={canDelete}
           canFlag={canFlag}
           closeHref={closeHref}
+          assignableUsers={assignableUsers}
           sameEntityActions={sameEntityActions}
           sameMeetingActions={sameMeetingActions}
-          calmLayout
+          variant="hub"
         />
-        {officer ? (
-          <div className="flex flex-col gap-4">
-            <ActionIntelPanel
-              nextMove={intel.nextMove}
-              labels={intel.labels}
-              source={intel.source}
-              linkage={intel.linkage}
-              urgency={intel.urgency}
-              ctaHref={intelCtaHref}
-              meetingHref={meetingHref}
-            />
-            {strategicContext ? (
-              <StrategicContextSection context={strategicContext} kind="action" />
-            ) : null}
-          </div>
-        ) : null}
       </div>
-    </SimpleSurface>
     </div>
   );
 }

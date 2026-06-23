@@ -7,7 +7,7 @@ import type { OfficerMeetingStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOfficer } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
-import { getOfficerMeetingById } from "./officer-meetings-queries";
+import { getOfficerMeetingById, listMeetingsForActionPicker } from "./officer-meetings-queries";
 import {
   buildOfficerMeetingAgendaFallback,
   buildOfficerMeetingSummaryFallback,
@@ -32,8 +32,10 @@ import {
 
 const MEETINGS_PATH = "/meetings";
 
-function revalidate() {
+function revalidate(meetingId?: string) {
   revalidatePath(MEETINGS_PATH);
+  revalidatePath("/actions");
+  if (meetingId) revalidatePath(`${MEETINGS_PATH}/${meetingId}`);
 }
 
 function ensureEnabled() {
@@ -177,7 +179,14 @@ export async function assignActionItemToMeeting(
     });
   });
 
-  revalidate();
+  revalidate(data.meetingId);
+}
+
+/** Meetings an officer can link an action to from the Actions hub picker. */
+export async function listMeetingsForActionAssignmentPicker() {
+  ensureEnabled();
+  await requireOfficer();
+  return listMeetingsForActionPicker();
 }
 
 /**

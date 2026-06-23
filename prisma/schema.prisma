@@ -1393,6 +1393,7 @@ model User {
   // Action Tracker (People Strategy)
   actionItemsLed              ActionItem[]       @relation("ActionItemsLed")
   actionItemsCreated          ActionItem[]       @relation("ActionItemsCreated")
+  actionItemsApproved         ActionItem[]       @relation("ActionItemsApproved")
   actionAssignments           ActionAssignment[] @relation("ActionAssignments")
   actionComments              ActionComment[]    @relation("ActionComments")
   actionFileLinksAdded        ActionFileLink[]   @relation("ActionFileLinksAdded")
@@ -12850,6 +12851,12 @@ model ActionItem {
   /// the Win Log / pulse / momentum an exact completion timestamp instead of
   /// approximating with `updatedAt` (Phase 7).
   completedAt   DateTime?
+  /// Officer sign-off after COMPLETE. Null = waiting for approval; set when an
+  /// officer approves. Cleared if the item is reopened. Approved items roll off
+  /// the hub after a short grace window but remain in the Approved list.
+  approvedAt    DateTime?
+  approvedById  String?
+  approvedBy    User?                @relation("ActionItemsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
   visibility    ActionItemVisibility @default(ALL_LEADERSHIP)
 
   /// Single accountable lead (denormalized; also represented as an
@@ -12969,6 +12976,8 @@ model ActionItem {
   @@index([visibility])
   @@index([leadId])
   @@index([createdById])
+  @@index([approvedById])
+  @@index([approvedAt])
   @@index([officerMeetingId])
   @@index([mentorshipSessionId])
   @@index([flaggedAt])
