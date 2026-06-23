@@ -17,44 +17,67 @@ import {
   StatusBadge,
   EmptyStateV2,
 } from "@/components/ui-v2";
-import {
-  ADMIN_SUBTYPE_LABELS,
-  ADMIN_SUBTYPE_VALUES,
-  normalizeAdminSubtype,
-  type AdminSubtypeValue,
-} from "@/lib/admin-subtypes";
 import { formatAccessLabel } from "@/lib/admin-user-access";
-import { setUserAccess } from "@/lib/admin/role-management-actions";
+import {
+  INSTRUCTION_TITLES,
+  LEADERSHIP_TITLES,
+  TITLE_AUTHORITY,
+} from "@/lib/org/levels";
+import {
+  createCohort,
+  setUserAccess,
+  setUserGroup,
+} from "@/lib/admin/role-management-actions";
 
 type UserRow = {
   id: string;
   name: string;
   email: string;
   primaryRole: string;
+  canonicalTitle: string | null;
+  ladder: string | null;
+  internalLevel: number | null;
   chapterId: string | null;
   chapterName: string | null;
+  cohortId: string | null;
+  cohortName: string | null;
   roles: string[];
-  adminSubtypes: string[];
-  defaultOwnerSubtype: string | null;
 };
 
 type ChapterOption = { id: string; name: string; city: string | null };
+type CohortOption = { id: string; name: string };
 
 const ROLE_VALUES = Object.values(RoleType);
 
-const KEEP_CHAPTER = "__KEEP__";
-const CLEAR_CHAPTER = "__CLEAR__";
+const KEEP = "__KEEP__";
+const CLEAR = "__CLEAR__";
+const NONE = "__NONE__";
+
+/** A canonical title with its ladder + level, for the group dropdowns. */
+const TITLE_GROUPS: { label: string; titles: readonly string[] }[] = [
+  { label: "Instruction ladder", titles: INSTRUCTION_TITLES },
+  { label: "Leadership ladder", titles: LEADERSHIP_TITLES },
+];
+
+function titleLabel(title: string): string {
+  const meta = TITLE_AUTHORITY[title as keyof typeof TITLE_AUTHORITY];
+  return meta ? `${title} (L${meta.internalLevel})` : title;
+}
 
 export function RoleManagement({
-  users,
+  users: initialUsers,
   chapters,
+  cohorts: initialCohorts,
 }: {
   users: UserRow[];
   chapters: ChapterOption[];
+  cohorts: CohortOption[];
 }) {
+  const [users, setUsers] = useState<UserRow[]>(initialUsers);
+  const [cohorts, setCohorts] = useState<CohortOption[]>(initialCohorts);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<UserRow | null>(null);
-  const [toast, setToast] = useState<{ tone: "positive" | "danger"; text: string } | null>(
+  const [toast, setToast] = useState<{ tone: "success" | "danger"; text: string } | null>(
     null
   );
 
@@ -65,26 +88,43 @@ export function RoleManagement({
       (u) =>
         u.name.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
-        u.primaryRole.toLowerCase().includes(q)
+        u.primaryRole.toLowerCase().includes(q) ||
+        (u.canonicalTitle ?? "").toLowerCase().includes(q) ||
+        (u.cohortName ?? "").toLowerCase().includes(q)
     );
   }, [query, users]);
 
+  function patchUser(id: string, patch: Partial<UserRow>) {
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...patch } : u)));
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      <CohortBar
+        cohorts={cohorts}
+        onCreated={(cohort) => {
+          setCohorts((prev) =>
+            [...prev, cohort].sort((a, b) => a.name.localeCompare(b.name))
+          );
+          setToast({ tone: "success", text: `Cohort "${cohort.name}" created.` });
+        }}
+        onError={(text) => setToast({ tone: "danger", text })}
+      />
+
       <CardV2 className="flex flex-col gap-4">
         <SearchInputV2
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name, email, or role…"
+          placeholder="Search by name, email, role, title, or cohort…"
         />
-        <p className="text-sm text-muted">
+        <p className="text-sm text-ink-muted">
           {filtered.length} of {users.length} users
         </p>
 
         {filtered.length === 0 ? (
           <EmptyStateV2
             title="No users match"
-            description="Try a different name, email, or role."
+            description="Try a different name, email, role, title, or cohort."
           />
         ) : (
           <DataTableShell>
@@ -93,63 +133,23 @@ export function RoleManagement({
                 <tr>
                   <TableHeadCell>Name</TableHeadCell>
                   <TableHeadCell>Primary role</TableHeadCell>
-                  <TableHeadCell>Roles</TableHeadCell>
+                  <TableHeadCell>Group (ladder / level)</TableHeadCell>
+                  <TableHeadCell>Cohort</TableHeadCell>
                   <TableHeadCell>Chapter</TableHeadCell>
                   <TableHeadCell className="text-right">Actions</TableHeadCell>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((user) => (
-                  <tr key={user.id}>
-                    <TableCell>
-                      <div className="font-medium">{user.name}</div>
-                      <div className="text-xs text-muted">{user.email}</div>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge tone="brand">
-                        {formatAccessLabel(user.primaryRole)}
-                      </StatusBadge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {user.roles.length === 0 ? (
-                          <span className="text-xs text-muted">—</span>
-                        ) : (
-                          user.roles.map((role) => (
-                            <span
-                              key={role}
-                              className="rounded-full bg-surface-alt px-2 py-0.5 text-xs"
-                            >
-                              {formatAccessLabel(role)}
-                            </span>
-                          ))
-                        )}
-                        {user.adminSubtypes.map((raw) => {
-                          const subtype = normalizeAdminSubtype(raw);
-                          return (
-                            <span
-                              key={raw}
-                              className="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700"
-                            >
-                              {subtype ? ADMIN_SUBTYPE_LABELS[subtype] : raw}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{user.chapterName ?? "—"}</span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setEditing(user)}
-                      >
-                        Edit roles
-                      </Button>
-                    </TableCell>
-                  </tr>
+                  <UserRowView
+                    key={user.id}
+                    user={user}
+                    cohorts={cohorts}
+                    onPatch={patchUser}
+                    onEdit={() => setEditing(user)}
+                    onError={(text) => setToast({ tone: "danger", text })}
+                    onSaved={(text) => setToast({ tone: "success", text })}
+                  />
                 ))}
               </tbody>
             </TableV2>
@@ -162,19 +162,18 @@ export function RoleManagement({
           key={editing.id}
           user={editing}
           chapters={chapters}
+          cohorts={cohorts}
           onClose={() => setEditing(null)}
-          onSaved={(name) => {
+          onSaved={(patch) => {
+            patchUser(editing.id, patch);
             setEditing(null);
-            setToast({ tone: "positive", text: `${name}'s access was updated.` });
+            setToast({ tone: "success", text: `${editing.name}'s access was updated.` });
           }}
           onError={(text) => setToast({ tone: "danger", text })}
         />
       ) : null}
 
-      <ToastV2
-        open={Boolean(toast)}
-        tone={toast?.tone === "danger" ? "danger" : "success"}
-      >
+      <ToastV2 open={Boolean(toast)} tone={toast?.tone === "danger" ? "danger" : "success"}>
         <div className="flex items-center gap-3">
           <span>{toast?.text}</span>
           <button
@@ -190,35 +189,210 @@ export function RoleManagement({
   );
 }
 
+function UserRowView({
+  user,
+  cohorts,
+  onPatch,
+  onEdit,
+  onError,
+  onSaved,
+}: {
+  user: UserRow;
+  cohorts: CohortOption[];
+  onPatch: (id: string, patch: Partial<UserRow>) => void;
+  onEdit: () => void;
+  onError: (text: string) => void;
+  onSaved: (text: string) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+
+  function assignTitle(value: string) {
+    const prev = { canonicalTitle: user.canonicalTitle, ladder: user.ladder, internalLevel: user.internalLevel };
+    const meta = value ? TITLE_AUTHORITY[value as keyof typeof TITLE_AUTHORITY] : null;
+    // Optimistic update.
+    onPatch(user.id, {
+      canonicalTitle: value || null,
+      ladder: meta?.ladder ?? null,
+      internalLevel: meta?.internalLevel ?? null,
+    });
+    startTransition(async () => {
+      try {
+        await setUserGroup({ userId: user.id, title: value ? value : CLEAR });
+        onSaved(`${user.name} moved to ${value || "no ladder/level"}.`);
+      } catch (error) {
+        onPatch(user.id, prev);
+        onError(error instanceof Error ? error.message : "Could not update group.");
+      }
+    });
+  }
+
+  function assignCohort(value: string) {
+    const prev = { cohortId: user.cohortId, cohortName: user.cohortName };
+    const cohort = cohorts.find((c) => c.id === value) ?? null;
+    onPatch(user.id, {
+      cohortId: value === NONE ? null : value,
+      cohortName: value === NONE ? null : cohort?.name ?? null,
+    });
+    startTransition(async () => {
+      try {
+        await setUserGroup({ userId: user.id, cohortId: value });
+        onSaved(`${user.name} assigned to ${cohort?.name ?? "no cohort"}.`);
+      } catch (error) {
+        onPatch(user.id, prev);
+        onError(error instanceof Error ? error.message : "Could not update cohort.");
+      }
+    });
+  }
+
+  return (
+    <tr>
+      <TableCell>
+        <div className="font-medium">{user.name}</div>
+        <div className="text-xs text-ink-muted">{user.email}</div>
+        {user.roles.length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {user.roles.map((role) => (
+              <span key={role} className="rounded-full bg-surface-soft px-2 py-0.5 text-[11px]">
+                {formatAccessLabel(role)}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </TableCell>
+      <TableCell>
+        <StatusBadge tone="brand">{formatAccessLabel(user.primaryRole)}</StatusBadge>
+      </TableCell>
+      <TableCell>
+        <select
+          className="w-full rounded-lg border border-line bg-surface px-2 py-1 text-sm disabled:opacity-60"
+          value={user.canonicalTitle ?? ""}
+          disabled={pending}
+          onChange={(e) => assignTitle(e.target.value)}
+        >
+          <option value="">— None —</option>
+          {TITLE_GROUPS.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.titles.map((title) => (
+                <option key={title} value={title}>
+                  {titleLabel(title)}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </TableCell>
+      <TableCell>
+        <select
+          className="w-full rounded-lg border border-line bg-surface px-2 py-1 text-sm disabled:opacity-60"
+          value={user.cohortId ?? NONE}
+          disabled={pending}
+          onChange={(e) => assignCohort(e.target.value)}
+        >
+          <option value={NONE}>— No cohort —</option>
+          {cohorts.map((cohort) => (
+            <option key={cohort.id} value={cohort.id}>
+              {cohort.name}
+            </option>
+          ))}
+        </select>
+      </TableCell>
+      <TableCell>
+        <span className="text-sm">{user.chapterName ?? "—"}</span>
+      </TableCell>
+      <TableCell className="text-right">
+        <Button variant="secondary" size="sm" onClick={onEdit} disabled={pending}>
+          Edit
+        </Button>
+      </TableCell>
+    </tr>
+  );
+}
+
+function CohortBar({
+  cohorts,
+  onCreated,
+  onError,
+}: {
+  cohorts: CohortOption[];
+  onCreated: (cohort: CohortOption) => void;
+  onError: (text: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  function create() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    startTransition(async () => {
+      try {
+        const res = await createCohort({ name: trimmed });
+        if (res?.cohort) onCreated(res.cohort);
+        setName("");
+      } catch (error) {
+        onError(error instanceof Error ? error.message : "Could not create cohort.");
+      }
+    });
+  }
+
+  return (
+    <CardV2 className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h3 className="text-sm font-semibold">Cohorts (groups)</h3>
+        <p className="text-xs text-ink-muted">
+          {cohorts.length} cohort{cohorts.length === 1 ? "" : "s"}. Assign people to a
+          cohort inline in the table; moving someone keeps their account and history.
+        </p>
+      </div>
+      <div className="flex items-end gap-2">
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">New cohort</span>
+          <input
+            className="rounded-lg border border-line bg-surface px-3 py-2"
+            value={name}
+            placeholder="e.g. Spring 2026"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") create();
+            }}
+          />
+        </label>
+        <Button variant="primary" loading={pending} onClick={create} disabled={!name.trim()}>
+          Create
+        </Button>
+      </div>
+    </CardV2>
+  );
+}
+
 function EditAccessModal({
   user,
   chapters,
+  cohorts,
   onClose,
   onSaved,
   onError,
 }: {
   user: UserRow;
   chapters: ChapterOption[];
+  cohorts: CohortOption[];
   onClose: () => void;
-  onSaved: (name: string) => void;
+  onSaved: (patch: Partial<UserRow>) => void;
   onError: (message: string) => void;
 }) {
   const [primaryRole, setPrimaryRole] = useState(user.primaryRole);
   const [roles, setRoles] = useState<Set<string>>(new Set(user.roles));
-  const [subtypes, setSubtypes] = useState<Set<string>>(
-    new Set(user.adminSubtypes.map((s) => normalizeAdminSubtype(s)).filter(Boolean) as string[])
-  );
-  const [defaultOwner, setDefaultOwner] = useState<string>(
-    normalizeAdminSubtype(user.defaultOwnerSubtype) ?? ""
-  );
-  const [chapterChoice, setChapterChoice] = useState<string>(KEEP_CHAPTER);
+  const [title, setTitle] = useState<string>(user.canonicalTitle ?? "");
+  const [cohortId, setCohortId] = useState<string>(user.cohortId ?? NONE);
+  const [chapterChoice, setChapterChoice] = useState<string>(KEEP);
   const [pending, startTransition] = useTransition();
 
-  function toggle(set: Set<string>, value: string): Set<string> {
-    const next = new Set(set);
-    if (next.has(value)) next.delete(value);
-    else next.add(value);
-    return next;
+  function toggleRole(value: string) {
+    setRoles((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
   }
 
   function save() {
@@ -228,15 +402,31 @@ function EditAccessModal({
           userId: user.id,
           primaryRole,
           roles: Array.from(roles),
-          adminSubtypes: Array.from(subtypes),
-          defaultOwnerSubtype: defaultOwner || null,
           chapterId: chapterChoice,
+          title: title ? title : CLEAR,
+          cohortId,
         });
-        onSaved(user.name);
+        const meta = title ? TITLE_AUTHORITY[title as keyof typeof TITLE_AUTHORITY] : null;
+        const cohort = cohorts.find((c) => c.id === cohortId) ?? null;
+        const chapter =
+          chapterChoice === CLEAR
+            ? null
+            : chapterChoice === KEEP
+              ? { id: user.chapterId, name: user.chapterName }
+              : chapters.find((c) => c.id === chapterChoice) ?? null;
+        onSaved({
+          primaryRole,
+          roles: Array.from(roles),
+          canonicalTitle: title || null,
+          ladder: meta?.ladder ?? null,
+          internalLevel: meta?.internalLevel ?? null,
+          cohortId: cohortId === NONE ? null : cohortId,
+          cohortName: cohortId === NONE ? null : cohort?.name ?? null,
+          chapterId: chapter?.id ?? null,
+          chapterName: chapter?.name ?? null,
+        });
       } catch (error) {
-        onError(
-          error instanceof Error ? error.message : "Could not update access."
-        );
+        onError(error instanceof Error ? error.message : "Could not update access.");
       }
     });
   }
@@ -251,16 +441,16 @@ function EditAccessModal({
     >
       <div>
         <h2 id="edit-access-title" className="text-lg font-semibold">
-          Edit roles — {user.name}
+          Edit access — {user.name}
         </h2>
-        <p className="text-sm text-muted">{user.email}</p>
+        <p className="text-sm text-ink-muted">{user.email}</p>
       </div>
 
       <div className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Primary role</span>
           <select
-            className="rounded-lg border border-border bg-surface px-3 py-2"
+            className="rounded-lg border border-line bg-surface px-3 py-2"
             value={primaryRole}
             onChange={(e) => setPrimaryRole(e.target.value)}
           >
@@ -272,11 +462,51 @@ function EditAccessModal({
           </select>
         </label>
 
+        <div className="grid grid-cols-2 gap-4">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Group (ladder / level)</span>
+            <select
+              className="rounded-lg border border-line bg-surface px-3 py-2"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            >
+              <option value="">— None —</option>
+              {TITLE_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.titles.map((t) => (
+                    <option key={t} value={t}>
+                      {titleLabel(t)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <span className="text-xs text-ink-muted">
+              Sets the ladder and internal level that drive permissions.
+            </span>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Cohort</span>
+            <select
+              className="rounded-lg border border-line bg-surface px-3 py-2"
+              value={cohortId}
+              onChange={(e) => setCohortId(e.target.value)}
+            >
+              <option value={NONE}>— No cohort —</option>
+              {cohorts.map((cohort) => (
+                <option key={cohort.id} value={cohort.id}>
+                  {cohort.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
         <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">Roles</legend>
-          <p className="text-xs text-muted">
-            The primary role is always kept. Selecting any admin subtype adds the
-            Admin role automatically.
+          <legend className="text-sm font-medium">Extra roles</legend>
+          <p className="text-xs text-ink-muted">
+            The primary role is always kept. Add any extra roles this person needs.
           </p>
           <div className="grid grid-cols-2 gap-2">
             {ROLE_VALUES.map((role) => (
@@ -284,7 +514,7 @@ function EditAccessModal({
                 <input
                   type="checkbox"
                   checked={roles.has(role)}
-                  onChange={() => setRoles((s) => toggle(s, role))}
+                  onChange={() => toggleRole(role)}
                 />
                 {formatAccessLabel(role)}
               </label>
@@ -292,57 +522,15 @@ function EditAccessModal({
           </div>
         </fieldset>
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">Admin subtypes</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {ADMIN_SUBTYPE_VALUES.map((subtype: AdminSubtypeValue) => (
-              <label key={subtype} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={subtypes.has(subtype)}
-                  onChange={() =>
-                    setSubtypes((s) => {
-                      const next = toggle(s, subtype);
-                      if (!next.has(subtype) && defaultOwner === subtype) {
-                        setDefaultOwner("");
-                      }
-                      return next;
-                    })
-                  }
-                />
-                {ADMIN_SUBTYPE_LABELS[subtype]}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Default owner subtype</span>
-          <select
-            className="rounded-lg border border-border bg-surface px-3 py-2"
-            value={defaultOwner}
-            onChange={(e) => setDefaultOwner(e.target.value)}
-          >
-            <option value="">None</option>
-            {ADMIN_SUBTYPE_VALUES.filter((s) => subtypes.has(s)).map((subtype) => (
-              <option key={subtype} value={subtype}>
-                {ADMIN_SUBTYPE_LABELS[subtype]}
-              </option>
-            ))}
-          </select>
-        </label>
-
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Chapter</span>
           <select
-            className="rounded-lg border border-border bg-surface px-3 py-2"
+            className="rounded-lg border border-line bg-surface px-3 py-2"
             value={chapterChoice}
             onChange={(e) => setChapterChoice(e.target.value)}
           >
-            <option value={KEEP_CHAPTER}>
-              Keep current ({user.chapterName ?? "None"})
-            </option>
-            <option value={CLEAR_CHAPTER}>Clear chapter</option>
+            <option value={KEEP}>Keep current ({user.chapterName ?? "None"})</option>
+            <option value={CLEAR}>Clear chapter</option>
             {chapters.map((chapter) => (
               <option key={chapter.id} value={chapter.id}>
                 {chapter.name}
