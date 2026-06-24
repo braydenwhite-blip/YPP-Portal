@@ -196,7 +196,7 @@ export function ActionHubCard({
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span
           className="inline-flex items-center gap-1 text-[12.5px] font-semibold"
-          style={{ color: due.danger ? "#e5484d" : "#9a9ab0" }}
+          style={{ color: due.danger ? "#e5484d" : "#5c5c74" }}
         >
           {due.danger ? (
             <span aria-hidden className="text-[11px]">

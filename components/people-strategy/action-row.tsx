@@ -99,7 +99,7 @@ export function ActionRow({
 
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-ink-muted">
           <StatusPill status={item.status} />
-          <span className={overdue ? "font-semibold text-blocked-700" : "font-semibold"}>
+          <span className={overdue ? "font-semibold text-blocked-700" : "font-semibold text-ink"}>
             {duePhrase(item, now)}
           </span>
           <span aria-hidden>·</span>

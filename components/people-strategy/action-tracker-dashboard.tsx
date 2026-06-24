@@ -6,7 +6,6 @@ import type {
   ActionItemWithRelations,
   ActionPickerUser,
 } from "@/lib/people-strategy/action-queries";
-import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import {
   attentionReason,
   buildActionOperatingBoard,
@@ -122,7 +121,6 @@ export function ActionTrackerDashboard({
   assignableUsers: UserOption[];
   departments: ActionDepartmentOption[];
   currentUserId: string;
-  viewer: ActionViewer;
   who: string;
   q: string;
   initiativeId?: string;
