@@ -30,6 +30,10 @@ import {
 } from "@/lib/feature-flags";
 import { isAllowedPublicPath, isOfficerTierFromAuth } from "@/lib/public-gate";
 import {
+  isGamificationEnabled,
+  isGamificationGatedPath,
+} from "@/lib/gamification-gate";
+import {
   applyStudentMinimalSidebarLayout,
   studentMinimalLinkOrderIndex,
 } from "@/lib/navigation/student-v1-nav-layout";
@@ -567,6 +571,13 @@ export function resolveNavModel(
       // Public portal gate: hide nav links outside the public allowlist.
       // Officer-tier roles keep the leadership sidebar without preview mode.
       if (publicGateRestrictsNav && !isAllowedPublicPath(item.href)) {
+        return false;
+      }
+
+      // Gamification gate: while the gamification suite is off, drop every one
+      // of its nav links for everyone — including admins (no role bypass).
+      // Mirrors the route gate in proxy.ts.
+      if (!isGamificationEnabled() && isGamificationGatedPath(item.href)) {
         return false;
       }
 

@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { getSingleStudentPathwayJourney } from "@/lib/chapter-pathway-journey";
+import { isGamificationEnabled } from "@/lib/feature-flags";
 
 type RankEntry = {
   userId: string;
@@ -36,6 +37,8 @@ function getDisplayName(name: string) {
 }
 
 export default async function PathwayLeaderboardPage({ params }: { params: { id: string } }) {
+  // Gamification gate (dynamic route — not covered by the proxy prefix list).
+  if (!isGamificationEnabled()) notFound();
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

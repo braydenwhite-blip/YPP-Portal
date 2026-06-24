@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
 import { getMyChapterHomeData } from "@/lib/chapter-member-actions";
 import { getChapterGamificationSummary } from "@/lib/chapter-gamification-actions";
+import { isGamificationEnabled } from "@/lib/feature-flags";
 import { FallbackRequestButton } from "./fallback-request-button";
 import { LeaveChapterButton } from "./leave-chapter-button";
 
@@ -54,11 +55,15 @@ export default async function MyChapterPage() {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
-  // Load chapter home data, pathway journey, and gamification in parallel
+  // Load chapter home data, pathway journey, and gamification in parallel.
+  // Gamification (XP / level / leaderboard) is gated off product-wide — skip the
+  // query and leave it null so the whole progress card drops out.
   const [homeData, journey, gamification] = await Promise.all([
     getMyChapterHomeData(),
     getStudentChapterJourneyData(session.user.id).catch(() => null),
-    getChapterGamificationSummary().catch(() => null),
+    isGamificationEnabled()
+      ? getChapterGamificationSummary().catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   // If user has no chapter, redirect to join
@@ -673,12 +678,16 @@ export default async function MyChapterPage() {
               <Link href="/chapter/members" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
                 👥 Members
               </Link>
-              <Link href="/chapter/leaderboard" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
-                🏆 Leaderboard
-              </Link>
-              <Link href="/chapter/achievements" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
-                🎯 Achievements
-              </Link>
+              {isGamificationEnabled() && (
+                <>
+                  <Link href="/chapter/leaderboard" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
+                    🏆 Leaderboard
+                  </Link>
+                  <Link href="/chapter/achievements" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
+                    🎯 Achievements
+                  </Link>
+                </>
+              )}
               <Link href="/messages" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
                 ✉️ Messages
               </Link>
