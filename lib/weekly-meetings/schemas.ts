@@ -79,6 +79,14 @@ export const UpdateRowSchema = z.object({
 export const RowIdSchema = z.object({ rowId: Id });
 export const EntryIdSchema = z.object({ entryId: Id });
 
+/** Add a pre-filled "Done" row from a mentorship/review contribution. */
+export const AddRowFromContributionSchema = z.object({
+  entryId: Id,
+  type: ShortText.min(1),
+  whatGoal: LongText.min(1),
+  evidenceNext: OptionalLong,
+});
+
 // --- Meetings ---------------------------------------------------------------
 export const CreateMeetingSchema = z
   .object({

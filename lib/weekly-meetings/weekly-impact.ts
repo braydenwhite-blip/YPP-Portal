@@ -49,6 +49,10 @@ export type MyWeeklyImpact = {
   weekKey: string;
   weekLabel: string;
   entries: ImpactEntryDTO[];
+  /** Whether the viewer belongs to any team or is a chapter president. */
+  hasScope: boolean;
+  /** The viewed week relative to now, so the UI can frame back-fill vs. ahead. */
+  weekState: "past" | "current" | "future";
 };
 
 function toRowDTO(r: {
@@ -97,23 +101,37 @@ export async function loadMyWeeklyImpact(
   });
   const isChapterPresident =
     viewer.primaryRole === "CHAPTER_PRESIDENT" || viewer.roles.includes("CHAPTER_PRESIDENT");
+  const hasScope = memberships.length > 0 || Boolean(isChapterPresident && user?.chapter);
 
-  // Ensure a team entry exists for each team membership.
-  for (const m of memberships) {
-    await prisma.weeklyImpactEntry.upsert({
-      where: { userId_teamId_weekStart: { userId: viewer.id, teamId: m.team.id, weekStart } },
-      create: { userId: viewer.id, teamId: m.team.id, weekStart },
-      update: {},
-    });
-  }
+  // Auto-create the week's entries for the current week and recent past (so a
+  // person can back-fill), but not far ahead — browsing the future shouldn't
+  // litter empty drafts that would then count against meeting coverage.
+  const currentWeek = weekStartFor();
+  const weeksFromNow = Math.round(
+    (weekStart.getTime() - currentWeek.getTime()) / (7 * 86_400_000),
+  );
+  const weekState: MyWeeklyImpact["weekState"] =
+    weeksFromNow > 0 ? "future" : weeksFromNow < 0 ? "past" : "current";
+  const autoCreate = weeksFromNow <= 0 && weeksFromNow >= -12;
 
-  // Ensure a chapter entry for chapter presidents.
-  if (isChapterPresident && user?.chapter) {
-    await prisma.weeklyImpactEntry.upsert({
-      where: { userId_chapterId_weekStart: { userId: viewer.id, chapterId: user.chapter.id, weekStart } },
-      create: { userId: viewer.id, chapterId: user.chapter.id, weekStart },
-      update: {},
-    });
+  if (autoCreate) {
+    // Ensure a team entry exists for each team membership.
+    for (const m of memberships) {
+      await prisma.weeklyImpactEntry.upsert({
+        where: { userId_teamId_weekStart: { userId: viewer.id, teamId: m.team.id, weekStart } },
+        create: { userId: viewer.id, teamId: m.team.id, weekStart },
+        update: {},
+      });
+    }
+
+    // Ensure a chapter entry for chapter presidents.
+    if (isChapterPresident && user?.chapter) {
+      await prisma.weeklyImpactEntry.upsert({
+        where: { userId_chapterId_weekStart: { userId: viewer.id, chapterId: user.chapter.id, weekStart } },
+        create: { userId: viewer.id, chapterId: user.chapter.id, weekStart },
+        update: {},
+      });
+    }
   }
 
   const entries = await prisma.weeklyImpactEntry.findMany({
@@ -157,6 +175,8 @@ export async function loadMyWeeklyImpact(
   return {
     weekKey: weekKey(weekStart),
     weekLabel: weekLabel(weekStart),
+    hasScope,
+    weekState,
     entries: entries
       .map((e): ImpactEntryDTO | null => {
         const scope = e.teamId ? ("team" as const) : e.chapterId ? ("chapter" as const) : null;

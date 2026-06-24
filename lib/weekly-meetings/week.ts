@@ -24,6 +24,11 @@ export function weekEndFor(weekStart: Date): Date {
   return new Date(weekStart.getTime() + 7 * MS_PER_DAY - 1);
 }
 
+/** Shift a weekStart by N reporting weeks (negative = earlier). */
+export function addWeeks(weekStart: Date, weeks: number): Date {
+  return new Date(weekStart.getTime() + weeks * 7 * MS_PER_DAY);
+}
+
 /** Parse a `YYYY-MM-DD` week key into a normalized weekStart, or null. */
 export function parseWeekKey(value: string | null | undefined): Date | null {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return null;

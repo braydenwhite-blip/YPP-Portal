@@ -12,8 +12,10 @@ import { useRouter } from "next/navigation";
 
 import { Button, StatusBadge, ToastV2 } from "@/components/ui-v2";
 import type { ImpactEntryDTO, ImpactRowDTO, MyWeeklyImpact } from "@/lib/weekly-meetings/weekly-impact";
+import type { ContributionSuggestion } from "@/lib/weekly-meetings/contribution-types";
 import {
   addImpactRow,
+  addImpactRowFromContribution,
   deleteImpactRow,
   reopenImpactEntry,
   saveImpactEntry,
@@ -31,16 +33,35 @@ const ROW_STATUS_LABELS: Record<ImpactRowDTO["rowStatus"], string> = {
 const inputCls =
   "w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-muted focus:border-brand-500 focus:outline-none";
 
-export function WeeklyImpactForm({ data, userName }: { data: MyWeeklyImpact; userName: string }) {
+export function WeeklyImpactForm({
+  data,
+  userName,
+  contributions = [],
+}: {
+  data: MyWeeklyImpact;
+  userName: string;
+  contributions?: ContributionSuggestion[];
+}) {
   const [activeId, setActiveId] = useState(data.entries[0]?.id ?? "");
   const active = data.entries.find((e) => e.id === activeId) ?? data.entries[0];
 
   if (!data.entries.length) {
     return (
       <div className="rounded-[14px] border border-line-card bg-surface p-8 text-center text-[14px] text-ink-muted shadow-card">
-        You&rsquo;re not on a team yet. Ask an admin to add you to a team in
-        <span className="font-semibold text-ink"> Admin → Teams</span>, then your Weekly Impact form
-        will appear here.
+        {data.hasScope ? (
+          <>
+            Nothing logged for <span className="font-semibold text-ink">{data.weekLabel}</span> yet.
+            {data.weekState === "future"
+              ? " This week hasn’t started — switch to This week to log your impact."
+              : " Switch to This week to start, or pick a recent week to back-fill."}
+          </>
+        ) : (
+          <>
+            You&rsquo;re not on a team yet. Ask an admin to add you to a team in
+            <span className="font-semibold text-ink"> Admin → Teams</span>, then your Weekly Impact form
+            will appear here.
+          </>
+        )}
       </div>
     );
   }
@@ -61,7 +82,15 @@ export function WeeklyImpactForm({ data, userName }: { data: MyWeeklyImpact; use
           ))}
         </div>
       )}
-      {active && <EntryEditor key={active.id} entry={active} userName={userName} weekLabel={data.weekLabel} />}
+      {active && (
+        <EntryEditor
+          key={active.id}
+          entry={active}
+          userName={userName}
+          weekLabel={data.weekLabel}
+          contributions={contributions}
+        />
+      )}
     </div>
   );
 }
@@ -70,10 +99,12 @@ function EntryEditor({
   entry,
   userName,
   weekLabel,
+  contributions,
 }: {
   entry: ImpactEntryDTO;
   userName: string;
   weekLabel: string;
+  contributions: ContributionSuggestion[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -144,6 +175,11 @@ function EntryEditor({
 
       {/* Where this entry's flagged rows go */}
       <MeetingLinkBanner entry={entry} submitted={submitted} />
+
+      {/* Pull in mentorship + reviews done this week */}
+      {!submitted && contributions.length > 0 && (
+        <ContributionsPanel entryId={entry.id} contributions={contributions} pending={pending} onRun={run} />
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto px-6 py-5">
@@ -228,6 +264,94 @@ function EntryEditor({
         <ToastV2 open tone={toast.tone}>
           {toast.msg}
         </ToastV2>
+      )}
+    </div>
+  );
+}
+
+const CONTRIBUTION_TONE: Record<ContributionSuggestion["kind"], string> = {
+  mentorship_session: "bg-teal-50 text-teal-700",
+  mentor_review: "bg-brand-50 text-brand-700",
+  quarterly_review: "bg-info-100 text-info-700",
+};
+
+/**
+ * Surfaces the mentorship sessions + reviews the person did this week and lets
+ * them drop any one into the form as a pre-filled "Done" row — so a week's work
+ * across the portal lands in one Weekly Impact, then flows to the meeting.
+ */
+function ContributionsPanel({
+  entryId,
+  contributions,
+  pending,
+  onRun,
+}: {
+  entryId: string;
+  contributions: ContributionSuggestion[];
+  pending: boolean;
+  onRun: (fn: () => Promise<unknown>, okMsg?: string) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const [added, setAdded] = useState<Set<string>>(new Set());
+
+  function add(c: ContributionSuggestion) {
+    setAdded((prev) => new Set(prev).add(c.key));
+    onRun(
+      () =>
+        addImpactRowFromContribution({
+          entryId,
+          type: c.type,
+          whatGoal: c.whatGoal,
+          evidenceNext: c.evidenceNext,
+        }),
+      "Added to your impact ✓"
+    );
+  }
+
+  return (
+    <div className="border-b border-line-soft bg-surface-soft px-6 py-4">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-2 text-left"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="text-[12px] font-bold uppercase tracking-[0.06em] text-brand-700">
+          Your week across the portal · {contributions.length}
+        </span>
+        <span className="text-[12px] font-semibold text-brand-600">{open ? "Hide" : "Show"}</span>
+      </button>
+      {open && (
+        <div className="mt-3 flex flex-col gap-2">
+          <p className="m-0 text-[12px] text-ink-muted">
+            Mentorship and reviews you completed this week — add any as a row.
+          </p>
+          {contributions.map((c) => {
+            const isAdded = added.has(c.key);
+            return (
+              <div
+                key={c.key}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft bg-surface px-3 py-2"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.04em] ${CONTRIBUTION_TONE[c.kind]}`}
+                  >
+                    {c.kindLabel}
+                  </span>
+                  <span className="truncate text-[13px] font-medium text-ink">{c.whatGoal}</span>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={pending || isAdded}
+                  onClick={() => add(c)}
+                >
+                  {isAdded ? "Added ✓" : "Add"}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
