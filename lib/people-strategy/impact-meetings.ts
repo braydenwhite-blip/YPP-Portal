@@ -12,7 +12,7 @@ import {
 } from "./weekly-team-briefs";
 
 export const GLOBAL_OPERATIONS_IMPACT_INITIATIVE_ID = "global-operations-impact";
-export const GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE = "GLOBAL_OPERATIONS_IMPACT_PRESENTATION";
+export { GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE } from "./meeting-constants";
 
 export const IMPACT_TEAMS = [
   {

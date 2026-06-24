@@ -1,4 +1,4 @@
-import { GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE } from "./impact-meetings";
+import { GLOBAL_OPERATIONS_IMPACT_MEETING_TYPE } from "./meeting-constants";
 import type { EffectiveMeetingStatus } from "./meetings-status";
 
 /**

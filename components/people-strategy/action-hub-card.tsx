@@ -31,7 +31,7 @@ import {
   ActionAssignMeetingButton,
   ActionMeetingLink,
 } from "@/components/people-strategy/action-assign-meeting-button";
-import { meetingDetailHref } from "@/lib/people-strategy/meetings-home";
+import { deriveActionSource } from "@/lib/people-strategy/action-source";
 
 function personName(user: { name: string | null; email: string } | null | undefined): string {
   return user?.name?.trim() || user?.email || "Unknown";
@@ -116,6 +116,9 @@ export function ActionHubCard({
   const goal =
     strategic.initiativeTitle ??
     (item.goalCategory ? item.goalCategory : null);
+
+  const actionSource = deriveActionSource(item);
+  const linkedMeetingId = actionSource.meetingId;
 
   const hasRoles = lead.length > 0 || executing.length > 0 || input.length > 0;
 
@@ -214,12 +217,12 @@ export function ActionHubCard({
             Approved
           </span>
         ) : null}
-        {item.officerMeeting ? (
+        {linkedMeetingId ? (
           <ActionMeetingLink
-            meetingId={item.officerMeeting.id}
-            meetingTitle={item.officerMeeting.title}
-            meetingDate={item.officerMeeting.date}
-            meetingHref={meetingDetailHref(null, item.officerMeeting.id)}
+            meetingId={linkedMeetingId}
+            meetingTitle={null}
+            meetingDate={new Date(item.deadlineEnd ?? item.deadlineStart)}
+            meetingHref={`/meetings/${linkedMeetingId}`}
           />
         ) : canAssignMeeting ? (
           <ActionAssignMeetingButton actionItemId={item.id} />

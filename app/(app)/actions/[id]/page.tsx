@@ -11,7 +11,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import { effectiveStatus } from "@/lib/people-strategy/action-filters";
-import { deriveActionStrategicLinkage } from "@/lib/people-strategy/action-source";
+import { deriveActionSource, deriveActionStrategicLinkage } from "@/lib/people-strategy/action-source";
 import {
   getActionItemById,
   getActionsForEntity,
@@ -224,11 +224,12 @@ export default async function ActionDetailPage({ params }: PageProps) {
           () => [] as ActionItemWithRelations[]
         )
       : Promise.resolve([] as ActionItemWithRelations[]),
-    item.officerMeetingId
-      ? getActionsForMeeting(item.officerMeetingId, viewer).catch(
-          () => [] as ActionItemWithRelations[]
-        )
-      : Promise.resolve([] as ActionItemWithRelations[]),
+    (() => {
+      const meetingId = deriveActionSource(item).meetingId;
+      return meetingId
+        ? getActionsForMeeting(meetingId, viewer).catch(() => [] as ActionItemWithRelations[])
+        : Promise.resolve([] as ActionItemWithRelations[]);
+    })(),
   ]);
 
   if (summary) {
@@ -244,6 +245,9 @@ export default async function ActionDetailPage({ params }: PageProps) {
     .filter((a) => a.id !== item.id)
     .slice(0, 6)
     .map((a) => toLiteAction(a, now));
+
+  const actionSource = deriveActionSource(item);
+  const linkedMeetingId = actionSource.meetingId;
 
   return (
     <div className={`${skin.portalSkin} ${skin.fadeIn}`}>
@@ -298,12 +302,12 @@ export default async function ActionDetailPage({ params }: PageProps) {
               {formatMonthDay(due)}
             </span>
             <ActionStatusBadge item={item} now={now} />
-            {item.officerMeeting ? (
+            {linkedMeetingId ? (
               <Link
-                href={`/meetings/${item.officerMeetingId}`}
+                href={`/meetings/${linkedMeetingId}`}
                 className="inline-flex items-center rounded-md bg-[#fdf8ec] px-2 py-1 text-[11px] font-semibold text-[#7a5d00] no-underline hover:bg-[#f9f0dc]"
               >
-                Ofcr Mtg: {formatMonthDay(item.officerMeeting.date)}
+                Meeting linked
               </Link>
             ) : null}
           </div>

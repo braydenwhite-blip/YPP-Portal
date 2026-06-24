@@ -588,11 +588,16 @@ export async function listMeetingsInRange(
   end: Date
 ): Promise<MeetingWithCommandCenter[]> {
   if (!isActionTrackerEnabled()) return [];
-  return prisma.officerMeeting.findMany({
-    where: { date: { gte: start, lte: end } },
-    include: MEETING_INCLUDE,
-    orderBy: [{ date: "asc" }],
-  });
+  try {
+    return await prisma.officerMeeting.findMany({
+      where: { date: { gte: start, lte: end } },
+      include: MEETING_INCLUDE,
+      orderBy: [{ date: "asc" }],
+    });
+  } catch (error) {
+    console.error("[meetings-queries] listMeetingsInRange failed:", error);
+    return [];
+  }
 }
 
 /** Single meeting by id with all command-center relations. */

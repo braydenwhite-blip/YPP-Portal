@@ -91,11 +91,19 @@ export default async function ActionsPage({
   const canCreate = canCreateAction(viewer);
   const who = officer ? whoParam ?? "all" : "me";
 
-  const [myItems, allItems, departments] = await Promise.all([
-    getMyActionItems(viewer.id, viewer),
-    officer ? listVisibleActionItems(viewer) : Promise.resolve([]),
-    canCreate ? listActionDepartments() : Promise.resolve([]),
-  ]);
+  let myItems: Awaited<ReturnType<typeof getMyActionItems>> = [];
+  let allItems: Awaited<ReturnType<typeof listVisibleActionItems>> = [];
+  let departments: Awaited<ReturnType<typeof listActionDepartments>> = [];
+
+  try {
+    [myItems, allItems, departments] = await Promise.all([
+      getMyActionItems(viewer.id, viewer),
+      officer ? listVisibleActionItems(viewer) : Promise.resolve([]),
+      canCreate ? listActionDepartments() : Promise.resolve([]),
+    ]);
+  } catch (error) {
+    console.error("[actions] Failed to load action hub data:", error);
+  }
 
   const now = new Date();
   const filters = parseActionFilters(params);
