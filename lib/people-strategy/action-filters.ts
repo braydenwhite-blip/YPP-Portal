@@ -234,6 +234,15 @@ export function hasActiveFilters(filters: ActionFilters): boolean {
   );
 }
 
+/** Hub filter row — department, visibility, search only (no status/type/source). */
+export function hasActiveHubFilters(filters: ActionFilters): boolean {
+  return (
+    filters.department !== "ALL" ||
+    filters.visibility !== "ALL" ||
+    filters.search !== ""
+  );
+}
+
 /**
  * The bucket an item belongs to for status filtering + the status chart:
  * COMPLETE wins; otherwise a past-due open item is OVERDUE; otherwise its

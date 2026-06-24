@@ -1,4 +1,4 @@
-import type { GoalReviewStatus } from "@prisma/client";
+import type { GoalReviewStatus, GoalRatingColor } from "@prisma/client";
 
 import type { PeoplePerformanceRow } from "./people-performance";
 import type { NextActionKind, PerformanceRowFacts } from "./people-performance-selectors";
@@ -17,6 +17,8 @@ export type MonthlyCheckInQueueItem = {
   name: string;
   mentorName: string | null;
   meetingLabel: string;
+  /** Latest compiled check-in or quarterly performance rating for the color bar. */
+  performanceRating: GoalRatingColor | null;
   /** Five segments: self-reflection → feedback → draft → sign-off → meeting. */
   segments: WorkflowSegmentState[];
   detailText: string;
@@ -118,8 +120,13 @@ export function deriveMonthlyCheckInQueueItem(
 
   const segments: WorkflowSegmentState[] = [step1, step2, step3, step4, step5];
 
+  const performanceRating =
+    row.recentCheckIns.find((c) => c.rating)?.rating ??
+    row.quarterly?.performanceRating ??
+    null;
+
   const missed = countMissedCheckIns(row.calendarDots);
-  let detailText = buildDetailText(facts, !reflectionDone && reflectionRequired, missed);
+  let detailText = buildDetailText(facts, missed);
   let statusLabel: string;
   let statusTone: MonthlyCheckInQueueItem["statusTone"];
   let actionLabel: string;
@@ -130,15 +137,13 @@ export function deriveMonthlyCheckInQueueItem(
     statusTone = "warning";
     actionLabel = "Send reminder";
     actionKind = "send-reminder";
-    if (!extras.hasSelfReflection) {
-      detailText = detailText || "No self-reflection submitted yet";
-    }
+    detailText = buildDetailText(facts, missed);
   } else if (!feedbackRequested) {
     statusLabel = "Awaiting feedback";
     statusTone = "warning";
     actionLabel = "Request feedback";
     actionKind = "request-feedback";
-    detailText = detailText || "Feedback not yet requested";
+    detailText = buildDetailText(facts, missed);
   } else if (facts.needsCheckIn && (feedbackStarted || reflectionDone)) {
     statusLabel = "Drafting update";
     statusTone = "info";
@@ -177,6 +182,7 @@ export function deriveMonthlyCheckInQueueItem(
     name,
     mentorName: row.mentorName,
     meetingLabel,
+    performanceRating,
     segments,
     detailText,
     statusLabel,
@@ -188,16 +194,14 @@ export function deriveMonthlyCheckInQueueItem(
 
 function buildDetailText(
   facts: PerformanceRowFacts,
-  reflectionMissing: boolean,
   missedMeetings: number
 ): string {
   const parts: string[] = [];
   const mf = facts.monthFeedback;
-  if (reflectionMissing) {
-    parts.push("No self-reflection submitted");
-  }
   if (mf.requested > 0 && mf.submitted > 0) {
     parts.push(`${mf.submitted} of ${mf.requested} feedback responses in`);
+  } else if (mf.requested > 0 && mf.pending > 0) {
+    parts.push(`${mf.pending} feedback response${mf.pending === 1 ? "" : "s"} still pending`);
   }
   if (missedMeetings > 0) {
     parts.push(`${missedMeetings} missed meeting${missedMeetings === 1 ? "" : "s"}`);

@@ -1,11 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
-import { CheckInsDrawer } from "@/components/people-strategy/check-ins-drawer";
-import { FeedbackRequestDrawer } from "@/components/people-strategy/feedback-request-drawer";
-import { FeedbackReviewDrawer } from "@/components/people-strategy/feedback-review-drawer";
-import { PersonDetailDrawer } from "@/components/people-strategy/person-detail-drawer";
 import { PeoplePerformanceTable } from "@/components/people-strategy/people-performance-table";
 import {
   PeopleReviewsFiltersBar,
@@ -20,8 +16,6 @@ import {
   type PeopleReviewsTableFilters,
 } from "@/lib/people-strategy/people-performance-selectors";
 import type { PeoplePerformanceRow } from "@/lib/people-strategy/people-performance";
-
-type Member = { id: string; name: string };
 
 export function PeoplePerformanceClient({
   rows,
@@ -48,28 +42,17 @@ export function PeoplePerformanceClient({
   quarter: string;
   quarterlyEnabled: boolean;
 }) {
-  const [detailRow, setDetailRow] = useState<PeoplePerformanceRow | null>(null);
-  const [checkInsMember, setCheckInsMember] = useState<Member | null>(null);
-  const [reviewMember, setReviewMember] = useState<Member | null>(null);
-  const [requestMember, setRequestMember] = useState<Member | null>(null);
-
-  // Keep the open drawer in sync after router.refresh().
-  useEffect(() => {
-    if (!detailRow) return;
-    const fresh = rows.find((r) => r.id === detailRow.id);
-    if (fresh) setDetailRow(fresh);
-  }, [rows, detailRow?.id]);
-
   const ctx = useMemo(() => ({ monthLabel, quarter }), [monthLabel, quarter]);
-  const sortedRows = useMemo(
-    () => sortPerformanceRowsByUrgency(tableRows, ctx),
-    [tableRows, ctx]
-  );
+  const sortedRows = useMemo(() => {
+    const sorted = sortPerformanceRowsByUrgency(tableRows, ctx);
+    const seen = new Set<string>();
+    return sorted.filter((row) => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    });
+  }, [tableRows, ctx]);
   const pageRows = useMemo(() => paginateRows(sortedRows, page), [sortedRows, page]);
-
-  function memberFromRow(row: PeoplePerformanceRow): Member {
-    return { id: row.id, name: row.name || row.email };
-  }
 
   return (
     <>
@@ -79,18 +62,21 @@ export function PeoplePerformanceClient({
           options={filterOptions}
           clearHref={clearFiltersHref}
           basePath={basePath}
+          resultCount={sortedRows.length}
         />
 
         {pageRows.length > 0 ? (
           <div className="overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+            <p className="border-b border-[#f1f1f6] px-4 py-2 text-[12px] text-[#717189]">
+              Tap any row to open their full profile. Use the purple button to compile a check-in
+              — it turns green when done.
+            </p>
             <PeoplePerformanceTable
               rows={pageRows}
               monthLabel={monthLabel}
               monthShortLabel={monthShortLabel}
               quarter={quarter}
               quarterlyEnabled={quarterlyEnabled}
-              onOpenPerson={setDetailRow}
-              onOpenCheckIns={(row) => setCheckInsMember(memberFromRow(row))}
             />
             <PeopleReviewsPagination total={sortedRows.length} page={page} basePath={basePath} />
           </div>
@@ -100,22 +86,6 @@ export function PeoplePerformanceClient({
           </div>
         )}
       </div>
-
-      <CheckInsDrawer member={checkInsMember} onClose={() => setCheckInsMember(null)} />
-
-      <PersonDetailDrawer
-        row={detailRow}
-        monthLabel={monthLabel}
-        monthShortLabel={monthShortLabel}
-        quarter={quarter}
-        quarterlyEnabled={quarterlyEnabled}
-        onClose={() => setDetailRow(null)}
-        onReviewFeedback={setReviewMember}
-        onRequestFeedback={setRequestMember}
-      />
-
-      <FeedbackReviewDrawer member={reviewMember} onClose={() => setReviewMember(null)} />
-      <FeedbackRequestDrawer member={requestMember} onClose={() => setRequestMember(null)} />
     </>
   );
 }

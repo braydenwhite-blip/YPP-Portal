@@ -36,8 +36,11 @@ import { fileURLToPath } from "node:url";
  * chassis stays — it is portal-wide (People Suite, admin records, chapter,
  * operations) — docs/knowledge-os-phase-3f-actions-pages-notes.md.
  * Only lower it.
+ * Reconciled to 10,733 when merging preview/brayden-portal: main added two
+ * `.page-subtitle` typography rules (DM Sans font-family + letter-spacing) that
+ * were never captured here, so the baseline lagged main's shipped globals.css.
  */
-const BASELINE_LINE_COUNT = 10731;
+const BASELINE_LINE_COUNT = 10733;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const file = join(root, "app", "globals.css");

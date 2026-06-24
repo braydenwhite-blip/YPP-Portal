@@ -38,6 +38,7 @@ export function summarizeStatuses(
 export type DepartmentBar = {
   id: string;
   name: string;
+  slug: string | null;
   total: number;
   overdue: number;
 };
@@ -54,9 +55,10 @@ export function summarizeDepartments(
   for (const item of items) {
     const id = item.department?.id ?? item.departmentId ?? "unassigned";
     const name = item.department?.name ?? "Unassigned";
+    const slug = item.department?.slug ?? null;
     let bar = byId.get(id);
     if (!bar) {
-      bar = { id, name, total: 0, overdue: 0 };
+      bar = { id, name, slug, total: 0, overdue: 0 };
       byId.set(id, bar);
     }
     bar.total += 1;

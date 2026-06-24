@@ -1395,6 +1395,7 @@ model User {
   // Action Tracker (People Strategy)
   actionItemsLed              ActionItem[]       @relation("ActionItemsLed")
   actionItemsCreated          ActionItem[]       @relation("ActionItemsCreated")
+  actionItemsApproved         ActionItem[]       @relation("ActionItemsApproved")
   actionAssignments           ActionAssignment[] @relation("ActionAssignments")
   actionComments              ActionComment[]    @relation("ActionComments")
   actionFileLinksAdded        ActionFileLink[]   @relation("ActionFileLinksAdded")
@@ -12842,6 +12843,12 @@ model ActionItem {
   /// the Win Log / pulse / momentum an exact completion timestamp instead of
   /// approximating with `updatedAt` (Phase 7).
   completedAt   DateTime?
+  /// Officer sign-off after COMPLETE. Null = waiting for approval; set when an
+  /// officer approves. Cleared if the item is reopened. Approved items roll off
+  /// the hub after a short grace window but remain in the Approved list.
+  approvedAt    DateTime?
+  approvedById  String?
+  approvedBy    User?                @relation("ActionItemsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
   visibility    ActionItemVisibility @default(ALL_LEADERSHIP)
 
   /// Single accountable lead (denormalized; also represented as an
@@ -12880,6 +12887,14 @@ model ActionItem {
   /// to avoid two sources of truth.
   relatedEntityType String?
   relatedEntityId   String?
+
+  /// Explicit assignment of this action to a Meeting (the new weekly-meetings
+  /// `Meeting` model), set from the Actions hub "+ Add to meeting" picker. This
+  /// is INDEPENDENT of sourceType/sourceId provenance — assigning an action to a
+  /// meeting does not change how the action originated. SetNull keeps the action
+  /// if the meeting is deleted.
+  meetingId String?
+  meeting   Meeting? @relation("ActionItemMeeting", fields: [meetingId], references: [id], onDelete: SetNull)
 
   // --- Action System 4.0 — honest source provenance + strategic linkage ------
   /// HOW this action came to exist. Controlled vocabulary (MANUAL / MEETING /
@@ -12939,6 +12954,9 @@ model ActionItem {
   @@index([visibility])
   @@index([leadId])
   @@index([createdById])
+  @@index([approvedById])
+  @@index([approvedAt])
+  @@index([meetingId])
   @@index([mentorshipSessionId])
   @@index([flaggedAt])
   @@index([escalatedToLeadershipAt])
@@ -13375,6 +13393,10 @@ model Meeting {
   officerTopics OfficerTopic[]     @relation("MeetingOfficerTopics")
   decisions     MeetingDecision[]  @relation("MeetingDecisions")
   followUps     MeetingFollowUp[]  @relation("MeetingFollowUps")
+
+  /// Action items explicitly assigned to this meeting from the Actions hub
+  /// "+ Add to meeting" picker (independent of any action's source provenance).
+  actionItems   ActionItem[]       @relation("ActionItemMeeting")
 
   createdById String?
   createdBy   User?   @relation("MeetingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)

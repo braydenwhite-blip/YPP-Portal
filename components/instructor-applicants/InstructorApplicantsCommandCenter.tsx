@@ -5,6 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import KanbanBoard, { type KanbanColumnDef } from "@/components/kanban/kanban-board";
 import ApplicantPipelineCard from "./ApplicantPipelineCard";
 import ApplicantCommandFilters from "./ApplicantCommandFilters";
+import ApplicantPipelineOverview, {
+  type ApplicantPipelineFilteredCounts,
+  type FunnelCounts,
+} from "./ApplicantPipelineOverview";
 import ApplicantQuickDrawer from "./ApplicantQuickDrawer";
 import ArchiveTable from "./ArchiveTable";
 import InstructorApplicantsWorkspace, {
@@ -72,6 +76,8 @@ interface InstructorApplicantsCommandCenterProps {
   actorId?: string;
   isAdmin?: boolean;
   workspaceApps?: WorkspaceApplicant[];
+  pipelineFilteredCounts?: ApplicantPipelineFilteredCounts;
+  funnelCounts?: FunnelCounts;
 }
 
 // Derived column → kanban column definition
@@ -181,6 +187,8 @@ export default function InstructorApplicantsCommandCenter({
   actorId,
   isAdmin = false,
   workspaceApps = [],
+  pipelineFilteredCounts,
+  funnelCounts,
 }: InstructorApplicantsCommandCenterProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -250,15 +258,6 @@ export default function InstructorApplicantsCommandCenter({
       params.set("view", "archive");
       params.delete("tab");
     }
-    router.replace(`?${params.toString()}`, { scroll: false });
-  }
-
-  // Track filter ("track" URL param). Values: "" (all) | "standard" | "summer_workshop".
-  const activeTrack = (searchParams.get("track") ?? "").toLowerCase();
-  function setTrackFilter(value: "" | "standard" | "summer_workshop") {
-    const params = new URLSearchParams(searchParams.toString());
-    if (!value) params.delete("track");
-    else params.set("track", value);
     router.replace(`?${params.toString()}`, { scroll: false });
   }
 
@@ -358,39 +357,12 @@ export default function InstructorApplicantsCommandCenter({
       {/* Pipeline tab */}
       {activeTab === "pipeline" && (
         <div role="tabpanel" aria-label="Pipeline view">
-          {/* Applicant type filter (Standard / Summer Workshop) */}
-          <div
-            role="group"
-            aria-label="Filter by applicant type"
-            className="mb-2 flex flex-wrap items-center gap-1.5"
-          >
-            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
-              Type
-            </span>
-            {([
-              { value: "", label: "All" },
-              { value: "standard", label: "Standard" },
-              { value: "summer_workshop", label: "Summer Workshop" },
-            ] as const).map((opt) => {
-              const active = activeTrack === opt.value;
-              return (
-                <button
-                  key={opt.value || "all"}
-                  type="button"
-                  onClick={() => setTrackFilter(opt.value)}
-                  aria-pressed={active}
-                  className={cn(
-                    "cursor-pointer rounded-full border px-2.5 py-1 text-[12px] transition-colors duration-100",
-                    active
-                      ? "border-brand-600 bg-brand-50 font-bold text-brand-700"
-                      : "border-line bg-surface font-medium text-ink hover:bg-surface-soft"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+          {pipelineFilteredCounts ? (
+            <ApplicantPipelineOverview
+              filteredCounts={pipelineFilteredCounts}
+              funnelCounts={funnelCounts}
+            />
+          ) : null}
           <ApplicantCommandFilters
             isAdmin={isAdmin}
             chapters={chapters}

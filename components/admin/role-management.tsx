@@ -124,7 +124,7 @@ export function RoleManagement({
         {filtered.length === 0 ? (
           <EmptyStateV2
             title="No users match"
-            description="Try a different name, email, role, title, or cohort."
+            body="Try a different name, email, role, title, or cohort."
           />
         ) : (
           <DataTableShell>

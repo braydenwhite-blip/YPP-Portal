@@ -1,8 +1,6 @@
 /**
- * Pipeline summary strip (Tailwind / ui-v2 vocabulary): the filtered board's
- * stage counts plus the overall per-status counts. Concrete numbers only —
- * no composite scores (§19). `FunnelCounts` lives here since the old funnel
- * chart was retired (it was never rendered).
+ * Compact pipeline snapshot for the filtered board. Concrete numbers only — no
+ * composite scores (§19). `FunnelCounts` stays here for optional status drill-down.
  */
 export type FunnelCounts = Partial<Record<string, number>>;
 
@@ -15,10 +13,10 @@ export interface ApplicantPipelineFilteredCounts {
 
 interface ApplicantPipelineOverviewProps {
   filteredCounts: ApplicantPipelineFilteredCounts;
-  funnelCounts: FunnelCounts;
+  funnelCounts?: FunnelCounts;
 }
 
-const RIBBON_SEGMENTS: Array<{
+const STAGES: Array<{
   key: keyof ApplicantPipelineFilteredCounts;
   label: string;
   dotClass: string;
@@ -29,37 +27,57 @@ const RIBBON_SEGMENTS: Array<{
   { key: "postInterview", label: "Post-interview", dotClass: "bg-indigo-600" },
 ];
 
-function Pill({
+const STATUS_LABELS: Record<string, string> = {
+  SUBMITTED: "Submitted",
+  UNDER_REVIEW: "Under review",
+  INFO_REQUESTED: "Info requested",
+  PRE_APPROVED: "Pre-approved",
+  INTERVIEW_SCHEDULED: "Interview scheduled",
+  INTERVIEW_COMPLETED: "Interview completed",
+  CHAIR_REVIEW: "Chair review",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  ON_HOLD: "On hold",
+  WITHDRAWN: "Withdrawn",
+  WAITLISTED: "Waitlisted",
+};
+
+function StageCount({
   label,
   value,
-  strong = false,
   dotClass,
 }: {
   label: string;
-  value?: number;
-  strong?: boolean;
-  dotClass?: string;
+  value: number;
+  dotClass: string;
 }) {
+  const muted = value === 0;
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] ${
-        strong
-          ? "border-brand-200 bg-brand-50 font-bold text-brand-700"
-          : "border-line-soft bg-surface-soft text-ink-muted"
+    <div
+      className={`flex min-w-[88px] flex-1 flex-col gap-0.5 rounded-[10px] border px-3 py-2 ${
+        muted
+          ? "border-line-soft bg-surface-soft/60"
+          : "border-line-soft bg-surface"
       }`}
     >
-      {dotClass ? <span aria-hidden className={`size-2 rounded-full ${dotClass}`} /> : null}
-      <span>{label}</span>
-      {value !== undefined ? (
-        <span className="font-bold text-ink">{value}</span>
-      ) : null}
-    </span>
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-muted">
+        <span aria-hidden className={`size-2 shrink-0 rounded-full ${dotClass}`} />
+        {label}
+      </span>
+      <span
+        className={`text-[20px] font-bold tabular-nums leading-none ${
+          muted ? "text-ink-subtle" : "text-ink"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
   );
 }
 
 export default function ApplicantPipelineOverview({
   filteredCounts,
-  funnelCounts,
+  funnelCounts = {},
 }: ApplicantPipelineOverviewProps) {
   const total =
     filteredCounts.newApplications +
@@ -67,45 +85,60 @@ export default function ApplicantPipelineOverview({
     filteredCounts.interviewStage +
     filteredCounts.postInterview;
 
-  const overall = [
-    { label: "Submitted", value: funnelCounts.SUBMITTED ?? 0 },
-    { label: "Under review", value: funnelCounts.UNDER_REVIEW ?? 0 },
-    {
-      label: "Review complete",
-      value: (funnelCounts.INFO_REQUESTED ?? 0) + (funnelCounts.PRE_APPROVED ?? 0),
-    },
-    { label: "Interview scheduled", value: funnelCounts.INTERVIEW_SCHEDULED ?? 0 },
-    { label: "Interview completed", value: funnelCounts.INTERVIEW_COMPLETED ?? 0 },
-    { label: "Chair review", value: funnelCounts.CHAIR_REVIEW ?? 0 },
-    { label: "Approved", value: funnelCounts.APPROVED ?? 0 },
-    { label: "Rejected", value: funnelCounts.REJECTED ?? 0 },
-    { label: "On hold", value: funnelCounts.ON_HOLD ?? 0 },
-    { label: "Withdrawn", value: funnelCounts.WITHDRAWN ?? 0 },
-  ];
+  const statusRows = Object.entries(STATUS_LABELS)
+    .map(([key, label]) => ({
+      label,
+      value: funnelCounts[key] ?? 0,
+    }))
+    .filter((row) => row.value > 0);
 
   return (
     <section
-      className="mb-4 flex flex-col gap-2 rounded-[12px] border border-line-soft bg-surface p-4 shadow-card"
-      aria-label="Applicant pipeline summary"
+      className="mb-3 rounded-[12px] border border-line-soft bg-surface-soft/40 p-3"
+      aria-label="Pipeline snapshot for current filters"
     >
-      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtered board counts">
-        <Pill label="Filtered" value={total} strong />
-        {RIBBON_SEGMENTS.map((seg) => (
-          <Pill
-            key={seg.key}
-            label={seg.label}
-            value={filteredCounts[seg.key]}
-            dotClass={seg.dotClass}
-          />
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <p className="m-0 text-[13px] font-semibold text-ink">
+          {total === 1 ? "1 applicant" : `${total} applicants`} on the board
+        </p>
+        <p className="m-0 text-[12px] text-ink-muted">Counts match your filters below</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2" role="list" aria-label="Applicants by stage">
+        {STAGES.map((stage) => (
+          <div key={stage.key} role="listitem" className="min-w-[88px] flex-1">
+            <StageCount
+              label={stage.label}
+              value={filteredCounts[stage.key]}
+              dotClass={stage.dotClass}
+            />
+          </div>
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Overall counts by status">
-        <Pill label="Overall" strong />
-        {overall.map((row) => (
-          <Pill key={row.label} label={row.label} value={row.value} />
-        ))}
-      </div>
+      {statusRows.length > 0 ? (
+        <details className="mt-2.5 group">
+          <summary className="cursor-pointer list-none text-[12px] font-medium text-ink-muted marker:content-none hover:text-ink [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-1">
+              <span
+                aria-hidden
+                className="inline-block text-[10px] transition-transform group-open:rotate-90"
+              >
+                ▸
+              </span>
+              All status counts (network-wide, unfiltered)
+            </span>
+          </summary>
+          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3 md:grid-cols-4">
+            {statusRows.map((row) => (
+              <div key={row.label} className="flex items-baseline justify-between gap-2 text-[12px]">
+                <dt className="truncate text-ink-muted">{row.label}</dt>
+                <dd className="shrink-0 font-bold tabular-nums text-ink">{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      ) : null}
     </section>
   );
 }

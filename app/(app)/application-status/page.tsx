@@ -3,7 +3,6 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
   InstructorApplicationStatus,
-  ChapterPresidentApplicationStatus,
 } from "@prisma/client";
 import InfoResponseForm from "./info-response-form";
 import CPInfoResponseForm from "./cp-info-response-form";
@@ -16,6 +15,7 @@ import InstructorApplicationMotivationResponse from "@/components/instructor-app
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 import { isHttpUrl } from "@/lib/meeting-details";
 import type { WorkshopOutline } from "@/lib/summer-workshop";
+import { cpApplicantFacingStatusLabel } from "@/lib/chapter-president-lifecycle";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
   switch (status) {
@@ -31,33 +31,6 @@ function instructorStatusLabel(status: InstructorApplicationStatus): string {
     case "REJECTED": return "Not Accepted";
     case "WITHDRAWN": return "Withdrawn";
     case "WAITLISTED": return "Waitlisted";
-    default: {
-      const exhaustiveCheck: never = status;
-      return exhaustiveCheck;
-    }
-  }
-}
-
-function cpStatusLabel(status: ChapterPresidentApplicationStatus): string {
-  switch (status) {
-    case "SUBMITTED": return "Submitted";
-    case "INITIAL_REVIEW": return "Initial Review";
-    case "UNDER_REVIEW": return "Under Review";
-    case "NEEDS_MORE_INFO": return "More Info Requested";
-    case "INFO_REQUESTED": return "More Info Requested";
-    case "INTERVIEW_NEEDED": return "Interview Needed";
-    case "INTERVIEW_SCHEDULED": return "Interview Scheduled";
-    case "INTERVIEW_COMPLETE": return "Interview Completed";
-    case "INTERVIEW_COMPLETED": return "Interview Completed";
-    case "DECISION_NEEDED": return "Decision Needed";
-    case "RECOMMENDATION_SUBMITTED": return "Under Final Review";
-    case "ACCEPTED": return "Accepted";
-    case "APPROVED": return "Approved";
-    case "WAITLISTED": return "Waitlisted";
-    case "DECLINED": return "Not Accepted";
-    case "REJECTED": return "Not Accepted";
-    case "ONBOARDING": return "Onboarding";
-    case "ACTIVE_CP": return "Active Chapter President";
     default: {
       const exhaustiveCheck: never = status;
       return exhaustiveCheck;
@@ -657,7 +630,7 @@ export default async function ApplicationStatusPage() {
         <div style={{ marginBottom: 32 }}>
           <div className="application-status-heading-row">
             <span className="badge" style={{ background: statusColor(cpApp.status), color: "white" }}>
-              {cpStatusLabel(cpApp.status)}
+              {cpApplicantFacingStatusLabel(cpApp.status)}
             </span>
             <h2 className="application-status-card-title">Chapter President Application</h2>
             {cpApp.chapter && (

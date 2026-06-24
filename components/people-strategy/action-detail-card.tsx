@@ -1,34 +1,34 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ActionCommentType, ActionItemStatus, ActionPriority } from "@prisma/client";
+import type { ActionAssignmentRole, ActionCommentType, ActionItemStatus } from "@prisma/client";
 
 import {
+  addActionAssignment,
   addActionComment,
   addActionFileLink,
+  approveActionItem,
   flagActionToLeadership,
+  removeActionAssignment,
+  updateActionItem,
   updateActionStatus,
 } from "@/lib/people-strategy/action-items-actions";
+import { isWaitingForActionApproval } from "@/lib/people-strategy/action-approval";
 import { ActionDeleteButton } from "@/components/people-strategy/action-delete-button";
+import {
+  ActionUserPicker,
+  type ActionUserOption,
+} from "@/components/people-strategy/action-user-picker";
 import {
   ACTION_STATUS_LABELS,
   ACTION_STATUS_SELECTABLE,
 } from "@/lib/people-strategy/constants";
-import { cardRevealVariants } from "@/lib/people-strategy/motion";
-import { Pill, PriorityPill } from "@/components/people-strategy/pills";
-import { MotionArea, m, FeedbackBanner } from "@/components/people-strategy/motion";
-import { getUserTitle } from "@/lib/user-title";
+import { InitialsAvatar } from "@/components/people-strategy/action-presentation";
 import { PersonLink } from "@/components/people-strategy/person-link";
-import {
-  AreaBadge,
-  RelatedEntityBadge,
-} from "@/components/people-strategy/operational-badges";
-import { deriveActionStrategicLinkage } from "@/lib/people-strategy/action-source";
-import { buttonVariants } from "@/components/ui-v2";
+import { buttonVariants, Button, cn } from "@/components/ui-v2";
 
-/** A nearby action shown as a cross-link (other work on the same entity / meeting). */
 export type RelatedActionLite = {
   id: string;
   title: string;
@@ -72,14 +72,18 @@ export type ActionDetailDTO = {
   departmentName: string;
   departmentSlug: string | null;
   status: ActionItemStatus;
-  priority: ActionPriority;
+  priority: string;
   completedAt: string | null;
+  approvedAt: string | null;
+  approvedByName: string | null;
   deadlineStart: string;
   deadlineEnd: string | null;
   visibility: "OFFICERS_ONLY" | "ALL_LEADERSHIP";
+  officerMeetingId: string | null;
+  officerMeetingTitle?: string | null;
+  officerMeetingDate?: string | null;
   strategicInitiativeId?: string | null;
   strategicProjectId?: string | null;
-  /** Polymorphic YPP entity this action is about (resolved for display). */
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
   relatedEntityLabel?: string | null;
@@ -96,45 +100,15 @@ export type ActionDetailDTO = {
   fileLinks: FileLinkDTO[];
 };
 
-const FIELD_STYLE: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  background: "var(--surface)",
-  color: "var(--ypp-ink)",
-  font: "inherit",
-  fontSize: 14,
-  padding: "9px 10px",
-};
-
-const TINY_LABEL: React.CSSProperties = {
-  color: "var(--muted)",
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: 0,
-  textTransform: "uppercase",
-};
-
-// ui-v2 button class strings, reused by the card's many inline button/link
-// affordances in place of the legacy `.button outline small` / `.button small`.
 const BTN_SECONDARY_SM = buttonVariants({ variant: "secondary", size: "sm" });
 const BTN_PRIMARY_SM = buttonVariants({ variant: "primary", size: "sm" });
-
-function initials(person: PersonDTO): string {
-  const label = person.name?.trim() || person.email;
-  const parts = label.split(/[\s@.]+/).filter(Boolean);
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
 
 function personName(person: PersonDTO): string {
   return person.name?.trim() || person.email;
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return "-";
+  if (!value) return "—";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -151,176 +125,162 @@ function formatDateTime(value: string): string {
   }).format(new Date(value));
 }
 
-function daysUntil(value: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(value);
-  due.setHours(0, 0, 0, 0);
-  return Math.round((due.getTime() - today.getTime()) / 86_400_000);
-}
-
-function deadlineText(item: ActionDetailDTO): { label: string; overdue: boolean } {
-  // One clear deadline (comment #12): the effective due date is the end date
-  // when an older item still carries a range, otherwise the single deadline.
-  const due = item.deadlineEnd ?? item.deadlineStart;
-  const days = daysUntil(due);
-  const date = formatDate(due);
-
-  if (item.status !== "COMPLETE" && days < 0) {
-    return { label: `${date} (${Math.abs(days)}d overdue)`, overdue: true };
-  }
-  if (days === 0) return { label: `${date} (today)`, overdue: false };
-  if (days === 1) return { label: `${date} (tomorrow)`, overdue: false };
-  return { label: date, overdue: false };
-}
-
-function PersonAvatar({ person }: { person: PersonDTO }) {
-  return (
-    <span
-      style={{
-        width: 34,
-        height: 34,
-        borderRadius: "50%",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "hidden",
-        background: "var(--ps-accent-soft)",
-        color: "var(--ps-accent)",
-        border: "1px solid var(--border)",
-        fontSize: 12,
-        fontWeight: 800,
-        flex: "0 0 auto",
-      }}
-      aria-hidden
-    >
-      {person.avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- tiny existing-avatar pattern.
-        <img
-          src={person.avatarUrl}
-          alt=""
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
-      ) : (
-        initials(person)
-      )}
-    </span>
-  );
-}
-
-function PersonChip({ person }: { person: PersonDTO }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-      <PersonAvatar person={person} />
-      <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <PersonLink
-          id={person.id}
-          style={{ fontSize: 13, fontWeight: 700, color: "var(--ypp-ink)", overflowWrap: "anywhere" }}
-        >
-          {personName(person)}
-        </PersonLink>
-        <span style={{ color: "var(--muted)", fontSize: 12 }}>{getUserTitle(person)}</span>
-      </span>
-    </div>
-  );
-}
-
-function PeopleColumn({ title, people }: { title: string; people: PersonDTO[] }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-      <span style={TINY_LABEL}>{title}</span>
-      {people.length > 0 ? (
-        people.map((person) => <PersonChip key={`${title}-${person.id}`} person={person} />)
-      ) : (
-        <span style={{ color: "#64748b", fontSize: 13 }}>None assigned</span>
-      )}
-    </div>
-  );
-}
-
-// Collapsible section built on native <details> so every block can be
-// expanded/collapsed (comment #18). `defaultOpen` controls the initial state —
-// the Officer Meeting block passes `false` so it is collapsed by default.
-function Section({
+function HubSection({
   title,
   children,
-  actions,
-  defaultOpen = true,
+  action,
 }: {
   title: string;
   children: React.ReactNode;
-  actions?: React.ReactNode;
-  defaultOpen?: boolean;
+  action?: React.ReactNode;
 }) {
   return (
-    <details
-      open={defaultOpen}
-      style={{
-        borderTop: "1px solid var(--border)",
-        padding: "18px 20px",
-      }}
-    >
-      <summary
-        className="action-detail-section-summary"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          cursor: "pointer",
-          listStyle: "none",
-        }}
-      >
-        <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <span className="ad-chevron" aria-hidden style={{ color: "var(--muted)", fontSize: 12 }}>
-            ▸
-          </span>
-          <h2 className="m-0 text-[13px] font-bold uppercase tracking-[0.08em] text-ink-muted">
-            {title}
-          </h2>
-        </span>
-        {actions ? <span onClick={(e) => e.preventDefault()}>{actions}</span> : null}
-      </summary>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-        {children}
+    <section className="px-5 py-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="m-0 text-[11px] font-extrabold uppercase tracking-[0.1em] text-ink-muted">
+          {title}
+        </h2>
+        {action}
       </div>
-    </details>
+      {children}
+    </section>
+  );
+}
+
+function RolePills({
+  label,
+  people,
+  onRemove,
+  pending = false,
+}: {
+  label: string;
+  people: PersonDTO[];
+  onRemove?: (userId: string) => void;
+  pending?: boolean;
+}) {
+  if (people.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-ink-muted">{label}</span>
+      {people.map((person) => (
+        <span
+          key={person.id}
+          className="inline-flex items-center gap-0.5 rounded-full border border-line-soft bg-surface py-0.5 pl-0.5 pr-1 text-[11.5px] font-semibold text-ink"
+        >
+          <PersonLink
+            id={person.id}
+            className="inline-flex items-center gap-1 px-1.5 no-underline hover:text-brand-700"
+          >
+            <InitialsAvatar name={personName(person)} size={18} />
+            {personName(person)}
+          </PersonLink>
+          {onRemove ? (
+            <button
+              type="button"
+              onClick={() => onRemove(person.id)}
+              disabled={pending}
+              aria-label={`Remove ${personName(person)}`}
+              className="flex size-5 items-center justify-center rounded-full text-[14px] leading-none text-ink-muted hover:bg-surface-soft hover:text-ink"
+            >
+              ×
+            </button>
+          ) : null}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function RelatedActionGroup({ title, actions }: { title: string; actions: RelatedActionLite[] }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">{title}</p>
+      <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+        {actions.map((action) => (
+          <li key={action.id}>
+            <Link
+              href={`/actions/${action.id}`}
+              className="text-[13px] font-semibold text-brand-700 no-underline hover:underline"
+            >
+              {action.title}
+            </Link>
+            <span className="ml-2 text-[12px] text-ink-muted">
+              {action.leadName}
+              {action.dueISO ? ` · ${formatDate(action.dueISO)}` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
 export default function ActionDetailCard({
   item,
   canEdit,
+  canAssign,
+  canApprove = false,
   canFlag,
   canDelete,
   closeHref,
+  assignableUsers = [],
   sameEntityActions = [],
   sameMeetingActions = [],
-  calmLayout = false,
+  variant = "hub",
 }: {
   item: ActionDetailDTO;
   canEdit: boolean;
+  canAssign: boolean;
+  canApprove?: boolean;
   canFlag: boolean;
   canDelete: boolean;
   closeHref: string;
-  /** Other actions about the same YPP entity (excludes this one). */
+  assignableUsers?: ActionUserOption[];
   sameEntityActions?: RelatedActionLite[];
-  /** Other actions generated from the same meeting (excludes this one). */
   sameMeetingActions?: RelatedActionLite[];
-  /** When true, omit the legacy page header — the Calm OS shell owns the chrome. */
-  calmLayout?: boolean;
+  variant?: "hub" | "full";
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [status, setStatus] = useState<ActionItemStatus>(item.status);
+  const [approvedAt, setApprovedAt] = useState<string | null>(item.approvedAt);
+  const [description, setDescription] = useState(item.description ?? "");
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [addingRole, setAddingRole] = useState<ActionAssignmentRole | null>(null);
   const [comment, setComment] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const due = deadlineText(item);
-  const strategic = deriveActionStrategicLinkage(item);
+
+  useEffect(() => {
+    setDescription(item.description ?? "");
+  }, [item.description]);
+
+  useEffect(() => {
+    setStatus(item.status);
+  }, [item.status]);
+
+  useEffect(() => {
+    setApprovedAt(item.approvedAt);
+  }, [item.approvedAt]);
+
+  const waitingApproval = isWaitingForActionApproval({
+    status,
+    approvedAt: approvedAt ? new Date(approvedAt) : null,
+  });
+
+  const assignedUserIds = [
+    ...item.people.lead,
+    ...item.people.executing,
+    ...item.people.input,
+  ].map((p) => p.id);
+
+  const hasConnected =
+    Boolean(item.relatedEntityHref) ||
+    sameEntityActions.length > 0 ||
+    sameMeetingActions.length > 0;
 
   function runMutation(work: () => Promise<void>, success: string) {
     setError(null);
@@ -336,16 +296,24 @@ export default function ActionDetailCard({
     });
   }
 
+  function handleApprove() {
+    runMutation(async () => {
+      await approveActionItem(item.id);
+      setApprovedAt(new Date().toISOString());
+    }, "Action approved.");
+  }
+
   function handleStatus(next: ActionItemStatus) {
     setStatus(next);
-    runMutation(async () => updateActionStatus(item.id, next), "Status saved.");
+    if (next !== "COMPLETE") setApprovedAt(null);
+    runMutation(async () => updateActionStatus(item.id, next), "Status updated.");
   }
 
   function handleComment(type: ActionCommentType) {
     const body =
       comment.trim() ||
       (type === "INPUT_REQUESTED"
-        ? `Input requested from ${item.people.input.map(personName).join(", ") || "assigned input partners"}.`
+        ? `Input requested from ${item.people.input.map(personName).join(", ") || "assigned partners"}.`
         : "");
     if (!body.trim()) return;
     runMutation(
@@ -353,14 +321,14 @@ export default function ActionDetailCard({
         await addActionComment(item.id, body, type);
         setComment("");
       },
-      type === "INPUT_REQUESTED" ? "Input request posted." : "Comment posted."
+      type === "INPUT_REQUESTED" ? "Input request sent." : "Comment posted."
     );
   }
 
   function handleFlag() {
     runMutation(async () => {
       await flagActionToLeadership(item.id);
-    }, "Flag sent to Leadership.");
+    }, "Flagged for leadership.");
   }
 
   function handleLink() {
@@ -400,62 +368,128 @@ export default function ActionDetailCard({
     runMutation(async () => uploadFile(file), "File attached.");
   }
 
+  function saveDescription() {
+    runMutation(async () => {
+      await updateActionItem({
+        id: item.id,
+        description: description.trim() || null,
+      });
+      setEditingDescription(false);
+    }, "Description saved.");
+  }
+
+  function handleAddPerson(role: ActionAssignmentRole, userIds: string[]) {
+    const userId = userIds[0];
+    if (!userId) return;
+    runMutation(async () => {
+      await addActionAssignment(item.id, userId, role);
+      setAddingRole(null);
+    }, "Person added.");
+  }
+
+  function handleRemovePerson(role: ActionAssignmentRole, userId: string) {
+    runMutation(async () => removeActionAssignment(item.id, userId, role), "Person removed.");
+  }
+
+  const roleAdders: Array<{ role: ActionAssignmentRole; label: string }> = [
+    { role: "LEAD", label: "Change lead" },
+    { role: "EXECUTING", label: "Add executing" },
+    { role: "INPUT", label: "Add input" },
+  ];
+
+  if (variant !== "hub") {
+    return null;
+  }
+
   return (
-    <MotionArea>
-      <m.article
-        className="overflow-hidden rounded-[14px] border border-line-card bg-surface shadow-card"
-        variants={cardRevealVariants}
-        initial="initial"
-        animate="animate"
-      >
-      {!calmLayout ? (
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line-card bg-surface-soft px-5 py-[18px]">
-        <div className="min-w-0">
-          <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.08em] text-ink-muted">
-            {item.departmentName} · {item.visibility === "OFFICERS_ONLY" ? "OFFICERS ONLY" : "LEADERSHIP"}
-          </p>
-          <h1 className="mt-2 break-words font-sans text-[24px] font-bold leading-tight tracking-[-0.01em] text-ink">
-            {item.title}
-          </h1>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {canEdit && (
-            <Link href={`/actions/${item.id}/edit`} className={BTN_SECONDARY_SM}>
-              Edit
-            </Link>
+    <article className="divide-y divide-line-soft overflow-hidden rounded-[14px] border border-line-card bg-surface shadow-card">
+      {(error || message) && (
+        <div
+          className={cn(
+            "mx-5 mt-4 rounded-[9px] px-3 py-2 text-[13px] font-medium",
+            error ? "bg-red-50 text-red-800" : "bg-complete-50 text-complete-700"
           )}
-          {canDelete && item.status !== "DROPPED" ? (
-            <ActionDeleteButton actionId={item.id} redirectTo={closeHref} />
-          ) : null}
-          <Link href={closeHref} className={BTN_SECONDARY_SM} aria-label="Close action detail">
-            ×
-          </Link>
+          role="status"
+        >
+          {error ?? message}
         </div>
-      </div>
-      ) : null}
+      )}
 
-      <FeedbackBanner
-        message={error ?? message}
-        tone={error ? "error" : "success"}
-        style={{ margin: "14px 20px 0" }}
-      />
+      <HubSection title="Status">
+        {canEdit && status !== "COMPLETE" && status !== "DROPPED" ? (
+          <div className="mb-4 flex flex-col gap-3 rounded-[14px] border border-line-card bg-gradient-to-br from-complete-50/40 via-surface to-surface p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-[12px] bg-complete-50 text-complete-700">
+                <span aria-hidden className="text-[18px] leading-none">
+                  ✓
+                </span>
+              </span>
+              <div className="min-w-0">
+                <p className="m-0 text-[14px] font-semibold text-ink">Finished with this?</p>
+                <p className="m-0 text-[12.5px] text-ink-muted">
+                  Mark it complete when the work is done.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              loading={pending}
+              onClick={() => handleStatus("COMPLETE")}
+              className="w-full shrink-0 sm:w-auto"
+            >
+              Mark complete
+            </Button>
+          </div>
+        ) : null}
 
-      <section
-        style={{
-          padding: "18px 20px",
-          display: "grid",
-          gap: 12,
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          alignItems: "center",
-        }}
-      >
-        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <span style={TINY_LABEL}>Status</span>
+        {status === "COMPLETE" && waitingApproval ? (
+          <div className="mb-4 rounded-[14px] border border-amber-200 bg-amber-50/70 px-4 py-3">
+            <p className="m-0 text-[14px] font-semibold text-amber-950">Waiting for officer approval</p>
+            <p className="m-0 mt-1 text-[12.5px] text-amber-900">
+              This action is complete but needs an officer to sign off before it moves to Approved.
+            </p>
+            {canApprove ? (
+              <Button
+                type="button"
+                variant="primary"
+                size="md"
+                loading={pending}
+                onClick={handleApprove}
+                className="mt-3"
+              >
+                Approve action
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {status === "COMPLETE" && approvedAt ? (
+          <div className="mb-4 flex items-center gap-3 rounded-[14px] border border-line-soft bg-complete-50/50 px-4 py-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-complete-50 text-complete-700">
+              <span aria-hidden className="text-[16px] leading-none">
+                ✓
+              </span>
+            </span>
+            <div className="min-w-0">
+              <p className="m-0 text-[14px] font-semibold text-complete-700">Approved</p>
+              <p className="m-0 text-[12.5px] text-ink-muted">
+                {item.approvedByName ? `By ${item.approvedByName}` : "Officer approved"}
+                {approvedAt ? ` · ${formatDate(approvedAt)}` : ""}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-[12px] font-semibold text-ink-muted">Other status</span>
           <select
             value={status}
             onChange={(event) => handleStatus(event.target.value as ActionItemStatus)}
             disabled={pending || !canEdit}
-            style={{ ...FIELD_STYLE, fontWeight: 700, color: "var(--ypp-ink)" }}
+            aria-label="Action status"
+            className="h-10 min-w-[180px] rounded-[9px] border border-line-soft bg-surface px-3 text-[14px] font-semibold text-ink disabled:opacity-60"
           >
             {ACTION_STATUS_SELECTABLE.map((value) => (
               <option key={value} value={value}>
@@ -463,324 +497,328 @@ export default function ActionDetailCard({
               </option>
             ))}
           </select>
-        </label>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <PriorityPill priority={item.priority} />
-          <Pill tone={due.overdue ? "overdue" : "neutral"}>{due.label}</Pill>
-          {item.relatedArea ? <AreaBadge area={item.relatedArea} /> : null}
-          {item.relatedEntityType ? (
-            <RelatedEntityBadge
-              type={item.relatedEntityType}
-              id={item.relatedEntityId}
-              label={item.relatedEntityLabel}
-              href={item.relatedEntityHref}
-            />
-          ) : null}
-          {strategic.initiativeTitle ? (
-            strategic.initiativeHref ? (
-              <Link
-                href={strategic.initiativeHref}
-                className="inline-flex items-center rounded-[7px] bg-brand-50 px-2.5 py-[3px] text-[11.5px] font-semibold text-brand-700 no-underline hover:bg-brand-100"
-              >
-                Plan: {strategic.initiativeTitle}
-              </Link>
-            ) : (
-              <Pill tone="purple">Initiative: {strategic.initiativeTitle}</Pill>
-            )
-          ) : null}
-          {strategic.projectTitle ? (
-            <Pill tone="neutral">Project: {strategic.projectTitle}</Pill>
+          {!canEdit ? (
+            <span className="text-[13px] text-ink-muted">You can view but not edit this action.</span>
           ) : null}
         </div>
-      </section>
+      </HubSection>
 
-      <Section title="People">
-        <div
-          style={{
-            display: "grid",
-            gap: 18,
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          }}
-        >
-          <PeopleColumn title="Lead" people={item.people.lead} />
-          <PeopleColumn title="Executing" people={item.people.executing} />
-          <PeopleColumn title="Input" people={item.people.input} />
+      <HubSection
+        title="People"
+        action={
+          canAssign ? (
+            <button
+              type="button"
+              className={BTN_SECONDARY_SM}
+              onClick={() => setAddingRole(addingRole ? null : "EXECUTING")}
+              disabled={pending}
+            >
+              {addingRole ? "Done" : "+ Add people"}
+            </button>
+          ) : null
+        }
+      >
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+          <RolePills label="Lead" people={item.people.lead} />
+          <RolePills
+            label="Executing"
+            people={item.people.executing}
+            pending={pending}
+            onRemove={
+              canAssign
+                ? (userId) => handleRemovePerson("EXECUTING", userId)
+                : undefined
+            }
+          />
+          <RolePills
+            label="Input"
+            people={item.people.input}
+            pending={pending}
+            onRemove={canAssign ? (userId) => handleRemovePerson("INPUT", userId) : undefined}
+          />
         </div>
-      </Section>
 
-      {(item.relatedEntityType || sameEntityActions.length > 0 || sameMeetingActions.length > 0) && (
-        <Section title="Connected work" defaultOpen>
-          {item.relatedEntityType ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={TINY_LABEL}>Related to</span>
-              <RelatedEntityBadge
-                type={item.relatedEntityType}
-                id={item.relatedEntityId}
-                label={item.relatedEntityLabel}
-                href={item.relatedEntityHref}
-              />
-              {item.relatedArea ? <AreaBadge area={item.relatedArea} /> : null}
+        {!item.people.lead.length &&
+        !item.people.executing.length &&
+        !item.people.input.length ? (
+          <p className="m-0 text-[13px] text-ink-muted">No one assigned yet.</p>
+        ) : null}
+
+        {canAssign && addingRole ? (
+          <div className="mt-4 flex flex-col gap-4 rounded-[12px] border border-line-soft bg-[#fafafc] p-4">
+            <div className="flex flex-wrap gap-2">
+              {roleAdders.map(({ role, label }) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setAddingRole(role)}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors",
+                    addingRole === role
+                      ? "border-brand-600 bg-brand-600 text-white"
+                      : "border-line-soft bg-surface text-ink-muted hover:border-brand-300"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-          ) : null}
-          {sameEntityActions.length > 0 ? (
-            <RelatedActionGroup
-              title={`Other actions about this ${item.relatedEntityType ? "item" : "entity"}`}
-              actions={sameEntityActions}
+            <ActionUserPicker
+              key={`${addingRole}-${assignedUserIds.join(",")}`}
+              label={
+                addingRole === "LEAD"
+                  ? "Search for new lead"
+                  : addingRole === "EXECUTING"
+                    ? "Search to add executing"
+                    : "Search to add input"
+              }
+              single
+              users={assignableUsers}
+              selected={[]}
+              onChange={(ids) => handleAddPerson(addingRole, ids)}
+              excludeIds={
+                addingRole === "LEAD"
+                  ? item.people.lead.map((p) => p.id)
+                  : assignedUserIds
+              }
+              variant="calm"
             />
-          ) : null}
-          {sameMeetingActions.length > 0 ? (
-            <RelatedActionGroup title="Other actions from this meeting" actions={sameMeetingActions} />
-          ) : null}
-          {!item.relatedEntityType &&
-          sameEntityActions.length === 0 &&
-          sameMeetingActions.length === 0 ? (
-            <p style={{ margin: 0, color: "#64748b", fontSize: 13 }}>
-              No connected meetings or related actions yet.
+          </div>
+        ) : null}
+      </HubSection>
+
+      <HubSection
+        title="Description"
+        action={
+          canEdit && !editingDescription ? (
+            <button
+              type="button"
+              className={BTN_SECONDARY_SM}
+              onClick={() => setEditingDescription(true)}
+              disabled={pending}
+            >
+              Edit
+            </button>
+          ) : null
+        }
+      >
+        {editingDescription ? (
+          <div className="flex flex-col gap-3">
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={5}
+              placeholder="What needs to happen? Add context, links, or next steps…"
+              aria-label="Action description"
+              className="w-full resize-y rounded-[9px] border border-line-soft bg-surface px-3 py-2.5 text-[14px] leading-relaxed text-ink"
+              autoFocus
+            />
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                className={BTN_SECONDARY_SM}
+                onClick={() => {
+                  setDescription(item.description ?? "");
+                  setEditingDescription(false);
+                }}
+                disabled={pending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={BTN_PRIMARY_SM}
+                onClick={saveDescription}
+                disabled={pending}
+              >
+                {pending ? "Saving…" : "Save description"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="m-0 whitespace-pre-wrap text-[14px] leading-relaxed text-ink">
+            {description.trim() || "No description yet."}
+          </p>
+        )}
+        {item.successDefinition?.trim() ? (
+          <p className="m-0 mt-3 text-[13px] text-ink-muted">
+            <span className="font-semibold text-ink">Done when:</span> {item.successDefinition}
+          </p>
+        ) : null}
+      </HubSection>
+
+      {hasConnected ? (
+        <HubSection title="Connected work">
+          {item.relatedEntityHref && item.relatedEntityLabel ? (
+            <p className="m-0 text-[14px]">
+              <span className="text-ink-muted">Related to </span>
+              <Link
+                href={item.relatedEntityHref}
+                className="font-semibold text-brand-700 no-underline hover:underline"
+              >
+                {item.relatedEntityLabel}
+              </Link>
             </p>
           ) : null}
-        </Section>
-      )}
+          {sameMeetingActions.length > 0 ? (
+            <RelatedActionGroup title="From the same meeting" actions={sameMeetingActions} />
+          ) : null}
+          {sameEntityActions.length > 0 ? (
+            <RelatedActionGroup title="Related actions" actions={sameEntityActions} />
+          ) : null}
+        </HubSection>
+      ) : null}
 
-      <Section title="Description">
-        <p style={{ margin: 0, color: item.description ? "#334155" : "#64748b", lineHeight: 1.6 }}>
-          {item.description ?? "No description has been added yet."}
-        </p>
-      </Section>
-
-      <Section
-        title="Files & Links"
-        defaultOpen={false}
-        actions={
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <HubSection
+        title="Comments"
+        action={
+          canEdit ? (
             <button
               type="button"
               className={BTN_SECONDARY_SM}
-              onClick={() => fileInputRef.current?.click()}
-              disabled={pending || !canEdit}
+              onClick={() => handleComment("INPUT_REQUESTED")}
+              disabled={pending}
             >
-              Attach
+              Request input
             </button>
-            <button type="button" className={BTN_SECONDARY_SM} onClick={handleLink} disabled={pending || !canEdit}>
-              Link
-            </button>
-          </div>
+          ) : null
         }
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          onChange={handleFileChange}
-          style={{ display: "none" }}
-          accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx"
-        />
-        <div
-          style={{
-            display: "grid",
-            gap: 10,
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          }}
-        >
-          <input
-            value={linkLabel}
-            onChange={(event) => setLinkLabel(event.target.value)}
-            placeholder="Link label"
-            aria-label="File or link label"
-            style={FIELD_STYLE}
-            disabled={!canEdit}
-          />
-          <input
-            value={linkUrl}
-            onChange={(event) => setLinkUrl(event.target.value)}
-            placeholder="https://..."
-            type="url"
-            aria-label="File or link URL"
-            style={FIELD_STYLE}
-            disabled={!canEdit}
-          />
-        </div>
-        {item.fileLinks.length === 0 ? (
-          <p style={{ margin: 0, color: "#64748b", fontSize: 13 }}>No files or links yet.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {item.fileLinks.map((file) => (
-              <div
-                key={file.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  alignItems: "center",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: "10px 12px",
-                }}
+        {canEdit ? (
+          <div className="mb-4 flex flex-col gap-2">
+            <textarea
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              rows={3}
+              placeholder="Add a comment or status note…"
+              aria-label="Comment"
+              className="w-full resize-y rounded-[9px] border border-line-soft bg-surface px-3 py-2.5 text-[14px] text-ink"
+            />
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className={BTN_PRIMARY_SM}
+                onClick={() => handleComment("NOTE")}
+                disabled={pending || !comment.trim()}
               >
-                <div style={{ minWidth: 0 }}>
-                  <strong style={{ display: "block", fontSize: 14, overflowWrap: "anywhere" }}>
-                    {file.label}
-                  </strong>
-                  <span style={{ color: "var(--muted)", fontSize: 12 }}>
-                    Added by {personName(file.addedBy)} · {formatDate(file.addedAt)}
-                  </span>
-                </div>
-                <a className={BTN_SECONDARY_SM} href={file.url} target="_blank" rel="noreferrer">
-                  Open
-                </a>
-              </div>
-            ))}
+                {pending ? "Posting…" : "Post comment"}
+              </button>
+            </div>
           </div>
-        )}
-      </Section>
+        ) : null}
 
-      <Section title="Escalate to Leadership" defaultOpen={false}>
-        <div
-          style={{
-            border: `1px solid ${item.flaggedAt ? "var(--warning-border)" : "var(--border)"}`,
-            background: item.flaggedAt ? "var(--warning-bg)" : "var(--ps-accent-soft)",
-            color: item.flaggedAt ? "var(--warning-text)" : "var(--text-secondary)",
-            borderRadius: "var(--radius-sm)",
-            padding: "13px 14px",
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <span style={{ fontSize: 14, lineHeight: 1.5 }}>
-            {item.flaggedAt
-              ? `Flagged to Leadership on ${formatDate(item.flaggedAt)}. Re-flag if the situation has changed.`
-              : "Flag this action when progress is blocked, accountability is unclear, or a Leadership decision is needed."}
-          </span>
-          <button type="button" className={BTN_PRIMARY_SM} onClick={handleFlag} disabled={pending || !canFlag}>
-            {item.flaggedAt ? "Flag again" : "Flag to Leadership"}
-          </button>
-        </div>
-      </Section>
-
-      <Section
-        title="Activity & Comments"
-        defaultOpen={false}
-        actions={
-          <button
-            type="button"
-            className={BTN_SECONDARY_SM}
-            onClick={() => handleComment("INPUT_REQUESTED")}
-            disabled={pending}
-          >
-            Send for Input
-          </button>
-        }
-      >
-        <textarea
-          value={comment}
-          onChange={(event) => setComment(event.target.value)}
-          rows={4}
-          placeholder="Write a comment, status note, or input request."
-          aria-label="Action comment"
-          style={{ ...FIELD_STYLE, resize: "vertical", minHeight: 96 }}
-        />
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              className={BTN_SECONDARY_SM}
-              onClick={() => fileInputRef.current?.click()}
-              disabled={pending || !canEdit}
-            >
-              Attach
-            </button>
-            <button type="button" className={BTN_SECONDARY_SM} onClick={handleLink} disabled={pending || !canEdit}>
-              Link
-            </button>
-          </div>
-          <button
-            type="button"
-            className={BTN_PRIMARY_SM}
-            onClick={() => handleComment("NOTE")}
-            disabled={pending || !comment.trim()}
-          >
-            {pending ? "Working..." : "Post"}
-          </button>
-        </div>
         {item.comments.length === 0 ? (
-          <p style={{ margin: 0, color: "#64748b", fontSize: 13 }}>No comments yet.</p>
+          <p className="m-0 text-[13px] text-ink-muted">No comments yet.</p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+          <div className="flex flex-col gap-3">
             {item.comments.map((entry) => (
               <div
                 key={entry.id}
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-sm)",
-                  padding: "11px 12px",
-                  background: entry.type === "INPUT_REQUESTED" ? "var(--info-bg)" : "var(--surface)",
-                }}
+                className={cn(
+                  "rounded-[10px] border border-line-soft px-3.5 py-3",
+                  entry.type === "INPUT_REQUESTED" ? "bg-brand-50/60" : "bg-[#fafafc]"
+                )}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    alignItems: "center",
-                    marginBottom: 8,
-                  }}
-                >
-                  <PersonChip person={entry.author} />
-                  <span style={{ color: "var(--muted)", fontSize: 12, flex: "0 0 auto" }}>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-ink">
+                    <InitialsAvatar name={personName(entry.author)} size={22} />
+                    {personName(entry.author)}
+                  </span>
+                  <span className="text-[11.5px] text-ink-muted">
                     {entry.type === "INPUT_REQUESTED" ? "Input requested" : "Comment"} ·{" "}
                     {formatDateTime(entry.createdAt)}
                   </span>
                 </div>
-                <p style={{ margin: 0, color: "var(--text-secondary)", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
+                <p className="m-0 whitespace-pre-wrap text-[14px] leading-relaxed text-ink">
                   {entry.body}
                 </p>
               </div>
             ))}
           </div>
         )}
-      </Section>
-      </m.article>
-    </MotionArea>
-  );
-}
+      </HubSection>
 
-const LITE_STATUS_TONE: Record<ActionItemStatus, string> = {
-  NOT_STARTED: "#6b7280",
-  IN_PROGRESS: "#1d4ed8",
-  BLOCKED: "#854d0e",
-  COMPLETE: "#166534",
-  OVERDUE: "#991b1b",
-  DROPPED: "#6b7280",
-};
+      <HubSection title="Files & links">
+        <input
+          ref={fileInputRef}
+          type="file"
+          onChange={handleFileChange}
+          className="hidden"
+          accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx"
+        />
+        {canEdit ? (
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              value={linkLabel}
+              onChange={(event) => setLinkLabel(event.target.value)}
+              placeholder="Link label"
+              aria-label="Link label"
+              className="h-10 flex-1 rounded-[9px] border border-line-soft bg-surface px-3 text-[14px]"
+              disabled={!canEdit}
+            />
+            <input
+              value={linkUrl}
+              onChange={(event) => setLinkUrl(event.target.value)}
+              placeholder="https://…"
+              type="url"
+              aria-label="Link URL"
+              className="h-10 flex-1 rounded-[9px] border border-line-soft bg-surface px-3 text-[14px]"
+              disabled={!canEdit}
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={BTN_SECONDARY_SM}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={pending}
+              >
+                Attach file
+              </button>
+              <button type="button" className={BTN_SECONDARY_SM} onClick={handleLink} disabled={pending}>
+                Add link
+              </button>
+            </div>
+          </div>
+        ) : null}
 
-function RelatedActionGroup({ title, actions }: { title: string; actions: RelatedActionLite[] }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <span style={TINY_LABEL}>{title}</span>
-      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 6 }}>
-        {actions.map((a) => (
-          <li
-            key={a.id}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 10,
-              alignItems: "baseline",
-              borderLeft: `3px solid ${LITE_STATUS_TONE[a.status]}`,
-              paddingLeft: 10,
-            }}
-          >
-            <Link href={`/actions/${a.id}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--ypp-ink)", textDecoration: "none", minWidth: 0 }}>
-              {a.title}
-            </Link>
-            <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>
-              {a.leadName}
-              {a.dueISO ? ` · ${formatDate(a.dueISO)}` : ""}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
+        {item.fileLinks.length === 0 ? (
+          <p className="m-0 text-[13px] text-ink-muted">No files or links yet.</p>
+        ) : (
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {item.fileLinks.map((file) => (
+              <li
+                key={file.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-line-soft px-3.5 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="m-0 text-[14px] font-semibold text-ink">{file.label}</p>
+                  <p className="m-0 text-[12px] text-ink-muted">
+                    {personName(file.addedBy)} · {formatDate(file.addedAt)}
+                  </p>
+                </div>
+                <a className={BTN_SECONDARY_SM} href={file.url} target="_blank" rel="noreferrer">
+                  Open
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </HubSection>
+
+      {(canFlag || canDelete) && (
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft bg-[#fafafc] px-5 py-3.5">
+          {canFlag ? (
+            <button type="button" className={BTN_SECONDARY_SM} onClick={handleFlag} disabled={pending}>
+              {item.flaggedAt ? "Flag again" : "Flag for leadership"}
+            </button>
+          ) : (
+            <span />
+          )}
+          {canDelete && item.status !== "DROPPED" ? (
+            <ActionDeleteButton actionId={item.id} redirectTo={closeHref} />
+          ) : null}
+        </footer>
+      )}
+    </article>
   );
 }

@@ -1,45 +1,65 @@
 import { notFound, redirect } from "next/navigation";
 
-import {
-  ActionTrackerDashboard,
-  filterActionsByPerson,
-} from "@/components/people-strategy/action-tracker-dashboard";
-import {
-  ActionAttentionPanel,
-  ActionDataQualityPanel,
-} from "@/components/people-strategy/action-attention-panel";
-import {
-  actionDataQuality,
-  leadershipActionAttention,
-  personalActionAttention,
-} from "@/lib/people-strategy/action-attention";
+import { ActionsHub } from "@/components/people-strategy/actions-hub";
+import type { ActionsHubTab } from "@/components/people-strategy/actions-hub-tabs";
 import skin from "@/components/ui-v2/portal-skin.module.css";
-import { MyActionsBoard } from "@/components/people-strategy/my-actions-board";
-import { AllActionsBoard } from "@/components/people-strategy/all-actions-board";
-import { getUserTitle } from "@/lib/user-title";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import {
   getMyActionItems,
-  listActionAssignableUsers,
   listActionDepartments,
   listVisibleActionItems,
 } from "@/lib/people-strategy/action-queries";
+import {
+  applyActionFilters,
+  hasActiveHubFilters,
+  parseActionFilters,
+  type ActionFilters,
+} from "@/lib/people-strategy/action-filters";
 import {
   canCreateAction,
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
-import { sortByDeadline } from "@/lib/people-strategy/my-actions-selectors";
+import { selectNeedsInput } from "@/lib/people-strategy/my-actions-selectors";
 import { filterActionsByInitiative } from "@/lib/people-strategy/strategic-initiative-summary";
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
-import { initiativePrimaryGoalCategory } from "@/lib/people-strategy/strategic-recommendations";
+import {
+  filterActiveHubItems,
+  filterApprovedHubItems,
+} from "@/lib/people-strategy/action-approval";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Actions · Work" };
+export const metadata = { title: "Actions" };
 
 function firstParam(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
+}
+
+function resolveHubTab(params: {
+  who: string;
+  view?: string;
+  officer: boolean;
+}): ActionsHubTab {
+  if (params.view === "approved") return "approved";
+  if (params.view === "input") return "input";
+  if (params.officer && params.who === "all") return "all";
+  if (params.who === "me") return "mine";
+  return params.officer ? "all" : "mine";
+}
+
+/** Hub ignores advanced filters that are not exposed in the UI. */
+function hubFilterLens(filters: ActionFilters): ActionFilters {
+  return {
+    ...filters,
+    status: "ALL",
+    priority: "ALL",
+    actionType: "ALL",
+    relatedType: "ALL",
+    source: "ALL",
+    preset: "ALL",
+    sort: "deadline_asc",
+  };
 }
 
 export default async function ActionsPage({
@@ -60,8 +80,8 @@ export default async function ActionsPage({
   };
 
   const params = (await searchParams) ?? {};
-  const qParam = firstParam(params.q)?.trim().toLowerCase() ?? "";
   const whoParam = firstParam(params.who);
+  const viewParam = firstParam(params.view);
   if (firstParam(params.create) === "1") redirect("/actions/new");
 
   const initiativeParam = firstParam(params.initiative)?.trim() ?? "";
@@ -69,120 +89,61 @@ export default async function ActionsPage({
 
   const officer = isOfficerTier(viewer);
   const canCreate = canCreateAction(viewer);
-  const who = officer ? whoParam ?? "me" : "me";
+  const who = officer ? whoParam ?? "all" : "me";
 
-  const [myItems, allItems, assignableUsers, departments] = await Promise.all([
-    getMyActionItems(viewer.id, viewer),
-    officer ? listVisibleActionItems(viewer) : Promise.resolve([]),
-    canCreate ? listActionAssignableUsers() : Promise.resolve([]),
-    canCreate ? listActionDepartments() : Promise.resolve([]),
-  ]);
+  let myItems: Awaited<ReturnType<typeof getMyActionItems>> = [];
+  let allItems: Awaited<ReturnType<typeof listVisibleActionItems>> = [];
+  let departments: Awaited<ReturnType<typeof listActionDepartments>> = [];
+
+  try {
+    [myItems, allItems, departments] = await Promise.all([
+      getMyActionItems(viewer.id, viewer),
+      officer ? listVisibleActionItems(viewer) : Promise.resolve([]),
+      canCreate ? listActionDepartments() : Promise.resolve([]),
+    ]);
+  } catch (error) {
+    console.error("[actions] Failed to load action hub data:", error);
+  }
 
   const now = new Date();
-
-  let items =
-    who === "me" ? myItems : who === "all" ? allItems : filterActionsByPerson(allItems, who);
-  items = sortByDeadline(items).filter((item) => item.status !== "DROPPED");
-  if (initiativeDef) items = filterActionsByInitiative(items, initiativeDef.id);
-  if (qParam) items = items.filter((item) => item.title.toLowerCase().includes(qParam));
-
-  // Unified, action-shaped Needs Attention. A member sees their personal triage
-  // feed; an officer browsing everyone's queue sees the leadership "what's stuck"
-  // feed plus the data-quality sweep.
-  const leadershipView = officer && who !== "me";
-  const attentionSignals = leadershipView
-    ? leadershipActionAttention(items, now)
-    : personalActionAttention(myItems, viewer.id, now);
-  const dataQualityFlags = who === "all" ? actionDataQuality(allItems, now) : [];
+  const filters = parseActionFilters(params);
+  const hubFilters = hubFilterLens(filters);
+  const filtersActive = hasActiveHubFilters(hubFilters);
 
   const createHref = initiativeDef
     ? `/actions/new?initiativeId=${encodeURIComponent(initiativeDef.id)}`
     : "/actions/new";
 
-  // The YPP Portal redesign hero (My Actions personal lanes, or the All Actions
-  // leadership lane board), then the full tracker inline below it.
-  const board = leadershipView ? (
-    <AllActionsBoard
-      items={allItems}
-      now={now}
-      activeLane={firstParam(params.lane)}
-      createHref={createHref}
-    />
-  ) : (
-    <MyActionsBoard
-      items={myItems}
-      userId={viewer.id}
-      now={now}
-      userName={session.user.name ?? "You"}
-      userTitle={getUserTitle({
-        primaryRole: viewer.primaryRole,
-        adminSubtypes: viewer.adminSubtypes,
-        title: session.user.title,
-        internalLevel: session.user.internalLevel,
-        ladder: session.user.ladder,
-        canonicalTitle: session.user.canonicalTitle,
-      })}
-    />
-  );
+  let source =
+    viewParam === "input"
+      ? selectNeedsInput(myItems, viewer.id)
+      : who === "all"
+        ? allItems
+        : myItems;
+
+  if (initiativeDef) source = filterActionsByInitiative(source, initiativeDef.id);
+  const filtered = applyActionFilters(source, hubFilters, now);
+  const items =
+    viewParam === "approved"
+      ? filterApprovedHubItems(filtered)
+      : filterActiveHubItems(filtered, now);
+
+  const activeTab = resolveHubTab({ who, view: viewParam, officer });
 
   return (
-    <div className={skin.portalSkin}>
-      {board}
-
-      {/* Full tracker — combined inline so nothing is hidden: the needs-attention
-          queue, the data-quality sweep, and the complete create / filter / table
-          surface (export, batch-assign, board & table views). */}
-      <section className="mx-auto mt-9 flex w-full max-w-[1180px] flex-col gap-5">
-        <div className="flex items-center gap-3">
-          <span className="h-px flex-1 bg-line-card" />
-          <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.12em] text-ink-muted">
-            Full tracker
-          </span>
-          <span className="h-px flex-1 bg-line-card" />
-        </div>
-
-        <ActionAttentionPanel
-          title={leadershipView ? "What's stuck" : "Needs your attention"}
-          subtitle={
-            leadershipView
-              ? "Overdue, blocked, ownerless, escalated, and stale work across the team."
-              : "Overdue, blocked, due soon, and waiting on you — handle these first."
-          }
-          signals={attentionSignals}
-          emptyHint={
-            leadershipView
-              ? "Nothing is stuck right now. ✓"
-              : "You're all caught up — nothing needs you right now. ✓"
-          }
-        />
-
-        {dataQualityFlags.length > 0 ? <ActionDataQualityPanel flags={dataQualityFlags} /> : null}
-
-        <ActionTrackerDashboard
-          items={items}
-          now={now}
-          officer={officer}
-          canCreate={canCreate}
-          assignableUsers={assignableUsers}
-          departments={departments}
-          currentUserId={viewer.id}
-          viewer={viewer}
-          who={who}
-          q={qParam}
-          initiativeId={initiativeDef?.id}
-          defaultOpenCreate={false}
-          showQuickCreate={false}
-          showAttentionBoard={false}
-          initiativeLink={
-            initiativeDef
-              ? {
-                  id: initiativeDef.id,
-                  goalCategory: initiativePrimaryGoalCategory(initiativeDef),
-                }
-              : undefined
-          }
-        />
-      </section>
+    <div className={`${skin.portalSkin} ${skin.fadeIn}`}>
+      <ActionsHub
+        items={items}
+        now={now}
+        filters={hubFilters}
+        hasActiveFilters={filtersActive}
+        departments={departments}
+        activeTab={activeTab}
+        officer={officer}
+        createHref={createHref}
+        canCreate={canCreate}
+        viewer={viewer}
+      />
     </div>
   );
 }

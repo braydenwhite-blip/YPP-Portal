@@ -6,6 +6,7 @@ import type { GoalRatingColor } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireLeadership } from "@/lib/authorization";
+import { notifyMenteeReflectionDue } from "@/lib/mentorship-notifications";
 import { isQuarterlyReviewsEnabled } from "@/lib/feature-flags";
 import { derivePerformanceRating, RATING_LABELS } from "./check-in-rating";
 
@@ -213,4 +214,44 @@ export async function compileCheckIn(
     isRecompile,
     newResponses,
   };
+}
+
+const ReminderSchema = z.object({
+  userId: z.string().min(1, "userId is required"),
+  /** Any date within the target month; defaults to the current month (UTC). */
+  month: z.coerce.date().optional(),
+});
+
+export type SendSelfReflectionReminderInput = z.input<typeof ReminderSchema>;
+
+/** Leadership nudge when a member has not submitted this month's self-reflection. */
+export async function sendSelfReflectionReminder(
+  input: SendSelfReflectionReminderInput
+): Promise<{ ok: true }> {
+  await requireLeadership();
+
+  const { userId, month } = ReminderSchema.parse(input);
+  const monthStart = firstOfMonthUTC(month ?? new Date());
+  const nextMonth = startOfNextMonthUTC(monthStart);
+
+  const existing = await prisma.monthlySelfReflection.findFirst({
+    where: {
+      menteeId: userId,
+      cycleMonth: { gte: monthStart, lt: nextMonth },
+    },
+    select: { id: true },
+  });
+  if (existing) {
+    throw new Error("Self-reflection already submitted for this month.");
+  }
+
+  await notifyMenteeReflectionDue({
+    menteeId: userId,
+    cycleMonthIso: monthStart.toISOString(),
+  });
+
+  revalidatePath("/people/check-ins");
+  revalidatePath("/people");
+
+  return { ok: true };
 }

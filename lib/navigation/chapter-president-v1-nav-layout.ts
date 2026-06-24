@@ -47,7 +47,6 @@ export const CHAPTER_PRESIDENT_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/actions",
   "/operations/initiatives",
   // Account
-  "/messages",
   "/notifications",
   "/settings/personalization",
 ]);
@@ -103,7 +102,6 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
 
   // Account
   "/chapter/settings": { group: "Profile & Settings", label: "Chapter Settings", icon: "⚙️" },
-  "/messages": { group: "Profile & Settings", label: "Messages", icon: "✉" },
   "/notifications": { group: "Profile & Settings", label: "Notifications", icon: "🔔" },
   "/settings/personalization": { group: "Profile & Settings", label: "Account", icon: "👤" },
 };
@@ -143,7 +141,6 @@ export const CHAPTER_PRESIDENT_SIDEBAR_LINK_ORDER: string[] = [
   "/operations/initiatives",
   // Account
   "/chapter/settings",
-  "/messages",
   "/notifications",
   "/settings/personalization",
 ];

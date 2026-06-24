@@ -66,6 +66,17 @@ const ACTION_ITEM_INCLUDE = {
       profile: { select: { avatarUrl: true } },
     },
   },
+  approvedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      primaryRole: true,
+      title: true,
+      adminSubtypes: { select: { subtype: true } },
+      profile: { select: { avatarUrl: true } },
+    },
+  },
   department: { select: { id: true, name: true, slug: true } },
   mentorshipSession: {
     select: {
@@ -126,6 +137,11 @@ const ACTION_ITEM_INCLUDE = {
       },
     },
   },
+  // Meeting this action is explicitly assigned to (dedicated meetingId FK), used
+  // to render the "Meeting: …" link on the hub card and detail page.
+  meeting: {
+    select: { id: true, title: true, scheduledAt: true, type: true, status: true },
+  },
 } satisfies Prisma.ActionItemInclude;
 
 export type ActionItemWithRelations = Prisma.ActionItemGetPayload<{
@@ -168,7 +184,13 @@ export async function getMyActionItems(
 
   const items = await prisma.actionItem.findMany({
     where: {
-      OR: [{ leadId: userId }, { assignments: { some: { userId } } }],
+      OR: [
+        { leadId: userId },
+        { assignments: { some: { userId } } },
+        // A creator always sees what they created, even if they set someone
+        // else as Lead and aren't otherwise assigned.
+        { createdById: userId },
+      ],
     },
     include: ACTION_ITEM_INCLUDE,
     orderBy: [
@@ -526,17 +548,25 @@ export async function getActionsForEntity(
 }
 
 /**
- * Actions generated from one meeting. The legacy officer-meeting link column has
- * been removed, so there is no longer a meeting→action relation to read; this
- * always resolves to []. Kept as a stable no-op so existing callers (the action
- * detail cross-link, the help-agent suggester, the entity 360 loader) keep
- * compiling until they drop the call.
+ * Actions explicitly assigned to a meeting via the dedicated `meetingId` FK (the
+ * Actions hub "+ Add to meeting" picker). Independent of sourceType provenance.
+ * Every result is visibility-filtered for `viewer`.
  */
 export async function getActionsForMeeting(
-  _meetingId: string,
-  _viewer: ActionViewer
+  meetingId: string,
+  viewer: ActionViewer
 ): Promise<ActionItemWithRelations[]> {
-  return [];
+  if (!isActionTrackerEnabled()) return [];
+  const id = meetingId?.trim();
+  if (!id) return [];
+
+  const items = await prisma.actionItem.findMany({
+    where: { meetingId: id },
+    include: ACTION_ITEM_INCLUDE,
+    orderBy: [{ createdAt: "desc" }],
+  });
+
+  return items.filter((item) => canViewAction(viewer, toAccessShape(item)));
 }
 
 /**

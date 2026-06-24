@@ -1,8 +1,11 @@
 /**
  * Run local dev to mirror the Brayden Vercel Preview deployment.
  *
- * Canonical preview (this branch, auto-updates on push):
- *   https://youthpassionproject-portal-git-preview-brayden-portal-brayden-whites-projects.vercel.app/
+ * Latest preview URL (changes each deploy — run `npm run vercel-preview:url`):
+ *   Fetched from GitHub Preview deployment on branch `preview/brayden-portal`.
+ *
+ * Example (2026-06-24 deploy of 50d4de1e):
+ *   https://youthpassionproject-portal-q2jwemyr1-brayden-whites-projects.vercel.app/
  *
  * Legacy pinned deployment (older build, frozen hash):
  *   https://youthpassionproject-portal-io1acmvjv-brayden-whites-projects.vercel.app/
@@ -20,7 +23,8 @@ import { resolve } from "node:path";
 import dotenv from "dotenv";
 
 const VERCEL_PREVIEW_URL =
-  "https://youthpassionproject-portal-git-preview-brayden-portal-brayden-whites-projects.vercel.app";
+  process.env.VERCEL_PREVIEW_URL?.replace(/\/$/, "") ??
+  "https://youthpassionproject-portal-q2jwemyr1-brayden-whites-projects.vercel.app";
 
 const root = resolve(import.meta.dirname, "..");
 

@@ -8,7 +8,6 @@ import {
   getArchivedApplications,
 } from "@/lib/instructor-applicant-board-queries";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
-import ApplicantPipelineOverview from "@/components/instructor-applicants/ApplicantPipelineOverview";
 import { type FunnelCounts } from "@/components/instructor-applicants/ApplicantPipelineOverview";
 import { PageHeaderV2 } from "@/components/ui-v2";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
@@ -269,16 +268,6 @@ export default async function ChapterLeadInstructorApplicantsPage({
         subtitle="Review and manage instructor applicants from your chapter."
       />
 
-      <ApplicantPipelineOverview
-        filteredCounts={{
-          newApplications: newCount,
-          needsReview: toReviewCount,
-          interviewStage: toInterviewCount,
-          postInterview: postInterviewCount,
-        }}
-        funnelCounts={funnelCounts}
-      />
-
       <InstructorApplicantsCommandCenter
         scope="chapter"
         chapterId={chapterId}
@@ -290,6 +279,13 @@ export default async function ChapterLeadInstructorApplicantsPage({
         interviewers={interviewerUsers}
         actorId={session!.user.id}
         isAdmin={false}
+        pipelineFilteredCounts={{
+          newApplications: newCount,
+          needsReview: toReviewCount,
+          interviewStage: toInterviewCount,
+          postInterview: postInterviewCount,
+        }}
+        funnelCounts={funnelCounts}
       />
     </div>
   );

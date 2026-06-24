@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import type {
   PublicProfile,
@@ -8,22 +9,15 @@ import { GROWTH_TAG_META } from "@/lib/people-strategy/growth-signals";
 import { roleExpectsMentor } from "@/lib/people-strategy/people-performance-selectors";
 import { Pill } from "@/components/people-strategy/pills";
 import { PersonLink } from "@/components/people-strategy/person-link";
-import { CollapsibleSection } from "@/components/ui/collapsible-section";
+import { cn } from "@/components/ui-v2";
 
 /**
  * Presentational profile sections shared by the full `/people/[id]` page and the
- * slide-in profile drawer. Takes an already-loaded PublicProfile (JSON-safe), so
- * the same layout renders server-side (page) and client-side (drawer fetch).
- * Contact info is public; growth signals are only present for officer viewers.
+ * slide-in profile drawer.
  */
 
-const SECTION_LABEL: React.CSSProperties = {
-  fontSize: 13,
-  textTransform: "uppercase",
-  letterSpacing: 0.4,
-  color: "var(--muted)",
-  margin: "0 0 8px",
-};
+const CARD =
+  "overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]";
 
 export function activeLabel(months: number): string {
   if (months <= 0) return "Active · new";
@@ -39,168 +33,239 @@ function kudosCategoryLabel(category: string): string {
     .join(" ");
 }
 
-export function ProfileBody({ profile }: { profile: PublicProfile }) {
+function ProfileSection({
+  title,
+  summary,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  summary?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <details className={cn(CARD, "group")} open={defaultOpen}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 marker:content-none [&::-webkit-details-marker]:hidden">
+        <span className="text-[15px] font-semibold text-[#1c1a2e]">{title}</span>
+        <span className="flex items-center gap-2 text-[12.5px] text-[#9a9ab0]">
+          {summary ? <span>{summary}</span> : null}
+          <span className="transition-transform group-open:rotate-180" aria-hidden>
+            ▾
+          </span>
+        </span>
+      </summary>
+      <div className="border-t border-[#f1f1f6] px-5 pb-4 pt-3">{children}</div>
+    </details>
+  );
+}
+
+export function ProfileBody({
+  profile,
+  compact = false,
+}: {
+  profile: PublicProfile;
+  compact?: boolean;
+}) {
   const totalOwned = profile.actionsLed.length + profile.actionsExecuting.length;
-  const contactItems: Array<{ label: string; value: React.ReactNode }> = [];
-  if (profile.email)
+  const contactItems: Array<{ label: string; value: ReactNode }> = [];
+  if (profile.email) {
     contactItems.push({
       label: "Email",
       value: (
-        <a href={`mailto:${profile.email}`} style={{ color: "var(--ps-accent)" }}>
+        <a href={`mailto:${profile.email}`} className="text-[#5a1da8] no-underline hover:underline">
           {profile.email}
         </a>
       ),
     });
+  }
   if (profile.phone) contactItems.push({ label: "Phone", value: profile.phone });
   if (profile.school) contactItems.push({ label: "School", value: profile.school });
   if (profile.location) contactItems.push({ label: "Location", value: profile.location });
 
+  const hasMentorship =
+    profile.mentors.length > 0 ||
+    profile.mentees.length > 0 ||
+    (profile.growthSignals !== null && roleExpectsMentor(profile.primaryRole));
+
+  const hasMoreDetails =
+    hasMentorship ||
+    profile.kudosTotal > 0 ||
+    profile.classesTaught.length > 0 ||
+    totalOwned > 0 ||
+    (profile.growthSignals !== null && profile.growthSignals.length > 0);
+
+  if (compact) {
+    return (
+      <div className="flex flex-col gap-3">
+        {contactItems.length > 0 ? (
+          <div className={cn(CARD, "px-4 py-3.5")}>
+            <div className="flex flex-col gap-1.5 text-[14px] text-[#3a3a52]">
+              {contactItems.map((item) => (
+                <div key={item.label} className="flex flex-wrap gap-1.5">
+                  <span className="text-[#9a9ab0]">{item.label}</span>
+                  <span>{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {profile.bio ? (
+          <div className={cn(CARD, "px-4 py-3.5")}>
+            <p className="m-0 text-[14px] leading-relaxed text-[#3a3a52]">{profile.bio}</p>
+          </div>
+        ) : null}
+
+        {hasMoreDetails ? (
+          <ProfileSection title="More details" summary="Mentorship, work, recognition">
+            <ProfileExtraSections
+              profile={profile}
+              hasMentorship={hasMentorship}
+              totalOwned={totalOwned}
+              inline
+            />
+          </ProfileSection>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <ProgressionPanel profile={profile} />
-
-      {/* Contact — public per the member-profile design. */}
+    <div className="flex flex-col gap-3">
       {contactItems.length > 0 ? (
-        <section className="card" style={{ padding: "16px 18px" }}>
-          <h2 style={SECTION_LABEL}>Contact</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 14, color: "var(--ypp-ink)" }}>
-            {contactItems.map((c) => (
-              <span key={c.label}>
-                <span style={{ color: "var(--muted)" }}>{c.label} · </span>
-                {c.value}
-              </span>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {profile.bio ? (
-        <section className="card" style={{ padding: "16px 18px" }}>
-          <h2 style={SECTION_LABEL}>About</h2>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "var(--ypp-ink)" }}>
-            {profile.bio}
-          </p>
-        </section>
-      ) : null}
-
-      {/* Mentorship — mentor(s) + mentees, each clickable. */}
-      {profile.mentors.length > 0 || profile.mentees.length > 0 ? (
-        <CollapsibleSection
-          title="Mentorship"
-          summary={`${profile.mentors.length} mentor${profile.mentors.length === 1 ? "" : "s"} · ${profile.mentees.length} mentee${profile.mentees.length === 1 ? "" : "s"}`}
-          defaultOpen
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {profile.mentors.length > 0 ? (
-              <PeopleList
-                label={profile.mentors.length === 1 ? "Mentor" : "Mentors"}
-                people={profile.mentors}
-              />
-            ) : null}
-            {profile.mentees.length > 0 ? (
-              <PeopleList label="Mentees" people={profile.mentees} />
-            ) : null}
-          </div>
-        </CollapsibleSection>
-      ) : null}
-
-      {/* Mentorship gap — officer view only, for roles the program pairs a
-          mentor to (instructors / chapter presidents). Members and peers never
-          see this assessment. */}
-      {profile.mentors.length === 0 &&
-      profile.growthSignals !== null &&
-      roleExpectsMentor(profile.primaryRole) ? (
-        <section className="card" style={{ padding: "16px 18px" }}>
-          <h2 style={SECTION_LABEL}>Mentorship</h2>
-          <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
-            No mentor is assigned. Assign a mentor or create a mentorship plan.
-          </p>
-        </section>
-      ) : null}
-
-      {/* Recognition — public peer kudos received. */}
-      {profile.kudosTotal > 0 ? (
-        <CollapsibleSection
-          title="Recognition"
-          summary={`${profile.kudosTotal} ${profile.kudosTotal === 1 ? "kudo" : "kudos"}`}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {profile.kudos.map((k) => (
-              <div key={k.id} style={{ borderLeft: "3px solid var(--ps-accent)", paddingLeft: 10 }}>
-                <div
-                  style={{
-                    fontSize: 11,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.4,
-                    color: "var(--ps-accent)",
-                    fontWeight: 700,
-                  }}
-                >
-                  {kudosCategoryLabel(k.category)}
-                </div>
-                <p style={{ margin: "2px 0", fontSize: 14, color: "var(--ypp-ink)" }}>
-                  &ldquo;{k.message}&rdquo;
-                </p>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                  —{" "}
-                  <PersonLink id={k.giverId} style={{ color: "var(--muted)" }}>
-                    {k.giverName}
-                  </PersonLink>
-                </div>
+        <ProfileSection title="Contact" defaultOpen>
+          <div className="flex flex-col gap-2 text-[14px] text-[#3a3a52]">
+            {contactItems.map((item) => (
+              <div key={item.label} className="flex flex-wrap gap-1">
+                <span className="text-[#9a9ab0]">{item.label}</span>
+                <span>{item.value}</span>
               </div>
             ))}
           </div>
-          <p style={{ margin: "12px 0 0" }}>
-            <Link href="/peer-recognition" className="button outline small">
-              Give kudos
-            </Link>
-          </p>
-        </CollapsibleSection>
+        </ProfileSection>
       ) : null}
 
-      {/* Classes taught — from the Classes system. */}
-      {profile.classesTaught.length > 0 ? (
-        <CollapsibleSection
-          title="Classes Taught"
-          summary={`${profile.classesTaught.length} ${profile.classesTaught.length === 1 ? "class" : "classes"}`}
-        >
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-            {profile.classesTaught.map((c) => (
-              <li
-                key={c.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  border: "1px solid var(--border)",
-                  fontSize: 14,
-                }}
-              >
-                <span style={{ fontWeight: 600, overflowWrap: "anywhere" }}>{c.title}</span>
-                {c.schedule ? (
-                  <span style={{ color: "var(--muted)", fontSize: 12, whiteSpace: "nowrap" }}>
-                    {c.schedule}
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </CollapsibleSection>
+      {profile.bio ? (
+        <ProfileSection title="About" defaultOpen>
+          <p className="m-0 text-[14px] leading-relaxed text-[#3a3a52]">{profile.bio}</p>
+        </ProfileSection>
       ) : null}
 
-      {/* Projects & actions. */}
-      <CollapsibleSection
-        title="Projects & Actions"
-        summary={totalOwned === 0 ? "None visible" : `${totalOwned} active`}
-      >
-        {totalOwned === 0 ? (
-          <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
-            No active actions you can see.
-          </p>
+      <ProfileExtraSections
+        profile={profile}
+        hasMentorship={hasMentorship}
+        totalOwned={totalOwned}
+      />
+    </div>
+  );
+}
+
+function ProfileExtraSections({
+  profile,
+  hasMentorship,
+  totalOwned,
+  inline = false,
+}: {
+  profile: PublicProfile;
+  hasMentorship: boolean;
+  totalOwned: number;
+  inline?: boolean;
+}) {
+  const wrap = (title: string, summary: string | undefined, children: ReactNode) =>
+    inline ? (
+      <div className="border-t border-[#f1f1f6] pt-3 first:border-t-0 first:pt-0">
+        <p className="m-0 mb-2 text-[13px] font-semibold text-[#1c1a2e]">{title}</p>
+        {children}
+      </div>
+    ) : (
+      <ProfileSection title={title} summary={summary}>
+        {children}
+      </ProfileSection>
+    );
+
+  return (
+    <>
+      {hasMentorship
+        ? wrap(
+            "Mentorship",
+            `${profile.mentors.length} mentor${profile.mentors.length === 1 ? "" : "s"} · ${profile.mentees.length} mentee${profile.mentees.length === 1 ? "" : "s"}`,
+            <div className="flex flex-col gap-4">
+              {profile.mentors.length > 0 ? (
+                <PeopleList
+                  label={profile.mentors.length === 1 ? "Mentor" : "Mentors"}
+                  people={profile.mentors}
+                />
+              ) : profile.growthSignals !== null && roleExpectsMentor(profile.primaryRole) ? (
+                <p className="m-0 text-[14px] text-[#717189]">No mentor assigned yet.</p>
+              ) : null}
+              {profile.mentees.length > 0 ? (
+                <PeopleList label="Mentees" people={profile.mentees} />
+              ) : null}
+            </div>
+          )
+        : null}
+
+      {profile.kudosTotal > 0
+        ? wrap(
+            "Recognition",
+            `${profile.kudosTotal} ${profile.kudosTotal === 1 ? "kudo" : "kudos"}`,
+            <>
+              <div className="flex flex-col gap-3">
+                {profile.kudos.map((k) => (
+                  <div key={k.id} className="border-l-2 border-[#5a1da8] pl-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-[#5a1da8]">
+                      {kudosCategoryLabel(k.category)}
+                    </div>
+                    <p className="m-0 mt-1 text-[14px] text-[#3a3a52]">&ldquo;{k.message}&rdquo;</p>
+                    <div className="mt-1 text-[12px] text-[#9a9ab0]">
+                      —{" "}
+                      <PersonLink id={k.giverId} className="text-[#717189] no-underline hover:underline">
+                        {k.giverName}
+                      </PersonLink>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mb-0 mt-3">
+                <Link
+                  href="/peer-recognition"
+                  className="inline-flex rounded-lg border border-[#ebebf2] px-3 py-1.5 text-[12.5px] font-semibold text-[#3a3a52] no-underline hover:bg-[#fafafd]"
+                >
+                  Give kudos
+                </Link>
+              </p>
+            </>
+          )
+        : null}
+
+      {profile.classesTaught.length > 0
+        ? wrap(
+            "Classes taught",
+            `${profile.classesTaught.length} ${profile.classesTaught.length === 1 ? "class" : "classes"}`,
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {profile.classesTaught.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-start justify-between gap-3 rounded-lg border border-[#f1f1f6] px-3 py-2"
+                >
+                  <span className="text-[14px] font-semibold text-[#3a3a52]">{c.title}</span>
+                  {c.schedule ? (
+                    <span className="shrink-0 text-[12px] text-[#9a9ab0]">{c.schedule}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )
+        : null}
+
+      {wrap(
+        "Projects & actions",
+        totalOwned === 0 ? "None visible" : `${totalOwned} active`,
+        totalOwned === 0 ? (
+          <p className="m-0 text-[14px] text-[#717189]">No active actions you can see.</p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="flex flex-col gap-4">
             {profile.actionsLed.length > 0 ? (
               <OwnershipGroup label="Leading" items={profile.actionsLed} />
             ) : null}
@@ -208,94 +273,31 @@ export function ProfileBody({ profile }: { profile: PublicProfile }) {
               <OwnershipGroup label="Executing" items={profile.actionsExecuting} />
             ) : null}
           </div>
-        )}
-      </CollapsibleSection>
+        )
+      )}
 
-      {/* Growth Signals — present only for officer-tier viewers. */}
-      {profile.growthSignals && profile.growthSignals.length > 0 ? (
-        <CollapsibleSection title="Growth Signals" summary="Leadership view only">
-          <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)" }}>
-            Leadership view only — not visible to the member or to peers.
-          </p>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {profile.growthSignals.map((signal) => {
-              const meta = GROWTH_TAG_META[signal.tag];
-              return (
-                <Pill key={signal.tag} tone={meta.tone}>
-                  {meta.label}
-                </Pill>
-              );
-            })}
-          </div>
-        </CollapsibleSection>
-      ) : null}
-    </div>
-  );
-}
-
-function ProgressionPanel({ profile }: { profile: PublicProfile }) {
-  const needs =
-    profile.progression.needsSetup.length > 0
-      ? profile.progression.needsSetup.join(", ")
-      : "Complete";
-  const facts: Array<{ label: string; value: React.ReactNode }> = [
-    { label: "Current role", value: profile.progression.currentRole },
-    { label: "Ladder", value: profile.progression.ladder },
-    { label: "Mentor", value: profile.progression.mentor },
-    { label: "Mentees", value: profile.progression.mentees },
-    { label: "Review path", value: profile.progression.reviewPath },
-    { label: "Access", value: profile.progression.access },
-    { label: "Assigned actions", value: profile.progression.assignedActions },
-    { label: "Chapter", value: profile.progression.chapter },
-    { label: "Needs setup", value: needs },
-  ];
-
-  return (
-    <section className="card" style={{ padding: "16px 18px" }}>
-      <h2 style={SECTION_LABEL}>People Progression</h2>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-          gap: 10,
-        }}
-      >
-        {facts.map((fact) => (
-          <div
-            key={fact.label}
-            style={{
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              padding: "10px 12px",
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                textTransform: "uppercase",
-                letterSpacing: 0.4,
-                color: "var(--muted)",
-                fontWeight: 700,
-              }}
-            >
-              {fact.label}
-            </div>
-            <div
-              style={{
-                marginTop: 4,
-                fontSize: 14,
-                lineHeight: 1.35,
-                color: "var(--ypp-ink)",
-                overflowWrap: "anywhere",
-              }}
-            >
-              {fact.value}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
+      {profile.growthSignals && profile.growthSignals.length > 0
+        ? wrap(
+            "Growth signals",
+            "Leadership view",
+            <>
+              <p className="m-0 mb-3 text-[12px] text-[#9a9ab0]">
+                Visible to leadership only — not shown to the member or peers.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {profile.growthSignals.map((signal) => {
+                  const meta = GROWTH_TAG_META[signal.tag];
+                  return (
+                    <Pill key={signal.tag} tone={meta.tone}>
+                      {meta.label}
+                    </Pill>
+                  );
+                })}
+              </div>
+            </>
+          )
+        : null}
+    </>
   );
 }
 
@@ -308,19 +310,17 @@ function PeopleList({
 }) {
   return (
     <div>
-      <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "var(--muted)" }}>
-        {label}
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <p className="m-0 mb-2 text-[12px] font-semibold text-[#9a9ab0]">{label}</p>
+      <div className="flex flex-col gap-2">
         {people.map((person) => (
-          <div key={person.id} style={{ display: "flex", flexDirection: "column" }}>
+          <div key={person.id}>
             <PersonLink
               id={person.id}
-              style={{ fontSize: 14, fontWeight: 600, color: "var(--ypp-ink)" }}
+              className="text-[14px] font-semibold text-[#3a3a52] no-underline hover:text-[#5a1da8]"
             >
               {person.name}
             </PersonLink>
-            <span style={{ fontSize: 12, color: "var(--muted)" }}>{person.title}</span>
+            <span className="block text-[12px] text-[#9a9ab0]">{person.title}</span>
           </div>
         ))}
       </div>
@@ -337,30 +337,18 @@ function OwnershipGroup({
 }) {
   return (
     <div>
-      <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "var(--muted)" }}>
+      <p className="m-0 mb-2 text-[12px] font-semibold text-[#9a9ab0]">
         {label} ({items.length})
       </p>
-      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+      <ul className="m-0 flex list-none flex-col gap-2 p-0">
         {items.map((item) => (
           <li key={item.id}>
             <Link
               href={`/actions/${item.id}`}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: "1px solid var(--border)",
-                textDecoration: "none",
-                color: "var(--ypp-ink)",
-                fontSize: 14,
-              }}
+              className="flex items-start justify-between gap-3 rounded-lg border border-[#f1f1f6] px-3 py-2 no-underline hover:bg-[#fafafd]"
             >
-              <span style={{ fontWeight: 600, overflowWrap: "anywhere" }}>{item.title}</span>
-              <span style={{ color: "var(--muted)", fontSize: 12, whiteSpace: "nowrap" }}>
-                {item.departmentName}
-              </span>
+              <span className="text-[14px] font-semibold text-[#3a3a52]">{item.title}</span>
+              <span className="shrink-0 text-[12px] text-[#9a9ab0]">{item.departmentName}</span>
             </Link>
           </li>
         ))}

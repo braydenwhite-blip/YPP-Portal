@@ -2,7 +2,16 @@
  * Feature flag helpers.
  * All flags default to enabled ("true") unless explicitly set to "false".
  * Toggle via environment variables — no deploy needed for quick kill-switch.
+ *
+ * Vercel Preview deployments (`VERCEL_ENV=preview`) also turn on the internal
+ * People Strategy bundle unless `PORTAL_PREVIEW_FEATURES=false` — see
+ * `lib/preview-deployment.ts`.
  */
+
+import {
+  isInternalPreviewFeatureBundleEnabled,
+  isProductionDeployment,
+} from "@/lib/preview-deployment";
 
 /** Master gate for the Instructor Applicant Workflow V1 feature set. */
 export function isInstructorApplicantWorkflowV1Enabled(): boolean {
@@ -20,6 +29,11 @@ export function isNativeInstructorGateEnabled(): boolean {
  * Schema/migrations ship regardless; the flag gates pages, server actions, and emails.
  */
 export function isActionTrackerEnabled(): boolean {
+  if (isInternalPreviewFeatureBundleEnabled()) return true;
+  // GA in production: ignore the legacy ENABLE_ACTION_TRACKER=false kill-switch
+  // that was mirrored into prod env (it left the tracker — and every action
+  // query — empty in production). Non-prod still honors the env toggle.
+  if (isProductionDeployment()) return true;
   return process.env.ENABLE_ACTION_TRACKER !== "false";
 }
 
@@ -33,6 +47,8 @@ export function isActionTrackerEnabled(): boolean {
  * also require `ENABLE_ACTION_TRACKER`.
  */
 export function isOperationsHubEnabled(): boolean {
+  if (isInternalPreviewFeatureBundleEnabled()) return true;
+  if (isProductionDeployment()) return true;
   return process.env.ENABLE_OPERATIONS_HUB !== "false";
 }
 
@@ -47,6 +63,8 @@ export function isOperationsHubEnabled(): boolean {
  * surfaces also require `ENABLE_OPERATIONS_HUB` and `ENABLE_ACTION_TRACKER`.
  */
 export function isStrategicInitiativesEnabled(): boolean {
+  if (isInternalPreviewFeatureBundleEnabled()) return true;
+  if (isProductionDeployment()) return true;
   return process.env.ENABLE_STRATEGIC_INITIATIVES !== "false";
 }
 
@@ -113,6 +131,7 @@ export function isActionTrackerEmailsEnabled(): boolean {
  * action and its surfaces. The schema/migration ship regardless of the flag.
  */
 export function isQuarterlyReviewsEnabled(): boolean {
+  if (isInternalPreviewFeatureBundleEnabled()) return true;
   return process.env.ENABLE_QUARTERLY_REVIEWS === "true";
 }
 
@@ -125,6 +144,7 @@ export function isQuarterlyReviewsEnabled(): boolean {
  * the flag off the page returns notFound() so its existence is not leaked.
  */
 export function isPeopleDashboardEnabled(): boolean {
+  if (isInternalPreviewFeatureBundleEnabled()) return true;
   return process.env.ENABLE_PEOPLE_DASHBOARD === "true";
 }
 

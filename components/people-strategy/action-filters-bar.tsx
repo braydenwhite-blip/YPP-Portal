@@ -31,30 +31,52 @@ const VISIBILITY_OPTIONS = ["ALL_LEADERSHIP", "OFFICERS_ONLY"] as const;
  * exact same filters. Each control pushes a new query; the search box submits
  * on Enter (or via its button).
  */
+const PRESERVE_PARAMS = ["who", "view", "initiative", "lane"] as const;
+
 export function ActionFiltersBar({
   departments,
   filters,
   hasActive,
+  basePath = "/actions/all",
+  variant = "full",
 }: {
   departments: DepartmentOption[];
   filters: ActionFilters;
   hasActive: boolean;
+  /** Where filter changes navigate (defaults to legacy export table). */
+  basePath?: string;
+  /** Hub variant matches the Actions Hub mockup — fewer controls. */
+  variant?: "full" | "hub";
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(filters.search);
+  const hub = variant === "hub";
 
   // Keep the local input in sync if the URL changes elsewhere (e.g. Clear).
   useEffect(() => {
     setSearch(filters.search);
   }, [filters.search]);
 
+  function navigate(params: URLSearchParams) {
+    const qs = params.toString();
+    router.push(qs ? `${basePath}?${qs}` : basePath);
+  }
+
   function pushParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (value && value !== "ALL") params.set(key, value);
     else params.delete(key);
-    const qs = params.toString();
-    router.push(qs ? `/actions/all?${qs}` : "/actions/all");
+    navigate(params);
+  }
+
+  function clearFilters() {
+    const params = new URLSearchParams();
+    for (const key of PRESERVE_PARAMS) {
+      const value = searchParams.get(key);
+      if (value) params.set(key, value);
+    }
+    navigate(params);
   }
 
   function submitSearch(event: React.FormEvent) {
@@ -63,9 +85,9 @@ export function ActionFiltersBar({
   }
 
   return (
-    <div className="ps-filter-bar">
+    <div className={hub ? "flex flex-wrap items-center justify-end gap-2" : "ps-filter-bar"}>
       <select
-        className="ps-filter"
+        className={hub ? "h-9 rounded-[9px] border border-line-soft bg-surface px-3 text-[13px] font-semibold text-ink" : "ps-filter"}
         aria-label="Filter by department"
         value={filters.department}
         onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.department, e.target.value)}
@@ -78,6 +100,7 @@ export function ActionFiltersBar({
         ))}
       </select>
 
+      {!hub ? (
       <select
         className="ps-filter"
         aria-label="Filter by status"
@@ -91,9 +114,10 @@ export function ActionFiltersBar({
           </option>
         ))}
       </select>
+      ) : null}
 
       <select
-        className="ps-filter"
+        className={hub ? "h-9 rounded-[9px] border border-line-soft bg-surface px-3 text-[13px] font-semibold text-ink" : "ps-filter"}
         aria-label="Filter by visibility"
         value={filters.visibility}
         onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.visibility, e.target.value)}
@@ -106,6 +130,8 @@ export function ActionFiltersBar({
         ))}
       </select>
 
+      {!hub ? (
+      <>
       <select
         className="ps-filter"
         aria-label="Filter by action type"
@@ -144,7 +170,10 @@ export function ActionFiltersBar({
         <option value="meeting">{ACTION_SOURCE_LABELS.meeting}</option>
         <option value="manual">{ACTION_SOURCE_LABELS.manual}</option>
       </select>
+      </>
+      ) : null}
 
+      {!hub ? (
       <select
         className="ps-filter"
         aria-label="Sort by deadline"
@@ -154,26 +183,29 @@ export function ActionFiltersBar({
         <option value="deadline_asc">Deadline ↑ (soonest)</option>
         <option value="deadline_desc">Deadline ↓ (latest)</option>
       </select>
+      ) : null}
 
-      <form onSubmit={submitSearch} className="ps-filter-search">
+      <form onSubmit={submitSearch} className={hub ? "flex items-center gap-2" : "ps-filter-search"}>
         <input
-          className="ps-filter"
+          className={hub ? "h-9 min-w-[180px] rounded-[9px] border border-line-soft bg-surface px-3 text-[13px] text-ink" : "ps-filter"}
           type="search"
           placeholder="Search actions…"
           aria-label="Search actions"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button type="submit" className="button outline small">
-          Search
-        </button>
+        {!hub ? (
+          <button type="submit" className="button outline small">
+            Search
+          </button>
+        ) : null}
       </form>
 
       {hasActive ? (
         <button
           type="button"
-          className="button outline small"
-          onClick={() => router.push("/actions/all")}
+          className={hub ? "h-9 rounded-[9px] border border-line-soft bg-surface px-3 text-[13px] font-semibold text-ink-muted" : "button outline small"}
+          onClick={clearFilters}
         >
           Clear filters
         </button>
