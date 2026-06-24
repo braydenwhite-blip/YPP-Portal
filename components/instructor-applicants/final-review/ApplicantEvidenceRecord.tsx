@@ -8,6 +8,10 @@
  * grounded overview. Nothing here is editable — the Chair page is a decision
  * workspace, not a place to submit reviews. All figures come from stored
  * review/interview data via `computeApplicantOverview`.
+ *
+ * Styling uses the shared Design System 2.0 tokens (ink / line / surface) and
+ * `StatusBadge` so the record reads as one surface with the rest of the
+ * cockpit (consensus card, score matrix) instead of a hand-styled island.
  */
 
 import type {
@@ -16,6 +20,7 @@ import type {
   EvidenceInitialReview,
   EvidenceInterviewReview,
 } from "@/lib/applicant-evidence";
+import { StatusBadge } from "@/components/ui-v2";
 
 const CATEGORY_LABELS: Record<string, string> = {
   CURRICULUM_STRENGTH: "Curriculum & Class Delivery",
@@ -32,11 +37,12 @@ const RATING_LABELS: Record<string, string> = {
   ABOVE_AND_BEYOND: "Exceptional",
 };
 
-const RATING_COLORS: Record<string, string> = {
-  BEHIND_SCHEDULE: "#b91c1c",
-  GETTING_STARTED: "#b45309",
-  ON_TRACK: "#15803d",
-  ABOVE_AND_BEYOND: "#6d28d9",
+/** Rating → semantic text color (DS2 tokens), used for the score value. */
+const RATING_TEXT_CLASS: Record<string, string> = {
+  BEHIND_SCHEDULE: "text-danger-700",
+  GETTING_STARTED: "text-warning-700",
+  ON_TRACK: "text-success-700",
+  ABOVE_AND_BEYOND: "text-brand-700",
 };
 
 const NEXT_STEP_LABELS: Record<string, string> = {
@@ -73,49 +79,41 @@ function formatDate(iso: string | null): string {
   });
 }
 
-const cardStyle: React.CSSProperties = {
-  background: "var(--cockpit-surface, #fff)",
-  border: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
-  borderRadius: 16,
-  padding: 16,
-};
-
-const kickerStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: 11,
-  fontWeight: 700,
-  textTransform: "uppercase",
-  letterSpacing: "0.06em",
-  color: "var(--ink-muted, #6b5f7a)",
-};
+const SECTION_CLASS =
+  "rounded-[16px] border border-line bg-surface p-4 shadow-card";
+const KICKER_CLASS =
+  "m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted";
 
 function CategoryScores({ categories }: { categories: EvidenceCategory[] }) {
   if (categories.length === 0) {
-    return <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "#6b5f7a" }}>No category scores recorded.</p>;
+    return (
+      <p className="mt-1.5 text-[12.5px] text-ink-muted">
+        No category scores recorded.
+      </p>
+    );
   }
   return (
-    <ul style={{ listStyle: "none", margin: "8px 0 0", padding: 0, display: "grid", gap: 6 }}>
+    <ul className="mt-2 grid list-none gap-1.5 p-0 text-[12.5px] leading-normal">
       {categories.map((cat) => (
-        <li
-          key={cat.category}
-          style={{ display: "grid", gap: 2, fontSize: 12.5, lineHeight: 1.5 }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-            <span style={{ fontWeight: 600, color: "#3f3a4a" }}>
+        <li key={cat.category} className="grid gap-0.5">
+          <div className="flex justify-between gap-2">
+            <span className="font-semibold text-ink">
               {categoryLabel(cat.category)}
             </span>
             <span
-              style={{
-                fontWeight: 700,
-                color: cat.rating ? RATING_COLORS[cat.rating] ?? "#3f3a4a" : "#9ca3af",
-                whiteSpace: "nowrap",
-              }}
+              className={`whitespace-nowrap font-bold ${
+                cat.rating
+                  ? RATING_TEXT_CLASS[cat.rating] ?? "text-ink"
+                  : "text-ink-muted"
+              }`}
             >
               {ratingLabel(cat.rating)}
             </span>
           </div>
           {cat.notes?.trim() ? (
-            <span style={{ color: "#6b5f7a", whiteSpace: "pre-wrap" }}>{cat.notes}</span>
+            <span className="whitespace-pre-wrap text-ink-muted">
+              {cat.notes}
+            </span>
           ) : null}
         </li>
       ))}
@@ -126,46 +124,14 @@ function CategoryScores({ categories }: { categories: EvidenceCategory[] }) {
 function Field({ label, value }: { label: string; value: string | null }) {
   if (!value?.trim()) return null;
   return (
-    <div style={{ marginTop: 8 }}>
-      <div
-        style={{
-          fontSize: 10.5,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          color: "#6b5f7a",
-        }}
-      >
+    <div className="mt-2">
+      <div className="text-[10.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
         {label}
       </div>
-      <p style={{ margin: "2px 0 0", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", color: "#3f3a4a" }}>
+      <p className="mt-0.5 whitespace-pre-wrap text-[13px] leading-relaxed text-ink">
         {value}
       </p>
     </div>
-  );
-}
-
-function Tag({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "good" | "warn" | "bad" }) {
-  const palette = {
-    neutral: { bg: "#f3f1f8", fg: "#4b4458" },
-    good: { bg: "#dcfce7", fg: "#166534" },
-    warn: { bg: "#fef3c7", fg: "#92400e" },
-    bad: { bg: "#fee2e2", fg: "#991b1b" },
-  }[tone];
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 8px",
-        borderRadius: 999,
-        background: palette.bg,
-        color: palette.fg,
-        fontSize: 11,
-        fontWeight: 700,
-      }}
-    >
-      {children}
-    </span>
   );
 }
 
@@ -181,91 +147,98 @@ export default function ApplicantEvidenceRecord({
   interviewReviews,
 }: ApplicantEvidenceRecordProps) {
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div className="grid gap-3">
       {/* Overview */}
-      <section style={cardStyle} aria-label="Applicant evidence overview">
-        <p style={kickerStyle}>Overview</p>
-        <div
-          style={{
-            marginTop: 12,
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-            gap: 10,
-          }}
-        >
+      <section className={SECTION_CLASS} aria-label="Applicant evidence overview">
+        <p className={KICKER_CLASS}>Overview</p>
+        <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5">
           <Metric label="Initial reviews" value={String(overview.initialReviewCount)} />
-          <Metric label="Interview evaluations" value={String(overview.completedInterviewCount)} />
+          <Metric
+            label="Interview evaluations"
+            value={String(overview.completedInterviewCount)}
+          />
           <Metric
             label="Initial average"
-            value={overview.initialAverage !== null ? `${overview.initialAverage.toFixed(1)} / 3` : "—"}
+            value={
+              overview.initialAverage !== null
+                ? `${overview.initialAverage.toFixed(1)} / 3`
+                : "—"
+            }
           />
           <Metric
             label="Interview average"
-            value={overview.interviewAverage !== null ? `${overview.interviewAverage.toFixed(1)} / 3` : "—"}
+            value={
+              overview.interviewAverage !== null
+                ? `${overview.interviewAverage.toFixed(1)} / 3`
+                : "—"
+            }
           />
         </div>
 
         {overview.consensusStatements.length > 0 ? (
-          <ul style={{ margin: "12px 0 0", paddingLeft: 18, display: "grid", gap: 4 }}>
+          <ul className="mt-3 grid list-disc gap-1 pl-[18px]">
             {overview.consensusStatements.map((statement, idx) => (
-              <li key={idx} style={{ fontSize: 12.5, lineHeight: 1.5, color: "#3f3a4a" }}>
+              <li key={idx} className="text-[12.5px] leading-normal text-ink">
                 {statement}
               </li>
             ))}
           </ul>
         ) : (
-          <p style={{ margin: "12px 0 0", fontSize: 12.5, color: "#6b5f7a" }}>
+          <p className="mt-3 text-[12.5px] text-ink-muted">
             No review evidence has been submitted yet.
           </p>
         )}
 
         {overview.hasDisagreement && overview.disagreementStatement ? (
-          <div style={{ marginTop: 10 }}>
-            <Tag tone="warn">Disagreement: {overview.disagreementStatement}</Tag>
+          <div className="mt-2.5">
+            <StatusBadge tone="warning" withDot>
+              Disagreement: {overview.disagreementStatement}
+            </StatusBadge>
           </div>
         ) : null}
 
         {overview.missingInformation.length > 0 ? (
-          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
             {overview.missingInformation.map((item, idx) => (
-              <Tag key={idx} tone="bad">
+              <StatusBadge key={idx} tone="danger">
                 Missing: {item}
-              </Tag>
+              </StatusBadge>
             ))}
           </div>
         ) : null}
       </section>
 
       {/* Initial reviews */}
-      <section style={cardStyle} aria-label="Initial reviews">
-        <p style={kickerStyle}>Initial Reviews ({initialReviews.length})</p>
+      <section className={SECTION_CLASS} aria-label="Initial reviews">
+        <p className={KICKER_CLASS}>Initial Reviews ({initialReviews.length})</p>
         {initialReviews.length === 0 ? (
-          <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#6b5f7a" }}>
+          <p className="mt-2.5 text-[12.5px] text-ink-muted">
             No initial reviews were submitted before this applicant advanced.
           </p>
         ) : (
-          <div style={{ display: "grid", gap: 12, marginTop: 10 }}>
+          <div className="mt-2.5 grid gap-3">
             {initialReviews.map((review, idx) => (
               <article
                 key={`${review.reviewerId}-${idx}`}
-                style={{
-                  border: "1px solid rgba(71,85,105,0.16)",
-                  borderRadius: 12,
-                  padding: 12,
-                  background: "#fcfbff",
-                }}
+                className="rounded-[12px] border border-line-soft bg-surface-soft p-3"
               >
-                <header style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontWeight: 700, fontSize: 13.5, color: "#2c2738" }}>
+                <header className="flex flex-wrap items-center gap-2">
+                  <span className="text-[13.5px] font-bold text-ink">
                     {review.reviewerName ?? "Reviewer"}
                   </span>
-                  {review.isLead ? <Tag tone="good">Lead</Tag> : null}
-                  <span style={{ fontSize: 11.5, color: "#6b5f7a" }}>{formatDate(review.reviewDate)}</span>
+                  {review.isLead ? <StatusBadge tone="success">Lead</StatusBadge> : null}
+                  <span className="text-[11.5px] text-ink-muted">
+                    {formatDate(review.reviewDate)}
+                  </span>
                   {review.nextStep ? (
-                    <Tag>Recommended: {NEXT_STEP_LABELS[review.nextStep] ?? review.nextStep}</Tag>
+                    <StatusBadge tone="neutral">
+                      Recommended: {NEXT_STEP_LABELS[review.nextStep] ?? review.nextStep}
+                    </StatusBadge>
                   ) : null}
                   {review.overallRating ? (
-                    <Tag>Overall: {ratingLabel(review.overallRating)}</Tag>
+                    <StatusBadge tone="neutral">
+                      Overall: {ratingLabel(review.overallRating)}
+                    </StatusBadge>
                   ) : null}
                 </header>
                 <CategoryScores categories={review.categories} />
@@ -279,36 +252,40 @@ export default function ApplicantEvidenceRecord({
       </section>
 
       {/* Interview reviews */}
-      <section style={cardStyle} aria-label="Interview evaluations">
-        <p style={kickerStyle}>Interview Evaluations ({interviewReviews.length})</p>
+      <section className={SECTION_CLASS} aria-label="Interview evaluations">
+        <p className={KICKER_CLASS}>
+          Interview Evaluations ({interviewReviews.length})
+        </p>
         {interviewReviews.length === 0 ? (
-          <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "#6b5f7a" }}>
+          <p className="mt-2.5 text-[12.5px] text-ink-muted">
             No interview evaluations have been submitted for the current round.
           </p>
         ) : (
-          <div style={{ display: "grid", gap: 12, marginTop: 10 }}>
+          <div className="mt-2.5 grid gap-3">
             {interviewReviews.map((review, idx) => (
               <article
                 key={`${review.reviewerId}-${idx}`}
-                style={{
-                  border: "1px solid rgba(71,85,105,0.16)",
-                  borderRadius: 12,
-                  padding: 12,
-                  background: "#fcfbff",
-                }}
+                className="rounded-[12px] border border-line-soft bg-surface-soft p-3"
               >
-                <header style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontWeight: 700, fontSize: 13.5, color: "#2c2738" }}>
+                <header className="flex flex-wrap items-center gap-2">
+                  <span className="text-[13.5px] font-bold text-ink">
                     {review.reviewerName ?? "Interviewer"}
                   </span>
-                  {review.round ? <Tag>Round {review.round}</Tag> : null}
+                  {review.round ? (
+                    <StatusBadge tone="neutral">Round {review.round}</StatusBadge>
+                  ) : null}
                   {review.recommendation ? (
-                    <Tag tone={review.recommendation === "REJECT" ? "bad" : "good"}>
-                      {RECOMMENDATION_LABELS[review.recommendation] ?? review.recommendation}
-                    </Tag>
+                    <StatusBadge
+                      tone={review.recommendation === "REJECT" ? "danger" : "success"}
+                    >
+                      {RECOMMENDATION_LABELS[review.recommendation] ??
+                        review.recommendation}
+                    </StatusBadge>
                   ) : null}
                   {review.overallRating ? (
-                    <Tag>Overall: {ratingLabel(review.overallRating)}</Tag>
+                    <StatusBadge tone="neutral">
+                      Overall: {ratingLabel(review.overallRating)}
+                    </StatusBadge>
                   ) : null}
                 </header>
                 <CategoryScores categories={review.categories} />
@@ -325,25 +302,9 @@ export default function ApplicantEvidenceRecord({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      style={{
-        border: "1px solid rgba(71,85,105,0.14)",
-        borderRadius: 10,
-        padding: "8px 10px",
-        background: "#fbfaff",
-      }}
-    >
-      <div style={{ fontSize: 18, fontWeight: 800, color: "#2c2738", lineHeight: 1.1 }}>{value}</div>
-      <div
-        style={{
-          marginTop: 2,
-          fontSize: 10.5,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.04em",
-          color: "#6b5f7a",
-        }}
-      >
+    <div className="rounded-[10px] border border-line-soft bg-surface-soft px-2.5 py-2">
+      <div className="text-[18px] font-extrabold leading-tight text-ink">{value}</div>
+      <div className="mt-0.5 text-[10.5px] font-semibold uppercase tracking-[0.04em] text-ink-muted">
         {label}
       </div>
     </div>

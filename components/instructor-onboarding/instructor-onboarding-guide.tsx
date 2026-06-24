@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import styles from "./instructor-onboarding-guide.module.css";
+import { Button, ButtonLink } from "@/components/ui-v2";
 import OnboardingStepper, { type OnboardingStep } from "./onboarding-stepper";
 import InstructorProfileForm, {
   type InstructorProfileFormData,
@@ -212,9 +212,9 @@ function TrainingStep({ trainingModel }: { trainingModel?: TrainingHomeModel | n
           Before your first session, you&apos;ll work through a short, guided training journey.
           It&apos;s temporarily unavailable here — open it on its own page to continue.
         </p>
-        <Link href="/instructor-training" className="btn btn-secondary">
+        <ButtonLink href="/instructor-training" variant="secondary">
           Open Instructor Training →
-        </Link>
+        </ButtonLink>
       </div>
     );
   }
@@ -486,27 +486,25 @@ export default function InstructorLaunchpad({
                     : `Next up: ${STEPS[activeIndex + 1].label}`}
                 </span>
                 <div className={styles.footerActions}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
+                  <Button
+                    variant="secondary"
                     onClick={() => goTo(activeIndex - 1)}
                     disabled={isFirst}
                   >
                     Back
-                  </button>
+                  </Button>
                   {isLast ? (
-                    <button
-                      type="button"
-                      className="btn btn-primary"
+                    <Button
+                      variant="primary"
                       onClick={handleFinish}
-                      disabled={finishing}
+                      loading={finishing}
                     >
                       {finishing ? "Finishing…" : "Finish & go to portal →"}
-                    </button>
+                    </Button>
                   ) : (
-                    <button type="button" className="btn btn-primary" onClick={handleContinue}>
+                    <Button variant="primary" onClick={handleContinue}>
                       Continue →
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>

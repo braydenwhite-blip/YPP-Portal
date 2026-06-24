@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from "react";
 import { uploadApplicantDocument, deleteApplicantDocument } from "@/lib/applicant-documents-actions";
 import type { ApplicantDocumentKind } from "@prisma/client";
+import { Button } from "@/components/ui-v2";
 
 type DocKind = Extract<ApplicantDocumentKind, "COURSE_OUTLINE" | "FIRST_CLASS_PLAN">;
 
@@ -218,14 +219,14 @@ export default function ApplicantDocumentsPanel({
                     {new Date(active.uploadedAt).toLocaleDateString()}
                   </span>
                   {canDelete && (
-                    <button
-                      type="button"
-                      className="button small outline"
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => handleDelete(active)}
                       disabled={isPending}
                     >
                       Remove
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -238,15 +239,7 @@ export default function ApplicantDocumentsPanel({
             ) : null}
 
             {(active?.note || structureNotesDoc?.note) ? (
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: "var(--muted)",
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
+              <p className="mt-2 whitespace-pre-wrap text-[12px] leading-normal text-ink-muted">
                 {active?.note ?? structureNotesDoc?.note}
               </p>
             ) : null}
@@ -264,14 +257,14 @@ export default function ApplicantDocumentsPanel({
                     e.target.value = "";
                   }}
                 />
-                <button
-                  type="button"
-                  className="button small secondary"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   disabled={isPending}
                   onClick={() => inputRefs.current[kind]?.click()}
                 >
                   {active ? "Re-upload" : "Upload"}
-                </button>
+                </Button>
               </div>
             )}
 

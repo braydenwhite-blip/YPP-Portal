@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { saveOnboardingProfile } from "@/lib/onboarding-actions";
 import { completeJourneyStep } from "@/lib/instructor-journey-actions";
+import { Button } from "@/components/ui-v2";
 
 export interface InstructorProfileFormData {
   bio?: string | null;
@@ -144,26 +145,26 @@ export default function InstructorProfileForm({
       {formError ? <div className="form-error">{formError}</div> : null}
 
       <div className="onboarding-actions">
-        <button type="submit" className="button" disabled={isPending}>
+        <Button type="submit" variant="primary" loading={isPending}>
           Save &amp; Continue
-        </button>
+        </Button>
         <div className="onboarding-actions-secondary">
-          <button
-            type="button"
-            className="button outline small"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={onBack}
             disabled={isPending}
           >
             Back
-          </button>
-          <button
-            type="button"
-            className="onboarding-skip"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onSaved}
             disabled={isPending}
           >
             Skip for now
-          </button>
+          </Button>
         </div>
       </div>
     </form>

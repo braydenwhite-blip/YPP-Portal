@@ -79,7 +79,20 @@ export default function ScoreMatrix({ reviewers, cells }: ScoreMatrixProps) {
   }, [cells, reviewers]);
 
   if (reviewers.length === 0) {
-    return null;
+    return (
+      <section
+        className="rounded-[16px] border border-line bg-surface p-4 shadow-card"
+        aria-label="Score matrix — reviewer by category"
+      >
+        <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
+          Score matrix
+        </p>
+        <p className="mt-2 text-[12.5px] text-ink-muted">
+          No interview evaluations yet — the reviewer-by-category comparison
+          appears here once interviewers submit their scores.
+        </p>
+      </section>
+    );
   }
 
   return (
@@ -163,6 +176,14 @@ export default function ScoreMatrix({ reviewers, cells }: ScoreMatrixProps) {
           })}
         </tbody>
       </table>
+      <p className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-muted">
+        <span
+          aria-hidden
+          className="inline-block size-1.5 rounded-full bg-amber-500"
+        />
+        Amber marks categories where reviewers diverged by 2 or more levels.
+        Tap a reviewer to focus their column.
+      </p>
     </section>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { assignInterviewer, removeInterviewer } from "@/lib/instructor-application-actions";
 import ActiveLoadBadge from "./ActiveLoadBadge";
+import { Button, StatusBadge } from "@/components/ui-v2";
 
 type Candidate = {
   id: string;
@@ -123,14 +124,14 @@ export default function InterviewerAssignPicker({
           <span style={{ fontSize: 13, fontWeight: 600 }}>
             {currentAssignment.interviewer.name ?? "Unknown"}
           </span>
-          <button
-            type="button"
-            className="button small outline"
+          <Button
+            variant="secondary"
+            size="sm"
             disabled={isPending}
             onClick={handleRemove}
           >
             Remove
-          </button>
+          </Button>
         </div>
       ) : (
         <>
@@ -198,7 +199,7 @@ export default function InterviewerAssignPicker({
                       </div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
                         {c.chapterMatch && (
-                          <span className="pill pill-info pill-small">Same chapter</span>
+                          <StatusBadge tone="info">Same chapter</StatusBadge>
                         )}
                       </div>
                     </div>
@@ -213,19 +214,19 @@ export default function InterviewerAssignPicker({
             )}
           </div>
 
-          <button
-            className="button"
-            type="button"
+          <Button
+            variant="primary"
             disabled={!selectedId || isPending}
+            loading={isPending}
             onClick={handleAssign}
           >
             {isPending ? "Assigning…" : `Assign ${roleLabel}`}
-          </button>
+          </Button>
         </>
       )}
 
       {error && (
-        <p style={{ margin: 0, fontSize: 13, color: "#dc2626" }}>{error}</p>
+        <p className="m-0 text-[13px] text-danger-700">{error}</p>
       )}
     </div>
   );
