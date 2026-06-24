@@ -4,6 +4,20 @@
   width: 100%;
   max-width: none;
   padding-bottom: 56px;
+  position: relative;
+  min-height: 100vh;
+}
+
+.home::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(139, 63, 232, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 /* ---- Shared section rhythm ---- */
@@ -55,6 +69,36 @@
   border-radius: var(--radius-xl);
   background: linear-gradient(135deg, var(--ypp-purple-50) 0%, var(--surface) 62%);
   box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  backdrop-filter: blur(10px);
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 63, 232, 0.1), transparent 70%);
+  pointer-events: none;
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-20px, 20px) scale(1.1);
+  }
+}
+
+.hero:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .hero::after {
@@ -67,6 +111,19 @@
   border-radius: 50%;
   background: radial-gradient(circle, rgba(139, 63, 232, 0.16), transparent 70%);
   pointer-events: none;
+  animation: pulse 4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
 }
 
 .heroKickerRow {
@@ -180,13 +237,46 @@
   text-decoration: none;
   box-shadow: var(--shadow-xs);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast),
-    border-color var(--transition-fast);
+    border-color var(--transition-fast), background var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.statTile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(139, 63, 232, 0.05), transparent);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.statTile:hover::after {
+  opacity: 1;
+}
+
+.statTile::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ypp-purple-500), var(--ypp-mid));
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .statTile:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--ypp-purple-200);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--ypp-purple-300);
+  background: var(--ypp-purple-50);
+}
+
+.statTile:hover::before {
+  opacity: 1;
 }
 
 .statIcon {
@@ -229,6 +319,32 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xs);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.checklistCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--ypp-purple-500), var(--ypp-mid));
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.checklistCard:hover::before {
+  opacity: 1;
+}
+
+.checklistCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--ypp-purple-200);
 }
 
 .checklistHead {
@@ -372,13 +488,46 @@
   text-decoration: none;
   box-shadow: var(--shadow-xs);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast),
-    border-color var(--transition-fast);
+    border-color var(--transition-fast), background var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.pathwayCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(139, 63, 232, 0.05), transparent);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.pathwayCard:hover::after {
+  opacity: 1;
+}
+
+.pathwayCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ypp-purple-500), var(--ypp-mid));
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .pathwayCard:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--ypp-purple-200);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--ypp-purple-300);
+  background: var(--ypp-purple-50);
+}
+
+.pathwayCard:hover::before {
+  opacity: 1;
 }
 
 .pathwayTop {
@@ -458,13 +607,46 @@
   text-decoration: none;
   box-shadow: var(--shadow-xs);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast),
-    border-color var(--transition-fast);
+    border-color var(--transition-fast), background var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.quickLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(139, 63, 232, 0.05), transparent);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.quickLink:hover::after {
+  opacity: 1;
+}
+
+.quickLink::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ypp-purple-500), var(--ypp-mid));
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .quickLink:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--ypp-purple-200);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--ypp-purple-300);
+  background: var(--ypp-purple-50);
+}
+
+.quickLink:hover::before {
+  opacity: 1;
 }
 
 .quickIcon {

@@ -3,7 +3,6 @@ import type { ActionItemStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { getInstructorReadiness, type InstructorReadiness } from "@/lib/instructor-readiness";
-import { startOfDay } from "@/lib/leadership-action-center/dates";
 
 import {
   type ActionViewer,
@@ -26,10 +25,6 @@ import {
 } from "./class-tracker";
 import { composeCommandCenter, type CommandCenterData } from "./command-center";
 import { loadMentorshipHealth, type MentorshipHealth } from "./mentorship-health";
-import {
-  listPastMeetings,
-  type OfficerMeetingWithRelations,
-} from "./officer-meetings-queries";
 import {
   getMenteeSupport,
   getMenteeSupportMany,
@@ -242,62 +237,8 @@ export type OfficerMeetingFollowUp = {
   overdueCount: number;
 };
 
-/** Minimal meeting shape the follow-up rollup needs (keeps it unit-testable). */
-type MeetingForFollowUp = {
-  id: string;
-  date: Date;
-  actionItems: Array<{
-    status: ActionItemStatus;
-    deadlineStart: Date | null;
-    deadlineEnd: Date | null;
-  }>;
-};
-
-/** Mirror of `effectiveStatus`'s OVERDUE branch for a meeting's lighter rows. */
-function isFollowUpOverdue(
-  item: MeetingForFollowUp["actionItems"][number],
-  now: Date
-): boolean {
-  if (item.status === "COMPLETE" || item.status === "DROPPED") return false;
-  if (item.status === "BLOCKED") return false;
-  if (item.status === "OVERDUE") return true;
-  const deadline = item.deadlineEnd ?? item.deadlineStart;
-  if (!deadline) return false;
-  return deadline.getTime() < startOfDay(now).getTime();
-}
-
-/**
- * Past officer meetings that still have unresolved follow-up actions — "which
- * meeting decisions haven't been closed out?". Built over the existing
- * `officerMeetingId` FK relation (plan §4). A meeting whose items are all
- * settled drops out; the rest sort most-overdue (then most-open, then most
- * recent) first. Pure over an already officer-gated meeting set.
- */
-export function deriveOfficerMeetingFollowUps(
-  meetings: MeetingForFollowUp[],
-  now: Date
-): OfficerMeetingFollowUp[] {
-  const rows: OfficerMeetingFollowUp[] = [];
-  for (const meeting of meetings) {
-    let openCount = 0;
-    let overdueCount = 0;
-    for (const item of meeting.actionItems) {
-      if (item.status === "COMPLETE" || item.status === "DROPPED") continue;
-      openCount += 1;
-      if (isFollowUpOverdue(item, now)) overdueCount += 1;
-    }
-    if (openCount > 0) {
-      rows.push({ id: meeting.id, date: meeting.date, openCount, overdueCount });
-    }
-  }
-  rows.sort(
-    (a, b) =>
-      b.overdueCount - a.overdueCount ||
-      b.openCount - a.openCount ||
-      b.date.getTime() - a.date.getTime()
-  );
-  return rows;
-}
+// The old Meetings Tracker (OfficerMeeting) was removed, so the officer-meeting
+// follow-up rollup has no data source — `officerMeetingFollowUps` is always [].
 
 // --- loader ------------------------------------------------------------------
 
@@ -444,13 +385,12 @@ export async function loadOperationsHub(
   if (officer) {
     // One visibility-filtered read of the tracker backs both the command center
     // (composed purely) AND the department rollup, so we never double-load it.
-    const [items, mentorshipHealth, classes, activeMentorships, pastMeetings] =
+    const [items, mentorshipHealth, classes, activeMentorships] =
       await Promise.all([
         safe(listVisibleActionItems(viewer), [] as ActionItemWithRelations[]),
         safe(loadMentorshipHealth(now), null),
         safe(listTrackerClasses(), [] as TrackerClass[]),
         safe(listActiveMentorships(), [] as ActiveMentorshipSummary[]),
-        safe(listPastMeetings(now), [] as OfficerMeetingWithRelations[]),
       ]);
 
     let command: CommandCenterData | null = null;
@@ -481,7 +421,8 @@ export async function loadOperationsHub(
     );
     hub.instructorsWithoutMentor = deriveInstructorsWithoutMentor(classes, supportByUser);
     hub.departmentSignals = deriveDepartmentSignals(items, now);
-    hub.officerMeetingFollowUps = deriveOfficerMeetingFollowUps(pastMeetings, now);
+    // The old Meetings Tracker was removed — officer-meeting follow-ups are [].
+    hub.officerMeetingFollowUps = [];
   } else {
     // Personal operating picture for mentors / instructors / members.
     const [myActions, myMentor] = await Promise.all([

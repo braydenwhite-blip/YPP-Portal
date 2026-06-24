@@ -31,7 +31,12 @@ function mapRow(row: PeoplePerformanceRow): QuarterlyReviewRow {
     performanceRating: row.quarterly?.performanceRating ?? null,
     potentialRating: row.quarterly?.potentialRating ?? null,
     statusLabel: status.text,
-    statusTone: status.tone,
+    // quarterlyReviewTableStatus only ever yields success/warning/danger; narrow
+    // the shared (wider) StatusTone down to the four tones this table renders.
+    statusTone:
+      status.tone === "success" || status.tone === "warning" || status.tone === "danger"
+        ? status.tone
+        : "neutral",
     personHref: `/people/${row.id}`,
   };
 }

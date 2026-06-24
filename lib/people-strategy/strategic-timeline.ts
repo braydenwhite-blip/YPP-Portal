@@ -1,6 +1,6 @@
 import type { ActionItemWithRelations } from "./action-queries";
 import { effectiveStatus } from "./action-filters";
-import type { MeetingCardDTO } from "./meetings-queries";
+import type { MeetingCardDTO } from "./meeting-card-types";
 import { relatedEntityTypeLabel, isRelatedEntityType } from "./constants";
 import type { DigestDecisionInput } from "./operational-digest";
 import type { InitiativeMilestoneSummary } from "./strategic-milestones";

@@ -325,10 +325,6 @@ const CreateActionItemSchema = z.object({
     .default("ALL_LEADERSHIP"),
   deadlineStart: RequiredDateString,
   deadlineEnd: CreateOptionalDateString,
-  officerMeetingId: z
-    .string()
-    .optional()
-    .transform((v) => (v && v.trim() ? v.trim() : null)),
   executingUserIds: UserIdList,
   inputUserIds: UserIdList,
   // Polymorphic related-entity link. Both-or-neither + enum membership + trim
@@ -487,7 +483,6 @@ export async function createActionItem(input: CreateActionItemInput) {
       visibility: data.visibility as never,
       deadlineStart,
       deadlineEnd: data.deadlineEnd,
-      officerMeetingId: data.officerMeetingId,
       relatedEntityType: related?.type ?? null,
       relatedEntityId: related?.id ?? null,
       // Action 4.0 contract
@@ -550,16 +545,6 @@ const UpdateActionItemSchema = z.object({
   deadlineStart: UpdateDeadlineStartString,
   deadlineEnd: UpdateOptionalDateString,
   leadId: NonEmptyString.optional(),
-  officerMeetingId: z
-    .string()
-    .nullable()
-    .optional()
-    .transform((v) => {
-      if (v === undefined) return undefined;
-      if (v === null) return null;
-      const trimmed = v.trim();
-      return trimmed.length > 0 ? trimmed : null;
-    }),
   // Polymorphic related-entity link. Omitting BOTH fields leaves the existing
   // link untouched; sending them empty intentionally clears it (see
   // parseRelatedEntityUpdate). Validity is enforced in the superRefine below.
@@ -762,7 +747,6 @@ export async function updateActionItem(input: UpdateActionItemInput) {
           : undefined,
         deadlineEnd: data.deadlineEnd,
         leadId: data.leadId,
-        officerMeetingId: data.officerMeetingId,
         relatedEntityType,
         relatedEntityId,
         // Action 4.0 contract

@@ -14,24 +14,8 @@ import {
 } from "@/lib/operations/timeline";
 
 import { RELATED_TO_ENTITY_360 } from "@/lib/operations/entity-360";
-import type { TimelineEventKind } from "@/lib/operations/timeline";
-import { MeetingIcon, type MeetingIconName } from "@/components/people-strategy/meeting-icons";
 
 import { EntityLink } from "./entity-link";
-
-/** Visual marker per event kind — the timeline reads as a story, not a log. */
-const KIND_ICON: Record<TimelineEventKind, MeetingIconName> = {
-  meeting: "people",
-  decision: "bolt",
-  action_created: "plus",
-  action_completed: "checkCircle",
-  joined: "spark",
-  mentorship: "handshake",
-  class_assigned: "book",
-  role: "flag",
-  note: "doc",
-  milestone: "target",
-};
 
 /**
  * Data 360 — the unified timeline. One chronological story across meetings,
@@ -107,12 +91,6 @@ function TimelineRow({ event }: { event: TimelineEvent }) {
     <li className="e360-timeline-event" data-kind={event.kind}>
       <span className="e360-timeline-dot" aria-hidden="true" />
       <div className="e360-timeline-date">
-        <MeetingIcon
-          name={KIND_ICON[event.kind]}
-          size={12}
-          stroke={2.2}
-          style={{ marginRight: 4, verticalAlign: "-2px" }}
-        />
         {TIMELINE_EVENT_LABELS[event.kind]}
       </div>
       <p className="e360-timeline-title">

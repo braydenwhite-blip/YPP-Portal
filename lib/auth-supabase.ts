@@ -17,6 +17,11 @@ export type SessionUser = {
   primaryRole: string;
   chapterId?: string | null;
   adminSubtypes: AdminSubtypeValue[];
+  /** Free-text/canonical human title + org-ladder spine for label + tier resolution. */
+  title?: string | null;
+  internalLevel?: number | null;
+  ladder?: string | null;
+  canonicalTitle?: string | null;
   /** Small sample for nav award tier; avoids a separate layout query. */
   awards?: { type: string | null }[];
 };
@@ -28,6 +33,12 @@ const sessionUserSelect = {
   primaryRole: true,
   chapterId: true,
   archivedAt: true,
+  // Org-authority spine + stored title — drive the displayed ladder title and
+  // the level-based authorization tier (see lib/org/levels.ts, lib/user-title.ts).
+  title: true,
+  internalLevel: true,
+  ladder: true,
+  canonicalTitle: true,
   roles: { select: { role: true } },
   adminSubtypes: { select: { subtype: true } },
   awards: {
@@ -223,6 +234,10 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     primaryRole,
     chapterId: resolvedUser.chapterId,
     adminSubtypes,
+    title: resolvedUser.title,
+    internalLevel: resolvedUser.internalLevel,
+    ladder: resolvedUser.ladder,
+    canonicalTitle: resolvedUser.canonicalTitle,
     awards: resolvedUser.awards,
   };
 });

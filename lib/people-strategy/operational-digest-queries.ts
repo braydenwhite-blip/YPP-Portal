@@ -10,7 +10,7 @@ import {
   getMeetingsForEntities,
   listMeetingsForArea,
   listMeetingsInRange,
-  mapMeetingToCardDTO,
+  mapMeetingsToCardDTOs,
   meetingDisplayTitle,
   type MeetingCardDTO,
   type MeetingWithCommandCenter,
@@ -107,12 +107,12 @@ function extractDigestDecisions(
         decision: d.decision,
         meetingId: m.id,
         meetingTitle: title,
-        meetingCategory: m.category,
+        meetingCategory: null,
         createdAt: d.createdAt,
         decidedByName: d.decidedBy?.name ?? d.decidedBy?.email ?? null,
-        hasLinkedAction: d.linkedActionId != null,
-        relatedEntityType: m.relatedEntityType,
-        relatedEntityId: m.relatedEntityId,
+        hasLinkedAction: false,
+        relatedEntityType: null,
+        relatedEntityId: null,
       });
     }
   }
@@ -150,7 +150,7 @@ async function loadDigestMeetingData(
   const raw = [...rawById.values()];
 
   return {
-    meetings: raw.map((m) => mapMeetingToCardDTO(m, now)),
+    meetings: await mapMeetingsToCardDTOs(raw, now),
     decisions: extractDigestDecisions(raw),
     labels,
   };
@@ -201,7 +201,8 @@ export async function loadDigestInputs(
     ).catch(() => [] as MeetingWithCommandCenter[]),
   ]);
 
-  const refs = collectEntityRefs(actions, windowMeetings);
+  // New meetings carry no polymorphic entity link, so they contribute no refs.
+  const refs = collectEntityRefs(actions, []);
   const { meetings, decisions, labels } = await loadDigestMeetingData(
     windowMeetings,
     refs,
@@ -274,7 +275,7 @@ export async function getOperationalDigestForArea(
       areaForRelatedEntityType(a.relatedEntityType) === area
   );
 
-  const refs = collectEntityRefs(actions, areaMeetings);
+  const refs = collectEntityRefs(actions, []);
   const { meetings, decisions, labels } = await loadDigestMeetingData(
     areaMeetings,
     refs,

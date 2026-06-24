@@ -5,7 +5,7 @@ import type { ActionItemWithRelations } from "./action-queries";
 import { effectiveStatus } from "./action-filters";
 import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
 import { daysOverdue, STALE_ACTIVITY_DAYS } from "./command-center-selectors";
-import type { MeetingCardDTO } from "./meetings-queries";
+import type { MeetingCardDTO } from "./meeting-card-types";
 import type { DigestDecisionInput } from "./operational-digest";
 import {
   isTerminalStatus,

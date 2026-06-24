@@ -4,89 +4,28 @@ import { prisma } from "@/lib/prisma";
 import { formatMeetingDays } from "@/lib/class-status";
 import { countOpenActionsByRelatedEntity } from "@/lib/people-strategy/action-queries";
 import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
-import { getMeetingsForEntity } from "@/lib/people-strategy/meetings-queries";
+import { getMeetingsForEntity, meetingDisplayTitle } from "@/lib/people-strategy/meetings-queries";
 import {
   asPartnerStage,
   isActivePartnerStage,
   PARTNER_WON_STAGES,
 } from "@/lib/partners-constants";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
+import {
+  initials,
+  shortDate,
+  type PartnerOperationsStatusTone,
+  type PartnerOperationsListRow,
+  type PartnerClassCard,
+  type PartnerOperationsDetail,
+} from "@/lib/partners-operations-shared";
+
+// Client-safe types + pure helpers live in ./partners-operations-shared; re-export
+// so existing importers of "@/lib/partners-operations" keep working unchanged.
+export * from "@/lib/partners-operations-shared";
 
 const ACTIVE_CLASS: ClassOfferingStatus[] = ["PUBLISHED", "IN_PROGRESS"];
 const SETUP_CLASS: ClassOfferingStatus[] = ["DRAFT"];
-
-export type PartnerOperationsStatusTone = "success" | "warning" | "danger" | "neutral";
-
-export type PartnerOperationsListRow = {
-  id: string;
-  name: string;
-  chapterLabel: string | null;
-  openActionCount: number;
-  lead: { id: string; name: string } | null;
-  classes: { total: number; active: number; inSetup: number };
-  instructors: Array<{ id: string; name: string }>;
-  instructorsToStaff: number;
-  nextFollowUpISO: string | null;
-  nextMeetingISO: string | null;
-  followUpOverdue: boolean;
-  statusLabel: string;
-  statusTone: PartnerOperationsStatusTone;
-};
-
-export type PartnerClassCard = {
-  id: string;
-  title: string;
-  scheduleLabel: string;
-  enrollmentLabel: string;
-  statusLabel: "Active" | "Setup";
-  statusTone: "success" | "warning";
-  instructor: { id: string; name: string } | null;
-  curriculumLead: string | null;
-  missingInstructor: boolean;
-  href: string;
-};
-
-export type PartnerOperationsDetail = {
-  id: string;
-  name: string;
-  chapterLabel: string | null;
-  classCount: number;
-  statusLabel: string;
-  statusTone: PartnerOperationsStatusTone;
-  notes: string | null;
-  lead: { id: string; name: string } | null;
-  nextMeetingISO: string | null;
-  nextFollowUpISO: string | null;
-  classes: PartnerClassCard[];
-  openActions: Array<{
-    id: string;
-    title: string;
-    dateRangeLabel: string;
-    ownerInitials: string;
-    href: string;
-  }>;
-  followUpHistory: Array<{ id: string; dateLabel: string; text: string }>;
-  filesAndLinks: Array<{ id: string; label: string; href: string | null }>;
-  partnerMeetings: Array<{ id: string; title: string; dateLabel: string; href: string }>;
-};
-
-function initials(name: string): string {
-  const words = name.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
-}
-
-function shortDate(iso: string | Date | null, now = new Date()): string {
-  if (!iso) return "—";
-  const d = typeof iso === "string" ? new Date(iso) : iso;
-  const sameYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
-}
 
 function scheduleLabel(offering: {
   meetingDays: string[];
@@ -158,7 +97,7 @@ const OFFERING_SELECT = {
       instructor: { select: { id: true, name: true, email: true } },
       curriculumDraft: {
         select: {
-          createdBy: { select: { name: true, email: true } },
+          author: { select: { name: true, email: true } },
         },
       },
     },
@@ -186,20 +125,11 @@ export async function loadPartnersOperationsList(): Promise<PartnerOperationsLis
   });
 
   const ids = partners.map((p) => p.id);
+  // The new Meeting model does not link to partners, so partner-scoped upcoming
+  // meetings resolve to empty.
   const [openActions, upcomingMeetings] = await Promise.all([
     countOpenActionsByRelatedEntity("PARTNER", ids),
-    ids.length > 0
-      ? prisma.officerMeeting.findMany({
-          where: {
-            relatedEntityType: "PARTNER",
-            relatedEntityId: { in: ids },
-            date: { gte: now },
-            status: { not: "CANCELLED" },
-          },
-          orderBy: { date: "asc" },
-          select: { relatedEntityId: true, date: true },
-        })
-      : Promise.resolve([]),
+    Promise.resolve([] as Array<{ relatedEntityId: string | null; date: Date }>),
   ]);
 
   const nextMeetingByPartner = new Map<string, Date>();
@@ -343,8 +273,8 @@ export async function loadPartnerOperationsDetail(
     }));
 
   const upcoming = meetings
-    .filter((m) => m.status !== "CANCELLED" && new Date(m.date) >= now)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .filter((m) => m.status !== "CANCELLED" && new Date(m.scheduledAt) >= now)
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
   const nextMeeting = upcoming[0] ?? null;
 
   const followUpOverdue = Boolean(
@@ -379,8 +309,8 @@ export async function loadPartnerOperationsDetail(
           }
         : null;
     const curriculumLead =
-      leadAssignment?.curriculumDraft?.createdBy?.name ??
-      leadAssignment?.curriculumDraft?.createdBy?.email ??
+      leadAssignment?.curriculumDraft?.author?.name ??
+      leadAssignment?.curriculumDraft?.author?.email ??
       null;
     const missing = isClassMissingInstructor(
       o.status as ClassOfferingStatus,
@@ -415,7 +345,7 @@ export async function loadPartnerOperationsDetail(
           name: partner.relationshipLead.name ?? partner.relationshipLead.email ?? "Lead",
         }
       : null,
-    nextMeetingISO: nextMeeting?.date ?? partner.meetingDate?.toISOString() ?? null,
+    nextMeetingISO: nextMeeting?.scheduledAt.toISOString() ?? partner.meetingDate?.toISOString() ?? null,
     nextFollowUpISO: partner.nextFollowUpAt?.toISOString() ?? null,
     classes,
     openActions,
@@ -431,11 +361,9 @@ export async function loadPartnerOperationsDetail(
     })),
     partnerMeetings: meetings.slice(0, 8).map((m) => ({
       id: m.id,
-      title: m.title,
-      dateLabel: shortDate(m.date, now),
+      title: meetingDisplayTitle(m),
+      dateLabel: shortDate(m.scheduledAt, now),
       href: `/meetings/${m.id}`,
     })),
   };
 }
-
-export { initials, shortDate };

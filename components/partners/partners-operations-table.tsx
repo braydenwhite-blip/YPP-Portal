@@ -9,7 +9,7 @@ import {
   shortDate,
   type PartnerOperationsListRow,
   type PartnerOperationsStatusTone,
-} from "@/lib/partners-operations";
+} from "@/lib/partners-operations-shared";
 
 const AVATAR_HUES = ["#e07b2d", "#5a1da8", "#0891b2", "#0e7c52", "#7c3aed", "#1d6fd6"];
 

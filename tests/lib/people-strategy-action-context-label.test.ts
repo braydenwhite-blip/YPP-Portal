@@ -5,28 +5,6 @@ import { deriveActionContextLabel } from "@/lib/people-strategy/action-context-l
 import { actionItem } from "./people-strategy-action-fixtures";
 
 describe("deriveActionContextLabel — where the action came from", () => {
-  it("names and dates the originating meeting", () => {
-    const ctx = deriveActionContextLabel(
-      actionItem({
-        officerMeetingId: "m1",
-        officerMeeting: {
-          id: "m1",
-          title: "Leadership Meeting",
-          date: new Date("2026-06-10T00:00:00Z"),
-          category: null,
-        } as never,
-      })
-    );
-    expect(ctx?.text).toContain("From Leadership Meeting —");
-    expect(ctx?.href).toBe("/meetings/m1");
-  });
-
-  it("falls back to a generic meeting label when only the id is present", () => {
-    const ctx = deriveActionContextLabel(actionItem({ officerMeetingId: "m2", officerMeeting: null }));
-    expect(ctx?.text).toBe("From a meeting");
-    expect(ctx?.href).toBe("/meetings/m2");
-  });
-
   it("labels the related entity by its plain noun", () => {
     const cases: Array<[string, string]> = [
       ["CLASS_OFFERING", "Related class"],
@@ -47,8 +25,6 @@ describe("deriveActionContextLabel — where the action came from", () => {
     expect(
       deriveActionContextLabel(
         actionItem({
-          officerMeetingId: null,
-          officerMeeting: null,
           relatedEntityType: null,
           relatedEntityId: null,
           strategicInitiativeId: null,

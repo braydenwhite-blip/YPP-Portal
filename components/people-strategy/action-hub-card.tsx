@@ -118,7 +118,9 @@ export function ActionHubCard({
     (item.goalCategory ? item.goalCategory : null);
 
   const actionSource = deriveActionSource(item);
-  const linkedMeetingId = actionSource.meetingId;
+  // Prefer the explicit picker assignment (dedicated meetingId FK); fall back to
+  // the source-derived meeting for legacy actions whose provenance is a meeting.
+  const linkedMeetingId = item.meetingId ?? actionSource.meetingId;
 
   const hasRoles = lead.length > 0 || executing.length > 0 || input.length > 0;
 
@@ -220,8 +222,12 @@ export function ActionHubCard({
         {linkedMeetingId ? (
           <ActionMeetingLink
             meetingId={linkedMeetingId}
-            meetingTitle={null}
-            meetingDate={new Date(item.deadlineEnd ?? item.deadlineStart)}
+            meetingTitle={item.meeting?.title ?? null}
+            meetingDate={
+              item.meeting
+                ? new Date(item.meeting.scheduledAt)
+                : new Date(item.deadlineEnd ?? item.deadlineStart)
+            }
             meetingHref={`/meetings/${linkedMeetingId}`}
           />
         ) : canAssignMeeting ? (

@@ -14,6 +14,7 @@ import {
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
+import { getMeetingActionLinks } from "@/lib/people-strategy/action-queries";
 import {
   getMeetingById,
   listRecentDecisions,
@@ -55,10 +56,8 @@ export default async function DecidePage() {
     return {
       id: decision.id,
       decision: decision.decision,
-      meetingTitle: decision.officerMeeting?.title ?? "Meeting",
-      meetingHref: decision.officerMeeting
-        ? `/meetings/${decision.officerMeeting.id}`
-        : "/meetings",
+      meetingTitle: decision.meeting?.title ?? "Meeting",
+      meetingHref: decision.meeting ? `/meetings/${decision.meeting.id}` : "/meetings",
       decidedByName,
       decidedByInitials: decidedByName ? initialsFromName(decidedByName) : null,
       whenISO,
@@ -71,7 +70,7 @@ export default async function DecidePage() {
   let relatedMeeting: CcMeeting | null = null;
   if (vm.focus?.relatedMeeting?.id) {
     const record = await getMeetingById(vm.focus.relatedMeeting.id).catch(() => null);
-    if (record) relatedMeeting = toCcMeeting(mapMeetingToCardDTO(record, now));
+    if (record) relatedMeeting = toCcMeeting(mapMeetingToCardDTO(record, now, await getMeetingActionLinks(record.id)));
   }
 
   return <DecideWorkspace vm={vm} relatedMeeting={relatedMeeting} nowISO={now.toISOString()} />;

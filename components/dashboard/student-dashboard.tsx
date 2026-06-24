@@ -191,12 +191,12 @@ export default function StudentDashboard({
           </>
         ) : hasClasses ? (
           <>
-            <span className={s.heroKicker}>You&apos;re on track</span>
+            <span className={s.heroKicker}>You're on track</span>
             <h2 id="home-hero-title" className={s.heroTitle}>
               Nice momentum, {name}.
             </h2>
             <p className={s.heroText}>
-              No class sessions in the next 7 days. Check what&apos;s due, or
+              No class sessions in the next 7 days. Check what's due, or
               discover a new class to keep building.
             </p>
             <div className={s.heroActions}>
@@ -212,11 +212,11 @@ export default function StudentDashboard({
           <>
             <span className={s.heroKicker}>Welcome to YPP</span>
             <h2 id="home-hero-title" className={s.heroTitle}>
-              Let&apos;s find your first class, {name}.
+              Let's find your first class, {name}.
             </h2>
             <p className={s.heroText}>
-              Explore classes built around what you&apos;re curious about. Pick
-              one that excites you and you&apos;ll be set up in minutes.
+              Explore classes built around what you're curious about. Pick
+              one that excites you and you'll be set up in minutes.
             </p>
             <div className={s.heroActions}>
               <Link href="/curriculum" className={s.heroBtn}>

@@ -12,7 +12,6 @@ import {
   deriveDepartmentSignals,
   deriveInstructorsWithoutMentor,
   deriveMentorshipsWithoutActions,
-  deriveOfficerMeetingFollowUps,
   deriveOpenActions,
 } from "@/lib/people-strategy/operations-hub";
 
@@ -144,37 +143,3 @@ describe("deriveDepartmentSignals", () => {
   });
 });
 
-describe("deriveOfficerMeetingFollowUps", () => {
-  it("flags past meetings with open items, counts overdue, drops settled, sorts worst first", () => {
-    const meetings = [
-      {
-        id: "m1",
-        date: new Date("2026-06-01T00:00:00Z"),
-        actionItems: [
-          { status: "NOT_STARTED" as const, deadlineStart: PAST, deadlineEnd: null },
-          { status: "IN_PROGRESS" as const, deadlineStart: FUTURE, deadlineEnd: null },
-        ],
-      },
-      {
-        id: "m2",
-        date: new Date("2026-06-02T00:00:00Z"),
-        actionItems: [
-          { status: "IN_PROGRESS" as const, deadlineStart: FUTURE, deadlineEnd: null },
-        ],
-      },
-      {
-        id: "m3",
-        date: new Date("2026-06-03T00:00:00Z"),
-        actionItems: [
-          { status: "COMPLETE" as const, deadlineStart: PAST, deadlineEnd: null },
-        ],
-      },
-    ];
-
-    const rows = deriveOfficerMeetingFollowUps(meetings, NOW);
-    // m3 (all settled) drops out; m1 (1 overdue) sorts before m2 (0 overdue).
-    expect(rows.map((r) => r.id)).toEqual(["m1", "m2"]);
-    expect(rows[0]).toMatchObject({ id: "m1", openCount: 2, overdueCount: 1 });
-    expect(rows[1]).toMatchObject({ id: "m2", openCount: 1, overdueCount: 0 });
-  });
-});

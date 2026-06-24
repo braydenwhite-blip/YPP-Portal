@@ -22,6 +22,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/instructor/lesson-design-studio",
     "/positions",
     "/applications",
+    "/messages",
   ],
   STUDENT: [
     "/",
@@ -31,6 +32,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/pathways",
     "/my-classes",
     "/events",
+    "/messages",
   ],
   INSTRUCTOR: [
     "/",
@@ -40,12 +42,14 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/attendance",
     "/instructor/parent-feedback",
     "/my-mentor",
+    "/messages",
   ],
   ADMIN: [
     "/",
     "/people",
     "/actions",
     "/meetings",
+    "/messages",
   ],
   HIRING_CHAIR: [
     "/",
@@ -54,6 +58,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/people",
     "/actions",
     "/meetings",
+    "/messages",
   ],
   PARENT: [
     "/",
@@ -62,23 +67,27 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/calendar",
     "/parent/connect",
     "/goals",
+    "/messages",
   ],
   CHAPTER_PRESIDENT: [
     "/",
     "/chapter",
     "/people",
     "/actions",
+    "/messages",
   ],
   MENTOR: [
     "/",
     "/mentorship",
     "/mentorship/mentees",
     "/office-hours",
+    "/messages",
   ],
   STAFF: [
     "/",
     "/people",
     "/actions",
     "/meetings",
+    "/messages",
   ],
 };

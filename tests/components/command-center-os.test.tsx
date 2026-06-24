@@ -220,12 +220,11 @@ describe("AreaHealthGrid", () => {
 });
 
 describe("MeetingFollowThroughCard", () => {
-  it("renders the meeting outcome quality badge", () => {
+  it("renders the meeting header with facilitator context", () => {
     const meeting = meetingLite({ id: "m2", title: "Strong meeting" });
     render(<MeetingFollowThroughCard meeting={meeting} />);
-    expect(screen.getByText("Needs follow-through")).toBeInTheDocument();
+    expect(screen.getByText("Strong meeting")).toBeInTheDocument();
     expect(screen.getByText(/Facilitator: Alice/)).toBeInTheDocument();
-    expect(screen.getByText(/Actions created:/)).toBeInTheDocument();
   });
 
   it("flags a meeting with decisions but no action and links to the workspace", () => {

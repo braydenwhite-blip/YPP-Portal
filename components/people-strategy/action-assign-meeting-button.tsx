@@ -8,8 +8,8 @@ import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import {
   assignActionItemToMeeting,
   listMeetingsForActionAssignmentPicker,
-} from "@/lib/people-strategy/officer-meetings-actions";
-import type { MeetingPickerOption } from "@/lib/people-strategy/officer-meetings-queries";
+} from "@/lib/people-strategy/action-meeting-link-actions";
+import type { MeetingPickerOption } from "@/lib/people-strategy/action-meeting-link";
 import { cn } from "@/components/ui-v2";
 
 function meetingWhenLabel(iso: string): string {

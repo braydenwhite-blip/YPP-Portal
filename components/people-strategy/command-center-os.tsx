@@ -24,7 +24,7 @@ import { EntityLink } from "@/components/operations/entity-link";
 import { RELATED_TO_ENTITY_360 } from "@/lib/operations/entity-360";
 
 import { ActionCommandBar } from "./action-command-bar";
-import { MeetingOutcomeBadge, OperationalHealthBadge } from "./operational-badges";
+import { OperationalHealthBadge } from "./operational-badges";
 import { Pill, type PillTone } from "./pills";
 import { StatCard, type StatTone } from "./stat-card";
 
@@ -501,7 +501,6 @@ export function MeetingFollowThroughCard({ meeting }: { meeting: MeetingLite }) 
         {meeting.facilitatorName ? <span>Facilitator: {meeting.facilitatorName}</span> : null}
         {meeting.attendeeCount > 0 ? <span>{meeting.attendeeCount} attendee{meeting.attendeeCount === 1 ? "" : "s"}</span> : null}
         {meeting.relatedLabel ? <span>{meeting.relatedLabel}</span> : null}
-        <MeetingOutcomeBadge outcome={meeting.outcome} />
         {meeting.openFollowUps > 0 ? (
           <span>
             {meeting.openFollowUps} open follow-up{meeting.openFollowUps === 1 ? "" : "s"}

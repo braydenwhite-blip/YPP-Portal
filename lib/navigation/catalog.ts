@@ -142,6 +142,16 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Read chapter and platform updates.",
       dashboardPriority: 25,
     },
+    {
+      href: "/messages",
+      label: "Messages",
+      icon: "✉",
+      roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR", "STAFF", "APPLICANT", "PARENT"] as NavRole[],
+      badgeKey: "messages",
+      dashboardBadgeKey: "unread_messages",
+      dashboardDescription: "Open direct, parent, and interview conversations in one shared inbox.",
+      dashboardPriority: 9,
+    },
     { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "💬" },
   ]),
 
@@ -522,24 +532,6 @@ export const NAV_CATALOG: NavLink[] = [
       ],
       dashboardDescription:
         "Assign ownership, close gaps, and keep work moving forward.",
-      dashboardPriority: 6,
-    },
-    {
-      href: "/meet",
-      label: "Meet",
-      icon: "🛎️",
-      // Meetings as live operating rooms — before / during / after.
-      roles: ["ADMIN", "STAFF", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: [
-        "Meet",
-        "Meeting room",
-        "Run a meeting",
-        "Agenda",
-        "Meeting prep",
-        "Live notes",
-      ],
-      dashboardDescription:
-        "Run your meetings — prep before, run during, wrap up after.",
       dashboardPriority: 6,
     },
     {
@@ -1340,6 +1332,37 @@ export const NAV_CATALOG: NavLink[] = [
       ],
     },
     { href: "/admin/bulk-users", label: "Bulk Users", icon: "👥", roles: ADMIN_ONLY },
+    {
+      href: "/admin/role-management",
+      label: "Role Management",
+      icon: "🪪",
+      roles: ADMIN_ONLY,
+      searchAliases: [
+        "Roles",
+        "User roles",
+        "Set roles",
+        "Promote",
+        "Promotion",
+        "Promotional view",
+        "Role assignments",
+        "Cohort",
+        "Cohorts",
+        "Group",
+        "Ladder",
+        "Level",
+      ],
+      dashboardDescription:
+        "Set every user's exact roles, ladder/level, and cohort from one place.",
+    },
+    {
+      href: "/admin/teams",
+      label: "Teams",
+      icon: "🧩",
+      roles: ADMIN_ONLY,
+      searchAliases: ["Teams", "Team config", "Weekly Impact teams", "Team membership"],
+      dashboardDescription:
+        "Create teams and assign members for Weekly Impact and team meetings.",
+    },
     {
       href: "/admin/parent-approvals",
       label: "Parent Approvals",

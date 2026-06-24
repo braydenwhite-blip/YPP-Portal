@@ -8,6 +8,7 @@ import {
   deriveActionStrategicLinkage,
   isActionCompletionOutcome,
   isActionSourceType,
+  isMeetingSourceType,
   parseActionCompletionOutcome,
   parseActionSourceType,
   parseStrategicLink,
@@ -149,13 +150,6 @@ describe("deriveActionSource", () => {
     expect(src.parentActionId).toBe("act_1");
   });
 
-  it("infers MEETING from officerMeetingId on a legacy row", () => {
-    const src = deriveActionSource({ officerMeetingId: "mtg_1" });
-    expect(src.type).toBe("MEETING");
-    expect(src.explicit).toBe(false);
-    expect(src.meetingId).toBe("mtg_1");
-  });
-
   it("infers ENTITY from a related entity on a legacy row", () => {
     const src = deriveActionSource({
       relatedEntityType: "PARTNER",
@@ -174,10 +168,30 @@ describe("deriveActionSource", () => {
   it("prefers explicit over inferred signals", () => {
     const src = deriveActionSource({
       sourceType: "WEEKLY_REVIEW",
-      officerMeetingId: "mtg_1",
+      sourceActionId: "act_1",
     });
     expect(src.type).toBe("WEEKLY_REVIEW");
     expect(src.explicit).toBe(true);
+  });
+
+  it("resolves meetingId from sourceId for a MEETING source only", () => {
+    const meeting = deriveActionSource({ sourceType: "MEETING", sourceId: "mtg_1" });
+    expect(meeting.meetingId).toBe("mtg_1");
+    // A decision/follow-up action points at the child record, not the meeting.
+    const decision = deriveActionSource({ sourceType: "MEETING_DECISION", sourceId: "dec_1" });
+    expect(decision.meetingId).toBeNull();
+    expect(decision.sourceId).toBe("dec_1");
+  });
+});
+
+describe("isMeetingSourceType", () => {
+  it("matches the three meeting source types and nothing else", () => {
+    for (const v of ["MEETING", "MEETING_DECISION", "MEETING_FOLLOW_UP"]) {
+      expect(isMeetingSourceType(v)).toBe(true);
+    }
+    for (const v of ["MANUAL", "PROJECT", "FOLLOW_UP", null, undefined]) {
+      expect(isMeetingSourceType(v)).toBe(false);
+    }
   });
 });
 
@@ -186,7 +200,6 @@ describe("deriveActionSourceLabel", () => {
     expect(deriveActionSourceLabel({ sourceType: "MEETING_DECISION" })).toBe(
       "From a meeting decision"
     );
-    expect(deriveActionSourceLabel({ officerMeetingId: "m1" })).toBe("Looks like a meeting");
     expect(deriveActionSourceLabel({})).toBe("Manual");
   });
 });

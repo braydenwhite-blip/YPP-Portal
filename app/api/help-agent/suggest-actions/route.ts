@@ -69,8 +69,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
   }
 
-  const notes = meeting.notesText ?? "";
-  const meetingDateISO = meeting.date ? meeting.date.toISOString() : null;
+  const notes = meeting.notes ?? "";
+  const meetingDateISO = meeting.scheduledAt ? meeting.scheduledAt.toISOString() : null;
 
   // Valid owners = attendees + facilitator (people the notes are likely to name).
   const peopleMap = new Map<string, SuggestPerson>();

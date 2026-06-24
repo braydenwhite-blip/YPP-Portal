@@ -15,6 +15,16 @@ export function isVercelPreviewDeployment(): boolean {
   return process.env.VERCEL_ENV === "preview";
 }
 
+/**
+ * True on the production Vercel deployment. Used to force the now-GA
+ * People-Strategy suite (Action Tracker, Operations Hub, Strategic Initiatives)
+ * ON in production regardless of the legacy `ENABLE_*=false` kill-switches that
+ * were mirrored into the prod environment. Non-prod keeps the env toggles.
+ */
+export function isProductionDeployment(): boolean {
+  return process.env.VERCEL_ENV === "production";
+}
+
 export function isInternalPreviewFeatureBundleEnabled(): boolean {
   const override = (process.env.PORTAL_PREVIEW_FEATURES ?? "").toLowerCase().trim();
   if (override === "false" || override === "0" || override === "off") return false;

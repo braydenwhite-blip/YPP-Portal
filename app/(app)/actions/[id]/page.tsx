@@ -127,9 +127,9 @@ function toDetailDTO(
     deadlineStart: item.deadlineStart.toISOString(),
     deadlineEnd: item.deadlineEnd ? item.deadlineEnd.toISOString() : null,
     visibility: item.visibility,
-    officerMeetingId: item.officerMeetingId,
-    officerMeetingTitle: item.officerMeeting?.title ?? null,
-    officerMeetingDate: item.officerMeeting?.date ? item.officerMeeting.date.toISOString() : null,
+    officerMeetingId: item.meetingId,
+    officerMeetingTitle: item.meeting?.title ?? null,
+    officerMeetingDate: item.meeting?.scheduledAt ? item.meeting.scheduledAt.toISOString() : null,
     strategicInitiativeId: item.strategicInitiativeId,
     strategicProjectId: item.strategicProjectId,
     relatedEntityType: item.relatedEntityType,
@@ -225,7 +225,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
         )
       : Promise.resolve([] as ActionItemWithRelations[]),
     (() => {
-      const meetingId = deriveActionSource(item).meetingId;
+      const meetingId = item.meetingId ?? deriveActionSource(item).meetingId;
       return meetingId
         ? getActionsForMeeting(meetingId, viewer).catch(() => [] as ActionItemWithRelations[])
         : Promise.resolve([] as ActionItemWithRelations[]);
@@ -247,7 +247,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
     .map((a) => toLiteAction(a, now));
 
   const actionSource = deriveActionSource(item);
-  const linkedMeetingId = actionSource.meetingId;
+  const linkedMeetingId = item.meetingId ?? actionSource.meetingId;
 
   return (
     <div className={`${skin.portalSkin} ${skin.fadeIn}`}>

@@ -6,9 +6,34 @@ import {
   relatedEntityTypeLabel,
   type RelatedEntityType,
 } from "./constants";
-import { isMeetingCategory } from "./meeting-categories";
-import type { MeetingType } from "./meeting-operating-model";
 import { areaForRelatedEntityType } from "./operational-context";
+
+/**
+ * Operating-area vocabulary used to tag an action's `goalCategory` / area. This
+ * was previously exported from the (now-retired) meeting-categories module; the
+ * controlled list is kept here so an unrecognized label is ignored rather than
+ * stored as a bogus area.
+ */
+const OPERATING_AREA_VALUES = [
+  "LEADERSHIP",
+  "CLASSES",
+  "INSTRUCTORS",
+  "APPLICATIONS",
+  "MENTORSHIP",
+  "CHAPTERS",
+  "PARTNERSHIPS",
+  "MARKETING",
+  "TECHNOLOGY",
+  "OPERATIONS",
+  "FINANCE",
+  "OTHER",
+] as const;
+
+function isMeetingCategory(value: string | null | undefined): value is string {
+  return (
+    typeof value === "string" && (OPERATING_AREA_VALUES as readonly string[]).includes(value)
+  );
+}
 import { type ActionType } from "./action-types";
 
 /**
@@ -259,6 +284,9 @@ export function buildActionPrefillFromMeeting(src: MeetingActionPrefillSource): 
     title: src.title,
     sourceMeetingId: src.meetingId,
     sourceType: "MEETING",
+    // The meeting id IS this action's durable source pointer (sourceMeetingId is
+    // not persisted on the new model), so the read-side can resolve it back.
+    sourceId: src.meetingId,
     area:
       src.meetingCategory && isMeetingCategory(src.meetingCategory)
         ? src.meetingCategory
@@ -307,7 +335,10 @@ export function buildActionPrefillFromMeetingFollowUp(
     title,
     description: parts.join("\n\n"),
     sourceMeetingId: src.meetingId,
-    sourceType: "MEETING",
+    // Honest provenance: this action carries out a specific meeting follow-up,
+    // so the fine-grained sourceId is the follow-up id (distinct from a
+    // meeting-level action, whose sourceId is the meeting id).
+    sourceType: "MEETING_FOLLOW_UP",
     sourceId: src.followUpId,
     suggestedOwnerId: src.suggestedOwnerId ?? undefined,
     successDefinition: "Done when this follow-up is completed and confirmed in the meeting record.",
@@ -413,7 +444,6 @@ export type ExistingActionLite = {
   title: string;
   /** ActionItemStatus; COMPLETE / DROPPED are treated as settled. */
   status: string;
-  officerMeetingId?: string | null;
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
 };
@@ -450,8 +480,9 @@ export function findDuplicateActionCandidates(
   for (const action of existing) {
     if (SETTLED_STATUS.has(action.status)) continue;
 
-    const sameMeeting =
-      !!input.sourceMeetingId && action.officerMeetingId === input.sourceMeetingId;
+    // The legacy meeting link column has been removed, so two actions can no
+    // longer be matched as "from the same meeting".
+    const sameMeeting = false;
     const sameEntity =
       !!input.relatedType &&
       !!input.relatedId &&
@@ -486,7 +517,7 @@ export function findDuplicateActionCandidates(
 export type MeetingPrefillSpec = {
   title?: string;
   purpose?: string;
-  meetingType?: MeetingType;
+  meetingType?: string;
   relatedType?: RelatedEntityType;
   relatedId?: string;
   /** Meeting category (operating area). */

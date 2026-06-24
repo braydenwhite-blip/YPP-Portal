@@ -1,7 +1,7 @@
 import type { ActionItemWithRelations } from "./action-queries";
 import type { RelatedEntitySummary } from "./connections";
 import { isRelatedEntityType, relatedEntityTypeLabel } from "./constants";
-import type { MeetingCardDTO } from "./meetings-queries";
+import type { MeetingCardDTO } from "./meeting-card-types";
 import type { DigestDecisionInput } from "./operational-digest";
 import type { InitiativeMilestoneSummary } from "./strategic-milestones";
 

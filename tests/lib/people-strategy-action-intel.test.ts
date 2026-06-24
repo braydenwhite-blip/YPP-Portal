@@ -40,7 +40,6 @@ function item(overrides: Partial<ActionItemWithRelations>): ActionItemWithRelati
     completedAt: null,
     visibility: "ALL_LEADERSHIP",
     leadId: "alice",
-    officerMeetingId: null,
     flaggedAt: null,
     escalatedToLeadershipAt: null,
     resolvedAt: null,
@@ -261,7 +260,7 @@ describe("deriveActionStaleGroup", () => {
 describe("deriveActionSourceGroups", () => {
   it("groups by explicit/inferred source in a stable order", () => {
     const groups = deriveActionSourceGroups([
-      item({ id: "m", officerMeetingId: "mtg1" }), // inferred MEETING
+      item({ id: "m", sourceType: "MEETING" }), // explicit MEETING
       item({ id: "p", sourceType: "PROJECT" }), // explicit PROJECT
       item({ id: "man" }), // MANUAL
     ]);

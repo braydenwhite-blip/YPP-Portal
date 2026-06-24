@@ -42,7 +42,6 @@ const prismaMock = vi.hoisted(() => ({
   actionItem: { findMany: vi.fn() },
   mentorship: { findMany: vi.fn() },
   classOffering: { findMany: vi.fn() },
-  officerMeeting: { findMany: vi.fn() },
   feedbackRequest: { create: vi.fn(), findMany: vi.fn() },
   checkIn: { findMany: vi.fn() },
 }));
@@ -91,7 +90,6 @@ beforeEach(() => {
   prismaMock.actionItem.findMany.mockResolvedValue([]);
   prismaMock.mentorship.findMany.mockResolvedValue([]);
   prismaMock.classOffering.findMany.mockResolvedValue([]);
-  prismaMock.officerMeeting.findMany.mockResolvedValue([]);
   prismaMock.feedbackRequest.findMany.mockResolvedValue([]);
   prismaMock.checkIn.findMany.mockResolvedValue([]);
   prismaMock.feedbackRequest.create.mockImplementation(
@@ -244,26 +242,6 @@ describe("suggestFeedbackCollaborators", () => {
     expect(suggestions[0].reasons.some((r) => r.includes("1 action item"))).toBe(true);
   });
 
-  it("includes shared officer meetings as evidence", async () => {
-    prismaMock.officerMeeting.findMany.mockResolvedValue([
-      {
-        id: "m1",
-        title: "Weekly Leadership Sync",
-        date: new Date("2026-06-08T00:00:00Z"),
-        attendees: [
-          { user: rawUser(SUBJECT.id, "Brayden Kim") },
-          { user: rawUser("sam", "Sam Singer") },
-        ],
-      },
-    ]);
-    const suggestions = await suggestFeedbackCollaborators(SUBJECT.id);
-    expect(suggestions.map((s) => s.id)).toEqual(["sam"]);
-    expect(suggestions[0].defaultSelected).toBe(false);
-    expect(suggestions[0].contextItems[0]).toMatchObject({
-      type: "meeting",
-      title: "Weekly Leadership Sync",
-    });
-  });
 });
 
 // ── prepareMonthlyFeedbackPlan ───────────────────────────────────────────────

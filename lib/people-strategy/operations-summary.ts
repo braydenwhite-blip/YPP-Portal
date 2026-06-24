@@ -191,14 +191,14 @@ export function meetingToOperationsItem(
       : meetingOutputSentence(meeting),
     owner: meeting.facilitatorName,
     dueISO: meeting.startISO,
-    status: upcoming ? `Meets ${shortDate(meeting.startISO)}` : meeting.outcome.headline,
+    status: upcoming ? `Meets ${shortDate(meeting.startISO)}` : meetingOutputSentence(meeting),
     tone: upcoming ? "info" : meeting.openFollowUps > 0 ? "warning" : "success",
     meetingTitle: meeting.title,
     initiativeTitle: null,
     relatedLabel: meeting.relatedLabel,
     nextStep: upcoming
       ? "Make sure every output becomes a decision, action, or loose end."
-      : (meeting.outcome.suggestedNextSteps[0] ?? null),
+      : (meeting.unconvertedFollowUps[0]?.title ?? null),
     href: meeting.href,
   };
 }

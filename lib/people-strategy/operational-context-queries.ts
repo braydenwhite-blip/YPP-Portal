@@ -21,7 +21,7 @@ import { meetingCategoryLabel } from "./meeting-categories";
 import {
   getMeetingsForEntity,
   listMeetingsForArea,
-  mapMeetingToCardDTO,
+  mapMeetingsToCardDTOs,
   type MeetingCardDTO,
   type MeetingWithCommandCenter,
 } from "./meetings-queries";
@@ -188,7 +188,7 @@ function extractOpenFollowUps(
         dueISO: f.dueDate ? f.dueDate.toISOString() : null,
         effectiveStatus: status,
         ownerName: f.owner?.name ?? f.owner?.email ?? null,
-        areaLabel: meetingCategoryLabel(f.area ?? m.category),
+        areaLabel: meetingCategoryLabel(null),
         sortKey: f.dueDate ? f.dueDate.getTime() : Number.MAX_SAFE_INTEGER,
       });
     }
@@ -257,7 +257,7 @@ export async function getOperationalContextForEntity(
     loadRelatedEntitySummary(type, entityId).catch(() => null),
   ]);
 
-  const meetings = rawMeetings.map((m) => mapMeetingToCardDTO(m, now));
+  const meetings = await mapMeetingsToCardDTOs(rawMeetings, now);
 
   return {
     ref: { type, id: entityId },
@@ -317,7 +317,7 @@ export async function getOperationalContextForArea(
       areaForRelatedEntityType(a.relatedEntityType) === area
   );
 
-  const meetings = rawMeetings.map((m) => mapMeetingToCardDTO(m, now));
+  const meetings = await mapMeetingsToCardDTOs(rawMeetings, now);
 
   return {
     area,

@@ -29,10 +29,6 @@
       "schedule": "0 8 * * 1"
     },
     {
-      "path": "/api/cron/weekly-team-briefs",
-      "schedule": "15 8 * * 1"
-    },
-    {
       "path": "/api/cron/action-deadline-warning",
       "schedule": "0 8 * * *"
     },

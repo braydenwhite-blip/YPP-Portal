@@ -1,5 +1,4 @@
 import { EntityActionPanel } from "@/components/work/entity-action-panel";
-import { RelatedMeetingsList } from "@/components/people-strategy/related-meetings-list";
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
@@ -626,15 +625,6 @@ export default async function AdminInstructorRecordPage({
             now={now}
           />
         </RecordSection>
-      ) : null}
-
-      {/* Related meetings — shared component, consistent with the student record.
-          Only shown when this instructor has come up in a tracked meeting. */}
-      {operationsEnabled && opsContext && opsContext.meetings.length > 0 ? (
-        <RelatedMeetingsList
-          meetings={opsContext.meetings}
-          heading="Related meetings"
-        />
       ) : null}
 
       {activity.length > 0 ? (

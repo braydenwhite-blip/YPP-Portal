@@ -58,7 +58,8 @@
     "search:reconcile": "tsx scripts/backfill-search-documents.ts",
     "migrate:users:validate-csv": "node scripts/import-users-from-csv.mjs",
     "cleanup:non-scarsdale-chapters": "tsx scripts/cleanup-non-scarsdale-chapters.ts",
-    "archive:all-applications": "tsx scripts/archive-all-applications.ts"
+    "archive:all-applications": "tsx scripts/archive-all-applications.ts",
+    "backfill:weekly-impact-rows": "node scripts/backfill-weekly-impact-rows.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

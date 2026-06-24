@@ -19,8 +19,8 @@ const STATUS_CLASS: Record<
   warning: "text-[#b45309]",
   danger: "text-[#c0392b]",
   info: "text-[#5a1da8]",
+  brand: "text-[#6b21c8]",
   neutral: "text-[#9a9ab0]",
-  brand: "text-[#5a1da8]",
 };
 
 /** Check-in status + a dedicated compile button (purple = action needed, green = done). */

@@ -393,6 +393,29 @@ export const STRATEGIC_INITIATIVES: StrategicInitiativeDef[] = [
           ],
         },
       },
+      {
+        id: "chapters",
+        title: "Chapter Updates",
+        order: 5,
+        description:
+          "Chapter health, new chapter launches, chapter lead check-ins, demo days, and cross-chapter coordination.",
+        match: {
+          areas: ["CHAPTERS", "OPERATIONS"],
+          actionTypes: ["OUTREACH", "RELATIONSHIP", "OPERATIONS"],
+          goalCategories: ["Chapters", "Chapter Updates", "Chapter Health", "Chapter Launch"],
+          keywords: [
+            "chapter",
+            "chapters",
+            "chapter update",
+            "chapter health",
+            "chapter lead",
+            "demo day",
+            "newark",
+            "edison",
+            "roundtable",
+          ],
+        },
+      },
     ],
     milestones: [
       {

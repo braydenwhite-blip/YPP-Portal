@@ -1,6 +1,6 @@
 import type { ActionItemWithRelations } from "./action-queries";
 import type { RelatedEntitySummary } from "./connections";
-import type { MeetingCardDTO } from "./meetings-queries";
+import type { MeetingCardDTO } from "./meeting-card-types";
 import type { DigestDecisionInput } from "./operational-digest";
 import type { InitiativeMilestoneSummary } from "./strategic-milestones";
 import { projectHref } from "./strategic-project-registry";
@@ -107,7 +107,7 @@ function toActionLite(a: ActionItemWithRelations, now: Date): ProjectActionLite 
     status: a.status,
     dueISO: a.deadlineStart ? a.deadlineStart.toISOString() : null,
     overdue,
-    fromMeeting: !!a.officerMeetingId,
+    fromMeeting: false,
     priority: a.priority,
   };
 }

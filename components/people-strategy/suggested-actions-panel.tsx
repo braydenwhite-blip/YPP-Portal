@@ -175,7 +175,7 @@ export function SuggestedActionsPanel({
         <p className="m-0 text-[13.5px] text-ink-muted">
           No clear action items were detected in the notes. You can still{" "}
           <a
-            href={`/actions/new?officerMeetingId=${meetingId}`}
+            href="/actions/new"
             className="font-semibold text-brand-700 hover:underline"
           >
             create an action manually

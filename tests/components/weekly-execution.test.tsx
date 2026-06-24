@@ -5,13 +5,6 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
-vi.mock("@/lib/people-strategy/meetings-actions", () => ({
-  addDecision: vi.fn(),
-  addFollowUp: vi.fn(),
-  createMeeting: vi.fn(),
-  saveMeetingNotes: vi.fn(),
-}));
-
 import { WeeklyExecutionOSView } from "@/components/people-strategy/weekly-execution";
 import type { WeeklyExecutionOS } from "@/lib/people-strategy/weekly-execution";
 
@@ -155,13 +148,12 @@ function osFixture(overrides: Partial<WeeklyExecutionOS> = {}): WeeklyExecutionO
 }
 
 describe("WeeklyExecutionOSView", () => {
-  it("renders the four meeting-workflow stages and operational content", () => {
+  it("renders the meeting-workflow stages and operational content", () => {
     render(<WeeklyExecutionOSView os={osFixture()} people={people} currentUserId="u1" />);
 
     expect(screen.getByRole("heading", { name: "1. Build agenda" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "2. Capture meeting" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "3. Resolve follow-ups" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "4. Draft recap" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "2. Resolve follow-ups" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "3. Draft recap" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Follow-ups" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Communications needed" })).toBeInTheDocument();
 

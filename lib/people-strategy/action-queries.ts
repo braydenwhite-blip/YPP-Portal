@@ -45,6 +45,9 @@ const ACTION_ITEM_INCLUDE = {
       email: true,
       primaryRole: true,
       title: true,
+      internalLevel: true,
+      ladder: true,
+      canonicalTitle: true,
       adminSubtypes: { select: { subtype: true } },
       profile: { select: { avatarUrl: true } },
     },
@@ -56,6 +59,9 @@ const ACTION_ITEM_INCLUDE = {
       email: true,
       primaryRole: true,
       title: true,
+      internalLevel: true,
+      ladder: true,
+      canonicalTitle: true,
       adminSubtypes: { select: { subtype: true } },
       profile: { select: { avatarUrl: true } },
     },
@@ -72,10 +78,6 @@ const ACTION_ITEM_INCLUDE = {
     },
   },
   department: { select: { id: true, name: true, slug: true } },
-  // Source meeting (Meetings Tracker): when an action was generated from a
-  // meeting follow-up / agenda item it carries officerMeetingId. Surfaced as a
-  // "Source: Meeting" badge that links back to the Weekly Command Center.
-  officerMeeting: { select: { id: true, title: true, date: true, category: true } },
   mentorshipSession: {
     select: {
       id: true,
@@ -135,6 +137,11 @@ const ACTION_ITEM_INCLUDE = {
       },
     },
   },
+  // Meeting this action is explicitly assigned to (dedicated meetingId FK), used
+  // to render the "Meeting: …" link on the hub card and detail page.
+  meeting: {
+    select: { id: true, title: true, scheduledAt: true, type: true, status: true },
+  },
 } satisfies Prisma.ActionItemInclude;
 
 export type ActionItemWithRelations = Prisma.ActionItemGetPayload<{
@@ -177,7 +184,13 @@ export async function getMyActionItems(
 
   const items = await prisma.actionItem.findMany({
     where: {
-      OR: [{ leadId: userId }, { assignments: { some: { userId } } }],
+      OR: [
+        { leadId: userId },
+        { assignments: { some: { userId } } },
+        // A creator always sees what they created, even if they set someone
+        // else as Lead and aren't otherwise assigned.
+        { createdById: userId },
+      ],
     },
     include: ACTION_ITEM_INCLUDE,
     orderBy: [
@@ -246,12 +259,194 @@ export async function getActionItemById(
   return item;
 }
 
+// ---------------------------------------------------------------------------
+// Meeting ↔ action linkage
+// ---------------------------------------------------------------------------
+
+/** A tracked action that originated from a meeting (lean shape for previews). */
+export type MeetingLinkedAction = {
+  id: string;
+  title: string;
+  status: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  deadlineISO: string | null;
+  owner: { id: string; name: string | null; email: string } | null;
+  sourceType: string | null;
+  sourceId: string | null;
+};
+
+export type MeetingActionLinks = {
+  /** Decision id → the action that carries it out (first match). */
+  decisionActionId: Map<string, string>;
+  /** Follow-up id → the action that carries it out (first match). */
+  followUpActionId: Map<string, string>;
+  /** Every action sourced from this meeting (decision / follow-up / meeting-level). */
+  actions: MeetingLinkedAction[];
+};
+
+function emptyMeetingActionLinks(): MeetingActionLinks {
+  return { decisionActionId: new Map(), followUpActionId: new Map(), actions: [] };
+}
+
+/**
+ * Resolve which of a meeting's decisions / follow-ups have become tracked
+ * actions (and any meeting-level actions), using the honest source provenance
+ * stored on `ActionItem` (`sourceType` + `sourceId`). No schema coupling: a
+ * `MEETING` action points at the meeting id, a `MEETING_DECISION` action at the
+ * decision id, a `MEETING_FOLLOW_UP` action at the follow-up id. Returns empty
+ * maps/list when the tracker flag is off or the meeting has no decisions/
+ * follow-ups and no meeting-level actions.
+ */
+export async function getMeetingActionLinks(meetingId: string): Promise<MeetingActionLinks> {
+  if (!isActionTrackerEnabled() || !meetingId) return emptyMeetingActionLinks();
+
+  const meeting = await prisma.meeting.findUnique({
+    where: { id: meetingId },
+    select: { decisions: { select: { id: true } }, followUps: { select: { id: true } } },
+  });
+  if (!meeting) return emptyMeetingActionLinks();
+
+  const decisionIds = meeting.decisions.map((d) => d.id);
+  const followUpIds = meeting.followUps.map((f) => f.id);
+
+  const or: Prisma.ActionItemWhereInput[] = [
+    { sourceType: "MEETING", sourceId: meetingId },
+  ];
+  if (decisionIds.length) or.push({ sourceType: "MEETING_DECISION", sourceId: { in: decisionIds } });
+  if (followUpIds.length) or.push({ sourceType: "MEETING_FOLLOW_UP", sourceId: { in: followUpIds } });
+
+  const rows = await prisma.actionItem.findMany({
+    where: { OR: or },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      priority: true,
+      deadlineStart: true,
+      deadlineEnd: true,
+      sourceType: true,
+      sourceId: true,
+      lead: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const decisionActionId = new Map<string, string>();
+  const followUpActionId = new Map<string, string>();
+  const actions: MeetingLinkedAction[] = rows.map((r) => {
+    if (r.sourceType === "MEETING_DECISION" && r.sourceId && !decisionActionId.has(r.sourceId)) {
+      decisionActionId.set(r.sourceId, r.id);
+    }
+    if (r.sourceType === "MEETING_FOLLOW_UP" && r.sourceId && !followUpActionId.has(r.sourceId)) {
+      followUpActionId.set(r.sourceId, r.id);
+    }
+    return {
+      id: r.id,
+      title: r.title,
+      status: r.status,
+      priority: r.priority,
+      deadlineISO: (r.deadlineEnd ?? r.deadlineStart)?.toISOString() ?? null,
+      owner: r.lead ? { id: r.lead.id, name: r.lead.name, email: r.lead.email } : null,
+      sourceType: r.sourceType,
+      sourceId: r.sourceId,
+    };
+  });
+
+  return { decisionActionId, followUpActionId, actions };
+}
+
+/**
+ * Batch variant of {@link getMeetingActionLinks} for meeting lists — resolves
+ * every meeting's action linkage in a fixed number of queries (not one per
+ * meeting). Returns a map keyed by meeting id; meetings with no links get an
+ * empty entry so callers can index without a null check.
+ */
+export async function getMeetingActionLinksForMeetings(
+  meetingIds: string[]
+): Promise<Map<string, MeetingActionLinks>> {
+  const result = new Map<string, MeetingActionLinks>();
+  const ids = Array.from(new Set(meetingIds.filter(Boolean)));
+  for (const id of ids) result.set(id, emptyMeetingActionLinks());
+  if (!isActionTrackerEnabled() || ids.length === 0) return result;
+
+  const meetings = await prisma.meeting.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      decisions: { select: { id: true } },
+      followUps: { select: { id: true } },
+    },
+  });
+
+  const decisionToMeeting = new Map<string, string>();
+  const followUpToMeeting = new Map<string, string>();
+  for (const m of meetings) {
+    for (const d of m.decisions) decisionToMeeting.set(d.id, m.id);
+    for (const f of m.followUps) followUpToMeeting.set(f.id, m.id);
+  }
+
+  const rows = await prisma.actionItem.findMany({
+    where: {
+      OR: [
+        { sourceType: "MEETING", sourceId: { in: ids } },
+        { sourceType: "MEETING_DECISION", sourceId: { in: [...decisionToMeeting.keys()] } },
+        { sourceType: "MEETING_FOLLOW_UP", sourceId: { in: [...followUpToMeeting.keys()] } },
+      ],
+    },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      priority: true,
+      deadlineStart: true,
+      deadlineEnd: true,
+      sourceType: true,
+      sourceId: true,
+      lead: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  for (const r of rows) {
+    if (!r.sourceId) continue;
+    let meetingId: string | undefined;
+    if (r.sourceType === "MEETING") meetingId = ids.includes(r.sourceId) ? r.sourceId : undefined;
+    else if (r.sourceType === "MEETING_DECISION") meetingId = decisionToMeeting.get(r.sourceId);
+    else if (r.sourceType === "MEETING_FOLLOW_UP") meetingId = followUpToMeeting.get(r.sourceId);
+    if (!meetingId) continue;
+
+    const bucket = result.get(meetingId);
+    if (!bucket) continue;
+    if (r.sourceType === "MEETING_DECISION" && !bucket.decisionActionId.has(r.sourceId)) {
+      bucket.decisionActionId.set(r.sourceId, r.id);
+    }
+    if (r.sourceType === "MEETING_FOLLOW_UP" && !bucket.followUpActionId.has(r.sourceId)) {
+      bucket.followUpActionId.set(r.sourceId, r.id);
+    }
+    bucket.actions.push({
+      id: r.id,
+      title: r.title,
+      status: r.status,
+      priority: r.priority,
+      deadlineISO: (r.deadlineEnd ?? r.deadlineStart)?.toISOString() ?? null,
+      owner: r.lead ? { id: r.lead.id, name: r.lead.name, email: r.lead.email } : null,
+      sourceType: r.sourceType,
+      sourceId: r.sourceId,
+    });
+  }
+
+  return result;
+}
+
 export type ActionPickerUser = {
   id: string;
   name: string | null;
   email: string;
   primaryRole: string | null;
   title: string | null;
+  internalLevel: number | null;
+  ladder: string | null;
+  canonicalTitle: string | null;
   adminSubtypes: string[];
 };
 
@@ -278,6 +473,9 @@ export async function listActionAssignableUsers(): Promise<ActionPickerUser[]> {
         email: true,
         primaryRole: true,
         title: true,
+        internalLevel: true,
+        ladder: true,
+        canonicalTitle: true,
         adminSubtypes: { select: { subtype: true } },
       },
       orderBy: [{ name: "asc" }, { email: "asc" }],
@@ -290,6 +488,9 @@ export async function listActionAssignableUsers(): Promise<ActionPickerUser[]> {
         email: user.email,
         primaryRole: user.primaryRole,
         title: user.title,
+        internalLevel: user.internalLevel,
+        ladder: user.ladder,
+        canonicalTitle: user.canonicalTitle,
         adminSubtypes: user.adminSubtypes.map((entry) => entry.subtype),
       }))
     );
@@ -347,9 +548,9 @@ export async function getActionsForEntity(
 }
 
 /**
- * Actions generated from one meeting (every action carrying its officerMeetingId),
- * newest first, visibility-filtered for `viewer`. Powers the "other actions from
- * this meeting" cross-link on the action detail view. Fails safe to [].
+ * Actions explicitly assigned to a meeting via the dedicated `meetingId` FK (the
+ * Actions hub "+ Add to meeting" picker). Independent of sourceType provenance.
+ * Every result is visibility-filtered for `viewer`.
  */
 export async function getActionsForMeeting(
   meetingId: string,
@@ -360,7 +561,7 @@ export async function getActionsForMeeting(
   if (!id) return [];
 
   const items = await prisma.actionItem.findMany({
-    where: { officerMeetingId: id },
+    where: { meetingId: id },
     include: ACTION_ITEM_INCLUDE,
     orderBy: [{ createdAt: "desc" }],
   });

@@ -1,5 +1,3 @@
-import { formatDueDate } from "@/lib/leadership-action-center/dates";
-
 import type { ActionItemWithRelations } from "./action-queries";
 import { deriveActionStrategicLinkage } from "./action-source";
 import { relatedEntityNoun } from "./constants";
@@ -35,18 +33,6 @@ export type ActionConnectedContext = {
 export function deriveActionContextLabel(
   item: ActionItemWithRelations
 ): ActionConnectedContext | null {
-  // A concrete meeting is the clearest provenance — name it and date it.
-  if (item.officerMeeting) {
-    const title = item.officerMeeting.title?.trim() || "meeting";
-    return {
-      text: `From ${title} — ${formatDueDate(item.officerMeeting.date)}`,
-      href: `/meetings/${item.officerMeetingId}`,
-    };
-  }
-  if (item.officerMeetingId) {
-    return { text: "From a meeting", href: `/meetings/${item.officerMeetingId}` };
-  }
-
   // An affirmed strategic initiative / project explains the "why".
   const strategic = deriveActionStrategicLinkage(item);
   if (strategic.initiativeTitle) {

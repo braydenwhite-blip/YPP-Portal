@@ -13,7 +13,6 @@ import {
   OperationsEmptyState,
   OperationsItemList,
 } from "./operations-item-card";
-import { WeeklyMeetingCaptureClient } from "./weekly-meeting-capture-client";
 import { StatCard, type StatTone } from "./stat-card";
 
 /**
@@ -250,11 +249,7 @@ export function WeeklyExecutionOSView({
         <AgendaBuilder sections={os.agendaSections} />
       </Stage>
 
-      <Stage number={2} title="Capture meeting" hint="During the meeting">
-        <WeeklyMeetingCaptureClient people={people} currentUserId={currentUserId} />
-      </Stage>
-
-      <Stage number={3} title="Resolve follow-ups" hint="Before you leave the meeting">
+      <Stage number={2} title="Resolve follow-ups" hint="Before you leave the meeting">
         <div style={{ display: "grid", gap: 22, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", alignItems: "start" }} className="command-center-grid">
           <div style={{ display: "grid", gap: 8 }}>
             <h3 className="ps-section-title" style={{ margin: 0, fontSize: 14 }}>
@@ -271,7 +266,7 @@ export function WeeklyExecutionOSView({
         </div>
       </Stage>
 
-      <Stage number={4} title="Draft recap" hint="Copy into Slack or email — nothing is sent">
+      <Stage number={3} title="Draft recap" hint="Copy into Slack or email — nothing is sent">
         <WeeklyRecapPanel os={os} />
       </Stage>
     </div>

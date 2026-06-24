@@ -183,9 +183,6 @@ export function EntityActionPanel({
                 </Link>
                 <p className="m-0 text-[11.5px] text-ink-muted">
                   {ownerName(action)}
-                  {action.officerMeeting
-                    ? ` · From meeting: ${action.officerMeeting.title ?? "Officer meeting"}`
-                    : ""}
                 </p>
               </div>
               <StatusBadge tone={actionTone(action, now)}>
