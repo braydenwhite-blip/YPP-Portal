@@ -4,8 +4,8 @@
  * Latest preview URL (changes each deploy — run `npm run vercel-preview:url`):
  *   Fetched from GitHub Preview deployment on branch `preview/brayden-portal`.
  *
- * Example (2026-06-24 deploy of e91b3a40):
- *   https://youthpassionproject-portal-azk2rivsj-brayden-whites-projects.vercel.app/
+ * Example (2026-06-24 deploy of 50d4de1e):
+ *   https://youthpassionproject-portal-q2jwemyr1-brayden-whites-projects.vercel.app/
  *
  * Legacy pinned deployment (older build, frozen hash):
  *   https://youthpassionproject-portal-io1acmvjv-brayden-whites-projects.vercel.app/
@@ -24,7 +24,7 @@ import dotenv from "dotenv";
 
 const VERCEL_PREVIEW_URL =
   process.env.VERCEL_PREVIEW_URL?.replace(/\/$/, "") ??
-  "https://youthpassionproject-portal-azk2rivsj-brayden-whites-projects.vercel.app";
+  "https://youthpassionproject-portal-q2jwemyr1-brayden-whites-projects.vercel.app";
 
 const root = resolve(import.meta.dirname, "..");
 
