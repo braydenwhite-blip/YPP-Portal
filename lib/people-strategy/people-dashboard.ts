@@ -191,6 +191,7 @@ export async function loadPeopleDashboard(
       .map(toDashboardAction);
 
     const split = splitActiveActions({ led, executing });
+    const leadIds = new Set(split.lead.map((a) => a.id));
 
     const departments = Array.from(
       new Set(
@@ -233,7 +234,9 @@ export async function loadPeopleDashboard(
       departments,
       expertise: user.profile?.interests ?? [],
       leadActions: split.lead.map((a) => toActionView(a, today)),
-      executingActions: split.executing.map((a) => toActionView(a, today)),
+      executingActions: split.executing
+        .filter((a) => !leadIds.has(a.id))
+        .map((a) => toActionView(a, today)),
       quarterly,
       successor: review?.successionFlag ?? false,
       checkInDots,

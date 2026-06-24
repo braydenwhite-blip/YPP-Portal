@@ -33,7 +33,7 @@ export default async function MonthlyCheckInsPage() {
   const hubAccess = getPeopleHubAccess(viewer);
   if (!hubAccess.showPerformance) redirect("/people/directory");
 
-  const { queue, rows, currentMonthKey } = await loadMonthlyCheckInQueue();
+  const { queue, currentMonthKey } = await loadMonthlyCheckInQueue();
   const currentMonth = parseMonthKey(currentMonthKey);
   const monthQueueLabel = currentMonth
     ? new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" })
@@ -58,7 +58,7 @@ export default async function MonthlyCheckInsPage() {
       <MonthlyCheckInsClient
         queue={queue}
         monthQueueLabel={monthQueueLabel}
-        rows={rows}
+        currentMonthKey={currentMonthKey}
       />
     </div>
   );

@@ -91,8 +91,7 @@ export async function PeopleReviewsPage({
             People & Reviews
           </h1>
           <p className="m-0 mt-1 text-[13.5px] text-[#717189]">
-            People Chair view — sorted by who you need to check in with next. Performance and
-            potential summaries live in each row. Leadership-only.
+            Who needs a check-in next — one row per person, sorted by urgency.
           </p>
         </div>
 

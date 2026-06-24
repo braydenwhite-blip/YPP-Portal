@@ -22,18 +22,20 @@ const PARAM = {
 } as const;
 
 /**
- * Mockup filter row — search + three dropdowns + Clear filters (always visible).
+ * Compact filter row — search first, then the three most common filters.
  */
 export function PeopleReviewsFiltersBar({
   filters,
   options,
   clearHref,
   basePath = "/people",
+  resultCount,
 }: {
   filters: PeopleReviewsTableFilters;
   options: PeopleReviewsFilterOptions;
   clearHref: string;
   basePath?: string;
+  resultCount?: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -49,69 +51,74 @@ export function PeopleReviewsFiltersBar({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="relative min-w-[200px] flex-1" style={{ maxWidth: 360 }}>
-        <UrlSyncedSearchInput
-          placeholder="Search people..."
-          wrapClassName="w-full"
-          aria-label="Search people"
-        />
+    <div className="rounded-[12px] border border-[#ebebf2] bg-[#fafafd] px-4 py-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="m-0 text-[12.5px] font-medium text-[#717189]">
+          {typeof resultCount === "number"
+            ? `${resultCount} ${resultCount === 1 ? "person" : "people"} · most urgent first`
+            : "Find someone quickly"}
+        </p>
+        {active ? (
+          <Link
+            href={clearHref}
+            className="text-[12.5px] font-semibold text-[#5a1da8] no-underline hover:underline"
+          >
+            Clear filters
+          </Link>
+        ) : null}
       </div>
 
-      <select
-        className="ps-filter"
-        aria-label="Filter by mentor"
-        value={filters.mentor ?? "ALL"}
-        onChange={(e) => pushParam(PARAM.mentor, e.target.value)}
-      >
-        <option value="ALL">Mentor</option>
-        {options.mentors.map((mentor) => (
-          <option key={mentor} value={mentor}>
-            {mentor}
-          </option>
-        ))}
-      </select>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[220px] flex-1" style={{ maxWidth: 360 }}>
+          <UrlSyncedSearchInput
+            placeholder="Search by name..."
+            wrapClassName="w-full"
+            aria-label="Search people"
+          />
+        </div>
 
-      <select
-        className="ps-filter"
-        aria-label="Filter by chair"
-        value={filters.chair ?? "ALL"}
-        onChange={(e) => pushParam(PARAM.chair, e.target.value)}
-      >
-        <option value="ALL">Chair</option>
-        {options.chairs.map((chair) => (
-          <option key={chair} value={chair}>
-            {chair}
-          </option>
-        ))}
-      </select>
-
-      <select
-        className="ps-filter"
-        aria-label="Filter by feedback status"
-        value={filters.feedback ?? "ALL"}
-        onChange={(e) => pushParam(PARAM.feedback, e.target.value)}
-      >
-        <option value="ALL">Feedback status</option>
-        {options.feedbackStatuses.map((status) => (
-          <option key={status} value={status}>
-            {PEOPLE_REVIEWS_FEEDBACK_FILTER_LABELS[status]}
-          </option>
-        ))}
-      </select>
-
-      {active ? (
-        <Link
-          href={clearHref}
-          className="ml-auto shrink-0 text-[13px] font-semibold text-[#5a1da8] no-underline hover:underline"
+        <select
+          className="ps-filter"
+          aria-label="Filter by mentor"
+          value={filters.mentor ?? "ALL"}
+          onChange={(e) => pushParam(PARAM.mentor, e.target.value)}
         >
-          Clear filters
-        </Link>
-      ) : (
-        <span className="ml-auto shrink-0 text-[13px] font-semibold text-[#c4c4d4]">
-          Clear filters
-        </span>
-      )}
+          <option value="ALL">All mentors</option>
+          {options.mentors.map((mentor) => (
+            <option key={mentor} value={mentor}>
+              {mentor}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="ps-filter"
+          aria-label="Filter by chair"
+          value={filters.chair ?? "ALL"}
+          onChange={(e) => pushParam(PARAM.chair, e.target.value)}
+        >
+          <option value="ALL">All chairs</option>
+          {options.chairs.map((chair) => (
+            <option key={chair} value={chair}>
+              {chair}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="ps-filter"
+          aria-label="Filter by feedback status"
+          value={filters.feedback ?? "ALL"}
+          onChange={(e) => pushParam(PARAM.feedback, e.target.value)}
+        >
+          <option value="ALL">All feedback</option>
+          {options.feedbackStatuses.map((status) => (
+            <option key={status} value={status}>
+              {PEOPLE_REVIEWS_FEEDBACK_FILTER_LABELS[status]}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

@@ -1,9 +1,12 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
 import {
   isActionTrackerEnabled,
   isOperationsHubEnabled,
+  isPeopleDashboardEnabled,
+  isQuarterlyReviewsEnabled,
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { loadPublicProfile } from "@/lib/people-strategy/public-profile";
@@ -30,8 +33,11 @@ import { meetingPrefillToQuery } from "@/lib/people-strategy/action-prefill";
 import { StrategicEntityPanel } from "@/components/people-strategy/strategic-entity-panel";
 import { LeadershipStageContext } from "@/components/people-strategy/leadership-stage-context";
 import { ProfileBody, activeLabel } from "@/components/people-strategy/profile-body";
+import { PersonProfileLeadership } from "@/components/people-strategy/person-profile-leadership";
 import { AskAboutThis } from "@/components/help-agent/ask-about-this";
+import { getPeopleHubAccess } from "@/lib/people/hub-access";
 import { getPersonAccessSummary } from "@/lib/org/access-summary";
+import { loadPersonPerformanceContext } from "@/lib/people-strategy/people-performance";
 import { AccessSummaryPanel } from "@/components/people-strategy/access-summary-panel";
 import type { AccessFact } from "@/lib/org/access-explainer";
 import { prisma } from "@/lib/prisma";
@@ -69,19 +75,15 @@ async function loadMentorCandidates(
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Member Profile" };
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-function initials(name: string): string {
-  return name
-    .split(/[\s@.]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-export default async function PublicProfilePage({ params }: PageProps) {
+export default async function PublicProfilePage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const sp = await searchParams;
+  const fromPeopleReviews = sp.from === "people";
 
   // Any signed-in member may view; signed-out visitors go to login.
   const session = await getSession();
@@ -119,6 +121,26 @@ export default async function PublicProfilePage({ params }: PageProps) {
   // viewing the public profile don't get it), visibility-filtered for the viewer.
   const showLinkedActions =
     isOperationsHubEnabled() && isActionTrackerEnabled() && isOfficerTier(viewer);
+
+  const hubAccess = getPeopleHubAccess(viewer);
+  const showReviewPanel =
+    isPeopleDashboardEnabled() &&
+    isOfficerTier(viewer) &&
+    hubAccess.showPerformance;
+
+  let performanceRow = null;
+  let monthLabel = "";
+  let monthShortLabel = "";
+  let quarter = "";
+  const quarterlyEnabled = isQuarterlyReviewsEnabled();
+
+  if (showReviewPanel) {
+    const performanceContext = await loadPersonPerformanceContext(id);
+    performanceRow = performanceContext.row;
+    monthLabel = performanceContext.monthLabel;
+    monthShortLabel = performanceContext.monthShortLabel;
+    quarter = performanceContext.quarter;
+  }
 
   // Phase 6 connective tissue — surface where this person sits on the Leadership
   // Pathway as context next to their linked actions (the team's prescribed
@@ -169,83 +191,64 @@ export default async function PublicProfilePage({ params }: PageProps) {
   }
 
   return (
-    <div className="page-shell" style={{ maxWidth: 880 }}>
-      <p className="badge">Member Profile</p>
-
-      {/* Identity header */}
-      <div
-        className="card"
-        style={{
-          display: "flex",
-          gap: 18,
-          alignItems: "center",
-          padding: "20px 22px",
-          margin: "8px 0 14px",
-          flexWrap: "wrap",
-        }}
-      >
-        <span
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: "50%",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
-            background: "var(--ps-accent-soft)",
-            color: "var(--ps-accent)",
-            border: "1px solid var(--ps-border)",
-            fontSize: 22,
-            fontWeight: 800,
-            flex: "0 0 auto",
-          }}
-          aria-hidden
+    <div className="mx-auto w-full max-w-[1200px] px-1 pb-12 pt-2">
+      {fromPeopleReviews ? (
+        <Link
+          href="/people"
+          className="mb-3 inline-flex items-center gap-1 text-[13px] font-medium text-[#6b21c8] hover:text-[#5a1da8]"
         >
-          {profile.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- existing avatar pattern.
-            <img
-              src={profile.avatarUrl}
-              alt=""
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          ) : (
-            initials(profile.name)
-          )}
-        </span>
-        <div style={{ minWidth: 0 }}>
-          <h1 className="page-title" style={{ margin: 0 }}>
-            {profile.name}
-          </h1>
-          <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 14 }}>
-            {profile.title}
-            {profile.chapterName ? ` · ${profile.chapterName}` : ""}
-            {` · ${activeLabel(profile.monthsActive)}`}
-          </p>
-        </div>
-        {showLinkedActions ? (
-          <div style={{ marginLeft: "auto" }}>
-            <AskAboutThis entityType="person" entityId={id} />
-          </div>
-        ) : null}
-      </div>
+          ← People &amp; Reviews
+        </Link>
+      ) : null}
 
-      <ProfileBody profile={profile} />
+      <header className="mb-4">
+        <h1 className="m-0 text-[22px] font-bold tracking-[-0.3px] text-[#1c1a2e]">
+          {profile.name}
+        </h1>
+        <p className="m-0 mt-1 text-[13.5px] text-[#717189]">
+          {profile.title}
+          {profile.chapterName ? ` · ${profile.chapterName}` : ""}
+          {` · ${activeLabel(profile.monthsActive)}`}
+        </p>
+      </header>
 
-      {showLinkedActions && opsContext ? (
-        <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
-          <section className="card" style={{ padding: "16px 18px" }}>
-            <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>
-              Needs attention for {profile.name}
+      {performanceRow ? (
+        <PersonProfileLeadership
+          row={performanceRow}
+          monthLabel={monthLabel}
+          monthShortLabel={monthShortLabel}
+          quarter={quarter}
+          quarterlyEnabled={quarterlyEnabled}
+        />
+      ) : null}
+
+      <ProfileBody profile={profile} compact={fromPeopleReviews} />
+
+      {showLinkedActions && opsContext && !fromPeopleReviews ? (
+        <details className="group mt-4 overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 marker:content-none [&::-webkit-details-marker]:hidden">
+            <span className="text-[15px] font-semibold text-[#1c1a2e]">Leadership tools</span>
+            <span className="text-[12.5px] text-[#9a9ab0]">
+              Accountability, access, mentor history, promotions
+              <span className="ml-2 transition-transform group-open:rotate-180" aria-hidden>
+                ▾
+              </span>
+            </span>
+          </summary>
+          <div className="flex flex-col gap-3 border-t border-[#f1f1f6] p-4">
+          <section className="rounded-[12px] border border-[#ebebf2] bg-[#fafafd] px-4 py-4">
+            <h2 className="m-0 text-[15px] font-semibold text-[#1c1a2e]">
+              Needs attention
             </h2>
-            <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 13 }}>
-              Overdue or blocked work, mentor & kickoff coverage, check-ins, and
-              provisional confirmation — what to act on first.
+            <p className="m-0 mt-1 text-[13px] text-[#717189]">
+              Overdue work, check-ins, and mentor gaps for {profile.name}.
             </p>
+            <div className="mt-3">
             <NeedsAttentionList
               items={personAttention}
               emptyHint={`Nothing needs attention for ${profile.name} right now.`}
             />
+            </div>
           </section>
           <LeadershipStageContext stage={leadershipStage} nextStage={leadershipNextStage} />
           <AccessSummaryPanel personName={profile.name} facts={accessFacts} />
@@ -293,7 +296,9 @@ export default async function PublicProfilePage({ params }: PageProps) {
             createActionHref={`/actions/new?relatedType=USER&relatedId=${id}`}
             createMeetingHref={personMeetingHref}
           />
-        </div>
+          <AskAboutThis entityType="person" entityId={id} />
+          </div>
+        </details>
       ) : null}
     </div>
   );

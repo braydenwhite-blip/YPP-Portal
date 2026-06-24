@@ -32,7 +32,6 @@ export const INSTRUCTOR_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   // catalog, so this only applies when ENABLE_GROWTH_OS is on).
   "/my-growth",
   "/leadership-pathway",
-  "/messages",
   "/chapters",
   "/settings/personalization",
 ]);

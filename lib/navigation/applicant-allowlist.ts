@@ -18,7 +18,6 @@ export const APPLICANT_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/my-interview",
   "/positions",
   "/applications",
-  "/messages",
   "/announcements",
   "/notifications",
   "/help",

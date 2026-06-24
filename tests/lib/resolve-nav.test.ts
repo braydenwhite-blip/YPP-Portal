@@ -81,7 +81,7 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toContain("/announcements");
     expect(visibleHrefs).toContain("/calendar");
     expect(visibleHrefs).toContain("/my-mentor");
-    expect(visibleHrefs).toContain("/messages");
+    expect(visibleHrefs).not.toContain("/messages");
     // `/chapters` (Find a Chapter) is consolidated into the Chapter Hub and
     // intentionally hidden from the sidebar — see ALWAYS_HIDDEN_HREFS.
     expect(visibleHrefs).not.toContain("/chapters");
@@ -279,7 +279,7 @@ describe("resolveNavModel", () => {
 
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).toContain("/");
-    expect(visibleHrefs).toContain("/messages");
+    expect(visibleHrefs).not.toContain("/messages");
     expect(visibleHrefs).toContain("/notifications");
     // Knowledge OS V2: /admin is the universal admin home, so it stays
     // visible even for a subtype-less admin (the page itself filters
@@ -382,7 +382,6 @@ describe("resolveNavModel", () => {
         "/people",
         "/actions",
         "/meetings",
-        "/messages",
       ]);
     });
 

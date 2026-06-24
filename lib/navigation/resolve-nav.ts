@@ -49,7 +49,7 @@ import {
 } from "@/lib/navigation/officer-nav-layout";
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
-const CRITICAL_CORE_LINKS = ["/messages"];
+const CRITICAL_CORE_LINKS: string[] = [];
 
 /** Always pinned in officer-tier sidebars when visible (the leadership front doors). */
 const OFFICER_CRITICAL_CORE_LINKS = [

@@ -142,16 +142,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Read chapter and platform updates.",
       dashboardPriority: 25,
     },
-    {
-      href: "/messages",
-      label: "Messages",
-      icon: "✉",
-      roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR", "STAFF", "APPLICANT", "PARENT"] as NavRole[],
-      badgeKey: "messages",
-      dashboardBadgeKey: "unread_messages",
-      dashboardDescription: "Open direct, parent, and interview conversations in one shared inbox.",
-      dashboardPriority: 9,
-    },
     { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "💬" },
   ]),
 

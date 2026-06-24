@@ -21,6 +21,7 @@ import {
   factsMatchFilter,
   isCheckInMonthAccountable,
   monthKeyUTC,
+  monthLabelUTC,
   parseMonthKey,
   roleExpectsMentor,
   rowMatchesPeopleReviewsFilters,
@@ -329,8 +330,14 @@ export async function loadPeoplePerformance(
     const monthFeedback =
       monthFeedbackByMember.get(row.id) ?? EMPTY_CURRENT_MONTH_FEEDBACK;
     const growthTags = growthByMember.get(row.id) ?? [];
-    const activeActions = [...row.leadActions, ...row.executingActions];
-    const overdueActionCount = activeActions.filter((a) => a.overdue).length;
+    const activeActionIds = new Set<string>();
+    for (const a of [...row.leadActions, ...row.executingActions]) {
+      activeActionIds.add(a.id);
+    }
+    const activeActionCount = activeActionIds.size;
+    const overdueActionCount = new Set(
+      [...row.leadActions, ...row.executingActions].filter((a) => a.overdue).map((a) => a.id)
+    ).size;
     // Mentorship: a missing mentor is only a gap for mentor-eligible roles
     // (instructors / chapter presidents — the program's two lanes).
     const hasMentor = Boolean(row.mentorId);
@@ -353,7 +360,7 @@ export async function loadPeoplePerformance(
       hasAnyReview: Boolean(row.quarterly),
       feedback,
       monthFeedback,
-      activeActionCount: activeActions.length,
+      activeActionCount,
       overdueActionCount,
       currentMonthKey,
       hasMentor,
@@ -387,6 +394,27 @@ export async function loadPeoplePerformance(
     currentQuarter,
     currentMonthKey,
   };
+}
+
+/** Performance row + review period labels for a single member profile. */
+export async function loadPersonPerformanceContext(
+  userId: string,
+  now: Date = new Date()
+): Promise<{
+  row: PeoplePerformanceRow | null;
+  monthLabel: string;
+  monthShortLabel: string;
+  quarter: string;
+}> {
+  const { rows, currentQuarter, currentMonthKey } = await loadPeoplePerformance(now);
+  const row = rows.find((r) => r.id === userId) ?? null;
+  const currentMonth = parseMonthKey(currentMonthKey);
+  const monthLabel = currentMonth ? monthLabelUTC(currentMonth) : currentMonthKey;
+  const monthShortLabel = currentMonth
+    ? new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" }).format(currentMonth)
+    : currentMonthKey;
+
+  return { row, monthLabel, monthShortLabel, quarter: currentQuarter };
 }
 
 /** Server-side filter + search over the loaded rows (rows are already capped). */

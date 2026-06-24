@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import { CheckInsDrawer } from "@/components/people-strategy/check-ins-drawer";
 import { FeedbackRequestDrawer } from "@/components/people-strategy/feedback-request-drawer";
@@ -8,14 +9,13 @@ import { FeedbackReviewDrawer } from "@/components/people-strategy/feedback-revi
 import { Button, cn } from "@/components/ui-v2";
 import { initialsFromName } from "@/lib/command-center/shared";
 import { RATING_LABELS } from "@/lib/people-strategy/check-in-rating";
+import { sendSelfReflectionReminder } from "@/lib/people-strategy/check-in-actions";
 import {
   CHECK_IN_WORKFLOW_STEPS,
-  workflowSegmentClass,
   type MonthlyCheckInActionKind,
   type MonthlyCheckInQueueItem,
 } from "@/lib/people-strategy/monthly-check-in-queue";
-import type { PeoplePerformanceRow } from "@/lib/people-strategy/people-performance";
-import { RATING_COLORS } from "@/lib/people-strategy/people-dashboard-selectors";
+import { NO_RATING_COLOR, RATING_COLORS } from "@/lib/people-strategy/people-dashboard-selectors";
 import type { GoalRatingColor } from "@prisma/client";
 
 type Member = { id: string; name: string };
@@ -95,13 +95,25 @@ function WorkflowStepper() {
   );
 }
 
+function ratingBarColor(rating: GoalRatingColor | null): string {
+  return rating ? RATING_COLORS[rating].dot : NO_RATING_COLOR.dot;
+}
+
+function ratingBarLabel(rating: GoalRatingColor | null): string {
+  return rating ? RATING_LABELS[rating] : NO_RATING_COLOR.label;
+}
+
 /** One row in the mockup-style check-in queue. */
 function QueueRow({
   item,
   onAction,
+  reminderSent,
+  reminderPending,
 }: {
   item: MonthlyCheckInQueueItem;
   onAction: (item: MonthlyCheckInQueueItem) => void;
+  reminderSent: boolean;
+  reminderPending: boolean;
 }) {
   const initials = initialsFromName(item.name);
   const mentorLine = item.mentorName
@@ -125,22 +137,16 @@ function QueueRow({
       </div>
 
       <div className="min-w-0 md:px-1">
-        <div className="flex gap-[3px]">
-          {item.segments.map((seg, i) => (
-            <span
-              key={CHECK_IN_WORKFLOW_STEPS[i]?.key ?? i}
-              className={cn("h-[7px] flex-1 rounded-[3px]", workflowSegmentClass(seg))}
-            />
-          ))}
-        </div>
-        <p
-          className={cn(
-            "m-0 mt-2 min-h-[18px] text-[12px] leading-snug",
-            item.detailText ? "text-[#717189]" : "text-transparent"
-          )}
-        >
-          {item.detailText || "—"}
-        </p>
+        <span
+          role="img"
+          aria-label={`Performance: ${ratingBarLabel(item.performanceRating)}`}
+          className="block h-[7px] w-full rounded-[3px]"
+          style={{ background: ratingBarColor(item.performanceRating) }}
+          title={ratingBarLabel(item.performanceRating)}
+        />
+        {item.detailText ? (
+          <p className="m-0 mt-2 text-[12px] leading-snug text-[#717189]">{item.detailText}</p>
+        ) : null}
       </div>
 
       <div className="flex flex-col items-stretch gap-2">
@@ -157,11 +163,18 @@ function QueueRow({
           size="sm"
           className={cn(
             "h-[34px] w-full rounded-lg px-3 text-[12px] font-semibold",
-            actionButtonClass(item.actionKind)
+            item.actionKind === "send-reminder" && reminderSent
+              ? "border border-[#a7f3d0] bg-[#ecfdf5] text-[#0e7c52] shadow-none hover:bg-[#ecfdf5]"
+              : actionButtonClass(item.actionKind)
           )}
+          disabled={item.actionKind === "send-reminder" && (reminderPending || reminderSent)}
           onClick={() => onAction(item)}
         >
-          {item.actionLabel}
+          {item.actionKind === "send-reminder" && reminderPending
+            ? "Sending…"
+            : item.actionKind === "send-reminder" && reminderSent
+              ? "Reminder sent"
+              : item.actionLabel}
         </Button>
       </div>
     </article>
@@ -235,17 +248,41 @@ function FeedbackRequestCard({ onPreview }: { onPreview: () => void }) {
 export function MonthlyCheckInsClient({
   queue,
   monthQueueLabel,
-  rows,
+  currentMonthKey,
 }: {
   queue: MonthlyCheckInQueueItem[];
   monthQueueLabel: string;
-  rows: PeoplePerformanceRow[];
+  currentMonthKey: string;
 }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const [checkInsMember, setCheckInsMember] = useState<Member | null>(null);
   const [reviewMember, setReviewMember] = useState<Member | null>(null);
   const [requestMember, setRequestMember] = useState<Member | null>(null);
+  const [reminderSentIds, setReminderSentIds] = useState<Set<string>>(new Set());
+  const [reminderTargetId, setReminderTargetId] = useState<string | null>(null);
+  const [reminderError, setReminderError] = useState<string | null>(null);
 
-  const rowById = new Map(rows.map((r) => [r.id, r]));
+  function sendReminder(item: MonthlyCheckInQueueItem) {
+    setReminderError(null);
+    setReminderTargetId(item.personId);
+    startTransition(async () => {
+      try {
+        await sendSelfReflectionReminder({
+          userId: item.personId,
+          month: new Date(`${currentMonthKey}-01T00:00:00.000Z`),
+        });
+        setReminderSentIds((prev) => new Set(prev).add(item.personId));
+        router.refresh();
+      } catch (err) {
+        setReminderError(
+          err instanceof Error ? err.message : "Could not send reminder."
+        );
+      } finally {
+        setReminderTargetId(null);
+      }
+    });
+  }
 
   function dispatchAction(item: MonthlyCheckInQueueItem) {
     const member = { id: item.personId, name: item.name };
@@ -257,17 +294,13 @@ export function MonthlyCheckInsClient({
       case "await-feedback":
         setReviewMember(member);
         break;
+      case "send-reminder":
+        sendReminder(item);
+        break;
       case "open-check-ins":
       case "compile-check-in":
         setCheckInsMember(member);
         break;
-      case "send-reminder": {
-        const row = rowById.get(item.personId);
-        if (row) {
-          window.location.href = `/admin/instructors/${row.id}/manage/strategy`;
-        }
-        break;
-      }
       default:
         setCheckInsMember(member);
         break;
@@ -295,12 +328,23 @@ export function MonthlyCheckInsClient({
             </p>
           ) : (
             queue.map((item) => (
-              <QueueRow key={item.personId} item={item} onAction={dispatchAction} />
+              <QueueRow
+                key={item.personId}
+                item={item}
+                onAction={dispatchAction}
+                reminderSent={reminderSentIds.has(item.personId)}
+                reminderPending={pending && reminderTargetId === item.personId}
+              />
             ))
           )}
         </section>
 
         <aside className="flex flex-col gap-4">
+          {reminderError ? (
+            <p className="m-0 rounded-[10px] border border-[#fdecea] bg-[#fef8f7] px-3 py-2 text-[12.5px] text-[#c0392b]">
+              {reminderError}
+            </p>
+          ) : null}
           <EvaluationScale />
           <FeedbackRequestCard
             onPreview={() => {
