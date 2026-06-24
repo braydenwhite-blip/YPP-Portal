@@ -748,6 +748,30 @@ model Chapter {
   isPublic    Boolean           @default(true)
   joinPolicy  ChapterJoinPolicy @default(OPEN)
 
+  // Chapter lifecycle + operating system. `lifecycleStatus` is the canonical
+  // stage leadership/system manages; a separate computed "health" label is
+  // derived from concrete signals (see lib/chapters/health.ts). Setup fields
+  // are filled from the originating Chapter President application on approval,
+  // then editable in the guided setup flow.
+  lifecycleStatus        ChapterLifecycleStatus @default(ACTIVE)
+  lifecycleNote          String?                @db.Text
+  lifecycleUpdatedAt     DateTime?
+  state                  String?
+  schoolType             ChapterSchoolType?
+  facultyAdvisorName     String?
+  facultyAdvisorEmail    String?
+  foundingTeamNotes      String?                @db.Text
+  recruitmentGoal        Int?
+  supportNeeded          String?                @db.Text
+  launchTargetDate       DateTime?
+  expectedFirstMeetingAt DateTime?
+  launchPlanText         String?                @db.Text
+  launchPlanSubmittedAt  DateTime?
+  launchPlanApprovedAt   DateTime?
+  launchPlanApprovedById String?
+  launchedAt             DateTime?
+  presidentId            String?
+
   // Relations
   users                          User[]
   meetings                       Meeting[]                       @relation("ChapterMeetings")
@@ -793,6 +817,11 @@ model Chapter {
   // Chapter President & Feedback Relations
   chapterPresidentApplications ChapterPresidentApplication[]
   chapterPresidentOnboardings  ChapterPresidentOnboarding[]
+  president                    User?                         @relation("ChapterPresident", fields: [presidentId], references: [id], onDelete: SetNull)
+  launchPlanApprovedBy         User?                         @relation("ChapterLaunchPlanApprover", fields: [launchPlanApprovedById], references: [id], onDelete: SetNull)
+  actionItems                  ActionItem[]                  @relation("ChapterActionItems")
+  supportRequests              ChapterSupportRequest[]
+  notes                        ChapterNote[]
   parentChapterFeedbacks       ParentChapterFeedback[]
   parentSurveys                ParentSurvey[]
   studentIntakeCases           StudentIntakeCase[]
@@ -817,6 +846,99 @@ model Chapter {
   updatedAt DateTime @updatedAt
 
   @@index([archivedAt])
+  @@index([lifecycleStatus])
+  @@index([presidentId])
+  @@index([state])
+}
+
+/// Lifecycle stage of a chapter across the national pipeline. Canonical stage
+/// managed by leadership/system; the displayed "health" label (On Track / Needs
+/// Support / At Risk / Paused) is computed separately from concrete signals.
+enum ChapterLifecycleStatus {
+  PROSPECT
+  APPROVED
+  LAUNCHING
+  ACTIVE
+  NEEDS_SUPPORT
+  AT_RISK
+  PAUSED
+  ALUMNI
+}
+
+enum ChapterSchoolType {
+  PUBLIC
+  PRIVATE
+  CHARTER
+  HOMESCHOOL
+  COLLEGE
+  OTHER
+}
+
+enum ChapterSupportCategory {
+  CURRICULUM
+  INSTRUCTOR
+  PARTNER
+  RECRUITMENT
+  EVENT_PLANNING
+  SCHOOL_APPROVAL
+  GENERAL
+}
+
+enum ChapterSupportRequestStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+/// A Chapter President's request for help from national leadership. Creating one
+/// also spawns a leadership-visible ActionItem (linked via actionItemId) so the
+/// ask shows up in the Action Tracker, not a separate queue.
+model ChapterSupportRequest {
+  id             String                      @id @default(cuid())
+  chapterId      String
+  chapter        Chapter                     @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  requestedById  String
+  requestedBy    User                        @relation("ChapterSupportRequestsRequested", fields: [requestedById], references: [id])
+  category       ChapterSupportCategory      @default(GENERAL)
+  title          String
+  details        String?                     @db.Text
+  status         ChapterSupportRequestStatus @default(OPEN)
+  priority       ActionPriority              @default(MEDIUM)
+  assignedToId   String?
+  assignedTo     User?                       @relation("ChapterSupportRequestsAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
+  actionItemId   String?
+  resolutionNote String?                     @db.Text
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolvedBy     User?                       @relation("ChapterSupportRequestsResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  @@index([chapterId, status])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([requestedById])
+}
+
+/// Leadership notes on a chapter (and optionally about a specific member).
+/// `audience` controls whether the Chapter President can also see the note.
+model ChapterNote {
+  id          String   @id @default(cuid())
+  chapterId   String
+  chapter     Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User     @relation("ChapterNotesAuthored", fields: [authorId], references: [id])
+  aboutUserId String?
+  aboutUser   User?    @relation("ChapterNotesAbout", fields: [aboutUserId], references: [id], onDelete: SetNull)
+  body        String   @db.Text
+  pinned      Boolean  @default(false)
+  audience    String   @default("LEADERSHIP")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([chapterId, createdAt])
+  @@index([aboutUserId])
 }
 
 model User {
@@ -1281,6 +1403,13 @@ model User {
   chapterPresidentApplicationsMentorAdvisor ChapterPresidentApplication[] @relation("ChapterPresidentApplicationMentorAdvisor")
   applicationCohortsCreated                 ApplicationCohort[]           @relation("ApplicationCohortsCreated")
   chapterPresidentOnboarding                ChapterPresidentOnboarding?   @relation("ChapterPresidentOnboarding")
+  presidentOfChapters                       Chapter[]                     @relation("ChapterPresident")
+  chapterLaunchPlansApproved                Chapter[]                     @relation("ChapterLaunchPlanApprover")
+  chapterSupportRequestsRequested           ChapterSupportRequest[]       @relation("ChapterSupportRequestsRequested")
+  chapterSupportRequestsAssigned            ChapterSupportRequest[]       @relation("ChapterSupportRequestsAssigned")
+  chapterSupportRequestsResolved            ChapterSupportRequest[]       @relation("ChapterSupportRequestsResolved")
+  chapterNotesAuthored                      ChapterNote[]                 @relation("ChapterNotesAuthored")
+  chapterNotesAbout                         ChapterNote[]                 @relation("ChapterNotesAbout")
 
   // Chapter Join Request Relations
   chapterJoinRequests         ChapterJoinRequest[]
@@ -12941,6 +13070,11 @@ model ActionItem {
   fileLinks   ActionFileLink[]   @relation("ActionItemFileLinks")
   emailLogs   ActionEmailLog[]   @relation("ActionItemEmailLogs")
 
+  // Optional chapter scope so chapter "next steps" are real, queryable actions
+  // in the Action Tracker (launch checklist items, support-request follow-ups).
+  chapterId String?
+  chapter   Chapter? @relation("ChapterActionItems", fields: [chapterId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -12967,6 +13101,7 @@ model ActionItem {
   @@index([strategicInitiativeId])
   @@index([strategicProjectId])
   @@index([nextFollowUpAt])
+  @@index([chapterId])
 }
 
 /// Join row assigning a user to an action item in a specific role. The

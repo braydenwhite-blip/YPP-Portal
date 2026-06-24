@@ -17,6 +17,7 @@ import {
 } from "@/lib/legacy-application-review";
 import { syncChapterPresidentApplicationWorkflow } from "@/lib/workflow";
 import { CP_STARTER_ACTIONS } from "@/lib/chapter-president-lifecycle";
+import { provisionChapterForApproval } from "@/lib/chapters/provisioning";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -364,6 +365,42 @@ export async function reviewChapterPresidentApplication(
                 status: "IN_PROGRESS",
               },
             });
+
+            // Provision the chapter operating system: link the president, flow
+            // application data into chapter setup (no re-entry), move the chapter
+            // to LAUNCHING, and seed the launch checklist as real Action Tracker
+            // items. The chapter becomes a managed launch, not just a record.
+            const chapterRow = await tx.chapter.findUnique({
+              where: { id: chapterId },
+              select: {
+                id: true,
+                lifecycleStatus: true,
+                state: true,
+                city: true,
+                partnerSchool: true,
+                launchPlanText: true,
+              },
+            });
+            if (chapterRow) {
+              await provisionChapterForApproval(tx, {
+                chapter: chapterRow,
+                application: {
+                  stateProvince: application.stateProvince,
+                  city: application.city,
+                  partnerSchool: application.partnerSchool,
+                  schoolName: application.schoolName,
+                  launchPlan: application.launchPlan,
+                },
+                presidentId: application.applicantId,
+                presidentName: application.applicant.name,
+                actorId: session.user.id,
+                now,
+              });
+              await tx.chapterPresidentApplication.update({
+                where: { id: applicationId },
+                data: { starterActionsCreatedAt: now },
+              });
+            }
           }
         });
 

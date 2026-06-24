@@ -125,6 +125,9 @@ export function LeadershipHomeSections({
     { label: "Students without an advisor", count: stats.studentsWithoutAdvisor, href: "/operations/advising" },
     { label: "Advisor check-ins overdue", count: stats.advisorCheckInsOverdue, href: "/operations/advising" },
     { label: "Partner follow-ups due", count: stats.partnerFollowUpsOverdue, href: "/admin/partners" },
+    { label: "New Chapter President applications", count: stats.newCpApplications, href: "/admin/chapter-president-applicants" },
+    { label: "Chapters launching", count: stats.chaptersLaunching, href: "/admin/chapters?view=launching" },
+    { label: "Chapter support requests", count: stats.chapterSupportOpen, href: "/admin/chapters" },
   ].filter((item) => item.count > 0);
 
   return (
