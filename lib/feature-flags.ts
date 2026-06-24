@@ -363,6 +363,19 @@ export function isFinalReviewV2EnabledForChapter(chapterId: string | null): bool
 }
 
 /**
+ * Gamification (XP / levels, certificates & certifications, badges,
+ * achievements, awards, challenges, competitions, leaderboards, rewards,
+ * streaks, Passion World). Hidden from EVERYONE — including admins — until
+ * explicitly enabled; there is no role bypass. Re-exported here for
+ * discoverability alongside the other flags; the gate logic and the list of
+ * gated route prefixes live in the edge-safe `@/lib/gamification-gate`
+ * (imported by `proxy.ts`).
+ *
+ * Defaults OFF — set `ENABLE_GAMIFICATION=true` to expose the surfaces.
+ */
+export { isGamificationEnabled } from "@/lib/gamification-gate";
+
+/**
  * Leadership Roles & Contributions — concrete leadership roles instructors can
  * hold beyond teaching (Student Advisor, instructor mentor, curriculum
  * reviewer, interviewer, committee member, partner lead, …), tracked as

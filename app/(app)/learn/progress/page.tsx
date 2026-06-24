@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
+import { isGamificationEnabled } from "@/lib/feature-flags";
 
 export default async function LearningProgressPage() {
   const session = await getSession();
@@ -200,8 +201,8 @@ export default async function LearningProgressPage() {
         </div>
       </div>
 
-      {/* XP Summary */}
-      {user && (
+      {/* XP Summary — gated off product-wide with the gamification suite. */}
+      {user && isGamificationEnabled() && (
         <div
           className="card"
           style={{

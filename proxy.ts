@@ -11,6 +11,10 @@ import {
   isPublicGateEnabled,
   verifyPreviewToken,
 } from "@/lib/public-gate";
+import {
+  isGamificationEnabled,
+  isGamificationGatedPath,
+} from "@/lib/gamification-gate";
 
 // Supabase SSR writes session data into cookies of the form `sb-<ref>-auth-token`
 // and may chunk large JWTs across `<name>.0`, `<name>.1`, … When the refresh
@@ -241,6 +245,21 @@ export async function proxy(request: NextRequest) {
       dest.pathname = "/not-rolled-out";
       return NextResponse.redirect(dest);
     }
+  }
+
+  // Gamification gate: while the gamification suite is turned off, its surfaces
+  // are hidden from EVERYONE (no officer bypass) — route requests away to home.
+  // Nav links are dropped in resolve-nav.ts, so this only catches stale/direct
+  // links. The data layer is untouched; this is a UI product-readiness switch.
+  if (
+    isAuthenticated &&
+    !isGamificationEnabled() &&
+    isGamificationGatedPath(pathname)
+  ) {
+    const dest = request.nextUrl.clone();
+    dest.pathname = "/";
+    dest.search = "";
+    return NextResponse.redirect(dest);
   }
 
   // Public portal gate: redirect any non-allowed surface to /locked

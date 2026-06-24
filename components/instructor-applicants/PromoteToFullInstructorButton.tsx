@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 
 import { promoteToFullInstructor } from "@/lib/summer-workshop-actions";
 import type { PromotionEligibility } from "@/lib/summer-workshop";
+import { Button, BannerV2 } from "@/components/ui-v2";
 
 interface PromoteToFullInstructorButtonProps {
   applicationId: string;
@@ -50,14 +51,9 @@ export default function PromoteToFullInstructorButton({
 
   return (
     <>
-      <button
-        type="button"
-        className="button"
-        onClick={() => setOpen(true)}
-        style={{ background: "#6b21c8", color: "white" }}
-      >
+      <Button variant="primary" onClick={() => setOpen(true)}>
         Promote to Full Instructor
-      </button>
+      </Button>
 
       {open && (
         <>
@@ -98,66 +94,40 @@ export default function PromoteToFullInstructorButton({
               (ratings, notes, interview reviews) is preserved on the same record.
             </p>
 
-            <div
-              style={{
-                padding: 12,
-                borderRadius: 8,
-                background: "#fffbeb",
-                border: "1px solid #fde68a",
-                color: "#92400e",
-                fontSize: 13,
-                lineHeight: 1.5,
-                marginBottom: 16,
-              }}
-            >
-              <strong>Outstanding requirements</strong> — these become follow-ups on the
-              standard Instructor profile after promotion. They are not waived.
+            <BannerV2 tone="warning" className="mb-4 items-start">
+              <span>
+                <strong>Outstanding requirements</strong> — these become
+                follow-ups on the standard Instructor profile after promotion.
+                They are not waived.
+              </span>
               {outstanding.length > 0 ? (
-                <ul style={{ margin: "8px 0 0 18px", padding: 0 }}>
+                <ul className="mt-2 ml-[18px] list-disc">
                   {outstanding.map((r) => (
                     <li key={r}>{r}</li>
                   ))}
                 </ul>
               ) : (
-                <p style={{ margin: "8px 0 0", fontStyle: "italic" }}>None recorded.</p>
+                <p className="mt-2 italic">None recorded.</p>
               )}
-            </div>
+            </BannerV2>
 
             {error && (
-              <p
-                role="alert"
-                style={{
-                  fontSize: 13,
-                  color: "#991b1b",
-                  background: "#fee2e2",
-                  border: "1px solid #fecaca",
-                  borderRadius: 6,
-                  padding: "8px 10px",
-                  margin: "0 0 12px",
-                }}
-              >
+              <BannerV2 tone="danger" role="alert" className="mb-3">
                 {error}
-              </p>
+              </BannerV2>
             )}
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button
-                type="button"
-                className="button secondary"
+              <Button
+                variant="secondary"
                 onClick={() => setOpen(false)}
                 disabled={isPending}
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                className="button"
-                onClick={onConfirm}
-                disabled={isPending}
-                style={{ background: "#6b21c8", color: "white" }}
-              >
+              </Button>
+              <Button variant="primary" onClick={onConfirm} loading={isPending}>
                 {isPending ? "Promoting…" : "Confirm Promotion"}
-              </button>
+              </Button>
             </div>
           </div>
         </>

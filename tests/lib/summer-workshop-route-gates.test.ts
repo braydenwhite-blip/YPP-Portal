@@ -43,9 +43,6 @@ describe("Public portal gate allowlist", () => {
     "/settings",
     "/locked",
     "/preview",
-    "/people",
-    "/actions",
-    "/meetings",
     "/admin/external-applicants",
   ];
 
@@ -61,6 +58,17 @@ describe("Public portal gate allowlist", () => {
     "/mentorship/schedule",
     "/my-mentor",
     "/chapter-lead/instructor-applicants",
+    // Re-hidden from the public gate: internal People-Strategy / ops, general
+    // comms, and the AI help agent. Officers still reach these via role bypass
+    // in proxy.ts; non-officers without a preview passcode get /locked.
+    "/people",
+    "/actions",
+    "/meetings",
+    "/operations",
+    "/partners",
+    "/messages",
+    "/notifications",
+    "/help-agent",
   ];
 
   it.each(ALLOWED)("allows %s through the public gate", (path) => {

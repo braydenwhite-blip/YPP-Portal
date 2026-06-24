@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { getSingleStudentPathwayJourney } from "@/lib/chapter-pathway-journey";
+import { isGamificationEnabled } from "@/lib/feature-flags";
 
 export default async function PathwaySharePage({ params }: { params: { id: string } }) {
   const session = await getSession();
@@ -86,10 +87,12 @@ export default async function PathwaySharePage({ params }: { params: { id: strin
                 <div style={{ fontWeight: 700, fontSize: 18 }}>{user.name}</div>
                 {user.chapter?.name && <div style={{ fontSize: 13, opacity: 0.8 }}>{user.chapter.name} Chapter</div>}
               </div>
-              <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>Lv {user.level}</div>
-                <div style={{ fontSize: 12, opacity: 0.7 }}>{user.xp.toLocaleString()} XP</div>
-              </div>
+              {isGamificationEnabled() && (
+                <div style={{ marginLeft: "auto", textAlign: "right" }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>Lv {user.level}</div>
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>{user.xp.toLocaleString()} XP</div>
+                </div>
+              )}
             </div>
 
             <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 4, letterSpacing: "0.05em", textTransform: "uppercase" }}>

@@ -89,17 +89,14 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   // route through middleware; it does not grant access.
   "/admin/instructor-applicants",
 
-  // Leadership / People Strategy surfaces (each page enforces officer-tier
-  // or role checks server-side; listing here only bypasses the public gate
-  // redirect so officers can navigate without a preview passcode).
-  "/people",
-  "/meetings",
-  "/actions",
-  "/operations",
-  "/partners",
-  "/messages",
-  "/notifications",
-  "/help-agent",
+  // NOTE: the Leadership / People-Strategy / ops surfaces (/people, /meetings,
+  // /actions, /operations, /partners), general comms (/messages,
+  // /notifications), and the AI help agent (/help-agent) are intentionally NOT
+  // public. Officer-tier users (ADMIN / STAFF / CHAPTER_PRESIDENT /
+  // HIRING_CHAIR) still reach them — `proxy.ts` bypasses the gate by role — so
+  // dropping them from this allowlist only re-hides them from non-officer
+  // users who lack a preview passcode, matching the gate's stated purpose
+  // (Summer Workshop + hiring only).
 
   // Admin hiring intake — external applicant entry (staff, instructor, CP).
   // Page enforces ADMIN / CHAPTER_PRESIDENT server-side.
