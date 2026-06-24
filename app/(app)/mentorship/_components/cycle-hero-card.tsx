@@ -102,7 +102,7 @@ export function CycleHeroCard({
         <h2
           id="cycle-hero-title"
           style={{
-            fontFamily: "var(--font-playfair), Georgia, serif",
+            fontFamily: "var(--font-dm-sans), system-ui, -apple-system, sans-serif",
             fontSize: "clamp(20px, 2.6vw, 26px)",
             fontWeight: 700,
             letterSpacing: "-0.01em",

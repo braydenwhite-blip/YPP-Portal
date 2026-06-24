@@ -298,16 +298,16 @@ function InboxZeroHero({ total }: { total: number }) {
         padding: "28px 30px",
       }}
     >
-      <h2
-        style={{
-          fontFamily: "var(--font-playfair), Georgia, serif",
-          fontSize: "clamp(20px, 2.6vw, 26px)",
-          fontWeight: 700,
-          letterSpacing: "-0.01em",
-          color: "var(--ypp-purple-800)",
-          margin: 0,
-        }}
-      >
+        <h2
+          style={{
+            fontFamily: "var(--font-dm-sans), system-ui, -apple-system, sans-serif",
+            fontSize: "clamp(20px, 2.6vw, 26px)",
+            fontWeight: 700,
+            letterSpacing: "-0.01em",
+            color: "var(--ypp-purple-800)",
+            margin: 0,
+          }}
+        >
         You&apos;re caught up.
       </h2>
       <p

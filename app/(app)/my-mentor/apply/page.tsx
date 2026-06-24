@@ -1,6 +1,4 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-
 import { getSession } from "@/lib/auth-supabase";
 import { isMentorship2Enabled } from "@/lib/feature-flags";
 import {
@@ -12,6 +10,7 @@ import {
   type MentorshipApplicationStatus,
 } from "@/lib/mentorship-2/constants";
 import { MentorshipApplyForm } from "@/components/mentorship-2/apply-form";
+import { PageHeaderV2, CardV2, ButtonLink } from "@/components/ui-v2";
 
 export const metadata = { title: "Apply for Mentorship — YPP" };
 
@@ -27,25 +26,22 @@ export default async function MentorshipApplyPage() {
   ]);
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Mentorship</p>
-          <h1 className="page-title">Apply for a mentor</h1>
-          <p className="page-subtitle">
-            Tell us your goals and what you&apos;re looking for — a program lead
-            will pair you with the right mentor.
-          </p>
-        </div>
-        <Link href="/my-mentor" className="button secondary small">
-          ← Back to My Mentor
-        </Link>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeaderV2
+        eyebrow="Mentorship"
+        title="Apply for a mentor"
+        subtitle="Tell us your goals and what you're looking for — a program lead will pair you with the right mentor."
+        actions={
+          <ButtonLink href="/my-mentor" variant="secondary" size="sm">
+            ← Back to My Mentor
+          </ButtonLink>
+        }
+      />
 
       {openApplication ? (
-        <div className="card" style={{ borderLeft: "4px solid var(--color-primary)" }}>
-          <strong>You already have an application in progress.</strong>
-          <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>
+        <CardV2 padding="md" className="border-l-4 border-l-brand-600">
+          <strong className="text-[14px] text-ink">You already have an application in progress.</strong>
+          <p className="mt-2 text-[13px] text-ink-muted">
             Status:{" "}
             {
               MENTORSHIP_APPLICATION_STATUS_LABELS[
@@ -54,7 +50,7 @@ export default async function MentorshipApplyPage() {
             }
             . A program lead will follow up with your match.
           </p>
-        </div>
+        </CardV2>
       ) : (
         <div style={{ maxWidth: 720 }}>
           <MentorshipApplyForm

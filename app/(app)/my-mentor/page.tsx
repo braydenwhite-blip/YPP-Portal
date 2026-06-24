@@ -1,17 +1,8 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { getLeadershipContext } from "@/lib/leadership-context";
-import { MentorCard } from "@/components/leadership-pathway/mentor-card";
-import { LEADERSHIP_STAGES } from "@/lib/leadership-pathway";
-import { MenteeDashboard } from "@/app/(app)/mentorship/_components/mentee-dashboard";
-import { getGrowthConnectLine } from "@/lib/growth-model";
-import { MyMentorSubnav } from "./_components/my-mentor-subnav";
-import { isMentorship2Enabled } from "@/lib/feature-flags";
-import { getMenteeMentorshipView } from "@/lib/mentorship-2/mentee-dashboard";
-import { MenteeCommandCenter } from "./_components/mentee-command-center";
-import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
-import { MenteeCalmNextStep } from "./_components/mentee-home-calm";
+import { CardV2 } from "@/components/ui-v2";
+import { MenteeHomeRevamped } from "./_components/mentee-home-revamped";
 
 export const metadata = {
   title: "My Mentor — YPP",
@@ -24,169 +15,66 @@ export default async function MyMentorPage() {
   const ctx = await getLeadershipContext(session.user.id);
   if (!ctx) redirect("/");
 
-  const stage = ctx.stageId ? LEADERSHIP_STAGES[ctx.stageId] : null;
-  const nextStage = ctx.nextStageId ? LEADERSHIP_STAGES[ctx.nextStageId] : null;
   const hasMentor = !!ctx.primaryMentor;
-  const mentorsOthers = ctx.mentees.length > 0;
-
-  // Mentorship 2.0 (Phase M2): the canonical mentee command center renders the
-  // student's current lifecycle state (apply → reviewing → matched → alumni).
-  const m2Enabled = isMentorship2Enabled();
-  const menteeView = m2Enabled
-    ? await getMenteeMentorshipView(session.user.id)
-    : null;
 
   return (
     <div>
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>
-          <h1 className="page-title">My Mentor</h1>
-          {stage && (
-            <p
-              className="page-subtitle"
-              style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}
-            >
-              <span>{stage.label}</span>
-              {nextStage && (
+          <h1 className="page-title" style={{ fontFamily: "var(--font-dm-sans), system-ui, -apple-system, sans-serif" }}>My Mentor</h1>
+          {ctx.stageId ? (
+            <p className="page-subtitle">
+              {ctx.stageId}
+              {ctx.nextStageId && (
                 <>
-                  <span aria-hidden style={{ color: "var(--muted)" }}>→</span>
-                  <span style={{ color: "var(--muted)" }}>{nextStage.label}</span>
+                  <span aria-hidden style={{ color: "var(--muted)", margin: "0 8px" }}>→</span>
+                  <span style={{ color: "var(--muted)" }}>{ctx.nextStageId}</span>
                 </>
               )}
             </p>
-          )}
+          ) : null}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/leadership-pathway" className="button secondary small">
+          <a href="/leadership-pathway" className="button secondary small">
             Pathway →
-          </Link>
-          {mentorsOthers && (
-            <Link href="/mentorship" className="button small">
-              Mentorship →
-            </Link>
-          )}
+          </a>
+          <a href="/mentorship" className="button small" style={{ background: "var(--ypp-purple-600)", color: "white" }}>
+            {(ctx.mentees?.length ?? 0) > 0 ? `My Mentees (${ctx.mentees.length ?? 0})` : "Mentorship Workspace →"}
+          </a>
         </div>
       </div>
 
-      <MyMentorSubnav />
-
-      <p
-        className="muted"
-        style={{ margin: "0 0 16px", fontSize: 13, lineHeight: 1.55, maxWidth: "64ch" }}
-      >
-        {getGrowthConnectLine("my-mentor")}{" "}
-        <Link href="/leadership-pathway" style={{ fontWeight: 600 }}>
-          View full Leadership Pathway →
-        </Link>
-      </p>
-
-      <div style={{ display: "grid", gap: 24 }}>
-        {mentorsOthers && (
-          <div
-            className="card"
-            style={{
-              borderLeft: "4px solid var(--color-primary)",
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 16,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <strong>
-                {hasMentor
-                  ? "You\u2019re also mentoring others."
-                  : "You mentor others in YPP."}
-              </strong>
-              <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
-                Your mentor workspace stays separate so this page can focus on
-                your own support.
-              </p>
+      {(ctx.mentees?.length ?? 0) > 0 && (
+        <CardV2 padding="md" className="border-l-4 border-l-brand-600">
+          <div className="flex items-start gap-4">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600">
+              <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+              </svg>
             </div>
-            <Link href="/mentorship" className="button secondary small">
-              Open Mentorship
-            </Link>
-          </div>
-        )}
-
-        {hasMentor && ctx.primaryMentor && (
-          <div style={{ maxWidth: 760 }}>
-            <MentorCard
-              mentor={{
-                name: ctx.primaryMentor.name,
-                email: ctx.primaryMentor.email,
-                phone: ctx.primaryMentor.phone,
-                roleLabel: ctx.primaryMentor.roleLabel,
-                stageId: ctx.primaryMentor.stage?.id ?? null,
-                chapterName: ctx.primaryMentor.chapterName,
-                mentorshipId: ctx.primaryMentor.mentorshipId,
-                trackName: ctx.primaryMentor.trackName,
-                kickoffCompletedAt: ctx.primaryMentor.kickoffCompletedAt,
-                lastSessionAt: ctx.primaryMentor.lastSessionAt,
-              }}
-              menteeStageId={ctx.stageId}
-            />
-          </div>
-        )}
-
-        {hasMentor && ctx.primaryMentor && (
-          <CalmOnly>
-            <MenteeCalmNextStep
-              mentorName={ctx.primaryMentor.name}
-              kickoffCompleted={!!ctx.primaryMentor.kickoffCompletedAt}
-            />
-          </CalmOnly>
-        )}
-
-        {m2Enabled && menteeView ? (
-          <MenteeCommandCenter view={menteeView} />
-        ) : (
-          !hasMentor && (
-            <div
-              style={{
-                padding: "32px 24px",
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                textAlign: "center",
-              }}
-            >
-              <h2
-                style={{
-                  margin: "0 0 6px",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "var(--text)",
-                }}
-              >
-                You&apos;re not yet paired with a mentor.
-              </h2>
-              <p
-                style={{
-                  margin: "0 auto",
-                  maxWidth: 440,
-                  color: "var(--muted)",
-                  fontSize: 13,
-                  lineHeight: 1.55,
-                }}
-              >
-                Reach out to chapter leadership to get matched. Until then, the
-                pathway page shows how mentorship flows at YPP.
+            <div className="flex-1">
+              <h3 className="m-0 mb-2 text-[16px] font-bold text-ink">Write Monthly Reviews</h3>
+              <p className="m-0 mb-3 text-[13px] text-ink-muted">
+                After your mentees submit their monthly reflections, you'll write reviews here. Reviews are submitted to a chair for approval before being shared.
               </p>
+              <div className="flex flex-wrap gap-2">
+                <a href="/mentorship/reviews" className="button primary small">
+                  Open Review Inbox
+                </a>
+                <a href="/mentorship" className="button secondary small">
+                  Go to Mentorship Dashboard
+                </a>
+              </div>
             </div>
-          )
-        )}
-
-        {hasMentor && (
-          <CalmCollapse
-            label="Your full mentorship workspace"
-            hint="goals, resources, progress, and reflections"
-          >
-            <MenteeDashboard userId={session.user.id} />
-          </CalmCollapse>
-        )}
-      </div>
+          </div>
+        </CardV2>
+      )}
+      <MenteeHomeRevamped
+        mentorName={ctx.primaryMentor?.name ?? ""}
+        kickoffCompleted={!!ctx.primaryMentor?.kickoffCompletedAt}
+        hasMentor={hasMentor}
+      />
     </div>
   );
 }

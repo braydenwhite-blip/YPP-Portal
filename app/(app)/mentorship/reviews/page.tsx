@@ -73,6 +73,12 @@ export default async function MonthlyReviewInboxPage() {
         </div>
       </div>
 
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+        <a href="/mentorship/reviews/write" className="button primary small">
+          + Write New Review
+        </a>
+      </div>
+
       <MentorshipGuideCard
         title="How To Use The Monthly Review Inbox"
         intro="Your inbox shows reviews automatically routed to you based on your chair role — no manual assignment needed."
