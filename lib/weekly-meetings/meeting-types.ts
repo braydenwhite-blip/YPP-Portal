@@ -19,6 +19,14 @@ export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
 
 export type PersonDTO = { id: string; name: string } | null;
 
+/** Lightweight content counts shown on the meetings hub cards. */
+export type MeetingCounts = {
+  attendees: number;
+  decisions: number;
+  followUps: number;
+  topics: number;
+};
+
 export type MeetingListItem = {
   id: string;
   type: MeetingType;
@@ -28,6 +36,7 @@ export type MeetingListItem = {
   scheduledISO: string;
   facilitator: PersonDTO;
   scopeLabel: string | null;
+  counts: MeetingCounts;
 };
 
 export type PresentationDTO = {

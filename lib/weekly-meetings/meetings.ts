@@ -41,6 +41,14 @@ export async function listMeetings(): Promise<MeetingListItem[]> {
       facilitator: { select: { id: true, name: true } },
       team: { select: { name: true } },
       chapter: { select: { name: true } },
+      _count: {
+        select: {
+          attendees: true,
+          decisions: true,
+          followUps: true,
+          officerTopics: true,
+        },
+      },
     },
   });
   return meetings.map((m) => ({
@@ -52,6 +60,12 @@ export async function listMeetings(): Promise<MeetingListItem[]> {
     scheduledISO: m.scheduledAt.toISOString(),
     facilitator: m.facilitator ? { id: m.facilitator.id, name: m.facilitator.name } : null,
     scopeLabel: scopeLabelFor(m),
+    counts: {
+      attendees: m._count.attendees,
+      decisions: m._count.decisions,
+      followUps: m._count.followUps,
+      topics: m._count.officerTopics,
+    },
   }));
 }
 
