@@ -193,6 +193,51 @@ function Section({ title, count, children, action }: { title: string; count?: nu
   );
 }
 
+function ImpactCoverageStrip({ coverage }: { coverage: NonNullable<MeetingDetail["impactCoverage"]> }) {
+  const missing = coverage.people.filter((p) => p.status === "MISSING");
+  const drafting = coverage.people.filter((p) => p.status === "DRAFT");
+  return (
+    <div className="mb-3 rounded-lg border border-line-soft bg-surface-soft px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px]">
+        <span className="font-semibold text-ink">{coverage.weekLabel}</span>
+        <span className="text-ink-muted">{coverage.scopeLabel}</span>
+        <span className="text-ink-muted">
+          <b className="font-semibold text-ink">{coverage.submitted}</b>
+          {coverage.hasRoster ? `/${coverage.expected}` : ""} submitted
+        </span>
+        <span className="text-ink-muted">
+          <b className="font-semibold text-ink">{coverage.presenting}</b> flagged to present
+        </span>
+      </div>
+      {(missing.length > 0 || drafting.length > 0) && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {drafting.map((p) => (
+            <span
+              key={p.userId}
+              title="Started a draft but hasn't submitted"
+              className="inline-flex items-center rounded-full border border-progress-700/30 bg-progress-50 px-2 py-0.5 text-[11px] font-medium text-progress-700"
+            >
+              {p.name} · draft
+            </span>
+          ))}
+          {missing.map((p) => (
+            <span
+              key={p.userId}
+              title="Has not submitted Weekly Impact for this week"
+              className="inline-flex items-center rounded-full border border-line bg-surface px-2 py-0.5 text-[11px] font-medium text-ink-muted"
+            >
+              {p.name}
+            </span>
+          ))}
+          <span className="text-[11px] text-ink-muted">
+            {missing.length > 0 ? "still to submit" : "in draft"}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PresentationsSection({
   meeting,
   pending,
@@ -202,12 +247,15 @@ function PresentationsSection({
   pending: boolean;
   run: (fn: () => Promise<unknown>) => void;
 }) {
+  const coverage = meeting.impactCoverage;
   return (
     <Section title="Impact Presentations" count={meeting.presentations.length}>
+      {coverage && <ImpactCoverageStrip coverage={coverage} />}
       {meeting.presentations.length === 0 ? (
         <p className="m-0 text-[13px] text-ink-muted">
-          No presentations yet. They appear here once team members flag rows to
-          <b className="font-semibold text-ink"> present</b> on their submitted Weekly Impact forms for this week.
+          No rows flagged to present{coverage ? ` for ${coverage.weekLabel}` : ""} yet. They appear here once
+          {meeting.type === "CHAPTER_IMPACT" ? " the chapter" : " team members"} tick
+          <b className="font-semibold text-ink"> Present</b> on their submitted Weekly Impact for this week.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -235,7 +283,7 @@ function PresentationsSection({
                       className="h-4 w-4 accent-brand-600"
                       checked={p.decisionNeeded}
                       disabled={pending}
-                      onChange={(e) => run(() => setPresentationRowFlags({ rowId: p.rowId, decisionNeeded: e.target.checked }))}
+                      onChange={(e) => run(() => setPresentationRowFlags({ rowId: p.rowId, meetingId: meeting.id, decisionNeeded: e.target.checked }))}
                     />
                   </td>
                   <td className="px-2 py-2 text-center">
@@ -244,7 +292,7 @@ function PresentationsSection({
                       className="h-4 w-4 accent-brand-600"
                       checked={p.sendToBoard}
                       disabled={pending}
-                      onChange={(e) => run(() => setPresentationRowFlags({ rowId: p.rowId, sendToBoard: e.target.checked }))}
+                      onChange={(e) => run(() => setPresentationRowFlags({ rowId: p.rowId, meetingId: meeting.id, sendToBoard: e.target.checked }))}
                     />
                   </td>
                 </tr>

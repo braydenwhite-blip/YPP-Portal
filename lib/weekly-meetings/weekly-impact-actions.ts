@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { canEditImpactEntry, requireImpactAuthor } from "./permissions";
 import {
+  AddRowFromContributionSchema,
   AddRowSchema,
   EntryIdSchema,
   RowIdSchema,
@@ -63,6 +64,34 @@ export async function addImpactRow(input: unknown) {
   });
   revalidatePath("/my-weekly-impact");
   return { ok: true, id: row.id };
+}
+
+export async function addImpactRowFromContribution(input: unknown) {
+  const viewer = await requireImpactAuthor();
+  const data = AddRowFromContributionSchema.parse(input);
+  const entry = await prisma.weeklyImpactEntry.findUnique({
+    where: { id: data.entryId },
+    select: { userId: true },
+  });
+  if (!entry) throw new Error("Entry not found");
+  if (!canEditImpactEntry(viewer, entry.userId)) throw new Error("Unauthorized");
+
+  const max = await prisma.weeklyImpactRow.aggregate({
+    where: { entryId: data.entryId },
+    _max: { sortOrder: true },
+  });
+  await prisma.weeklyImpactRow.create({
+    data: {
+      entryId: data.entryId,
+      sortOrder: (max._max.sortOrder ?? -1) + 1,
+      type: data.type,
+      whatGoal: data.whatGoal,
+      evidenceNext: data.evidenceNext,
+      rowStatus: "DONE",
+    },
+  });
+  revalidatePath("/my-weekly-impact");
+  return { ok: true };
 }
 
 export async function updateImpactRow(input: unknown) {
