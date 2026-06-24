@@ -272,7 +272,11 @@ export async function setPresentationRowFlags(input: unknown) {
     },
     select: { meetingId: true },
   });
-  if (row.meetingId) revalidateMeeting(row.meetingId);
+  // Impact rows surface in meetings by week + scope (not a stored meetingId), so
+  // refresh the runner the toggle came from; fall back to any pinned meeting.
+  const meetingToRefresh = data.meetingId ?? row.meetingId;
+  if (meetingToRefresh) revalidateMeeting(meetingToRefresh);
   revalidatePath("/meetings");
+  revalidatePath("/my-weekly-impact");
   return { ok: true };
 }

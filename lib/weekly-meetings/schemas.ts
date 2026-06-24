@@ -164,6 +164,8 @@ export const FollowUpIdSchema = z.object({ followUpId: Id });
 // --- Presentation curation (inline on the runner) ---------------------------
 export const SetRowFlagSchema = z.object({
   rowId: Id,
+  /** The runner meeting whose page should refresh (rows match by week + scope). */
+  meetingId: Id.optional(),
   decisionNeeded: z.boolean().optional(),
   sendToBoard: z.boolean().optional(),
 });

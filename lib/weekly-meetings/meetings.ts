@@ -7,6 +7,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { getMeetingActionLinks } from "@/lib/people-strategy/action-queries";
+import { buildImpactCoverage, type ImpactCoverage } from "./impact-link";
 import { weekKey, weekLabel } from "./week";
 import {
   MEETING_TYPE_LABELS,
@@ -120,6 +121,67 @@ export async function loadImpactPresentations(meeting: {
     .map(({ scopeOrder: _drop, ...rest }) => rest);
 }
 
+/**
+ * Coverage for an impact meeting: who in scope has reported for the week. The
+ * runner uses this to show "3 of 8 submitted" and nudge the people still out.
+ * Team scope yields a full roster (so we can name who's missing); chapter scope
+ * has no membership table, so we report only the people who submitted.
+ */
+export async function loadImpactCoverage(meeting: {
+  type: string;
+  teamId: string | null;
+  chapterId: string | null;
+  weekStart: Date | null;
+  scopeLabel: string | null;
+}): Promise<ImpactCoverage | null> {
+  if (meeting.type !== "WEEKLY_TEAM_IMPACT" && meeting.type !== "CHAPTER_IMPACT") return null;
+  if (!meeting.weekStart) return null;
+
+  const isChapter = meeting.type === "CHAPTER_IMPACT";
+
+  // Expected roster — only knowable for team-scoped meetings.
+  let roster: Array<{ userId: string; name: string }> | null = null;
+  if (!isChapter) {
+    const memberships = await prisma.teamMembership.findMany({
+      where: meeting.teamId
+        ? { teamId: meeting.teamId }
+        : { team: { status: "ACTIVE" } },
+      include: { user: { select: { id: true, name: true } } },
+    });
+    const byId = new Map<string, { userId: string; name: string }>();
+    for (const m of memberships) byId.set(m.user.id, { userId: m.user.id, name: m.user.name });
+    roster = Array.from(byId.values());
+  }
+
+  const scopeWhere = isChapter
+    ? { chapterId: meeting.chapterId ?? undefined }
+    : meeting.teamId
+      ? { teamId: meeting.teamId }
+      : { NOT: { teamId: null } };
+
+  const entries = await prisma.weeklyImpactEntry.findMany({
+    where: { weekStart: meeting.weekStart, ...scopeWhere },
+    select: {
+      userId: true,
+      status: true,
+      user: { select: { name: true } },
+      rows: { where: { presentToMeeting: true }, select: { id: true } },
+    },
+  });
+
+  return buildImpactCoverage({
+    scopeLabel: meeting.scopeLabel ?? (isChapter ? "Chapter" : "All teams"),
+    weekLabel: weekLabel(meeting.weekStart),
+    roster,
+    entries: entries.map((e) => ({
+      userId: e.userId,
+      name: e.user.name,
+      status: e.status,
+      presentingCount: e.rows.length,
+    })),
+  });
+}
+
 export async function getMeeting(id: string): Promise<MeetingDetail | null> {
   const m = await prisma.meeting.findUnique({
     where: { id },
@@ -153,6 +215,14 @@ export async function getMeeting(id: string): Promise<MeetingDetail | null> {
     teamId: m.teamId,
     chapterId: m.chapterId,
     weekStart: m.weekStart,
+  });
+
+  const impactCoverage = await loadImpactCoverage({
+    type: m.type,
+    teamId: m.teamId,
+    chapterId: m.chapterId,
+    weekStart: m.weekStart,
+    scopeLabel: scopeLabelFor(m),
   });
 
   const actionLinks = await getMeetingActionLinks(m.id);
@@ -191,6 +261,7 @@ export async function getMeeting(id: string): Promise<MeetingDetail | null> {
       isOptional: a.isOptional,
     })),
     presentations,
+    impactCoverage,
     officerTopics,
     decisions: m.decisions.map((d) => ({
       id: d.id,

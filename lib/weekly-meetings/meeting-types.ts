@@ -6,6 +6,7 @@
  * server-side loaders live in `./meetings`, which re-exports everything here.
  */
 import type { MeetingLinkedAction } from "@/lib/people-strategy/action-queries";
+import type { ImpactCoverage } from "./impact-link";
 
 export type MeetingType = "OFFICER" | "WEEKLY_TEAM_IMPACT" | "CHAPTER_IMPACT" | "GENERIC";
 export type MeetingStatus = "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
@@ -106,6 +107,8 @@ export type MeetingDetail = {
   weekLabel: string | null;
   attendees: AttendeeDTO[];
   presentations: PresentationDTO[];
+  /** For impact meetings: who in scope has reported for the week (else null). */
+  impactCoverage: ImpactCoverage | null;
   officerTopics: OfficerTopicDTO[];
   decisions: DecisionDTO[];
   followUps: FollowUpDTO[];

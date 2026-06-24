@@ -8,6 +8,11 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { Viewer } from "./permissions";
 import { isOfficer } from "./permissions";
+import {
+  matchImpactMeetingForEntry,
+  type ImpactMeetingHint,
+} from "./impact-link";
+import type { MeetingStatus, MeetingType } from "./meeting-types";
 import { weekKey, weekLabel, weekStartFor } from "./week";
 
 export type ImpactRowDTO = {
@@ -34,6 +39,10 @@ export type ImpactEntryDTO = {
   submittedAt: string | null;
   inputNeeded: string | null;
   rows: ImpactRowDTO[];
+  /** Rows flagged to present at the meeting (curation count). */
+  presentingCount: number;
+  /** The live impact meeting this entry's presented rows feed, if scheduled. */
+  meeting: ImpactMeetingHint | null;
 };
 
 export type MyWeeklyImpact = {
@@ -117,6 +126,34 @@ export async function loadMyWeeklyImpact(
     orderBy: { createdAt: "asc" },
   });
 
+  // The live impact meetings that read this week's submissions, so the form can
+  // tell the contributor exactly where their flagged rows will be presented.
+  const liveMeetings = await prisma.meeting.findMany({
+    where: {
+      weekStart,
+      type: { in: ["WEEKLY_TEAM_IMPACT", "CHAPTER_IMPACT"] },
+      status: { in: ["SCHEDULED", "IN_PROGRESS"] },
+    },
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      teamId: true,
+      chapterId: true,
+      status: true,
+      scheduledAt: true,
+    },
+  });
+  const meetingCandidates = liveMeetings.map((m) => ({
+    id: m.id,
+    title: m.title,
+    type: m.type as MeetingType,
+    teamId: m.teamId,
+    chapterId: m.chapterId,
+    status: m.status as MeetingStatus,
+    scheduledISO: m.scheduledAt.toISOString(),
+  }));
+
   return {
     weekKey: weekKey(weekStart),
     weekLabel: weekLabel(weekStart),
@@ -137,6 +174,8 @@ export async function loadMyWeeklyImpact(
           submittedAt: e.submittedAt ? e.submittedAt.toISOString() : null,
           inputNeeded: e.inputNeeded,
           rows: e.rows.map(toRowDTO),
+          presentingCount: e.rows.filter((r) => r.presentToMeeting).length,
+          meeting: matchImpactMeetingForEntry({ scope, scopeId }, meetingCandidates),
         };
       })
       .filter((e): e is ImpactEntryDTO => e !== null),

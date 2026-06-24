@@ -142,6 +142,9 @@ function EntryEditor({
         </p>
       </div>
 
+      {/* Where this entry's flagged rows go */}
+      <MeetingLinkBanner entry={entry} submitted={submitted} />
+
       {/* Table */}
       <div className="overflow-x-auto px-6 py-5">
         <table className="w-full border-collapse text-left">
@@ -226,6 +229,49 @@ function EntryEditor({
           {toast.msg}
         </ToastV2>
       )}
+    </div>
+  );
+}
+
+function fmtMeetingWhen(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * Closes the loop for the contributor: shows how many rows are flagged to
+ * present and the live impact meeting they will surface in (read-only — the
+ * runner itself is officer-only).
+ */
+function MeetingLinkBanner({ entry, submitted }: { entry: ImpactEntryDTO; submitted: boolean }) {
+  const { presentingCount, meeting } = entry;
+  return (
+    <div className="border-b border-line-soft bg-surface-soft px-6 py-3 text-[12.5px]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-ink-muted">
+          <b className="font-semibold text-ink">{presentingCount}</b> row{presentingCount === 1 ? "" : "s"} flagged to
+          present
+        </span>
+        {meeting ? (
+          <span className="text-ink-muted">
+            {submitted ? "Presenting at " : "Will present at "}
+            <b className="font-semibold text-ink">{meeting.title}</b> · {fmtMeetingWhen(meeting.scheduledISO)}
+            {meeting.status === "IN_PROGRESS" ? " (in progress)" : ""}
+          </span>
+        ) : (
+          <span className="text-ink-muted">No impact meeting scheduled for this week yet.</span>
+        )}
+      </div>
+      {meeting && !submitted && presentingCount > 0 ? (
+        <p className="m-0 mt-1 text-[11.5px] font-medium text-progress-700">
+          Submit this form so your flagged rows reach the meeting.
+        </p>
+      ) : null}
     </div>
   );
 }
