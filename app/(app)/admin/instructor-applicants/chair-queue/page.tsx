@@ -8,7 +8,41 @@ import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 import { requireChairPage } from "@/lib/page-guards";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
-import ChairQueueClientWrapper from "./client";
+import { recommendedNextStep } from "@/lib/instructor-applicants/workspace-display";
+import ChairQueueTriage from "@/components/instructor-applicants/ChairQueueTriage";
+
+/** One headline readout inside the "Queue at a glance" band. */
+function Readout({
+  value,
+  label,
+  detail,
+  tone = "default",
+}: {
+  value: string | number;
+  label: string;
+  detail?: string;
+  tone?: "default" | "success" | "danger";
+}) {
+  const valueColor =
+    tone === "success"
+      ? "text-success-700"
+      : tone === "danger"
+        ? "text-danger-700"
+        : "text-ink";
+  return (
+    <div>
+      <div className={`text-[26px] font-extrabold leading-none ${valueColor}`}>
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+        {label}
+      </div>
+      {detail ? (
+        <div className="mt-0.5 text-[11.5px] text-ink-muted">{detail}</div>
+      ) : null}
+    </div>
+  );
+}
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +145,17 @@ export default async function ChairQueuePage() {
     .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
   const oldestDays = daysSince(oldestQueued);
 
+  // Consensus mix across the queue — the chair's triage read. `tone` from
+  // recommendedNextStep already encodes accept (success) / discuss (warning) /
+  // decline (danger) / awaiting-reviews (neutral).
+  const recTones = applications.map(
+    (app) => recommendedNextStep(app.interviewReviews).tone
+  );
+  const leaningAccept = recTones.filter((t) => t === "success").length;
+  const needsDiscussion = recTones.filter(
+    (t) => t === "warning" || t === "danger"
+  ).length;
+
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-6 py-6">
       <PageHeaderV2
@@ -139,7 +184,36 @@ export default async function ChairQueuePage() {
           </p>
         </CardV2>
       ) : (
-        <ChairQueueClientWrapper initialApplications={applications} />
+        <>
+          {/* Queue at a glance — the triage read before opening any one record. */}
+          <CardV2 padding="lg">
+            <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+              Queue at a glance
+            </p>
+            <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-4">
+              <Readout value={applications.length} label="Awaiting decision" />
+              <Readout
+                value={oldestDays ?? "—"}
+                label="Oldest wait"
+                detail={
+                  oldestDays !== null
+                    ? `day${oldestDays === 1 ? "" : "s"} in queue`
+                    : undefined
+                }
+                tone={oldestDays !== null && oldestDays >= 7 ? "danger" : "default"}
+              />
+              <Readout value={leaningAccept} label="Leaning accept" tone="success" />
+              <Readout
+                value={needsDiscussion}
+                label="Needs discussion"
+                detail="hold or decline signals"
+                tone={needsDiscussion > 0 ? "danger" : "default"}
+              />
+            </div>
+          </CardV2>
+
+          <ChairQueueTriage applications={applications} />
+        </>
       )}
 
       <CardV2 as="section" padding="lg">
