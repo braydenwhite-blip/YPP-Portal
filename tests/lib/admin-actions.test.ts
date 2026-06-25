@@ -79,6 +79,7 @@ describe("admin-actions createUser", () => {
         primaryRole: RoleType.STUDENT,
         chapterId: "chapter-1",
         roles: [RoleType.STUDENT],
+        internalLevel: null,
       },
     });
     expect(vi.mocked(prisma.user.create)).toHaveBeenCalledWith({
@@ -91,6 +92,8 @@ describe("admin-actions createUser", () => {
         chapterId: "chapter-1",
         emailVerified: expect.any(Date),
         supabaseAuthId: "auth-user-1",
+        // STUDENT has no ladder authority — spine stays null.
+        internalLevel: null,
         roles: {
           create: [{ role: RoleType.STUDENT }],
         },
@@ -148,6 +151,7 @@ describe("admin-actions createUser", () => {
         chapterId: null,
         emailVerified: expect.any(Date),
         supabaseAuthId: "auth-user-1",
+        internalLevel: null,
         roles: {
           deleteMany: {},
           create: [
@@ -208,6 +212,8 @@ describe("admin-actions createUser", () => {
         primaryRole: RoleType.STAFF,
         chapterId: null,
         roles: [RoleType.STAFF, RoleType.ADMIN],
+        // CONTENT_ADMIN is not a privileged subtype — spine derives from STAFF.
+        internalLevel: 1,
       },
     });
     expect(vi.mocked(prisma.user.create)).toHaveBeenCalledWith({
@@ -220,6 +226,10 @@ describe("admin-actions createUser", () => {
         chapterId: null,
         emailVerified: expect.any(Date),
         supabaseAuthId: "auth-user-2",
+        // STAFF → Manager (leadership L1); CONTENT_ADMIN does not raise the level.
+        internalLevel: 1,
+        ladder: "LEADERSHIP",
+        canonicalTitle: "Manager",
         roles: {
           create: [{ role: RoleType.STAFF }, { role: RoleType.ADMIN }],
         },
@@ -227,6 +237,55 @@ describe("admin-actions createUser", () => {
           create: [{ subtype: "CONTENT_ADMIN", isDefaultOwner: true }],
         },
       },
+    });
+  });
+
+  it("persists a privileged spine (Board) when a SUPER_ADMIN subtype is selected", async () => {
+    const createSupabaseUser = vi.fn().mockResolvedValue({
+      data: { user: { id: "auth-user-3" } },
+      error: null,
+    });
+
+    vi.mocked(createServiceClient).mockReturnValue({
+      auth: {
+        admin: {
+          createUser: createSupabaseUser,
+          deleteUser: vi.fn(),
+        },
+      },
+    } as any);
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    vi.mocked(prisma.user.create).mockResolvedValue({
+      id: "portal-user-3",
+      email: "board@example.com",
+    } as any);
+
+    const formData = new FormData();
+    formData.set("name", "Board Member");
+    formData.set("email", "board@example.com");
+    formData.set("password", "Passw0rd123");
+    formData.set("primaryRole", RoleType.STAFF);
+    formData.append("adminSubtypes", "SUPER_ADMIN");
+
+    await createUser(formData);
+
+    // resolveUserAccessSelection forces ADMIN when a subtype is present, so the
+    // privileged level is only ever persisted on an ADMIN row (the trust guard).
+    expect(vi.mocked(prisma.user.create)).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        primaryRole: RoleType.STAFF,
+        internalLevel: 7,
+        ladder: "LEADERSHIP",
+        canonicalTitle: "Board Member",
+        roles: {
+          create: [{ role: RoleType.STAFF }, { role: RoleType.ADMIN }],
+        },
+        adminSubtypes: {
+          create: [{ subtype: "SUPER_ADMIN", isDefaultOwner: false }],
+        },
+      }),
     });
   });
 
