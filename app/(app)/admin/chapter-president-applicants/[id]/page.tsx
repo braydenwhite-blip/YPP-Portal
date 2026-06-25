@@ -28,6 +28,7 @@ import {
   saveCPReviewAction,
   scheduleCPInterviewAction,
 } from "@/lib/chapter-president-application-actions";
+import { CreateChapterFromApplicationButton } from "@/components/chapters/create-chapter-from-application-button";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -261,6 +262,17 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
                 </label>
                 <button className="button secondary small" type="submit">Save</button>
               </form>
+
+              {!app.chapterId && <CreateChapterFromApplicationButton applicationId={app.id} />}
+              {app.chapter && (
+                <Link
+                  href={`/admin/chapters/${app.chapter.id}`}
+                  className="link"
+                  style={{ fontSize: 12, display: "inline-block", marginTop: 8 }}
+                >
+                  Open chapter workspace →
+                </Link>
+              )}
             </div>
 
             {missing.length > 0 && (

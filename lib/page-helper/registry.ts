@@ -375,6 +375,24 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/chapters/analytics",
+    title: "Chapter Analytics",
+    content: {
+      purpose: "This page shows national chapter growth metrics — applications, approvals, chapters per state, and fastest-growing regions.",
+      firstStep: "Read the headline tiles first to see the totals, then scan the ranked lists for where growth is concentrated.",
+      nextStep: "Use the command center or map to act on a region or application that the analytics surface."
+    }
+  },
+  {
+    pattern: "/admin/chapters/map",
+    title: "Chapter Map",
+    content: {
+      purpose: "This page maps where chapters exist, where they are launching, where applicants are concentrated, and where the gaps are.",
+      firstStep: "Scan the density-by-state view to see your footprint, then check the growth-opportunity list for unmet demand.",
+      nextStep: "Open a chapter from the list to manage it, or use analytics to dig into a region."
+    }
+  },
+  {
     pattern: "/admin/classes",
     title: "Classes — Pathways Portal",
     content: {
@@ -1221,6 +1239,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/role-management",
+    title: "Role Management",
+    content: {
+      purpose: "This page helps you manage user roles and keep portal access organized.",
+      firstStep: "Review the current list or settings first so you can decide which role assignment needs action right now.",
+      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
+    }
+  },
+  {
     pattern: "/admin/role-matrix",
     title: "Role Matrix Audit",
     content: {
@@ -1758,6 +1785,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page brings together the main tools and details for the chapter.",
       firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+    }
+  },
+  {
+    pattern: "/chapter/workspace",
+    title: "Chapter Workspace",
+    content: {
+      purpose: "This is your chapter operating workspace — launch checklist, meetings, members, programs, actions, and requests for help in one place.",
+      firstStep: "Read the status band and the highlighted next step, then work the launch checklist or schedule your next meeting.",
+      nextStep: "Completing a checklist item or an action updates your chapter's status and what national leadership sees automatically."
     }
   },
   {
@@ -3496,6 +3532,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page helps you review the write monthly review and move each item to the right next step.",
       firstStep: "Open the item that is newest, overdue, or blocked so you can confirm the current status before changing anything.",
       nextStep: "After you approve, return, score, or update the record, the workflow reflects the change for the next person automatically."
+    }
+  },
+  {
+    pattern: "/mentorship/reviews/write",
+    title: "Write Mentorship Review",
+    content: {
+      purpose: "This page is where you write up a mentorship review so the mentee's record reflects the latest check-in.",
+      firstStep: "Start with the review prompts at the top so you capture the most important observations first.",
+      nextStep: "After you submit, the review attaches to the mentee's record and the next review cycle is scheduled automatically."
     }
   },
   {

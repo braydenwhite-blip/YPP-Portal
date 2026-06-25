@@ -9,6 +9,8 @@ import {
   archiveChapter,
   restoreChapter,
 } from "@/lib/chapter-actions";
+import { loadChapterWorkspace } from "@/lib/chapters/workspace";
+import { ChapterWorkspaceView } from "@/components/chapters/chapter-workspace-view";
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -149,6 +151,8 @@ export default async function AdminChapterDetailPage({
   const healthLabel =
     health === "healthy" ? "Healthy" : health === "warming" ? "Warming" : "At-risk";
 
+  const workspace = await loadChapterWorkspace(id);
+
   return (
     <div>
       <div className="topbar" style={{ alignItems: "flex-start" }}>
@@ -211,6 +215,12 @@ export default async function AdminChapterDetailPage({
           </div>
         </div>
       </div>
+
+      {workspace && (
+        <div style={{ marginBottom: 24 }}>
+          <ChapterWorkspaceView data={workspace} canManage isLeadership />
+        </div>
+      )}
 
       {/* KPI Row */}
       <div className="grid four" style={{ marginBottom: 20 }}>

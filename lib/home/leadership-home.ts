@@ -42,6 +42,9 @@ export type LeadershipHomeData = {
     advisorCheckInsOverdue: number;
     partnerFollowUpsOverdue: number;
     openPartnerRequests: number;
+    newCpApplications: number;
+    chaptersLaunching: number;
+    chapterSupportOpen: number;
   };
   attention: AttentionItem[];
   upcomingMeetings: MeetingLite[];
@@ -106,6 +109,9 @@ export async function loadLeadershipHome(
     partnerFollowUpsOverdue,
     partnerFollowUpRows,
     openPartnerRequests,
+    newCpApplications,
+    chaptersLaunching,
+    chapterSupportOpen,
   ] = await Promise.all([
     loadData360(viewer, { now }),
     prisma.instructorApplication.findMany({
@@ -169,6 +175,15 @@ export async function loadLeadershipHome(
     }),
     prisma.partnerRequest.count({
       where: { status: { in: [...PARTNER_REQUEST_OPEN_STATUSES] } },
+    }),
+    prisma.chapterPresidentApplication.count({
+      where: { status: "SUBMITTED", archivedAt: null },
+    }),
+    prisma.chapter.count({
+      where: { archivedAt: null, lifecycleStatus: { in: ["APPROVED", "LAUNCHING"] } },
+    }),
+    prisma.chapterSupportRequest.count({
+      where: { status: { in: ["OPEN", "IN_PROGRESS"] } },
     }),
   ]);
 
@@ -285,6 +300,9 @@ export async function loadLeadershipHome(
       advisorCheckInsOverdue,
       partnerFollowUpsOverdue,
       openPartnerRequests,
+      newCpApplications,
+      chaptersLaunching,
+      chapterSupportOpen,
     },
     attention: data360.attention.slice(0, 8),
     upcomingMeetings: upcomingMeetings.slice(0, 5),

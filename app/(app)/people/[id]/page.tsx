@@ -33,6 +33,7 @@ import { meetingPrefillToQuery } from "@/lib/people-strategy/action-prefill";
 import { StrategicEntityPanel } from "@/components/people-strategy/strategic-entity-panel";
 import { LeadershipStageContext } from "@/components/people-strategy/leadership-stage-context";
 import { ProfileBody, activeLabel } from "@/components/people-strategy/profile-body";
+import { PersonChapterSection } from "@/components/chapters/person-chapter-section";
 import { PersonProfileLeadership } from "@/components/people-strategy/person-profile-leadership";
 import { AskAboutThis } from "@/components/help-agent/ask-about-this";
 import { getPeopleHubAccess } from "@/lib/people/hub-access";
@@ -223,6 +224,10 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
       ) : null}
 
       <ProfileBody profile={profile} compact={fromPeopleReviews} />
+
+      <div className="mt-4">
+        <PersonChapterSection userId={id} />
+      </div>
 
       {showLinkedActions && opsContext && !fromPeopleReviews ? (
         <details className="group mt-4 overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
