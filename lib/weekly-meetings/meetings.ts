@@ -7,6 +7,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { getMeetingActionLinks } from "@/lib/people-strategy/action-queries";
+import { loadChapterMeetingContext } from "@/lib/chapters/meeting-context";
 import { buildImpactCoverage, type ImpactCoverage } from "./impact-link";
 import { weekKey, weekLabel } from "./week";
 import {
@@ -227,6 +228,10 @@ export async function getMeeting(id: string): Promise<MeetingDetail | null> {
 
   const actionLinks = await getMeetingActionLinks(m.id);
 
+  const chapterContext = m.chapterId
+    ? await loadChapterMeetingContext(m.chapterId)
+    : null;
+
   const officerTopics: OfficerTopicDTO[] = m.officerTopics.map((t) => ({
     id: t.id,
     sortOrder: t.sortOrder,
@@ -283,5 +288,6 @@ export async function getMeeting(id: string): Promise<MeetingDetail | null> {
     boardRows: presentations.filter((p) => p.sendToBoard),
     boardTopics: officerTopics.filter((t) => t.sendToBoard),
     linkedActions: actionLinks.actions,
+    chapterContext,
   };
 }

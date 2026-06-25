@@ -9,7 +9,16 @@ export type PersonChapterInvolvement = Awaited<
 >;
 
 export async function loadPersonChapterInvolvement(userId: string) {
-  const [ledChapters, membership, application, chapterActionsOwned, chapterMeetingsLed, meetingsAttended] =
+  const [
+    ledChapters,
+    membership,
+    application,
+    chapterActionsOwned,
+    chapterMeetingsLed,
+    meetingsAttended,
+    supportRequestsInvolved,
+    classesConnected,
+  ] =
     await Promise.all([
       prisma.chapter.findMany({
         where: { presidentId: userId, archivedAt: null },
@@ -46,6 +55,17 @@ export async function loadPersonChapterInvolvement(userId: string) {
       prisma.meetingAttendee.count({
         where: { userId, present: true, meeting: { chapterId: { not: null } } },
       }),
+      // Open chapter support requests this person raised or is handling.
+      prisma.chapterSupportRequest.count({
+        where: {
+          status: { in: ["OPEN", "IN_PROGRESS"] },
+          OR: [{ requestedById: userId }, { assignedToId: userId }],
+        },
+      }),
+      // Programs/classes the person runs that are tied to a chapter.
+      prisma.classOffering.count({
+        where: { instructorId: userId, chapterId: { not: null } },
+      }),
     ]);
 
   const memberChapter =
@@ -65,6 +85,8 @@ export async function loadPersonChapterInvolvement(userId: string) {
       chapterActionsOwned,
       chapterMeetingsLed,
       meetingsAttended,
+      supportRequestsInvolved,
+      classesConnected,
     },
   };
 }

@@ -283,6 +283,19 @@ export function ActionHubCard({
         </p>
       ) : null}
 
+      {item.chapter ? (
+        <p className="m-0 mt-2 text-[12px] font-medium text-ink-muted">
+          Chapter:{" "}
+          <a
+            href={`/admin/chapters/${item.chapter.id}`}
+            onClick={stopCardNavigation}
+            className="font-semibold text-brand-700 hover:underline"
+          >
+            {item.chapter.name}
+          </a>
+        </p>
+      ) : null}
+
       <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
         {hasRoles ? (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

@@ -42,6 +42,7 @@ import {
   buildActionPrefillFromMeeting,
   buildActionPrefillFromMeetingFollowUp,
 } from "@/lib/people-strategy/action-prefill";
+import { createActionFromMeetingFollowUp } from "@/lib/chapters/actions";
 import { copyHtmlToClipboard, downloadDocx } from "./copy-docs";
 
 const inputCls =
@@ -135,6 +136,7 @@ export function MeetingRunner({
 
       {tab === "run" ? (
         <div className="flex flex-col gap-5">
+          {meeting.chapterContext && <ChapterContextSection ctx={meeting.chapterContext} />}
           {isImpact && <PresentationsSection meeting={meeting} pending={pending} run={run} />}
           {showTopics && <OfficerTopicsSection meeting={meeting} people={people} pending={pending} run={run} />}
           <DecisionsSection meeting={meeting} people={people} pending={pending} run={run} />
@@ -175,6 +177,72 @@ function StatusControl({
         </Button>
       )}
     </div>
+  );
+}
+
+function ChapterContextSection({ ctx }: { ctx: NonNullable<MeetingDetail["chapterContext"]> }) {
+  return (
+    <CardV2 padding="md">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge tone="brand">Chapter meeting</StatusBadge>
+          <h2 className="m-0 text-[15px] font-bold text-ink">{ctx.name}</h2>
+          <StatusBadge tone="neutral">{ctx.lifecycleLabel}</StatusBadge>
+        </div>
+        <Link href={ctx.detailHref} className="text-[12.5px] font-semibold text-brand-700 hover:underline">
+          Open chapter →
+        </Link>
+      </div>
+
+      <p className="m-0 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-ink-muted">
+        <span>
+          <b className="font-semibold text-ink">Chapter President:</b>{" "}
+          {ctx.president ? (
+            <Link href={`/people/${ctx.president.id}`} className="text-brand-700 hover:underline">
+              {ctx.president.name}
+            </Link>
+          ) : (
+            "Not assigned"
+          )}
+        </span>
+        <span><b className="font-semibold text-ink">Members:</b> {ctx.memberCount}</span>
+        <span><b className="font-semibold text-ink">Open actions:</b> {ctx.openActionCount}</span>
+      </p>
+
+      {ctx.activeGoals.length > 0 && (
+        <div className="mt-3">
+          <h3 className="m-0 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Active goals</h3>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px] text-ink">
+            {ctx.activeGoals.map((g) => (
+              <li key={g.id} className="flex items-center justify-between gap-3">
+                <span>{g.title}</span>
+                <span className="shrink-0 text-[12px] text-ink-muted">
+                  {g.currentValue}/{g.targetValue} {g.unit}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {ctx.openActions.length > 0 && (
+        <div className="mt-3">
+          <h3 className="m-0 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+            Open chapter actions
+          </h3>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]">
+            {ctx.openActions.map((a) => (
+              <li key={a.id} className="flex items-center justify-between gap-3">
+                <Link href={`/actions/${a.id}`} className="min-w-0 truncate text-ink hover:underline">
+                  {a.title}
+                </Link>
+                <span className="shrink-0 text-[12px] text-ink-muted">{a.owner?.name ?? "Unassigned"}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </CardV2>
   );
 }
 
@@ -551,6 +619,17 @@ function FollowUpsSection({
             <div className="flex shrink-0 items-center gap-3">
               {f.linkedActionId ? (
                 <Link href={`/actions/${f.linkedActionId}`} className="text-[12px] font-medium text-success-700 hover:underline">✓ Action</Link>
+              ) : meeting.chapterContext ? (
+                // Chapter meeting: one-click turn this follow-up into a real,
+                // chapter-scoped action owned by the CP — no detour to a form.
+                <button
+                  type="button"
+                  className="text-[12px] font-medium text-brand-700 hover:underline disabled:opacity-50"
+                  disabled={pending}
+                  onClick={() => run(() => createActionFromMeetingFollowUp({ followUpId: f.id }))}
+                >
+                  Track as chapter action
+                </button>
               ) : (
                 <Link
                   href={actionPrefillToQuery(buildActionPrefillFromMeetingFollowUp({

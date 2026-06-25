@@ -5,7 +5,7 @@ import { ActionHubCard } from "@/components/people-strategy/action-hub-card";
 import { ActionsHubAnalytics } from "@/components/people-strategy/actions-hub-analytics";
 import { ActionFiltersBar } from "@/components/people-strategy/action-filters-bar";
 import { ActionsHubTabs, type ActionsHubTab } from "@/components/people-strategy/actions-hub-tabs";
-import type { ActionDepartmentOption, ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
+import type { ActionChapterOption, ActionDepartmentOption, ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import {
   summarizeDepartments,
@@ -25,6 +25,7 @@ export function ActionsHub({
   filters,
   hasActiveFilters,
   departments,
+  chapters,
   activeTab,
   officer,
   createHref,
@@ -36,6 +37,7 @@ export function ActionsHub({
   filters: ActionFilters;
   hasActiveFilters: boolean;
   departments: ActionDepartmentOption[];
+  chapters: ActionChapterOption[];
   activeTab: ActionsHubTab;
   officer: boolean;
   createHref: string;
@@ -57,6 +59,7 @@ export function ActionsHub({
         <div className="flex flex-wrap items-center gap-2 xl:justify-end">
           <ActionFiltersBar
             departments={departments}
+            chapters={chapters}
             filters={filters}
             hasActive={hasActiveFilters}
             basePath="/actions"

@@ -127,7 +127,10 @@ export function LeadershipHomeSections({
     { label: "Partner follow-ups due", count: stats.partnerFollowUpsOverdue, href: "/admin/partners" },
     { label: "New Chapter President applications", count: stats.newCpApplications, href: "/admin/chapter-president-applicants" },
     { label: "Chapters launching", count: stats.chaptersLaunching, href: "/admin/chapters?view=launching" },
-    { label: "Chapter support requests", count: stats.chapterSupportOpen, href: "/admin/chapters" },
+    { label: "Chapter support requests", count: stats.chapterSupportOpen, href: "/admin/chapters?view=waiting_on_ypp" },
+    { label: "Launch plans awaiting approval", count: stats.launchPlansPendingApproval, href: "/admin/chapters?view=waiting_on_ypp" },
+    { label: "Chapters with no upcoming meeting", count: stats.chaptersNoUpcomingMeeting, href: "/admin/chapters?view=no_upcoming_meeting" },
+    { label: "Overdue chapter actions", count: stats.overdueChapterActions, href: "/actions?who=all" },
   ].filter((item) => item.count > 0);
 
   return (

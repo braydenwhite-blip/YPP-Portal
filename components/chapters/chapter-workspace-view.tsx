@@ -14,6 +14,7 @@ import { ChapterSetupForm } from "@/components/chapters/chapter-setup-form";
 import { SupportRequestsPanel } from "@/components/chapters/support-requests-panel";
 import { ScheduleMeetingForm } from "@/components/chapters/schedule-meeting-form";
 import { ChapterNotesPanel } from "@/components/chapters/chapter-notes-panel";
+import { ChapterCheckInPanel } from "@/components/chapters/chapter-check-in-panel";
 import { LifecycleControl } from "@/components/chapters/lifecycle-control";
 
 type Data = NonNullable<ChapterWorkspace>;
@@ -283,6 +284,13 @@ export function ChapterWorkspaceView({
           )}
         </SectionCard>
       </div>
+
+      {/* Check-in — lightweight, flows into notes + actions + lifecycle */}
+      {canManage && (
+        <SectionCard title="Check-in">
+          <ChapterCheckInPanel chapterId={chapter.id} isLeadership={isLeadership} />
+        </SectionCard>
+      )}
 
       {/* Setup (collapsible) */}
       {canManage && (

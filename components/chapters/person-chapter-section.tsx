@@ -75,6 +75,16 @@ export async function PersonChapterSection({ userId }: { userId: string }) {
         <span>
           <span className="font-semibold text-ink">{metrics.meetingsAttended}</span> meetings attended
         </span>
+        {metrics.classesConnected > 0 && (
+          <span>
+            <span className="font-semibold text-ink">{metrics.classesConnected}</span> chapter classes
+          </span>
+        )}
+        {metrics.supportRequestsInvolved > 0 && (
+          <span>
+            <span className="font-semibold text-ink">{metrics.supportRequestsInvolved}</span> open support requests
+          </span>
+        )}
       </div>
     </section>
   );

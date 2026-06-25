@@ -17,6 +17,7 @@ import {
 } from "@/lib/chapters/access";
 import {
   createChapterActionItem,
+  createChapterActionFromMeetingFollowUp,
   completeChapterActionItem,
   reopenChapterActionItem,
 } from "@/lib/chapters/action-bridge";
@@ -431,6 +432,196 @@ export async function scheduleChapterMeeting(input: unknown) {
   revalidateChapterSurfaces(data.chapterId);
   revalidatePath("/meetings");
   return { ok: true as const, id: meeting.id };
+}
+
+// --- Chapter check-in --------------------------------------------------------
+// A lightweight check-in, not a health dashboard. It captures what happened /
+// what's next / what's blocked, optionally moves the chapter's lifecycle, and —
+// crucially — turns blockers and asks into real chapter actions. The narrative
+// is stored as a chapter note so it shows in the existing notes timeline. One
+// check-in flows into notes + actions + lifecycle; no new silo.
+
+const CHECK_IN_STATUS = ["ACTIVE", "NEEDS_SUPPORT", "AT_RISK", "PAUSED"] as const;
+
+const ChapterCheckInSchema = z.object({
+  chapterId: z.string().min(1),
+  since: z.string().max(20000).optional(),
+  planned: z.string().max(20000).optional(),
+  blocked: z.string().max(20000).optional(),
+  needsHelp: z.string().max(20000).optional(),
+  status: z.enum(CHECK_IN_STATUS).optional(),
+  /** Turn the blocker / "needs help" lines into tracked chapter actions. */
+  createActions: z.boolean().optional(),
+  audience: z.enum(["LEADERSHIP", "CHAPTER"]).optional(),
+});
+
+function trimToNull(value: string | undefined): string | null {
+  const t = value?.trim();
+  return t ? t : null;
+}
+
+export async function submitChapterCheckIn(input: unknown) {
+  const data = ChapterCheckInSchema.parse(input);
+  const { user, isLeadership } = await requireChapterManager(data.chapterId);
+
+  const since = trimToNull(data.since);
+  const planned = trimToNull(data.planned);
+  const blocked = trimToNull(data.blocked);
+  const needsHelp = trimToNull(data.needsHelp);
+
+  if (!since && !planned && !blocked && !needsHelp && !data.status) {
+    throw new Error("Add at least one note or a status before submitting a check-in.");
+  }
+
+  // Compose the durable narrative for the chapter notes timeline.
+  const sections: string[] = ["Chapter check-in"];
+  if (since) sections.push(`Since last check-in:\n${since}`);
+  if (planned) sections.push(`Planned next:\n${planned}`);
+  if (blocked) sections.push(`Blocked:\n${blocked}`);
+  if (needsHelp) sections.push(`Needs help:\n${needsHelp}`);
+  const body = sections.join("\n\n");
+
+  const chapter = await prisma.chapter.findUnique({
+    where: { id: data.chapterId },
+    select: { presidentId: true, lifecycleStatus: true },
+  });
+  const leadId = chapter?.presidentId ?? user.id;
+  const createdActionIds: string[] = [];
+
+  await prisma.$transaction(async (tx) => {
+    await tx.chapterNote.create({
+      data: {
+        chapterId: data.chapterId,
+        authorId: user.id,
+        body,
+        // Default to a CP-visible note unless an explicit leadership-only audience.
+        audience: data.audience ?? "CHAPTER",
+      },
+    });
+
+    // A lifecycle move is the honest "active / needs support / at risk / paused"
+    // signal — only leadership may change it; a CP self-check-in records it as a
+    // note ask instead of silently flipping the official status.
+    if (data.status && isLeadership && data.status !== chapter?.lifecycleStatus) {
+      if (isValidChapterLifecycleStatus(data.status)) {
+        await tx.chapter.update({
+          where: { id: data.chapterId },
+          data: {
+            lifecycleStatus: data.status as ChapterLifecycleStatus,
+            lifecycleNote: "Set via chapter check-in",
+            lifecycleUpdatedAt: new Date(),
+          },
+        });
+      }
+    }
+
+    if (data.createActions) {
+      const deadlineStart = new Date(Date.now() + 7 * DAY_MS);
+      if (blocked) {
+        const created = await createChapterActionItem(tx, {
+          chapterId: data.chapterId,
+          title: `Resolve blocker: ${firstLine(blocked)}`,
+          description: blocked,
+          leadId,
+          createdById: user.id,
+          deadlineStart,
+          priority: "HIGH",
+          goalCategory: "Chapter check-in",
+        });
+        createdActionIds.push(created.id);
+      }
+      if (needsHelp) {
+        const created = await createChapterActionItem(tx, {
+          chapterId: data.chapterId,
+          title: `Follow up: ${firstLine(needsHelp)}`,
+          description: needsHelp,
+          leadId,
+          createdById: user.id,
+          deadlineStart,
+          priority: "MEDIUM",
+          goalCategory: "Chapter check-in",
+        });
+        createdActionIds.push(created.id);
+      }
+    }
+  });
+
+  revalidateChapterSurfaces(data.chapterId);
+  revalidatePath("/actions");
+  return { ok: true as const, createdActionIds };
+}
+
+function firstLine(text: string): string {
+  const line = text.split("\n")[0]?.trim() ?? text.trim();
+  return line.length > 120 ? `${line.slice(0, 117)}…` : line;
+}
+
+// --- Turn a chapter meeting follow-up into a tracked chapter action ----------
+
+const FollowUpActionSchema = z.object({
+  followUpId: z.string().min(1),
+  /** Optional explicit owner; defaults to the follow-up owner / CP / facilitator. */
+  leadId: z.string().min(1).optional(),
+});
+
+export async function createActionFromMeetingFollowUp(input: unknown) {
+  const data = FollowUpActionSchema.parse(input);
+
+  const followUp = await prisma.meetingFollowUp.findUnique({
+    where: { id: data.followUpId },
+    select: {
+      id: true,
+      title: true,
+      detail: true,
+      dueDate: true,
+      ownerId: true,
+      meeting: {
+        select: { id: true, chapterId: true, facilitatorId: true },
+      },
+    },
+  });
+  if (!followUp) throw new Error("Follow-up not found");
+  const chapterId = followUp.meeting.chapterId;
+  if (!chapterId) throw new Error("This follow-up is not on a chapter meeting");
+
+  const { user } = await requireChapterManager(chapterId);
+
+  // Don't create a second action for a follow-up that already has one.
+  const existing = await prisma.actionItem.findFirst({
+    where: { sourceType: "MEETING_FOLLOW_UP", sourceId: followUp.id },
+    select: { id: true },
+  });
+  if (existing) return { ok: true as const, id: existing.id, existing: true as const };
+
+  const chapter = await prisma.chapter.findUnique({
+    where: { id: chapterId },
+    select: { presidentId: true },
+  });
+
+  const leadId =
+    data.leadId ??
+    followUp.ownerId ??
+    chapter?.presidentId ??
+    followUp.meeting.facilitatorId ??
+    user.id;
+
+  const deadlineStart = followUp.dueDate ?? new Date(Date.now() + 7 * DAY_MS);
+
+  const created = await createChapterActionFromMeetingFollowUp(prisma, {
+    chapterId,
+    meetingId: followUp.meeting.id,
+    followUpId: followUp.id,
+    title: followUp.title,
+    description: followUp.detail,
+    leadId,
+    createdById: user.id,
+    deadlineStart,
+  });
+
+  revalidateChapterSurfaces(chapterId);
+  revalidatePath(`/meetings/${followUp.meeting.id}`);
+  revalidatePath("/actions");
+  return { ok: true as const, id: created.id };
 }
 
 // --- Create a chapter straight from an application (leadership) ---------------

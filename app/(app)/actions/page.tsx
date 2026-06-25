@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import {
   getMyActionItems,
+  listActionChapters,
   listActionDepartments,
   listVisibleActionItems,
 } from "@/lib/people-strategy/action-queries";
@@ -94,12 +95,15 @@ export default async function ActionsPage({
   let myItems: Awaited<ReturnType<typeof getMyActionItems>> = [];
   let allItems: Awaited<ReturnType<typeof listVisibleActionItems>> = [];
   let departments: Awaited<ReturnType<typeof listActionDepartments>> = [];
+  let chapters: Awaited<ReturnType<typeof listActionChapters>> = [];
 
   try {
-    [myItems, allItems, departments] = await Promise.all([
+    [myItems, allItems, departments, chapters] = await Promise.all([
       getMyActionItems(viewer.id, viewer),
       officer ? listVisibleActionItems(viewer) : Promise.resolve([]),
       canCreate ? listActionDepartments() : Promise.resolve([]),
+      // Chapter filter is a leadership lens over the whole queue — officers only.
+      officer ? listActionChapters() : Promise.resolve([]),
     ]);
   } catch (error) {
     console.error("[actions] Failed to load action hub data:", error);
@@ -138,6 +142,7 @@ export default async function ActionsPage({
         filters={hubFilters}
         hasActiveFilters={filtersActive}
         departments={departments}
+        chapters={chapters}
         activeTab={activeTab}
         officer={officer}
         createHref={createHref}

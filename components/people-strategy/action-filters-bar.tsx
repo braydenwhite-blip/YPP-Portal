@@ -21,6 +21,7 @@ import {
 } from "@/lib/people-strategy/action-types";
 
 type DepartmentOption = { id: string; name: string };
+type ChapterOption = { id: string; name: string };
 
 const STATUS_OPTIONS = ACTION_STATUS_VALUES;
 const VISIBILITY_OPTIONS = ["ALL_LEADERSHIP", "OFFICERS_ONLY"] as const;
@@ -35,12 +36,15 @@ const PRESERVE_PARAMS = ["who", "view", "initiative", "lane"] as const;
 
 export function ActionFiltersBar({
   departments,
+  chapters = [],
   filters,
   hasActive,
   basePath = "/actions/all",
   variant = "full",
 }: {
   departments: DepartmentOption[];
+  /** Chapters that have actions — drives the optional chapter filter. */
+  chapters?: ChapterOption[];
   filters: ActionFilters;
   hasActive: boolean;
   /** Where filter changes navigate (defaults to legacy export table). */
@@ -99,6 +103,22 @@ export function ActionFiltersBar({
           </option>
         ))}
       </select>
+
+      {chapters.length > 0 ? (
+        <select
+          className={hub ? "h-9 rounded-[9px] border border-line-soft bg-surface px-3 text-[13px] font-semibold text-ink" : "ps-filter"}
+          aria-label="Filter by chapter"
+          value={filters.chapter}
+          onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.chapter, e.target.value)}
+        >
+          <option value="ALL">All chapters</option>
+          {chapters.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      ) : null}
 
       {!hub ? (
       <select
