@@ -34,6 +34,7 @@ export async function syncPortalAuthMetadataForPrismaUser(userId: string): Promi
   const leadershipPreviewAccess = computeLeadershipPreviewAccessFlag({
     id: user.id,
     email: user.email,
+    name: user.name,
     roles,
     primaryRole,
     internalLevel: user.internalLevel,

@@ -56,6 +56,7 @@ export async function requireSessionUser(): Promise<SessionUser> {
     canonicalTitle: user.canonicalTitle,
     title: user.title,
     email: user.email,
+    name: user.name,
   };
 }
 
@@ -133,6 +134,7 @@ export async function requireOfficer(): Promise<SessionUser> {
     canAccessLeadershipPreviewStack({
       id: sessionUser.id,
       email: sessionUser.email,
+      name: sessionUser.name,
       roles: sessionUser.roles,
       primaryRole: sessionUser.primaryRole,
       internalLevel: sessionUser.internalLevel,

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   canAccessLeadershipPreviewStack,
   isLeadershipPilotEmail,
@@ -12,7 +12,7 @@ describe("leadership-preview-access", () => {
 
   beforeEach(() => {
     resetLeadershipPilotEmailCache();
-    process.env.PORTAL_LEADERSHIP_PILOT_EMAILS = "sam@ypp.org,zach@ypp.org";
+    delete process.env.PORTAL_LEADERSHIP_PILOT_EMAILS;
   });
 
   afterEach(() => {
@@ -22,7 +22,6 @@ describe("leadership-preview-access", () => {
     } else {
       process.env.PORTAL_LEADERSHIP_PILOT_EMAILS = originalPilotEmails;
     }
-    vi.resetModules();
   });
 
   it("recognizes leadership preview paths", () => {
@@ -31,7 +30,17 @@ describe("leadership-preview-access", () => {
     expect(isLeadershipPreviewPath("/applications")).toBe(false);
   });
 
-  it("allows officer-tier roles from Prisma/Supabase roles", () => {
+  it("allows rostered leadership emails", () => {
+    expect(
+      canAccessLeadershipPreviewStack({
+        email: "brayden.white@youthpassionproject.org",
+        roles: ["INSTRUCTOR"],
+        primaryRole: "INSTRUCTOR",
+      }),
+    ).toBe(true);
+  });
+
+  it("allows ADMIN and STAFF platform officers", () => {
     expect(
       canAccessLeadershipPreviewStack({
         roles: ["ADMIN"],
@@ -40,13 +49,22 @@ describe("leadership-preview-access", () => {
     ).toBe(true);
     expect(
       canAccessLeadershipPreviewStack({
-        roles: ["STUDENT"],
-        primaryRole: "STUDENT",
+        roles: ["STAFF"],
+        primaryRole: "STAFF",
+      }),
+    ).toBe(true);
+  });
+
+  it("does not grant leadership preview to hiring chair alone", () => {
+    expect(
+      canAccessLeadershipPreviewStack({
+        roles: ["HIRING_CHAIR"],
+        primaryRole: "HIRING_CHAIR",
       }),
     ).toBe(false);
   });
 
-  it("allows leadership ladder level 5+ without officer role", () => {
+  it("allows leadership ladder level 5+ without admin role", () => {
     expect(
       canAccessLeadershipPreviewStack({
         roles: ["INSTRUCTOR"],
@@ -56,13 +74,32 @@ describe("leadership-preview-access", () => {
     ).toBe(true);
   });
 
-  it("allows Sam and Zach via pilot email env", () => {
-    expect(isLeadershipPilotEmail("sam@ypp.org")).toBe(true);
+  it("allows Sam and Zach by first name on the user record", () => {
     expect(
       canAccessLeadershipPreviewStack({
-        email: "zach@ypp.org",
+        name: "Sam Singer",
         roles: ["INSTRUCTOR"],
         primaryRole: "INSTRUCTOR",
+      }),
+    ).toBe(true);
+    expect(
+      canAccessLeadershipPreviewStack({
+        name: "Zach",
+        roles: ["MENTOR"],
+        primaryRole: "MENTOR",
+      }),
+    ).toBe(true);
+  });
+
+  it("merges extra pilot emails from env", () => {
+    process.env.PORTAL_LEADERSHIP_PILOT_EMAILS = "extra.pilot@ypp.org";
+    resetLeadershipPilotEmailCache();
+    expect(isLeadershipPilotEmail("extra.pilot@ypp.org")).toBe(true);
+    expect(
+      canAccessLeadershipPreviewStack({
+        email: "extra.pilot@ypp.org",
+        roles: ["STUDENT"],
+        primaryRole: "STUDENT",
       }),
     ).toBe(true);
   });
@@ -71,18 +108,18 @@ describe("leadership-preview-access", () => {
     expect(
       isLeadershipPreviewAccessFromAuth(
         {
-          leadershipPreviewAccess: true,
-          roles: ["STUDENT"],
-          primaryRole: "STUDENT",
+          name: "Sam Singer",
+          roles: ["INSTRUCTOR"],
+          primaryRole: "INSTRUCTOR",
         },
-        "student@ypp.org",
+        "instructor@ypp.org",
       ),
     ).toBe(true);
 
     expect(
       isLeadershipPreviewAccessFromAuth(
-        { roles: ["ADMIN"], primaryRole: "ADMIN" },
-        "admin@ypp.org",
+        { roles: ["ADMIN"], primaryRole: "ADMIN", name: "Anthea Zamir" },
+        "anthea.zamir@youthpassionproject.org",
       ),
     ).toBe(true);
   });

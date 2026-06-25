@@ -105,6 +105,7 @@ export default async function AppLayout({
     canAccessLeadershipPreviewStack({
       id: userId,
       email: session.user.email,
+      name: session.user.name,
       roles,
       primaryRole: navPrimaryRole,
       internalLevel: session.user.internalLevel,

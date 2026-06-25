@@ -28,6 +28,7 @@ export default async function PeoplePage({
     !canAccessLeadershipPreviewStack({
       id: session.user.id,
       email: session.user.email,
+      name: session.user.name,
       roles: session.user.roles,
       primaryRole: session.user.primaryRole,
       internalLevel: session.user.internalLevel,

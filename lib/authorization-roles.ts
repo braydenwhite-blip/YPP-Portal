@@ -44,6 +44,7 @@ export type SessionUser = {
   primaryRole: string;
   adminSubtypes: AdminSubtypeValue[];
   email?: string | null;
+  name?: string | null;
   /** Org-authority spine (optional; preferred over roles/subtypes when present). */
   internalLevel?: number | null;
   ladder?: string | null;
