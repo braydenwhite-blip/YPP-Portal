@@ -73,6 +73,8 @@ export default async function EditActionInTrackerPage({
               deadlineStart: item.deadlineStart,
               deadlineEnd: item.deadlineEnd,
               leadId: item.leadId,
+              chapterId: item.chapterId,
+              chapterLabel: item.chapter?.name ?? null,
               executingUserIds,
               inputUserIds,
             }}

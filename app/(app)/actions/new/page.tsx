@@ -32,6 +32,7 @@ import { ACTION_PRIORITY_VALUES } from "@/lib/people-strategy/constants";
 import { isActionType } from "@/lib/people-strategy/action-types";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 import { isMeetingCategory } from "@/lib/people-strategy/meeting-categories";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "New action · Work" };
@@ -128,6 +129,15 @@ export default async function NewActionInTrackerPage({
       ? ctx.suggestedOwnerId
       : null;
 
+  // Resolve the chapter scope carried from a chapter / meeting / person / partner
+  // surface so the form shows a chapter chip and the action is born chapter-scoped.
+  const chapter = ctx.chapterId
+    ? await prisma.chapter.findUnique({
+        where: { id: ctx.chapterId },
+        select: { id: true, name: true },
+      })
+    : null;
+
   const prefillInitial: ActionItemFormInitial = {
     ...(titleParam ? { title: titleParam } : {}),
     ...(descParam ? { description: descParam } : {}),
@@ -146,6 +156,7 @@ export default async function NewActionInTrackerPage({
       ? { successDefinition: ctx.successDefinition.slice(0, 10_000) }
       : {}),
     ...(suggestedOwnerId ? { suggestedOwnerId } : {}),
+    ...(chapter ? { chapterId: chapter.id, chapterLabel: chapter.name } : {}),
     ...(sourceLabel ? { sourceLabel } : {}),
     ...(sourceHeader ? { sourceHeader } : {}),
     ...(strategicLinkLabel ? { strategicLinkLabel } : {}),

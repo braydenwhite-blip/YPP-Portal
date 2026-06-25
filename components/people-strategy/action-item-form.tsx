@@ -83,6 +83,14 @@ export interface ActionItemFormInitial {
   strategicLinkLabel?: string | null;
   /** A real suggested owner (user id) from the source — pre-selected, editable. */
   suggestedOwnerId?: string | null;
+  /**
+   * Chapter scope, carried automatically from the surface the action was started
+   * on (a chapter / chapter meeting / person's chapter / partner's chapter). Shown
+   * as a read-only chip and submitted, so chapter context follows the work.
+   */
+  chapterId?: string | null;
+  /** Human label for the chapter chip (chapter name). */
+  chapterLabel?: string | null;
 }
 
 function asDate(value: Date | string | null | undefined): Date | null {
@@ -179,6 +187,9 @@ export default function ActionItemForm({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [goalCategory, setGoalCategory] = useState(initial?.goalCategory ?? "");
   const [departmentId, setDepartmentId] = useState(initial?.departmentId ?? "");
+  // Chapter scope is carried from the originating surface (read-only context).
+  const chapterId = initial?.chapterId ?? "";
+  const chapterLabel = initial?.chapterLabel ?? null;
   const [status, setStatus] = useState<string>(initial?.status ?? "NOT_STARTED");
   const [priority, setPriority] = useState<string>(initial?.priority ?? "MEDIUM");
   const [actionType, setActionType] = useState<string>(initial?.actionType ?? "");
@@ -382,6 +393,8 @@ export default function ActionItemForm({
             // clears it (interpreted by parseActionTypeUpdate server-side).
             actionType,
             departmentId: departmentId || undefined,
+            // Preserve the chapter scope this action was created with.
+            chapterId: chapterId || undefined,
             status,
             priority,
             visibility,
@@ -412,6 +425,7 @@ export default function ActionItemForm({
             goalCategory: goalCategory.trim() || undefined,
             actionType: actionType || undefined,
             departmentId: departmentId || undefined,
+            chapterId: chapterId || undefined,
             leadId,
             status,
             priority,
@@ -547,6 +561,13 @@ export default function ActionItemForm({
         <div className="ps-linked-banner">
           <span style={{ fontWeight: 700 }}>Linked to {relatedTypeLabel}:</span>
           <span>{relatedLabel ?? "this item"}</span>
+        </div>
+      ) : null}
+
+      {chapterId ? (
+        <div className="ps-linked-banner">
+          <span style={{ fontWeight: 700 }}>Chapter:</span>
+          <span>{chapterLabel ?? "this chapter"}</span>
         </div>
       ) : null}
 

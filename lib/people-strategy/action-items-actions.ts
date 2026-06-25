@@ -239,6 +239,14 @@ async function assertDepartmentExists(departmentId: string) {
   if (!department) throw new Error("Invalid department");
 }
 
+async function assertChapterExists(chapterId: string) {
+  const chapter = await prisma.chapter.findUnique({
+    where: { id: chapterId },
+    select: { id: true },
+  });
+  if (!chapter) throw new Error("Invalid chapter");
+}
+
 /**
  * Confirm the polymorphic related-entity link points at a row that still
  * exists, so a typo'd or stale id never gets persisted. The link has no FK, so
@@ -314,6 +322,12 @@ const CreateActionItemSchema = z.object({
     .optional()
     .transform((v) => (v && v.length > 0 ? v : null)),
   departmentId: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
+  // Optional chapter scope — the organizing operating unit a piece of work
+  // belongs to. Existence is checked in createActionItem.
+  chapterId: z
     .string()
     .optional()
     .transform((v) => (v && v.trim() ? v.trim() : null)),
@@ -411,6 +425,7 @@ export async function createActionItem(input: CreateActionItemInput) {
     data.executingUserIds.length > 0 ? data.executingUserIds : [data.leadId];
 
   if (data.departmentId) await assertDepartmentExists(data.departmentId);
+  if (data.chapterId) await assertChapterExists(data.chapterId);
   await assertUsersExist([
     data.leadId,
     ...executingUserIds,
@@ -474,6 +489,7 @@ export async function createActionItem(input: CreateActionItemInput) {
       goalCategory: data.goalCategory,
       actionType,
       departmentId: data.departmentId,
+      chapterId: data.chapterId,
       leadId: data.leadId,
       createdById: session.id,
       status: data.status as never,
@@ -539,6 +555,8 @@ const UpdateActionItemSchema = z.object({
       const trimmed = v.trim();
       return trimmed.length > 0 ? trimmed : null;
     }),
+  // Chapter scope. Omitting leaves it untouched; null/empty clears it.
+  chapterId: z.string().trim().nullable().optional(),
   status: z.enum(ACTION_STATUS_VALUES as [string, ...string[]]).optional(),
   priority: z.enum(ACTION_PRIORITY_VALUES as [string, ...string[]]).optional(),
   visibility: z.enum(ACTION_VISIBILITY_VALUES as [string, ...string[]]).optional(),
@@ -706,6 +724,17 @@ export async function updateActionItem(input: UpdateActionItemInput) {
     completionOutcome = parsed.ok ? parsed.value : null;
   }
 
+  // Chapter scope: omitted → untouched; null/empty → clear; value → set (checked).
+  let chapterId: string | null | undefined;
+  if (data.chapterId !== undefined) {
+    if (data.chapterId === null || data.chapterId.length === 0) {
+      chapterId = null;
+    } else {
+      await assertChapterExists(data.chapterId);
+      chapterId = data.chapterId;
+    }
+  }
+
   const statusChanged = data.status !== undefined && data.status !== existing.status;
   const completedAt = completedAtForTransition(existing.status, newStatus, new Date());
   const leadChanged =
@@ -741,6 +770,7 @@ export async function updateActionItem(input: UpdateActionItemInput) {
         priority: data.priority as never,
         completedAt,
         ...approvalFieldsForTransition(existing.status, newStatus),
+        chapterId,
         visibility: data.visibility as never,
         deadlineStart: data.deadlineStart
           ? startOfDay(data.deadlineStart)

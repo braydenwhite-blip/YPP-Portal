@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { createChapter } from "@/lib/chapter-actions";
 import { loadLeadershipChapters } from "@/lib/chapters/leadership";
+import { loadChapterIntegrityIssues } from "@/lib/chapters/integrity";
+import { ChapterIntegrityPanel } from "@/components/chapters/chapter-integrity-panel";
 import {
   chapterLifecycleLabel,
   chapterLifecycleTone,
@@ -47,10 +49,11 @@ export default async function AdminChaptersPage({
   }
 
   const sp = (await searchParams) ?? {};
-  const { cards, viewCounts, requestedView, states, summary } = await loadLeadershipChapters({
-    view: sp.view,
-    state: sp.state,
-  });
+  const [{ cards, viewCounts, requestedView, states, summary }, integrityIssues] =
+    await Promise.all([
+      loadLeadershipChapters({ view: sp.view, state: sp.state }),
+      loadChapterIntegrityIssues(),
+    ]);
   const now = new Date();
 
   const stateQuery = sp.state ? `&state=${encodeURIComponent(sp.state)}` : "";
@@ -81,6 +84,8 @@ export default async function AdminChaptersPage({
           </div>
         }
       />
+
+      <ChapterIntegrityPanel issues={integrityIssues} />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         {tiles.map((t) => (

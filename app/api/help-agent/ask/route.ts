@@ -12,6 +12,8 @@ import {
   buildChiefOfStaffAnswer,
   buildEntitySummaryAnswer,
 } from "@/lib/help-agent/chief-of-staff";
+import { answerChapterQuestion, isChapterQuestion } from "@/lib/help-agent/chapter-answers";
+import { isChapterLeadership } from "@/lib/chapters/access";
 import { isChiefOfStaffAIConfigured, narrateChiefOfStaffAnswer } from "@/lib/help-agent/ask-ai";
 import type { CoSAnswer } from "@/lib/help-agent/types";
 
@@ -105,7 +107,17 @@ export async function POST(request: Request) {
   // Build the deterministic answer.
   let answer: CoSAnswer;
   try {
-    if (context && isEntity360Type(context.entityType) && isEntityScopedQuestion(question)) {
+    // Chapter questions get real chapter data — but only for chapter leadership,
+    // so a CP/officer can't pull the whole network's chapter picture this way.
+    if (isChapterQuestion(question) && isChapterLeadership(session.user)) {
+      const chapterAnswer = await answerChapterQuestion(question, { now, aiAvailable });
+      if (chapterAnswer) {
+        answer = chapterAnswer;
+      } else {
+        const data = await loadData360(viewer, { now });
+        answer = buildChiefOfStaffAnswer(question, data, { now, aiAvailable });
+      }
+    } else if (context && isEntity360Type(context.entityType) && isEntityScopedQuestion(question)) {
       const entity = await loadEntity360(context.entityType, context.entityId!, viewer, { now });
       if (entity) {
         answer = buildEntitySummaryAnswer(question, entity, { now, aiAvailable });

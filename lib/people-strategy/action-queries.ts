@@ -142,6 +142,11 @@ const ACTION_ITEM_INCLUDE = {
   meeting: {
     select: { id: true, title: true, scheduledAt: true, type: true, status: true },
   },
+  // Chapter this action belongs to (chapter "next steps" are real actions), used
+  // to render the "Chapter: …" link and to drive the chapter filter on the hub.
+  chapter: {
+    select: { id: true, name: true, lifecycleStatus: true },
+  },
 } satisfies Prisma.ActionItemInclude;
 
 export type ActionItemWithRelations = Prisma.ActionItemGetPayload<{
@@ -494,6 +499,26 @@ export async function listActionAssignableUsers(): Promise<ActionPickerUser[]> {
         adminSubtypes: user.adminSubtypes.map((entry) => entry.subtype),
       }))
     );
+}
+
+export type ActionChapterOption = { id: string; name: string };
+
+/**
+ * Chapters that actually have at least one action attached, for the Action
+ * Tracker chapter filter. Restricted to chapters with linked actions so the
+ * dropdown only ever offers values that can narrow the list to something — and
+ * name-sorted for a stable picker. Returns [] when the tracker flag is off.
+ */
+export async function listActionChapters(): Promise<ActionChapterOption[]> {
+  if (!isActionTrackerEnabled()) return [];
+
+  const chapters = await prisma.chapter.findMany({
+    where: { archivedAt: null, actionItems: { some: {} } },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+    take: 500,
+  });
+  return chapters.map((c) => ({ id: c.id, name: c.name }));
 }
 
 /** Active standing departments for the Action Tracker picker (grouped + sorted). */

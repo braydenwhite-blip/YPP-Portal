@@ -61,6 +61,7 @@ describe("parseActionFilters", () => {
   it("defaults to ALL / asc on empty params", () => {
     expect(parseActionFilters({})).toEqual({
       department: "ALL",
+      chapter: "ALL",
       status: "ALL",
       priority: "ALL",
       visibility: "ALL",

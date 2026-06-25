@@ -76,6 +76,8 @@ export type ActionPrefill = {
   suggestedOwnerId?: string;
   /** A suggested definition of done. */
   successDefinition?: string;
+  /** The chapter this work belongs to — carried from chapter/meeting/person/partner context. */
+  chapterId?: string;
 };
 
 /** Query-string keys a prefilled `/actions/new` link uses. */
@@ -97,6 +99,7 @@ export const ACTION_PREFILL_PARAM_KEYS = {
   strategicProjectId: "projectId",
   suggestedOwnerId: "owner",
   successDefinition: "success",
+  chapterId: "chapter",
 } as const;
 
 /** Max length of an action title derived from a longer decision / note body. */
@@ -160,6 +163,8 @@ export type DecisionPrefillSource = {
   relatedEntityId?: string | null;
   /** A real meeting participant suggested as owner — never invented. */
   suggestedOwnerId?: string | null;
+  /** The chapter this meeting belongs to, so the action stays chapter-scoped. */
+  chapterId?: string | null;
 };
 
 /**
@@ -205,6 +210,7 @@ export function buildActionPrefillFromDecision(src: DecisionPrefillSource): Acti
     dueInDays: DEFAULT_ACTION_DEADLINE_DAYS,
     relatedType: hasEntity ? (src.relatedEntityType as RelatedEntityType) : undefined,
     relatedId: hasEntity ? (src.relatedEntityId as string) : undefined,
+    chapterId: src.chapterId ?? undefined,
   };
 }
 
@@ -213,6 +219,8 @@ export type EntityActionPrefillSource = {
   id: string;
   actionType?: ActionType;
   title?: string;
+  /** Chapter the entity belongs to (e.g. a partner tied to a chapter's school). */
+  chapterId?: string | null;
 };
 
 /**
@@ -230,6 +238,31 @@ export function buildActionPrefillFromEntity(src: EntityActionPrefillSource): Ac
     actionType: src.actionType,
     priority: "MEDIUM",
     dueInDays: DEFAULT_ACTION_DEADLINE_DAYS,
+    chapterId: src.chapterId ?? undefined,
+  };
+}
+
+export type ChapterActionPrefillSource = {
+  chapterId: string;
+  title?: string;
+  /** A suggested owner (e.g. the Chapter President) — only from a real source. */
+  suggestedOwnerId?: string | null;
+};
+
+/**
+ * Prefill an action started from a chapter surface (workspace, command center).
+ * The new action is born chapter-scoped so it shows up on the chapter, on the
+ * Action Tracker chapter filter, and on the owner's Person 360.
+ */
+export function buildActionPrefillFromChapter(src: ChapterActionPrefillSource): ActionPrefill {
+  return {
+    title: src.title,
+    chapterId: src.chapterId,
+    sourceType: "ENTITY",
+    area: "Chapter operations",
+    priority: "MEDIUM",
+    dueInDays: DEFAULT_ACTION_DEADLINE_DAYS,
+    suggestedOwnerId: src.suggestedOwnerId ?? undefined,
   };
 }
 
@@ -272,6 +305,7 @@ export type MeetingActionPrefillSource = {
   meetingCategory?: string | null;
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
+  chapterId?: string | null;
 };
 
 /** Prefill an action started from a meeting (a recap / follow-through item). */
@@ -296,6 +330,7 @@ export function buildActionPrefillFromMeeting(src: MeetingActionPrefillSource): 
     dueInDays: DEFAULT_ACTION_DEADLINE_DAYS,
     relatedType: hasEntity ? (src.relatedEntityType as RelatedEntityType) : undefined,
     relatedId: hasEntity ? (src.relatedEntityId as string) : undefined,
+    chapterId: src.chapterId ?? undefined,
   };
 }
 
@@ -310,6 +345,7 @@ export type MeetingFollowUpActionPrefillSource = {
   relatedEntityId?: string | null;
   suggestedOwnerId?: string | null;
   dueDate?: string | null;
+  chapterId?: string | null;
 };
 
 /** Prefill an action from a meeting follow-up that has not become tracked work. */
@@ -352,6 +388,7 @@ export function buildActionPrefillFromMeetingFollowUp(
     dueInDays: src.dueDate ? undefined : DEFAULT_ACTION_DEADLINE_DAYS,
     relatedType: hasEntity ? (src.relatedEntityType as RelatedEntityType) : undefined,
     relatedId: hasEntity ? (src.relatedEntityId as string) : undefined,
+    chapterId: src.chapterId ?? undefined,
   };
 }
 
@@ -378,6 +415,7 @@ export function actionPrefillToQuery(prefill: ActionPrefill, base = "/actions/ne
   if (prefill.strategicProjectId) params.set(k.strategicProjectId, prefill.strategicProjectId);
   if (prefill.suggestedOwnerId) params.set(k.suggestedOwnerId, prefill.suggestedOwnerId);
   if (prefill.successDefinition) params.set(k.successDefinition, prefill.successDefinition);
+  if (prefill.chapterId) params.set(k.chapterId, prefill.chapterId);
   const qs = params.toString();
   return qs ? `${base}?${qs}` : base;
 }
@@ -434,6 +472,8 @@ export function actionPrefillFromQuery(
   if (owner) out.suggestedOwnerId = owner;
   const success = get(k.successDefinition);
   if (success) out.successDefinition = success;
+  const chapterId = get(k.chapterId);
+  if (chapterId) out.chapterId = chapterId;
   return out;
 }
 

@@ -6,6 +6,10 @@ import {
   chapterLifecycleTone,
   isLaunchingStatus,
 } from "@/lib/chapters/lifecycle";
+import {
+  actionPrefillToQuery,
+  buildActionPrefillFromChapter,
+} from "@/lib/people-strategy/action-prefill";
 import { CHAPTER_HEALTH_LABELS } from "@/lib/chapters/health";
 import type { ChapterWorkspace } from "@/lib/chapters/workspace";
 
@@ -14,6 +18,7 @@ import { ChapterSetupForm } from "@/components/chapters/chapter-setup-form";
 import { SupportRequestsPanel } from "@/components/chapters/support-requests-panel";
 import { ScheduleMeetingForm } from "@/components/chapters/schedule-meeting-form";
 import { ChapterNotesPanel } from "@/components/chapters/chapter-notes-panel";
+import { ChapterCheckInPanel } from "@/components/chapters/chapter-check-in-panel";
 import { LifecycleControl } from "@/components/chapters/lifecycle-control";
 
 type Data = NonNullable<ChapterWorkspace>;
@@ -205,9 +210,24 @@ export function ChapterWorkspaceView({
         <SectionCard
           title="Actions"
           action={
-            <Link href="/actions?who=all" className="text-[12.5px] font-semibold text-brand-700 hover:underline">
-              Action tracker →
-            </Link>
+            <div className="flex items-center gap-3">
+              {canManage && (
+                <Link
+                  href={actionPrefillToQuery(
+                    buildActionPrefillFromChapter({
+                      chapterId: chapter.id,
+                      suggestedOwnerId: chapter.president?.id ?? null,
+                    })
+                  )}
+                  className="text-[12.5px] font-semibold text-brand-700 hover:underline"
+                >
+                  + New action
+                </Link>
+              )}
+              <Link href={`/actions?ch=${chapter.id}`} className="text-[12.5px] font-semibold text-brand-700 hover:underline">
+                Action tracker →
+              </Link>
+            </div>
           }
         >
           {actions.open.length === 0 ? (
@@ -283,6 +303,13 @@ export function ChapterWorkspaceView({
           )}
         </SectionCard>
       </div>
+
+      {/* Check-in — lightweight, flows into notes + actions + lifecycle */}
+      {canManage && (
+        <SectionCard title="Check-in">
+          <ChapterCheckInPanel chapterId={chapter.id} isLeadership={isLeadership} />
+        </SectionCard>
+      )}
 
       {/* Setup (collapsible) */}
       {canManage && (

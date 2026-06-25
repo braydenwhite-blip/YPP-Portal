@@ -6,6 +6,7 @@
  * server-side loaders live in `./meetings`, which re-exports everything here.
  */
 import type { MeetingLinkedAction } from "@/lib/people-strategy/action-queries";
+import type { ChapterMeetingContext } from "@/lib/chapters/meeting-context";
 import type { ImpactCoverage } from "./impact-link";
 
 export type MeetingType = "OFFICER" | "WEEKLY_TEAM_IMPACT" | "CHAPTER_IMPACT" | "GENERIC";
@@ -116,4 +117,9 @@ export type MeetingDetail = {
   boardTopics: OfficerTopicDTO[];
   /** Every tracked action that originated from this meeting. */
   linkedActions: MeetingLinkedAction[];
+  /**
+   * When this meeting is scoped to a chapter, the chapter's operating picture
+   * (CP, active goals, open chapter actions) so the runner is chapter-aware.
+   */
+  chapterContext: ChapterMeetingContext | null;
 };

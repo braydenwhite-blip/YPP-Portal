@@ -3,6 +3,10 @@ import Link from "next/link";
 import { loadPersonChapterInvolvement } from "@/lib/chapters/person";
 import { chapterLifecycleLabel, chapterLifecycleTone } from "@/lib/chapters/lifecycle";
 import { cpStatusLabel } from "@/lib/chapter-president-lifecycle";
+import {
+  actionPrefillToQuery,
+  buildActionPrefillFromChapter,
+} from "@/lib/people-strategy/action-prefill";
 import { StatusBadge } from "@/components/ui-v2";
 
 // Async server component — drop <PersonChapterSection userId={id} /> anywhere on a
@@ -32,6 +36,14 @@ export async function PersonChapterSection({ userId }: { userId: string }) {
                 <StatusBadge tone={chapterLifecycleTone(c.lifecycleStatus)}>
                   {chapterLifecycleLabel(c.lifecycleStatus)}
                 </StatusBadge>
+                <Link
+                  href={actionPrefillToQuery(
+                    buildActionPrefillFromChapter({ chapterId: c.id, suggestedOwnerId: userId })
+                  )}
+                  className="text-[12px] font-semibold text-brand-700 hover:underline"
+                >
+                  + Action
+                </Link>
               </div>
             </div>
           ))}
@@ -75,6 +87,16 @@ export async function PersonChapterSection({ userId }: { userId: string }) {
         <span>
           <span className="font-semibold text-ink">{metrics.meetingsAttended}</span> meetings attended
         </span>
+        {metrics.classesConnected > 0 && (
+          <span>
+            <span className="font-semibold text-ink">{metrics.classesConnected}</span> chapter classes
+          </span>
+        )}
+        {metrics.supportRequestsInvolved > 0 && (
+          <span>
+            <span className="font-semibold text-ink">{metrics.supportRequestsInvolved}</span> open support requests
+          </span>
+        )}
       </div>
     </section>
   );

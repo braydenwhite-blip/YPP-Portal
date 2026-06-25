@@ -61,6 +61,55 @@ export async function createChapterActionItem(
   return created;
 }
 
+export type ChapterFollowUpActionInput = {
+  chapterId: string;
+  meetingId: string;
+  followUpId: string;
+  title: string;
+  description?: string | null;
+  leadId: string;
+  createdById: string;
+  deadlineStart: Date;
+  priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+};
+
+/**
+ * Turn a meeting follow-up into a real, chapter-scoped ActionItem. Provenance is
+ * set to MEETING_FOLLOW_UP + the follow-up id so the meeting runner's existing
+ * `getMeetingActionLinks` recognises it and shows the follow-up as "tracked",
+ * and `meetingId` links it back to the meeting on the action card. This is the
+ * "create follow-up actions directly from the meeting" path — no new model.
+ */
+export async function createChapterActionFromMeetingFollowUp(
+  db: Db,
+  input: ChapterFollowUpActionInput
+): Promise<{ id: string }> {
+  return db.actionItem.create({
+    data: {
+      title: input.title,
+      description: input.description ?? null,
+      goalCategory: "Chapter meeting follow-up",
+      leadId: input.leadId,
+      createdById: input.createdById,
+      status: "NOT_STARTED",
+      priority: input.priority ?? "MEDIUM",
+      visibility: "ALL_LEADERSHIP",
+      deadlineStart: input.deadlineStart,
+      chapterId: input.chapterId,
+      meetingId: input.meetingId,
+      sourceType: "MEETING_FOLLOW_UP",
+      sourceId: input.followUpId,
+      assignments: {
+        create: [
+          { userId: input.leadId, role: "LEAD" },
+          { userId: input.leadId, role: "EXECUTING" },
+        ],
+      },
+    },
+    select: { id: true },
+  });
+}
+
 /** Mark a chapter action complete (e.g. when its launch checklist item is ticked). */
 export async function completeChapterActionItem(db: Db, actionItemId: string): Promise<void> {
   await db.actionItem.updateMany({

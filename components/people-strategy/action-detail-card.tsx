@@ -84,6 +84,9 @@ export type ActionDetailDTO = {
   officerMeetingDate?: string | null;
   strategicInitiativeId?: string | null;
   strategicProjectId?: string | null;
+  chapterId?: string | null;
+  chapterName?: string | null;
+  chapterLifecycle?: string | null;
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
   relatedEntityLabel?: string | null;
@@ -279,6 +282,8 @@ export default function ActionDetailCard({
 
   const hasConnected =
     Boolean(item.relatedEntityHref) ||
+    Boolean(item.chapterId) ||
+    Boolean(item.officerMeetingId) ||
     sameEntityActions.length > 0 ||
     sameMeetingActions.length > 0;
 
@@ -649,6 +654,28 @@ export default function ActionDetailCard({
 
       {hasConnected ? (
         <HubSection title="Connected work">
+          {item.chapterId ? (
+            <p className="m-0 text-[14px]">
+              <span className="text-ink-muted">Chapter </span>
+              <Link
+                href={`/admin/chapters/${item.chapterId}`}
+                className="font-semibold text-brand-700 no-underline hover:underline"
+              >
+                {item.chapterName ?? "View chapter"}
+              </Link>
+            </p>
+          ) : null}
+          {item.officerMeetingId ? (
+            <p className="m-0 text-[14px]">
+              <span className="text-ink-muted">Meeting </span>
+              <Link
+                href={`/meetings/${item.officerMeetingId}`}
+                className="font-semibold text-brand-700 no-underline hover:underline"
+              >
+                {item.officerMeetingTitle ?? "View meeting"}
+              </Link>
+            </p>
+          ) : null}
           {item.relatedEntityHref && item.relatedEntityLabel ? (
             <p className="m-0 text-[14px]">
               <span className="text-ink-muted">Related to </span>

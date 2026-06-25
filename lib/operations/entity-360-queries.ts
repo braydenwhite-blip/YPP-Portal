@@ -15,6 +15,7 @@ import {
   type ActionItemWithRelations,
 } from "@/lib/people-strategy/action-queries";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
+import { loadChapterMeetingContext } from "@/lib/chapters/meeting-context";
 import {
   getMeetingById,
   getMeetingsForEntity,
@@ -1981,6 +1982,116 @@ async function loadApplicant360(
  * Load the 360 payload for any entity, or null when it does not exist or the
  * viewer may not see it (the API route turns null into a 404 either way).
  */
+// --- chapter --------------------------------------------------------------------
+
+/** National chapter leadership only — a CP can't pull arbitrary chapters' 360s. */
+function isChapterLeadershipViewer(viewer: ActionViewer): boolean {
+  const adminSubtypes = viewer.adminSubtypes ?? [];
+  return (
+    viewer.roles.includes("ADMIN") ||
+    viewer.roles.includes("STAFF") ||
+    adminSubtypes.includes("LEADERSHIP") ||
+    adminSubtypes.includes("SUPER_ADMIN")
+  );
+}
+
+async function loadChapter360(
+  id: string,
+  viewer: ActionViewer,
+  now: Date
+): Promise<Entity360 | null> {
+  if (!isChapterLeadershipViewer(viewer)) return null;
+  const ctx = await loadChapterMeetingContext(id);
+  if (!ctx) return null;
+
+  const meetings = await prisma.meeting.findMany({
+    where: { chapterId: id },
+    orderBy: { scheduledAt: "desc" },
+    take: 5,
+    select: {
+      id: true,
+      title: true,
+      scheduledAt: true,
+      _count: { select: { decisions: true, followUps: true } },
+    },
+  });
+  const upcomingCount = meetings.filter((m) => m.scheduledAt.getTime() >= now.getTime()).length;
+  const meetingRefs: Entity360MeetingRef[] = meetings.map((m) => ({
+    id: m.id,
+    title: m.title,
+    dateISO: m.scheduledAt.toISOString(),
+    categoryLabel: "Chapter meeting",
+    outcome:
+      m._count.decisions + m._count.followUps > 0
+        ? `${m._count.decisions} decision${m._count.decisions === 1 ? "" : "s"} · ${m._count.followUps} follow-up${m._count.followUps === 1 ? "" : "s"}`
+        : null,
+    upcoming: m.scheduledAt.getTime() >= now.getTime(),
+  }));
+
+  const risks: string[] = [];
+  if (!ctx.president) risks.push("No Chapter President assigned.");
+  if (upcomingCount === 0) risks.push("No upcoming meeting scheduled.");
+  if (ctx.memberCount === 0) risks.push("No members yet.");
+
+  const nextStep =
+    upcomingCount === 0
+      ? "Schedule the next chapter meeting"
+      : ctx.openActionCount > 0
+        ? "Work the open chapter actions"
+        : null;
+
+  return {
+    type: "chapter",
+    id,
+    title: ctx.name,
+    subtitle: ctx.lifecycleLabel,
+    typeLabel: "Chapter",
+    status: null,
+    meta: `${ctx.memberCount} member${ctx.memberCount === 1 ? "" : "s"}`,
+    initials: entityInitials(ctx.name),
+    avatarUrl: null,
+    pageHref: ctx.detailHref,
+    glance: [
+      { label: "Members", value: String(ctx.memberCount) },
+      {
+        label: "Open actions",
+        value: String(ctx.openActionCount),
+        ...(ctx.openActionCount > 0 ? { tone: "warning" as const } : {}),
+      },
+      {
+        label: "Upcoming meetings",
+        value: String(upcomingCount),
+        ...(upcomingCount === 0 ? { tone: "overdue" as const } : {}),
+      },
+    ],
+    facts: [
+      { label: "Lifecycle", value: ctx.lifecycleLabel },
+      {
+        label: "Chapter President",
+        value: ctx.president?.name ?? "Unassigned",
+        ...(ctx.president ? { href: `/people/${ctx.president.id}` } : {}),
+      },
+    ],
+    people: ctx.president
+      ? [
+          {
+            id: ctx.president.id,
+            name: ctx.president.name,
+            title: null,
+            relationship: "Chapter President",
+          },
+        ]
+      : [],
+    classes: [],
+    workItems: [],
+    meetings: meetingRefs,
+    timeline: [],
+    nextStep,
+    risks,
+    footnote: OFFICER_FOOTNOTE,
+  };
+}
+
 export async function loadEntity360(
   type: Entity360Type,
   id: string,
@@ -2007,6 +2118,8 @@ export async function loadEntity360(
       return loadMentorship360(trimmed, viewer, now);
     case "applicant":
       return loadApplicant360(trimmed, viewer, now);
+    case "chapter":
+      return loadChapter360(trimmed, viewer, now);
     default: {
       const _exhaustive: never = type;
       return _exhaustive;

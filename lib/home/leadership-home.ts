@@ -45,6 +45,9 @@ export type LeadershipHomeData = {
     newCpApplications: number;
     chaptersLaunching: number;
     chapterSupportOpen: number;
+    chaptersNoUpcomingMeeting: number;
+    overdueChapterActions: number;
+    launchPlansPendingApproval: number;
   };
   attention: AttentionItem[];
   upcomingMeetings: MeetingLite[];
@@ -112,6 +115,9 @@ export async function loadLeadershipHome(
     newCpApplications,
     chaptersLaunching,
     chapterSupportOpen,
+    chaptersNoUpcomingMeeting,
+    overdueChapterActions,
+    launchPlansPendingApproval,
   ] = await Promise.all([
     loadData360(viewer, { now }),
     prisma.instructorApplication.findMany({
@@ -184,6 +190,33 @@ export async function loadLeadershipHome(
     }),
     prisma.chapterSupportRequest.count({
       where: { status: { in: ["OPEN", "IN_PROGRESS"] } },
+    }),
+    // Operating chapters with nothing on the calendar — a CP who has gone quiet.
+    prisma.chapter.count({
+      where: {
+        archivedAt: null,
+        lifecycleStatus: { in: ["LAUNCHING", "ACTIVE", "NEEDS_SUPPORT", "AT_RISK"] },
+        meetings: { none: { scheduledAt: { gte: now } } },
+      },
+    }),
+    // Overdue chapter actions (chapter "next steps" past their deadline).
+    prisma.actionItem.count({
+      where: {
+        chapterId: { not: null },
+        status: { notIn: ["COMPLETE", "DROPPED"] },
+        OR: [
+          { deadlineEnd: { lt: now } },
+          { deadlineEnd: null, deadlineStart: { lt: now } },
+        ],
+      },
+    }),
+    // Launch plans submitted by a CP and waiting on leadership approval.
+    prisma.chapter.count({
+      where: {
+        archivedAt: null,
+        launchPlanSubmittedAt: { not: null },
+        launchPlanApprovedAt: null,
+      },
     }),
   ]);
 
@@ -303,6 +336,9 @@ export async function loadLeadershipHome(
       newCpApplications,
       chaptersLaunching,
       chapterSupportOpen,
+      chaptersNoUpcomingMeeting,
+      overdueChapterActions,
+      launchPlansPendingApproval,
     },
     attention: data360.attention.slice(0, 8),
     upcomingMeetings: upcomingMeetings.slice(0, 5),

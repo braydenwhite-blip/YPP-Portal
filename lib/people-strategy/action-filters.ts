@@ -100,6 +100,8 @@ export const ACTION_PRESETS: readonly ActionPresetMeta[] = ACTION_PRESET_VALUES.
 export type ActionFilters = {
   /** Department id, or "ALL". */
   department: string;
+  /** Chapter id, or "ALL". Lets leadership see one chapter's whole action queue. */
+  chapter: string;
   /** Effective status (computed overdue overrides stored status), or "ALL". */
   status: ActionStatusFilter;
   /** Priority, or "ALL". */
@@ -120,6 +122,7 @@ export type ActionFilters = {
 
 export const ACTION_FILTER_DEFAULTS: ActionFilters = {
   department: "ALL",
+  chapter: "ALL",
   status: "ALL",
   priority: "ALL",
   visibility: "ALL",
@@ -134,6 +137,7 @@ export const ACTION_FILTER_DEFAULTS: ActionFilters = {
 /** Query-string keys used on `/all-actions` and the export route. */
 export const ACTION_FILTER_PARAM_KEYS = {
   department: "dept",
+  chapter: "ch",
   status: "status",
   priority: "priority",
   visibility: "vis",
@@ -175,6 +179,7 @@ export function parseActionFilters(params: RawParams): ActionFilters {
   const priority = firstValue(params[ACTION_FILTER_PARAM_KEYS.priority]);
   const visibility = firstValue(params[ACTION_FILTER_PARAM_KEYS.visibility]);
   const department = firstValue(params[ACTION_FILTER_PARAM_KEYS.department]);
+  const chapter = firstValue(params[ACTION_FILTER_PARAM_KEYS.chapter]);
   const relatedType = firstValue(params[ACTION_FILTER_PARAM_KEYS.relatedType]);
   const actionType = firstValue(params[ACTION_FILTER_PARAM_KEYS.actionType]);
   const source = firstValue(params[ACTION_FILTER_PARAM_KEYS.source]);
@@ -184,6 +189,7 @@ export function parseActionFilters(params: RawParams): ActionFilters {
 
   return {
     department: department && department.trim() ? department.trim() : "ALL",
+    chapter: chapter && chapter.trim() ? chapter.trim() : "ALL",
     status: STATUS_VALUES.includes(status as ActionItemStatus)
       ? (status as ActionItemStatus)
       : "ALL",
@@ -223,6 +229,7 @@ export function parseActionFilters(params: RawParams): ActionFilters {
 export function hasActiveFilters(filters: ActionFilters): boolean {
   return (
     filters.department !== "ALL" ||
+    filters.chapter !== "ALL" ||
     filters.status !== "ALL" ||
     filters.priority !== "ALL" ||
     filters.visibility !== "ALL" ||
@@ -234,10 +241,11 @@ export function hasActiveFilters(filters: ActionFilters): boolean {
   );
 }
 
-/** Hub filter row — department, visibility, search only (no status/type/source). */
+/** Hub filter row — department, chapter, visibility, search only (no status/type/source). */
 export function hasActiveHubFilters(filters: ActionFilters): boolean {
   return (
     filters.department !== "ALL" ||
+    filters.chapter !== "ALL" ||
     filters.visibility !== "ALL" ||
     filters.search !== ""
   );
@@ -411,6 +419,9 @@ export function applyActionFilters(
     if (filters.department !== "ALL" && item.departmentId !== filters.department) {
       return false;
     }
+    if (filters.chapter !== "ALL" && item.chapterId !== filters.chapter) {
+      return false;
+    }
     if (filters.status !== "ALL" && effectiveStatus(item, now) !== filters.status) {
       return false;
     }
@@ -466,6 +477,9 @@ export function buildActionFilterQuery(filters: ActionFilters): string {
   }
   if (filters.department !== "ALL") {
     params.set(ACTION_FILTER_PARAM_KEYS.department, filters.department);
+  }
+  if (filters.chapter !== "ALL") {
+    params.set(ACTION_FILTER_PARAM_KEYS.chapter, filters.chapter);
   }
   if (filters.status !== "ALL") {
     params.set(ACTION_FILTER_PARAM_KEYS.status, filters.status);

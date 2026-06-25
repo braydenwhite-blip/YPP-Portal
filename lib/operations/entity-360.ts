@@ -25,6 +25,7 @@ export const ENTITY_360_TYPES = [
   "action",
   "mentorship",
   "applicant",
+  "chapter",
 ] as const;
 export type Entity360Type = (typeof ENTITY_360_TYPES)[number];
 
@@ -44,6 +45,7 @@ export const ENTITY_360_TYPE_LABELS: Record<Entity360Type, string> = {
   action: "Action",
   mentorship: "Mentorship",
   applicant: "Applicant",
+  chapter: "Chapter",
 };
 
 /**
@@ -57,6 +59,7 @@ export const RELATED_TO_ENTITY_360: Partial<Record<string, Entity360Type>> = {
   USER: "person",
   MENTORSHIP: "mentorship",
   INSTRUCTOR_APPLICATION: "applicant",
+  CHAPTER: "chapter",
 };
 
 export type Entity360Tone = "neutral" | "info" | "success" | "warning" | "overdue" | "purple";
