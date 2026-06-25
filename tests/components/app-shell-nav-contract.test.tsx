@@ -17,7 +17,7 @@ import Nav from "@/components/nav";
 const ORIGINAL_PORTAL_SLIM_NAV = process.env.PORTAL_SLIM_NAV;
 
 describe("app shell nav contract", () => {
-  it("gives ADMIN the full operating-system nav even under the public preview gate", async () => {
+  it("gives ADMIN the slim preview nav under the public gate", async () => {
     render(
       <Nav
         roles={["ADMIN"]}
@@ -26,31 +26,40 @@ describe("app shell nav contract", () => {
         actionTrackerEnabled
         operationsHubEnabled
         publicGateActive
+        officerSlimNavActive
       />
     );
 
-    // The leadership front doors stay pinned at the top.
     expect(screen.getByRole("link", { name: /Home/i })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: /^People$/i })).toHaveAttribute("href", "/people");
+    expect(screen.getByRole("link", { name: /People Hub/i })).toHaveAttribute("href", "/people");
     expect(screen.getByRole("link", { name: /^Actions$/i })).toHaveAttribute("href", "/actions");
     expect(screen.getByRole("link", { name: /^Meetings$/i })).toHaveAttribute(
       "href",
       "/meetings"
     );
-    // The retired "Work" hub and "Command Center" are gone from the nav.
-    expect(screen.queryByRole("link", { name: /^Work$/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: /Command Center/i })).toBeNull();
-    // Initiatives still lives in the Actions section (no longer pinned in core).
-    expect(screen.getByRole("link", { name: /Initiatives/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /My Applications/i })).toHaveAttribute(
       "href",
-      "/operations/initiatives"
+      "/applications"
+    );
+    expect(screen.getByRole("link", { name: /Workshop Design Studio/i })).toHaveAttribute(
+      "href",
+      "/instructor/workshop-design-studio"
+    );
+    expect(screen.getByRole("link", { name: /Instructor Training/i })).toHaveAttribute(
+      "href",
+      "/instructor-training"
+    );
+    expect(screen.getByRole("link", { name: /Network Applicants/i })).toHaveAttribute(
+      "href",
+      "/admin/instructor-applicants"
     );
 
-    // Officers get the grouped object sections (no "More Tools" accordion), and
-    // admin configuration is reachable — not hidden behind the old slim stack.
-    expect(screen.getByRole("region", { name: "Navigation sections" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Work$/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Command Center/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Initiatives/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Administration/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /more navigation links/i })).toBeNull();
-    expect(screen.getByRole("link", { name: /Administration/i })).toHaveAttribute("href", "/admin");
+    expect(screen.queryByRole("region", { name: "Navigation sections" })).toBeNull();
   });
 
   it("keeps the student minimal nav flat, with section toggles and no More Tools accordion", () => {

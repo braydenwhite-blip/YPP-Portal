@@ -4,6 +4,10 @@ import { createMiddlewareClient } from "@/lib/supabase/middleware";
 import { LEGACY_AUTH_COOKIE_NAME, verifyLegacySessionToken } from "@/lib/legacy-auth";
 import { isDemoAllowedPathname, isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 import {
+  isLeadershipPreviewAccessFromAuth,
+  isLeadershipPreviewPath,
+} from "@/lib/leadership-preview-access";
+import {
   LOCKED_PATH,
   PREVIEW_COOKIE_NAME,
   isAllowedPublicPath,
@@ -272,15 +276,27 @@ export async function proxy(request: NextRequest) {
       const metadata = user?.user_metadata as
         | { roles?: string[]; primaryRole?: string }
         | undefined;
+      const leadershipAccess = isLeadershipPreviewAccessFromAuth(metadata, user?.email);
       const officerBypass = isOfficerTierFromAuth(metadata?.roles, metadata?.primaryRole);
-      if (!previewValid && !officerBypass) {
-        const dest = request.nextUrl.clone();
-        dest.pathname = LOCKED_PATH;
-        dest.search = "";
-        if (pathname && pathname !== "/") {
-          dest.searchParams.set("from", pathname);
+      if (!previewValid) {
+        if (isLeadershipPreviewPath(pathname) && !leadershipAccess) {
+          const dest = request.nextUrl.clone();
+          dest.pathname = LOCKED_PATH;
+          dest.search = "";
+          if (pathname && pathname !== "/") {
+            dest.searchParams.set("from", pathname);
+          }
+          return NextResponse.redirect(dest);
         }
-        return NextResponse.redirect(dest);
+        if (!isLeadershipPreviewPath(pathname) && !officerBypass) {
+          const dest = request.nextUrl.clone();
+          dest.pathname = LOCKED_PATH;
+          dest.search = "";
+          if (pathname && pathname !== "/") {
+            dest.searchParams.set("from", pathname);
+          }
+          return NextResponse.redirect(dest);
+        }
       }
     }
   }

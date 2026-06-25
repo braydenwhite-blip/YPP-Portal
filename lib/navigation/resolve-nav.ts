@@ -42,6 +42,7 @@ import { canAccessAdminRoute } from "@/lib/admin-capabilities";
 import { applyAdminPrimarySidebarFilter } from "@/lib/navigation/admin-primary-nav-filter";
 import {
   getPublicPreviewSlimNavHrefs,
+  getPublicPreviewSlimNavHrefList,
   shouldApplyPublicPreviewSlimNav,
 } from "@/lib/navigation/public-preview-slim-nav";
 import {
@@ -277,6 +278,14 @@ export interface ResolveNavInput {
    * if the layout still passes `publicGateActive=true` (defense in depth).
    */
   publicGateActive?: boolean;
+  /**
+   * Server-resolved slim nav for officer-tier users during the public-gate
+   * ship. Required when resolveNavModel runs in client components — those
+   * bundles cannot read PORTAL_PUBLIC_GATE / PORTAL_SLIM_NAV reliably.
+   */
+  officerSlimNavActive?: boolean;
+  viewerEmail?: string | null;
+  viewerInternalLevel?: number | null;
 }
 
 function toNavRole(value: string | null | undefined): NavRole | null {
@@ -512,19 +521,29 @@ export function resolveNavModel(
   const publicGateRestrictsNav =
     input.publicGateActive === true && !officerTierUser;
   const hasAward = isAwardTier(input.awardTier);
-  const limit = Math.min(input.maxCoreItems ?? CORE_NAV_LIMIT, CORE_NAV_LIMIT);
   const adminSubtypes = input.adminSubtypes ?? [];
+  const slimNavActive =
+    input.officerSlimNavActive === true ||
+    (input.officerSlimNavActive !== false &&
+      shouldApplyPublicPreviewSlimNav(primaryRole, roles, {
+        email: input.viewerEmail,
+        internalLevel: input.viewerInternalLevel,
+      }));
+  const slimNavHrefList = slimNavActive
+    ? getPublicPreviewSlimNavHrefList(primaryRole, roles, adminSubtypes)
+    : [];
+  const baseLimit = Math.min(input.maxCoreItems ?? CORE_NAV_LIMIT, CORE_NAV_LIMIT);
+  const limit = slimNavActive
+    ? Math.max(baseLimit, slimNavHrefList.length)
+    : baseLimit;
   const hiringDemoHrefs = input.hiringDemoMode
     ? hiringDemoHrefsForRole(primaryRole)
     : null;
   // Leadership operating-system layout (Command → Work → People → Programs →
-  // Partners → Data → Admin). Officers always get the full, organized nav — it
-  // takes precedence over the public-preview "slim" 5-link stack, which was
-  // dumbing the leadership sidebar down to a handful of links. (Officers bypass
-  // the public gate at the route level, so every section is reachable.) Only the
-  // hiring demo, which has its own curated stack, opts out.
+  // Partners → Data → Admin). When the public-preview slim nav is active,
+  // officers get the curated leadership + published-public stack instead.
   const officerLayoutActive =
-    shouldApplyOfficerNavLayout(primaryRole) && !hiringDemoHrefs;
+    shouldApplyOfficerNavLayout(primaryRole) && !hiringDemoHrefs && !slimNavActive;
   const usesUnlockVisibility =
     primaryRole === "INSTRUCTOR" ||
     (input.unlockedSections && (primaryRole === "STUDENT" || primaryRole === "PARENT"));
@@ -559,7 +578,10 @@ export function resolveNavModel(
       if (
         ALWAYS_HIDDEN_HREFS.has(item.href) &&
         !isChapterPresidentNav &&
-        !(officerLayoutActive && OFFICER_UNHIDE_HREFS.has(item.href))
+        !(
+          (officerLayoutActive || slimNavActive) &&
+          OFFICER_UNHIDE_HREFS.has(item.href)
+        )
       ) {
         return false;
       }
@@ -644,11 +666,11 @@ export function resolveNavModel(
     primaryRole,
   );
 
-  if (!hiringDemoHrefs) {
+  if (!hiringDemoHrefs && !slimNavActive) {
     visible = applyAdminPrimarySidebarFilter(visible, primaryRole, roles, adminSubtypes);
   }
 
-  if (shouldApplyPublicPreviewSlimNav(primaryRole, roles) && !officerLayoutActive) {
+  if (slimNavActive) {
     const slimHrefs = getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes);
     visible = visible.filter((item) => slimHrefs.has(item.href));
   }
@@ -698,7 +720,11 @@ export function resolveNavModel(
 
   const coreHrefList =
     hiringDemoHrefs ??
-    (studentMinimalSidebar && primaryRole === "STUDENT" ? ["/"] : CORE_NAV_MAP[primaryRole]);
+    (slimNavActive
+      ? slimNavHrefList
+      : studentMinimalSidebar && primaryRole === "STUDENT"
+        ? ["/"]
+        : CORE_NAV_MAP[primaryRole]);
 
   const core: NavLink[] = [];
   for (const href of coreHrefList) {
@@ -708,8 +734,7 @@ export function resolveNavModel(
   }
 
   if (!studentMinimalSidebar || primaryRole !== "STUDENT") {
-    const skipMessagesPin =
-      shouldApplyPublicPreviewSlimNav(primaryRole, roles) && !officerLayoutActive;
+    const skipMessagesPin = slimNavActive;
     if (!skipMessagesPin) {
       for (const criticalHref of CRITICAL_CORE_LINKS) {
         const item = visibleByHref.get(criticalHref);
@@ -719,7 +744,7 @@ export function resolveNavModel(
     }
   }
 
-  if (officerTierUser && !hiringDemoHrefs) {
+  if (officerTierUser && !hiringDemoHrefs && !slimNavActive) {
     for (const criticalHref of OFFICER_CRITICAL_CORE_LINKS) {
       const item = visibleByHref.get(criticalHref);
       if (!item || !item.coreEligible) continue;
@@ -727,8 +752,8 @@ export function resolveNavModel(
     }
   }
 
-  if (shouldApplyPublicPreviewSlimNav(primaryRole, roles) && !officerLayoutActive) {
-    for (const href of getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes)) {
+  if (slimNavActive) {
+    for (const href of slimNavHrefList) {
       const item = visibleByHref.get(href);
       if (!item) continue;
       addOrReplaceCoreItem(core, item, limit);
@@ -794,5 +819,6 @@ export function resolveNavModel(
     more,
     lockedGroups: unlockLockedGroups ?? undefined,
     officerChrome: officerLayoutActive,
+    officerSlimNav: slimNavActive,
   };
 }

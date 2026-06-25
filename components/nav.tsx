@@ -111,6 +111,9 @@ export default function Nav({
   instructorSubtype,
   publicGateActive,
   officerTier,
+  officerSlimNavActive,
+  viewerEmail,
+  viewerInternalLevel,
 }: {
   roles?: string[];
   adminSubtypes?: string[];
@@ -141,6 +144,10 @@ export default function Nav({
   publicGateActive?: boolean;
   /** Officer tier (from AppShell) — gates the Recently Viewed section. */
   officerTier?: boolean;
+  /** Curated officer sidebar during the public-gate ship (server-resolved). */
+  officerSlimNavActive?: boolean;
+  viewerEmail?: string | null;
+  viewerInternalLevel?: number | null;
 }) {
   const pathname = usePathname();
 
@@ -164,6 +171,9 @@ export default function Nav({
         hiringDemoMode,
         instructorSubtype,
         publicGateActive,
+        officerSlimNavActive,
+        viewerEmail,
+        viewerInternalLevel,
       }),
     [
       adminSubtypes,
@@ -183,6 +193,9 @@ export default function Nav({
       hiringDemoMode,
       instructorSubtype,
       publicGateActive,
+      officerSlimNavActive,
+      viewerEmail,
+      viewerInternalLevel,
     ],
   );
 
@@ -319,7 +332,9 @@ export default function Nav({
   // collapsible sections (Command / Work / People / Programs / Partners / Data /
   // Admin) instead of one big "More Tools" accordion — so every area is one
   // glance away. They keep the "Top Tools" pins and Recently Viewed.
-  const showOfficerChrome = model.officerChrome === true;
+  const showOfficerSlimNav =
+    officerSlimNavActive === true || model.officerSlimNav === true;
+  const showOfficerChrome = model.officerChrome === true && !showOfficerSlimNav;
   const useFlatGroupChrome = useMinimalFlatNavChrome || showOfficerChrome;
   const flatGroupEmoji = showOfficerChrome
     ? OFFICER_GROUP_EMOJI
@@ -343,6 +358,7 @@ export default function Nav({
   const showRecents =
     officerTier === true &&
     !useMinimalFlatNavChrome &&
+    !showOfficerSlimNav &&
     showSearch &&
     publicGateActive !== true &&
     !hasSearch;
@@ -413,7 +429,7 @@ export default function Nav({
           preview passcode, an officer bypass, or the gate disabled entirely) —
           mirroring middleware, which redirects gated users away from /site-map.
           So "see everything" is reachable then and only then. */}
-      {publicGateActive !== true ? (
+      {publicGateActive !== true && !showOfficerSlimNav ? (
         <Link
           href="/site-map"
           onClick={onNavigate}

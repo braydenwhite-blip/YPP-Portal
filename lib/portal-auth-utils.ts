@@ -75,6 +75,8 @@ type PortalUserMetadataParams = {
   primaryRole: string;
   prismaUserId?: string;
   roles: string[];
+  internalLevel?: number | null;
+  leadershipPreviewAccess?: boolean;
 };
 
 export function buildPortalUserMetadata(params: PortalUserMetadataParams) {
@@ -85,6 +87,8 @@ export function buildPortalUserMetadata(params: PortalUserMetadataParams) {
     prismaUserId: params.prismaUserId,
     portalArchived: params.portalArchived,
     roles: params.roles,
+    internalLevel: params.internalLevel ?? null,
+    leadershipPreviewAccess: params.leadershipPreviewAccess === true,
   };
 }
 
@@ -97,6 +101,8 @@ type EnsureSupabaseAuthUserParams = {
   primaryRole: string;
   prismaUserId?: string;
   roles: string[];
+  internalLevel?: number | null;
+  leadershipPreviewAccess?: boolean;
 };
 
 export async function ensureSupabaseAuthUser(params: EnsureSupabaseAuthUserParams) {
@@ -168,6 +174,8 @@ type UpdateSupabasePortalUserParams = {
   prismaUserId?: string;
   roles: string[];
   supabaseAuthId: string;
+  internalLevel?: number | null;
+  leadershipPreviewAccess?: boolean;
 };
 
 export async function updateSupabasePortalUser(params: UpdateSupabasePortalUserParams) {

@@ -345,7 +345,7 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toContain("/admin/bulk-users");
   });
 
-  describe("public preview slim nav legacy flag", () => {
+  describe("public preview slim nav", () => {
     beforeAll(() => {
       process.env.PORTAL_SLIM_NAV = "true";
     });
@@ -354,7 +354,7 @@ describe("resolveNavModel", () => {
       process.env.PORTAL_SLIM_NAV = "false";
     });
 
-    it("keeps the full officer section nav for admins", () => {
+    it("shows only leadership front doors and published public surfaces for admins", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["SUPER_ADMIN"],
@@ -363,32 +363,39 @@ describe("resolveNavModel", () => {
         actionTrackerEnabled: true,
         operationsHubEnabled: true,
         publicGateActive: true,
+        officerSlimNavActive: true,
       });
 
       const visibleHrefs = hrefs(model);
-      expect(visibleHrefs).toContain("/admin");
-      expect(visibleHrefs).toContain("/admin/bulk-users");
+      expect(visibleHrefs).toContain("/");
       expect(visibleHrefs).toContain("/people");
       expect(visibleHrefs).toContain("/actions");
-      // The single Meetings home is present; type-specific hubs are retired.
       expect(visibleHrefs).toContain("/meetings");
+      expect(visibleHrefs).toContain("/applications");
+      expect(visibleHrefs).toContain("/instructor/workshop-design-studio");
+      expect(visibleHrefs).toContain("/instructor-training");
+      expect(visibleHrefs).toContain("/admin/instructor-applicants");
+      expect(visibleHrefs).not.toContain("/admin");
+      expect(visibleHrefs).not.toContain("/admin/bulk-users");
+      expect(visibleHrefs).not.toContain("/operations/initiatives");
       expect(visibleHrefs).not.toContain("/actions/meetings");
       expect(visibleHrefs).not.toContain("/impact-meetings");
-      expect(visibleHrefs).toContain("/operations/initiatives");
-      // The retired Work hub and Command Center are gone from the nav entirely.
       expect(visibleHrefs).not.toContain("/work");
       expect(visibleHrefs).not.toContain("/command-center");
-      expect(model.more.length).toBeGreaterThan(0);
+      expect(model.more).toHaveLength(0);
       expect(model.core.map((item) => item.href)).toEqual([
         "/",
         "/people",
         "/actions",
         "/meetings",
-        "/messages",
+        "/applications",
+        "/instructor/workshop-design-studio",
+        "/instructor-training",
+        "/admin/instructor-applicants",
       ]);
     });
 
-    it("keeps hiring-chair applicant routes inside the full officer catalog", () => {
+    it("adds hiring-chair applicant routes to the slim stack", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["HIRING_ADMIN"],
@@ -397,14 +404,15 @@ describe("resolveNavModel", () => {
         actionTrackerEnabled: true,
         operationsHubEnabled: true,
         publicGateActive: true,
+        officerSlimNavActive: true,
       });
 
       const visibleHrefs = hrefs(model);
       expect(visibleHrefs).toContain("/admin/instructor-applicants");
       expect(visibleHrefs).toContain("/admin/instructor-applicants/chair-queue");
-      expect(visibleHrefs).toContain("/admin/bulk-users");
-      expect(visibleHrefs).toContain("/admin");
-      expect(model.more.length).toBeGreaterThan(0);
+      expect(visibleHrefs).not.toContain("/admin/bulk-users");
+      expect(visibleHrefs).not.toContain("/admin");
+      expect(model.more).toHaveLength(0);
     });
   });
 

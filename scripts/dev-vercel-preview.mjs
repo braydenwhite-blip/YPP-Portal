@@ -53,6 +53,8 @@ const childEnv = {
   ENABLE_QUARTERLY_REVIEWS: process.env.ENABLE_QUARTERLY_REVIEWS ?? "true",
   ENABLE_ACTION_TRACKER: process.env.ENABLE_ACTION_TRACKER ?? "true",
   ENABLE_OPERATIONS_HUB: process.env.ENABLE_OPERATIONS_HUB ?? "true",
+  // Comma-separated pilot emails (Sam, Zach, …) for leadership preview access.
+  PORTAL_LEADERSHIP_PILOT_EMAILS: process.env.PORTAL_LEADERSHIP_PILOT_EMAILS ?? "",
 };
 
 const db = childEnv.DATABASE_URL ?? "";

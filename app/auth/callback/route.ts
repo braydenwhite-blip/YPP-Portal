@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createServerClientOrNull } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { syncPortalAuthMetadataForPrismaUser } from "@/lib/sync-portal-auth-metadata";
 
 const VALID_OTP_TYPES = new Set<EmailOtpType>([
   "signup",
@@ -85,6 +86,10 @@ export async function GET(request: NextRequest) {
       .catch((e) => {
         console.error("[Auth Callback] Failed to stamp emailVerified:", e);
       });
+
+    await syncPortalAuthMetadataForPrismaUser(prismaUser.id).catch((e) => {
+      console.error("[Auth Callback] Failed to sync Supabase user_metadata:", e);
+    });
   }
 
   if (next.startsWith("/reset-password")) {

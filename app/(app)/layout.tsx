@@ -23,6 +23,10 @@ import {
   isLegacyActionCenterNavEnabled,
   isOperationsHubEnabled,
 } from "@/lib/feature-flags";
+import { isPublicPreviewSlimNavEnabled } from "@/lib/navigation/public-preview-slim-nav";
+import { canAccessLeadershipPreviewStack } from "@/lib/leadership-preview-access";
+import { syncPortalAuthMetadataForPrismaUser } from "@/lib/sync-portal-auth-metadata";
+import type { NavRole } from "@/lib/navigation/types";
 
 export const dynamic = "force-dynamic";
 
@@ -90,10 +94,26 @@ export default async function AppLayout({
   const awardTier = getHighestAwardTier(session.user.awards ?? []);
   const officerBypassesPublicGate = isOfficerTierFromAuth(roles, primaryRole);
   const publicGateActive = publicGateEnabled && !previewActive && !officerBypassesPublicGate;
+  const navPrimaryRole = (primaryRole ?? "STUDENT") as NavRole;
+  if (userId) {
+    void syncPortalAuthMetadataForPrismaUser(userId).catch((error) => {
+      console.error("[layout] Failed to sync Supabase user_metadata:", error);
+    });
+  }
+  const officerSlimNavActive =
+    isPublicPreviewSlimNavEnabled() &&
+    canAccessLeadershipPreviewStack({
+      id: userId,
+      email: session.user.email,
+      roles,
+      primaryRole: navPrimaryRole,
+      internalLevel: session.user.internalLevel,
+    });
 
   return (
     <AppShell
       userName={session.user.name}
+      userEmail={session.user.email}
       initialCommandMode={initialCommandMode}
       roles={roles}
       adminSubtypes={(session.user as { adminSubtypes?: string[] }).adminSubtypes}
@@ -118,6 +138,7 @@ export default async function AppLayout({
       instructorSubtype={instructorSubtype}
       publicGateActive={publicGateActive}
       previewModeActive={previewActive}
+      officerSlimNavActive={officerSlimNavActive}
     >
       {children}
     </AppShell>

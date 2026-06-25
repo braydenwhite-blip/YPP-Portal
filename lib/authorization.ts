@@ -24,6 +24,7 @@ import {
   type SessionUser,
 } from "@/lib/authorization-roles";
 import { OFFICER_MIN_LEVEL, TOP_INTERNAL_LEVEL } from "@/lib/org/levels";
+import { canAccessLeadershipPreviewStack } from "@/lib/leadership-preview-access";
 
 /**
  * The tier guards below are strictly ADDITIVE on the org ladder: they pass when
@@ -54,6 +55,7 @@ export async function requireSessionUser(): Promise<SessionUser> {
     ladder: user.ladder,
     canonicalTitle: user.canonicalTitle,
     title: user.title,
+    email: user.email,
   };
 }
 
@@ -127,15 +129,22 @@ export async function requireBoard(): Promise<SessionUser> {
  */
 export async function requireOfficer(): Promise<SessionUser> {
   const sessionUser = await requireSessionUser();
-  // Ladder path: Officer-tier and above (internal level >= 5).
-  if (sessionUser.internalLevel != null && sessionUser.internalLevel >= OFFICER_MIN_LEVEL) {
-    return sessionUser;
-  }
-  // Legacy fallback (unchanged): any officer-tier role.
-  if (hasAnyRole(sessionUser.roles, [...OFFICER_TIER_ROLES])) {
+  if (
+    canAccessLeadershipPreviewStack({
+      id: sessionUser.id,
+      email: sessionUser.email,
+      roles: sessionUser.roles,
+      primaryRole: sessionUser.primaryRole,
+      internalLevel: sessionUser.internalLevel,
+    })
+  ) {
     return sessionUser;
   }
   throw new Error("Unauthorized");
+}
+
+export async function requireLeadershipPreviewAccess(): Promise<SessionUser> {
+  return requireOfficer();
 }
 
 /**

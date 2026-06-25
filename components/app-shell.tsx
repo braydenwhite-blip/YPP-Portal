@@ -33,6 +33,7 @@ import {
 export default function AppShell({
   children,
   userName,
+  userEmail,
   initialCommandMode,
   roles,
   adminSubtypes,
@@ -57,9 +58,11 @@ export default function AppShell({
   instructorSubtype,
   publicGateActive,
   previewModeActive,
+  officerSlimNavActive,
 }: {
   children: React.ReactNode;
   userName?: string | null;
+  userEmail?: string | null;
   /** Server-supplied Calm/Executive choice (cookie) for a flash-free first paint. */
   initialCommandMode?: CommandMode;
   roles?: string[];
@@ -93,6 +96,8 @@ export default function AppShell({
   publicGateActive?: boolean;
   /** User is browsing in internal preview mode — show the indicator bar. */
   previewModeActive?: boolean;
+  /** Curated officer sidebar (leadership + published public surfaces only). */
+  officerSlimNavActive?: boolean;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarId = "portal-sidebar";
@@ -233,6 +238,9 @@ export default function AppShell({
             instructorSubtype={instructorSubtype}
             publicGateActive={publicGateActive}
             officerTier={officerTier}
+            officerSlimNavActive={officerSlimNavActive}
+            viewerEmail={userEmail}
+            viewerInternalLevel={internalLevel}
           />
         </div>
 
