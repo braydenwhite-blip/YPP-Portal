@@ -51,6 +51,9 @@ const PARTNER_PIPELINE_SELECT = {
   updatedAt: true,
   relationshipLeadId: true,
   relationshipLead: { select: { id: true, name: true, email: true } },
+  // Chapter this partner belongs to (e.g. the school's chapter), so partner work
+  // can be created chapter-scoped.
+  chapterId: true,
   _count: { select: { classOfferings: true } },
 } satisfies Prisma.PartnerSelect;
 

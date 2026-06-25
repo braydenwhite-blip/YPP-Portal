@@ -416,6 +416,13 @@ export async function scheduleChapterMeeting(input: unknown) {
   });
   const facilitatorId = chapter?.presidentId ?? user.id;
 
+  // Seed attendees so a chapter meeting is never a blank room: the Chapter
+  // President (if any) and the person scheduling it. De-duped; both default to
+  // not-yet-present, ready to check off in the runner.
+  const attendeeIds = Array.from(
+    new Set([chapter?.presidentId, user.id].filter((id): id is string => Boolean(id)))
+  );
+
   const meeting = await prisma.meeting.create({
     data: {
       type: "GENERIC",
@@ -425,6 +432,9 @@ export async function scheduleChapterMeeting(input: unknown) {
       chapterId: data.chapterId,
       facilitatorId,
       createdById: user.id,
+      attendees: {
+        create: attendeeIds.map((userId) => ({ userId, present: false })),
+      },
     },
     select: { id: true },
   });
@@ -620,6 +630,65 @@ export async function createActionFromMeetingFollowUp(input: unknown) {
 
   revalidateChapterSurfaces(chapterId);
   revalidatePath(`/meetings/${followUp.meeting.id}`);
+  revalidatePath("/actions");
+  return { ok: true as const, id: created.id };
+}
+
+// --- Chapter data-integrity repair (leadership) ------------------------------
+
+const RepairSchema = z.object({
+  kind: z.enum([
+    "approved_app_no_chapter",
+    "support_no_action",
+  ]),
+  refId: z.string().min(1),
+});
+
+export async function repairChapterDataIssue(input: unknown) {
+  const data = RepairSchema.parse(input);
+  const user = await requireChapterLeadership();
+
+  if (data.kind === "approved_app_no_chapter") {
+    // Reuse the application → chapter provisioning path.
+    return createChapterFromApplication({ applicationId: data.refId });
+  }
+
+  // support_no_action: create the tracked action and link it to the request.
+  const request = await prisma.chapterSupportRequest.findUnique({
+    where: { id: data.refId },
+    select: {
+      id: true,
+      title: true,
+      details: true,
+      chapterId: true,
+      actionItemId: true,
+      priority: true,
+      requestedById: true,
+      chapter: { select: { presidentId: true } },
+    },
+  });
+  if (!request) throw new Error("Support request not found");
+  if (request.actionItemId) {
+    return { ok: true as const, id: request.actionItemId, existing: true as const };
+  }
+
+  const leadId = request.chapter?.presidentId ?? request.requestedById ?? user.id;
+  const created = await createChapterActionItem(prisma, {
+    chapterId: request.chapterId,
+    title: `Support: ${request.title}`,
+    description: request.details,
+    leadId,
+    createdById: user.id,
+    deadlineStart: new Date(Date.now() + 5 * DAY_MS),
+    priority: request.priority,
+    goalCategory: "Chapter support",
+  });
+  await prisma.chapterSupportRequest.update({
+    where: { id: request.id },
+    data: { actionItemId: created.id },
+  });
+
+  revalidateChapterSurfaces(request.chapterId);
   revalidatePath("/actions");
   return { ok: true as const, id: created.id };
 }

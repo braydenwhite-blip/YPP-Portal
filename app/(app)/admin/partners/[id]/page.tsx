@@ -294,7 +294,9 @@ export default async function PartnerProfilePage({
           <Link href="/admin/partners" className="button" style={{ fontSize: 13 }}>← All partners</Link>
           {trackerEnabled ? (
             <Link
-              href={`/actions/new?relatedType=PARTNER&relatedId=${partner.id}`}
+              href={`/actions/new?relatedType=PARTNER&relatedId=${partner.id}${
+                partner.chapterId ? `&chapter=${partner.chapterId}` : ""
+              }`}
               className="button primary"
               style={{ fontSize: 13 }}
             >

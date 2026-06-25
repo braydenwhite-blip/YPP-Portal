@@ -46,6 +46,7 @@ const GROUP_LABELS: Record<Entity360Type, string> = {
   initiative: "Initiatives",
   mentorship: "Mentorships",
   applicant: "Applicants",
+  chapter: "Chapters",
 };
 
 /** Quick Find scoring (prefix > word-start > substring), shared convention. */
@@ -550,12 +551,62 @@ function searchInitiatives(q: string): HelpAgentResult[] {
   }));
 }
 
+/**
+ * Chapters by name, city, state/region, partner school, or Chapter President —
+ * leadership only (a CP must not pull the whole network this way). Live query;
+ * chapters are not in the SearchDocument index yet.
+ */
+async function searchChapters(q: string): Promise<HelpAgentResult[]> {
+  // Fail safe to an empty group — a chapter-query error must never blank the
+  // whole multi-group search (mirrors the other groups' resilience).
+  try {
+    const chapters = await prisma.chapter.findMany({
+      where: {
+        archivedAt: null,
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { city: { contains: q, mode: "insensitive" } },
+          { state: { contains: q, mode: "insensitive" } },
+          { region: { contains: q, mode: "insensitive" } },
+          { partnerSchool: { contains: q, mode: "insensitive" } },
+          { president: { is: { name: { contains: q, mode: "insensitive" } } } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        city: true,
+        state: true,
+        president: { select: { name: true } },
+      },
+      take: 12,
+    });
+    return chapters.map((c) => ({
+      type: "chapter" as const,
+      id: c.id,
+      title: c.name,
+      subtitle:
+        [c.city, c.state].filter(Boolean).join(", ") ||
+        (c.president?.name ? `CP: ${c.president.name}` : null),
+      href: `/admin/chapters/${c.id}`,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function runHelpAgentSearch(
   rawQuery: string,
   viewer: ActionViewer
 ): Promise<HelpAgentSearchResponse> {
   const q = rawQuery.trim().toLowerCase();
   const officer = isOfficerTier(viewer);
+  const adminSubtypes = viewer.adminSubtypes ?? [];
+  const chapterLeadership =
+    viewer.roles.includes("ADMIN") ||
+    viewer.roles.includes("STAFF") ||
+    adminSubtypes.includes("LEADERSHIP") ||
+    adminSubtypes.includes("SUPER_ADMIN");
 
   if (!q) {
     return { query: rawQuery, groups: [], recents: await loadRecents(viewer) };
@@ -565,7 +616,7 @@ export async function runHelpAgentSearch(
   }
 
   const tracker = isActionTrackerEnabled();
-  const [people, partners, applications, classes, meetings, actions, mentorships] =
+  const [people, partners, applications, classes, meetings, actions, mentorships, chapters] =
     await Promise.all([
       searchPeople(q),
       officer ? searchPartners(q, viewer) : Promise.resolve([]),
@@ -576,6 +627,8 @@ export async function runHelpAgentSearch(
       // Runs for every viewer — an assigned mentor or the mentee may be a plain
       // member; the per-relationship membership re-check is the access gate.
       searchMentorships(q, viewer),
+      // Chapters: leadership only (network-wide chapter data is gated).
+      chapterLeadership ? searchChapters(q) : Promise.resolve([]),
     ]);
   const initiatives = officer && tracker ? searchInitiatives(q) : [];
 
@@ -585,6 +638,7 @@ export async function runHelpAgentSearch(
       ["applicant", applications],
       ["partner", partners],
       ["class", classes],
+      ["chapter", chapters],
       ["meeting", meetings],
       ["action", actions],
       ["mentorship", mentorships],

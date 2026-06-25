@@ -16,23 +16,30 @@ vi.mock("@/lib/prisma", () => ({
     actionItem: { findFirst: vi.fn(), create: vi.fn() },
     chapter: { findUnique: vi.fn(), update: vi.fn() },
     chapterNote: { create: vi.fn() },
+    chapterSupportRequest: { findUnique: vi.fn(), update: vi.fn() },
+    meeting: { create: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
 
-import { requireChapterManager } from "@/lib/chapters/access";
+import { requireChapterManager, requireChapterLeadership } from "@/lib/chapters/access";
 import { prisma } from "@/lib/prisma";
 import {
   createActionFromMeetingFollowUp,
   submitChapterCheckIn,
+  repairChapterDataIssue,
+  scheduleChapterMeeting,
 } from "@/lib/chapters/actions";
 
 const mockGuard = vi.mocked(requireChapterManager);
+const mockLeadership = vi.mocked(requireChapterLeadership);
 const mockPrisma = prisma as unknown as {
   meetingFollowUp: { findUnique: ReturnType<typeof vi.fn> };
   actionItem: { findFirst: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
   chapter: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
   chapterNote: { create: ReturnType<typeof vi.fn> };
+  chapterSupportRequest: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+  meeting: { create: ReturnType<typeof vi.fn> };
   $transaction: ReturnType<typeof vi.fn>;
 };
 
@@ -179,5 +186,69 @@ describe("submitChapterCheckIn", () => {
   it("rejects an empty check-in", async () => {
     asManager(false);
     await expect(submitChapterCheckIn({ chapterId: "chap-1" })).rejects.toThrow();
+  });
+});
+
+describe("scheduleChapterMeeting", () => {
+  it("seeds the Chapter President and scheduler as attendees — never a blank room", async () => {
+    asManager(false);
+    mockPrisma.chapter.findUnique.mockResolvedValue({ presidentId: "cp1" });
+    mockPrisma.meeting.create.mockResolvedValue({ id: "m-new" });
+
+    const res = await scheduleChapterMeeting({
+      chapterId: "chap-1",
+      title: "Kickoff",
+      scheduledAt: "2026-08-01T17:00:00.000Z",
+    });
+
+    expect(res).toMatchObject({ ok: true, id: "m-new" });
+    const created = mockPrisma.meeting.create.mock.calls[0][0].data;
+    expect(created.chapterId).toBe("chap-1");
+    const attendeeIds = created.attendees.create.map((a: { userId: string }) => a.userId);
+    expect(attendeeIds).toContain("cp1");
+  });
+});
+
+describe("repairChapterDataIssue", () => {
+  it("creates the missing action for a support request and links it back", async () => {
+    mockLeadership.mockResolvedValue({ id: "lead1" } as never);
+    mockPrisma.chapterSupportRequest.findUnique.mockResolvedValue({
+      id: "sr1",
+      title: "Need a room",
+      details: "for Tuesdays",
+      chapterId: "chap-1",
+      actionItemId: null,
+      priority: "HIGH",
+      requestedById: "cp1",
+      chapter: { presidentId: "cp1" },
+    });
+    mockPrisma.actionItem.create.mockResolvedValue({ id: "act-sr" });
+    mockPrisma.chapterSupportRequest.update.mockResolvedValue({});
+
+    const res = await repairChapterDataIssue({ kind: "support_no_action", refId: "sr1" });
+
+    expect(res).toMatchObject({ ok: true, id: "act-sr" });
+    expect(mockPrisma.actionItem.create.mock.calls[0][0].data.chapterId).toBe("chap-1");
+    expect(mockPrisma.chapterSupportRequest.update).toHaveBeenCalledWith({
+      where: { id: "sr1" },
+      data: { actionItemId: "act-sr" },
+    });
+  });
+
+  it("is idempotent when the support request already has an action", async () => {
+    mockLeadership.mockResolvedValue({ id: "lead1" } as never);
+    mockPrisma.chapterSupportRequest.findUnique.mockResolvedValue({
+      id: "sr1",
+      title: "Need a room",
+      details: null,
+      chapterId: "chap-1",
+      actionItemId: "act-existing",
+      priority: "MEDIUM",
+      requestedById: "cp1",
+      chapter: { presidentId: "cp1" },
+    });
+    const res = await repairChapterDataIssue({ kind: "support_no_action", refId: "sr1" });
+    expect(res).toMatchObject({ ok: true, id: "act-existing", existing: true });
+    expect(mockPrisma.actionItem.create).not.toHaveBeenCalled();
   });
 });

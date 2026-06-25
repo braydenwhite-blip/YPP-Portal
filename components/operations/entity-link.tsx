@@ -17,6 +17,7 @@ const DEFAULT_HREF: Record<Entity360Type, (id: string) => string> = {
   action: (id) => `/actions/${id}`,
   mentorship: (id) => `/admin/mentorship/relationships/${id}`,
   applicant: (id) => `/admin/instructor-applicants/${id}`,
+  chapter: (id) => `/admin/chapters/${id}`,
 };
 
 /**

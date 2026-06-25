@@ -115,7 +115,7 @@ export function MeetingRunner({
           <div className="flex shrink-0 flex-col items-end gap-2">
           <StatusControl meeting={meeting} pending={pending} onSet={(status) => run(() => setMeetingStatus({ meetingId: meeting.id, status }))} />
           <Link
-            href={actionPrefillToQuery(buildActionPrefillFromMeeting({ meetingId: meeting.id, title: `Follow-through: ${meeting.title}` }))}
+            href={actionPrefillToQuery(buildActionPrefillFromMeeting({ meetingId: meeting.id, title: `Follow-through: ${meeting.title}`, chapterId: meeting.chapterContext?.id ?? null }))}
             className="text-[12.5px] font-medium text-brand-700 hover:underline"
           >
             + New action from this meeting
@@ -563,6 +563,7 @@ function DecisionsSection({
                     decisionId: d.id,
                     meetingTitle: meeting.title,
                     suggestedOwnerId: d.decidedBy?.id ?? null,
+                    chapterId: meeting.chapterContext?.id ?? null,
                   }))}
                   className="text-[12px] font-medium text-brand-700 hover:underline"
                 >
