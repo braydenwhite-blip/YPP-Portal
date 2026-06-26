@@ -87,6 +87,9 @@ export default async function ChapterHomePage() {
         subtitle="Health, what needs you, launch, meetings, members, programs, and help — everything to run your chapter."
         actions={
           <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/chapter/operating" variant="primary" size="sm">
+              Operating System
+            </ButtonLink>
             <ButtonLink href="/chapter/recruiting" variant="secondary" size="sm">
               Recruiting
             </ButtonLink>

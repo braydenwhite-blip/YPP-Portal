@@ -1099,6 +1099,24 @@ export const NAV_CATALOG: NavLink[] = [
       ],
     },
     {
+      href: "/chapter/operating",
+      label: "Operating System",
+      icon: "🛠",
+      roles: CHAPTER_PRESIDENT_ONLY,
+      dashboardDescription:
+        "Run Weeks 1–10: partners, instructors, curriculum, classes, launch readiness, and impact-meeting prep.",
+      dashboardPriority: 2,
+      searchAliases: [
+        "Operating System",
+        "Chapter OS",
+        "Pipeline",
+        "Partner pipeline",
+        "Instructor pipeline",
+        "Launch readiness",
+        "Impact meeting prep",
+      ],
+    },
+    {
       href: "/chapter/calendar",
       label: "Chapter Calendar",
       icon: "🗓",
