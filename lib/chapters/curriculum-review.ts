@@ -56,10 +56,20 @@ export const CURRICULUM_REVIEW_SLA_HOURS = 48;
 export type CurriculumRecord = {
   id: string;
   title: string;
+  /** Passion / interest area, e.g. "Computer Science" — the table's Subject. */
+  subject: string | null;
   instructorName: string | null;
   status: string | null;
   submittedAt: Date | null;
   reviewedAt: Date | null;
+};
+
+/** Short stage label for the evidence table (the full label is too long there). */
+export const CURRICULUM_SHORT_STAGE: Record<CurriculumPlaybookStatus, string> = {
+  not_submitted: "Not Started",
+  submitted: "In Review",
+  needs_revision: "Needs Revision",
+  approved: "Approved",
 };
 
 /** A submitted curriculum still waiting on CP review past the 48-hour SLA. */
@@ -108,4 +118,68 @@ export function summarizeCurriculumReview(
     needsRevision: byStatus.needs_revision,
     approved: byStatus.approved,
   };
+}
+
+// --- Curriculum evidence rows (the Deliberable table) ----------------------
+
+/** Health of a single curriculum in the evidence table. */
+export type CurriculumEvidenceStatus = "ready" | "needs_feedback" | "not_started";
+
+export type CurriculumEvidenceRow = {
+  id: string;
+  title: string;
+  subject: string;
+  /** Short stage label, e.g. "In Review". */
+  stage: string;
+  owner: string;
+  status: CurriculumEvidenceStatus;
+};
+
+/** Map playbook status → the table's three-way health. */
+export function curriculumEvidenceStatus(status: string | null | undefined): CurriculumEvidenceStatus {
+  switch (curriculumPlaybookStatus(status)) {
+    case "approved":
+      return "ready";
+    case "submitted":
+    case "needs_revision":
+      return "needs_feedback";
+    default:
+      return "not_started";
+  }
+}
+
+/** Build one curriculum evidence row. */
+export function curriculumEvidenceRow(c: CurriculumRecord): CurriculumEvidenceRow {
+  return {
+    id: c.id,
+    title: c.title,
+    subject: c.subject && c.subject.trim() ? c.subject.trim() : "—",
+    stage: CURRICULUM_SHORT_STAGE[curriculumPlaybookStatus(c.status)],
+    owner: c.instructorName && c.instructorName.trim() ? c.instructorName.trim() : "Unassigned",
+    status: curriculumEvidenceStatus(c.status),
+  };
+}
+
+/** The curriculum Deliberable's one recommended next step. */
+export function curriculumReviewRecommendation(summary: CurriculumReviewSummary): string {
+  if (summary.total === 0) return "No curricula yet — instructors submit theirs as classes take shape.";
+  const n = (x: number) => (x === 1 ? "" : "s");
+  if (summary.reviewOverdue > 0) {
+    return `Review ${summary.reviewOverdue} curriculum${summary.reviewOverdue === 1 ? "" : "s"} overdue past the 48-hour window.`;
+  }
+  if (summary.reviewNeeded > 0) {
+    return `Give feedback on ${summary.reviewNeeded} curriculum${
+      summary.reviewNeeded === 1 ? "" : "s"
+    } in review to move ${summary.reviewNeeded === 1 ? "it" : "them"} to approval.`;
+  }
+  if (summary.needsRevision > 0) {
+    return `Follow up on ${summary.needsRevision} curriculum${
+      summary.needsRevision === 1 ? "" : "s"
+    } needing revision.`;
+  }
+  const notStarted = summary.byStatus.not_submitted;
+  if (notStarted > 0) {
+    return `Nudge ${notStarted} instructor${n(notStarted)} to submit their curriculum.`;
+  }
+  return "Curriculum is ready for your planned classes.";
 }

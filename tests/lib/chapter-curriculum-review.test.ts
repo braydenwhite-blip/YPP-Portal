@@ -4,6 +4,9 @@ import {
   curriculumReviewOverdue,
   curriculumHoursWaiting,
   summarizeCurriculumReview,
+  curriculumEvidenceStatus,
+  curriculumEvidenceRow,
+  curriculumReviewRecommendation,
   type CurriculumRecord,
 } from "@/lib/chapters/curriculum-review";
 
@@ -13,6 +16,7 @@ function curriculum(overrides: Partial<CurriculumRecord> = {}): CurriculumRecord
   return {
     id: "c1",
     title: "Intro to Robotics",
+    subject: "Robotics",
     instructorName: "Sam",
     status: "SUBMITTED",
     submittedAt: new Date("2026-06-24T00:00:00.000Z"),
@@ -75,5 +79,48 @@ describe("summarizeCurriculumReview", () => {
     expect(s.needsRevision).toBe(1);
     expect(s.approved).toBe(1);
     expect(s.byStatus.not_submitted).toBe(1);
+  });
+});
+
+describe("curriculumEvidenceStatus", () => {
+  it("maps playbook status to the three-way health", () => {
+    expect(curriculumEvidenceStatus("APPROVED")).toBe("ready");
+    expect(curriculumEvidenceStatus("SUBMITTED")).toBe("needs_feedback");
+    expect(curriculumEvidenceStatus("NEEDS_REVISION")).toBe("needs_feedback");
+    expect(curriculumEvidenceStatus("DRAFT")).toBe("not_started");
+    expect(curriculumEvidenceStatus(null)).toBe("not_started");
+  });
+});
+
+describe("curriculumEvidenceRow", () => {
+  it("builds a row from real fields", () => {
+    expect(curriculumEvidenceRow(curriculum())).toMatchObject({
+      title: "Intro to Robotics",
+      subject: "Robotics",
+      stage: "In Review",
+      owner: "Sam",
+      status: "needs_feedback",
+    });
+  });
+  it("labels an ownerless curriculum Unassigned", () => {
+    expect(curriculumEvidenceRow(curriculum({ instructorName: null })).owner).toBe("Unassigned");
+  });
+});
+
+describe("curriculumReviewRecommendation", () => {
+  it("leads with overdue, then awaiting review, then nothing to do", () => {
+    const overdue = summarizeCurriculumReview(
+      [curriculum({ submittedAt: new Date(NOW.getTime() - 50 * 60 * 60 * 1000) })],
+      NOW
+    );
+    expect(curriculumReviewRecommendation(overdue)).toMatch(/overdue past the 48-hour window/);
+
+    const waiting = summarizeCurriculumReview(
+      [curriculum({ submittedAt: new Date(NOW.getTime() - 60 * 60 * 1000) })],
+      NOW
+    );
+    expect(curriculumReviewRecommendation(waiting)).toMatch(/Give feedback on 1 curriculum/);
+
+    expect(curriculumReviewRecommendation(summarizeCurriculumReview([], NOW))).toMatch(/No curricula yet/);
   });
 });

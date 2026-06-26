@@ -4,7 +4,7 @@ import { PageHeaderV2, EmptyStateV2, ButtonLink, StatusBadge } from "@/component
 import { getChapterViewerContext, requireChapterManager } from "@/lib/chapters/access";
 import { loadChapterOperatingSystem } from "@/lib/chapters/operating-system";
 import { chapterLifecycleTone } from "@/lib/chapters/lifecycle";
-import { ChapterOperatingSystemView } from "@/components/chapters/chapter-operating-system";
+import { ChapterOperatingSystemTabs } from "@/components/chapters/chapter-operating-system";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Chapter Operating System — Pathways Portal" };
@@ -66,7 +66,7 @@ export default async function ChapterOperatingPage() {
         }
       />
       <div className="mt-6">
-        <ChapterOperatingSystemView os={os} />
+        <ChapterOperatingSystemTabs os={os} />
       </div>
     </div>
   );

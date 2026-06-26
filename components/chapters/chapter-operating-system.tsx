@@ -29,6 +29,7 @@ import {
 } from "@/lib/chapters/pipeline";
 import { CURRICULUM_PLAYBOOK_STATUS_LABELS } from "@/lib/chapters/curriculum-review";
 import { trackChapterBlocker } from "@/lib/chapters/operating-actions";
+import { DeliberableView } from "@/components/chapters/chapter-deliberables";
 
 const SEVERITY_TONE: Record<BlockerSeverity, StatusTone> = {
   critical: "danger",
@@ -46,6 +47,47 @@ const LANE_LABEL: Record<ChapterLane, string> = {
   curriculum: "Curriculum",
   classes: "Classes",
 };
+
+const OPERATING_TABS = [
+  { key: "overview", label: "Overview" },
+  { key: "partner", label: "Partners" },
+  { key: "instructor", label: "Instructors" },
+  { key: "curriculum", label: "Curriculum" },
+  { key: "class", label: "Classes" },
+] as const;
+type OperatingTabKey = (typeof OPERATING_TABS)[number]["key"];
+
+/**
+ * The Operating System surface: a calm "Overview" cockpit plus the four
+ * evidence-backed Deliberables, switched by a single segmented tab strip
+ * (mirrors the playbook's "Operating System › Deliberables" structure).
+ */
+export function ChapterOperatingSystemTabs({ os }: { os: ChapterOperatingSystem }) {
+  const [tab, setTab] = useState<OperatingTabKey>("overview");
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="seg-tabs w-fit" role="tablist">
+        {OPERATING_TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
+            className={`seg-tab${tab === t.key ? " active" : ""}`}
+            onClick={() => setTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === "overview" ? (
+        <ChapterOperatingSystemView os={os} />
+      ) : (
+        <DeliberableView deliberable={os.deliberables[tab]} />
+      )}
+    </div>
+  );
+}
 
 export function ChapterOperatingSystemView({ os }: { os: ChapterOperatingSystem }) {
   return (

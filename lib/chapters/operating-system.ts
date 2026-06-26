@@ -18,17 +18,31 @@ import {
   summarizePartnerPipeline,
   partnerFollowUp,
   partnerLogistics,
+  partnerPlaybookStatus,
+  partnerIsInFlight,
+  partnerEvidenceRow,
+  partnerPipelineRecommendation,
+  instructorEvidenceRow,
+  instructorPipelineRecommendation,
   type PartnerRecord,
+  type PartnerEvidenceRow,
   type InstructorApplicantRecord,
+  type InstructorEvidenceRow,
   summarizeInstructorPipeline,
 } from "@/lib/chapters/pipeline";
 import {
   summarizeCurriculumReview,
+  curriculumEvidenceRow,
+  curriculumReviewRecommendation,
   type CurriculumRecord,
+  type CurriculumEvidenceRow,
 } from "@/lib/chapters/curriculum-review";
 import {
   summarizeLaunchReadiness,
+  classEvidenceRow,
+  launchReadinessRecommendation,
   type ClassLaunchRecord,
+  type ClassEvidenceRow,
 } from "@/lib/chapters/launch-readiness";
 import {
   buildImpactMeetingPrep,
@@ -44,8 +58,34 @@ export type ChapterOperatingSystem = NonNullable<
   Awaited<ReturnType<typeof loadChapterOperatingSystem>>
 >;
 
+/** Colour intent for a Deliberable KPI stat card. */
+export type DeliberableStatTone = "neutral" | "positive" | "warning" | "danger";
+/** One KPI stat on a Deliberable header (e.g. "Stuck · 1 · Need attention"). */
+export type DeliberableStat = {
+  label: string;
+  value: number;
+  /** Sub-label under the number, e.g. "In pipeline". */
+  hint: string;
+  tone: DeliberableStatTone;
+};
+/** The single recommended next step + where it leads. */
+export type DeliberableRecommendation = { text: string; cta: string; href: string };
+
 const CONFIRMED_RIA = ["INSTRUCTOR_CONFIRMED", "CHAPTER_CONFIRMED", "FULLY_CONFIRMED"];
 const NOT_READY_RIA = ["NEEDS_TRAINING", "NEEDS_CURRICULUM"];
+/** Max evidence rows shown per Deliberable table (full counts stay in stats). */
+const DELIBERABLE_ROW_CAP = 8;
+
+// Evidence rows surface most-urgent-first; lower rank = more urgent.
+const PARTNER_STATUS_ORDER: Record<PartnerEvidenceRow["status"], number> = { stuck: 0, at_risk: 1, on_track: 2 };
+const INSTRUCTOR_STATUS_ORDER: Record<InstructorEvidenceRow["status"], number> = { at_risk: 0, on_track: 1, strong: 2 };
+const CURRICULUM_STATUS_ORDER: Record<CurriculumEvidenceRow["status"], number> = { needs_feedback: 0, not_started: 1, ready: 2 };
+const CLASS_STATUS_ORDER: Record<ClassEvidenceRow["status"], number> = { not_ready: 0, needs_attention: 1, ready: 2 };
+
+/** Count evidence rows in a given status (for the KPI stat cards). */
+function countStatus<T extends { status: string }>(rows: T[], status: T["status"]): number {
+  return rows.filter((r) => r.status === status).length;
+}
 
 /**
  * Load the full chapter operating system. Caller is responsible for authZ
@@ -83,6 +123,8 @@ export async function loadChapterOperatingSystem(chapterId: string) {
           select: {
             id: true,
             name: true,
+            type: true,
+            partnerType: true,
             stage: true,
             lastContactedAt: true,
             nextFollowUpAt: true,
@@ -117,6 +159,8 @@ export async function loadChapterOperatingSystem(chapterId: string) {
             interviewScheduledAt: true,
             courseIdea: true,
             firstClassPlan: true,
+            subjectsOfInterest: true,
+            createdAt: true,
             updatedAt: true,
             applicant: { select: { name: true } },
             documents: { select: { kind: true } },
@@ -135,6 +179,7 @@ export async function loadChapterOperatingSystem(chapterId: string) {
           select: {
             id: true,
             title: true,
+            interestArea: true,
             submissionStatus: true,
             submittedAt: true,
             createdBy: { select: { name: true } },
@@ -163,7 +208,7 @@ export async function loadChapterOperatingSystem(chapterId: string) {
             instructorId: true,
             capacity: true,
             grandfatheredTrainingExemption: true,
-            template: { select: { submissionStatus: true } },
+            template: { select: { submissionStatus: true, targetAgeGroup: true } },
             approval: { select: { status: true } },
             regularInstructorAssignments: { select: { status: true } },
             reminders: { select: { status: true } },
@@ -182,6 +227,7 @@ export async function loadChapterOperatingSystem(chapterId: string) {
     return {
       id: p.id,
       name: p.name,
+      type: p.type ?? p.partnerType ?? null,
       stage: p.stage,
       lastContactedAt: p.lastContactedAt,
       nextFollowUpAt: p.nextFollowUpAt,
@@ -205,6 +251,8 @@ export async function loadChapterOperatingSystem(chapterId: string) {
       id: a.id,
       name: a.applicant?.name ?? "Applicant",
       status: a.status,
+      appliedAt: a.createdAt,
+      specialties: a.subjectsOfInterest,
       hasReviewer: a.reviewerId != null,
       interviewScheduledAt: a.interviewScheduledAt,
       interviewCompletedAt,
@@ -218,6 +266,7 @@ export async function loadChapterOperatingSystem(chapterId: string) {
   const curricula: CurriculumRecord[] = curriculumRows.map((c) => ({
     id: c.id,
     title: c.title,
+    subject: c.interestArea,
     instructorName: c.createdBy?.name ?? null,
     status: c.submissionStatus,
     submittedAt: c.submittedAt,
@@ -234,6 +283,7 @@ export async function loadChapterOperatingSystem(chapterId: string) {
     return {
       id: c.id,
       title: c.title,
+      ageRange: c.template?.targetAgeGroup ?? null,
       startDate: c.startDate,
       status: c.status,
       partnerConfirmed: c.partnerId != null,
@@ -321,7 +371,109 @@ export async function loadChapterOperatingSystem(chapterId: string) {
     .filter((p) => p.stage === "ACTIVE_PARTNERSHIP")
     .map((p) => ({ id: p.id, name: p.name, logistics: partnerLogistics(p) }));
 
+  // --- Deliberables: four evidence-backed decision views --------------------
+  // Each lane becomes a guiding question + KPI stats + a real evidence table +
+  // one recommended next step. Rows are sorted most-urgent-first and capped for
+  // display; the stat cards still reflect the full set.
+
+  const partnerRows = partners
+    .filter((p) => partnerPlaybookStatus(p.stage) !== "closed")
+    .map((p) => partnerEvidenceRow(p, now))
+    .sort((a, b) => PARTNER_STATUS_ORDER[a.status] - PARTNER_STATUS_ORDER[b.status]);
+  const instructorRows = applicants
+    .filter((a) => a.status !== "REJECTED" && a.status !== "WITHDRAWN")
+    .map((a) => instructorEvidenceRow(a, now))
+    .sort((a, b) => INSTRUCTOR_STATUS_ORDER[a.status] - INSTRUCTOR_STATUS_ORDER[b.status]);
+  const curriculumRows = curricula
+    .map((c) => curriculumEvidenceRow(c))
+    .sort((a, b) => CURRICULUM_STATUS_ORDER[a.status] - CURRICULUM_STATUS_ORDER[b.status]);
+  const classEvidence = classes
+    .map((c) => classEvidenceRow(c, now))
+    .sort((a, b) => CLASS_STATUS_ORDER[a.status] - CLASS_STATUS_ORDER[b.status]);
+
+  const partnerActive = partners.filter((p) => partnerIsInFlight(p.stage)).length;
+  const partnerStats: DeliberableStat[] = [
+    { label: "Active", value: partnerActive, hint: "In pipeline", tone: "neutral" },
+    { label: "Confirmed", value: partnerSummary.confirmed, hint: "Locked in", tone: "positive" },
+    { label: "At Risk", value: countStatus(partnerRows, "at_risk"), hint: "May slip", tone: "warning" },
+    { label: "Stuck", value: countStatus(partnerRows, "stuck"), hint: "Need attention", tone: "danger" },
+  ];
+  const instructorStats: DeliberableStat[] = [
+    { label: "Applicants", value: instructorSummary.applicants, hint: "This cycle", tone: "neutral" },
+    { label: "In Review", value: instructorSummary.byStage.under_review, hint: "Applications", tone: "neutral" },
+    { label: "Hired", value: instructorSummary.hired, hint: "Ready to assign", tone: "positive" },
+    { label: "At Risk", value: countStatus(instructorRows, "at_risk"), hint: "May be short", tone: "warning" },
+  ];
+  const curriculumStats: DeliberableStat[] = [
+    { label: "Total", value: curriculumSummary.total, hint: "All curricula", tone: "neutral" },
+    { label: "Approved", value: curriculumSummary.approved, hint: "Ready to use", tone: "positive" },
+    { label: "In Review", value: curriculumSummary.reviewNeeded, hint: "Needs feedback", tone: "warning" },
+    { label: "Not Started", value: curriculumSummary.byStatus.not_submitted, hint: "Not submitted", tone: "neutral" },
+  ];
+  const classStats: DeliberableStat[] = [
+    { label: "Planned", value: launchSummary.total, hint: "All classes", tone: "neutral" },
+    { label: "Ready", value: countStatus(classEvidence, "ready"), hint: "All set", tone: "positive" },
+    { label: "Needs Attention", value: countStatus(classEvidence, "needs_attention"), hint: "At risk", tone: "warning" },
+    { label: "Not Ready", value: countStatus(classEvidence, "not_ready"), hint: "Blocked", tone: "danger" },
+  ];
+
+  const deliberables = {
+    partner: {
+      id: "partner" as const,
+      title: "Partner Pipeline",
+      question: "What is the status of our partner pipeline, and where should we focus?",
+      stats: partnerStats,
+      rows: partnerRows.slice(0, DELIBERABLE_ROW_CAP),
+      totalRows: partnerRows.length,
+      recommendation: {
+        text: partnerPipelineRecommendation(partnerRows),
+        cta: "Go to Partner Pipeline",
+        href: "/partners",
+      } satisfies DeliberableRecommendation,
+    },
+    instructor: {
+      id: "instructor" as const,
+      title: "Instructor Pipeline",
+      question: "Do we have enough qualified instructors to support our classes?",
+      stats: instructorStats,
+      rows: instructorRows.slice(0, DELIBERABLE_ROW_CAP),
+      totalRows: instructorRows.length,
+      recommendation: {
+        text: instructorPipelineRecommendation(instructorSummary),
+        cta: "Go to Instructor Pipeline",
+        href: "/chapter/recruiting?tab=candidates",
+      } satisfies DeliberableRecommendation,
+    },
+    curriculum: {
+      id: "curriculum" as const,
+      title: "Curriculum Readiness",
+      question: "Is our curriculum ready for the classes we plan to launch?",
+      stats: curriculumStats,
+      rows: curriculumRows.slice(0, DELIBERABLE_ROW_CAP),
+      totalRows: curriculumRows.length,
+      recommendation: {
+        text: curriculumReviewRecommendation(curriculumSummary),
+        cta: "Go to Curriculum",
+        href: "/admin/curricula",
+      } satisfies DeliberableRecommendation,
+    },
+    class: {
+      id: "class" as const,
+      title: "Class Launch Readiness",
+      question: "Which classes are ready to launch, and which need attention?",
+      stats: classStats,
+      rows: classEvidence.slice(0, DELIBERABLE_ROW_CAP),
+      totalRows: classEvidence.length,
+      recommendation: {
+        text: launchReadinessRecommendation(launchSummary),
+        cta: "Go to Class Launch",
+        href: "/admin/classes",
+      } satisfies DeliberableRecommendation,
+    },
+  };
+
   return {
+    deliberables,
     chapter: {
       id: chapter.id,
       name: chapter.name,

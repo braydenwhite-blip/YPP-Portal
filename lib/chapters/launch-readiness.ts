@@ -7,6 +7,8 @@
 //
 // Pure + deterministic (pass `now`) so it is fully unit testable.
 
+import { shortDate } from "./format";
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Enrollment targets from the playbook. */
@@ -39,6 +41,8 @@ export type ClassLaunchItem = {
 export type ClassLaunchRecord = {
   id: string;
   title: string;
+  /** Target age band from the template, e.g. "12-14". Shown under the title. */
+  ageRange: string | null;
   startDate: Date | null;
   status: string; // ClassOfferingStatus
   partnerConfirmed: boolean;
@@ -180,4 +184,75 @@ export function summarizeLaunchReadiness(
       (c) => !c.ready && !c.hasLaunched && c.daysToLaunch != null && c.daysToLaunch <= PRELAUNCH_WINDOW_DAYS
     ).length,
   };
+}
+
+// --- Class evidence rows (the Deliberable table) ---------------------------
+
+/** Health of a single class in the launch evidence table. */
+export type ClassEvidenceStatus = "ready" | "needs_attention" | "not_ready";
+
+export type ClassEvidenceRow = {
+  id: string;
+  title: string;
+  /** "Ages 12–14" or null. */
+  subtitle: string | null;
+  /** "Jun 15, 2025" or "TBD". */
+  launchDate: string;
+  enrolled: number;
+  capacity: number;
+  /** Launch-checklist completion 0–100, the table's Readiness bar. */
+  readinessPct: number;
+  status: ClassEvidenceStatus;
+};
+
+function readinessPercent(r: ClassLaunchReadiness): number {
+  return r.total ? Math.round((r.done / r.total) * 100) : 0;
+}
+
+/**
+ * A class's launch health. A fully-checklisted, adequately-enrolled class is
+ * "ready"; otherwise it bands by checklist completion, and under-enrollment
+ * pulls an otherwise-strong class down to "needs attention".
+ */
+export function classEvidenceStatus(r: ClassLaunchReadiness): ClassEvidenceStatus {
+  if (r.ready && !r.underEnrolled) return "ready";
+  const pct = readinessPercent(r);
+  if (pct < 50) return "not_ready";
+  if (pct >= 75 && !r.underEnrolled) return "ready";
+  return "needs_attention";
+}
+
+/** Build one class evidence row. */
+export function classEvidenceRow(c: ClassLaunchRecord, now: Date): ClassEvidenceRow {
+  const readiness = computeClassLaunchReadiness(c, now);
+  return {
+    id: c.id,
+    title: c.title,
+    subtitle: c.ageRange && c.ageRange.trim() ? `Ages ${c.ageRange.trim().replace(/-/g, "–")}` : null,
+    launchDate: shortDate(c.startDate),
+    enrolled: c.enrolledCount,
+    capacity: c.capacity,
+    readinessPct: readinessPercent(readiness),
+    status: classEvidenceStatus(readiness),
+  };
+}
+
+/** The class-launch Deliberable's one recommended next step. */
+export function launchReadinessRecommendation(summary: LaunchReadinessSummary): string {
+  if (summary.total === 0) return "No classes planned yet — build one to start its launch checklist.";
+  const cls = (x: number) => (x === 1 ? "class" : "classes");
+  if (summary.launchingSoonNotReady > 0) {
+    return `Unblock ${summary.launchingSoonNotReady} ${cls(
+      summary.launchingSoonNotReady
+    )} launching soon that ${summary.launchingSoonNotReady === 1 ? "isn't" : "aren't"} ready yet.`;
+  }
+  if (summary.underEnrolled > 0) {
+    return `Focus on ${summary.underEnrolled} under-enrolled ${cls(
+      summary.underEnrolled
+    )} to meet the ${MIN_ENROLLMENT_PRELAUNCH}-student threshold before launch.`;
+  }
+  if (summary.notReady > 0) {
+    return `Finish the launch checklist for ${summary.notReady} ${cls(summary.notReady)}.`;
+  }
+  return "Your classes are on track to launch.";
 }
