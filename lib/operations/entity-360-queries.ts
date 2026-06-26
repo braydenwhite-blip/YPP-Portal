@@ -965,6 +965,7 @@ async function loadPartner360(
       lastContactedAt: true,
       nextFollowUpAt: true,
       relationshipLead: { select: { id: true, name: true, email: true, title: true } },
+      chapter: { select: { id: true, name: true } },
       classOfferings: {
         orderBy: { startDate: "desc" },
         take: DRAWER_LIMITS.classes,
@@ -1206,6 +1207,7 @@ async function loadPartner360(
           ]),
       ...(partner.contactPhone ? [{ label: "Phone", value: partner.contactPhone }] : []),
       ...(partner.location ? [{ label: "Location", value: partner.location }] : []),
+      ...(partner.chapter ? [{ label: "Chapter", value: partner.chapter.name }] : []),
       ...(partner.priority ? [{ label: "Priority", value: partner.priority }] : []),
       ...(partner.nextFollowUpAt
         ? [{ label: "Next follow-up", value: fmtDate(partner.nextFollowUpAt) }]
@@ -1463,6 +1465,7 @@ async function loadMeeting360(
     facts: [
       { label: "Date", value: fmtDate(new Date(dto.startISO)) },
       { label: "Category", value: dto.categoryLabel },
+      ...(meeting.chapter ? [{ label: "Chapter", value: meeting.chapter.name }] : []),
       ...(meeting.location ? [{ label: "Location", value: meeting.location }] : []),
       ...(dto.recurrence && dto.recurrence !== "NONE"
         ? [{ label: "Repeats", value: dto.recurrence.toLowerCase() }]
@@ -1560,6 +1563,7 @@ async function loadAction360(
         ? [{ label: "Source", value: `Meeting · ${lite.sourceMeetingTitle}` }]
         : [{ label: "Source", value: "Created directly" }]),
       ...(related ? [{ label: related.typeLabel, value: related.label }] : []),
+      ...(item.chapter ? [{ label: "Chapter", value: item.chapter.name }] : []),
       ...(item.successDefinition
         ? [{ label: "Done means", value: item.successDefinition }]
         : []),
