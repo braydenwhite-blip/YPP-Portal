@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useFormState } from "react-dom";
 
 import BrandLockup from "@/components/brand-lockup";
+import SpamFolderNotice from "@/components/spam-folder-notice";
 import { signUpFamily } from "@/lib/family-signup-actions";
 
 const initialState = { status: "idle" as const, message: "" };
@@ -62,6 +63,8 @@ export default function FamilySignupPage() {
             Each person should open their own email, click their link, and choose a password to finish setup.
           </p>
 
+          <SpamFolderNotice style={{ marginBottom: 20 }} />
+
           <Link className="button" style={{ display: "block", textAlign: "center" }} href="/login">
             Go to Sign In
           </Link>
@@ -111,6 +114,8 @@ export default function FamilySignupPage() {
               </p>
             </div>
           </div>
+
+          <SpamFolderNotice style={{ marginBottom: 16 }} />
 
           <form
             action={formAction}

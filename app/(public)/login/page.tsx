@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
+import SpamFolderNotice from "@/components/spam-folder-notice";
 import { navigateToAuthDestination } from "@/lib/auth-client-navigation";
 import { requestMagicLink } from "@/lib/magic-link-actions";
 import { createBrowserClientOrNull } from "@/lib/supabase/client";
@@ -450,9 +451,12 @@ function LoginPageContent() {
                   <div className="form-error">{error}</div>
                 )}
                 {magicSent ? (
-                  <div className="form-success">
-                    Check your email for a sign-in link. It may take a minute to arrive.
-                  </div>
+                  <>
+                    <div className="form-success">
+                      Check your email for a sign-in link. It may take a minute to arrive.
+                    </div>
+                    <SpamFolderNotice style={{ marginTop: 12 }} />
+                  </>
                 ) : (
                   <button className="button" type="submit" disabled={loading}>
                     {loading ? "Sending\u2026" : "Send Magic Link"}
