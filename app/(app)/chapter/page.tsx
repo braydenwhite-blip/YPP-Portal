@@ -4,6 +4,7 @@ import { PageHeaderV2, EmptyStateV2, ButtonLink } from "@/components/ui-v2";
 import { getChapterViewerContext } from "@/lib/chapters/access";
 import { loadChapterWorkspace } from "@/lib/chapters/workspace";
 import { loadChapterAttention } from "@/lib/chapters/attention";
+import { loadChapterClassOps } from "@/lib/chapters/class-ops";
 import { ChapterWorkspaceView } from "@/components/chapters/chapter-workspace-view";
 import { prisma } from "@/lib/prisma";
 
@@ -51,8 +52,9 @@ export default async function ChapterHomePage() {
     redirect("/chapter/apply");
   }
 
-  const [attention, onboarding] = await Promise.all([
+  const [attention, classOps, onboarding] = await Promise.all([
     loadChapterAttention(ctx.ledChapterId, { overdueActions: data.signals.overdueActions }),
+    loadChapterClassOps(ctx.ledChapterId),
     prisma.chapterPresidentOnboarding
       .findUnique({
         where: { userId: ctx.user.id },
@@ -108,7 +110,13 @@ export default async function ChapterHomePage() {
       )}
 
       <div className="mt-6">
-        <ChapterWorkspaceView data={data} attention={attention} canManage isLeadership={false} />
+        <ChapterWorkspaceView
+          data={data}
+          attention={attention}
+          classOps={classOps}
+          canManage
+          isLeadership={false}
+        />
       </div>
     </div>
   );
