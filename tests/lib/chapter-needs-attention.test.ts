@@ -18,6 +18,7 @@ function partner(o: Partial<PartnerRecord> = {}): PartnerRecord {
   return {
     id: "p1",
     name: "Lincoln Elementary",
+    type: "School",
     stage: "REACHED_OUT",
     lastContactedAt: new Date("2026-06-20T00:00:00Z"),
     nextFollowUpAt: new Date("2026-07-01T00:00:00Z"),
@@ -37,6 +38,8 @@ function applicant(o: Partial<InstructorApplicantRecord> = {}): InstructorApplic
     id: "a1",
     name: "Jordan",
     status: "SUBMITTED",
+    appliedAt: new Date("2026-06-21T12:00:00Z"),
+    specialties: "Python, Robotics",
     hasReviewer: false,
     interviewScheduledAt: null,
     interviewCompletedAt: null,
@@ -52,6 +55,7 @@ function curriculum(o: Partial<CurriculumRecord> = {}): CurriculumRecord {
   return {
     id: "c1",
     title: "Robotics",
+    subject: "Robotics",
     instructorName: "Sam",
     status: "SUBMITTED",
     submittedAt: new Date(NOW.getTime() - 60 * 60 * 60 * 1000), // 60h ago → overdue
@@ -64,6 +68,7 @@ function klass(o: Partial<ClassLaunchRecord> = {}): ClassLaunchRecord {
   return {
     id: "k1",
     title: "Robotics 101",
+    ageRange: "10-12",
     startDate: new Date("2026-09-01T00:00:00Z"),
     status: "DRAFT",
     partnerConfirmed: true,

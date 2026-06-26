@@ -11,6 +11,13 @@ import {
   instructorDecisionOverdue,
   instructorMissingMaterials,
   summarizeInstructorPipeline,
+  partnerNextStep,
+  partnerEvidenceStatus,
+  partnerEvidenceRow,
+  partnerPipelineRecommendation,
+  instructorEvidenceStatus,
+  instructorEvidenceRow,
+  instructorPipelineRecommendation,
   type PartnerRecord,
   type InstructorApplicantRecord,
 } from "@/lib/chapters/pipeline";
@@ -21,6 +28,7 @@ function partner(overrides: Partial<PartnerRecord> = {}): PartnerRecord {
   return {
     id: "p1",
     name: "Lincoln Elementary",
+    type: "School",
     stage: "REACHED_OUT",
     lastContactedAt: new Date("2026-06-20T00:00:00.000Z"),
     nextFollowUpAt: new Date("2026-06-30T00:00:00.000Z"),
@@ -40,6 +48,8 @@ function applicant(overrides: Partial<InstructorApplicantRecord> = {}): Instruct
     id: "a1",
     name: "Jordan",
     status: "SUBMITTED",
+    appliedAt: new Date("2026-06-21T12:00:00.000Z"), // 3 days before NOW
+    specialties: "Python, Robotics",
     hasReviewer: false,
     interviewScheduledAt: null,
     interviewCompletedAt: null,
@@ -214,5 +224,130 @@ describe("summarizeInstructorPipeline", () => {
     expect(s.applicants).toBe(3); // excludes the rejected one
     expect(s.byStage.applied).toBe(1);
     expect(s.waitingForReview).toBe(1); // the SUBMITTED one
+  });
+});
+
+describe("partnerNextStep", () => {
+  it("is the stage-appropriate action", () => {
+    expect(partnerNextStep(partner({ stage: "RESEARCHING" }))).toBe("Send first outreach");
+    expect(partnerNextStep(partner({ stage: "REACHED_OUT" }))).toBe("Follow up on outreach");
+    expect(partnerNextStep(partner({ stage: "MEETING_SCHEDULED" }))).toBe("Hold the partner meeting");
+  });
+  it("surfaces open requests and confirmed-partner logistics", () => {
+    expect(partnerNextStep(partner({ stage: "RESPONDED", openIssues: 2 }))).toBe("Resolve 2 open requests");
+    expect(partnerNextStep(partner({ stage: "ACTIVE_PARTNERSHIP" }))).toBe("Lock in remaining logistics");
+    expect(
+      partnerNextStep(
+        partner({
+          stage: "ACTIVE_PARTNERSHIP",
+          confirmedRoom: true,
+          confirmedTimes: true,
+          confirmedLaunchDate: true,
+          hasSupervisor: true,
+          writtenConfirmation: true,
+        })
+      )
+    ).toBe("Schedule classes");
+  });
+});
+
+describe("partnerEvidenceStatus", () => {
+  it("is stuck when the follow-up is 7+ days overdue", () => {
+    expect(partnerEvidenceStatus(partner({ nextFollowUpAt: new Date("2026-06-15T00:00:00Z") }), NOW)).toBe("stuck");
+  });
+  it("is stuck when there's been no contact in 14+ days", () => {
+    expect(
+      partnerEvidenceStatus(partner({ lastContactedAt: new Date("2026-06-05T00:00:00Z") }), NOW)
+    ).toBe("stuck");
+  });
+  it("is at risk with no follow-up or no lead", () => {
+    expect(partnerEvidenceStatus(partner({ nextFollowUpAt: null }), NOW)).toBe("at_risk");
+    expect(partnerEvidenceStatus(partner({ hasRelationshipLead: false }), NOW)).toBe("at_risk");
+  });
+  it("is on track for a warm, well-owned partner", () => {
+    expect(partnerEvidenceStatus(partner(), NOW)).toBe("on_track");
+  });
+  it("ties confirmed-partner health to logistics", () => {
+    expect(partnerEvidenceStatus(partner({ stage: "ACTIVE_PARTNERSHIP" }), NOW)).toBe("at_risk");
+    expect(
+      partnerEvidenceStatus(
+        partner({
+          stage: "ACTIVE_PARTNERSHIP",
+          confirmedRoom: true,
+          confirmedTimes: true,
+          confirmedLaunchDate: true,
+          hasSupervisor: true,
+          writtenConfirmation: true,
+        }),
+        NOW
+      )
+    ).toBe("on_track");
+  });
+});
+
+describe("partnerEvidenceRow + recommendation", () => {
+  it("builds a row from real fields", () => {
+    const row = partnerEvidenceRow(partner(), NOW);
+    expect(row).toMatchObject({
+      name: "Lincoln Elementary",
+      subtitle: "School",
+      stage: "Contacted",
+      lastContact: "4 days ago",
+      nextStep: "Follow up on outreach",
+      status: "on_track",
+    });
+  });
+  it("recommends action on the most urgent class of partner", () => {
+    const stuckRow = partnerEvidenceRow(partner({ nextFollowUpAt: new Date("2026-06-15T00:00:00Z") }), NOW);
+    expect(partnerPipelineRecommendation([stuckRow])).toMatch(/1 stuck partner/);
+    expect(partnerPipelineRecommendation([partnerEvidenceRow(partner(), NOW)])).toMatch(/healthy/);
+    expect(partnerPipelineRecommendation([])).toMatch(/Add your first partner/);
+  });
+});
+
+describe("instructorEvidenceStatus", () => {
+  it("is at risk when a decision is overdue or materials are missing", () => {
+    const overdue = new Date(NOW.getTime() - 13 * 60 * 60 * 1000);
+    expect(
+      instructorEvidenceStatus(applicant({ status: "INTERVIEW_COMPLETED", interviewCompletedAt: overdue }), NOW)
+    ).toBe("at_risk");
+    expect(
+      instructorEvidenceStatus(applicant({ status: "INTERVIEW_SCHEDULED", hasLessonPlan: false }), NOW)
+    ).toBe("at_risk");
+  });
+  it("is at risk when stalled in triage 7+ days", () => {
+    expect(
+      instructorEvidenceStatus(applicant({ status: "SUBMITTED", appliedAt: new Date("2026-06-10T12:00:00Z") }), NOW)
+    ).toBe("at_risk");
+  });
+  it("is strong for hired or well-prepared, supported candidates", () => {
+    expect(instructorEvidenceStatus(applicant({ status: "APPROVED" }), NOW)).toBe("strong");
+    expect(
+      instructorEvidenceStatus(applicant({ status: "UNDER_REVIEW", hasReviewer: true }), NOW)
+    ).toBe("strong");
+  });
+  it("is on track otherwise", () => {
+    expect(instructorEvidenceStatus(applicant({ status: "SUBMITTED" }), NOW)).toBe("on_track");
+  });
+});
+
+describe("instructorEvidenceRow + recommendation", () => {
+  it("builds a row from real fields", () => {
+    const row = instructorEvidenceRow(applicant(), NOW);
+    expect(row).toMatchObject({
+      name: "Jordan",
+      stage: "Applied",
+      applied: "3 days ago",
+      specialties: "Python, Robotics",
+      status: "on_track",
+    });
+  });
+  it("falls back to a dash when no specialties are listed", () => {
+    expect(instructorEvidenceRow(applicant({ specialties: null }), NOW).specialties).toBe("—");
+  });
+  it("recommends the highest-priority instructor action", () => {
+    const reviewQueue = summarizeInstructorPipeline([applicant({ status: "SUBMITTED" })], NOW);
+    expect(instructorPipelineRecommendation(reviewQueue)).toMatch(/Review 1 application/);
+    expect(instructorPipelineRecommendation(summarizeInstructorPipeline([], NOW))).toMatch(/Open applications/);
   });
 });

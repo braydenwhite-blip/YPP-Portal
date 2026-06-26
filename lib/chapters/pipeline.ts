@@ -7,6 +7,8 @@
 // stage/status vocabularies onto the Chapter President playbook's lanes so a CP
 // sees their pipeline in the words the playbook uses — without a parallel model.
 
+import { relativeAgo } from "./format";
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Whole business days (Mon–Fri) elapsed from `from` to `to`. Negative ⇒ 0. */
@@ -96,6 +98,8 @@ export function partnerIsConfirmed(stage: string | null | undefined): boolean {
 export type PartnerRecord = {
   id: string;
   name: string;
+  /** Free-text / structured partner category, e.g. "School", "Nonprofit". */
+  type: string | null;
   stage: string | null;
   lastContactedAt: Date | null;
   nextFollowUpAt: Date | null;
@@ -201,6 +205,103 @@ export function summarizePartnerPipeline(partners: PartnerRecord[], now: Date): 
   };
 }
 
+// --- Partner evidence rows (the Deliberable table) -------------------------
+
+/** Health of a single partner in the evidence table. */
+export type EvidenceStatus = "on_track" | "at_risk" | "stuck";
+
+export type PartnerEvidenceRow = {
+  id: string;
+  name: string;
+  /** Partner category, e.g. "School" — shown under the name. */
+  subtitle: string | null;
+  /** Playbook stage label, e.g. "Meeting Scheduled". */
+  stage: string;
+  /** "2 days ago" — humanized last-contact. */
+  lastContact: string;
+  /** The single most useful next action, derived from stage + logistics. */
+  nextStep: string;
+  status: EvidenceStatus;
+};
+
+/** The stage-appropriate next action for a partner (never invented data). */
+export function partnerNextStep(p: PartnerRecord): string {
+  const status = partnerPlaybookStatus(p.stage);
+  if (status === "confirmed") {
+    const logistics = partnerLogistics(p);
+    if (!logistics.complete) return "Lock in remaining logistics";
+    return "Schedule classes";
+  }
+  if (p.openIssues > 0 && status !== "closed") {
+    return `Resolve ${p.openIssues} open request${p.openIssues === 1 ? "" : "s"}`;
+  }
+  switch (status) {
+    case "researching":
+      return "Send first outreach";
+    case "contacted":
+      return "Follow up on outreach";
+    case "interested":
+      return "Schedule a meeting";
+    case "meeting_scheduled":
+      return "Hold the partner meeting";
+    case "final_conversation":
+      return "Finalize the agreement";
+    default:
+      return "—";
+  }
+}
+
+/** Derive a partner's health (On Track / At Risk / Stuck) from contact cadence. */
+export function partnerEvidenceStatus(p: PartnerRecord, now: Date): EvidenceStatus {
+  if (partnerIsConfirmed(p.stage)) {
+    return partnerLogistics(p).complete ? "on_track" : "at_risk";
+  }
+  if (!partnerIsInFlight(p.stage)) return "on_track"; // closed / parked
+  const fuOverdueDays =
+    p.nextFollowUpAt && p.nextFollowUpAt.getTime() < now.getTime()
+      ? Math.floor((now.getTime() - p.nextFollowUpAt.getTime()) / DAY_MS)
+      : 0;
+  if (fuOverdueDays >= 7) return "stuck";
+  const sinceContact =
+    p.lastContactedAt != null ? Math.floor((now.getTime() - p.lastContactedAt.getTime()) / DAY_MS) : null;
+  if (sinceContact != null && sinceContact >= 14) return "stuck";
+  // Claims progress past the first touch but no contact was ever logged.
+  if (sinceContact == null && partnerPlaybookStatus(p.stage) !== "researching") return "stuck";
+  if (partnerFollowUp(p, now).needed || !p.hasRelationshipLead) return "at_risk";
+  return "on_track";
+}
+
+/** Build one partner evidence row. */
+export function partnerEvidenceRow(p: PartnerRecord, now: Date): PartnerEvidenceRow {
+  return {
+    id: p.id,
+    name: p.name,
+    subtitle: p.type,
+    stage: PARTNER_PLAYBOOK_STATUS_LABELS[partnerPlaybookStatus(p.stage)],
+    lastContact: relativeAgo(p.lastContactedAt, now),
+    nextStep: partnerNextStep(p),
+    status: partnerEvidenceStatus(p, now),
+  };
+}
+
+/** The partner Deliberable's one recommended next step, from the rows themselves. */
+export function partnerPipelineRecommendation(rows: PartnerEvidenceRow[]): string {
+  if (rows.length === 0) return "Add your first partner prospects to start the pipeline.";
+  const stuck = rows.filter((r) => r.status === "stuck").length;
+  if (stuck > 0) {
+    return `Reach out to ${stuck} stuck partner${stuck === 1 ? "" : "s"} this week to get ${
+      stuck === 1 ? "it" : "them"
+    } moving again.`;
+  }
+  const atRisk = rows.filter((r) => r.status === "at_risk").length;
+  if (atRisk > 0) {
+    return `Reconnect with ${atRisk} at-risk partner${atRisk === 1 ? "" : "s"} before ${
+      atRisk === 1 ? "it slips" : "they slip"
+    }.`;
+  }
+  return "Pipeline looks healthy — keep moving conversations toward confirmation.";
+}
+
 // ---------------------------------------------------------------------------
 // INSTRUCTORS
 // ---------------------------------------------------------------------------
@@ -262,6 +363,10 @@ export type InstructorApplicantRecord = {
   id: string;
   name: string;
   status: string;
+  /** When the application was submitted — drives the "Applied" column. */
+  appliedAt: Date;
+  /** Free-text subjects the applicant can teach, e.g. "Python, Robotics". */
+  specialties: string | null;
   hasReviewer: boolean;
   interviewScheduledAt: Date | null;
   /** Best-available timestamp the applicant entered "interview complete". */
@@ -348,4 +453,71 @@ export function summarizeInstructorPipeline(
     decisionOverdue,
     missingMaterials,
   };
+}
+
+// --- Instructor evidence rows (the Deliberable table) ----------------------
+
+/** Health of a single applicant in the evidence table. */
+export type InstructorEvidenceStatus = "strong" | "on_track" | "at_risk";
+
+export type InstructorEvidenceRow = {
+  id: string;
+  name: string;
+  /** Playbook stage label, e.g. "Under Review". */
+  stage: string;
+  /** "3 days ago" — humanized application date. */
+  applied: string;
+  /** Subjects the applicant can teach, e.g. "Python, Robotics". */
+  specialties: string;
+  status: InstructorEvidenceStatus;
+};
+
+/** Derive an applicant's health (Strong / On Track / At Risk) deterministically. */
+export function instructorEvidenceStatus(a: InstructorApplicantRecord, now: Date): InstructorEvidenceStatus {
+  if (instructorDecisionOverdue(a, now) || instructorMissingMaterials(a)) return "at_risk";
+  if (instructorWaitingForReview(a)) {
+    const days = Math.floor((now.getTime() - a.appliedAt.getTime()) / DAY_MS);
+    if (days >= 7) return "at_risk"; // stalled in triage
+  }
+  if (instructorPlaybookStage(a.status) === "hired") return "strong";
+  // Well-prepared and supported: has both planning docs and a reviewer assigned.
+  if (a.hasCourseDescription && a.hasLessonPlan && a.hasReviewer) return "strong";
+  return "on_track";
+}
+
+/** Build one instructor evidence row. */
+export function instructorEvidenceRow(a: InstructorApplicantRecord, now: Date): InstructorEvidenceRow {
+  return {
+    id: a.id,
+    name: a.name,
+    stage: INSTRUCTOR_PLAYBOOK_STAGE_LABELS[instructorPlaybookStage(a.status)],
+    applied: relativeAgo(a.appliedAt, now),
+    specialties: a.specialties && a.specialties.trim() ? a.specialties.trim() : "—",
+    status: instructorEvidenceStatus(a, now),
+  };
+}
+
+/** The instructor Deliberable's one recommended next step. */
+export function instructorPipelineRecommendation(summary: InstructorPipelineSummary): string {
+  if (summary.total === 0) return "Open applications to start building your instructor bench.";
+  const n = (x: number) => (x === 1 ? "" : "s");
+  if (summary.waitingForReview > 0) {
+    return `Review ${summary.waitingForReview} application${n(summary.waitingForReview)} waiting on you.`;
+  }
+  if (summary.decisionOverdue > 0) {
+    return `Record ${summary.decisionOverdue} interview decision${n(
+      summary.decisionOverdue
+    )} now — past the 12-hour window.`;
+  }
+  if (summary.interviewReadyNotScheduled > 0) {
+    return `Schedule ${summary.interviewReadyNotScheduled} interview${n(
+      summary.interviewReadyNotScheduled
+    )} to keep candidates moving.`;
+  }
+  if (summary.missingMaterials > 0) {
+    return `Collect course materials from ${summary.missingMaterials} candidate${n(
+      summary.missingMaterials
+    )} before their interview.`;
+  }
+  return "Pipeline is healthy — keep candidates progressing toward approval.";
 }
