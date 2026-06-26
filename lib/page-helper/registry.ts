@@ -1780,19 +1780,10 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/chapter",
-    title: "Chapter",
+    title: "Chapter Home",
     content: {
-      purpose: "This page brings together the main tools and details for the chapter.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
-    }
-  },
-  {
-    pattern: "/chapter/workspace",
-    title: "Chapter Workspace",
-    content: {
-      purpose: "This is your chapter operating workspace — launch checklist, meetings, members, programs, actions, and requests for help in one place.",
-      firstStep: "Read the status band and the highlighted next step, then work the launch checklist or schedule your next meeting.",
+      purpose: "Your one place to run your chapter — health, what needs you, launch checklist, meetings, members, programs, actions, and requests for help.",
+      firstStep: "Read the status band and the highlighted next step, then clear anything under “Needs your attention” or work the launch checklist.",
       nextStep: "Completing a checklist item or an action updates your chapter's status and what national leadership sees automatically."
     }
   },
@@ -1839,15 +1830,6 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page brings together the main tools and details for the chapter achievements.",
       firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
-    }
-  },
-  {
-    pattern: "/chapter/applicants",
-    title: "Chapter Applicants",
-    content: {
-      purpose: "This page helps you review the chapter applicants and move each item to the right next step.",
-      firstStep: "Open the item that is newest, overdue, or blocked so you can confirm the current status before changing anything.",
-      nextStep: "After you approve, return, score, or update the record, the workflow reflects the change for the next person automatically."
     }
   },
   {
@@ -1972,15 +1954,6 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     title: "Pathway fallback requests",
     content: {
       purpose: "This page brings together the main tools and details for the pathway fallback requests.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
-    }
-  },
-  {
-    pattern: "/chapter/president",
-    title: "Your Chapter President",
-    content: {
-      purpose: "This page brings together the main tools and details for your chapter president.",
       firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
     }

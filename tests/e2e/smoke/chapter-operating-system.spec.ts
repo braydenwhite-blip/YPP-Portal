@@ -36,11 +36,14 @@ test("@smoke the Become a Chapter President opportunity surfaces with live stats
   await expect(page.getByText("Active chapters", { exact: true })).toBeVisible();
 });
 
-test("@smoke a chapter president can open their chapter workspace", async ({ page }) => {
+test("@smoke a chapter president can open their chapter home", async ({ page }) => {
   await loginAs(page, "chapterLead");
-  await page.goto("/chapter/workspace");
+  await page.goto("/chapter");
 
-  await expect(page.getByRole("heading", { name: /Chapter Workspace/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Your Chapter Home/ })).toBeVisible();
+  // The legacy /chapter/workspace surface now consolidates into the home.
+  await page.goto("/chapter/workspace");
+  await expect(page).toHaveURL(/\/chapter$/);
 });
 
 test("@smoke students cannot reach the leadership chapter command", async ({ page }) => {

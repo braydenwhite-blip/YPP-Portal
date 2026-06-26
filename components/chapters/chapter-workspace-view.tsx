@@ -1,6 +1,9 @@
 import Link from "next/link";
 
-import { CardV2, StatusBadge } from "@/components/ui-v2";
+import { CardV2, StatusBadge, StatCardV2 } from "@/components/ui-v2";
+import { cn } from "@/components/ui-v2/cn";
+import type { ChapterAttentionItem } from "@/lib/chapters/attention";
+import type { ChapterClassOps } from "@/lib/chapters/class-ops";
 import {
   chapterLifecycleLabel,
   chapterLifecycleTone,
@@ -40,6 +43,21 @@ const ACTION_STATUS_TONE: Record<string, "neutral" | "warning" | "danger" | "suc
   DROPPED: "neutral",
 };
 
+const ATTENTION_TONE: Record<ChapterAttentionItem["tone"], { chip: string; badge: string }> = {
+  danger: {
+    chip: "border-danger-700/30 bg-danger-700/10 text-danger-700 hover:border-danger-700/50",
+    badge: "bg-danger-700 text-white",
+  },
+  warning: {
+    chip: "border-progress-700/30 bg-progress-700/10 text-progress-700 hover:border-progress-700/50",
+    badge: "bg-progress-700 text-white",
+  },
+  brand: {
+    chip: "border-brand-300 bg-brand-50 text-brand-700 hover:border-brand-400",
+    badge: "bg-brand-600 text-white",
+  },
+};
+
 function SectionCard({
   title,
   action,
@@ -64,22 +82,30 @@ export function ChapterWorkspaceView({
   data,
   canManage,
   isLeadership,
+  attention,
+  classOps,
 }: {
   data: Data;
   canManage: boolean;
   isLeadership: boolean;
+  /**
+   * CP daily-ops triage. Provided on the Chapter President home so the queues
+   * that need them (recruiting, curriculum, join requests, overdue work) live
+   * inline; omitted on the leadership chapter detail, which has its own tools.
+   */
+  attention?: ChapterAttentionItem[];
+  /**
+   * Chapter-scoped class operations + instructor coverage. Provided on the CP
+   * home so a President can see how their classes are staffed without the
+   * admin console; omitted on the leadership detail.
+   */
+  classOps?: ChapterClassOps;
 }) {
   const { chapter, health, nextStep, signals, launch, meetings, actions, supportRequests, notes, members, programs } =
     data;
 
-  const kpis = [
-    { label: "Members", value: signals.memberCount, detail: chapter.recruitmentGoal ? `goal ${chapter.recruitmentGoal}` : "" },
-    { label: "Open actions", value: signals.openActions, detail: signals.overdueActions > 0 ? `${signals.overdueActions} overdue` : "on time" },
-    { label: "Upcoming meetings", value: meetings.upcoming.length, detail: meetings.past.length ? `${meetings.past.length} held` : "none yet" },
-    { label: "Programs", value: programs.courses.length, detail: `${programs.events.past.length} events run` },
-    { label: "Launch", value: `${launch.progress.percent}%`, detail: `${launch.progress.done}/${launch.progress.total}` },
-    { label: "Support", value: signals.openSupportRequests, detail: "open requests" },
-  ];
+  const instructorCount = members.filter((m) => m.roles.includes("INSTRUCTOR")).length;
+  const studentCount = members.filter((m) => m.roles.includes("STUDENT")).length;
 
   const showLaunch = launch.items.length > 0 || isLaunchingStatus(chapter.lifecycleStatus);
 
@@ -140,16 +166,81 @@ export function ChapterWorkspaceView({
         )}
       </CardV2>
 
-      {/* KPI tiles */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        {kpis.map((k) => (
-          <div key={k.label} className="rounded-xl border border-line bg-surface px-3 py-2.5 shadow-card">
-            <div className="text-[20px] font-bold text-ink">{k.value}</div>
-            <div className="text-[12px] font-medium text-ink">{k.label}</div>
-            {k.detail && <div className="text-[11px] text-ink-muted">{k.detail}</div>}
+      {/* Needs your attention — the daily-ops queues, as chips that link
+          straight into the workflow that clears each one. Only on the CP home
+          (attention is passed there); empty is a calm "all caught up". */}
+      {attention && (
+        <CardV2 padding="md" className="flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-[15px] font-bold text-ink">Needs your attention</h2>
+            <span className="text-[12px] text-ink-muted">
+              {attention.length === 0
+                ? "All caught up"
+                : `${attention.length} ${attention.length === 1 ? "item" : "items"}`}
+            </span>
           </div>
-        ))}
-      </div>
+          {attention.length === 0 ? (
+            <p className="text-[13px] text-ink-muted">
+              No queues need you right now — recruiting, curriculum, join requests, and actions are clear.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {attention.map((item) => {
+                const tone = ATTENTION_TONE[item.tone];
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors",
+                      tone.chip
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
+                        tone.badge
+                      )}
+                    >
+                      {item.count}
+                    </span>
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </CardV2>
+      )}
+
+      {/* Metric strip — clickable into each chapter surface. CP home only; the
+          leadership chapter detail renders its own admin KPI rows below. */}
+      {!isLeadership && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+          <StatCardV2
+            label="Members"
+            value={members.length}
+            href="/chapter/members"
+            detail={chapter.recruitmentGoal ? `goal ${chapter.recruitmentGoal}` : undefined}
+          />
+          <StatCardV2 label="Instructors" value={instructorCount} href="/chapter/instructors" />
+          <StatCardV2 label="Students" value={studentCount} href="/chapter/students" />
+          <StatCardV2
+            label="Open actions"
+            value={signals.openActions}
+            href={`/actions?ch=${chapter.id}`}
+            detail={signals.overdueActions > 0 ? `${signals.overdueActions} overdue` : "on time"}
+            accent={signals.overdueActions > 0 ? "danger" : undefined}
+            tone={signals.overdueActions > 0 ? "attention" : "default"}
+          />
+          <StatCardV2
+            label="Meetings"
+            value={meetings.upcoming.length}
+            href="/meetings"
+            detail={meetings.past.length ? `${meetings.past.length} held` : "none scheduled"}
+          />
+        </div>
+      )}
 
       {showLaunch && (
         <SectionCard title="Launch checklist">
@@ -175,6 +266,56 @@ export function ChapterWorkspaceView({
             <p className="text-[13px] text-ink-muted">
               The launch checklist seeds automatically when the chapter starts launching.
             </p>
+          )}
+        </SectionCard>
+      )}
+
+      {/* Classes & coverage — chapter-scoped class operations the CP used to be
+          locked out of: which classes are staffed, which need attention, and
+          what's pending approval. Links into the existing coverage cockpit. */}
+      {classOps && (
+        <SectionCard
+          title="Classes & coverage"
+          action={
+            <Link
+              href="/operations/instructor-pairing"
+              className="text-[12.5px] font-semibold text-brand-700 hover:underline"
+            >
+              Coverage cockpit →
+            </Link>
+          }
+        >
+          {classOps.total === 0 ? (
+            <p className="text-[13px] text-ink-muted">No classes scheduled for this chapter yet.</p>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-muted">
+                <span>
+                  {classOps.total} {classOps.total === 1 ? "class" : "classes"}
+                </span>
+                {classOps.needsStaffing > 0 && (
+                  <span className="font-semibold text-progress-700">
+                    {classOps.needsStaffing} need staffing
+                  </span>
+                )}
+                {classOps.pendingApproval > 0 && (
+                  <span className="font-semibold text-progress-700">
+                    {classOps.pendingApproval} pending approval
+                  </span>
+                )}
+              </div>
+              <ul className="flex flex-col gap-1.5">
+                {classOps.rows.slice(0, 8).map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-2 text-[13px]">
+                    <span className="min-w-0 flex-1 truncate font-medium text-ink">{c.title}</span>
+                    <span className="flex flex-shrink-0 items-center gap-2">
+                      <span className="text-[12px] text-ink-muted">{c.enrolled} enrolled</span>
+                      <StatusBadge tone={c.covered ? "success" : "warning"}>{c.coverageLabel}</StatusBadge>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </SectionCard>
       )}
@@ -281,8 +422,8 @@ export function ChapterWorkspaceView({
           )}
         </SectionCard>
 
-        {/* Programs */}
-        <SectionCard title="Programs & classes">
+        {/* Courses & events */}
+        <SectionCard title="Courses & events">
           {programs.courses.length === 0 && programs.events.upcoming.length === 0 && programs.events.past.length === 0 ? (
             <p className="text-[13px] text-ink-muted">No programs or classes yet.</p>
           ) : (
