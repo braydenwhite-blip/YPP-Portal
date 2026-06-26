@@ -514,7 +514,11 @@ function orderGroups(primaryRole: NavRole, groups: NavGroup[]): NavGroup[] {
 
 export function resolveNavModel(
   input: ResolveNavInput,
-): NavViewModel & { lockedGroups?: Map<NavGroup, string>; officerChrome?: boolean } {
+): NavViewModel & {
+  lockedGroups?: Map<NavGroup, string>;
+  officerChrome?: boolean;
+  officerSlimNav?: boolean;
+} {
   const roles = normalizeRoles(input.roles);
   const primaryRole = resolvePrimaryRole(input.primaryRole, roles);
   const officerTierUser = isOfficerTierFromAuth(roles, primaryRole);

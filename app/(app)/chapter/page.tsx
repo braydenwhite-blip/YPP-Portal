@@ -1,405 +1,115 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
-import { getCommandCenterData } from "@/lib/chapter-dashboard-actions";
+
+import { PageHeaderV2, EmptyStateV2, ButtonLink } from "@/components/ui-v2";
+import { getChapterViewerContext } from "@/lib/chapters/access";
+import { loadChapterWorkspace } from "@/lib/chapters/workspace";
+import { loadChapterAttention } from "@/lib/chapters/attention";
+import { ChapterWorkspaceView } from "@/components/chapters/chapter-workspace-view";
 import { prisma } from "@/lib/prisma";
-import Link from "next/link";
-import { ActionCenter } from "@/components/chapter-dashboard/action-center";
-import { MemberPulse } from "@/components/chapter-dashboard/member-pulse";
-import { GrowthChart } from "@/components/chapter-dashboard/growth-chart";
-import { ChapterGoals } from "@/components/chapter-dashboard/chapter-goals";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Chapter Home — Pathways Portal" };
 
-export default async function ChapterCommandCenterPage() {
-  const session = await getSession();
-  if (!session?.user?.id) redirect("/login");
+// The single canonical Chapter President home. The former "Command Center",
+// "Workspace", "President Dashboard", and "Chapter OS" surfaces all consolidate
+// here so a CP has exactly one place to run their chapter — health, what needs
+// them, launch, meetings, members, programs, and help, in one calm view.
+export default async function ChapterHomePage() {
+  const ctx = await getChapterViewerContext();
 
-  const data = await getCommandCenterData();
-  const title = data.chapter?.name ?? data.scope.label;
+  // National leadership run every chapter from the command center, not a single
+  // chapter home.
+  if (!ctx.ledChapterId && ctx.isLeadership) {
+    redirect("/admin/chapters");
+  }
 
-  // Chapter-president onboarding nudge — surfaced inline so the President has
-  // one home instead of a separate "President Dashboard" page.
-  const onboarding = data.scope.isAdmin
-    ? null
-    : await prisma.chapterPresidentOnboarding
-        .findUnique({
-          where: { userId: session.user.id },
-          select: {
-            status: true,
-            metTeam: true,
-            setChapterGoals: true,
-            reviewedResources: true,
-            introMessageSent: true,
-          },
-        })
-        .catch(() => null);
+  if (!ctx.ledChapterId) {
+    return (
+      <div className="mx-auto w-full max-w-3xl px-6 py-10">
+        <PageHeaderV2
+          eyebrow="Chapter"
+          title="Chapter Home"
+          subtitle="Lead your YPP chapter from one place."
+        />
+        <div className="mt-8">
+          <EmptyStateV2
+            title="You don't lead a chapter yet"
+            body="Once your Chapter President application is approved, your chapter home appears here — health, launch checklist, meetings, members, recruiting, and more."
+            action={
+              <ButtonLink href="/chapter/apply" variant="primary">
+                Apply to start a chapter
+              </ButtonLink>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
 
+  const data = await loadChapterWorkspace(ctx.ledChapterId);
+  if (!data) {
+    redirect("/chapter/apply");
+  }
+
+  const [attention, onboarding] = await Promise.all([
+    loadChapterAttention(ctx.ledChapterId, { overdueActions: data.signals.overdueActions }),
+    prisma.chapterPresidentOnboarding
+      .findUnique({
+        where: { userId: ctx.user.id },
+        select: {
+          status: true,
+          metTeam: true,
+          setChapterGoals: true,
+          reviewedResources: true,
+          introMessageSent: true,
+        },
+      })
+      .catch(() => null),
+  ]);
+
+  // CP onboarding nudge — surfaced inline so the President has one home, never a
+  // separate "President Dashboard" page.
   const onboardingSteps = onboarding
-    ? [
-        onboarding.metTeam,
-        onboarding.setChapterGoals,
-        onboarding.reviewedResources,
-        onboarding.introMessageSent,
-      ]
+    ? [onboarding.metTeam, onboarding.setChapterGoals, onboarding.reviewedResources, onboarding.introMessageSent]
     : [];
-  const onboardingComplete =
-    onboarding?.status === "COMPLETED" ||
-    (onboardingSteps.length > 0 && onboardingSteps.every(Boolean));
   const onboardingDone = onboardingSteps.filter(Boolean).length;
+  const onboardingComplete =
+    onboarding?.status === "COMPLETED" || (onboardingSteps.length > 0 && onboardingSteps.every(Boolean));
   const showOnboardingBanner = onboarding != null && !onboardingComplete;
 
   return (
-    <main className="main-content">
-      <div
-        style={{
-          borderRadius: 24,
-          overflow: "hidden",
-          marginBottom: 24,
-          position: "relative",
-          boxShadow: "0 22px 60px rgba(15, 23, 42, 0.12)",
-        }}
-      >
-        {data.chapter?.bannerUrl ? (
-          <div style={{ height: 180, overflow: "hidden" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={data.chapter.bannerUrl}
-              alt=""
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
+    <div className="mx-auto w-full max-w-6xl px-6 py-8">
+      <PageHeaderV2
+        eyebrow="Chapter President"
+        title="Your Chapter Home"
+        subtitle="Health, what needs you, launch, meetings, members, programs, and help — everything to run your chapter."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/chapter/recruiting" variant="secondary" size="sm">
+              Recruiting
+            </ButtonLink>
+            <ButtonLink href="/chapter/settings" variant="secondary" size="sm">
+              Settings
+            </ButtonLink>
           </div>
-        ) : (
-          <div
-            style={{
-              height: 180,
-              background:
-                "radial-gradient(circle at top left, rgba(191,219,254,0.92) 0%, rgba(37,99,235,0.18) 30%), linear-gradient(135deg, #0f172a 0%, #1d4ed8 52%, #0ea5e9 100%)",
-            }}
-          />
-        )}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 20,
-            left: 24,
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-          }}
-        >
-          {data.chapter?.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={data.chapter.logoUrl}
-              alt=""
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: 12,
-                objectFit: "cover",
-                border: "3px solid white",
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: 12,
-                background: "rgba(255,255,255,0.18)",
-                backdropFilter: "blur(8px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                fontWeight: 700,
-                fontSize: 20,
-                border: "3px solid white",
-              }}
-            >
-              {data.chapter?.name?.charAt(0) ?? "C"}
-            </div>
-          )}
-          <div style={{ color: "white", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>
-            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.9 }}>
-              {data.scope.isAdmin ? "Admin Oversight" : "Chapter Home"}
-            </div>
-            <h1 style={{ margin: "6px 0 0", fontSize: 30 }}>{title}</h1>
-            {data.chapter?.tagline ? (
-              <p style={{ margin: 0, fontSize: 14, opacity: 0.9 }}>
-                {data.chapter.tagline}
-              </p>
-            ) : (
-              <p style={{ margin: 0, fontSize: 14, opacity: 0.9 }}>
-                {data.scope.isAdmin
-                  ? `${data.scope.chapterCount} chapter queues in view`
-                  : "Unified chapter operations, recruiting, and interview scheduling"}
-              </p>
-            )}
-          </div>
-        </div>
-        <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link
-            href="/interviews/schedule"
-            style={{
-              padding: "6px 12px",
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.18)",
-              backdropFilter: "blur(8px)",
-              color: "white",
-              fontSize: 13,
-              textDecoration: "none",
-              fontWeight: 600,
-            }}
-          >
-            Interview OS
-          </Link>
-          <Link
-            href="/chapter/settings"
-            style={{
-              padding: "6px 12px",
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.18)",
-              backdropFilter: "blur(8px)",
-              color: "white",
-              fontSize: 13,
-              textDecoration: "none",
-              fontWeight: 600,
-            }}
-          >
-            Settings
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
       {showOnboardingBanner && (
-        <div
-          className="card"
-          style={{
-            marginBottom: 16,
-            background: "#fef9c3",
-            border: "1px solid #fde68a",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-brand-200 bg-brand-50 px-4 py-3">
           <div>
-            <h3 style={{ margin: "0 0 2px", fontSize: 15, color: "#854d0e" }}>
-              Finish setting up as Chapter President
-            </h3>
-            <p style={{ margin: 0, fontSize: 13, color: "#854d0e" }}>
-              {onboardingDone} of 4 steps complete — wrap these up to get fully set up.
-            </p>
+            <p className="text-[14px] font-semibold text-brand-900">Finish setting up as Chapter President</p>
+            <p className="text-[12.5px] text-brand-700">{onboardingDone} of 4 setup steps complete.</p>
           </div>
-          <Link href="/chapter/onboarding" className="button" style={{ textDecoration: "none" }}>
-            Continue Onboarding
-          </Link>
+          <ButtonLink href="/chapter/onboarding" variant="primary" size="sm">
+            Continue onboarding
+          </ButtonLink>
         </div>
       )}
 
-      <div className="stats-grid">
-        <Link href="/chapter/members" className="stat-card" style={{ textDecoration: "none", color: "inherit" }}>
-          <span className="stat-value">{data.stats.totalMembers}</span>
-          <span className="stat-label">Total Members</span>
-        </Link>
-        <Link href="/chapter/students" className="stat-card" style={{ textDecoration: "none", color: "inherit" }}>
-          <span className="stat-value">{data.stats.totalStudents}</span>
-          <span className="stat-label">Students</span>
-        </Link>
-        <Link href="/chapter/instructors" className="stat-card" style={{ textDecoration: "none", color: "inherit" }}>
-          <span className="stat-value">{data.stats.totalInstructors}</span>
-          <span className="stat-label">Instructors</span>
-        </Link>
-        <Link href="/chapter/calendar" className="stat-card" style={{ textDecoration: "none", color: "inherit" }}>
-          <span className="stat-value">{data.stats.upcomingEvents}</span>
-          <span className="stat-label">Upcoming Events</span>
-        </Link>
-        <Link href="/chapter/recruiting" className="stat-card" style={{ textDecoration: "none", color: "inherit" }}>
-          <span className="stat-value">{data.stats.openPositions}</span>
-          <span className="stat-label">Open Positions</span>
-          {data.stats.totalApplications > 0 && (
-            <span className="stat-link">{data.stats.totalApplications} applications →</span>
-          )}
-        </Link>
+      <div className="mt-6">
+        <ChapterWorkspaceView data={data} attention={attention} canManage isLeadership={false} />
       </div>
-
-      <div className="grid two" style={{ marginTop: 24, alignItems: "start" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <ActionCenter
-            actionItems={data.actionItems}
-            opsQueues={data.opsQueues}
-          />
-
-          {data.kpiSnapshots.length > 0 ? <GrowthChart snapshots={data.kpiSnapshots} /> : null}
-
-          <div className="card">
-            <h2 style={{ margin: 0 }}>Quick Actions</h2>
-            <div
-              style={{
-                marginTop: 12,
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 8,
-              }}
-            >
-              <Link
-                href="/chapter/recruiting"
-                className="action-btn"
-                style={{ textDecoration: "none" }}
-              >
-                🧑‍💼 Recruiting
-              </Link>
-              <Link
-                href="/chapter/student-intake"
-                className="action-btn"
-                style={{ textDecoration: "none" }}
-              >
-                🧭 Student Intake
-              </Link>
-              <Link
-                href="/interviews/schedule"
-                className="action-btn"
-                style={{ textDecoration: "none" }}
-              >
-                🗓 Interview OS
-              </Link>
-              <Link
-                href="/chapter/recruiting/positions/new"
-                className="action-btn"
-                style={{ textDecoration: "none" }}
-              >
-                ➕ New Position
-              </Link>
-              <Link
-                href="/chapter/calendar"
-                className="action-btn"
-                style={{ textDecoration: "none" }}
-              >
-                🗓 Chapter Calendar
-              </Link>
-              <Link
-                href="/chapter/updates"
-                className="action-btn"
-                style={{ textDecoration: "none" }}
-              >
-                📢 Send Update
-              </Link>
-              <Link
-                href="/chapter/marketing"
-                className="action-btn"
-                style={{ textDecoration: "none" }}
-              >
-                📊 Marketing
-              </Link>
-              <Link
-                href="/chapter/instructors"
-                className="action-btn"
-                style={{ textDecoration: "none" }}
-              >
-                👩‍🏫 Instructors
-              </Link>
-              <Link
-                href="/chapter/students"
-                className="action-btn"
-                style={{ textDecoration: "none" }}
-              >
-                🎓 Students
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <MemberPulse
-            stats={data.stats}
-            inactiveMembers={data.inactiveMembers}
-          />
-
-          {data.activeGoals.length > 0 ? <ChapterGoals goals={data.activeGoals} /> : null}
-
-          <div className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ margin: 0 }}>Upcoming Events And Deadlines</h2>
-              <span style={{ color: "var(--muted)", fontSize: 13 }}>
-                {data.upcomingEvents.length} scheduled
-              </span>
-            </div>
-            {data.upcomingEvents.length === 0 ? (
-              <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 12 }}>
-                No upcoming events.
-              </p>
-            ) : (
-              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                {data.upcomingEvents.map((event) => (
-                  <div
-                    key={event.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "8px 0",
-                      borderBottom: "1px solid var(--border)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 8,
-                        background: "var(--bg)",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <span style={{ fontSize: 14, fontWeight: 700, lineHeight: 1 }}>
-                        {new Date(event.startDate).getDate()}
-                      </span>
-                      <span style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" }}>
-                        {new Date(event.startDate).toLocaleDateString("en-US", { month: "short" })}
-                      </span>
-                    </div>
-                    <div>
-                      <p style={{ fontWeight: 600, fontSize: 14, margin: 0 }}>{event.title}</p>
-                      <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>
-                        {event.chapter?.name ?? title}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Recent Enrollments */}
-          {data.recentEnrollments.length > 0 && (
-            <div className="card">
-              <h2 style={{ margin: 0 }}>Recent Enrollments</h2>
-              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-                {data.recentEnrollments.map((enrollment) => (
-                  <div
-                    key={enrollment.id}
-                    style={{ fontSize: 13, display: "flex", justifyContent: "space-between" }}
-                  >
-                    <span>
-                      <strong>{enrollment.user.name}</strong>
-                      <span style={{ color: "var(--muted)" }}> → {enrollment.course.title}</span>
-                    </span>
-                    <span style={{ color: "var(--muted)", fontSize: 12 }}>
-                      {new Date(enrollment.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </main>
+    </div>
   );
 }
