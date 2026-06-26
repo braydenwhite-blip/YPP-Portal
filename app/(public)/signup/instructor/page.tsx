@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import BrandLockup from "@/components/brand-lockup";
+import SpamFolderNotice from "@/components/spam-folder-notice";
 import { navigateToAuthDestination } from "@/lib/auth-client-navigation";
 import { createBrowserClientOrNull } from "@/lib/supabase/client";
 import { canUseLocalPasswordFallback } from "@/lib/supabase/config";
@@ -286,6 +287,7 @@ export default function InstructorSignupPage() {
                   Email me a sign-in link
                 </Link>
               </div>
+              <SpamFolderNotice style={{ marginTop: 16, textAlign: "left" }} />
             </>
           ) : (
             <>
@@ -311,6 +313,8 @@ export default function InstructorSignupPage() {
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>
           {isSummerWorkshop ? "Apply to be a YPP Summer Workshop Instructor." : "Apply to become a YPP instructor."}
         </h1>
+
+        <SpamFolderNotice style={{ margin: "16px 0 24px" }} />
 
         {/* Track selector */}
         {!REGULAR_INSTRUCTOR_ENABLED ? (

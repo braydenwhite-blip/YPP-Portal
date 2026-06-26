@@ -12,6 +12,7 @@ import WithdrawForm from "./withdraw-form";
 import ApplicantEditForm from "./edit-form";
 import Link from "next/link";
 import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
+import SpamFolderNotice from "@/components/spam-folder-notice";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 import { isHttpUrl } from "@/lib/meeting-details";
 import type { WorkshopOutline } from "@/lib/summer-workshop";
@@ -210,6 +211,7 @@ export default async function ApplicationStatusPage() {
                 <p style={{ color: "var(--muted)", fontSize: 14, margin: 0 }}>
                   <strong>Next:</strong> a reviewer will be assigned and you&apos;ll hear back within <strong>3–5 business days</strong>. No action needed from you right now — contact your chapter if you need something sooner.
                 </p>
+                <SpamFolderNotice style={{ marginTop: 12 }} />
               </>
             )}
             {instructorApp.status === "UNDER_REVIEW" && (
