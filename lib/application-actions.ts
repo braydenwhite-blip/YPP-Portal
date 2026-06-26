@@ -236,7 +236,6 @@ function revalidateHiringPaths(chapterId?: string | null, applicationId?: string
   revalidatePath("/chapter/recruiting");
   revalidatePath("/admin/recruiting");
   revalidatePath("/admin/hiring-committee");
-  revalidatePath("/chapter/applicants");
   revalidatePath("/admin/applications");
 
   if (chapterId) {

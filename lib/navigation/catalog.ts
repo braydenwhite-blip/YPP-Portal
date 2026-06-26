@@ -1099,11 +1099,6 @@ export const NAV_CATALOG: NavLink[] = [
       ],
     },
     {
-      href: "/chapter/president",
-      label: "Chapter President",
-      icon: "👑",
-    },
-    {
       href: "/chapter/calendar",
       label: "Chapter Calendar",
       icon: "🗓",

@@ -23,13 +23,6 @@ const LINKS: HubLink[] = [
     isVisible: ({ roles }) => roles.includes("CHAPTER_PRESIDENT"),
   },
 
-  {
-    href: "/chapter/president",
-    label: "Chapter President",
-    icon: "👑",
-    category: "Leadership",
-    description: "Chapter leadership tools and context.",
-  },
   { href: "/chapter/apply", label: "Apply for CP", icon: "🗺", category: "Leadership", description: "Apply to become a chapter president." },
   {
     href: "/chapter/student-intake",

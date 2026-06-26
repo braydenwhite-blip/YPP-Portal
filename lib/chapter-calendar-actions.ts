@@ -107,7 +107,6 @@ function revalidateChapterSurfaces(chapterSlug?: string | null) {
   revalidatePath("/chapter");
   revalidatePath("/my-chapter");
   revalidatePath("/chapters");
-  revalidatePath("/chapter/president");
   revalidatePath("/admin/events");
   if (chapterSlug) {
     revalidatePath(`/chapters/${chapterSlug}`);

@@ -94,7 +94,6 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/chapters",
   "/join-chapter",
   "/chapter/apply",
-  "/chapter/president",
   "/chapter/student-intake",
   "/chapter/channels",
   "/chapter/members",

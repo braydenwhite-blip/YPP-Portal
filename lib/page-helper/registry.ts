@@ -1833,15 +1833,6 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
-    pattern: "/chapter/applicants",
-    title: "Chapter Applicants",
-    content: {
-      purpose: "This page helps you review the chapter applicants and move each item to the right next step.",
-      firstStep: "Open the item that is newest, overdue, or blocked so you can confirm the current status before changing anything.",
-      nextStep: "After you approve, return, score, or update the record, the workflow reflects the change for the next person automatically."
-    }
-  },
-  {
     pattern: "/chapter/apply",
     title: "Apply for Chapter President",
     content: {
@@ -1963,15 +1954,6 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     title: "Pathway fallback requests",
     content: {
       purpose: "This page brings together the main tools and details for the pathway fallback requests.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
-    }
-  },
-  {
-    pattern: "/chapter/president",
-    title: "Your Chapter President",
-    content: {
-      purpose: "This page brings together the main tools and details for your chapter president.",
       firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
     }
