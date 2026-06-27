@@ -2,17 +2,18 @@ import { redirect } from "next/navigation";
 
 import { PageHeaderV2, EmptyStateV2, ButtonLink, StatusBadge } from "@/components/ui-v2";
 import { getChapterViewerContext, requireChapterManager } from "@/lib/chapters/access";
-import { loadChapterOperatingSystem } from "@/lib/chapters/operating-system";
+import { loadOperatingHub } from "@/lib/chapters/operating-rooms-loader";
 import { chapterLifecycleTone } from "@/lib/chapters/lifecycle";
-import { ChapterOperatingSystemTabs } from "@/components/chapters/chapter-operating-system";
+import { OperatingHubView } from "@/components/chapters/operating-hub";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Chapter Operating System — Pathways Portal" };
+export const metadata = { title: "Operating System — Pathways Portal" };
 
-// The deep pipeline surface that runs Weeks 1–10 of the Chapter President
-// playbook: the four lanes, per-class launch readiness, and impact-meeting prep,
-// all computed from real data. The calm `/chapter` home links here for the work;
-// this is where a CP actually moves the chapter forward.
+// The Organizational Operating System hub — the "building" a Chapter President
+// walks into. Six permanent operating domains (Partner Network, Teaching
+// Organization, Learning Program, Live Classes, Student Community, Chapter
+// Growth), each its own room. Everything is computed from real data; each room
+// shows its health, what needs you, and the next action.
 export default async function ChapterOperatingPage() {
   const ctx = await getChapterViewerContext();
 
@@ -23,14 +24,14 @@ export default async function ChapterOperatingPage() {
     return (
       <div className="mx-auto w-full max-w-3xl px-6 py-10">
         <PageHeaderV2
-          eyebrow="Chapter"
-          title="Chapter Operating System"
-          subtitle="Run your chapter's full pipeline from one place."
+          eyebrow="Operating System"
+          title="Run your chapter like a real organization"
+          subtitle="Six operating domains — partners, teaching, curriculum, classes, students, and growth — in one place."
         />
         <div className="mt-8">
           <EmptyStateV2
             title="You don't lead a chapter yet"
-            body="Once your Chapter President application is approved, your operating system — partners, instructors, curriculum, classes, launch readiness, and impact-meeting prep — appears here."
+            body="Once your Chapter President application is approved, your operating system opens here: six rooms that together run the chapter."
             action={
               <ButtonLink href="/chapter/apply" variant="primary">
                 Apply to start a chapter
@@ -42,22 +43,21 @@ export default async function ChapterOperatingPage() {
     );
   }
 
-  // Authorize: the Chapter President of this chapter (or national leadership).
   await requireChapterManager(ctx.ledChapterId);
 
-  const os = await loadChapterOperatingSystem(ctx.ledChapterId);
-  if (!os) redirect("/chapter");
+  const hub = await loadOperatingHub(ctx.ledChapterId);
+  if (!hub) redirect("/chapter");
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-8">
       <PageHeaderV2
-        eyebrow={`Week ${os.weekNumber} · ${os.impact.focus}`}
-        title="Chapter Operating System"
-        subtitle="What needs you across partners, instructors, curriculum, and classes — plus this week's impact-meeting prep."
+        eyebrow="Operating System"
+        title={hub.chapter.name}
+        subtitle="Six operating domains that together run your chapter. Enter a room to see its health, what needs you, and what to do next."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={chapterLifecycleTone(os.chapter.lifecycleStatus)}>
-              {os.chapter.lifecycleLabel}
+            <StatusBadge tone={chapterLifecycleTone(hub.chapter.lifecycleStatus)}>
+              {hub.chapter.lifecycleLabel}
             </StatusBadge>
             <ButtonLink href="/chapter" variant="secondary" size="sm">
               Chapter home
@@ -66,7 +66,7 @@ export default async function ChapterOperatingPage() {
         }
       />
       <div className="mt-6">
-        <ChapterOperatingSystemTabs os={os} />
+        <OperatingHubView hub={hub} />
       </div>
     </div>
   );
