@@ -40,7 +40,17 @@ export default async function AdminProgramsPage() {
 
   return (
     <main className="main-content admin-programs-page">
-      <h1>Manage Special Programs</h1>
+      <div className="admin-page-header">
+        <div>
+          <h1>Manage Programs</h1>
+          <p className="subtitle">
+            Create and organize special programs, sessions, and release settings
+          </p>
+        </div>
+        <Link href="/programs" className="btn btn-secondary">
+          View programs
+        </Link>
+      </div>
 
       {/* Create Program Form */}
       <section className="card create-section">
@@ -384,6 +394,17 @@ export default async function AdminProgramsPage() {
         .admin-programs-page .btn-sm {
           padding: 0.5rem 1rem;
           font-size: 0.875rem;
+        }
+        .admin-programs-page .admin-page-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+        }
+        .admin-programs-page .subtitle {
+          color: var(--muted);
+          margin: 0.25rem 0 0;
         }
         .admin-programs-page .empty {
           color: var(--muted);

@@ -2,12 +2,19 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth-supabase';
 import { getPrograms } from '@/lib/program-actions';
 import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
 import { PROGRAM_TYPE_CONFIG, PROGRAM_TYPE_ORDER, getProgramColor, formatProgramType } from '@/lib/program-constants';
 import { ProgramType } from '@prisma/client';
 
 export default async function ProgramsPage() {
   const session = await getSession();
   if (!session) redirect('/login');
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: { roles: true },
+  });
+
   const programs = await getPrograms();
   const grouped = PROGRAM_TYPE_ORDER.reduce((acc: any, type) => { acc[type] = programs.filter((p: any) => p.type === type); return acc; }, {} as Record<ProgramType, (typeof programs)[number][]>);
   const summerWorkshops = grouped.SUMMER_WORKSHOP ?? [];
@@ -16,10 +23,21 @@ export default async function ProgramsPage() {
     <main className="main-content programs-page">
       <div className="page-header">
         <div>
-          <h1>Special Programs</h1>
-          <p className="subtitle">Explore our special programming offerings beyond regular courses</p>
+          <h1>Programs</h1>
+          <p className="subtitle">
+            Browse classes, summer workshops, and other YPP offerings in one place
+          </p>
         </div>
-        <Link href="/programs/my" className="btn btn-secondary">My Programs</Link>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          {user?.roles.some((role: any) => role.role === "ADMIN") ? (
+            <Link href="/admin/programs" className="btn btn-primary">
+              Manage programs
+            </Link>
+          ) : null}
+          <Link href="/programs/my" className="btn btn-secondary">
+            My Programs
+          </Link>
+        </div>
       </div>
 
       <div className="stats-row">
@@ -43,7 +61,6 @@ export default async function ProgramsPage() {
       {summerWorkshops.length > 0 && <FeaturedBanner programs={summerWorkshops} />}
 
       {hasAny ? PROGRAM_TYPE_ORDER.map((type) => {
-        if (type === 'SUMMER_WORKSHOP') return null;
         const list = grouped[type] ?? [];
         if (list.length === 0) return null;
         const config = PROGRAM_TYPE_CONFIG[type];
@@ -53,6 +70,11 @@ export default async function ProgramsPage() {
       {!hasAny && (
         <div className="card empty">
           <p>No special programs available at this time. Check back soon!</p>
+          {user?.roles.some((role: any) => role.role === 'ADMIN') ? (
+            <Link href="/admin/programs" className="btn btn-primary">
+              Create program
+            </Link>
+          ) : null}
         </div>
       )}
 
