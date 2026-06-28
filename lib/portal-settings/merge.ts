@@ -20,7 +20,7 @@ export function mergePortalSettings(rows: Array<{ key: string; value: unknown }>
     instructorMentorship: { ...PORTAL_SETTINGS_DEFAULTS.instructorMentorship },
   };
 
-  const byKey = new Map(rows.map((r) => [r.key, r.value]));
+  const byKey = new Map((Array.isArray(rows) ? rows : []).map((r) => [r.key, r.value]));
 
   const chapterOs = PORTAL_SETTINGS_GROUP_SCHEMAS.chapterOs.safeParse(byKey.get("chapterOs") ?? {});
   if (chapterOs.success) Object.assign(merged.chapterOs, chapterOs.data);
