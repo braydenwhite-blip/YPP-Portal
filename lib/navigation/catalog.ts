@@ -1403,6 +1403,22 @@ export const NAV_CATALOG: NavLink[] = [
         "Set every user's exact roles, ladder/level, and cohort from one place.",
     },
     {
+      href: "/admin/settings",
+      label: "Portal Settings",
+      icon: "⚙️",
+      roles: ADMIN_ONLY,
+      searchAliases: [
+        "Settings",
+        "Thresholds",
+        "Business rules",
+        "Configuration",
+        "Config",
+        "SLA",
+      ],
+      dashboardDescription:
+        "Edit business-rule thresholds (SLAs, row caps, feedback limits) used across the portal.",
+    },
+    {
       href: "/admin/teams",
       label: "Teams",
       icon: "🧩",
@@ -1439,6 +1455,21 @@ export const NAV_CATALOG: NavLink[] = [
       badgeKey: "chairQueueCount",
       dashboardDescription: "Review applications awaiting hiring chair decision.",
       searchAliases: ["chair", "hiring chair", "decisions", "Chair Queue"],
+    },
+    {
+      href: "/admin/instructor-applicants/chair-settings",
+      label: "Chair Assignment",
+      icon: "🪑",
+      roles: ADMIN_ONLY,
+      dashboardDescription:
+        "Assign the active Chair — the one person who can make final applicant decisions.",
+      searchAliases: [
+        "Chair Assignment",
+        "Active Chair",
+        "Assign Chair",
+        "Set Chair",
+        "Chair Settings",
+      ],
     },
     {
       href: "/admin/chapter-president-applicants",

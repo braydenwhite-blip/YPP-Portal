@@ -18,6 +18,7 @@ import {
   instructorEvidenceStatus,
   instructorEvidenceRow,
   instructorPipelineRecommendation,
+  DEFAULT_PIPELINE_THRESHOLDS,
   type PartnerRecord,
   type InstructorApplicantRecord,
 } from "@/lib/chapters/pipeline";
@@ -60,6 +61,61 @@ function applicant(overrides: Partial<InstructorApplicantRecord> = {}): Instruct
     ...overrides,
   };
 }
+
+describe("configurable pipeline thresholds", () => {
+  it("partner stuck cutoff is driven by partnerFollowUpOverdueStuckDays", () => {
+    // Follow-up 8 days overdue, last contact 4 days ago, in-flight with a lead.
+    const p = partner({
+      stage: "REACHED_OUT",
+      nextFollowUpAt: new Date("2026-06-16T00:00:00.000Z"), // ~8 days before NOW
+      lastContactedAt: new Date("2026-06-20T00:00:00.000Z"), // ~4 days before NOW
+      hasRelationshipLead: true,
+    });
+    // Default cutoff (7) → 8 days overdue counts as stuck.
+    expect(partnerEvidenceStatus(p, NOW)).toBe("stuck");
+    // Raising the cutoff to 14 means 8 days overdue no longer counts as stuck.
+    expect(
+      partnerEvidenceStatus(p, NOW, {
+        ...DEFAULT_PIPELINE_THRESHOLDS,
+        partnerFollowUpOverdueStuckDays: 14,
+      })
+    ).toBe("at_risk");
+  });
+
+  it("instructor triage staleness is driven by instructorTriageStaleDays", () => {
+    const a = applicant({
+      status: "SUBMITTED", // → "applied", waiting for review
+      appliedAt: new Date("2026-06-21T12:00:00.000Z"), // exactly 3 days before NOW
+      hasReviewer: false,
+    });
+    // Default cutoff (7) → 3 days stalled is fine.
+    expect(instructorEvidenceStatus(a, NOW)).toBe("on_track");
+    // Lowering the cutoff to 2 flags the same applicant as at risk.
+    expect(
+      instructorEvidenceStatus(a, NOW, {
+        ...DEFAULT_PIPELINE_THRESHOLDS,
+        instructorTriageStaleDays: 2,
+      })
+    ).toBe("at_risk");
+  });
+
+  it("instructor decision SLA is driven by instructorDecisionSlaHours", () => {
+    const a = applicant({
+      status: "INTERVIEW_COMPLETED", // → "interview_complete"
+      interviewCompletedAt: new Date("2026-06-24T06:00:00.000Z"), // 6 hours before NOW
+      hasDecision: false,
+    });
+    // Default SLA (12h) → 6 hours is not yet overdue.
+    expect(instructorDecisionOverdue(a, NOW)).toBe(false);
+    // Tightening the SLA to 4h makes the same decision overdue.
+    expect(
+      instructorDecisionOverdue(a, NOW, {
+        ...DEFAULT_PIPELINE_THRESHOLDS,
+        instructorDecisionSlaHours: 4,
+      })
+    ).toBe(true);
+  });
+});
 
 describe("businessDaysBetween", () => {
   it("counts only weekdays", () => {

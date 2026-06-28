@@ -117,6 +117,11 @@ const prismaMock: any = {
     findUnique: vi.fn(),
     findMany: vi.fn(),
   },
+  portalSetting: {
+    // Default: no stored overrides → getPortalSettings() returns the defaults.
+    findMany: vi.fn(() => Promise.resolve([])),
+    upsert: vi.fn(),
+  },
   course: {
     findUnique: vi.fn(),
     findMany: vi.fn(),

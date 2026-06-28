@@ -17,6 +17,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { FULL_PROGRAM_MENTOR_CAP } from "@/lib/mentorship-canonical";
 import { SHOW_STUDENT_MENTORSHIP_LANE } from "@/lib/mentorship-admin-helpers";
+import { getPortalSettings } from "@/lib/portal-settings";
 
 // Single boundary for "instructor mentorship vs student mentorship". Until
 // student mentorship launches we exclude STUDENT from every helper here.
@@ -24,7 +25,8 @@ const INSTRUCTOR_MENTORSHIP_TYPE_FILTER = SHOW_STUDENT_MENTORSHIP_LANE
   ? undefined
   : { not: MentorshipType.STUDENT };
 
-const STALE_SESSION_DAYS = 30;
+// `STALE_SESSION_DAYS` is admin-configurable via portal settings
+// (instructorMentorship.staleSessionDays); default remains 30.
 const STALE_GOAL_NO_UPDATE_DAYS = 30;
 export const ADMIN_QUEUE_PAGE_SIZE = 200;
 
@@ -68,8 +70,9 @@ export async function getInstructorMentorshipOpsSummary(): Promise<InstructorMen
   await requireAdminForOps();
 
   const now = new Date();
+  const { staleSessionDays } = (await getPortalSettings()).instructorMentorship;
   const staleSessionCutoff = new Date(
-    now.getTime() - STALE_SESSION_DAYS * 24 * 60 * 60 * 1000
+    now.getTime() - staleSessionDays * 24 * 60 * 60 * 1000
   );
 
   const [
@@ -240,8 +243,9 @@ export async function getMentorWorkload(): Promise<MentorWorkloadRow[]> {
   await requireAdminForOps();
 
   const now = new Date();
+  const { staleSessionDays } = (await getPortalSettings()).instructorMentorship;
   const staleSessionCutoff = new Date(
-    now.getTime() - STALE_SESSION_DAYS * 24 * 60 * 60 * 1000
+    now.getTime() - staleSessionDays * 24 * 60 * 60 * 1000
   );
 
   const mentors = await prisma.user.findMany({
@@ -364,8 +368,9 @@ export async function getOverdueCheckInQueue(): Promise<OverdueCheckInRow[]> {
   await requireAdminForOps();
 
   const now = new Date();
+  const { staleSessionDays } = (await getPortalSettings()).instructorMentorship;
   const staleSessionCutoff = new Date(
-    now.getTime() - STALE_SESSION_DAYS * 24 * 60 * 60 * 1000
+    now.getTime() - staleSessionDays * 24 * 60 * 60 * 1000
   );
 
   const mentorships = await prisma.mentorship.findMany({
