@@ -34,6 +34,8 @@ import {
 } from "@/lib/chapters/chapter-growth";
 import { buildChapterRooms, collectNeedsYou, type RoomNeedsItem } from "@/lib/chapters/rooms";
 import { withRoomActions, type ChapterRoomWithActions } from "@/lib/chapters/room-actions";
+import { loadChapterClassRuntime } from "@/lib/classes/chapter-class-runtime";
+import { interventionRoom, type ClassIntervention } from "@/lib/classes/interventions";
 import {
   buildRoomActivity,
   partnerNoteActivity,
@@ -43,6 +45,8 @@ import {
   enrollmentActivity,
   classFeedbackActivity,
   snapshotActivity,
+  attendanceActivity,
+  reflectionActivity,
   type RoomActivityItem,
 } from "@/lib/chapters/room-activity";
 
@@ -258,12 +262,21 @@ export async function loadChapterOS(
 
   const growth = summarizeChapterGrowth({ weekNumber: os.weekNumber, current, previous: baseline.previous });
 
+  // --- Live class runtime: interventions feed the rooms + recent activity ---
+  const [classRuntime, recentActivity] = await Promise.all([
+    loadChapterClassRuntime(chapterId, now),
+    loadRecentActivity(chapterId),
+  ]);
+  // Merge live class interventions into the operating graph BEFORE the rooms are
+  // built, so they flow into the rooms' Needs You, the contextual room actions,
+  // and the Track-as-Action bridge — deduped against the existing blockers.
+  injectClassInterventions(os, studentCommunity, classRuntime.interventions);
+
   // --- Compose six rooms (+ contextual room actions) -----------------------
   const rooms = withRoomActions(buildChapterRooms(os, studentCommunity, growth), {
     isLeadership: opts.isLeadership,
   });
   const needsYou = collectNeedsYou(rooms);
-  const recentActivity = await loadRecentActivity(chapterId);
 
   return {
     chapter: os.chapter,
@@ -279,6 +292,51 @@ export async function loadChapterOS(
     growthBaselineSource: baseline.source,
     impact: os.impact,
   };
+}
+
+/**
+ * Merge live class interventions into the operating graph: class-operational
+ * triggers become "classes"-lane blockers (Live Classes room); student-experience
+ * triggers become Student Community needs. Deduped by key so an intervention that
+ * already exists as a pipeline blocker (e.g. under-enrolled) isn't doubled.
+ */
+function injectClassInterventions(
+  os: ChapterOperatingSystem,
+  studentCommunity: StudentCommunitySummary,
+  interventions: ClassIntervention[]
+): void {
+  const classKeys = new Set(os.blockers.map((b) => b.key));
+  const studentKeys = new Set(studentCommunity.needsAttention.map((n) => n.key));
+  for (const iv of interventions) {
+    const detail = `${iv.evidence} · ${iv.recommendedAction}`;
+    if (interventionRoom(iv) === "student_community") {
+      if (studentKeys.has(iv.key)) continue;
+      studentKeys.add(iv.key);
+      studentCommunity.needsAttention.push({
+        key: iv.key,
+        title: iv.title,
+        detail,
+        severity: iv.severity,
+        href: iv.href,
+        entityType: "CLASS_OFFERING",
+        entityId: iv.classId,
+      });
+    } else {
+      if (classKeys.has(iv.key)) continue;
+      classKeys.add(iv.key);
+      os.blockers.push({
+        key: iv.key,
+        lane: "classes",
+        severity: iv.severity,
+        title: iv.title,
+        detail,
+        href: iv.href,
+        suggestedAction: iv.recommendedAction,
+        entityType: "CLASS_OFFERING",
+        entityId: iv.classId,
+      });
+    }
+  }
 }
 
 /**
@@ -396,7 +454,7 @@ async function buildPreviousSnapshot(
  */
 async function loadRecentActivity(chapterId: string): Promise<RoomActivityItem[]> {
   const PER_SOURCE = 8;
-  const [partnerNotes, curriculumEvents, classEvents, applicantEvents, enrollments, feedback, snapshots] =
+  const [partnerNotes, curriculumEvents, classEvents, applicantEvents, enrollments, feedback, snapshots, attendanceRecords, reflections] =
     await Promise.all([
       withPrismaFallback(
         "chapter-os:activity-partner-notes",
@@ -481,7 +539,62 @@ async function loadRecentActivity(chapterId: string): Promise<RoomActivityItem[]
           }),
         []
       ),
+      withPrismaFallback(
+        "chapter-os:activity-attendance",
+        () =>
+          prisma.classAttendanceRecord.findMany({
+            where: { session: { offering: { chapterId } } },
+            orderBy: { checkedInAt: "desc" },
+            take: 60,
+            select: {
+              checkedInAt: true,
+              sessionId: true,
+              session: { select: { offeringId: true, offering: { select: { title: true } } } },
+            },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-reflections",
+        () =>
+          prisma.classSessionReflection.findMany({
+            where: { session: { offering: { chapterId } } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: {
+              id: true,
+              instructorName: true,
+              createdAt: true,
+              offeringId: true,
+              session: { select: { offering: { select: { title: true } } } },
+            },
+          }),
+        []
+      ),
     ]);
+
+  // Attendance is per-student; collapse to one "session recorded" item per
+  // session (latest mark wins for the timestamp, with a marked-count).
+  const attendanceBySession = new Map<
+    string,
+    { sessionId: string; offeringId: string; className: string | null; count: number; occurredAt: Date }
+  >();
+  for (const rec of attendanceRecords) {
+    const key = rec.sessionId;
+    const existing = attendanceBySession.get(key);
+    if (existing) {
+      existing.count += 1;
+      if (rec.checkedInAt.getTime() > existing.occurredAt.getTime()) existing.occurredAt = rec.checkedInAt;
+    } else {
+      attendanceBySession.set(key, {
+        sessionId: key,
+        offeringId: rec.session?.offeringId ?? "",
+        className: rec.session?.offering?.title ?? null,
+        count: 1,
+        occurredAt: rec.checkedInAt,
+      });
+    }
+  }
 
   const items: RoomActivityItem[] = [
     ...partnerNotes.map((n) =>
@@ -508,6 +621,16 @@ async function loadRecentActivity(chapterId: string): Promise<RoomActivityItem[]
     ),
     ...feedback.map((f) => classFeedbackActivity({ id: f.id, rating: f.rating, createdAt: f.createdAt, className: f.offering?.title ?? null })),
     ...snapshots.map((s) => snapshotActivity({ id: s.id, weekStart: s.weekStart, createdAt: s.createdAt })),
+    ...[...attendanceBySession.values()].map((a) => attendanceActivity(a)),
+    ...reflections.map((r) =>
+      reflectionActivity({
+        id: r.id,
+        className: r.session?.offering?.title ?? null,
+        actorName: r.instructorName,
+        createdAt: r.createdAt,
+        offeringId: r.offeringId,
+      })
+    ),
   ];
 
   return buildRoomActivity(items);

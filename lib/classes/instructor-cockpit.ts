@@ -34,7 +34,7 @@ const ACTIVE_ENROLLMENT = ["ENROLLED", "COMPLETED"];
 
 // The shape we select for an offering. Hand-typed so the mappers stay
 // prisma-generation-independent (the client isn't always generated locally).
-type OfferingRow = {
+export type OfferingRow = {
   id: string;
   title: string;
   status: string;
@@ -69,7 +69,7 @@ type OfferingRow = {
   feedback: { studentId: string; rating: number }[];
 };
 
-const OFFERING_SELECT = {
+export const OFFERING_SELECT = {
   id: true,
   title: true,
   status: true,
@@ -128,7 +128,7 @@ function toRuntimeSession(s: OfferingRow["sessions"][number]): ClassRuntimeSessi
 }
 
 /** Map one offering row onto the pure runtime input. */
-function toRuntimeInput(o: OfferingRow): ClassRuntimeInput {
+export function toRuntimeInput(o: OfferingRow): ClassRuntimeInput {
   const riaStatuses = o.regularInstructorAssignments.map((r) => r.status);
   const isVirtual = o.deliveryMode === "VIRTUAL";
   const activeEnrollments = o.enrollments.filter((e) => ACTIVE_ENROLLMENT.includes(e.status));
@@ -175,7 +175,7 @@ function toRuntimeInput(o: OfferingRow): ClassRuntimeInput {
 }
 
 /** Build per-student signal inputs from an offering's enrollments + attendance. */
-function toStudentSignalInputs(o: OfferingRow): StudentSignalInput[] {
+export function toStudentSignalInputs(o: OfferingRow): StudentSignalInput[] {
   const sessionsHeldDates = o.sessions
     .filter((s) => !s.isCancelled && s.attendance.length > 0)
     .sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -239,7 +239,7 @@ function toCockpitClass(o: OfferingRow, openIssueCount: number, now: Date): Cock
 }
 
 /** Count open ActionItems linked to each offering (issues). */
-async function openIssueCounts(offeringIds: string[]): Promise<Map<string, number>> {
+export async function openIssueCounts(offeringIds: string[]): Promise<Map<string, number>> {
   if (offeringIds.length === 0) return new Map();
   const rows = await withPrismaFallback(
     "cockpit:open-issues",

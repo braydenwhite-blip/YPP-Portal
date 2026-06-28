@@ -8,6 +8,8 @@ import {
   enrollmentActivity,
   classFeedbackActivity,
   snapshotActivity,
+  attendanceActivity,
+  reflectionActivity,
   buildRoomActivity,
   groupActivityByRoom,
   ROOM_ACTIVITY_LIMIT,
@@ -75,6 +77,18 @@ describe("source mappers", () => {
     expect(enrollmentActivity({ id: "en1", enrolledAt: T(7), studentName: "Ada", className: "Robotics Mon" }).title).toBe("Ada enrolled in Robotics Mon");
     expect(classFeedbackActivity({ id: "f1", rating: 5, createdAt: T(6), className: "Robotics Mon" }).title).toBe("5★ feedback received on Robotics Mon");
     expect(snapshotActivity({ id: "s1", weekStart: new Date("2026-06-22T00:00:00Z"), createdAt: T(5) }).roomKey).toBe("chapter_growth");
+  });
+
+  it("maps attendance (Student Community) and reflection (Live Classes)", () => {
+    const att = attendanceActivity({ sessionId: "se1", className: "Robotics Mon", count: 8, occurredAt: T(11), offeringId: "o1" });
+    expect(att.roomKey).toBe("student_community");
+    expect(att.title).toBe("Attendance recorded for Robotics Mon");
+    expect(att.description).toBe("8 students marked");
+
+    const refl = reflectionActivity({ id: "r1", className: "Robotics Mon", actorName: "Sam", createdAt: T(10), offeringId: "o1" });
+    expect(refl.roomKey).toBe("live_classes");
+    expect(refl.title).toBe("Session reflection submitted on Robotics Mon");
+    expect(refl.href).toBe("/admin/classes/o1");
   });
 });
 

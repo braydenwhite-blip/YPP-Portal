@@ -203,6 +203,51 @@ export function snapshotActivity(s: SnapshotSource): RoomActivityItem {
   };
 }
 
+export type AttendanceActivitySource = {
+  sessionId: string;
+  className: string | null;
+  count: number;
+  occurredAt: Date;
+  offeringId: string;
+};
+
+export function attendanceActivity(a: AttendanceActivitySource): RoomActivityItem {
+  const where = a.className ? ` for ${a.className}` : "";
+  return {
+    id: `attendance:${a.sessionId}`,
+    roomKey: "student_community",
+    entityType: "CLASS_OFFERING",
+    entityId: a.offeringId,
+    title: `Attendance recorded${where}`,
+    description: `${a.count} student${a.count === 1 ? "" : "s"} marked`,
+    occurredAt: a.occurredAt,
+    href: "/chapter/students",
+  };
+}
+
+export type ReflectionActivitySource = {
+  id: string;
+  className: string | null;
+  actorName: string | null;
+  createdAt: Date;
+  offeringId: string;
+};
+
+export function reflectionActivity(r: ReflectionActivitySource): RoomActivityItem {
+  const where = r.className ? ` on ${r.className}` : "";
+  return {
+    id: `reflection:${r.id}`,
+    roomKey: "live_classes",
+    entityType: "CLASS_OFFERING",
+    entityId: r.offeringId,
+    title: `Session reflection submitted${where}`,
+    description: r.actorName ? `by ${r.actorName}` : undefined,
+    occurredAt: r.createdAt,
+    href: `/admin/classes/${r.offeringId}`,
+    actorName: r.actorName,
+  };
+}
+
 // --- Merge / sort / group ---------------------------------------------------
 
 export const ROOM_ACTIVITY_LIMIT = 12;

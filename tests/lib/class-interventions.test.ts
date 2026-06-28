@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deriveClassInterventions, summarizeInterventions } from "@/lib/classes/interventions";
+import { deriveClassInterventions, summarizeInterventions, interventionRoom } from "@/lib/classes/interventions";
 import type { ClassRuntimeInput, ClassRuntimeSession } from "@/lib/classes/class-runtime";
 import type { StudentSignalInput, AttendanceMarkStatus } from "@/lib/classes/student-signals";
 
@@ -111,6 +111,20 @@ describe("deriveClassInterventions", () => {
 
   it("returns nothing for a cancelled class", () => {
     expect(deriveClassInterventions(liveKlass({ status: "CANCELLED" }), NO_STUDENTS, NOW)).toHaveLength(0);
+  });
+});
+
+describe("interventionRoom", () => {
+  const base = { key: "k", classId: "c1", className: "Robotics", severity: "warning" as const, title: "t", evidence: "e", owner: "chapter_president" as const, recommendedAction: "a", href: "/x" };
+  it("routes student-experience triggers to Student Community", () => {
+    for (const trigger of ["RETENTION_RISK", "NEGATIVE_FEEDBACK", "NO_FEEDBACK_AFTER_FIRST_SESSION", "STUDENT_NEVER_ATTENDED", "STUDENT_MISSED_TWO"]) {
+      expect(interventionRoom({ ...base, trigger })).toBe("student_community");
+    }
+  });
+  it("routes operational triggers to Live Classes", () => {
+    for (const trigger of ["ATTENDANCE_MISSING", "ATTENDANCE_BELOW_THRESHOLD", "INSTRUCTOR_NEEDS_HELP", "ENROLLMENT_BELOW_TARGET", "REFLECTION_NOT_SUBMITTED"]) {
+      expect(interventionRoom({ ...base, trigger })).toBe("live_classes");
+    }
   });
 });
 

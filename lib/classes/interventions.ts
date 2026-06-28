@@ -255,6 +255,20 @@ export type InterventionSummary = {
   byTrigger: Record<string, number>;
 };
 
+/** Triggers that belong to the Student Community room (vs. Live Classes ops). */
+const STUDENT_TRIGGERS = new Set([
+  "RETENTION_RISK",
+  "NEGATIVE_FEEDBACK",
+  "NO_FEEDBACK_AFTER_FIRST_SESSION",
+  "STUDENT_NEVER_ATTENDED",
+  "STUDENT_MISSED_TWO",
+]);
+
+/** Which operating room an intervention surfaces in. */
+export function interventionRoom(iv: ClassIntervention): "live_classes" | "student_community" {
+  return STUDENT_TRIGGERS.has(iv.trigger) ? "student_community" : "live_classes";
+}
+
 export function summarizeInterventions(interventions: ClassIntervention[]): InterventionSummary {
   const byTrigger: Record<string, number> = {};
   let critical = 0;
