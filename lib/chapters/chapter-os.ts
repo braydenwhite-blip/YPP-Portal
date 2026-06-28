@@ -14,7 +14,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { withPrismaFallback } from "@/lib/prisma-guard";
-import { weekStartFor, weekKey } from "@/lib/weekly-meetings/week";
+import { weekStartFor, weekKey, addWeeks } from "@/lib/weekly-meetings/week";
 import { loadChapterOperatingSystem, type ChapterOperatingSystem } from "@/lib/chapters/operating-system";
 import {
   summarizeStudentCommunity,
@@ -26,10 +26,14 @@ import {
 } from "@/lib/chapters/student-community";
 import {
   summarizeChapterGrowth,
+  rowToKpiSnapshotInput,
+  pickPreviousSnapshot,
   type KpiSnapshotInput,
   type ChapterGrowthSummary,
+  type PreviousSnapshotSource,
 } from "@/lib/chapters/chapter-growth";
-import { buildChapterRooms, collectNeedsYou, type ChapterRoom, type RoomNeedsItem } from "@/lib/chapters/rooms";
+import { buildChapterRooms, collectNeedsYou, type RoomNeedsItem } from "@/lib/chapters/rooms";
+import { withRoomActions, type ChapterRoomWithActions } from "@/lib/chapters/room-actions";
 
 export type ChapterOS = NonNullable<Awaited<ReturnType<typeof loadChapterOS>>>;
 
@@ -37,11 +41,13 @@ export type ChapterOSModel = {
   chapter: ChapterOperatingSystem["chapter"];
   weekNumber: number;
   focus: string;
-  rooms: ChapterRoom[];
+  rooms: ChapterRoomWithActions[];
   needsYou: RoomNeedsItem[];
   blockerSummary: ChapterOperatingSystem["blockerSummary"];
   studentCommunity: StudentCommunitySummary;
   growth: ChapterGrowthSummary;
+  /** Whether the growth baseline is a saved snapshot, reconstructed, or absent. */
+  growthBaselineSource: PreviousSnapshotSource;
   impact: ChapterOperatingSystem["impact"];
 };
 
@@ -209,16 +215,35 @@ export async function loadChapterOS(chapterId: string): Promise<ChapterOSModel |
     },
   };
 
-  // Prior week is only meaningful once the chapter has a full week of history.
-  let previous: KpiSnapshotInput | null = null;
+  // Prior-week baseline. Prefer a REAL persisted weekly snapshot (saved via the
+  // "Save snapshot" room action); fall back to timestamp reconstruction; else
+  // none (brand-new chapter). Only meaningful once there is a full week behind us.
+  let reconstructed: KpiSnapshotInput | null = null;
+  let persisted: KpiSnapshotInput | null = null;
   if (os.weekNumber > 1) {
-    previous = await buildPreviousSnapshot(chapterId, cutoff, current);
+    const prevWeekStart = addWeeks(cutoff, -1);
+    [reconstructed, persisted] = await Promise.all([
+      buildPreviousSnapshot(chapterId, cutoff, current),
+      withPrismaFallback(
+        "chapter-os:prev-weekly-snapshot",
+        async () => {
+          const row = await prisma.chapterWeeklyKpiSnapshot.findUnique({
+            where: { chapterId_weekStart: { chapterId, weekStart: prevWeekStart } },
+          });
+          return row
+            ? rowToKpiSnapshotInput(row, { weekStartISO: weekKey(prevWeekStart), weekNumber: os.weekNumber - 1 })
+            : null;
+        },
+        null
+      ),
+    ]);
   }
+  const baseline = pickPreviousSnapshot(persisted, reconstructed);
 
-  const growth = summarizeChapterGrowth({ weekNumber: os.weekNumber, current, previous });
+  const growth = summarizeChapterGrowth({ weekNumber: os.weekNumber, current, previous: baseline.previous });
 
-  // --- Compose six rooms ---------------------------------------------------
-  const rooms = buildChapterRooms(os, studentCommunity, growth);
+  // --- Compose six rooms (+ contextual room actions) -----------------------
+  const rooms = withRoomActions(buildChapterRooms(os, studentCommunity, growth));
   const needsYou = collectNeedsYou(rooms);
 
   return {
@@ -230,6 +255,7 @@ export async function loadChapterOS(chapterId: string): Promise<ChapterOSModel |
     blockerSummary: os.blockerSummary,
     studentCommunity,
     growth,
+    growthBaselineSource: baseline.source,
     impact: os.impact,
   };
 }

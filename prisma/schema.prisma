@@ -829,9 +829,10 @@ model Chapter {
   workflowAssignmentRules      WorkflowAssignmentRule[]
 
   // Governance & Risk
-  kpiSnapshots      ChapterKpiSnapshot[]
-  opsRules          OpsRule[]
-  opsRuleViolations OpsRuleViolation[]
+  kpiSnapshots       ChapterKpiSnapshot[]
+  weeklyKpiSnapshots ChapterWeeklyKpiSnapshot[]
+  opsRules           OpsRule[]
+  opsRuleViolations  OpsRuleViolation[]
 
   // Instructor assignment system
   workshopOpportunities WorkshopOpportunity[] @relation("WorkshopOpportunityChapter")
@@ -10717,6 +10718,45 @@ model ChapterKpiSnapshot {
   @@index([chapterId])
   @@index([snapshotDate])
   @@index([isAtRisk])
+}
+
+/// Weekly Chapter OS growth snapshot — the Chapter Growth room's persistent
+/// week-over-week baseline (Monday 00:00 UTC reporting week). DISTINCT from the
+/// daily, governance-owned `ChapterKpiSnapshot`: this one stores the Chapter
+/// President playbook KPIs and is written explicitly via the "Save snapshot"
+/// room action. The loader prefers a persisted prior-week row and falls back to
+/// timestamp reconstruction when none exists.
+model ChapterWeeklyKpiSnapshot {
+  id        String  @id @default(cuid())
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  /// Monday 00:00 UTC of the reporting week this snapshot summarizes.
+  weekStart DateTime
+
+  // Playbook KPIs (counts unless noted).
+  partnersContacted        Int @default(0)
+  partnerMeetingsScheduled Int @default(0)
+  confirmedPartners        Int @default(0)
+  instructorApplicants     Int @default(0)
+  interviewsCompleted      Int @default(0)
+  instructorsHired         Int @default(0)
+  curriculaSubmitted       Int @default(0)
+  curriculaApproved        Int @default(0)
+  classesCreated           Int @default(0)
+  classesReady             Int @default(0)
+  studentsEnrolled         Int @default(0)
+  attendancePercent        Int @default(0) // whole 0–100
+  retentionPercent         Int @default(0) // whole 0–100
+  feedbackCount            Int @default(0)
+  unresolvedBlockers       Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([chapterId, weekStart])
+  @@index([chapterId])
+  @@index([weekStart])
 }
 
 /// SLA and operational rule definitions for escalation workflows

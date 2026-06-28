@@ -11,10 +11,12 @@
 
 import { useState, useTransition } from "react";
 
-import { CardV2, StatusBadge, ButtonLink, EmptyStateV2, cn, type StatusTone } from "@/components/ui-v2";
+import { CardV2, StatusBadge, ButtonLink, Button, EmptyStateV2, cn, type StatusTone } from "@/components/ui-v2";
 import { trackChapterBlocker } from "@/lib/chapters/operating-actions";
+import { saveChapterKpiSnapshot, logPartnerFollowUp } from "@/lib/chapters/room-action-server";
 import type { ChapterOSModel } from "@/lib/chapters/chapter-os";
 import type { ChapterRoom, RoomAccent, RoomNeedsItem, RoomTone, RoomStat } from "@/lib/chapters/rooms";
+import type { ChapterRoomWithActions, ChapterRoomAction } from "@/lib/chapters/room-actions";
 
 // Decorative per-room identity, mapped to the frozen design-system palette
 // (a small dot + a faint header wash). Tone-neutral — status is carried by the
@@ -192,10 +194,12 @@ function TrackButton({ chapterId, need }: { chapterId: string; need: RoomNeedsIt
 // Room panel
 // ---------------------------------------------------------------------------
 
-function RoomPanel({ chapterId, room }: { chapterId: string; room: ChapterRoom }) {
+function RoomPanel({ chapterId, room }: { chapterId: string; room: ChapterRoomWithActions }) {
   const [open, setOpen] = useState(false);
   const accent = ACCENT[room.accent];
   const topNeeds = room.needs.slice(0, open ? room.needs.length : 2);
+  const primary = room.actions.find((a) => a.primary) ?? room.actions[0] ?? null;
+  const secondary = room.actions.filter((a) => a !== primary);
 
   return (
     <CardV2 as="section" padding="none" className="flex flex-col overflow-hidden">
@@ -221,16 +225,25 @@ function RoomPanel({ chapterId, room }: { chapterId: string; room: ChapterRoom }
         {/* Stats */}
         <RoomStats stats={room.stats} />
 
-        {/* Recommended next action */}
+        {/* Primary action + recommendation */}
         <div className="rounded-[10px] border border-brand-100 bg-brand-50/60 px-3.5 py-3">
           <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-brand-700">Recommended next</p>
           <p className="m-0 mt-1 text-[13.5px] font-semibold text-ink">{room.nextAction.text}</p>
-          <div className="mt-2">
-            <ButtonLink href={room.nextAction.href} variant="secondary" size="sm">
-              {room.nextAction.cta}
-            </ButtonLink>
-          </div>
+          {primary && (
+            <div className="mt-2.5">
+              <ActionControl chapterId={chapterId} action={primary} prominent />
+            </div>
+          )}
         </div>
+
+        {/* Secondary room actions */}
+        {secondary.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {secondary.map((a) => (
+              <ActionControl key={a.roomActionId} chapterId={chapterId} action={a} />
+            ))}
+          </div>
+        )}
 
         {/* Needs You (per room) */}
         {room.needs.length > 0 && (
@@ -243,7 +256,7 @@ function RoomPanel({ chapterId, room }: { chapterId: string; room: ChapterRoom }
             </div>
             <ul className="m-0 flex list-none flex-col gap-2 p-0">
               {topNeeds.map((n) => (
-                <NeedRow key={n.key} chapterId={chapterId} need={n} />
+                <NeedLine key={n.key} need={n} />
               ))}
             </ul>
           </div>
@@ -267,6 +280,248 @@ function RoomPanel({ chapterId, room }: { chapterId: string; room: ChapterRoom }
         </div>
       </div>
     </CardV2>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Room actions (link · track · mutate) — small, Action-Tracker-style chips with
+// inline success/error/disabled state. No modals; the one text-entry action
+// (log follow-up) expands a compact inline composer.
+// ---------------------------------------------------------------------------
+
+/** A compact in-room need line (no Track here — Track lives in the action bar). */
+function NeedLine({ need }: { need: RoomNeedsItem }) {
+  return (
+    <li className="flex flex-wrap items-start justify-between gap-2 rounded-[9px] border border-line-card bg-surface-soft px-3 py-2">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <StatusBadge tone={SEVERITY_TONE[need.severity]} withDot>
+            {SEVERITY_LABEL[need.severity]}
+          </StatusBadge>
+          <span className="truncate text-[13px] font-semibold text-ink">{need.title}</span>
+        </div>
+        {need.detail && <p className="m-0 mt-0.5 text-[12px] text-ink-muted">{need.detail}</p>}
+      </div>
+      <a href={need.href} className="shrink-0 text-[12.5px] font-semibold text-brand-700 hover:underline">
+        Resolve →
+      </a>
+    </li>
+  );
+}
+
+function ActionControl({
+  chapterId,
+  action,
+  prominent,
+}: {
+  chapterId: string;
+  action: ChapterRoomAction;
+  prominent?: boolean;
+}) {
+  if (action.disabledReason) return <DisabledChip action={action} />;
+  if (action.kind === "link") return <LinkChip action={action} prominent={prominent} />;
+  if (action.kind === "track") return <TrackChip chapterId={chapterId} action={action} />;
+  if (action.mutation?.handler === "saveKpiSnapshot")
+    return <SaveSnapshotChip chapterId={chapterId} action={action} prominent={prominent} />;
+  if (action.mutation?.handler === "logPartnerFollowUp")
+    return <LogFollowUpControl chapterId={chapterId} action={action} prominent={prominent} />;
+  return <LinkChip action={action} prominent={prominent} />;
+}
+
+const CHIP =
+  "inline-flex items-center gap-1.5 rounded-[8px] border px-3 py-1.5 text-[12.5px] font-semibold transition-colors";
+
+function LinkChip({ action, prominent }: { action: ChapterRoomAction; prominent?: boolean }) {
+  if (prominent) {
+    return (
+      <ButtonLink href={action.href} variant="primary" size="sm">
+        {action.label}
+      </ButtonLink>
+    );
+  }
+  return (
+    <a
+      href={action.href}
+      title={action.description}
+      className={cn(CHIP, "border-line-card bg-surface text-ink-muted hover:border-brand-400 hover:text-brand-700")}
+    >
+      {action.label} →
+    </a>
+  );
+}
+
+function DisabledChip({ action }: { action: ChapterRoomAction }) {
+  return (
+    <span
+      title={action.disabledReason}
+      className={cn(CHIP, "cursor-not-allowed border-dashed border-line-card bg-surface-soft text-ink-faint")}
+    >
+      {action.label}
+      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-ink-faint">Soon</span>
+    </span>
+  );
+}
+
+function TrackChip({ chapterId, action }: { chapterId: string; action: ChapterRoomAction }) {
+  const [pending, startTransition] = useTransition();
+  const [state, setState] = useState<"idle" | "done" | "error">("idle");
+  if (!action.track) return null;
+  if (state === "done") return <span className="text-[12px] font-semibold text-complete-700">Tracked ✓</span>;
+  const t = action.track;
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      title={action.description}
+      onClick={() =>
+        startTransition(async () => {
+          const res = await trackChapterBlocker({
+            chapterId,
+            blockerKey: t.blockerKey,
+            title: t.title,
+            detail: t.detail,
+            severity: t.severity,
+            entityType: t.entityType,
+            entityId: t.entityId,
+          });
+          setState(res.ok ? "done" : "error");
+        })
+      }
+      className={cn(CHIP, "border-line-card bg-surface text-ink-muted hover:border-brand-400 hover:text-brand-700 disabled:opacity-50")}
+    >
+      {pending ? "…" : state === "error" ? "Retry Track" : "Track"}
+    </button>
+  );
+}
+
+function SaveSnapshotChip({
+  chapterId,
+  action,
+  prominent,
+}: {
+  chapterId: string;
+  action: ChapterRoomAction;
+  prominent?: boolean;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [state, setState] = useState<{ kind: "idle" | "done" | "error"; msg?: string }>({ kind: "idle" });
+
+  function run() {
+    startTransition(async () => {
+      const res = await saveChapterKpiSnapshot({ chapterId });
+      if (res.ok) setState({ kind: "done", msg: `Saved ✓ (week of ${res.weekStartISO})` });
+      else setState({ kind: "error", msg: res.error });
+    });
+  }
+
+  if (state.kind === "done") return <span className="text-[12.5px] font-semibold text-complete-700">{state.msg}</span>;
+
+  return (
+    <div className="flex items-center gap-2">
+      {prominent ? (
+        <Button variant="primary" size="sm" onClick={run} loading={pending} disabled={pending}>
+          {action.label}
+        </Button>
+      ) : (
+        <button
+          type="button"
+          disabled={pending}
+          title={action.description}
+          onClick={run}
+          className={cn(CHIP, "border-line-card bg-surface text-ink-muted hover:border-brand-400 hover:text-brand-700 disabled:opacity-50")}
+        >
+          {pending ? "Saving…" : action.label}
+        </button>
+      )}
+      {state.kind === "error" && <span className="text-[12px] font-semibold text-blocked-700">{state.msg}</span>}
+    </div>
+  );
+}
+
+function LogFollowUpControl({
+  chapterId,
+  action,
+  prominent,
+}: {
+  chapterId: string;
+  action: ChapterRoomAction;
+  prominent?: boolean;
+}) {
+  const [composing, setComposing] = useState(false);
+  const [note, setNote] = useState("");
+  const [date, setDate] = useState("");
+  const [pending, startTransition] = useTransition();
+  const [state, setState] = useState<{ kind: "idle" | "done" | "error"; msg?: string }>({ kind: "idle" });
+  const partnerId = action.mutation?.entityId;
+
+  if (state.kind === "done") return <span className="text-[12.5px] font-semibold text-complete-700">Logged ✓</span>;
+
+  if (!composing) {
+    return prominent ? (
+      <Button variant="primary" size="sm" onClick={() => setComposing(true)}>
+        {action.label}
+      </Button>
+    ) : (
+      <button
+        type="button"
+        title={action.description}
+        onClick={() => setComposing(true)}
+        className={cn(CHIP, "border-line-card bg-surface text-ink-muted hover:border-brand-400 hover:text-brand-700")}
+      >
+        {action.label}
+      </button>
+    );
+  }
+
+  function submit() {
+    if (!partnerId || !note.trim()) return;
+    startTransition(async () => {
+      const res = await logPartnerFollowUp({
+        chapterId,
+        partnerId,
+        note: note.trim(),
+        nextFollowUpAt: date ? new Date(date).toISOString() : undefined,
+      });
+      if (res.ok) setState({ kind: "done" });
+      else setState({ kind: "error", msg: res.error });
+    });
+  }
+
+  return (
+    <div className="w-full rounded-[10px] border border-line-card bg-surface-soft p-3">
+      <p className="m-0 mb-1.5 text-[12px] font-bold text-ink">Log follow-up</p>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+        placeholder="What happened? (logs a touchpoint and stamps last contact)"
+        className="w-full resize-y rounded-[8px] border border-line-card bg-surface px-2.5 py-1.5 text-[12.5px] text-ink outline-none focus:border-brand-400"
+      />
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-[11.5px] text-ink-muted">
+          Next follow-up
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="rounded-[7px] border border-line-card bg-surface px-2 py-1 text-[12px] text-ink outline-none focus:border-brand-400"
+          />
+        </label>
+        <div className="ml-auto flex items-center gap-2">
+          {state.kind === "error" && <span className="text-[12px] font-semibold text-blocked-700">{state.msg}</span>}
+          <button
+            type="button"
+            onClick={() => setComposing(false)}
+            className="text-[12px] font-semibold text-ink-muted hover:text-ink"
+          >
+            Cancel
+          </button>
+          <Button variant="primary" size="sm" onClick={submit} loading={pending} disabled={pending || !note.trim()}>
+            Save
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

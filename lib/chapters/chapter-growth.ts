@@ -75,6 +75,97 @@ export function buildChapterKpiSnapshot(input: KpiSnapshotInput): KpiSnapshot {
 }
 
 // ---------------------------------------------------------------------------
+// Persistence mapping (ChapterWeeklyKpiSnapshot) — pure, so the row shape is
+// unit-testable without a Prisma client. The DB column for feedback is
+// `feedbackCount`; the KPI key is `feedbackCollected` — mapped here.
+// ---------------------------------------------------------------------------
+
+/** The numeric columns of a persisted ChapterWeeklyKpiSnapshot row. */
+export type WeeklyKpiRow = {
+  partnersContacted: number;
+  partnerMeetingsScheduled: number;
+  confirmedPartners: number;
+  instructorApplicants: number;
+  interviewsCompleted: number;
+  instructorsHired: number;
+  curriculaSubmitted: number;
+  curriculaApproved: number;
+  classesCreated: number;
+  classesReady: number;
+  studentsEnrolled: number;
+  attendancePercent: number;
+  retentionPercent: number;
+  feedbackCount: number;
+  unresolvedBlockers: number;
+};
+
+/** Map a KPI snapshot → the persisted row's numeric columns (for upsert). */
+export function kpiSnapshotToRow(snapshot: KpiSnapshot): WeeklyKpiRow {
+  const v = snapshot.values;
+  return {
+    partnersContacted: v.partnersContacted,
+    partnerMeetingsScheduled: v.partnerMeetingsScheduled,
+    confirmedPartners: v.confirmedPartners,
+    instructorApplicants: v.instructorApplicants,
+    interviewsCompleted: v.interviewsCompleted,
+    instructorsHired: v.instructorsHired,
+    curriculaSubmitted: v.curriculaSubmitted,
+    curriculaApproved: v.curriculaApproved,
+    classesCreated: v.classesCreated,
+    classesReady: v.classesReady,
+    studentsEnrolled: v.studentsEnrolled,
+    attendancePercent: v.attendancePercent,
+    retentionPercent: v.retentionPercent,
+    feedbackCount: v.feedbackCollected,
+    unresolvedBlockers: v.unresolvedBlockers,
+  };
+}
+
+/** Map a persisted row → a KPI snapshot input (for use as a prior-week baseline). */
+export function rowToKpiSnapshotInput(
+  row: WeeklyKpiRow,
+  meta: { weekStartISO: string; weekNumber: number }
+): KpiSnapshotInput {
+  return {
+    weekStartISO: meta.weekStartISO,
+    weekNumber: meta.weekNumber,
+    values: {
+      partnersContacted: row.partnersContacted,
+      partnerMeetingsScheduled: row.partnerMeetingsScheduled,
+      confirmedPartners: row.confirmedPartners,
+      instructorApplicants: row.instructorApplicants,
+      interviewsCompleted: row.interviewsCompleted,
+      instructorsHired: row.instructorsHired,
+      curriculaSubmitted: row.curriculaSubmitted,
+      curriculaApproved: row.curriculaApproved,
+      classesCreated: row.classesCreated,
+      classesReady: row.classesReady,
+      studentsEnrolled: row.studentsEnrolled,
+      attendancePercent: row.attendancePercent,
+      retentionPercent: row.retentionPercent,
+      feedbackCollected: row.feedbackCount,
+      unresolvedBlockers: row.unresolvedBlockers,
+    },
+  };
+}
+
+export type PreviousSnapshotSource = "persisted" | "reconstructed" | "none";
+
+/**
+ * Choose the prior-week baseline: prefer a real persisted snapshot, fall back to
+ * timestamp reconstruction, else none. Honest provenance so the UI can say
+ * whether the trend is measured or estimated.
+ */
+export function pickPreviousSnapshot(
+  persisted: KpiSnapshotInput | null,
+  reconstructed: KpiSnapshotInput | null
+): { previous: KpiSnapshotInput | null; source: PreviousSnapshotSource } {
+  if (persisted) return { previous: persisted, source: "persisted" };
+  if (reconstructed) return { previous: reconstructed, source: "reconstructed" };
+  return { previous: null, source: "none" };
+}
+
+// ---------------------------------------------------------------------------
 // Week-over-week comparison
 // ---------------------------------------------------------------------------
 
