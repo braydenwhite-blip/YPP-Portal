@@ -2,17 +2,18 @@ import { redirect } from "next/navigation";
 
 import { PageHeaderV2, EmptyStateV2, ButtonLink, StatusBadge } from "@/components/ui-v2";
 import { getChapterViewerContext, requireChapterManager } from "@/lib/chapters/access";
-import { loadChapterOperatingSystem } from "@/lib/chapters/operating-system";
+import { loadChapterOS } from "@/lib/chapters/chapter-os";
 import { chapterLifecycleTone } from "@/lib/chapters/lifecycle";
-import { ChapterOperatingSystemTabs } from "@/components/chapters/chapter-operating-system";
+import { ChapterOSRooms } from "@/components/chapters/chapter-os-rooms";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Chapter Operating System — Pathways Portal" };
 
-// The deep pipeline surface that runs Weeks 1–10 of the Chapter President
-// playbook: the four lanes, per-class launch readiness, and impact-meeting prep,
-// all computed from real data. The calm `/chapter` home links here for the work;
-// this is where a CP actually moves the chapter forward.
+// The six-room Chapter Operating System: Partner Network, Teaching Organization,
+// Learning Program, Live Classes, Student Community, and Chapter Growth — each
+// an evidence-backed operating room with a status, Needs You, a compact evidence
+// table, and one recommended next action. All computed from real data. The calm
+// `/chapter` home links here; this is where a CP actually runs the chapter.
 export default async function ChapterOperatingPage() {
   const ctx = await getChapterViewerContext();
 
@@ -45,19 +46,19 @@ export default async function ChapterOperatingPage() {
   // Authorize: the Chapter President of this chapter (or national leadership).
   await requireChapterManager(ctx.ledChapterId);
 
-  const os = await loadChapterOperatingSystem(ctx.ledChapterId);
-  if (!os) redirect("/chapter");
+  const model = await loadChapterOS(ctx.ledChapterId);
+  if (!model) redirect("/chapter");
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-8">
       <PageHeaderV2
-        eyebrow={`Week ${os.weekNumber} · ${os.impact.focus}`}
+        eyebrow={`Week ${model.weekNumber} · ${model.focus}`}
         title="Chapter Operating System"
-        subtitle="What needs you across partners, instructors, curriculum, and classes — plus this week's impact-meeting prep."
+        subtitle="Six operating rooms — partners, instructors, curriculum, classes, students, and growth — each backed by real evidence."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={chapterLifecycleTone(os.chapter.lifecycleStatus)}>
-              {os.chapter.lifecycleLabel}
+            <StatusBadge tone={chapterLifecycleTone(model.chapter.lifecycleStatus)}>
+              {model.chapter.lifecycleLabel}
             </StatusBadge>
             <ButtonLink href="/chapter" variant="secondary" size="sm">
               Chapter home
@@ -66,7 +67,7 @@ export default async function ChapterOperatingPage() {
         }
       />
       <div className="mt-6">
-        <ChapterOperatingSystemTabs os={os} />
+        <ChapterOSRooms model={model} />
       </div>
     </div>
   );
