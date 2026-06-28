@@ -122,6 +122,8 @@ export function isLeadershipPreviewAccessFromAuth(
     | null
     | undefined;
 
+  if (record?.leadershipPreviewAccess === true) return true;
+
   return canAccessLeadershipPreviewStack({
     email,
     name: record?.name,

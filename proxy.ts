@@ -273,11 +273,22 @@ export async function proxy(request: NextRequest) {
     if (!isAllowedPublicPath(pathname)) {
       const previewCookie = request.cookies.get(PREVIEW_COOKIE_NAME)?.value ?? null;
       const previewValid = previewCookie ? await verifyPreviewToken(previewCookie) : false;
-      const metadata = user?.user_metadata as
-        | { roles?: string[]; primaryRole?: string }
-        | undefined;
-      const leadershipAccess = isLeadershipPreviewAccessFromAuth(metadata, user?.email);
-      const officerBypass = isOfficerTierFromAuth(metadata?.roles, metadata?.primaryRole);
+      // Legacy local-password sign-in (roster emails) has no Supabase JWT — use
+      // the legacy session email/roles so nav and middleware agree.
+      const authEmail = user?.email ?? legacySession?.email ?? null;
+      const metadata =
+        user?.user_metadata ??
+        (legacySession
+          ? {
+              roles: legacySession.roles,
+              primaryRole: legacySession.primaryRole ?? undefined,
+            }
+          : undefined);
+      const leadershipAccess = isLeadershipPreviewAccessFromAuth(metadata, authEmail);
+      const officerBypass = isOfficerTierFromAuth(
+        (metadata as { roles?: string[] } | undefined)?.roles,
+        (metadata as { primaryRole?: string } | undefined)?.primaryRole,
+      );
       if (!previewValid) {
         if (isLeadershipPreviewPath(pathname) && !leadershipAccess) {
           const dest = request.nextUrl.clone();

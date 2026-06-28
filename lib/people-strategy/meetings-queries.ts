@@ -30,9 +30,9 @@ import type { EffectiveFollowUpStatus, EffectiveMeetingStatus } from "./meetings
 /** Display labels for the NEW Meeting model's types. */
 const NEW_MEETING_TYPE_LABELS: Record<string, string> = {
   OFFICER: "Officer Meeting",
-  WEEKLY_TEAM_IMPACT: "Weekly Team Impact",
-  CHAPTER_IMPACT: "Chapter Impact Presentations",
-  GENERIC: "Meeting",
+  WEEKLY_TEAM_IMPACT: "Operations Impact",
+  CHAPTER_IMPACT: "Chapter Impact",
+  GENERIC: "General Meeting",
 };
 
 const PERSON_SELECT = { id: true, name: true, email: true } as const;

@@ -10,9 +10,9 @@ const TABS: Array<{ key: MeetingsHubView; label: string; href: string }> = [
   { key: "all", label: "All", href: "/meetings?view=all" },
 ];
 
-export function MeetingsHubTabs({ active }: { active: MeetingsHubView }) {
+export function MeetingsHubTabs({ active, count }: { active: MeetingsHubView; count?: number }) {
   return (
-    <nav aria-label="Meetings views" className="flex flex-wrap gap-2">
+    <nav aria-label="Meetings views" className="seg-tabs w-fit">
       {TABS.map((tab) => {
         const isActive = tab.key === active;
         return (
@@ -20,14 +20,10 @@ export function MeetingsHubTabs({ active }: { active: MeetingsHubView }) {
             key={tab.key}
             href={tab.href}
             aria-current={isActive ? "page" : undefined}
-            className={cn(
-              "inline-flex h-9 items-center rounded-full border px-4 text-[13px] font-semibold no-underline transition-colors",
-              isActive
-                ? "border-brand-600 bg-brand-600 text-white shadow-sm"
-                : "border-line-soft bg-surface text-brand-800 hover:border-brand-300 hover:bg-brand-50"
-            )}
+            className={cn("seg-tab no-underline", isActive && "active")}
           >
             {tab.label}
+            {isActive && count !== undefined ? ` (${count})` : ""}
           </Link>
         );
       })}

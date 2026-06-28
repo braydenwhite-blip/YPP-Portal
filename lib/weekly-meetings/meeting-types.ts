@@ -14,9 +14,9 @@ export type MeetingStatus = "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELL
 
 export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   OFFICER: "Officer Meeting",
-  WEEKLY_TEAM_IMPACT: "Weekly Team Impact",
-  CHAPTER_IMPACT: "Chapter Impact Presentations",
-  GENERIC: "Meeting",
+  WEEKLY_TEAM_IMPACT: "Operations Impact",
+  CHAPTER_IMPACT: "Chapter Impact",
+  GENERIC: "General Meeting",
 };
 
 export type PersonDTO = { id: string; name: string } | null;
@@ -102,7 +102,24 @@ export type MeetingDetail = {
   purpose: string | null;
   scheduledISO: string;
   notes: string | null;
+  agenda: string | null;
+  proposal: string | null;
+  nextSteps: string | null;
+  outcome: string | null;
   facilitator: PersonDTO;
+  partner: { id: string; name: string } | null;
+  /** Partner CRM fields when a partner is linked to this meeting. */
+  partnerDetail: {
+    id: string;
+    name: string;
+    type: string | null;
+    statusLabel: string;
+    contactName: string | null;
+    contactTitle: string | null;
+    nextFollowUpAt: string | null;
+    relationshipLeadName: string | null;
+    notes: string | null;
+  } | null;
   scopeLabel: string | null;
   weekKey: string | null;
   weekLabel: string | null;

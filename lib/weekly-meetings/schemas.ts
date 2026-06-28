@@ -98,6 +98,9 @@ export const CreateMeetingSchema = z
     chapterId: Id.optional(),
     weekStart: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     facilitatorId: Id.optional(),
+    partnerId: Id.optional(),
+    proposal: OptionalLong,
+    attendeeIds: z.array(Id).max(200).optional(),
   })
   .superRefine((val, ctx) => {
     if (val.type === "CHAPTER_IMPACT" && !val.chapterId) {
@@ -111,7 +114,12 @@ export const UpdateMeetingSchema = z.object({
   purpose: OptionalLong,
   scheduledAt: z.string().trim().optional(),
   facilitatorId: Id.nullable().optional(),
+  partnerId: Id.nullable().optional(),
   notes: OptionalLong,
+  agenda: OptionalLong,
+  proposal: OptionalLong,
+  nextSteps: OptionalLong,
+  outcome: OptionalLong,
 });
 
 export const SetMeetingStatusSchema = z.object({
@@ -125,6 +133,11 @@ export const AttendeeSchema = z.object({
   meetingId: Id,
   userId: Id,
   isOptional: z.boolean().optional(),
+});
+
+export const BulkAttendeesSchema = z.object({
+  meetingId: Id,
+  userIds: z.array(Id).max(200),
 });
 export const SetPresentSchema = z.object({ attendeeId: Id, present: z.boolean() });
 export const AttendeeIdSchema = z.object({ attendeeId: Id });

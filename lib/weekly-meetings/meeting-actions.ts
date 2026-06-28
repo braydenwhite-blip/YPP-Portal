@@ -16,6 +16,7 @@ import {
   AddTopicSchema,
   AttendeeIdSchema,
   AttendeeSchema,
+  BulkAttendeesSchema,
   CreateMeetingSchema,
   DecisionIdSchema,
   FollowUpIdSchema,
@@ -46,18 +47,28 @@ export async function createMeeting(input: unknown) {
   const weekStart = isImpact
     ? (parseWeekKey(data.weekStart) ?? weekStartFor(scheduledAt))
     : null;
+  const attendeeIds = [...new Set(data.attendeeIds ?? [])];
 
   const meeting = await prisma.meeting.create({
     data: {
       type: data.type,
       title: data.title,
       purpose: data.purpose,
+      proposal: data.proposal,
       scheduledAt,
       facilitatorId: data.facilitatorId ?? viewer.id,
+      partnerId: data.partnerId ?? null,
       teamId: data.type === "WEEKLY_TEAM_IMPACT" ? (data.teamId ?? null) : null,
       chapterId: data.type === "CHAPTER_IMPACT" ? (data.chapterId ?? null) : null,
       weekStart,
       createdById: viewer.id,
+      ...(attendeeIds.length
+        ? {
+            attendees: {
+              create: attendeeIds.map((userId) => ({ userId })),
+            },
+          }
+        : {}),
     },
   });
   revalidatePath("/meetings");
@@ -73,7 +84,12 @@ export async function updateMeeting(input: unknown) {
       ...(data.title !== undefined ? { title: data.title } : {}),
       ...(data.purpose !== undefined ? { purpose: data.purpose } : {}),
       ...(data.notes !== undefined ? { notes: data.notes } : {}),
+      ...(data.agenda !== undefined ? { agenda: data.agenda } : {}),
+      ...(data.proposal !== undefined ? { proposal: data.proposal } : {}),
+      ...(data.nextSteps !== undefined ? { nextSteps: data.nextSteps } : {}),
+      ...(data.outcome !== undefined ? { outcome: data.outcome } : {}),
       ...(data.facilitatorId !== undefined ? { facilitatorId: data.facilitatorId } : {}),
+      ...(data.partnerId !== undefined ? { partnerId: data.partnerId } : {}),
       ...(data.scheduledAt
         ? (() => {
             const d = new Date(data.scheduledAt);
@@ -112,6 +128,31 @@ export async function addAttendee(input: unknown) {
     update: {},
   });
   revalidateMeeting(data.meetingId);
+  return { ok: true };
+}
+
+/** Set the full invite list — adds missing people and removes extras. */
+export async function syncMeetingAttendees(input: unknown) {
+  await requireMeetingRunner();
+  const { meetingId, userIds } = BulkAttendeesSchema.parse(input);
+  const existing = await prisma.meetingAttendee.findMany({
+    where: { meetingId },
+    select: { userId: true },
+  });
+  const existingIds = new Set(existing.map((e) => e.userId));
+  const nextIds = new Set(userIds);
+  const toAdd = userIds.filter((id) => !existingIds.has(id));
+  const toRemove = [...existingIds].filter((id) => !nextIds.has(id));
+
+  await prisma.$transaction([
+    ...toAdd.map((userId) =>
+      prisma.meetingAttendee.create({ data: { meetingId, userId } }),
+    ),
+    ...(toRemove.length
+      ? [prisma.meetingAttendee.deleteMany({ where: { meetingId, userId: { in: toRemove } } })]
+      : []),
+  ]);
+  revalidateMeeting(meetingId);
   return { ok: true };
 }
 

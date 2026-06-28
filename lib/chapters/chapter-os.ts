@@ -12,6 +12,8 @@
 
 import "server-only";
 
+import type { ClassEnrollmentStatus } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import { weekStartFor, weekKey, addWeeks } from "@/lib/weekly-meetings/week";
@@ -77,7 +79,7 @@ export type ChapterOSModel = {
   blockers: ChapterOperatingSystem["blockers"];
 };
 
-const ACTIVE_ENROLLMENT = ["ENROLLED", "COMPLETED"];
+const ACTIVE_ENROLLMENT: ClassEnrollmentStatus[] = ["ENROLLED", "COMPLETED"];
 
 /**
  * Load the full six-room Chapter OS for a chapter. Caller authorizes

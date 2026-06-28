@@ -21,7 +21,7 @@ function fmtDateTime(iso: string): string {
   });
 }
 
-/** One meeting row inside a type group. The whole row links into the runner. */
+/** One meeting row — title, when, type, status. */
 export function MeetingHubCard({
   meeting,
   isLast = false,
@@ -29,60 +29,39 @@ export function MeetingHubCard({
   meeting: MeetingListItem;
   isLast?: boolean;
 }) {
-  const { counts } = meeting;
-  const metaChips: Array<{ key: string; icon: string; label: string }> = [];
-  if (counts.attendees > 0)
-    metaChips.push({ key: "attendees", icon: "👥", label: `${counts.attendees}` });
-  if (counts.topics > 0)
-    metaChips.push({ key: "topics", icon: "🗂", label: `${counts.topics}` });
-  if (counts.decisions > 0)
-    metaChips.push({ key: "decisions", icon: "✅", label: `${counts.decisions}` });
-  if (counts.followUps > 0)
-    metaChips.push({ key: "followUps", icon: "↪", label: `${counts.followUps}` });
-
   return (
     <Link
       href={`/meetings/${meeting.id}`}
       aria-label={`Open meeting: ${meeting.title}`}
       className={cn(
         "block cursor-pointer px-4 py-3.5 no-underline transition-colors hover:bg-surface-soft focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-400",
-        !isLast && "border-b border-line-soft"
+        !isLast && "border-b border-line-soft",
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <span className="min-w-0 text-[14px] font-bold leading-snug text-ink">
-          {meeting.title}
-        </span>
+        <div className="min-w-0">
+          <p className="m-0 text-[15px] font-bold leading-snug text-ink">{meeting.title}</p>
+          <p className="m-0 mt-1 text-[13px] text-ink-muted">{fmtDateTime(meeting.scheduledISO)}</p>
+        </div>
         <StatusBadge tone={STATUS_TONE[meeting.status]}>
           {meeting.status.replace("_", " ")}
         </StatusBadge>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-ink-muted">
-        <span className="inline-flex items-center gap-1.5 font-semibold text-ink">
-          <span aria-hidden className="text-[11px]">
-            🕑
-          </span>
-          {fmtDateTime(meeting.scheduledISO)}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <span className="rounded-full bg-surface-soft px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-muted">
+          {meeting.typeLabel}
         </span>
-        {meeting.scopeLabel ? <span>{meeting.scopeLabel}</span> : null}
+        {meeting.scopeLabel ? (
+          <span className="text-[12px] text-ink-muted">{meeting.scopeLabel}</span>
+        ) : null}
         {meeting.facilitator ? (
-          <span>
-            Owner: <span className="font-medium text-ink">{meeting.facilitator.name}</span>
-          </span>
+          <span className="text-[12px] text-ink-muted">{meeting.facilitator.name}</span>
+        ) : null}
+        {meeting.counts.attendees > 0 ? (
+          <span className="text-[12px] text-ink-muted">{meeting.counts.attendees} invited</span>
         ) : null}
       </div>
-
-      {metaChips.length > 0 ? (
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[#b4b4c6]">
-          {metaChips.map((chip) => (
-            <span key={chip.key} className="inline-flex items-center gap-1">
-              <span aria-hidden>{chip.icon}</span>
-              {chip.label}
-            </span>
-          ))}
-        </div>
-      ) : null}
     </Link>
   );
 }

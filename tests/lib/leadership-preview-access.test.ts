@@ -123,4 +123,22 @@ describe("leadership-preview-access", () => {
       ),
     ).toBe(true);
   });
+
+  it("honors the synced leadershipPreviewAccess flag", () => {
+    expect(
+      isLeadershipPreviewAccessFromAuth(
+        { leadershipPreviewAccess: true, roles: ["STUDENT"], primaryRole: "STUDENT" },
+        "student@example.com",
+      ),
+    ).toBe(true);
+  });
+
+  it("allows legacy local-password sessions via roster email", () => {
+    expect(
+      isLeadershipPreviewAccessFromAuth(
+        { roles: ["ADMIN"], primaryRole: "ADMIN" },
+        "anthea.zamir@youthpassionproject.org",
+      ),
+    ).toBe(true);
+  });
 });

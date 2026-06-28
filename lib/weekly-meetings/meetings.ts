@@ -10,6 +10,7 @@ import { getMeetingActionLinks } from "@/lib/people-strategy/action-queries";
 import { loadChapterMeetingContext } from "@/lib/chapters/meeting-context";
 import { buildImpactCoverage, type ImpactCoverage } from "./impact-link";
 import { weekKey, weekLabel } from "./week";
+import { partnerPlaybookStatus, PARTNER_PLAYBOOK_STATUS_LABELS } from "@/lib/chapters/pipeline";
 import {
   MEETING_TYPE_LABELS,
   type MeetingType,
@@ -188,6 +189,20 @@ export async function getMeeting(id: string): Promise<MeetingDetail | null> {
     where: { id },
     include: {
       facilitator: { select: { id: true, name: true } },
+      partner: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          partnerType: true,
+          stage: true,
+          contactName: true,
+          contactTitle: true,
+          nextFollowUpAt: true,
+          notes: true,
+          relationshipLead: { select: { name: true } },
+        },
+      },
       team: { select: { name: true } },
       chapter: { select: { name: true } },
       attendees: {
@@ -254,7 +269,26 @@ export async function getMeeting(id: string): Promise<MeetingDetail | null> {
     purpose: m.purpose,
     scheduledISO: m.scheduledAt.toISOString(),
     notes: m.notes,
+    agenda: m.agenda,
+    proposal: m.proposal,
+    nextSteps: m.nextSteps,
+    outcome: m.outcome,
     facilitator: m.facilitator ? { id: m.facilitator.id, name: m.facilitator.name } : null,
+    partner: m.partner ? { id: m.partner.id, name: m.partner.name } : null,
+    partnerDetail: m.partner
+      ? {
+          id: m.partner.id,
+          name: m.partner.name,
+          type: m.partner.partnerType ?? m.partner.type,
+          statusLabel:
+            PARTNER_PLAYBOOK_STATUS_LABELS[partnerPlaybookStatus(m.partner.stage)],
+          contactName: m.partner.contactName,
+          contactTitle: m.partner.contactTitle,
+          nextFollowUpAt: m.partner.nextFollowUpAt?.toISOString() ?? null,
+          relationshipLeadName: m.partner.relationshipLead?.name ?? null,
+          notes: m.partner.notes,
+        }
+      : null,
     scopeLabel: scopeLabelFor(m),
     weekKey: m.weekStart ? weekKey(m.weekStart) : null,
     weekLabel: m.weekStart ? weekLabel(m.weekStart) : null,

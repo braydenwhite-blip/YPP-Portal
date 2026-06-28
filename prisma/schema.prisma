@@ -7580,6 +7580,7 @@ model Partner {
   chapterId               String?
   chapter                 Chapter?                 @relation(fields: [chapterId], references: [id], onDelete: SetNull)
   classOfferings          ClassOffering[]          @relation("PartnerClassOfferings")
+  meetings                Meeting[]                @relation("MeetingPartner")
   /// Leadership Roles & Contributions — partner-relationship-lead contributions
   /// pointing at this partner (ENABLE_LEADERSHIP_ROLES).
   leadershipContributions LeadershipContribution[] @relation("LeadershipContributionPartner")
@@ -13679,9 +13680,21 @@ model Meeting {
   endAt       DateTime?
   location    String?
   notes       String?       @db.Text
+  /// Prep outline — what we plan to cover (distinct from structured agenda items).
+  agenda      String?       @db.Text
+  /// Pre-read / proposal material shared before the meeting.
+  proposal    String?       @db.Text
+  /// Meeting-level next steps (summary after the session).
+  nextSteps   String?       @db.Text
+  /// What was decided / achieved — the honest meeting outcome.
+  outcome     String?       @db.Text
 
   facilitatorId String?
   facilitator   User?   @relation("MeetingFacilitator", fields: [facilitatorId], references: [id], onDelete: SetNull)
+
+  /// Optional partner this meeting is about (camp outreach, partnership review, …).
+  partnerId String?
+  partner   Partner? @relation("MeetingPartner", fields: [partnerId], references: [id], onDelete: SetNull)
 
   /// Set for CHAPTER_IMPACT meetings; scopes the presentations table.
   chapterId String?
@@ -13723,6 +13736,7 @@ model Meeting {
   @@index([chapterId])
   @@index([teamId])
   @@index([facilitatorId])
+  @@index([partnerId])
   @@index([weekStart])
   @@index([sourceType, sourceId])
 }
