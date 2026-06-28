@@ -34,6 +34,17 @@ import {
 } from "@/lib/chapters/chapter-growth";
 import { buildChapterRooms, collectNeedsYou, type RoomNeedsItem } from "@/lib/chapters/rooms";
 import { withRoomActions, type ChapterRoomWithActions } from "@/lib/chapters/room-actions";
+import {
+  buildRoomActivity,
+  partnerNoteActivity,
+  curriculumReviewActivity,
+  classTimelineActivity,
+  applicantTimelineActivity,
+  enrollmentActivity,
+  classFeedbackActivity,
+  snapshotActivity,
+  type RoomActivityItem,
+} from "@/lib/chapters/room-activity";
 
 export type ChapterOS = NonNullable<Awaited<ReturnType<typeof loadChapterOS>>>;
 
@@ -43,6 +54,9 @@ export type ChapterOSModel = {
   focus: string;
   rooms: ChapterRoomWithActions[];
   needsYou: RoomNeedsItem[];
+  recentActivity: RoomActivityItem[];
+  /** Server render time (ISO) — the stable reference for relative timestamps. */
+  nowISO: string;
   blockerSummary: ChapterOperatingSystem["blockerSummary"];
   studentCommunity: StudentCommunitySummary;
   growth: ChapterGrowthSummary;
@@ -249,6 +263,7 @@ export async function loadChapterOS(
     isLeadership: opts.isLeadership,
   });
   const needsYou = collectNeedsYou(rooms);
+  const recentActivity = await loadRecentActivity(chapterId);
 
   return {
     chapter: os.chapter,
@@ -256,6 +271,8 @@ export async function loadChapterOS(
     focus: os.impact.focus,
     rooms,
     needsYou,
+    recentActivity,
+    nowISO: now.toISOString(),
     blockerSummary: os.blockerSummary,
     studentCommunity,
     growth,
@@ -367,4 +384,131 @@ async function buildPreviousSnapshot(
       unresolvedBlockers: current.values.unresolvedBlockers ?? 0,
     },
   };
+}
+
+/**
+ * Unified recent-activity feed for the six rooms, read from existing timestamped
+ * sources of truth — partner touchpoints, the two-stage curriculum audit trail,
+ * class + applicant timeline events, enrollments, feedback, and KPI snapshots.
+ * Nothing is fabricated. Each source is fault-tolerant (a missing table or a
+ * transient error contributes nothing rather than failing the page), then all
+ * are merged newest-first by the pure room-activity model.
+ */
+async function loadRecentActivity(chapterId: string): Promise<RoomActivityItem[]> {
+  const PER_SOURCE = 8;
+  const [partnerNotes, curriculumEvents, classEvents, applicantEvents, enrollments, feedback, snapshots] =
+    await Promise.all([
+      withPrismaFallback(
+        "chapter-os:activity-partner-notes",
+        () =>
+          prisma.partnerNote.findMany({
+            where: { partner: { chapterId } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: { id: true, kind: true, body: true, createdAt: true, partnerId: true, partner: { select: { name: true } } },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-curriculum",
+        () =>
+          prisma.curriculumReviewEvent.findMany({
+            where: { approval: { classTemplate: { chapterId } } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: {
+              id: true,
+              decision: true,
+              actorName: true,
+              createdAt: true,
+              approval: { select: { classTemplateId: true, classTemplate: { select: { title: true } } } },
+            },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-class-timeline",
+        () =>
+          prisma.classOfferingTimelineEvent.findMany({
+            where: { offering: { chapterId } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: { id: true, kind: true, summary: true, createdAt: true, offeringId: true, offering: { select: { title: true } } },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-applicant-timeline",
+        () =>
+          prisma.instructorApplicationTimelineEvent.findMany({
+            where: { application: { applicant: { chapterId } } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: { id: true, kind: true, createdAt: true, applicationId: true, application: { select: { applicant: { select: { name: true } } } } },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-enrollments",
+        () =>
+          prisma.classEnrollment.findMany({
+            where: { offering: { chapterId } },
+            orderBy: { enrolledAt: "desc" },
+            take: PER_SOURCE,
+            select: { id: true, enrolledAt: true, student: { select: { name: true } }, offering: { select: { title: true } } },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-feedback",
+        () =>
+          prisma.classFeedback.findMany({
+            where: { offering: { chapterId } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: { id: true, rating: true, createdAt: true, offering: { select: { title: true } } },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-snapshots",
+        () =>
+          prisma.chapterWeeklyKpiSnapshot.findMany({
+            where: { chapterId },
+            orderBy: { createdAt: "desc" },
+            take: 4,
+            select: { id: true, weekStart: true, createdAt: true },
+          }),
+        []
+      ),
+    ]);
+
+  const items: RoomActivityItem[] = [
+    ...partnerNotes.map((n) =>
+      partnerNoteActivity({ id: n.id, kind: n.kind, body: n.body, createdAt: n.createdAt, partnerId: n.partnerId, partnerName: n.partner?.name ?? null })
+    ),
+    ...curriculumEvents.map((e) =>
+      curriculumReviewActivity({
+        id: e.id,
+        decision: e.decision,
+        actorName: e.actorName,
+        createdAt: e.createdAt,
+        classTemplateId: e.approval?.classTemplateId ?? "",
+        classTemplateTitle: e.approval?.classTemplate?.title ?? null,
+      })
+    ),
+    ...classEvents.map((t) =>
+      classTimelineActivity({ id: t.id, kind: t.kind, summary: t.summary, createdAt: t.createdAt, offeringId: t.offeringId, offeringTitle: t.offering?.title ?? null })
+    ),
+    ...applicantEvents.map((t) =>
+      applicantTimelineActivity({ id: t.id, kind: t.kind, createdAt: t.createdAt, applicationId: t.applicationId, applicantName: t.application?.applicant?.name ?? null })
+    ),
+    ...enrollments.map((e) =>
+      enrollmentActivity({ id: e.id, enrolledAt: e.enrolledAt, studentName: e.student?.name ?? null, className: e.offering?.title ?? null })
+    ),
+    ...feedback.map((f) => classFeedbackActivity({ id: f.id, rating: f.rating, createdAt: f.createdAt, className: f.offering?.title ?? null })),
+    ...snapshots.map((s) => snapshotActivity({ id: s.id, weekStart: s.weekStart, createdAt: s.createdAt })),
+  ];
+
+  return buildRoomActivity(items);
 }
