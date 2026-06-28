@@ -90,16 +90,20 @@ export function isRepeatRecommendation(
 export const GOOD_FEEDBACK_MIN_RATING = 4;
 export const GOOD_FEEDBACK_MIN_RESPONSES = 2;
 
-export function isGoodFeedback(input: {
-  avgRating: number;
-  responseCount: number;
-  flagged?: boolean;
-}): boolean {
+export function isGoodFeedback(
+  input: {
+    avgRating: number;
+    responseCount: number;
+    flagged?: boolean;
+  },
+  // Optional admin-configured thresholds (portal settings). Defaults preserve the
+  // original behaviour, so existing callers and tests are unaffected.
+  opts?: { minRating?: number; minResponses?: number }
+): boolean {
   if (input.flagged) return true;
-  return (
-    input.responseCount >= GOOD_FEEDBACK_MIN_RESPONSES &&
-    input.avgRating >= GOOD_FEEDBACK_MIN_RATING
-  );
+  const minResponses = opts?.minResponses ?? GOOD_FEEDBACK_MIN_RESPONSES;
+  const minRating = opts?.minRating ?? GOOD_FEEDBACK_MIN_RATING;
+  return input.responseCount >= minResponses && input.avgRating >= minRating;
 }
 
 // ── Rating aggregation ───────────────────────────────────────────────────────

@@ -1579,6 +1579,9 @@ model User {
   chairAssignmentsAsNew      ChairAssignmentHistory[] @relation("ChairAssignmentNew")
   chairAssignmentChangesMade ChairAssignmentHistory[] @relation("ChairAssignmentChangedBy")
 
+  // Admin-editable portal settings this user last updated
+  portalSettingsUpdated PortalSetting[] @relation("PortalSettingUpdatedBy")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -7078,6 +7081,20 @@ model ParentSettings {
   reportFrequency ReportFrequency @default(MONTHLY)
 
   updatedAt DateTime @updatedAt
+}
+
+/// Admin-editable business-rule numbers/thresholds. One row per top-level module
+/// group (key = "chapterOs", "peopleStrategy", …) holding a JSON blob of that
+/// group's values. The typed shape + validation live in lib/portal-settings
+/// (defaults.ts + zod), so this table never needs an ALTER as new keys are added.
+/// Any unset key falls back to the hardcoded default — zero behaviour change until
+/// an admin saves an override.
+model PortalSetting {
+  key         String   @id
+  value       Json
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+  updatedBy   User?    @relation("PortalSettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 }
 
 enum ReportFrequency {

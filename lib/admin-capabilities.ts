@@ -49,6 +49,7 @@ const ADMIN_SEGMENT_DOMAIN: Record<string, AdminRouteDomain> = {
   "feature-gates": "BASELINE",
   governance: "BASELINE",
   "role-matrix": "BASELINE",
+  settings: "BASELINE",
   staff: "BASELINE",
 
   // Hiring domain.

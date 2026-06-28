@@ -8,8 +8,31 @@
 // sees their pipeline in the words the playbook uses — without a parallel model.
 
 import { relativeAgo } from "./format";
+import { PORTAL_SETTINGS_DEFAULTS } from "../portal-settings/defaults";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Tunable thresholds for the pipeline health rules. The pure functions below take
+ * these as an optional trailing argument that defaults to
+ * `DEFAULT_PIPELINE_THRESHOLDS`, so existing callers and unit tests are
+ * unaffected; the Chapter OS loader passes admin-configured values resolved from
+ * portal settings. Defaults are sourced from `PORTAL_SETTINGS_DEFAULTS` so there
+ * is a single source of truth.
+ */
+export type PipelineThresholds = {
+  partnerFollowUpOverdueStuckDays: number;
+  partnerSinceContactStuckDays: number;
+  instructorDecisionSlaHours: number;
+  instructorTriageStaleDays: number;
+};
+
+export const DEFAULT_PIPELINE_THRESHOLDS: PipelineThresholds = {
+  partnerFollowUpOverdueStuckDays: PORTAL_SETTINGS_DEFAULTS.chapterOs.partnerFollowUpOverdueStuckDays,
+  partnerSinceContactStuckDays: PORTAL_SETTINGS_DEFAULTS.chapterOs.partnerSinceContactStuckDays,
+  instructorDecisionSlaHours: PORTAL_SETTINGS_DEFAULTS.chapterOs.instructorDecisionSlaHours,
+  instructorTriageStaleDays: PORTAL_SETTINGS_DEFAULTS.chapterOs.instructorTriageStaleDays,
+};
 
 /** Whole business days (Mon–Fri) elapsed from `from` to `to`. Negative ⇒ 0. */
 export function businessDaysBetween(from: Date, to: Date): number {
@@ -252,7 +275,11 @@ export function partnerNextStep(p: PartnerRecord): string {
 }
 
 /** Derive a partner's health (On Track / At Risk / Stuck) from contact cadence. */
-export function partnerEvidenceStatus(p: PartnerRecord, now: Date): EvidenceStatus {
+export function partnerEvidenceStatus(
+  p: PartnerRecord,
+  now: Date,
+  t: PipelineThresholds = DEFAULT_PIPELINE_THRESHOLDS
+): EvidenceStatus {
   if (partnerIsConfirmed(p.stage)) {
     return partnerLogistics(p).complete ? "on_track" : "at_risk";
   }
@@ -261,10 +288,10 @@ export function partnerEvidenceStatus(p: PartnerRecord, now: Date): EvidenceStat
     p.nextFollowUpAt && p.nextFollowUpAt.getTime() < now.getTime()
       ? Math.floor((now.getTime() - p.nextFollowUpAt.getTime()) / DAY_MS)
       : 0;
-  if (fuOverdueDays >= 7) return "stuck";
+  if (fuOverdueDays >= t.partnerFollowUpOverdueStuckDays) return "stuck";
   const sinceContact =
     p.lastContactedAt != null ? Math.floor((now.getTime() - p.lastContactedAt.getTime()) / DAY_MS) : null;
-  if (sinceContact != null && sinceContact >= 14) return "stuck";
+  if (sinceContact != null && sinceContact >= t.partnerSinceContactStuckDays) return "stuck";
   // Claims progress past the first touch but no contact was ever logged.
   if (sinceContact == null && partnerPlaybookStatus(p.stage) !== "researching") return "stuck";
   if (partnerFollowUp(p, now).needed || !p.hasRelationshipLead) return "at_risk";
@@ -272,7 +299,11 @@ export function partnerEvidenceStatus(p: PartnerRecord, now: Date): EvidenceStat
 }
 
 /** Build one partner evidence row. */
-export function partnerEvidenceRow(p: PartnerRecord, now: Date): PartnerEvidenceRow {
+export function partnerEvidenceRow(
+  p: PartnerRecord,
+  now: Date,
+  t: PipelineThresholds = DEFAULT_PIPELINE_THRESHOLDS
+): PartnerEvidenceRow {
   return {
     id: p.id,
     name: p.name,
@@ -280,7 +311,7 @@ export function partnerEvidenceRow(p: PartnerRecord, now: Date): PartnerEvidence
     stage: PARTNER_PLAYBOOK_STATUS_LABELS[partnerPlaybookStatus(p.stage)],
     lastContact: relativeAgo(p.lastContactedAt, now),
     nextStep: partnerNextStep(p),
-    status: partnerEvidenceStatus(p, now),
+    status: partnerEvidenceStatus(p, now, t),
   };
 }
 
@@ -391,12 +422,16 @@ export function instructorInterviewReadyNotScheduled(a: InstructorApplicantRecor
 }
 
 /** Interview happened but the decision is missing past the 12-hour SLA. */
-export function instructorDecisionOverdue(a: InstructorApplicantRecord, now: Date): boolean {
+export function instructorDecisionOverdue(
+  a: InstructorApplicantRecord,
+  now: Date,
+  t: PipelineThresholds = DEFAULT_PIPELINE_THRESHOLDS
+): boolean {
   if (instructorPlaybookStage(a.status) !== "interview_complete") return false;
   if (a.hasDecision) return false;
   const completedAt = a.interviewCompletedAt ?? a.updatedAt;
   const hours = (now.getTime() - completedAt.getTime()) / (60 * 60 * 1000);
-  return hours >= INSTRUCTOR_DECISION_SLA_HOURS;
+  return hours >= t.instructorDecisionSlaHours;
 }
 
 /** Pre-interview materials the playbook requires before an interview is run. */
@@ -424,7 +459,8 @@ export type InstructorPipelineSummary = {
 /** Roll a set of applicants into the chapter instructor-pipeline headline. */
 export function summarizeInstructorPipeline(
   applicants: InstructorApplicantRecord[],
-  now: Date
+  now: Date,
+  t: PipelineThresholds = DEFAULT_PIPELINE_THRESHOLDS
 ): InstructorPipelineSummary {
   const byStage = Object.fromEntries(
     INSTRUCTOR_PLAYBOOK_STAGES.map((s) => [s, 0])
@@ -439,7 +475,7 @@ export function summarizeInstructorPipeline(
     byStage[instructorPlaybookStage(a.status)] += 1;
     if (instructorWaitingForReview(a)) waitingForReview += 1;
     if (instructorInterviewReadyNotScheduled(a)) interviewReadyNotScheduled += 1;
-    if (instructorDecisionOverdue(a, now)) decisionOverdue += 1;
+    if (instructorDecisionOverdue(a, now, t)) decisionOverdue += 1;
     if (instructorMissingMaterials(a)) missingMaterials += 1;
   }
 
@@ -473,11 +509,15 @@ export type InstructorEvidenceRow = {
 };
 
 /** Derive an applicant's health (Strong / On Track / At Risk) deterministically. */
-export function instructorEvidenceStatus(a: InstructorApplicantRecord, now: Date): InstructorEvidenceStatus {
-  if (instructorDecisionOverdue(a, now) || instructorMissingMaterials(a)) return "at_risk";
+export function instructorEvidenceStatus(
+  a: InstructorApplicantRecord,
+  now: Date,
+  t: PipelineThresholds = DEFAULT_PIPELINE_THRESHOLDS
+): InstructorEvidenceStatus {
+  if (instructorDecisionOverdue(a, now, t) || instructorMissingMaterials(a)) return "at_risk";
   if (instructorWaitingForReview(a)) {
     const days = Math.floor((now.getTime() - a.appliedAt.getTime()) / DAY_MS);
-    if (days >= 7) return "at_risk"; // stalled in triage
+    if (days >= t.instructorTriageStaleDays) return "at_risk"; // stalled in triage
   }
   if (instructorPlaybookStage(a.status) === "hired") return "strong";
   // Well-prepared and supported: has both planning docs and a reviewer assigned.
@@ -486,14 +526,18 @@ export function instructorEvidenceStatus(a: InstructorApplicantRecord, now: Date
 }
 
 /** Build one instructor evidence row. */
-export function instructorEvidenceRow(a: InstructorApplicantRecord, now: Date): InstructorEvidenceRow {
+export function instructorEvidenceRow(
+  a: InstructorApplicantRecord,
+  now: Date,
+  t: PipelineThresholds = DEFAULT_PIPELINE_THRESHOLDS
+): InstructorEvidenceRow {
   return {
     id: a.id,
     name: a.name,
     stage: INSTRUCTOR_PLAYBOOK_STAGE_LABELS[instructorPlaybookStage(a.status)],
     applied: relativeAgo(a.appliedAt, now),
     specialties: a.specialties && a.specialties.trim() ? a.specialties.trim() : "—",
-    status: instructorEvidenceStatus(a, now),
+    status: instructorEvidenceStatus(a, now, t),
   };
 }
 

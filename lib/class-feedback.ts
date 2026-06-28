@@ -10,6 +10,7 @@ import {
   summarizeFeedback,
   type ClassFeedbackSummary,
 } from "@/lib/class-feedback-constants";
+import { getPortalSettings } from "@/lib/portal-settings";
 
 /**
  * Class feedback + completion-outcome layer — server-side read helpers.
@@ -329,6 +330,7 @@ type ReportOffering = {
 export async function getClassFeedbackReport(
   offerings: ReportOffering[],
 ): Promise<ClassFeedbackReport> {
+  const { classFeedback } = await getPortalSettings();
   const [feedbackRows, outcomeRows] = await Promise.all([
     safeRead(
       () =>
@@ -426,11 +428,17 @@ export async function getClassFeedbackReport(
 
   const goodFeedback = [...rows, ...flaggedOnly]
     .filter((row) =>
-      isGoodFeedback({
-        avgRating: row.avgRating,
-        responseCount: row.responseCount,
-        flagged: row.gotGoodFeedbackFlag,
-      }),
+      isGoodFeedback(
+        {
+          avgRating: row.avgRating,
+          responseCount: row.responseCount,
+          flagged: row.gotGoodFeedbackFlag,
+        },
+        {
+          minRating: classFeedback.goodFeedbackMinRating,
+          minResponses: classFeedback.goodFeedbackMinResponses,
+        },
+      ),
     )
     .sort(
       (a, b) =>

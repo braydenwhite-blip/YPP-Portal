@@ -24,25 +24,22 @@ import {
   partnerPipelineRecommendation,
   instructorEvidenceRow,
   instructorPipelineRecommendation,
-  type PartnerRecord,
-  type PartnerEvidenceRow,
-  type InstructorApplicantRecord,
-  type InstructorEvidenceRow,
   summarizeInstructorPipeline,
+  type PipelineThresholds,
+  type PartnerRecord,
+  type InstructorApplicantRecord,
 } from "@/lib/chapters/pipeline";
 import {
   summarizeCurriculumReview,
   curriculumEvidenceRow,
   curriculumReviewRecommendation,
   type CurriculumRecord,
-  type CurriculumEvidenceRow,
 } from "@/lib/chapters/curriculum-review";
 import {
   summarizeLaunchReadiness,
   classEvidenceRow,
   launchReadinessRecommendation,
   type ClassLaunchRecord,
-  type ClassEvidenceRow,
 } from "@/lib/chapters/launch-readiness";
 import {
   buildImpactMeetingPrep,
@@ -53,6 +50,7 @@ import {
   summarizeBlockers,
   type ChapterBlocker,
 } from "@/lib/chapters/needs-attention-rules";
+import { getPortalSettings } from "@/lib/portal-settings";
 
 export type ChapterOperatingSystem = NonNullable<
   Awaited<ReturnType<typeof loadChapterOperatingSystem>>
@@ -73,18 +71,22 @@ export type DeliberableRecommendation = { text: string; cta: string; href: strin
 
 const CONFIRMED_RIA = ["INSTRUCTOR_CONFIRMED", "CHAPTER_CONFIRMED", "FULLY_CONFIRMED"];
 const NOT_READY_RIA = ["NEEDS_TRAINING", "NEEDS_CURRICULUM"];
-/** Max evidence rows shown per Deliberable table (full counts stay in stats). */
-const DELIBERABLE_ROW_CAP = 8;
 
-// Evidence rows surface most-urgent-first; lower rank = more urgent.
-const PARTNER_STATUS_ORDER: Record<PartnerEvidenceRow["status"], number> = { stuck: 0, at_risk: 1, on_track: 2 };
-const INSTRUCTOR_STATUS_ORDER: Record<InstructorEvidenceRow["status"], number> = { at_risk: 0, on_track: 1, strong: 2 };
-const CURRICULUM_STATUS_ORDER: Record<CurriculumEvidenceRow["status"], number> = { needs_feedback: 0, not_started: 1, ready: 2 };
-const CLASS_STATUS_ORDER: Record<ClassEvidenceRow["status"], number> = { not_ready: 0, needs_attention: 1, ready: 2 };
+// Evidence row ordering (most-urgent-first) and the per-table row cap are now
+// admin-configurable via portal settings (lib/portal-settings). The defaults
+// match the previous hardcoded values, so behaviour is unchanged until edited.
 
 /** Count evidence rows in a given status (for the KPI stat cards). */
 function countStatus<T extends { status: string }>(rows: T[], status: T["status"]): number {
   return rows.filter((r) => r.status === status).length;
+}
+
+/**
+ * Rank an evidence row by its status using an admin-configurable order map.
+ * Unknown / unmapped statuses sort last (defensive: an admin could omit a key).
+ */
+function rankByStatus(order: Record<string, number>, status: string): number {
+  return order[status] ?? 99;
 }
 
 /**
@@ -94,6 +96,13 @@ function countStatus<T extends { status: string }>(rows: T[], status: T["status"
  */
 export async function loadChapterOperatingSystem(chapterId: string) {
   const now = new Date();
+
+  // Admin-configurable thresholds, status orderings, and row cap (falls back to
+  // defaults when unset — see lib/portal-settings).
+  const settings = await getPortalSettings();
+  const chapterOs = settings.chapterOs;
+  const t: PipelineThresholds = chapterOs;
+  const rowCap = chapterOs.deliberableRowCap;
 
   const chapter = await prisma.chapter.findUnique({
     where: { id: chapterId },
@@ -304,7 +313,7 @@ export async function loadChapterOperatingSystem(chapterId: string) {
   // --- Summaries (pure) ------------------------------------------------------
 
   const partnerSummary = summarizePartnerPipeline(partners, now);
-  const instructorSummary = summarizeInstructorPipeline(applicants, now);
+  const instructorSummary = summarizeInstructorPipeline(applicants, now, t);
   const curriculumSummary = summarizeCurriculumReview(curricula, now);
   const launchSummary = summarizeLaunchReadiness(classes, now);
 
@@ -376,27 +385,43 @@ export async function loadChapterOperatingSystem(chapterId: string) {
   // one recommended next step. Rows are sorted most-urgent-first and capped for
   // display; the stat cards still reflect the full set.
 
-  const partnerRows = partners
+  const partnerEvidence = partners
     .filter((p) => partnerPlaybookStatus(p.stage) !== "closed")
-    .map((p) => partnerEvidenceRow(p, now))
-    .sort((a, b) => PARTNER_STATUS_ORDER[a.status] - PARTNER_STATUS_ORDER[b.status]);
+    .map((p) => partnerEvidenceRow(p, now, t))
+    .sort(
+      (a, b) =>
+        rankByStatus(chapterOs.partnerStatusOrder, a.status) -
+        rankByStatus(chapterOs.partnerStatusOrder, b.status)
+    );
   const instructorRows = applicants
     .filter((a) => a.status !== "REJECTED" && a.status !== "WITHDRAWN")
-    .map((a) => instructorEvidenceRow(a, now))
-    .sort((a, b) => INSTRUCTOR_STATUS_ORDER[a.status] - INSTRUCTOR_STATUS_ORDER[b.status]);
-  const curriculumRows = curricula
+    .map((a) => instructorEvidenceRow(a, now, t))
+    .sort(
+      (a, b) =>
+        rankByStatus(chapterOs.instructorStatusOrder, a.status) -
+        rankByStatus(chapterOs.instructorStatusOrder, b.status)
+    );
+  const curriculumEvidence = curricula
     .map((c) => curriculumEvidenceRow(c))
-    .sort((a, b) => CURRICULUM_STATUS_ORDER[a.status] - CURRICULUM_STATUS_ORDER[b.status]);
+    .sort(
+      (a, b) =>
+        rankByStatus(chapterOs.curriculumStatusOrder, a.status) -
+        rankByStatus(chapterOs.curriculumStatusOrder, b.status)
+    );
   const classEvidence = classes
     .map((c) => classEvidenceRow(c, now))
-    .sort((a, b) => CLASS_STATUS_ORDER[a.status] - CLASS_STATUS_ORDER[b.status]);
+    .sort(
+      (a, b) =>
+        rankByStatus(chapterOs.classStatusOrder, a.status) -
+        rankByStatus(chapterOs.classStatusOrder, b.status)
+    );
 
   const partnerActive = partners.filter((p) => partnerIsInFlight(p.stage)).length;
   const partnerStats: DeliberableStat[] = [
     { label: "Active", value: partnerActive, hint: "In pipeline", tone: "neutral" },
     { label: "Confirmed", value: partnerSummary.confirmed, hint: "Locked in", tone: "positive" },
-    { label: "At Risk", value: countStatus(partnerRows, "at_risk"), hint: "May slip", tone: "warning" },
-    { label: "Stuck", value: countStatus(partnerRows, "stuck"), hint: "Need attention", tone: "danger" },
+    { label: "At Risk", value: countStatus(partnerEvidence, "at_risk"), hint: "May slip", tone: "warning" },
+    { label: "Stuck", value: countStatus(partnerEvidence, "stuck"), hint: "Need attention", tone: "danger" },
   ];
   const instructorStats: DeliberableStat[] = [
     { label: "Applicants", value: instructorSummary.applicants, hint: "This cycle", tone: "neutral" },
@@ -423,10 +448,10 @@ export async function loadChapterOperatingSystem(chapterId: string) {
       title: "Partner Pipeline",
       question: "What is the status of our partner pipeline, and where should we focus?",
       stats: partnerStats,
-      rows: partnerRows.slice(0, DELIBERABLE_ROW_CAP),
-      totalRows: partnerRows.length,
+      rows: partnerEvidence.slice(0, rowCap),
+      totalRows: partnerEvidence.length,
       recommendation: {
-        text: partnerPipelineRecommendation(partnerRows),
+        text: partnerPipelineRecommendation(partnerEvidence),
         cta: "Go to Partner Pipeline",
         href: "/partners",
       } satisfies DeliberableRecommendation,
@@ -436,7 +461,7 @@ export async function loadChapterOperatingSystem(chapterId: string) {
       title: "Instructor Pipeline",
       question: "Do we have enough qualified instructors to support our classes?",
       stats: instructorStats,
-      rows: instructorRows.slice(0, DELIBERABLE_ROW_CAP),
+      rows: instructorRows.slice(0, rowCap),
       totalRows: instructorRows.length,
       recommendation: {
         text: instructorPipelineRecommendation(instructorSummary),
@@ -449,8 +474,8 @@ export async function loadChapterOperatingSystem(chapterId: string) {
       title: "Curriculum Readiness",
       question: "Is our curriculum ready for the classes we plan to launch?",
       stats: curriculumStats,
-      rows: curriculumRows.slice(0, DELIBERABLE_ROW_CAP),
-      totalRows: curriculumRows.length,
+      rows: curriculumEvidence.slice(0, rowCap),
+      totalRows: curriculumEvidence.length,
       recommendation: {
         text: curriculumReviewRecommendation(curriculumSummary),
         cta: "Go to Curriculum",
@@ -462,7 +487,7 @@ export async function loadChapterOperatingSystem(chapterId: string) {
       title: "Class Launch Readiness",
       question: "Which classes are ready to launch, and which need attention?",
       stats: classStats,
-      rows: classEvidence.slice(0, DELIBERABLE_ROW_CAP),
+      rows: classEvidence.slice(0, rowCap),
       totalRows: classEvidence.length,
       recommendation: {
         text: launchReadinessRecommendation(launchSummary),

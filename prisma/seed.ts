@@ -15,6 +15,7 @@ import {
 import bcrypt from "bcryptjs";
 import { resetQaInstructorOnboardingFixture } from "../lib/qa-instructor-onboarding-fixture";
 import { isQaInstructorOnboardingEnabled } from "../lib/qa-instructor-onboarding";
+import { ACTIVE_CHAIR_SINGLETON_ID } from "../lib/active-chair";
 
 const prisma = new PrismaClient();
 
@@ -122,6 +123,36 @@ async function main() {
       isDefaultOwner: true,
     },
   });
+
+  // Brayden White is the active Chair — the single person allowed to make final
+  // applicant decisions. The assignment is a singleton row (id = "singleton");
+  // mirror setActiveChair()'s no-op-aware logic so re-seeding is idempotent and
+  // we only append a history row the first time the seat actually changes.
+  const existingChair = await prisma.activeChairAssignment.findUnique({
+    where: { id: ACTIVE_CHAIR_SINGLETON_ID },
+    select: { chairUserId: true },
+  });
+  await prisma.activeChairAssignment.upsert({
+    where: { id: ACTIVE_CHAIR_SINGLETON_ID },
+    create: {
+      id: ACTIVE_CHAIR_SINGLETON_ID,
+      chairUserId: brayden.id,
+      assignedById: brayden.id,
+    },
+    update: {
+      chairUserId: brayden.id,
+      assignedById: brayden.id,
+    },
+  });
+  if (existingChair?.chairUserId !== brayden.id) {
+    await prisma.chairAssignmentHistory.create({
+      data: {
+        previousChairId: existingChair?.chairUserId ?? null,
+        newChairId: brayden.id,
+        changedById: brayden.id,
+      },
+    });
+  }
 
   await prisma.user.upsert({
     where: { email: "anthea.zamir@youthpassionproject.org" },
