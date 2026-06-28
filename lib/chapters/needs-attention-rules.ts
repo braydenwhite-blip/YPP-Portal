@@ -24,6 +24,7 @@ import {
 import {
   type CurriculumRecord,
   curriculumReviewOverdue,
+  curriculumGlobalReviewOverdue,
   curriculumPlaybookStatus,
   curriculumHoursWaiting,
 } from "@/lib/chapters/curriculum-review";
@@ -208,20 +209,56 @@ function instructorBlockers(applicants: InstructorApplicantRecord[], now: Date):
 function curriculumBlockers(curricula: CurriculumRecord[], now: Date): ChapterBlocker[] {
   const out: ChapterBlocker[] = [];
   for (const c of curricula) {
-    const status = curriculumPlaybookStatus(c.status);
-    if (status === "submitted") {
+    const status = curriculumPlaybookStatus(c);
+
+    // Stage 1 — CP owes a review (48-hour SLA). entityId carries the template id
+    // so the room can offer an inline "Mark CP approved" action.
+    if (status === "cp_review") {
       const overdue = curriculumReviewOverdue(c, now);
       const hrs = curriculumHoursWaiting(c, now);
       out.push({
         key: `curriculum-review:${c.id}`,
         lane: "curriculum",
         severity: overdue ? "critical" : "warning",
-        title: `${c.title}: ${overdue ? "review overdue" : "review needed"}`,
+        title: `${c.title}: ${overdue ? "CP review overdue" : "CP review needed"}`,
         detail: overdue
-          ? `Submitted ${Math.floor(hrs / 24)}d ago — review within 48h with written feedback.`
-          : "Review within 48 hours with specific written feedback.",
+          ? `Submitted ${Math.floor(hrs / 24)}d ago — review within 48h: approve or request a revision.`
+          : "Review within 48 hours: approve or request a revision.",
         href: `/admin/curricula`,
         suggestedAction: `Review curriculum: ${c.title}`,
+        entityId: c.id,
+      });
+    }
+
+    // CP approved — the next move is escalating to global review. This is the
+    // action that was honestly disabled in Phase 3; now it is real.
+    if (status === "cp_approved") {
+      out.push({
+        key: `curriculum-send-global:${c.id}`,
+        lane: "curriculum",
+        severity: "info",
+        title: `${c.title}: CP approved — send to global review`,
+        detail: "Escalate this CP-approved curriculum to global leadership for final sign-off.",
+        href: `/admin/curricula`,
+        suggestedAction: `Send to global review: ${c.title}`,
+        entityId: c.id,
+      });
+    }
+
+    // Stage 2 — escalated; global leadership owes the final sign-off.
+    if (status === "global_review") {
+      const overdue = curriculumGlobalReviewOverdue(c, now);
+      out.push({
+        key: `curriculum-global-review:${c.id}`,
+        lane: "curriculum",
+        severity: overdue ? "warning" : "info",
+        title: `${c.title}: ${overdue ? "global review overdue" : "awaiting global review"}`,
+        detail: overdue
+          ? "Past the 48-hour global review window — global leadership should sign off or send it back."
+          : "With global leadership for the final approval that satisfies launch readiness.",
+        href: `/admin/curricula`,
+        suggestedAction: `Global review: ${c.title}`,
+        entityId: c.id,
       });
     }
   }

@@ -46,7 +46,7 @@ export default async function ChapterOperatingPage() {
   // Authorize: the Chapter President of this chapter (or national leadership).
   await requireChapterManager(ctx.ledChapterId);
 
-  const model = await loadChapterOS(ctx.ledChapterId);
+  const model = await loadChapterOS(ctx.ledChapterId, { isLeadership: ctx.isLeadership });
   if (!model) redirect("/chapter");
 
   return (

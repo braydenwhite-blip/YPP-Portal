@@ -14,8 +14,17 @@ import { useState, useTransition } from "react";
 import { CardV2, StatusBadge, ButtonLink, Button, EmptyStateV2, cn, type StatusTone } from "@/components/ui-v2";
 import { trackChapterBlocker } from "@/lib/chapters/operating-actions";
 import { saveChapterKpiSnapshot, logPartnerFollowUp } from "@/lib/chapters/room-action-server";
+import { relativeAgo } from "@/lib/chapters/format";
+import type { RoomActivityItem } from "@/lib/chapters/room-activity";
+import {
+  cpApproveCurriculum,
+  sendCurriculumToGlobalReview,
+  globalApproveCurriculum,
+  globalRequestCurriculumRevision,
+  type CurriculumReviewResult,
+} from "@/lib/chapters/curriculum-review-server";
 import type { ChapterOSModel } from "@/lib/chapters/chapter-os";
-import type { ChapterRoom, RoomAccent, RoomNeedsItem, RoomTone, RoomStat } from "@/lib/chapters/rooms";
+import type { ChapterRoom, RoomAccent, RoomNeedsItem, RoomTone, RoomStat, RoomKey } from "@/lib/chapters/rooms";
 import type { ChapterRoomWithActions, ChapterRoomAction } from "@/lib/chapters/room-actions";
 
 // Decorative per-room identity, mapped to the frozen design-system palette
@@ -59,7 +68,83 @@ export function ChapterOSRooms({ model }: { model: ChapterOSModel }) {
           <RoomPanel key={room.key} chapterId={model.chapter.id} room={room} />
         ))}
       </div>
+      <RecentActivity items={model.recentActivity} nowISO={model.nowISO} />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recent activity — a unified, real feed across all six rooms
+// ---------------------------------------------------------------------------
+
+const ROOM_SHORT: Record<RoomKey, string> = {
+  partner_network: "Partner Network",
+  teaching_org: "Teaching Org",
+  learning_program: "Learning Program",
+  live_classes: "Live Classes",
+  student_community: "Student Community",
+  chapter_growth: "Chapter Growth",
+};
+
+const ROOM_DOT: Record<RoomKey, string> = {
+  partner_network: "bg-brand-500",
+  teaching_org: "bg-info-700",
+  learning_program: "bg-progress-700",
+  live_classes: "bg-teal-700",
+  student_community: "bg-success-700",
+  chapter_growth: "bg-brand-700",
+};
+
+function RecentActivity({ items, nowISO }: { items: RoomActivityItem[]; nowISO: string }) {
+  const [expanded, setExpanded] = useState(false);
+  if (items.length === 0) return null;
+  const now = new Date(nowISO);
+  const shown = expanded ? items : items.slice(0, 6);
+
+  return (
+    <CardV2 padding="none" className="overflow-hidden">
+      <div className="flex items-center justify-between border-b border-line-card px-6 py-4">
+        <div>
+          <h3 className="m-0 text-[15px] font-bold text-ink">Recent activity</h3>
+          <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">The latest real events across your six rooms.</p>
+        </div>
+        <StatusBadge tone="neutral">{items.length}</StatusBadge>
+      </div>
+      <ul className="m-0 flex list-none flex-col p-0">
+        {shown.map((item) => (
+          <li
+            key={item.id}
+            className="flex items-start justify-between gap-3 border-b border-line-card px-6 py-3 last:border-0"
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", ROOM_DOT[item.roomKey])} />
+                <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-ink-muted">
+                  {ROOM_SHORT[item.roomKey]}
+                </span>
+              </div>
+              <a
+                href={item.href}
+                className="mt-0.5 block truncate text-[13.5px] font-semibold text-ink hover:text-brand-700"
+              >
+                {item.title}
+              </a>
+              {item.description && <p className="m-0 truncate text-[12px] text-ink-muted">{item.description}</p>}
+            </div>
+            <span className="shrink-0 text-[12px] text-ink-muted">{relativeAgo(new Date(item.occurredAt), now)}</span>
+          </li>
+        ))}
+      </ul>
+      {items.length > 6 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full border-t border-line-card px-6 py-2.5 text-[12.5px] font-semibold text-brand-700 hover:underline"
+        >
+          {expanded ? "Show less" : `Show ${items.length - 6} more`}
+        </button>
+      )}
+    </CardV2>
   );
 }
 
@@ -325,6 +410,14 @@ function ActionControl({
     return <SaveSnapshotChip chapterId={chapterId} action={action} prominent={prominent} />;
   if (action.mutation?.handler === "logPartnerFollowUp")
     return <LogFollowUpControl chapterId={chapterId} action={action} prominent={prominent} />;
+  if (action.mutation?.handler === "globalRequestCurriculumRevision")
+    return <CurriculumRevisionControl chapterId={chapterId} action={action} prominent={prominent} />;
+  if (
+    action.mutation?.handler === "cpApproveCurriculum" ||
+    action.mutation?.handler === "sendCurriculumToGlobalReview" ||
+    action.mutation?.handler === "globalApproveCurriculum"
+  )
+    return <CurriculumOneClickControl chapterId={chapterId} action={action} prominent={prominent} />;
   return <LinkChip action={action} prominent={prominent} />;
 }
 
@@ -520,6 +613,141 @@ function LogFollowUpControl({
             Save
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Two-stage curriculum review controls ----------------------------------
+
+const CURRICULUM_ONE_CLICK: Record<
+  string,
+  {
+    fn: (input: { chapterId: string; classTemplateId: string }) => Promise<CurriculumReviewResult>;
+    doing: string;
+    done: string;
+  }
+> = {
+  cpApproveCurriculum: { fn: cpApproveCurriculum, doing: "Approving…", done: "CP approved ✓" },
+  sendCurriculumToGlobalReview: { fn: sendCurriculumToGlobalReview, doing: "Sending…", done: "Sent to global ✓" },
+  globalApproveCurriculum: { fn: globalApproveCurriculum, doing: "Approving…", done: "Fully approved ✓" },
+};
+
+/** One-click curriculum stage advance (CP approve · send to global · global approve). */
+function CurriculumOneClickControl({
+  chapterId,
+  action,
+  prominent,
+}: {
+  chapterId: string;
+  action: ChapterRoomAction;
+  prominent?: boolean;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [state, setState] = useState<{ kind: "idle" | "done" | "error"; msg?: string }>({ kind: "idle" });
+  const classTemplateId = action.mutation?.entityId;
+  const cfg = action.mutation ? CURRICULUM_ONE_CLICK[action.mutation.handler] : undefined;
+
+  if (state.kind === "done") return <span className="text-[12.5px] font-semibold text-complete-700">{state.msg}</span>;
+  if (!cfg || !classTemplateId) return <LinkChip action={action} prominent={prominent} />;
+
+  function run() {
+    if (!cfg || !classTemplateId) return;
+    startTransition(async () => {
+      const res = await cfg.fn({ chapterId, classTemplateId });
+      if (res.ok) setState({ kind: "done", msg: cfg.done });
+      else setState({ kind: "error", msg: res.error });
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {prominent ? (
+        <Button variant="primary" size="sm" onClick={run} loading={pending} disabled={pending}>
+          {action.label}
+        </Button>
+      ) : (
+        <button
+          type="button"
+          disabled={pending}
+          title={action.description}
+          onClick={run}
+          className={cn(CHIP, "border-line-card bg-surface text-ink-muted hover:border-brand-400 hover:text-brand-700 disabled:opacity-50")}
+        >
+          {pending ? cfg.doing : action.label}
+        </button>
+      )}
+      {state.kind === "error" && <span className="text-[12px] font-semibold text-blocked-700">{state.msg}</span>}
+    </div>
+  );
+}
+
+/** Global "send back for revision" — a compact composer that requires notes. */
+function CurriculumRevisionControl({
+  chapterId,
+  action,
+  prominent,
+}: {
+  chapterId: string;
+  action: ChapterRoomAction;
+  prominent?: boolean;
+}) {
+  const [composing, setComposing] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [pending, startTransition] = useTransition();
+  const [state, setState] = useState<{ kind: "idle" | "done" | "error"; msg?: string }>({ kind: "idle" });
+  const classTemplateId = action.mutation?.entityId;
+
+  if (state.kind === "done") return <span className="text-[12.5px] font-semibold text-complete-700">Sent back ✓</span>;
+
+  if (!composing) {
+    return prominent ? (
+      <Button variant="secondary" size="sm" onClick={() => setComposing(true)}>
+        {action.label}
+      </Button>
+    ) : (
+      <button
+        type="button"
+        title={action.description}
+        onClick={() => setComposing(true)}
+        className={cn(CHIP, "border-line-card bg-surface text-ink-muted hover:border-brand-400 hover:text-brand-700")}
+      >
+        {action.label}
+      </button>
+    );
+  }
+
+  function submit() {
+    if (!classTemplateId || !notes.trim()) return;
+    startTransition(async () => {
+      const res = await globalRequestCurriculumRevision({ chapterId, classTemplateId, notes: notes.trim() });
+      if (res.ok) setState({ kind: "done" });
+      else setState({ kind: "error", msg: res.error });
+    });
+  }
+
+  return (
+    <div className="w-full rounded-[10px] border border-line-card bg-surface-soft p-3">
+      <p className="m-0 mb-1.5 text-[12px] font-bold text-ink">Send back for revision</p>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        rows={2}
+        placeholder="What needs to change before global approval?"
+        className="w-full resize-y rounded-[8px] border border-line-card bg-surface px-2.5 py-1.5 text-[12.5px] text-ink outline-none focus:border-brand-400"
+      />
+      <div className="mt-2 flex items-center justify-end gap-2">
+        {state.kind === "error" && <span className="text-[12px] font-semibold text-blocked-700">{state.msg}</span>}
+        <button
+          type="button"
+          onClick={() => setComposing(false)}
+          className="text-[12px] font-semibold text-ink-muted hover:text-ink"
+        >
+          Cancel
+        </button>
+        <Button variant="primary" size="sm" onClick={submit} loading={pending} disabled={pending || !notes.trim()}>
+          Send back
+        </Button>
       </div>
     </div>
   );

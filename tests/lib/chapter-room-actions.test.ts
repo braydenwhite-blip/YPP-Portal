@@ -18,19 +18,19 @@ function makeOs(): ChapterOperatingSystem {
       { key: "partner-followup:p1", lane: "partners", severity: "warning", title: "Lincoln HS: follow-up overdue", detail: "Log a touchpoint.", href: "/partners/p1", suggestedAction: "Follow up", entityType: "PARTNER", entityId: "p1" },
       { key: "applicant-decision:a1", lane: "instructors", severity: "critical", title: "Jordan: decision overdue", detail: "Submit the decision.", href: "/chapter/recruiting?tab=candidates", suggestedAction: "Decide", entityType: "INSTRUCTOR_APPLICATION", entityId: "a1" },
       { key: "applicant-review:a2", lane: "instructors", severity: "warning", title: "Sam: waiting for review", href: "/chapter/recruiting?tab=candidates", suggestedAction: "Review", entityType: "INSTRUCTOR_APPLICATION", entityId: "a2" },
-      { key: "curriculum-review:c1", lane: "curriculum", severity: "warning", title: "Robotics: review needed", href: "/admin/curricula", suggestedAction: "Review curriculum" },
+      { key: "curriculum-review:c1", lane: "curriculum", severity: "warning", title: "Robotics: CP review needed", href: "/admin/curricula", suggestedAction: "Review curriculum", entityId: "c1" },
       { key: "class-no-instructor:cl1", lane: "classes", severity: "warning", title: "Robotics Mon: missing an instructor", href: "/admin/classes/cl1", suggestedAction: "Assign instructor", entityType: "CLASS_OFFERING", entityId: "cl1" },
       { key: "class-under-enrolled:cl1", lane: "classes", severity: "warning", title: "Robotics Mon: is under-enrolled", href: "/admin/classes/cl1", suggestedAction: "Boost enrollment", entityType: "CLASS_OFFERING", entityId: "cl1" },
     ],
     blockerSummary: { total: 6, critical: 1, warning: 5, info: 0, byLane: { partners: 1, instructors: 2, curriculum: 1, classes: 2 } },
     partners: { total: 4, confirmed: 1, byStatus: { researching: 1, contacted: 1, interested: 0, meeting_scheduled: 1, final_conversation: 0, confirmed: 1, closed: 0 } },
     instructors: { total: 6, applicants: 6, hired: 2, byStage: { applied: 1, under_review: 2, interview_ready: 0, interview_scheduled: 1, interview_complete: 1, hired: 2, rejected: 0 } },
-    curriculum: { total: 3, approved: 1, reviewNeeded: 1, byStatus: { not_submitted: 1, submitted: 1, needs_revision: 0, approved: 1 } },
+    curriculum: { total: 3, approved: 1, reviewNeeded: 1, fullyApproved: 1, cpReviewNeeded: 1, cpApproved: 0, globalReviewNeeded: 0, needsRevision: 0, submittedEver: 2, byStatus: { not_submitted: 1, cp_review: 1, cp_revision: 0, cp_approved: 0, global_review: 0, global_revision: 0, fully_approved: 1 } },
     launch: { total: 2, ready: 1 },
     deliberables: {
       partner: { stats: [{ label: "Active", value: 3, hint: "", tone: "neutral" }], rows: [{ id: "p1", name: "Lincoln HS", subtitle: "School", stage: "Contacted", lastContact: "2 days ago", nextStep: "Follow up", status: "at_risk" }], totalRows: 1, recommendation: { text: "Reconnect with 1 at-risk partner.", cta: "Go to Partner Pipeline", href: "/partners" } },
       instructor: { stats: [{ label: "Applicants", value: 6, hint: "", tone: "neutral" }], rows: [{ id: "a1", name: "Jordan", stage: "Interview Complete", applied: "5 days ago", specialties: "Python", status: "at_risk" }], totalRows: 1, recommendation: { text: "Record 1 decision.", cta: "Go to Instructor Pipeline", href: "/chapter/recruiting?tab=candidates" } },
-      curriculum: { stats: [{ label: "Total", value: 3, hint: "", tone: "neutral" }], rows: [{ id: "c1", title: "Intro Robotics", subject: "Robotics", stage: "In Review", owner: "Sam", status: "needs_feedback" }], totalRows: 1, recommendation: { text: "Give feedback on 1 curriculum.", cta: "Go to Curriculum", href: "/admin/curricula" } },
+      curriculum: { stats: [{ label: "Approved", value: 1, hint: "", tone: "positive" }], rows: [{ id: "c1", title: "Intro Robotics", subject: "Robotics", stage: "CP Review", actor: "Chapter President", owner: "Sam", status: "needs_feedback" }], totalRows: 1, recommendation: { text: "Give feedback on 1 curriculum.", cta: "Go to Curriculum", href: "/admin/curricula" } },
       class: { stats: [{ label: "Planned", value: 2, hint: "", tone: "neutral" }], rows: [{ id: "cl1", title: "Robotics Mon", subtitle: "Ages 12–14", launchDate: "Jul 1, 2026", enrolled: 3, capacity: 12, readinessPct: 60, status: "needs_attention" }], totalRows: 1, recommendation: { text: "Finish the launch checklist for 1 class.", cta: "Go to Class Launch", href: "/admin/classes" } },
     },
     chapter: { id: "ch1", name: "Test Chapter", location: "City, ST", lifecycleStatus: "LAUNCHING", lifecycleLabel: "Launching", president: { id: "u1", name: "CP" } },
@@ -101,15 +101,72 @@ describe("Teaching Organization actions", () => {
   });
 });
 
-describe("Learning Program actions", () => {
-  it("links curriculum review and honestly disables global review (Phase 4)", () => {
+describe("Learning Program actions (real two-stage curriculum approval)", () => {
+  // Focused helper: rebuild the learning room with a single curriculum blocker.
+  function learningActionsWith(
+    blocker: Record<string, unknown>,
+    opts?: { isLeadership?: boolean }
+  ) {
+    const os = makeOs();
+    (os as unknown as { blockers: unknown[] }).blockers = [blocker];
+    const room = buildChapterRooms(os, sc, growth).find((r) => r.key === "learning_program")!;
+    return buildRoomActions(room, opts);
+  }
+
+  it("offers a REAL inline CP-approve mutation (no more disabled global review)", () => {
     const a = actionsFor("learning_program");
-    const review = a.find((x) => x.roomActionId.endsWith(":review"))!;
-    expect(review.kind).toBe("link");
-    expect(review.href.length).toBeGreaterThan(0);
-    const global = a.find((x) => x.roomActionId.endsWith(":global"))!;
-    expect(global.disabledReason).toMatch(/Global review/);
-    expect(global.href.length).toBeGreaterThan(0); // fallback still navigable
+    const approve = a.find((x) => x.roomActionId.endsWith(":cp-approve"))!;
+    expect(approve.kind).toBe("mutate");
+    expect(approve.primary).toBe(true);
+    expect(approve.mutation).toMatchObject({
+      handler: "cpApproveCurriculum",
+      entityType: "CLASS_TEMPLATE",
+      entityId: "c1",
+    });
+    // The Phase-3 honestly-disabled "Soon" action is gone.
+    expect(a.every((x) => !x.disabledReason)).toBe(true);
+    expect(a.some((x) => x.label === "Request revision")).toBe(true);
+  });
+
+  it("enables Send to global review when a curriculum is CP-approved", () => {
+    const a = learningActionsWith({
+      key: "curriculum-send-global:c2",
+      lane: "curriculum",
+      severity: "info",
+      title: "Robotics: CP approved — send to global review",
+      href: "/admin/curricula",
+      suggestedAction: "Send to global review",
+      entityId: "c2",
+    });
+    const send = a.find((x) => x.roomActionId.endsWith(":send-global"))!;
+    expect(send.kind).toBe("mutate");
+    expect(send.mutation).toMatchObject({ handler: "sendCurriculumToGlobalReview", entityId: "c2" });
+  });
+
+  it("shows global review as watch-only to a CP, and as real mutations to leadership", () => {
+    const globalBlocker = {
+      key: "curriculum-global-review:c3",
+      lane: "curriculum",
+      severity: "info",
+      title: "Robotics: awaiting global review",
+      href: "/admin/curricula",
+      suggestedAction: "Global review",
+      entityId: "c3",
+    };
+    // CP viewer: no global mutation, just a watch link.
+    const cpView = learningActionsWith(globalBlocker);
+    expect(cpView.some((x) => x.mutation?.handler === "globalApproveCurriculum")).toBe(false);
+    expect(cpView.some((x) => x.roomActionId.endsWith(":global-status"))).toBe(true);
+    // Leadership viewer: real approve + send-back mutations.
+    const leadView = learningActionsWith(globalBlocker, { isLeadership: true });
+    expect(leadView.find((x) => x.roomActionId.endsWith(":global-approve"))?.mutation).toMatchObject({
+      handler: "globalApproveCurriculum",
+      entityId: "c3",
+    });
+    expect(leadView.find((x) => x.roomActionId.endsWith(":global-revision"))?.mutation).toMatchObject({
+      handler: "globalRequestCurriculumRevision",
+      entityId: "c3",
+    });
   });
 });
 

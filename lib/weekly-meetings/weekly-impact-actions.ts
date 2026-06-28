@@ -9,6 +9,8 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 import { canEditImpactEntry, requireImpactAuthor } from "./permissions";
+import { requireChapterManager } from "@/lib/chapters/access";
+import { captureChapterKpiSnapshot } from "@/lib/chapters/snapshot-capture";
 import {
   AddRowFromContributionSchema,
   AddRowSchema,
@@ -132,7 +134,7 @@ export async function submitImpactEntry(input: unknown) {
   const { entryId } = EntryIdSchema.parse(input);
   const entry = await prisma.weeklyImpactEntry.findUnique({
     where: { id: entryId },
-    select: { userId: true, rows: { select: { id: true } } },
+    select: { userId: true, chapterId: true, weekStart: true, rows: { select: { id: true } } },
   });
   if (!entry) throw new Error("Entry not found");
   if (!canEditImpactEntry(viewer, entry.userId)) throw new Error("Unauthorized");
@@ -144,6 +146,23 @@ export async function submitImpactEntry(input: unknown) {
     data: { status: "SUBMITTED", submittedAt: new Date() },
   });
   revalidatePath("/my-weekly-impact");
+
+  // Auto-capture the Chapter Growth KPI snapshot for the same reporting week, so
+  // the weekly meeting record and the measured baseline are captured together
+  // (no separate manual "Save snapshot" step). Best-effort + chapter-scoped:
+  // only when this is a chapter entry the submitter actually manages, and never
+  // allowed to block the submission itself.
+  if (entry.chapterId) {
+    const chapterId = entry.chapterId;
+    try {
+      await requireChapterManager(chapterId);
+      await captureChapterKpiSnapshot(chapterId, entry.weekStart);
+      revalidatePath("/chapter/operating");
+    } catch {
+      // not a chapter the submitter manages, or a transient snapshot error
+    }
+  }
+
   return { ok: true };
 }
 

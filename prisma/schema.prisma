@@ -7278,6 +7278,21 @@ enum CurriculumSubmissionStatus {
   NEEDS_REVISION
 }
 
+// Two-stage curriculum approval (Phase 4). The single-stage
+// `CurriculumSubmissionStatus` above only ever reached one APPROVED state. The
+// Chapter President playbook needs a real CP review → CP approved → Global
+// review → Fully approved pipeline, captured on the `CurriculumApproval`
+// satellite below so launch readiness can require a TRUE global approval.
+enum CurriculumApprovalStage {
+  NOT_SUBMITTED // instructor still drafting — nothing waiting on a reviewer
+  CP_REVIEW // submitted; the Chapter President owes a review (48h SLA)
+  CP_REVISION_REQUESTED // CP sent it back to the instructor to revise
+  CP_APPROVED // CP approved; ready to escalate to global leadership
+  GLOBAL_REVIEW // escalated; global leadership owes a review
+  GLOBAL_REVISION_REQUESTED // global sent it back for revision
+  FULLY_APPROVED // global leadership signed off — satisfies launch readiness
+}
+
 enum DeliveryMode {
   IN_PERSON
   VIRTUAL
@@ -7423,6 +7438,11 @@ model ClassTemplate {
   lessonPlans                  LessonPlan[]
   pathwaySteps                 PathwayStep[]                 @relation("ClassTemplateSteps")
   regularInstructorAssignments RegularInstructorAssignment[] @relation("ClassTemplateAssignments")
+
+  // Two-stage curriculum approval (Phase 4). 1:1 satellite, created lazily the
+  // first time a reviewer acts. Absent ⇒ the template falls back to its legacy
+  // single-stage `submissionStatus`.
+  curriculumApproval CurriculumApproval?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -7755,6 +7775,57 @@ model ClassOfferingApproval {
   @@index([reviewedById])
 }
 
+// Two-stage curriculum approval satellite (Phase 4), 1:1 with ClassTemplate and
+// modelled on ClassOfferingApproval. Reviewer identity is stored as plain
+// id + denormalized name (a point-in-time snapshot for the audit trail) so this
+// feature is fully self-contained and adds no relations to the User model.
+model CurriculumApproval {
+  id              String                  @id @default(cuid())
+  classTemplateId String                  @unique
+  classTemplate   ClassTemplate           @relation(fields: [classTemplateId], references: [id], onDelete: Cascade)
+  stage           CurriculumApprovalStage @default(NOT_SUBMITTED)
+
+  submittedAt DateTime?
+
+  // Stage 1 — Chapter President review
+  cpReviewedById   String?
+  cpReviewedByName String?
+  cpReviewedAt     DateTime?
+  cpReviewNotes    String?   @db.Text
+
+  // Stage 2 — Global leadership review
+  sentToGlobalAt       DateTime?
+  globalReviewedById   String?
+  globalReviewedByName String?
+  globalReviewedAt     DateTime?
+  globalReviewNotes    String?   @db.Text
+
+  events CurriculumReviewEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stage])
+}
+
+// Append-only audit trail for the two-stage curriculum review — every submit /
+// revision / approval, with the decision, the actor snapshot, and any notes.
+// Powers the "review notes / history" view in the Learning Program room.
+model CurriculumReviewEvent {
+  id         String                  @id @default(cuid())
+  approvalId String
+  approval   CurriculumApproval      @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  actorId    String?
+  actorName  String?
+  actorRole  String // "CHAPTER_PRESIDENT" | "GLOBAL_LEADERSHIP" | "INSTRUCTOR"
+  stage      CurriculumApprovalStage // resulting stage after this event
+  decision   String // SUBMITTED | CP_APPROVED | CP_REVISION | SENT_TO_GLOBAL | GLOBAL_APPROVED | GLOBAL_REVISION
+  notes      String?                 @db.Text
+  createdAt  DateTime                @default(now())
+
+  @@index([approvalId, createdAt])
+}
+
 // Individual class session (meeting) within an offering
 model ClassSession {
   id         String        @id @default(cuid())
@@ -7781,6 +7852,9 @@ model ClassSession {
 
   // Attendance
   attendance ClassAttendanceRecord[]
+
+  // Post-session instructor reflection (Phase 5) — 1:1, created on submit.
+  reflection ClassSessionReflection?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -7841,6 +7915,37 @@ model ClassAttendanceRecord {
   @@unique([sessionId, studentId])
   @@index([sessionId])
   @@index([studentId])
+}
+
+// Post-session instructor reflection (Phase 5). 1:1 with ClassSession. More than
+// a text box: it produces operating signals (needsCpHelp / logistics issues feed
+// class interventions; reflection completion clears the "reflection due" runtime
+// state; entries surface in Recent Activity). instructorId is FK-less + a
+// denormalized instructorName snapshot, matching the repo's loosely-coupled-id
+// convention (see PartnerNote / ClassOutcome) to avoid widening the User model.
+model ClassSessionReflection {
+  id         String       @id @default(cuid())
+  sessionId  String       @unique
+  session    ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  /// Denormalized for chapter-/offering-scoped reads without a session join.
+  offeringId String
+
+  instructorId   String?
+  instructorName String?
+
+  wentWell       String?  @db.Text
+  struggled      String?  @db.Text
+  studentToWatch String?  @db.Text
+  changeNextTime String?  @db.Text
+  logisticsIssue String?  @db.Text
+  needsCpHelp    Boolean  @default(false)
+  /// Instructor confidence after the session, 1–5 (optional).
+  confidence     Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([offeringId, createdAt])
 }
 
 // Class reminders (Feature #81)

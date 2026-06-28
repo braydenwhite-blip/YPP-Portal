@@ -10,9 +10,8 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 import { requireChapterManager } from "@/lib/chapters/access";
-import { weekStartFor, weekKey } from "@/lib/weekly-meetings/week";
-import { kpiSnapshotToRow } from "@/lib/chapters/chapter-growth";
-import { loadChapterOS } from "@/lib/chapters/chapter-os";
+import { weekStartFor } from "@/lib/weekly-meetings/week";
+import { captureChapterKpiSnapshot } from "@/lib/chapters/snapshot-capture";
 import { SaveSnapshotSchema, LogPartnerFollowUpSchema } from "@/lib/chapters/room-actions";
 
 export type SaveSnapshotResult =
@@ -35,24 +34,11 @@ export async function saveChapterKpiSnapshot(input: unknown): Promise<SaveSnapsh
     return { ok: false, error: "Unauthorized" };
   }
 
-  const model = await loadChapterOS(chapterId);
-  if (!model) return { ok: false, error: "Chapter not found" };
-
-  const weekStart = weekStartFor(new Date());
-  const row = kpiSnapshotToRow(model.growth.current);
-
-  try {
-    await prisma.chapterWeeklyKpiSnapshot.upsert({
-      where: { chapterId_weekStart: { chapterId, weekStart } },
-      create: { chapterId, weekStart, ...row },
-      update: row,
-    });
-  } catch {
-    return { ok: false, error: "Could not save snapshot" };
-  }
+  const result = await captureChapterKpiSnapshot(chapterId, weekStartFor(new Date()));
+  if (!result.ok) return result;
 
   revalidatePath("/chapter/operating");
-  return { ok: true, weekStartISO: weekKey(weekStart) };
+  return { ok: true, weekStartISO: result.weekStartISO };
 }
 
 export type LogFollowUpResult = { ok: true } | { ok: false; error: string };

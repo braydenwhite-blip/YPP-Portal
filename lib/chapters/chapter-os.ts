@@ -34,6 +34,21 @@ import {
 } from "@/lib/chapters/chapter-growth";
 import { buildChapterRooms, collectNeedsYou, type RoomNeedsItem } from "@/lib/chapters/rooms";
 import { withRoomActions, type ChapterRoomWithActions } from "@/lib/chapters/room-actions";
+import { loadChapterClassRuntime } from "@/lib/classes/chapter-class-runtime";
+import { interventionRoom, type ClassIntervention } from "@/lib/classes/interventions";
+import {
+  buildRoomActivity,
+  partnerNoteActivity,
+  curriculumReviewActivity,
+  classTimelineActivity,
+  applicantTimelineActivity,
+  enrollmentActivity,
+  classFeedbackActivity,
+  snapshotActivity,
+  attendanceActivity,
+  reflectionActivity,
+  type RoomActivityItem,
+} from "@/lib/chapters/room-activity";
 
 export type ChapterOS = NonNullable<Awaited<ReturnType<typeof loadChapterOS>>>;
 
@@ -43,6 +58,9 @@ export type ChapterOSModel = {
   focus: string;
   rooms: ChapterRoomWithActions[];
   needsYou: RoomNeedsItem[];
+  recentActivity: RoomActivityItem[];
+  /** Server render time (ISO) — the stable reference for relative timestamps. */
+  nowISO: string;
   blockerSummary: ChapterOperatingSystem["blockerSummary"];
   studentCommunity: StudentCommunitySummary;
   growth: ChapterGrowthSummary;
@@ -57,7 +75,10 @@ const ACTIVE_ENROLLMENT = ["ENROLLED", "COMPLETED"];
  * Load the full six-room Chapter OS for a chapter. Caller authorizes
  * (`requireChapterManager(chapterId)`). Returns null if the chapter is missing.
  */
-export async function loadChapterOS(chapterId: string): Promise<ChapterOSModel | null> {
+export async function loadChapterOS(
+  chapterId: string,
+  opts: { isLeadership?: boolean } = {}
+): Promise<ChapterOSModel | null> {
   const now = new Date();
   const cutoff = weekStartFor(now); // Monday 00:00 UTC of the current reporting week
 
@@ -184,8 +205,7 @@ export async function loadChapterOS(chapterId: string): Promise<ChapterOSModel |
   const studentCommunity = summarizeStudentCommunity({ enrollments, attendance, feedback, concerns }, now);
 
   // --- Chapter Growth snapshots -------------------------------------------
-  const curriculaSubmittedTotal =
-    os.curriculum.byStatus.submitted + os.curriculum.byStatus.needs_revision + os.curriculum.byStatus.approved;
+  const curriculaSubmittedTotal = os.curriculum.submittedEver;
   const partnersContactedNow =
     os.partners.byStatus.contacted +
     os.partners.byStatus.interested +
@@ -242,8 +262,20 @@ export async function loadChapterOS(chapterId: string): Promise<ChapterOSModel |
 
   const growth = summarizeChapterGrowth({ weekNumber: os.weekNumber, current, previous: baseline.previous });
 
+  // --- Live class runtime: interventions feed the rooms + recent activity ---
+  const [classRuntime, recentActivity] = await Promise.all([
+    loadChapterClassRuntime(chapterId, now),
+    loadRecentActivity(chapterId),
+  ]);
+  // Merge live class interventions into the operating graph BEFORE the rooms are
+  // built, so they flow into the rooms' Needs You, the contextual room actions,
+  // and the Track-as-Action bridge — deduped against the existing blockers.
+  injectClassInterventions(os, studentCommunity, classRuntime.interventions);
+
   // --- Compose six rooms (+ contextual room actions) -----------------------
-  const rooms = withRoomActions(buildChapterRooms(os, studentCommunity, growth));
+  const rooms = withRoomActions(buildChapterRooms(os, studentCommunity, growth), {
+    isLeadership: opts.isLeadership,
+  });
   const needsYou = collectNeedsYou(rooms);
 
   return {
@@ -252,12 +284,59 @@ export async function loadChapterOS(chapterId: string): Promise<ChapterOSModel |
     focus: os.impact.focus,
     rooms,
     needsYou,
+    recentActivity,
+    nowISO: now.toISOString(),
     blockerSummary: os.blockerSummary,
     studentCommunity,
     growth,
     growthBaselineSource: baseline.source,
     impact: os.impact,
   };
+}
+
+/**
+ * Merge live class interventions into the operating graph: class-operational
+ * triggers become "classes"-lane blockers (Live Classes room); student-experience
+ * triggers become Student Community needs. Deduped by key so an intervention that
+ * already exists as a pipeline blocker (e.g. under-enrolled) isn't doubled.
+ */
+function injectClassInterventions(
+  os: ChapterOperatingSystem,
+  studentCommunity: StudentCommunitySummary,
+  interventions: ClassIntervention[]
+): void {
+  const classKeys = new Set(os.blockers.map((b) => b.key));
+  const studentKeys = new Set(studentCommunity.needsAttention.map((n) => n.key));
+  for (const iv of interventions) {
+    const detail = `${iv.evidence} · ${iv.recommendedAction}`;
+    if (interventionRoom(iv) === "student_community") {
+      if (studentKeys.has(iv.key)) continue;
+      studentKeys.add(iv.key);
+      studentCommunity.needsAttention.push({
+        key: iv.key,
+        title: iv.title,
+        detail,
+        severity: iv.severity,
+        href: iv.href,
+        entityType: "CLASS_OFFERING",
+        entityId: iv.classId,
+      });
+    } else {
+      if (classKeys.has(iv.key)) continue;
+      classKeys.add(iv.key);
+      os.blockers.push({
+        key: iv.key,
+        lane: "classes",
+        severity: iv.severity,
+        title: iv.title,
+        detail,
+        href: iv.href,
+        suggestedAction: iv.recommendedAction,
+        entityType: "CLASS_OFFERING",
+        entityId: iv.classId,
+      });
+    }
+  }
 }
 
 /**
@@ -363,4 +442,196 @@ async function buildPreviousSnapshot(
       unresolvedBlockers: current.values.unresolvedBlockers ?? 0,
     },
   };
+}
+
+/**
+ * Unified recent-activity feed for the six rooms, read from existing timestamped
+ * sources of truth — partner touchpoints, the two-stage curriculum audit trail,
+ * class + applicant timeline events, enrollments, feedback, and KPI snapshots.
+ * Nothing is fabricated. Each source is fault-tolerant (a missing table or a
+ * transient error contributes nothing rather than failing the page), then all
+ * are merged newest-first by the pure room-activity model.
+ */
+async function loadRecentActivity(chapterId: string): Promise<RoomActivityItem[]> {
+  const PER_SOURCE = 8;
+  const [partnerNotes, curriculumEvents, classEvents, applicantEvents, enrollments, feedback, snapshots, attendanceRecords, reflections] =
+    await Promise.all([
+      withPrismaFallback(
+        "chapter-os:activity-partner-notes",
+        () =>
+          prisma.partnerNote.findMany({
+            where: { partner: { chapterId } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: { id: true, kind: true, body: true, createdAt: true, partnerId: true, partner: { select: { name: true } } },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-curriculum",
+        () =>
+          prisma.curriculumReviewEvent.findMany({
+            where: { approval: { classTemplate: { chapterId } } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: {
+              id: true,
+              decision: true,
+              actorName: true,
+              createdAt: true,
+              approval: { select: { classTemplateId: true, classTemplate: { select: { title: true } } } },
+            },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-class-timeline",
+        () =>
+          prisma.classOfferingTimelineEvent.findMany({
+            where: { offering: { chapterId } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: { id: true, kind: true, summary: true, createdAt: true, offeringId: true, offering: { select: { title: true } } },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-applicant-timeline",
+        () =>
+          prisma.instructorApplicationTimelineEvent.findMany({
+            where: { application: { applicant: { chapterId } } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: { id: true, kind: true, createdAt: true, applicationId: true, application: { select: { applicant: { select: { name: true } } } } },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-enrollments",
+        () =>
+          prisma.classEnrollment.findMany({
+            where: { offering: { chapterId } },
+            orderBy: { enrolledAt: "desc" },
+            take: PER_SOURCE,
+            select: { id: true, enrolledAt: true, student: { select: { name: true } }, offering: { select: { title: true } } },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-feedback",
+        () =>
+          prisma.classFeedback.findMany({
+            where: { offering: { chapterId } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: { id: true, rating: true, createdAt: true, offering: { select: { title: true } } },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-snapshots",
+        () =>
+          prisma.chapterWeeklyKpiSnapshot.findMany({
+            where: { chapterId },
+            orderBy: { createdAt: "desc" },
+            take: 4,
+            select: { id: true, weekStart: true, createdAt: true },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-attendance",
+        () =>
+          prisma.classAttendanceRecord.findMany({
+            where: { session: { offering: { chapterId } } },
+            orderBy: { checkedInAt: "desc" },
+            take: 60,
+            select: {
+              checkedInAt: true,
+              sessionId: true,
+              session: { select: { offeringId: true, offering: { select: { title: true } } } },
+            },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-os:activity-reflections",
+        () =>
+          prisma.classSessionReflection.findMany({
+            where: { session: { offering: { chapterId } } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE,
+            select: {
+              id: true,
+              instructorName: true,
+              createdAt: true,
+              offeringId: true,
+              session: { select: { offering: { select: { title: true } } } },
+            },
+          }),
+        []
+      ),
+    ]);
+
+  // Attendance is per-student; collapse to one "session recorded" item per
+  // session (latest mark wins for the timestamp, with a marked-count).
+  const attendanceBySession = new Map<
+    string,
+    { sessionId: string; offeringId: string; className: string | null; count: number; occurredAt: Date }
+  >();
+  for (const rec of attendanceRecords) {
+    const key = rec.sessionId;
+    const existing = attendanceBySession.get(key);
+    if (existing) {
+      existing.count += 1;
+      if (rec.checkedInAt.getTime() > existing.occurredAt.getTime()) existing.occurredAt = rec.checkedInAt;
+    } else {
+      attendanceBySession.set(key, {
+        sessionId: key,
+        offeringId: rec.session?.offeringId ?? "",
+        className: rec.session?.offering?.title ?? null,
+        count: 1,
+        occurredAt: rec.checkedInAt,
+      });
+    }
+  }
+
+  const items: RoomActivityItem[] = [
+    ...partnerNotes.map((n) =>
+      partnerNoteActivity({ id: n.id, kind: n.kind, body: n.body, createdAt: n.createdAt, partnerId: n.partnerId, partnerName: n.partner?.name ?? null })
+    ),
+    ...curriculumEvents.map((e) =>
+      curriculumReviewActivity({
+        id: e.id,
+        decision: e.decision,
+        actorName: e.actorName,
+        createdAt: e.createdAt,
+        classTemplateId: e.approval?.classTemplateId ?? "",
+        classTemplateTitle: e.approval?.classTemplate?.title ?? null,
+      })
+    ),
+    ...classEvents.map((t) =>
+      classTimelineActivity({ id: t.id, kind: t.kind, summary: t.summary, createdAt: t.createdAt, offeringId: t.offeringId, offeringTitle: t.offering?.title ?? null })
+    ),
+    ...applicantEvents.map((t) =>
+      applicantTimelineActivity({ id: t.id, kind: t.kind, createdAt: t.createdAt, applicationId: t.applicationId, applicantName: t.application?.applicant?.name ?? null })
+    ),
+    ...enrollments.map((e) =>
+      enrollmentActivity({ id: e.id, enrolledAt: e.enrolledAt, studentName: e.student?.name ?? null, className: e.offering?.title ?? null })
+    ),
+    ...feedback.map((f) => classFeedbackActivity({ id: f.id, rating: f.rating, createdAt: f.createdAt, className: f.offering?.title ?? null })),
+    ...snapshots.map((s) => snapshotActivity({ id: s.id, weekStart: s.weekStart, createdAt: s.createdAt })),
+    ...[...attendanceBySession.values()].map((a) => attendanceActivity(a)),
+    ...reflections.map((r) =>
+      reflectionActivity({
+        id: r.id,
+        className: r.session?.offering?.title ?? null,
+        actorName: r.instructorName,
+        createdAt: r.createdAt,
+        offeringId: r.offeringId,
+      })
+    ),
+  ];
+
+  return buildRoomActivity(items);
 }
