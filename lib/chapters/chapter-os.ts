@@ -57,7 +57,10 @@ const ACTIVE_ENROLLMENT = ["ENROLLED", "COMPLETED"];
  * Load the full six-room Chapter OS for a chapter. Caller authorizes
  * (`requireChapterManager(chapterId)`). Returns null if the chapter is missing.
  */
-export async function loadChapterOS(chapterId: string): Promise<ChapterOSModel | null> {
+export async function loadChapterOS(
+  chapterId: string,
+  opts: { isLeadership?: boolean } = {}
+): Promise<ChapterOSModel | null> {
   const now = new Date();
   const cutoff = weekStartFor(now); // Monday 00:00 UTC of the current reporting week
 
@@ -184,8 +187,7 @@ export async function loadChapterOS(chapterId: string): Promise<ChapterOSModel |
   const studentCommunity = summarizeStudentCommunity({ enrollments, attendance, feedback, concerns }, now);
 
   // --- Chapter Growth snapshots -------------------------------------------
-  const curriculaSubmittedTotal =
-    os.curriculum.byStatus.submitted + os.curriculum.byStatus.needs_revision + os.curriculum.byStatus.approved;
+  const curriculaSubmittedTotal = os.curriculum.submittedEver;
   const partnersContactedNow =
     os.partners.byStatus.contacted +
     os.partners.byStatus.interested +
@@ -243,7 +245,9 @@ export async function loadChapterOS(chapterId: string): Promise<ChapterOSModel |
   const growth = summarizeChapterGrowth({ weekNumber: os.weekNumber, current, previous: baseline.previous });
 
   // --- Compose six rooms (+ contextual room actions) -----------------------
-  const rooms = withRoomActions(buildChapterRooms(os, studentCommunity, growth));
+  const rooms = withRoomActions(buildChapterRooms(os, studentCommunity, growth), {
+    isLeadership: opts.isLeadership,
+  });
   const needsYou = collectNeedsYou(rooms);
 
   return {

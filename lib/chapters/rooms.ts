@@ -247,24 +247,34 @@ const CURRICULUM_LABEL: Record<"ready" | "needs_feedback" | "not_started", strin
 
 function learningProgramRoom(os: ChapterOperatingSystem): ChapterRoom {
   const d = os.deliberables.curriculum;
+  const c = os.curriculum;
   const bs = laneBlockers(os, "curriculum");
+  // Each evidence row shows the precise two-stage stage and who must act next.
   const rows: RoomEvidenceRow[] = d.rows.map((r) => ({
     id: r.id,
-    cells: [{ text: r.title }, { text: r.subject, muted: true }, { text: r.stage, muted: true }, { text: r.owner, muted: true }],
+    cells: [{ text: r.title }, { text: r.subject, muted: true }, { text: r.stage, muted: true }, { text: r.actor, muted: true }],
     status: { label: CURRICULUM_LABEL[r.status], tone: CURRICULUM_TONE[r.status] },
     href: "/admin/curricula",
   }));
+  // Two-stage summary: full approvals vs. each open stage in the pipeline.
+  const pipeline = [
+    c.cpReviewNeeded > 0 ? `${c.cpReviewNeeded} in CP review` : null,
+    c.cpApproved > 0 ? `${c.cpApproved} ready for global` : null,
+    c.globalReviewNeeded > 0 ? `${c.globalReviewNeeded} in global review` : null,
+  ].filter(Boolean);
+  const summary =
+    `${c.fullyApproved} fully approved` + (pipeline.length ? ` · ${pipeline.join(" · ")}` : "");
   return {
     key: "learning_program",
     title: "Learning Program",
-    mission: "Make sure every class has a serious, approved curriculum before students walk in.",
+    mission: "Make sure every class has a serious, fully approved curriculum before students walk in.",
     question: "Are we ready to teach?",
     accent: "amber",
-    status: pipelineRoomStatus(bs, os.curriculum.total, `${os.curriculum.approved} approved · ${os.curriculum.reviewNeeded} in review`),
+    status: pipelineRoomStatus(bs, os.curriculum.total, summary),
     stats: d.stats.map((s) => ({ label: s.label, value: s.value, tone: statTone(s.tone) })),
     needs: sortNeeds(bs.map((b) => blockerNeed(b, "learning_program", "Learning Program"))),
     evidence: {
-      columns: ["Curriculum", "Subject", "Stage", "Owner", "Status"],
+      columns: ["Curriculum", "Subject", "Stage", "Next Up", "Status"],
       rows: rows.slice(0, EVIDENCE_ROW_CAP),
       totalRows: d.totalRows,
       emptyMessage: "No curricula yet — instructors submit theirs as classes take shape.",

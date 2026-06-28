@@ -144,6 +144,35 @@ describe("deriveChapterBlockers", () => {
     const c = blockers.find((b) => b.key === "curriculum-review:c1");
     expect(c?.severity).toBe("critical");
     expect(c?.lane).toBe("curriculum");
+    expect(c?.entityId).toBe("c1"); // carries the template id for the inline action
+  });
+
+  it("detects CP review needed (warning, in-SLA) and carries the template id", () => {
+    const fresh = curriculum({ approvalStage: "CP_REVIEW", submittedAt: new Date(NOW.getTime() - 60 * 60 * 1000) });
+    const blockers = deriveChapterBlockers({ ...emptyInput(), curricula: [fresh] }, NOW);
+    const c = blockers.find((b) => b.key === "curriculum-review:c1");
+    expect(c?.severity).toBe("warning");
+    expect(c?.entityId).toBe("c1");
+  });
+
+  it("surfaces a CP-approved curriculum's send-to-global step", () => {
+    const blockers = deriveChapterBlockers(
+      { ...emptyInput(), curricula: [curriculum({ approvalStage: "CP_APPROVED" })] },
+      NOW
+    );
+    const c = blockers.find((b) => b.key === "curriculum-send-global:c1");
+    expect(c).toBeTruthy();
+    expect(c?.entityId).toBe("c1");
+  });
+
+  it("detects global review needed", () => {
+    const blockers = deriveChapterBlockers(
+      { ...emptyInput(), curricula: [curriculum({ approvalStage: "GLOBAL_REVIEW", sentToGlobalAt: NOW })] },
+      NOW
+    );
+    const c = blockers.find((b) => b.key === "curriculum-global-review:c1");
+    expect(c).toBeTruthy();
+    expect(c?.lane).toBe("curriculum");
   });
 
   it("flags class launch gaps and under-enrollment", () => {

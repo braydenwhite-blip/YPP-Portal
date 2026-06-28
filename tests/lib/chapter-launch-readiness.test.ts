@@ -12,6 +12,7 @@ import {
   MIN_ENROLLMENT_LAUNCH,
   type ClassLaunchRecord,
 } from "@/lib/chapters/launch-readiness";
+import { curriculumSatisfiesLaunch } from "@/lib/chapters/curriculum-review";
 
 const NOW = new Date("2026-06-24T12:00:00.000Z");
 
@@ -62,6 +63,24 @@ describe("computeClassLaunchReadiness", () => {
     expect(r.missing).toContain("Assigned instructor");
     expect(r.missing).toContain("Curriculum fully approved");
     expect(r.missing).toContain("Class visible publicly");
+  });
+
+  it("two-stage gate: a CP-approved curriculum does NOT satisfy launch; only full approval does", () => {
+    // CP approved but not yet globally approved → the curriculum item stays unmet.
+    const cpOnly = computeClassLaunchReadiness(
+      klass({ curriculumApproved: curriculumSatisfiesLaunch({ approvalStage: "CP_APPROVED" }) }),
+      NOW
+    );
+    expect(cpOnly.missing).toContain("Curriculum fully approved");
+    expect(cpOnly.ready).toBe(false);
+
+    // Fully (globally) approved → the curriculum item is satisfied.
+    const full = computeClassLaunchReadiness(
+      klass({ curriculumApproved: curriculumSatisfiesLaunch({ approvalStage: "FULLY_APPROVED" }) }),
+      NOW
+    );
+    expect(full.missing).not.toContain("Curriculum fully approved");
+    expect(full.ready).toBe(true);
   });
 
   it("treats a missing start date as a missing launch date", () => {

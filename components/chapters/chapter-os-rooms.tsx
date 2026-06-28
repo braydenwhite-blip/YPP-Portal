@@ -14,6 +14,13 @@ import { useState, useTransition } from "react";
 import { CardV2, StatusBadge, ButtonLink, Button, EmptyStateV2, cn, type StatusTone } from "@/components/ui-v2";
 import { trackChapterBlocker } from "@/lib/chapters/operating-actions";
 import { saveChapterKpiSnapshot, logPartnerFollowUp } from "@/lib/chapters/room-action-server";
+import {
+  cpApproveCurriculum,
+  sendCurriculumToGlobalReview,
+  globalApproveCurriculum,
+  globalRequestCurriculumRevision,
+  type CurriculumReviewResult,
+} from "@/lib/chapters/curriculum-review-server";
 import type { ChapterOSModel } from "@/lib/chapters/chapter-os";
 import type { ChapterRoom, RoomAccent, RoomNeedsItem, RoomTone, RoomStat } from "@/lib/chapters/rooms";
 import type { ChapterRoomWithActions, ChapterRoomAction } from "@/lib/chapters/room-actions";
@@ -325,6 +332,14 @@ function ActionControl({
     return <SaveSnapshotChip chapterId={chapterId} action={action} prominent={prominent} />;
   if (action.mutation?.handler === "logPartnerFollowUp")
     return <LogFollowUpControl chapterId={chapterId} action={action} prominent={prominent} />;
+  if (action.mutation?.handler === "globalRequestCurriculumRevision")
+    return <CurriculumRevisionControl chapterId={chapterId} action={action} prominent={prominent} />;
+  if (
+    action.mutation?.handler === "cpApproveCurriculum" ||
+    action.mutation?.handler === "sendCurriculumToGlobalReview" ||
+    action.mutation?.handler === "globalApproveCurriculum"
+  )
+    return <CurriculumOneClickControl chapterId={chapterId} action={action} prominent={prominent} />;
   return <LinkChip action={action} prominent={prominent} />;
 }
 
@@ -520,6 +535,141 @@ function LogFollowUpControl({
             Save
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Two-stage curriculum review controls ----------------------------------
+
+const CURRICULUM_ONE_CLICK: Record<
+  string,
+  {
+    fn: (input: { chapterId: string; classTemplateId: string }) => Promise<CurriculumReviewResult>;
+    doing: string;
+    done: string;
+  }
+> = {
+  cpApproveCurriculum: { fn: cpApproveCurriculum, doing: "Approving…", done: "CP approved ✓" },
+  sendCurriculumToGlobalReview: { fn: sendCurriculumToGlobalReview, doing: "Sending…", done: "Sent to global ✓" },
+  globalApproveCurriculum: { fn: globalApproveCurriculum, doing: "Approving…", done: "Fully approved ✓" },
+};
+
+/** One-click curriculum stage advance (CP approve · send to global · global approve). */
+function CurriculumOneClickControl({
+  chapterId,
+  action,
+  prominent,
+}: {
+  chapterId: string;
+  action: ChapterRoomAction;
+  prominent?: boolean;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [state, setState] = useState<{ kind: "idle" | "done" | "error"; msg?: string }>({ kind: "idle" });
+  const classTemplateId = action.mutation?.entityId;
+  const cfg = action.mutation ? CURRICULUM_ONE_CLICK[action.mutation.handler] : undefined;
+
+  if (state.kind === "done") return <span className="text-[12.5px] font-semibold text-complete-700">{state.msg}</span>;
+  if (!cfg || !classTemplateId) return <LinkChip action={action} prominent={prominent} />;
+
+  function run() {
+    if (!cfg || !classTemplateId) return;
+    startTransition(async () => {
+      const res = await cfg.fn({ chapterId, classTemplateId });
+      if (res.ok) setState({ kind: "done", msg: cfg.done });
+      else setState({ kind: "error", msg: res.error });
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {prominent ? (
+        <Button variant="primary" size="sm" onClick={run} loading={pending} disabled={pending}>
+          {action.label}
+        </Button>
+      ) : (
+        <button
+          type="button"
+          disabled={pending}
+          title={action.description}
+          onClick={run}
+          className={cn(CHIP, "border-line-card bg-surface text-ink-muted hover:border-brand-400 hover:text-brand-700 disabled:opacity-50")}
+        >
+          {pending ? cfg.doing : action.label}
+        </button>
+      )}
+      {state.kind === "error" && <span className="text-[12px] font-semibold text-blocked-700">{state.msg}</span>}
+    </div>
+  );
+}
+
+/** Global "send back for revision" — a compact composer that requires notes. */
+function CurriculumRevisionControl({
+  chapterId,
+  action,
+  prominent,
+}: {
+  chapterId: string;
+  action: ChapterRoomAction;
+  prominent?: boolean;
+}) {
+  const [composing, setComposing] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [pending, startTransition] = useTransition();
+  const [state, setState] = useState<{ kind: "idle" | "done" | "error"; msg?: string }>({ kind: "idle" });
+  const classTemplateId = action.mutation?.entityId;
+
+  if (state.kind === "done") return <span className="text-[12.5px] font-semibold text-complete-700">Sent back ✓</span>;
+
+  if (!composing) {
+    return prominent ? (
+      <Button variant="secondary" size="sm" onClick={() => setComposing(true)}>
+        {action.label}
+      </Button>
+    ) : (
+      <button
+        type="button"
+        title={action.description}
+        onClick={() => setComposing(true)}
+        className={cn(CHIP, "border-line-card bg-surface text-ink-muted hover:border-brand-400 hover:text-brand-700")}
+      >
+        {action.label}
+      </button>
+    );
+  }
+
+  function submit() {
+    if (!classTemplateId || !notes.trim()) return;
+    startTransition(async () => {
+      const res = await globalRequestCurriculumRevision({ chapterId, classTemplateId, notes: notes.trim() });
+      if (res.ok) setState({ kind: "done" });
+      else setState({ kind: "error", msg: res.error });
+    });
+  }
+
+  return (
+    <div className="w-full rounded-[10px] border border-line-card bg-surface-soft p-3">
+      <p className="m-0 mb-1.5 text-[12px] font-bold text-ink">Send back for revision</p>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        rows={2}
+        placeholder="What needs to change before global approval?"
+        className="w-full resize-y rounded-[8px] border border-line-card bg-surface px-2.5 py-1.5 text-[12.5px] text-ink outline-none focus:border-brand-400"
+      />
+      <div className="mt-2 flex items-center justify-end gap-2">
+        {state.kind === "error" && <span className="text-[12px] font-semibold text-blocked-700">{state.msg}</span>}
+        <button
+          type="button"
+          onClick={() => setComposing(false)}
+          className="text-[12px] font-semibold text-ink-muted hover:text-ink"
+        >
+          Cancel
+        </button>
+        <Button variant="primary" size="sm" onClick={submit} loading={pending} disabled={pending || !notes.trim()}>
+          Send back
+        </Button>
       </div>
     </div>
   );

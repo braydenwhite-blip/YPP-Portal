@@ -34,6 +34,7 @@ import {
   summarizeCurriculumReview,
   curriculumEvidenceRow,
   curriculumReviewRecommendation,
+  curriculumSatisfiesLaunch,
   type CurriculumRecord,
   type CurriculumEvidenceRow,
 } from "@/lib/chapters/curriculum-review";
@@ -113,7 +114,7 @@ export async function loadChapterOperatingSystem(chapterId: string) {
   });
   if (!chapter) return null;
 
-  const [partnerRows, applicantRows, curriculumRows, classRows] = await Promise.all([
+  const [partnerDbRows, applicantRows, curriculumDbRows, classRows, curriculumApprovalRows] = await Promise.all([
     withPrismaFallback(
       "chapter-os:partners",
       () =>
@@ -208,6 +209,7 @@ export async function loadChapterOperatingSystem(chapterId: string) {
             instructorId: true,
             capacity: true,
             grandfatheredTrainingExemption: true,
+            templateId: true,
             template: { select: { submissionStatus: true, targetAgeGroup: true } },
             approval: { select: { status: true } },
             regularInstructorAssignments: { select: { status: true } },
@@ -218,11 +220,38 @@ export async function loadChapterOperatingSystem(chapterId: string) {
         }),
       []
     ),
+    // Two-stage curriculum approval (Phase 4). Fault-tolerant + decoupled from the
+    // curriculum query: if the CurriculumApproval table isn't migrated yet this
+    // returns [] and every curriculum simply falls back to its legacy
+    // submissionStatus — no data loss, the two-stage workflow is just inactive.
+    withPrismaFallback(
+      "chapter-os:curriculum-approvals",
+      () =>
+        prisma.curriculumApproval.findMany({
+          where: { classTemplate: { chapterId } },
+          take: 400,
+          select: {
+            classTemplateId: true,
+            stage: true,
+            submittedAt: true,
+            cpReviewedByName: true,
+            cpReviewNotes: true,
+            cpReviewedAt: true,
+            sentToGlobalAt: true,
+            globalReviewedByName: true,
+            globalReviewNotes: true,
+            globalReviewedAt: true,
+          },
+        }),
+      []
+    ),
   ]);
+
+  const approvalByTemplate = new Map(curriculumApprovalRows.map((a) => [a.classTemplateId, a]));
 
   // --- Map DB rows → pure record shapes -------------------------------------
 
-  const partners: PartnerRecord[] = partnerRows.map((p) => {
+  const partners: PartnerRecord[] = partnerDbRows.map((p) => {
     const offerings = p.classOfferings ?? [];
     return {
       id: p.id,
@@ -263,15 +292,27 @@ export async function loadChapterOperatingSystem(chapterId: string) {
     };
   });
 
-  const curricula: CurriculumRecord[] = curriculumRows.map((c) => ({
-    id: c.id,
-    title: c.title,
-    subject: c.interestArea,
-    instructorName: c.createdBy?.name ?? null,
-    status: c.submissionStatus,
-    submittedAt: c.submittedAt,
-    reviewedAt: null,
-  }));
+  const curricula: CurriculumRecord[] = curriculumDbRows.map((c) => {
+    const a = approvalByTemplate.get(c.id);
+    return {
+      id: c.id,
+      title: c.title,
+      subject: c.interestArea,
+      instructorName: c.createdBy?.name ?? null,
+      status: c.submissionStatus,
+      // Authoritative two-stage stage when present; else legacy submissionStatus.
+      approvalStage: a?.stage ?? null,
+      submittedAt: a?.submittedAt ?? c.submittedAt,
+      reviewedAt: a?.cpReviewedAt ?? null,
+      cpReviewedByName: a?.cpReviewedByName ?? null,
+      cpReviewNotes: a?.cpReviewNotes ?? null,
+      cpReviewedAt: a?.cpReviewedAt ?? null,
+      globalReviewedByName: a?.globalReviewedByName ?? null,
+      globalReviewNotes: a?.globalReviewNotes ?? null,
+      globalReviewedAt: a?.globalReviewedAt ?? null,
+      sentToGlobalAt: a?.sentToGlobalAt ?? null,
+    };
+  });
 
   const classes: ClassLaunchRecord[] = classRows.map((c) => {
     const riaStatuses = (c.regularInstructorAssignments ?? []).map((r) => r.status);
@@ -291,7 +332,12 @@ export async function loadChapterOperatingSystem(chapterId: string) {
       hasTimes: c.meetingDays.length > 0 && !!c.meetingTime,
       hasInstructor: c.instructorId != null,
       instructorConfirmed: riaStatuses.some((s) => CONFIRMED_RIA.includes(s)),
-      curriculumApproved: c.template?.submissionStatus === "APPROVED",
+      // Launch readiness now requires a TRUE full (global) approval, not the
+      // legacy single-stage APPROVED. Falls back to legacy when no approval row.
+      curriculumApproved: curriculumSatisfiesLaunch({
+        approvalStage: approvalByTemplate.get(c.templateId)?.stage ?? null,
+        status: c.template?.submissionStatus ?? null,
+      }),
       publiclyVisible,
       enrolledCount,
       capacity: c.capacity,
@@ -341,8 +387,8 @@ export async function loadChapterOperatingSystem(chapterId: string) {
     interviewsScheduled: instructorSummary.byStage.interview_scheduled,
     interviewsCompleted: instructorSummary.byStage.interview_complete,
     instructorsHired: instructorSummary.hired,
-    curriculaSubmitted: curriculumSummary.reviewNeeded,
-    curriculaApproved: curriculumSummary.approved,
+    curriculaSubmitted: curriculumSummary.submittedEver,
+    curriculaApproved: curriculumSummary.fullyApproved,
     curriculaNeedsRevision: curriculumSummary.needsRevision,
     classesTotal: launchSummary.total,
     classesPublic: classes.filter((c) => c.publiclyVisible).length,
@@ -405,10 +451,10 @@ export async function loadChapterOperatingSystem(chapterId: string) {
     { label: "At Risk", value: countStatus(instructorRows, "at_risk"), hint: "May be short", tone: "warning" },
   ];
   const curriculumStats: DeliberableStat[] = [
-    { label: "Total", value: curriculumSummary.total, hint: "All curricula", tone: "neutral" },
-    { label: "Approved", value: curriculumSummary.approved, hint: "Ready to use", tone: "positive" },
-    { label: "In Review", value: curriculumSummary.reviewNeeded, hint: "Needs feedback", tone: "warning" },
-    { label: "Not Started", value: curriculumSummary.byStatus.not_submitted, hint: "Not submitted", tone: "neutral" },
+    { label: "Approved", value: curriculumSummary.fullyApproved, hint: "Fully approved", tone: "positive" },
+    { label: "CP Review", value: curriculumSummary.cpReviewNeeded, hint: "Awaiting CP", tone: curriculumSummary.cpReviewNeeded > 0 ? "warning" : "neutral" },
+    { label: "Global Review", value: curriculumSummary.globalReviewNeeded, hint: "Awaiting global", tone: curriculumSummary.globalReviewNeeded > 0 ? "warning" : "neutral" },
+    { label: "Revisions", value: curriculumSummary.needsRevision, hint: "Sent back", tone: curriculumSummary.needsRevision > 0 ? "warning" : "neutral" },
   ];
   const classStats: DeliberableStat[] = [
     { label: "Planned", value: launchSummary.total, hint: "All classes", tone: "neutral" },

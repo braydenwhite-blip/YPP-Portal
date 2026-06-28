@@ -27,12 +27,31 @@ export const LogPartnerFollowUpSchema = z.object({
 });
 export type LogPartnerFollowUpInput = z.infer<typeof LogPartnerFollowUpSchema>;
 
+/** Shared validation for the two-stage curriculum review mutations. */
+export const CurriculumReviewActionSchema = z.object({
+  chapterId: z.string().min(1),
+  classTemplateId: z.string().min(1),
+  notes: z.string().max(4000).optional(),
+});
+export type CurriculumReviewActionInput = z.infer<typeof CurriculumReviewActionSchema>;
+
+export const GlobalCurriculumReviewSchema = CurriculumReviewActionSchema.extend({
+  decision: z.enum(["approve", "request_revision"]),
+});
+export type GlobalCurriculumReviewInput = z.infer<typeof GlobalCurriculumReviewSchema>;
+
 // --- Action descriptor ------------------------------------------------------
 
 /** How an action runs: a direct mutation, the Action Tracker bridge, or a link. */
 export type RoomActionKind = "mutate" | "track" | "link";
 /** The direct mutations the client knows how to dispatch to a server action. */
-export type RoomMutationHandler = "saveKpiSnapshot" | "logPartnerFollowUp";
+export type RoomMutationHandler =
+  | "saveKpiSnapshot"
+  | "logPartnerFollowUp"
+  | "cpApproveCurriculum"
+  | "sendCurriculumToGlobalReview"
+  | "globalApproveCurriculum"
+  | "globalRequestCurriculumRevision";
 
 export type ChapterRoomAction = {
   roomActionId: string;
@@ -48,7 +67,7 @@ export type ChapterRoomAction = {
   /** Set when kind === "mutate". */
   mutation?: {
     handler: RoomMutationHandler;
-    entityType?: "PARTNER" | "INSTRUCTOR_APPLICATION" | "CLASS_OFFERING";
+    entityType?: "PARTNER" | "INSTRUCTOR_APPLICATION" | "CLASS_OFFERING" | "CLASS_TEMPLATE";
     entityId?: string;
   };
   /** Set when kind === "track" (feeds trackChapterBlocker, deduped server-side). */
@@ -204,24 +223,90 @@ function teachingActions(room: ChapterRoom): ChapterRoomAction[] {
   return dedupeAndCap(actions);
 }
 
-function learningActions(room: ChapterRoom): ChapterRoomAction[] {
+function learningActions(room: ChapterRoom, opts: RoomActionOptions): ChapterRoomAction[] {
   const actions: ChapterRoomAction[] = [];
-  const review = needByPrefix(room, "curriculum-review");
-  actions.push(
-    linkAction(room, "review", "Open curriculum review", "Read the submission and leave written feedback in the rubric.", review?.href ?? room.href, {
+  const cpReview = needByPrefix(room, "curriculum-review");
+  const sendGlobal = needByPrefix(room, "curriculum-send-global");
+  const globalReview = needByPrefix(room, "curriculum-global-review");
+
+  // Stage 1 — a CP-reviewable curriculum: approve inline (real mutation) or open
+  // the rubric to leave detailed written revision feedback.
+  if (cpReview?.entityId) {
+    actions.push({
+      roomActionId: `${room.key}:cp-approve`,
+      roomKey: room.key,
+      label: "Mark CP approved",
+      description: "Approve this curriculum so it can be escalated to global review.",
+      kind: "mutate",
+      severity: cpReview.severity,
       primary: true,
-      severity: review?.severity ?? "neutral",
-    })
-  );
-  if (review) {
-    actions.push(linkAction(room, "revision", "Request revision", "Send specific pacing/activity feedback back to the instructor.", review.href, { severity: review.severity }));
+      href: cpReview.href,
+      mutation: { handler: "cpApproveCurriculum", entityType: "CLASS_TEMPLATE", entityId: cpReview.entityId },
+    });
+    actions.push(
+      linkAction(room, "revision", "Request revision", "Open the rubric to send written revision feedback to the instructor.", cpReview.href, {
+        severity: cpReview.severity,
+      })
+    );
   }
-  // Global review is not a separate schema stage yet — represent it honestly.
-  actions.push(
-    linkAction(room, "global", "Send to global review", "Escalate a CP-approved curriculum to national review.", "/admin/curricula", {
-      disabledReason: "Global review isn’t a separate approval stage yet (Phase 4).",
-    })
-  );
+
+  // CP approved — escalate to global review. This is the real version of the
+  // action that was honestly disabled in Phase 3.
+  if (sendGlobal?.entityId) {
+    actions.push({
+      roomActionId: `${room.key}:send-global`,
+      roomKey: room.key,
+      label: "Send to global review",
+      description: "Escalate this CP-approved curriculum to global leadership for final sign-off.",
+      kind: "mutate",
+      severity: sendGlobal.severity,
+      primary: !cpReview,
+      href: sendGlobal.href,
+      mutation: { handler: "sendCurriculumToGlobalReview", entityType: "CLASS_TEMPLATE", entityId: sendGlobal.entityId },
+    });
+  }
+
+  // Stage 2 — global leadership only: approve fully or send back for revision,
+  // inline from the same operating surface.
+  if (globalReview?.entityId && opts.isLeadership) {
+    actions.push({
+      roomActionId: `${room.key}:global-approve`,
+      roomKey: room.key,
+      label: "Approve (global)",
+      description: "Give the final global sign-off so this curriculum satisfies launch readiness.",
+      kind: "mutate",
+      severity: globalReview.severity,
+      primary: !cpReview && !sendGlobal,
+      href: globalReview.href,
+      mutation: { handler: "globalApproveCurriculum", entityType: "CLASS_TEMPLATE", entityId: globalReview.entityId },
+    });
+    actions.push({
+      roomActionId: `${room.key}:global-revision`,
+      roomKey: room.key,
+      label: "Send back (global)",
+      description: "Return this curriculum to the instructor with global revision notes.",
+      kind: "mutate",
+      severity: globalReview.severity,
+      primary: false,
+      href: globalReview.href,
+      mutation: { handler: "globalRequestCurriculumRevision", entityType: "CLASS_TEMPLATE", entityId: globalReview.entityId },
+    });
+  } else if (globalReview) {
+    // CP view: can't act on global review, but can watch it.
+    actions.push(
+      linkAction(room, "global-status", "View global review", "Track curricula awaiting global sign-off.", globalReview.href, {
+        severity: globalReview.severity,
+      })
+    );
+  }
+
+  // Always provide a way into the full review surface.
+  if (!actions.some((a) => a.primary)) {
+    actions.push(linkAction(room, "review", "Open curriculum review", "Read submissions and leave written feedback in the rubric.", room.href, { primary: true }));
+  } else if (!actions.some((a) => a.href === room.href)) {
+    actions.push(linkAction(room, "open", "Open curriculum review", "Read submissions and leave written feedback in the rubric.", room.href));
+  }
+
   const t = topNeed(room);
   if (t) actions.push(trackAction(room, t));
   return dedupeAndCap(actions);
@@ -325,15 +410,21 @@ function dedupeAndCap(actions: ChapterRoomAction[]): ChapterRoomAction[] {
   return out;
 }
 
+/**
+ * Viewer context that makes a few room actions role-aware — chiefly the
+ * leadership-only Stage 2 (global) curriculum review actions.
+ */
+export type RoomActionOptions = { isLeadership?: boolean };
+
 /** Build the 2–4 contextual actions for one room. Pure + deterministic. */
-export function buildRoomActions(room: ChapterRoom): ChapterRoomAction[] {
+export function buildRoomActions(room: ChapterRoom, opts: RoomActionOptions = {}): ChapterRoomAction[] {
   switch (room.key) {
     case "partner_network":
       return partnerActions(room);
     case "teaching_org":
       return teachingActions(room);
     case "learning_program":
-      return learningActions(room);
+      return learningActions(room, opts);
     case "live_classes":
       return liveClassesActions(room);
     case "student_community":
@@ -346,8 +437,8 @@ export function buildRoomActions(room: ChapterRoom): ChapterRoomAction[] {
 }
 
 /** Attach actions to every room. */
-export function withRoomActions(rooms: ChapterRoom[]): ChapterRoomWithActions[] {
-  return rooms.map((room) => ({ ...room, actions: buildRoomActions(room) }));
+export function withRoomActions(rooms: ChapterRoom[], opts: RoomActionOptions = {}): ChapterRoomWithActions[] {
+  return rooms.map((room) => ({ ...room, actions: buildRoomActions(room, opts) }));
 }
 
 /** Flatten every room's actions into one severity-sorted list (for tests/feeds). */
