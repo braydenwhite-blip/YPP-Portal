@@ -7853,6 +7853,9 @@ model ClassSession {
   // Attendance
   attendance ClassAttendanceRecord[]
 
+  // Post-session instructor reflection (Phase 5) — 1:1, created on submit.
+  reflection ClassSessionReflection?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -7912,6 +7915,37 @@ model ClassAttendanceRecord {
   @@unique([sessionId, studentId])
   @@index([sessionId])
   @@index([studentId])
+}
+
+// Post-session instructor reflection (Phase 5). 1:1 with ClassSession. More than
+// a text box: it produces operating signals (needsCpHelp / logistics issues feed
+// class interventions; reflection completion clears the "reflection due" runtime
+// state; entries surface in Recent Activity). instructorId is FK-less + a
+// denormalized instructorName snapshot, matching the repo's loosely-coupled-id
+// convention (see PartnerNote / ClassOutcome) to avoid widening the User model.
+model ClassSessionReflection {
+  id         String       @id @default(cuid())
+  sessionId  String       @unique
+  session    ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  /// Denormalized for chapter-/offering-scoped reads without a session join.
+  offeringId String
+
+  instructorId   String?
+  instructorName String?
+
+  wentWell       String?  @db.Text
+  struggled      String?  @db.Text
+  studentToWatch String?  @db.Text
+  changeNextTime String?  @db.Text
+  logisticsIssue String?  @db.Text
+  needsCpHelp    Boolean  @default(false)
+  /// Instructor confidence after the session, 1–5 (optional).
+  confidence     Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([offeringId, createdAt])
 }
 
 // Class reminders (Feature #81)

@@ -309,6 +309,15 @@ export const NAV_CATALOG: NavLink[] = [
       featureKey: "INSTRUCTOR_TEACHING_TOOLS",
     },
     {
+      href: "/instructor/classes",
+      label: "My Classes",
+      icon: "🎓",
+      roles: INSTRUCTOR_ROLES,
+      featureKey: "INSTRUCTOR_TEACHING_TOOLS",
+      dashboardDescription: "Your teaching cockpit — what's today, attendance, reflections, and student signals.",
+      dashboardPriority: 1,
+    },
+    {
       href: "/instructor/workspace",
       label: "Instructor Workspace",
       icon: "🧩",
