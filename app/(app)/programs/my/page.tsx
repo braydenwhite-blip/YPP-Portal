@@ -2,19 +2,13 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { getMyPrograms, withdrawFromProgram } from "@/lib/program-actions";
 import Link from "next/link";
+import { getProgramColor, formatProgramType } from "@/lib/program-constants";
 
 export default async function MyProgramsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
   const enrollments = await getMyPrograms();
-
-  const typeColors: Record<string, string> = {
-    PASSION_LAB: "#6b21c8",
-    COMPETITION_PREP: "#dc2626",
-    EXPERIENCE: "#16a34a",
-    SEQUENCE: "#2563eb",
-  };
 
   return (
     <main className="main-content programs-my-page">
@@ -54,9 +48,9 @@ export default async function MyProgramsPage() {
                   <div className="badges">
                     <span
                       className="type-badge"
-                      style={{ backgroundColor: typeColors[program.type] }}
+                      style={{ backgroundColor: getProgramColor(program.type) }}
                     >
-                      {program.type.replace("_", " ")}
+                      {formatProgramType(program.type)}
                     </span>
                     {program.isVirtual && (
                       <span className="virtual-badge">Virtual</span>

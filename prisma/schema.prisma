@@ -593,6 +593,7 @@ enum ProgramType {
   COMPETITION_PREP
   EXPERIENCE
   SEQUENCE
+  SUMMER_WORKSHOP
 }
 
 enum AwardType {

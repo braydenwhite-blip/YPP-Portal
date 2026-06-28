@@ -6,6 +6,7 @@ import {
   withdrawFromProgram,
 } from "@/lib/program-actions";
 import Link from "next/link";
+import { getProgramColor, formatProgramType } from "@/lib/program-constants";
 
 export default async function ProgramDetailPage({
   params,
@@ -20,13 +21,6 @@ export default async function ProgramDetailPage({
   if (!program) {
     notFound();
   }
-
-  const typeColors: Record<string, string> = {
-    PASSION_LAB: "#6b21c8",
-    COMPETITION_PREP: "#dc2626",
-    EXPERIENCE: "#16a34a",
-    SEQUENCE: "#2563eb",
-  };
 
   const upcomingSessions = program.sessions.filter(
     (s) => new Date(s.scheduledAt) >= new Date()
@@ -45,9 +39,9 @@ export default async function ProgramDetailPage({
           <div className="badges">
             <span
               className="type-badge"
-              style={{ backgroundColor: typeColors[program.type] }}
+              style={{ backgroundColor: getProgramColor(program.type) }}
             >
-              {program.type.replace("_", " ")}
+              {formatProgramType(program.type)}
             </span>
             {program.isVirtual && (
               <span className="virtual-badge">Virtual</span>

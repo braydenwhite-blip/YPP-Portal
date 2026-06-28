@@ -7,6 +7,11 @@ import {
 } from "@/lib/program-actions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import {
+  PROGRAM_TYPE_CONFIG,
+  getProgramColor,
+  formatProgramType,
+} from "@/lib/program-constants";
 
 export default async function AdminProgramsPage() {
   const session = await getSession();
@@ -32,12 +37,6 @@ export default async function AdminProgramsPage() {
     orderBy: { name: "asc" },
   });
 
-  const typeColors: Record<string, string> = {
-    PASSION_LAB: "#6b21c8",
-    COMPETITION_PREP: "#dc2626",
-    EXPERIENCE: "#16a34a",
-    SEQUENCE: "#2563eb",
-  };
 
   return (
     <main className="main-content admin-programs-page">
@@ -55,10 +54,11 @@ export default async function AdminProgramsPage() {
             <div className="form-group">
               <label>Type</label>
               <select name="type" required>
-                <option value="PASSION_LAB">Passion Lab</option>
-                <option value="COMPETITION_PREP">Competition Prep</option>
-                <option value="EXPERIENCE">Experience</option>
-                <option value="SEQUENCE">Sequence</option>
+                {PROGRAM_TYPE_ORDER.map((type) => (
+                  <option key={type} value={type}>
+                    {PROGRAM_TYPE_CONFIG[type].label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -120,9 +120,9 @@ export default async function AdminProgramsPage() {
                     <div className="badges">
                       <span
                         className="type-badge"
-                        style={{ backgroundColor: typeColors[program.type] }}
+                        style={{ backgroundColor: getProgramColor(program.type) }}
                       >
-                        {program.type.replace("_", " ")}
+                        {formatProgramType(program.type)}
                       </span>
                       {program.isVirtual && (
                         <span className="virtual-badge">Virtual</span>
