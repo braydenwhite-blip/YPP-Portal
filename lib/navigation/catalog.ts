@@ -1126,6 +1126,24 @@ export const NAV_CATALOG: NavLink[] = [
       ],
     },
     {
+      href: "/chapter/organization",
+      label: "Organization Graph",
+      icon: "🕸",
+      roles: CHAPTER_PRESIDENT_ONLY,
+      dashboardDescription:
+        "See your whole chapter as one connected model — every partner, class, instructor, and student, with their dependencies and recommended next moves.",
+      dashboardPriority: 3,
+      searchAliases: [
+        "Organization Graph",
+        "Org graph",
+        "Entity 360",
+        "Relationships",
+        "Dependencies",
+        "Connected chapter",
+        "Digital twin",
+      ],
+    },
+    {
       href: "/chapter/calendar",
       label: "Chapter Calendar",
       icon: "🗓",
