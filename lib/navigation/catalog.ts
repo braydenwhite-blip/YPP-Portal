@@ -603,6 +603,30 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
+      href: "/data-360",
+      label: "Data 360",
+      icon: "📊",
+      // Leadership intelligence surface (mirrors requireLeadership(); everyone
+      // who clears that guard carries the ADMIN role). Quantitative, score-free,
+      // drill-down-first — intentionally distinct from "Connected data" (the
+      // operational work board) above. Reads data directly, so it is NOT gated
+      // behind the action-tracker / operations-hub feature flags.
+      coreEligible: false,
+      roles: ["ADMIN"] as NavRole[],
+      searchAliases: [
+        "Data 360",
+        "Organizational intelligence",
+        "Executive overview",
+        "KPIs",
+        "Metrics",
+        "Analytics",
+        "Dashboard",
+      ],
+      dashboardDescription:
+        "Quantitative organizational intelligence — KPIs, growth trends, and a factual needs-attention panel across YPP.",
+      dashboardPriority: 6,
+    },
+    {
       href: "/operations/instructor-pairing",
       label: "Instructor pairing",
       icon: "🧩",
