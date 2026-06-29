@@ -22,7 +22,9 @@ import {
   INSTRUCTION_TITLES,
   LEADERSHIP_TITLES,
   TITLE_AUTHORITY,
+  type CanonicalTitle,
 } from "@/lib/org/levels";
+import { ladderCapabilities } from "@/lib/org/capabilities";
 import {
   createCohort,
   setUserAccess,
@@ -59,9 +61,38 @@ const TITLE_GROUPS: { label: string; titles: readonly string[] }[] = [
   { label: "Leadership ladder", titles: LEADERSHIP_TITLES },
 ];
 
+// Numeric levels are purely internal — show the title name only.
 function titleLabel(title: string): string {
+  return title;
+}
+
+/** Roles an admin may toggle by hand. ADMIN is derived from the ladder title. */
+const ASSIGNABLE_ROLE_VALUES = ROLE_VALUES.filter((role) => role !== RoleType.ADMIN);
+
+/** A one-line, human summary of what a ladder title grants — for the editor. */
+function titleAccessSummary(title: string): string | null {
   const meta = TITLE_AUTHORITY[title as keyof typeof TITLE_AUTHORITY];
-  return meta ? `${title} (L${meta.internalLevel})` : title;
+  if (!meta) return null;
+  const caps = ladderCapabilities({
+    title: title as CanonicalTitle,
+    ladder: meta.ladder,
+    ladderLevel: meta.ladderLevel,
+    internalLevel: meta.internalLevel,
+    source: "PERSISTED",
+  });
+  if (caps.hasUniversalAccess) {
+    return caps.canSeeOfficerReviews
+      ? "Full universal access, including officer reviews (Board)."
+      : "Universal access — can create & manage chapters, roles, and people.";
+  }
+  const grants: string[] = [];
+  if (caps.canAccessGlobalActionTracker) grants.push("global action tracker");
+  else if (caps.canAccessChapterActionTracker) grants.push("chapter action tracker");
+  if (caps.canAccessInstructionCommittee) grants.push("Instruction Committee");
+  else if (caps.canMentorInstructors) grants.push("mentor instructors");
+  if (caps.canAccessOutreachDatabases) grants.push("outreach databases");
+  grants.push(caps.canLeadActions ? "can lead actions" : "actions: executing/input only");
+  return grants.length ? `Grants: ${grants.join(", ")}.` : null;
 }
 
 export function RoleManagement({
@@ -482,7 +513,9 @@ function EditAccessModal({
               ))}
             </select>
             <span className="text-xs text-ink-muted">
-              Sets the ladder and internal level that drive permissions.
+              {title
+                ? titleAccessSummary(title) ?? "Sets the ladder that drives permissions."
+                : "Sets the ladder that drives all access. Officer and above grant admin access automatically."}
             </span>
           </label>
 
@@ -507,9 +540,10 @@ function EditAccessModal({
           <legend className="text-sm font-medium">Extra roles</legend>
           <p className="text-xs text-ink-muted">
             The primary role is always kept. Add any extra roles this person needs.
+            Admin access is set by the ladder title above, not here.
           </p>
           <div className="grid grid-cols-2 gap-2">
-            {ROLE_VALUES.map((role) => (
+            {ASSIGNABLE_ROLE_VALUES.map((role) => (
               <label key={role} className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

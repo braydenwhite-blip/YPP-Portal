@@ -1,13 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { AdminSubtype, Prisma, RoleType } from "@prisma/client";
 import { z } from "zod";
 
-import { buildUserRoleRecords, resolveUserAccessSelection } from "@/lib/admin-user-access";
+import { validateEnum } from "@/lib/validate-enum";
+
+import {
+  buildUserAdminSubtypeRecords,
+  buildUserRoleRecords,
+  resolveUserAccessSelection,
+} from "@/lib/admin-user-access";
 import { requireAdmin } from "@/lib/authorization-helpers";
 import {
   TITLE_AUTHORITY,
   normalizeTitle,
+  roleForTitle,
+  subtypesForTitle,
   type CanonicalTitle,
 } from "@/lib/org/levels";
 import { prisma } from "@/lib/prisma";
@@ -75,6 +84,42 @@ function resolveLadderPatch(value: string): {
   };
 }
 
+/**
+ * Ops that sync the legacy ADMIN role + admin subtype(s) implied by a canonical
+ * ladder title, leaving all other roles intact. Used by the inline quick-assign
+ * so it stays consistent with `setUserAccess` (which achieves the same via its
+ * full role rewrite). A non-officer title (or null) strips the derived access.
+ */
+function adminShapeOpsForTitle(
+  userId: string,
+  title: CanonicalTitle | null
+): Prisma.PrismaPromise<unknown>[] {
+  const ops: Prisma.PrismaPromise<unknown>[] = [];
+  if (roleForTitle(title) === "ADMIN") {
+    ops.push(
+      prisma.userRole.upsert({
+        where: { userId_role: { userId, role: RoleType.ADMIN } },
+        create: { userId, role: RoleType.ADMIN },
+        update: {},
+      })
+    );
+  } else {
+    ops.push(
+      prisma.userRole.deleteMany({ where: { userId, role: RoleType.ADMIN } })
+    );
+  }
+  ops.push(prisma.userAdminSubtype.deleteMany({ where: { userId } }));
+  const records = subtypesForTitle(title).map((value) => ({
+    userId,
+    subtype: validateEnum(AdminSubtype, value, "adminSubtype"),
+    isDefaultOwner: false,
+  }));
+  if (records.length > 0) {
+    ops.push(prisma.userAdminSubtype.createMany({ data: records }));
+  }
+  return ops;
+}
+
 const SetUserAccessSchema = z.object({
   userId: z.string().min(1, "A user is required."),
   primaryRole: z.string().min(1, "A primary role is required."),
@@ -87,17 +132,19 @@ const SetUserAccessSchema = z.object({
 
 /**
  * Full save from the Role Management editor modal: primary role, the role list,
- * chapter, ladder/level (org authority spine), and cohort. Admin subtypes are no
- * longer managed here — access now flows from the ladder/level spine and cohort.
+ * chapter, ladder/level (org authority spine), and cohort.
+ *
+ * The ladder TITLE is the single source of truth for admin access: the legacy
+ * `ADMIN` role + admin subtype(s) it implies are derived here (Board Member →
+ * SUPER_ADMIN, Senior Officer → LEADERSHIP, Officer → ADMIN) rather than set by
+ * hand, so the many `requireAdmin()` / `roles.includes("ADMIN")` call sites keep
+ * working off the ladder. Picking a non-officer title (or clearing it) strips the
+ * derived admin access. This only touches the admin shape when the title
+ * dimension is actually provided (not "__KEEP__").
  */
 export async function setUserAccess(input: unknown) {
   await requireAdmin();
   const data = SetUserAccessSchema.parse(input);
-
-  const access = resolveUserAccessSelection({
-    primaryRoleRaw: data.primaryRole.toUpperCase(),
-    roleValues: data.roles,
-  });
 
   const user = await prisma.user.findUnique({
     where: { id: data.userId },
@@ -105,13 +152,36 @@ export async function setUserAccess(input: unknown) {
   });
   if (!user) throw new Error("No user was found.");
 
+  const titleProvided = data.title !== KEEP;
+  const canonicalTitle =
+    titleProvided && data.title !== CLEAR && data.title !== NONE
+      ? normalizeTitle(data.title)
+      : null;
+
+  // When the title is provided, it drives the ADMIN role: strip any hand-set
+  // ADMIN and re-derive it (and the subtype) from the chosen title.
+  let roleValues = [...data.roles];
+  let adminSubtypeValues: string[] | undefined;
+  if (titleProvided) {
+    roleValues = roleValues.filter((role) => role.toUpperCase() !== "ADMIN");
+    const derivedRole = roleForTitle(canonicalTitle);
+    if (derivedRole) roleValues.push(derivedRole);
+    adminSubtypeValues = subtypesForTitle(canonicalTitle); // [] clears the table
+  }
+
+  const access = resolveUserAccessSelection({
+    primaryRoleRaw: data.primaryRole.toUpperCase(),
+    roleValues,
+    adminSubtypeValues,
+  });
+
   const [chapterPatch, cohortPatch] = await Promise.all([
     resolveChapterPatch(data.chapterId),
     resolveCohortPatch(data.cohortId),
   ]);
   const ladderPatch = resolveLadderPatch(data.title);
 
-  await prisma.$transaction([
+  const ops: Prisma.PrismaPromise<unknown>[] = [
     prisma.user.update({
       where: { id: user.id },
       data: {
@@ -125,7 +195,23 @@ export async function setUserAccess(input: unknown) {
     prisma.userRole.createMany({
       data: buildUserRoleRecords(user.id, access.roles),
     }),
-  ]);
+  ];
+  if (titleProvided) {
+    ops.push(prisma.userAdminSubtype.deleteMany({ where: { userId: user.id } }));
+    if (access.adminSubtypes.length > 0) {
+      ops.push(
+        prisma.userAdminSubtype.createMany({
+          data: buildUserAdminSubtypeRecords(
+            user.id,
+            access.adminSubtypes,
+            access.defaultOwnerSubtype
+          ),
+        })
+      );
+    }
+  }
+
+  await prisma.$transaction(ops);
 
   revalidatePath("/admin/role-management");
   return { ok: true };
@@ -163,10 +249,24 @@ export async function setUserGroup(input: unknown) {
     return { ok: true };
   }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { ...cohortPatch, ...ladderPatch },
-  });
+  const titleProvided = data.title !== KEEP;
+  const canonicalTitle =
+    titleProvided && data.title !== CLEAR && data.title !== NONE
+      ? normalizeTitle(data.title)
+      : null;
+
+  const ops: Prisma.PrismaPromise<unknown>[] = [
+    prisma.user.update({
+      where: { id: user.id },
+      data: { ...cohortPatch, ...ladderPatch },
+    }),
+  ];
+  // A ladder title change drives admin access too — keep it in sync.
+  if (titleProvided) {
+    ops.push(...adminShapeOpsForTitle(user.id, canonicalTitle));
+  }
+
+  await prisma.$transaction(ops);
 
   revalidatePath("/admin/role-management");
   return { ok: true };

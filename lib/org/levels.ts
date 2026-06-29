@@ -209,6 +209,85 @@ export function resolvePersonAuthority(
   }
 }
 
+/** The org-spine columns to PERSIST on a user row. */
+export interface SpinePatch {
+  internalLevel: number | null;
+  ladder: Ladder | null;
+  canonicalTitle: CanonicalTitle | null;
+}
+
+/**
+ * Derive the org-spine patch to PERSIST from legacy access inputs. Precedence:
+ * explicit canonical title > admin-subtype-derived > primaryRole-derived. This
+ * is the INVERSE of `resolvePersonAuthority`'s "persisted wins" rule: we
+ * deliberately omit any already-persisted `internalLevel` so re-saving always
+ * refreshes the spine from the chosen title/role.
+ *
+ * Trust guard (mirrors the note in lib/authorization.ts): a privileged level
+ * (>= OFFICER_MIN_LEVEL) that came purely from an admin subtype is only emitted
+ * when the row is actually ADMIN, so a stray subtype on a non-admin can never
+ * persist an officer-or-above level.
+ */
+export function deriveSpineFromAccess(input: {
+  primaryRole?: string | null;
+  roles?: Array<string | null | undefined> | null;
+  adminSubtypes?: Array<string | null | undefined> | null;
+  explicitCanonicalTitle?: string | null;
+}): SpinePatch {
+  const explicit = normalizeTitle(input.explicitCanonicalTitle ?? null);
+  const authority = resolvePersonAuthority({
+    title: explicit ?? undefined,
+    adminSubtypes: input.adminSubtypes ?? [],
+    primaryRole: input.primaryRole,
+    // internalLevel / ladder / canonicalTitle intentionally omitted so the
+    // persisted branch cannot short-circuit the derivation.
+  });
+
+  const isAdminRow =
+    normalizeRoleValue(input.primaryRole)?.toUpperCase() === "ADMIN" ||
+    (input.roles ?? []).some(
+      (role) => normalizeRoleValue(role)?.toUpperCase() === "ADMIN"
+    );
+  if (
+    authority.source === "ADMIN_SUBTYPE" &&
+    !isAdminRow &&
+    (authority.internalLevel ?? 0) >= OFFICER_MIN_LEVEL
+  ) {
+    return { internalLevel: null, ladder: null, canonicalTitle: null };
+  }
+
+  return {
+    internalLevel: authority.internalLevel,
+    ladder: authority.ladder,
+    canonicalTitle: authority.title,
+  };
+}
+
+/**
+ * The legacy ADMIN role implied by a canonical ladder title. Officer and above
+ * (internal level >= 5) carry the ADMIN role so the many `requireAdmin()` /
+ * `roles.includes("ADMIN")` call sites keep working off the ladder.
+ */
+export function roleForTitle(title: CanonicalTitle | null): "ADMIN" | null {
+  if (!title) return null;
+  return TITLE_AUTHORITY[title].internalLevel >= OFFICER_MIN_LEVEL ? "ADMIN" : null;
+}
+
+/**
+ * The admin subtype(s) implied by a canonical ladder title — the inverse of the
+ * subtype→title mapping in `resolvePersonAuthority`. Board Member → SUPER_ADMIN,
+ * Senior Officer → LEADERSHIP. Officer and below carry no subtype (their ladder
+ * level alone clears the tier guards). Returns subtype *names* as strings; the
+ * caller validates them via `resolveUserAccessSelection`.
+ */
+export function subtypesForTitle(title: CanonicalTitle | null): string[] {
+  if (!title) return [];
+  const level = TITLE_AUTHORITY[title].internalLevel;
+  if (level >= TOP_INTERNAL_LEVEL) return ["SUPER_ADMIN"];
+  if (level === 6) return ["LEADERSHIP"];
+  return [];
+}
+
 export interface LeadEligibility {
   eligible: boolean;
   reason: string;

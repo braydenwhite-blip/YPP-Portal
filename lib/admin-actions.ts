@@ -24,6 +24,7 @@ import {
   buildUserAdminSubtypeRecords,
   resolveUserAccessSelection,
 } from "@/lib/admin-user-access";
+import { deriveSpineFromAccess } from "@/lib/org/levels";
 
 export type AdminUserMigrationResult = {
   found: number;
@@ -103,6 +104,16 @@ export async function createUser(formData: FormData) {
     throw new Error("User already exists");
   }
 
+  // The org-spine (ladder/level) is the source of truth for access. Derive and
+  // persist it from the chosen role/subtypes so new accounts are consistent and
+  // the tier guards work off the ladder immediately.
+  const spine = deriveSpineFromAccess({
+    primaryRole,
+    roles,
+    adminSubtypes,
+    explicitCanonicalTitle: getString(formData, "canonicalTitle", false) || null,
+  });
+
   const passwordHash = await bcrypt.hash(password, 10);
   const supabaseAdmin = createServiceClient();
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -114,6 +125,7 @@ export async function createUser(formData: FormData) {
       primaryRole,
       chapterId: chapterId || null,
       roles,
+      internalLevel: spine.internalLevel,
     },
   });
 
@@ -131,6 +143,9 @@ export async function createUser(formData: FormData) {
     chapterId: chapterId || null,
     emailVerified: new Date(),
     supabaseAuthId: authData.user.id,
+    internalLevel: spine.internalLevel,
+    ladder: spine.ladder ?? undefined,
+    canonicalTitle: spine.canonicalTitle ?? undefined,
   };
 
   let newUser;
