@@ -67,6 +67,14 @@ export type ChapterOSModel = {
   /** Whether the growth baseline is a saved snapshot, reconstructed, or absent. */
   growthBaselineSource: PreviousSnapshotSource;
   impact: ChapterOperatingSystem["impact"];
+  // Re-exposed so the Automation Brain can build `ChapterFacts` from this single
+  // load (no extra DB reads). These are the inner OS summaries verbatim.
+  metrics: ChapterOperatingSystem["metrics"];
+  partners: ChapterOperatingSystem["partners"];
+  instructors: ChapterOperatingSystem["instructors"];
+  curriculum: ChapterOperatingSystem["curriculum"];
+  launch: ChapterOperatingSystem["launch"];
+  blockers: ChapterOperatingSystem["blockers"];
 };
 
 const ACTIVE_ENROLLMENT = ["ENROLLED", "COMPLETED"];
@@ -291,6 +299,12 @@ export async function loadChapterOS(
     growth,
     growthBaselineSource: baseline.source,
     impact: os.impact,
+    metrics: os.metrics,
+    partners: os.partners,
+    instructors: os.instructors,
+    curriculum: os.curriculum,
+    launch: os.launch,
+    blockers: os.blockers,
   };
 }
 

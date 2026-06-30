@@ -6,6 +6,8 @@ import { loadChapterWorkspace } from "@/lib/chapters/workspace";
 import { loadChapterAttention } from "@/lib/chapters/attention";
 import { loadChapterClassOps } from "@/lib/chapters/class-ops";
 import { ChapterWorkspaceView } from "@/components/chapters/chapter-workspace-view";
+import { loadChapterAutomations } from "@/lib/automation/build-chapter-automation";
+import { ChapterAutomationSection } from "@/components/automation";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -52,9 +54,12 @@ export default async function ChapterHomePage() {
     redirect("/chapter/apply");
   }
 
-  const [attention, classOps, onboarding] = await Promise.all([
+  const [attention, classOps, automation, onboarding] = await Promise.all([
     loadChapterAttention(ctx.ledChapterId, { overdueActions: data.signals.overdueActions }),
     loadChapterClassOps(ctx.ledChapterId),
+    // The Automation Brain: playbook pacing, readiness, today's priorities, and
+    // impact-meeting prep — a living operating guide layered over the workspace.
+    loadChapterAutomations(ctx.ledChapterId),
     prisma.chapterPresidentOnboarding
       .findUnique({
         where: { userId: ctx.user.id },
@@ -109,6 +114,12 @@ export default async function ChapterHomePage() {
           <ButtonLink href="/chapter/onboarding" variant="primary" size="sm">
             Continue onboarding
           </ButtonLink>
+        </div>
+      )}
+
+      {automation && (
+        <div className="mt-6">
+          <ChapterAutomationSection automation={automation} />
         </div>
       )}
 

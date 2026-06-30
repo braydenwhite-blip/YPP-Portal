@@ -552,8 +552,19 @@ export async function loadChapterOperatingSystem(chapterId: string) {
       lifecycleStatus: chapter.lifecycleStatus,
       lifecycleLabel: chapterLifecycleLabel(chapter.lifecycleStatus),
       president: chapter.president,
+      // Cycle anchors — exposed so the Automation Brain can date "playbook week N"
+      // and judge its confidence without re-querying the chapter.
+      cycleStartISO: startDate.toISOString(),
+      launchTargetISO: chapter.launchTargetDate?.toISOString() ?? null,
+      /** True when the week is anchored to a real date (not just createdAt). */
+      weekAnchored: Boolean(
+        chapter.launchedAt || chapter.launchTargetDate || chapter.expectedFirstMeetingAt
+      ),
     },
     weekNumber: impact.weekNumber,
+    // Raw count-bag the Automation Brain reads to build `ChapterFacts` (no extra
+    // DB reads). Already computed above for impact-meeting prep.
+    metrics,
     partners: { ...partnerSummary, followUps: partnerFollowUps, confirmedLogistics },
     instructors: instructorSummary,
     curriculum: curriculumSummary,
