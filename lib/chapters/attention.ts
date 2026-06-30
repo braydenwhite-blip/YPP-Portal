@@ -29,29 +29,40 @@ export async function loadChapterAttention(
   chapterId: string,
   opts?: { overdueActions?: number }
 ): Promise<ChapterAttentionItem[]> {
-  const [joinRequests, candidatesAwaitingDecision, curriculumToReview] = await Promise.all([
-    withPrismaFallback(
-      "chapter:attention:join-requests",
-      () => prisma.chapterJoinRequest.count({ where: { chapterId, status: "PENDING" } }),
-      0
-    ),
-    withPrismaFallback(
-      "chapter:attention:candidates",
-      () =>
-        prisma.application.count({
-          where: { position: { chapterId }, decision: null, status: { not: "WITHDRAWN" } },
-        }),
-      0
-    ),
-    withPrismaFallback(
-      "chapter:attention:curriculum",
-      () =>
-        prisma.classTemplate.count({
-          where: { chapterId, submissionStatus: "SUBMITTED" },
-        }),
-      0
-    ),
-  ]);
+  const [joinRequests, candidatesAwaitingDecision, curriculumToReview, partnerFollowUpsDue] =
+    await Promise.all([
+      withPrismaFallback(
+        "chapter:attention:join-requests",
+        () => prisma.chapterJoinRequest.count({ where: { chapterId, status: "PENDING" } }),
+        0
+      ),
+      withPrismaFallback(
+        "chapter:attention:candidates",
+        () =>
+          prisma.application.count({
+            where: { position: { chapterId }, decision: null, status: { not: "WITHDRAWN" } },
+          }),
+        0
+      ),
+      withPrismaFallback(
+        "chapter:attention:curriculum",
+        () =>
+          prisma.classTemplate.count({
+            where: { chapterId, submissionStatus: "SUBMITTED" },
+          }),
+        0
+      ),
+      // Partner follow-ups whose date has arrived — the CP needs to send a nudge
+      // (Partner Automation). Indexed on (chapterId, nextFollowUpAt).
+      withPrismaFallback(
+        "chapter:attention:partner-follow-ups",
+        () =>
+          prisma.partner.count({
+            where: { chapterId, archivedAt: null, nextFollowUpAt: { lt: new Date() } },
+          }),
+        0
+      ),
+    ]);
 
   const items: ChapterAttentionItem[] = [];
   const overdue = opts?.overdueActions ?? 0;
@@ -80,6 +91,15 @@ export async function loadChapterAttention(
       label: curriculumToReview === 1 ? "curriculum to review" : "curricula to review",
       count: curriculumToReview,
       href: "/admin/curricula",
+      tone: "warning",
+    });
+  }
+  if (partnerFollowUpsDue > 0) {
+    items.push({
+      key: "partner-follow-ups",
+      label: partnerFollowUpsDue === 1 ? "partner follow-up due" : "partner follow-ups due",
+      count: partnerFollowUpsDue,
+      href: "/partners",
       tone: "warning",
     });
   }

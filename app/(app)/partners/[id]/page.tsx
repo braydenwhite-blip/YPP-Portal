@@ -1,12 +1,10 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 
-import { PartnerOperationsDetailView } from "@/components/partners/partner-operations-detail";
+import { PartnerOperatingRoom } from "@/components/partners/crm/partner-operating-room";
 import { getSession } from "@/lib/auth-supabase";
-import { hasRole } from "@/lib/authorization";
-import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { isOfficerTier, type ActionViewer } from "@/lib/people-strategy/action-permissions";
-import { loadPartnerOperationsDetail } from "@/lib/partners-operations";
+import { requirePartnerAccess } from "@/lib/partners/permissions";
+import { loadPartnerDetail } from "@/lib/partners/detail";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Partner — Pathways Portal" };
@@ -28,21 +26,17 @@ export default async function PartnerDetailPage({
   if (!isOfficerTier(viewer)) redirect("/");
 
   const { id } = await params;
-  const partner = await loadPartnerOperationsDetail(id, viewer);
+
+  // Chapter-scoped access: leadership or the CP who owns this partner's chapter.
+  const access = await requirePartnerAccess(id).catch(() => null);
+  if (!access) redirect("/partners");
+
+  const partner = await loadPartnerDetail(id, access);
   if (!partner) redirect("/partners");
 
-  const canManage = hasRole(viewer.roles, "ADMIN", viewer.primaryRole);
-
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-1 pb-12 pt-2">
-      <Link
-        href="/partners"
-        className="mb-4 inline-block text-[13px] font-semibold text-[#5a1da8] no-underline hover:underline"
-      >
-        ← All partners
-      </Link>
-
-      <PartnerOperationsDetailView partner={partner} canManage={canManage && isActionTrackerEnabled()} />
+    <div className="mx-auto w-full max-w-[1100px] px-1 pb-14 pt-2">
+      <PartnerOperatingRoom partner={partner} />
     </div>
   );
 }

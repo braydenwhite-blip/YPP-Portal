@@ -1,16 +1,16 @@
 import { redirect } from "next/navigation";
 
 import { PageHeaderV2 } from "@/components/ui-v2";
-import { AddPartnerForm } from "@/components/partners/crm/add-partner-form";
+import { ImportPartners } from "@/components/partners/crm/import-partners";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { isOfficerTier, type ActionViewer } from "@/lib/people-strategy/action-permissions";
 import { getPartnerScope, partnerScopeWhere } from "@/lib/partners/permissions";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Add partner · Partners" };
+export const metadata = { title: "Import partners · Partners" };
 
-export default async function NewPartnerPage() {
+export default async function ImportPartnersPage() {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -23,9 +23,9 @@ export default async function NewPartnerPage() {
   if (!isOfficerTier(viewer)) redirect("/");
 
   const scope = await getPartnerScope();
-  if (!scope.isLeadership && !scope.ledChapterId) redirect("/partners");
+  // Import attaches partners to a chapter, so it requires a chapter to import into.
+  if (!scope.ledChapterId) redirect("/partners");
 
-  // Existing partners (scoped) power live duplicate detection in the form.
   const existing = await prisma.partner.findMany({
     where: partnerScopeWhere(scope),
     select: { id: true, name: true, website: true, location: true, contactEmail: true },
@@ -33,16 +33,16 @@ export default async function NewPartnerPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-[760px] px-4 pb-14 pt-2">
+    <div className="mx-auto w-full max-w-[860px] px-4 pb-14 pt-2">
       <PageHeaderV2
         eyebrow="Partners"
         backHref="/partners"
         backLabel="Partners"
-        title="Add a partner"
-        subtitle="Research a school, library, or community center? Add it here to start the outreach pipeline."
+        title="Import partners"
+        subtitle="Bring your partner research from a spreadsheet straight into the pipeline."
       />
       <div className="mt-5">
-        <AddPartnerForm chapterId={scope.ledChapterId} existing={existing} />
+        <ImportPartners chapterId={scope.ledChapterId} existing={existing} />
       </div>
     </div>
   );

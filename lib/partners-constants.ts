@@ -141,6 +141,20 @@ export const PARTNER_NOTE_KINDS = [
   "DECISION",
   "OUTCOME",
   "STAGE_CHANGE",
+  // --- Chapter Partner CRM timeline kinds (Partner Automation) --------------
+  // Append-only operating-timeline events written by the CP-facing workflow
+  // actions. Additive only — legacy kinds above are unchanged.
+  "OUTREACH_SENT",
+  "FOLLOW_UP_SENT",
+  "RESPONSE_RECEIVED",
+  "MEETING_SCHEDULED",
+  "MEETING_OUTCOME",
+  "PROPOSAL_SENT",
+  "LOGISTICS_CONFIRMED",
+  "ISSUE",
+  "ISSUE_RESOLVED",
+  "CHECK_IN",
+  "CLOSED",
 ] as const;
 export type PartnerNoteKind = (typeof PARTNER_NOTE_KINDS)[number];
 
@@ -153,6 +167,17 @@ export const PARTNER_NOTE_KIND_LABELS: Record<PartnerNoteKind, string> = {
   DECISION: "Decision",
   OUTCOME: "Outcome",
   STAGE_CHANGE: "Stage change",
+  OUTREACH_SENT: "Outreach sent",
+  FOLLOW_UP_SENT: "Follow-up sent",
+  RESPONSE_RECEIVED: "Response received",
+  MEETING_SCHEDULED: "Meeting scheduled",
+  MEETING_OUTCOME: "Meeting outcome",
+  PROPOSAL_SENT: "Proposal sent",
+  LOGISTICS_CONFIRMED: "Logistics confirmed",
+  ISSUE: "Issue raised",
+  ISSUE_RESOLVED: "Issue resolved",
+  CHECK_IN: "Partner check-in",
+  CLOSED: "Closed",
 };
 
 // --- Safe coercion (TEXT columns may hold legacy/null values) ---------------
