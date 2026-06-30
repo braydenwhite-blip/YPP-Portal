@@ -42,7 +42,13 @@ export type WorkflowAutomationActionValue =
   | "CREATE_WORKFLOW_ITEM"
   | "SCHEDULE_FOLLOW_UP"
   | "ESCALATE"
-  | "ADVANCE_STAGE";
+  | "ADVANCE_STAGE"
+  | "START_WORKFLOW";
+export type WorkflowTriggerEventValue =
+  | "MANUAL"
+  | "ENTITY_CREATED"
+  | "ENTITY_STATUS_CHANGED"
+  | "SCHEDULED";
 
 /** Stage exit gate. `requireAllRequiredSteps` (default true) means every
  *  required step must be COMPLETE/SKIPPED before the stage can be left. */

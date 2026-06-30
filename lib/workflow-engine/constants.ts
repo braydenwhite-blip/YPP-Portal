@@ -98,6 +98,7 @@ export const AUTOMATION_ACTIONS = [
   "SCHEDULE_FOLLOW_UP",
   "ESCALATE",
   "ADVANCE_STAGE",
+  "START_WORKFLOW",
 ] as const;
 
 export const AUTOMATION_ACTION_LABELS: Record<string, string> = {
@@ -108,6 +109,7 @@ export const AUTOMATION_ACTION_LABELS: Record<string, string> = {
   SCHEDULE_FOLLOW_UP: "Schedule a follow-up",
   ESCALATE: "Escalate to leadership",
   ADVANCE_STAGE: "Advance the workflow",
+  START_WORKFLOW: "Start another workflow",
 };
 
 /** Reusing the existing WorkflowItem home feed: the new generic WorkflowKind

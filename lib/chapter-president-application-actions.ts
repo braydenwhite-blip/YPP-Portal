@@ -18,6 +18,7 @@ import {
 import { syncChapterPresidentApplicationWorkflow } from "@/lib/workflow";
 import { CP_STARTER_ACTIONS } from "@/lib/chapter-president-lifecycle";
 import { provisionChapterForApproval } from "@/lib/chapters/provisioning";
+import { fireEntityStatusChanged } from "@/lib/workflow-engine/triggers";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -402,6 +403,19 @@ export async function reviewChapterPresidentApplication(
               });
             }
           }
+        });
+
+        // Best-effort: approval reaching ONBOARDING can auto-start a matching,
+        // published workflow template instance (e.g. Chapter President
+        // Onboarding) for this application — separate from, and complementary
+        // to, the bespoke ChapterPresidentOnboarding checklist record above.
+        await fireEntityStatusChanged({
+          subjectType: "CHAPTER_PRESIDENT_APPLICATION",
+          subjectId: applicationId,
+          newStatus: "ONBOARDING",
+          chapterId: application.chapterId,
+          ownerId: application.applicantId,
+          startedById: session.user.id,
         });
 
         try {

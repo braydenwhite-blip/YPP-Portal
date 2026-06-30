@@ -48,6 +48,12 @@ export function WorkflowRunner({ detail }: { detail: InstanceDetail }) {
   const currentExecs = executions.filter((e) => e.stageKey === runtime.currentStageKey);
   const isClosed = instance.status === "COMPLETED" || instance.status === "CANCELLED";
 
+  const stageByKey = new Map(definition.stages.map((s) => [s.key, s]));
+  const currentStageDef = runtime.currentStageKey ? stageByKey.get(runtime.currentStageKey) : undefined;
+  const stepDescByKey = new Map(
+    (currentStageDef?.steps ?? []).map((st) => [st.key, st.description])
+  );
+
   return (
     <div className="flex flex-col gap-6">
       {error ? (
@@ -121,40 +127,48 @@ export function WorkflowRunner({ detail }: { detail: InstanceDetail }) {
       <CardV2 padding="lg">
         <SectionHeaderV2 title="Stages" description="The path this workflow takes." />
         <ol className="mt-3 flex flex-col gap-1">
-          {runtime.stages.map((s) => (
-            <li
-              key={s.stageKey}
-              className={cn(
-                "flex items-center justify-between rounded-lg px-3 py-2",
-                s.status === "CURRENT" || s.status === "BLOCKED" ? "bg-brand-50" : ""
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className={cn(
-                    "inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold",
-                    s.status === "COMPLETED"
-                      ? "bg-complete-50 text-complete-700"
-                      : s.status === "CURRENT"
-                        ? "bg-brand-600 text-white"
-                        : s.status === "BLOCKED"
-                          ? "bg-blocked-50 text-blocked-700"
-                          : "bg-idle-50 text-idle-700"
-                  )}
-                >
-                  {s.status === "COMPLETED" ? "✓" : s.order + 1}
-                </span>
-                <span className="text-[14px] font-medium text-ink">{s.name}</span>
-                {s.isTerminal ? (
-                  <span className="text-[11px] text-ink-muted">final</span>
+          {runtime.stages.map((s) => {
+            const stageDescription = stageByKey.get(s.stageKey)?.description;
+            return (
+              <li
+                key={s.stageKey}
+                className={cn(
+                  "flex flex-col gap-1 rounded-lg px-3 py-2",
+                  s.status === "CURRENT" || s.status === "BLOCKED" ? "bg-brand-50" : ""
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={cn(
+                        "inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold",
+                        s.status === "COMPLETED"
+                          ? "bg-complete-50 text-complete-700"
+                          : s.status === "CURRENT"
+                            ? "bg-brand-600 text-white"
+                            : s.status === "BLOCKED"
+                              ? "bg-blocked-50 text-blocked-700"
+                              : "bg-idle-50 text-idle-700"
+                      )}
+                    >
+                      {s.status === "COMPLETED" ? "✓" : s.order + 1}
+                    </span>
+                    <span className="text-[14px] font-medium text-ink">{s.name}</span>
+                    {s.isTerminal ? (
+                      <span className="text-[11px] text-ink-muted">final</span>
+                    ) : null}
+                    {s.isOverdue ? <StatusBadge tone="danger">Overdue</StatusBadge> : null}
+                  </div>
+                  <span className="text-[12px] text-ink-muted">
+                    {s.completedSteps}/{s.totalSteps} steps
+                  </span>
+                </div>
+                {stageDescription ? (
+                  <p className="ml-9 text-[12px] text-ink-muted">{stageDescription}</p>
                 ) : null}
-                {s.isOverdue ? <StatusBadge tone="danger">Overdue</StatusBadge> : null}
-              </div>
-              <span className="text-[12px] text-ink-muted">
-                {s.completedSteps}/{s.totalSteps} steps
-              </span>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ol>
       </CardV2>
 
@@ -170,6 +184,7 @@ export function WorkflowRunner({ detail }: { detail: InstanceDetail }) {
               <StepRow
                 key={exec.id}
                 exec={exec}
+                description={stepDescByKey.get(exec.stepKey) ?? null}
                 pending={pending}
                 blockingId={blockingId}
                 blockReason={blockReason}
@@ -233,15 +248,23 @@ export function WorkflowRunner({ detail }: { detail: InstanceDetail }) {
         </ul>
       </CardV2>
 
-      <p className="text-center text-[11px] text-ink-muted">
-        Template: {definition.name}
-      </p>
+      {definition.description ? (
+        <CardV2 padding="lg">
+          <SectionHeaderV2 title="About this workflow" description={definition.name} />
+          <p className="mt-3 whitespace-pre-line text-[13px] text-ink-muted">
+            {definition.description}
+          </p>
+        </CardV2>
+      ) : (
+        <p className="text-center text-[11px] text-ink-muted">Template: {definition.name}</p>
+      )}
     </div>
   );
 }
 
 function StepRow({
   exec,
+  description,
   pending,
   blockingId,
   blockReason,
@@ -254,6 +277,7 @@ function StepRow({
   onCancelBlock,
 }: {
   exec: StepExecutionView;
+  description: string | null;
   pending: boolean;
   blockingId: string | null;
   blockReason: string;
@@ -302,6 +326,15 @@ function StepRow({
           </div>
         ) : null}
       </div>
+
+      {description ? (
+        <details className="text-[12px] text-ink-muted">
+          <summary className="cursor-pointer select-none font-medium text-brand-700">
+            Guidance
+          </summary>
+          <p className="mt-1">{description}</p>
+        </details>
+      ) : null}
 
       {exec.blockedReason ? (
         <p className="text-[12px] text-blocked-700">Blocked: {exec.blockedReason}</p>

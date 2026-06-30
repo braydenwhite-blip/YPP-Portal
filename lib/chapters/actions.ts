@@ -23,6 +23,7 @@ import {
 } from "@/lib/chapters/action-bridge";
 import { readChecklistMeta } from "@/lib/chapters/provisioning";
 import { isValidChapterLifecycleStatus } from "@/lib/chapters/lifecycle";
+import { fireEntityStatusChanged } from "@/lib/workflow-engine/triggers";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -135,7 +136,7 @@ const LifecycleSchema = z.object({
 
 export async function setChapterLifecycleStatus(input: unknown) {
   const data = LifecycleSchema.parse(input);
-  await requireChapterLeadership();
+  const viewer = await requireChapterLeadership();
   if (!isValidChapterLifecycleStatus(data.status)) {
     throw new Error("Invalid chapter status");
   }
@@ -153,6 +154,16 @@ export async function setChapterLifecycleStatus(input: unknown) {
   }
   await prisma.chapter.update({ where: { id: data.chapterId }, data: patch });
   revalidateChapterSurfaces(data.chapterId);
+  // Best-effort: a chapter reaching a watched status (e.g. APPROVED, AT_RISK)
+  // can auto-start a matching, published workflow template instance.
+  await fireEntityStatusChanged({
+    subjectType: "CHAPTER",
+    subjectId: data.chapterId,
+    newStatus: data.status,
+    chapterId: data.chapterId,
+    ownerId: viewer.id,
+    startedById: viewer.id,
+  });
   return { ok: true as const };
 }
 

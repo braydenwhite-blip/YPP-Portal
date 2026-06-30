@@ -44,7 +44,10 @@ export async function installBlueprintDefinition(
     return { templateId: existing.id, key: bp.key, created: false };
   }
 
-  const status = opts.publish ? "PUBLISHED" : "DRAFT";
+  // A blueprint can pin its own initial status (e.g. newly-authored, not-yet
+  // human-reviewed content ships as DRAFT regardless of the seed call's
+  // `publish` flag); otherwise it follows the seed call as before.
+  const status = bp.initialStatus ?? (opts.publish ? "PUBLISHED" : "DRAFT");
 
   return prisma.$transaction(async (tx) => {
     let templateId: string;
@@ -54,6 +57,7 @@ export async function installBlueprintDefinition(
       await tx.workflowTemplateStage.deleteMany({ where: { templateId: existing.id } });
       await tx.workflowTransition.deleteMany({ where: { templateId: existing.id } });
       await tx.workflowAutomationRule.deleteMany({ where: { templateId: existing.id } });
+      await tx.workflowTrigger.deleteMany({ where: { templateId: existing.id } });
       await tx.workflowTemplate.update({
         where: { id: existing.id },
         data: {
@@ -161,6 +165,21 @@ export async function installBlueprintDefinition(
           stepKey: a.stepKey ?? null,
           config: (a.config ?? undefined) as object | undefined,
           order: ruleOrder++,
+        },
+      });
+    }
+
+    // Entity-status-triggered auto-start (see lib/workflow-engine/triggers.ts —
+    // these rows are only evaluated by the small set of mutation sites that
+    // call fireEntityStatusChanged()).
+    for (const t of bp.triggers ?? []) {
+      await tx.workflowTrigger.create({
+        data: {
+          templateId,
+          name: `Auto-start on ${t.subjectType} -> ${t.matchStatus}`,
+          event: t.event,
+          subjectType: t.subjectType,
+          matchConfig: { status: t.matchStatus },
         },
       });
     }

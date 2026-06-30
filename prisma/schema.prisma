@@ -14757,6 +14757,7 @@ enum WorkflowAutomationAction {
   SCHEDULE_FOLLOW_UP   // → sets instance.followUpAt for the engine cron
   ESCALATE             // → notifies leadership (reuses notification system)
   ADVANCE_STAGE        // → auto-advances the instance when criteria are met
+  START_WORKFLOW       // → starts another published template's instance (chaining)
 }
 
 /// How a WorkflowTrigger decides to START an instance.
@@ -14820,10 +14821,32 @@ model WorkflowTemplate {
   automationRules WorkflowAutomationRule[]  @relation("WorkflowTemplateAutomationRules")
   triggers        WorkflowTrigger[]         @relation("WorkflowTemplateTriggers")
   instances       WorkflowInstance[]        @relation("WorkflowTemplateInstances")
+  versionSnapshots WorkflowTemplateVersionSnapshot[] @relation("WorkflowTemplateVersionSnapshots")
 
   @@index([status])
   @@index([domain])
   @@index([blueprintKey])
+}
+
+/// A point-in-time snapshot of a template's full structure (stages, steps,
+/// transitions, automation rules), captured every time the template is
+/// published. Powers the builder's Versions tab: view any past version, or
+/// restore one as the template's current DRAFT content. Snapshots are
+/// additive history only — restoring never mutates a live PUBLISHED template
+/// directly (it writes into DRAFT), so running WorkflowInstance /
+/// WorkflowStepExecution rows (which denormalize stageKey/stepKey and don't
+/// reference the template's live authoring state) are never put at risk.
+model WorkflowTemplateVersionSnapshot {
+  id          String           @id @default(cuid())
+  templateId  String
+  template    WorkflowTemplate @relation("WorkflowTemplateVersionSnapshots", fields: [templateId], references: [id], onDelete: Cascade)
+  version     Int
+  /// Full serialized WorkflowTemplateDefinition at publish time.
+  snapshot    Json
+  publishedAt DateTime         @default(now())
+  publishedById String?
+
+  @@index([templateId, publishedAt])
 }
 
 /// An ordered stage within a template (the spec's "WorkflowStage", renamed to
