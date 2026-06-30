@@ -107,18 +107,30 @@ Everything, across all chapters. The admin pipeline board at `/admin/partners`
 Leadership sees all partners in the new workspace; the leadership home's existing
 "Partner follow-ups due" stat is unchanged.
 
-## Tests added (11 files, 93 tests — `npm test`)
+## Tests added (11 new suites, 110 partner tests — `npm test`)
 follow-up date logic; stage + meeting-outcome transitions; outreach email
 generation; pipeline lanes + next action; logistics readiness; duplicate
 detection; impact metrics aggregation; research scoring/conversion; meeting
-brief; CSV/TSV import parser; permission helper. All green.
+brief; CSV/TSV import parser; permission helper — plus regression guards from
+the review pass. All green.
+
+## Adversarial review pass
+A multi-agent review (authorization isolation, logic correctness,
+Next/data-integrity, contract consistency) was run and every finding
+independently verified. Authorization isolation found nothing. Six confirmed
+issues were fixed: stage-vs-lane metric counting (a replied-but-overdue partner
+was mis-counted as "no reply"); a single `isPartnerFollowUpDue` definition so
+the board column, metric, and queue agree; chronological meeting-queue sorting;
+`planEmailSent` no longer demoting an advanced partner; resilient bulk import
+(skip a row on a unique-name race instead of aborting); and timezone-correct
+meeting-time capture.
 
 ## Migrations needed
 One additive migration (above). Run `prisma migrate deploy` (the build already
 does). No enum changes, no renames, no data backfill; existing rows unaffected.
 
 ## Verification status
-- `npm test` — partner suite green (93 tests).
+- `npm test` — partner suite green (110 tests across 11 new suites).
 - `tsc --noEmit` — **0 errors in any file changed by this work.** (9 pre-existing
   type errors remain in untouched files — `app/(app)/admin/programs/page.tsx`,
   `lib/chapters/chapter-os.ts`, `lib/classes/{attendance-actions,instructor-cockpit,reflection-actions}.ts`
