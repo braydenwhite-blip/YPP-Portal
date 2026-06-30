@@ -140,7 +140,12 @@ export function PartnerOperatingRoom({ partner }: { partner: PartnerDetailDTO })
           <CardV2 padding="md" className="flex flex-col gap-3">
             <h2 className="m-0 text-[14px] font-bold text-ink">Outreach &amp; Actions</h2>
             <div className="flex flex-wrap gap-2">
-              <OutreachComposer partnerId={partner.id} context={partner.emailContext} buttonLabel="Generate email" />
+              <OutreachComposer
+                partnerId={partner.id}
+                context={partner.emailContext}
+                defaultKind={partner.lane === "RESEARCH" ? "INITIAL" : "FOLLOW_UP"}
+                buttonLabel="Generate email"
+              />
               <Button variant="secondary" size="sm" onClick={() => setModal("response")}>Log response</Button>
               <Button variant="secondary" size="sm" onClick={() => { setDateVal(""); setModal("meeting"); }}>Schedule meeting</Button>
               <Button variant="secondary" size="sm" onClick={() => setModal("brief")}>Meeting brief</Button>
@@ -275,7 +280,7 @@ export function PartnerOperatingRoom({ partner }: { partner: PartnerDetailDTO })
         <textarea className={`${inputCls} mt-3 min-h-[70px]`} placeholder="Notes (optional)" value={text} onChange={(e) => setText(e.target.value)} />
         <ModalFooterV2>
           <Button variant="ghost" size="md" onClick={() => setModal(null)}>Cancel</Button>
-          <Button variant="primary" size="md" loading={pending} disabled={!dateVal} onClick={() => run(() => scheduleMeeting({ partnerId: partner.id, meetingDate: dateVal, note: text || undefined }))}>Schedule</Button>
+          <Button variant="primary" size="md" loading={pending} disabled={!dateVal} onClick={() => run(() => scheduleMeeting({ partnerId: partner.id, meetingDate: new Date(dateVal).toISOString(), note: text || undefined }))}>Schedule</Button>
         </ModalFooterV2>
       </ModalV2>
 

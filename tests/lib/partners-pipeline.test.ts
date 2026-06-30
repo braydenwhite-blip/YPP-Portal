@@ -4,6 +4,7 @@ import {
   partnerCpLane,
   partnerNextAction,
   summarizeLanes,
+  isPartnerFollowUpDue,
   STAGE_TO_LANE,
   type PartnerWorkInput,
 } from "@/lib/partners/pipeline";
@@ -36,16 +37,27 @@ describe("partnerCpLane", () => {
     expect(partnerCpLane(p({ stage: "NOT_A_FIT" }), NOW)).toBe("CLOSED");
   });
 
-  it("pulls an awaiting-reply partner with an overdue follow-up into FOLLOW_UP_DUE", () => {
-    const overdue = p({ stage: "REACHED_OUT", nextFollowUpAt: new Date("2026-06-09T12:00:00.000Z") });
-    expect(partnerCpLane(overdue, NOW)).toBe("FOLLOW_UP_DUE");
-    const future = p({ stage: "REACHED_OUT", nextFollowUpAt: new Date("2026-06-12T12:00:00.000Z") });
-    expect(partnerCpLane(future, NOW)).toBe("CONTACTED");
+  it("pulls in-conversation partners with an overdue follow-up into FOLLOW_UP_DUE", () => {
+    const overdue = new Date("2026-06-09T12:00:00.000Z");
+    for (const stage of ["REACHED_OUT", "RESPONDED", "NEEDS_PROPOSAL", "PROPOSAL_SENT", "NEGOTIATING"]) {
+      expect(partnerCpLane(p({ stage, nextFollowUpAt: overdue }), NOW)).toBe("FOLLOW_UP_DUE");
+    }
+    // Not yet due stays in its natural lane.
+    expect(partnerCpLane(p({ stage: "REACHED_OUT", nextFollowUpAt: new Date("2026-06-12T12:00:00.000Z") }), NOW)).toBe("CONTACTED");
+    expect(partnerCpLane(p({ stage: "RESPONDED", nextFollowUpAt: new Date("2026-06-12T12:00:00.000Z") }), NOW)).toBe("INTERESTED");
   });
 
-  it("does not pull a meeting-scheduled partner into FOLLOW_UP_DUE", () => {
-    const m = p({ stage: "MEETING_SCHEDULED", nextFollowUpAt: new Date("2026-06-01T12:00:00.000Z") });
-    expect(partnerCpLane(m, NOW)).toBe("MEETING");
+  it("does not pull a meeting-scheduled or confirmed partner into FOLLOW_UP_DUE", () => {
+    const overdue = new Date("2026-06-01T12:00:00.000Z");
+    expect(partnerCpLane(p({ stage: "MEETING_SCHEDULED", nextFollowUpAt: overdue }), NOW)).toBe("MEETING");
+    expect(partnerCpLane(p({ stage: "ACTIVE_PARTNERSHIP", nextFollowUpAt: overdue }), NOW)).toBe("CONFIRMED");
+  });
+
+  it("isPartnerFollowUpDue agrees with the FOLLOW_UP_DUE lane", () => {
+    const overdue = new Date("2026-06-01T12:00:00.000Z");
+    expect(isPartnerFollowUpDue(p({ stage: "RESPONDED", nextFollowUpAt: overdue }), NOW)).toBe(true);
+    expect(isPartnerFollowUpDue(p({ stage: "MEETING_SCHEDULED", nextFollowUpAt: overdue }), NOW)).toBe(false);
+    expect(isPartnerFollowUpDue(p({ stage: "REACHED_OUT", nextFollowUpAt: null }), NOW)).toBe(false);
   });
 
   it("coerces unknown/legacy stage strings to RESEARCH", () => {

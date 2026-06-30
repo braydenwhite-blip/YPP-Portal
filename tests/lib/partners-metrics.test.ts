@@ -82,6 +82,20 @@ describe("summarizePartnerImpact — event metrics", () => {
   });
 });
 
+describe("summarizePartnerImpact — replied-but-overdue (regression guard)", () => {
+  it("counts a RESPONDED partner with an overdue follow-up as a response, not no-reply", () => {
+    const m = summarizePartnerImpact(
+      [partner({ stage: "RESPONDED", lastContactedAt: new Date("2026-06-08T00:00:00Z"), nextFollowUpAt: new Date("2026-06-12T00:00:00Z") })],
+      [],
+      NOW
+    );
+    expect(m.responses).toBe(1);
+    expect(m.interested).toBe(1);
+    expect(m.noReply).toBe(0);
+    expect(m.followUpsDue).toBe(1); // still surfaces as an overdue follow-up
+  });
+});
+
 describe("summarizePartnerImpact — issues", () => {
   it("tracks unresolved, >24h, and escalated issues", () => {
     const m = summarizePartnerImpact(partners, notes, NOW);

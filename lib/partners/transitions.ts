@@ -59,11 +59,18 @@ function contactLabel(p: PartnerLike): string {
  */
 export function planEmailSent(p: PartnerLike, now: Date): TransitionPlan {
   const nextFollowUpAt = nextOutreachFollowUp(now);
+  // Only the first outreach advances the stage. Marking a later email "sent" on
+  // an already-advanced partner must never demote it back to REACHED_OUT — it is
+  // just another touch (re-stamp contact + re-arm the follow-up clock).
+  const stage = asPartnerStage(p.stage);
+  const isFirstOutreach = stage === "NOT_STARTED" || stage === "RESEARCHING";
   return {
-    patch: { stage: "REACHED_OUT", lastContactedAt: now, nextFollowUpAt },
+    patch: isFirstOutreach
+      ? { stage: "REACHED_OUT", lastContactedAt: now, nextFollowUpAt }
+      : { lastContactedAt: now, nextFollowUpAt },
     note: {
       kind: "OUTREACH_SENT",
-      body: `Initial outreach email sent to ${contactLabel(p)}. Follow-up set for ${fmt(nextFollowUpAt)} (5 business days).`,
+      body: `Outreach email sent to ${contactLabel(p)}. Follow-up set for ${fmt(nextFollowUpAt)} (5 business days).`,
       metadata: { followUpAt: nextFollowUpAt.toISOString() },
     },
     summary: "Email marked sent · follow-up in 5 business days",

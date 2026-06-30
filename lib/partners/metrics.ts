@@ -9,8 +9,8 @@
  * "This week" toggle.
  */
 
-import { partnerCpLane, type PartnerWorkInput } from "@/lib/partners/pipeline";
-import { isFollowUpDue } from "@/lib/partners/follow-up";
+import { isPartnerFollowUpDue, type PartnerWorkInput } from "@/lib/partners/pipeline";
+import { asPartnerStage } from "@/lib/partners-constants";
 
 export type PartnerMetricInput = PartnerWorkInput & {
   createdAt: Date;
@@ -78,38 +78,44 @@ export function summarizePartnerImpact(
   let logisticsIncomplete = 0;
   let activePartners = 0;
 
+  // Counts key off the underlying STAGE, not the board lane, so a partner who
+  // replied (RESPONDED) is always counted as a response even when their
+  // follow-up is overdue (which would put them in the FOLLOW_UP_DUE lane).
   for (const p of partners) {
-    const lane = partnerCpLane(p, now);
-    if (isFollowUpDue(p.nextFollowUpAt, now)) followUpsDue += 1;
+    const stage = asPartnerStage(p.stage);
+    if (isPartnerFollowUpDue(p, now)) followUpsDue += 1;
 
-    if (lane !== "RESEARCH") contacted += 1;
-    else if (p.lastContactedAt) contacted += 1;
+    const beyondResearch = stage !== "NOT_STARTED" && stage !== "RESEARCHING";
+    if (beyondResearch || p.lastContactedAt) contacted += 1;
 
-    switch (lane) {
-      case "CONTACTED":
-      case "FOLLOW_UP_DUE":
+    switch (stage) {
+      case "REACHED_OUT":
         noReply += 1;
         break;
-      case "INTERESTED":
+      case "RESPONDED":
+        responses += 1;
         interested += 1;
-        responses += 1;
         break;
-      case "MEETING":
+      case "MEETING_SCHEDULED":
+        responses += 1;
         meetingsScheduled += 1;
-        responses += 1;
         break;
-      case "PROPOSAL":
+      case "NEEDS_PROPOSAL":
+      case "PROPOSAL_SENT":
+      case "NEGOTIATING":
+        responses += 1;
         inFinalConversation += 1;
-        responses += 1;
         break;
-      case "CONFIRMED":
-        confirmed += 1;
+      case "ACTIVE_PARTNERSHIP":
+      case "COMPLETED":
         responses += 1;
+        confirmed += 1;
         if (p.logisticsComplete === true) logisticsComplete += 1;
         else logisticsIncomplete += 1;
-        if (p.stage === "ACTIVE_PARTNERSHIP") activePartners += 1;
+        if (stage === "ACTIVE_PARTNERSHIP") activePartners += 1;
         break;
-      case "CLOSED":
+      case "PAUSED":
+      case "NOT_A_FIT":
         closed += 1;
         break;
       default:

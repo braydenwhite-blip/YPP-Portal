@@ -26,6 +26,13 @@ describe("planEmailSent", () => {
     expect(plan.note.kind).toBe("OUTREACH_SENT");
     expect(plan.note.body).toContain("Jane");
   });
+
+  it("does NOT demote an already-advanced partner back to REACHED_OUT", () => {
+    const plan = planEmailSent({ ...partner, stage: "ACTIVE_PARTNERSHIP" }, NOW);
+    expect(plan.patch.stage).toBeUndefined(); // stage unchanged
+    expect(plan.patch.lastContactedAt).toEqual(NOW);
+    expect(plan.patch.nextFollowUpAt?.toISOString()).toBe(addBusinessDays(NOW, 5).toISOString());
+  });
 });
 
 describe("planFollowUpSent", () => {

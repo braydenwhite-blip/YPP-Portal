@@ -356,27 +356,34 @@ export async function importChapterPartners(
       skipped += 1;
       continue;
     }
-    const partner = await prisma.partner.create({
-      data: {
-        name: row.name,
-        type: row.type,
-        location: row.location,
-        website: row.website,
-        contactName: row.contactName,
-        contactTitle: row.contactTitle,
-        contactEmail: row.contactEmail,
-        contactPhone: row.contactPhone,
-        notes: row.notes,
-        stage: "RESEARCHING",
-        priority: "MEDIUM",
-        source: "Import",
-        chapterId: data.chapterId,
-        relationshipLeadId: scope.user.id,
-      },
-      select: { id: true },
-    });
-    await syncPartnerSearchDocument(partner.id);
-    created += 1;
+    try {
+      const partner = await prisma.partner.create({
+        data: {
+          name: row.name,
+          type: row.type,
+          location: row.location,
+          website: row.website,
+          contactName: row.contactName,
+          contactTitle: row.contactTitle,
+          contactEmail: row.contactEmail,
+          contactPhone: row.contactPhone,
+          notes: row.notes,
+          stage: "RESEARCHING",
+          priority: "MEDIUM",
+          source: "Import",
+          chapterId: data.chapterId,
+          relationshipLeadId: scope.user.id,
+        },
+        select: { id: true },
+      });
+      await syncPartnerSearchDocument(partner.id);
+      created += 1;
+    } catch {
+      // A race on the globally-unique Partner.name (or any per-row create error)
+      // skips just that row — never aborts the whole import or leaves it in a
+      // partial, opaque state.
+      skipped += 1;
+    }
   }
 
   revalidatePath("/partners");

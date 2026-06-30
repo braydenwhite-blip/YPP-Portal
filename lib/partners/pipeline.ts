@@ -84,11 +84,26 @@ export const STAGE_TO_LANE: Record<PartnerStage, CpLane> = {
   NOT_A_FIT: "CLOSED",
 };
 
-/** Stages where we are waiting on the partner and an overdue date == follow-up due. */
-const AWAITING_REPLY_STAGES: ReadonlySet<PartnerStage> = new Set<PartnerStage>([
+/**
+ * In-conversation, pre-confirmation stages where an overdue follow-up means
+ * "you owe them a touch". A partner in one of these with an overdue follow-up
+ * is the FOLLOW_UP_DUE lane AND the followUpsDue metric — one definition shared
+ * by the board and the Impact numbers so they never disagree. MEETING_SCHEDULED
+ * is excluded (an overdue meeting needs its outcome logged, not a nudge), as are
+ * the settled CONFIRMED / CLOSED stages.
+ */
+const FOLLOW_UP_DUE_STAGES: ReadonlySet<PartnerStage> = new Set<PartnerStage>([
   "REACHED_OUT",
   "RESPONDED",
+  "NEEDS_PROPOSAL",
+  "PROPOSAL_SENT",
+  "NEGOTIATING",
 ]);
+
+/** Single source of truth for "this partner's follow-up is due and needs action". */
+export function isPartnerFollowUpDue(input: PartnerWorkInput, now: Date): boolean {
+  return FOLLOW_UP_DUE_STAGES.has(asPartnerStage(input.stage)) && isFollowUpDue(input.nextFollowUpAt, now);
+}
 
 /** Lanes that mean the partner is settled (no live outreach next step). */
 export const SETTLED_LANES: ReadonlySet<CpLane> = new Set<CpLane>(["CONFIRMED", "CLOSED"]);
@@ -121,11 +136,8 @@ export type PartnerWorkInput = {
  * dedicated FOLLOW_UP_DUE lane so it can't go cold; otherwise it maps by stage.
  */
 export function partnerCpLane(input: PartnerWorkInput, now: Date): CpLane {
-  const stage = asPartnerStage(input.stage);
-  if (AWAITING_REPLY_STAGES.has(stage) && isFollowUpDue(input.nextFollowUpAt, now)) {
-    return "FOLLOW_UP_DUE";
-  }
-  return STAGE_TO_LANE[stage];
+  if (isPartnerFollowUpDue(input, now)) return "FOLLOW_UP_DUE";
+  return STAGE_TO_LANE[asPartnerStage(input.stage)];
 }
 
 // --- Next action engine -----------------------------------------------------

@@ -104,6 +104,7 @@ function toCard(row: WorkspaceRow, now: Date): PartnerCardDTO {
     nextFollowUpLabel: fmt(row.nextFollowUpAt),
     nextFollowUpOverdue: overdue,
     meetingDateLabel: fmt(row.meetingDate),
+    meetingDateMs: row.meetingDate ? row.meetingDate.getTime() : null,
     nextAction: partnerNextAction(wi, now),
     logisticsComplete: wi.logisticsComplete ?? null,
     logisticsIncomplete: logisticsRelevant && wi.logisticsComplete === false,
@@ -163,11 +164,12 @@ export async function loadPartnerWorkspace(
     cards: byLane.get(lane) ?? [],
   }));
 
-  // Operating queues.
-  const followUpsDue = cards.filter((c) => c.nextFollowUpOverdue);
+  // Operating queues. followUpsDue keys off the FOLLOW_UP_DUE lane so the queue,
+  // the metric (metrics.followUpsDue), and the board column all agree.
+  const followUpsDue = cards.filter((c) => c.lane === "FOLLOW_UP_DUE");
   const meetingsUpcoming = cards
-    .filter((c) => c.lane === "MEETING" && c.meetingDateLabel)
-    .sort((a, b) => (a.meetingDateLabel ?? "").localeCompare(b.meetingDateLabel ?? ""));
+    .filter((c) => c.lane === "MEETING" && c.meetingDateMs != null)
+    .sort((a, b) => (a.meetingDateMs ?? 0) - (b.meetingDateMs ?? 0));
   const waitingOnResponse = cards.filter((c) => c.lane === "CONTACTED" || c.lane === "FOLLOW_UP_DUE");
   const logisticsIncomplete = cards.filter((c) => c.logisticsIncomplete);
 

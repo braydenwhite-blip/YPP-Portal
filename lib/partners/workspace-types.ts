@@ -23,6 +23,8 @@ export type PartnerCardDTO = {
   nextFollowUpLabel: string | null;
   nextFollowUpOverdue: boolean;
   meetingDateLabel: string | null;
+  /** Raw meeting time (epoch ms) for chronological sorting; null if unscheduled. */
+  meetingDateMs: number | null;
   nextAction: PartnerNextAction;
   logisticsComplete: boolean | null;
   logisticsIncomplete: boolean;
