@@ -19,7 +19,7 @@ export default async function WorkflowTemplateBuilderPage({
   if (!template) notFound();
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
+    <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-6 px-4 py-6">
       <PageHeaderV2
         eyebrow={`Builder · ${workflowDomainLabel(template.domain)}`}
         title={template.name}
