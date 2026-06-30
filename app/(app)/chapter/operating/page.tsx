@@ -5,6 +5,11 @@ import { getChapterViewerContext, requireChapterManager } from "@/lib/chapters/a
 import { loadChapterOS } from "@/lib/chapters/chapter-os";
 import { chapterLifecycleTone } from "@/lib/chapters/lifecycle";
 import { ChapterOSRooms } from "@/components/chapters/chapter-os-rooms";
+import {
+  assembleChapterAutomation,
+  chapterFactsFromModel,
+} from "@/lib/automation/build-chapter-automation";
+import { ChapterAutomationSection } from "@/components/automation";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Chapter Operating System — Pathways Portal" };
@@ -49,6 +54,18 @@ export default async function ChapterOperatingPage() {
   const model = await loadChapterOS(ctx.ledChapterId, { isLeadership: ctx.isLeadership });
   if (!model) redirect("/chapter");
 
+  // Build the automation read model from the already-loaded OS model — no extra
+  // DB reads (the pure-assemble path), so the operating page gains the playbook,
+  // readiness, priorities and impact-meeting prep for free.
+  const automation = assembleChapterAutomation({
+    facts: chapterFactsFromModel(model),
+    blockers: model.blockers,
+    studentNeeds: model.studentCommunity.needsAttention,
+    impactPrep: model.impact,
+    now: new Date(),
+    weekAnchored: model.chapter.weekAnchored,
+  });
+
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-8">
       <PageHeaderV2
@@ -66,6 +83,10 @@ export default async function ChapterOperatingPage() {
           </div>
         }
       />
+      <div className="mt-6">
+        <ChapterAutomationSection automation={automation} showEscalations={ctx.isLeadership} />
+      </div>
+
       <div className="mt-6">
         <ChapterOSRooms model={model} />
       </div>
