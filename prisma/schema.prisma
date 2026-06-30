@@ -7615,6 +7615,11 @@ model Partner {
   instructorCountNeeded Int?
   constraints           String?       @db.Text
   outcome               String?       @db.Text
+  /// Chapter Partner CRM logistics checklist state (Partner Automation). JSON
+  /// map of checklist-item key → boolean (e.g. { room: true, supervision: false }).
+  /// Validated in app code (lib/partners/logistics.ts); additive + nullable so
+  /// existing rows and the admin pipeline board are unaffected.
+  logistics             Json?
   pipelineNotes         PartnerNote[]
 
   // --- Partner Relationship Operations (Knowledge OS V2, Phase 1) ------------
@@ -7641,9 +7646,16 @@ model PartnerNote {
   partnerId String
   partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
   authorId  String?
-  /// Touchpoint kind: NOTE | FOLLOW_UP | MEETING | CONCERN | WIN | DECISION | OUTCOME | STAGE_CHANGE.
+  /// Touchpoint kind: NOTE | FOLLOW_UP | MEETING | CONCERN | WIN | DECISION |
+  /// OUTCOME | STAGE_CHANGE plus the Chapter Partner CRM timeline kinds
+  /// (OUTREACH_SENT, MEETING_OUTCOME, ISSUE, CHECK_IN, …) — see
+  /// lib/partners-constants.ts → PARTNER_NOTE_KINDS.
   kind      String   @default("NOTE")
   body      String   @db.Text
+  /// Structured timeline metadata (Partner Automation): meeting outcome type,
+  /// issue severity/escalation/resolution, scheduled follow-up date, close
+  /// reason, etc. Additive + nullable; legacy notes leave it null.
+  metadata  Json?
   createdAt DateTime @default(now())
 
   @@index([partnerId, createdAt])

@@ -1,14 +1,11 @@
 import { redirect } from "next/navigation";
 
-import { PartnersOperationsTable } from "@/components/partners/partners-operations-table";
-import { ButtonLink } from "@/components/ui-v2";
+import { ButtonLink, EmptyStateV2, PageHeaderV2 } from "@/components/ui-v2";
+import { PartnerWorkspace } from "@/components/partners/crm/partner-workspace";
 import { getSession } from "@/lib/auth-supabase";
-import { hasRole } from "@/lib/authorization";
-import {
-  isOfficerTier,
-  type ActionViewer,
-} from "@/lib/people-strategy/action-permissions";
-import { loadPartnersOperationsList } from "@/lib/partners-operations";
+import { isOfficerTier, type ActionViewer } from "@/lib/people-strategy/action-permissions";
+import { getPartnerScope } from "@/lib/partners/permissions";
+import { loadPartnerWorkspace } from "@/lib/partners/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +14,9 @@ export const metadata = {
 };
 
 /**
- * Partners — relationship operations by chapter (handoff mockup).
- * Row click opens the partner detail at /partners/[id].
+ * Partner Command Workspace — the CP-facing partner CRM. Chapter Presidents see
+ * their own chapter's pipeline; national leadership sees every partner. Replaces
+ * the old plain operations table with the guided pipeline workspace.
  */
 export default async function PartnersPage() {
   const session = await getSession();
@@ -32,34 +30,46 @@ export default async function PartnersPage() {
   };
   if (!isOfficerTier(viewer)) redirect("/");
 
-  const canManage = hasRole(viewer.roles, "ADMIN", viewer.primaryRole);
-  const rows = await loadPartnersOperationsList();
+  const scope = await getPartnerScope();
+
+  // A Chapter President who hasn't been linked to a chapter yet.
+  if (!scope.isLeadership && !scope.ledChapterId) {
+    return (
+      <div className="mx-auto w-full max-w-3xl px-6 py-10">
+        <PageHeaderV2
+          eyebrow="Partners"
+          title="Partner Workspace"
+          subtitle="Research partners, send outreach, track follow-ups, and confirm partners for your chapter."
+        />
+        <div className="mt-8">
+          <EmptyStateV2
+            title="You don't lead a chapter yet"
+            body="Once your chapter is set up, your partner pipeline appears here — research, outreach, follow-ups, meetings, and confirmed partners, all in one place."
+            action={<ButtonLink href="/chapter/apply" variant="primary" size="md">Apply to start a chapter</ButtonLink>}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const data = await loadPartnerWorkspace(scope);
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-1 pb-12 pt-2">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="m-0 text-[26px] font-extrabold tracking-[-0.4px] text-[#1c1a2e]">
-            Partners
-          </h1>
-          <p className="m-0 mt-1.5 max-w-[560px] text-[13.5px] leading-relaxed text-[#717189]">
-            Relationships organized by chapter — with the lead, connected classes,
-            assigned instructors, and next follow-up.
-          </p>
-        </div>
-        {canManage ? (
-          <ButtonLink
-            href="/people/classes"
-            variant="primary"
-            size="md"
-            className="border-0 bg-gradient-to-br from-[#5a1da8] via-[#6b21c8] to-[#8b3fe8] shadow-none hover:opacity-95"
-          >
-            + Create class with partner
-          </ButtonLink>
-        ) : null}
+    <div className="mx-auto w-full max-w-[1280px] px-1 pb-14 pt-2">
+      <PageHeaderV2
+        eyebrow={data.scopeLabel}
+        title="Partners"
+        subtitle="Build strong partnerships. Launch more classes. Change more lives."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/partners/import" variant="secondary" size="md">Import partners</ButtonLink>
+            <ButtonLink href="/partners/new" variant="primary" size="md">+ Add partner</ButtonLink>
+          </div>
+        }
+      />
+      <div className="mt-5">
+        <PartnerWorkspace data={data} />
       </div>
-
-      <PartnersOperationsTable rows={rows} />
     </div>
   );
 }

@@ -27,6 +27,154 @@ async function findOrCreateChapter(input: { name: string; city: string; region: 
   return prisma.chapter.create({ data: input });
 }
 
+// Demo Chapter Partner CRM data (Partner Automation). Realistic partners across
+// the pipeline — researched, follow-up due, meeting scheduled, confirmed (with
+// and without complete logistics), interested, and closed — plus timeline notes
+// and an escalated issue, so the workspace and impact metrics have something to
+// show. Idempotent: skipped once any partner exists for the chapter.
+async function seedPartners(chapterId: string, presidentEmail: string) {
+  const existing = await prisma.partner.count({ where: { chapterId } });
+  if (existing > 0) {
+    console.log("Partners: existing partners present, skipping partner seed.");
+    return;
+  }
+  const lead = await prisma.user.findUnique({ where: { email: presidentEmail }, select: { id: true } });
+  const leadId = lead?.id ?? null;
+  const now = new Date();
+  const days = (n: number) => new Date(now.getTime() + n * 86_400_000);
+
+  type DemoNote = { kind: string; body: string; metadata?: Prisma.InputJsonValue; createdAt?: Date };
+  async function mk(
+    data: Prisma.PartnerUncheckedCreateInput,
+    notes: DemoNote[] = []
+  ) {
+    const partner = await prisma.partner.create({ data: { chapterId, relationshipLeadId: leadId, priority: "MEDIUM", ...data } });
+    for (const n of notes) {
+      await prisma.partnerNote.create({
+        data: { partnerId: partner.id, authorId: leadId, kind: n.kind, body: n.body, metadata: n.metadata, createdAt: n.createdAt },
+      });
+    }
+    return partner;
+  }
+
+  await mk({
+    name: "Greenburgh Elementary School",
+    partnerType: "SCHOOL",
+    location: "Greenburgh, NY",
+    stage: "RESEARCHING",
+    contactName: "Dana Lopez",
+    contactTitle: "Principal",
+  });
+
+  await mk(
+    {
+      name: "Fox Meadow School",
+      partnerType: "SCHOOL",
+      location: "Scarsdale, NY",
+      stage: "REACHED_OUT",
+      contactName: "Sam Reyes",
+      contactEmail: "sreyes@foxmeadow.org",
+      lastContactedAt: days(-6),
+      nextFollowUpAt: days(-1),
+    },
+    [{ kind: "OUTREACH_SENT", body: "Initial outreach email sent to Sam Reyes.", createdAt: days(-6) }]
+  );
+
+  await mk(
+    {
+      name: "Scarsdale Synagogue Youth Dept.",
+      partnerType: "SYNAGOGUE",
+      location: "Scarsdale, NY",
+      stage: "RESPONDED",
+      contactName: "Rabbi Cohen",
+      contactEmail: "rcohen@scarsdalesynagogue.org",
+      lastContactedAt: days(-3),
+    },
+    [{ kind: "RESPONSE_RECEIVED", body: "Replied — interested in a spring enrichment block.", createdAt: days(-3) }]
+  );
+
+  await mk(
+    {
+      name: "Scarsdale Public Library",
+      partnerType: "LIBRARY",
+      location: "Scarsdale, NY",
+      website: "https://scarsdalelibrary.org",
+      stage: "MEETING_SCHEDULED",
+      contactName: "Jane Miller",
+      contactTitle: "Youth Services Director",
+      contactEmail: "jmiller@scarsdalelibrary.org",
+      contactPhone: "(914) 722-1300",
+      lastContactedAt: days(-4),
+      meetingDate: days(5),
+      nextFollowUpAt: days(5),
+      requestedAgeGroups: "3rd–8th graders",
+      requestedDates: "Tuesdays after school",
+    },
+    [
+      { kind: "OUTREACH_SENT", body: "Initial outreach email sent to Jane Miller.", createdAt: days(-8) },
+      { kind: "RESPONSE_RECEIVED", body: "Jane replied — happy to meet.", createdAt: days(-4) },
+      { kind: "MEETING_SCHEDULED", body: "Meeting scheduled for next week.", createdAt: days(-4), metadata: { meetingDate: days(5).toISOString() } },
+    ]
+  );
+
+  await mk(
+    {
+      name: "Hartsdale Community Center",
+      partnerType: "COMMUNITY_CENTER",
+      location: "Hartsdale, NY",
+      stage: "ACTIVE_PARTNERSHIP",
+      contactName: "Priya Nair",
+      contactTitle: "Program Manager",
+      contactEmail: "pnair@hartsdalecc.org",
+      lastContactedAt: days(-2),
+      logistics: { room: true, dayTime: true, pointOfContact: true } as Prisma.InputJsonValue,
+    },
+    [
+      { kind: "MEETING_OUTCOME", body: "Confirmed yes — launching after spring break.", createdAt: days(-10), metadata: { outcome: "CONFIRMED_YES", confirmed: true } },
+      { kind: "ISSUE", body: "Room double-booked on Tuesdays — need an alternate space.", createdAt: days(-2), metadata: { severity: "HIGH", escalated: true } },
+    ]
+  );
+
+  await mk(
+    {
+      name: "Temple Israel Center",
+      partnerType: "SYNAGOGUE",
+      location: "White Plains, NY",
+      stage: "ACTIVE_PARTNERSHIP",
+      contactName: "David Stern",
+      contactEmail: "dstern@templeisrael.org",
+      lastContactedAt: days(-1),
+      nextFollowUpAt: days(6),
+      logistics: {
+        room: true,
+        dayTime: true,
+        launchDate: true,
+        pointOfContact: true,
+        supervision: true,
+        writtenConfirmation: true,
+        scheduleConnected: true,
+        publicListing: true,
+        emergencyContacts: true,
+      } as Prisma.InputJsonValue,
+    },
+    [{ kind: "CHECK_IN", body: "Weekly partner check-in completed — classes running smoothly.", createdAt: days(-1) }]
+  );
+
+  await mk(
+    {
+      name: "White Plains YMCA",
+      partnerType: "COMMUNITY_CENTER",
+      type: "YMCA",
+      location: "White Plains, NY",
+      stage: "NOT_A_FIT",
+      contactName: "Morgan Lee",
+    },
+    [{ kind: "CLOSED", body: "Closed: No response after follow-ups.", createdAt: days(-3), metadata: { reason: "NO_RESPONSE" } }]
+  );
+
+  console.log("Partners: seeded demo Chapter Partner CRM records.");
+}
+
 async function main() {
   const seedPassword = process.env.SEED_PASSWORD;
   if (!seedPassword) {
@@ -273,6 +421,8 @@ async function main() {
 
   // ── Instructor Applicant Workflow V1 seed ──────────────────────────────────
   await seedInstructorApplicantWorkflow(scarsdale.id, passwordHash, verifiedAt);
+
+  await seedPartners(scarsdale.id, "milo.wald@youthpassionproject.org");
 
   // ── Leadership Action Center seed ──────────────────────────────────────────
   await seedLeadershipActionCenter();
