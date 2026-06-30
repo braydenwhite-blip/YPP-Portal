@@ -16,6 +16,7 @@ import bcrypt from "bcryptjs";
 import { resetQaInstructorOnboardingFixture } from "../lib/qa-instructor-onboarding-fixture";
 import { isQaInstructorOnboardingEnabled } from "../lib/qa-instructor-onboarding";
 import { ACTIVE_CHAIR_SINGLETON_ID } from "../lib/active-chair";
+import { seedWorkflowBlueprints } from "../lib/workflow-engine/seed";
 
 const prisma = new PrismaClient();
 
@@ -432,6 +433,12 @@ async function main() {
 
   // ── Weekly Meetings — default Teams seed ───────────────────────────────────
   await seedTeams();
+
+  // ── Universal Workflow Engine — install reusable process blueprints ────────
+  const blueprintResults = await seedWorkflowBlueprints({ publish: true });
+  console.log(
+    `Workflow Engine: installed ${blueprintResults.length} reusable workflow blueprints.`
+  );
 
   // ── Instructor Assignment System (Phase 1) seed ────────────────────────────
   await seedInstructorAssignmentDemoData({

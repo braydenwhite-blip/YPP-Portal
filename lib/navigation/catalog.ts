@@ -1734,6 +1734,24 @@ export const NAV_CATALOG: NavLink[] = [
     },
     { href: "/admin/alumni", label: "Manage Alumni", icon: "🎓", roles: ADMIN_ONLY },
     { href: "/admin/unlock-approvals", label: "Unlock Approvals", icon: "🔓", roles: ADMIN_ONLY, dashboardDescription: "Review and approve section unlock recommendations from mentors." },
+    {
+      href: "/workflows",
+      label: "Workflows",
+      icon: "⚙️",
+      roles: ["ADMIN", "STAFF"],
+      searchAliases: ["Workflow Engine", "Processes", "MissionOS", "Workflow Runner"],
+      dashboardDescription: "Run any business process as a reusable workflow — hiring, onboarding, launches, and more.",
+      coreEligible: false,
+    },
+    {
+      href: "/admin/workflow-templates",
+      label: "Workflow Templates",
+      icon: "🧩",
+      roles: ADMIN_ONLY,
+      searchAliases: ["Workflow Builder", "Process Templates", "Workflow Blueprints"],
+      dashboardDescription: "Design reusable workflow templates with stages, steps, automation, and exit criteria.",
+      coreEligible: false,
+    },
     // The legacy "Action Center" sidebar entry was retired in the Phase 5
     // consolidation — the People Strategy Action Tracker (/actions/*) is now the
     // single canonical surface. The old /admin/action-center pages remain

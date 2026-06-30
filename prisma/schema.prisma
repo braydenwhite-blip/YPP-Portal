@@ -67,6 +67,10 @@ enum WorkflowKind {
   CONTENT_APPROVAL
   NOTIFICATION_ROUTING
   MESSAGE_ROUTING
+  /// Generic kind the Universal Workflow Engine surfaces its actionable steps
+  /// under, so engine steps appear in the SAME home queue + assignment routing
+  /// as the hardcoded workflows (lib/workflow-engine reuses upsertWorkflowItem).
+  WORKFLOW_ENGINE
 }
 
 enum WorkflowStage {
@@ -14673,4 +14677,418 @@ model PromotionRecord {
 
   @@index([userId, createdAt])
   @@index([setupComplete])
+}
+
+// ============================================================================
+// UNIVERSAL WORKFLOW ENGINE  (lib/workflow-engine/*)
+// ============================================================================
+//
+// The domain-agnostic execution engine that lets ANY business process —
+// partner acquisition, instructor hiring, volunteer onboarding, program
+// launch, grant applications, … — be modeled as a reusable WorkflowTemplate
+// instead of hardcoded code. A template is a graph of WorkflowTemplateStage →
+// WorkflowTemplateStep with WorkflowTransition edges, WorkflowAutomationRule
+// side-effects (which REUSE the existing ActionItem / Meeting / Notification /
+// WorkflowItem systems — never a parallel one), and WorkflowTrigger start
+// conditions. A WorkflowInstance is one run; WorkflowStepExecution rows are the
+// per-step runtime records (the "execution" layer, carrying the links back to
+// the reused entities); WorkflowEvent is the history timeline; WorkflowSnapshot
+// captures point-in-time state; WorkflowMetric stores rolled-up analytics.
+//
+// CONVENTION: user / chapter references on engine tables are loosely-coupled
+// String columns (no FK, resolved in app code) — mirroring PartnerNote.authorId
+// — so the 14.6k-line User/Chapter models stay untouched. Intra-engine links
+// (template→stage→step, instance→execution/event/snapshot) are real FKs with
+// cascade. Polymorphic subject links reuse the RELATED_ENTITY_TYPE vocabulary
+// (lib/people-strategy/constants.ts), stored as validated strings.
+
+enum WorkflowTemplateStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum WorkflowInstanceStatus {
+  ACTIVE
+  BLOCKED
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+/// The kind of a template step. Drives how the runner renders it and which
+/// reuse adapter an automation may fire (e.g. MEETING → Meeting model).
+enum WorkflowStepKind {
+  TASK
+  APPROVAL
+  MEETING
+  DOCUMENT
+  FORM
+  DECISION
+  AUTOMATED
+}
+
+/// Per-instance runtime state of a single step.
+enum WorkflowStepState {
+  PENDING
+  IN_PROGRESS
+  BLOCKED
+  COMPLETE
+  SKIPPED
+}
+
+/// When a WorkflowAutomationRule fires during instance execution.
+enum WorkflowAutomationTrigger {
+  ON_INSTANCE_START
+  ON_STAGE_ENTER
+  ON_STAGE_EXIT
+  ON_STEP_COMPLETE
+  ON_INSTANCE_COMPLETE
+  ON_OVERDUE
+  ON_FOLLOW_UP_DUE
+}
+
+/// What a WorkflowAutomationRule does — each maps to an EXISTING subsystem.
+enum WorkflowAutomationAction {
+  CREATE_ACTION        // → People-Strategy ActionItem (lib/people-strategy)
+  CREATE_MEETING       // → weekly-meetings Meeting
+  SEND_NOTIFICATION    // → lib/notifications.createNotification
+  CREATE_WORKFLOW_ITEM // → lib/workflow.upsertWorkflowItem (home queue + routing)
+  SCHEDULE_FOLLOW_UP   // → sets instance.followUpAt for the engine cron
+  ESCALATE             // → notifies leadership (reuses notification system)
+  ADVANCE_STAGE        // → auto-advances the instance when criteria are met
+}
+
+/// How a WorkflowTrigger decides to START an instance.
+enum WorkflowTriggerEvent {
+  MANUAL
+  ENTITY_CREATED
+  ENTITY_STATUS_CHANGED
+  SCHEDULED
+}
+
+/// History timeline event kind.
+enum WorkflowEventKind {
+  INSTANCE_CREATED
+  STAGE_ENTERED
+  STAGE_EXITED
+  STEP_STARTED
+  STEP_COMPLETED
+  STEP_BLOCKED
+  STEP_SKIPPED
+  AUTOMATION_RAN
+  OWNER_CHANGED
+  FOLLOW_UP_SCHEDULED
+  ESCALATED
+  INSTANCE_COMPLETED
+  INSTANCE_CANCELLED
+  NOTE
+}
+
+/// A reusable, domain-agnostic process definition.
+model WorkflowTemplate {
+  id          String                 @id @default(cuid())
+  /// Stable slug, unique across templates. Blueprints seed with a fixed key.
+  key         String                 @unique
+  name        String
+  description String?                @db.Text
+  /// Free-text domain lane (PARTNERS / INSTRUCTORS / PROGRAMS / …); validated
+  /// in app code (lib/workflow-engine/constants.ts), not a Postgres enum.
+  domain      String?
+  status      WorkflowTemplateStatus @default(DRAFT)
+  version     Int                    @default(1)
+  /// True when this template was installed from a code blueprint (seedable),
+  /// carrying the blueprint key for idempotent re-install/diff.
+  isBlueprint  Boolean               @default(false)
+  blueprintKey String?
+  /// Default assignment for new instances when none is supplied. Strings
+  /// validated against RoleType / AdminSubtype in app code.
+  defaultOwnerRole       String?
+  defaultOwnerSubtype    String?
+  /// Default follow-up cadence + escalation thresholds (hours) for the cron.
+  followUpCadenceHours   Int?
+  escalateAfterHours     Int?
+  /// Freeform template-level settings.
+  config      Json?
+  createdById String?
+  updatedById String?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  stages          WorkflowTemplateStage[]   @relation("WorkflowTemplateStages")
+  transitions     WorkflowTransition[]      @relation("WorkflowTemplateTransitions")
+  automationRules WorkflowAutomationRule[]  @relation("WorkflowTemplateAutomationRules")
+  triggers        WorkflowTrigger[]         @relation("WorkflowTemplateTriggers")
+  instances       WorkflowInstance[]        @relation("WorkflowTemplateInstances")
+
+  @@index([status])
+  @@index([domain])
+  @@index([blueprintKey])
+}
+
+/// An ordered stage within a template (the spec's "WorkflowStage", renamed to
+/// avoid colliding with the existing WorkflowStage enum used by WorkflowItem).
+model WorkflowTemplateStage {
+  id          String  @id @default(cuid())
+  templateId  String
+  template    WorkflowTemplate @relation("WorkflowTemplateStages", fields: [templateId], references: [id], onDelete: Cascade)
+  /// Slug, unique within the template.
+  key         String
+  name        String
+  description String? @db.Text
+  order       Int     @default(0)
+  /// Soft SLA: hours after entering this stage before it is "overdue".
+  slaHours    Int?
+  isInitial   Boolean @default(false)
+  isTerminal  Boolean @default(false)
+  /// Exit-criteria config: { requireAllRequiredSteps?: bool, minProgress?: int,
+  /// custom?: string[] }. Evaluated by the pure runtime.
+  exitCriteria Json?
+
+  steps              WorkflowTemplateStep[]   @relation("WorkflowStageSteps")
+  outgoingTransitions WorkflowTransition[]    @relation("WorkflowTransitionFrom")
+  incomingTransitions WorkflowTransition[]    @relation("WorkflowTransitionTo")
+  automationRules    WorkflowAutomationRule[] @relation("WorkflowStageAutomationRules")
+  currentInstances   WorkflowInstance[]       @relation("WorkflowInstanceCurrentStage")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([templateId, key])
+  @@index([templateId, order])
+}
+
+/// A step within a stage (the spec's "WorkflowStep").
+model WorkflowTemplateStep {
+  id          String           @id @default(cuid())
+  stageId     String
+  stage       WorkflowTemplateStage @relation("WorkflowStageSteps", fields: [stageId], references: [id], onDelete: Cascade)
+  key         String
+  name        String
+  description String?          @db.Text
+  order       Int              @default(0)
+  kind        WorkflowStepKind @default(TASK)
+  /// Required steps gate stage exit; optional steps do not.
+  isRequired  Boolean          @default(true)
+  /// How the step's owner is resolved: OWNER | ROLE | SUBTYPE | SUBJECT.
+  assigneeMode    String?
+  assigneeRole    String?
+  assigneeSubtype String?
+  /// Hours after the stage is entered that this step is due.
+  dueOffsetHours  Int?
+  /// Step-kind config (meeting type, document key, form fields, automation
+  /// action params, …).
+  config      Json?
+
+  executions WorkflowStepExecution[] @relation("WorkflowStepExecutions")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([stageId, key])
+  @@index([stageId, order])
+}
+
+/// A directed edge between two stages. Conditions enable branching flows.
+model WorkflowTransition {
+  id          String @id @default(cuid())
+  templateId  String
+  template    WorkflowTemplate @relation("WorkflowTemplateTransitions", fields: [templateId], references: [id], onDelete: Cascade)
+  fromStageId String
+  fromStage   WorkflowTemplateStage @relation("WorkflowTransitionFrom", fields: [fromStageId], references: [id], onDelete: Cascade)
+  toStageId   String
+  toStage     WorkflowTemplateStage @relation("WorkflowTransitionTo", fields: [toStageId], references: [id], onDelete: Cascade)
+  label       String?
+  /// Branch condition: { allRequiredStepsComplete?: bool, expr?: string }.
+  condition   Json?
+  /// The default outgoing edge taken when criteria are met.
+  isDefault   Boolean @default(true)
+  /// Whether the engine may take this edge automatically (vs. manual advance).
+  isAutomatic Boolean @default(true)
+  order       Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([templateId])
+  @@index([fromStageId])
+  @@index([toStageId])
+}
+
+/// Template-level automation: fires a reuse adapter on a lifecycle trigger.
+model WorkflowAutomationRule {
+  id         String                    @id @default(cuid())
+  templateId String
+  template   WorkflowTemplate          @relation("WorkflowTemplateAutomationRules", fields: [templateId], references: [id], onDelete: Cascade)
+  name       String
+  trigger    WorkflowAutomationTrigger
+  action     WorkflowAutomationAction
+  /// Optional stage scope (null = whole template).
+  stageId    String?
+  stage      WorkflowTemplateStage?    @relation("WorkflowStageAutomationRules", fields: [stageId], references: [id], onDelete: Cascade)
+  /// Optional step scope (loosely-coupled step key; null = stage/template).
+  stepKey    String?
+  enabled    Boolean                   @default(true)
+  /// Action params: { title, assigneeMode, dueOffsetHours, notificationType,
+  /// meetingType, escalateToRole, … }.
+  config     Json?
+  order      Int                       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([templateId, trigger, enabled])
+  @@index([stageId])
+}
+
+/// What can START an instance of a template (reference data; manual start
+/// always works, these add automatic start hooks for domain events).
+model WorkflowTrigger {
+  id          String               @id @default(cuid())
+  templateId  String
+  template    WorkflowTemplate     @relation("WorkflowTemplateTriggers", fields: [templateId], references: [id], onDelete: Cascade)
+  name        String
+  event       WorkflowTriggerEvent @default(MANUAL)
+  /// For ENTITY_* events: the RELATED_ENTITY_TYPE this listens to.
+  subjectType String?
+  /// Match config: { status?, equals?, cron?, … }.
+  matchConfig Json?
+  enabled     Boolean              @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([templateId, event, enabled])
+  @@index([event, enabled])
+}
+
+/// A single running execution of a template.
+model WorkflowInstance {
+  id          String                 @id @default(cuid())
+  templateId  String
+  template    WorkflowTemplate       @relation("WorkflowTemplateInstances", fields: [templateId], references: [id], onDelete: Restrict)
+  title       String
+  status      WorkflowInstanceStatus @default(ACTIVE)
+  /// The stage the instance is currently in (SetNull if the stage is deleted).
+  currentStageId String?
+  currentStage   WorkflowTemplateStage? @relation("WorkflowInstanceCurrentStage", fields: [currentStageId], references: [id], onDelete: SetNull)
+  /// Polymorphic subject (what the workflow is ABOUT) — reuses the
+  /// RELATED_ENTITY_TYPE vocabulary; both-or-neither, validated in app code.
+  subjectType String?
+  subjectId   String?
+  /// Loosely-coupled org links (resolved in app code, no FK).
+  chapterId   String?
+  ownerId     String?
+  startedById String?
+  /// Denormalized 0–100 completion, recomputed on every step change.
+  completionPercent Int            @default(0)
+  startedAt        DateTime        @default(now())
+  dueAt            DateTime?
+  followUpAt       DateTime?
+  escalatedAt      DateTime?
+  lastEscalationAt DateTime?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  metadata         Json?
+
+  executions WorkflowStepExecution[] @relation("WorkflowInstanceExecutions")
+  events     WorkflowEvent[]         @relation("WorkflowInstanceEvents")
+  snapshots  WorkflowSnapshot[]      @relation("WorkflowInstanceSnapshots")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([templateId, status])
+  @@index([ownerId, status])
+  @@index([chapterId, status])
+  @@index([dueAt])
+  @@index([followUpAt])
+  @@index([subjectType, subjectId])
+}
+
+/// Per-step runtime record (the spec's "WorkflowExecution"). Carries the links
+/// back to the REUSED entities the engine created (ActionItem / Meeting /
+/// WorkflowItem) so nothing is duplicated.
+model WorkflowStepExecution {
+  id         String            @id @default(cuid())
+  instanceId String
+  instance   WorkflowInstance  @relation("WorkflowInstanceExecutions", fields: [instanceId], references: [id], onDelete: Cascade)
+  /// The template step this realizes (SetNull if the step is later deleted).
+  stepId     String?
+  step       WorkflowTemplateStep? @relation("WorkflowStepExecutions", fields: [stepId], references: [id], onDelete: SetNull)
+  /// Denormalized identity so executions survive template edits.
+  stageKey   String
+  stepKey    String
+  title      String
+  kind       WorkflowStepKind  @default(TASK)
+  state      WorkflowStepState @default(PENDING)
+  isRequired Boolean           @default(true)
+  ownerId    String?
+  dueAt      DateTime?
+  startedAt  DateTime?
+  completedAt   DateTime?
+  completedById String?
+  blockedReason String?        @db.Text
+  output     Json?
+  /// Reuse links — the engine never creates parallel task/meeting tables.
+  linkedActionItemId   String?
+  linkedMeetingId      String?
+  linkedWorkflowItemId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([instanceId, state])
+  @@index([ownerId, state])
+  @@index([stepId])
+}
+
+/// Append-only history timeline for an instance.
+model WorkflowEvent {
+  id         String            @id @default(cuid())
+  instanceId String
+  instance   WorkflowInstance  @relation("WorkflowInstanceEvents", fields: [instanceId], references: [id], onDelete: Cascade)
+  kind       WorkflowEventKind
+  summary    String
+  fromStageKey String?
+  toStageKey   String?
+  stepKey      String?
+  actorId      String?
+  data         Json?
+  createdAt  DateTime          @default(now())
+
+  @@index([instanceId, createdAt])
+  @@index([kind])
+}
+
+/// Point-in-time serialized runtime state of an instance (audit + analytics).
+model WorkflowSnapshot {
+  id         String           @id @default(cuid())
+  instanceId String
+  instance   WorkflowInstance @relation("WorkflowInstanceSnapshots", fields: [instanceId], references: [id], onDelete: Cascade)
+  stageKey   String?
+  status     String
+  completionPercent Int       @default(0)
+  state      Json
+  capturedAt DateTime         @default(now())
+
+  @@index([instanceId, capturedAt])
+}
+
+/// Rolled-up analytics metric (completion rate, avg stage duration, velocity,
+/// bottlenecks). bucketKey makes cron upserts idempotent.
+model WorkflowMetric {
+  id          String   @id @default(cuid())
+  /// Null = org-wide; otherwise the template id (loosely-coupled, no FK).
+  templateId  String?
+  metricKey   String
+  dimension   String?
+  value       Float    @default(0)
+  windowStart DateTime?
+  windowEnd   DateTime?
+  /// Deterministic idempotency key: templateId:metricKey:dimension:windowStart.
+  bucketKey   String   @unique
+  capturedAt  DateTime @default(now())
+
+  @@index([templateId, metricKey, capturedAt])
 }
