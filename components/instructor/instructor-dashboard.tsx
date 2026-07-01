@@ -7,6 +7,7 @@ import {
 } from "@/lib/class-management-actions";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { WorkspaceCreateButton } from "@/components/workspace-create-button";
+import { MyWorkflowQueueCard } from "@/components/workflow-engine/my-workflow-queue-card";
 
 /* ----------------------------- date helpers ----------------------------- */
 
@@ -661,6 +662,9 @@ export async function InstructorDashboard({
           ) : null}
         </section>
       </div>
+
+      {/* My workflow queue — steps assigned to me + workflows I own. */}
+      <MyWorkflowQueueCard userId={userId} />
 
       {/* Tools */}
       <section className="card">

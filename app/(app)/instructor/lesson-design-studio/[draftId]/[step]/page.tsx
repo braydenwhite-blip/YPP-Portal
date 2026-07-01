@@ -13,6 +13,7 @@ import {
   studioStepSlugToPhase,
 } from "@/lib/lesson-design-studio";
 import { getLessonDesignStudioGateStatus } from "@/lib/lesson-design-studio-gate";
+import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
 import { StudioClient } from "../../studio-client";
 import "../../studio.css";
 
@@ -99,32 +100,47 @@ export default async function LessonDesignStudioDraftStepPage({
   }
 
   return (
-    <StudioClient
-      userId={session.user.id}
-      userName={session.user.name ?? "Instructor"}
-      entryContext={entryContext}
-      notice={notice}
-      studioPhase={phaseFromSlug}
-      progress={progress}
-      viewerAccess={draft.access}
-      draft={{
-        id: studioDraft.id,
-        title: studioDraft.title,
-        description: studioDraft.description ?? "",
-        interestArea: studioDraft.interestArea,
-        outcomes: studioDraft.outcomes,
-        courseConfig: studioDraft.courseConfig,
-        weeklyPlans: getWeeklyPlansInput(studioDraft.weeklyPlans),
-        understandingChecks: studioDraft.understandingChecks,
-        reviewRubric: studioDraft.reviewRubric,
-        reviewNotes: studioDraft.reviewNotes ?? "",
-        reviewedAt: studioDraft.reviewedAt?.toISOString() ?? null,
-        submittedAt: studioDraft.submittedAt?.toISOString() ?? null,
-        approvedAt: studioDraft.approvedAt?.toISOString() ?? null,
-        generatedTemplateId: studioDraft.generatedTemplateId ?? null,
-        status: studioDraft.status,
-        updatedAt: studioDraft.updatedAt.toISOString(),
-      }}
-    />
+    <>
+      {/* Curriculum approval workflow — rendered outside StudioClient because
+          the studio is a client component (and its own fully custom, CSS-
+          driven shell with no ReactNode slot for arbitrary sidebar content)
+          while EntityWorkflowCard is an async server component; placed just
+          above the studio, matching the instructor-application-review
+          integration. */}
+      <div className="mx-auto w-full max-w-[1400px] px-6 pt-6">
+        <EntityWorkflowCard
+          entityType="CURRICULUM_DRAFT"
+          entityId={draftId}
+          title="Curriculum approval workflow"
+        />
+      </div>
+      <StudioClient
+        userId={session.user.id}
+        userName={session.user.name ?? "Instructor"}
+        entryContext={entryContext}
+        notice={notice}
+        studioPhase={phaseFromSlug}
+        progress={progress}
+        viewerAccess={draft.access}
+        draft={{
+          id: studioDraft.id,
+          title: studioDraft.title,
+          description: studioDraft.description ?? "",
+          interestArea: studioDraft.interestArea,
+          outcomes: studioDraft.outcomes,
+          courseConfig: studioDraft.courseConfig,
+          weeklyPlans: getWeeklyPlansInput(studioDraft.weeklyPlans),
+          understandingChecks: studioDraft.understandingChecks,
+          reviewRubric: studioDraft.reviewRubric,
+          reviewNotes: studioDraft.reviewNotes ?? "",
+          reviewedAt: studioDraft.reviewedAt?.toISOString() ?? null,
+          submittedAt: studioDraft.submittedAt?.toISOString() ?? null,
+          approvedAt: studioDraft.approvedAt?.toISOString() ?? null,
+          generatedTemplateId: studioDraft.generatedTemplateId ?? null,
+          status: studioDraft.status,
+          updatedAt: studioDraft.updatedAt.toISOString(),
+        }}
+      />
+    </>
   );
 }

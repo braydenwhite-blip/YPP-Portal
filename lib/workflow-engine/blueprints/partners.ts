@@ -59,6 +59,10 @@ export const PARTNER_BLUEPRINTS: WorkflowBlueprint[] = [
     defaultOwnerRole: "CHAPTER_PRESIDENT",
     followUpCadenceHours: 120,
     escalateAfterHours: 168,
+    triggers: [
+      { event: "ENTITY_STATUS_CHANGED", subjectType: "PARTNER", matchStatus: "NOT_STARTED" },
+      { event: "ENTITY_STATUS_CHANGED", subjectType: "PARTNER", matchStatus: "RESEARCHING" },
+    ],
     stages: [
       {
         key: "research",

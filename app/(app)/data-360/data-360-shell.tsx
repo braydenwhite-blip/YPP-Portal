@@ -16,6 +16,8 @@ import {
   type Data360Lens,
 } from "@/lib/data-360/views";
 
+import type { WorkflowIntelligence } from "@/lib/data-360/workflow-intelligence";
+
 import {
   ChaptersSection,
   DictionarySection,
@@ -25,6 +27,7 @@ import {
   PeopleSection,
   PerformanceSection,
   ProgramsSection,
+  WorkflowsSection,
   type SectionData,
 } from "./sections";
 
@@ -36,6 +39,7 @@ import {
 
 const TABS = [
   { key: "overview", label: "Overview" },
+  { key: "workflows", label: "Workflows" },
   { key: "people", label: "People" },
   { key: "programs", label: "Programs" },
   { key: "chapters", label: "Chapters" },
@@ -73,12 +77,14 @@ function normalizeTab(tab: string | undefined): string {
 export function Data360Shell({
   overview,
   attention,
+  workflow,
   defaultLens,
   rangeKey,
   initialTab,
 }: {
   overview: Data360Overview;
   attention: AttentionGroup[];
+  workflow: WorkflowIntelligence;
   defaultLens: Data360Lens;
   rangeKey: DateRangeKey;
   initialTab?: string;
@@ -95,10 +101,12 @@ export function Data360Shell({
       .slice(0, 8);
   }, [query, overview.search]);
 
-  const sectionData: SectionData = { overview, attention, lens };
+  const sectionData: SectionData = { overview, attention, workflow, lens };
 
   function renderSection() {
     switch (activeTab) {
+      case "workflows":
+        return <WorkflowsSection data={sectionData} />;
       case "people":
         return <PeopleSection data={sectionData} />;
       case "programs":

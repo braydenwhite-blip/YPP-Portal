@@ -49,6 +49,11 @@ import {
 } from "./action-permissions";
 import { assertActionLeadEligible } from "@/lib/org/action-lead-guard";
 import { notifyNewActionAssignments } from "./action-emails";
+import {
+  onActionItemBlocked,
+  onActionItemCompleted,
+  onActionItemReassigned,
+} from "@/lib/workflow-engine/action-sync";
 
 /**
  * People Strategy — Action Item server actions (Prompt 02B).
@@ -870,6 +875,10 @@ export async function updateActionItem(input: UpdateActionItemInput) {
     ]);
   }
 
+  if (leadChanged && data.leadId) {
+    await onActionItemReassigned(data.id, data.leadId);
+  }
+
   await syncActionSearchDocument(data.id);
   revalidateAll();
 }
@@ -919,6 +928,10 @@ export async function updateActionStatus(
         : `Status changed from ${existing.status} to ${data.status}`
     );
   });
+
+  if (data.status === "COMPLETE") {
+    await onActionItemCompleted(data.id, session.id);
+  }
 
   await syncActionSearchDocument(data.id);
   revalidateAll();
@@ -1094,6 +1107,8 @@ export async function captureActionBlocker(input: {
     );
   });
 
+  await onActionItemBlocked(data.id, data.blockedReason, session.id);
+
   await syncActionSearchDocument(data.id);
   revalidateAll();
 }
@@ -1248,6 +1263,10 @@ export async function addActionAssignment(
     await notifyNewActionAssignments(data.actionId, [
       { userId: data.userId, role: data.role as ActionAssignmentRole },
     ]);
+  }
+
+  if (data.role === "LEAD") {
+    await onActionItemReassigned(data.actionId, data.userId);
   }
 
   revalidateAll();

@@ -8,6 +8,7 @@ import { loadMentorshipHealth } from "./mentorship-health";
 import { getMyActionItems, type ActionItemWithRelations } from "./action-queries";
 import type { ActionViewer } from "./action-permissions";
 import { computeProvisionalStatus } from "./provisional";
+import { loadWorkflowAttentionInputs } from "@/lib/workflow-engine/needs-attention";
 import {
   actionAttention,
   computeNeedsAttention,
@@ -71,10 +72,11 @@ function dashboardRowToPerson(row: PeopleDashboardRow): AttentionPerson {
 export async function loadPeopleStrategyAttention(
   now: Date = new Date()
 ): Promise<AttentionItem[]> {
-  const [rows, escalationRows, mentorshipHealth] = await Promise.all([
+  const [rows, escalationRows, mentorshipHealth, workflows] = await Promise.all([
     loadPeopleDashboard(now),
     loadLeadershipEscalationQueue(now),
     loadMentorshipHealth(now),
+    loadWorkflowAttentionInputs(now),
   ]);
 
   const peopleById = new Map<string, AttentionPerson>();
@@ -113,6 +115,7 @@ export async function loadPeopleStrategyAttention(
     {
       people: Array.from(peopleById.values()),
       escalations,
+      workflows,
     },
     now
   );

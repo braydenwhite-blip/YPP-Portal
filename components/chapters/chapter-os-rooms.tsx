@@ -9,7 +9,7 @@
 // sits on top. Read-only and fed entirely by `loadChapterOS`; any blocker can be
 // one-click tracked as a real ActionItem (no parallel task system).
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 
 import { CardV2, StatusBadge, ButtonLink, Button, EmptyStateV2, cn, type StatusTone } from "@/components/ui-v2";
 import { trackChapterBlocker } from "@/lib/chapters/operating-actions";
@@ -59,10 +59,20 @@ const SEVERITY_LABEL: Record<"critical" | "warning" | "info", string> = {
   info: "Heads up",
 };
 
-export function ChapterOSRooms({ model }: { model: ChapterOSModel }) {
+export function ChapterOSRooms({
+  model,
+  workflowCard,
+}: {
+  model: ChapterOSModel;
+  /** Server-rendered <EntityWorkflowCard /> slot, passed down from the page so
+   *  this client component doesn't need to render an async server component
+   *  itself. Sits between the Mission Brief and the six-room grid. */
+  workflowCard?: ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-8">
       <MissionBrief model={model} />
+      {workflowCard}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         {model.rooms.map((room) => (
           <RoomPanel key={room.key} chapterId={model.chapter.id} room={room} />

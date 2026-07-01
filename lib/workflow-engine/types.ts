@@ -171,6 +171,9 @@ export type InstanceView = {
   dueAt: string | null;
   followUpAt: string | null;
   completedAt: string | null;
+  /** Set the first time this instance is escalated (engine automation or the
+   *  runner's manual "Escalate" button); null if never escalated. */
+  escalatedAt: string | null;
 };
 
 // ---------------------------------------------------------------------------

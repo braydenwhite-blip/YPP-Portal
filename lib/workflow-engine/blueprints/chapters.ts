@@ -39,7 +39,10 @@ export const CHAPTER_BLUEPRINTS: WorkflowBlueprint[] = [
     followUpCadenceHours: 168,
     escalateAfterHours: 336,
     initialStatus: "PUBLISHED",
-    triggers: [{ event: "ENTITY_STATUS_CHANGED", subjectType: "CHAPTER", matchStatus: "APPROVED" }],
+    triggers: [
+      { event: "ENTITY_STATUS_CHANGED", subjectType: "CHAPTER", matchStatus: "APPROVED" },
+      { event: "ENTITY_STATUS_CHANGED", subjectType: "CHAPTER", matchStatus: "LAUNCHING" },
+    ],
     stages: [
       {
         key: "approved-staffed",

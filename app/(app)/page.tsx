@@ -304,7 +304,7 @@ export default async function OverviewPage() {
       const cockpit = await loadLeadershipHome(actionViewer);
       return (
         <>
-          <LeadershipHome firstName={name} data={cockpit} />
+          <LeadershipHome firstName={name} userId={session.user.id} data={cockpit} />
           {showPreviewUnlockLink && (
             <p style={{ maxWidth: 1280, margin: "16px auto 0" }}>
               <Link

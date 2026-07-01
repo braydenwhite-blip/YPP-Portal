@@ -7,6 +7,7 @@ import { isOfferingPubliclyVisible } from "@/lib/class-visibility";
 import { promoteNextWaitlistedRaceSafe } from "@/lib/class-seat-allocation";
 import { recordOfferingTimeline } from "@/lib/class-offering-timeline";
 import { notifyWaitlistPromotion } from "@/lib/class-notifications";
+import { fireEntityStatusChanged } from "@/lib/workflow-engine/triggers";
 
 /**
  * Admin-only class operations.
@@ -278,6 +279,16 @@ export async function adminMarkClassCompleted(formData: FormData) {
   });
 
   revalidateAdminClassSurfaces(offeringId);
+
+  await fireEntityStatusChanged({
+    subjectType: "CLASS_OFFERING",
+    subjectId: offeringId,
+    newStatus: "COMPLETED",
+    chapterId: offering.chapterId,
+    ownerId: actor.id,
+    startedById: actor.id,
+  });
+
   return { success: true };
 }
 

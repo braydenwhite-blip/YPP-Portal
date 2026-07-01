@@ -8,11 +8,31 @@ import {
   type Data360Overview,
   type Kpi,
   type KpiGroupKey,
+  type MetricTone,
   type TimeSeries,
 } from "@/lib/data-360/types";
 import { LENS_GROUP_ORDER, type Data360Lens } from "@/lib/data-360/views";
+import {
+  WORKFLOW_HEALTH_LABELS,
+  workflowData360DrilldownHref,
+  type WorkflowAnalyticsInstance,
+  type WorkflowGroupRow,
+  type WorkflowTemplateRow,
+} from "@/lib/data-360/workflow-analytics-core";
+import {
+  CHAPTER_EXPECTATION_LIST,
+  expectationStatusLabel,
+  type ChapterMetricKey,
+} from "@/lib/data-360/expectations";
+import type { ChapterComparisonRow } from "@/lib/data-360/chapter-metrics";
+import type { WorkflowSuggestion } from "@/lib/data-360/suggestions";
+import type { WorkflowIntelligence } from "@/lib/data-360/workflow-intelligence";
 
-import { AreaChart, BarRows, KpiCard, Panel } from "./primitives";
+import { HealthDistributionBar } from "@/components/data-360/charts/health-distribution-bar";
+import { Sparkline } from "@/components/data-360/charts/sparkline";
+import { TrendChart, type TrendSeries } from "@/components/data-360/charts/trend-chart";
+
+import { AreaChart, BarRows, KpiCard, Panel, toneColor } from "./primitives";
 
 /**
  * Data 360 — section renderers. Overview is the deep surface; the other tabs
@@ -23,6 +43,7 @@ import { AreaChart, BarRows, KpiCard, Panel } from "./primitives";
 export type SectionData = {
   overview: Data360Overview;
   attention: AttentionGroup[];
+  workflow: WorkflowIntelligence;
   lens: Data360Lens;
 };
 
@@ -194,7 +215,7 @@ function RecentPanel({ items }: { items: Data360Overview["recent"] }) {
 // --- Overview (deep) ---------------------------------------------------------
 
 export function OverviewSection({ data }: { data: SectionData }) {
-  const { overview, attention, lens } = data;
+  const { overview, attention, workflow, lens } = data;
   const groupOrder = LENS_GROUP_ORDER[lens];
 
   return (
@@ -204,6 +225,8 @@ export function OverviewSection({ data }: { data: SectionData }) {
           <KpiGroupBlock key={group} kpis={overview.kpis} group={group} />
         ))}
       </div>
+
+      <WorkflowHealthStrip wf={workflow} />
 
       <div className="grid gap-3 lg:grid-cols-2">
         <TrendCard series={seriesByKey(overview, "students_over_time")} color="#b47fff" />
@@ -290,16 +313,22 @@ export function ProgramsSection({ data }: { data: SectionData }) {
 // --- Chapters ----------------------------------------------------------------
 
 export function ChaptersSection({ data }: { data: SectionData }) {
-  const { overview } = data;
+  const { overview, workflow } = data;
   return (
     <div className="flex flex-col gap-5">
       <KpiGroupBlock kpis={overview.kpis} group="chapters" />
+
+      <ChapterComparisonGrid rows={workflow.chapterComparison.rows} />
+
       <div className="grid gap-3 lg:grid-cols-2">
         <TrendCard series={seriesByKey(overview, "chapters_over_time")} color="#5ec5ff" />
         <Panel title="Chapters by lifecycle">
           <BarRows data={breakdownData(overview, "chapters_by_status")} color="#34d399" max={10} />
         </Panel>
       </div>
+
+      <WorkflowSuggestionsPanel suggestions={workflow.suggestions} />
+
       <Panel title="Chapters by state" subtitle="Geographic distribution (interactive map arrives in Phase 3)">
         <BarRows data={breakdownData(overview, "chapters_by_state")} color="#b47fff" max={16} />
       </Panel>
@@ -405,6 +434,561 @@ export function GeographySection({ data }: { data: SectionData }) {
         <BarRows data={breakdownData(overview, "chapters_by_state")} color="#5ec5ff" max={24} />
       </Panel>
     </div>
+  );
+}
+
+// --- Workflow building blocks ------------------------------------------------
+
+function toTrendSeries(ts: TimeSeries, color?: string): TrendSeries {
+  return { key: ts.key, label: ts.label, color, points: ts.points };
+}
+
+function WfStat({
+  label,
+  value,
+  href,
+  tone = "default",
+  hint,
+}: {
+  label: string;
+  value: number;
+  href?: string | null;
+  tone?: MetricTone;
+  hint?: string;
+}) {
+  const color = toneColor(tone);
+  const inner = (
+    <div className="group relative flex h-full flex-col gap-1 overflow-hidden rounded-xl border border-white/10 bg-[#111726] px-3.5 py-3 transition-colors hover:border-white/25">
+      <span className="absolute inset-x-0 top-0 h-[2px]" style={{ background: color }} aria-hidden />
+      <span className="text-[24px] font-bold leading-none tabular-nums text-[#e9eef5]">
+        {nf.format(value)}
+      </span>
+      <span className="text-[12px] font-medium text-[#aeb6c6]">{label}</span>
+      {hint ? <span className="text-[10.5px] leading-tight text-[#5f6b80]">{hint}</span> : null}
+    </div>
+  );
+  return href ? (
+    <Link href={href} prefetch={false} className="block h-full">
+      {inner}
+    </Link>
+  ) : (
+    inner
+  );
+}
+
+function WorkflowHealthStrip({ wf }: { wf: WorkflowIntelligence }) {
+  const { overview } = wf;
+  return (
+    <Panel
+      title="Workflow health"
+      subtitle="Concrete, reason-based status from the workflow engine — every number opens the filtered list"
+      action={
+        <Link
+          href="/workflows"
+          prefetch={false}
+          className="text-[11px] text-[#7c89a0] transition-colors hover:text-[#b47fff]"
+        >
+          Open workflows →
+        </Link>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <span className="text-[13px] text-[#aeb6c6]">
+            <b className="text-[#e9eef5] tabular-nums">{overview.active}</b> active
+          </span>
+          <span className="text-[13px] text-[#aeb6c6]">
+            <b className="text-[#e9eef5] tabular-nums">{overview.health.needsAttention}</b> need
+            attention
+          </span>
+          <span className="text-[12px] text-[#5f6b80]">
+            avg age {overview.averageAgeDays}d · {overview.chaptersWithWorkflows} chapters
+          </span>
+        </div>
+        <HealthDistributionBar counts={overview.health.counts} theme="dark" />
+      </div>
+    </Panel>
+  );
+}
+
+function WorkflowKpiRow({ wf }: { wf: WorkflowIntelligence }) {
+  const { overview } = wf;
+  const c = overview.health.counts;
+  return (
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      <WfStat label="Active workflows" value={overview.active} href="/workflows" tone="accent" />
+      <WfStat
+        label="Blocked"
+        value={c.BLOCKED}
+        href={workflowData360DrilldownHref({ health: "BLOCKED" })}
+        tone={c.BLOCKED > 0 ? "danger" : "muted"}
+        hint="target 0"
+      />
+      <WfStat
+        label="Overdue"
+        value={c.OVERDUE}
+        href={workflowData360DrilldownHref({ health: "OVERDUE" })}
+        tone={c.OVERDUE > 0 ? "danger" : "muted"}
+        hint="target 0"
+      />
+      <WfStat
+        label="Stalled"
+        value={c.STALLED}
+        href={workflowData360DrilldownHref({ health: "STALLED" })}
+        tone={c.STALLED > 0 ? "warning" : "muted"}
+      />
+      <WfStat
+        label="Actions created"
+        value={overview.linkedWork.actionsCreated}
+        tone="default"
+        hint={`${overview.linkedWork.workflowsWithActions} workflows`}
+      />
+      <WfStat
+        label="Meetings created"
+        value={overview.linkedWork.meetingsCreated}
+        tone="default"
+        hint={`${overview.linkedWork.workflowsWithMeetings} workflows`}
+      />
+    </div>
+  );
+}
+
+function WorkflowTrendsPanel({ wf }: { wf: WorkflowIntelligence }) {
+  const byKey = new Map(wf.trends.map((t) => [t.key, t]));
+  const started = byKey.get("wf_started");
+  const completed = byKey.get("wf_completed");
+  const steps = byKey.get("wf_steps_completed");
+  const actions = byKey.get("wf_actions_created");
+  const meetings = byKey.get("wf_meetings_created");
+
+  const flow: TrendSeries[] = [];
+  if (started) flow.push(toTrendSeries(started, "#8b3fe8"));
+  if (completed) flow.push(toTrendSeries(completed, "#34d399"));
+  if (steps) flow.push(toTrendSeries(steps, "#5ec5ff"));
+
+  return (
+    <div className="grid gap-3 lg:grid-cols-3">
+      <div className="lg:col-span-2">
+        <Panel title="Workflow operating trends" subtitle="Week by week — started vs completed vs steps closed">
+          <TrendChart series={flow} theme="dark" height={220} showLegend />
+        </Panel>
+      </div>
+      <div className="flex flex-col gap-3">
+        <MiniTrendStat ts={actions} color="#fbbf24" href="/actions?source=workflow" />
+        <MiniTrendStat ts={meetings} color="#f472b6" href="/meetings" />
+      </div>
+    </div>
+  );
+}
+
+function MiniTrendStat({
+  ts,
+  color,
+  href,
+}: {
+  ts?: TimeSeries;
+  color: string;
+  href: string;
+}) {
+  if (!ts) return null;
+  return (
+    <Link
+      href={href}
+      prefetch={false}
+      className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#111726] px-3.5 py-3 transition-colors hover:border-white/25"
+    >
+      <div>
+        <div className="text-[22px] font-bold leading-none tabular-nums text-[#e9eef5]">
+          {nf.format(ts.total)}
+        </div>
+        <div className="mt-1 text-[11.5px] text-[#aeb6c6]">{ts.label}</div>
+      </div>
+      <Sparkline points={ts.points.map((p) => ({ t: p.t, value: p.value }))} color={color} width={90} height={34} />
+    </Link>
+  );
+}
+
+function WorkflowGroupTable({
+  title,
+  subtitle,
+  rows,
+  keyLabel,
+}: {
+  title: string;
+  subtitle?: string;
+  rows: WorkflowGroupRow[];
+  keyLabel: string;
+}) {
+  return (
+    <Panel title={title} subtitle={subtitle} bodyClassName="p-0">
+      {rows.length === 0 ? (
+        <EmptyMini label="No workflows yet." />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-[12px]">
+            <thead>
+              <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.06em] text-[#6f7c92]">
+                <th className="px-3 py-2 font-semibold">{keyLabel}</th>
+                <th className="px-2 py-2 text-right font-semibold">Total</th>
+                <th className="px-2 py-2 text-right font-semibold">Blocked</th>
+                <th className="px-2 py-2 text-right font-semibold">Overdue</th>
+                <th className="px-2 py-2 text-right font-semibold">Attn</th>
+                <th className="px-2 py-2 text-right font-semibold">On track</th>
+                <th className="px-2 py-2 text-right font-semibold">Avg age</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.slice(0, 14).map((r) => {
+                const nameCell = (
+                  <span className="font-medium text-[#e6edf3]">{r.label}</span>
+                );
+                return (
+                  <tr key={r.key} className="border-b border-white/[0.05] text-[#c4ccda]">
+                    <td className="px-3 py-2">
+                      {r.href ? (
+                        <Link href={r.href} prefetch={false} className="hover:text-[#b47fff]">
+                          {nameCell}
+                        </Link>
+                      ) : (
+                        nameCell
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-[#e6edf3]">{r.total}</td>
+                    <td className={`px-2 py-2 text-right tabular-nums ${r.blocked > 0 ? "text-[#f87171]" : "text-[#5f6b80]"}`}>
+                      {r.blocked}
+                    </td>
+                    <td className={`px-2 py-2 text-right tabular-nums ${r.overdue > 0 ? "text-[#fb923c]" : "text-[#5f6b80]"}`}>
+                      {r.overdue}
+                    </td>
+                    <td className={`px-2 py-2 text-right tabular-nums ${r.needsAttention > 0 ? "text-[#fbbf24]" : "text-[#5f6b80]"}`}>
+                      {r.needsAttention}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-[#34d399]">{r.onTrack}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-[#8b94a7]">{r.averageAgeDays}d</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function WorkflowTemplatePanel({ rows }: { rows: WorkflowTemplateRow[] }) {
+  return (
+    <Panel
+      title="Workflow templates"
+      subtitle="Which playbooks are actually being used — usage, health, and downstream work"
+      bodyClassName="p-0"
+    >
+      {rows.length === 0 ? (
+        <EmptyMini label="No workflow templates in use yet." />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-[12px]">
+            <thead>
+              <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.06em] text-[#6f7c92]">
+                <th className="px-3 py-2 font-semibold">Template</th>
+                <th className="px-2 py-2 text-right font-semibold">Active</th>
+                <th className="px-2 py-2 text-right font-semibold">Done</th>
+                <th className="px-2 py-2 text-right font-semibold">Blocked</th>
+                <th className="px-2 py-2 text-right font-semibold">Overdue</th>
+                <th className="px-2 py-2 text-right font-semibold">Chapters</th>
+                <th className="px-2 py-2 text-right font-semibold">Actions</th>
+                <th className="px-2 py-2 text-right font-semibold">Avg age</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.slice(0, 16).map((r) => (
+                <tr key={r.key} className="border-b border-white/[0.05] text-[#c4ccda]">
+                  <td className="px-3 py-2">
+                    <Link href={r.href ?? "/workflows"} prefetch={false} className="font-medium text-[#e6edf3] hover:text-[#b47fff]">
+                      {r.label}
+                    </Link>
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums text-[#e6edf3]">{r.active}</td>
+                  <td className="px-2 py-2 text-right tabular-nums text-[#34d399]">{r.completed}</td>
+                  <td className={`px-2 py-2 text-right tabular-nums ${r.blocked > 0 ? "text-[#f87171]" : "text-[#5f6b80]"}`}>
+                    {r.blocked}
+                  </td>
+                  <td className={`px-2 py-2 text-right tabular-nums ${r.overdue > 0 ? "text-[#fb923c]" : "text-[#5f6b80]"}`}>
+                    {r.overdue}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums text-[#8b94a7]">{r.chaptersUsing}</td>
+                  <td className="px-2 py-2 text-right tabular-nums text-[#8b94a7]">{r.actionsCreated}</td>
+                  <td className="px-2 py-2 text-right tabular-nums text-[#8b94a7]">{r.averageAgeDays}d</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+const HEALTH_PILL_COLOR: Record<string, string> = {
+  BLOCKED: "#f87171",
+  OVERDUE: "#fb923c",
+  STALLED: "#a78bfa",
+  NEEDS_ATTENTION: "#fbbf24",
+};
+
+function WorkflowNeedsAttentionQueue({
+  items,
+  total,
+}: {
+  items: WorkflowAnalyticsInstance[];
+  total: number;
+}) {
+  return (
+    <Panel
+      title="Workflows needing attention"
+      subtitle={
+        total > 0
+          ? `${total} workflow${total === 1 ? "" : "s"} off track — worst first. Open each to reassign, escalate, or unblock.`
+          : undefined
+      }
+      bodyClassName={items.length === 0 ? "p-4" : "p-0"}
+    >
+      {items.length === 0 ? (
+        <EmptyMini label="Every active workflow is on track." />
+      ) : (
+        <ul className="flex flex-col">
+          {items.map((i) => {
+            const color = HEALTH_PILL_COLOR[i.health] ?? "#8b94a7";
+            return (
+              <li key={i.id} className="border-b border-white/[0.05] last:border-0">
+                <Link
+                  href={`/workflows/${i.id}`}
+                  prefetch={false}
+                  className="flex items-start justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-white/[0.04]"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                        style={{ background: `${color}1f`, color }}
+                      >
+                        {WORKFLOW_HEALTH_LABELS[i.health]}
+                      </span>
+                      <span className="truncate text-[13px] font-medium text-[#e6edf3]">{i.title}</span>
+                    </div>
+                    <div className="mt-0.5 truncate text-[11.5px] text-[#7c89a0]">
+                      {i.chapterName ?? "No chapter"}
+                      {i.templateName ? ` · ${i.templateName}` : ""}
+                      {i.ownerName ? ` · ${i.ownerName}` : " · unassigned"}
+                    </div>
+                    {i.healthReasons[0] ? (
+                      <div className="mt-0.5 truncate text-[11.5px]" style={{ color }}>
+                        {i.healthReasons[0]}
+                      </div>
+                    ) : null}
+                    {i.nextStepTitle ? (
+                      <div className="mt-0.5 truncate text-[11px] text-[#8b94a7]">
+                        Next: {i.nextStepTitle}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-[11px] text-[#8b94a7]">{i.completionPercent}%</div>
+                    <div className="mt-0.5 text-[10.5px] text-[#5f6b80]">{i.ageDays}d old</div>
+                    {i.linkedActionCount + i.linkedMeetingCount > 0 ? (
+                      <div className="mt-0.5 text-[10px] text-[#5f6b80]">
+                        {i.linkedActionCount > 0 ? `${i.linkedActionCount}A ` : ""}
+                        {i.linkedMeetingCount > 0 ? `${i.linkedMeetingCount}M` : ""}
+                      </div>
+                    ) : null}
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+function WorkflowSuggestionsPanel({ suggestions }: { suggestions: WorkflowSuggestion[] }) {
+  return (
+    <Panel
+      title="Data-triggered suggestions"
+      subtitle="Deterministic: a real metric gap → the blueprint that closes it. No scores, no guesses."
+      bodyClassName={suggestions.length === 0 ? "p-4" : "p-0"}
+    >
+      {suggestions.length === 0 ? (
+        <EmptyMini label="No metric gaps trip a workflow suggestion right now." />
+      ) : (
+        <ul className="flex flex-col">
+          {suggestions.slice(0, 12).map((s) => (
+            <li key={s.id} className="border-b border-white/[0.05] px-3 py-2.5 last:border-0">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[13px] font-medium text-[#e6edf3]">{s.chapterName}</span>
+                <span className="inline-flex items-center rounded bg-[#8b3fe8]/15 px-1.5 py-0.5 text-[10.5px] font-semibold text-[#b47fff]">
+                  {s.templateLabel}
+                </span>
+              </div>
+              <p className="mt-0.5 text-[11.5px] text-[#aeb6c6]">{s.reason}</p>
+              <div className="mt-1 flex flex-wrap gap-3 text-[11px]">
+                <Link href={s.primaryActionHref} prefetch={false} className="text-[#b47fff] hover:underline">
+                  {s.primaryActionLabel} →
+                </Link>
+                {s.sourceHref ? (
+                  <Link href={s.sourceHref} prefetch={false} className="text-[#7c89a0] hover:text-[#b47fff]">
+                    View records
+                  </Link>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+// --- Workflows section -------------------------------------------------------
+
+export function WorkflowsSection({ data }: { data: SectionData }) {
+  const wf = data.workflow;
+  return (
+    <div className="flex flex-col gap-5">
+      <WorkflowKpiRow wf={wf} />
+      <WorkflowHealthStrip wf={wf} />
+      <WorkflowTrendsPanel wf={wf} />
+      <div className="grid gap-3 lg:grid-cols-2">
+        <WorkflowGroupTable
+          title="Workflows by chapter"
+          subtitle="Where operating work is concentrated"
+          rows={wf.byChapter}
+          keyLabel="Chapter"
+        />
+        <WorkflowGroupTable
+          title="Workflows by entity type"
+          subtitle="Which parts of the org generate the most process"
+          rows={wf.byEntityType}
+          keyLabel="Entity type"
+        />
+      </div>
+      <WorkflowTemplatePanel rows={wf.byTemplate} />
+      <div className="grid gap-3 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <WorkflowNeedsAttentionQueue items={wf.needsAttention} total={wf.needsAttentionTotal} />
+        </div>
+        <WorkflowSuggestionsPanel suggestions={wf.suggestions} />
+      </div>
+    </div>
+  );
+}
+
+// --- Chapter comparison grid -------------------------------------------------
+
+function metricCellTone(tone: MetricTone): string {
+  switch (tone) {
+    case "positive":
+      return "#34d399";
+    case "warning":
+      return "#fbbf24";
+    case "danger":
+      return "#f87171";
+    case "muted":
+      return "#5f6b80";
+    default:
+      return "#c4ccda";
+  }
+}
+
+function ChapterComparisonGrid({ rows }: { rows: ChapterComparisonRow[] }) {
+  const cols = CHAPTER_EXPECTATION_LIST;
+  return (
+    <Panel
+      title="Chapter comparison"
+      subtitle="Expectations row on top; every cell opens the records behind it. Muted = not yet relevant for that chapter's phase."
+      bodyClassName="p-0"
+    >
+      {rows.length === 0 ? (
+        <EmptyMini label="No chapters on record." />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-[12px]">
+            <thead>
+              <tr className="border-b border-white/10 text-[9.5px] uppercase tracking-[0.05em] text-[#6f7c92]">
+                <th className="sticky left-0 z-10 bg-[#0f1420] px-3 py-2 font-semibold">Chapter</th>
+                {cols.map((c) => (
+                  <th key={c.key} className="px-2 py-2 text-right font-semibold" title={c.description}>
+                    {c.shortLabel}
+                  </th>
+                ))}
+              </tr>
+              <tr className="border-b border-white/10 bg-white/[0.03] text-[10px]">
+                <th className="sticky left-0 z-10 bg-[#0f1420] px-3 py-1.5 text-left font-semibold text-[#8b94a7]">
+                  Expectation
+                </th>
+                {cols.map((c) => (
+                  <th key={c.key} className="px-2 py-1.5 text-right font-medium text-[#8b94a7]">
+                    {c.expectationLabel}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.chapterId} className="border-b border-white/[0.05]">
+                  <td className="sticky left-0 z-10 bg-[#0f1420] px-3 py-2">
+                    <Link
+                      href={`/chapter/organization?chapterId=${r.chapterId}`}
+                      prefetch={false}
+                      className="font-medium text-[#e6edf3] hover:text-[#b47fff]"
+                    >
+                      {r.chapterName}
+                    </Link>
+                    <div className="text-[10px] text-[#5f6b80]">{r.phaseLabel}</div>
+                  </td>
+                  {cols.map((c) => {
+                    const cell = r.metrics[c.key as ChapterMetricKey];
+                    const muted = cell.status === "none";
+                    const color = metricCellTone(cell.tone);
+                    const display =
+                      cell.value === null
+                        ? "—"
+                        : c.unit === "percent"
+                        ? `${cell.value}%`
+                        : nf.format(cell.value);
+                    const body = (
+                      <span
+                        className="tabular-nums"
+                        style={{ color: muted ? "#3f4757" : color, fontWeight: muted ? 400 : 600 }}
+                        title={
+                          muted
+                            ? "Not yet relevant for this chapter's phase"
+                            : expectationStatusLabel(cell.status)
+                        }
+                      >
+                        {display}
+                      </span>
+                    );
+                    return (
+                      <td key={c.key} className="px-2 py-2 text-right">
+                        {cell.href && !muted ? (
+                          <Link href={cell.href} prefetch={false} className="hover:underline">
+                            {body}
+                          </Link>
+                        ) : (
+                          body
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
   );
 }
 

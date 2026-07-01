@@ -17,6 +17,7 @@ import { matchInstructorsForPartner } from "@/lib/partner-instructor-matching";
 import { PersonLink } from "@/components/people-strategy/person-link";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
 import { EntityActionPanel } from "@/components/work/entity-action-panel";
+import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
 import { OperationalTimeline } from "@/components/people-strategy/operational-timeline";
 import { deriveOperationalTimeline } from "@/lib/people-strategy/operational-timeline";
 import { getOperationalContextForEntity } from "@/lib/people-strategy/operational-context-queries";
@@ -484,6 +485,16 @@ export default async function PartnerProfilePage({
               />
             </section>
           ) : null}
+
+          {/* Partner acquisition workflow — the active playbook (if any)
+              running for this partner, with stage, health reason, and next
+              step, so relationship leads always know what to do next. */}
+          <EntityWorkflowCard
+            entityType="PARTNER"
+            entityId={partner.id}
+            chapterId={partner.chapterId ?? null}
+            title="Partner acquisition workflow"
+          />
 
           {/* Partner operations: related meetings + actions */}
           {trackerEnabled && opsContext ? (

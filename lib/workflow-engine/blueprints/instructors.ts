@@ -47,6 +47,9 @@ export const INSTRUCTOR_BLUEPRINTS: WorkflowBlueprint[] = [
     defaultOwnerSubtype: "HIRING_ADMIN",
     followUpCadenceHours: 120,
     escalateAfterHours: 168,
+    triggers: [
+      { event: "ENTITY_STATUS_CHANGED", subjectType: "INSTRUCTOR_APPLICATION", matchStatus: "SUBMITTED" },
+    ],
     stages: [
       {
         key: "intake",
@@ -357,6 +360,7 @@ export const INSTRUCTOR_BLUEPRINTS: WorkflowBlueprint[] = [
     defaultOwnerSubtype: "MENTORSHIP_ADMIN",
     followUpCadenceHours: 336,
     escalateAfterHours: 504,
+    triggers: [{ event: "ENTITY_STATUS_CHANGED", subjectType: "MENTORSHIP", matchStatus: "ACTIVE" }],
     stages: [
       {
         key: "kickoff-pending",

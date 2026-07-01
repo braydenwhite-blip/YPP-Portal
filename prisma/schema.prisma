@@ -15044,9 +15044,10 @@ model WorkflowInstance {
   cancelledAt      DateTime?
   metadata         Json?
 
-  executions WorkflowStepExecution[] @relation("WorkflowInstanceExecutions")
-  events     WorkflowEvent[]         @relation("WorkflowInstanceEvents")
-  snapshots  WorkflowSnapshot[]      @relation("WorkflowInstanceSnapshots")
+  executions  WorkflowStepExecution[] @relation("WorkflowInstanceExecutions")
+  events      WorkflowEvent[]         @relation("WorkflowInstanceEvents")
+  snapshots   WorkflowSnapshot[]      @relation("WorkflowInstanceSnapshots")
+  attachments WorkflowAttachment[]    @relation("WorkflowInstanceAttachments")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -15095,6 +15096,33 @@ model WorkflowStepExecution {
   @@index([instanceId, state])
   @@index([ownerId, state])
   @@index([stepId])
+  @@index([linkedActionItemId])
+  @@index([linkedMeetingId])
+}
+
+/// Secondary attachment layer for workflow instances. The PRIMARY subject
+/// already lives on WorkflowInstance.subjectType/subjectId (one per
+/// instance); this table lets the same instance also relate to OTHER YPP
+/// objects — e.g. a Partner Acquisition workflow that also touches the
+/// chapter running it, or an Instructor Hiring workflow staffing a specific
+/// ClassOffering — without a hard FK per entity type. See
+/// lib/workflow-engine/attachment.ts for the read/write API built on this
+/// table (it also reads the primary subject so callers see one unified list).
+model WorkflowAttachment {
+  id                 String           @id @default(cuid())
+  workflowInstanceId String
+  workflowInstance   WorkflowInstance @relation("WorkflowInstanceAttachments", fields: [workflowInstanceId], references: [id], onDelete: Cascade)
+  /// WORKFLOW_ENTITY_TYPE vocabulary (lib/workflow-engine/entity-types.ts).
+  entityType String
+  entityId   String
+  /// SECONDARY | STAKEHOLDER | WATCHER — never PRIMARY (that's subjectType/subjectId on the instance itself).
+  relationship String   @default("SECONDARY")
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  @@unique([workflowInstanceId, entityType, entityId, relationship])
+  @@index([entityType, entityId])
+  @@index([workflowInstanceId])
 }
 
 /// Append-only history timeline for an instance.

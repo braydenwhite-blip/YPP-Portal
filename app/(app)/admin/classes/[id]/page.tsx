@@ -7,6 +7,7 @@ import { getOperationalContextForEntity } from "@/lib/people-strategy/operationa
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
 import { meetingPrefillToQuery } from "@/lib/people-strategy/action-prefill";
 import { AskAboutThis } from "@/components/help-agent/ask-about-this";
+import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
 import { ClassPublishControls } from "./_components/publish-controls";
 import { ClassReviewBanner } from "./_components/header";
 import { loadClassAdminDetail } from "./_components/loaders";
@@ -128,6 +129,13 @@ export default async function AdminClassOverviewPage({
           emptyMeetingsHint="No meeting has been tracked about this class yet."
         />
       ) : null}
+
+      <EntityWorkflowCard
+        entityType="CLASS_OFFERING"
+        entityId={id}
+        chapterId={detail.chapterId ?? null}
+        title="Class launch workflow"
+      />
 
       <RecordSection
         title="Recent activity"

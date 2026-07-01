@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { RelationshipWorkspace } from "@/components/mentorship/relationship-workspace/relationship-workspace";
+import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
 import { getSession } from "@/lib/auth-supabase";
 import {
   reassignProgramMentor,
@@ -176,11 +177,23 @@ export default async function AdminMentorshipRelationshipDetailPage({
       badge="Admin · Mentorship relationship"
       subtitle="Shared relationship workspace with admin intervention controls, check-ins, goals, recommendations, and next steps."
       adminControls={
-        <AdminRelationshipControls
-          mentorshipId={mentorship.id}
-          status={mentorship.status}
-          eligibleMentors={eligibleMentors}
-        />
+        <div className="grid gap-4">
+          <AdminRelationshipControls
+            mentorshipId={mentorship.id}
+            status={mentorship.status}
+            eligibleMentors={eligibleMentors}
+          />
+          {/* Mentorship workflow — the active playbook (if any) running for
+              this relationship, with stage, health reason, and next step, so
+              admins reviewing this relationship see workflow status alongside
+              the intervention controls above, not buried in the collapsible
+              workspace body below. */}
+          <EntityWorkflowCard
+            entityType="MENTORSHIP"
+            entityId={mentorship.id}
+            title="Mentorship workflow"
+          />
+        </div>
       }
     />
   );

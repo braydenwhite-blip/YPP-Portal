@@ -24,6 +24,7 @@ import {
   takeSeatRaceSafe,
   dropAndPromoteRaceSafe,
 } from "@/lib/class-seat-allocation";
+import { fireEntityStatusChanged } from "@/lib/workflow-engine/triggers";
 
 type WeeklyTopic = {
   week?: number;
@@ -1018,6 +1019,16 @@ export async function createClassOffering(formData: FormData) {
   revalidatePath("/curriculum");
   revalidatePath("/instructor/curriculum-builder");
   revalidatePath("/my-chapter");
+
+  await fireEntityStatusChanged({
+    subjectType: "CLASS_OFFERING",
+    subjectId: offering.id,
+    newStatus: "DRAFT",
+    chapterId: offering.chapterId,
+    ownerId: session.user.id,
+    startedById: session.user.id,
+  });
+
   return { success: true, id: offering.id };
 }
 
@@ -1227,6 +1238,16 @@ export async function publishClassOffering(id: string) {
   revalidatePath("/curriculum");
   revalidatePath(`/curriculum/${id}`);
   revalidatePath("/my-chapter");
+
+  await fireEntityStatusChanged({
+    subjectType: "CLASS_OFFERING",
+    subjectId: id,
+    newStatus: "PUBLISHED",
+    chapterId: existing.chapterId,
+    ownerId: session.user.id,
+    startedById: session.user.id,
+  });
+
   return { success: true };
 }
 

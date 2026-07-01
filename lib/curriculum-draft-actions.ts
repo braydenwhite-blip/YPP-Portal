@@ -28,6 +28,7 @@ import {
 } from "@/lib/curriculum-draft-lifecycle";
 import { syncTrainingAssignmentFromArtifacts } from "@/lib/training-actions";
 import { canAccessCurriculumDraftForPrint } from "@/lib/curriculum-draft-access";
+import { fireEntityStatusChanged } from "@/lib/workflow-engine/triggers";
 import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import { getCurriculumDraftStudioRecord } from "@/lib/curriculum-draft-studio-access";
 
@@ -736,6 +737,16 @@ export async function submitCurriculumDraft(draftId: string) {
   });
 
   await syncLessonDesignStudioTrainingArtifacts(session.user.id, draft);
+
+  await fireEntityStatusChanged({
+    subjectType: "CURRICULUM_DRAFT",
+    subjectId: draftId,
+    newStatus: "SUBMITTED",
+    chapterId: null,
+    ownerId: session.user.id,
+    startedById: session.user.id,
+  });
+
   return { success: true };
 }
 
