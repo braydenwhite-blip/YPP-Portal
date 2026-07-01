@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { ButtonLink } from "@/components/ui-v2";
 import { loadAdvisingCockpitData } from "@/lib/advising/queries";
+import { parseAdvisingLane } from "@/lib/advising/cockpit";
 import type { AdvisingCard, AdvisingCockpit } from "@/lib/advising/types";
 import {
   actionPrefillToQuery,
@@ -52,10 +53,17 @@ function resolveActionHrefs(cockpit: AdvisingCockpit, trackerOn: boolean): Advis
   };
 }
 
-export default async function AdvisingCommandCenterPage() {
+export default async function AdvisingCommandCenterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const viewer = await requireOfficer().catch(() => null);
   if (!viewer) notFound();
   const sessionUser = await getSessionUser();
+
+  const sp = await searchParams;
+  const focusLane = parseAdvisingLane(sp.lane);
 
   const now = new Date();
   const data = await loadAdvisingCockpitData(
@@ -91,7 +99,11 @@ export default async function AdvisingCommandCenterPage() {
         </div>
       </header>
 
-      <AdvisingCockpitClient cockpit={cockpit} advisorPool={data.advisorPool} />
+      <AdvisingCockpitClient
+        cockpit={cockpit}
+        advisorPool={data.advisorPool}
+        focusLane={focusLane}
+      />
     </div>
   );
 }

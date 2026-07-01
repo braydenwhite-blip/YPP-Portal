@@ -163,3 +163,99 @@ export function isRecentlyCheckedIn(
 ): boolean {
   return daysSinceCheckIn !== null && daysSinceCheckIn <= RECENT_CHECKIN_DAYS;
 }
+
+// ── Compact per-record summaries (shared across record surfaces) ─────────────
+// One source of truth for the calm advising panels that render on person /
+// student / advisor records, so those surfaces can never disagree with the
+// cockpit. Pure — no Prisma — so every surface hydrates the same shape and the
+// rollup is unit-tested here rather than re-derived inline on each page.
+
+export type StudentAdvisingSummary = {
+  lifecycle: AdvisingLifecycle;
+  statusLabel: string;
+  statusTone: AdvisingTone;
+  reason: string;
+  nextAction: string;
+  daysSinceCheckIn: number | null;
+  /** True when the relationship is past a check-in it should have had. */
+  overdue: boolean;
+};
+
+/** Roll one student's active advising relationship up to a calm record panel. */
+export function summarizeStudentAdvising(
+  assignment: Pick<
+    AdvisingAssignmentRow,
+    | "isActive"
+    | "advisingStatus"
+    | "needsFollowUp"
+    | "followUpNote"
+    | "lastCheckInAt"
+    | "nextCheckInDueAt"
+    | "startDate"
+  >,
+  now: Date = new Date(),
+): StudentAdvisingSummary {
+  const life = deriveAdvisingLifecycle(assignment, now);
+  const overdue =
+    life.lifecycle === "FOLLOW_UP_DUE" ||
+    life.lifecycle === "STALE" ||
+    (life.lifecycle === "KICKOFF_NEEDED" && life.tone === "danger");
+  return {
+    lifecycle: life.lifecycle,
+    statusLabel: life.label,
+    statusTone: life.tone,
+    reason: life.reason,
+    nextAction: life.nextAction,
+    daysSinceCheckIn: life.daysSinceCheckIn,
+    overdue,
+  };
+}
+
+export type AdvisorCaseloadRollup = {
+  /** Active advising relationships this advisor carries. */
+  activeCount: number;
+  kickoffsNeeded: number;
+  followUpsDue: number;
+  onTrack: number;
+  /** The single most-urgent next action across the caseload, or null when clear. */
+  nextAction: string | null;
+};
+
+/** Roll an advisor's active caseload up to a calm record panel. */
+export function summarizeAdvisorCaseload(
+  assignments: Array<
+    Pick<
+      AdvisingAssignmentRow,
+      | "isActive"
+      | "advisingStatus"
+      | "needsFollowUp"
+      | "followUpNote"
+      | "lastCheckInAt"
+      | "nextCheckInDueAt"
+      | "startDate"
+    >
+  >,
+  now: Date = new Date(),
+): AdvisorCaseloadRollup {
+  let activeCount = 0;
+  let kickoffsNeeded = 0;
+  let followUpsDue = 0;
+  let onTrack = 0;
+  for (const a of assignments) {
+    if (!a.isActive) continue;
+    activeCount += 1;
+    const life = deriveAdvisingLifecycle(a, now);
+    if (life.lifecycle === "KICKOFF_NEEDED") kickoffsNeeded += 1;
+    else if (life.lifecycle === "FOLLOW_UP_DUE" || life.lifecycle === "STALE") followUpsDue += 1;
+    else onTrack += 1;
+  }
+  const nextAction =
+    kickoffsNeeded > 0
+      ? `Schedule ${kickoffsNeeded} kickoff check-in${kickoffsNeeded === 1 ? "" : "s"}.`
+      : followUpsDue > 0
+        ? `Follow up on ${followUpsDue} overdue check-in${followUpsDue === 1 ? "" : "s"}.`
+        : activeCount > 0
+          ? "Caseload is on cadence."
+          : null;
+  return { activeCount, kickoffsNeeded, followUpsDue, onTrack, nextAction };
+}

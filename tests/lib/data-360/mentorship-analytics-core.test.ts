@@ -7,6 +7,7 @@ import {
   buildMentorshipTrends,
   computeMentorshipCounts,
   gradeMentorshipMetric,
+  mentorshipActionLine,
   MENTORSHIP_EXPECTATIONS,
   MENTORSHIP_METRIC_KEYS,
   STALE_RECOMMENDATION_DAYS,
@@ -248,6 +249,45 @@ describe("buildMentorshipTrends", () => {
     // Only DONE recs count toward completed.
     const totalCompleted = trends.recommendationsCompleted.reduce((s, p) => s + p.value, 0);
     expect(totalCompleted).toBe(1);
+  });
+});
+
+describe("mentorshipActionLine — plain-English 'what needs action now'", () => {
+  it("returns an all-clear line when no target-zero metric is breached", () => {
+    const metrics = buildMentorshipMetrics(computeMentorshipCounts(baseInput({ studentIds: [] }), NOW));
+    const line = mentorshipActionLine(metrics);
+    expect(line).toMatch(/on track/i);
+    expect(line).not.toMatch(/\d/); // no counts when nothing is wrong
+  });
+
+  it("names the worst gap first and joins multiple gaps in plain English", () => {
+    const input = baseInput({
+      assignments: [
+        assignment({ assignmentId: "a1", studentId: "s1", advisorId: "adv1", lastCheckInAt: daysAgo(70) }), // overdue
+      ],
+      studentIds: ["s1", "s2", "s3"], // s2,s3 unassigned → 2
+      recommendations: [
+        { id: "r1", status: "SUGGESTED", createdAt: daysAgo(30), updatedAt: daysAgo(30) }, // stale
+      ],
+    });
+    const metrics = buildMentorshipMetrics(computeMentorshipCounts(input, NOW));
+    const line = mentorshipActionLine(metrics);
+    // unassigned (2) is the biggest gap → mentioned first
+    expect(line).toMatch(/2 students need an advisor/i);
+    expect(line).toMatch(/overdue/i);
+    expect(line).toMatch(/stale/i);
+    expect(line).toMatch(/biggest number/i);
+  });
+
+  it("uses singular phrasing for a single-count gap", () => {
+    const input = baseInput({
+      assignments: [assignment({ assignmentId: "a1", studentId: "s1", advisorId: "adv1", lastCheckInAt: daysAgo(70) })],
+      studentIds: ["s1", "s2"], // 1 unassigned
+    });
+    const metrics = buildMentorshipMetrics(computeMentorshipCounts(input, NOW));
+    const line = mentorshipActionLine(metrics);
+    expect(line).toMatch(/1 student needs an advisor/i);
+    expect(line).toMatch(/1 check-in overdue/i);
   });
 });
 

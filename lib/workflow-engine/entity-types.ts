@@ -22,6 +22,11 @@ export const WORKFLOW_ENTITY_TYPE_VALUES = [
   "INSTRUCTOR_APPLICATION",
   "CHAPTER_PRESIDENT_APPLICATION",
   "USER",
+  // NOTE: "MENTORSHIP" is the legacy Mentorship program model (Mentorship.id —
+  // mentor↔member G&R check-ins). It is NOT the student-advising vertical
+  // (StudentAdvisorAssignment + AdvisingNote + AdvisingRecommendation). An
+  // advising workflow's subject is the student as a "USER"; never anchor
+  // advising records to "MENTORSHIP".
   "MENTORSHIP",
   "CLASS_OFFERING",
   "CURRICULUM_DRAFT",

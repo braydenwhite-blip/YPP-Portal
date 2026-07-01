@@ -16,7 +16,15 @@ import { CardV2 } from "@/components/ui-v2/card";
 import { StatusBadge, type StatusTone } from "@/components/ui-v2/status-badge";
 import { Sparkline } from "@/components/data-360/charts/sparkline";
 import type { WorkflowHealthStatus } from "@/lib/workflow-engine/health";
-import type { WorkflowCockpitIntel } from "@/lib/data-360/workflow-cockpit-intel";
+import type {
+  WorkflowCockpitAdvisingIntel,
+  WorkflowCockpitIntel,
+} from "@/lib/data-360/workflow-cockpit-intel";
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 function healthTone(status: WorkflowHealthStatus): StatusTone {
   switch (status) {
@@ -157,11 +165,51 @@ export function WorkflowIntelligencePanel({ intel }: { intel: WorkflowCockpitInt
         </div>
       ) : null}
 
+      {intel.advising ? <AdvisingContext advising={intel.advising} /> : null}
+
       {intel.attachmentCount > 0 ? (
         <p className="m-0 mt-2 text-[12px] text-ink-muted">
           {intel.attachmentCount} evidence attachment{intel.attachmentCount === 1 ? "" : "s"} linked.
         </p>
       ) : null}
     </CardV2>
+  );
+}
+
+/** The live advising relationship this workflow is operating on. */
+function AdvisingContext({ advising }: { advising: WorkflowCockpitAdvisingIntel }) {
+  return (
+    <div className="mt-3 flex flex-col gap-2 rounded-[12px] border border-line-soft bg-surface-soft px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[13px] font-semibold text-ink">{advising.studentName}</span>
+          <StatusBadge tone={advising.lifecycleTone}>{advising.lifecycleLabel}</StatusBadge>
+          <span className="text-[12px] text-ink-muted">Advisor: {advising.advisorName}</span>
+        </div>
+        <Link
+          href={advising.advisingHref}
+          className="text-[11.5px] font-medium text-brand-700 hover:underline"
+        >
+          Open in advising queue →
+        </Link>
+      </div>
+      <p className="m-0 text-[12.5px] text-ink-muted">{advising.reason}</p>
+      <div className="grid grid-cols-3 gap-3 border-t border-line-soft pt-2">
+        <Fact label="Last check-in" value={fmtDate(advising.lastCheckInISO)} />
+        <Fact label="Next due" value={fmtDate(advising.nextCheckInDueISO)} />
+        <Fact
+          label="Open recs"
+          value={
+            advising.openRecommendations === 0 ? "None" : String(advising.openRecommendations)
+          }
+        />
+      </div>
+      <div className="rounded-[8px] bg-surface px-2.5 py-1.5">
+        <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+          Next advising step
+        </span>
+        <p className="m-0 mt-0.5 text-[12.5px] font-medium text-ink">{advising.nextAction}</p>
+      </div>
+    </div>
   );
 }

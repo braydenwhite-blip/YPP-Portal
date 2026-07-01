@@ -83,6 +83,21 @@ const LANE_ORDER: AdvisingLane[] = [
   "recently_checked_in",
 ];
 
+/** Every valid advising lane id (for deep-link `?lane=` validation). Pure. */
+export const ADVISING_LANES: readonly AdvisingLane[] = LANE_ORDER;
+
+/**
+ * Coerce a raw `?lane=` query value to a real AdvisingLane, or null. Keeps the
+ * deep-link contract (Data 360 / Needs Attention / Chapter Impact Meeting →
+ * `/operations/advising?lane=<lane>`) honest: an unknown value focuses nothing
+ * rather than throwing or half-matching.
+ */
+export function parseAdvisingLane(value: unknown): AdvisingLane | null {
+  return typeof value === "string" && (LANE_ORDER as string[]).includes(value)
+    ? (value as AdvisingLane)
+    : null;
+}
+
 function fmtDate(d: Date): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }

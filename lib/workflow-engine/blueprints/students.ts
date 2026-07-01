@@ -35,6 +35,13 @@ export const STUDENT_BLUEPRINTS: WorkflowBlueprint[] = [
       "Common failure modes: advising plans built without a documented support need tend to drift into generic encouragement rather than addressing what's actually getting in the student's way; intake notes that capture interests but skip goals produce plans the student can't actually evaluate progress against; check-ins that get scheduled once and never recur quietly die after the first meeting; and plans written without the student in the room read as mentor wish-lists rather than something the student will act on.\n\n" +
       "Hard-won notes: the single best predictor of whether an advising case stays alive past 60 days is whether the first check-in is scheduled before the kickoff meeting ends — if it's left as a follow-up task for later, it often never gets booked. Treat the plan as a draft to revise with the student, not a deliverable to hand them.",
     domain: "STUDENTS",
+    // Always-on operating playbook: the advising vertical (Data 360, Needs
+    // Attention, Chapter Impact Meetings, entity cards) offers a "Start advising
+    // workflow" affordance, so this template must resolve to PUBLISHED regardless
+    // of whether the install seeded with publish:true — otherwise every start
+    // would throw "template is not published". Mirrors the always-on chapter
+    // blueprints (blueprints/chapters.ts).
+    initialStatus: "PUBLISHED",
     defaultOwnerRole: "MENTOR",
     followUpCadenceHours: 168,
     escalateAfterHours: 240,

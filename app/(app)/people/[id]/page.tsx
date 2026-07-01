@@ -23,6 +23,7 @@ import {
 import { loadPersonAttention } from "@/lib/people-strategy/needs-attention-queries";
 import type { AttentionItem } from "@/lib/people-strategy/needs-attention";
 import { NeedsAttentionList } from "@/components/people-strategy/needs-attention-list";
+import { AdvisorCaseloadCard } from "@/components/advising/advisor-caseload-card";
 import { getLeadershipContext } from "@/lib/leadership-context";
 import type { LeadershipStage } from "@/lib/leadership-pathway";
 import { OperationalContextPanel } from "@/components/people-strategy/operational-context-panel";
@@ -255,6 +256,9 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
             />
             </div>
           </section>
+          {/* Advising caseload — self-hides when this person advises no
+              students, so it only appears for people acting as advisors. */}
+          <AdvisorCaseloadCard advisorId={id} />
           <LeadershipStageContext stage={leadershipStage} nextStage={leadershipNextStage} />
           <AccessSummaryPanel personName={profile.name} facts={accessFacts} />
           <MentorHistoryPanel personName={profile.name} entries={mentorHistory} />

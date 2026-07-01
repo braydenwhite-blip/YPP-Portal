@@ -372,6 +372,54 @@ export function buildMentorshipMetrics(
   });
 }
 
+// ── Plain-English "what needs action now" line (pure, deterministic) ─────────
+
+/** Compact, human phrase for one breached target-zero metric. */
+function mentorshipGapPhrase(key: MentorshipMetricKey, value: number): string {
+  const s = value === 1 ? "" : "s";
+  switch (key) {
+    case "unassignedStudents":
+      return `${value} student${s} need${value === 1 ? "s" : ""} an advisor`;
+    case "kickoffsNeeded":
+      return `${value} kickoff${s} not started`;
+    case "overdueCheckIns":
+      return `${value} check-in${s} overdue`;
+    case "staleRecommendations":
+      return `${value} recommendation${s} gone stale`;
+    case "overloadedAdvisors":
+      return `${value} advisor${s} over capacity`;
+    default:
+      return `${value} ${MENTORSHIP_EXPECTATIONS[key].shortLabel.toLowerCase()}`;
+  }
+}
+
+/** "a", "a and b", or "a, b, and c". */
+function joinClauses(parts: string[]): string {
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+}
+
+/**
+ * The one-sentence operating read of the mentorship metrics: what needs action
+ * now, worst gap first, or an all-clear line. Pure + deterministic so the Data
+ * 360 tab and any meeting/board surface can share the exact same interpretation.
+ */
+export function mentorshipActionLine(metrics: MentorshipMetric[]): string {
+  const gaps = metrics.filter((m) => m.isGap).sort((a, b) => b.value - a.value);
+  if (gaps.length === 0) {
+    return "Every advising target is on track — advisors assigned, check-ins current, and recommendations moving.";
+  }
+  const phrases = gaps.slice(0, 3).map((m) => mentorshipGapPhrase(m.key, m.value));
+  const more = gaps.length > 3 ? `, plus ${gaps.length - 3} more` : "";
+  return `${capitalize(joinClauses(phrases))}${more}. Start with the lane carrying the biggest number.`;
+}
+
+function capitalize(s: string): string {
+  return s.length === 0 ? s : s[0].toUpperCase() + s.slice(1);
+}
+
 // ── Deterministic workflow suggestions (with active-workflow dedupe) ─────────
 
 export type MentorshipSuggestion = {

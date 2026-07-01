@@ -19,12 +19,14 @@ import {
   LaneCards,
   Open360Button,
   SpotlightCard,
+  useScrollToLaneOnMount,
   type BriefingChipData,
 } from "@/components/cockpit/primitives";
 import type {
   AdvisingCard,
   AdvisingCardAction,
   AdvisingCockpit,
+  AdvisingLane,
 } from "@/lib/advising/types";
 import type { AdvisorPickOption } from "@/lib/advising/queries";
 import {
@@ -46,11 +48,19 @@ const ACTION_TO_DRAWER: Partial<Record<AdvisingCardAction["kind"], AdvisingDrawe
 export function AdvisingCockpitClient({
   cockpit,
   advisorPool,
+  focusLane = null,
 }: {
   cockpit: AdvisingCockpit;
   advisorPool: AdvisorPickOption[];
+  /** Deep-link target lane (`?lane=…`) — scrolled to + highlighted on load. */
+  focusLane?: AdvisingLane | null;
 }) {
   const [request, setRequest] = useState<AdvisingDrawerRequest | null>(null);
+  useScrollToLaneOnMount(focusLane);
+
+  const focusedLaneLabel = focusLane
+    ? cockpit.lanes.find((l) => l.lane === focusLane)?.label ?? null
+    : null;
 
   const briefingChips: BriefingChipData[] = cockpit.briefing.map((c) => ({
     key: c.key,
@@ -114,11 +124,30 @@ export function AdvisingCockpitClient({
 
   return (
     <div className="grid gap-6">
+      {focusedLaneLabel ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-brand-200 bg-brand-50 px-3 py-2">
+          <span className="text-[13px] text-ink">
+            Focused on <b className="font-semibold text-brand-700">{focusedLaneLabel}</b> — jumped here
+            from another surface.
+          </span>
+          <ButtonLink href="/operations/advising" variant="ghost" size="sm">
+            Show all lanes
+          </ButtonLink>
+        </div>
+      ) : null}
+
       <BriefingStrip chips={briefingChips} />
 
       <div className="grid gap-8">
         {cockpit.lanes.map((lane) => (
-          <CockpitLane key={lane.lane} laneId={lane.lane} label={lane.label} blurb={lane.blurb} count={lane.total}>
+          <CockpitLane
+            key={lane.lane}
+            laneId={lane.lane}
+            label={lane.label}
+            blurb={lane.blurb}
+            count={lane.total}
+            highlighted={lane.lane === focusLane}
+          >
             <LaneCards
               cards={lane.cards.map(renderCard)}
               emptyTitle={lane.emptyTitle}

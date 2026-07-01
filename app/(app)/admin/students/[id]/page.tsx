@@ -526,8 +526,15 @@ export default async function AdminStudentRecordPage({
 
       {/* Advising workflow — the active playbook (if any) running for this
           student, with stage, health reason, and next step, so advising
-          never stalls silently. */}
-      <EntityWorkflowCard entityType="USER" entityId={id} title="Advising workflow" />
+          never stalls silently. Pinned to the student-advising template so the
+          card resolves + starts ONLY the advising playbook, never an unrelated
+          workflow sharing this person's USER subject. */}
+      <EntityWorkflowCard
+        entityType="USER"
+        entityId={id}
+        templateKey="student-advising"
+        title="Advising workflow"
+      />
 
     </div>
   );
