@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import type { ActionItemFormInitial } from "@/components/people-strategy/action-item-form";
 import { Button, ButtonLink, cn } from "@/components/ui-v2";
 import { FeedbackBanner } from "@/components/people-strategy/motion";
 import {
@@ -35,10 +36,67 @@ const inputClass =
 const titleInputClass = cn(inputClass, "py-3.5 text-[16px] font-medium tracking-[-0.01em]");
 const selectClass = inputClass;
 
+function asDate(value: Date | string | null | undefined): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function defaultAssigneeIds(users: ActionUserOption[], currentUserId: string): string[] {
   const defaultAssignee =
     users.some((u) => u.id === currentUserId) ? currentUserId : users[0]?.id ?? "";
   return defaultAssignee ? [defaultAssignee] : [];
+}
+
+function initialAssigneeIds(
+  users: ActionUserOption[],
+  currentUserId: string,
+  initial?: ActionItemFormInitial
+): string[] {
+  if (initial?.suggestedOwnerId && users.some((u) => u.id === initial.suggestedOwnerId)) {
+    return [initial.suggestedOwnerId];
+  }
+  if (initial?.leadId && users.some((u) => u.id === initial.leadId)) {
+    const executing = (initial.executingUserIds ?? []).filter((id) => id !== initial.leadId);
+    return [initial.leadId, ...executing];
+  }
+  return defaultAssigneeIds(users, currentUserId);
+}
+
+function initialDeadlineValue(initial?: ActionItemFormInitial): string {
+  const parsed = asDate(initial?.deadlineEnd ?? initial?.deadlineStart);
+  if (parsed) return toDateInputValue(parsed);
+  return toDateInputValue(addDays(new Date(), DEFAULT_ACTION_DEADLINE_DAYS));
+}
+
+function ContextBanner({ initial }: { initial?: ActionItemFormInitial }) {
+  if (!initial) return null;
+
+  const chips: string[] = [];
+  if (initial.relatedEntityLabel && initial.relatedEntityTypeLabel) {
+    chips.push(`${initial.relatedEntityTypeLabel}: ${initial.relatedEntityLabel}`);
+  }
+  if (initial.chapterLabel) chips.push(`Chapter: ${initial.chapterLabel}`);
+  if (initial.sourceLabel) chips.push(initial.sourceLabel);
+  if (initial.strategicLinkLabel) chips.push(`Strategic: ${initial.strategicLinkLabel}`);
+
+  if (chips.length === 0) return null;
+
+  return (
+    <div className="rounded-[12px] border border-brand-200/60 bg-brand-50/50 px-4 py-3">
+      <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-brand-700">
+        Linked context
+      </p>
+      <ul className="m-0 mt-1.5 list-none space-y-1 p-0">
+        {chips.map((chip) => (
+          <li key={chip} className="text-[13px] font-medium text-ink">
+            {chip}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function FormSection({
@@ -79,6 +137,8 @@ export function ActionCreateForm({
   redirectTo = "/actions",
   cancelHref,
   initiativeLink,
+  initial,
+  templateChangeHref,
 }: {
   users: ActionUserOption[];
   departments: ActionDepartmentOption[];
@@ -86,23 +146,32 @@ export function ActionCreateForm({
   redirectTo?: string;
   cancelHref?: string;
   initiativeLink?: { id: string; goalCategory?: string };
+  /** Prefill from templates, linked applicants, meetings, etc. */
+  initial?: ActionItemFormInitial;
+  templateChangeHref?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initial?.title ?? "");
   const [assignedUserIds, setAssignedUserIds] = useState<string[]>(() =>
-    defaultAssigneeIds(users, currentUserId)
+    initialAssigneeIds(users, currentUserId, initial)
   );
-  const [inputUserIds, setInputUserIds] = useState<string[]>([]);
-  const [deadline, setDeadline] = useState(
-    toDateInputValue(addDays(new Date(), DEFAULT_ACTION_DEADLINE_DAYS))
+  const [inputUserIds, setInputUserIds] = useState<string[]>(initial?.inputUserIds ?? []);
+  const [deadline, setDeadline] = useState(() => initialDeadlineValue(initial));
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [departmentIds, setDepartmentIds] = useState<string[]>(
+    initial?.departmentIds?.length
+      ? initial.departmentIds
+      : initial?.departmentId
+        ? [initial.departmentId]
+        : []
   );
-  const [description, setDescription] = useState("");
-  const [departmentIds, setDepartmentIds] = useState<string[]>([]);
-  const [visibility, setVisibility] = useState<ActionItemVisibility>("ALL_LEADERSHIP");
-  const [status, setStatus] = useState("NOT_STARTED");
+  const [visibility, setVisibility] = useState<ActionItemVisibility>(
+    (initial?.visibility as ActionItemVisibility) ?? "ALL_LEADERSHIP"
+  );
+  const [status, setStatus] = useState(initial?.status ?? "NOT_STARTED");
 
   const activePreset = matchActionDeadlinePreset(deadline);
   const presetHint = activePreset ? actionDeadlinePresetHint(activePreset) : null;
@@ -137,12 +206,24 @@ export function ActionCreateForm({
           inputUserIds: inputUserIds.length > 0 ? inputUserIds : undefined,
           deadlineStart: deadline,
           description: description.trim() || undefined,
+          goalCategory: initial?.goalCategory?.trim() || undefined,
+          actionType: initial?.actionType || undefined,
           departmentIds: departmentIds.length > 0 ? departmentIds : undefined,
+          chapterId: initial?.chapterId || undefined,
           visibility,
           status,
-          ...(initiativeLink
+          priority: initial?.priority,
+          relatedEntityType: initial?.relatedEntityType ?? undefined,
+          relatedEntityId: initial?.relatedEntityId ?? undefined,
+          sourceType: initial?.sourceType ?? undefined,
+          sourceId: initial?.sourceId ?? undefined,
+          sourceActionId: initial?.sourceActionId ?? undefined,
+          strategicInitiativeId:
+            initiativeLink?.id ?? initial?.strategicInitiativeId ?? undefined,
+          strategicProjectId: initial?.strategicProjectId ?? undefined,
+          successDefinition: initial?.successDefinition?.trim() || undefined,
+          ...(initiativeLink && !initial?.sourceType
             ? {
-                strategicInitiativeId: initiativeLink.id,
                 sourceType: "INITIATIVE" as const,
                 goalCategory: initiativeLink.goalCategory,
               }
@@ -165,6 +246,15 @@ export function ActionCreateForm({
     >
       <form onSubmit={handleSubmit} className="flex flex-col">
         <div className="space-y-8 px-5 py-6 sm:px-7 sm:py-7">
+          {templateChangeHref ? (
+            <p className="m-0">
+              <ButtonLink href={templateChangeHref} variant="secondary" size="sm">
+                ← Choose a different template
+              </ButtonLink>
+            </p>
+          ) : null}
+
+          <ContextBanner initial={initial} />
           <FeedbackBanner message={error} tone="error" style={{ padding: "10px 14px" }} />
 
           <FormSection step={1} title="What needs doing?" hint="Keep it short — one clear outcome.">
@@ -247,12 +337,12 @@ export function ActionCreateForm({
 
           <FormSection
             step={4}
-            title="Which teams are on this?"
-            hint="Pick every team involved — chapters, tech, comms, and the core teams."
+            title="Which team?"
+            hint="Optional — pick from the list."
           >
             <ActionDepartmentPicker
               id="action-create-department"
-              label="Teams"
+              label="Team"
               hint={undefined}
               departments={departments}
               multiple

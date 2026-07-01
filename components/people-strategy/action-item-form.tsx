@@ -527,26 +527,6 @@ export default function ActionItemForm({
           </select>
         </div>
         <div className="ps-field">
-          <label className="ps-label" htmlFor="action-priority-ext">
-            Priority
-          </label>
-          <select
-            id="action-priority-ext"
-            value={priority}
-            onChange={(e) => {
-              setPriority(e.target.value);
-              setPriorityTouched(true);
-            }}
-            className="ps-select"
-          >
-            {ACTION_PRIORITY_VALUES.map((p) => (
-              <option key={p} value={p}>
-                {ACTION_PRIORITY_LABELS[p]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="ps-field">
           <label className="ps-label" htmlFor="action-visibility-ext">
             Visibility{REQUIRED_MARK}
           </label>
@@ -651,7 +631,7 @@ export default function ActionItemForm({
         </div>
         <ActionDepartmentPicker
           id="action-department-ext"
-          label="Teams"
+          label="Team"
           departments={departments}
           multiple
           value={departmentIds}
@@ -738,7 +718,7 @@ export default function ActionItemForm({
 
             <ActionDepartmentPicker
               id="action-department"
-              label="Teams"
+              label="Team"
               departments={departments}
               multiple
               value={departmentIds}
@@ -1084,7 +1064,7 @@ export default function ActionItemForm({
           </div>
         <ActionDepartmentPicker
           id="action-department"
-          label="Teams"
+          label="Team"
           departments={departments}
           multiple
           value={departmentIds}

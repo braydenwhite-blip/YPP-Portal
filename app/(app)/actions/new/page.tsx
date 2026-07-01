@@ -4,10 +4,8 @@ import skin from "@/components/ui-v2/portal-skin.module.css";
 import { ActionCreateForm } from "@/components/command-center/action-create-form";
 import { CommandModeToggle } from "@/components/command-center/command-mode";
 import { SimpleSurface, SimpleActionStrip, type SimpleAction } from "@/components/command-center/simple";
-import ActionItemForm, {
-  type ActionItemFormInitial,
-} from "@/components/people-strategy/action-item-form";
-import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
+import type { ActionItemFormInitial } from "@/components/people-strategy/action-item-form";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { OFFICER_TIER_ROLES } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { addDays, toDateInputValue } from "@/lib/leadership-action-center/dates";
@@ -43,9 +41,6 @@ const PREFILLABLE_RELATED_TYPES = new Set([
   "USER",
   "PARTNER",
 ]);
-
-const calmFormCard =
-  "rounded-[18px] border border-line-soft bg-surface/80 p-5 shadow-card backdrop-blur sm:p-6";
 
 export default async function NewActionInTrackerPage({
   searchParams,
@@ -180,8 +175,6 @@ export default async function NewActionInTrackerPage({
         }
       : undefined;
 
-  const useFullForm = Boolean(relatedSummary || template || hasPrefill);
-
   const pageTitle = sourceHeader ?? (template ? `From “${template.name}”` : "New action");
   const pageSubtitle = strategicLinkLabel
     ? `Linked to ${strategicLinkLabel}.`
@@ -190,7 +183,7 @@ export default async function NewActionInTrackerPage({
       : sourceLabel
         ? `${sourceLabel} — who owns it and when is it due?`
         : template
-          ? "Adjust the template fields if needed, then save."
+          ? "Adjust if needed, then save."
           : "Title, people, and due date — under a minute.";
 
   const initiativeLink =
@@ -223,33 +216,16 @@ export default async function NewActionInTrackerPage({
       calm={undefined}
       aboveBrowse={
         <div className="flex flex-col gap-5">
-          {useFullForm ? (
-            <div className={calmFormCard}>
-              {template ? (
-                <p className="m-0 mb-4">
-                  <ButtonLink href="/actions/new" variant="secondary" size="sm">
-                    ← Choose a different template
-                  </ButtonLink>
-                </p>
-              ) : null}
-              <ActionItemForm
-                users={users}
-                departments={departments}
-                initial={initial}
-                currentUserId={viewer.id}
-                variant={useFullForm ? "full" : "simple"}
-              />
-            </div>
-          ) : (
-            <ActionCreateForm
-              users={users}
-              departments={departments}
-              currentUserId={viewer.id}
-              redirectTo="/actions"
-              cancelHref="/actions"
-              initiativeLink={initiativeLink}
-            />
-          )}
+          <ActionCreateForm
+            users={users}
+            departments={departments}
+            currentUserId={viewer.id}
+            redirectTo="/actions"
+            cancelHref="/actions"
+            initiativeLink={initiativeLink}
+            initial={initial}
+            templateChangeHref={template ? "/actions/new" : undefined}
+          />
           <SimpleActionStrip actions={strip} />
         </div>
       }

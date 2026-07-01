@@ -48,6 +48,8 @@ type BaseProps = {
   allowEmpty?: boolean;
   required?: boolean;
   compact?: boolean;
+  /** `simple` = one dropdown (+ pills when multi). `chips` = full chip grid. */
+  variant?: "simple" | "chips";
 };
 
 type SinglePickerProps = BaseProps & {
@@ -62,11 +64,160 @@ type MultiPickerProps = BaseProps & {
   onChange: (departmentIds: string[]) => void;
 };
 
-/**
- * Department tagging for Action Tracker forms — grouped chips instead of
- * a buried dropdown. Supports single owner (legacy) or many teams at once.
- */
-export function ActionDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
+const calmSelectClass =
+  "w-full rounded-[12px] border border-line-soft bg-surface px-3.5 py-2.5 text-[14px] text-ink shadow-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100";
+
+function departmentById(
+  departments: ActionDepartmentOption[],
+  id: string
+): ActionDepartmentOption | undefined {
+  return departments.find((department) => department.id === id);
+}
+
+function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
+  const {
+    id,
+    label = "Team",
+    hint,
+    departments,
+    allowEmpty = true,
+    required = false,
+    compact = false,
+    multiple = false,
+  } = props;
+
+  const grouped = useMemo(() => groupActionDepartments(departments), [departments]);
+  const selectClass = compact ? calmSelectClass : "ps-select";
+
+  const selectedIds = multiple ? props.value : props.value ? [props.value] : [];
+
+  function removeDepartment(departmentId: string) {
+    if (multiple) {
+      props.onChange(selectedIds.filter((id) => id !== departmentId));
+      return;
+    }
+    props.onChange("");
+  }
+
+  function addDepartment(departmentId: string) {
+    if (!departmentId) return;
+    if (multiple) {
+      if (selectedIds.includes(departmentId)) return;
+      props.onChange([...selectedIds, departmentId]);
+      return;
+    }
+    props.onChange(departmentId);
+  }
+
+  if (!multiple) {
+    return (
+      <div className="ps-field" id={id}>
+        <label className="ps-label" htmlFor={id ? `${id}-select` : undefined}>
+          {label}
+          {required ? <span className="ps-required"> *</span> : null}
+        </label>
+        {hint ? <p className="m-0 mb-2 text-[12.5px] text-ink-muted">{hint}</p> : null}
+        <select
+          id={id ? `${id}-select` : undefined}
+          className={selectClass}
+          value={props.value}
+          onChange={(e) => props.onChange(e.target.value)}
+        >
+          {allowEmpty ? <option value="">No team</option> : null}
+          {grouped.map(({ key, label: groupLabel, items }) => (
+            <optgroup key={key} label={groupLabel}>
+              {items.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  const availableGroups = grouped
+    .map(({ key, label: groupLabel, items }) => ({
+      key,
+      label: groupLabel,
+      items: items.filter((department) => !selectedIds.includes(department.id)),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  return (
+    <div className="ps-field" id={id}>
+      <span className="ps-label">
+        {label}
+        {required ? <span className="ps-required"> *</span> : null}
+      </span>
+      {hint ? <p className="m-0 mb-2 text-[12.5px] text-ink-muted">{hint}</p> : null}
+
+      {selectedIds.length > 0 ? (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {selectedIds.map((departmentId) => {
+            const department = departmentById(departments, departmentId);
+            if (!department) return null;
+            return (
+              <span
+                key={departmentId}
+                className="inline-flex items-center gap-1 rounded-full border border-line-soft bg-surface-muted px-2.5 py-1 text-[12.5px] font-semibold text-ink"
+              >
+                {department.name}
+                <button
+                  type="button"
+                  className="m-0 border-0 bg-transparent p-0 text-[14px] leading-none text-ink-muted hover:text-ink"
+                  aria-label={`Remove ${department.name}`}
+                  onClick={() => removeDepartment(departmentId)}
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="m-0 mb-2 text-[12.5px] text-ink-muted">Optional — skip if no team yet.</p>
+      )}
+
+      {availableGroups.length > 0 ? (
+        <select
+          id={id ? `${id}-select` : undefined}
+          className={selectClass}
+          value=""
+          aria-label={selectedIds.length > 0 ? "Add another team" : "Pick a team"}
+          onChange={(e) => addDepartment(e.target.value)}
+        >
+          <option value="">{selectedIds.length > 0 ? "Add another team…" : "Pick a team…"}</option>
+          {availableGroups.map(({ key, label: groupLabel, items }) => (
+            <optgroup key={key} label={groupLabel}>
+              {items.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      ) : selectedIds.length > 0 ? (
+        <p className="m-0 text-[12.5px] text-ink-muted">All teams selected.</p>
+      ) : null}
+
+      {allowEmpty && selectedIds.length > 0 ? (
+        <button
+          type="button"
+          className="mt-2 text-[12.5px] font-semibold text-ink-muted underline-offset-2 hover:text-ink hover:underline"
+          onClick={() => props.onChange([])}
+        >
+          Clear teams
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function ChipDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
   const {
     id,
     label = "Team / department",
@@ -82,11 +233,7 @@ export function ActionDepartmentPicker(props: SinglePickerProps | MultiPickerPro
 
   if (departments.length === 0) return null;
 
-  const selectedIds = multiple
-    ? props.value
-    : props.value
-      ? [props.value]
-      : [];
+  const selectedIds = multiple ? props.value : props.value ? [props.value] : [];
 
   function isActive(departmentId: string) {
     return selectedIds.includes(departmentId);
@@ -176,4 +323,16 @@ export function ActionDepartmentPicker(props: SinglePickerProps | MultiPickerPro
       </div>
     </div>
   );
+}
+
+/**
+ * Department tagging for Action Tracker forms. Defaults to a single dropdown
+ * (multi: dropdown + removable pills). Pass `variant="chips"` for the legacy grid.
+ */
+export function ActionDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
+  const { departments, variant = "simple" } = props;
+
+  if (departments.length === 0) return null;
+  if (variant === "chips") return <ChipDepartmentPicker {...props} />;
+  return <SimpleDepartmentPicker {...props} />;
 }
