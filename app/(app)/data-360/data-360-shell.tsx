@@ -17,12 +17,14 @@ import {
 } from "@/lib/data-360/views";
 
 import type { WorkflowIntelligence } from "@/lib/data-360/workflow-intelligence";
+import type { MentorshipSnapshot } from "@/lib/data-360/mentorship-analytics";
 
 import {
   ChaptersSection,
   DictionarySection,
   FundraisingSection,
   GeographySection,
+  MentorshipSection,
   OverviewSection,
   PeopleSection,
   PerformanceSection,
@@ -40,6 +42,7 @@ import {
 const TABS = [
   { key: "overview", label: "Overview" },
   { key: "workflows", label: "Workflows" },
+  { key: "mentorship", label: "Mentorship" },
   { key: "people", label: "People" },
   { key: "programs", label: "Programs" },
   { key: "chapters", label: "Chapters" },
@@ -78,6 +81,7 @@ export function Data360Shell({
   overview,
   attention,
   workflow,
+  mentorship,
   defaultLens,
   rangeKey,
   initialTab,
@@ -85,6 +89,7 @@ export function Data360Shell({
   overview: Data360Overview;
   attention: AttentionGroup[];
   workflow: WorkflowIntelligence;
+  mentorship: MentorshipSnapshot;
   defaultLens: Data360Lens;
   rangeKey: DateRangeKey;
   initialTab?: string;
@@ -101,12 +106,14 @@ export function Data360Shell({
       .slice(0, 8);
   }, [query, overview.search]);
 
-  const sectionData: SectionData = { overview, attention, workflow, lens };
+  const sectionData: SectionData = { overview, attention, workflow, mentorship, lens };
 
   function renderSection() {
     switch (activeTab) {
       case "workflows":
         return <WorkflowsSection data={sectionData} />;
+      case "mentorship":
+        return <MentorshipSection data={sectionData} />;
       case "people":
         return <PeopleSection data={sectionData} />;
       case "programs":

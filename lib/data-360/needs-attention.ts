@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { partnerIsActive } from "@/lib/operations/attention";
+import { deriveAdvisingLifecycle } from "@/lib/advising/relationship";
 
+import { STALE_RECOMMENDATION_DAYS } from "./mentorship-analytics-core";
 import type { AttentionFact, AttentionGroup, AttentionLabel } from "./types";
 
 /**
@@ -39,6 +41,9 @@ export const ATTENTION_HINTS: Partial<Record<AttentionLabel, string>> = {
   "Low enrollment": "Below the class minimum",
   "No recent activity": "No contact logged recently",
   "No follow-up": "Completed meetings with no next step",
+  "No advisor": "Students with no active advisor",
+  "Overdue check-in": "Advising relationships past a check-in",
+  "Stale recommendation": "Advisor recommendations gone quiet",
 };
 
 export async function loadNeedsAttention(now: Date): Promise<AttentionFact[]> {
@@ -50,6 +55,9 @@ export async function loadNeedsAttention(now: Date): Promise<AttentionFact[]> {
     awaiting,
     partners,
     meetingsNoFollowUp,
+    advisingAssignments,
+    advisingStudents,
+    staleRecommendations,
   ] = await Promise.all([
     safe(
       prisma.actionItem.findMany({
@@ -154,6 +162,62 @@ export async function loadNeedsAttention(now: Date): Promise<AttentionFact[]> {
         title: string;
         scheduledAt: Date;
         _count: { followUps: number };
+      }>
+    ),
+    safe(
+      prisma.studentAdvisorAssignment.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          advisingStatus: true,
+          needsFollowUp: true,
+          followUpNote: true,
+          lastCheckInAt: true,
+          nextCheckInDueAt: true,
+          startDate: true,
+          studentId: true,
+          student: { select: { name: true } },
+        },
+      }),
+      [] as Array<{
+        id: string;
+        advisingStatus: "ENGAGED" | "NEEDS_ATTENTION" | "INACTIVE" | "READY_FOR_NEXT";
+        needsFollowUp: boolean;
+        followUpNote: string | null;
+        lastCheckInAt: Date | null;
+        nextCheckInDueAt: Date | null;
+        startDate: Date;
+        studentId: string;
+        student: { name: string } | null;
+      }>
+    ),
+    safe(
+      prisma.user.findMany({
+        where: { archivedAt: null, roles: { some: { role: "STUDENT" } } },
+        select: { id: true, name: true },
+      }),
+      [] as Array<{ id: string; name: string }>
+    ),
+    safe(
+      prisma.advisingRecommendation.findMany({
+        where: {
+          status: "SUGGESTED",
+          createdAt: { lt: new Date(now.getTime() - STALE_RECOMMENDATION_DAYS * DAY_MS) },
+        },
+        orderBy: { createdAt: "asc" },
+        take: PER_LABEL_CAP,
+        select: {
+          id: true,
+          title: true,
+          createdAt: true,
+          assignment: { select: { student: { select: { name: true } } } },
+        },
+      }),
+      [] as Array<{
+        id: string;
+        title: string;
+        createdAt: Date;
+        assignment: { student: { name: string } | null } | null;
       }>
     ),
   ]);
@@ -278,6 +342,76 @@ export async function loadNeedsAttention(now: Date): Promise<AttentionFact[]> {
       detail: "Completed meeting with no follow-ups recorded",
       href: "/meetings",
       order: 1,
+    });
+  }
+
+  // ── Advising (student mentorship) — only once advising is actually running ──
+  if (advisingAssignments.length > 0) {
+    // Students with no active advisor.
+    const advisedIds = new Set(advisingAssignments.map((a) => a.studentId));
+    const unadvised = advisingStudents.filter((s) => !advisedIds.has(s.id)).slice(0, PER_LABEL_CAP);
+    for (const s of unadvised) {
+      facts.push({
+        id: `advising-unassigned:${s.id}`,
+        kind: "student",
+        label: "No advisor",
+        title: s.name,
+        detail: "No active advisor assigned",
+        href: "/operations/advising?lane=needs_advisor",
+        order: 1,
+      });
+    }
+
+    // Active relationships past a scheduled check-in, gone quiet, or overdue kickoff.
+    const overdueCheckIns = advisingAssignments
+      .map((a) => ({
+        a,
+        life: deriveAdvisingLifecycle(
+          {
+            isActive: true,
+            advisingStatus: a.advisingStatus,
+            needsFollowUp: a.needsFollowUp,
+            followUpNote: a.followUpNote,
+            lastCheckInAt: a.lastCheckInAt,
+            nextCheckInDueAt: a.nextCheckInDueAt,
+            startDate: a.startDate,
+          },
+          now
+        ),
+      }))
+      .filter(
+        ({ life }) =>
+          life.lifecycle === "FOLLOW_UP_DUE" ||
+          life.lifecycle === "STALE" ||
+          (life.lifecycle === "KICKOFF_NEEDED" && life.tone === "danger")
+      )
+      .map(({ a, life }) => ({ a, life, order: life.daysSinceCheckIn ?? life.daysSinceStart }))
+      .sort((x, y) => y.order - x.order)
+      .slice(0, PER_LABEL_CAP);
+    for (const { a, life, order } of overdueCheckIns) {
+      facts.push({
+        id: `advising-overdue:${a.id}`,
+        kind: "student",
+        label: "Overdue check-in",
+        title: a.student?.name ?? "Student",
+        detail: life.reason,
+        href: "/operations/advising?lane=follow_up_due",
+        order,
+      });
+    }
+  }
+
+  // Advisor recommendations that have gone stale (no action).
+  for (const r of staleRecommendations) {
+    const days = daysBetween(r.createdAt, now);
+    facts.push({
+      id: `advising-rec:${r.id}`,
+      kind: "recommendation",
+      label: "Stale recommendation",
+      title: r.title,
+      detail: `${r.assignment?.student?.name ?? "A student"} · suggested ${days} day${days === 1 ? "" : "s"} ago, no action yet`,
+      href: "/operations/advising?lane=recommendations_ready",
+      order: days,
     });
   }
 
