@@ -23,6 +23,7 @@ import { ScheduleMeetingForm } from "@/components/chapters/schedule-meeting-form
 import { ChapterNotesPanel } from "@/components/chapters/chapter-notes-panel";
 import { ChapterCheckInPanel } from "@/components/chapters/chapter-check-in-panel";
 import { LifecycleControl } from "@/components/chapters/lifecycle-control";
+import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
 
 type Data = NonNullable<ChapterWorkspace>;
 
@@ -319,6 +320,16 @@ export function ChapterWorkspaceView({
           )}
         </SectionCard>
       )}
+
+      {/* Chapter workflows — the active playbook(s) running for this chapter
+          (launch, health recovery, etc.), with stage, health reason, and next
+          step, so a CP always knows what to do next and why. */}
+      <EntityWorkflowCard
+        entityType="CHAPTER"
+        entityId={chapter.id}
+        chapterId={chapter.id}
+        title="Chapter workflows"
+      />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Meetings */}

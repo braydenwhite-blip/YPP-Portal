@@ -48,11 +48,16 @@ export function ActionRow({
   item,
   now,
   reason,
+  workflow,
 }: {
   item: ActionItemWithRelations;
   now: Date;
   /** Optional override reason line (e.g. the "Needs attention" cause). */
   reason?: string | null;
+  /** Optional workflow-step link, batch-resolved by the caller (e.g. via
+   *  getWorkflowContextForActionItems) — renders a small chip in the
+   *  metadata line pointing back at the linked workflow instance. */
+  workflow?: { instanceId: string; instanceTitle: string; stageName: string | null } | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -114,6 +119,18 @@ export function ActionRow({
               ) : (
                 <span>{context.text}</span>
               )}
+            </>
+          ) : null}
+          {workflow ? (
+            <>
+              <span aria-hidden>·</span>
+              <Link
+                href={`/workflows/${workflow.instanceId}`}
+                className="text-brand-700 no-underline hover:underline"
+                title={workflow.stageName ? `Stage: ${workflow.stageName}` : undefined}
+              >
+                {workflow.instanceTitle}
+              </Link>
             </>
           ) : null}
         </div>

@@ -12,10 +12,12 @@ import { LeadershipHomeSections } from "./leadership-home-sections";
  */
 export function LeadershipHome({
   firstName,
+  userId,
   data,
 }: {
   firstName: string;
+  userId: string;
   data: LeadershipHomeData;
 }) {
-  return <LeadershipHomeSections firstName={firstName} data={data} />;
+  return <LeadershipHomeSections firstName={firstName} userId={userId} data={data} />;
 }

@@ -14,6 +14,8 @@ import { ActionPulseStrip } from "@/components/people-strategy/action-pulse-stri
 import { ActionQuickCreate } from "@/components/people-strategy/action-quick-create";
 import { ActionRow } from "@/components/people-strategy/action-row";
 import { EmptyStateV2, UrlSyncedSearchInput } from "@/components/ui-v2";
+import { getWorkflowContextForActionItems } from "@/lib/workflow-engine/card-data";
+import type { ActionItemWorkflowContext } from "@/lib/workflow-engine/card-data";
 
 type UserOption = ActionPickerUser;
 
@@ -74,12 +76,14 @@ function BoardSection({
   items,
   now,
   reasons,
+  workflowByActionId,
 }: {
   title: string;
   hint?: string;
   items: ActionItemWithRelations[];
   now: Date;
   reasons?: Map<string, string | null>;
+  workflowByActionId?: Map<string, ActionItemWorkflowContext>;
 }) {
   if (items.length === 0) return null;
   return (
@@ -92,13 +96,19 @@ function BoardSection({
         </span>
       </div>
       {items.map((item) => (
-        <ActionRow key={item.id} item={item} now={now} reason={reasons?.get(item.id)} />
+        <ActionRow
+          key={item.id}
+          item={item}
+          now={now}
+          reason={reasons?.get(item.id)}
+          workflow={workflowByActionId?.get(item.id)}
+        />
       ))}
     </section>
   );
 }
 
-export function ActionTrackerDashboard({
+export async function ActionTrackerDashboard({
   items,
   now,
   officer,
@@ -158,6 +168,10 @@ export function ActionTrackerDashboard({
     mine.length > 0 ||
     team.length > 0 ||
     board.recentlyCompleted.length > 0;
+
+  // Batch-resolve workflow links for the whole visible list in one query
+  // (never per-row) so each ActionRow can show its "Workflow" chip.
+  const workflowByActionId = await getWorkflowContextForActionItems(items.map((i) => i.id));
 
   return (
     <div className="flex flex-col gap-5">
@@ -220,17 +234,30 @@ export function ActionTrackerDashboard({
               items={board.needsAttention}
               now={now}
               reasons={reasons}
+              workflowByActionId={workflowByActionId}
             />
           ) : null}
-          <BoardSection title="My actions" items={mine} now={now} />
+          <BoardSection
+            title="My actions"
+            items={mine}
+            now={now}
+            workflowByActionId={workflowByActionId}
+          />
           {who === "all" ? (
-            <BoardSection title="Team actions" hint="owned by others" items={team} now={now} />
+            <BoardSection
+              title="Team actions"
+              hint="owned by others"
+              items={team}
+              now={now}
+              workflowByActionId={workflowByActionId}
+            />
           ) : null}
           <BoardSection
             title="Recently completed"
             hint="last 7 days"
             items={board.recentlyCompleted}
             now={now}
+            workflowByActionId={workflowByActionId}
           />
         </div>
       )}

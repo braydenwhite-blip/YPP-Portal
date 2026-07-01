@@ -250,3 +250,62 @@ export const AdvanceInstanceSchema = z.object({
   instanceId: id,
   toStageId: id.optional().nullable(),
 });
+
+export const EscalateWorkflowSchema = z.object({ instanceId: id });
+
+export const CreateManualActionForStepSchema = z.object({
+  executionId: id,
+  title: optionalString(200),
+});
+
+export const ScheduleMeetingForStepSchema = z.object({
+  executionId: id,
+  scheduledAt: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
+  meetingType: optionalString(60),
+});
+
+// --- Entity attachment (start/attach/detach a workflow for a specific entity) -
+
+export const StartWorkflowForEntitySchema = z.object({
+  templateId: id,
+  entityType: z.string().trim().min(1),
+  entityId: z.string().trim().min(1),
+  title: optionalString(200),
+  ownerId: optionalString(60),
+  dueAt: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.trim() ? v.trim() : null)),
+  chapterId: optionalString(60),
+  revalidatePathHint: optionalString(300),
+});
+
+export const AttachWorkflowToEntitySchema = z.object({
+  instanceId: id,
+  entityType: z.string().trim().min(1),
+  entityId: z.string().trim().min(1),
+  relationship: optionalString(60),
+});
+
+export const DetachWorkflowFromEntitySchema = z.object({
+  instanceId: id,
+  entityType: z.string().trim().min(1),
+  entityId: z.string().trim().min(1),
+  relationship: optionalString(60),
+});
+
+export const ListActiveWorkflowsForEntitySchema = z.object({
+  entityType: z.string().trim().min(1),
+  entityId: z.string().trim().min(1),
+});
+
+export const ListAttachableWorkflowCandidatesSchema = z.object({
+  query: z.string().trim().max(200).optional().default(""),
+  excludeInstanceId: optionalString(60),
+});

@@ -1,4 +1,5 @@
 import { EntityActionPanel } from "@/components/work/entity-action-panel";
+import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
@@ -522,6 +523,11 @@ export default async function AdminStudentRecordPage({
           />
         </RecordSection>
       ) : null}
+
+      {/* Advising workflow — the active playbook (if any) running for this
+          student, with stage, health reason, and next step, so advising
+          never stalls silently. */}
+      <EntityWorkflowCard entityType="USER" entityId={id} title="Advising workflow" />
 
     </div>
   );

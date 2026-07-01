@@ -1,4 +1,5 @@
 import { EntityActionPanel } from "@/components/work/entity-action-panel";
+import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
@@ -626,6 +627,16 @@ export default async function AdminInstructorRecordPage({
           />
         </RecordSection>
       ) : null}
+
+      {/* Onboarding & training workflow — the active playbook (if any)
+          running for this instructor, with stage, health reason, and next
+          step, so onboarding never stalls silently. */}
+      <EntityWorkflowCard
+        entityType="USER"
+        entityId={id}
+        chapterId={record.chapterId ?? null}
+        title="Onboarding & training workflow"
+      />
 
       {activity.length > 0 ? (
         <RecordSection

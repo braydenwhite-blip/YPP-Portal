@@ -138,6 +138,7 @@ type InstanceRow = {
   dueAt: Date | null;
   followUpAt: Date | null;
   completedAt: Date | null;
+  escalatedAt?: Date | null;
 };
 
 export function toInstanceView(
@@ -159,6 +160,7 @@ export function toInstanceView(
     dueAt: iso(instance.dueAt),
     followUpAt: iso(instance.followUpAt),
     completedAt: iso(instance.completedAt),
+    escalatedAt: iso(instance.escalatedAt ?? null),
   };
 }
 

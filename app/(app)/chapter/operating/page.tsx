@@ -10,6 +10,7 @@ import {
   chapterFactsFromModel,
 } from "@/lib/automation/build-chapter-automation";
 import { ChapterAutomationSection } from "@/components/automation";
+import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Chapter Operating System — Pathways Portal" };
@@ -88,7 +89,17 @@ export default async function ChapterOperatingPage() {
       </div>
 
       <div className="mt-6">
-        <ChapterOSRooms model={model} />
+        <ChapterOSRooms
+          model={model}
+          workflowCard={
+            <EntityWorkflowCard
+              entityType="CHAPTER"
+              entityId={ctx.ledChapterId}
+              chapterId={ctx.ledChapterId}
+              title="Active chapter workflows"
+            />
+          }
+        />
       </div>
     </div>
   );

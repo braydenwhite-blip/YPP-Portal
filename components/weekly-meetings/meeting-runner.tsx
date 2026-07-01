@@ -20,6 +20,7 @@ import type {
   OfficerTopicDTO,
   PresentationDTO,
 } from "@/lib/weekly-meetings/meetings";
+import type { WorkflowMeetingContext } from "@/lib/workflow-engine/meeting-sync";
 import {
   addDecision,
   addFollowUp,
@@ -68,9 +69,11 @@ function fmtDateTime(iso: string): string {
 export function MeetingRunner({
   meeting,
   people,
+  workflowContext,
 }: {
   meeting: MeetingDetail;
   people: AssignableUser[];
+  workflowContext?: WorkflowMeetingContext | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -136,6 +139,7 @@ export function MeetingRunner({
 
       {tab === "run" ? (
         <div className="flex flex-col gap-5">
+          {workflowContext && <WorkflowContextSection ctx={workflowContext} />}
           {meeting.chapterContext && <ChapterContextSection ctx={meeting.chapterContext} />}
           {isImpact && <PresentationsSection meeting={meeting} pending={pending} run={run} />}
           {showTopics && <OfficerTopicsSection meeting={meeting} people={people} pending={pending} run={run} />}
@@ -241,6 +245,49 @@ function ChapterContextSection({ ctx }: { ctx: NonNullable<MeetingDetail["chapte
             ))}
           </ul>
         </div>
+      )}
+    </CardV2>
+  );
+}
+
+function WorkflowContextSection({ ctx }: { ctx: WorkflowMeetingContext }) {
+  return (
+    <CardV2 padding="md">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge tone="brand">Workflow step</StatusBadge>
+          <h2 className="m-0 text-[15px] font-bold text-ink">Part of: {ctx.templateName}</h2>
+          {ctx.stageName && <StatusBadge tone="neutral">Stage: {ctx.stageName}</StatusBadge>}
+        </div>
+        <Link
+          href={`/workflows/${ctx.instanceId}`}
+          className="text-[12.5px] font-semibold text-brand-700 hover:underline"
+        >
+          Open workflow →
+        </Link>
+      </div>
+
+      {ctx.stepTitle && (
+        <p className="m-0 text-[13px] text-ink-muted">
+          This meeting fulfills the step <b className="font-semibold text-ink">{ctx.stepTitle}</b>.
+        </p>
+      )}
+      {ctx.guidance && <p className="m-0 mt-1.5 text-[13px] text-ink-muted">{ctx.guidance}</p>}
+
+      {(ctx.openActionsCount > 0 || ctx.blockedStepsCount > 0) && (
+        <p className="m-0 mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-ink-muted">
+          {ctx.openActionsCount > 0 && (
+            <span>
+              <b className="font-semibold text-ink">{ctx.openActionsCount}</b> open action
+              {ctx.openActionsCount === 1 ? "" : "s"} on this workflow
+            </span>
+          )}
+          {ctx.blockedStepsCount > 0 && (
+            <span className="font-medium text-danger-700">
+              {ctx.blockedStepsCount} blocked step{ctx.blockedStepsCount === 1 ? "" : "s"}
+            </span>
+          )}
+        </p>
       )}
     </CardV2>
   );

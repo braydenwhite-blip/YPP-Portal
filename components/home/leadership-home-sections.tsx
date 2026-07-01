@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { LeadershipHomeData } from "@/lib/home/leadership-home";
 import { HomeSearchButton } from "@/components/home/home-search-button";
+import { MyWorkflowQueueCard } from "@/components/workflow-engine/my-workflow-queue-card";
 
 /**
  * Leadership Home — the single, calm starting point.
@@ -107,9 +108,11 @@ function EmptyRow({ children }: { children: React.ReactNode }) {
 
 export function LeadershipHomeSections({
   firstName,
+  userId,
   data,
 }: {
   firstName: string;
+  userId: string;
   data: LeadershipHomeData;
 }) {
   const { stats } = data;
@@ -237,6 +240,11 @@ export function LeadershipHomeSections({
           )}
         </Card>
       </div>
+
+      {/* My workflow queue — steps assigned to me + workflows I own. */}
+      <section className="mt-4">
+        <MyWorkflowQueueCard userId={userId} />
+      </section>
 
       {/* Browse all — every section is one click away. */}
       <section className="mt-6">

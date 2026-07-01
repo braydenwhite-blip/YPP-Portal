@@ -19,6 +19,7 @@ import {
   NON_CHAIR_DECISION_MESSAGE,
 } from "@/lib/active-chair";
 import FinalReviewCockpit from "@/components/instructor-applicants/final-review/FinalReviewCockpit";
+import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
 
 export const dynamic = "force-dynamic";
 
@@ -95,22 +96,37 @@ export default async function FinalReviewCockpitPage({
   const isSuperAdmin = actorAdminSubtypes.some((s) => s.subtype === "SUPER_ADMIN");
 
   return (
-    <FinalReviewCockpit
-      application={application}
-      queue={queue}
-      initialDraft={draft}
-      notificationSnapshot={notificationSnapshot}
-      auditChain={auditChain}
-      reviewSignals={reviewSignals}
-      isCrossChapter={isCrossChapter}
-      hasRecentTimelineActivity={Boolean(recentEvent)}
-      hasPriorSupersededDecision={supersededCount > 0}
-      isSuperAdmin={isSuperAdmin}
-      actorId={actor.id}
-      canMakeFinalDecision={canMakeFinalDecision}
-      activeChairName={activeChair?.name ?? activeChair?.email ?? null}
-      decisionLockMessage={NON_CHAIR_DECISION_MESSAGE}
-      evidence={evidence}
-    />
+    <>
+      {/* Hiring workflow — rendered outside FinalReviewCockpit because that
+          cockpit is a client component and EntityWorkflowCard is an async
+          server component; the cockpit's layout is a full custom UI with no
+          ReactNode slot, so this is placed just above it rather than
+          prop-drilled in. */}
+      <div className="mx-auto w-full max-w-[1400px] px-6 pt-6">
+        <EntityWorkflowCard
+          entityType="INSTRUCTOR_APPLICATION"
+          entityId={id}
+          chapterId={application.applicant.chapterId ?? null}
+          title="Hiring workflow"
+        />
+      </div>
+      <FinalReviewCockpit
+        application={application}
+        queue={queue}
+        initialDraft={draft}
+        notificationSnapshot={notificationSnapshot}
+        auditChain={auditChain}
+        reviewSignals={reviewSignals}
+        isCrossChapter={isCrossChapter}
+        hasRecentTimelineActivity={Boolean(recentEvent)}
+        hasPriorSupersededDecision={supersededCount > 0}
+        isSuperAdmin={isSuperAdmin}
+        actorId={actor.id}
+        canMakeFinalDecision={canMakeFinalDecision}
+        activeChairName={activeChair?.name ?? activeChair?.email ?? null}
+        decisionLockMessage={NON_CHAIR_DECISION_MESSAGE}
+        evidence={evidence}
+      />
+    </>
   );
 }
