@@ -14,6 +14,7 @@ function item(partial: Partial<ActionItemWithRelations> & { id: string }): Actio
     leadId: "u1",
     departmentId: null,
     department: null,
+    departmentLinks: [],
     lead: null,
     createdBy: null,
     assignments: [],
@@ -47,5 +48,20 @@ describe("groupActionsByDepartment", () => {
 
     expect(groups.map((g) => g.slug)).toEqual(["instruction", "tech"]);
     expect(groups[0]?.items).toHaveLength(1);
+  });
+
+  it("places multi-team actions in each linked group", () => {
+    const shared = item({
+      id: "shared",
+      departmentId: "d-tech",
+      department: { id: "d-tech", name: "Tech", slug: "tech" },
+      departmentLinks: [
+        { department: { id: "d-tech", name: "Tech", slug: "tech" } },
+        { department: { id: "d-inst", name: "Instruction", slug: "instruction" } },
+      ],
+    });
+    const groups = groupActionsByDepartment([shared], new Date("2026-06-22"));
+    expect(groups).toHaveLength(2);
+    expect(groups.every((group) => group.items.some((row) => row.id === "shared"))).toBe(true);
   });
 });

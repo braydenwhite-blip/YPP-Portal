@@ -6,6 +6,7 @@ import skin from "@/components/ui-v2/portal-skin.module.css";
 import { OFFICER_TIER_ROLES } from "@/lib/authorization";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { requirePageRoles } from "@/lib/page-guards";
+import { actionItemDepartments } from "@/lib/people-strategy/action-item-departments";
 import {
   getActionItemById,
   listActionAssignableUsers,
@@ -66,6 +67,7 @@ export default async function EditActionInTrackerPage({
               description: item.description,
               goalCategory: item.goalCategory,
               actionType: item.actionType,
+              departmentIds: actionItemDepartments(item).map((dept) => dept.id),
               departmentId: item.departmentId,
               status: item.status,
               priority: item.priority,

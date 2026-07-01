@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { RoleType } from "@prisma/client";
 import type { ReactNode } from "react";
 
+import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/page-guards";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
@@ -203,20 +205,21 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
     "No chapter assigned";
 
   return (
-    <div className="page-shell">
-      <div className="page-header">
-        <div>
-          <Link href="/admin/chapter-president-applicants" className="link" style={{ fontSize: 13 }}>
-            Back to CP pipeline
-          </Link>
-          <h1 className="page-title" style={{ marginTop: 6 }}>{displayName}</h1>
-          <p className="page-subtitle">
-            {cpStatusLabel(app.status)} - {cpNextAction(app)}
-          </p>
-        </div>
-        <span className="badge">{cpStatusLabel(app.status)}</span>
-      </div>
-
+    <ApplicationReviewShell
+      maxWidth={1200}
+      header={
+        <PageHeaderV2
+          eyebrow="Chapter president"
+          title={displayName}
+          subtitle={`${cpStatusLabel(app.status)} · ${cpNextAction(app)}`}
+          actions={<span className="badge">{cpStatusLabel(app.status)}</span>}
+        />
+      }
+      actions={[
+        { label: "CP pipeline", href: "/admin/chapter-president-applicants", icon: "list" },
+        { label: "Home", href: "/", icon: "compass" },
+      ]}
+    >
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))", gap: 18, alignItems: "start" }}>
         <div style={{ display: "grid", gap: 18 }}>
           <Section title="Applicant snapshot">
@@ -539,7 +542,7 @@ export default async function CPApplicantWorkspacePage({ params }: PageProps) {
           </Section>
         </aside>
       </div>
-    </div>
+    </ApplicationReviewShell>
   );
 }
 

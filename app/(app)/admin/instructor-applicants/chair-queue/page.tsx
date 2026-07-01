@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import { CardV2, PageHeaderV2 } from "@/components/ui-v2";
 import { getHiringActor, isAdmin } from "@/lib/chapter-hiring-permissions";
 import { getChairQueue } from "@/lib/instructor-applicant-board-queries";
@@ -157,25 +158,32 @@ export default async function ChairQueuePage() {
   ).length;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-6 py-6">
-      <PageHeaderV2
-        eyebrow="Hiring Chair"
-        title="Instructor Applicants"
-        subtitle={`${applications.length} application${applications.length !== 1 ? "s" : ""} awaiting chair decision.${
-          oldestDays !== null
-            ? ` Oldest has been waiting ${oldestDays} day${oldestDays === 1 ? "" : "s"}.`
-            : ""
-        } Reviews already written come first — confirm the recommended next step.`}
-        actions={
-          <Link
-            href="/admin/instructor-applicants/activity"
-            className="text-[13px] font-semibold text-brand-700 hover:underline"
-          >
-            See all reviewer activity →
-          </Link>
-        }
-      />
-
+    <ApplicationReviewShell
+      maxWidth={1100}
+      header={
+        <PageHeaderV2
+          eyebrow="Hiring chair"
+          title="Chair queue"
+          subtitle={`${applications.length} application${applications.length !== 1 ? "s" : ""} awaiting chair decision.${
+            oldestDays !== null
+              ? ` Oldest has been waiting ${oldestDays} day${oldestDays === 1 ? "" : "s"}.`
+              : ""
+          } Reviews already written come first — confirm the recommended next step.`}
+          actions={
+            <Link
+              href="/admin/instructor-applicants/activity"
+              className="text-[13px] font-semibold text-brand-700 hover:underline"
+            >
+              See all reviewer activity →
+            </Link>
+          }
+        />
+      }
+      actions={[
+        { label: "Application board", href: "/admin/instructor-applicants", icon: "list" },
+        { label: "Home", href: "/", icon: "compass" },
+      ]}
+    >
       {applications.length === 0 ? (
         <CardV2 padding="lg">
           <h2 className="m-0 text-[16px] font-semibold text-ink">No pending chair decisions</h2>
@@ -265,6 +273,6 @@ export default async function ChairQueuePage() {
           </ul>
         )}
       </CardV2>
-    </div>
+    </ApplicationReviewShell>
   );
 }

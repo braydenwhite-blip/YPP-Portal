@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { ApplicationTrack, ApplicationSource } from "@prisma/client";
-import skin from "@/components/ui-v2/portal-skin.module.css";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import { canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
 import { requireApplicationReviewerPage } from "@/lib/page-guards";
@@ -10,8 +9,9 @@ import {
   getArchivedApplications,
   getChairQueue,
 } from "@/lib/instructor-applicant-board-queries";
+import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
-import { buttonVariants, PageHeaderV2, StatCardV2 } from "@/components/ui-v2";
+import { buttonVariants, PageHeaderV2 } from "@/components/ui-v2";
 import { ArchiveAllButton } from "@/components/instructor-applicants/ArchiveActions";
 import { type FunnelCounts } from "@/components/instructor-applicants/ApplicantPipelineOverview";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
@@ -41,34 +41,38 @@ export default async function AdminInstructorApplicantsPage({
   // the reviewer on a dead end. No TODO / blank state.
   if (!isInstructorApplicantWorkflowV1Enabled()) {
     return (
-      <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-6 py-6">
-        <PageHeaderV2
-          eyebrow={isAdmin ? "Admin" : isHiringChair ? "Hiring Chair" : "Chapter President"}
-          title="Instructor Applicants"
-          subtitle="The applicant review board is turned off in this environment. Confirmed instructors and their lifecycle still live in the Instructor Operations database — pick up there."
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <a
-                href="/admin/instructors"
-                className={buttonVariants({ variant: "primary", size: "md" })}
-              >
-                Open Instructor Operations
-              </a>
-              <a
-                href="/people"
-                className={buttonVariants({ variant: "secondary", size: "md" })}
-              >
-                Open People
-              </a>
-            </div>
-          }
-        >
-          <p className="text-sm text-[var(--muted,#6b7280)]">
-            To re-enable the applicant pipeline, review, interview, and chair-decision
-            workspace, set <code>ENABLE_INSTRUCTOR_APPLICANT_WORKFLOW_V1=true</code>.
-          </p>
-        </PageHeaderV2>
-      </div>
+      <ApplicationReviewShell
+        maxWidth={1100}
+        header={
+          <PageHeaderV2
+            eyebrow={isAdmin ? "Admin" : isHiringChair ? "Hiring chair" : "Chapter president"}
+            title="Application board"
+            subtitle="The applicant review board is turned off in this environment. Confirmed instructors and their lifecycle still live in the Instructor Operations database — pick up there."
+            actions={
+              <div className="flex flex-wrap items-center gap-2">
+                <a
+                  href="/admin/instructors"
+                  className={buttonVariants({ variant: "primary", size: "md" })}
+                >
+                  Open Instructor Operations
+                </a>
+                <a
+                  href="/people"
+                  className={buttonVariants({ variant: "secondary", size: "md" })}
+                >
+                  Open People
+                </a>
+              </div>
+            }
+          >
+            <p className="text-sm text-[var(--muted,#6b7280)]">
+              To re-enable the applicant pipeline, review, interview, and chair-decision
+              workspace, set <code>ENABLE_INSTRUCTOR_APPLICANT_WORKFLOW_V1=true</code>.
+            </p>
+          </PageHeaderV2>
+        }
+        actions={[{ label: "Home", href: "/", icon: "compass" }]}
+      />
     );
   }
 
@@ -98,18 +102,17 @@ export default async function AdminInstructorApplicantsPage({
     // A CP without a chapter assignment must not see other chapters' data.
     if (!chapterId) {
       return (
-        <div className="page-shell">
-          <div className="page-header">
-            <div>
-              <span className="badge">Chapter President</span>
-              <h1 className="page-title">Instructor Applicants</h1>
-              <p className="page-subtitle">
-                No chapter is assigned to your account yet, so there are no applicants to show.
-                Ask an administrator to link your account to a chapter.
-              </p>
-            </div>
-          </div>
-        </div>
+        <ApplicationReviewShell
+          maxWidth={1100}
+          header={
+            <PageHeaderV2
+              eyebrow="Chapter president"
+              title="Application board"
+              subtitle="No chapter is assigned to your account yet, so there are no applicants to show. Ask an administrator to link your account to a chapter."
+            />
+          }
+          actions={[{ label: "Home", href: "/", icon: "compass" }]}
+        />
       );
     }
   }
@@ -382,89 +385,46 @@ export default async function AdminInstructorApplicantsPage({
       ? pipelineResult.columns.chair_review.length
       : chairQueueItems.length;
 
-  // Concrete board flags (§16) — every count is a real filter or queue.
   const missingMaterialsCount = serializedPipeline.filter(
     (app) =>
       app.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" && !app.materialsReadyAt
   ).length;
   const overdueCount = serializedPipeline.filter((app) => app.overdue).length;
 
-  return (
-    <div className={`${skin.portalSkin} mx-auto flex w-full max-w-[1600px] flex-col gap-5 px-6 py-6`}>
-      <PageHeaderV2
-        eyebrow={
-          isAdmin ? "Admin" : isHiringChair ? "Hiring Chair" : "Chapter President"
-        }
-        title="Instructor Applicants"
-        subtitle="The application review board — ordered by where each applicant is in the process. Reviews already written come first."
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <a
-              href="/admin/external-applicants/new"
-              className={buttonVariants({ variant: "secondary", size: "md" })}
-              aria-label="Add an external applicant (Google Forms or manual entry)"
-            >
-              Add External Applicant
-            </a>
-            {/* CSV export is admin/hiring-chair only — hide for pure CPs so we
-                don't render a button that 403s for them. */}
-            {hasNetworkScope && (
-              <a
-                href="/api/admin/instructor-applicants/export.csv"
-                download
-                className={buttonVariants({ variant: "secondary", size: "md" })}
-                aria-label="Download instructor applicants CSV export"
-              >
-                Download CSV
-              </a>
-            )}
-            {isAdmin && <ArchiveAllButton />}
-          </div>
-        }
-      >
-        {/* Concrete flags, never composite scores — each count is clickable. */}
-        <div className="flex flex-wrap gap-3">
-          <StatCardV2
-            label="In pipeline"
-            value={serializedPipeline.length}
-            href="/admin/instructor-applicants"
-          />
-          <StatCardV2
-            label="Needs review"
-            value={toReviewCount}
-            detail="submitted or info returned"
-            href="/admin/instructor-applicants"
-          />
-          <StatCardV2
-            label="Missing materials"
-            value={missingMaterialsCount}
-            tone={missingMaterialsCount > 0 ? "attention" : "default"}
-            href="/admin/instructor-applicants?materialsMissing=1"
-          />
-          <StatCardV2
-            label="Overdue"
-            value={overdueCount}
-            detail="past their action date"
-            tone={overdueCount > 0 ? "attention" : "default"}
-            href="/admin/instructor-applicants?overdueOnly=1"
-          />
-          {showChairQueue ? (
-            <StatCardV2
-              label="Decision needed"
-              value={chairQueueCount}
-              detail="in the chair queue"
-              tone={chairQueueCount > 0 ? "attention" : "default"}
-              href="/admin/instructor-applicants/chair-queue"
-            />
-          ) : null}
-          <StatCardV2
-            label="Archived"
-            value={archiveResult.total}
-            href="/admin/instructor-applicants?tab=archive"
-          />
-        </div>
-      </PageHeaderV2>
+  const strip = [
+    { label: "Add applicant", href: "/admin/external-applicants/new", icon: "user" as const },
+    ...(showChairQueue
+      ? [{ label: "Chair queue", href: "/admin/instructor-applicants/chair-queue", icon: "inbox" as const }]
+      : []),
+    { label: "Home", href: "/", icon: "compass" as const },
+  ];
 
+  return (
+    <ApplicationReviewShell
+      maxWidth={1200}
+      header={
+        <PageHeaderV2
+          eyebrow="Applicants"
+          title="Application board"
+          subtitle={`${serializedPipeline.length} in pipeline · ${toReviewCount} need review${overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}${missingMaterialsCount > 0 ? ` · ${missingMaterialsCount} missing materials` : ""}`}
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              {hasNetworkScope && (
+                <a
+                  href="/api/admin/instructor-applicants/export.csv"
+                  download
+                  className={buttonVariants({ variant: "secondary", size: "md" })}
+                >
+                  Export CSV
+                </a>
+              )}
+              {isAdmin && <ArchiveAllButton />}
+            </div>
+          }
+        />
+      }
+      actions={strip}
+    >
       <InstructorApplicantsCommandCenter
         scope={hasNetworkScope ? "global" : "chapter"}
         chapterId={chapterId}
@@ -486,6 +446,6 @@ export default async function AdminInstructorApplicantsPage({
         }}
         funnelCounts={funnelCounts}
       />
-    </div>
+    </ApplicationReviewShell>
   );
 }

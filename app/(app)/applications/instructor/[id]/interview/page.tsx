@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui-v2";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
@@ -130,7 +131,7 @@ export default async function InterviewerWorkspacePage({
       : "Submitting records your recommendation and moves this candidate into Chair Review.";
 
   return (
-    <div className="min-h-screen bg-surface-soft pb-10">
+    <div className={`${skin.portalSkin} min-h-screen pb-10`}>
       {/* Sticky workspace top bar */}
       <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-2 border-b border-line-soft bg-surface/95 px-6 py-2.5 backdrop-blur">
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">

@@ -13112,12 +13112,28 @@ model Department {
   description String?   @db.Text
   archivedAt  DateTime?
 
-  actionItems ActionItem[] @relation("DepartmentActionItems")
+  actionItems     ActionItem[]           @relation("DepartmentActionItems")
+  actionItemLinks ActionItemDepartment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([archivedAt])
+}
+
+/// Many-to-many link when an action spans more than one team. `ActionItem.departmentId`
+/// remains the primary team for sorting and legacy callers; all linked teams are
+/// stored here and used for filters + hub grouping.
+model ActionItemDepartment {
+  actionItemId String
+  actionItem   ActionItem @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([actionItemId, departmentId])
+  @@index([departmentId])
 }
 
 /// One People-Strategy action item. Ownership is expressed through
@@ -13245,10 +13261,11 @@ model ActionItem {
   nextFollowUpAt    DateTime?
   // ---------------------------------------------------------------------------
 
-  assignments ActionAssignment[] @relation("ActionItemAssignments")
-  comments    ActionComment[]    @relation("ActionItemComments")
-  fileLinks   ActionFileLink[]   @relation("ActionItemFileLinks")
-  emailLogs   ActionEmailLog[]   @relation("ActionItemEmailLogs")
+  assignments     ActionAssignment[]     @relation("ActionItemAssignments")
+  departmentLinks ActionItemDepartment[]
+  comments        ActionComment[]        @relation("ActionItemComments")
+  fileLinks       ActionFileLink[]       @relation("ActionItemFileLinks")
+  emailLogs       ActionEmailLog[]       @relation("ActionItemEmailLogs")
 
   // Optional chapter scope so chapter "next steps" are real, queryable actions
   // in the Action Tracker (launch checklist items, support-request follow-ups).

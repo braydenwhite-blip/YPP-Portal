@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { requireChairPage } from "@/lib/page-guards";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import type { ReviewSignalKind, ReviewSignalSentiment } from "@prisma/client";
@@ -164,22 +166,28 @@ export default async function ActivityFeedPage({ searchParams }: PageProps) {
   const nextLimit = Math.min(MAX_LIMIT, limit + DEFAULT_LIMIT);
 
   return (
-    <div className="page-shell">
-      <div className="page-header">
-        <div>
-          <span className="badge">Hiring Chair</span>
-          <h1 className="page-title">Activity feed</h1>
-          <p className="page-subtitle">
-            Every reviewer comment, concern, highlight, and chair note across all applications — newest first.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/admin/instructor-applicants/chair-queue" className="button outline">
-            Chair Queue
-          </Link>
-        </div>
-      </div>
-
+    <ApplicationReviewShell
+      maxWidth={1100}
+      header={
+        <PageHeaderV2
+          eyebrow="Hiring chair"
+          title="Reviewer activity"
+          subtitle="Every reviewer comment, concern, highlight, and chair note across all applications — newest first."
+          actions={
+            <Link
+              href="/admin/instructor-applicants/chair-queue"
+              className="text-[13px] font-semibold text-brand-700 hover:underline"
+            >
+              Chair queue →
+            </Link>
+          }
+        />
+      }
+      actions={[
+        { label: "Application board", href: "/admin/instructor-applicants", icon: "list" },
+        { label: "Home", href: "/", icon: "compass" },
+      ]}
+    >
       <section className="card" style={{ marginBottom: 16 }}>
         <div
           style={{
@@ -353,6 +361,6 @@ export default async function ActivityFeedPage({ searchParams }: PageProps) {
           </Link>
         </div>
       ) : null}
-    </div>
+    </ApplicationReviewShell>
   );
 }

@@ -1,4 +1,5 @@
 import type { ActionItemWithRelations } from "./action-queries";
+import { actionItemDepartments } from "./action-item-departments";
 import { STANDING_ACTION_DEPARTMENTS } from "./action-departments";
 import { isActionOverdue, sortByDeadline } from "./my-actions-selectors";
 
@@ -42,17 +43,21 @@ export function groupActionsByDepartment(
 
   for (const item of items) {
     if (item.status === "DROPPED") continue;
-    const id = item.department?.id ?? "unassigned";
-    const name = item.department?.name ?? "Unassigned";
-    const slug = item.department?.slug ?? null;
+    const teams = actionItemDepartments(item);
+    const targets =
+      teams.length > 0
+        ? teams
+        : [{ id: "unassigned", name: "Unassigned", slug: null as string | null }];
 
-    let group = buckets.get(id);
-    if (!group) {
-      group = { id, name, slug, items: [], overdueCount: 0 };
-      buckets.set(id, group);
+    for (const team of targets) {
+      let group = buckets.get(team.id);
+      if (!group) {
+        group = { id: team.id, name: team.name, slug: team.slug, items: [], overdueCount: 0 };
+        buckets.set(team.id, group);
+      }
+      group.items.push(item);
+      if (isActionOverdue(item, now)) group.overdueCount += 1;
     }
-    group.items.push(item);
-    if (isActionOverdue(item, now)) group.overdueCount += 1;
   }
 
   return Array.from(buckets.values())

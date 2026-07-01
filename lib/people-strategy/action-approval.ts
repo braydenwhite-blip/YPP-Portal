@@ -1,7 +1,7 @@
 import type { ActionItemWithRelations } from "./action-queries";
 
-/** How long an approved action stays on the main hub before rolling off. */
-export const APPROVED_HUB_GRACE_MS = 3 * 60 * 1000;
+/** How long an approved action stays visible on the hub after officer sign-off. */
+export const APPROVED_HUB_GRACE_MS = 10 * 60 * 1000;
 
 type ApprovalFields = {
   status: string;
@@ -30,9 +30,9 @@ export function showOnActiveHub(item: ApprovalFields, now: Date = new Date()): b
   return item.status !== "COMPLETE";
 }
 
-/** Approved archive tab — all officer-approved completions. */
-export function showOnApprovedHub(item: ApprovalFields): boolean {
-  return isApprovedAction(item);
+/** Approved tab — officer-approved completions, visible briefly then archived off the hub. */
+export function showOnApprovedHub(item: ApprovalFields, now: Date = new Date()): boolean {
+  return isRecentlyApprovedOnHub(item, now);
 }
 
 export function filterActiveHubItems(
@@ -42,8 +42,11 @@ export function filterActiveHubItems(
   return items.filter((item) => showOnActiveHub(item, now));
 }
 
-export function filterApprovedHubItems(items: ActionItemWithRelations[]): ActionItemWithRelations[] {
-  return items.filter((item) => showOnApprovedHub(item));
+export function filterApprovedHubItems(
+  items: ActionItemWithRelations[],
+  now: Date = new Date()
+): ActionItemWithRelations[] {
+  return items.filter((item) => showOnApprovedHub(item, now));
 }
 
 export function msUntilHubRollOff(approvedAt: Date, now: Date = new Date()): number {

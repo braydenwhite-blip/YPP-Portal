@@ -93,8 +93,18 @@ export const ACTION_PRIORITY_WEIGHT: Record<ActionPriority, number> = {
 
 /** Human-readable labels for the visibility enum. */
 export const ACTION_VISIBILITY_LABELS: Record<ActionItemVisibility, string> = {
-  ALL_LEADERSHIP: "All leadership",
-  OFFICERS_ONLY: "Officers only",
+  ALL_LEADERSHIP: "Leadership hub",
+  OFFICERS_ONLY: "Assigned officers only",
+};
+
+/** Hub filter dropdown — plain language, separate from team filters. */
+export const ACTION_VISIBILITY_FILTER_ALL_LABEL = "Any visibility";
+
+/** Short helper copy for create/edit forms. */
+export const ACTION_VISIBILITY_HINTS: Record<ActionItemVisibility, string> = {
+  ALL_LEADERSHIP: "Officers can browse this in the hub. Assigned teammates see it in My Actions.",
+  OFFICERS_ONLY:
+    "Hidden from the hub unless you are on it. Only assigned officers (and Leadership) can open it.",
 };
 
 /**

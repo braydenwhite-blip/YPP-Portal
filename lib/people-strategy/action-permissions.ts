@@ -25,10 +25,12 @@ import {
  *                         Leadership, Board/SUPER_ADMIN) carry ADMIN and pass.
  *   - Leadership / Board       → ADMIN + AdminSubtype Leadership or SUPER_ADMIN.
  *
- * VISIBILITY DECISION: an assigned person can always see the action in their
- * own My Actions list, including OFFICERS_ONLY items. That assignment does not
- * grant global tracker access; it only lets them see the work they personally
- * own, execute, or provide input on.
+ * VISIBILITY DECISION:
+ *   - ALL_LEADERSHIP — any officer-tier user can browse the hub; assigned
+ *     members see their own work even when they are not officers.
+ *   - OFFICERS_ONLY — only assigned *officers* see the action (plus
+ *     Leadership / Board). Non-officers never see it, even when assigned;
+ *     unassigned officers do not browse it in the hub.
  */
 
 export type ActionViewer = {
@@ -67,13 +69,21 @@ export function isBoard(user: ActionViewer): boolean {
   return isAdmin && hasAnyAdminSubtype(user.adminSubtypes ?? [], ["SUPER_ADMIN"]);
 }
 
+/** True when `userId` is the lead or holds any assignment (EXECUTING / INPUT). */
+export function isUserInvolvedInAction(
+  userId: string,
+  action: ActionAccessShape
+): boolean {
+  if (action.leadId === userId) return true;
+  return action.assignments.some((a) => a.userId === userId);
+}
+
 /** True when the viewer is the lead or holds any assignment on the action. */
 export function isAssignedToAction(
   user: ActionViewer,
   action: ActionAccessShape
 ): boolean {
-  if (action.leadId && action.leadId === user.id) return true;
-  return action.assignments.some((a) => a.userId === user.id);
+  return isUserInvolvedInAction(user.id, action);
 }
 
 /** True when the viewer holds a specific assignment role on the action. */
@@ -89,22 +99,22 @@ export function hasAssignmentRole(
 /**
  * Who can SEE an action.
  * - Leadership / Board: all actions.
- * - Officer-tier: all ALL_LEADERSHIP and OFFICERS_ONLY actions.
- * - Assigned member: their own LEAD, EXECUTING, or INPUT actions.
- * - Unassigned member: no global tracker visibility.
+ * - ALL_LEADERSHIP: officer-tier can browse everything; assigned members see
+ *   their own LEAD / EXECUTING / INPUT rows.
+ * - OFFICERS_ONLY: only assigned officer-tier users (plus Leadership / Board).
  */
 export function canViewAction(user: ActionViewer, action: ActionAccessShape): boolean {
   if (isLeadershipOrBoard(user)) return true;
 
   const officer = isOfficerTier(user);
-  if (isAssignedToAction(user, action)) return true;
+  const assigned = isAssignedToAction(user, action);
 
   if (action.visibility === "OFFICERS_ONLY") {
-    return officer;
+    return officer && assigned;
   }
 
   if (officer) return true;
-  return isAssignedToAction(user, action);
+  return assigned;
 }
 
 /** Only officer-tier and above may create actions. */

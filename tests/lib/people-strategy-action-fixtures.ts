@@ -73,6 +73,7 @@ export function actionItem(
     relatedEntityType: null,
     relatedEntityId: null,
     department: null,
+    departmentLinks: [],
     lead: person("lead-1"),
     createdBy: person("lead-1"),
     assignments: [assignment("lead-1", "LEAD"), assignment("owner-1", "EXECUTING")],

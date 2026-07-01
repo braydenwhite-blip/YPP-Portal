@@ -19,6 +19,7 @@ import {
   NON_CHAIR_DECISION_MESSAGE,
 } from "@/lib/active-chair";
 import FinalReviewCockpit from "@/components/instructor-applicants/final-review/FinalReviewCockpit";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -95,7 +96,8 @@ export default async function FinalReviewCockpitPage({
   const isSuperAdmin = actorAdminSubtypes.some((s) => s.subtype === "SUPER_ADMIN");
 
   return (
-    <FinalReviewCockpit
+    <div className={skin.portalSkin}>
+      <FinalReviewCockpit
       application={application}
       queue={queue}
       initialDraft={draft}
@@ -112,5 +114,6 @@ export default async function FinalReviewCockpitPage({
       decisionLockMessage={NON_CHAIR_DECISION_MESSAGE}
       evidence={evidence}
     />
+    </div>
   );
 }

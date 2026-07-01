@@ -106,7 +106,7 @@ export function ApplicationRecordSimple({
     record.status === "CHAIR_REVIEW" && viewerIsChair && !DECIDED_STATUSES.has(record.status);
 
   return (
-    <div className="mx-auto flex w-full max-w-[900px] flex-col gap-4 pb-8">
+    <div className="flex flex-col gap-4">
       {/* Header — one glance */}
       <div className="flex flex-col gap-3">
         <Link

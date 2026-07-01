@@ -102,6 +102,7 @@ export default async function AppLayout({
   }
   const officerSlimNavActive =
     isPublicPreviewSlimNavEnabled() &&
+    !previewActive &&
     canAccessLeadershipPreviewStack({
       id: userId,
       email: session.user.email,

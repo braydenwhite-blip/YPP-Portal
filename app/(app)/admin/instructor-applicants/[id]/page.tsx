@@ -9,6 +9,7 @@ import {
 import { loadApplicationRecord } from "@/lib/applications/application-record";
 import { readinessSignalLabel } from "@/lib/readiness-signals";
 import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import { ApplicationRecordSimple } from "@/components/instructor-applicants/ApplicationRecordSimple";
 import {
   type ChecklistItem,
@@ -286,7 +287,17 @@ export default async function ApplicationRecordPage({
     .join(" · ");
 
   return (
-    <ApplicationRecordSimple
+    <ApplicationReviewShell
+      maxWidth={900}
+      actions={[
+        { label: "Application board", href: "/admin/instructor-applicants", icon: "list" },
+        ...(viewerIsChair
+          ? [{ label: "Chair queue", href: "/admin/instructor-applicants/chair-queue", icon: "inbox" as const }]
+          : []),
+        { label: "Home", href: "/", icon: "compass" },
+      ]}
+    >
+      <ApplicationRecordSimple
       record={record}
       status={status}
       identityLine={identityLine}
@@ -307,5 +318,6 @@ export default async function ApplicationRecordPage({
         adminSubtypes: sessionUser.adminSubtypes ?? [],
       }}
     />
+    </ApplicationReviewShell>
   );
 }

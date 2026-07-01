@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import { CPApplicantsClient } from "./client";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPage } from "@/lib/page-guards";
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
@@ -20,13 +22,6 @@ function formatDate(value: Date) {
   });
 }
 
-function statusCount(
-  applications: Awaited<ReturnType<typeof loadApplications>>,
-  statuses: string[]
-) {
-  const set = new Set(statuses);
-  return applications.filter((app) => set.has(app.status)).length;
-}
 
 async function loadApplications() {
   return prisma.chapterPresidentApplication.findMany({
@@ -69,51 +64,42 @@ export default async function AdminCPApplicantsPage() {
     applications: applications.filter((app) => cpPipelineLaneId(app.status) === lane.id),
   }));
 
-  const summaryCards = [
-    { label: "New CP applicants", value: statusCount(applications, ["SUBMITTED"]) },
-    {
-      label: "Ready for review",
-      value: applications.filter((app) =>
-        ["SUBMITTED", "INITIAL_REVIEW", "UNDER_REVIEW"].includes(app.status)
-      ).length,
-    },
-    { label: "Interview needed", value: statusCount(applications, ["INTERVIEW_NEEDED", "INTERVIEW_SCHEDULED"]) },
-    { label: "Decision needed", value: statusCount(applications, ["DECISION_NEEDED", "RECOMMENDATION_SUBMITTED"]) },
-    { label: "Accepted, needs onboarding", value: statusCount(applications, ["ACCEPTED", "APPROVED", "ONBOARDING"]) },
-    { label: "Active CPs created", value: statusCount(applications, ["ACTIVE_CP"]) },
-  ];
+  const readyForReview = applications.filter((app) =>
+    ["SUBMITTED", "INITIAL_REVIEW", "UNDER_REVIEW"].includes(app.status)
+  ).length;
 
   return (
-    <div className="page-shell">
-      <div className="page-header">
-        <div>
-          <span className="badge">Admin</span>
-          <h1 className="page-title">Chapter President Applicants</h1>
-          <p className="page-subtitle">
-            Move CP applicants from intake through review, interview, decision,
-            onboarding, and active Chapter President profiles.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <Link href="#final_decision" className="button secondary small" style={{ textDecoration: "none" }}>
-            Decision queue
-          </Link>
-          <Link href="#accepted_onboarding" className="button secondary small" style={{ textDecoration: "none" }}>
-            Onboarding queue
-          </Link>
-          <CPApplicantsClient applications={serialized} />
-        </div>
-      </div>
-
-      <div className="grid three" style={{ marginBottom: 24 }}>
-        {summaryCards.map((card) => (
-          <div key={card.label} className="card kpi">
-            <div className="kpi-value">{card.value}</div>
-            <div className="kpi-label">{card.label}</div>
-          </div>
-        ))}
-      </div>
-
+    <ApplicationReviewShell
+      maxWidth={1200}
+      header={
+        <PageHeaderV2
+          eyebrow="Applicants"
+          title="Chapter president pipeline"
+          subtitle={`${applications.length} applicants · ${readyForReview} ready for review`}
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="#final_decision"
+                className="text-[13px] font-semibold text-brand-700 hover:underline"
+              >
+                Decision queue
+              </Link>
+              <Link
+                href="#accepted_onboarding"
+                className="text-[13px] font-semibold text-brand-700 hover:underline"
+              >
+                Onboarding queue
+              </Link>
+              <CPApplicantsClient applications={serialized} />
+            </div>
+          }
+        />
+      }
+      actions={[
+        { label: "Home", href: "/", icon: "compass" },
+        { label: "Instructor board", href: "/admin/instructor-applicants", icon: "list" },
+      ]}
+    >
       <div
         style={{
           display: "grid",
@@ -216,6 +202,6 @@ export default async function AdminCPApplicantsPage() {
           </section>
         ))}
       </div>
-    </div>
+    </ApplicationReviewShell>
   );
 }

@@ -19,12 +19,13 @@ import {
   isRecentlyApprovedOnHub,
   isWaitingForActionApproval,
 } from "@/lib/people-strategy/action-approval";
-import { ACTION_VISIBILITY_LABELS } from "@/lib/people-strategy/constants";
 import {
   ActionStatusBadge,
   InitialsAvatar,
   dueLabel,
 } from "@/components/people-strategy/action-presentation";
+import { departmentHeaderColor } from "@/lib/people-strategy/actions-hub-grouping";
+import { actionItemDepartments } from "@/lib/people-strategy/action-item-departments";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import { Button, cn } from "@/components/ui-v2";
 import {
@@ -124,6 +125,12 @@ export function ActionHubCard({
 
   const hasRoles = lead.length > 0 || executing.length > 0 || input.length > 0;
 
+  const teams = actionItemDepartments(item);
+  const teamBadges =
+    teams.length > 0
+      ? teams
+      : [{ id: "unassigned", name: "Unassigned", slug: null as string | null }];
+
   const actionHref = `/actions/${item.id}`;
 
   function openAction() {
@@ -188,9 +195,23 @@ export function ActionHubCard({
         <span className="min-w-0 text-[14px] font-bold leading-snug text-ink">
           {item.title}
         </span>
-        <span className="shrink-0 rounded-md bg-brand-50 px-2 py-1 text-[10.5px] font-bold uppercase tracking-[0.04em] text-brand-800">
-          {ACTION_VISIBILITY_LABELS[item.visibility]}
-        </span>
+        <div className="flex max-w-[52%] shrink-0 flex-wrap justify-end gap-1">
+          {teamBadges.map((team) => {
+            const color = departmentHeaderColor(team.slug);
+            return (
+              <span
+                key={team.id}
+                className="rounded-md px-2 py-1 text-[10.5px] font-bold uppercase tracking-[0.04em]"
+                style={{
+                  color,
+                  background: `${color}14`,
+                }}
+              >
+                {team.name}
+              </span>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -267,7 +288,7 @@ export function ActionHubCard({
 
       {recentlyApproved ? (
         <p className="m-0 mt-2 text-[12px] text-ink-muted">
-          Approved — this will roll off the main list in a few minutes.
+          Approved — this will roll off the hub in about 10 minutes.
         </p>
       ) : null}
 

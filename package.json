@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev-vercel-preview.mjs",
-    "dev:local": "node ./node_modules/next/dist/bin/next dev",
+    "dev:local": "node scripts/dev-local.mjs",
     "dev:vercel-preview": "node scripts/dev-vercel-preview.mjs",
     "vercel-preview:url": "node scripts/print-vercel-preview-url.mjs",
     "dev:user-view": "node scripts/dev-user-view.mjs",

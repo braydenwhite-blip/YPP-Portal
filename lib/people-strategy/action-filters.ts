@@ -13,6 +13,7 @@ import {
 } from "./constants";
 import { ACTION_TYPE_VALUES, type ActionType } from "./action-types";
 import type { ActionItemWithRelations } from "./action-queries";
+import { actionItemDepartmentIds, actionItemDepartments } from "./action-item-departments";
 import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
 import { addDays, startOfDay } from "@/lib/leadership-action-center/dates";
 
@@ -241,6 +242,35 @@ export function hasActiveFilters(filters: ActionFilters): boolean {
   );
 }
 
+/** Hub tab links preserve these query keys when switching All / Mine / Input / Approved. */
+const HUB_TAB_PRESERVED_KEYS = [
+  ACTION_FILTER_PARAM_KEYS.department,
+  ACTION_FILTER_PARAM_KEYS.chapter,
+  ACTION_FILTER_PARAM_KEYS.visibility,
+  ACTION_FILTER_PARAM_KEYS.search,
+  "initiative",
+] as const;
+
+/**
+ * Build an Actions Hub tab URL that keeps the active filter row (dept, chapter,
+ * visibility, search, initiative) while swapping the tab's own params (who/view).
+ */
+export function buildActionsHubTabHref(
+  tabParams: Record<string, string>,
+  currentParams: RawParams
+): string {
+  const out = new URLSearchParams();
+  for (const [key, value] of Object.entries(tabParams)) {
+    if (value) out.set(key, value);
+  }
+  for (const key of HUB_TAB_PRESERVED_KEYS) {
+    const raw = firstValue(currentParams[key]);
+    if (raw?.trim()) out.set(key, raw.trim());
+  }
+  const qs = out.toString();
+  return qs ? `/actions?${qs}` : "/actions";
+}
+
 /** Hub filter row — department, chapter, visibility, search only (no status/type/source). */
 export function hasActiveHubFilters(filters: ActionFilters): boolean {
   return (
@@ -393,10 +423,11 @@ export function actionPresetHref(preset: ActionPreset): string {
 
 function matchesSearch(item: ActionItemWithRelations, needle: string): boolean {
   if (!needle) return true;
+  const departmentNames = actionItemDepartments(item).map((dept) => dept.name).join(" ");
   const haystack = [
     item.title,
     item.description ?? "",
-    item.department?.name ?? "",
+    departmentNames,
     item.lead?.name ?? "",
     item.lead?.email ?? "",
   ]
@@ -416,8 +447,11 @@ export function applyActionFilters(
   now: Date = new Date()
 ): ActionItemWithRelations[] {
   const filtered = items.filter((item) => {
-    if (filters.department !== "ALL" && item.departmentId !== filters.department) {
-      return false;
+    if (filters.department !== "ALL") {
+      const deptIds = actionItemDepartmentIds(item);
+      if (!deptIds.includes(filters.department)) {
+        return false;
+      }
     }
     if (filters.chapter !== "ALL" && item.chapterId !== filters.chapter) {
       return false;

@@ -11,6 +11,7 @@ import {
 import {
   ACTION_STATUS_LABELS,
   ACTION_STATUS_VALUES,
+  ACTION_VISIBILITY_FILTER_ALL_LABEL,
   ACTION_VISIBILITY_LABELS,
   RELATED_ENTITY_TYPE_VALUES,
   relatedEntityTypeLabel,
@@ -138,11 +139,11 @@ export function ActionFiltersBar({
 
       <select
         className={hub ? "h-9 rounded-[9px] border border-line-soft bg-surface px-3 text-[13px] font-semibold text-ink" : "ps-filter"}
-        aria-label="Filter by visibility"
+        aria-label="Filter by officer visibility"
         value={filters.visibility}
         onChange={(e) => pushParam(ACTION_FILTER_PARAM_KEYS.visibility, e.target.value)}
       >
-        <option value="ALL">All visibility</option>
+        <option value="ALL">{ACTION_VISIBILITY_FILTER_ALL_LABEL}</option>
         {VISIBILITY_OPTIONS.map((v) => (
           <option key={v} value={v}>
             {ACTION_VISIBILITY_LABELS[v]}
@@ -214,11 +215,16 @@ export function ActionFiltersBar({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        {!hub ? (
-          <button type="submit" className="button outline small">
-            Search
-          </button>
-        ) : null}
+        <button
+          type="submit"
+          className={
+            hub
+              ? "h-9 rounded-[9px] border border-line-soft bg-surface px-3 text-[13px] font-semibold text-ink-muted hover:bg-surface-soft"
+              : "button outline small"
+          }
+        >
+          Search
+        </button>
       </form>
 
       {hasActive ? (

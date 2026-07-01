@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui-v2";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
@@ -454,7 +455,7 @@ export default async function ApplicantCockpitPage({
     actorIsAdmin || isChapterLead(actor) || isHiringChair(actor);
 
   return (
-    <div className="min-h-screen bg-surface-soft">
+    <div className={`${skin.portalSkin} min-h-screen`}>
       {/* Sticky back bar */}
       <div className="sticky top-0 z-30 border-b border-line-soft bg-surface/95 px-6 py-2.5 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[1700px] flex-wrap items-center justify-between gap-2">

@@ -40,35 +40,83 @@ function chipStyle(slug: string | null, active: boolean): CSSProperties {
   };
 }
 
-/**
- * One-tap department tagging for Action Tracker forms — grouped chips instead of
- * a buried dropdown.
- */
-export function ActionDepartmentPicker({
-  id,
-  label = "Team / department",
-  hint = "Tag which team owns this work — chapters, tech, comms, officers, board, etc.",
-  departments,
-  value,
-  onChange,
-  allowEmpty = true,
-  required = false,
-  compact = false,
-}: {
+type BaseProps = {
   id?: string;
   label?: string;
   hint?: string;
   departments: ActionDepartmentOption[];
-  value: string;
-  onChange: (departmentId: string) => void;
   allowEmpty?: boolean;
   required?: boolean;
-  /** Tighter layout for inline quick-create forms. */
   compact?: boolean;
-}) {
+};
+
+type SinglePickerProps = BaseProps & {
+  multiple?: false;
+  value: string;
+  onChange: (departmentId: string) => void;
+};
+
+type MultiPickerProps = BaseProps & {
+  multiple: true;
+  value: string[];
+  onChange: (departmentIds: string[]) => void;
+};
+
+/**
+ * Department tagging for Action Tracker forms — grouped chips instead of
+ * a buried dropdown. Supports single owner (legacy) or many teams at once.
+ */
+export function ActionDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
+  const {
+    id,
+    label = "Team / department",
+    hint = "Tag which team owns this work — chapters, tech, comms, officers, board, etc.",
+    departments,
+    allowEmpty = true,
+    required = false,
+    compact = false,
+    multiple = false,
+  } = props;
+
   const grouped = useMemo(() => groupActionDepartments(departments), [departments]);
 
   if (departments.length === 0) return null;
+
+  const selectedIds = multiple
+    ? props.value
+    : props.value
+      ? [props.value]
+      : [];
+
+  function isActive(departmentId: string) {
+    return selectedIds.includes(departmentId);
+  }
+
+  function toggleDepartment(departmentId: string) {
+    if (multiple) {
+      const active = isActive(departmentId);
+      if (active) {
+        if (!allowEmpty && selectedIds.length <= 1) return;
+        props.onChange(selectedIds.filter((id) => id !== departmentId));
+      } else {
+        props.onChange([...selectedIds, departmentId]);
+      }
+      return;
+    }
+
+    const active = props.value === departmentId;
+    props.onChange(active && allowEmpty ? "" : departmentId);
+  }
+
+  function clearAll() {
+    if (multiple) {
+      props.onChange([]);
+    } else {
+      props.onChange("");
+    }
+  }
+
+  const noneActive = selectedIds.length === 0;
 
   return (
     <div className="ps-field" id={id}>
@@ -88,13 +136,13 @@ export function ActionDepartmentPicker({
             </p>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label={groupLabel}>
               {items.map((department) => {
-                const active = value === department.id;
+                const active = isActive(department.id);
                 return (
                   <button
                     key={department.id}
                     type="button"
                     aria-pressed={active}
-                    onClick={() => onChange(active && allowEmpty ? "" : department.id)}
+                    onClick={() => toggleDepartment(department.id)}
                     className={cn(
                       "rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-all duration-150",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400",
@@ -113,16 +161,16 @@ export function ActionDepartmentPicker({
         {allowEmpty ? (
           <button
             type="button"
-            aria-pressed={!value}
-            onClick={() => onChange("")}
+            aria-pressed={noneActive}
+            onClick={clearAll}
             className={cn(
               "self-start rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
-              !value
+              noneActive
                 ? "border-line-strong bg-surface-muted text-ink"
                 : "border-line-soft bg-surface text-ink-muted hover:border-line hover:text-ink"
             )}
           >
-            No team yet
+            {multiple ? "No teams yet" : "No team yet"}
           </button>
         ) : null}
       </div>

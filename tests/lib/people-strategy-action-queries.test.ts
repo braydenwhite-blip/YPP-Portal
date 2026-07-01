@@ -11,6 +11,7 @@ import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import {
   getActionsForEntity,
   getActionsForEntities,
+  getMyActionItems,
   relatedEntityRefKey,
 } from "@/lib/people-strategy/action-queries";
 
@@ -174,5 +175,34 @@ describe("getActionsForEntities", () => {
     );
     expect(map.size).toBe(0);
     expect(findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("getMyActionItems", () => {
+  it("queries only lead + assignment involvement, not createdById", async () => {
+    findMany.mockResolvedValue([]);
+    await getMyActionItems("u1", officer);
+    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(findMany.mock.calls[0][0].where).toEqual({
+      OR: [{ leadId: "u1" }, { assignments: { some: { userId: "u1" } } }],
+    });
+  });
+
+  it("excludes actions the user only created (post-filter safety net)", async () => {
+    const creatorOnly = row({
+      id: "created-only",
+      leadId: "other",
+      createdById: "m1",
+      assignments: [{ userId: "other", role: "EXECUTING", user: { id: "other" } }],
+    });
+    const mine = row({
+      id: "mine",
+      leadId: "m1",
+      createdById: "other",
+      assignments: [],
+    });
+    findMany.mockResolvedValue([creatorOnly, mine]);
+    const result = await getMyActionItems("m1", member);
+    expect(result.map((a) => a.id)).toEqual(["mine"]);
   });
 });

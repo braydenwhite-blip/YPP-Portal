@@ -54,9 +54,21 @@ const leadershipNotMine: ActionAccessShape = {
   visibility: "ALL_LEADERSHIP",
   assignments: [{ userId: "x", role: "EXECUTING" }],
 };
-// Officers-only action where m1 happens to be EXECUTING.
-const officersOnlyMine: ActionAccessShape = {
+// Officers-only action where m1 (non-officer) is EXECUTING — must stay hidden.
+const officersOnlyNonOfficerAssignee: ActionAccessShape = {
   leadId: null,
+  visibility: "OFFICERS_ONLY",
+  assignments: [{ userId: "m1", role: "EXECUTING" }],
+};
+// Officers-only action where o1 is the lead.
+const officersOnlyOfficerAssigned: ActionAccessShape = {
+  leadId: "o1",
+  visibility: "OFFICERS_ONLY",
+  assignments: [{ userId: "o1", role: "LEAD" }],
+};
+// Officers-only action no officer is assigned to.
+const officersOnlyUnassigned: ActionAccessShape = {
+  leadId: "m1",
   visibility: "OFFICERS_ONLY",
   assignments: [{ userId: "m1", role: "EXECUTING" }],
 };
@@ -77,24 +89,31 @@ describe("canViewAction", () => {
     expect(canViewAction(otherMember, leadershipMine)).toBe(false);
   });
 
-  it("lets an assigned member view an OFFICERS_ONLY action in My Actions", () => {
-    expect(canViewAction(member, officersOnlyMine)).toBe(true);
+  it("hides OFFICERS_ONLY actions from non-officer assignees", () => {
+    expect(canViewAction(member, officersOnlyNonOfficerAssignee)).toBe(false);
   });
 
-  it("lets an officer view all ALL_LEADERSHIP and OFFICERS_ONLY actions", () => {
+  it("lets an assigned officer view an OFFICERS_ONLY action", () => {
+    expect(canViewAction(officer, officersOnlyOfficerAssigned)).toBe(true);
+  });
+
+  it("hides OFFICERS_ONLY actions from unassigned officers browsing the hub", () => {
+    expect(canViewAction(officer, officersOnlyUnassigned)).toBe(false);
+  });
+
+  it("lets an officer view all ALL_LEADERSHIP actions, including unassigned", () => {
     expect(canViewAction(officer, leadershipMine)).toBe(true);
     expect(canViewAction(officer, leadershipNotMine)).toBe(true);
-    expect(canViewAction(officer, officersOnlyMine)).toBe(true);
   });
 
   it("lets the CPO view everything, including officers-only", () => {
     expect(canViewAction(cpo, leadershipNotMine)).toBe(true);
-    expect(canViewAction(cpo, officersOnlyMine)).toBe(true);
+    expect(canViewAction(cpo, officersOnlyUnassigned)).toBe(true);
   });
 
   it("lets the Board (SUPER_ADMIN) view everything", () => {
     expect(canViewAction(board, leadershipNotMine)).toBe(true);
-    expect(canViewAction(board, officersOnlyMine)).toBe(true);
+    expect(canViewAction(board, officersOnlyUnassigned)).toBe(true);
   });
 });
 
@@ -137,7 +156,8 @@ describe("canFlagAction", () => {
   it("anyone who can view can flag; non-viewers cannot", () => {
     expect(canFlagAction(member, leadershipMine)).toBe(true);
     expect(canFlagAction(member, leadershipNotMine)).toBe(false);
-    expect(canFlagAction(member, officersOnlyMine)).toBe(true);
+    expect(canFlagAction(member, officersOnlyNonOfficerAssignee)).toBe(false);
+    expect(canFlagAction(officer, officersOnlyOfficerAssigned)).toBe(true);
     expect(canFlagAction(officer, leadershipNotMine)).toBe(true);
   });
 });

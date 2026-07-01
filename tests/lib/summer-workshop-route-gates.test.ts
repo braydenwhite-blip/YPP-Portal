@@ -36,6 +36,7 @@ describe("Public portal gate allowlist", () => {
     "/instructor-onboarding",
     "/applications",
     "/applications/summer-workshop",
+    "/applications/instructor",
     "/application-status",
     "/instructor-training",
     "/instructor/workshop-design-studio",
@@ -44,6 +45,9 @@ describe("Public portal gate allowlist", () => {
     "/locked",
     "/preview",
     "/admin/external-applicants",
+    "/admin/instructor-applicants",
+    "/admin/chapter-president-applicants",
+    "/chapter-lead/instructor-applicants",
   ];
 
   const GATED = [
@@ -57,7 +61,6 @@ describe("Public portal gate allowlist", () => {
     "/mentorship/mentees/abc/gr",
     "/mentorship/schedule",
     "/my-mentor",
-    "/chapter-lead/instructor-applicants",
     // Re-hidden from the public gate: internal People-Strategy / ops, general
     // comms, and the AI help agent. Officers still reach these via role bypass
     // in proxy.ts; non-officers without a preview passcode get /locked.

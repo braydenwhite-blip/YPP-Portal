@@ -74,22 +74,31 @@ describe("actionAttentionForViewer", () => {
     expect(items).toHaveLength(0);
   });
 
-  it("hides OFFICERS_ONLY action signals from a non-officer member", () => {
+  it("hides OFFICERS_ONLY action signals unless the viewer is an assigned officer", () => {
     const officersOnlyOverdue = actionItem({
       id: "f",
       status: "IN_PROGRESS",
       deadlineStart: days(-5),
       visibility: "OFFICERS_ONLY",
+      leadId: "officer-1",
+      assignments: [assignment("officer-1", "LEAD")],
     });
 
     expect(categories(actionAttentionForViewer([officersOnlyOverdue], officer, NOW))).toContain(
       "ACTION_OVERDUE"
     );
-    // The member must not see the confidential signal even if the row reaches them.
     expect(actionAttentionForViewer([officersOnlyOverdue], member, NOW)).toHaveLength(0);
+
+    const unassignedOfficer: ActionViewer = {
+      id: "officer-2",
+      roles: ["STAFF"],
+      primaryRole: "STAFF",
+      adminSubtypes: [],
+    };
+    expect(actionAttentionForViewer([officersOnlyOverdue], unassignedOfficer, NOW)).toHaveLength(0);
   });
 
-  it("still surfaces ALL_LEADERSHIP action signals to a member viewer", () => {
+  it("still surfaces ALL_LEADERSHIP action signals to an assigned member", () => {
     const items = actionAttentionForViewer(
       [
         actionItem({
@@ -97,6 +106,8 @@ describe("actionAttentionForViewer", () => {
           status: "IN_PROGRESS",
           deadlineStart: days(-2),
           visibility: "ALL_LEADERSHIP",
+          leadId: "member-1",
+          assignments: [assignment("member-1", "LEAD")],
         }),
       ],
       member,

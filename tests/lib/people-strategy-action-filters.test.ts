@@ -6,6 +6,7 @@ import {
   actionPresetHref,
   applyActionFilters,
   buildActionFilterQuery,
+  buildActionsHubTabHref,
   countActionPresets,
   effectiveStatus,
   groupActionsByLinkedEntity,
@@ -118,6 +119,62 @@ describe("parseActionFilters", () => {
 
   it("takes the first value of array params", () => {
     expect(parseActionFilters({ status: ["COMPLETE", "OVERDUE"] }).status).toBe("COMPLETE");
+  });
+});
+
+describe("buildActionsHubTabHref", () => {
+  it("swaps tab params while preserving hub filters", () => {
+    const href = buildActionsHubTabHref(
+      { view: "input" },
+      { who: "all", dept: "d1", ch: "chap-2", vis: "OFFICERS_ONLY", q: "recruit" }
+    );
+    expect(href).toBe("/actions?view=input&dept=d1&ch=chap-2&vis=OFFICERS_ONLY&q=recruit");
+  });
+
+  it("drops stale tab params when switching views", () => {
+    const href = buildActionsHubTabHref({ who: "me" }, { view: "approved", dept: "d1" });
+    expect(href).toBe("/actions?who=me&dept=d1");
+    expect(href).not.toContain("view=");
+  });
+});
+
+describe("department filter", () => {
+  it("matches via department relation when departmentId is absent on the row", () => {
+    const items = [
+      item({
+        id: "a",
+        departmentId: null,
+        department: { id: "d9", name: "Operations", slug: "operations" },
+      }),
+      item({ id: "b", departmentId: "d1", department: { id: "d1", name: "Instruction", slug: "instruction" } }),
+    ];
+    const filtered = applyActionFilters(
+      items,
+      { ...parseActionFilters({}), department: "d9" },
+      NOW
+    );
+    expect(filtered.map((i) => i.id)).toEqual(["a"]);
+  });
+
+  it("matches when any linked team equals the filter", () => {
+    const items = [
+      item({
+        id: "a",
+        departmentId: "d1",
+        department: { id: "d1", name: "Instruction", slug: "instruction" },
+        departmentLinks: [
+          { department: { id: "d1", name: "Instruction", slug: "instruction" } },
+          { department: { id: "d2", name: "Tech", slug: "tech" } },
+        ],
+      }),
+      item({ id: "b", departmentId: "d3", department: { id: "d3", name: "Comms", slug: "communications" } }),
+    ];
+    const filtered = applyActionFilters(
+      items,
+      { ...parseActionFilters({}), department: "d2" },
+      NOW
+    );
+    expect(filtered.map((i) => i.id)).toEqual(["a"]);
   });
 });
 

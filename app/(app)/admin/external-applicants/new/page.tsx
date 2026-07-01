@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { requirePageRoles } from "@/lib/page-guards";
 import ExternalApplicantIntakeForm from "./intake-form";
 
@@ -55,25 +57,20 @@ export default async function NewExternalApplicantPage({
     : [];
 
   return (
-    <div className="page-shell">
-      <div className="page-header">
-        <div>
-          <p className="badge">Admin</p>
-          <h1 className="page-title">Add External Applicant</h1>
-          <p className="page-subtitle">
-            External intake, internal review. Use this form to record a Google
-            Forms applicant or to manually enter an applicant you spoke with
-            outside the portal. The application enters the same review,
-            interview, and chair-decision pipeline as portal-native ones.
-          </p>
-        </div>
-        <div>
-          <Link href="/admin/instructor-applicants" className="button outline small">
-            Back to pipeline
-          </Link>
-        </div>
-      </div>
-
+    <ApplicationReviewShell
+      maxWidth={880}
+      header={
+        <PageHeaderV2
+          eyebrow="Applicants"
+          title="Add external applicant"
+          subtitle="Record a Google Forms applicant or manually enter someone you spoke with outside the portal. They enter the same review, interview, and chair-decision pipeline as portal-native applications."
+        />
+      }
+      actions={[
+        { label: "Application board", href: "/admin/instructor-applicants", icon: "list" },
+        { label: "Home", href: "/", icon: "compass" },
+      ]}
+    >
       <div
         className="card"
         style={{
@@ -179,6 +176,6 @@ export default async function NewExternalApplicantPage({
         first-class admin UI. Until that ships, use this form for one-off
         entries or contact engineering for a batch run.
       </div>
-    </div>
+    </ApplicationReviewShell>
   );
 }

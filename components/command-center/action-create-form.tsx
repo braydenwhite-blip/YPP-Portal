@@ -23,8 +23,10 @@ import {
 import {
   ACTION_STATUS_LABELS,
   ACTION_STATUS_SELECTABLE,
+  ACTION_VISIBILITY_HINTS,
   DEFAULT_ACTION_DEADLINE_DAYS,
 } from "@/lib/people-strategy/constants";
+import type { ActionItemVisibility } from "@prisma/client";
 
 const DEADLINE_PRESETS = ACTION_DEADLINE_PRESETS.filter((preset) => preset.id !== "this-week");
 
@@ -98,7 +100,8 @@ export function ActionCreateForm({
     toDateInputValue(addDays(new Date(), DEFAULT_ACTION_DEADLINE_DAYS))
   );
   const [description, setDescription] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
+  const [departmentIds, setDepartmentIds] = useState<string[]>([]);
+  const [visibility, setVisibility] = useState<ActionItemVisibility>("ALL_LEADERSHIP");
   const [status, setStatus] = useState("NOT_STARTED");
 
   const activePreset = matchActionDeadlinePreset(deadline);
@@ -134,7 +137,8 @@ export function ActionCreateForm({
           inputUserIds: inputUserIds.length > 0 ? inputUserIds : undefined,
           deadlineStart: deadline,
           description: description.trim() || undefined,
-          departmentId: departmentId || undefined,
+          departmentIds: departmentIds.length > 0 ? departmentIds : undefined,
+          visibility,
           status,
           ...(initiativeLink
             ? {
@@ -243,18 +247,66 @@ export function ActionCreateForm({
 
           <FormSection
             step={4}
-            title="Which team owns it?"
-            hint="Chapters, tech, comms, social, officers, board, and the core teams."
+            title="Which teams are on this?"
+            hint="Pick every team involved — chapters, tech, comms, and the core teams."
           >
             <ActionDepartmentPicker
               id="action-create-department"
-              label="Team / department"
+              label="Teams"
               hint={undefined}
               departments={departments}
-              value={departmentId}
-              onChange={setDepartmentId}
+              multiple
+              value={departmentIds}
+              onChange={setDepartmentIds}
               compact
             />
+          </FormSection>
+
+          <div className="h-px bg-line-soft/80" aria-hidden />
+
+          <FormSection
+            step={5}
+            title="Officer visibility"
+            hint="Separate from teams — who can find this outside their own assignment."
+          >
+            <button
+              type="button"
+              role="switch"
+              aria-checked={visibility === "OFFICERS_ONLY"}
+              aria-label="Restrict to assigned officers only"
+              onClick={() =>
+                setVisibility(visibility === "OFFICERS_ONLY" ? "ALL_LEADERSHIP" : "OFFICERS_ONLY")
+              }
+              className={cn(
+                "flex w-full items-start gap-3 rounded-[14px] border px-4 py-3.5 text-left transition-colors",
+                visibility === "OFFICERS_ONLY"
+                  ? "border-brand-400 bg-brand-50/70"
+                  : "border-line-soft bg-surface hover:border-line"
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors",
+                  visibility === "OFFICERS_ONLY" ? "bg-brand-600" : "bg-line-strong/70"
+                )}
+              >
+                <span
+                  className={cn(
+                    "block size-5 rounded-full bg-white shadow-sm transition-transform",
+                    visibility === "OFFICERS_ONLY" ? "translate-x-5" : "translate-x-0"
+                  )}
+                />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[14px] font-semibold text-ink">
+                  Assigned officers only
+                </span>
+                <span className="mt-0.5 block text-[12.5px] leading-relaxed text-ink-muted">
+                  {ACTION_VISIBILITY_HINTS[visibility]}
+                </span>
+              </span>
+            </button>
           </FormSection>
 
           <div className="rounded-[14px] border border-dashed border-line-soft bg-surface/60">

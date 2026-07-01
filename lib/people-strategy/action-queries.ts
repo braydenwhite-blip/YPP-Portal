@@ -15,9 +15,11 @@ export {
   groupActionDepartments,
   sortActionDepartmentOptions,
 } from "./action-departments";
+import { hydrateActionItemDepartmentLinks } from "./action-item-departments";
 
 import {
   canViewAction,
+  isUserInvolvedInAction,
   type ActionAccessShape,
   type ActionViewer,
 } from "./action-permissions";
@@ -151,7 +153,15 @@ const ACTION_ITEM_INCLUDE = {
 
 export type ActionItemWithRelations = Prisma.ActionItemGetPayload<{
   include: typeof ACTION_ITEM_INCLUDE;
-}>;
+}> & {
+  departmentLinks: Array<{ department: { id: string; name: string; slug: string | null } }>;
+};
+
+async function withDepartmentLinks(
+  items: Prisma.ActionItemGetPayload<{ include: typeof ACTION_ITEM_INCLUDE }>[]
+): Promise<ActionItemWithRelations[]> {
+  return hydrateActionItemDepartmentLinks(items);
+}
 
 /** Reduce a loaded action to the shape the access policy needs. */
 function toAccessShape(item: {
@@ -177,9 +187,9 @@ function toAccessShape(item: {
 
 /**
  * Actions where `userId` is LEAD, EXECUTING, or INPUT ("My Actions").
- * Results are filtered to what `viewer` is allowed to see — so a member only
- * ever gets their own actions, including OFFICERS_ONLY items they were
- * explicitly assigned to.
+ * Creating an action for someone else does not include it here — only
+ * involvement as lead or assignee counts. Results are filtered to what
+ * `viewer` is allowed to see.
  */
 export async function getMyActionItems(
   userId: string,
@@ -192,9 +202,6 @@ export async function getMyActionItems(
       OR: [
         { leadId: userId },
         { assignments: { some: { userId } } },
-        // A creator always sees what they created, even if they set someone
-        // else as Lead and aren't otherwise assigned.
-        { createdById: userId },
       ],
     },
     include: ACTION_ITEM_INCLUDE,
@@ -205,7 +212,11 @@ export async function getMyActionItems(
     ],
   });
 
-  return items.filter((item) => canViewAction(viewer, toAccessShape(item)));
+  const hydrated = await withDepartmentLinks(items);
+  return hydrated.filter((item) => {
+    const shape = toAccessShape(item);
+    return canViewAction(viewer, shape) && isUserInvolvedInAction(userId, shape);
+  });
 }
 
 /**
@@ -224,7 +235,8 @@ export async function listVisibleActionItems(
     take: 200,
   });
 
-  return items.filter((item) => canViewAction(viewer, toAccessShape(item)));
+  const hydrated = await withDepartmentLinks(items);
+  return hydrated.filter((item) => canViewAction(viewer, toAccessShape(item)));
 }
 
 /**
@@ -238,10 +250,11 @@ export async function listVisibleActionItems(
 export async function listAllActionItems(): Promise<ActionItemWithRelations[]> {
   if (!isActionTrackerEnabled()) return [];
 
-  return prisma.actionItem.findMany({
+  const items = await prisma.actionItem.findMany({
     include: ACTION_ITEM_INCLUDE,
     orderBy: [{ createdAt: "desc" }],
   });
+  return withDepartmentLinks(items);
 }
 
 /**
@@ -260,8 +273,9 @@ export async function getActionItemById(
     include: ACTION_ITEM_INCLUDE,
   });
   if (!item) return null;
-  if (!canViewAction(viewer, toAccessShape(item))) return null;
-  return item;
+  const [hydrated] = await withDepartmentLinks([item]);
+  if (!canViewAction(viewer, toAccessShape(hydrated))) return null;
+  return hydrated;
 }
 
 // ---------------------------------------------------------------------------
@@ -569,7 +583,8 @@ export async function getActionsForEntity(
     orderBy: [{ createdAt: "desc" }],
   });
 
-  return items.filter((item) => canViewAction(viewer, toAccessShape(item)));
+  const hydrated = await withDepartmentLinks(items);
+  return hydrated.filter((item) => canViewAction(viewer, toAccessShape(item)));
 }
 
 /**
@@ -591,7 +606,8 @@ export async function getActionsForMeeting(
     orderBy: [{ createdAt: "desc" }],
   });
 
-  return items.filter((item) => canViewAction(viewer, toAccessShape(item)));
+  const hydrated = await withDepartmentLinks(items);
+  return hydrated.filter((item) => canViewAction(viewer, toAccessShape(item)));
 }
 
 /**
@@ -666,7 +682,8 @@ export async function getActionsForEntities(
     orderBy: [{ createdAt: "desc" }],
   });
 
-  for (const item of items) {
+  const hydrated = await withDepartmentLinks(items);
+  for (const item of hydrated) {
     if (!item.relatedEntityType || !item.relatedEntityId) continue;
     if (!canViewAction(viewer, toAccessShape(item))) continue;
     const list = result.get(

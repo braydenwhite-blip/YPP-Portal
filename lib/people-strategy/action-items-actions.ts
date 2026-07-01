@@ -22,6 +22,11 @@ import {
   type RelatedEntityType,
 } from "./constants";
 import {
+  normalizeActionDepartmentIds,
+  primaryActionDepartmentId,
+  syncActionItemDepartments,
+} from "./action-item-departments";
+import {
   parseActionType,
   parseActionTypeUpdate,
 } from "./action-types";
@@ -225,6 +230,12 @@ const UserIdList = z
   .optional()
   .transform((v) => Array.from(new Set(v ?? [])));
 
+const DepartmentIdList = z
+  .array(z.string().trim().min(1))
+  .max(20)
+  .optional()
+  .transform((v) => Array.from(new Set(v ?? [])));
+
 function assertDeadlineRange(deadlineStart: Date, deadlineEnd: Date | null | undefined) {
   if (deadlineEnd && deadlineEnd.getTime() < deadlineStart.getTime()) {
     throw new Error("Deadline end cannot be before deadline start");
@@ -325,6 +336,7 @@ const CreateActionItemSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v && v.trim() ? v.trim() : null)),
+  departmentIds: DepartmentIdList,
   // Optional chapter scope — the organizing operating unit a piece of work
   // belongs to. Existence is checked in createActionItem.
   chapterId: z
@@ -424,7 +436,14 @@ export async function createActionItem(input: CreateActionItemInput) {
   const executingUserIds =
     data.executingUserIds.length > 0 ? data.executingUserIds : [data.leadId];
 
-  if (data.departmentId) await assertDepartmentExists(data.departmentId);
+  const departmentIds = normalizeActionDepartmentIds({
+    departmentIds: data.departmentIds,
+    departmentId: data.departmentId,
+  });
+  for (const departmentId of departmentIds) {
+    await assertDepartmentExists(departmentId);
+  }
+  const primaryDepartmentId = primaryActionDepartmentId(departmentIds);
   if (data.chapterId) await assertChapterExists(data.chapterId);
   await assertUsersExist([
     data.leadId,
@@ -482,42 +501,47 @@ export async function createActionItem(input: CreateActionItemInput) {
     ...data.inputUserIds.map((userId) => ({ userId, role: "INPUT" as const })),
   ];
 
-  const created = await prisma.actionItem.create({
-    data: {
-      title: data.title,
-      description: data.description,
-      goalCategory: data.goalCategory,
-      actionType,
-      departmentId: data.departmentId,
-      chapterId: data.chapterId,
-      leadId: data.leadId,
-      createdById: session.id,
-      status: data.status as never,
-      priority: data.priority as never,
-      // A rarely-used path, but an item can be created already-complete.
-      completedAt: data.status === "COMPLETE" ? new Date() : null,
-      visibility: data.visibility as never,
-      deadlineStart,
-      deadlineEnd: data.deadlineEnd,
-      relatedEntityType: related?.type ?? null,
-      relatedEntityId: related?.id ?? null,
-      // Action 4.0 contract
-      sourceType,
-      sourceId: data.sourceId,
-      sourceActionId,
-      strategicInitiativeId: strategicLink.initiativeId,
-      strategicProjectId: strategicLink.projectId,
-      successDefinition: data.successDefinition,
-      blockedReason: data.blockedReason,
-      completionNote: data.completionNote,
-      completionOutcome,
-      nextFollowUpAt: data.nextFollowUpAt,
-      assignments: { create: assignmentRows },
-      comments: {
-        create: { authorId: session.id, type: "NOTE", body: "Action created" },
+  const created = await prisma.$transaction(async (tx) => {
+    const row = await tx.actionItem.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        goalCategory: data.goalCategory,
+        actionType,
+        departmentId: primaryDepartmentId,
+        chapterId: data.chapterId,
+        leadId: data.leadId,
+        createdById: session.id,
+        status: data.status as never,
+        priority: data.priority as never,
+        // A rarely-used path, but an item can be created already-complete.
+        completedAt: data.status === "COMPLETE" ? new Date() : null,
+        visibility: data.visibility as never,
+        deadlineStart,
+        deadlineEnd: data.deadlineEnd,
+        relatedEntityType: related?.type ?? null,
+        relatedEntityId: related?.id ?? null,
+        // Action 4.0 contract
+        sourceType,
+        sourceId: data.sourceId,
+        sourceActionId,
+        strategicInitiativeId: strategicLink.initiativeId,
+        strategicProjectId: strategicLink.projectId,
+        successDefinition: data.successDefinition,
+        blockedReason: data.blockedReason,
+        completionNote: data.completionNote,
+        completionOutcome,
+        nextFollowUpAt: data.nextFollowUpAt,
+        assignments: { create: assignmentRows },
+        comments: {
+          create: { authorId: session.id, type: "NOTE", body: "Action created" },
+        },
       },
-    },
-    select: { id: true },
+      select: { id: true },
+    });
+
+    await syncActionItemDepartments(row.id, departmentIds, tx);
+    return row;
   });
 
   // Every assignment row on a brand-new item is genuinely new → notify each.
@@ -555,6 +579,7 @@ const UpdateActionItemSchema = z.object({
       const trimmed = v.trim();
       return trimmed.length > 0 ? trimmed : null;
     }),
+  departmentIds: DepartmentIdList.optional(),
   // Chapter scope. Omitting leaves it untouched; null/empty clears it.
   chapterId: z.string().trim().nullable().optional(),
   status: z.enum(ACTION_STATUS_VALUES as [string, ...string[]]).optional(),
@@ -645,6 +670,7 @@ export async function updateActionItem(input: UpdateActionItemInput) {
   const officer = isOfficerTier(session);
   if (data.visibility !== undefined && !officer) throw new Error("Unauthorized");
   if (data.departmentId !== undefined && !officer) throw new Error("Unauthorized");
+  if (data.departmentIds !== undefined && !officer) throw new Error("Unauthorized");
   if (data.leadId !== undefined && data.leadId !== access.leadId && !officer) {
     throw new Error("Unauthorized");
   }
@@ -661,7 +687,19 @@ export async function updateActionItem(input: UpdateActionItemInput) {
     data.deadlineEnd !== undefined ? data.deadlineEnd : existing.deadlineEnd;
   assertDeadlineRange(nextDeadlineStart, nextDeadlineEnd);
 
-  if (data.departmentId) await assertDepartmentExists(data.departmentId);
+  let nextDepartmentId: string | null | undefined = data.departmentId;
+  let nextDepartmentIds: string[] | undefined;
+  if (data.departmentIds !== undefined) {
+    nextDepartmentIds = normalizeActionDepartmentIds({ departmentIds: data.departmentIds });
+    nextDepartmentId = primaryActionDepartmentId(nextDepartmentIds);
+    for (const departmentId of nextDepartmentIds) {
+      await assertDepartmentExists(departmentId);
+    }
+  } else if (data.departmentId !== undefined) {
+    nextDepartmentIds = normalizeActionDepartmentIds({ departmentId: data.departmentId });
+    if (data.departmentId) await assertDepartmentExists(data.departmentId);
+  }
+
   if (data.leadId !== undefined) await assertUsersExist([data.leadId]);
 
   // Phase 5: enforce Lead eligibility when the lead actually changes (flag-gated).
@@ -765,7 +803,7 @@ export async function updateActionItem(input: UpdateActionItemInput) {
         description: data.description,
         goalCategory: data.goalCategory,
         actionType,
-        departmentId: data.departmentId,
+        departmentId: nextDepartmentId,
         status: newStatus as never,
         priority: data.priority as never,
         completedAt,
@@ -819,6 +857,10 @@ export async function updateActionItem(input: UpdateActionItemInput) {
         session.id,
         `Status changed from ${existing.status} to ${newStatus}`
       );
+    }
+
+    if (nextDepartmentIds !== undefined) {
+      await syncActionItemDepartments(data.id, nextDepartmentIds, tx);
     }
   });
 

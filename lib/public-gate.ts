@@ -89,6 +89,13 @@ export const PUBLIC_ALLOWED_PREFIXES: readonly string[] = [
   // route through middleware; it does not grant access.
   "/admin/instructor-applicants",
 
+  // Chapter president applicant pipeline + chapter-scoped instructor board.
+  "/admin/chapter-president-applicants",
+  "/chapter-lead/instructor-applicants",
+
+  // Reviewer interview workspace (linked from the applicant record).
+  "/applications/instructor",
+
   // NOTE: the Leadership / People-Strategy / ops surfaces (/people, /meetings,
   // /actions, /operations, /partners), general comms (/messages,
   // /notifications), and the AI help agent (/help-agent) are intentionally NOT

@@ -7,6 +7,7 @@ import {
   getApplicantPipeline,
   getArchivedApplications,
 } from "@/lib/instructor-applicant-board-queries";
+import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
 import { type FunnelCounts } from "@/components/instructor-applicants/ApplicantPipelineOverview";
 import { PageHeaderV2 } from "@/components/ui-v2";
@@ -31,18 +32,18 @@ export default async function ChapterLeadInstructorApplicantsPage({
   }
 
   if (!isInstructorApplicantWorkflowV1Enabled()) {
-    // TODO: render legacy view when flag is off
     return (
-      <div className="page-shell">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Instructor Applicants</h1>
-            <p className="page-subtitle">
-              The new applicant workflow is currently disabled.
-            </p>
-          </div>
-        </div>
-      </div>
+      <ApplicationReviewShell
+        maxWidth={1100}
+        header={
+          <PageHeaderV2
+            eyebrow="Chapter"
+            title="Application board"
+            subtitle="The new applicant workflow is currently disabled."
+          />
+        }
+        actions={[{ label: "Home", href: "/", icon: "compass" }]}
+      />
     );
   }
 
@@ -57,18 +58,17 @@ export default async function ChapterLeadInstructorApplicantsPage({
   // we render a friendly state here so the CP isn't staring at an empty board.
   if (isChapterPresident && !isAdmin && !chapterId) {
     return (
-      <div className="page-shell">
-        <div className="page-header">
-          <div>
-            <span className="badge">Chapter President</span>
-            <h1 className="page-title">Instructor Applicants</h1>
-            <p className="page-subtitle">
-              No chapter is assigned to your account yet, so there are no applicants to show. Ask
-              an administrator to link your account to a chapter.
-            </p>
-          </div>
-        </div>
-      </div>
+      <ApplicationReviewShell
+        maxWidth={1100}
+        header={
+          <PageHeaderV2
+            eyebrow="Chapter"
+            title="Application board"
+            subtitle="No chapter is assigned to your account yet, so there are no applicants to show. Ask an administrator to link your account to a chapter."
+          />
+        }
+        actions={[{ label: "Home", href: "/", icon: "compass" }]}
+      />
     );
   }
 
@@ -261,13 +261,20 @@ export default async function ChapterLeadInstructorApplicantsPage({
   const postInterviewCount = pipelineResult.columns.post_interview.length;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 px-6 py-6">
-      <PageHeaderV2
-        eyebrow="Chapter President"
-        title="Instructor Applicants"
-        subtitle="Review and manage instructor applicants from your chapter."
-      />
-
+    <ApplicationReviewShell
+      maxWidth={1200}
+      header={
+        <PageHeaderV2
+          eyebrow="Chapter"
+          title="Application board"
+          subtitle={`${serializedPipeline.length} applicants · ${toReviewCount} need review`}
+        />
+      }
+      actions={[
+        { label: "Home", href: "/", icon: "compass" },
+        { label: "All applicants", href: "/admin/instructor-applicants", icon: "list" },
+      ]}
+    >
       <InstructorApplicantsCommandCenter
         scope="chapter"
         chapterId={chapterId}
@@ -287,6 +294,6 @@ export default async function ChapterLeadInstructorApplicantsPage({
         }}
         funnelCounts={funnelCounts}
       />
-    </div>
+    </ApplicationReviewShell>
   );
 }

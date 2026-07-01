@@ -17,7 +17,7 @@ import {
   type AttentionPerson,
   type AttentionEscalation,
 } from "./needs-attention";
-import { isOfficerTier } from "./action-permissions";
+import { canViewAction, isOfficerTier } from "./action-permissions";
 
 /**
  * People Strategy — Needs Attention loader (read-only).
@@ -207,9 +207,9 @@ export async function loadPersonAttention(
  * Bridge for the Action Tracker surfaces (`/actions`, `/actions/[id]`): turn
  * already-loaded action items into the unified, severity-ranked attention list
  * WITHOUT a second DB round-trip — the caller passes the items it already
- * loaded (My Actions, All Actions, or a single action). Officer-only signals
- * are dropped for non-officer viewers, mirroring `canViewAction` so a member's
- * attention panel never leaks confidential work.
+ * loaded (My Actions, All Actions, or a single action). Items the viewer cannot
+ * see (including unassigned OFFICERS_ONLY work) are dropped up front via
+ * `canViewAction`; remaining confidential signals still respect officer tier.
  *
  * Pure and deterministic (`now` injected) so it is unit-testable; the action
  * pages call it directly off their existing loaders. This is what keeps the
@@ -220,6 +220,17 @@ export function actionAttentionForViewer(
   viewer: ActionViewer,
   now: Date = new Date()
 ): AttentionItem[] {
-  const raw = actionAttention(items.map(actionItemToAttention), now);
+  const visible = items.filter((item) =>
+    canViewAction(viewer, {
+      leadId: item.leadId,
+      createdById: item.createdById,
+      visibility: item.visibility,
+      assignments: item.assignments.map((assignment) => ({
+        userId: assignment.user.id,
+        role: assignment.role,
+      })),
+    })
+  );
+  const raw = actionAttention(visible.map(actionItemToAttention), now);
   return filterAttentionForViewer(raw, { canSeeConfidential: isOfficerTier(viewer) });
 }

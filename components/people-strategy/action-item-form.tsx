@@ -46,6 +46,7 @@ export interface ActionItemFormInitial {
   description?: string | null;
   goalCategory?: string | null;
   departmentId?: string | null;
+  departmentIds?: string[];
   status?: string;
   priority?: string;
   /** Controlled-vocabulary action type (or null/empty for untyped). */
@@ -186,7 +187,13 @@ export default function ActionItemForm({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [goalCategory, setGoalCategory] = useState(initial?.goalCategory ?? "");
-  const [departmentId, setDepartmentId] = useState(initial?.departmentId ?? "");
+  const [departmentIds, setDepartmentIds] = useState<string[]>(
+    initial?.departmentIds?.length
+      ? initial.departmentIds
+      : initial?.departmentId
+        ? [initial.departmentId]
+        : []
+  );
   // Chapter scope is carried from the originating surface (read-only context).
   const chapterId = initial?.chapterId ?? "";
   const chapterLabel = initial?.chapterLabel ?? null;
@@ -336,6 +343,7 @@ export default function ActionItemForm({
         initial?.successDefinition ||
         initial?.actionType ||
         initial?.goalCategory ||
+        initial?.departmentIds?.length ||
         initial?.departmentId ||
         (initial?.executingUserIds?.length ?? 0) > 0 ||
         (initial?.inputUserIds?.length ?? 0) > 0 ||
@@ -392,7 +400,7 @@ export default function ActionItemForm({
             // Always send the type on edit: a value sets it, an empty string
             // clears it (interpreted by parseActionTypeUpdate server-side).
             actionType,
-            departmentId: departmentId || undefined,
+            departmentIds,
             // Preserve the chapter scope this action was created with.
             chapterId: chapterId || undefined,
             status,
@@ -424,7 +432,7 @@ export default function ActionItemForm({
             description: finalDescription || undefined,
             goalCategory: goalCategory.trim() || undefined,
             actionType: actionType || undefined,
-            departmentId: departmentId || undefined,
+            departmentIds,
             chapterId: chapterId || undefined,
             leadId,
             status,
@@ -643,9 +651,11 @@ export default function ActionItemForm({
         </div>
         <ActionDepartmentPicker
           id="action-department-ext"
+          label="Teams"
           departments={departments}
-          value={departmentId}
-          onChange={setDepartmentId}
+          multiple
+          value={departmentIds}
+          onChange={setDepartmentIds}
           compact
         />
       </div>
@@ -728,9 +738,11 @@ export default function ActionItemForm({
 
             <ActionDepartmentPicker
               id="action-department"
+              label="Teams"
               departments={departments}
-              value={departmentId}
-              onChange={setDepartmentId}
+              multiple
+              value={departmentIds}
+              onChange={setDepartmentIds}
             />
           </section>
 
@@ -1072,9 +1084,11 @@ export default function ActionItemForm({
           </div>
         <ActionDepartmentPicker
           id="action-department"
+          label="Teams"
           departments={departments}
-          value={departmentId}
-          onChange={setDepartmentId}
+          multiple
+          value={departmentIds}
+          onChange={setDepartmentIds}
         />
         </div>
 

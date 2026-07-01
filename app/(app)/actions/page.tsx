@@ -101,7 +101,7 @@ export default async function ActionsPage({
     [myItems, allItems, departments, chapters] = await Promise.all([
       getMyActionItems(viewer.id, viewer),
       officer ? listVisibleActionItems(viewer) : Promise.resolve([]),
-      canCreate ? listActionDepartments() : Promise.resolve([]),
+      listActionDepartments(),
       // Chapter filter is a leadership lens over the whole queue — officers only.
       officer ? listActionChapters() : Promise.resolve([]),
     ]);
@@ -129,7 +129,7 @@ export default async function ActionsPage({
   const filtered = applyActionFilters(source, hubFilters, now);
   const items =
     viewParam === "approved"
-      ? filterApprovedHubItems(filtered)
+      ? filterApprovedHubItems(filtered, now)
       : filterActiveHubItems(filtered, now);
 
   const activeTab = resolveHubTab({ who, view: viewParam, officer });

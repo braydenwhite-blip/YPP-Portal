@@ -38,12 +38,22 @@ describe("action-approval", () => {
     expect(showOnActiveHub({ status: "COMPLETE", approvedAt }, now)).toBe(true);
   });
 
-  it("rolls approved items off the active hub after the grace window", () => {
+  it("rolls approved items off the active hub and approved tab after the grace window", () => {
     const approvedAt = new Date(now.getTime() - APPROVED_HUB_GRACE_MS - 1);
     expect(showOnActiveHub({ status: "COMPLETE", approvedAt }, now)).toBe(false);
-    expect(filterApprovedHubItems([item({ status: "COMPLETE", approvedAt })])).toHaveLength(1);
+    expect(isRecentlyApprovedOnHub({ status: "COMPLETE", approvedAt }, now)).toBe(false);
+    expect(filterApprovedHubItems([item({ status: "COMPLETE", approvedAt })], now)).toHaveLength(
+      0
+    );
     expect(filterActiveHubItems([item({ status: "COMPLETE", approvedAt })], now)).toHaveLength(
       0
+    );
+  });
+
+  it("shows recently approved items on the approved tab", () => {
+    const approvedAt = new Date(now.getTime() - 60_000);
+    expect(filterApprovedHubItems([item({ status: "COMPLETE", approvedAt })], now)).toHaveLength(
+      1
     );
   });
 });

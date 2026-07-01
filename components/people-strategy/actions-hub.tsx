@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { EmptyStateV2 } from "@/components/ui-v2";
 import { ActionHubCard } from "@/components/people-strategy/action-hub-card";
@@ -55,7 +56,20 @@ export function ActionsHub({
     <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 pb-12 pt-4">
       <ActionsHubGraceRefresh approvedAtValues={graceRefreshTimes} />
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between xl:gap-6">
-        <ActionsHubTabs active={activeTab} officer={officer} />
+        <Suspense
+          fallback={
+            <div className="flex flex-wrap gap-2" aria-hidden>
+              {[1, 2, 3, 4].map((i) => (
+                <span
+                  key={i}
+                  className="inline-flex h-9 w-24 animate-pulse rounded-full bg-surface-soft"
+                />
+              ))}
+            </div>
+          }
+        >
+          <ActionsHubTabs active={activeTab} officer={officer} />
+        </Suspense>
         <div className="flex flex-wrap items-center gap-2 xl:justify-end">
           <ActionFiltersBar
             departments={departments}
@@ -81,12 +95,12 @@ export function ActionsHub({
       {groups.length === 0 ? (
         <EmptyStateV2
           icon="✓"
-          title={hasActiveFilters ? "No matches" : activeTab === "approved" ? "No approved actions yet" : "All clear"}
+          title={hasActiveFilters ? "No matches" : activeTab === "approved" ? "No recent approvals" : "All clear"}
           body={
             hasActiveFilters
               ? "Try clearing a filter or searching with different words."
               : activeTab === "approved"
-                ? "Completed actions appear here after an officer approves them."
+                ? "Nothing was approved in the last 10 minutes. Newly approved actions appear here briefly, then roll off the hub."
                 : "Nothing is open in this view right now."
           }
         />
