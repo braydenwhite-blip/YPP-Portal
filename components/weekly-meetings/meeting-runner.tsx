@@ -11,6 +11,8 @@ import { Button, CardV2, StatusBadge } from "@/components/ui-v2";
 import type { AssignableUser } from "@/lib/weekly-meetings/teams";
 import type { MeetingDetail, MeetingStatus, OfficerTopicDTO } from "@/lib/weekly-meetings/meetings";
 import type { WorkflowMeetingContext } from "@/lib/workflow-engine/meeting-sync";
+import type { ChapterHealthUpdate } from "@/lib/data-360/chapter-health-update";
+import { ChapterHealthUpdateTable } from "./chapter-health-update";
 import {
   addFollowUp,
   addOfficerTopic,
@@ -58,12 +60,14 @@ export function MeetingRunner({
   people,
   currentUserId,
   workflowContext,
+  healthUpdate,
 }: {
   meeting: MeetingDetail;
   people: AssignableUser[];
   partners: { id: string; name: string }[];
   currentUserId: string;
   workflowContext?: WorkflowMeetingContext | null;
+  healthUpdate?: ChapterHealthUpdate;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -116,6 +120,8 @@ export function MeetingRunner({
       <PeopleSection meeting={meeting} people={people} currentUserId={currentUserId} pending={pending} run={run} />
 
       {workflowContext ? <WorkflowContextSection ctx={workflowContext} /> : null}
+
+      {healthUpdate ? <ChapterHealthUpdateTable update={healthUpdate} /> : null}
 
       <MeetingNotesKit meeting={meeting} pending={pending} onSave={run} />
 

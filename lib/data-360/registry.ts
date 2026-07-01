@@ -261,6 +261,104 @@ export const METRIC_REGISTRY: MetricDefinition[] = [
     available: true,
   },
 
+  // --- Workflows (operating intelligence) ------------------------------------
+  {
+    key: "active_workflows",
+    name: "Active workflows",
+    description:
+      "Running workflow instances (active, blocked, or on hold) across the portal.",
+    source: "WorkflowInstance · status IN (ACTIVE, BLOCKED, ON_HOLD)",
+    cadence: "real-time",
+    visibility: "leadership",
+    drilldown: "/workflows",
+    group: "workflows",
+    available: true,
+  },
+  {
+    key: "blocked_workflows",
+    name: "Blocked workflows",
+    description:
+      "Workflows whose current health is Blocked — a step is explicitly blocked. Target is zero.",
+    source: "WorkflowInstance · computeWorkflowHealth = BLOCKED",
+    cadence: "real-time",
+    visibility: "leadership",
+    drilldown: "/workflows?health=BLOCKED",
+    group: "workflows",
+    available: true,
+  },
+  {
+    key: "overdue_workflows",
+    name: "Overdue workflows",
+    description:
+      "Workflows with a required step past its due date. Target is zero.",
+    source: "WorkflowInstance · computeWorkflowHealth = OVERDUE",
+    cadence: "real-time",
+    visibility: "leadership",
+    drilldown: "/workflows?health=OVERDUE",
+    group: "workflows",
+    available: true,
+  },
+  {
+    key: "stalled_workflows",
+    name: "Stalled workflows",
+    description:
+      "Workflows with no step activity for 10+ days since starting.",
+    source: "WorkflowInstance · computeWorkflowHealth = STALLED",
+    cadence: "real-time",
+    visibility: "leadership",
+    drilldown: "/workflows?health=STALLED",
+    group: "workflows",
+    available: true,
+  },
+  {
+    key: "workflows_need_attention",
+    name: "Workflows needing attention",
+    description:
+      "Workflows whose health is anything other than On track — blocked, overdue, stalled, or flagged.",
+    source: "WorkflowInstance · computeWorkflowHealth != ON_TRACK",
+    cadence: "real-time",
+    visibility: "leadership",
+    drilldown: "/workflows?health=NEEDS_ATTENTION",
+    group: "workflows",
+    available: true,
+  },
+  {
+    key: "workflow_actions_created",
+    name: "Actions from workflows",
+    description:
+      "Action-tracker items created by a workflow step (via linkedActionItemId).",
+    source: "WorkflowStepExecution · linkedActionItemId IS NOT NULL",
+    cadence: "real-time",
+    visibility: "leadership",
+    drilldown: "/workflows",
+    group: "workflows",
+    available: true,
+  },
+  {
+    key: "workflow_meetings_created",
+    name: "Meetings from workflows",
+    description:
+      "Meetings scheduled by a workflow step (via linkedMeetingId).",
+    source: "WorkflowStepExecution · linkedMeetingId IS NOT NULL",
+    cadence: "real-time",
+    visibility: "leadership",
+    drilldown: "/workflows",
+    group: "workflows",
+    available: true,
+  },
+  {
+    key: "workflows_with_attachments",
+    name: "Workflows with evidence",
+    description:
+      "Workflows with at least one attached secondary entity or evidence record.",
+    source: "WorkflowAttachment · distinct workflowInstanceId",
+    cadence: "real-time",
+    visibility: "leadership",
+    drilldown: "/workflows",
+    group: "workflows",
+    available: true,
+  },
+
   // --- Fundraising (no data source yet) --------------------------------------
   {
     key: "fundraising_total",

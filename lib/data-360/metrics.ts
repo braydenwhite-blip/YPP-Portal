@@ -105,7 +105,10 @@ export function buildKpis(
     total_chapters: counts.chaptersAdded,
   };
 
-  return METRIC_REGISTRY.map((def): Kpi => {
+  // Workflow-operating metrics are documented in the registry (Data Dictionary)
+  // but rendered live in the dedicated Workflows section from the workflow
+  // analytics load — not through this generic count grid.
+  return METRIC_REGISTRY.filter((def) => def.group !== "workflows").map((def): Kpi => {
     if (!def.available) {
       return {
         key: def.key,

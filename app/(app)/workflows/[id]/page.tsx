@@ -6,7 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { getInstanceDetail } from "@/lib/workflow-engine/queries";
 import { workflowDomainLabel } from "@/lib/workflow-engine/constants";
 import { listAssignableUsers } from "@/lib/weekly-meetings/teams";
+import { loadWorkflowCockpitIntel } from "@/lib/data-360/workflow-cockpit-intel";
 import { WorkflowRunner } from "@/components/workflow-engine/workflow-runner";
+import { WorkflowIntelligencePanel } from "@/components/workflow-engine/workflow-intelligence-panel";
 
 export const metadata = { title: "Workflow · MissionOS" };
 
@@ -21,12 +23,13 @@ export default async function WorkflowInstancePage({
   const detail = await getInstanceDetail(params.id);
   if (!detail) notFound();
 
-  const [assignableUsers, attachments] = await Promise.all([
+  const [assignableUsers, attachments, intel] = await Promise.all([
     listAssignableUsers(),
     prisma.workflowAttachment.findMany({
       where: { workflowInstanceId: params.id },
       select: { id: true, entityType: true, entityId: true, relationship: true },
     }),
+    loadWorkflowCockpitIntel(detail),
   ]);
 
   const subtitleParts = [
@@ -44,6 +47,7 @@ export default async function WorkflowInstancePage({
         backHref="/workflows"
         backLabel="Workflows"
       />
+      <WorkflowIntelligencePanel intel={intel} />
       <WorkflowRunner
         detail={detail}
         assignableUsers={assignableUsers.map((u) => ({ id: u.id, name: u.name }))}

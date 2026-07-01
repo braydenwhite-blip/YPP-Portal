@@ -46,6 +46,7 @@ export type KpiGroupKey =
   | "chapters"
   | "pipeline"
   | "work"
+  | "workflows"
   | "partners"
   | "fundraising";
 
@@ -55,6 +56,7 @@ export const KPI_GROUP_LABELS: Record<KpiGroupKey, string> = {
   chapters: "Chapters",
   pipeline: "Hiring pipeline",
   work: "Work & meetings",
+  workflows: "Workflows",
   partners: "Partners",
   fundraising: "Fundraising",
 };

@@ -9,6 +9,7 @@ import {
   parseRangeKey,
   resolveRange,
 } from "@/lib/data-360";
+import { loadWorkflowIntelligence } from "@/lib/data-360/workflow-intelligence";
 
 import { Data360Shell } from "./data-360-shell";
 
@@ -39,9 +40,10 @@ export default async function Data360Page({
   const now = new Date();
   const range = resolveRange(rangeKey, now);
 
-  const [overview, attentionFacts] = await Promise.all([
+  const [overview, attentionFacts, workflow] = await Promise.all([
     loadData360Overview(range, now),
     loadNeedsAttention(now),
+    loadWorkflowIntelligence(now),
   ]);
   const attention = groupAttention(attentionFacts);
   const lens = defaultLensForRole(viewer.primaryRole, viewer.internalLevel);
@@ -50,6 +52,7 @@ export default async function Data360Page({
     <Data360Shell
       overview={overview}
       attention={attention}
+      workflow={workflow}
       defaultLens={lens}
       rangeKey={rangeKey}
       initialTab={initialTab}
