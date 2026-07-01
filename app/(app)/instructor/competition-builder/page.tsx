@@ -27,7 +27,7 @@ export default async function CompetitionBuilderPage({
     !roles.includes("INSTRUCTOR") &&
     !roles.includes("CHAPTER_PRESIDENT")
   ) {
-    redirect("/dashboard");
+    redirect("/");
   }
 
   // Fetch instructor's chapter from DB (chapterId is not in session type)

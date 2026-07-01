@@ -19,7 +19,7 @@ export default async function PassionLabProgressPage({ searchParams }: Props) {
     !roles.includes("INSTRUCTOR") &&
     !roles.includes("CHAPTER_PRESIDENT")
   ) {
-    redirect("/dashboard");
+    redirect("/");
   }
 
   const hasSupport = await hasPassionLabBuilderSchema();
@@ -104,7 +104,7 @@ export default async function PassionLabProgressPage({ searchParams }: Props) {
     program.createdById !== session.user.id &&
     !roles.includes("ADMIN")
   ) {
-    redirect("/dashboard");
+    redirect("/");
   }
 
   const progressRecords = await getLabProgress(programId);

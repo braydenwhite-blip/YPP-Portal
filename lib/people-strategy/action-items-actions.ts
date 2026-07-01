@@ -879,6 +879,16 @@ export async function updateActionItem(input: UpdateActionItemInput) {
     await onActionItemReassigned(data.id, data.leadId);
   }
 
+  // Keep any linked workflow step in lockstep with the action's status, exactly
+  // as updateActionStatus / captureActionBlocker do. Completing or blocking an
+  // action from the general edit form must nudge its WorkflowStepExecution too,
+  // otherwise the linked workflow stalls (its step stays PENDING forever).
+  if (statusChanged && newStatus === "COMPLETE") {
+    await onActionItemCompleted(data.id, session.id);
+  } else if (statusChanged && newStatus === "BLOCKED") {
+    await onActionItemBlocked(data.id, data.blockedReason ?? "Blocked", session.id);
+  }
+
   await syncActionSearchDocument(data.id);
   revalidateAll();
 }
@@ -1052,6 +1062,9 @@ export async function captureActionCompletion(input: {
         : `Status changed from ${existing.status} to COMPLETE${detail ? ` (${detail})` : ""}`
     );
   });
+
+  // Mirror the completion onto any linked workflow step so the workflow advances.
+  await onActionItemCompleted(data.id, session.id);
 
   await syncActionSearchDocument(data.id);
   revalidateAll();

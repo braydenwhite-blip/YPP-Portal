@@ -85,7 +85,7 @@ export default async function ReflectionStreaksPage() {
           <p className="badge">My Growth</p>
           <h1 className="page-title">Reflection Streaks</h1>
         </div>
-        <Link href="/reflections" className="button secondary">
+        <Link href="/reflection" className="button secondary">
           Submit Reflection
         </Link>
       </div>
@@ -181,7 +181,7 @@ export default async function ReflectionStreaksPage() {
         <div className="card">
           <h3>Start Your Streak!</h3>
           <p>Submit your first monthly reflection to begin tracking your streak.</p>
-          <Link href="/reflections" className="button primary" style={{ marginTop: 12 }}>
+          <Link href="/reflection" className="button primary" style={{ marginTop: 12 }}>
             Submit First Reflection
           </Link>
         </div>

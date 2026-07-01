@@ -1,32 +1,11 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
-import { MentorshipReviewWriter } from "../_components/mentorship-review-writer";
 
-export default async function WriteReviewPage() {
-  const session = await getSession();
-  if (!session?.user?.id) redirect("/login");
-
-  const roles = session.user.roles ?? [];
-  if (!roles.includes("MENTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
-    redirect("/mentorship");
-  }
-
-  return (
-    <div>
-      <div className="topbar">
-        <div>
-          <a href="/mentorship/reviews" style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Review Inbox
-          </a>
-          <p className="badge">Write Review</p>
-          <h1 className="page-title">Monthly Review Writer</h1>
-          <p className="page-subtitle">
-            Write reviews directly or import from a PDF. All reviews require chair approval before being shared with mentees.
-          </p>
-        </div>
-      </div>
-
-      <MentorshipReviewWriter />
-    </div>
-  );
+/**
+ * The standalone "review writer" here was a non-functional prototype (mock
+ * mentees, alert()-only submit). Real monthly reviews are written per mentee at
+ * /mentorship/reviews/[menteeId], reached by picking the instructor from the
+ * mentor hub — so this legacy entry point lands there instead of a dead form.
+ */
+export default function WriteReviewRedirect() {
+  redirect("/mentorship");
 }

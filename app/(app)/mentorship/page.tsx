@@ -18,7 +18,6 @@ import { mentorCardNeedsAttention } from "./_components/mentor-priority-list";
 import { MentorHomeCalm } from "./_components/mentor-home-calm";
 import { MentorHomeExecutive } from "./_components/mentor-home-executive";
 import { EmptyStateEditorial } from "./_components/empty-state-editorial";
-import { MentorHomeRevamped } from "./_components/mentor-home-revamped";
 
 export default async function MentorshipPage() {
   const session = await getSession();
@@ -83,9 +82,6 @@ export default async function MentorshipPage() {
   const needsYouCount = allMentorCards.filter(mentorCardNeedsAttention).length;
   const menteeCount = mentorBlock.total;
   const activeMenteeCount = mentorBlock.total - mentorBlock.inactive.length;
-
-  // Use revamped design for mentor view
-  const useRevamped = true;
 
   // Render only the more urgent of the two top alerts — stacked alerts is
   // noise; one is signal.
@@ -179,7 +175,7 @@ export default async function MentorshipPage() {
             >
               <div className="min-w-0">
                 <strong className="text-[14px] text-ink">
-                  You're also being mentored.
+                  You&apos;re also being mentored.
                 </strong>
                 <p className="mt-1 text-[13px] text-ink-muted">
                   Your own goals, released feedback, resources, and check-ins live
@@ -192,36 +188,23 @@ export default async function MentorshipPage() {
             </CardV2>
           )}
 
-          {useRevamped ? (
-            <MentorHomeRevamped
-              menteeCount={menteeCount}
-              activeMenteeCount={activeMenteeCount}
-              pendingReview={pendingReview}
-              needsKickoff={needsKickoff}
+          <CalmOnly>
+            <MentorHomeCalm
+              vm={vm}
               needsYouCount={needsYouCount}
-              isAdmin={isAdmin}
+              showChairQueue={showChairQueue}
             />
-          ) : (
-            <>
-              <CalmOnly>
-                <MentorHomeCalm
-                  vm={vm}
-                  needsYouCount={needsYouCount}
-                  showChairQueue={showChairQueue}
-                />
-              </CalmOnly>
-              <ExecutiveOnly>
-                <MentorHomeExecutive
-                  urgentAlert={urgentAlert}
-                  mentorBlock={mentorBlock}
-                  engagement={engagement}
-                  activeMenteeCount={activeMenteeCount}
-                  needsYouCount={needsYouCount}
-                  showChairQueue={showChairQueue}
-                />
-              </ExecutiveOnly>
-            </>
-          )}
+          </CalmOnly>
+          <ExecutiveOnly>
+            <MentorHomeExecutive
+              urgentAlert={urgentAlert}
+              mentorBlock={mentorBlock}
+              engagement={engagement}
+              activeMenteeCount={activeMenteeCount}
+              needsYouCount={needsYouCount}
+              showChairQueue={showChairQueue}
+            />
+          </ExecutiveOnly>
         </div>
       )}
     </div>

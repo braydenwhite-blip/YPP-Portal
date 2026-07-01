@@ -197,7 +197,7 @@ const ruleStartAProject: Rule = (input) => {
       kind: "PROJECT",
       title: "Launch your first project",
       detail: "Turn your impact interests into a real project.",
-      href: "/projects",
+      href: "/projects/tracker",
       reason: `You care about impact (${formatList(
         input.profile.impactInterests.slice(0, 3)
       )}) but haven't launched a project yet.`,

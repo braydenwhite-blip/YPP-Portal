@@ -14,7 +14,7 @@ export default async function PassionLabTemplatesPage() {
     !roles.includes("INSTRUCTOR") &&
     !roles.includes("CHAPTER_PRESIDENT")
   ) {
-    redirect("/dashboard");
+    redirect("/");
   }
 
   const hasSupport = await hasPassionLabBuilderSchema();
