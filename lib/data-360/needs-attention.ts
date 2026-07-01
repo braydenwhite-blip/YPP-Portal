@@ -42,6 +42,7 @@ export const ATTENTION_HINTS: Partial<Record<AttentionLabel, string>> = {
   "No recent activity": "No contact logged recently",
   "No follow-up": "Completed meetings with no next step",
   "No advisor": "Students with no active advisor",
+  "Kickoff overdue": "Assigned students still waiting on a first check-in",
   "Overdue check-in": "Advising relationships past a check-in",
   "Stale recommendation": "Advisor recommendations gone quiet",
 };
@@ -362,29 +363,50 @@ export async function loadNeedsAttention(now: Date): Promise<AttentionFact[]> {
       });
     }
 
-    // Active relationships past a scheduled check-in, gone quiet, or overdue kickoff.
-    const overdueCheckIns = advisingAssignments
-      .map((a) => ({
-        a,
-        life: deriveAdvisingLifecycle(
-          {
-            isActive: true,
-            advisingStatus: a.advisingStatus,
-            needsFollowUp: a.needsFollowUp,
-            followUpNote: a.followUpNote,
-            lastCheckInAt: a.lastCheckInAt,
-            nextCheckInDueAt: a.nextCheckInDueAt,
-            startDate: a.startDate,
-          },
-          now
-        ),
-      }))
-      .filter(
-        ({ life }) =>
-          life.lifecycle === "FOLLOW_UP_DUE" ||
-          life.lifecycle === "STALE" ||
-          (life.lifecycle === "KICKOFF_NEEDED" && life.tone === "danger")
-      )
+    // Lifecycle per active relationship, via the advising cockpit's own logic —
+    // the SAME source of truth the mentorship metrics use, so the buckets line
+    // up: a never-started kickoff is "Kickoff overdue" (its own lane), while a
+    // lapsed/stale check-in is "Overdue check-in". Splitting them keeps each
+    // fact's drill-down landing in the lane that actually contains the student.
+    const lived = advisingAssignments.map((a) => ({
+      a,
+      life: deriveAdvisingLifecycle(
+        {
+          isActive: true,
+          advisingStatus: a.advisingStatus,
+          needsFollowUp: a.needsFollowUp,
+          followUpNote: a.followUpNote,
+          lastCheckInAt: a.lastCheckInAt,
+          nextCheckInDueAt: a.nextCheckInDueAt,
+          startDate: a.startDate,
+        },
+        now
+      ),
+    }));
+
+    // Overdue kickoffs (assigned, never checked in, past the grace window) —
+    // core counts these as `kickoffsNeeded`, a separate metric, and the cockpit
+    // routes them to the `kickoff_needed` lane.
+    const kickoffOverdue = lived
+      .filter(({ life }) => life.lifecycle === "KICKOFF_NEEDED" && life.tone === "danger")
+      .map(({ a, life }) => ({ a, life, order: life.daysSinceStart }))
+      .sort((x, y) => y.order - x.order)
+      .slice(0, PER_LABEL_CAP);
+    for (const { a, life, order } of kickoffOverdue) {
+      facts.push({
+        id: `advising-kickoff:${a.id}`,
+        kind: "student",
+        label: "Kickoff overdue",
+        title: a.student?.name ?? "Student",
+        detail: life.reason,
+        href: "/operations/advising?lane=kickoff_needed",
+        order,
+      });
+    }
+
+    // Lapsed check-ins (follow-up due or gone stale) — core's `overdueCheckIns`.
+    const overdueCheckIns = lived
+      .filter(({ life }) => life.lifecycle === "FOLLOW_UP_DUE" || life.lifecycle === "STALE")
       .map(({ a, life }) => ({ a, life, order: life.daysSinceCheckIn ?? life.daysSinceStart }))
       .sort((x, y) => y.order - x.order)
       .slice(0, PER_LABEL_CAP);

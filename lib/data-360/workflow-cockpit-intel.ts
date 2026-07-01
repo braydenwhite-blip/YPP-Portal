@@ -17,6 +17,8 @@ import { prisma } from "@/lib/prisma";
 import { computeWorkflowHealth, type WorkflowHealthStatus } from "@/lib/workflow-engine/health";
 import { workflowEntityTypeLabel } from "@/lib/workflow-engine/entity-types";
 import type { InstanceDetail } from "@/lib/workflow-engine/queries";
+import { deriveAdvisingLifecycle } from "@/lib/advising/relationship";
+import type { AdvisingLifecycle, AdvisingTone } from "@/lib/advising/types";
 
 import {
   CHAPTER_EXPECTATIONS,
@@ -43,6 +45,32 @@ export type WorkflowCockpitMetricIntel = {
   trend: TimeSeriesPoint[] | null;
 };
 
+/**
+ * The live advising picture for a student-advising workflow — the relationship
+ * this workflow is actually operating on, read from the SAME source of truth as
+ * the advising cockpit (StudentAdvisorAssignment + deriveAdvisingLifecycle), so
+ * the cockpit answers "who is this student, where does the relationship stand,
+ * and what is the next real advising action" rather than showing generic
+ * workflow metadata. Null for non-advising workflows.
+ */
+export type WorkflowCockpitAdvisingIntel = {
+  studentId: string;
+  studentName: string;
+  advisorId: string;
+  advisorName: string;
+  lifecycle: AdvisingLifecycle;
+  lifecycleLabel: string;
+  lifecycleTone: AdvisingTone;
+  reason: string;
+  nextAction: string;
+  lastCheckInISO: string | null;
+  nextCheckInDueISO: string | null;
+  daysSinceCheckIn: number | null;
+  openRecommendations: number;
+  /** Deep-link into the advising cockpit lane that holds this relationship. */
+  advisingHref: string;
+};
+
 export type WorkflowCockpitIntel = {
   sourceEntityType: string | null;
   sourceEntityLabel: string | null;
@@ -59,7 +87,94 @@ export type WorkflowCockpitIntel = {
   linkedMeetingCount: number;
   attachmentCount: number;
   metric: WorkflowCockpitMetricIntel | null;
+  /** Present only for student-advising workflows with a resolvable student. */
+  advising: WorkflowCockpitAdvisingIntel | null;
 };
+
+/** Blueprint keys whose instances operate a student-advising relationship. */
+const ADVISING_TEMPLATE_KEYS = new Set(["student-advising"]);
+const OPEN_REC_STATUSES = ["SUGGESTED", "IN_PROGRESS"];
+
+/** Advising cockpit lane a relationship's lifecycle drills into. */
+const LIFECYCLE_LANE: Record<AdvisingLifecycle, string> = {
+  KICKOFF_NEEDED: "kickoff_needed",
+  FOLLOW_UP_DUE: "follow_up_due",
+  STALE: "follow_up_due",
+  READY_FOR_NEXT: "recommendations_ready",
+  ACTIVE: "recently_checked_in",
+  INACTIVE: "needs_advisor",
+};
+
+/**
+ * Load the advising context for a workflow whose primary subject is a student.
+ * Reuses the advising lifecycle logic verbatim. Fail-soft: any read issue or a
+ * student with no active advising relationship yields null (the cockpit simply
+ * omits the block) rather than throwing.
+ */
+async function loadAdvisingIntel(
+  subjectId: string | null,
+  now: Date
+): Promise<WorkflowCockpitAdvisingIntel | null> {
+  if (!subjectId) return null;
+  try {
+    const assignment = await prisma.studentAdvisorAssignment.findFirst({
+      where: { studentId: subjectId, isActive: true },
+      orderBy: { startDate: "desc" },
+      select: {
+        id: true,
+        advisingStatus: true,
+        needsFollowUp: true,
+        followUpNote: true,
+        lastCheckInAt: true,
+        nextCheckInDueAt: true,
+        startDate: true,
+        studentId: true,
+        advisorId: true,
+        student: { select: { name: true } },
+        advisor: { select: { name: true } },
+      },
+    });
+    if (!assignment) return null;
+
+    const life = deriveAdvisingLifecycle(
+      {
+        isActive: true,
+        advisingStatus: assignment.advisingStatus,
+        needsFollowUp: assignment.needsFollowUp,
+        followUpNote: assignment.followUpNote,
+        lastCheckInAt: assignment.lastCheckInAt,
+        nextCheckInDueAt: assignment.nextCheckInDueAt,
+        startDate: assignment.startDate,
+      },
+      now
+    );
+
+    const openRecommendations = await prisma.advisingRecommendation.count({
+      where: { assignmentId: assignment.id, status: { in: OPEN_REC_STATUSES } },
+    });
+
+    return {
+      studentId: assignment.studentId,
+      studentName: assignment.student?.name ?? "Student",
+      advisorId: assignment.advisorId,
+      advisorName: assignment.advisor?.name ?? "Advisor",
+      lifecycle: life.lifecycle,
+      lifecycleLabel: life.label,
+      lifecycleTone: life.tone,
+      reason: life.reason,
+      nextAction: life.nextAction,
+      lastCheckInISO: assignment.lastCheckInAt ? assignment.lastCheckInAt.toISOString() : null,
+      nextCheckInDueISO: assignment.nextCheckInDueAt
+        ? assignment.nextCheckInDueAt.toISOString()
+        : null,
+      daysSinceCheckIn: life.daysSinceCheckIn,
+      openRecommendations,
+      advisingHref: `/operations/advising?lane=${LIFECYCLE_LANE[life.lifecycle]}`,
+    };
+  } catch {
+    return null;
+  }
+}
 
 /** Map a workflow's domain to the chapter metric it most directly moves. */
 function metricForDomain(domain: string | null): ChapterMetricKey | null {
@@ -182,6 +297,13 @@ export async function loadWorkflowCockpitIntel(
       ? await loadMetricIntel(metricKey, instance.chapterId, phase, now)
       : null;
 
+  // Advising-specific context: only for a student-advising workflow whose
+  // primary subject is a person (the student). Everything else gets null.
+  const advising =
+    ADVISING_TEMPLATE_KEYS.has(definition.key) && instance.subjectType === "USER"
+      ? await loadAdvisingIntel(instance.subjectId, now)
+      : null;
+
   const startedMs = new Date(instance.startedAt).getTime();
 
   return {
@@ -200,5 +322,6 @@ export async function loadWorkflowCockpitIntel(
     linkedMeetingCount: executions.filter((e) => e.linkedMeetingId).length,
     attachmentCount,
     metric,
+    advising,
   };
 }

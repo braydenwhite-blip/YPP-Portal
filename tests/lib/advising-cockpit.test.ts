@@ -1,10 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { buildStudentAdvisingCockpit } from "@/lib/advising/cockpit";
+import {
+  ADVISING_LANES,
+  buildStudentAdvisingCockpit,
+  parseAdvisingLane,
+  resolveAdvisingChapterScope,
+} from "@/lib/advising/cockpit";
 import {
   buildAdvisorMatchSuggestions,
   scoreAdvisorForStudent,
 } from "@/lib/advising/suggestions";
-import { deriveAdvisingLifecycle } from "@/lib/advising/relationship";
+import {
+  deriveAdvisingLifecycle,
+  summarizeAdvisorCaseload,
+  summarizeStudentAdvising,
+} from "@/lib/advising/relationship";
 import type {
   AdvisingAssignmentRow,
   AdvisingAdvisorRow,
@@ -256,5 +265,125 @@ describe("buildStudentAdvisingCockpit", () => {
     const chip = cockpit.briefing.find((c) => c.key === "needs_advisor")!;
     expect(chip.count).toBe(1);
     expect(chip.tone).toBe("danger");
+  });
+});
+
+describe("summarizeStudentAdvising — compact record-panel rollup", () => {
+  it("marks a healthy, recently-checked-in relationship as on track, not overdue", () => {
+    const s = summarizeStudentAdvising(
+      assignment({ assignmentId: "a", studentId: "s", studentName: "S", advisorId: "adv", advisorName: "A", lastCheckInAt: daysAgo(4), nextCheckInDueAt: new Date(NOW.getTime() + 10 * DAY) }),
+      NOW,
+    );
+    expect(s.lifecycle).toBe("ACTIVE");
+    expect(s.overdue).toBe(false);
+    expect(s.statusLabel).toBe("Active");
+  });
+
+  it("flags an overdue check-in relationship as overdue with a next action", () => {
+    const s = summarizeStudentAdvising(
+      assignment({ assignmentId: "a", studentId: "s", studentName: "S", advisorId: "adv", advisorName: "A", lastCheckInAt: daysAgo(5), nextCheckInDueAt: daysAgo(1) }),
+      NOW,
+    );
+    expect(s.lifecycle).toBe("FOLLOW_UP_DUE");
+    expect(s.overdue).toBe(true);
+    expect(s.nextAction).toMatch(/check-in|follow-up/i);
+  });
+
+  it("flags an overdue kickoff (assigned, never checked in) as overdue", () => {
+    const s = summarizeStudentAdvising(
+      assignment({ assignmentId: "a", studentId: "s", studentName: "S", advisorId: "adv", advisorName: "A", lastCheckInAt: null, nextCheckInDueAt: null, startDate: daysAgo(30) }),
+      NOW,
+    );
+    expect(s.lifecycle).toBe("KICKOFF_NEEDED");
+    expect(s.overdue).toBe(true);
+  });
+});
+
+describe("summarizeAdvisorCaseload — advisor record rollup", () => {
+  it("counts active relationships by lifecycle and skips inactive ones", () => {
+    const roll = summarizeAdvisorCaseload(
+      [
+        assignment({ assignmentId: "a1", studentId: "s1", studentName: "S1", advisorId: "adv", advisorName: "A", lastCheckInAt: null, nextCheckInDueAt: null, startDate: daysAgo(30) }), // kickoff overdue
+        assignment({ assignmentId: "a2", studentId: "s2", studentName: "S2", advisorId: "adv", advisorName: "A", lastCheckInAt: daysAgo(5), nextCheckInDueAt: daysAgo(1) }), // follow-up due
+        assignment({ assignmentId: "a3", studentId: "s3", studentName: "S3", advisorId: "adv", advisorName: "A", lastCheckInAt: daysAgo(3), nextCheckInDueAt: new Date(NOW.getTime() + 11 * DAY) }), // on track
+        assignment({ assignmentId: "a4", studentId: "s4", studentName: "S4", advisorId: "adv", advisorName: "A", isActive: false }), // inactive → skipped
+      ],
+      NOW,
+    );
+    expect(roll.activeCount).toBe(3);
+    expect(roll.kickoffsNeeded).toBe(1);
+    expect(roll.followUpsDue).toBe(1);
+    expect(roll.onTrack).toBe(1);
+    // Kickoffs take priority in the single next action.
+    expect(roll.nextAction).toMatch(/kickoff/i);
+  });
+
+  it("returns a null next action for an empty caseload", () => {
+    const roll = summarizeAdvisorCaseload([], NOW);
+    expect(roll.activeCount).toBe(0);
+    expect(roll.nextAction).toBeNull();
+  });
+
+  it("reports on-cadence when every relationship is healthy", () => {
+    const roll = summarizeAdvisorCaseload(
+      [assignment({ assignmentId: "a", studentId: "s", studentName: "S", advisorId: "adv", advisorName: "A", lastCheckInAt: daysAgo(3), nextCheckInDueAt: new Date(NOW.getTime() + 11 * DAY) })],
+      NOW,
+    );
+    expect(roll.nextAction).toMatch(/on cadence/i);
+  });
+});
+
+describe("resolveAdvisingChapterScope — ?chapterId= scope + escalation safety", () => {
+  it("lets an org-wide viewer (ADMIN/STAFF) narrow to a requested chapter", () => {
+    expect(resolveAdvisingChapterScope({ roles: ["ADMIN"] }, "chap-9")).toBe("chap-9");
+    expect(resolveAdvisingChapterScope({ roles: ["STAFF"], chapterId: "chap-1" }, "chap-9")).toBe("chap-9");
+  });
+
+  it("returns org-wide (null) for an org-wide viewer with no requested chapter", () => {
+    expect(resolveAdvisingChapterScope({ roles: ["ADMIN"] }, null)).toBeNull();
+  });
+
+  it("PINS a Chapter President to their own chapter and IGNORES a requested one (no escalation)", () => {
+    // A CP must never be able to view another chapter by passing ?chapterId=.
+    expect(
+      resolveAdvisingChapterScope({ roles: ["CHAPTER_PRESIDENT"], chapterId: "own" }, "someone-elses"),
+    ).toBe("own");
+    expect(
+      resolveAdvisingChapterScope({ roles: ["CHAPTER_PRESIDENT"], chapterId: "own" }, null),
+    ).toBe("own");
+  });
+
+  it("returns null for a chapterless / non-scoped viewer regardless of request", () => {
+    expect(resolveAdvisingChapterScope({ roles: ["CHAPTER_PRESIDENT"], chapterId: null }, "x")).toBeNull();
+    expect(resolveAdvisingChapterScope({ roles: ["HIRING_CHAIR"] }, "x")).toBeNull();
+  });
+});
+
+describe("parseAdvisingLane — deep-link ?lane= validation", () => {
+  it("accepts every real lane id and returns it unchanged", () => {
+    for (const lane of ADVISING_LANES) {
+      expect(parseAdvisingLane(lane)).toBe(lane);
+    }
+  });
+
+  it("accepts the exact lanes the mentorship surfaces deep-link to", () => {
+    // These are the values emitted by mentorshipMetricHref + needs-attention.ts.
+    const linked: AdvisingLane[] = [
+      "needs_advisor",
+      "kickoff_needed",
+      "follow_up_due",
+      "recommendations_ready",
+      "advisor_overloaded",
+    ];
+    for (const lane of linked) expect(parseAdvisingLane(lane)).toBe(lane);
+  });
+
+  it("rejects unknown, empty, and non-string values as null (focuses nothing)", () => {
+    expect(parseAdvisingLane("not_a_lane")).toBeNull();
+    expect(parseAdvisingLane("")).toBeNull();
+    expect(parseAdvisingLane(undefined)).toBeNull();
+    expect(parseAdvisingLane(null)).toBeNull();
+    expect(parseAdvisingLane(["follow_up_due"])).toBeNull();
+    expect(parseAdvisingLane(42)).toBeNull();
   });
 });

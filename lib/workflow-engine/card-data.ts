@@ -95,9 +95,15 @@ export function pickNextStepExecution(
  */
 export async function getEntityWorkflowSummary(
   entityType: string,
-  entityId: string
+  entityId: string,
+  opts: { templateKey?: string } = {}
 ): Promise<EntityWorkflowSummary | null> {
-  const primary = await getPrimaryWorkflowForEntity(entityType, entityId);
+  // When a templateKey is given, resolve ONLY a workflow of that template — so a
+  // titled card ("Advising workflow") can never surface an unrelated workflow
+  // that merely shares this USER subject.
+  const primary = await getPrimaryWorkflowForEntity(entityType, entityId, {
+    templateKey: opts.templateKey,
+  });
   if (!primary) return null;
 
   const detail = await getInstanceDetail(primary.id);

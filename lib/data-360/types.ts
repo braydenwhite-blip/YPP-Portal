@@ -122,6 +122,7 @@ export const ATTENTION_LABELS = [
   "No follow-up",
   "Missing owner",
   "No advisor",
+  "Kickoff overdue",
   "Overdue check-in",
   "Stale recommendation",
 ] as const;

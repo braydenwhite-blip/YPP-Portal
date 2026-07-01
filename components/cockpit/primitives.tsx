@@ -6,7 +6,7 @@
 // lanes, and spotlight cards with one obvious primary action.
 
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import {
   Button,
   CardV2,
@@ -62,6 +62,24 @@ export type BriefingChipData = {
   laneId: string | null;
 };
 
+/**
+ * Scroll a deep-linked lane into view once, after mount. Used when a surface
+ * links to `…?lane=<laneId>` (Data 360, Needs Attention, Chapter Impact
+ * Meetings) so the cockpit opens focused on the right lane rather than at the
+ * top. No-op when `laneId` is null or its anchor isn't on the page.
+ */
+export function useScrollToLaneOnMount(laneId: string | null): void {
+  useEffect(() => {
+    if (!laneId) return;
+    const el = document.getElementById(`lane-${laneId}`);
+    if (!el) return;
+    const t = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+    return () => window.clearTimeout(t);
+  }, [laneId]);
+}
+
 export function BriefingStrip({ chips }: { chips: BriefingChipData[] }) {
   function jump(laneId: string | null) {
     if (!laneId) return;
@@ -110,21 +128,36 @@ export function CockpitLane({
   blurb,
   count,
   children,
+  highlighted = false,
 }: {
   laneId: string;
   label: string;
   blurb: string;
   count: number;
   children: ReactNode;
+  /** When true, the lane is visually focused (a deep-link landed on it). */
+  highlighted?: boolean;
 }) {
   return (
-    <section id={`lane-${laneId}`} className="scroll-mt-20">
+    <section
+      id={`lane-${laneId}`}
+      className={cn(
+        "scroll-mt-20 rounded-[14px] transition-shadow",
+        highlighted &&
+          "bg-brand-50/50 p-3 shadow-[0_0_0_2px_var(--color-brand-400)] sm:p-4",
+      )}
+    >
       <div className="mb-2.5 flex items-baseline justify-between gap-3">
         <div className="flex items-baseline gap-2.5">
           <h2 className="font-sans text-[15px] font-bold text-ink">{label}</h2>
           <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11.5px] font-bold tabular-nums text-brand-700">
             {count}
           </span>
+          {highlighted ? (
+            <span className="rounded-full bg-brand-600 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.04em] text-white">
+              Focused
+            </span>
+          ) : null}
         </div>
         <p className="hidden text-[12px] text-ink-muted sm:block">{blurb}</p>
       </div>

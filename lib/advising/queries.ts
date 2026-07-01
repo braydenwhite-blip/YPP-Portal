@@ -11,7 +11,7 @@ import {
   type AssignmentLike,
 } from "@/lib/leadership/caseload";
 import { buildAdvisorMatchSuggestions } from "./suggestions";
-import { buildStudentAdvisingCockpit } from "./cockpit";
+import { buildStudentAdvisingCockpit, resolveAdvisingChapterScope } from "./cockpit";
 import type {
   AdvisingAdvisorRow,
   AdvisingAssignmentRow,
@@ -39,23 +39,24 @@ export type AdvisingCockpitData = {
   advisorPool: AdvisorPickOption[];
   /** Lightweight list of unassigned students for the assign drawer. */
   unassignedStudents: Array<{ id: string; name: string; chapterName: string | null }>;
+  /** The chapter this view is scoped to, when narrowed (org-wide viewers only). */
+  scopeChapterId: string | null;
+  scopeChapterName: string | null;
 };
 
-function chapterScoped(viewer: AdvisingCockpitViewer): string | null {
-  const isOrgWide =
-    viewer.roles.includes("ADMIN") || viewer.roles.includes("STAFF");
-  if (isOrgWide) return null;
-  if (viewer.roles.includes("CHAPTER_PRESIDENT") && viewer.chapterId) {
-    return viewer.chapterId;
-  }
-  return null;
-}
+export type LoadAdvisingCockpitOpts = {
+  /** Optional `?chapterId=` deep-link (e.g. from a Chapter Impact Meeting).
+   *  Only narrows the view for org-wide viewers; a Chapter President is always
+   *  held to their own chapter and can never be redirected by it. */
+  chapterId?: string | null;
+};
 
 export async function loadAdvisingCockpitData(
   viewer: AdvisingCockpitViewer,
   now: Date = new Date(),
+  opts: LoadAdvisingCockpitOpts = {},
 ): Promise<AdvisingCockpitData> {
-  const scopeChapterId = chapterScoped(viewer);
+  const scopeChapterId = resolveAdvisingChapterScope(viewer, opts.chapterId ?? null);
 
   const [allAssignments, students, advisorUsers] = await Promise.all([
     prisma.studentAdvisorAssignment.findMany({
@@ -225,6 +226,21 @@ export async function loadAdvisingCockpitData(
 
   const cockpit = buildStudentAdvisingCockpit(input, now);
 
+  // Resolve the scoped chapter's name for the "scoped to X" banner. Reuse the
+  // already-loaded (scoped) students; only hit the DB if the chapter has none.
+  let scopeChapterName: string | null = null;
+  if (scopeChapterId) {
+    scopeChapterName =
+      students.find((s) => s.chapterId === scopeChapterId)?.chapter?.name ??
+      (
+        await prisma.chapter.findUnique({
+          where: { id: scopeChapterId },
+          select: { name: true },
+        })
+      )?.name ??
+      null;
+  }
+
   const advisorPool: AdvisorPickOption[] = advisors
     .map((a) => ({
       id: a.id,
@@ -246,5 +262,7 @@ export async function loadAdvisingCockpitData(
       name: s.name,
       chapterName: s.chapterName,
     })),
+    scopeChapterId,
+    scopeChapterName,
   };
 }

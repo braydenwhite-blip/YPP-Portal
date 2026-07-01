@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { loadStudentAdvisingPanel } from "@/lib/leadership/queries";
 import { RECOMMENDATION_KIND_LABELS, type RecommendationKind } from "@/lib/leadership/constants";
+import { summarizeStudentAdvising } from "@/lib/advising/relationship";
 import { AdvisingStatusPill, formatLeadershipDate } from "./ui";
 
 export async function StudentAdvisingPanel({
@@ -33,6 +34,10 @@ export async function StudentAdvisingPanel({
     (rec) => rec.status === "SUGGESTED" || rec.status === "IN_PROGRESS",
   );
 
+  // Same lifecycle read as the advising cockpit, so "next check-in" and its
+  // overdue state never disagree between this panel and the queue.
+  const summary = summarizeStudentAdvising(assignment);
+
   return (
     <section className="card" style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
@@ -49,6 +54,18 @@ export async function StudentAdvisingPanel({
             ? ` · last check-in ${formatLeadershipDate(assignment.lastCheckInAt)}`
             : ""}
         </span>
+      </p>
+
+      <p style={{ fontSize: 13, margin: "4px 0 0" }}>
+        <strong>Next check-in:</strong>{" "}
+        {assignment.nextCheckInDueAt ? (
+          <span style={{ color: summary.overdue ? "#b91c1c" : "inherit", fontWeight: summary.overdue ? 600 : 400 }}>
+            {formatLeadershipDate(assignment.nextCheckInDueAt)}
+            {summary.overdue ? " · overdue" : ""}
+          </span>
+        ) : (
+          <span style={{ color: "var(--muted, #6b7280)" }}>not scheduled</span>
+        )}
       </p>
 
       {assignment.nextSteps && (

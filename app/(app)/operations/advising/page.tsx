@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 import { ButtonLink } from "@/components/ui-v2";
 import { loadAdvisingCockpitData } from "@/lib/advising/queries";
+import { parseAdvisingLane } from "@/lib/advising/cockpit";
 import type { AdvisingCard, AdvisingCockpit } from "@/lib/advising/types";
 import {
   actionPrefillToQuery,
@@ -52,17 +53,35 @@ function resolveActionHrefs(cockpit: AdvisingCockpit, trackerOn: boolean): Advis
   };
 }
 
-export default async function AdvisingCommandCenterPage() {
+export default async function AdvisingCommandCenterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const viewer = await requireOfficer().catch(() => null);
   if (!viewer) notFound();
   const sessionUser = await getSessionUser();
+
+  const sp = await searchParams;
+  const focusLane = parseAdvisingLane(sp.lane);
+  const requestedChapterId = typeof sp.chapterId === "string" ? sp.chapterId : null;
 
   const now = new Date();
   const data = await loadAdvisingCockpitData(
     { id: viewer.id, roles: viewer.roles, chapterId: sessionUser?.chapterId ?? null },
     now,
+    { chapterId: requestedChapterId },
   );
   const cockpit = resolveActionHrefs(data.cockpit, isActionTrackerEnabled());
+
+  // Only surface a "scoped to X" banner when an org-wide viewer actually
+  // narrowed via ?chapterId= (a Chapter President is auto-scoped and their view
+  // is unchanged, so no banner). data.scopeChapterId reflects the resolved,
+  // escalation-safe scope, not the raw request.
+  const scopedChapter =
+    requestedChapterId && data.scopeChapterId === requestedChapterId
+      ? { id: data.scopeChapterId, name: data.scopeChapterName }
+      : null;
 
   const headline =
     cockpit.totalSituations === 0
@@ -91,7 +110,30 @@ export default async function AdvisingCommandCenterPage() {
         </div>
       </header>
 
-      <AdvisingCockpitClient cockpit={cockpit} advisorPool={data.advisorPool} />
+      {scopedChapter ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-brand-200 bg-brand-50 px-3 py-2">
+          <span className="text-[13px] text-ink">
+            Scoped to{" "}
+            <b className="font-semibold text-brand-700">
+              {scopedChapter.name ?? "one chapter"}
+            </b>{" "}
+            — showing only this chapter&apos;s advising.
+          </span>
+          <ButtonLink
+            href={focusLane ? `/operations/advising?lane=${focusLane}` : "/operations/advising"}
+            variant="ghost"
+            size="sm"
+          >
+            Show all chapters
+          </ButtonLink>
+        </div>
+      ) : null}
+
+      <AdvisingCockpitClient
+        cockpit={cockpit}
+        advisorPool={data.advisorPool}
+        focusLane={focusLane}
+      />
     </div>
   );
 }

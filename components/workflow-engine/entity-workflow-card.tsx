@@ -93,22 +93,32 @@ export async function EntityWorkflowCard({
   entityId,
   chapterId,
   title,
+  templateKey,
   showDetails = false,
 }: {
   entityType: string;
   entityId: string;
   chapterId?: string | null;
   title?: string;
+  /** Pin the card to a single template (by key): it then resolves + starts ONLY
+   *  that workflow, so a titled card can't surface an unrelated one sharing the
+   *  same subject. Omit for the default "any primary workflow" behavior. */
+  templateKey?: string;
   /** Opt-in "full detail" mode — also renders linked actions, linked
    *  meetings, and a recent-activity timeline. Defaults to false so pages
    *  embedding several cards at once stay lightweight. */
   showDetails?: boolean;
 }): Promise<JSX.Element> {
   const entityLabel = workflowEntityTypeLabel(entityType);
-  const summary = await getEntityWorkflowSummary(entityType, entityId);
+  const summary = await getEntityWorkflowSummary(entityType, entityId, { templateKey });
 
   if (!summary) {
-    const templates = await listStartableTemplates();
+    const allTemplates = await listStartableTemplates();
+    // Pin the start affordance to the same template so "Start one" launches the
+    // intended playbook rather than dumping the whole catalog into the picker.
+    const templates = templateKey
+      ? allTemplates.filter((t) => t.key === templateKey)
+      : allTemplates;
     return (
       <CardV2 padding="lg">
         <EmptyStateV2

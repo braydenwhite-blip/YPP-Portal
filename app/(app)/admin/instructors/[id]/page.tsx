@@ -549,12 +549,8 @@ export default async function AdminInstructorRecordPage({
           title="Advisor caseload"
           description="Assigned advisees with check-in state — overdue first (plan §12)."
           action={
-            <ButtonLink
-              href={`/people?role=student&advisor=${id}`}
-              variant="ghost"
-              size="sm"
-            >
-              View caseload in People →
+            <ButtonLink href="/operations/advising" variant="ghost" size="sm">
+              Open advising queue →
             </ButtonLink>
           }
         >

@@ -28,10 +28,11 @@ import type { ChapterComparisonRow } from "@/lib/data-360/chapter-metrics";
 import type { WorkflowSuggestion } from "@/lib/data-360/suggestions";
 import type { WorkflowIntelligence } from "@/lib/data-360/workflow-intelligence";
 import type { MentorshipSnapshot } from "@/lib/data-360/mentorship-analytics";
-import type {
-  MentorshipMetric,
-  MentorshipMetricKey,
-  MentorshipSuggestion,
+import {
+  mentorshipActionLine,
+  type MentorshipMetric,
+  type MentorshipMetricKey,
+  type MentorshipSuggestion,
 } from "@/lib/data-360/mentorship-analytics-core";
 
 import { HealthDistributionBar } from "@/components/data-360/charts/health-distribution-bar";
@@ -913,8 +914,14 @@ const MENTORSHIP_VOLUME_KEYS: MentorshipMetricKey[] = [
 
 function MentorshipMetricStat({ m }: { m: MentorshipMetric }) {
   const gapMetric = m.direction === "target-zero";
+  // Only show the "target 0" benchmark when the metric is actually being graded.
+  // An ungraded target-zero metric (status "none", e.g. unassigned students
+  // before advising has started) is muted — printing "target 0" there would
+  // read as a breached target when it is intentionally not evaluated.
   const hint = gapMetric
-    ? m.value === 0
+    ? m.status === "none"
+      ? undefined
+      : m.value === 0
       ? "target 0 · on target"
       : "target 0"
     : m.expectationLabel !== "—"
@@ -969,6 +976,43 @@ function MentorshipSuggestionsPanel({ suggestions }: { suggestions: MentorshipSu
   );
 }
 
+/** The breached gap metrics, worst first — the "act now" queue for the tab. */
+function ActionNowStrip({ metrics }: { metrics: MentorshipMetric[] }) {
+  const gaps = metrics.filter((m) => m.isGap).sort((a, b) => b.value - a.value);
+  if (gaps.length === 0) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-[#34d399]/25 bg-[#34d399]/[0.06] px-3.5 py-3">
+        <span className="text-[15px]">✓</span>
+        <p className="m-0 text-[12.5px] text-[#c4ccda]">
+          Nothing needs action right now — every advising target is on track.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+      {gaps.map((m) => (
+        <Link
+          key={m.key}
+          href={m.href ?? "/operations/advising"}
+          prefetch={false}
+          className="group flex items-center justify-between gap-3 rounded-xl border border-[#f87171]/25 bg-[#f87171]/[0.05] px-3.5 py-3 transition-colors hover:border-[#f87171]/50"
+        >
+          <div className="min-w-0">
+            <div className="text-[22px] font-bold leading-none tabular-nums text-[#f87171]">
+              {nf.format(m.value)}
+            </div>
+            <div className="mt-1 text-[12px] font-medium text-[#e6edf3]">{m.label}</div>
+          </div>
+          <span className="shrink-0 text-[11px] text-[#7c89a0] transition-colors group-hover:text-[#f87171]">
+            Open lane →
+          </span>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 export function MentorshipSection({ data }: { data: SectionData }) {
   const m = data.mentorship;
   const byKey = new Map(m.metrics.map((x) => [x.key, x] as const));
@@ -981,10 +1025,37 @@ export function MentorshipSection({ data }: { data: SectionData }) {
     { key: "recsCompleted", label: "Recommendations completed", color: "#5ec5ff", points: m.trends.recommendationsCompleted },
   ];
 
-  const gapLine =
-    m.gapCount === 0
-      ? "Every advising target is on track."
-      : `${m.gapCount} advising ${m.gapCount === 1 ? "target is" : "targets are"} off — worst first below.`;
+  // The honest empty state: no advising relationships means no coverage/cadence
+  // metrics to grade. Show only the teaching panel — never a wall of zeros or a
+  // full-student "unassigned" count that contradicts "advising hasn't started".
+  if (!m.advisingActive) {
+    return (
+      <div className="flex flex-col gap-5">
+        <Panel
+          title="Advising health"
+          subtitle="The student-advising vertical of the operating loop — advisors, check-ins, and recommendations."
+          action={
+            <Link
+              href="/operations/advising"
+              prefetch={false}
+              className="text-[11px] text-[#7c89a0] transition-colors hover:text-[#b47fff]"
+            >
+              Open advising queue →
+            </Link>
+          }
+        >
+          <p className="text-[12.5px] leading-relaxed text-[#8b94a7]">
+            No advisor relationships are on record yet
+            {m.totalStudents > 0
+              ? ` — ${m.totalStudents} student${m.totalStudents === 1 ? "" : "s"} could be paired with an advisor to start.`
+              : "."}{" "}
+            Once advising starts, coverage, check-in cadence, and recommendation follow-through appear
+            here, graded against conservative targets. Metrics stay honest — nothing is invented.
+          </p>
+        </Panel>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -1001,12 +1072,7 @@ export function MentorshipSection({ data }: { data: SectionData }) {
           </Link>
         }
       >
-        {!m.advisingActive ? (
-          <p className="text-[12.5px] text-[#8b94a7]">
-            No advisor relationships are on record yet. Once advising starts, coverage, check-in cadence,
-            and recommendation follow-through appear here. Metrics stay honest — nothing is invented.
-          </p>
-        ) : (
+        <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <span className="text-[13px] text-[#aeb6c6]">
               <b className="text-[#e9eef5] tabular-nums">{m.totalStudents}</b> students
@@ -1015,15 +1081,27 @@ export function MentorshipSection({ data }: { data: SectionData }) {
               <b className="text-[#e9eef5] tabular-nums">{m.totalAssignments}</b> advising relationships
             </span>
             <span className={`text-[12px] ${m.gapCount > 0 ? "text-[#fbbf24]" : "text-[#34d399]"}`}>
-              {gapLine}
+              {m.gapCount === 0
+                ? "Every advising target is on track."
+                : `${m.gapCount} advising ${m.gapCount === 1 ? "target is" : "targets are"} off.`}
             </span>
           </div>
-        )}
+          <p className="m-0 text-[12.5px] leading-relaxed text-[#c4ccda]">
+            {mentorshipActionLine(m.metrics)}
+          </p>
+        </div>
       </Panel>
 
       <div>
         <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[#6f7c92]">
-          Gaps · target zero
+          What needs action now
+        </p>
+        <ActionNowStrip metrics={m.metrics} />
+      </div>
+
+      <div>
+        <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[#6f7c92]">
+          Coverage &amp; cadence · target zero
         </p>
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
           {pick(MENTORSHIP_GAP_KEYS).map((metric) => (

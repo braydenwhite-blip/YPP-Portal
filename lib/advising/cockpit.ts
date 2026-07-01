@@ -83,6 +83,44 @@ const LANE_ORDER: AdvisingLane[] = [
   "recently_checked_in",
 ];
 
+/** Every valid advising lane id (for deep-link `?lane=` validation). Pure. */
+export const ADVISING_LANES: readonly AdvisingLane[] = LANE_ORDER;
+
+/**
+ * Coerce a raw `?lane=` query value to a real AdvisingLane, or null. Keeps the
+ * deep-link contract (Data 360 / Needs Attention / Chapter Impact Meeting →
+ * `/operations/advising?lane=<lane>`) honest: an unknown value focuses nothing
+ * rather than throwing or half-matching.
+ */
+export function parseAdvisingLane(value: unknown): AdvisingLane | null {
+  return typeof value === "string" && (LANE_ORDER as string[]).includes(value)
+    ? (value as AdvisingLane)
+    : null;
+}
+
+/**
+ * Resolve the chapter the advising cockpit should scope to, given the viewer and
+ * an optional `?chapterId=` deep-link (e.g. from a Chapter Impact Meeting).
+ *
+ * SECURITY INVARIANT: a chapter-scoped viewer (a Chapter President pinned to
+ * their own chapter) is ALWAYS held to that chapter — the requested id can only
+ * ever be ignored, never widen their scope or redirect them to a chapter they
+ * don't own. Only org-wide viewers (ADMIN / STAFF) may narrow to a requested
+ * chapter; for them the param is a filter over data they can already see, not a
+ * privilege grant. Pure so the escalation invariant is unit-tested.
+ */
+export function resolveAdvisingChapterScope(
+  viewer: { roles: string[]; chapterId?: string | null },
+  requestedChapterId: string | null,
+): string | null {
+  const isOrgWide = viewer.roles.includes("ADMIN") || viewer.roles.includes("STAFF");
+  if (isOrgWide) return requestedChapterId ?? null;
+  if (viewer.roles.includes("CHAPTER_PRESIDENT") && viewer.chapterId) {
+    return viewer.chapterId; // pinned to own chapter; requested id is ignored
+  }
+  return null;
+}
+
 function fmtDate(d: Date): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
