@@ -3,6 +3,7 @@ import {
   ADVISING_LANES,
   buildStudentAdvisingCockpit,
   parseAdvisingLane,
+  resolveAdvisingChapterScope,
 } from "@/lib/advising/cockpit";
 import {
   buildAdvisorMatchSuggestions,
@@ -329,6 +330,32 @@ describe("summarizeAdvisorCaseload — advisor record rollup", () => {
       NOW,
     );
     expect(roll.nextAction).toMatch(/on cadence/i);
+  });
+});
+
+describe("resolveAdvisingChapterScope — ?chapterId= scope + escalation safety", () => {
+  it("lets an org-wide viewer (ADMIN/STAFF) narrow to a requested chapter", () => {
+    expect(resolveAdvisingChapterScope({ roles: ["ADMIN"] }, "chap-9")).toBe("chap-9");
+    expect(resolveAdvisingChapterScope({ roles: ["STAFF"], chapterId: "chap-1" }, "chap-9")).toBe("chap-9");
+  });
+
+  it("returns org-wide (null) for an org-wide viewer with no requested chapter", () => {
+    expect(resolveAdvisingChapterScope({ roles: ["ADMIN"] }, null)).toBeNull();
+  });
+
+  it("PINS a Chapter President to their own chapter and IGNORES a requested one (no escalation)", () => {
+    // A CP must never be able to view another chapter by passing ?chapterId=.
+    expect(
+      resolveAdvisingChapterScope({ roles: ["CHAPTER_PRESIDENT"], chapterId: "own" }, "someone-elses"),
+    ).toBe("own");
+    expect(
+      resolveAdvisingChapterScope({ roles: ["CHAPTER_PRESIDENT"], chapterId: "own" }, null),
+    ).toBe("own");
+  });
+
+  it("returns null for a chapterless / non-scoped viewer regardless of request", () => {
+    expect(resolveAdvisingChapterScope({ roles: ["CHAPTER_PRESIDENT"], chapterId: null }, "x")).toBeNull();
+    expect(resolveAdvisingChapterScope({ roles: ["HIRING_CHAIR"] }, "x")).toBeNull();
   });
 });
 

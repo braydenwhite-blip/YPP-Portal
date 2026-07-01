@@ -64,12 +64,23 @@ const MEETING_MENTORSHIP_KEYS: MentorshipMetricKey[] = [
   "checkInsThisWeek",
 ];
 
+/** Scope an advising-cockpit href to this meeting's chapter, so a chapter's
+ *  drilldown lands filtered to that chapter (org-wide viewers) rather than the
+ *  whole org. Non-advising hrefs (e.g. /admin/students) are left untouched. */
+function scopeAdvisingHref(href: string, chapterId: string): string {
+  if (!href.startsWith("/operations/advising")) return href;
+  const sep = href.includes("?") ? "&" : "?";
+  return `${href}${sep}chapterId=${chapterId}`;
+}
+
 function MentorshipMeetingRows({
   metrics,
   suggestions,
+  chapterId,
 }: {
   metrics: MentorshipMetric[];
   suggestions: MentorshipSuggestion[];
+  chapterId: string;
 }) {
   const byKey = new Map(metrics.map((m) => [m.key, m] as const));
   const suggestionByKey = new Map(suggestions.map((s) => [s.metricKey, s] as const));
@@ -87,7 +98,10 @@ function MentorshipMeetingRows({
           Mentorship · student advising
         </td>
         <td className="px-2 py-1.5 text-right">
-          <Link href="/operations/advising" className="text-[11px] font-medium text-brand-700 hover:underline">
+          <Link
+            href={scopeAdvisingHref("/operations/advising", chapterId)}
+            className="text-[11px] font-medium text-brand-700 hover:underline"
+          >
             Advising queue →
           </Link>
         </td>
@@ -114,7 +128,10 @@ function MentorshipMeetingRows({
             <td className="px-2 py-2 text-right text-ink-muted">{m.expectationLabel}</td>
             <td className="px-2 py-2 text-right">
               {m.href ? (
-                <Link href={m.href} className="font-semibold tabular-nums text-brand-700 hover:underline">
+                <Link
+                  href={scopeAdvisingHref(m.href, chapterId)}
+                  className="font-semibold tabular-nums text-brand-700 hover:underline"
+                >
                   {m.value}
                 </Link>
               ) : (
@@ -145,7 +162,7 @@ function MentorshipMeetingRows({
                   </span>
                 ) : (
                   <Link
-                    href={suggestion.primaryActionHref}
+                    href={scopeAdvisingHref(suggestion.primaryActionHref, chapterId)}
                     className="text-[11.5px] font-medium text-brand-700 hover:underline"
                     title={`Close this gap with the ${suggestion.templateLabel}.`}
                   >
@@ -259,6 +276,7 @@ export function ChapterHealthUpdateTable({ update }: { update: ChapterHealthUpda
               <MentorshipMeetingRows
                 metrics={update.mentorship.metrics}
                 suggestions={update.mentorship.suggestions}
+                chapterId={update.chapterId}
               />
             ) : null}
           </tbody>

@@ -98,6 +98,29 @@ export function parseAdvisingLane(value: unknown): AdvisingLane | null {
     : null;
 }
 
+/**
+ * Resolve the chapter the advising cockpit should scope to, given the viewer and
+ * an optional `?chapterId=` deep-link (e.g. from a Chapter Impact Meeting).
+ *
+ * SECURITY INVARIANT: a chapter-scoped viewer (a Chapter President pinned to
+ * their own chapter) is ALWAYS held to that chapter — the requested id can only
+ * ever be ignored, never widen their scope or redirect them to a chapter they
+ * don't own. Only org-wide viewers (ADMIN / STAFF) may narrow to a requested
+ * chapter; for them the param is a filter over data they can already see, not a
+ * privilege grant. Pure so the escalation invariant is unit-tested.
+ */
+export function resolveAdvisingChapterScope(
+  viewer: { roles: string[]; chapterId?: string | null },
+  requestedChapterId: string | null,
+): string | null {
+  const isOrgWide = viewer.roles.includes("ADMIN") || viewer.roles.includes("STAFF");
+  if (isOrgWide) return requestedChapterId ?? null;
+  if (viewer.roles.includes("CHAPTER_PRESIDENT") && viewer.chapterId) {
+    return viewer.chapterId; // pinned to own chapter; requested id is ignored
+  }
+  return null;
+}
+
 function fmtDate(d: Date): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
