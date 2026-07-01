@@ -1,6 +1,11 @@
 import type { ActionItemStatus } from "@prisma/client";
 
 import { startOfDay } from "@/lib/leadership-action-center/dates";
+import { computeWorkflowHealth } from "@/lib/workflow-engine/health";
+import type {
+  StepExecutionView,
+  WorkflowInstanceStatusValue,
+} from "@/lib/workflow-engine/types";
 
 import type { ProvisionalStatus } from "./provisional";
 
@@ -63,11 +68,23 @@ export type AttentionCategory =
   | "HIGH_WORKLOAD"
   | "CLASS_MISSING_INSTRUCTOR"
   | "CLASS_BLOCKER"
-  | "ESCALATION_AWAITING_REVIEW";
+  | "ESCALATION_AWAITING_REVIEW"
+  | "WORKFLOW_STEP_OVERDUE"
+  | "WORKFLOW_INSTANCE_STALLED"
+  | "WORKFLOW_OWNER_MISSING"
+  | "WORKFLOW_BLOCKED"
+  | "WORKFLOW_MEETING_MISSING"
+  | "WORKFLOW_ESCALATED"
+  | "WORKFLOW_STAGE_DURATION_EXCEEDED";
 
 export type AttentionSeverity = "critical" | "high" | "medium" | "low";
 
-export type AttentionSubjectKind = "action" | "person" | "meeting" | "class";
+export type AttentionSubjectKind =
+  | "action"
+  | "person"
+  | "meeting"
+  | "class"
+  | "workflow";
 
 /** One explainable "needs attention" signal. */
 export interface AttentionItem {
@@ -520,6 +537,105 @@ export function escalationAttention(escalations: AttentionEscalation[]): Attenti
   }));
 }
 
+// -------------------------------- Workflows ---------------------------------
+
+/**
+ * The minimal shape `workflowAttention` needs for one active workflow
+ * instance — everything `computeWorkflowHealth` needs plus display/ownership
+ * fields for the resulting `AttentionItem`s.
+ */
+export interface AttentionWorkflow {
+  id: string;
+  title: string;
+  /** e.g. `/workflows/${id}` — not used by `workflowAttention` itself, kept for
+   *  callers/UI that want it alongside the health signals. */
+  href: string;
+  chapterId: string | null;
+  ownerId: string | null;
+  ownerName: string | null;
+  instance: {
+    status: WorkflowInstanceStatusValue;
+    dueAt: string | null;
+    followUpAt: string | null;
+    escalatedAt: string | null;
+    startedAt: string;
+    completionPercent: number;
+  };
+  currentStage: { key: string; slaHours: number | null; name: string } | null;
+  currentStageEnteredAt: string | null;
+  executions: StepExecutionView[];
+}
+
+/** Classify one `computeWorkflowHealth` reason string into an attention category + severity. */
+function classifyWorkflowReason(reason: string): {
+  category: AttentionCategory;
+  severity: AttentionSeverity;
+} {
+  if (reason.includes("is blocked") || reason === "Workflow is blocked") {
+    return { category: "WORKFLOW_BLOCKED", severity: "high" };
+  }
+  if (/required step.*overdue/.test(reason)) {
+    return { category: "WORKFLOW_STEP_OVERDUE", severity: "high" };
+  }
+  if (reason.startsWith("No activity in")) {
+    return { category: "WORKFLOW_INSTANCE_STALLED", severity: "medium" };
+  }
+  if (reason.includes("has run") && reason.includes("expected")) {
+    return { category: "WORKFLOW_STAGE_DURATION_EXCEEDED", severity: "medium" };
+  }
+  if (reason === "Meeting not scheduled") {
+    return { category: "WORKFLOW_MEETING_MISSING", severity: "medium" };
+  }
+  if (/step.*no owner/.test(reason)) {
+    return { category: "WORKFLOW_OWNER_MISSING", severity: "medium" };
+  }
+  if (reason === "Escalated to leadership") {
+    return { category: "WORKFLOW_ESCALATED", severity: "critical" };
+  }
+  // Fallback: surface anything unrecognized rather than silently dropping it.
+  return { category: "WORKFLOW_STEP_OVERDUE", severity: "medium" };
+}
+
+/**
+ * Attention signals for in-flight Universal Workflow Engine instances. Each
+ * `computeWorkflowHealth` reason becomes its own `AttentionItem` so a workflow
+ * with multiple problems (e.g. blocked AND missing an owner) surfaces every
+ * one distinctly instead of collapsing to a single line. Workflows are
+ * operational, not officer-confidential — same as classes/meetings.
+ */
+export function workflowAttention(
+  workflows: AttentionWorkflow[],
+  now: Date = new Date()
+): AttentionItem[] {
+  const out: AttentionItem[] = [];
+
+  for (const w of workflows) {
+    const health = computeWorkflowHealth({
+      instance: w.instance,
+      currentStage: w.currentStage,
+      currentStageEnteredAt: w.currentStageEnteredAt,
+      executions: w.executions,
+      now: now.toISOString(),
+    });
+
+    for (const reason of health.reasons) {
+      const { category, severity } = classifyWorkflowReason(reason);
+      out.push({
+        category,
+        severity,
+        reason,
+        subjectKind: "workflow",
+        subjectId: w.id,
+        subjectLabel: w.title,
+        daysDelta: null,
+        confidential: false,
+      });
+    }
+  }
+
+  return out;
+}
+
 // ------------------------------ Composition --------------------------------
 
 export interface NeedsAttentionInput {
@@ -529,6 +645,7 @@ export interface NeedsAttentionInput {
   meetings?: AttentionMeeting[];
   classes?: AttentionClass[];
   escalations?: AttentionEscalation[];
+  workflows?: AttentionWorkflow[];
 }
 
 const SEVERITY_RANK: Record<AttentionSeverity, number> = {
@@ -563,6 +680,7 @@ export function computeNeedsAttention(
     ...meetingAttention(input.meetings ?? [], now),
     ...classAttention(input.classes ?? []),
     ...escalationAttention(input.escalations ?? []),
+    ...workflowAttention(input.workflows ?? [], now),
   ]);
 }
 

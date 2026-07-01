@@ -210,6 +210,9 @@ actionable feedback — "needs work" with no detail just produces another vague 
     domain: "CURRICULUM",
     defaultOwnerSubtype: "CONTENT_ADMIN",
     escalateAfterHours: 96,
+    triggers: [
+      { event: "ENTITY_STATUS_CHANGED", subjectType: "CURRICULUM_DRAFT", matchStatus: "SUBMITTED" },
+    ],
     stages: [
       {
         key: "not-submitted",
@@ -405,6 +408,9 @@ habit in this loop; everything else can tolerate a little lag, that can't.`,
     domain: "PROGRAMS",
     defaultOwnerRole: "INSTRUCTOR",
     escalateAfterHours: 48,
+    triggers: [
+      { event: "ENTITY_STATUS_CHANGED", subjectType: "CLASS_OFFERING", matchStatus: "IN_PROGRESS" },
+    ],
     stages: [
       {
         key: "session-prep",
@@ -635,6 +641,9 @@ has never seen the program run, because often they haven't.`,
     domain: "PROGRAMS",
     defaultOwnerRole: "CHAPTER_PRESIDENT",
     escalateAfterHours: 96,
+    triggers: [
+      { event: "ENTITY_STATUS_CHANGED", subjectType: "CLASS_OFFERING", matchStatus: "COMPLETED" },
+    ],
     stages: [
       {
         key: "capture-outcomes",
