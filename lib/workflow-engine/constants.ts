@@ -22,6 +22,7 @@ export const WORKFLOW_DOMAINS = [
   "EVENTS",
   "FUNDRAISING",
   "GOVERNANCE",
+  "LEADERSHIP",
   "GENERAL",
 ] as const;
 export type WorkflowDomain = (typeof WORKFLOW_DOMAINS)[number];
@@ -38,6 +39,7 @@ export const WORKFLOW_DOMAIN_LABELS: Record<string, string> = {
   EVENTS: "Events",
   FUNDRAISING: "Fundraising",
   GOVERNANCE: "Governance",
+  LEADERSHIP: "Leadership",
   GENERAL: "General",
 };
 
