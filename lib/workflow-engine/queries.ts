@@ -183,6 +183,10 @@ export type InstanceDetail = {
 };
 
 export async function getInstanceDetail(instanceId: string): Promise<InstanceDetail | null> {
+  // Guard the choke point every entity-card / timeline / cockpit read funnels
+  // through: a falsy id means "no instance", not a 500. (loadInstanceRuntime
+  // also guards, but stopping here avoids the redundant WorkflowEvent query.)
+  if (!instanceId) return null;
   const loaded = await loadInstanceRuntime(instanceId);
   if (!loaded) return null;
   const { definition, instance, executions } = loaded;

@@ -26,6 +26,8 @@ import type { MetricTone, TimeSeriesPoint } from "./types";
 import { bucketDatesByWeek } from "./week-buckets";
 import { loadChapterComparison } from "./chapter-analytics";
 import { loadWorkflowAnalyticsInstances } from "./workflow-analytics";
+import { loadMentorshipSnapshot } from "./mentorship-analytics";
+import type { MentorshipMetric, MentorshipSuggestion } from "./mentorship-analytics-core";
 
 const TREND_WEEKS = 12;
 
@@ -48,11 +50,25 @@ export type ChapterHealthUpdateRow = {
   suggestionPrimaryHref: string | null;
 };
 
+/**
+ * The mentorship (student-advising) block of a Chapter Impact Meeting. Reuses
+ * the SAME pure metrics/suggestions as the Data 360 Mentorship tab so the
+ * meeting and the dashboard never disagree. `relevant` is false when the
+ * chapter has no students/advising yet — the meeting hides the block rather
+ * than showing a wall of honest zeros.
+ */
+export type ChapterHealthMentorship = {
+  relevant: boolean;
+  metrics: MentorshipMetric[];
+  suggestions: MentorshipSuggestion[];
+};
+
 export type ChapterHealthUpdate = {
   chapterId: string;
   chapterName: string;
   phaseLabel: string;
   rows: ChapterHealthUpdateRow[];
+  mentorship: ChapterHealthMentorship;
 } | null;
 
 function deltaFromTrend(trend: TimeSeriesPoint[] | null): number | null {
@@ -136,10 +152,24 @@ export async function loadChapterHealthUpdate(
     };
   });
 
+  // Mentorship (student-advising) block — same pure metrics as the Data 360
+  // Mentorship tab, scoped to this chapter. Hidden when the chapter has no
+  // students/advising yet.
+  const mentorshipSnap = await loadMentorshipSnapshot(now, {
+    chapterId,
+    chapterName: row.chapterName,
+  });
+  const mentorship: ChapterHealthMentorship = {
+    relevant: mentorshipSnap.totalStudents > 0 || mentorshipSnap.totalAssignments > 0,
+    metrics: mentorshipSnap.metrics,
+    suggestions: mentorshipSnap.suggestions,
+  };
+
   return {
     chapterId: row.chapterId,
     chapterName: row.chapterName,
     phaseLabel: row.phaseLabel,
     rows,
+    mentorship,
   };
 }

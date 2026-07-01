@@ -121,6 +121,9 @@ export const ATTENTION_LABELS = [
   "Gone quiet",
   "No follow-up",
   "Missing owner",
+  "No advisor",
+  "Overdue check-in",
+  "Stale recommendation",
 ] as const;
 export type AttentionLabel = (typeof ATTENTION_LABELS)[number];
 

@@ -27,6 +27,12 @@ import {
 import type { ChapterComparisonRow } from "@/lib/data-360/chapter-metrics";
 import type { WorkflowSuggestion } from "@/lib/data-360/suggestions";
 import type { WorkflowIntelligence } from "@/lib/data-360/workflow-intelligence";
+import type { MentorshipSnapshot } from "@/lib/data-360/mentorship-analytics";
+import type {
+  MentorshipMetric,
+  MentorshipMetricKey,
+  MentorshipSuggestion,
+} from "@/lib/data-360/mentorship-analytics-core";
 
 import { HealthDistributionBar } from "@/components/data-360/charts/health-distribution-bar";
 import { Sparkline } from "@/components/data-360/charts/sparkline";
@@ -44,6 +50,7 @@ export type SectionData = {
   overview: Data360Overview;
   attention: AttentionGroup[];
   workflow: WorkflowIntelligence;
+  mentorship: MentorshipSnapshot;
   lens: Data360Lens;
 };
 
@@ -879,6 +886,173 @@ export function WorkflowsSection({ data }: { data: SectionData }) {
           <WorkflowNeedsAttentionQueue items={wf.needsAttention} total={wf.needsAttentionTotal} />
         </div>
         <WorkflowSuggestionsPanel suggestions={wf.suggestions} />
+      </div>
+    </div>
+  );
+}
+
+// --- Mentorship section ------------------------------------------------------
+
+/** Target-zero advising gaps, in priority order (drilldowns + red when > 0). */
+const MENTORSHIP_GAP_KEYS: MentorshipMetricKey[] = [
+  "unassignedStudents",
+  "overdueCheckIns",
+  "kickoffsNeeded",
+  "staleRecommendations",
+  "overloadedAdvisors",
+];
+
+/** Informational throughput metrics — how much advising work is moving. */
+const MENTORSHIP_VOLUME_KEYS: MentorshipMetricKey[] = [
+  "studentsSupported",
+  "activeAdvisors",
+  "openRecommendations",
+  "checkInsThisWeek",
+  "recommendationsCompletedThisWeek",
+];
+
+function MentorshipMetricStat({ m }: { m: MentorshipMetric }) {
+  const gapMetric = m.direction === "target-zero";
+  const hint = gapMetric
+    ? m.value === 0
+      ? "target 0 · on target"
+      : "target 0"
+    : m.expectationLabel !== "—"
+    ? m.expectationLabel
+    : undefined;
+  return <WfStat label={m.label} value={m.value} href={m.href} tone={m.tone} hint={hint} />;
+}
+
+function MentorshipSuggestionsPanel({ suggestions }: { suggestions: MentorshipSuggestion[] }) {
+  const open = suggestions.filter((s) => !s.covered);
+  const covered = suggestions.filter((s) => s.covered);
+  return (
+    <Panel
+      title="Advising suggestions"
+      subtitle="Deterministic: a real advising gap → the workflow that closes it. Already-running work is marked, not repeated."
+      bodyClassName={suggestions.length === 0 ? "p-4" : "p-0"}
+    >
+      {suggestions.length === 0 ? (
+        <EmptyMini label="No advising gap trips a workflow suggestion right now." />
+      ) : (
+        <ul className="flex flex-col">
+          {[...open, ...covered].slice(0, 12).map((s) => (
+            <li key={s.id} className="border-b border-white/[0.05] px-3 py-2.5 last:border-0">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[13px] font-medium text-[#e6edf3]">{s.metricLabel}</span>
+                {s.covered ? (
+                  <span className="inline-flex items-center rounded bg-[#34d399]/15 px-1.5 py-0.5 text-[10.5px] font-semibold text-[#34d399]">
+                    Workflow running
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center rounded bg-[#8b3fe8]/15 px-1.5 py-0.5 text-[10.5px] font-semibold text-[#b47fff]">
+                    {s.templateLabel}
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-[11.5px] text-[#aeb6c6]">{s.reason}</p>
+              <div className="mt-1 flex flex-wrap gap-3 text-[11px]">
+                <Link href={s.primaryActionHref} prefetch={false} className="text-[#b47fff] hover:underline">
+                  {s.primaryActionLabel} →
+                </Link>
+                {s.sourceHref ? (
+                  <Link href={s.sourceHref} prefetch={false} className="text-[#7c89a0] hover:text-[#b47fff]">
+                    View records
+                  </Link>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+export function MentorshipSection({ data }: { data: SectionData }) {
+  const m = data.mentorship;
+  const byKey = new Map(m.metrics.map((x) => [x.key, x] as const));
+  const pick = (keys: MentorshipMetricKey[]) =>
+    keys.map((k) => byKey.get(k)).filter((x): x is MentorshipMetric => Boolean(x));
+
+  const trendSeries: TrendSeries[] = [
+    { key: "checkIns", label: "Check-ins logged", color: "#34d399", points: m.trends.checkIns },
+    { key: "recsOpened", label: "Recommendations opened", color: "#8b3fe8", points: m.trends.recommendationsOpened },
+    { key: "recsCompleted", label: "Recommendations completed", color: "#5ec5ff", points: m.trends.recommendationsCompleted },
+  ];
+
+  const gapLine =
+    m.gapCount === 0
+      ? "Every advising target is on track."
+      : `${m.gapCount} advising ${m.gapCount === 1 ? "target is" : "targets are"} off — worst first below.`;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Panel
+        title="Advising health"
+        subtitle="The student-advising vertical of the operating loop — advisors, check-ins, and recommendations. Every number opens the advising queue."
+        action={
+          <Link
+            href="/operations/advising"
+            prefetch={false}
+            className="text-[11px] text-[#7c89a0] transition-colors hover:text-[#b47fff]"
+          >
+            Open advising queue →
+          </Link>
+        }
+      >
+        {!m.advisingActive ? (
+          <p className="text-[12.5px] text-[#8b94a7]">
+            No advisor relationships are on record yet. Once advising starts, coverage, check-in cadence,
+            and recommendation follow-through appear here. Metrics stay honest — nothing is invented.
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <span className="text-[13px] text-[#aeb6c6]">
+              <b className="text-[#e9eef5] tabular-nums">{m.totalStudents}</b> students
+            </span>
+            <span className="text-[13px] text-[#aeb6c6]">
+              <b className="text-[#e9eef5] tabular-nums">{m.totalAssignments}</b> advising relationships
+            </span>
+            <span className={`text-[12px] ${m.gapCount > 0 ? "text-[#fbbf24]" : "text-[#34d399]"}`}>
+              {gapLine}
+            </span>
+          </div>
+        )}
+      </Panel>
+
+      <div>
+        <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[#6f7c92]">
+          Gaps · target zero
+        </p>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+          {pick(MENTORSHIP_GAP_KEYS).map((metric) => (
+            <MentorshipMetricStat key={metric.key} m={metric} />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[#6f7c92]">
+          Throughput · this reporting week
+        </p>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+          {pick(MENTORSHIP_VOLUME_KEYS).map((metric) => (
+            <MentorshipMetricStat key={metric.key} m={metric} />
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Panel
+            title="Advising operating trends"
+            subtitle="Week by week — check-ins logged, recommendations opened, and recommendations completed"
+          >
+            <TrendChart series={trendSeries} theme="dark" height={220} showLegend />
+          </Panel>
+        </div>
+        <MentorshipSuggestionsPanel suggestions={m.suggestions} />
       </div>
     </div>
   );

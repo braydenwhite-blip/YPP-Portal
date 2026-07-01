@@ -267,6 +267,11 @@ export async function getPrimaryWorkflowForEntity(
   if (!isWorkflowEntityType(entityType)) {
     throw new Error(`Invalid workflow entity type: "${entityType}".`);
   }
+  // A falsy entityId (e.g. an optional chapter/subject id the caller couldn't
+  // resolve) would drop the `subjectId` filter in `findFirst` — Prisma ignores
+  // `undefined` — and surface an unrelated entity's workflow. Treat it as
+  // "nothing to show" so entity cards render their empty / start-workflow state.
+  if (!entityId) return null;
 
   let templateId = opts.templateId;
   if (!templateId && opts.templateKey) {

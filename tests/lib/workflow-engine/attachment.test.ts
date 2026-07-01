@@ -31,6 +31,7 @@ import {
 import {
   attachWorkflowToEntity,
   dedupeWorkflowSummaries,
+  getPrimaryWorkflowForEntity,
   type WorkflowSummaryForEntity,
 } from "@/lib/workflow-engine/attachment";
 
@@ -56,6 +57,20 @@ describe("WORKFLOW_ENTITY_TYPE_VALUES / labels / guard", () => {
     expect(isWorkflowEntityType(null)).toBe(false);
     expect(isWorkflowEntityType(undefined)).toBe(false);
     expect(isWorkflowEntityType(42)).toBe(false);
+  });
+});
+
+describe("getPrimaryWorkflowForEntity — falsy entityId guard", () => {
+  it("returns null for an empty entityId instead of dropping the subjectId filter and matching a wrong entity", async () => {
+    // A CHAPTER card fed an unresolved (null/undefined) chapter id must not
+    // surface some other chapter's workflow — nor 500 downstream when
+    // getInstanceDetail receives an undefined id.
+    const result = await getPrimaryWorkflowForEntity("CHAPTER", "");
+    expect(result).toBeNull();
+  });
+
+  it("still validates the entity type before the entityId guard", async () => {
+    await expect(getPrimaryWorkflowForEntity("NOT_A_REAL_TYPE", "")).rejects.toThrow();
   });
 });
 

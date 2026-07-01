@@ -236,6 +236,11 @@ export type LoadedInstance = {
 export async function loadInstanceRuntime(
   instanceId: string
 ): Promise<LoadedInstance | null> {
+  // Defensive: a falsy id (a caller resolved an undefined/optional instance id)
+  // must not reach `findUnique`, which throws PrismaClientValidationError
+  // ("`where` needs at least one of `id`") on `{ id: undefined }`. No id ⇒ no
+  // instance ⇒ null, which every caller already handles.
+  if (!instanceId) return null;
   const instance = await prisma.workflowInstance.findUnique({
     where: { id: instanceId },
     include: {
