@@ -1,9 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 
 // Declare mocks BEFORE importing the module under test (matches
-// tests/lib/partners-permissions.test.ts's convention).
-const workflowInstanceFindUnique = vi.fn();
-const workflowAttachmentUpsert = vi.fn();
+// tests/lib/partners-permissions.test.ts's convention). vi.mock factories are
+// hoisted above imports, so the fns must be created via vi.hoisted().
+const { workflowInstanceFindUnique, workflowAttachmentUpsert } = vi.hoisted(() => ({
+  workflowInstanceFindUnique: vi.fn(),
+  workflowAttachmentUpsert: vi.fn(),
+}));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
