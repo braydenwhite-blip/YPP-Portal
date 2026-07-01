@@ -13,6 +13,7 @@
 //   ESCALATE             → notifications to leadership
 //   SCHEDULE_FOLLOW_UP   → instance.followUpAt (engine cron picks it up)
 //   ADVANCE_STAGE        → marker: the stage auto-advances when criteria are met
+//   START_WORKFLOW       → starts another published template's instance (chaining)
 //
 // State transitions follow the codebase's "persist then fire side-effects"
 // convention (see lib/workflow.ts) — the row is written first, automations run
@@ -23,6 +24,7 @@ import "server-only";
 
 import {
   AdminSubtype,
+  MeetingType,
   RoleType,
   type WorkflowKind,
   type WorkflowStage as WorkflowItemStage,
@@ -32,6 +34,7 @@ import type { AdminSubtypeValue } from "@/lib/admin-subtypes";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications";
 import { upsertWorkflowItem, resolveWorkflowAssignment } from "@/lib/workflow";
+import { ACTION_TYPE_VALUES } from "@/lib/people-strategy/action-types";
 import {
   computeCompletionPercent,
   evaluateExitCriteria,
@@ -70,11 +73,19 @@ function configString(config: Record<string, unknown> | null, key: string): stri
 // Postgres raise "invalid input value for enum …" and abort the operation.
 const ROLE_TYPES = new Set<string>(Object.values(RoleType));
 const ADMIN_SUBTYPES = new Set<string>(Object.values(AdminSubtype));
+const MEETING_TYPES = new Set<string>(Object.values(MeetingType));
+const ACTION_TYPES = new Set<string>(ACTION_TYPE_VALUES);
 function asRole(s: string | null | undefined): RoleType | null {
   return s && ROLE_TYPES.has(s) ? (s as RoleType) : null;
 }
 function asSubtype(s: string | null | undefined): AdminSubtypeValue | null {
   return s && ADMIN_SUBTYPES.has(s) ? (s as AdminSubtypeValue) : null;
+}
+function asMeetingType(s: string | null | undefined): MeetingType | null {
+  return s && MEETING_TYPES.has(s) ? (s as MeetingType) : null;
+}
+function asActionType(s: string | null | undefined): string | null {
+  return s && ACTION_TYPES.has(s) ? s : null;
 }
 
 async function recordEvent(
@@ -227,10 +238,12 @@ async function effectCreateAction(
   if (!ownerId) return; // an ActionItem requires a lead — skip when unassigned
   const title = configString(rule.config, "title") ?? rule.name;
   const dueHours = configNumber(rule.config, "dueOffsetHours");
+  const actionType = asActionType(configString(rule.config, "actionType"));
   const action = await prisma.actionItem.create({
     data: {
       title,
       description: `Auto-created by workflow “${instance.title}”.`,
+      actionType,
       status: "NOT_STARTED",
       priority: "MEDIUM",
       visibility: "ALL_LEADERSHIP",
@@ -266,9 +279,10 @@ async function effectCreateMeeting(
   const ownerId = instance.ownerId;
   const title = configString(rule.config, "title") ?? rule.name;
   const offset = configNumber(rule.config, "offsetHours") ?? 72;
+  const meetingType = asMeetingType(configString(rule.config, "meetingType")) ?? "GENERIC";
   const meeting = await prisma.meeting.create({
     data: {
-      type: "GENERIC",
+      type: meetingType,
       status: "SCHEDULED",
       title,
       scheduledAt: addHours(now, offset) ?? now,
@@ -407,6 +421,83 @@ async function effectEscalate(
   });
 }
 
+/** Start another published template's instance for the same subject/chapter —
+ *  real workflow chaining (e.g. Chapter Launch completing starts Instructor
+ *  Hiring). Reuses startInstance(), the exact path the "Start Workflow" UI
+ *  uses, so chained instances behave identically to manually-started ones. */
+async function effectStartWorkflow(
+  instance: InstanceRecord,
+  definition: WorkflowTemplateDefinition,
+  rule: AutomationRuleDefinition,
+  now: Date
+): Promise<void> {
+  const targetKey = configString(rule.config, "targetBlueprintKey");
+  if (!targetKey || targetKey === definition.key) return; // guard a trivial self-chain
+
+  const target = await prisma.workflowTemplate.findUnique({
+    where: { key: targetKey },
+    select: {
+      id: true,
+      key: true,
+      name: true,
+      status: true,
+      defaultOwnerRole: true,
+      defaultOwnerSubtype: true,
+    },
+  });
+  if (!target || target.status !== "PUBLISHED") {
+    await recordEvent(
+      instance.id,
+      "AUTOMATION_RAN",
+      `Could not start “${targetKey}”: template not found or not published.`,
+      { data: { ruleId: rule.id, action: "START_WORKFLOW", targetKey, skipped: "missing_or_unpublished" } }
+    );
+    return;
+  }
+
+  const existing = await prisma.workflowInstance.findFirst({
+    where: {
+      templateId: target.id,
+      subjectType: instance.subjectType,
+      subjectId: instance.subjectId,
+      status: { in: ["ACTIVE", "BLOCKED", "ON_HOLD"] },
+    },
+    select: { id: true },
+  });
+  if (existing) {
+    await recordEvent(
+      instance.id,
+      "AUTOMATION_RAN",
+      `Skipped starting “${target.name}”: already running for this subject.`,
+      { data: { ruleId: rule.id, action: "START_WORKFLOW", targetKey, existingInstanceId: existing.id } }
+    );
+    return;
+  }
+
+  let ownerId = instance.ownerId;
+  if (target.defaultOwnerRole) {
+    ownerId = (await resolveAssignee(instance, "ROLE", target.defaultOwnerRole, null)) ?? ownerId;
+  } else if (target.defaultOwnerSubtype) {
+    ownerId = (await resolveAssignee(instance, "SUBTYPE", null, target.defaultOwnerSubtype)) ?? ownerId;
+  }
+
+  const title = configString(rule.config, "title") ?? `${target.name} (from ${instance.title})`;
+  const started = await startInstance({
+    templateId: target.id,
+    title,
+    subjectType: instance.subjectType,
+    subjectId: instance.subjectId,
+    chapterId: instance.chapterId,
+    ownerId,
+    startedById: instance.startedById ?? instance.ownerId ?? null,
+    now,
+  });
+
+  await recordEvent(instance.id, "AUTOMATION_RAN", `Started “${target.name}”.`, {
+    data: { ruleId: rule.id, action: "START_WORKFLOW", targetKey, newInstanceId: started.id },
+  });
+}
+
 /** Run all enabled automations matching a trigger (and optional stage scope).
  *  ADVANCE_STAGE is a marker, never executed here. */
 async function runAutomations(
@@ -440,6 +531,9 @@ async function runAutomations(
           break;
         case "ESCALATE":
           await effectEscalate(instance, rule, opts.now);
+          break;
+        case "START_WORKFLOW":
+          await effectStartWorkflow(instance, definition, rule, opts.now);
           break;
         default:
           break;

@@ -15,6 +15,8 @@ import { prisma } from "@/lib/prisma";
 import { requireTemplateManager } from "@/lib/workflow-engine/permissions";
 import { installBlueprintDefinition } from "@/lib/workflow-engine/seed";
 import { blueprintByKey } from "@/lib/workflow-engine/blueprints";
+import { toTemplateDefinition } from "@/lib/workflow-engine/definition";
+import type { WorkflowTemplateDefinition } from "@/lib/workflow-engine/types";
 import {
   AddAutomationRuleSchema,
   AddStageSchema,
@@ -22,13 +24,19 @@ import {
   AddTransitionSchema,
   AutomationRuleIdSchema,
   CreateTemplateSchema,
+  DuplicateTemplateSchema,
   InstallBlueprintSchema,
+  ListTemplateVersionsSchema,
+  MoveStepSchema,
+  ReorderAutomationRulesSchema,
   ReorderStagesSchema,
   ReorderStepsSchema,
+  RestoreTemplateVersionSchema,
   SetTemplateStatusSchema,
   StageIdSchema,
   StepIdSchema,
   TemplateIdSchema,
+  TemplateVersionIdSchema,
   TransitionIdSchema,
   UpdateAutomationRuleSchema,
   UpdateStageSchema,
@@ -95,14 +103,40 @@ export async function updateTemplate(input: unknown) {
 }
 
 export async function setTemplateStatus(input: unknown) {
-  await requireTemplateManager();
+  const viewer = await requireTemplateManager();
   const data = SetTemplateStatusSchema.parse(input);
-  await prisma.workflowTemplate.update({
+  const updated = await prisma.workflowTemplate.update({
     where: { id: data.id },
     data: { status: data.status },
   });
+  // Every publish captures a full-structure snapshot (Versions tab) — cheap
+  // insurance, and the only way a "restore as draft" has something to restore.
+  if (data.status === "PUBLISHED") {
+    await snapshotTemplateVersion(data.id, viewer.id);
+  }
   revalidateTemplate(data.id);
   return { ok: true };
+}
+
+async function snapshotTemplateVersion(templateId: string, publishedById: string | null): Promise<void> {
+  const full = await prisma.workflowTemplate.findUnique({
+    where: { id: templateId },
+    include: {
+      stages: { include: { steps: true }, orderBy: { order: "asc" } },
+      transitions: true,
+      automationRules: { orderBy: { order: "asc" } },
+    },
+  });
+  if (!full) return;
+  const definition = toTemplateDefinition(full);
+  await prisma.workflowTemplateVersionSnapshot.create({
+    data: {
+      templateId,
+      version: full.version,
+      snapshot: definition as unknown as object,
+      publishedById,
+    },
+  });
 }
 
 export async function deleteTemplate(input: unknown) {
@@ -307,6 +341,31 @@ export async function deleteStep(input: unknown) {
   return { ok: true };
 }
 
+/** Move a step to a different stage in the same template (builder drag-drop
+ *  across stage columns), appending it to the end of the target stage. */
+export async function moveStep(input: unknown) {
+  await requireTemplateManager();
+  const data = MoveStepSchema.parse(input);
+  const step = await prisma.workflowTemplateStep.findUnique({
+    where: { id: data.id },
+    select: { stage: { select: { id: true, templateId: true } } },
+  });
+  if (!step) throw new Error("Step not found.");
+  const targetStage = await prisma.workflowTemplateStage.findUnique({
+    where: { id: data.toStageId },
+    select: { templateId: true },
+  });
+  if (!targetStage || targetStage.templateId !== step.stage.templateId) {
+    throw new Error("Target stage is not in the same template.");
+  }
+  await prisma.workflowTemplateStep.update({
+    where: { id: data.id },
+    data: { stageId: data.toStageId, order: await nextStepOrder(data.toStageId) },
+  });
+  revalidateTemplate(step.stage.templateId);
+  return { ok: true };
+}
+
 // --- Transitions -----------------------------------------------------------
 
 export async function addTransition(input: unknown) {
@@ -400,6 +459,18 @@ export async function deleteAutomationRule(input: unknown) {
   return { ok: true };
 }
 
+export async function reorderAutomationRules(input: unknown) {
+  await requireTemplateManager();
+  const data = ReorderAutomationRulesSchema.parse(input);
+  await prisma.$transaction(
+    data.orderedRuleIds.map((id, i) =>
+      prisma.workflowAutomationRule.update({ where: { id }, data: { order: i } })
+    )
+  );
+  revalidateTemplate(data.templateId);
+  return { ok: true };
+}
+
 // --- Blueprint install -----------------------------------------------------
 
 export async function installBlueprint(input: unknown) {
@@ -413,4 +484,265 @@ export async function installBlueprint(input: unknown) {
   });
   revalidateTemplate(result.templateId);
   return { ok: true, id: result.templateId, created: result.created };
+}
+
+// --- Duplicate ---------------------------------------------------------------
+
+async function uniqueTemplateKey(base: string): Promise<string> {
+  let key = base;
+  for (let i = 2; await prisma.workflowTemplate.findUnique({ where: { key } }); i++) {
+    key = `${base}-${i}`;
+  }
+  return key;
+}
+
+/** Deep-clone a template (stages, steps, transitions, automation rules) under
+ *  a new key, reset to DRAFT — the builder's "Duplicate" action. Triggers and
+ *  version snapshots are NOT copied (the duplicate starts with clean history
+ *  and no auto-start wiring, since those are deliberate per-template decisions
+ *  an author should re-opt-into, not silently inherit). */
+export async function duplicateTemplate(input: unknown) {
+  const viewer = await requireTemplateManager();
+  const data = DuplicateTemplateSchema.parse(input);
+  const source = await prisma.workflowTemplate.findUnique({
+    where: { id: data.id },
+    include: {
+      stages: { include: { steps: true }, orderBy: { order: "asc" } },
+      transitions: true,
+      automationRules: { orderBy: { order: "asc" } },
+    },
+  });
+  if (!source) throw new Error("Template not found.");
+
+  const key = await uniqueTemplateKey(`${slugify(source.name) || "workflow"}-copy`);
+
+  const newId = await prisma.$transaction(async (tx) => {
+    const created = await tx.workflowTemplate.create({
+      data: {
+        key,
+        name: `${source.name} (copy)`,
+        description: source.description,
+        domain: source.domain,
+        status: "DRAFT",
+        defaultOwnerRole: source.defaultOwnerRole,
+        defaultOwnerSubtype: source.defaultOwnerSubtype,
+        followUpCadenceHours: source.followUpCadenceHours,
+        escalateAfterHours: source.escalateAfterHours,
+        config: asJson(source.config),
+        createdById: viewer.id,
+      },
+      select: { id: true },
+    });
+
+    const stageIdMap = new Map<string, string>();
+    for (const stage of source.stages) {
+      const newStage = await tx.workflowTemplateStage.create({
+        data: {
+          templateId: created.id,
+          key: stage.key,
+          name: stage.name,
+          description: stage.description,
+          order: stage.order,
+          slaHours: stage.slaHours,
+          isInitial: stage.isInitial,
+          isTerminal: stage.isTerminal,
+          exitCriteria: asJson(stage.exitCriteria),
+          steps: {
+            create: stage.steps.map((step) => ({
+              key: step.key,
+              name: step.name,
+              description: step.description,
+              order: step.order,
+              kind: step.kind,
+              isRequired: step.isRequired,
+              assigneeMode: step.assigneeMode,
+              assigneeRole: step.assigneeRole,
+              assigneeSubtype: step.assigneeSubtype,
+              dueOffsetHours: step.dueOffsetHours,
+              config: asJson(step.config),
+            })),
+          },
+        },
+        select: { id: true },
+      });
+      stageIdMap.set(stage.id, newStage.id);
+    }
+
+    for (const t of source.transitions) {
+      const fromId = stageIdMap.get(t.fromStageId);
+      const toId = stageIdMap.get(t.toStageId);
+      if (!fromId || !toId) continue;
+      await tx.workflowTransition.create({
+        data: {
+          templateId: created.id,
+          fromStageId: fromId,
+          toStageId: toId,
+          label: t.label,
+          isAutomatic: t.isAutomatic,
+          isDefault: t.isDefault,
+          condition: asJson(t.condition),
+          order: t.order,
+        },
+      });
+    }
+
+    for (const r of source.automationRules) {
+      await tx.workflowAutomationRule.create({
+        data: {
+          templateId: created.id,
+          name: r.name,
+          trigger: r.trigger,
+          action: r.action,
+          stageId: r.stageId ? (stageIdMap.get(r.stageId) ?? null) : null,
+          stepKey: r.stepKey,
+          enabled: r.enabled,
+          config: asJson(r.config),
+          order: r.order,
+        },
+      });
+    }
+
+    return created.id;
+  });
+
+  revalidateTemplate(newId);
+  return { ok: true, id: newId };
+}
+
+// --- Versions ----------------------------------------------------------------
+
+export async function listTemplateVersions(input: unknown) {
+  await requireTemplateManager();
+  const data = ListTemplateVersionsSchema.parse(input);
+  const versions = await prisma.workflowTemplateVersionSnapshot.findMany({
+    where: { templateId: data.templateId },
+    orderBy: { publishedAt: "desc" },
+    select: { id: true, version: true, publishedAt: true, publishedById: true },
+  });
+  return versions;
+}
+
+export async function getTemplateVersionSnapshot(input: unknown) {
+  await requireTemplateManager();
+  const data = TemplateVersionIdSchema.parse(input);
+  const row = await prisma.workflowTemplateVersionSnapshot.findUnique({
+    where: { id: data.id },
+  });
+  if (!row) throw new Error("Version not found.");
+  return {
+    id: row.id,
+    version: row.version,
+    publishedAt: row.publishedAt,
+    publishedById: row.publishedById,
+    snapshot: row.snapshot as unknown as WorkflowTemplateDefinition,
+  };
+}
+
+/** Restore a past snapshot's full structure into the template's CURRENT
+ *  DRAFT state. Never mutates a live PUBLISHED template directly — if it's
+ *  currently published, this forces it back to DRAFT first, so an admin must
+ *  explicitly re-review and re-publish (same safety property as a force
+ *  blueprint reinstall). Running WorkflowInstances are unaffected: they
+ *  reference denormalized stageKey/stepKey on WorkflowStepExecution, not the
+ *  template's live authoring rows. */
+export async function restoreTemplateVersionAsDraft(input: unknown) {
+  const viewer = await requireTemplateManager();
+  const data = RestoreTemplateVersionSchema.parse(input);
+  const snap = await prisma.workflowTemplateVersionSnapshot.findUnique({
+    where: { id: data.versionId },
+  });
+  if (!snap) throw new Error("Version not found.");
+  const definition = snap.snapshot as unknown as WorkflowTemplateDefinition;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.workflowTemplateStage.deleteMany({ where: { templateId: snap.templateId } });
+    await tx.workflowTransition.deleteMany({ where: { templateId: snap.templateId } });
+    await tx.workflowAutomationRule.deleteMany({ where: { templateId: snap.templateId } });
+
+    await tx.workflowTemplate.update({
+      where: { id: snap.templateId },
+      data: {
+        name: definition.name,
+        description: definition.description,
+        domain: definition.domain,
+        status: "DRAFT",
+        defaultOwnerRole: definition.defaultOwnerRole,
+        defaultOwnerSubtype: definition.defaultOwnerSubtype,
+        followUpCadenceHours: definition.followUpCadenceHours,
+        escalateAfterHours: definition.escalateAfterHours,
+        updatedById: viewer.id,
+      },
+    });
+
+    const stageIdByKey = new Map<string, string>();
+    for (const stage of definition.stages) {
+      const created = await tx.workflowTemplateStage.create({
+        data: {
+          templateId: snap.templateId,
+          key: stage.key,
+          name: stage.name,
+          description: stage.description,
+          order: stage.order,
+          slaHours: stage.slaHours,
+          isInitial: stage.isInitial,
+          isTerminal: stage.isTerminal,
+          exitCriteria: asJson(stage.exitCriteria),
+          steps: {
+            create: stage.steps.map((step) => ({
+              key: step.key,
+              name: step.name,
+              description: step.description,
+              order: step.order,
+              kind: step.kind,
+              isRequired: step.isRequired,
+              assigneeMode: step.assigneeMode,
+              assigneeRole: step.assigneeRole,
+              assigneeSubtype: step.assigneeSubtype,
+              dueOffsetHours: step.dueOffsetHours,
+              config: asJson(step.config),
+            })),
+          },
+        },
+        select: { id: true },
+      });
+      stageIdByKey.set(stage.key, created.id);
+    }
+
+    for (const t of definition.transitions) {
+      const fromId = stageIdByKey.get(t.fromStageKey);
+      const toId = stageIdByKey.get(t.toStageKey);
+      if (!fromId || !toId) continue;
+      await tx.workflowTransition.create({
+        data: {
+          templateId: snap.templateId,
+          fromStageId: fromId,
+          toStageId: toId,
+          label: t.label,
+          isAutomatic: t.isAutomatic,
+          isDefault: t.isDefault,
+          condition: asJson(t.condition),
+          order: t.order,
+        },
+      });
+    }
+
+    for (const r of definition.automationRules) {
+      await tx.workflowAutomationRule.create({
+        data: {
+          templateId: snap.templateId,
+          name: r.name,
+          trigger: r.trigger,
+          action: r.action,
+          stageId: r.stageKey ? (stageIdByKey.get(r.stageKey) ?? null) : null,
+          stepKey: r.stepKey,
+          enabled: r.enabled,
+          config: asJson(r.config),
+          order: r.order,
+        },
+      });
+    }
+  });
+
+  revalidateTemplate(snap.templateId);
+  return { ok: true, id: snap.templateId };
 }

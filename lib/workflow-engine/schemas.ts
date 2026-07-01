@@ -141,6 +141,11 @@ export const ReorderStepsSchema = z.object({
 
 export const StepIdSchema = z.object({ id });
 
+export const MoveStepSchema = z.object({
+  id,
+  toStageId: id,
+});
+
 // --- Transitions -----------------------------------------------------------
 
 export const AddTransitionSchema = z.object({
@@ -179,9 +184,22 @@ export const UpdateAutomationRuleSchema = z.object({
 
 export const AutomationRuleIdSchema = z.object({ id });
 
+export const ReorderAutomationRulesSchema = z.object({
+  templateId: id,
+  orderedRuleIds: z.array(id).min(1),
+});
+
 // --- Blueprint install -----------------------------------------------------
 
 export const InstallBlueprintSchema = z.object({ blueprintKey: z.string().min(1) });
+
+// --- Duplicate + versions ---------------------------------------------------
+
+export const DuplicateTemplateSchema = z.object({ id });
+
+export const ListTemplateVersionsSchema = z.object({ templateId: id });
+export const TemplateVersionIdSchema = z.object({ id });
+export const RestoreTemplateVersionSchema = z.object({ versionId: id });
 
 // --- Instances -------------------------------------------------------------
 
