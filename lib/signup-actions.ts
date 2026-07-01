@@ -21,6 +21,7 @@ import {
 import { pickFormFields, type SignupFormState } from "@/lib/signup-form-utils";
 import { SUMMER_WORKSHOP_TIMELINE_KINDS } from "@/lib/summer-workshop";
 import { isRegularInstructorEnabled } from "@/lib/feature-flags";
+import { fireEntityStatusChanged } from "@/lib/workflow-engine/triggers";
 
 type FormState = SignupFormState;
 
@@ -456,6 +457,17 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         };
       }
       await syncInstructorApplicationWorkflow(application.id);
+
+      // Best-effort: a newly submitted InstructorApplication can auto-start a
+      // matching, published workflow template instance.
+      await fireEntityStatusChanged({
+        subjectType: "INSTRUCTOR_APPLICATION",
+        subjectId: application.id,
+        newStatus: "SUBMITTED",
+        chapterId: chapterId || null,
+        ownerId: newUser.id,
+        startedById: newUser.id,
+      });
     }
 
     // Notify reviewers + send welcome email to applicant (both non-blocking)
@@ -748,6 +760,17 @@ export async function submitInstructorApplicationForExistingUser(
     });
 
     await syncInstructorApplicationWorkflow(application.id);
+
+    // Best-effort: a newly submitted InstructorApplication can auto-start a
+    // matching, published workflow template instance.
+    await fireEntityStatusChanged({
+      subjectType: "INSTRUCTOR_APPLICATION",
+      subjectId: application.id,
+      newStatus: "SUBMITTED",
+      chapterId: userRow.chapterId,
+      ownerId: userRow.id,
+      startedById: userRow.id,
+    });
 
     try {
       const { notifyReviewersOfNewApplication } = await import("@/lib/instructor-application-actions");

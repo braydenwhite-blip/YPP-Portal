@@ -174,6 +174,11 @@ export type InstanceDetail = {
   runtime: RuntimeState;
   templateName: string;
   ownerName: string | null;
+  /** Per-step owner names keyed by StepExecutionView.ownerId, batch-resolved
+   *  in one extra query alongside the instance owner / event actors (a plain
+   *  Record, not a Map, so it survives the server→client serialization
+   *  boundary when handed to WorkflowRunner). */
+  executionOwnerNames: Record<string, string>;
   events: InstanceTimelineEvent[];
 };
 
@@ -197,6 +202,7 @@ export async function getInstanceDetail(instanceId: string): Promise<InstanceDet
   const names = await namesFor([
     instance.ownerId,
     ...eventRows.map((e) => e.actorId),
+    ...executions.map((e) => e.ownerId),
   ]);
 
   return {
@@ -206,6 +212,7 @@ export async function getInstanceDetail(instanceId: string): Promise<InstanceDet
     runtime,
     templateName: definition.name,
     ownerName: instance.ownerId ? names.get(instance.ownerId) ?? null : null,
+    executionOwnerNames: Object.fromEntries(names),
     events: eventRows.map((e) => ({
       id: e.id,
       kind: e.kind,

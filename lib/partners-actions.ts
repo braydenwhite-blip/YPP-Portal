@@ -14,6 +14,7 @@ import {
   asPartnerNoteKind,
   partnerStageLabel,
 } from "@/lib/partners-constants";
+import { fireEntityStatusChanged } from "@/lib/workflow-engine/triggers";
 
 /**
  * Partners — admin CRUD + pipeline mutations.
@@ -136,7 +137,7 @@ async function buildPartnerUpdateData(
 }
 
 export async function createPartner(formData: FormData): Promise<{ id: string }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const name = getString(formData, "name");
   const type = getString(formData, "type", false) || null;
@@ -156,6 +157,15 @@ export async function createPartner(formData: FormData): Promise<{ id: string }>
 
   revalidatePath("/admin/partners");
   revalidatePath("/partners");
+
+  await fireEntityStatusChanged({
+    subjectType: "PARTNER",
+    subjectId: partner.id,
+    newStatus: stage,
+    chapterId: partner.chapterId ?? null,
+    ownerId: admin.id,
+    startedById: admin.id,
+  });
 
   return { id: partner.id };
 }
@@ -179,7 +189,7 @@ export async function updatePartnerStage(formData: FormData): Promise<void> {
   const id = getString(formData, "id");
   const stage = asPartnerStage(getString(formData, "stage"));
 
-  await prisma.$transaction([
+  const [updatedPartner] = await prisma.$transaction([
     prisma.partner.update({ where: { id }, data: { stage } }),
     prisma.partnerNote.create({
       data: {
@@ -193,6 +203,15 @@ export async function updatePartnerStage(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/partners");
   revalidatePath(`/admin/partners/${id}`);
+
+  await fireEntityStatusChanged({
+    subjectType: "PARTNER",
+    subjectId: id,
+    newStatus: stage,
+    chapterId: updatedPartner.chapterId ?? null,
+    ownerId: admin.id,
+    startedById: admin.id,
+  });
 }
 
 /**

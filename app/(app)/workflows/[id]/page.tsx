@@ -2,8 +2,10 @@ import { notFound } from "next/navigation";
 
 import { PageHeaderV2 } from "@/components/ui-v2/page-header";
 import { requirePageRoles } from "@/lib/page-guards";
+import { prisma } from "@/lib/prisma";
 import { getInstanceDetail } from "@/lib/workflow-engine/queries";
 import { workflowDomainLabel } from "@/lib/workflow-engine/constants";
+import { listAssignableUsers } from "@/lib/weekly-meetings/teams";
 import { WorkflowRunner } from "@/components/workflow-engine/workflow-runner";
 
 export const metadata = { title: "Workflow · MissionOS" };
@@ -18,6 +20,14 @@ export default async function WorkflowInstancePage({
   await requirePageRoles(OFFICER_ROLES);
   const detail = await getInstanceDetail(params.id);
   if (!detail) notFound();
+
+  const [assignableUsers, attachments] = await Promise.all([
+    listAssignableUsers(),
+    prisma.workflowAttachment.findMany({
+      where: { workflowInstanceId: params.id },
+      select: { id: true, entityType: true, entityId: true, relationship: true },
+    }),
+  ]);
 
   const subtitleParts = [
     detail.templateName,
@@ -34,7 +44,11 @@ export default async function WorkflowInstancePage({
         backHref="/workflows"
         backLabel="Workflows"
       />
-      <WorkflowRunner detail={detail} />
+      <WorkflowRunner
+        detail={detail}
+        assignableUsers={assignableUsers.map((u) => ({ id: u.id, name: u.name }))}
+        relatedAttachments={attachments}
+      />
     </div>
   );
 }

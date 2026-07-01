@@ -46,6 +46,13 @@ const CATEGORY_LABEL: Record<AttentionCategory, string> = {
   CLASS_MISSING_INSTRUCTOR: "Class staffing",
   CLASS_BLOCKER: "Class blocker",
   ESCALATION_AWAITING_REVIEW: "Escalation",
+  WORKFLOW_STEP_OVERDUE: "Workflow step overdue",
+  WORKFLOW_INSTANCE_STALLED: "Workflow stalled",
+  WORKFLOW_OWNER_MISSING: "Workflow owner missing",
+  WORKFLOW_BLOCKED: "Workflow blocked",
+  WORKFLOW_MEETING_MISSING: "Workflow meeting missing",
+  WORKFLOW_ESCALATED: "Workflow escalated",
+  WORKFLOW_STAGE_DURATION_EXCEEDED: "Workflow stage overdue",
 };
 
 const CATEGORY_NEXT_ACTION: Record<AttentionCategory, string> = {
@@ -71,6 +78,13 @@ const CATEGORY_NEXT_ACTION: Record<AttentionCategory, string> = {
   CLASS_MISSING_INSTRUCTOR: "Assign an instructor",
   CLASS_BLOCKER: "Resolve the blocker",
   ESCALATION_AWAITING_REVIEW: "Review and resolve",
+  WORKFLOW_STEP_OVERDUE: "Complete or reassign the step",
+  WORKFLOW_INSTANCE_STALLED: "Check in and restart momentum",
+  WORKFLOW_OWNER_MISSING: "Assign a step owner",
+  WORKFLOW_BLOCKED: "Clear the blocker",
+  WORKFLOW_MEETING_MISSING: "Schedule the meeting",
+  WORKFLOW_ESCALATED: "Review with leadership",
+  WORKFLOW_STAGE_DURATION_EXCEEDED: "Advance the stage or extend the SLA",
 };
 
 /** Where each attention item links — the page/drawer that resolves it. */
@@ -84,6 +98,8 @@ function hrefFor(item: AttentionItem): string {
       return `/meetings/${item.subjectId}`;
     case "class":
       return `/people/classes`;
+    case "workflow":
+      return `/workflows/${item.subjectId}`;
     default:
       return "/operations/command-center";
   }

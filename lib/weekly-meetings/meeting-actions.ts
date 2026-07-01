@@ -8,6 +8,7 @@
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
+import { syncMeetingOutcomeToWorkflow } from "@/lib/workflow-engine/meeting-sync";
 import { requireMeetingRunner } from "./permissions";
 import { parseWeekKey, weekStartFor } from "./week";
 import {
@@ -103,9 +104,12 @@ export async function updateMeeting(input: unknown) {
 }
 
 export async function setMeetingStatus(input: unknown) {
-  await requireMeetingRunner();
+  const viewer = await requireMeetingRunner();
   const data = SetMeetingStatusSchema.parse(input);
   await prisma.meeting.update({ where: { id: data.meetingId }, data: { status: data.status } });
+  if (data.status === "COMPLETED") {
+    await syncMeetingOutcomeToWorkflow(data.meetingId, viewer.id);
+  }
   revalidateMeeting(data.meetingId);
   return { ok: true };
 }

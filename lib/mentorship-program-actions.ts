@@ -53,6 +53,7 @@ import {
   hasMentorshipMenteeAccess,
 } from "@/lib/mentorship-access";
 import { ensureMentorshipSupportCircle } from "@/lib/mentorship-hub-actions";
+import { fireEntityStatusChanged } from "@/lib/workflow-engine/triggers";
 import { syncMentorshipSearchDocument } from "@/lib/help-agent/search-indexing";
 import { prisma } from "@/lib/prisma";
 import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
@@ -338,6 +339,17 @@ export async function assignProgramMentor(formData: FormData) {
       ledById: mentor.id,
       participantIds: [mentor.id, mentee.id],
     },
+  });
+
+  // Best-effort: a new Mentorship reaching ACTIVE can auto-start a matching,
+  // published workflow template instance.
+  await fireEntityStatusChanged({
+    subjectType: "MENTORSHIP",
+    subjectId: mentorship.id,
+    newStatus: "ACTIVE",
+    chapterId: mentee.chapterId,
+    ownerId: mentor.id,
+    startedById: session.user.id,
   });
 
   revalidatePath("/admin/mentorship");

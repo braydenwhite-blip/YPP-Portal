@@ -111,6 +111,7 @@ export function instance(over: Partial<InstanceView> = {}): InstanceView {
     dueAt: null,
     followUpAt: null,
     completedAt: null,
+    escalatedAt: null,
     ...over,
   };
 }

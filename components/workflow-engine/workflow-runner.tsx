@@ -1,18 +1,23 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui-v2/button";
 import { CardV2 } from "@/components/ui-v2/card";
 import { SectionHeaderV2 } from "@/components/ui-v2/section-header";
 import { StatusBadge } from "@/components/ui-v2/status-badge";
+import { EntityChip } from "@/components/ui-v2/entity-chip";
+import { ModalV2, ModalFooterV2 } from "@/components/ui-v2/modal";
 import { cn } from "@/components/ui-v2/cn";
 import {
   INSTANCE_STATUS_LABELS,
   INSTANCE_STATUS_TONE,
   STEP_STATE_TONE,
 } from "@/lib/workflow-engine/constants";
+import { workflowEntityTypeLabel } from "@/lib/workflow-engine/entity-types";
+import type { Entity360Type } from "@/lib/operations/entity-360";
 import type { InstanceDetail } from "@/lib/workflow-engine/queries";
 import type { StepExecutionView } from "@/lib/workflow-engine/types";
 import {
@@ -20,18 +25,81 @@ import {
   blockStep,
   cancelWorkflow,
   completeStep,
+  createManualActionForStep,
+  escalateWorkflow,
+  reassignStep,
+  scheduleMeetingForStep,
+  setWorkflowOwner,
   skipStep,
   unblockStep,
 } from "@/lib/workflow-engine/instance-actions";
 
-export function WorkflowRunner({ detail }: { detail: InstanceDetail }) {
+export type AssignableUser = { id: string; name: string };
+
+export type RelatedWorkflowAttachment = {
+  id: string;
+  entityType: string;
+  entityId: string;
+  relationship: string;
+};
+
+/** WORKFLOW_ENTITY_TYPE_VALUES → EntityChip's supported "type" union. Types
+ *  with no EntityChip equivalent (CURRICULUM_DRAFT, SPECIAL_PROGRAM) fall back
+ *  to plain text in the Related objects panel. */
+const ENTITY_TYPE_TO_CHIP_TYPE: Partial<Record<string, Entity360Type>> = {
+  CHAPTER: "chapter",
+  PARTNER: "partner",
+  INSTRUCTOR_APPLICATION: "applicant",
+  CHAPTER_PRESIDENT_APPLICATION: "applicant",
+  USER: "person",
+  MENTORSHIP: "mentorship",
+  CLASS_OFFERING: "class",
+  MEETING: "meeting",
+  ACTION_ITEM: "action",
+  INITIATIVE: "initiative",
+};
+
+function formatDueDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+}
+
+/** Local input value ("YYYY-MM-DDTHH:mm") for a datetime-local default 3 days out. */
+function defaultMeetingInputValue(): string {
+  const d = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+  d.setSeconds(0, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function WorkflowRunner({
+  detail,
+  assignableUsers = [],
+  relatedAttachments = [],
+}: {
+  detail: InstanceDetail;
+  /** For the per-step / instance-owner "Reassign" picker. Loaded by the page
+   *  the same way /workflows/new loads its assignable-users list
+   *  (lib/weekly-meetings/teams.ts's listAssignableUsers). */
+  assignableUsers?: AssignableUser[];
+  /** WorkflowAttachment rows for THIS instance (secondary entity links) —
+   *  rendered in the "Related objects" panel alongside the instance's own
+   *  primary subject. */
+  relatedAttachments?: RelatedWorkflowAttachment[];
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [blockingId, setBlockingId] = useState<string | null>(null);
   const [blockReason, setBlockReason] = useState("");
+  const [reassigningId, setReassigningId] = useState<string | null>(null);
+  const [escalateOpen, setEscalateOpen] = useState(false);
+  const [schedulingId, setSchedulingId] = useState<string | null>(null);
+  const [meetingWhen, setMeetingWhen] = useState("");
 
-  const { instance, runtime, executions, definition, events } = detail;
+  const { instance, runtime, executions, definition, events, ownerName, executionOwnerNames } = detail;
 
   function run(fn: () => Promise<unknown>) {
     setError(null);
@@ -65,24 +133,58 @@ export function WorkflowRunner({ detail }: { detail: InstanceDetail }) {
       {/* Completion + next action */}
       <CardV2 padding="lg" className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <StatusBadge tone={INSTANCE_STATUS_TONE[instance.status] ?? "neutral"} withDot>
               {INSTANCE_STATUS_LABELS[instance.status] ?? instance.status}
             </StatusBadge>
             {runtime.isOverdue ? <StatusBadge tone="danger">Overdue</StatusBadge> : null}
+            {instance.escalatedAt ? (
+              <StatusBadge tone="danger" title="Escalated to leadership">
+                Escalated
+              </StatusBadge>
+            ) : null}
             <span className="text-[13px] text-ink-muted">
               {runtime.completionPercent}% complete
             </span>
           </div>
-          {!isClosed && runtime.canAdvance ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              loading={pending}
-              onClick={() => run(() => advanceWorkflow({ instanceId: instance.id }))}
-            >
-              Advance stage →
-            </Button>
+          <div className="flex items-center gap-2">
+            {!isClosed ? (
+              <Button variant="ghost" size="sm" onClick={() => setEscalateOpen(true)}>
+                Escalate
+              </Button>
+            ) : null}
+            {!isClosed && runtime.canAdvance ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={pending}
+                onClick={() => run(() => advanceWorkflow({ instanceId: instance.id }))}
+              >
+                Advance stage →
+              </Button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-muted">
+          <span>Owner:</span>
+          {instance.ownerId ? (
+            <EntityChip type="person" id={instance.ownerId} label={ownerName ?? "Owner"} />
+          ) : (
+            <span>Unassigned</span>
+          )}
+          {!isClosed ? (
+            <OwnerReassignControl
+              currentOwnerId={instance.ownerId}
+              assignableUsers={assignableUsers}
+              open={reassigningId === "__instance__"}
+              onOpen={() => setReassigningId("__instance__")}
+              onClose={() => setReassigningId(null)}
+              onPick={(ownerId) =>
+                run(() => setWorkflowOwner({ instanceId: instance.id, ownerId }))
+              }
+              pending={pending}
+            />
           ) : null}
         </div>
 
@@ -185,6 +287,7 @@ export function WorkflowRunner({ detail }: { detail: InstanceDetail }) {
                 key={exec.id}
                 exec={exec}
                 description={stepDescByKey.get(exec.stepKey) ?? null}
+                ownerName={exec.ownerId ? executionOwnerNames[exec.ownerId] ?? null : null}
                 pending={pending}
                 blockingId={blockingId}
                 blockReason={blockReason}
@@ -201,11 +304,35 @@ export function WorkflowRunner({ detail }: { detail: InstanceDetail }) {
                   setBlockingId(null);
                 }}
                 onCancelBlock={() => setBlockingId(null)}
+                assignableUsers={assignableUsers}
+                reassigning={reassigningId === exec.id}
+                onOpenReassign={() => setReassigningId(exec.id)}
+                onCloseReassign={() => setReassigningId(null)}
+                onPickOwner={(ownerId) =>
+                  run(() => reassignStep({ executionId: exec.id, ownerId }))
+                }
+                onCreateAction={() => run(() => createManualActionForStep({ executionId: exec.id }))}
+                scheduling={schedulingId === exec.id}
+                meetingWhen={meetingWhen}
+                setMeetingWhen={setMeetingWhen}
+                onOpenSchedule={() => {
+                  setSchedulingId(exec.id);
+                  setMeetingWhen(defaultMeetingInputValue());
+                }}
+                onCloseSchedule={() => setSchedulingId(null)}
+                onSubmitSchedule={() => {
+                  const iso = meetingWhen ? new Date(meetingWhen).toISOString() : undefined;
+                  run(() => scheduleMeetingForStep({ executionId: exec.id, scheduledAt: iso }));
+                  setSchedulingId(null);
+                }}
               />
             ))}
           </ul>
         </CardV2>
       ) : null}
+
+      {/* Related objects */}
+      <RelatedObjectsPanel instance={instance} attachments={relatedAttachments} />
 
       {/* Footer actions */}
       {!isClosed ? (
@@ -258,13 +385,116 @@ export function WorkflowRunner({ detail }: { detail: InstanceDetail }) {
       ) : (
         <p className="text-center text-[11px] text-ink-muted">Template: {definition.name}</p>
       )}
+
+      <EscalateModal
+        open={escalateOpen}
+        pending={pending}
+        onClose={() => setEscalateOpen(false)}
+        onConfirm={() => {
+          run(() => escalateWorkflow({ instanceId: instance.id }));
+          setEscalateOpen(false);
+        }}
+      />
     </div>
+  );
+}
+
+function EscalateModal({
+  open,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <ModalV2
+      open={open}
+      onClose={onClose}
+      locked={pending}
+      labelledBy="escalate-workflow-heading"
+      size="sm"
+      accent="warning"
+    >
+      <h2 id="escalate-workflow-heading" className="text-[16px] font-bold text-ink">
+        Escalate this workflow
+      </h2>
+      <p className="text-[13px] text-ink-muted">
+        Leadership will be notified that this workflow needs attention.
+      </p>
+      <ModalFooterV2>
+        <Button variant="ghost" onClick={onClose} disabled={pending}>
+          Cancel
+        </Button>
+        <Button variant="danger" loading={pending} onClick={onConfirm}>
+          Escalate
+        </Button>
+      </ModalFooterV2>
+    </ModalV2>
+  );
+}
+
+function OwnerReassignControl({
+  currentOwnerId,
+  assignableUsers,
+  open,
+  onOpen,
+  onClose,
+  onPick,
+  pending,
+}: {
+  currentOwnerId: string | null;
+  assignableUsers: AssignableUser[];
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onPick: (ownerId: string) => void;
+  pending: boolean;
+}) {
+  if (assignableUsers.length === 0) return null;
+
+  if (!open) {
+    return (
+      <Button variant="ghost" size="sm" onClick={onOpen}>
+        Reassign
+      </Button>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1.5">
+      <select
+        className="rounded-lg border border-line-soft px-2 py-1 text-[12.5px]"
+        defaultValue={currentOwnerId ?? ""}
+        autoFocus
+        disabled={pending}
+        onChange={(e) => {
+          if (e.target.value) onPick(e.target.value);
+        }}
+      >
+        <option value="" disabled>
+          Choose owner…
+        </option>
+        {assignableUsers.map((u) => (
+          <option key={u.id} value={u.id}>
+            {u.name}
+          </option>
+        ))}
+      </select>
+      <Button variant="ghost" size="sm" onClick={onClose} disabled={pending}>
+        Cancel
+      </Button>
+    </span>
   );
 }
 
 function StepRow({
   exec,
   description,
+  ownerName,
   pending,
   blockingId,
   blockReason,
@@ -275,9 +505,22 @@ function StepRow({
   onStartBlock,
   onSubmitBlock,
   onCancelBlock,
+  assignableUsers,
+  reassigning,
+  onOpenReassign,
+  onCloseReassign,
+  onPickOwner,
+  onCreateAction,
+  scheduling,
+  meetingWhen,
+  setMeetingWhen,
+  onOpenSchedule,
+  onCloseSchedule,
+  onSubmitSchedule,
 }: {
   exec: StepExecutionView;
   description: string | null;
+  ownerName: string | null;
   pending: boolean;
   blockingId: string | null;
   blockReason: string;
@@ -288,8 +531,24 @@ function StepRow({
   onStartBlock: () => void;
   onSubmitBlock: () => void;
   onCancelBlock: () => void;
+  assignableUsers: AssignableUser[];
+  reassigning: boolean;
+  onOpenReassign: () => void;
+  onCloseReassign: () => void;
+  onPickOwner: (ownerId: string) => void;
+  onCreateAction: () => void;
+  scheduling: boolean;
+  meetingWhen: string;
+  setMeetingWhen: (v: string) => void;
+  onOpenSchedule: () => void;
+  onCloseSchedule: () => void;
+  onSubmitSchedule: () => void;
 }) {
   const done = exec.state === "COMPLETE" || exec.state === "SKIPPED";
+  const dueLabel = formatDueDate(exec.dueAt);
+  const canCreateAction = !done && !exec.linkedActionItemId;
+  const canScheduleMeeting = !done && exec.kind === "MEETING" && !exec.linkedMeetingId;
+
   return (
     <li className="flex flex-col gap-2 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -327,6 +586,29 @@ function StepRow({
         ) : null}
       </div>
 
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ink-muted">
+        <span className="flex items-center gap-1.5">
+          Owner:{" "}
+          {exec.ownerId ? (
+            <EntityChip type="person" id={exec.ownerId} label={ownerName ?? "Owner"} />
+          ) : (
+            <span>(unassigned)</span>
+          )}
+        </span>
+        {dueLabel ? <span>Due {dueLabel}</span> : null}
+        {!done ? (
+          <OwnerReassignControl
+            currentOwnerId={exec.ownerId}
+            assignableUsers={assignableUsers}
+            open={reassigning}
+            onOpen={onOpenReassign}
+            onClose={onCloseReassign}
+            onPick={onPickOwner}
+            pending={pending}
+          />
+        ) : null}
+      </div>
+
       {description ? (
         <details className="text-[12px] text-ink-muted">
           <summary className="cursor-pointer select-none font-medium text-brand-700">
@@ -340,12 +622,58 @@ function StepRow({
         <p className="text-[12px] text-blocked-700">Blocked: {exec.blockedReason}</p>
       ) : null}
 
-      {(exec.linkedActionItemId || exec.linkedMeetingId) && (
-        <p className="text-[11px] text-ink-muted">
-          {exec.linkedActionItemId ? "Linked action created · " : ""}
-          {exec.linkedMeetingId ? "Linked meeting scheduled" : ""}
+      {exec.linkedActionItemId || exec.linkedMeetingId ? (
+        <p className="flex flex-wrap items-center gap-x-3 text-[11px]">
+          {exec.linkedActionItemId ? (
+            <Link
+              href={`/actions/${exec.linkedActionItemId}`}
+              className="text-brand-700 underline-offset-2 hover:underline"
+            >
+              View action →
+            </Link>
+          ) : null}
+          {exec.linkedMeetingId ? (
+            <Link
+              href={`/meetings/${exec.linkedMeetingId}`}
+              className="text-brand-700 underline-offset-2 hover:underline"
+            >
+              View meeting →
+            </Link>
+          ) : null}
         </p>
-      )}
+      ) : null}
+
+      {!done && (canCreateAction || canScheduleMeeting) ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {canCreateAction ? (
+            <Button variant="ghost" size="sm" loading={pending} onClick={onCreateAction}>
+              Create action
+            </Button>
+          ) : null}
+          {canScheduleMeeting && !scheduling ? (
+            <Button variant="ghost" size="sm" loading={pending} onClick={onOpenSchedule}>
+              Schedule meeting
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {scheduling ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="datetime-local"
+            value={meetingWhen}
+            onChange={(e) => setMeetingWhen(e.target.value)}
+            className="rounded-lg border border-line px-3 py-1.5 text-[13px]"
+          />
+          <Button size="sm" loading={pending} onClick={onSubmitSchedule}>
+            Schedule
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onCloseSchedule}>
+            Cancel
+          </Button>
+        </div>
+      ) : null}
 
       {blockingId === exec.id ? (
         <div className="flex items-center gap-2">
@@ -365,4 +693,62 @@ function StepRow({
       ) : null}
     </li>
   );
+}
+
+function RelatedObjectsPanel({
+  instance,
+  attachments,
+}: {
+  instance: InstanceDetail["instance"];
+  attachments: RelatedWorkflowAttachment[];
+}) {
+  const hasPrimary = Boolean(instance.subjectType && instance.subjectId);
+  if (!hasPrimary && attachments.length === 0) return null;
+
+  return (
+    <CardV2 padding="lg">
+      <SectionHeaderV2
+        title="Related objects"
+        description="What this workflow is about, and what else it touches."
+      />
+      <ul className="mt-3 flex flex-wrap gap-2">
+        {hasPrimary ? (
+          <li>
+            <RelatedObjectChip
+              entityType={instance.subjectType as string}
+              entityId={instance.subjectId as string}
+              sublabel="Primary subject"
+            />
+          </li>
+        ) : null}
+        {attachments.map((a) => (
+          <li key={a.id}>
+            <RelatedObjectChip entityType={a.entityType} entityId={a.entityId} sublabel={a.relationship} />
+          </li>
+        ))}
+      </ul>
+    </CardV2>
+  );
+}
+
+function RelatedObjectChip({
+  entityType,
+  entityId,
+  sublabel,
+}: {
+  entityType: string;
+  entityId: string;
+  sublabel?: string;
+}) {
+  const chipType = ENTITY_TYPE_TO_CHIP_TYPE[entityType];
+  const label = workflowEntityTypeLabel(entityType);
+  if (!chipType) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-[12.5px] font-medium text-ink-muted">
+        {label}
+        {sublabel ? <span className="text-ink-muted">· {sublabel}</span> : null}
+      </span>
+    );
+  }
+  return <EntityChip type={chipType} id={entityId} label={label} sublabel={sublabel} />;
 }
