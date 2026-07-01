@@ -4812,6 +4812,24 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/actions/meetings/new",
+    title: "New Meeting",
+    content: {
+      purpose: "This is the full-page meeting creation flow; it forwards to the Meetings composer so you can schedule the meeting.",
+      firstStep: "Pick the meeting type and add everyone who should attend.",
+      nextStep: "Save the meeting to open its runner, where decisions and follow-ups are captured."
+    }
+  },
+  {
+    pattern: "/meet",
+    title: "Meetings",
+    content: {
+      purpose: "This shortcut opens the Meetings hub, the object section that owns all meeting work.",
+      firstStep: "Choose an upcoming meeting to open its runner, or start a new one.",
+      nextStep: "Run the meeting to capture decisions and follow-ups that sync back to the linked records."
+    }
+  },
+  {
     pattern: "/work",
     title: "Work",
     content: {

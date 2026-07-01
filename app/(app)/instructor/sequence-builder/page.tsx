@@ -24,7 +24,7 @@ export default async function SequenceBuilderPage({
     !roles.includes("INSTRUCTOR") &&
     !roles.includes("CHAPTER_PRESIDENT")
   ) {
-    redirect("/dashboard");
+    redirect("/");
   }
 
   const capabilities = await getClassTemplateCapabilities();

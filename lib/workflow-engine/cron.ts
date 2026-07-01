@@ -54,18 +54,77 @@ async function processFollowUps(now: Date): Promise<number> {
 
 async function processOverdue(now: Date): Promise<number> {
   const cutoff = new Date(now.getTime() - DAY_MS);
-  const overdue = await prisma.workflowInstance.findMany({
+  const notRecentlyEscalated = {
+    OR: [{ lastEscalationAt: null }, { lastEscalationAt: { lt: cutoff } }],
+  };
+
+  // (a) Instances with an explicit per-instance due date that has passed.
+  const dueOverdue = await prisma.workflowInstance.findMany({
     where: {
       status: { in: ACTIVE as never },
       dueAt: { not: null, lt: now },
-      OR: [{ lastEscalationAt: null }, { lastEscalationAt: { lt: cutoff } }],
+      ...notRecentlyEscalated,
     },
     select: { id: true },
     take: 200,
   });
+
+  // (b) Instances whose TEMPLATE defines an escalateAfterHours SLA and whose age
+  //     since startedAt has crossed it. This threshold used to be dead config —
+  //     nothing consumed WorkflowTemplate.escalateAfterHours — so a template that
+  //     set an SLA but never a per-instance dueAt (e.g. auto-started instances)
+  //     was never escalated.
+  const slaCandidates = await prisma.workflowInstance.findMany({
+    where: {
+      status: { in: ACTIVE as never },
+      template: { escalateAfterHours: { not: null } },
+      ...notRecentlyEscalated,
+    },
+    select: {
+      id: true,
+      startedAt: true,
+      template: { select: { escalateAfterHours: true } },
+    },
+    take: 500,
+  });
+  const HOUR_MS = 60 * 60 * 1000;
+  const slaOverdueIds = slaCandidates
+    .filter((inst) => {
+      const hours = inst.template?.escalateAfterHours ?? null;
+      return hours != null && inst.startedAt.getTime() + hours * HOUR_MS <= now.getTime();
+    })
+    .map((inst) => inst.id);
+
+  const ids = Array.from(
+    new Set([...dueOverdue.map((i) => i.id), ...slaOverdueIds])
+  ).slice(0, 200);
+
   let escalated = 0;
-  for (const inst of overdue) {
-    await runInstanceTrigger(inst.id, "ON_OVERDUE", now);
+  for (const id of ids) {
+    const matched = await runInstanceTrigger(id, "ON_OVERDUE", now);
+    // If the template defined no ON_OVERDUE rule, still nudge the owner so an
+    // overdue instance never goes silent (mirrors processFollowUps).
+    if (matched === 0) {
+      const inst = await prisma.workflowInstance.findUnique({
+        where: { id },
+        select: { title: true, ownerId: true },
+      });
+      if (inst?.ownerId) {
+        await createNotification({
+          userId: inst.ownerId,
+          type: WORKFLOW_NOTIFICATION_TYPE,
+          title: "Workflow overdue",
+          body: `“${inst.title}” is overdue and needs attention.`,
+          link: `/workflows/${id}`,
+        });
+      }
+    }
+    // Record the escalation pass so the once/day dedup holds even when the fired
+    // rule wasn't an ESCALATE (only effectEscalate sets lastEscalationAt itself).
+    await prisma.workflowInstance.update({
+      where: { id },
+      data: { lastEscalationAt: now },
+    });
     escalated += 1;
   }
   return escalated;

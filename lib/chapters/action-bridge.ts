@@ -110,12 +110,18 @@ export async function createChapterActionFromMeetingFollowUp(
   });
 }
 
-/** Mark a chapter action complete (e.g. when its launch checklist item is ticked). */
-export async function completeChapterActionItem(db: Db, actionItemId: string): Promise<void> {
-  await db.actionItem.updateMany({
+/**
+ * Mark a chapter action complete (e.g. when its launch checklist item is ticked).
+ * Returns true when it actually transitioned, so the caller can sync the linked
+ * workflow step *after* its transaction commits (the workflow sync runs on the
+ * global client and must not ride inside the caller's transaction).
+ */
+export async function completeChapterActionItem(db: Db, actionItemId: string): Promise<boolean> {
+  const res = await db.actionItem.updateMany({
     where: { id: actionItemId, status: { not: "COMPLETE" } },
     data: { status: "COMPLETE", completedAt: new Date() },
   });
+  return res.count > 0;
 }
 
 /** Re-open a chapter action (e.g. when its launch checklist item is un-ticked). */

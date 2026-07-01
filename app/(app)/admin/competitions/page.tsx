@@ -16,7 +16,7 @@ export default async function AdminCompetitionsPage() {
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN")) redirect("/dashboard");
+  if (!roles.includes("ADMIN")) redirect("/");
   const hasDraftSupport = await hasCompetitionDraftOwnership();
 
   const [pendingDrafts, rawCompetitions] = await Promise.all([

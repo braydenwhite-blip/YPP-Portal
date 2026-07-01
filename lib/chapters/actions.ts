@@ -24,6 +24,7 @@ import {
 import { readChecklistMeta } from "@/lib/chapters/provisioning";
 import { isValidChapterLifecycleStatus } from "@/lib/chapters/lifecycle";
 import { fireEntityStatusChanged } from "@/lib/workflow-engine/triggers";
+import { onActionItemCompleted } from "@/lib/workflow-engine/action-sync";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -61,22 +62,28 @@ async function markChecklistByKey(
   chapterId: string,
   key: string,
   done: boolean
-): Promise<void> {
+): Promise<string | null> {
   const tasks = await db.launchTask.findMany({
     where: { chapterId, scope: "CHAPTER" },
     select: { id: true, metadata: true },
   });
   const match = tasks.find((t) => readChecklistMeta(t.metadata).key === key);
-  if (!match) return;
+  if (!match) return null;
   const meta = readChecklistMeta(match.metadata);
   await db.launchTask.update({
     where: { id: match.id },
     data: { status: done ? "COMPLETE" : "NOT_STARTED" },
   });
   if (meta.actionItemId) {
-    if (done) await completeChapterActionItem(db, meta.actionItemId);
-    else await reopenChapterActionItem(db, meta.actionItemId);
+    if (done) {
+      const transitioned = await completeChapterActionItem(db, meta.actionItemId);
+      // Return the id so the caller can sync the linked workflow step after its
+      // transaction commits (never inside it — the sync runs on the global client).
+      return transitioned ? meta.actionItemId : null;
+    }
+    await reopenChapterActionItem(db, meta.actionItemId);
   }
+  return null;
 }
 
 // --- Chapter setup -----------------------------------------------------------
@@ -192,14 +199,20 @@ export async function toggleLaunchChecklistItem(input: unknown) {
     throw new Error("Only national leadership can complete this step");
   }
 
-  await prisma.$transaction(async (tx) => {
+  const completedActionId = await prisma.$transaction(async (tx): Promise<string | null> => {
+    let completed: string | null = null;
     await tx.launchTask.update({
       where: { id: task.id },
       data: { status: data.done ? "COMPLETE" : "NOT_STARTED" },
     });
     if (meta.actionItemId) {
-      if (data.done) await completeChapterActionItem(tx, meta.actionItemId);
-      else await reopenChapterActionItem(tx, meta.actionItemId);
+      if (data.done) {
+        if (await completeChapterActionItem(tx, meta.actionItemId)) {
+          completed = meta.actionItemId;
+        }
+      } else {
+        await reopenChapterActionItem(tx, meta.actionItemId);
+      }
     }
     if (meta.key === "submit_launch_plan") {
       await tx.chapter.update({
@@ -222,8 +235,10 @@ export async function toggleLaunchChecklistItem(input: unknown) {
         data: { lifecycleStatus: "ACTIVE", launchedAt: new Date(), lifecycleUpdatedAt: new Date() },
       });
     }
+    return completed;
   });
 
+  if (completedActionId) await onActionItemCompleted(completedActionId, user.id);
   revalidateChapterSurfaces(data.chapterId);
   return { ok: true as const };
 }
@@ -235,14 +250,15 @@ const LaunchPlanSchema = z.object({
 
 export async function submitLaunchPlan(input: unknown) {
   const data = LaunchPlanSchema.parse(input);
-  await requireChapterManager(data.chapterId);
-  await prisma.$transaction(async (tx) => {
+  const { user } = await requireChapterManager(data.chapterId);
+  const completedActionId = await prisma.$transaction(async (tx) => {
     await tx.chapter.update({
       where: { id: data.chapterId },
       data: { launchPlanText: data.launchPlanText, launchPlanSubmittedAt: new Date() },
     });
-    await markChecklistByKey(tx, data.chapterId, "submit_launch_plan", true);
+    return markChecklistByKey(tx, data.chapterId, "submit_launch_plan", true);
   });
+  if (completedActionId) await onActionItemCompleted(completedActionId, user.id);
   revalidateChapterSurfaces(data.chapterId);
   return { ok: true as const };
 }
@@ -250,27 +266,29 @@ export async function submitLaunchPlan(input: unknown) {
 export async function approveLaunchPlan(input: unknown) {
   const data = z.object({ chapterId: z.string().min(1) }).parse(input);
   const user = await requireChapterLeadership();
-  await prisma.$transaction(async (tx) => {
+  const completedActionId = await prisma.$transaction(async (tx) => {
     await tx.chapter.update({
       where: { id: data.chapterId },
       data: { launchPlanApprovedAt: new Date(), launchPlanApprovedById: user.id },
     });
-    await markChecklistByKey(tx, data.chapterId, "approve_launch_plan", true);
+    return markChecklistByKey(tx, data.chapterId, "approve_launch_plan", true);
   });
+  if (completedActionId) await onActionItemCompleted(completedActionId, user.id);
   revalidateChapterSurfaces(data.chapterId);
   return { ok: true as const };
 }
 
 export async function markChapterActive(input: unknown) {
   const data = z.object({ chapterId: z.string().min(1) }).parse(input);
-  await requireChapterLeadership();
-  await prisma.$transaction(async (tx) => {
+  const user = await requireChapterLeadership();
+  const completedActionId = await prisma.$transaction(async (tx) => {
     await tx.chapter.update({
       where: { id: data.chapterId },
       data: { lifecycleStatus: "ACTIVE", launchedAt: new Date(), lifecycleUpdatedAt: new Date() },
     });
-    await markChecklistByKey(tx, data.chapterId, "mark_active", true);
+    return markChecklistByKey(tx, data.chapterId, "mark_active", true);
   });
+  if (completedActionId) await onActionItemCompleted(completedActionId, user.id);
   revalidateChapterSurfaces(data.chapterId);
   return { ok: true as const };
 }
@@ -342,7 +360,7 @@ export async function resolveChapterSupportRequest(input: unknown) {
   });
   if (!request) throw new Error("Support request not found");
 
-  await prisma.$transaction(async (tx) => {
+  const completedActionId = await prisma.$transaction(async (tx): Promise<string | null> => {
     await tx.chapterSupportRequest.update({
       where: { id: request.id },
       data: {
@@ -352,9 +370,13 @@ export async function resolveChapterSupportRequest(input: unknown) {
         resolvedById: user.id,
       },
     });
-    if (request.actionItemId) await completeChapterActionItem(tx, request.actionItemId);
+    if (request.actionItemId && (await completeChapterActionItem(tx, request.actionItemId))) {
+      return request.actionItemId;
+    }
+    return null;
   });
 
+  if (completedActionId) await onActionItemCompleted(completedActionId, user.id);
   revalidateChapterSurfaces(request.chapterId);
   return { ok: true as const };
 }

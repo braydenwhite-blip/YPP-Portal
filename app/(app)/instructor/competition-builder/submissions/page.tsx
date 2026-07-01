@@ -17,7 +17,7 @@ export default async function SubmissionsPage({
     !roles.includes("INSTRUCTOR") &&
     !roles.includes("CHAPTER_PRESIDENT")
   ) {
-    redirect("/dashboard");
+    redirect("/");
   }
 
   const params = await searchParams;

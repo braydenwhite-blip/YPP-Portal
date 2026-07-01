@@ -12,7 +12,7 @@ export default async function InstructorGuidePage() {
     !roles.includes("INSTRUCTOR") &&
     !roles.includes("CHAPTER_PRESIDENT")
   ) {
-    redirect("/dashboard");
+    redirect("/");
   }
 
   return <InstructorGuideClient />;
