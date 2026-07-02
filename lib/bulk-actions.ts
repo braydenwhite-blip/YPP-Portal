@@ -123,16 +123,10 @@ export async function deleteUsersBulk(formData: FormData) {
     throw new Error("Cannot delete your own account");
   }
 
-  // Atomic transaction for cascade delete
-  await prisma.$transaction([
-    prisma.userRole.deleteMany({ where: { userId: { in: userIds } } }),
-    prisma.enrollment.deleteMany({ where: { userId: { in: userIds } } }),
-    prisma.trainingAssignment.deleteMany({ where: { userId: { in: userIds } } }),
-    prisma.mentorship.deleteMany({
-      where: { OR: [{ mentorId: { in: userIds } }, { menteeId: { in: userIds } }] }
-    }),
-    prisma.user.deleteMany({ where: { id: { in: userIds } } }),
-  ]);
+  // Dependent rows are cleaned up by the database: every FK to User now declares
+  // an onDelete rule (required refs CASCADE, optional refs SET NULL — see migration
+  // 20260702150000_user_delete_cascade), so deleting the user rows is sufficient.
+  await prisma.user.deleteMany({ where: { id: { in: userIds } } });
 
   await logAuditEvent({
     action: "USER_DELETED",
