@@ -97,7 +97,15 @@ function LaneSection({ lane, who }: { lane: DevelopmentLane; who: string }) {
           <h2 className="m-0 text-[13.5px] font-bold text-ink">{lane.title}</h2>
           <span className="text-[12px] font-semibold text-ink-muted">{lane.cards.length}</span>
         </div>
-        <p className="m-0 text-[12px] text-ink-muted">{lane.blurb}</p>
+        <div className="flex items-baseline gap-3">
+          <p className="m-0 text-[12px] text-ink-muted">{lane.blurb}</p>
+          <Link
+            href={`/mentorship/cycles/new?lane=${lane.id}&who=${who}`}
+            className="shrink-0 text-[12px] font-semibold text-brand-700 hover:underline"
+          >
+            Launch cycle →
+          </Link>
+        </div>
       </header>
       <ul className="m-0 list-none divide-y divide-line-soft/70 p-0">
         {shown.map((card) => (

@@ -7,20 +7,31 @@ import { getGrowthConnectLine } from "@/lib/growth-model";
 import { GoalTrajectory, type TrajectoryGoal } from "@/components/mentorship/goal-trajectory";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
 import { LearnMore } from "@/components/mentorship/learn-more";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import {
-  ActionSummaryHeader,
-  type HeaderStatusTone,
-} from "@/components/mentorship/action-summary-header";
+  ButtonLink,
+  CardV2,
+  PageHeaderV2,
+  StatusBadge,
+  type StatusTone,
+} from "@/components/ui-v2";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 
-const RATING_TONE: Record<string, HeaderStatusTone> = {
-  ABOVE_AND_BEYOND: "success",
+const RATING_TONE: Record<string, StatusTone> = {
+  ABOVE_AND_BEYOND: "brand",
   ACHIEVED: "success",
-  GETTING_STARTED: "pending",
-  BEHIND_SCHEDULE: "warning",
+  GETTING_STARTED: "warning",
+  BEHIND_SCHEDULE: "danger",
 };
 
-export const metadata = { title: "My Progress — My Mentor" };
+const RATING_ACCENT: Record<string, string> = {
+  ABOVE_AND_BEYOND: "border-l-brand-600",
+  ACHIEVED: "border-l-complete-700",
+  GETTING_STARTED: "border-l-progress-700",
+  BEHIND_SCHEDULE: "border-l-blocked-700",
+};
+
+export const metadata = { title: "Progress — My development" };
 
 function formatMonth(value: Date | string) {
   return new Date(value).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -60,95 +71,93 @@ export default async function MyProgressPage() {
   const statusCfg = latestReleased ? getGoalRatingCopy(latestReleased.overallRating) : null;
 
   return (
-    <div>
-      <ActionSummaryHeader
-        badge="My Mentor"
-        title="My Progress"
-        purpose="How far you've come — and the feedback your mentor has shared with you."
-        status={
-          statusCfg
-            ? {
-                label: statusCfg.menteeLabel,
-                tone: RATING_TONE[String(latestReleased?.overallRating)] ?? "info",
-              }
-            : undefined
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · My development"
+        title="Progress & reviews"
+        subtitle="How far you've come — and the feedback your mentor has released to you."
+        actions={
+          <>
+            <ButtonLink href="/my-mentor/reflection" size="sm">
+              Update this month&apos;s reflection →
+            </ButtonLink>
+            <ButtonLink href="/my-mentor/awards" variant="secondary" size="sm">
+              Awards →
+            </ButtonLink>
+          </>
         }
-        nextAction={{ label: "Update this month's reflection →", href: "/my-mentor/reflection" }}
-        secondaryAction={{ label: "Points & Awards →", href: "/my-mentor/awards" }}
-        connects={getGrowthConnectLine("progress")}
-      />
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          {statusCfg ? (
+            <StatusBadge
+              tone={RATING_TONE[String(latestReleased?.overallRating)] ?? "info"}
+              title={statusCfg.menteeDescription}
+              withDot
+            >
+              {statusCfg.menteeLabel}
+            </StatusBadge>
+          ) : null}
+          <p className="m-0 max-w-[70ch] text-[13px] leading-relaxed text-ink-muted">
+            {getGrowthConnectLine("progress")}
+          </p>
+        </div>
+      </PageHeaderV2>
 
       <MyMentorSubnav />
 
       {!doc || (trajectoryGoals.length === 0 && releasedReviews.length === 0) ? (
-        <div className="card" style={{ textAlign: "center", padding: "2.5rem" }}>
-          <p style={{ fontWeight: 600, margin: "0 0 6px" }}>Your progress story starts soon</p>
-          <p className="muted" style={{ margin: "0 auto", maxWidth: 400, fontSize: 13 }}>
-            After your first monthly review is shared with you, you&apos;ll see how your goals are
-            trending and the encouragement your mentor wrote. Nothing here is a grade — it&apos;s a
-            picture of your growth.
+        <CardV2 padding="lg" className="text-center">
+          <p className="m-0 text-[15px] font-semibold text-ink">
+            Your progress story starts soon
           </p>
-        </div>
+          <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-muted">
+            After your first monthly review is shared with you, you&apos;ll see how your
+            goals are trending and the encouragement your mentor wrote. Nothing here is a
+            grade — it&apos;s a picture of your growth.
+          </p>
+        </CardV2>
       ) : (
-        <div style={{ display: "grid", gap: 20 }}>
+        <div className="grid gap-5">
           {trajectoryGoals.length > 0 && <GoalTrajectory goals={trajectoryGoals} />}
 
           {releasedReviews.length > 0 && (
-            <section style={{ display: "grid", gap: 12 }}>
-              <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 700 }}>Feedback shared with you</h2>
+            <section className="grid gap-3">
+              <h2 className="m-0 text-[16px] font-bold text-ink">Feedback released to you</h2>
               {releasedReviews.map((review) => {
                 const cfg = getGoalRatingCopy(review.overallRating);
+                const rating = String(review.overallRating);
                 return (
-                  <div key={review.id} className="card" style={{ borderLeft: `4px solid ${cfg.color}` }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <strong>{formatMonth(review.cycleMonth)}</strong>
-                      <span
+                  <CardV2
+                    key={review.id}
+                    padding="md"
+                    className={`border-l-4 ${RATING_ACCENT[rating] ?? "border-l-brand-600"}`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <strong className="text-[14px] text-ink">
+                        {formatMonth(review.cycleMonth)}
+                      </strong>
+                      <StatusBadge
+                        tone={RATING_TONE[rating] ?? "info"}
                         title={cfg.menteeDescription}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          background: cfg.background,
-                          color: cfg.color,
-                          borderRadius: 999,
-                          padding: "0.2rem 0.6rem",
-                          fontSize: "0.75rem",
-                          fontWeight: 600,
-                        }}
+                        withDot
                       >
-                        <span aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: cfg.color }} />
                         {cfg.menteeLabel}
-                      </span>
+                      </StatusBadge>
                     </div>
                     {review.overallComments && (
-                      <p style={{ margin: "10px 0 0", fontSize: "0.88rem", lineHeight: 1.55 }}>
+                      <p className="m-0 mt-2.5 text-[13px] leading-relaxed text-ink">
                         {review.overallComments}
                       </p>
                     )}
                     {review.planOfAction && (
-                      <div
-                        style={{
-                          marginTop: 10,
-                          padding: "10px 12px",
-                          borderRadius: 8,
-                          background: "var(--surface-alt, #f8fafc)",
-                        }}
-                      >
-                        <p style={{ margin: 0, fontSize: "0.72rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <div className="mt-2.5 rounded-lg bg-surface-soft px-3 py-2.5">
+                        <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
                           Your next steps
                         </p>
-                        <p style={{ margin: "4px 0 0", fontSize: "0.85rem" }}>{review.planOfAction}</p>
+                        <p className="m-0 mt-1 text-[13px] text-ink">{review.planOfAction}</p>
                       </div>
                     )}
-                  </div>
+                  </CardV2>
                 );
               })}
             </section>

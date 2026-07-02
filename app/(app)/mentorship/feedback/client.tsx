@@ -30,7 +30,7 @@ export function RequestFeedbackForm() {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="button primary">
+      <button onClick={() => setOpen(true)} className="inline-flex items-center justify-center rounded-full bg-brand-600 px-4 py-2 text-[13.5px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60">
         Request Feedback
       </button>
     );
@@ -38,7 +38,7 @@ export function RequestFeedbackForm() {
 
   return (
     <div
-      className="card"
+      className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card"
       style={{
         borderLeft: "4px solid var(--ypp-purple)",
         marginBottom: 24,
@@ -139,12 +139,12 @@ export function RequestFeedbackForm() {
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
-          <button type="submit" className="button primary" disabled={isPending}>
+          <button type="submit" className="inline-flex items-center justify-center rounded-full bg-brand-600 px-4 py-2 text-[13.5px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60" disabled={isPending}>
             {isPending ? "Submitting..." : "Submit Request"}
           </button>
           <button
             type="button"
-            className="button secondary"
+            className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-4 py-2 text-[13.5px] font-semibold text-ink transition-colors hover:bg-surface-soft disabled:opacity-60"
             onClick={() => setOpen(false)}
             disabled={isPending}
           >
@@ -179,7 +179,7 @@ export function RespondForm({ requestId }: { requestId: string }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="button primary small"
+        className="inline-flex items-center justify-center rounded-full bg-brand-600 px-3.5 py-1.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60"
         style={{ marginTop: 8 }}
       >
         Write Response
@@ -241,12 +241,12 @@ export function RespondForm({ requestId }: { requestId: string }) {
         }}
       />
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" className="button primary small" disabled={isPending}>
+        <button type="submit" className="inline-flex items-center justify-center rounded-full bg-brand-600 px-3.5 py-1.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60" disabled={isPending}>
           {isPending ? "Sending..." : "Send Feedback"}
         </button>
         <button
           type="button"
-          className="button secondary small"
+          className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink transition-colors hover:bg-surface-soft disabled:opacity-60"
           onClick={() => setOpen(false)}
           disabled={isPending}
         >

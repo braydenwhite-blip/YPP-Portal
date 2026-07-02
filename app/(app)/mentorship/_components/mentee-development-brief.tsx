@@ -90,6 +90,7 @@ const DRILL_DOWNS: Array<{ label: string; href: string; blurb: string }> = [
   { label: "Schedule time", href: "/my-mentor/schedule", blurb: "Book time with your mentor" },
   { label: "Resources", href: "/my-mentor/resources", blurb: "What your mentor shared" },
   { label: "Awards", href: "/my-mentor/awards", blurb: "Recognition and points" },
+  { label: "Get help", href: "/my-mentor/help", blurb: "Ask your mentor or the program for support" },
 ];
 
 export async function MenteeDevelopmentBrief({ userId }: { userId: string }) {

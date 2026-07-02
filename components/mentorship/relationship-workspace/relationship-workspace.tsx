@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import { notFound, redirect } from "next/navigation";
 
@@ -388,45 +391,42 @@ export async function RelationshipWorkspace({
   ) : null;
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <Link href={backHref} style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; {backLabel}
-          </Link>
-          {badge ? <p className="badge" style={{ marginTop: 8 }}>{badge}</p> : null}
-          <h1 className="page-title">{workspace.mentee.name}</h1>
-          <p className="page-subtitle">
-            {subtitle}
-          </p>
-        </div>
-        {!isSelfWorkspace && (
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Link
-              href="#session-form"
-              className={`button ${primaryHeaderCta === "checkIn" ? "primary" : "secondary"} small`}
-              aria-disabled={!canScheduleSessions}
-              style={!canScheduleSessions ? { opacity: 0.5, pointerEvents: "none" } : undefined}
-            >
-              Run Check-In
-            </Link>
-            <Link
-              href={`/mentorship/reviews/${workspace.mentee.id}`}
-              className={`button ${primaryHeaderCta === "review" ? "primary" : "secondary"} small`}
-              aria-disabled={!canScheduleSessions}
-              style={!canScheduleSessions ? { opacity: 0.5, pointerEvents: "none" } : undefined}
-            >
-              Write Review
-            </Link>
-            <Link
-              href={`/mentorship/mentees/${workspace.mentee.id}/gr`}
-              className={`button ${primaryHeaderCta === "gr" ? "primary" : "secondary"} small`}
-            >
-              Open G&amp;R
-            </Link>
-          </div>
-        )}
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-4`}>
+      <PageHeaderV2
+        eyebrow={badge ?? "Mentorship · Mentor console"}
+        title={workspace.mentee.name}
+        subtitle={subtitle}
+        backHref={backHref}
+        backLabel={backLabel}
+        actions={
+          !isSelfWorkspace ? (
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="#session-form"
+                className={`${primaryHeaderCta === "checkIn" ? "inline-flex h-8 items-center justify-center rounded-full bg-brand-600 px-3 text-[12.5px] font-semibold text-white no-underline transition-[filter] hover:brightness-95" : "inline-flex h-8 items-center justify-center rounded-full border border-line bg-surface px-3 text-[12.5px] font-semibold text-brand-800 no-underline transition-colors hover:bg-brand-50"}`}
+                aria-disabled={!canScheduleSessions}
+                style={!canScheduleSessions ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+              >
+                Run Check-In
+              </Link>
+              <Link
+                href={`/mentorship/reviews/${workspace.mentee.id}`}
+                className={`${primaryHeaderCta === "review" ? "inline-flex h-8 items-center justify-center rounded-full bg-brand-600 px-3 text-[12.5px] font-semibold text-white no-underline transition-[filter] hover:brightness-95" : "inline-flex h-8 items-center justify-center rounded-full border border-line bg-surface px-3 text-[12.5px] font-semibold text-brand-800 no-underline transition-colors hover:bg-brand-50"}`}
+                aria-disabled={!canScheduleSessions}
+                style={!canScheduleSessions ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+              >
+                Write Review
+              </Link>
+              <Link
+                href={`/mentorship/mentees/${workspace.mentee.id}/gr`}
+                className={`${primaryHeaderCta === "gr" ? "inline-flex h-8 items-center justify-center rounded-full bg-brand-600 px-3 text-[12.5px] font-semibold text-white no-underline transition-[filter] hover:brightness-95" : "inline-flex h-8 items-center justify-center rounded-full border border-line bg-surface px-3 text-[12.5px] font-semibold text-brand-800 no-underline transition-colors hover:bg-brand-50"}`}
+              >
+                Open G&amp;R
+              </Link>
+            </div>
+          ) : undefined
+        }
+      />
 
       <div style={{ marginBottom: 16 }}>
         <LearnMore summary="How to use this workspace">
@@ -452,11 +452,11 @@ export async function RelationshipWorkspace({
         hint="sessions, next steps, requests, resources, and progress"
       >
       {isMentorship2Enabled() && workspace.mentorship && (
-        <div className="card" style={{ marginBottom: 16, display: "grid", gap: 8 }}>
-          <h2 className="section-title" style={{ margin: 0 }}>
+        <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ marginBottom: 16, display: "grid", gap: 8 }}>
+          <h2 className="m-0 text-[13.5px] font-bold text-ink" style={{ margin: 0 }}>
             Completion
           </h2>
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-ink-muted" style={{ fontSize: 13, margin: 0 }}>
             When this mentorship wraps up, graduate the mentee into the Alumni
             network so they stay connected and can give back.
           </p>
@@ -469,8 +469,8 @@ export async function RelationshipWorkspace({
 
       {operationsEnabled && (teachingClasses.length > 0 || (readiness && readiness.featureEnabled)) ? (
         <div style={{ marginBottom: 16, display: "grid", gap: 16 }}>
-          <section className="card">
-            <h2 className="section-title" style={{ margin: "0 0 10px" }}>
+          <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+            <h2 className="m-0 text-[13.5px] font-bold text-ink" style={{ margin: "0 0 10px" }}>
               Teaching &amp; readiness
             </h2>
 
@@ -582,7 +582,7 @@ export async function RelationshipWorkspace({
       )}
 
       {!workspace.mentorship && !workspace.intakePlanLaunch ? (
-        <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--gray-300, #d1d5db)" }}>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ marginBottom: 24, borderLeft: "4px solid var(--gray-300, #d1d5db)" }}>
           <strong>No active mentorship yet</strong>
           <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
             You can still review this mentee&apos;s history, requests, and progress signals below. Session logging, next steps, and monthly reviews stay disabled until an active mentor or support circle is assigned.
@@ -591,7 +591,7 @@ export async function RelationshipWorkspace({
       ) : null}
 
       {!workspace.mentorship && workspace.intakePlanLaunch ? (
-        <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid #0f766e" }}>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ marginBottom: 24, borderLeft: "4px solid #0f766e" }}>
           <strong>Pre-assignment intake plan is live</strong>
           <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
             The chapter launched an early support plan before assigning a long-term mentor. Action items are active now, while session logging stays locked until the formal mentorship record exists.
@@ -600,7 +600,7 @@ export async function RelationshipWorkspace({
       ) : null}
 
       {isSelfWorkspace ? (
-        <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--ypp-purple)" }}>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ marginBottom: 24, borderLeft: "4px solid var(--ypp-purple)" }}>
           <strong>Your self-view workspace</strong>
           <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
             This view lets you see the full support picture for yourself, but mentor-only actions stay hidden so you cannot accidentally act on your own record.
@@ -609,8 +609,8 @@ export async function RelationshipWorkspace({
       ) : null}
 
       <div className="grid three" style={{ marginBottom: 24 }}>
-        <div className="card">
-          <div className="section-title">Circle Health</div>
+        <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Circle Health</div>
           <p style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 700 }}>
             {workspace.circleMembers.length}
           </p>
@@ -622,8 +622,8 @@ export async function RelationshipWorkspace({
             {recentSessions.length} recent session{recentSessions.length === 1 ? "" : "s"} logged.
           </p>
         </div>
-        <div className="card">
-          <div className="section-title">Next steps</div>
+        <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Next steps</div>
           <p style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 700 }}>
             {openActionItems.length}
           </p>
@@ -635,8 +635,8 @@ export async function RelationshipWorkspace({
             support request{workspace.requests.filter((item) => item.status === "OPEN").length === 1 ? "" : "s"}.
           </p>
         </div>
-        <div className="card">
-          <div className="section-title">Momentum Signals</div>
+        <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Momentum Signals</div>
           <p style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 700 }}>
             {workspace.mentee.incubatorProjects.length}
           </p>
@@ -652,8 +652,8 @@ export async function RelationshipWorkspace({
       </div>
 
       <div className="grid three" style={{ marginBottom: 24 }}>
-        <section className="card">
-          <div className="section-title">Profile</div>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Profile</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div>
               <strong>Email:</strong> {workspace.mentee.email}
@@ -677,8 +677,8 @@ export async function RelationshipWorkspace({
           </div>
         </section>
 
-        <section className="card">
-          <div className="section-title">Review Status</div>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Review Status</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div>
               <strong>Active mentorship:</strong>{" "}
@@ -697,8 +697,8 @@ export async function RelationshipWorkspace({
           </div>
         </section>
 
-        <section className="card">
-          <div className="section-title">Recognition Snapshot</div>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Recognition Snapshot</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div>
               <strong>Recent wins:</strong> {recognition.badgeCount} badge
@@ -732,8 +732,8 @@ export async function RelationshipWorkspace({
         </section>
       </div>
 
-      <section className="card" style={{ marginBottom: 24 }}>
-        <div className="section-title" style={{ marginBottom: 14 }}>Support Circle Roster</div>
+      <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ marginBottom: 24 }}>
+        <div className="m-0 text-[13.5px] font-bold text-ink" style={{ marginBottom: 14 }}>Support Circle Roster</div>
         {workspace.circleMembers.length === 0 ? (
           <p style={{ color: "var(--muted)", margin: 0 }}>
             No mentor or support-circle members are assigned yet. Next steps can still move while the chapter decides who should step in first.
@@ -758,7 +758,7 @@ export async function RelationshipWorkspace({
                     </div>
                   </div>
                   <span
-                    className="pill"
+                    className="inline-flex items-center rounded-full bg-surface-soft px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-muted"
                     style={{
                       background: `${SUPPORT_ROLE_META[member.role].tone}15`,
                       color: SUPPORT_ROLE_META[member.role].tone,
@@ -782,7 +782,7 @@ export async function RelationshipWorkspace({
       </section>
 
       <div style={{ display: "grid", gap: 16, marginBottom: 24 }}>
-        <details id="session-form" className="card" style={{ scrollMarginTop: 80 }}>
+        <details id="session-form" className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ scrollMarginTop: 80 }}>
           <summary
             style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.95rem", listStyle: "revert" }}
           >
@@ -913,7 +913,7 @@ export async function RelationshipWorkspace({
                   <option value="true">Yes, log it now</option>
                 </select>
               </div>
-              <button type="submit" className="button primary small">
+              <button type="submit" className="inline-flex items-center justify-center rounded-full bg-brand-600 px-3.5 py-1.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60">
                 Save Session
               </button>
             </form>
@@ -927,7 +927,7 @@ export async function RelationshipWorkspace({
           </div>
         </details>
 
-        <details className="card">
+        <details className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
           <summary
             style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.95rem", listStyle: "revert" }}
           >
@@ -998,7 +998,7 @@ export async function RelationshipWorkspace({
                 />
                 <textarea name="details" className="input" rows={4} placeholder="What does success look like for this next step?" />
               </div>
-              <button type="submit" className="button primary small">
+              <button type="submit" className="inline-flex items-center justify-center rounded-full bg-brand-600 px-3.5 py-1.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60">
                 Add Next Step
               </button>
             </form>
@@ -1014,8 +1014,8 @@ export async function RelationshipWorkspace({
       </div>
 
       <div className="grid two" style={{ marginBottom: 24 }}>
-        <section className="card">
-          <div className="section-title">Session Timeline</div>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Session Timeline</div>
           {workspace.sessions.length === 0 ? (
             <p style={{ color: "var(--muted)", margin: 0 }}>
               No sessions have been logged yet. Start by creating a kickoff or check-in session above.
@@ -1031,7 +1031,7 @@ export async function RelationshipWorkspace({
                         {sessionItem.type.replace(/_/g, " ")} · {new Date(sessionItem.scheduledAt).toLocaleString()}
                       </div>
                     </div>
-                    <span className="pill">
+                    <span className="inline-flex items-center rounded-full bg-surface-soft px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-muted">
                       {sessionItem.completedAt ? "Completed" : "Scheduled"}
                     </span>
                   </div>
@@ -1052,8 +1052,8 @@ export async function RelationshipWorkspace({
           )}
         </section>
 
-        <section className="card">
-          <div className="section-title">Next steps</div>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Next steps</div>
           {workspace.actionItems.length === 0 ? (
             <p style={{ color: "var(--muted)", margin: 0 }}>
               No next steps yet. Next steps turn check-ins into work the mentee can actually follow.
@@ -1074,7 +1074,7 @@ export async function RelationshipWorkspace({
                       <form action={updateMentorshipActionItemStatus}>
                         <input type="hidden" name="itemId" value={item.id} />
                         <input type="hidden" name="status" value="COMPLETE" />
-                        <button type="submit" className="button secondary small">
+                        <button type="submit" className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink transition-colors hover:bg-surface-soft disabled:opacity-60">
                           Complete
                         </button>
                       </form>
@@ -1099,8 +1099,8 @@ export async function RelationshipWorkspace({
       )}
 
       <div className="grid two" style={{ marginBottom: 24 }}>
-        <section className="card">
-          <div className="section-title">Requests and Escalations</div>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Requests and Escalations</div>
           {workspace.requests.length === 0 ? (
             <p style={{ color: "var(--muted)", margin: 0 }}>
               No requests yet. Private feedback, escalations, and public questions will all show up here.
@@ -1117,7 +1117,7 @@ export async function RelationshipWorkspace({
                         {request.assignedTo?.name ? `Assigned to ${request.assignedTo.name}` : "Open to supporters"}
                       </div>
                     </div>
-                    <span className="pill">{request.status.replace(/_/g, " ")}</span>
+                    <span className="inline-flex items-center rounded-full bg-surface-soft px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-muted">{request.status.replace(/_/g, " ")}</span>
                   </div>
                   <p style={{ margin: "8px 0 0", fontSize: 13 }}>{request.details}</p>
                   {request.responses.length > 0 && (
@@ -1138,8 +1138,8 @@ export async function RelationshipWorkspace({
           )}
         </section>
 
-        <section className="card">
-          <div className="section-title">Resource Attachments</div>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Resource Attachments</div>
           {workspace.resources.length === 0 ? (
             <p style={{ color: "var(--muted)", margin: 0 }}>
               Resources attached to requests, sessions, or promoted answers will appear here.
@@ -1166,8 +1166,8 @@ export async function RelationshipWorkspace({
       </div>
 
       <div className="grid two">
-        <section className="card">
-          <div className="section-title">Goals, Courses, and Training</div>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Goals, Courses, and Training</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
               <strong>Goals</strong>
@@ -1213,8 +1213,8 @@ export async function RelationshipWorkspace({
           </div>
         </section>
 
-        <section className="card">
-          <div className="section-title">Incubator and Reflection Timeline</div>
+        <section className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+          <div className="m-0 text-[13.5px] font-bold text-ink">Incubator and Reflection Timeline</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
               <strong>Incubator Projects</strong>

@@ -753,15 +753,6 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
-    pattern: "/admin/instructor-mentor-matching",
-    title: "Instructor Mentor Matching",
-    content: {
-      purpose: "This page helps you manage the instructor mentor matching and keep the portal data or workflow organized.",
-      firstStep: "Review the current list, board, or settings first so you can decide which item needs action right now.",
-      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
-    }
-  },
-  {
     pattern: "/admin/instructor-readiness",
     title: "Instructor Readiness Command Center",
     content: {
@@ -1204,20 +1195,20 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/admin/reflection-forms",
-    title: "Manage Monthly Self-Reflection Forms",
+    title: "Reflection Forms (Retired)",
     content: {
-      purpose: "This page helps you manage the monthly self-reflection forms and keep the portal data or workflow organized.",
-      firstStep: "Review the current list, board, or settings first so you can decide which item needs action right now.",
-      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
+      purpose: "The legacy reflection form builder is retired; this page redirects to the read-only reflection archive.",
+      firstStep: "Use the reflection archive to read past submissions.",
+      nextStep: "Live self-input now flows through the Mentorship hub and its review inbox."
     }
   },
   {
     pattern: "/admin/reflections",
-    title: "Monthly Self-Reflections",
+    title: "Reflection Archive",
     content: {
-      purpose: "This page helps you manage the monthly self-reflections and keep the portal data or workflow organized.",
-      firstStep: "Review the current list, board, or settings first so you can decide which item needs action right now.",
-      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
+      purpose: "This page is the read-only archive of retired self-reflection submissions, grouped by person and month.",
+      firstStep: "Expand a person's card to read what they submitted before the system was retired.",
+      nextStep: "For live self-input and reviews, use the Mentorship hub's review inbox instead."
     }
   },
   {
@@ -4563,27 +4554,18 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     pattern: "/reflection",
     title: "Monthly Self-Reflection",
     content: {
-      purpose: "This page brings together the main tools and details for the monthly self-reflection.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+      purpose: "The legacy reflection form is retired; this page redirects to the canonical monthly reflection in the Mentorship hub.",
+      firstStep: "Submit your self-input from the Mentorship hub's My development view.",
+      nextStep: "Your mentor uses that self-input when writing the monthly review."
     }
   },
   {
     pattern: "/reflection/history",
     title: "Monthly Self-Reflection History",
     content: {
-      purpose: "This page gives you a clear view of the monthly self-reflection history so you can spot what needs attention first.",
-      firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
-      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
-    }
-  },
-  {
-    pattern: "/reflections/streaks",
-    title: "Reflection Streaks",
-    content: {
-      purpose: "This page gives you a clear view of the reflection streaks so you can spot what needs attention first.",
-      firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
-      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
+      purpose: "The legacy reflection history is retired; this page redirects to the canonical monthly reflection in the Mentorship hub.",
+      firstStep: "Open the Mentorship hub's My development view to revisit your self-input.",
+      nextStep: "Released reviews and coaching plans live under Progress & reviews."
     }
   },
   {
@@ -4874,5 +4856,203 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
     },
     placement: "bottom-left"
-  }
+  },
+  {
+    pattern: "/mentorship/cycles/new",
+    title: "Launch Review Cycle",
+    content: {
+      purpose: "This page launches an individual or cohort review cycle — pick a person, lane, chapter, or role group and preview exactly who it covers.",
+      firstStep: "Choose the cycle kind and scope, then preview the cohort so you know who will be tracked.",
+      nextStep: "After launching, the cycle page tracks everyone through self-input, review, synthesis, and release."
+    }
+  },
+  {
+    pattern: "/mentorship/cycles/[id]",
+    title: "Review Cycle",
+    content: {
+      purpose: "This page tracks one review cycle — every participant grouped by stage, with the next action for each person.",
+      firstStep: "Start with the earliest stage group; those participants are the ones blocking the cycle.",
+      nextStep: "As reviews are written, approved, and released, participants move down the stages until the cycle can be closed."
+    }
+  },
+  {
+    pattern: "/people/develop",
+    title: "Leadership Development",
+    content: {
+      purpose: "This legacy page redirects to the Mentorship command center, which now owns leadership development lanes.",
+      firstStep: "Use the Mentorship hub's Command center view for lanes, signals, and review cycles.",
+      nextStep: "Open any person's card there to reach their development record."
+    }
+  },
+  {
+    pattern: "/people/develop/[id]",
+    title: "Development Record (Legacy)",
+    content: {
+      purpose: "This legacy page redirects to the person's development record inside the Mentorship hub.",
+      firstStep: "Use the record to see their coaching plan, concerns, growth areas, and open work.",
+      nextStep: "Start a review from the record when they're due for one."
+    }
+  },
+  {
+    pattern: "/admin/settings",
+    title: "Admin Settings",
+    content: {
+      purpose: "This page helps you manage portal-wide admin settings and keep the configuration organized.",
+      firstStep: "Review the current settings first so you can decide which item needs action right now.",
+      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
+    }
+  },
+  {
+    pattern: "/admin/workflow-templates",
+    title: "Workflow Templates",
+    content: {
+      purpose: "This page helps you manage reusable workflow templates and keep the portal data or workflow organized.",
+      firstStep: "Review the current list first so you can decide which template needs action right now.",
+      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
+    }
+  },
+  {
+    pattern: "/admin/workflow-templates/[id]",
+    title: "Workflow Template",
+    content: {
+      purpose: "This page walks you through editing one workflow template in the format the portal expects.",
+      firstStep: "Fill in the required fields from top to bottom and double-check names, dates, and links before you continue.",
+      nextStep: "After you submit, the portal saves the entry and routes it to the next step, review, or destination automatically."
+    }
+  },
+  {
+    pattern: "/chapter/applicants",
+    title: "Chapter Applicants",
+    content: {
+      purpose: "This page gives you a clear view of your chapter's applicants so you can spot what needs attention first.",
+      firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
+      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
+    }
+  },
+  {
+    pattern: "/chapter/operating",
+    title: "Chapter Operating",
+    content: {
+      purpose: "This page brings together the main operating tools and details for running your chapter.",
+      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
+      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+    }
+  },
+  {
+    pattern: "/chapter/organization",
+    title: "Chapter Organization",
+    content: {
+      purpose: "This page gives you a clear view of your chapter's organization so you can spot what needs attention first.",
+      firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
+      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
+    }
+  },
+  {
+    pattern: "/chapter/president",
+    title: "Chapter President Home",
+    content: {
+      purpose: "This page brings together the main tools and details for chapter presidents.",
+      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
+      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+    }
+  },
+  {
+    pattern: "/chapter/workspace",
+    title: "Chapter Workspace",
+    content: {
+      purpose: "This page brings together the main tools and details for the chapter workspace.",
+      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
+      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+    }
+  },
+  {
+    pattern: "/data-360",
+    title: "Data 360",
+    content: {
+      purpose: "This page gives you a clear cross-portal view of the data so you can spot what needs attention first.",
+      firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
+      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
+    }
+  },
+  {
+    pattern: "/instructor/classes",
+    title: "My Classes",
+    content: {
+      purpose: "This page gives you a clear view of the classes you teach so you can spot what needs attention first.",
+      firstStep: "Scan the top summary or first section, then open the class with the closest deadline or biggest blocker.",
+      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
+    }
+  },
+  {
+    pattern: "/instructor/classes/[id]",
+    title: "Class Workspace",
+    content: {
+      purpose: "This page brings together the main tools and details for one class you teach.",
+      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
+      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+    }
+  },
+  {
+    pattern: "/classes",
+    title: "Classes",
+    content: {
+      purpose: "This page gives you a clear view of classes so you can spot what needs attention first.",
+      firstStep: "Scan the top summary or first section, then open the class with the closest deadline or biggest blocker.",
+      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
+    }
+  },
+  {
+    pattern: "/classes/[id]",
+    title: "Class Detail",
+    content: {
+      purpose: "This page brings together the main tools and details for one class.",
+      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
+      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+    }
+  },
+  {
+    pattern: "/partners/import",
+    title: "Import Partners",
+    content: {
+      purpose: "This page walks you through importing partner records in the format the portal expects.",
+      firstStep: "Fill in the required fields from top to bottom and double-check names, dates, and links before you continue.",
+      nextStep: "After you submit, the portal saves the entry and routes it to the next step, review, or destination automatically."
+    }
+  },
+  {
+    pattern: "/workflows",
+    title: "Workflows",
+    content: {
+      purpose: "This page gives you a clear view of running workflows so you can spot what needs attention first.",
+      firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
+      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
+    }
+  },
+  {
+    pattern: "/workflows/new",
+    title: "New Workflow",
+    content: {
+      purpose: "This page walks you through creating a workflow in the format the portal expects.",
+      firstStep: "Fill in the required fields from top to bottom and double-check names, dates, and links before you continue.",
+      nextStep: "After you submit, the portal saves the entry and routes it to the next step, review, or destination automatically."
+    }
+  },
+  {
+    pattern: "/workflows/[id]",
+    title: "Workflow Detail",
+    content: {
+      purpose: "This page brings together the main tools and details for one workflow.",
+      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
+      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+    }
+  },
+  {
+    pattern: "/workflows/analytics",
+    title: "Workflow Analytics",
+    content: {
+      purpose: "This page gives you a clear view of workflow analytics so you can spot what needs attention first.",
+      firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
+      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
+    }
+  },
 ];

@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { getMyGRDocument } from "@/lib/gr-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { ButtonLink, CardV2, PageHeaderV2, buttonVariants, cn } from "@/components/ui-v2";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
 
-export const metadata = { title: "My Resources — My Mentor" };
+export const metadata = { title: "Resources — My development" };
 
 export default async function MyResourcesPage() {
   const session = await getSession();
@@ -19,47 +20,44 @@ export default async function MyResourcesPage() {
   const resources = doc?.resources ?? [];
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">My Mentor</p>
-          <h1 className="page-title">My Resources</h1>
-          <p className="page-subtitle">Materials your mentor recommends to help you grow.</p>
-        </div>
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · My development"
+        title="Resources"
+        subtitle="Materials your mentor recommends to help you grow."
+      />
 
       <MyMentorSubnav />
 
-      <div
-        className="card"
-        style={{ marginBottom: 16, borderLeft: "4px solid var(--color-primary)" }}
-      >
-        <p style={{ margin: 0, fontSize: "0.85rem" }}>
-          These are picked for where you are right now. New ones may appear after each monthly
-          review — your mentor adds resources that match your goals.
+      <CardV2 padding="md" className="border-l-4 border-l-brand-600">
+        <p className="m-0 text-[13px] text-ink">
+          These are picked for where you are right now. New ones may appear after each
+          monthly review — your mentor adds resources that match your goals.
         </p>
-      </div>
+      </CardV2>
 
       {resources.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "2.5rem" }}>
-          <p style={{ fontWeight: 600, margin: "0 0 6px" }}>No resources yet</p>
-          <p className="muted" style={{ margin: "0 auto", maxWidth: 380, fontSize: 13 }}>
-            Once your mentor recommends resources, they&apos;ll show up here. You can always ask for
-            something specific on the Get Help page.
+        <CardV2 padding="lg" className="text-center">
+          <p className="m-0 text-[15px] font-semibold text-ink">No resources yet</p>
+          <p className="mx-auto mt-1 max-w-sm text-[13px] text-ink-muted">
+            Once your mentor recommends resources, they&apos;ll show up here. You can
+            always ask for something specific on the Get help page.
           </p>
-          <Link href="/my-mentor/help" className="button small" style={{ marginTop: 16 }}>
-            Ask for a resource
-          </Link>
-        </div>
+          <div className="mt-4">
+            <ButtonLink href="/my-mentor/help" size="sm">
+              Ask for a resource
+            </ButtonLink>
+          </div>
+        </CardV2>
       ) : (
-        <div style={{ display: "grid", gap: 12 }}>
+        <div className="grid gap-3">
           {resources.map((r, i) => (
-            <div key={`${r.resource.url}-${i}`} className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
-                <div>
-                  <strong style={{ fontSize: "0.95rem" }}>{r.resource.title}</strong>
+            <CardV2 key={`${r.resource.url}-${i}`} padding="md">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <strong className="text-[14px] text-ink">{r.resource.title}</strong>
                   {r.resource.description && (
-                    <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
+                    <p className="m-0 mt-1 text-[13px] text-ink-muted">
                       {r.resource.description}
                     </p>
                   )}
@@ -69,14 +67,16 @@ export default async function MyResourcesPage() {
                     href={r.resource.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="button secondary small"
-                    style={{ flexShrink: 0 }}
+                    className={cn(
+                      buttonVariants({ variant: "secondary", size: "sm" }),
+                      "shrink-0 no-underline"
+                    )}
                   >
                     Open →
                   </a>
                 )}
               </div>
-            </div>
+            </CardV2>
           ))}
         </div>
       )}

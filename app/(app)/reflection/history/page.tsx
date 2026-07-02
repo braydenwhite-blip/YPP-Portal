@@ -1,70 +1,9 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
-import { getMyReflections } from "@/lib/reflection-actions";
+import { permanentRedirect } from "next/navigation";
 
-export default async function ReflectionHistoryPage() {
-  const session = await getSession();
-  if (!session) redirect("/login");
+export const metadata = { title: "Reflection History — YPP" };
 
-  const reflections = await getMyReflections();
-
-  return (
-    <main className="main-content">
-      <div className="page-header">
-        <div>
-          <h1>Monthly Self-Reflection History</h1>
-          <p className="subtitle">
-            Review what you submitted each month before your mentor wrote the
-            Monthly Goal Review.
-          </p>
-        </div>
-        <a href="/reflection" className="btn btn-primary">
-          New Monthly Reflection
-        </a>
-      </div>
-
-      {reflections.length === 0 ? (
-        <div className="card">
-          <p>You haven't submitted any Monthly Self-Reflections yet.</p>
-          <a href="/reflection" className="btn btn-secondary">
-            Submit Your First Reflection
-          </a>
-        </div>
-      ) : (
-        <div className="reflections-list">
-          {reflections.map((reflection) => (
-            <div key={reflection.id} className="card reflection-card">
-              <div className="reflection-header">
-                <h3>{reflection.form.title}</h3>
-                <span className="month-badge">
-                  {new Date(reflection.month).toLocaleDateString("en-US", {
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
-              </div>
-              <p className="submitted-date">
-                Submitted:{" "}
-                {new Date(reflection.submittedAt).toLocaleDateString()}
-              </p>
-
-              <div className="responses">
-                {reflection.responses.map((response) => (
-                  <div key={response.id} className="response-item">
-                    <p className="question">{response.question.question}</p>
-                    <p className="answer">
-                      {response.question.type === "RATING_1_5"
-                        ? `Rating: ${response.value}/5`
-                        : response.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-    </main>
-  );
+// Legacy reflection history (deprecated ReflectionForm models). Past and
+// current self-input lives on the canonical mentorship reflection surface.
+export default function LegacyReflectionHistoryPage() {
+  permanentRedirect("/my-mentor/reflection");
 }

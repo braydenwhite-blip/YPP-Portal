@@ -45,19 +45,22 @@ test("@smoke admin can open the mentor workspace", async ({ page }) => {
 
 test("@smoke a mentored leader can open their mentee home", async ({ page }) => {
   await loginAs(page, "chapterLead");
+
+  // /my-mentor is now the mentee POV of the unified hub.
   await page.goto("/my-mentor");
-
+  await expect(page).toHaveURL(/\/mentorship\?view=me/);
   await expect(
-    page.getByRole("heading", { name: "My Mentor" })
+    page.getByRole("heading", { name: "Mentorship" })
   ).toBeVisible();
 
-  // The supportive sub-navigation ties the mentee flows together.
+  // The detail surfaces carry the "My development" sub-navigation.
+  await page.goto("/my-mentor/goals");
   await expect(
-    page.getByRole("navigation", { name: "My Mentor sections" })
+    page.getByRole("navigation", { name: "My development sections" })
   ).toBeVisible();
-  const myMentorNav = page.getByRole("navigation", { name: "My Mentor sections" });
+  const myMentorNav = page.getByRole("navigation", { name: "My development sections" });
   await expect(myMentorNav.getByRole("link", { name: "Goals", exact: true })).toBeVisible();
-  await expect(myMentorNav.getByRole("link", { name: "Get Help", exact: true })).toBeVisible();
+  await expect(myMentorNav.getByRole("link", { name: "Get help", exact: true })).toBeVisible();
 });
 
 test("@smoke legacy /my-program mentee flows redirect into /my-mentor", async ({

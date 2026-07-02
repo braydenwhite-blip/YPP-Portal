@@ -10,6 +10,7 @@ import {
   type MentorshipApplicationStatus,
 } from "@/lib/mentorship-2/constants";
 import { MentorshipApplyForm } from "@/components/mentorship-2/apply-form";
+import skin from "@/components/ui-v2/portal-skin.module.css";
 import { PageHeaderV2, CardV2, ButtonLink } from "@/components/ui-v2";
 
 export const metadata = { title: "Apply for Mentorship — YPP" };
@@ -26,9 +27,9 @@ export default async function MentorshipApplyPage() {
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
       <PageHeaderV2
-        eyebrow="Mentorship"
+        eyebrow="Mentorship · My development"
         title="Apply for a mentor"
         subtitle="Tell us your goals and what you're looking for — a program lead will pair you with the right mentor."
         actions={

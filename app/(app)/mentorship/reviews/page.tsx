@@ -2,12 +2,26 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import {
+  ButtonLink,
+  CardV2,
+  PageHeaderV2,
+  StatusBadge,
+  type StatusTone,
+} from "@/components/ui-v2";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { formatEnum } from "@/lib/format-utils";
 import { getChairQueue } from "@/lib/goal-review-actions";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
-import { getReviewHeadlineState, getReviewStateTonePalette } from "@/lib/mentorship-review-state";
+import {
+  getReviewHeadlineState,
+  type ReviewStateTone,
+} from "@/lib/mentorship-review-state";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
+import { EmptyStateEditorial } from "../_components/empty-state-editorial";
+
+export const metadata = { title: "Review inbox — Mentorship" };
 
 const REVIEW_INBOX_GUIDE_ITEMS = [
   {
@@ -20,7 +34,7 @@ const REVIEW_INBOX_GUIDE_ITEMS = [
   {
     label: "How to review",
     meaning:
-      "Click any review card to open the full approval screen, which shows goal ratings, the mentee's self-reflection, and the mentor's written reasoning.",
+      "Click any review card to open the full approval screen, which shows goal ratings, the mentee's self-input, and the mentor's written reasoning.",
     howToUse:
       "Approve when the review is complete and ready to release. Return it when the mentor needs to clarify ratings or strengthen the next-step plan.",
   },
@@ -33,12 +47,25 @@ const REVIEW_INBOX_GUIDE_ITEMS = [
   },
 ] as const;
 
+/** GoalRatingColor → the single StatusBadge tone vocabulary. */
+const RATING_TONE: Record<string, StatusTone> = {
+  ABOVE_AND_BEYOND: "brand",
+  ACHIEVED: "success",
+  GETTING_STARTED: "warning",
+  BEHIND_SCHEDULE: "danger",
+};
+
+/** ReviewStateTone → StatusBadge tone. */
+const STATE_TONE: Record<ReviewStateTone, StatusTone> = {
+  neutral: "neutral",
+  info: "info",
+  pending: "warning",
+  success: "success",
+  warning: "danger",
+};
+
 function ratingLabel(rating: string): string {
   return getGoalRatingCopy(rating).label ?? formatEnum(rating);
-}
-
-function ratingColor(rating: string): string {
-  return getGoalRatingCopy(rating).color ?? "var(--muted)";
 }
 
 export default async function MonthlyReviewInboxPage() {
@@ -59,25 +86,19 @@ export default async function MonthlyReviewInboxPage() {
   const reviews = await getChairQueue() ?? [];
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <Link href="/mentorship" style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Mentorship
-          </Link>
-          <p className="badge">Review Approval</p>
-          <h1 className="page-title">Monthly Review Inbox</h1>
-          <p className="page-subtitle">
-            Reviews waiting on your chair approval before they are released to mentees.
-          </p>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-        <a href="/mentorship" className="button primary small">
-          + Write New Review
-        </a>
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · Mentor console"
+        title="Review inbox"
+        subtitle="Reviews waiting on your chair approval before they're released to mentees."
+        backHref="/mentorship"
+        backLabel="Mentorship"
+        actions={
+          <ButtonLink href="/mentorship" size="sm">
+            Write new review
+          </ButtonLink>
+        }
+      />
 
       <MentorshipGuideCard
         title="How To Use The Monthly Review Inbox"
@@ -85,94 +106,76 @@ export default async function MonthlyReviewInboxPage() {
         items={REVIEW_INBOX_GUIDE_ITEMS}
       />
 
-      <div style={{ margin: "12px 0 16px", display: "grid", gap: 8 }}>
-        <p className="muted" style={{ margin: 0, fontSize: "0.78rem", fontWeight: 600 }}>
+      <div className="grid gap-2">
+        <p className="m-0 text-[12.5px] font-semibold text-ink-muted">
           The rating scale on every review
         </p>
         <RatingLegend audience="admin" compact />
       </div>
 
       {reviews.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "2.5rem" }}>
-          <p style={{ fontWeight: 600, fontSize: "1.05rem", marginBottom: "0.5rem" }}>
-            Inbox zero
-          </p>
-          <p style={{ color: "var(--muted)", margin: 0 }}>
-            No reviews are waiting on you right now. New reviews appear here once mentors submit them.
-          </p>
-        </div>
+        <EmptyStateEditorial
+          title="Inbox zero."
+          body="No reviews are waiting on you right now. New reviews appear here the moment a mentor submits one for your lane — nothing needs manual routing."
+          link={{ label: "Back to the mentor console", href: "/mentorship" }}
+        />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {reviews.map((review) => (
-            <Link
-              key={review.id}
-              href={`/mentorship/chair/${review.id}`}
-              style={{ textDecoration: "none", color: "inherit" }}
-            >
-              <article
-                className="card"
-                style={{
-                  padding: "1.25rem 1.5rem",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 16,
-                  flexWrap: "wrap",
-                  cursor: "pointer",
-                  transition: "box-shadow 0.15s",
-                }}
+        <div className="flex flex-col gap-3">
+          {reviews.map((review) => {
+            const state = getReviewHeadlineState({ status: review.status });
+            return (
+              <Link
+                key={review.id}
+                href={`/mentorship/chair/${review.id}`}
+                className="group no-underline"
               >
-                <div style={{ flex: "1 1 260px" }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
-                    <span style={{ fontWeight: 700, fontSize: 15 }}>{review.menteeName}</span>
-                    <span className="pill pill-small">{formatEnum(review.menteeRole ?? "")}</span>
-                    {review.isQuarterly && (
-                      <span className="pill pill-small" style={{ background: "#ede9fe", color: "#5b21b6" }}>
-                        Quarterly
+                <CardV2
+                  as="article"
+                  padding="md"
+                  className="flex flex-wrap items-center justify-between gap-4 border-l-4 border-l-brand-600 transition-shadow group-hover:shadow-overlay"
+                >
+                  <div className="min-w-[260px] flex-1">
+                    <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                      <span className="text-[15px] font-bold text-ink">
+                        {review.menteeName}
                       </span>
-                    )}
+                      <StatusBadge tone="neutral">
+                        {formatEnum(review.menteeRole ?? "")}
+                      </StatusBadge>
+                      {review.isQuarterly && (
+                        <StatusBadge tone="brand">Quarterly</StatusBadge>
+                      )}
+                    </div>
+                    <p className="m-0 text-[13px] text-ink-muted">
+                      Mentor: {review.mentorName} &middot; Cycle {review.cycleNumber} &middot;{" "}
+                      {new Date(review.cycleMonth).toLocaleDateString("en-US", {
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </p>
                   </div>
-                  <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-                    Mentor: {review.mentorName} &middot; Cycle {review.cycleNumber} &middot;{" "}
-                    {new Date(review.cycleMonth).toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
 
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <span
-                    className="pill pill-small"
-                    style={{
-                      background: ratingColor(review.overallRating) + "22",
-                      color: ratingColor(review.overallRating),
-                      fontWeight: 600,
-                    }}
-                  >
-                    {ratingLabel(review.overallRating)}
-                  </span>
-                  {(() => {
-                    const state = getReviewHeadlineState({ status: review.status });
-                    const palette = getReviewStateTonePalette(state.tone);
-                    return (
-                      <span
-                        className="pill pill-small"
-                        title={state.description}
-                        style={{ background: palette.background, color: palette.color }}
-                      >
-                        {state.label}
-                      </span>
-                    );
-                  })()}
-                  <span style={{ fontSize: 13, color: "var(--muted)" }}>
-                    Submitted {new Date(review.submittedAt).toLocaleDateString()}
-                  </span>
-                  <span style={{ color: "var(--muted)", fontSize: 18 }}>&rsaquo;</span>
-                </div>
-              </article>
-            </Link>
-          ))}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <StatusBadge tone={RATING_TONE[review.overallRating] ?? "neutral"}>
+                      {ratingLabel(review.overallRating)}
+                    </StatusBadge>
+                    <StatusBadge tone={STATE_TONE[state.tone]} title={state.description}>
+                      {state.label}
+                    </StatusBadge>
+                    <span className="text-[13px] text-ink-muted">
+                      Submitted {new Date(review.submittedAt).toLocaleDateString()}
+                    </span>
+                    <span
+                      aria-hidden
+                      className="text-[18px] text-ink-muted transition-colors group-hover:text-brand-700"
+                    >
+                      &rsaquo;
+                    </span>
+                  </div>
+                </CardV2>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

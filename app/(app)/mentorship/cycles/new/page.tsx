@@ -15,10 +15,26 @@ import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Launch review cycle — Pathways Portal" };
 
-export default async function NewReviewCyclePage() {
+export default async function NewReviewCyclePage({
+  searchParams,
+}: {
+  searchParams?: { person?: string; lane?: string; who?: string };
+}) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   if (!(await hasMentorshipCommandAccess(session.user))) redirect("/mentorship");
+
+  const initialPersonId = searchParams?.person?.trim() || null;
+  const laneParam = searchParams?.lane;
+  const initialLane =
+    laneParam && laneParam in LANE_META
+      ? {
+          id: laneParam,
+          population: (searchParams?.who === "officers"
+            ? "officer"
+            : "instructor") as "instructor" | "officer",
+        }
+      : null;
 
   const [chapters, people] = await Promise.all([
     prisma.chapter.findMany({
@@ -55,7 +71,13 @@ export default async function NewReviewCyclePage() {
         }
       />
       <div className="mx-auto w-full max-w-[760px]">
-        <CycleLauncher chapters={chapters} lanes={laneOptions} people={personOptions} />
+        <CycleLauncher
+          chapters={chapters}
+          lanes={laneOptions}
+          people={personOptions}
+          initialPersonId={initialPersonId}
+          initialLane={initialLane}
+        />
       </div>
     </div>
   );

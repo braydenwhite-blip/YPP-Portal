@@ -27,9 +27,9 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
 
   if (currentStatus === "APPROVED") {
     return (
-      <div className="card" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-        <p style={{ fontWeight: 700, color: "#16a34a" }}>✓ Review Approved & Released</p>
-        <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
+      <div className="rounded-[12px] border border-line-soft bg-success-100 p-4 shadow-card">
+        <p className="m-0 text-[14px] font-bold text-success-700">Review approved &amp; released</p>
+        <p className="m-0 mt-1 text-[0.85rem] text-ink-muted">
           This review has been approved and released to the mentee.
         </p>
       </div>
@@ -76,7 +76,7 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
   }
 
   return (
-    <div className="card">
+    <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
       <p style={{ fontWeight: 700, marginBottom: "1rem" }}>Chair Decision</p>
 
       {/* Points preview */}
@@ -162,14 +162,14 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
       {/* Action buttons */}
       <div style={{ display: "flex", gap: "0.75rem" }}>
         <button
-          className="button primary"
+          className="inline-flex items-center justify-center rounded-full bg-brand-600 px-4 py-2 text-[13.5px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60"
           disabled={isPending}
           onClick={() => { setMode("approve"); handleApprove(); }}
         >
           {isPending && mode === "approve" ? "Approving…" : `Approve & Award ${totalPoints} pts`}
         </button>
         <button
-          className="button outline"
+          className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-4 py-2 text-[13.5px] font-semibold text-ink transition-colors hover:bg-surface-soft disabled:opacity-60"
           disabled={isPending}
           style={{ color: "#c2410c", borderColor: "#fed7aa" }}
           onClick={() => { setMode("changes"); handleRequestChanges(); }}

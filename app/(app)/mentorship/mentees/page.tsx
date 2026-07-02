@@ -1,5 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import {
   getSimplifiedMentorKanban,
@@ -100,25 +102,22 @@ export default async function MenteesPage() {
     .slice(0, 5);
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <Link href="/mentorship" style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Mentorship
-          </Link>
-          <p className="badge">Mentorship</p>
-          <h1 className="page-title">Your mentees</h1>
-          <p className="page-subtitle">
-            {total === 0
-              ? "Instructors you mentor will appear here once you're paired."
-              : `${total} mentee${total === 1 ? "" : "s"} · ${
-                  needsCount > 0
-                    ? `${needsCount} need${needsCount === 1 ? "s" : ""} you now`
-                    : "all caught up"
-                }. Open anyone for their full workspace.`}
-          </p>
-        </div>
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · Mentor console"
+        title="Your mentees"
+        subtitle={
+          total === 0
+            ? "Instructors you mentor will appear here once you're paired."
+            : `${total} mentee${total === 1 ? "" : "s"} · ${
+                needsCount > 0
+                  ? `${needsCount} need${needsCount === 1 ? "s" : ""} you now`
+                  : "all caught up"
+              }. Open anyone for their full workspace.`
+        }
+        backHref="/mentorship"
+        backLabel="Mentorship"
+      />
 
       {total === 0 ? (
         <EmptyStateEditorial
@@ -127,7 +126,7 @@ export default async function MenteesPage() {
           link={{ label: "Open the mentorship hub", href: "/mentorship" }}
         />
       ) : (
-        <div style={{ display: "grid", gap: 20 }}>
+        <div className="grid gap-5">
           <CalmOnly>
             <div className="flex flex-col gap-5">
               {vm.focus ? (

@@ -58,6 +58,7 @@ beforeEach(() => {
   (prisma as never as Record<string, unknown>).reviewCycleParticipant = {
     createMany: vi.fn().mockResolvedValue({ count: 1 }),
     update: vi.fn().mockResolvedValue({ cycleId: "cycle-1" }),
+    findFirst: vi.fn().mockResolvedValue(null),
   };
   (prisma as never as Record<string, unknown>).mentorship = {
     findMany: vi.fn().mockResolvedValue([{ id: "pair-1", menteeId: "inst-1" }]),
@@ -165,6 +166,24 @@ describe("launchReviewCycle", () => {
 });
 
 describe("startReviewForPerson", () => {
+  it("returns the existing active cycle instead of stacking a duplicate", async () => {
+    (
+      prisma as never as {
+        reviewCycleParticipant: { findFirst: ReturnType<typeof vi.fn> };
+      }
+    ).reviewCycleParticipant.findFirst.mockResolvedValue({
+      cycleId: "cycle-existing",
+      cycle: { _count: { participants: 1 } },
+    });
+
+    const result = await startReviewForPerson({ userId: "inst-1" });
+    expect(result).toEqual({ ok: true, cycleId: "cycle-existing", participantCount: 1 });
+    expect(
+      (prisma as never as { reviewCycle: { create: ReturnType<typeof vi.fn> } }).reviewCycle
+        .create
+    ).not.toHaveBeenCalled();
+  });
+
   it("launches a single-participant custom cycle named for the person", async () => {
     const result = await startReviewForPerson({ userId: "inst-1" });
     expect(result.ok).toBe(true);

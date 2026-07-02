@@ -23,7 +23,7 @@ export function SessionLiveCapture({
   menteeAttended: boolean;
 }) {
   return (
-    <details className="card" style={{ display: "grid", gap: 4 }}>
+    <details className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ display: "grid", gap: 4 }}>
       <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.95rem", listStyle: "revert" }}>
         Capture this session
       </summary>
@@ -71,7 +71,7 @@ export function SessionLiveCapture({
             Mentee attended
           </label>
         </div>
-        <button type="submit" className="button secondary small">
+        <button type="submit" className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink transition-colors hover:bg-surface-soft disabled:opacity-60">
           Save notes
         </button>
       </form>

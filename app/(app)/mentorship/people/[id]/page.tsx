@@ -64,19 +64,21 @@ export default async function MentorshipPersonPage({
           <h3 className="m-0 text-[13.5px] font-bold text-ink">Active review cycles</h3>
           <ul className="m-0 mt-2 list-none divide-y divide-line-soft/70 p-0">
             {participations.map((p) => (
-              <li
-                key={p.cycleId}
-                className="flex flex-wrap items-baseline justify-between gap-2 py-2"
-              >
-                <Link
-                  href={`/mentorship/cycles/${p.cycleId}`}
-                  className="text-[13px] font-semibold text-ink hover:text-brand-700 hover:underline"
-                >
-                  {p.cycleName}
-                </Link>
-                <StatusBadge tone={TONE_TO_BADGE[STAGE_META[p.stage].tone]}>
-                  {STAGE_META[p.stage].label}
-                </StatusBadge>
+              <li key={p.cycleId} className="flex flex-col gap-0.5 py-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <Link
+                    href={`/mentorship/cycles/${p.cycleId}`}
+                    className="text-[13px] font-semibold text-ink hover:text-brand-700 hover:underline"
+                  >
+                    {p.cycleName}
+                  </Link>
+                  <StatusBadge tone={TONE_TO_BADGE[STAGE_META[p.stage].tone]}>
+                    {STAGE_META[p.stage].label}
+                  </StatusBadge>
+                </div>
+                <p className="m-0 text-[12px] text-ink-muted">
+                  {STAGE_META[p.stage].blurb}
+                </p>
               </li>
             ))}
           </ul>

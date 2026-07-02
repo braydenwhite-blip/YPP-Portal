@@ -217,7 +217,7 @@ export function ProposeChangeForm({ documentId, goals, sourceReviewId }: Props) 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <button
           type="submit"
-          className="button primary small"
+          className="inline-flex items-center justify-center rounded-full bg-brand-600 px-3.5 py-1.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60"
           disabled={submitting || (needsGoalPicker && goals.length === 0)}
         >
           {submitting ? "Submitting…" : "Submit proposal"}

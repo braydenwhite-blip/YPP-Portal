@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
-import Link from "next/link";
+
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { CardV2, PageHeaderV2, StatusBadge } from "@/components/ui-v2";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { getMyFeedbackRequests } from "@/lib/feedback-actions";
 import {
@@ -10,6 +12,9 @@ import {
 import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
 import { RequestFeedbackForm, RespondForm, HelpfulButton } from "./client";
 import { FeedbackCalm } from "./_components/feedback-calm";
+import { EmptyStateEditorial } from "../_components/empty-state-editorial";
+
+export const metadata = { title: "Feedback — Mentorship" };
 
 const FEEDBACK_PORTAL_GUIDE_ITEMS = [
   {
@@ -65,25 +70,16 @@ export default async function MentorFeedbackPage() {
   );
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <Link
-            href="/mentorship"
-            style={{
-              fontSize: 13,
-              color: "var(--muted)",
-              display: "inline-block",
-              marginBottom: 4,
-            }}
-          >
-            &larr; Mentorship
-          </Link>
-          <h1 className="page-title">Feedback Portal</h1>
-          <p className="page-subtitle">{feedbackPortalSubtitle(isMentor)}</p>
-        </div>
-        {isStudent && <RequestFeedbackForm />}
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · Mentor console"
+        title="Feedback"
+        subtitle={feedbackPortalSubtitle(isMentor)}
+        backHref="/mentorship"
+        backLabel="Mentorship"
+      >
+        {isStudent ? <RequestFeedbackForm /> : null}
+      </PageHeaderV2>
 
       <MentorshipGuideCard
         title="How To Use The Feedback Portal"
@@ -92,256 +88,165 @@ export default async function MentorFeedbackPage() {
       />
 
       <CalmOnly>
-        <div style={{ marginBottom: 24 }}>
-          <FeedbackCalm
-            isMentor={isMentor}
-            pending={pending.map((req: any) => ({
-              id: req.id,
-              question: req.question,
-              menteeName: req.mentee?.name ?? null,
-              topic: req.passionId ?? null,
-            }))}
-          />
-        </div>
+        <FeedbackCalm
+          isMentor={isMentor}
+          pending={pending.map((req: any) => ({
+            id: req.id,
+            question: req.question,
+            menteeName: req.mentee?.name ?? null,
+            topic: req.passionId ?? null,
+          }))}
+        />
       </CalmOnly>
 
       <CalmCollapse label="All feedback requests" hint="answered history + every thread">
-      {/* Stats */}
-      <div className="grid two" style={{ marginBottom: 24 }}>
-        <div className="card" style={{ textAlign: "center" }}>
-          <div className="kpi" style={{ color: "#d97706" }}>
-            {pending.length}
+        <div className="flex flex-col gap-6">
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-4 sm:max-w-md">
+            <CardV2 padding="md">
+              <span className="block text-[22px] font-semibold text-warning-700">
+                {pending.length}
+              </span>
+              <span className="text-[12.5px] text-ink-muted">
+                {isMentor ? "Awaiting your response" : "Pending requests"}
+              </span>
+            </CardV2>
+            <CardV2 padding="md">
+              <span className="block text-[22px] font-semibold text-success-700">
+                {answered.length}
+              </span>
+              <span className="text-[12.5px] text-ink-muted">Answered</span>
+            </CardV2>
           </div>
-          <div className="kpi-label">
-            {isMentor ? "Awaiting Your Response" : "Pending Requests"}
-          </div>
-        </div>
-        <div className="card" style={{ textAlign: "center" }}>
-          <div className="kpi" style={{ color: "#16a34a" }}>
-            {answered.length}
-          </div>
-          <div className="kpi-label">Answered</div>
-        </div>
-      </div>
 
-      {/* Pending Requests */}
-      {pending.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          <div className="section-title">
-            {isMentor ? "Needs Response" : "Pending"}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {pending.map((req: any) => (
-              <div
-                key={req.id}
-                className="card"
-                style={{ borderLeft: "4px solid #d97706" }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "start",
-                  }}
-                >
-                  <div>
-                    {isMentor && (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--muted)",
-                          marginBottom: 4,
-                        }}
-                      >
-                        From: {req.mentee.name}
-                      </div>
-                    )}
-                    <span
-                      className="pill"
-                      style={{
-                        background: "#fef3c7",
-                        color: "#92400e",
-                        fontSize: 11,
-                        marginBottom: 8,
-                      }}
-                    >
-                      Topic: {req.passionId}
-                    </span>
-                    <p style={{ margin: "8px 0 0", fontSize: 14 }}>
-                      {req.question}
-                    </p>
-                    {req.mediaUrls?.length > 0 && (
-                      <div style={{ marginTop: 8 }}>
-                        {req.mediaUrls.map((url: string, i: number) => (
-                          <a
-                            key={i}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              fontSize: 12,
-                              color: "var(--ypp-purple)",
-                            }}
-                          >
-                            View work sample &rarr;
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      color: "var(--muted)",
-                      whiteSpace: "nowrap",
-                    }}
+          {/* Pending Requests */}
+          {pending.length > 0 && (
+            <section aria-label={isMentor ? "Needs response" : "Pending"}>
+              <h2 className="m-0 mb-3 text-[13.5px] font-bold text-ink">
+                {isMentor ? "Needs response" : "Pending"}
+              </h2>
+              <div className="flex flex-col gap-3">
+                {pending.map((req: any) => (
+                  <CardV2
+                    key={req.id}
+                    padding="md"
+                    className="border-l-4 border-l-warning-700"
                   >
-                    {new Date(req.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-
-                {isMentor && <RespondForm requestId={req.id} />}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Answered Requests */}
-      {answered.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          <div className="section-title">Answered</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {answered.map((req: any) => (
-              <div key={req.id} className="card">
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "start",
-                    marginBottom: 8,
-                  }}
-                >
-                  <div>
-                    {isMentor && (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--muted)",
-                          marginBottom: 4,
-                        }}
-                      >
-                        From: {req.mentee.name}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        {isMentor && (
+                          <p className="m-0 mb-1 text-[12px] text-ink-muted">
+                            From: {req.mentee.name}
+                          </p>
+                        )}
+                        <StatusBadge tone="warning">Topic: {req.passionId}</StatusBadge>
+                        <p className="m-0 mt-2 text-[14px] text-ink">{req.question}</p>
+                        {req.mediaUrls?.length > 0 && (
+                          <div className="mt-2 flex flex-col gap-1">
+                            {req.mediaUrls.map((url: string, i: number) => (
+                              <a
+                                key={i}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[12px] font-semibold text-brand-700 hover:underline"
+                              >
+                                View work sample &rarr;
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <span
-                      className="pill"
-                      style={{
-                        background: "var(--gray-100)",
-                        color: "var(--gray-600)",
-                        fontSize: 11,
-                      }}
-                    >
-                      Topic: {req.passionId}
-                    </span>
-                    <p style={{ margin: "8px 0 0", fontSize: 14 }}>
-                      {req.question}
-                    </p>
-                  </div>
-                  <span
-                    className="pill"
-                    style={{ background: "#dcfce7", color: "#166534" }}
-                  >
-                    Answered
-                  </span>
-                </div>
-
-                {/* Responses */}
-                {req.responses.map((resp: any) => (
-                  <div
-                    key={resp.id}
-                    style={{
-                      padding: 12,
-                      background: "var(--surface-alt)",
-                      borderRadius: "var(--radius-sm)",
-                      marginTop: 8,
-                      borderLeft: "3px solid #16a34a",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginBottom: 4,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: "var(--text-secondary)",
-                        }}
-                      >
-                        {resp.mentor.name}
-                      </span>
-                      <span style={{ fontSize: 11, color: "var(--muted)" }}>
-                        {new Date(resp.respondedAt).toLocaleDateString()}
+                      <span className="shrink-0 whitespace-nowrap text-[11.5px] text-ink-muted">
+                        {new Date(req.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                    <p style={{ margin: "4px 0", fontSize: 13 }}>
-                      {resp.feedback}
-                    </p>
-                    {resp.resources?.length > 0 && (
-                      <div style={{ marginTop: 4 }}>
-                        {resp.resources.map((url: string, i: number) => (
-                          <a
-                            key={i}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              fontSize: 12,
-                              color: "var(--ypp-purple)",
-                            }}
-                          >
-                            Resource link &rarr;
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                    <div style={{ marginTop: 6 }}>
-                      {resp.isHelpful ? (
-                        <span
-                          style={{
-                            fontSize: 12,
-                            color: "#16a34a",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Marked helpful
-                        </span>
-                      ) : (
-                        isStudent &&
-                        req.mentee.id === userId && (
-                          <HelpfulButton responseId={resp.id} />
-                        )
-                      )}
-                    </div>
-                  </div>
+
+                    {isMentor && <RespondForm requestId={req.id} />}
+                  </CardV2>
                 ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </section>
+          )}
 
-      {/* Empty State */}
-      {requests.length === 0 && (
-        <div className="card" style={{ textAlign: "center", padding: 40 }}>
-          <h3>No feedback requests yet</h3>
-          <p style={{ color: "var(--text-secondary)" }}>{feedbackPortalEmptyState(isMentor)}</p>
+          {/* Answered Requests */}
+          {answered.length > 0 && (
+            <section aria-label="Answered">
+              <h2 className="m-0 mb-3 text-[13.5px] font-bold text-ink">Answered</h2>
+              <div className="flex flex-col gap-3">
+                {answered.map((req: any) => (
+                  <CardV2 key={req.id} padding="md">
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        {isMentor && (
+                          <p className="m-0 mb-1 text-[12px] text-ink-muted">
+                            From: {req.mentee.name}
+                          </p>
+                        )}
+                        <StatusBadge tone="neutral">Topic: {req.passionId}</StatusBadge>
+                        <p className="m-0 mt-2 text-[14px] text-ink">{req.question}</p>
+                      </div>
+                      <StatusBadge tone="success">Answered</StatusBadge>
+                    </div>
+
+                    {/* Responses */}
+                    {req.responses.map((resp: any) => (
+                      <div
+                        key={resp.id}
+                        className="mt-2 rounded-lg border-l-[3px] border-l-success-700 bg-surface-soft/60 p-3"
+                      >
+                        <div className="mb-1 flex items-baseline justify-between gap-2">
+                          <span className="text-[12px] font-semibold text-ink">
+                            {resp.mentor.name}
+                          </span>
+                          <span className="text-[11.5px] text-ink-muted">
+                            {new Date(resp.respondedAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="m-0 text-[13px] text-ink">{resp.feedback}</p>
+                        {resp.resources?.length > 0 && (
+                          <div className="mt-1 flex flex-col gap-1">
+                            {resp.resources.map((url: string, i: number) => (
+                              <a
+                                key={i}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[12px] font-semibold text-brand-700 hover:underline"
+                              >
+                                Resource link &rarr;
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                        <div className="mt-1.5">
+                          {resp.isHelpful ? (
+                            <span className="text-[12px] font-semibold text-success-700">
+                              Marked helpful
+                            </span>
+                          ) : (
+                            isStudent &&
+                            req.mentee.id === userId && (
+                              <HelpfulButton responseId={resp.id} />
+                            )
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </CardV2>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Empty State */}
+          {requests.length === 0 && (
+            <EmptyStateEditorial
+              title="No feedback requests yet."
+              body={feedbackPortalEmptyState(isMentor)}
+            />
+          )}
         </div>
-      )}
       </CalmCollapse>
     </div>
   );

@@ -4,10 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import ReflectionForm from "@/app/(app)/my-program/reflect/reflection-form";
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { ButtonLink, CardV2, PageHeaderV2 } from "@/components/ui-v2";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
-import Link from "next/link";
 
-export const metadata = { title: "My Reflection — My Mentor" };
+export const metadata = { title: "Reflection — My development" };
 
 export default async function ReflectionPage() {
   const session = await getSession();
@@ -40,36 +41,26 @@ export default async function ReflectionPage() {
   if (!mentorship) {
     const monthLabel = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
     return (
-      <div>
-        <div className="topbar">
-          <div>
-            <p className="badge">My Mentor</p>
-            <h1 className="page-title">Monthly Reflection</h1>
-          </div>
-        </div>
+      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+        <PageHeaderV2
+          eyebrow="Mentorship · My development"
+          title="Monthly reflection"
+          subtitle="Your self-input — the honest first word that starts each monthly review."
+        />
         <MyMentorSubnav />
-        <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
-          <p style={{ fontWeight: 600, fontSize: "1.1rem" }}>No reflection open yet</p>
-          <p
-            style={{
-              color: "var(--muted)",
-              marginTop: "0.75rem",
-              maxWidth: "26rem",
-              margin: "0.75rem auto 0",
-            }}
-          >
-            Reflections open at the start of each month once you&apos;re matched with a mentor.
-            There&apos;s nothing you need to do right now — we&apos;ll let you know when {monthLabel}&apos;s
-            reflection is ready.
+        <CardV2 padding="lg" className="text-center">
+          <p className="m-0 text-[15px] font-semibold text-ink">No reflection open yet</p>
+          <p className="mx-auto mt-2 max-w-md text-[13px] text-ink-muted">
+            Reflections open at the start of each month once you&apos;re matched with a
+            mentor. There&apos;s nothing you need to do right now — we&apos;ll let you know
+            when {monthLabel}&apos;s reflection is ready.
           </p>
-          <Link
-            href="/my-mentor"
-            className="button ghost small"
-            style={{ marginTop: "1.5rem", display: "inline-block" }}
-          >
-            ← Back to My Mentor
-          </Link>
-        </div>
+          <div className="mt-4">
+            <ButtonLink href="/mentorship?view=me" variant="secondary" size="sm">
+              ← Back to My development
+            </ButtonLink>
+          </div>
+        </CardV2>
       </div>
     );
   }
@@ -79,31 +70,27 @@ export default async function ReflectionPage() {
   const isQuarterly = cycleNumber % 3 === 0;
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">My Mentor</p>
-          <h1 className="page-title">Monthly Reflection</h1>
-          <p className="page-subtitle">
-            Cycle {cycleNumber}
-            {isQuarterly ? " (Quarterly)" : ""} ·{" "}
-            {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-          </p>
-        </div>
-        <Link href="/my-mentor" className="button ghost small">
-          Cancel
-        </Link>
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · My development"
+        title="Monthly reflection"
+        subtitle={`Cycle ${cycleNumber}${isQuarterly ? " (Quarterly)" : ""} · ${new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })} — your self-input starts the monthly review loop.`}
+        actions={
+          <ButtonLink href="/mentorship?view=me" variant="ghost" size="sm">
+            Cancel
+          </ButtonLink>
+        }
+      />
 
       <MyMentorSubnav />
 
-      <div className="card" style={{ marginBottom: 16, borderLeft: "4px solid var(--color-primary)" }}>
-        <p style={{ margin: 0, fontSize: "0.85rem" }}>
-          <strong>This is for you and your mentor.</strong> Be honest about what&apos;s going well and
-          what&apos;s hard — it helps your mentor support you better. Your mentor reads this before
-          your monthly review.
+      <CardV2 padding="md" className="border-l-4 border-l-brand-600">
+        <p className="m-0 text-[13px] text-ink">
+          <strong>This is for you and your mentor.</strong> Be honest about what&apos;s
+          going well and what&apos;s hard — it helps your mentor support you better. Your
+          mentor reads this before writing your monthly review.
         </p>
-      </div>
+      </CardV2>
 
       <ReflectionForm goals={goals} cycleNumber={cycleNumber} isQuarterly={isQuarterly} />
     </div>

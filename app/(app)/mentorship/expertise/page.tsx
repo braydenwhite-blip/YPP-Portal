@@ -1,5 +1,7 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { PageHeaderV2 } from "@/components/ui-v2";
 
 import { getSession } from "@/lib/auth-supabase";
 import { isMentorship2Enabled } from "@/lib/feature-flags";
@@ -23,20 +25,14 @@ export default async function MentorExpertisePage() {
   ]);
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Mentorship</p>
-          <h1 className="page-title">My expertise</h1>
-          <p className="page-subtitle">
-            The areas you can mentor in — and how deeply. This powers mentee
-            matching, so the right students find you.
-          </p>
-        </div>
-        <Link href="/mentorship" className="button secondary small">
-          ← Back to Mentorship
-        </Link>
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · Mentor console"
+        title="My expertise"
+        subtitle="The areas you can mentor in — and how deeply. This powers mentee matching, so the right students find you."
+        backHref="/mentorship"
+        backLabel="Mentorship"
+      />
 
       <ExpertiseEditor
         areas={areas.map((a) => ({
