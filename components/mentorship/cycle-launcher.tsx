@@ -52,23 +52,33 @@ export function CycleLauncher({
   chapters,
   lanes,
   people,
+  initialPersonId = null,
+  initialLane = null,
 }: {
   chapters: LauncherChapterOption[];
   lanes: LauncherLaneOption[];
   people: LauncherPersonOption[];
+  /** Preselect one person (custom scope) — e.g. from a cockpit card link. */
+  initialPersonId?: string | null;
+  /** Preselect a lifecycle lane — e.g. from a cockpit lane header link. */
+  initialLane?: { id: string; population: "instructor" | "officer" } | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   const [kind, setKind] = useState<"monthly" | "quarterly">("monthly");
-  const [scopeType, setScopeType] = useState<ScopeType>("role-group");
+  const [scopeType, setScopeType] = useState<ScopeType>(
+    initialPersonId ? "custom" : initialLane ? "lane" : "role-group"
+  );
   const [roleGroup, setRoleGroup] = useState<RoleGroup>("new-instructors");
   const [chapterId, setChapterId] = useState(chapters[0]?.id ?? "");
-  const [laneId, setLaneId] = useState(lanes[0]?.id ?? "concern");
+  const [laneId, setLaneId] = useState(initialLane?.id ?? lanes[0]?.id ?? "concern");
   const [lanePopulation, setLanePopulation] = useState<"instructor" | "officer">(
-    "instructor"
+    initialLane?.population ?? "instructor"
   );
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(initialPersonId ? [initialPersonId] : [])
+  );
   const [personQuery, setPersonQuery] = useState("");
   const [name, setName] = useState("");
   const [dueDate, setDueDate] = useState("");

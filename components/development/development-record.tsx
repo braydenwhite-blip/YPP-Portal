@@ -11,6 +11,7 @@ import {
   type StatusTone,
 } from "@/components/ui-v2";
 import { RATING_LABELS } from "@/lib/people-strategy/check-in-rating";
+import { GROWTH_TAG_META } from "@/lib/people-strategy/growth-signals";
 import type { DevelopmentRecord, DevelopmentTimelineEvent } from "@/lib/development/record";
 import type { DevelopmentSignalTone } from "@/lib/development/signals";
 
@@ -38,6 +39,15 @@ const EVENT_KIND_LABEL: Record<DevelopmentTimelineEvent["kind"], string> = {
   "action-completed": "Done",
   "growth-tag": "Signal",
   contribution: "Role",
+};
+
+/** GrowthTagMeta pill tones → StatusBadge tones. */
+const GROWTH_TAG_TONE_TO_BADGE: Record<string, StatusTone> = {
+  success: "success",
+  purple: "brand",
+  info: "info",
+  warning: "warning",
+  overdue: "danger",
 };
 
 const EVENT_DOT: Record<DevelopmentTimelineEvent["tone"], string> = {
@@ -140,6 +150,8 @@ function buildKeyFacts(record: DevelopmentRecord): KeyFact[] {
 export function DevelopmentRecordView({ record }: { record: DevelopmentRecord }) {
   const { facts, signals, nextStep, timeline, openActions, openFollowUps, reviewEvidence } =
     record;
+  const concerns = signals.filter((signal) => signal.lane === "concern");
+  const growthTags = facts.growthTags.filter((tag) => tag in GROWTH_TAG_META);
 
   return (
     <div className="flex flex-col gap-5">
@@ -188,6 +200,46 @@ export function DevelopmentRecordView({ record }: { record: DevelopmentRecord })
         </div>
       </section>
 
+      {concerns.length > 0 ? (
+        <RecordSection
+          id="concerns"
+          title="Concerns"
+          description="Active flags arguing for support right now — each one carries its own evidence."
+        >
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {concerns.map((signal, index) => (
+              <li key={`${signal.kind}-${index}`} className="flex items-center gap-2">
+                <StatusBadge tone={SIGNAL_TONE_TO_BADGE[signal.tone]}>
+                  {signal.label}
+                </StatusBadge>
+              </li>
+            ))}
+          </ul>
+        </RecordSection>
+      ) : null}
+
+      {growthTags.length > 0 ? (
+        <RecordSection
+          id="growth-areas"
+          title="Growth areas"
+          description="How leadership has tagged their trajectory — strengths to invest in and areas to support."
+        >
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {growthTags.map((tag) => {
+              const meta = GROWTH_TAG_META[tag];
+              return (
+                <li key={tag} className="flex flex-wrap items-baseline gap-2">
+                  <StatusBadge tone={GROWTH_TAG_TONE_TO_BADGE[meta.tone] ?? "neutral"}>
+                    {meta.label}
+                  </StatusBadge>
+                  <span className="text-[12.5px] text-ink-muted">{meta.description}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </RecordSection>
+      ) : null}
+
       {(openActions.length > 0 || openFollowUps.length > 0) && (
         <RecordSection
           id="load"
@@ -230,21 +282,30 @@ export function DevelopmentRecordView({ record }: { record: DevelopmentRecord })
         </RecordSection>
       )}
 
-      {reviewEvidence && reviewEvidence.suggestedLanguage.length > 0 ? (
+      {reviewEvidence ? (
         <RecordSection
           title="Strengths & review evidence"
           description="Concrete statements their contributions support — ready to use in a review."
         >
-          <ul className="m-0 flex list-disc flex-col gap-1 pl-5">
-            {reviewEvidence.suggestedLanguage.map((line) => (
-              <li key={line} className="text-[13.5px] text-ink">
-                {line}
-              </li>
-            ))}
-          </ul>
-          <p className="m-0 mt-3 text-[12.5px] font-medium text-brand-700">
-            {reviewEvidence.promotionReadiness.label}
-          </p>
+          {reviewEvidence.suggestedLanguage.length > 0 ? (
+            <>
+              <ul className="m-0 flex list-disc flex-col gap-1 pl-5">
+                {reviewEvidence.suggestedLanguage.map((line) => (
+                  <li key={line} className="text-[13.5px] text-ink">
+                    {line}
+                  </li>
+                ))}
+              </ul>
+              <p className="m-0 mt-3 text-[12.5px] font-medium text-brand-700">
+                {reviewEvidence.promotionReadiness.label}
+              </p>
+            </>
+          ) : (
+            <p className="m-0 text-[13.5px] text-ink-muted">
+              No captured strengths yet — they&apos;ll appear here as reviews and
+              contributions land.
+            </p>
+          )}
         </RecordSection>
       ) : null}
 

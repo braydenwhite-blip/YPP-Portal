@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import {
   getEligibleMentees,
@@ -9,7 +10,7 @@ import {
 import NominationsPanel from "@/app/(app)/mentorship-program/awards/nominations-panel";
 import { LearnMore } from "@/components/mentorship/learn-more";
 
-export const metadata = { title: "Mentorship Awards — YPP" };
+export const metadata = { title: "Awards — Mentorship" };
 
 export default async function MentorshipAwardsPage() {
   const session = await getSession();
@@ -31,29 +32,23 @@ export default async function MentorshipAwardsPage() {
   ]);
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <Link href="/mentorship" style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Mentorship
-          </Link>
-          <p className="badge">Mentorship</p>
-          <h1 className="page-title">Awards</h1>
-          <p className="page-subtitle">
-            Nominate mentees and review achievement award approvals using the
-            existing points and tier system.
-          </p>
-        </div>
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · Mentor console"
+        title="Awards"
+        subtitle="Nominate mentees and review achievement award approvals using the existing points and tier system."
+        backHref="/mentorship"
+        backLabel="Mentorship"
+      />
 
-      <p className="muted" style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.55, maxWidth: "64ch" }}>
-        Awards recognize a mentee&apos;s growth along their leadership pathway — they
-        don&apos;t replace their goals or your monthly feedback.
-      </p>
+      <div className="flex flex-col gap-3">
+        <p className="m-0 max-w-[64ch] text-[13px] leading-relaxed text-ink-muted">
+          Awards recognize a mentee&apos;s growth along their leadership pathway — they
+          don&apos;t replace their goals or your monthly feedback.
+        </p>
 
-      <div style={{ marginBottom: 16 }}>
         <LearnMore summary="How your reviews affect recognition">
-          <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.83rem", display: "grid", gap: 4 }}>
+          <ul className="m-0 grid gap-1 pl-[1.1rem] text-[0.83rem]">
             <li>
               The <strong>overall rating</strong> you set on a monthly review determines the base
               achievement points for that cycle. A Character &amp; Culture bonus can add a few more.

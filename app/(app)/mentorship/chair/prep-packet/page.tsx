@@ -2,15 +2,26 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { generateCommitteePrepPacket } from "@/lib/committee-prep-actions";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
-import Link from "next/link";
 
-export const metadata = { title: "Committee Prep Packet — YPP" };
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import {
+  ButtonLink,
+  CardV2,
+  PageHeaderV2,
+  StatusBadge,
+  buttonVariants,
+  cn,
+  type StatusTone,
+} from "@/components/ui-v2";
+import { EmptyStateEditorial } from "../../_components/empty-state-editorial";
+
+export const metadata = { title: "Committee prep packet — Mentorship" };
 
 const TIER_LABELS: Record<string, string> = {
-  BRONZE: "🥉 Bronze",
-  SILVER: "🥈 Silver",
-  GOLD: "🥇 Gold",
-  LIFETIME: "👑 Lifetime",
+  BRONZE: "Bronze",
+  SILVER: "Silver",
+  GOLD: "Gold",
+  LIFETIME: "Lifetime",
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -19,6 +30,33 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Global Leadership",
   STAFF: "Global Leadership",
 };
+
+/** GoalRatingColor → StatusBadge tone + card accent. */
+const RATING_TONE: Record<string, StatusTone> = {
+  ABOVE_AND_BEYOND: "brand",
+  ACHIEVED: "success",
+  GETTING_STARTED: "warning",
+  BEHIND_SCHEDULE: "danger",
+};
+const RATING_ACCENT: Record<string, string> = {
+  ABOVE_AND_BEYOND: "border-t-brand-600",
+  ACHIEVED: "border-t-success-700",
+  GETTING_STARTED: "border-t-warning-700",
+  BEHIND_SCHEDULE: "border-t-danger-700",
+};
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="m-0 text-[13.5px] font-bold text-ink">{children}</h2>;
+}
+
+function Fact({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="m-0 text-[12px] text-ink-muted">{label}</p>
+      <p className="m-0 mt-0.5 text-[14px] font-semibold text-ink">{value}</p>
+    </div>
+  );
+}
 
 export default async function PrepPacketPage({
   searchParams,
@@ -35,16 +73,18 @@ export default async function PrepPacketPage({
 
   if (!mentorshipId) {
     return (
-      <div>
-        <div className="topbar">
-          <h1 className="page-title">Committee Prep Packet</h1>
-        </div>
-        <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
-          <p style={{ color: "var(--muted)" }}>No mentorship selected. Go back and click &quot;Generate Prep Packet&quot; from a mentee&apos;s profile.</p>
-          <Link href="/mentorship/chair" className="button secondary small" style={{ marginTop: "1rem", display: "inline-block" }}>
-            ← Back to Chair Queue
-          </Link>
-        </div>
+      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+        <PageHeaderV2
+          eyebrow="Mentorship · Review cycle"
+          title="Committee prep packet"
+          backHref="/mentorship/chair"
+          backLabel="Review inbox"
+        />
+        <EmptyStateEditorial
+          title="No mentorship selected."
+          body="A prep packet is generated for one mentorship at a time. Head back to the review inbox and open a mentee to generate theirs."
+          link={{ label: "Back to the review inbox", href: "/mentorship/chair" }}
+        />
       </div>
     );
   }
@@ -57,252 +97,255 @@ export default async function PrepPacketPage({
   }
 
   return (
-    <div>
-      <div className="topbar" style={{ marginBottom: "1.5rem" }}>
-        <div>
-          <p className="badge">Committee Meeting</p>
-          <h1 className="page-title">Prep Packet — {packet.mentee.name}</h1>
-          <p className="page-subtitle">
-            Generated {new Date(packet.generatedAt).toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-            })}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Link href="/mentorship/chair" className="button secondary small">
-            ← Back
-          </Link>
-          <button
-            className="button primary small"
-            onClick={() => window.print()}
-          >
-            Print / Save PDF
-          </button>
-        </div>
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · Review cycle"
+        title={`Prep packet: ${packet.mentee.name}`}
+        subtitle={`Generated ${new Date(packet.generatedAt).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })}`}
+        backHref="/mentorship/chair"
+        backLabel="Review inbox"
+        actions={
+          <>
+            <ButtonLink href="/mentorship/chair" variant="secondary" size="sm">
+              Back
+            </ButtonLink>
+            <button
+              className={cn(buttonVariants({ variant: "primary", size: "sm" }))}
+              onClick={() => window.print()}
+            >
+              Print / Save PDF
+            </button>
+          </>
+        }
+      />
 
-      {/* Mentee Profile */}
-      <div className="card" style={{ marginBottom: "1.5rem" }}>
-        <p style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
-          Mentee Profile
-        </p>
-        <div className="grid two">
-          <div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Name</p>
-            <p style={{ fontWeight: 600 }}>{packet.mentee.name}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Email</p>
-            <p>{packet.mentee.email}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Role</p>
-            <p style={{ fontWeight: 600 }}>{ROLE_LABELS[packet.mentee.role] ?? packet.mentee.role}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Chapter</p>
-            <p>{packet.mentee.chapter ?? "—"}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Mentor</p>
-            <p>{packet.mentor.name}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Tenure</p>
-            <p>{packet.mentee.tenureMonths} month{packet.mentee.tenureMonths !== 1 ? "s" : ""} in program</p>
-          </div>
+      {/* Mentee profile */}
+      <CardV2 as="section" padding="md">
+        <div className="mb-4 border-b border-line-soft pb-2">
+          <SectionTitle>Mentee profile</SectionTitle>
         </div>
-      </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Fact label="Name" value={packet.mentee.name} />
+          <Fact label="Email" value={packet.mentee.email} />
+          <Fact label="Role" value={ROLE_LABELS[packet.mentee.role] ?? packet.mentee.role} />
+          <Fact label="Chapter" value={packet.mentee.chapter ?? "—"} />
+          <Fact label="Mentor" value={packet.mentor.name} />
+          <Fact
+            label="Tenure"
+            value={`${packet.mentee.tenureMonths} month${packet.mentee.tenureMonths !== 1 ? "s" : ""} in program`}
+          />
+        </div>
+      </CardV2>
 
-      {/* Achievement Progress */}
-      <div className="card" style={{ marginBottom: "1.5rem" }}>
-        <p style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
-          Achievement Progress
-        </p>
-        <div className="grid four" style={{ marginBottom: "1rem" }}>
+      {/* Achievement progress */}
+      <CardV2 as="section" padding="md">
+        <div className="mb-4 border-b border-line-soft pb-2">
+          <SectionTitle>Achievement progress</SectionTitle>
+        </div>
+        <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Total Points</p>
-            <p style={{ fontWeight: 800, fontSize: "1.3rem" }}>{packet.achievement.totalPoints}</p>
+            <p className="m-0 text-[12px] text-ink-muted">Total points</p>
+            <p className="m-0 mt-0.5 text-[22px] font-bold text-ink">
+              {packet.achievement.totalPoints}
+            </p>
           </div>
           <div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Current Tier</p>
-            <p style={{ fontWeight: 700 }}>{packet.achievement.currentTier ? TIER_LABELS[packet.achievement.currentTier] : "None"}</p>
+            <p className="m-0 text-[12px] text-ink-muted">Current tier</p>
+            <p className="m-0 mt-0.5 text-[22px] font-bold text-ink">
+              {packet.achievement.currentTier
+                ? TIER_LABELS[packet.achievement.currentTier]
+                : "None"}
+            </p>
           </div>
           <div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Next Tier Threshold</p>
-            <p style={{ fontWeight: 600 }}>{packet.achievement.nextTierThreshold} pts</p>
+            <p className="m-0 text-[12px] text-ink-muted">Next tier threshold</p>
+            <p className="m-0 mt-0.5 text-[22px] font-bold text-ink">
+              {packet.achievement.nextTierThreshold} pts
+            </p>
           </div>
           <div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Progress</p>
-            <p style={{ fontWeight: 700, color: packet.achievement.progressPercent >= 75 ? "#16a34a" : "inherit" }}>
+            <p className="m-0 text-[12px] text-ink-muted">Progress</p>
+            <p
+              className={`m-0 mt-0.5 text-[22px] font-bold ${
+                packet.achievement.progressPercent >= 75 ? "text-success-700" : "text-ink"
+              }`}
+            >
               {packet.achievement.progressPercent}%
             </p>
           </div>
         </div>
         {/* Progress bar */}
-        <div style={{ height: "8px", background: "var(--surface-alt)", borderRadius: "99px", overflow: "hidden", marginBottom: "0.75rem" }}>
-          <div style={{ height: "100%", width: `${packet.achievement.progressPercent}%`, background: "var(--ypp-purple-500)", borderRadius: "99px" }} />
+        <div className="mb-3 h-2 overflow-hidden rounded-full bg-surface-soft">
+          <div
+            className="h-full rounded-full bg-brand-600"
+            style={{ width: `${packet.achievement.progressPercent}%` }}
+          />
         </div>
         {packet.achievement.recentPointLogs.length > 0 && (
           <div>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)", marginBottom: "0.4rem" }}>Recent point history:</p>
+            <p className="m-0 mb-1.5 text-[12px] text-ink-muted">Recent point history:</p>
             {packet.achievement.recentPointLogs.map((log, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem", padding: "0.2rem 0" }}>
-                <span>Cycle {log.cycleNumber}{log.reason ? ` — ${log.reason}` : ""}</span>
-                <span style={{ fontWeight: 700, color: "#16a34a" }}>+{log.points}</span>
+              <div key={i} className="flex justify-between py-0.5 text-[13px] text-ink">
+                <span>
+                  Cycle {log.cycleNumber}
+                  {log.reason ? ` — ${log.reason}` : ""}
+                </span>
+                <span className="font-bold text-success-700">+{log.points}</span>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </CardV2>
 
-      {/* Last 3 Reviews Side-by-Side */}
+      {/* Last 3 reviews side-by-side */}
       {packet.last3Reviews.length > 0 && (
-        <div style={{ marginBottom: "1.5rem" }}>
-          <p style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "1rem" }}>Last 3 Monthly Reviews</p>
-          <div style={{ display: "flex", gap: "1rem", overflowX: "auto" }}>
+        <section className="flex flex-col gap-3">
+          <SectionTitle>Last 3 monthly reviews</SectionTitle>
+          <div className="flex gap-4 overflow-x-auto">
             {packet.last3Reviews.map((review) => {
               const ratingCfg = getGoalRatingCopy(review.overallRating);
               return (
-                <div
+                <CardV2
                   key={review.cycleNumber}
-                  className="card"
-                  style={{
-                    flex: 1,
-                    minWidth: "220px",
-                    borderTop: `3px solid ${ratingCfg.color}`,
-                  }}
+                  padding="md"
+                  className={`min-w-[220px] flex-1 border-t-4 ${
+                    RATING_ACCENT[review.overallRating] ?? "border-t-brand-600"
+                  }`}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.6rem" }}>
-                    <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>Cycle {review.cycleNumber}</span>
-                    <span style={{ fontSize: "0.72rem", color: ratingCfg.color, fontWeight: 700 }}>
-                      {ratingCfg.label}
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[13.5px] font-bold text-ink">
+                      Cycle {review.cycleNumber}
                     </span>
+                    <StatusBadge tone={RATING_TONE[review.overallRating] ?? "neutral"}>
+                      {ratingCfg.label}
+                    </StatusBadge>
                   </div>
-                  <p style={{ fontSize: "0.72rem", color: "var(--muted)", marginBottom: "0.5rem" }}>
-                    {new Date(review.cycleMonth).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                  <p className="m-0 mb-2 text-[12px] text-ink-muted">
+                    {new Date(review.cycleMonth).toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                    })}
                   </p>
                   {review.goalRatings.map((gr) => {
                     const grCfg = getGoalRatingCopy(gr.rating);
                     return (
-                      <div key={gr.goalTitle} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: "0.15rem" }}>
-                        <span style={{ flex: 1, marginRight: "0.4rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {gr.goalTitle}
-                        </span>
-                        <span style={{ color: grCfg.color, fontWeight: 600, flexShrink: 0 }}>
+                      <div
+                        key={gr.goalTitle}
+                        className="mb-0.5 flex items-center justify-between gap-2 text-[12.5px]"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-ink">{gr.goalTitle}</span>
+                        <StatusBadge tone={RATING_TONE[gr.rating] ?? "neutral"} className="shrink-0">
                           {grCfg.label}
-                        </span>
+                        </StatusBadge>
                       </div>
                     );
                   })}
                   {review.pointsAwarded !== null && (
-                    <p style={{ fontSize: "0.78rem", color: "#16a34a", fontWeight: 700, marginTop: "0.4rem" }}>
+                    <p className="m-0 mt-1.5 text-[12.5px] font-bold text-success-700">
                       +{review.pointsAwarded} pts
                     </p>
                   )}
-                </div>
+                </CardV2>
               );
             })}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Stakeholder Feedback */}
-      <div className="card" style={{ marginBottom: "1.5rem" }}>
-        <p style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "1rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
-          Stakeholder Feedback Summary
-        </p>
+      {/* Stakeholder feedback */}
+      <CardV2 as="section" padding="md">
+        <div className="mb-4 border-b border-line-soft pb-2">
+          <SectionTitle>Stakeholder feedback summary</SectionTitle>
+        </div>
         {packet.stakeholderFeedback.totalResponses === 0 ? (
-          <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>No stakeholder feedback collected for this quarter.</p>
+          <p className="m-0 text-[13px] text-ink-muted">
+            No stakeholder feedback collected for this quarter.
+          </p>
         ) : (
           <div>
-            <div style={{ display: "flex", gap: "2rem", marginBottom: "1rem" }}>
+            <div className="mb-4 flex gap-8">
               <div>
-                <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Responses</p>
-                <p style={{ fontWeight: 700, fontSize: "1.2rem" }}>{packet.stakeholderFeedback.totalResponses}</p>
+                <p className="m-0 text-[12px] text-ink-muted">Responses</p>
+                <p className="m-0 mt-0.5 text-[20px] font-bold text-ink">
+                  {packet.stakeholderFeedback.totalResponses}
+                </p>
               </div>
               <div>
-                <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Avg Rating</p>
-                <p style={{ fontWeight: 700, fontSize: "1.2rem" }}>
-                  {packet.stakeholderFeedback.avgRating !== null ? `${packet.stakeholderFeedback.avgRating}/5` : "—"}
+                <p className="m-0 text-[12px] text-ink-muted">Avg rating</p>
+                <p className="m-0 mt-0.5 text-[20px] font-bold text-ink">
+                  {packet.stakeholderFeedback.avgRating !== null
+                    ? `${packet.stakeholderFeedback.avgRating}/5`
+                    : "—"}
                 </p>
               </div>
             </div>
             {packet.stakeholderFeedback.strengthsHighlights.length > 0 && (
-              <div style={{ marginBottom: "0.75rem" }}>
-                <p style={{ fontSize: "0.75rem", fontWeight: 700, color: "#16a34a", textTransform: "uppercase", marginBottom: "0.35rem" }}>
-                  Key Strengths
+              <div className="mb-3">
+                <p className="m-0 mb-1.5 text-[11.5px] font-bold uppercase tracking-[0.06em] text-success-700">
+                  Key strengths
                 </p>
                 {packet.stakeholderFeedback.strengthsHighlights.map((s, i) => (
-                  <p key={i} style={{ fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.25rem" }}>&quot;{s}&quot;</p>
+                  <p key={i} className="m-0 mb-1 text-[13px] leading-relaxed text-ink">
+                    &quot;{s}&quot;
+                  </p>
                 ))}
               </div>
             )}
             {packet.stakeholderFeedback.growthHighlights.length > 0 && (
               <div>
-                <p style={{ fontSize: "0.75rem", fontWeight: 700, color: "#d97706", textTransform: "uppercase", marginBottom: "0.35rem" }}>
-                  Growth Areas
+                <p className="m-0 mb-1.5 text-[11.5px] font-bold uppercase tracking-[0.06em] text-warning-700">
+                  Growth areas
                 </p>
                 {packet.stakeholderFeedback.growthHighlights.map((s, i) => (
-                  <p key={i} style={{ fontSize: "0.82rem", lineHeight: 1.5, marginBottom: "0.25rem" }}>&quot;{s}&quot;</p>
+                  <p key={i} className="m-0 mb-1 text-[13px] leading-relaxed text-ink">
+                    &quot;{s}&quot;
+                  </p>
                 ))}
               </div>
             )}
           </div>
         )}
-      </div>
+      </CardV2>
 
       {/* Open next steps */}
       {packet.openActionItems.length > 0 && (
-        <div className="card" style={{ marginBottom: "1.5rem" }}>
-          <p style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "0.75rem" }}>
-            Open next steps ({packet.openActionItems.length})
-          </p>
-          {packet.openActionItems.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "0.5rem 0",
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
-              <span style={{ fontSize: "0.85rem" }}>{item.title}</span>
-              <span
-                className="pill"
-                style={{
-                  fontSize: "0.7rem",
-                  background: item.status === "IN_PROGRESS" ? "#fffbeb" : "var(--surface-alt)",
-                  color: item.status === "IN_PROGRESS" ? "#d97706" : "var(--muted)",
-                }}
-              >
-                {item.status.replace(/_/g, " ")}
-              </span>
-            </div>
-          ))}
-        </div>
+        <CardV2 as="section" padding="md">
+          <div className="mb-3">
+            <SectionTitle>Open next steps ({packet.openActionItems.length})</SectionTitle>
+          </div>
+          <div className="divide-y divide-line-soft">
+            {packet.openActionItems.map((item) => (
+              <div key={item.id} className="flex items-center justify-between gap-3 py-2">
+                <span className="text-[13px] text-ink">{item.title}</span>
+                <StatusBadge tone={item.status === "IN_PROGRESS" ? "warning" : "neutral"}>
+                  {item.status.replace(/_/g, " ")}
+                </StatusBadge>
+              </div>
+            ))}
+          </div>
+        </CardV2>
       )}
 
-      {/* Suggested Discussion Topics */}
+      {/* Suggested discussion topics */}
       {packet.suggestedDiscussionTopics.length > 0 && (
-        <div className="card">
-          <p style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "0.75rem" }}>
-            Suggested Discussion Topics
-          </p>
-          <ol style={{ margin: 0, paddingLeft: "1.25rem" }}>
+        <CardV2 as="section" padding="md">
+          <div className="mb-3">
+            <SectionTitle>Suggested discussion topics</SectionTitle>
+          </div>
+          <ol className="m-0 pl-5">
             {packet.suggestedDiscussionTopics.map((topic, i) => (
-              <li key={i} style={{ fontSize: "0.88rem", lineHeight: 1.6, marginBottom: "0.35rem" }}>
+              <li key={i} className="mb-1.5 text-[13.5px] leading-relaxed text-ink">
                 {topic}
               </li>
             ))}
           </ol>
-        </div>
+        </CardV2>
       )}
     </div>
   );

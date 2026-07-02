@@ -9,7 +9,11 @@ import {
 } from "@/components/mentorship/cycle-row-actions";
 import { getSession } from "@/lib/auth-supabase";
 import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
-import { STAGE_META, type ParticipantStage } from "@/lib/mentorship/cycle-constants";
+import {
+  COMPLETED_STAGES,
+  STAGE_META,
+  type ParticipantStage,
+} from "@/lib/mentorship/cycle-constants";
 import {
   loadReviewCycle,
   type CycleParticipantDetail,
@@ -51,6 +55,9 @@ function rowCta(
     case "waiting-self-input":
       return { note: `Waiting on ${firstName(p.name)}'s reflection` };
     case "waiting-review":
+      // Quarterly: no QuarterlyReview row exists yet at this stage (that's what
+      // the stage means) and there is no per-person recording route, so the
+      // dashboard is the surface where the review actually gets recorded.
       return kind === "quarterly"
         ? { label: "Record review", href: "/people/quarterly-reviews" }
         : { label: "Write review", href: `/mentorship/reviews/${p.userId}` };
@@ -186,7 +193,12 @@ export default async function ReviewCyclePage({
                       ) : cta && "note" in cta ? (
                         <span className="text-[12.5px] text-ink-muted">{cta.note}</span>
                       ) : null}
-                      {cycle.status === "active" ? (
+                      {/* Waiving only makes sense while the row is still in
+                          flight — hide it once released. Waived rows keep the
+                          toggle so the override can be undone. */}
+                      {cycle.status === "active" &&
+                      (p.stageOverride === "waived" ||
+                        !COMPLETED_STAGES.includes(p.stage)) ? (
                         <WaiveToggle
                           participantId={p.participantId}
                           waived={p.stageOverride === "waived"}

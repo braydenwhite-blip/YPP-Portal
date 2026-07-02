@@ -1,4 +1,7 @@
 import { notFound, redirect } from "next/navigation";
+
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { hasMentorshipMenteeAccess } from "@/lib/mentorship-access";
@@ -140,42 +143,36 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
   const menteeName = mentee.name ?? mentee.email ?? "this mentee";
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <Link href={backHref} style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Back to {menteeName}
-          </Link>
-          <p className="badge">Mentor view</p>
-          <h1 className="page-title">{menteeName}&apos;s Goals &amp; Resources</h1>
-          <p className="page-subtitle">
-            {menteeRoleLabel}
-            {mentorship?.mentor?.name ? ` · Mentored by ${mentorship.mentor.name}` : " · No active relationship"}
-            {mentorship?.chair?.name ? ` · Chair ${mentorship.chair.name}` : ""}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href={backHref} className="button secondary small">
-            Back to mentee
-          </Link>
-          {isAdmin && (
-            <Link href="/admin/mentorship?tab=templates" className="button secondary small">
-              Edit G&amp;R (admin) →
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · Mentor console"
+        title={`${menteeName}'s Goals & Resources`}
+        subtitle={`${menteeRoleLabel}${
+          mentorship?.mentor?.name ? ` · Mentored by ${mentorship.mentor.name}` : " · No active relationship"
+        }${mentorship?.chair?.name ? ` · Chair ${mentorship.chair.name}` : ""}`}
+        backHref={backHref}
+        backLabel={`Back to ${menteeName}`}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {isAdmin && (
+              <Link href="/admin/mentorship?tab=templates" className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink no-underline transition-colors hover:bg-surface-soft">
+                Edit G&amp;R (admin) →
+              </Link>
+            )}
+            <Link
+              href="#propose-change"
+              className="inline-flex items-center justify-center rounded-full bg-brand-600 px-3.5 py-1.5 text-[13px] font-semibold text-white no-underline transition-[filter] hover:brightness-95"
+              aria-disabled={!doc}
+              style={!doc ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+            >
+              Propose change
             </Link>
-          )}
-          <Link
-            href="#propose-change"
-            className="button primary small"
-            aria-disabled={!doc}
-            style={!doc ? { opacity: 0.5, pointerEvents: "none" } : undefined}
-          >
-            Propose change
-          </Link>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {!doc ? (
-        <div className="card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
+        <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
           <h3 style={{ marginTop: 0 }}>No G&amp;R has been created for this mentee yet.</h3>
           <p style={{ color: "var(--muted)", maxWidth: 520, margin: "0 auto 1.25rem" }}>
             A Goals &amp; Resources document is assigned at kickoff. Once it&apos;s in
@@ -183,7 +180,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
             multi-year goals here, along with the latest plan of action.
           </p>
           {isAdmin ? (
-            <Link href="/admin/mentorship?tab=templates" className="button primary">
+            <Link href="/admin/mentorship?tab=templates" className="inline-flex items-center justify-center rounded-full bg-brand-600 px-4 py-2 text-[13.5px] font-semibold text-white no-underline transition-[filter] hover:brightness-95">
               Assign a G&amp;R template →
             </Link>
           ) : (
@@ -195,7 +192,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           {/* Document summary */}
-          <div className="card" style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--muted)", marginBottom: 4 }}>
                 Template
@@ -207,7 +204,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
             </div>
             <div style={{ textAlign: "right" }}>
               <span
-                className="badge"
+                className="text-[11px] font-bold uppercase tracking-[0.1em] text-brand-700"
                 style={{
                   background: DOC_STATUS_STYLE[doc.status]?.bg ?? "#f1f5f9",
                   color: DOC_STATUS_STYLE[doc.status]?.fg ?? "#475569",
@@ -223,7 +220,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
 
           {/* Role mission */}
           {doc.roleMission && (
-            <div className="card">
+            <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
               <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--muted)", marginBottom: 6 }}>
                 Role mission
               </div>
@@ -242,7 +239,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
 
           {/* Long-term goals collapsed */}
           {longTermGoals.length > 0 && (
-            <details className="card">
+            <details className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
               <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.95rem" }}>
                 Long-term goals ({longTermGoals.length})
               </summary>
@@ -259,7 +256,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
 
           {/* Success criteria */}
           {doc.successCriteria.length > 0 && (
-            <div className="card">
+            <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
               <div style={{ fontWeight: 700, marginBottom: 10 }}>Success criteria</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {doc.successCriteria.map((sc) => (
@@ -283,7 +280,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
 
           {/* Latest plan of action */}
           {doc.plansOfAction[0] && (
-            <div className="card">
+            <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
                 <div style={{ fontWeight: 700 }}>Plan of action</div>
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>
@@ -299,7 +296,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
 
           {/* Resources */}
           {doc.resources.length > 0 && (
-            <div className="card">
+            <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
               <div style={{ fontWeight: 700, marginBottom: 10 }}>Resources</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {doc.resources.map((r) => (
@@ -335,7 +332,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
           {latestReview && (() => {
             const ratingCopy = getGoalRatingCopy(latestReview.overallRating);
             return (
-            <div className="card" style={{ borderLeft: `3px solid ${ratingCopy.color}` }}>
+            <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ borderLeft: `3px solid ${ratingCopy.color}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
                 <div style={{ fontWeight: 700 }}>Latest released review</div>
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>
@@ -372,7 +369,7 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
           })()}
 
           {/* Propose a G&R change */}
-          <details id="propose-change" className="card" style={{ scrollMarginTop: 80 }}>
+          <details id="propose-change" className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ scrollMarginTop: 80 }}>
             <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.95rem" }}>
               Propose a G&amp;R change
             </summary>
@@ -485,10 +482,10 @@ function GoalsBlock({
                       {ratingCopy?.label}
                     </span>
                   )}
-                  <span className="pill" style={{ fontSize: "0.65rem" }}>
+                  <span className="inline-flex items-center rounded-full bg-surface-soft px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-muted" style={{ fontSize: "0.65rem" }}>
                     {TIME_PHASE_LABELS[g.timePhase] ?? g.timePhase}
                   </span>
-                  <span className="pill" style={{ fontSize: "0.65rem" }}>
+                  <span className="inline-flex items-center rounded-full bg-surface-soft px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-muted" style={{ fontSize: "0.65rem" }}>
                     {formatEnum(g.progressState)}
                   </span>
                   {g.dueDate && (

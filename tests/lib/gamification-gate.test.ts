@@ -40,7 +40,6 @@ describe("Gamification gate", () => {
     "/mentorship/awards",
     "/my-program/achievement-journey",
     "/my-program/certificate",
-    "/reflections/streaks",
     "/learn/challenges",
   ];
 

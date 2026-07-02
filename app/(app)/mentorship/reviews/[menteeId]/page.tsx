@@ -1,7 +1,8 @@
-import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { notFound, redirect } from "next/navigation";
 
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { ButtonLink, CardV2, PageHeaderV2 } from "@/components/ui-v2";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { ReviewNotesBanner } from "@/components/review-notes-banner";
 import { GoalReviewForm } from "@/components/mentorship/goal-review-form";
@@ -10,6 +11,9 @@ import { getGoalsForMentee, ensureReviewGoalRatings } from "@/lib/mentorship-gr-
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { POINT_TABLE } from "@/lib/mentorship-point-table";
 import { prisma } from "@/lib/prisma";
+import { EmptyStateEditorial } from "../../_components/empty-state-editorial";
+
+export const metadata = { title: "Write review — Mentorship" };
 
 const MONTHLY_REVIEW_GUIDE_ITEMS = [
   {
@@ -75,18 +79,21 @@ export default async function MonthlyReviewEditorPage({
   });
   if (!mentorship) {
     return (
-      <div>
-        <div className="topbar">
-          <h1 className="page-title">Write Monthly Review</h1>
-        </div>
-        <div className="card" style={{ padding: 24, textAlign: "center" }}>
-          <p style={{ marginTop: 0 }}>
-            {mentee.name} doesn&apos;t have an active mentorship yet, so there&apos;s no monthly review cycle to write.
-          </p>
-          <Link href={`/mentorship/mentees/${menteeId}`} className="button small">
-            Back to workspace
-          </Link>
-        </div>
+      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+        <PageHeaderV2
+          eyebrow="Mentorship · Mentor console"
+          title="Write review"
+          backHref="/mentorship/reviews"
+          backLabel="Review inbox"
+        />
+        <EmptyStateEditorial
+          title="No review cycle to write yet."
+          body={`${mentee.name} doesn't have an active mentorship, so there's no monthly review cycle running for them. Their workspace still holds their history, requests, and progress signals.`}
+          link={{
+            label: "Open their workspace",
+            href: `/mentorship/mentees/${menteeId}`,
+          }}
+        />
       </div>
     );
   }
@@ -120,22 +127,21 @@ export default async function MonthlyReviewEditorPage({
 
   if (!latestReflection) {
     return (
-      <div>
-        <div className="topbar">
-          <h1 className="page-title">Write Monthly Review</h1>
-        </div>
-        <div className="card" style={{ padding: 24 }}>
-          <p style={{ marginTop: 0 }}>
-            <strong>{mentee.name}</strong> hasn&apos;t submitted this cycle&apos;s self-reflection yet.
-          </p>
-          <p className="muted">
-            The monthly review form opens once the mentee submits their reflection. The cycle status block on
-            their workspace shows where things stand.
-          </p>
-          <Link href={`/mentorship/mentees/${menteeId}`} className="button small" style={{ marginTop: 8 }}>
-            Back to workspace
-          </Link>
-        </div>
+      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+        <PageHeaderV2
+          eyebrow="Mentorship · Mentor console"
+          title="Write review"
+          backHref="/mentorship/reviews"
+          backLabel="Review inbox"
+        />
+        <EmptyStateEditorial
+          title="Waiting on their self-input."
+          body={`${mentee.name} hasn't submitted this cycle's self-input yet. The review form opens the moment they do — the cycle status block on their workspace shows exactly where things stand.`}
+          link={{
+            label: "Open their workspace",
+            href: `/mentorship/mentees/${menteeId}`,
+          }}
+        />
       </div>
     );
   }
@@ -253,19 +259,23 @@ export default async function MonthlyReviewEditorPage({
   const isLocked = review?.status === "APPROVED";
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <Link href={`/mentorship/mentees/${menteeId}`} style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Back to {mentee.name}
-          </Link>
-          <p className="badge">Monthly Review</p>
-          <h1 className="page-title">Write Monthly Review</h1>
-          <p className="page-subtitle">
-            {cycleMonthLabel} · Cycle {latestReflection.cycleNumber} · For {mentee.name}
-          </p>
-        </div>
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · Mentor console"
+        title="Write monthly review"
+        subtitle={`${cycleMonthLabel} · Cycle ${latestReflection.cycleNumber} · For ${mentee.name}`}
+        backHref="/mentorship/reviews"
+        backLabel="Review inbox"
+        actions={
+          <ButtonLink
+            href={`/mentorship/mentees/${menteeId}`}
+            variant="secondary"
+            size="sm"
+          >
+            {mentee.name}&apos;s workspace →
+          </ButtonLink>
+        }
+      />
 
       <MentorshipGuideCard
         title="How To Complete A Monthly Goal Review"
@@ -282,12 +292,14 @@ export default async function MonthlyReviewEditorPage({
       )}
 
       {isLocked ? (
-        <div className="card" style={{ padding: 24 }}>
-          <strong style={{ color: "#16a34a" }}>This review has been approved and released.</strong>
-          <p className="muted" style={{ marginTop: 6 }}>
+        <CardV2 padding="md" className="border-l-4 border-l-success-700">
+          <strong className="text-[14px] text-success-700">
+            Approved and released to the mentee.
+          </strong>
+          <p className="m-0 mt-1 text-[13px] text-ink-muted">
             Approved reviews are read-only. The mentee can see it on their /my-program timeline.
           </p>
-        </div>
+        </CardV2>
       ) : (
         <GoalReviewForm
           reflectionId={latestReflection.id}

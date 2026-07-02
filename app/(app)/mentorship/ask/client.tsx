@@ -48,14 +48,14 @@ export function AskQuestionForm() {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="button primary">
+      <button onClick={() => setOpen(true)} className="inline-flex items-center justify-center rounded-full bg-brand-600 px-4 py-2 text-[13.5px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60">
         Ask a Question
       </button>
     );
   }
 
   return (
-    <div className="card" style={{ borderLeft: "4px solid var(--ypp-purple)", marginBottom: 24 }}>
+    <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ borderLeft: "4px solid var(--ypp-purple)", marginBottom: 24 }}>
       <h3 style={{ margin: "0 0 16px" }}>Ask the Mentor Community</h3>
       <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted)" }}>
         Use this when your question could help other students too. If the work is private or needs personal review, use the feedback portal instead.
@@ -115,10 +115,10 @@ export function AskQuestionForm() {
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
-          <button type="submit" className="button primary" disabled={isPending}>
+          <button type="submit" className="inline-flex items-center justify-center rounded-full bg-brand-600 px-4 py-2 text-[13.5px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60" disabled={isPending}>
             {isPending ? "Submitting..." : "Submit Question"}
           </button>
-          <button type="button" className="button secondary" onClick={() => setOpen(false)} disabled={isPending}>
+          <button type="button" className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-4 py-2 text-[13.5px] font-semibold text-ink transition-colors hover:bg-surface-soft disabled:opacity-60" onClick={() => setOpen(false)} disabled={isPending}>
             Cancel
           </button>
         </div>
@@ -150,7 +150,7 @@ export function AnswerForm({ questionId }: { questionId: string }) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="button primary small" style={{ marginTop: 8 }}>
+      <button onClick={() => setOpen(true)} className="inline-flex items-center justify-center rounded-full bg-brand-600 px-3.5 py-1.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60" style={{ marginTop: 8 }}>
         Answer This Question
       </button>
     );
@@ -180,10 +180,10 @@ export function AnswerForm({ questionId }: { questionId: string }) {
         style={{ ...FIELD_STYLE, marginBottom: 8 }}
       />
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" className="button primary small" disabled={isPending}>
+        <button type="submit" className="inline-flex items-center justify-center rounded-full bg-brand-600 px-3.5 py-1.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60" disabled={isPending}>
           {isPending ? "Posting..." : "Post Answer"}
         </button>
-        <button type="button" className="button secondary small" onClick={() => setOpen(false)} disabled={isPending}>
+        <button type="button" className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink transition-colors hover:bg-surface-soft disabled:opacity-60" onClick={() => setOpen(false)} disabled={isPending}>
           Cancel
         </button>
       </div>

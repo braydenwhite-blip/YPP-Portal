@@ -20,6 +20,9 @@ import LegacyGRTemplatesPage from "@/app/(app)/admin/mentorship-program/gr-templ
 import LegacyGRTemplateDetailPage from "@/app/(app)/admin/mentorship-program/gr-templates/[id]/page";
 import LegacyGRAssignmentsPage from "@/app/(app)/admin/mentorship-program/gr-assignments/page";
 import LegacyGRResourcesPage from "@/app/(app)/admin/mentorship-program/gr-resources/page";
+import LegacyReflectionPage from "@/app/(app)/reflection/page";
+import LegacyReflectionHistoryPage from "@/app/(app)/reflection/history/page";
+import LegacyReflectionFormsPage from "@/app/(app)/admin/reflection-forms/page";
 
 class RedirectError extends Error {
   constructor(public to: string) {
@@ -67,6 +70,12 @@ describe("mentorship legacy route redirects", () => {
     expect(() => LegacyAskMentorPage()).toThrow("redirect:/mentorship/ask");
     expect(() => LegacyMentorResourcesPage()).toThrow("redirect:/mentorship/resources");
     expect(() => LegacyMentorFeedbackPage()).toThrow("redirect:/mentorship/feedback");
+  });
+
+  it("redirects the deprecated reflection surfaces into the unified self-input flow", () => {
+    expect(() => LegacyReflectionPage()).toThrow("redirect:/my-mentor/reflection");
+    expect(() => LegacyReflectionHistoryPage()).toThrow("redirect:/my-mentor/reflection");
+    expect(() => LegacyReflectionFormsPage()).toThrow("redirect:/admin/reflections");
   });
 
   it("redirects legacy /my-program mentee flows into the canonical /my-mentor home", () => {

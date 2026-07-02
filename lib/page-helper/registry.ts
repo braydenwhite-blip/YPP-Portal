@@ -753,15 +753,6 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
-    pattern: "/admin/instructor-mentor-matching",
-    title: "Instructor Mentor Matching",
-    content: {
-      purpose: "This page helps you manage the instructor mentor matching and keep the portal data or workflow organized.",
-      firstStep: "Review the current list, board, or settings first so you can decide which item needs action right now.",
-      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
-    }
-  },
-  {
     pattern: "/admin/instructor-readiness",
     title: "Instructor Readiness Command Center",
     content: {
@@ -1204,20 +1195,20 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/admin/reflection-forms",
-    title: "Manage Monthly Self-Reflection Forms",
+    title: "Reflection Forms (Retired)",
     content: {
-      purpose: "This page helps you manage the monthly self-reflection forms and keep the portal data or workflow organized.",
-      firstStep: "Review the current list, board, or settings first so you can decide which item needs action right now.",
-      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
+      purpose: "The legacy reflection form builder is retired; this page redirects to the read-only reflection archive.",
+      firstStep: "Use the reflection archive to read past submissions.",
+      nextStep: "Live self-input now flows through the Mentorship hub and its review inbox."
     }
   },
   {
     pattern: "/admin/reflections",
-    title: "Monthly Self-Reflections",
+    title: "Reflection Archive",
     content: {
-      purpose: "This page helps you manage the monthly self-reflections and keep the portal data or workflow organized.",
-      firstStep: "Review the current list, board, or settings first so you can decide which item needs action right now.",
-      nextStep: "After you save a change, the page refreshes the managed content so the next task is easier to track."
+      purpose: "This page is the read-only archive of retired self-reflection submissions, grouped by person and month.",
+      firstStep: "Expand a person's card to read what they submitted before the system was retired.",
+      nextStep: "For live self-input and reviews, use the Mentorship hub's review inbox instead."
     }
   },
   {
@@ -4563,27 +4554,18 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     pattern: "/reflection",
     title: "Monthly Self-Reflection",
     content: {
-      purpose: "This page brings together the main tools and details for the monthly self-reflection.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+      purpose: "The legacy reflection form is retired; this page redirects to the canonical monthly reflection in the Mentorship hub.",
+      firstStep: "Submit your self-input from the Mentorship hub's My development view.",
+      nextStep: "Your mentor uses that self-input when writing the monthly review."
     }
   },
   {
     pattern: "/reflection/history",
     title: "Monthly Self-Reflection History",
     content: {
-      purpose: "This page gives you a clear view of the monthly self-reflection history so you can spot what needs attention first.",
-      firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
-      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
-    }
-  },
-  {
-    pattern: "/reflections/streaks",
-    title: "Reflection Streaks",
-    content: {
-      purpose: "This page gives you a clear view of the reflection streaks so you can spot what needs attention first.",
-      firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
-      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
+      purpose: "The legacy reflection history is retired; this page redirects to the canonical monthly reflection in the Mentorship hub.",
+      firstStep: "Open the Mentorship hub's My development view to revisit your self-input.",
+      nextStep: "Released reviews and coaching plans live under Progress & reviews."
     }
   },
   {

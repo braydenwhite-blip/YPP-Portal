@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import skin from "@/components/ui-v2/portal-skin.module.css";
-import { ButtonLink, CardV2, PageHeaderV2, StatusBadge } from "@/components/ui-v2";
+import { ButtonLink, CardV2, PageHeaderV2, StatusBadge, cn } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
 import { STAGE_META, type ParticipantStage } from "@/lib/mentorship/cycle-constants";
@@ -20,11 +20,22 @@ const TONE_TO_BADGE = {
   neutral: "neutral",
 } as const;
 
+const DUE_FMT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
 function CycleRow({ cycle }: { cycle: CycleSummary }) {
   const { progress } = cycle;
   const chips = (Object.keys(STAGE_META) as ParticipantStage[])
     .filter((stage) => progress.counts[stage] > 0)
     .sort((a, b) => STAGE_META[a].order - STAGE_META[b].order);
+  const overdue =
+    cycle.status === "active" &&
+    cycle.dueDate != null &&
+    cycle.dueDate.getTime() < Date.now() &&
+    progress.pctComplete < 100;
   return (
     <li className="flex flex-col gap-2 px-4 py-3.5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -39,11 +50,39 @@ function CycleRow({ cycle }: { cycle: CycleSummary }) {
             {cycle.kind === "quarterly" ? "Quarterly" : "Monthly"} · {cycle.periodLabel} ·{" "}
             {cycle.scopeLabel}
           </span>
+          {cycle.dueDate ? (
+            <span
+              className={cn(
+                "text-[12px]",
+                overdue ? "font-semibold text-danger-700" : "text-ink-muted"
+              )}
+            >
+              {overdue
+                ? `overdue — was due ${DUE_FMT.format(cycle.dueDate)}`
+                : `due ${DUE_FMT.format(cycle.dueDate)}`}
+            </span>
+          ) : null}
           {cycle.status === "closed" ? <StatusBadge tone="neutral">Closed</StatusBadge> : null}
         </div>
         <span className="text-[12.5px] font-semibold text-ink">
           {progress.completed}/{progress.total} done
         </span>
+      </div>
+      <div
+        role="progressbar"
+        aria-valuenow={progress.pctComplete}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`${cycle.name} progress`}
+        className="h-1.5 overflow-hidden rounded-full bg-surface-soft"
+      >
+        <div
+          className={cn(
+            "h-full rounded-full",
+            progress.pctComplete === 100 ? "bg-success-700" : "bg-brand-600"
+          )}
+          style={{ width: `${progress.pctComplete}%` }}
+        />
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         {chips.map((stage) => (

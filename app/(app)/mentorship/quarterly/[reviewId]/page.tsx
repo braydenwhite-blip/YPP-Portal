@@ -1,4 +1,7 @@
 import { redirect, notFound } from "next/navigation";
+
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { PageHeaderV2 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import { getQuarterlyReviewData, createFeedbackRequest } from "@/lib/goal-review-actions";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
@@ -34,7 +37,7 @@ function ReviewCard({ review, isQuarterly }: { review: ReviewColumn; isQuarterly
   const ratingCfg = getGoalRatingCopy(review.overallRating);
   return (
     <div
-      className="card"
+      className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card"
       style={{
         flex: 1,
         minWidth: "260px",
@@ -45,7 +48,7 @@ function ReviewCard({ review, isQuarterly }: { review: ReviewColumn; isQuarterly
         <div>
           <span style={{ fontWeight: 700, fontSize: "1rem" }}>Cycle {review.cycleNumber}</span>
           {isQuarterly && (
-            <span className="pill" style={{ marginLeft: "0.4rem", fontSize: "0.7rem", background: "var(--ypp-purple-100)", color: "var(--ypp-purple-700)" }}>
+            <span className="inline-flex items-center rounded-full bg-surface-soft px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-muted" style={{ marginLeft: "0.4rem", fontSize: "0.7rem", background: "var(--ypp-purple-100)", color: "var(--ypp-purple-700)" }}>
               Quarterly
             </span>
           )}
@@ -55,7 +58,7 @@ function ReviewCard({ review, isQuarterly }: { review: ReviewColumn; isQuarterly
         </div>
         <div style={{ textAlign: "right" }}>
           <span
-            className="pill"
+            className="inline-flex items-center rounded-full bg-surface-soft px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-muted"
             style={{ fontSize: "0.72rem", background: ratingCfg.background, color: ratingCfg.color }}
           >
             {ratingCfg.label}
@@ -161,34 +164,28 @@ export default async function QuarterlyReviewPage({ params }: { params: Promise<
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://portal.ypp.com";
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Quarterly Review</p>
-          <h1 className="page-title">Q{Math.ceil(data.quarterlyReview.cycleNumber / 3)} Review — {data.mentee.name}</h1>
-          <p className="page-subtitle">
-            {ROLE_LABELS[data.mentee.role ?? ""] ?? data.mentee.role} ·
-            Cycles {allReviews.map((r) => r.cycleNumber).join(", ")}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <Link href="/mentorship/reviews" className="button secondary small">
-            ← Back
-          </Link>
-          {data.isMentor && (
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · Review cycle"
+        title={`Q${Math.ceil(data.quarterlyReview.cycleNumber / 3)} Review — ${data.mentee.name}`}
+        subtitle={`${ROLE_LABELS[data.mentee.role ?? ""] ?? data.mentee.role} · Cycles ${allReviews.map((r) => r.cycleNumber).join(", ")}`}
+        backHref="/mentorship/reviews"
+        backLabel="Review inbox"
+        actions={
+          data.isMentor ? (
             <Link
               href={`/mentorship/chair/prep-packet?mentorshipId=${data.mentorshipId}`}
-              className="button secondary small"
+              className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-ink no-underline transition-colors hover:bg-surface-soft"
             >
               Generate Prep Packet
             </Link>
-          )}
-        </div>
-      </div>
+          ) : undefined
+        }
+      />
 
       {/* 3-column side-by-side review comparison */}
       <div style={{ marginBottom: "2rem" }}>
-        <p className="section-title" style={{ marginBottom: "1rem" }}>
+        <p className="m-0 text-[13.5px] font-bold text-ink" style={{ marginBottom: "1rem" }}>
           Monthly Reviews — Side by Side
         </p>
         <div style={{ display: "flex", gap: "1rem", overflowX: "auto", alignItems: "flex-start" }}>
@@ -200,7 +197,7 @@ export default async function QuarterlyReviewPage({ params }: { params: Promise<
             />
           ))}
           {allReviews.length === 0 && (
-            <div className="card" style={{ width: "100%", textAlign: "center", padding: "2.5rem" }}>
+            <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ width: "100%", textAlign: "center", padding: "2.5rem" }}>
               <p style={{ color: "var(--muted)" }}>No reviews found for this quarter.</p>
             </div>
           )}
@@ -210,13 +207,13 @@ export default async function QuarterlyReviewPage({ params }: { params: Promise<
       {/* Stakeholder Feedback Section */}
       <div style={{ marginBottom: "2rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-          <p className="section-title">Stakeholder Feedback (360°)</p>
+          <p className="m-0 text-[13.5px] font-bold text-ink">Stakeholder Feedback (360°)</p>
           {data.isMentor && (
             <form action={createFeedbackRequest}>
               <input type="hidden" name="mentorshipId" value={data.mentorshipId} />
               <input type="hidden" name="reviewId" value={reviewId} />
               <input type="hidden" name="quarterNumber" value={String(Math.ceil(data.quarterlyReview.cycleNumber / 3))} />
-              <button type="submit" className="button primary small">
+              <button type="submit" className="inline-flex items-center justify-center rounded-full bg-brand-600 px-3.5 py-1.5 text-[13px] font-semibold text-white no-underline transition-[filter] hover:brightness-95">
                 + Collect Stakeholder Feedback
               </button>
             </form>
@@ -226,17 +223,17 @@ export default async function QuarterlyReviewPage({ params }: { params: Promise<
         {data.feedbackSummary ? (
           <div>
             <div className="grid four" style={{ marginBottom: "1.25rem" }}>
-              <div className="card">
-                <p className="kpi">{data.feedbackSummary.totalResponses}</p>
-                <p className="kpi-label">Responses</p>
+              <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+                <p className="m-0 text-[22px] font-semibold text-ink">{data.feedbackSummary.totalResponses}</p>
+                <p className="m-0 text-[12.5px] text-ink-muted">Responses</p>
               </div>
-              <div className="card">
-                <p className="kpi" style={{ color: (data.feedbackSummary.avgRating ?? 0) >= 4 ? "#16a34a" : "#d97706" }}>
+              <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
+                <p className={`m-0 text-[22px] font-semibold ${(data.feedbackSummary.avgRating ?? 0) >= 4 ? "text-success-700" : "text-warning-700"}`}>
                   {data.feedbackSummary.avgRating !== null ? data.feedbackSummary.avgRating.toFixed(1) : "—"}/5
                 </p>
-                <p className="kpi-label">Avg Rating</p>
+                <p className="m-0 text-[12.5px] text-ink-muted">Avg Rating</p>
               </div>
-              <div className="card" style={{ gridColumn: "span 2" }}>
+              <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ gridColumn: "span 2" }}>
                 <p style={{ fontSize: "0.8rem", color: "var(--muted)" }}>Shareable Link</p>
                 <p
                   style={{
@@ -257,11 +254,11 @@ export default async function QuarterlyReviewPage({ params }: { params: Promise<
             {data.feedbackSummary.responses.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
                 {data.feedbackSummary.responses.map((r, i) => (
-                  <div key={i} className="card" style={{ padding: "0.85rem 1rem" }}>
+                  <div key={i} className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ padding: "0.85rem 1rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
                       <div>
                         <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>{r.respondentName}</span>
-                        <span className="pill" style={{ marginLeft: "0.5rem", fontSize: "0.7rem", background: "var(--surface-alt)" }}>
+                        <span className="inline-flex items-center rounded-full bg-surface-soft px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-muted" style={{ marginLeft: "0.5rem", fontSize: "0.7rem", background: "var(--surface-alt)" }}>
                           {r.respondentRole}
                         </span>
                       </div>
@@ -291,13 +288,13 @@ export default async function QuarterlyReviewPage({ params }: { params: Promise<
             )}
           </div>
         ) : (
-          <div className="card" style={{ textAlign: "center", padding: "2rem" }}>
+          <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ textAlign: "center", padding: "2rem" }}>
             <p style={{ color: "var(--muted)", marginBottom: "0.75rem" }}>
               No stakeholder feedback collected yet for this quarterly cycle.
             </p>
             {data.isMentor && (
               <p style={{ fontSize: "0.82rem", color: "var(--muted)" }}>
-                Use the "Collect Stakeholder Feedback" button above to generate a shareable link for parents, school officials, or other stakeholders.
+                Use the &ldquo;Collect Stakeholder Feedback&rdquo; button above to generate a shareable link for parents, school officials, or other stakeholders.
               </p>
             )}
           </div>

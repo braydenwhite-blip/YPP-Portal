@@ -1,15 +1,19 @@
-import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { Button, CardV2, PageHeaderV2, StatusBadge } from "@/components/ui-v2";
 import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { getMentorshipCommonsData } from "@/lib/mentorship-hub";
 import { promoteMentorshipResponseToResource } from "@/lib/mentorship-hub-actions";
 import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
 import { EmptySimpleState } from "@/components/command-center/simple";
+import { EmptyStateEditorial } from "../_components/empty-state-editorial";
 
 import { AskQuestionForm, AnswerForm, UpvoteButton } from "./client";
+
+export const metadata = { title: "Ask a Mentor — Mentorship" };
 
 const ASK_MENTOR_GUIDE_ITEMS = [
   {
@@ -72,22 +76,16 @@ export default async function AskMentorPage({
   const answered = questions.filter((question) => question.responses.length > 0);
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <Link
-            href="/mentorship"
-            style={{ fontSize: 13, color: "var(--muted)", display: "inline-block", marginBottom: 4 }}
-          >
-            &larr; Mentorship
-          </Link>
-          <h1 className="page-title">Ask a Mentor</h1>
-          <p className="page-subtitle">
-            Search reusable answers, ask a new question, and promote great responses into the shared commons.
-          </p>
-        </div>
-        {!isMentor && <AskQuestionForm />}
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · Mentor console"
+        title="Ask a Mentor"
+        subtitle="Search reusable answers, ask a new question, and promote great responses into the shared commons."
+        backHref="/mentorship"
+        backLabel="Mentorship"
+      >
+        {!isMentor ? <AskQuestionForm /> : null}
+      </PageHeaderV2>
 
       <MentorshipGuideCard
         title="How To Use Ask A Mentor"
@@ -96,7 +94,7 @@ export default async function AskMentorPage({
       />
 
       <CalmOnly>
-        <div style={{ marginBottom: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="flex flex-col gap-5">
           <section
             className={`flex flex-col gap-1 rounded-[20px] border border-line-soft bg-gradient-to-br ${
               unanswered.length > 0 ? "from-brand-50/70" : "from-success-100/40"
@@ -128,189 +126,206 @@ export default async function AskMentorPage({
       </CalmOnly>
 
       <CalmCollapse label="Browse the full commons" hint="search, fresh + answered questions">
-      <div className="card" style={{ marginBottom: 24 }}>
-        <form method="GET" className="grid two" style={{ alignItems: "end" }}>
-          <div className="form-row">
-            <FieldLabel
-              label="Search questions or answers"
-              help={{
-                title: "Search Questions Or Answers",
-                guidance:
-                  "Search by topic, problem, or keyword to find existing questions and mentor responses.",
-                example: "Try 'pitch deck', 'coding bug', or 'audition nerves'.",
-              }}
-            />
-            <input
-              type="search"
-              name="q"
-              defaultValue={q}
-              className="input"
-              placeholder="Search the mentor commons..."
-            />
-          </div>
-          <div className="form-row">
-            <FieldLabel
-              label="Passion area"
-              help={{
-                title: "Passion Area Filter",
-                guidance:
-                  "This narrows the commons to one subject area so the results are easier to scan.",
-                example: "Use Coding to only see software-related questions and answers.",
-              }}
-            />
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                type="text"
-                name="passionId"
-                defaultValue={passionId}
-                className="input"
-                placeholder="coding, music, visual-arts..."
-              />
-              <button type="submit" className="button secondary small">
-                Search
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-
-      <div className="grid two" style={{ marginBottom: 24 }}>
-        <div className="card" style={{ textAlign: "center" }}>
-          <div className="kpi" style={{ color: unanswered.length > 0 ? "#d97706" : "inherit" }}>
-            {unanswered.length}
-          </div>
-          <div className="kpi-label">Awaiting Answers</div>
-        </div>
-        <div className="card" style={{ textAlign: "center" }}>
-          <div className="kpi" style={{ color: "#16a34a" }}>{answered.length}</div>
-          <div className="kpi-label">Answered Questions</div>
-        </div>
-      </div>
-
-      {unanswered.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          <div className="section-title">{isMentor ? "Needs an Answer" : "Fresh Questions"}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {unanswered.map((question) => (
-              <div key={question.id} className="card" style={{ borderLeft: "4px solid #d97706" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    {question.passionId && (
-                      <span
-                        className="pill"
-                        style={{ background: "#fef3c7", color: "#92400e", fontSize: 11, marginBottom: 8, display: "inline-block" }}
-                      >
-                        Topic: {question.passionId}
-                      </span>
-                    )}
-                    <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 500 }}>{question.details}</p>
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>
-                      {question.isAnonymous ? "Anonymous" : question.requester.name} ·{" "}
-                      {new Date(question.requestedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <span className="pill" style={{ background: "#fef3c7", color: "#92400e", fontSize: 11 }}>
-                    Pending
-                  </span>
-                </div>
-                {isMentor && <AnswerForm questionId={question.id} />}
+        <div className="flex flex-col gap-6">
+          <CardV2 padding="md">
+            <form method="GET" className="grid items-end gap-4 sm:grid-cols-2">
+              <div>
+                <FieldLabel
+                  label="Search questions or answers"
+                  help={{
+                    title: "Search Questions Or Answers",
+                    guidance:
+                      "Search by topic, problem, or keyword to find existing questions and mentor responses.",
+                    example: "Try 'pitch deck', 'coding bug', or 'audition nerves'.",
+                  }}
+                />
+                <input
+                  type="search"
+                  name="q"
+                  defaultValue={q}
+                  className="w-full rounded-lg border border-line-soft px-3 py-2 text-[13.5px] text-ink"
+                  placeholder="Search the mentor commons..."
+                />
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {answered.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          <div className="section-title">Answered Commons</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {answered.map((question) => (
-              <div key={question.id} className="card">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    {question.passionId && (
-                      <span
-                        className="pill"
-                        style={{ background: "var(--gray-100)", color: "var(--gray-600)", fontSize: 11, marginBottom: 6, display: "inline-block" }}
-                      >
-                        Topic: {question.passionId}
-                      </span>
-                    )}
-                    <p style={{ margin: "4px 0 0", fontSize: 14, fontWeight: 500 }}>{question.details}</p>
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                      {question.isAnonymous ? "Anonymous" : question.requester.name} ·{" "}
-                      {new Date(question.requestedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <span className="pill pill-success" style={{ fontSize: 11 }}>Answered</span>
+              <div>
+                <FieldLabel
+                  label="Passion area"
+                  help={{
+                    title: "Passion Area Filter",
+                    guidance:
+                      "This narrows the commons to one subject area so the results are easier to scan.",
+                    example: "Use Coding to only see software-related questions and answers.",
+                  }}
+                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    name="passionId"
+                    defaultValue={passionId}
+                    className="w-full rounded-lg border border-line-soft px-3 py-2 text-[13.5px] text-ink"
+                    placeholder="coding, music, visual-arts..."
+                  />
+                  <Button type="submit" variant="secondary" size="sm">
+                    Search
+                  </Button>
                 </div>
+              </div>
+            </form>
+          </CardV2>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
-                  {question.responses.map((answer) => (
-                    <div
-                      key={answer.id}
-                      style={{
-                        padding: 12,
-                        background: "var(--surface-alt)",
-                        borderRadius: "var(--radius-sm)",
-                        borderLeft: "3px solid #16a34a",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
-                          {answer.responder.name}
-                        </span>
-                        <span style={{ fontSize: 11, color: "var(--muted)" }}>
-                          {new Date(answer.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p style={{ margin: "0 0 8px", fontSize: 13 }}>{answer.body}</p>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                        <UpvoteButton answerId={answer.id} currentCount={answer.helpfulCount} />
-                        {isMentor && (
-                          <form action={promoteMentorshipResponseToResource} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            <input type="hidden" name="responseId" value={answer.id} />
-                            <input type="hidden" name="title" value={question.title} />
-                            <input type="hidden" name="description" value="Promoted from the Ask a Mentor commons." />
-                            <input type="hidden" name="type" value="ANSWER" />
-                            <button type="submit" className="button ghost small">
-                              Promote to Resource
-                            </button>
-                          </form>
+          <div className="grid grid-cols-2 gap-4 sm:max-w-md">
+            <CardV2 padding="md">
+              <span
+                className={`block text-[22px] font-semibold ${
+                  unanswered.length > 0 ? "text-warning-700" : "text-ink"
+                }`}
+              >
+                {unanswered.length}
+              </span>
+              <span className="text-[12.5px] text-ink-muted">Awaiting answers</span>
+            </CardV2>
+            <CardV2 padding="md">
+              <span className="block text-[22px] font-semibold text-success-700">
+                {answered.length}
+              </span>
+              <span className="text-[12.5px] text-ink-muted">Answered questions</span>
+            </CardV2>
+          </div>
+
+          {unanswered.length > 0 && (
+            <section aria-label={isMentor ? "Needs an answer" : "Fresh questions"}>
+              <h2 className="m-0 mb-3 text-[13.5px] font-bold text-ink">
+                {isMentor ? "Needs an answer" : "Fresh questions"}
+              </h2>
+              <div className="flex flex-col gap-3">
+                {unanswered.map((question) => (
+                  <CardV2
+                    key={question.id}
+                    padding="md"
+                    className="border-l-4 border-l-warning-700"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        {question.passionId && (
+                          <StatusBadge tone="warning">
+                            Topic: {question.passionId}
+                          </StatusBadge>
                         )}
+                        <p className="m-0 mt-1.5 text-[14px] font-medium text-ink">
+                          {question.details}
+                        </p>
+                        <p className="m-0 mt-1.5 text-[12px] text-ink-muted">
+                          {question.isAnonymous ? "Anonymous" : question.requester.name} ·{" "}
+                          {new Date(question.requestedAt).toLocaleDateString()}
+                        </p>
                       </div>
+                      <StatusBadge tone="warning">Pending</StatusBadge>
                     </div>
-                  ))}
-                </div>
-
-                {question.resources.length > 0 && (
-                  <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {question.resources.map((resource) => (
-                      <span key={resource.id} className="pill pill-small">
-                        {resource.title}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {isMentor && <AnswerForm questionId={question.id} />}
+                    {isMentor && <AnswerForm questionId={question.id} />}
+                  </CardV2>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </section>
+          )}
 
-      {questions.length === 0 && (
-        <div className="card" style={{ textAlign: "center", padding: 40 }}>
-          <h3>No commons entries yet</h3>
-          <p style={{ color: "var(--text-secondary)" }}>
-            {isMentor
-              ? "Students have not posted public questions yet. Check back soon."
-              : "Be the first to ask a question and start the shared mentor commons."}
-          </p>
-          {!isMentor && <div style={{ marginTop: 16 }}><AskQuestionForm /></div>}
+          {answered.length > 0 && (
+            <section aria-label="Answered commons">
+              <h2 className="m-0 mb-3 text-[13.5px] font-bold text-ink">Answered commons</h2>
+              <div className="flex flex-col gap-3">
+                {answered.map((question) => (
+                  <CardV2 key={question.id} padding="md">
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        {question.passionId && (
+                          <StatusBadge tone="neutral">
+                            Topic: {question.passionId}
+                          </StatusBadge>
+                        )}
+                        <p className="m-0 mt-1 text-[14px] font-medium text-ink">
+                          {question.details}
+                        </p>
+                        <p className="m-0 mt-1 text-[12px] text-ink-muted">
+                          {question.isAnonymous ? "Anonymous" : question.requester.name} ·{" "}
+                          {new Date(question.requestedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <StatusBadge tone="success">Answered</StatusBadge>
+                    </div>
+
+                    <div className="mt-2 flex flex-col gap-2.5">
+                      {question.responses.map((answer) => (
+                        <div
+                          key={answer.id}
+                          className="rounded-lg border-l-[3px] border-l-success-700 bg-surface-soft/60 p-3"
+                        >
+                          <div className="mb-1 flex items-baseline justify-between gap-3">
+                            <span className="text-[12px] font-semibold text-ink">
+                              {answer.responder.name}
+                            </span>
+                            <span className="text-[11.5px] text-ink-muted">
+                              {new Date(answer.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="m-0 mb-2 text-[13px] text-ink">{answer.body}</p>
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <UpvoteButton
+                              answerId={answer.id}
+                              currentCount={answer.helpfulCount}
+                            />
+                            {isMentor && (
+                              <form
+                                action={promoteMentorshipResponseToResource}
+                                className="flex flex-wrap gap-2"
+                              >
+                                <input type="hidden" name="responseId" value={answer.id} />
+                                <input type="hidden" name="title" value={question.title} />
+                                <input
+                                  type="hidden"
+                                  name="description"
+                                  value="Promoted from the Ask a Mentor commons."
+                                />
+                                <input type="hidden" name="type" value="ANSWER" />
+                                <Button type="submit" variant="ghost" size="sm">
+                                  Promote to Resource
+                                </Button>
+                              </form>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {question.resources.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {question.resources.map((resource) => (
+                          <StatusBadge key={resource.id} tone="neutral">
+                            {resource.title}
+                          </StatusBadge>
+                        ))}
+                      </div>
+                    )}
+
+                    {isMentor && <AnswerForm questionId={question.id} />}
+                  </CardV2>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {questions.length === 0 && (
+            <div className="flex flex-col gap-3">
+              <EmptyStateEditorial
+                title="No commons entries yet."
+                body={
+                  isMentor
+                    ? "Students have not posted public questions yet. Check back soon."
+                    : "Be the first to ask a question and start the shared mentor commons."
+                }
+              />
+              {!isMentor && <AskQuestionForm />}
+            </div>
+          )}
         </div>
-      )}
       </CalmCollapse>
     </div>
   );

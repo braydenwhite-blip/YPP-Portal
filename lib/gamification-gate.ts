@@ -63,7 +63,6 @@ export const GAMIFICATION_GATED_PREFIXES: readonly string[] = [
   "/my-program/awards",
   "/my-program/achievement-journey",
   "/my-program/certificate",
-  "/reflections/streaks",
   "/learn/challenges",
 ];
 

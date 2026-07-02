@@ -245,20 +245,16 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 7,
     },
     { href: "/motivation", label: "Motivation", icon: "🔥", roles: STUDENT_ONLY },
-    { href: "/reflections/streaks", label: "Reflection Streaks", icon: "🔗", roles: STUDENT_ONLY },
-    {
-      href: "/reflection",
-      label: "Monthly Reflection",
-      icon: "📝",
-      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"],
-      hideForPrimaryRoles: ["ADMIN"],
-    },
+    // /reflections/streaks removed — it read the retired ReflectionForm models
+    // that students never wrote to. /reflection now redirects to
+    // /my-mentor/reflection, the canonical self-input for the mentorship
+    // review loop, so it no longer needs its own nav entry.
     {
       href: "/admin/reflections",
-      label: "Reflection reviews",
+      label: "Reflection archive",
       icon: "💭",
       roles: ADMIN_ONLY,
-      dashboardDescription: "Review staff and instructor self-reflection submissions.",
+      dashboardDescription: "Read-only archive of retired self-reflection submissions.",
       dashboardPriority: 9,
     },
     {
@@ -903,6 +899,8 @@ export const NAV_CATALOG: NavLink[] = [
         "Development record",
         "Ready for more",
         "Needs coach",
+        "My Awards",
+        "Monthly Reflection",
       ],
       dashboardDescription:
         "Your development, your mentees, and the command center for developing the people who run YPP.",
@@ -1019,13 +1017,10 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
       dashboardDescription: "Nominate mentees for Bronze, Silver, Gold, and Lifetime achievement awards.",
     },
-    {
-      href: "/my-mentor/awards",
-      label: "My Awards",
-      icon: "🏅",
-      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
-      dashboardDescription: "View your achievement points, tier progress, and award nominations.",
-    },
+    // /my-mentor/awards removed from nav — awards are a supporting detail of
+    // the Mentorship hub's "My development" view, reachable from its
+    // drill-down grid and subnav. A separate top-level entry duplicated the
+    // product.
     {
       href: "/my-program/achievement-journey",
       label: "Achievement Journey",
@@ -1637,7 +1632,8 @@ export const NAV_CATALOG: NavLink[] = [
     },
     { href: "/admin/training", label: "Training Modules", icon: "🏫", roles: ADMIN_ONLY },
     { href: "/admin/goals", label: "Goals", icon: "🎯", roles: ADMIN_ONLY },
-    { href: "/admin/reflection-forms", label: "Reflection Forms", icon: "📋", roles: ADMIN_ONLY },
+    // /admin/reflection-forms removed — the legacy form builder now redirects
+    // to the read-only /admin/reflections archive.
     { href: "/admin/challenges", label: "Challenges Mgmt", icon: "⚡", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
     { href: "/admin/activities", label: "Activities Mgmt", icon: "🧭", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
     { href: "/admin/passions", label: "Passion Areas", icon: "🌍", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },

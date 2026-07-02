@@ -23,7 +23,7 @@ export function SessionCompleteForm({
   menteeAttended: boolean;
 }) {
   return (
-    <details className="card" style={{ display: "grid", gap: 4 }}>
+    <details className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card" style={{ display: "grid", gap: 4 }}>
       <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.95rem", listStyle: "revert" }}>
         Complete this session
       </summary>
@@ -82,7 +82,7 @@ export function SessionCompleteForm({
             <option value={mentorUserId}>Me (mentor)</option>
           </select>
         </div>
-        <button type="submit" className="button primary small">
+        <button type="submit" className="inline-flex items-center justify-center rounded-full bg-brand-600 px-3.5 py-1.5 text-[13px] font-semibold text-white transition-[filter] hover:brightness-95 disabled:opacity-60">
           Mark complete
         </button>
       </form>

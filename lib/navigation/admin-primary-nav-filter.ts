@@ -79,7 +79,6 @@ const PEOPLE_SUPPORT_HIDDEN_FOR_ADMIN_PRIMARY = new Set<string>([
   "/instructor/peer-observation",
   "/instructor/mentee-health",
   "/instructor/parent-feedback",
-  "/reflection",
   "/internships",
   "/service-projects",
   "/resource-exchange",

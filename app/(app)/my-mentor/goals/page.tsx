@@ -10,11 +10,12 @@ import { LearnMore } from "@/components/mentorship/learn-more";
 import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
 import { GoalsCalm, type CalmGoal } from "@/components/mentorship/calm";
 import { getGrowthConnectLine } from "@/lib/growth-model";
+import skin from "@/components/ui-v2/portal-skin.module.css";
+import { ButtonLink, CardV2, PageHeaderV2, StatusBadge } from "@/components/ui-v2";
 import { MyMentorSubnav } from "../_components/my-mentor-subnav";
-import Link from "next/link";
 import type { GoalRatingColor } from "@prisma/client";
 
-export const metadata = { title: "My Goals — My Mentor" };
+export const metadata = { title: "Goals — My development" };
 
 export default async function MyGoalsPage() {
   const session = await getSession();
@@ -31,79 +32,63 @@ export default async function MyGoalsPage() {
 
   if (!doc) {
     return (
-      <div>
-        <div className="topbar">
-          <div>
-            <p className="badge">My Mentor</p>
-            <h1 className="page-title">My Goals &amp; Resources</h1>
-          </div>
-        </div>
+      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+        <PageHeaderV2
+          eyebrow="Mentorship · My development"
+          title="Goals & Responsibilities"
+        />
         <MyMentorSubnav />
-        <div style={{ display: "grid", gap: 16 }}>
-          {leadership?.stageId && (
-            <RoleStrip
-              stageId={leadership.stageId}
-              nextStageId={leadership.nextStageId}
-              mentorName={leadership.primaryMentor?.name ?? null}
-              mentorRoleLabel={leadership.primaryMentor?.roleLabel ?? null}
-            />
-          )}
-          <div
-            style={{
-              padding: "28px 20px",
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ fontSize: 15, color: "var(--text)", margin: "0 0 4px", fontWeight: 600 }}>
-              Your goals aren&apos;t set up yet.
-            </p>
-            <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 auto", maxWidth: 420 }}>
-              Once you&apos;re paired with a mentor, the two of you will set goals
-              together here. There&apos;s nothing you need to do yet.
-            </p>
-            <Link href="/my-mentor" className="button" style={{ marginTop: 16 }}>
-              Back to My Mentor
-            </Link>
+        {leadership?.stageId && (
+          <RoleStrip
+            stageId={leadership.stageId}
+            nextStageId={leadership.nextStageId}
+            mentorName={leadership.primaryMentor?.name ?? null}
+            mentorRoleLabel={leadership.primaryMentor?.roleLabel ?? null}
+          />
+        )}
+        <CardV2 padding="lg" className="text-center">
+          <p className="m-0 text-[15px] font-semibold text-ink">
+            Your goals aren&apos;t set up yet.
+          </p>
+          <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-muted">
+            Once you&apos;re paired with a mentor, the two of you will set goals
+            together here. There&apos;s nothing you need to do yet.
+          </p>
+          <div className="mt-4">
+            <ButtonLink href="/mentorship?view=me" variant="secondary" size="sm">
+              Back to My development
+            </ButtonLink>
           </div>
-        </div>
+        </CardV2>
       </div>
     );
   }
 
   if (doc.status === "DRAFT" || doc.status === "PENDING_APPROVAL") {
     return (
-      <div>
-        <div className="topbar">
-          <div>
-            <p className="badge">My Mentor</p>
-            <h1 className="page-title">My Goals &amp; Resources</h1>
-          </div>
-        </div>
+      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+        <PageHeaderV2
+          eyebrow="Mentorship · My development"
+          title="Goals & Responsibilities"
+        />
         <MyMentorSubnav />
-        <div className="card" style={{ padding: "2rem", textAlign: "center" }}>
-          <span
-            className="badge"
-            style={{
-              background: doc.status === "PENDING_APPROVAL" ? "#fef9c3" : "#f1f5f9",
-              color: doc.status === "PENDING_APPROVAL" ? "#854d0e" : "#475569",
-              marginBottom: "1rem",
-              display: "inline-block",
-            }}
-          >
+        <CardV2 padding="lg" className="text-center">
+          <StatusBadge tone={doc.status === "PENDING_APPROVAL" ? "warning" : "neutral"}>
             {doc.status === "PENDING_APPROVAL" ? "Being finalized" : "In progress"}
-          </span>
-          <p style={{ fontSize: "1.1rem", color: "var(--muted)", marginBottom: "0.5rem" }}>
+          </StatusBadge>
+          <p className="mt-3 text-[15px] font-semibold text-ink">
             Your goals are being prepared.
           </p>
-          <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
-            Your mentor is finalizing your goals. You&apos;ll be notified once they&apos;re ready.
+          <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-muted">
+            Your mentor is finalizing your goals. You&apos;ll be notified once
+            they&apos;re ready.
           </p>
-          <Link href="/my-mentor" className="button" style={{ marginTop: "1.5rem" }}>
-            Back to My Mentor
-          </Link>
-        </div>
+          <div className="mt-4">
+            <ButtonLink href="/mentorship?view=me" variant="secondary" size="sm">
+              Back to My development
+            </ButtonLink>
+          </div>
+        </CardV2>
       </div>
     );
   }
@@ -256,50 +241,39 @@ export default async function MyGoalsPage() {
     }));
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">My Mentor</p>
-          <h1 className="page-title">My Goals &amp; Resources</h1>
-          <p className="page-subtitle">{doc.template.title}</p>
-        </div>
-      </div>
+    <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+      <PageHeaderV2
+        eyebrow="Mentorship · My development"
+        title="Goals & Responsibilities"
+        subtitle={doc.template.title}
+      />
 
       <MyMentorSubnav />
 
       {leadership?.stageId && (
-        <div style={{ marginBottom: 16 }}>
-          <RoleStrip
-            stageId={leadership.stageId}
-            nextStageId={leadership.nextStageId}
-            mentorName={leadership.primaryMentor?.name ?? null}
-            mentorRoleLabel={leadership.primaryMentor?.roleLabel ?? null}
-          />
-        </div>
+        <RoleStrip
+          stageId={leadership.stageId}
+          nextStageId={leadership.nextStageId}
+          mentorName={leadership.primaryMentor?.name ?? null}
+          mentorRoleLabel={leadership.primaryMentor?.roleLabel ?? null}
+        />
       )}
 
-      <p
-        className="muted"
-        style={{ margin: "0 0 16px", fontSize: 13, lineHeight: 1.55, maxWidth: "64ch" }}
-      >
+      <p className="m-0 max-w-[64ch] text-[13px] leading-relaxed text-ink-muted">
         {getGrowthConnectLine("goals")}
       </p>
 
       <CalmOnly>
-        <div style={{ marginBottom: 16 }}>
-          <GoalsCalm goals={calmGoals} />
-        </div>
+        <GoalsCalm goals={calmGoals} />
       </CalmOnly>
 
       <CalmCollapse label="Your full goals & resources" hint="every goal, KPIs, and history">
         <GRDocumentView document={serialized} isOwner={true} />
       </CalmCollapse>
 
-      <div style={{ marginTop: 20 }}>
-        <LearnMore summary="What do these goal status colors mean?">
-          <RatingLegend audience="mentee" />
-        </LearnMore>
-      </div>
+      <LearnMore summary="What do these goal status colors mean?">
+        <RatingLegend audience="mentee" />
+      </LearnMore>
     </div>
   );
 }

@@ -203,7 +203,7 @@ export default async function MentorshipPage({
               padding="md"
               className={
                 urgentAlert.tone === "amber"
-                  ? "border-l-4 border-l-warning-500"
+                  ? "border-l-4 border-l-warning-700"
                   : "border-l-4 border-l-brand-600"
               }
             >

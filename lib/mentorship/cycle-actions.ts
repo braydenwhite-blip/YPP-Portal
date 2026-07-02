@@ -178,12 +178,32 @@ export async function previewReviewCycleCohort(input: unknown): Promise<
 
 /** "Start a review" for exactly one person — a single-participant cycle. */
 export async function startReviewForPerson(input: unknown): Promise<LaunchResult> {
+  await requireMentorshipCommandAccess();
   const { userId, kind } = z
     .object({
       userId: z.string().trim().min(1),
       kind: z.enum(CYCLE_KINDS).default("monthly"),
     })
     .parse(input);
+
+  // Idempotent: if they already sit in an active cycle of this kind, land on
+  // that cycle instead of stacking a duplicate concurrent one.
+  const existing = await prisma.reviewCycleParticipant.findFirst({
+    where: { userId, cycle: { status: "active", kind } },
+    orderBy: { addedAt: "desc" },
+    select: {
+      cycleId: true,
+      cycle: { select: { _count: { select: { participants: true } } } },
+    },
+  });
+  if (existing) {
+    return {
+      ok: true,
+      cycleId: existing.cycleId,
+      participantCount: existing.cycle._count.participants,
+    };
+  }
+
   return launchReviewCycle({
     kind,
     scope: { type: "custom", userIds: [userId] },
