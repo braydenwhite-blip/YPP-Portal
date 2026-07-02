@@ -346,8 +346,10 @@ export async function getMeetingById(id: string): Promise<MeetingWithCommandCent
 }
 
 /**
- * Meetings tied to a YPP entity. New meetings only link to a USER (facilitator
- * or attendee); other entity types have no meeting link and resolve to [].
+ * Meetings tied to a YPP entity. USER matches the facilitator or an attendee;
+ * PARTNER matches the meeting's dedicated `partnerId` scope FK. The other
+ * related-entity types (CLASS_OFFERING, MENTORSHIP, INSTRUCTOR_APPLICATION)
+ * have no modeled meeting link yet and resolve to [].
  */
 export async function getMeetingsForEntity(
   type: string,
@@ -358,11 +360,41 @@ export async function getMeetingsForEntity(
   if (!isRelatedEntityType(type)) return [];
   const trimmedId = (id ?? "").trim();
   if (!trimmedId) return [];
-  if (type !== "USER") return [];
+  if (type === "USER") {
+    return prisma.meeting.findMany({
+      where: {
+        OR: [{ facilitatorId: trimmedId }, { attendees: { some: { userId: trimmedId } } }],
+      },
+      include: MEETING_INCLUDE,
+      orderBy: { scheduledAt: "desc" },
+      take: limit,
+    });
+  }
+  if (type === "PARTNER") {
+    return prisma.meeting.findMany({
+      where: { partnerId: trimmedId },
+      include: MEETING_INCLUDE,
+      orderBy: { scheduledAt: "desc" },
+      take: limit,
+    });
+  }
+  return [];
+}
+
+/**
+ * Meetings scoped to a chapter via the dedicated `chapterId` FK (chapter-impact
+ * and chapter-scoped meetings). Chapter is not a polymorphic related-entity
+ * type, so this lives beside {@link getMeetingsForEntity} rather than inside it.
+ */
+export async function getMeetingsForChapter(
+  chapterId: string,
+  limit = 50,
+): Promise<MeetingWithCommandCenter[]> {
+  if (!isActionTrackerEnabled()) return [];
+  const trimmedId = (chapterId ?? "").trim();
+  if (!trimmedId) return [];
   return prisma.meeting.findMany({
-    where: {
-      OR: [{ facilitatorId: trimmedId }, { attendees: { some: { userId: trimmedId } } }],
-    },
+    where: { chapterId: trimmedId },
     include: MEETING_INCLUDE,
     orderBy: { scheduledAt: "desc" },
     take: limit,

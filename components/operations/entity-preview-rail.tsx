@@ -268,6 +268,33 @@ export function EntityPreviewRail({
             </section>
           ) : null}
 
+          {entity.workflows && entity.workflows.length > 0 ? (
+            <section>
+              <SectionLabel>Workflows ({entity.workflows.length})</SectionLabel>
+              <div className="flex flex-col gap-1.5">
+                {entity.workflows.slice(0, 3).map((workflow) => (
+                  <Link
+                    key={workflow.id}
+                    href={workflow.href}
+                    className="flex w-full items-center justify-between gap-2 rounded-[8px] border border-line-soft px-2.5 py-2 text-left no-underline transition-colors duration-150 hover:border-brand-400 hover:bg-brand-50/50"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[12.5px] font-semibold text-ink">
+                        {workflow.title}
+                      </span>
+                      <span className="block truncate text-[11.5px] text-ink-muted">
+                        {[workflow.stageName, workflow.progressLabel].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                    <StatusBadge tone={ENTITY_TONE_TO_BADGE[workflow.tone] ?? "neutral"}>
+                      {workflow.healthLabel}
+                    </StatusBadge>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           {entity.workItems.length > 0 ? (
             <section>
               <SectionLabel>Open work ({entity.workItems.length})</SectionLabel>

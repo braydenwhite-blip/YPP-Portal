@@ -9,6 +9,7 @@
  */
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -258,8 +259,57 @@ export function PartnerOperatingRoom({ partner }: { partner: PartnerDetailDTO })
             <h2 className="m-0 text-[14px] font-bold text-ink">Meeting</h2>
             <Field label="Scheduled" value={partner.meeting.dateLabel ?? "Not scheduled"} />
             <Field label="Next follow-up" value={partner.nextFollowUp.label ?? "None"} highlight={partner.nextFollowUp.overdue} />
-            {partner.classCount > 0 && <Field label="Connected classes" value={String(partner.classCount)} />}
           </CardV2>
+
+          {partner.connectedClasses.length > 0 && (
+            <CardV2 padding="md" className="flex flex-col gap-2">
+              <h2 className="m-0 text-[14px] font-bold text-ink">
+                Connected classes ({partner.classCount})
+              </h2>
+              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                {partner.connectedClasses.map((cls) => (
+                  <li key={cls.id} className="rounded-[8px] border border-line-soft px-2.5 py-2">
+                    <p className="m-0 text-[12.5px] font-semibold text-ink">{cls.title}</p>
+                    <p className="m-0 mt-0.5 text-[11.5px] text-ink-muted">
+                      {[
+                        cls.statusLabel,
+                        cls.instructorName ? `Instructor: ${cls.instructorName}` : "Needs instructor",
+                        `${cls.students} student${cls.students === 1 ? "" : "s"}`,
+                      ].join(" · ")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </CardV2>
+          )}
+
+          {partner.openActions.length > 0 && (
+            <CardV2 padding="md" className="flex flex-col gap-2">
+              <h2 className="m-0 text-[14px] font-bold text-ink">
+                Open actions ({partner.openActions.length})
+              </h2>
+              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                {partner.openActions.map((action) => (
+                  <li key={action.id}>
+                    <Link
+                      href={action.href}
+                      className="flex items-center justify-between gap-2 rounded-[8px] border border-line-soft px-2.5 py-2 no-underline transition-colors duration-150 hover:border-brand-400 hover:bg-brand-50/50"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-[12.5px] font-semibold text-ink">{action.title}</span>
+                        <span className="block truncate text-[11.5px] text-ink-muted">
+                          {action.ownerName ?? "No owner"}
+                        </span>
+                      </span>
+                      <StatusBadge tone={action.overdue ? "danger" : "neutral"}>
+                        {action.statusLabel}
+                      </StatusBadge>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </CardV2>
+          )}
         </div>
       </div>
 

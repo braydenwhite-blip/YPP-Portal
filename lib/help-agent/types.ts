@@ -91,7 +91,8 @@ export type CoSBlockKind =
   | "upcoming_meetings"
   | "partners_need_followup"
   | "classes_need_setup"
-  | "initiatives_attention";
+  | "initiatives_attention"
+  | "workflows_in_flight";
 
 /** A titled group of answer lines (e.g. "Unresolved follow-ups"). */
 export type CoSAnswerBlock = {

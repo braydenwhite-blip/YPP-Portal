@@ -10,6 +10,7 @@ import {
   restoreChapter,
 } from "@/lib/chapter-actions";
 import { loadChapterWorkspace } from "@/lib/chapters/workspace";
+import { AskAboutThis } from "@/components/help-agent/ask-about-this";
 import { ChapterWorkspaceView } from "@/components/chapters/chapter-workspace-view";
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
@@ -198,6 +199,7 @@ export default async function AdminChapterDetailPage({
             {healthReason}
           </div>
           <div style={{ marginTop: 10, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <AskAboutThis entityType="chapter" entityId={chapter.id} align="right" />
             <Link href="/admin/chapters" className="button secondary" style={{ fontSize: 12 }}>
               ← All Chapters
             </Link>

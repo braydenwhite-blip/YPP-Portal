@@ -31,7 +31,7 @@ export default async function PartnerDetailPage({
   const access = await requirePartnerAccess(id).catch(() => null);
   if (!access) redirect("/partners");
 
-  const partner = await loadPartnerDetail(id, access);
+  const partner = await loadPartnerDetail(id, access, new Date(), viewer);
   if (!partner) redirect("/partners");
 
   return (

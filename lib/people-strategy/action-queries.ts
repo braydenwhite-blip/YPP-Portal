@@ -610,6 +610,31 @@ export async function getActionsForMeeting(
 }
 
 /**
+ * Actions scoped to a chapter via the dedicated `chapterId` FK (the tracker's
+ * chapter lens — distinct from the polymorphic related-entity link, which has
+ * no CHAPTER type). Newest first, visibility-filtered for `viewer`, and empty
+ * (never throwing) on a blank id or when the tracker flag is off — mirroring
+ * {@link getActionsForMeeting}.
+ */
+export async function getActionsForChapter(
+  chapterId: string,
+  viewer: ActionViewer
+): Promise<ActionItemWithRelations[]> {
+  if (!isActionTrackerEnabled()) return [];
+  const id = chapterId?.trim();
+  if (!id) return [];
+
+  const items = await prisma.actionItem.findMany({
+    where: { chapterId: id },
+    include: ACTION_ITEM_INCLUDE,
+    orderBy: [{ createdAt: "desc" }],
+  });
+
+  const hydrated = await withDepartmentLinks(items);
+  return hydrated.filter((item) => canViewAction(viewer, toAccessShape(item)));
+}
+
+/**
  * Count OPEN (not COMPLETE / DROPPED) actions linked to each of the given
  * related entities of one type, in a single grouped query — so a list page can
  * show an "N open actions" hint per row without an N+1. Counts only (no

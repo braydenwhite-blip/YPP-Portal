@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
+import { AskAboutThis } from "@/components/help-agent/ask-about-this";
 import { RelationshipWorkspace } from "@/components/mentorship/relationship-workspace/relationship-workspace";
 import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
 import { getSession } from "@/lib/auth-supabase";
@@ -178,6 +179,9 @@ export default async function AdminMentorshipRelationshipDetailPage({
       subtitle="Shared relationship workspace with admin intervention controls, check-ins, goals, recommendations, and next steps."
       adminControls={
         <div className="grid gap-4">
+          <div className="flex justify-end">
+            <AskAboutThis entityType="mentorship" entityId={mentorship.id} align="right" />
+          </div>
           <AdminRelationshipControls
             mentorshipId={mentorship.id}
             status={mentorship.status}

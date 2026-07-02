@@ -11,6 +11,7 @@ import { isEntity360Type } from "@/lib/operations/entity-360";
 import {
   buildChiefOfStaffAnswer,
   buildEntitySummaryAnswer,
+  shouldScopeAnswerToEntity,
 } from "@/lib/help-agent/chief-of-staff";
 import { answerChapterQuestion, isChapterQuestion } from "@/lib/help-agent/chapter-answers";
 import { isChapterLeadership } from "@/lib/chapters/access";
@@ -38,11 +39,6 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return NextResponse.json({ aiAvailable: isChiefOfStaffAIConfigured() });
-}
-
-/** Entity-scoped questions ("summarize this person", "what's blocking this class"). */
-function isEntityScopedQuestion(question: string): boolean {
-  return /\b(this|summar|contribut|blocking|next outreach|promised|happen next)\b/i.test(question);
 }
 
 export async function POST(request: Request) {
@@ -107,20 +103,26 @@ export async function POST(request: Request) {
   // Build the deterministic answer.
   let answer: CoSAnswer;
   try {
-    // Chapter questions get real chapter data — but only for chapter leadership,
-    // so a CP/officer can't pull the whole network's chapter picture this way.
-    if (isChapterQuestion(question) && isChapterLeadership(session.user)) {
+    // Entity context wins first: the ask came from a specific record ("Ask
+    // about this"), so even a question containing the word "chapter" (e.g.
+    // "Summarize this chapter.") must answer about THAT record, not the
+    // network-wide chapter roll-up. Load the entity first so the scope check
+    // can also match its title; a clearly global question still falls through.
+    let entityAnswer: CoSAnswer | null = null;
+    if (context && isEntity360Type(context.entityType)) {
+      const entity = await loadEntity360(context.entityType, context.entityId!, viewer, { now });
+      if (entity && shouldScopeAnswerToEntity(question, entity.title)) {
+        entityAnswer = buildEntitySummaryAnswer(question, entity, { now, aiAvailable });
+      }
+    }
+    if (entityAnswer) {
+      answer = entityAnswer;
+    } else if (isChapterQuestion(question) && isChapterLeadership(session.user)) {
+      // Chapter questions get real chapter data — but only for chapter leadership,
+      // so a CP/officer can't pull the whole network's chapter picture this way.
       const chapterAnswer = await answerChapterQuestion(question, { now, aiAvailable });
       if (chapterAnswer) {
         answer = chapterAnswer;
-      } else {
-        const data = await loadData360(viewer, { now });
-        answer = buildChiefOfStaffAnswer(question, data, { now, aiAvailable });
-      }
-    } else if (context && isEntity360Type(context.entityType) && isEntityScopedQuestion(question)) {
-      const entity = await loadEntity360(context.entityType, context.entityId!, viewer, { now });
-      if (entity) {
-        answer = buildEntitySummaryAnswer(question, entity, { now, aiAvailable });
       } else {
         const data = await loadData360(viewer, { now });
         answer = buildChiefOfStaffAnswer(question, data, { now, aiAvailable });

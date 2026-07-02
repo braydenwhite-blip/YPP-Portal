@@ -54,6 +54,21 @@ export async function listMeetings(): Promise<MeetingListItem[]> {
       },
     },
   });
+  // Open follow-up counts in ONE grouped query (never per-meeting): "open"
+  // means not yet COMPLETED (OPEN or IN_PROGRESS), matching MeetingFollowUp's
+  // WeeklyFollowUpStatus semantics.
+  const openFollowUpGroups = await prisma.meetingFollowUp.groupBy({
+    by: ["meetingId"],
+    where: {
+      meetingId: { in: meetings.map((m) => m.id) },
+      status: { not: "COMPLETED" },
+    },
+    _count: { _all: true },
+  });
+  const openFollowUpsByMeeting = new Map(
+    openFollowUpGroups.map((g) => [g.meetingId, g._count._all])
+  );
+
   return meetings.map((m) => ({
     id: m.id,
     type: m.type as MeetingType,
@@ -67,6 +82,7 @@ export async function listMeetings(): Promise<MeetingListItem[]> {
       attendees: m._count.attendees,
       decisions: m._count.decisions,
       followUps: m._count.followUps,
+      openFollowUps: openFollowUpsByMeeting.get(m.id) ?? 0,
       topics: m._count.officerTopics,
     },
   }));

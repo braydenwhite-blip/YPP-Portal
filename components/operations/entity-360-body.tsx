@@ -7,6 +7,7 @@ import type {
   Entity360MeetingRef,
   Entity360MentorshipPanel,
   Entity360Person,
+  Entity360Workflow,
 } from "@/lib/operations/entity-360";
 import type { TimelineEvent } from "@/lib/operations/timeline";
 import { TIMELINE_EVENT_LABELS } from "@/lib/operations/timeline";
@@ -156,6 +157,43 @@ function MentorshipSection({ panel }: { panel: Entity360MentorshipPanel }) {
             </EntityLink>
           );
         })}
+      </div>
+    </Section>
+  );
+}
+
+// --- workflows -------------------------------------------------------------------
+
+function WorkflowRow({ workflow }: { workflow: Entity360Workflow }) {
+  const meta = [
+    workflow.templateName,
+    workflow.stageName ? `Stage: ${workflow.stageName}` : null,
+    workflow.progressLabel,
+    workflow.ownerName ? `Owner: ${workflow.ownerName}` : "No owner",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  // The engine's concrete finding beats a generic next step; show one, not both.
+  const detail = workflow.reasons[0] ?? (workflow.nextStepTitle ? `Next: ${workflow.nextStepTitle}` : null);
+  return (
+    <Link href={workflow.href} className="e360-item" style={{ textDecoration: "none", color: "inherit" }}>
+      <div className="e360-item-top">
+        <span className="e360-item-title">{workflow.title}</span>
+        <Pill tone={TONE_PILL[workflow.tone] ?? "neutral"}>{workflow.healthLabel}</Pill>
+      </div>
+      {meta ? <div className="e360-item-meta">{meta}</div> : null}
+      {detail ? <div className="e360-item-meta">{detail}</div> : null}
+    </Link>
+  );
+}
+
+function WorkflowsSection({ workflows }: { workflows: Entity360Workflow[] }) {
+  return (
+    <Section title={`Workflows (${workflows.length})`}>
+      <div className="e360-item-list">
+        {workflows.map((workflow) => (
+          <WorkflowRow key={workflow.id} workflow={workflow} />
+        ))}
       </div>
     </Section>
   );
@@ -329,6 +367,10 @@ export function Entity360Body({ entity }: { entity: Entity360 }) {
 
       {entity.mentorship && entity.mentorship.pairings.length > 0 ? (
         <MentorshipSection panel={entity.mentorship} />
+      ) : null}
+
+      {entity.workflows && entity.workflows.length > 0 ? (
+        <WorkflowsSection workflows={entity.workflows} />
       ) : null}
 
       {entity.workItems.length > 0 ? (
