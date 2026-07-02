@@ -1,7 +1,9 @@
 import type { NavRole } from "@/lib/navigation/types";
 import { isPublicGateEnabled } from "@/lib/public-gate";
 import {
+  canAccessActionsOnlyPreview,
   canAccessLeadershipPreviewStack,
+  isActionsOnlyPilotEmail,
   type LeadershipPreviewViewer,
 } from "@/lib/leadership-preview-access";
 
@@ -17,6 +19,9 @@ import {
 
 /** Leadership home + People Strategy front doors. */
 const LEADERSHIP_SLIM_HREFS = ["/", "/people", "/actions", "/meetings"] as const;
+
+/** Home + Actions only — for narrow preview pilots. */
+const ACTIONS_ONLY_SLIM_HREFS = ["/", "/actions"] as const;
 
 /**
  * Nav entries that mirror `PUBLIC_ALLOWED_PREFIXES` in `lib/public-gate.ts`
@@ -46,11 +51,20 @@ const CHAPTER_PRESIDENT_SLIM_HREFS = ["/chapter", ...LEADERSHIP_SLIM_HREFS] as c
 /** Sidebar pin order when the slim nav is active. */
 const SLIM_NAV_ORDER = [
   ...LEADERSHIP_SLIM_HREFS,
+  ...ACTIONS_ONLY_SLIM_HREFS,
   "/chapter",
   ...PUBLIC_GATE_NAV_HREFS,
   ...OFFICER_PUBLISHED_HIRING_HREFS,
   ...HIRING_CHAIR_SLIM_HREFS,
 ] as const;
+
+function isActionsOnlyPreviewViewer(
+  primaryRole: NavRole,
+  roles: NavRole[],
+  viewer: LeadershipPreviewViewer = {},
+): boolean {
+  return isActionsOnlyPilotEmail(viewer.email);
+}
 
 export function isPublicPreviewSlimNavEnabled(): boolean {
   if (process.env.PORTAL_SLIM_NAV === "false") return false;
@@ -63,18 +77,20 @@ export function shouldApplyPublicPreviewSlimNav(
   viewer: LeadershipPreviewViewer = {},
 ): boolean {
   if (!isPublicPreviewSlimNavEnabled()) return false;
-  return canAccessLeadershipPreviewStack({
-    ...viewer,
-    primaryRole,
-    roles,
-  });
+  const merged = { ...viewer, primaryRole, roles };
+  return canAccessLeadershipPreviewStack(merged) || canAccessActionsOnlyPreview(merged);
 }
 
 export function getPublicPreviewSlimNavHrefs(
   primaryRole: NavRole,
   roles: NavRole[],
-  adminSubtypes: string[] = []
+  adminSubtypes: string[] = [],
+  viewer: LeadershipPreviewViewer = {},
 ): ReadonlySet<string> {
+  if (isActionsOnlyPreviewViewer(primaryRole, roles, viewer)) {
+    return new Set(ACTIONS_ONLY_SLIM_HREFS);
+  }
+
   const hrefs = new Set<string>(LEADERSHIP_SLIM_HREFS);
 
   for (const href of PUBLIC_GATE_NAV_HREFS) {
@@ -116,9 +132,10 @@ export function getPublicPreviewSlimNavHrefs(
 export function getPublicPreviewSlimNavHrefList(
   primaryRole: NavRole,
   roles: NavRole[],
-  adminSubtypes: string[] = []
+  adminSubtypes: string[] = [],
+  viewer: LeadershipPreviewViewer = {},
 ): string[] {
-  const allowed = getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes);
+  const allowed = getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes, viewer);
   return SLIM_NAV_ORDER.filter((href) => allowed.has(href));
 }
 
@@ -126,7 +143,8 @@ export function isPublicPreviewSlimNavHref(
   href: string,
   primaryRole: NavRole,
   roles: NavRole[],
-  adminSubtypes: string[] = []
+  adminSubtypes: string[] = [],
+  viewer: LeadershipPreviewViewer = {},
 ): boolean {
-  return getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes).has(href);
+  return getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes, viewer).has(href);
 }

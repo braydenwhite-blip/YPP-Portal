@@ -78,7 +78,6 @@ export function ActionCard({
   const overdue = isActionOverdue(item, now);
   const due = effectiveDeadline(item);
   const executors = item.assignments.filter((a) => a.role === "EXECUTING");
-  const inputs = item.assignments.filter((a) => a.role === "INPUT");
   const lead = personLabel(item.lead);
   const strategic = deriveActionStrategicLinkage(item);
 
@@ -219,7 +218,6 @@ export function ActionCard({
             "Unassigned"
           )}
           {executors.length > 0 ? ` · Executing: ${executors.length}` : ""}
-          {inputs.length > 0 ? ` · Input: ${inputs.length}` : ""}
         </span>
         <span style={{ whiteSpace: "nowrap", display: "inline-flex", gap: 10, alignItems: "baseline" }}>
           {item.comments.length}{" "}

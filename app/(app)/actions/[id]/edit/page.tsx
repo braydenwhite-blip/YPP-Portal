@@ -37,9 +37,6 @@ export default async function EditActionInTrackerPage({
   const executingUserIds = item.assignments
     .filter((a) => a.role === "EXECUTING")
     .map((a) => a.user.id);
-  const inputUserIds = item.assignments
-    .filter((a) => a.role === "INPUT")
-    .map((a) => a.user.id);
 
   return (
     <div className={`${skin.portalSkin} ${skin.fadeIn}`}>
@@ -78,7 +75,6 @@ export default async function EditActionInTrackerPage({
               chapterId: item.chapterId,
               chapterLabel: item.chapter?.name ?? null,
               executingUserIds,
-              inputUserIds,
             }}
           />
         </div>

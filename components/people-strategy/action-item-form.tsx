@@ -56,7 +56,6 @@ export interface ActionItemFormInitial {
   deadlineEnd?: Date | string | null;
   leadId?: string | null;
   executingUserIds?: string[];
-  inputUserIds?: string[];
   /**
    * Polymorphic related-entity link, resolved server-side. When present the
    * form shows a read-only "Linked to …" chip and carries the link through on
@@ -179,10 +178,6 @@ export default function ActionItemForm({
     () => initial?.executingUserIds ?? [],
     [initial?.executingUserIds]
   );
-  const initialInput = useMemo(
-    () => initial?.inputUserIds ?? [],
-    [initial?.inputUserIds]
-  );
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -236,7 +231,6 @@ export default function ActionItemForm({
     defaultLeadId ? [defaultLeadId] : []
   );
   const [executingIds, setExecutingIds] = useState<string[]>(initialExecuting);
-  const [inputIds, setInputIds] = useState<string[]>(initialInput);
   const initiativeOptions = useMemo(
     () => listInitiativeDefs().filter((initiative) => initiative.status !== "archived"),
     []
@@ -346,7 +340,6 @@ export default function ActionItemForm({
         initial?.departmentIds?.length ||
         initial?.departmentId ||
         (initial?.executingUserIds?.length ?? 0) > 0 ||
-        (initial?.inputUserIds?.length ?? 0) > 0 ||
         hasRelatedEntity ||
         sourceLabel ||
         strategicContextLabel
@@ -421,7 +414,6 @@ export default function ActionItemForm({
 
           // Sync EXECUTING / INPUT assignments by diffing against the initial set.
           await syncAssignments(id, "EXECUTING", initialExecuting, executors);
-          await syncAssignments(id, "INPUT", initialInput, inputIds);
 
           if (hasFileLink) {
             await addActionFileLink(id, fileLabel.trim(), fileUrl.trim());
@@ -441,7 +433,6 @@ export default function ActionItemForm({
             deadlineStart: deadline,
             deadlineEnd: undefined,
             executingUserIds: executors,
-            inputUserIds: inputIds,
             // Carry the read-only link through; the server re-validates it.
             relatedEntityType: relatedEntityType ?? undefined,
             relatedEntityId: relatedEntityId ?? undefined,
@@ -497,14 +488,6 @@ export default function ActionItemForm({
         users={users}
         selected={executingIds}
         onChange={setExecutingIds}
-        emptyHint="No assignable users found."
-      />
-
-      <ActionUserPicker
-        label="Input (optional)"
-        users={users}
-        selected={inputIds}
-        onChange={setInputIds}
         emptyHint="No assignable users found."
       />
 
@@ -806,13 +789,6 @@ export default function ActionItemForm({
           emptyHint="No assignable users found."
         />
 
-        <ActionUserPicker
-          label="Input (optional)"
-          users={users}
-          selected={inputIds}
-          onChange={setInputIds}
-          emptyHint="No assignable users found."
-        />
       </FormSection>
 
       <FormSection
@@ -1178,7 +1154,7 @@ export default function ActionItemForm({
 /** Add/remove assignment rows so the persisted set matches `next`. */
 async function syncAssignments(
   actionId: string,
-  role: "EXECUTING" | "INPUT",
+  role: "EXECUTING",
   previous: string[],
   next: string[]
 ) {

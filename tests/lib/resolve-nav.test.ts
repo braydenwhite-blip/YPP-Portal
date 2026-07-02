@@ -279,9 +279,7 @@ describe("resolveNavModel", () => {
 
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).toContain("/");
-    // Messages is a portal-wide core nav item (restored to match main when
-    // merging the Actions hub redesign); subtype-less admins see it too.
-    expect(visibleHrefs).toContain("/messages");
+    expect(visibleHrefs).not.toContain("/messages");
     expect(visibleHrefs).toContain("/notifications");
     // Knowledge OS V2: /admin is the universal admin home, so it stays
     // visible even for a subtype-less admin (the page itself filters

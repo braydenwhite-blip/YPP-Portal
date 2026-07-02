@@ -3,6 +3,7 @@ import type { ActionAssignmentRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isActionTrackerEmailsEnabled } from "@/lib/feature-flags";
 import {
+  sendActionMentionEmail,
   sendNewAssignmentEmail,
   type ActionAssignmentEmailRole,
 } from "@/lib/email";
@@ -25,7 +26,6 @@ import { toAbsoluteAppUrl } from "@/lib/public-app-url";
 const EMAILABLE_ROLES: ReadonlySet<ActionAssignmentRole> = new Set([
   "LEAD",
   "EXECUTING",
-  "INPUT",
 ]);
 
 function formatDeadline(start: Date, end: Date | null): string {
@@ -86,6 +86,53 @@ export async function notifyNewActionAssignments(
     } catch (error) {
       console.error(
         `[ActionTracker] Failed to send new assignment email to ${user.email}`,
+        error
+      );
+    }
+  }
+}
+
+export async function notifyActionCommentMentions(input: {
+  actionItemId: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  mentionedUserIds: string[];
+}): Promise<void> {
+  if (!isActionTrackerEmailsEnabled()) return;
+
+  const uniqueIds = Array.from(
+    new Set(input.mentionedUserIds.filter((userId) => userId !== input.authorId))
+  );
+  if (uniqueIds.length === 0) return;
+
+  const item = await prisma.actionItem.findUnique({
+    where: { id: input.actionItemId },
+    select: { title: true },
+  });
+  if (!item) return;
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: uniqueIds } },
+    select: { id: true, name: true, email: true },
+  });
+
+  const actionUrl = toAbsoluteAppUrl(`/actions/${input.actionItemId}`);
+
+  for (const user of users) {
+    if (!user.email) continue;
+    try {
+      await sendActionMentionEmail({
+        to: user.email,
+        recipientName: user.name,
+        authorName: input.authorName,
+        actionTitle: item.title,
+        commentPreview: input.body,
+        actionUrl,
+      });
+    } catch (error) {
+      console.error(
+        `[ActionTracker] Failed to send mention email to ${user.email}`,
         error
       );
     }

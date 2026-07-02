@@ -4,6 +4,10 @@ import { createMiddlewareClient } from "@/lib/supabase/middleware";
 import { LEGACY_AUTH_COOKIE_NAME, verifyLegacySessionToken } from "@/lib/legacy-auth";
 import { isDemoAllowedPathname, isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 import {
+  ACTIONS_ONLY_PREVIEW_COOKIE_NAME,
+  isActionsOnlyPreviewAccessFromAuth,
+  isActionsOnlyPilotEmail,
+  isActionsOnlyPreviewAllowedPath,
   isLeadershipPreviewAccessFromAuth,
   isLeadershipPreviewPath,
 } from "@/lib/leadership-preview-access";
@@ -270,36 +274,63 @@ export async function proxy(request: NextRequest) {
   // unless the visitor presents a valid signed preview cookie or holds an
   // officer-tier role (admin, staff, chapter president, hiring chair).
   if (isPublicGateEnabled() && isAuthenticated && pathname !== LOCKED_PATH) {
+    const previewCookie = request.cookies.get(PREVIEW_COOKIE_NAME)?.value ?? null;
+    const previewValid = previewCookie ? await verifyPreviewToken(previewCookie) : false;
+    // Legacy local-password sign-in (roster emails) has no Supabase JWT — use
+    // the legacy session email/roles so nav and middleware agree.
+    const authEmail = user?.email ?? legacySession?.email ?? null;
+    const metadata =
+      user?.user_metadata ??
+      (legacySession
+        ? {
+            roles: legacySession.roles,
+            primaryRole: legacySession.primaryRole ?? undefined,
+          }
+        : undefined);
+    const leadershipAccess = isLeadershipPreviewAccessFromAuth(metadata, authEmail);
+    const actionsOnlyAccess =
+      isActionsOnlyPilotEmail(authEmail) ||
+      isActionsOnlyPreviewAccessFromAuth(metadata, authEmail);
+    const actionsOnlyPreviewCookie =
+      request.cookies.get(ACTIONS_ONLY_PREVIEW_COOKIE_NAME)?.value ?? null;
+    const actionsOnlyUiActive =
+      actionsOnlyAccess || actionsOnlyPreviewCookie === "1";
+    const officerBypass = isOfficerTierFromAuth(
+      (metadata as { roles?: string[] } | undefined)?.roles,
+      (metadata as { primaryRole?: string } | undefined)?.primaryRole,
+    );
+
+    if (
+      actionsOnlyUiActive &&
+      !previewValid &&
+      !isActionsOnlyPreviewAllowedPath(pathname)
+    ) {
+      const dest = request.nextUrl.clone();
+      dest.pathname = LOCKED_PATH;
+      dest.search = "";
+      if (pathname && pathname !== "/") {
+        dest.searchParams.set("from", pathname);
+      }
+      return NextResponse.redirect(dest);
+    }
+
     if (!isAllowedPublicPath(pathname)) {
-      const previewCookie = request.cookies.get(PREVIEW_COOKIE_NAME)?.value ?? null;
-      const previewValid = previewCookie ? await verifyPreviewToken(previewCookie) : false;
-      // Legacy local-password sign-in (roster emails) has no Supabase JWT — use
-      // the legacy session email/roles so nav and middleware agree.
-      const authEmail = user?.email ?? legacySession?.email ?? null;
-      const metadata =
-        user?.user_metadata ??
-        (legacySession
-          ? {
-              roles: legacySession.roles,
-              primaryRole: legacySession.primaryRole ?? undefined,
-            }
-          : undefined);
-      const leadershipAccess = isLeadershipPreviewAccessFromAuth(metadata, authEmail);
-      const officerBypass = isOfficerTierFromAuth(
-        (metadata as { roles?: string[] } | undefined)?.roles,
-        (metadata as { primaryRole?: string } | undefined)?.primaryRole,
-      );
       if (!previewValid) {
         if (isLeadershipPreviewPath(pathname) && !leadershipAccess) {
-          const dest = request.nextUrl.clone();
-          dest.pathname = LOCKED_PATH;
-          dest.search = "";
-          if (pathname && pathname !== "/") {
-            dest.searchParams.set("from", pathname);
+          const actionsPathAllowed =
+            actionsOnlyUiActive &&
+            (pathname === "/actions" || pathname.startsWith("/actions/"));
+          if (!actionsPathAllowed) {
+            const dest = request.nextUrl.clone();
+            dest.pathname = LOCKED_PATH;
+            dest.search = "";
+            if (pathname && pathname !== "/") {
+              dest.searchParams.set("from", pathname);
+            }
+            return NextResponse.redirect(dest);
           }
-          return NextResponse.redirect(dest);
         }
-        if (!isLeadershipPreviewPath(pathname) && !officerBypass) {
+        if (!isLeadershipPreviewPath(pathname) && !officerBypass && !actionsOnlyUiActive) {
           const dest = request.nextUrl.clone();
           dest.pathname = LOCKED_PATH;
           dest.search = "";

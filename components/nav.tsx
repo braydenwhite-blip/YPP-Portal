@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
-import { HelpAgentTrigger } from "@/components/help-agent/help-agent-provider";
+import type { ReactNode, RefObject } from "react";
+import { useHelpAgent } from "@/components/help-agent/help-agent-provider";
 import { SidebarRecents } from "@/components/help-agent/sidebar-recents";
 import {
   cn,
@@ -89,6 +89,59 @@ function matchesSearch(item: NavLink, searchLower: string): boolean {
   );
 }
 
+function SidebarSearch({
+  value,
+  onChange,
+  onClear,
+  inputRef,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onClear: () => void;
+  inputRef: RefObject<HTMLInputElement | null>;
+}) {
+  const helpAgent = useHelpAgent();
+
+  return (
+    <div className="relative mb-1">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-[var(--gray-500)]"
+      >
+        ⌕
+      </span>
+      <input
+        ref={inputRef}
+        type="search"
+        className={cn(sidebarFilterInputClass, "pl-9", value ? "pr-9" : "pr-14")}
+        placeholder="Search pages…"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-label="Search sidebar pages"
+      />
+      {value ? (
+        <button
+          type="button"
+          className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          onClick={onClear}
+          aria-label="Clear search"
+        >
+          ✕
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => helpAgent?.open()}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[rgba(99,102,241,0.15)] bg-[rgba(99,102,241,0.06)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--nav-purple-500)] hover:bg-[rgba(99,102,241,0.12)]"
+          aria-label="Search people and actions (⌘K)"
+        >
+          ⌘K
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function Nav({
   roles = [],
   adminSubtypes,
@@ -112,6 +165,7 @@ export default function Nav({
   publicGateActive,
   officerTier,
   officerSlimNavActive,
+  actionsOnlyPreviewActive,
   viewerEmail,
   viewerInternalLevel,
 }: {
@@ -146,6 +200,7 @@ export default function Nav({
   officerTier?: boolean;
   /** Curated officer sidebar during the public-gate ship (server-resolved). */
   officerSlimNavActive?: boolean;
+  actionsOnlyPreviewActive?: boolean;
   viewerEmail?: string | null;
   viewerInternalLevel?: number | null;
 }) {
@@ -172,6 +227,7 @@ export default function Nav({
         instructorSubtype,
         publicGateActive,
         officerSlimNavActive,
+        actionsOnlyPreviewActive,
         viewerEmail,
         viewerInternalLevel,
       }),
@@ -194,6 +250,7 @@ export default function Nav({
       instructorSubtype,
       publicGateActive,
       officerSlimNavActive,
+      actionsOnlyPreviewActive,
       viewerEmail,
       viewerInternalLevel,
     ],
@@ -319,7 +376,7 @@ export default function Nav({
   const totalCore = filteredCore.length;
   const totalMore = filteredMore.reduce((sum, group) => sum + group.items.length, 0);
   const totalResults = totalCore + totalMore;
-  const showSearch = hiringDemoMode !== true;
+  const showSearch = hiringDemoMode !== true && actionsOnlyPreviewActive !== true;
 
   const showStudentMinimalChrome =
     model.primaryRole === "STUDENT" && studentFullPortalExplorer !== true;
@@ -455,29 +512,13 @@ export default function Nav({
           <span className="min-w-0 flex-1 truncate">Unlock hidden portal areas</span>
         </Link>
       )}
-      {showSearch ? <HelpAgentTrigger className="mb-1" /> : null}
       {showSearch ? (
-        <div className="relative">
-          <input
-            ref={searchRef}
-            type="text"
-            className={sidebarFilterInputClass}
-            placeholder="Filter navigation..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            aria-label="Filter navigation"
-          />
-          {search && (
-            <button
-              type="button"
-              className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-              onClick={() => setSearch("")}
-              aria-label="Clear search"
-            >
-              {"✕"}
-            </button>
-          )}
-        </div>
+        <SidebarSearch
+          value={search}
+          onChange={setSearch}
+          onClear={() => setSearch("")}
+          inputRef={searchRef}
+        />
       ) : null}
 
       {totalResults === 0 ? (

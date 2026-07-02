@@ -1,6 +1,6 @@
 import type { ActionItemWithRelations } from "./action-queries";
 import { actionHasDeadline, actionHasOwner } from "./action-next-cta";
-import { effectiveDeadline, isActionOverdue, needsViewerInput } from "./my-actions-selectors";
+import { effectiveDeadline, isActionOverdue } from "./my-actions-selectors";
 import { daysOverdue, lastActivityAt, STALE_ACTIVITY_DAYS } from "./command-center-selectors";
 
 /**
@@ -17,7 +17,7 @@ import { daysOverdue, lastActivityAt, STALE_ACTIVITY_DAYS } from "./command-cent
  * data-quality sweep. It is PURE — `now` is injected — so it unit-tests
  * deterministically, and it REUSES the canonical primitives
  * ({@link isActionOverdue}, {@link daysOverdue}, {@link lastActivityAt},
- * {@link actionHasOwner}, {@link needsViewerInput}) rather than re-deriving
+ * {@link actionHasOwner}) rather than re-deriving
  * "overdue" / "owner" / "stale".
  */
 
@@ -35,7 +35,6 @@ export type ActionAttentionKind =
   | "missing_executor"
   | "missing_due_date"
   | "due_soon"
-  | "waiting_input"
   | "stale"
   | "meeting_unresolved";
 
@@ -80,10 +79,6 @@ function hasLead(item: ActionItemWithRelations): boolean {
 
 function hasExecutor(item: ActionItemWithRelations): boolean {
   return item.assignments.some((a) => a.role === "EXECUTING");
-}
-
-function hasInputAssignee(item: ActionItemWithRelations): boolean {
-  return item.assignments.some((a) => a.role === "INPUT");
 }
 
 function daysSince(date: Date, now: Date): number {
@@ -200,16 +195,6 @@ export function deriveActionSignals(
     });
   }
 
-  if (hasInputAssignee(item)) {
-    out.push({
-      ...b,
-      kind: "waiting_input",
-      severity: "low",
-      reason: "Waiting on someone's input",
-      nextStep: "Nudge the reviewer or capture their input",
-    });
-  }
-
   // Stale only when nothing more urgent is already shouting.
   if (!overdue && !blocked && (dueDelta == null || dueDelta > ACTION_DUE_SOON_DAYS)) {
     const since = daysSince(lastActivityAt(item), now);
@@ -246,15 +231,14 @@ function viewerInvolved(item: ActionItemWithRelations, userId: string): boolean 
 
 /**
  * Personal action attention for one member: the signals on the actions they
- * lead, execute, or owe input on — exactly the "what do I need to handle?" feed.
- * `waiting_input` is kept (they may be the reviewer being chased).
+ * lead or execute — exactly the "what do I need to handle?" feed.
  */
 export function personalActionAttention(
   items: ActionItemWithRelations[],
   viewerId: string,
   now: Date = new Date()
 ): ActionAttentionSignal[] {
-  const mine = items.filter((i) => viewerInvolved(i, viewerId) || needsViewerInput(i, viewerId));
+  const mine = items.filter((i) => viewerInvolved(i, viewerId));
   return sortActionSignals(mine.flatMap((i) => deriveActionSignals(i, now)));
 }
 

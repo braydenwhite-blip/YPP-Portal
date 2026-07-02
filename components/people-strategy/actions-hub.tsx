@@ -3,22 +3,15 @@ import { Suspense } from "react";
 
 import { EmptyStateV2 } from "@/components/ui-v2";
 import { ActionHubCard } from "@/components/people-strategy/action-hub-card";
-import { ActionsHubAnalytics } from "@/components/people-strategy/actions-hub-analytics";
 import { ActionFiltersBar } from "@/components/people-strategy/action-filters-bar";
 import { ActionsHubTabs, type ActionsHubTab } from "@/components/people-strategy/actions-hub-tabs";
 import type { ActionChapterOption, ActionDepartmentOption, ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
-import {
-  summarizeDepartments,
-  summarizeStatuses,
-} from "@/lib/people-strategy/action-analytics";
 import type { ActionFilters } from "@/lib/people-strategy/action-filters";
 import {
   departmentHeaderColor,
   groupActionsByDepartment,
 } from "@/lib/people-strategy/actions-hub-grouping";
-import { isRecentlyApprovedOnHub } from "@/lib/people-strategy/action-approval";
-import { ActionsHubGraceRefresh } from "@/components/people-strategy/actions-hub-grace-refresh";
 
 export function ActionsHub({
   items,
@@ -32,6 +25,7 @@ export function ActionsHub({
   createHref,
   canCreate,
   viewer,
+  actionsOnlyPreview = false,
 }: {
   items: ActionItemWithRelations[];
   now: Date;
@@ -44,22 +38,18 @@ export function ActionsHub({
   createHref: string;
   canCreate: boolean;
   viewer: ActionViewer;
+  actionsOnlyPreview?: boolean;
 }) {
-  const breakdown = summarizeStatuses(items, now);
-  const bars = summarizeDepartments(items, now);
   const groups = groupActionsByDepartment(items, now);
-  const graceRefreshTimes = items
-    .filter((item) => isRecentlyApprovedOnHub(item, now))
-    .map((item) => item.approvedAt!.toISOString());
 
   return (
     <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 pb-12 pt-4">
-      <ActionsHubGraceRefresh approvedAtValues={graceRefreshTimes} />
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between xl:gap-6">
+        {!actionsOnlyPreview ? (
         <Suspense
           fallback={
-            <div className="flex flex-wrap gap-2" aria-hidden>
-              {[1, 2, 3, 4].map((i) => (
+            <div className="flex shrink-0 flex-nowrap gap-2" aria-hidden>
+              {[1, 2].map((i) => (
                 <span
                   key={i}
                   className="inline-flex h-9 w-24 animate-pulse rounded-full bg-surface-soft"
@@ -70,7 +60,11 @@ export function ActionsHub({
         >
           <ActionsHubTabs active={activeTab} officer={officer} />
         </Suspense>
+        ) : (
+          <h1 className="m-0 text-[22px] font-extrabold tracking-[-0.02em] text-ink">My Actions</h1>
+        )}
         <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+          {!actionsOnlyPreview ? (
           <ActionFiltersBar
             departments={departments}
             chapters={chapters}
@@ -79,6 +73,7 @@ export function ActionsHub({
             basePath="/actions"
             variant="hub"
           />
+          ) : null}
           {canCreate ? (
             <Link
               href={createHref}
@@ -90,18 +85,14 @@ export function ActionsHub({
         </div>
       </div>
 
-      <ActionsHubAnalytics breakdown={breakdown} bars={bars} />
-
       {groups.length === 0 ? (
         <EmptyStateV2
           icon="✓"
-          title={hasActiveFilters ? "No matches" : activeTab === "approved" ? "No recent approvals" : "All clear"}
+          title={hasActiveFilters ? "No matches" : "All clear"}
           body={
             hasActiveFilters
               ? "Try clearing a filter or searching with different words."
-              : activeTab === "approved"
-                ? "Nothing was approved in the last 10 minutes. Newly approved actions appear here briefly, then roll off the hub."
-                : "Nothing is open in this view right now."
+              : "Nothing is open in this view right now."
           }
         />
       ) : (

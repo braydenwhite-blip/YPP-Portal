@@ -7,18 +7,11 @@ import type { ActionItemStatus } from "@prisma/client";
 import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import { deriveActionStrategicLinkage } from "@/lib/people-strategy/action-source";
 import { effectiveStatus } from "@/lib/people-strategy/action-filters";
-import { approveActionItem, updateActionStatus } from "@/lib/people-strategy/action-items-actions";
+import { updateActionStatus } from "@/lib/people-strategy/action-items-actions";
 import {
-  canApproveAction,
-  canAssignAction,
   canEditAction,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
-import {
-  isApprovedAction,
-  isRecentlyApprovedOnHub,
-  isWaitingForActionApproval,
-} from "@/lib/people-strategy/action-approval";
 import {
   ActionStatusBadge,
   InitialsAvatar,
@@ -28,10 +21,7 @@ import { departmentHeaderColor } from "@/lib/people-strategy/actions-hub-groupin
 import { actionItemDepartments } from "@/lib/people-strategy/action-item-departments";
 import { formatMonthDay } from "@/lib/leadership-action-center/dates";
 import { Button, cn } from "@/components/ui-v2";
-import {
-  ActionAssignMeetingButton,
-  ActionMeetingLink,
-} from "@/components/people-strategy/action-assign-meeting-button";
+import { ActionMeetingLink } from "@/components/people-strategy/action-assign-meeting-button";
 import { deriveActionSource } from "@/lib/people-strategy/action-source";
 
 function personName(user: { name: string | null; email: string } | null | undefined): string {
@@ -86,23 +76,16 @@ export function ActionHubCard({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [localStatus, setLocalStatus] = useState<ActionItemStatus>(item.status);
-  const [localApprovedAt, setLocalApprovedAt] = useState<Date | null>(item.approvedAt);
 
   useEffect(() => {
     setLocalStatus(item.status);
-    setLocalApprovedAt(item.approvedAt);
-  }, [item.status, item.approvedAt]);
+  }, [item.status]);
 
-  const hubItem = { ...item, status: localStatus, approvedAt: localApprovedAt };
+  const hubItem = { ...item, status: localStatus };
   const due = dueLabel(hubItem, now);
   const status = effectiveStatus(hubItem, now);
   const strategic = deriveActionStrategicLinkage(item);
   const canEdit = canEditAction(viewer, toAccessShape(item));
-  const canApprove = canApproveAction(viewer);
-  const canAssignMeeting = canAssignAction(viewer);
-  const waitingApproval = isWaitingForActionApproval(hubItem);
-  const recentlyApproved = isRecentlyApprovedOnHub(hubItem, now);
-  const isApproved = isApprovedAction(hubItem);
   const isComplete = status === "COMPLETE";
   const isDropped = status === "DROPPED";
   const showMarkComplete = canEdit && !isComplete && !isDropped;
@@ -112,18 +95,15 @@ export function ActionHubCard({
     .filter((a) => a.role === "EXECUTING")
     .map((a) => a.user)
     .filter((user) => user.id !== item.leadId);
-  const input = item.assignments.filter((a) => a.role === "INPUT").map((a) => a.user);
 
   const goal =
     strategic.initiativeTitle ??
     (item.goalCategory ? item.goalCategory : null);
 
   const actionSource = deriveActionSource(item);
-  // Prefer the explicit picker assignment (dedicated meetingId FK); fall back to
-  // the source-derived meeting for legacy actions whose provenance is a meeting.
   const linkedMeetingId = item.meetingId ?? actionSource.meetingId;
 
-  const hasRoles = lead.length > 0 || executing.length > 0 || input.length > 0;
+  const hasRoles = lead.length > 0 || executing.length > 0;
 
   const teams = actionItemDepartments(item);
   const teamBadges =
@@ -147,29 +127,11 @@ export function ActionHubCard({
     startTransition(async () => {
       try {
         setLocalStatus("COMPLETE");
-        setLocalApprovedAt(null);
         await updateActionStatus(item.id, "COMPLETE");
         router.refresh();
       } catch (err) {
         setLocalStatus(item.status);
-        setLocalApprovedAt(item.approvedAt);
         setError(err instanceof Error ? err.message : "Could not mark complete.");
-      }
-    });
-  }
-
-  function approve(event: React.MouseEvent) {
-    event.stopPropagation();
-    setError(null);
-    startTransition(async () => {
-      try {
-        const approvedAt = new Date();
-        setLocalApprovedAt(approvedAt);
-        await approveActionItem(item.id);
-        router.refresh();
-      } catch (err) {
-        setLocalApprovedAt(item.approvedAt);
-        setError(err instanceof Error ? err.message : "Could not approve.");
       }
     });
   }
@@ -229,17 +191,6 @@ export function ActionHubCard({
         {!isComplete ? (
           <ActionStatusBadge item={hubItem} now={now} />
         ) : null}
-        {waitingApproval ? (
-          <span className="inline-flex h-7 items-center rounded-[9px] border border-amber-300/60 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-900">
-            Waiting for approval
-          </span>
-        ) : null}
-        {isApproved ? (
-          <span className="inline-flex h-7 items-center gap-1 rounded-[9px] border border-complete-700/30 bg-complete-50 px-2.5 text-[11px] font-semibold text-complete-700">
-            <span aria-hidden>✓</span>
-            Approved
-          </span>
-        ) : null}
         {linkedMeetingId ? (
           <ActionMeetingLink
             meetingId={linkedMeetingId}
@@ -251,20 +202,6 @@ export function ActionHubCard({
             }
             meetingHref={`/meetings/${linkedMeetingId}`}
           />
-        ) : canAssignMeeting ? (
-          <ActionAssignMeetingButton actionItemId={item.id} />
-        ) : null}
-        {waitingApproval && canApprove ? (
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            loading={pending}
-            onClick={approve}
-            className="h-7 px-2.5 text-[11px]"
-          >
-            Approve
-          </Button>
         ) : null}
         {showMarkComplete ? (
           <Button
@@ -279,18 +216,6 @@ export function ActionHubCard({
           </Button>
         ) : null}
       </div>
-
-      {waitingApproval && !canApprove ? (
-        <p className="m-0 mt-2 text-[12px] font-medium text-amber-900">
-          Waiting for officer approval — it will move to Approved once signed off.
-        </p>
-      ) : null}
-
-      {recentlyApproved ? (
-        <p className="m-0 mt-2 text-[12px] text-ink-muted">
-          Approved — this will roll off the hub in about 10 minutes.
-        </p>
-      ) : null}
 
       {error ? (
         <p role="alert" className="m-0 mt-1.5 text-[12px] text-blocked-700">
@@ -322,7 +247,6 @@ export function ActionHubCard({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <RolePills label="Lead" users={lead} />
             <RolePills label="Executing" users={executing} />
-            <RolePills label="Input" users={input} />
           </div>
         ) : (
           <span />

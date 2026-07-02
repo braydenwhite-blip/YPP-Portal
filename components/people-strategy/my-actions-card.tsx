@@ -49,9 +49,6 @@ export default async function MyActionsCard({ viewer }: { viewer: ActionViewer }
         ) : null}
         <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{summary.inProgress} in progress</span>
         <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{summary.executing} executing</span>
-        {summary.needsInput > 0 ? (
-          <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{summary.needsInput} need your input</span>
-        ) : null}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>

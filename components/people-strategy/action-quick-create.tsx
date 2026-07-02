@@ -74,7 +74,6 @@ export function ActionQuickCreate({
   const [assignedUserIds, setAssignedUserIds] = useState<string[]>(() =>
     defaultAssigneeIds(users, currentUserId)
   );
-  const [inputUserIds, setInputUserIds] = useState<string[]>([]);
   const [deadline, setDeadline] = useState(
     toDateInputValue(addDays(new Date(), DEFAULT_ACTION_DEADLINE_DAYS))
   );
@@ -93,7 +92,6 @@ export function ActionQuickCreate({
   function resetForm() {
     setTitle("");
     setAssignedUserIds(defaultAssigneeIds(users, currentUserId));
-    setInputUserIds([]);
     setDescription("");
     setDepartmentId("");
     setStatus("NOT_STARTED");
@@ -122,7 +120,6 @@ export function ActionQuickCreate({
           title: trimmed,
           leadId,
           executingUserIds: executingUserIds.length > 0 ? executingUserIds : undefined,
-          inputUserIds: inputUserIds.length > 0 ? inputUserIds : undefined,
           deadlineStart: deadline,
           description: description.trim() || undefined,
           departmentId: departmentId || undefined,
@@ -336,16 +333,6 @@ export function ActionQuickCreate({
                 </select>
               </div>
             </div>
-
-            <ActionUserPicker
-              id="quick-action-input-inline"
-              label="Input (optional)"
-              users={users}
-              selected={inputUserIds}
-              onChange={setInputUserIds}
-              excludeIds={assignedUserIds}
-              emptyHint="No assignable users found."
-            />
           </div>
         </details>
 

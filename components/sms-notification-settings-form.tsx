@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import {
   updateNotificationPreferencesAction,
   type NotificationPreferencesFormState,
@@ -42,7 +43,7 @@ export default function SmsNotificationSettingsForm({
   smsPhoneE164: string | null;
   smsOptOutAt: string | null;
 }) {
-  const [state, action] = useFormState(updateNotificationPreferencesAction, INITIAL_STATE);
+  const [state, action] = useActionState(updateNotificationPreferencesAction, INITIAL_STATE);
   const formattedOptOutAt = formatOptOutDate(smsOptOutAt);
 
   return (

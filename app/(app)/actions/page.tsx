@@ -1,10 +1,16 @@
 import { notFound, redirect } from "next/navigation";
 
+import { cookies } from "next/headers";
 import { ActionsHub } from "@/components/people-strategy/actions-hub";
 import type { ActionsHubTab } from "@/components/people-strategy/actions-hub-tabs";
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
+import {
+  ACTIONS_ONLY_PREVIEW_COOKIE_NAME,
+  isActionsOnlyPreviewActive,
+} from "@/lib/leadership-preview-access";
+import { isOfficerTierFromAuth } from "@/lib/public-gate";
 import {
   getMyActionItems,
   listActionChapters,
@@ -22,13 +28,9 @@ import {
   isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
-import { selectNeedsInput } from "@/lib/people-strategy/my-actions-selectors";
 import { filterActionsByInitiative } from "@/lib/people-strategy/strategic-initiative-summary";
 import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
-import {
-  filterActiveHubItems,
-  filterApprovedHubItems,
-} from "@/lib/people-strategy/action-approval";
+import { filterActiveHubItems } from "@/lib/people-strategy/action-approval";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Actions" };
@@ -37,16 +39,8 @@ function firstParam(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
 }
 
-function resolveHubTab(params: {
-  who: string;
-  view?: string;
-  officer: boolean;
-}): ActionsHubTab {
-  if (params.view === "approved") return "approved";
-  if (params.view === "input") return "input";
-  if (params.officer && params.who === "all") return "all";
-  if (params.who === "me") return "mine";
-  return params.officer ? "all" : "mine";
+function resolveHubTab(who: string): ActionsHubTab {
+  return who === "all" ? "all" : "mine";
 }
 
 /** Hub ignores advanced filters that are not exposed in the UI. */
@@ -80,17 +74,35 @@ export default async function ActionsPage({
     adminSubtypes: session.user.adminSubtypes,
   };
 
+  const cookieStore = await cookies();
+  const actionsOnlyPreviewCookie =
+    cookieStore.get(ACTIONS_ONLY_PREVIEW_COOKIE_NAME)?.value ?? null;
+  const previewViewer = {
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+    roles: session.user.roles,
+    primaryRole: session.user.primaryRole,
+    internalLevel: session.user.internalLevel,
+  };
+  const actionsOnlyPreview = isActionsOnlyPreviewActive(previewViewer, {
+    previewCookie: actionsOnlyPreviewCookie,
+    allowAdminPreviewCookie: isOfficerTierFromAuth(
+      session.user.roles ?? [],
+      session.user.primaryRole,
+    ),
+  });
+
   const params = (await searchParams) ?? {};
   const whoParam = firstParam(params.who);
-  const viewParam = firstParam(params.view);
   if (firstParam(params.create) === "1") redirect("/actions/new");
 
   const initiativeParam = firstParam(params.initiative)?.trim() ?? "";
   const initiativeDef = initiativeParam ? getInitiativeDef(initiativeParam) : null;
 
-  const officer = isOfficerTier(viewer);
-  const canCreate = canCreateAction(viewer);
-  const who = officer ? whoParam ?? "all" : "me";
+  const officer = actionsOnlyPreview ? false : isOfficerTier(viewer);
+  const canCreate = actionsOnlyPreview ? false : canCreateAction(viewer);
+  const who = actionsOnlyPreview ? "me" : officer && whoParam === "all" ? "all" : "me";
 
   let myItems: Awaited<ReturnType<typeof getMyActionItems>> = [];
   let allItems: Awaited<ReturnType<typeof listVisibleActionItems>> = [];
@@ -98,11 +110,10 @@ export default async function ActionsPage({
   let chapters: Awaited<ReturnType<typeof listActionChapters>> = [];
 
   try {
-    [myItems, allItems, departments, chapters] = await Promise.all([
+    [      myItems, allItems, departments, chapters] = await Promise.all([
       getMyActionItems(viewer.id, viewer),
       officer ? listVisibleActionItems(viewer) : Promise.resolve([]),
-      listActionDepartments(),
-      // Chapter filter is a leadership lens over the whole queue — officers only.
+      actionsOnlyPreview ? Promise.resolve([]) : listActionDepartments(),
       officer ? listActionChapters() : Promise.resolve([]),
     ]);
   } catch (error) {
@@ -118,21 +129,13 @@ export default async function ActionsPage({
     ? `/actions/new?initiativeId=${encodeURIComponent(initiativeDef.id)}`
     : "/actions/new";
 
-  let source =
-    viewParam === "input"
-      ? selectNeedsInput(myItems, viewer.id)
-      : who === "all"
-        ? allItems
-        : myItems;
+  let source = who === "all" ? allItems : myItems;
 
   if (initiativeDef) source = filterActionsByInitiative(source, initiativeDef.id);
   const filtered = applyActionFilters(source, hubFilters, now);
-  const items =
-    viewParam === "approved"
-      ? filterApprovedHubItems(filtered, now)
-      : filterActiveHubItems(filtered, now);
+  const items = filterActiveHubItems(filtered);
 
-  const activeTab = resolveHubTab({ who, view: viewParam, officer });
+  const activeTab = resolveHubTab(who);
 
   return (
     <div className={`${skin.portalSkin} ${skin.fadeIn}`}>
@@ -148,6 +151,7 @@ export default async function ActionsPage({
         createHref={createHref}
         canCreate={canCreate}
         viewer={viewer}
+        actionsOnlyPreview={actionsOnlyPreview}
       />
     </div>
   );

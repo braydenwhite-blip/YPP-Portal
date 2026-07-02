@@ -9,14 +9,13 @@ import {
   addActionAssignment,
   addActionComment,
   addActionFileLink,
-  approveActionItem,
-  flagActionToLeadership,
   removeActionAssignment,
   updateActionItem,
   updateActionStatus,
 } from "@/lib/people-strategy/action-items-actions";
-import { isWaitingForActionApproval } from "@/lib/people-strategy/action-approval";
+import { ActionCommentComposer } from "@/components/people-strategy/action-comment-composer";
 import { ActionDeleteButton } from "@/components/people-strategy/action-delete-button";
+import { renderTextWithMentions } from "@/components/people-strategy/mention-text";
 import {
   ActionUserPicker,
   type ActionUserOption,
@@ -74,8 +73,6 @@ export type ActionDetailDTO = {
   status: ActionItemStatus;
   priority: string;
   completedAt: string | null;
-  approvedAt: string | null;
-  approvedByName: string | null;
   deadlineStart: string;
   deadlineEnd: string | null;
   visibility: "OFFICERS_ONLY" | "ALL_LEADERSHIP";
@@ -97,7 +94,6 @@ export type ActionDetailDTO = {
   people: {
     lead: PersonDTO[];
     executing: PersonDTO[];
-    input: PersonDTO[];
   };
   comments: CommentDTO[];
   fileLinks: FileLinkDTO[];
@@ -222,8 +218,6 @@ export default function ActionDetailCard({
   item,
   canEdit,
   canAssign,
-  canApprove = false,
-  canFlag,
   canDelete,
   closeHref,
   assignableUsers = [],
@@ -234,8 +228,6 @@ export default function ActionDetailCard({
   item: ActionDetailDTO;
   canEdit: boolean;
   canAssign: boolean;
-  canApprove?: boolean;
-  canFlag: boolean;
   canDelete: boolean;
   closeHref: string;
   assignableUsers?: ActionUserOption[];
@@ -246,11 +238,9 @@ export default function ActionDetailCard({
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [status, setStatus] = useState<ActionItemStatus>(item.status);
-  const [approvedAt, setApprovedAt] = useState<string | null>(item.approvedAt);
   const [description, setDescription] = useState(item.description ?? "");
   const [editingDescription, setEditingDescription] = useState(false);
   const [addingRole, setAddingRole] = useState<ActionAssignmentRole | null>(null);
-  const [comment, setComment] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -265,19 +255,9 @@ export default function ActionDetailCard({
     setStatus(item.status);
   }, [item.status]);
 
-  useEffect(() => {
-    setApprovedAt(item.approvedAt);
-  }, [item.approvedAt]);
-
-  const waitingApproval = isWaitingForActionApproval({
-    status,
-    approvedAt: approvedAt ? new Date(approvedAt) : null,
-  });
-
   const assignedUserIds = [
     ...item.people.lead,
     ...item.people.executing,
-    ...item.people.input,
   ].map((p) => p.id);
 
   const hasConnected =
@@ -301,39 +281,28 @@ export default function ActionDetailCard({
     });
   }
 
-  function handleApprove() {
-    runMutation(async () => {
-      await approveActionItem(item.id);
-      setApprovedAt(new Date().toISOString());
-    }, "Action approved.");
-  }
-
   function handleStatus(next: ActionItemStatus) {
     setStatus(next);
-    if (next !== "COMPLETE") setApprovedAt(null);
     runMutation(async () => updateActionStatus(item.id, next), "Status updated.");
   }
 
-  function handleComment(type: ActionCommentType) {
-    const body =
-      comment.trim() ||
-      (type === "INPUT_REQUESTED"
-        ? `Input requested from ${item.people.input.map(personName).join(", ") || "assigned partners"}.`
-        : "");
-    if (!body.trim()) return;
-    runMutation(
-      async () => {
-        await addActionComment(item.id, body, type);
-        setComment("");
-      },
-      type === "INPUT_REQUESTED" ? "Input request sent." : "Comment posted."
-    );
-  }
-
-  function handleFlag() {
-    runMutation(async () => {
-      await flagActionToLeadership(item.id);
-    }, "Flagged for leadership.");
+  function handleComment(body: string) {
+    return new Promise<void>((resolve, reject) => {
+      setError(null);
+      setMessage(null);
+      startTransition(async () => {
+        try {
+          await addActionComment(item.id, body);
+          setMessage("Comment posted.");
+          router.refresh();
+          resolve();
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Something went wrong.";
+          setError(message);
+          reject(err);
+        }
+      });
+    });
   }
 
   function handleLink() {
@@ -399,7 +368,6 @@ export default function ActionDetailCard({
   const roleAdders: Array<{ role: ActionAssignmentRole; label: string }> = [
     { role: "LEAD", label: "Change lead" },
     { role: "EXECUTING", label: "Add executing" },
-    { role: "INPUT", label: "Add input" },
   ];
 
   if (variant !== "hub") {
@@ -449,28 +417,7 @@ export default function ActionDetailCard({
           </div>
         ) : null}
 
-        {status === "COMPLETE" && waitingApproval ? (
-          <div className="mb-4 rounded-[14px] border border-amber-200 bg-amber-50/70 px-4 py-3">
-            <p className="m-0 text-[14px] font-semibold text-amber-950">Waiting for officer approval</p>
-            <p className="m-0 mt-1 text-[12.5px] text-amber-900">
-              This action is complete but needs an officer to sign off before it moves to Approved.
-            </p>
-            {canApprove ? (
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                loading={pending}
-                onClick={handleApprove}
-                className="mt-3"
-              >
-                Approve action
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-
-        {status === "COMPLETE" && approvedAt ? (
+        {status === "COMPLETE" ? (
           <div className="mb-4 flex items-center gap-3 rounded-[14px] border border-line-soft bg-complete-50/50 px-4 py-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-complete-50 text-complete-700">
               <span aria-hidden className="text-[16px] leading-none">
@@ -478,11 +425,12 @@ export default function ActionDetailCard({
               </span>
             </span>
             <div className="min-w-0">
-              <p className="m-0 text-[14px] font-semibold text-complete-700">Approved</p>
-              <p className="m-0 text-[12.5px] text-ink-muted">
-                {item.approvedByName ? `By ${item.approvedByName}` : "Officer approved"}
-                {approvedAt ? ` · ${formatDate(approvedAt)}` : ""}
-              </p>
+              <p className="m-0 text-[14px] font-semibold text-complete-700">Complete</p>
+              {item.completedAt ? (
+                <p className="m-0 text-[12.5px] text-ink-muted">
+                  Marked complete · {formatDate(item.completedAt)}
+                </p>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -535,17 +483,9 @@ export default function ActionDetailCard({
                 : undefined
             }
           />
-          <RolePills
-            label="Input"
-            people={item.people.input}
-            pending={pending}
-            onRemove={canAssign ? (userId) => handleRemovePerson("INPUT", userId) : undefined}
-          />
         </div>
 
-        {!item.people.lead.length &&
-        !item.people.executing.length &&
-        !item.people.input.length ? (
+        {!item.people.lead.length && !item.people.executing.length ? (
           <p className="m-0 text-[13px] text-ink-muted">No one assigned yet.</p>
         ) : null}
 
@@ -573,9 +513,7 @@ export default function ActionDetailCard({
               label={
                 addingRole === "LEAD"
                   ? "Search for new lead"
-                  : addingRole === "EXECUTING"
-                    ? "Search to add executing"
-                    : "Search to add input"
+                  : "Search to add executing"
               }
               single
               users={assignableUsers}
@@ -696,42 +634,13 @@ export default function ActionDetailCard({
         </HubSection>
       ) : null}
 
-      <HubSection
-        title="Comments"
-        action={
-          canEdit ? (
-            <button
-              type="button"
-              className={BTN_SECONDARY_SM}
-              onClick={() => handleComment("INPUT_REQUESTED")}
-              disabled={pending}
-            >
-              Request input
-            </button>
-          ) : null
-        }
-      >
+      <HubSection title="Comments">
         {canEdit ? (
-          <div className="mb-4 flex flex-col gap-2">
-            <textarea
-              value={comment}
-              onChange={(event) => setComment(event.target.value)}
-              rows={3}
-              placeholder="Add a comment or status note…"
-              aria-label="Comment"
-              className="w-full resize-y rounded-[9px] border border-line-soft bg-surface px-3 py-2.5 text-[14px] text-ink"
-            />
-            <div className="flex justify-end">
-              <button
-                type="button"
-                className={BTN_PRIMARY_SM}
-                onClick={() => handleComment("NOTE")}
-                disabled={pending || !comment.trim()}
-              >
-                {pending ? "Posting…" : "Post comment"}
-              </button>
-            </div>
-          </div>
+          <ActionCommentComposer
+            mentionableUsers={assignableUsers}
+            disabled={pending}
+            onSubmit={handleComment}
+          />
         ) : null}
 
         {item.comments.length === 0 ? (
@@ -741,10 +650,7 @@ export default function ActionDetailCard({
             {item.comments.map((entry) => (
               <div
                 key={entry.id}
-                className={cn(
-                  "rounded-[10px] border border-line-soft px-3.5 py-3",
-                  entry.type === "INPUT_REQUESTED" ? "bg-brand-50/60" : "bg-[#fafafc]"
-                )}
+                className="rounded-[10px] border border-line-soft bg-[#fafafc] px-3.5 py-3"
               >
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-ink">
@@ -752,12 +658,12 @@ export default function ActionDetailCard({
                     {personName(entry.author)}
                   </span>
                   <span className="text-[11.5px] text-ink-muted">
-                    {entry.type === "INPUT_REQUESTED" ? "Input requested" : "Comment"} ·{" "}
+                    {entry.type === "INPUT_REQUESTED" ? "Tagged" : "Comment"} ·{" "}
                     {formatDateTime(entry.createdAt)}
                   </span>
                 </div>
                 <p className="m-0 whitespace-pre-wrap text-[14px] leading-relaxed text-ink">
-                  {entry.body}
+                  {renderTextWithMentions(entry.body)}
                 </p>
               </div>
             ))}
@@ -832,20 +738,11 @@ export default function ActionDetailCard({
         )}
       </HubSection>
 
-      {(canFlag || canDelete) && (
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft bg-[#fafafc] px-5 py-3.5">
-          {canFlag ? (
-            <button type="button" className={BTN_SECONDARY_SM} onClick={handleFlag} disabled={pending}>
-              {item.flaggedAt ? "Flag again" : "Flag for leadership"}
-            </button>
-          ) : (
-            <span />
-          )}
-          {canDelete && item.status !== "DROPPED" ? (
-            <ActionDeleteButton actionId={item.id} redirectTo={closeHref} />
-          ) : null}
+      {canDelete && item.status !== "DROPPED" ? (
+        <footer className="flex flex-wrap items-center justify-end gap-3 border-t border-line-soft bg-[#fafafc] px-5 py-3.5">
+          <ActionDeleteButton actionId={item.id} redirectTo={closeHref} />
         </footer>
-      )}
+      ) : null}
     </article>
   );
 }

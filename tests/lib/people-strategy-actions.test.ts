@@ -181,7 +181,6 @@ describe("createActionItem", () => {
     leadId: "u1",
     deadlineStart: "2026-06-10",
     executingUserIds: ["u2"],
-    inputUserIds: [],
   };
 
   it("rejects a deadline end before the deadline start", async () => {

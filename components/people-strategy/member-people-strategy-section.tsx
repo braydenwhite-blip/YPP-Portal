@@ -154,7 +154,6 @@ export function MemberPeopleStrategySection({
       <div className="instructor-profile-assignment-grid">
         <ActionsByRoleColumn title="Lead" accent="#1d4ed8" items={actions.lead} />
         <ActionsByRoleColumn title="Executing" accent="#047857" items={actions.executing} />
-        <ActionsByRoleColumn title="Input" accent="#b45309" items={actions.input} />
       </div>
 
       {/* Quarterly review: latest + history */}

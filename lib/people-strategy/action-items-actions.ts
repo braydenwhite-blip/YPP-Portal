@@ -37,7 +37,6 @@ import {
   parseStrategicLinkUpdate,
 } from "./action-source";
 import {
-  canApproveAction,
   canAssignAction,
   canCreateAction,
   canDeleteAction,
@@ -48,7 +47,8 @@ import {
   type ActionAccessShape,
 } from "./action-permissions";
 import { assertActionLeadEligible } from "@/lib/org/action-lead-guard";
-import { notifyNewActionAssignments } from "./action-emails";
+import { notifyActionCommentMentions, notifyNewActionAssignments } from "./action-emails";
+import { resolveActionMentionUserIds } from "./action-mentions";
 import {
   onActionItemBlocked,
   onActionItemCompleted,
@@ -134,17 +134,6 @@ function completedAtForTransition(
   if (nextStatus === "COMPLETE") return now;
   if (previousStatus === "COMPLETE") return null;
   return undefined;
-}
-
-/** Clear officer approval when an item leaves COMPLETE or is dropped. */
-function approvalFieldsForTransition(
-  previousStatus: string,
-  nextStatus: string
-): { approvedAt: null; approvedById: null } | Record<string, never> {
-  if (previousStatus === "COMPLETE" && nextStatus !== "COMPLETE") {
-    return { approvedAt: null, approvedById: null };
-  }
-  return {};
 }
 
 /** Append a system-style NOTE comment (status / assignment / flag events). */
@@ -357,7 +346,6 @@ const CreateActionItemSchema = z.object({
   deadlineStart: RequiredDateString,
   deadlineEnd: CreateOptionalDateString,
   executingUserIds: UserIdList,
-  inputUserIds: UserIdList,
   // Polymorphic related-entity link. Both-or-neither + enum membership + trim
   // are enforced by the pure validator in the superRefine below.
   relatedEntityType: z.string().trim().optional(),
@@ -453,7 +441,6 @@ export async function createActionItem(input: CreateActionItemInput) {
   await assertUsersExist([
     data.leadId,
     ...executingUserIds,
-    ...data.inputUserIds,
   ]);
 
   // Phase 5: the accountable Lead must be eligible (internal level >= 3, or a
@@ -501,9 +488,7 @@ export async function createActionItem(input: CreateActionItemInput) {
   // userId, role) uniqueness lets the Lead additionally hold an EXECUTING row.
   const assignmentRows: Array<{ userId: string; role: ActionAssignmentRole }> = [
     { userId: data.leadId, role: "LEAD" },
-    ...executingUserIds
-      .map((userId) => ({ userId, role: "EXECUTING" as const })),
-    ...data.inputUserIds.map((userId) => ({ userId, role: "INPUT" as const })),
+    ...executingUserIds.map((userId) => ({ userId, role: "EXECUTING" as const })),
   ];
 
   const created = await prisma.$transaction(async (tx) => {
@@ -812,7 +797,6 @@ export async function updateActionItem(input: UpdateActionItemInput) {
         status: newStatus as never,
         priority: data.priority as never,
         completedAt,
-        ...approvalFieldsForTransition(existing.status, newStatus),
         chapterId,
         visibility: data.visibility as never,
         deadlineStart: data.deadlineStart
@@ -926,59 +910,19 @@ export async function updateActionStatus(
       data: {
         status: data.status as never,
         completedAt,
-        ...approvalFieldsForTransition(existing.status, data.status),
       },
     });
     await postSystemComment(
       tx,
       data.id,
       session.id,
-      data.status === "COMPLETE"
-        ? `Status changed from ${existing.status} to COMPLETE — waiting for officer approval`
-        : `Status changed from ${existing.status} to ${data.status}`
+      `Status changed from ${existing.status} to ${data.status}`
     );
   });
 
   if (data.status === "COMPLETE") {
     await onActionItemCompleted(data.id, session.id);
   }
-
-  await syncActionSearchDocument(data.id);
-  revalidateAll();
-}
-
-const ApproveActionSchema = z.object({
-  id: NonEmptyString,
-});
-
-/** Officer sign-off on a completed action. */
-export async function approveActionItem(id: string) {
-  ensureEnabled();
-  const session = await requireSessionUser();
-  if (!canApproveAction(session)) throw new Error("Unauthorized");
-
-  const data = ApproveActionSchema.parse({ id });
-  const access = await loadAccess(data.id);
-  if (!canViewAction(session, access)) throw new Error("Unauthorized");
-
-  const existing = await prisma.actionItem.findUnique({
-    where: { id: data.id },
-    select: { status: true, approvedAt: true },
-  });
-  if (!existing) throw new Error("Action item not found");
-  if (existing.status !== "COMPLETE") {
-    throw new Error("Only completed actions can be approved");
-  }
-  if (existing.approvedAt) return;
-
-  const now = new Date();
-  await prisma.$transaction(async (tx) => {
-    await tx.actionItem.update({
-      where: { id: data.id },
-      data: { approvedAt: now, approvedById: session.id },
-    });
-    await postSystemComment(tx, data.id, session.id, "Action approved by officer");
-  });
 
   await syncActionSearchDocument(data.id);
   revalidateAll();
@@ -1212,6 +1156,9 @@ export async function addActionAssignment(
   const session = await requireSessionUser();
   const data = AssignmentSchema.parse({ actionId, userId, role });
   if (!canAssignAction(session)) throw new Error("Unauthorized");
+  if (data.role === "INPUT") {
+    throw new Error("Input assignments are no longer supported");
+  }
 
   await loadAccess(data.actionId); // 404 if missing
   await assertUsersExist([data.userId]);
@@ -1356,11 +1303,14 @@ const CommentSchema = z.object({
 export async function addActionComment(
   actionId: string,
   body: string,
-  type: ActionCommentType = "NOTE"
+  type?: ActionCommentType
 ) {
   ensureEnabled();
   const session = await requireSessionUser();
-  const data = CommentSchema.parse({ actionId, body, type });
+  const mentionedUserIds = await resolveActionMentionUserIds(body);
+  const resolvedType: ActionCommentType =
+    type ?? (mentionedUserIds.length > 0 ? "INPUT_REQUESTED" : "NOTE");
+  const data = CommentSchema.parse({ actionId, body, type: resolvedType });
 
   const access = await loadAccess(data.actionId);
   if (!canViewAction(session, access)) throw new Error("Unauthorized");
@@ -1373,6 +1323,17 @@ export async function addActionComment(
       body: data.body,
     },
   });
+
+  if (mentionedUserIds.length > 0) {
+    const authorName = session.name?.trim() || session.email || "Someone";
+    await notifyActionCommentMentions({
+      actionItemId: data.actionId,
+      authorId: session.id,
+      authorName,
+      body: data.body,
+      mentionedUserIds,
+    });
+  }
 
   revalidateAll();
 }

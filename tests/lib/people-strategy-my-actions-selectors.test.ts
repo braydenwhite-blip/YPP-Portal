@@ -6,10 +6,7 @@ import {
   bucketByUrgency,
   effectiveDeadline,
   isActionOverdue,
-  latestInputRequest,
-  needsViewerInput,
   selectExecuting,
-  selectNeedsInput,
   sortByDeadline,
   summarizeMyActions,
 } from "@/lib/people-strategy/my-actions-selectors";
@@ -17,7 +14,6 @@ import {
 const NOW = new Date("2026-06-01T12:00:00Z");
 
 type Assignment = ActionItemWithRelations["assignments"][number];
-type Comment = ActionItemWithRelations["comments"][number];
 
 function person(id: string) {
   return { id, name: id, email: `${id}@x.org`, primaryRole: "ADMIN", profile: null };
@@ -25,10 +21,6 @@ function person(id: string) {
 
 function assignment(userId: string, role: Assignment["role"]): Assignment {
   return { id: `${userId}-${role}`, role, createdAt: NOW, user: person(userId) } as Assignment;
-}
-
-function comment(authorId: string, type: Comment["type"], body = "ask"): Comment {
-  return { id: `c-${authorId}`, body, type, createdAt: NOW, author: person(authorId) } as Comment;
 }
 
 function item(overrides: Partial<ActionItemWithRelations>): ActionItemWithRelations {
@@ -80,54 +72,27 @@ describe("my-actions selectors", () => {
     ).toBe(false);
   });
 
-  it("needsViewerInput: INPUT assignee, but not the lead who authored the request", () => {
-    const onboarding = item({
-      leadId: "brayden",
-      assignments: [
-        assignment("brayden", "LEAD"),
-        assignment("brayden", "EXECUTING"),
-        assignment("anthea", "INPUT"),
-      ],
-      comments: [comment("brayden", "INPUT_REQUESTED")],
-    });
-    expect(needsViewerInput(onboarding, "anthea")).toBe(true);
-    expect(needsViewerInput(onboarding, "brayden")).toBe(false);
-    expect(latestInputRequest(onboarding, "anthea")?.author.id).toBe("brayden");
-    expect(latestInputRequest(onboarding, "brayden")).toBeNull();
-  });
-
   it("sorts by deadline ascending", () => {
     const a = item({ id: "a", deadlineStart: new Date("2026-06-20") });
     const b = item({ id: "b", deadlineStart: new Date("2026-06-05") });
     expect(sortByDeadline([a, b]).map((i) => i.id)).toEqual(["b", "a"]);
   });
 
-  it("summarizes the seeded Brayden + Anthea scenarios", () => {
+  it("summarizeMyActions counts overdue, executing, and in-progress", () => {
     const onboarding = item({
       id: "onboarding",
-      status: "IN_PROGRESS",
-      deadlineStart: new Date("2026-05-30"),
-      deadlineEnd: new Date("2026-06-13"),
+      status: "NOT_STARTED",
       leadId: "brayden",
       assignments: [
         assignment("brayden", "LEAD"),
         assignment("brayden", "EXECUTING"),
-        assignment("anthea", "INPUT"),
       ],
-      comments: [comment("brayden", "INPUT_REQUESTED")],
     });
     const succession = item({
       id: "succession",
-      status: "NOT_STARTED",
-      visibility: "OFFICERS_ONLY",
-      deadlineStart: new Date("2026-06-06"),
-      deadlineEnd: new Date("2026-06-21"),
-      leadId: "brayden",
-      assignments: [
-        assignment("brayden", "LEAD"),
-        assignment("anthea", "EXECUTING"),
-        assignment("carly", "INPUT"),
-      ],
+      status: "IN_PROGRESS",
+      leadId: "anthea",
+      assignments: [assignment("anthea", "LEAD"), assignment("anthea", "EXECUTING")],
     });
     const marketing = item({
       id: "marketing",
@@ -142,24 +107,17 @@ describe("my-actions selectors", () => {
     expect(brayden.overdue).toBe(0);
     expect(brayden.inProgress).toBe(1);
     expect(brayden.executing).toBe(1);
-    expect(brayden.needsInput).toBe(0);
 
     const anthea = summarizeMyActions([onboarding, succession, marketing], "anthea", NOW);
     expect(anthea.overdue).toBe(1);
     expect(anthea.executing).toBe(1);
-    expect(anthea.needsInput).toBe(1);
     expect(selectExecuting([onboarding, succession, marketing], "anthea").map((i) => i.id)).toEqual([
       "succession",
-    ]);
-    expect(selectNeedsInput([onboarding, succession, marketing], "anthea").map((i) => i.id)).toEqual([
-      "onboarding",
     ]);
   });
 });
 
 describe("bucketByUrgency", () => {
-  // Deadlines are derived from NOW via addDays so the day-bucket maths is
-  // timezone-independent (both sides go through the same startOfDay).
   it("groups open actions into overdue / today / this week / later", () => {
     const items = [
       item({ id: "od", deadlineStart: addDays(NOW, -10), deadlineEnd: null }),

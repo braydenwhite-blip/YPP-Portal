@@ -158,7 +158,6 @@ export function ActionCreateForm({
   const [assignedUserIds, setAssignedUserIds] = useState<string[]>(() =>
     initialAssigneeIds(users, currentUserId, initial)
   );
-  const [inputUserIds, setInputUserIds] = useState<string[]>(initial?.inputUserIds ?? []);
   const [deadline, setDeadline] = useState(() => initialDeadlineValue(initial));
   const [description, setDescription] = useState(initial?.description ?? "");
   const [departmentIds, setDepartmentIds] = useState<string[]>(
@@ -203,7 +202,6 @@ export function ActionCreateForm({
           title: trimmed,
           leadId,
           executingUserIds: executingUserIds.length > 0 ? executingUserIds : undefined,
-          inputUserIds: inputUserIds.length > 0 ? inputUserIds : undefined,
           deadlineStart: deadline,
           description: description.trim() || undefined,
           goalCategory: initial?.goalCategory?.trim() || undefined,
@@ -440,16 +438,6 @@ export function ActionCreateForm({
                 </div>
               </div>
 
-              <ActionUserPicker
-                id="action-create-input"
-                variant="calm"
-                label="Needs input from"
-                users={users}
-                selected={inputUserIds}
-                onChange={setInputUserIds}
-                excludeIds={assignedUserIds}
-                emptyHint="No assignable users found."
-              />
             </div>
           </div>
         </div>

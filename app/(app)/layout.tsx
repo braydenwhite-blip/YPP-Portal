@@ -24,7 +24,11 @@ import {
   isOperationsHubEnabled,
 } from "@/lib/feature-flags";
 import { isPublicPreviewSlimNavEnabled } from "@/lib/navigation/public-preview-slim-nav";
-import { canAccessLeadershipPreviewStack } from "@/lib/leadership-preview-access";
+import {
+  ACTIONS_ONLY_PREVIEW_COOKIE_NAME,
+  canAccessLeadershipPreviewStack,
+  isActionsOnlyPreviewActive,
+} from "@/lib/leadership-preview-access";
 import { syncPortalAuthMetadataForPrismaUser } from "@/lib/sync-portal-auth-metadata";
 import type { NavRole } from "@/lib/navigation/types";
 
@@ -100,17 +104,24 @@ export default async function AppLayout({
       console.error("[layout] Failed to sync Supabase user_metadata:", error);
     });
   }
+  const previewViewer = {
+    id: userId,
+    email: session.user.email,
+    name: session.user.name,
+    roles,
+    primaryRole: navPrimaryRole,
+    internalLevel: session.user.internalLevel,
+  };
+  const actionsOnlyPreviewCookie =
+    cookieStore.get(ACTIONS_ONLY_PREVIEW_COOKIE_NAME)?.value ?? null;
+  const actionsOnlyPreviewActive = isActionsOnlyPreviewActive(previewViewer, {
+    previewCookie: actionsOnlyPreviewCookie,
+    allowAdminPreviewCookie: officerBypassesPublicGate,
+  });
   const officerSlimNavActive =
     isPublicPreviewSlimNavEnabled() &&
     !previewActive &&
-    canAccessLeadershipPreviewStack({
-      id: userId,
-      email: session.user.email,
-      name: session.user.name,
-      roles,
-      primaryRole: navPrimaryRole,
-      internalLevel: session.user.internalLevel,
-    });
+    (canAccessLeadershipPreviewStack(previewViewer) || actionsOnlyPreviewActive);
 
   return (
     <AppShell
@@ -141,6 +152,8 @@ export default async function AppLayout({
       publicGateActive={publicGateActive}
       previewModeActive={previewActive}
       officerSlimNavActive={officerSlimNavActive}
+      actionsOnlyPreviewActive={actionsOnlyPreviewActive}
+      actionsOnlyPreviewCookieActive={actionsOnlyPreviewCookie === "1"}
     >
       {children}
     </AppShell>

@@ -23,7 +23,6 @@ import type { ActionViewer } from "./action-permissions";
 export interface MemberActionsByRole {
   lead: ActionItemWithRelations[];
   executing: ActionItemWithRelations[];
-  input: ActionItemWithRelations[];
 }
 
 export interface MemberQuarterlyEntry {
@@ -133,7 +132,6 @@ export async function loadMemberPeopleStrategy(
   const actions: MemberActionsByRole = {
     lead: active.filter((i) => subjectHasRole(i, subjectUserId, "LEAD")),
     executing: active.filter((i) => subjectHasRole(i, subjectUserId, "EXECUTING")),
-    input: active.filter((i) => subjectHasRole(i, subjectUserId, "INPUT")),
   };
 
   const quarterlyHistory: MemberQuarterlyEntry[] = (user?.quarterlyReviews ?? []).map(

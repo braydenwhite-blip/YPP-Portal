@@ -125,10 +125,10 @@ describe("parseActionFilters", () => {
 describe("buildActionsHubTabHref", () => {
   it("swaps tab params while preserving hub filters", () => {
     const href = buildActionsHubTabHref(
-      { view: "input" },
+      { who: "me" },
       { who: "all", dept: "d1", ch: "chap-2", vis: "OFFICERS_ONLY", q: "recruit" }
     );
-    expect(href).toBe("/actions?view=input&dept=d1&ch=chap-2&vis=OFFICERS_ONLY&q=recruit");
+    expect(href).toBe("/actions?who=me&dept=d1&ch=chap-2&vis=OFFICERS_ONLY&q=recruit");
   });
 
   it("drops stale tab params when switching views", () => {

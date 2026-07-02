@@ -588,9 +588,8 @@ export async function getActionsForEntity(
 }
 
 /**
- * Actions explicitly assigned to a meeting via the dedicated `meetingId` FK (the
- * Actions hub "+ Add to meeting" picker). Independent of sourceType provenance.
- * Every result is visibility-filtered for `viewer`.
+ * Actions explicitly assigned to a meeting via the dedicated `meetingId` FK.
+ * Independent of sourceType provenance. Every result is visibility-filtered for `viewer`.
  */
 export async function getActionsForMeeting(
   meetingId: string,

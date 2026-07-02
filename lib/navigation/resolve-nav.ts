@@ -86,6 +86,8 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/admin/hiring-committee",
   /** Hidden until product is ready; page remains reachable by URL. */
   "/instructor/mentee-health",
+  /** Messaging inbox — reachable by URL; not a top-level sidebar destination. */
+  "/messages",
   /**
    * Chapter links are consolidated into a single "Chapter Hub" entry
    * to keep the sidebar compact. The destination pages remain reachable
@@ -283,6 +285,8 @@ export interface ResolveNavInput {
    * bundles cannot read PORTAL_PUBLIC_GATE / PORTAL_SLIM_NAV reliably.
    */
   officerSlimNavActive?: boolean;
+  /** Narrow Home + Actions chrome (pilot email or admin preview cookie). */
+  actionsOnlyPreviewActive?: boolean;
   viewerEmail?: string | null;
   viewerInternalLevel?: number | null;
 }
@@ -527,13 +531,19 @@ export function resolveNavModel(
   const adminSubtypes = input.adminSubtypes ?? [];
   const slimNavActive =
     input.officerSlimNavActive === true ||
+    input.actionsOnlyPreviewActive === true ||
     (input.officerSlimNavActive !== false &&
       shouldApplyPublicPreviewSlimNav(primaryRole, roles, {
         email: input.viewerEmail,
         internalLevel: input.viewerInternalLevel,
       }));
   const slimNavHrefList = slimNavActive
-    ? getPublicPreviewSlimNavHrefList(primaryRole, roles, adminSubtypes)
+    ? input.actionsOnlyPreviewActive
+      ? ["/", "/actions"]
+      : getPublicPreviewSlimNavHrefList(primaryRole, roles, adminSubtypes, {
+          email: input.viewerEmail,
+          internalLevel: input.viewerInternalLevel,
+        })
     : [];
   const baseLimit = Math.min(input.maxCoreItems ?? CORE_NAV_LIMIT, CORE_NAV_LIMIT);
   const limit = slimNavActive
@@ -674,7 +684,12 @@ export function resolveNavModel(
   }
 
   if (slimNavActive) {
-    const slimHrefs = getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes);
+    const slimHrefs = input.actionsOnlyPreviewActive
+      ? new Set(["/", "/actions"])
+      : getPublicPreviewSlimNavHrefs(primaryRole, roles, adminSubtypes, {
+          email: input.viewerEmail,
+          internalLevel: input.viewerInternalLevel,
+        });
     visible = visible.filter((item) => slimHrefs.has(item.href));
   }
 

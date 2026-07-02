@@ -112,7 +112,6 @@ describe("new assignment emails — createActionItem", () => {
     leadId: "u1",
     deadlineStart: "2026-06-10",
     executingUserIds: ["u2"],
-    inputUserIds: [],
   };
 
   function mockCreatePath() {

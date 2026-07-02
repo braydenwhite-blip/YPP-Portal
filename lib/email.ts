@@ -545,6 +545,36 @@ export async function sendNewAssignmentEmail({
   });
 }
 
+/** People Strategy — @mention ping on an action comment. */
+export async function sendActionMentionEmail({
+  to,
+  recipientName,
+  authorName,
+  actionTitle,
+  commentPreview,
+  actionUrl,
+}: {
+  to: string;
+  recipientName: string | null;
+  authorName: string;
+  actionTitle: string;
+  commentPreview: string;
+  actionUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const preview =
+    commentPreview.length > 280 ? `${commentPreview.slice(0, 277).trimEnd()}…` : commentPreview;
+
+  return sendNotificationEmail({
+    to,
+    name: firstName,
+    title: `${authorName} tagged you on an action`,
+    body: `<p><strong>${escapeHtml(actionTitle)}</strong></p><p style="margin: 12px 0 0; color: #4b5563;">${escapeHtml(preview)}</p>`,
+    link: actionUrl,
+    linkText: "View action",
+  });
+}
+
 /**
  * People Strategy — automated Action-Tracker deadline emails.
  *

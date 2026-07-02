@@ -3,6 +3,11 @@ import Link from "next/link";
 import { isPublicGateEnabled, isOfficerTierFromAuth } from "@/lib/public-gate";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
+import { cookies } from "next/headers";
+import {
+  ACTIONS_ONLY_PREVIEW_COOKIE_NAME,
+  isActionsOnlyPreviewActive,
+} from "@/lib/leadership-preview-access";
 import {
   getHiringDemoHomeHref,
   isHiringDemoModeEnabled,
@@ -129,6 +134,22 @@ function ReviewerHome({
           </p>
         </div>
       )}
+    </HomeShell>
+  );
+}
+
+function ActionsOnlyPreviewHome({ name }: { name: string }) {
+  return (
+    <HomeShell
+      greeting={name ? `Hi, ${name}.` : "Welcome back."}
+      intro="You're previewing the Actions tracker. Use Home for a quick overview, or jump straight into your action list."
+    >
+      <PrimaryCard
+        href="/actions"
+        title="Actions"
+        body="See what's assigned to you, update status, and tag teammates in comments."
+        cta="Open Actions"
+      />
     </HomeShell>
   );
 }
@@ -295,6 +316,26 @@ export default async function OverviewPage() {
     primaryRole: session.user.primaryRole,
     adminSubtypes: session.user.adminSubtypes,
   };
+
+  const previewViewer = {
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+    roles,
+    primaryRole: session.user.primaryRole,
+    internalLevel: session.user.internalLevel,
+  };
+  const cookieStore = await cookies();
+  const actionsOnlyPreviewCookie =
+    cookieStore.get(ACTIONS_ONLY_PREVIEW_COOKIE_NAME)?.value ?? null;
+  const actionsOnlyPreview = isActionsOnlyPreviewActive(previewViewer, {
+    previewCookie: actionsOnlyPreviewCookie,
+    allowAdminPreviewCookie: officerBypassesPublicGate,
+  });
+
+  if (actionsOnlyPreview) {
+    return <ActionsOnlyPreviewHome name={name} />;
+  }
 
   if (isReviewer) {
     // Leadership Home cockpit (Knowledge OS V2, plan §7/§27.6) — the

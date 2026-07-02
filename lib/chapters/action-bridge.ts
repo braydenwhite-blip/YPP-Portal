@@ -24,7 +24,6 @@ export type ChapterActionInput = {
   priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   visibility?: "ALL_LEADERSHIP" | "OFFICERS_ONLY";
   goalCategory?: string;
-  inputUserIds?: string[];
 };
 
 /** Create a chapter-scoped ActionItem with the owner assigned as LEAD + EXECUTING. */
@@ -32,7 +31,6 @@ export async function createChapterActionItem(
   db: Db,
   input: ChapterActionInput
 ): Promise<{ id: string }> {
-  const inputUserIds = (input.inputUserIds ?? []).filter((id) => id && id !== input.leadId);
   const created = await db.actionItem.create({
     data: {
       title: input.title,
@@ -52,7 +50,6 @@ export async function createChapterActionItem(
         create: [
           { userId: input.leadId, role: "LEAD" },
           { userId: input.leadId, role: "EXECUTING" },
-          ...inputUserIds.map((userId) => ({ userId, role: "INPUT" as const })),
         ],
       },
     },

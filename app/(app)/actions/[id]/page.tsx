@@ -5,7 +5,6 @@ import ActionDetailCard, {
   type ActionDetailDTO,
   type RelatedActionLite,
 } from "@/components/people-strategy/action-detail-card";
-import { ButtonLink } from "@/components/ui-v2";
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { getSession } from "@/lib/auth-supabase";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
@@ -23,12 +22,9 @@ import { ACTION_VISIBILITY_LABELS, isRelatedEntityType } from "@/lib/people-stra
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 import { effectiveDeadline } from "@/lib/people-strategy/my-actions-selectors";
 import {
-  canApproveAction,
   canAssignAction,
   canEditAction,
   canDeleteAction,
-  canFlagAction,
-  isOfficerTier,
   type ActionViewer,
 } from "@/lib/people-strategy/action-permissions";
 import { departmentHeaderColor } from "@/lib/people-strategy/actions-hub-grouping";
@@ -104,9 +100,6 @@ function toDetailDTO(
   const executing = item.assignments
     .filter((assignment) => assignment.role === "EXECUTING")
     .map((assignment) => personDTO(assignment.user));
-  const input = item.assignments
-    .filter((assignment) => assignment.role === "INPUT")
-    .map((assignment) => personDTO(assignment.user));
 
   return {
     id: item.id,
@@ -120,10 +113,6 @@ function toDetailDTO(
     status: item.status,
     priority: item.priority,
     completedAt: item.completedAt ? item.completedAt.toISOString() : null,
-    approvedAt: item.approvedAt ? item.approvedAt.toISOString() : null,
-    approvedByName: item.approvedBy
-      ? item.approvedBy.name?.trim() || item.approvedBy.email
-      : null,
     deadlineStart: item.deadlineStart.toISOString(),
     deadlineEnd: item.deadlineEnd ? item.deadlineEnd.toISOString() : null,
     visibility: item.visibility,
@@ -145,7 +134,6 @@ function toDetailDTO(
     people: {
       lead: uniquePeople([lead, ...leadAssignments]),
       executing: uniquePeople(executing),
-      input: uniquePeople(input),
     },
     comments: item.comments.map((comment) => ({
       id: comment.id,
@@ -195,13 +183,10 @@ export default async function ActionDetailPage({ params }: PageProps) {
   const actionShape = toActionShape(item);
   const canEdit = canEditAction(viewer, actionShape);
   const canAssign = canAssignAction(viewer);
-  const canApprove = canApproveAction(viewer);
   const canDelete = canDeleteAction(viewer, actionShape);
-  const canFlag = canFlagAction(viewer, actionShape);
-  const officer = isOfficerTier(viewer);
-  const closeHref = officer ? "/actions?who=all" : "/actions";
+  const closeHref = "/actions";
 
-  const assignableUsers = canAssign ? await listActionAssignableUsers() : [];
+  const assignableUsers = canEdit || canAssign ? await listActionAssignableUsers() : [];
 
   const now = new Date();
   const detail = toDetailDTO(item);
@@ -255,21 +240,12 @@ export default async function ActionDetailPage({ params }: PageProps) {
   return (
     <div className={`${skin.portalSkin} ${skin.fadeIn}`}>
       <div className="mx-auto flex w-full max-w-[880px] flex-col gap-5 pb-12 pt-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href={closeHref}
-            className="text-[13px] font-semibold text-brand-700 no-underline hover:underline"
-          >
-            ← All actions
-          </Link>
-          <div className="flex flex-wrap items-center gap-2">
-            {canEdit ? (
-              <ButtonLink href={`/actions/${item.id}/edit`} variant="primary" size="sm">
-                Edit action
-              </ButtonLink>
-            ) : null}
-          </div>
-        </div>
+        <Link
+          href={closeHref}
+          className="text-[13px] font-semibold text-brand-700 no-underline hover:underline"
+        >
+          ← All actions
+        </Link>
 
         <header
           className="rounded-[14px] border border-line-card bg-surface px-5 py-4 shadow-card"
@@ -324,9 +300,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
           item={detail}
           canEdit={canEdit}
           canAssign={canAssign}
-          canApprove={canApprove}
           canDelete={canDelete}
-          canFlag={canFlag}
           closeHref={closeHref}
           assignableUsers={assignableUsers}
           sameEntityActions={sameEntityActions}

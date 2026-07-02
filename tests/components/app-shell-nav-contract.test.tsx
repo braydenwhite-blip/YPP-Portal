@@ -116,7 +116,7 @@ describe("app shell nav contract", () => {
           roles={["ADMIN"]}
           adminSubtypes={["SUPER_ADMIN"]}
           primaryRole="ADMIN"
-          badges={{ messages: 120 }}
+          badges={{ notifications: 120 }}
         />
       );
       expect(screen.getByText("99+")).toBeInTheDocument();
@@ -127,7 +127,7 @@ describe("app shell nav contract", () => {
         <Nav roles={["ADMIN"]} adminSubtypes={["SUPER_ADMIN"]} primaryRole="ADMIN" />
       );
 
-      const search = screen.getByRole("textbox", { name: /filter navigation/i });
+      const search = screen.getByRole("searchbox", { name: /search sidebar pages/i });
       await userEvent.type(search, "zzz-no-such-page");
       expect(screen.getByText(/No results for/)).toBeInTheDocument();
 

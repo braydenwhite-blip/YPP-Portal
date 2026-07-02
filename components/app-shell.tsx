@@ -59,6 +59,8 @@ export default function AppShell({
   publicGateActive,
   previewModeActive,
   officerSlimNavActive,
+  actionsOnlyPreviewActive,
+  actionsOnlyPreviewCookieActive,
 }: {
   children: React.ReactNode;
   userName?: string | null;
@@ -98,6 +100,10 @@ export default function AppShell({
   previewModeActive?: boolean;
   /** Curated officer sidebar (leadership + published public surfaces only). */
   officerSlimNavActive?: boolean;
+  /** Home + Actions preview ship — simplified chrome for pilots. */
+  actionsOnlyPreviewActive?: boolean;
+  /** Admin toggled the local actions-only preview cookie. */
+  actionsOnlyPreviewCookieActive?: boolean;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarId = "portal-sidebar";
@@ -143,27 +149,6 @@ export default function AppShell({
         : "Portal access",
     [primaryRole, adminSubtypes, title, internalLevel, ladder, canonicalTitle],
   );
-
-  // The operating context shown in the global command bar.
-  const workspaceLabel = useMemo(() => {
-    const role = primaryRole?.toUpperCase();
-    if (role === "CHAPTER_PRESIDENT") return "Chapter Workspace";
-    if (officerTier) return "Leadership Workspace";
-    switch (role) {
-      case "INSTRUCTOR":
-        return "Instructor Studio";
-      case "STUDENT":
-        return "Student Portal";
-      case "PARENT":
-        return "Family Portal";
-      case "MENTOR":
-        return "Mentorship";
-      case "APPLICANT":
-        return "Application Center";
-      default:
-        return "YPP Portal";
-    }
-  }, [officerTier, primaryRole]);
 
   return (
     <Entity360Provider>
@@ -239,6 +224,7 @@ export default function AppShell({
             publicGateActive={publicGateActive}
             officerTier={officerTier}
             officerSlimNavActive={officerSlimNavActive}
+            actionsOnlyPreviewActive={actionsOnlyPreviewActive}
             viewerEmail={userEmail}
             viewerInternalLevel={internalLevel}
           />
@@ -284,17 +270,41 @@ export default function AppShell({
             </a>
           </div>
         )}
-        <CommandBar
-          workspaceLabel={workspaceLabel}
-          roleLabel={userTitle}
-          officerTier={officerTier}
-        />
+        {actionsOnlyPreviewCookieActive && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              padding: "8px 16px",
+              background: "#ecfdf5",
+              borderBottom: "1px solid #a7f3d0",
+              color: "#065f46",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            <span>Previewing actions-only view (what Zach will see)</span>
+            <a
+              href="/api/preview/actions-only?enable=0"
+              style={{ color: "#047857", textDecoration: "underline", fontWeight: 600 }}
+            >
+              Exit preview
+            </a>
+          </div>
+        )}
+        <CommandBar />
         {children}
       </main>
+      {!actionsOnlyPreviewActive ? (
       <PageHelperFab
         primaryRole={(primaryRole as PageHelperRole | null | undefined) ?? undefined}
         roles={roles}
       />
+      ) : null}
     </div>
     </CommandModeProvider>
     </HelpAgentProvider>

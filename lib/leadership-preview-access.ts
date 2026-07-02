@@ -24,6 +24,9 @@ import {
 } from "@/lib/leadership-preview-roster";
 import type { NavRole } from "@/lib/navigation/types";
 
+/** Cookie for admins to preview the actions-only UI locally before sharing a pilot link. */
+export const ACTIONS_ONLY_PREVIEW_COOKIE_NAME = "ypp_actions_only_preview";
+
 export const LEADERSHIP_PREVIEW_PATH_PREFIXES = [
   "/people",
   "/actions",
@@ -32,6 +35,19 @@ export const LEADERSHIP_PREVIEW_PATH_PREFIXES = [
   "/command-center",
   "/work",
   "/help-agent",
+] as const;
+
+/** Routes an actions-only preview pilot may visit (Home + Actions + account basics). */
+export const ACTIONS_ONLY_PREVIEW_ALLOWED_PREFIXES = [
+  "/",
+  "/actions",
+  "/profile",
+  "/settings",
+  "/locked",
+  "/preview",
+  "/onboarding",
+  "/instructor-onboarding",
+  "/qa/instructor-onboarding",
 ] as const;
 
 export type LeadershipPreviewViewer = {
@@ -44,10 +60,12 @@ export type LeadershipPreviewViewer = {
 };
 
 let cachedPilotEmails: Set<string> | null = null;
+let cachedActionsOnlyEmails: Set<string> | null = null;
 
 /** @internal Test helper — clears the pilot-email parse cache. */
 export function resetLeadershipPilotEmailCache(): void {
   cachedPilotEmails = null;
+  cachedActionsOnlyEmails = null;
 }
 
 /** Extra pilot emails from env (comma-separated). Merged with the built-in roster. */
@@ -65,6 +83,56 @@ export function isLeadershipPilotEmail(email: string | null | undefined): boolea
   const normalized = email?.trim().toLowerCase();
   if (!normalized) return false;
   return getLeadershipPilotEmails().has(normalized);
+}
+
+/** Extra actions-only pilot emails from env (comma-separated). Home + Actions nav only. */
+export function getActionsOnlyPilotEmails(): ReadonlySet<string> {
+  if (cachedActionsOnlyEmails) return cachedActionsOnlyEmails;
+  const fromEnv = (process.env.PORTAL_ACTIONS_ONLY_PREVIEW_EMAILS ?? "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  cachedActionsOnlyEmails = new Set(fromEnv);
+  return cachedActionsOnlyEmails;
+}
+
+export function isActionsOnlyPilotEmail(email: string | null | undefined): boolean {
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) return false;
+  return getActionsOnlyPilotEmails().has(normalized);
+}
+
+export function canAccessActionsOnlyPreview(viewer: LeadershipPreviewViewer): boolean {
+  return isActionsOnlyPilotEmail(viewer.email);
+}
+
+/**
+ * True when the session should use the narrow Home + Actions chrome.
+ * Pilot emails take precedence over officer / leadership preview access.
+ * Admins may also toggle a short-lived preview cookie locally.
+ */
+export function isActionsOnlyPreviewActive(
+  viewer: LeadershipPreviewViewer,
+  options?: { previewCookie?: string | null; allowAdminPreviewCookie?: boolean },
+): boolean {
+  if (isActionsOnlyPilotEmail(viewer.email)) return true;
+  if (options?.allowAdminPreviewCookie && options.previewCookie === "1") return true;
+  return false;
+}
+
+export function isActionsOnlyPreviewAllowedPath(pathname: string): boolean {
+  return ACTIONS_ONLY_PREVIEW_ALLOWED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+export function isActionsOnlyPreviewAccessFromAuth(
+  metadata: unknown,
+  email?: string | null,
+): boolean {
+  const record = metadata as { actionsOnlyPreviewAccess?: boolean } | null | undefined;
+  if (record?.actionsOnlyPreviewAccess === true) return true;
+  return canAccessActionsOnlyPreview({ email });
 }
 
 export function isLeadershipPreviewPath(pathname: string): boolean {
@@ -88,6 +156,9 @@ function hasLeadershipPlatformOfficerRole(viewer: LeadershipPreviewViewer): bool
  * Server + isomorphic: may this user see/use the leadership preview stack?
  */
 export function canAccessLeadershipPreviewStack(viewer: LeadershipPreviewViewer): boolean {
+  // Actions-only pilots use the narrower Home + Actions ship — not the full stack.
+  if (isActionsOnlyPilotEmail(viewer.email)) return false;
+
   if (isLeadershipPilotEmail(viewer.email) || isLeadershipRosterEmail(viewer.email)) {
     return true;
   }
@@ -138,11 +209,12 @@ export function shouldApplyLeadershipPreviewNav(
   roles: NavRole[],
   viewer: LeadershipPreviewViewer = {},
 ): boolean {
-  return canAccessLeadershipPreviewStack({
+  const merged = {
     ...viewer,
     primaryRole,
     roles,
-  });
+  };
+  return canAccessLeadershipPreviewStack(merged) || canAccessActionsOnlyPreview(merged);
 }
 
 export function computeLeadershipPreviewAccessFlag(viewer: LeadershipPreviewViewer): boolean {

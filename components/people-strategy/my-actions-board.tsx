@@ -8,7 +8,6 @@ import {
   effectiveDeadline,
   isActionOverdue,
   selectExecuting,
-  selectNeedsInput,
   selectUpcoming,
   summarizeMyActions,
 } from "@/lib/people-strategy/my-actions-selectors";
@@ -180,7 +179,6 @@ export function MyActionsBoard({
   const delegated = items
     .filter((i) => i.leadId === userId && !isExecutingByMe(i, userId) && isOpen(i))
     .sort((a, b) => effectiveDeadline(a).getTime() - effectiveDeadline(b).getTime());
-  const needsInput = selectNeedsInput(items, userId).filter(isOpen);
   const completed = items
     .filter((i) => i.status === "COMPLETE")
     .sort((a, b) => (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0))
@@ -218,13 +216,6 @@ export function MyActionsBoard({
       href: "/actions?who=me",
     },
     {
-      label: "Needs your input",
-      value: summary.needsInput,
-      detail: summary.needsInput ? "Awaiting your feedback" : "Nothing waiting",
-      accent: "teal",
-      href: "/actions?who=me",
-    },
-    {
       label: "Next deadline",
       value: summary.nextDeadline ? formatMonthDay(summary.nextDeadline) : "—",
       detail: nextItem ? nextItem.title : "Nothing scheduled",
@@ -248,12 +239,11 @@ export function MyActionsBoard({
         </span>
       </div>
       <p className="m-0 mb-[18px] max-w-2xl text-[13.5px] text-ink-muted">
-        Everything assigned to you — what to do now, what you&apos;ve delegated, and what&apos;s
-        waiting on you.
+        Everything assigned to you — what to do now and what you&apos;ve delegated.
       </p>
 
       {/* stat-filter cards */}
-      <div className="mb-[22px] grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mb-[22px] grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <StatCardV2
             key={c.label}
@@ -295,37 +285,6 @@ export function MyActionsBoard({
 
         {/* RIGHT */}
         <div className="flex flex-col gap-[18px]">
-          <Lane dot="#d9a300" title="Waiting on your input" count={`${needsInput.length} item`} tinted>
-            {needsInput.length > 0 ? (
-              needsInput.map((item) => (
-                <div key={item.id} className="px-[18px] py-4">
-                  <div className="mb-1 flex items-start justify-between gap-3">
-                    <p className="m-0 text-[14px] font-semibold leading-snug text-ink">{item.title}</p>
-                    <span className="shrink-0 text-[12.5px] font-semibold text-ink-muted">
-                      {dueLabel(item, now).label}
-                    </span>
-                  </div>
-                  <p className="m-0 mb-3 text-[12.5px] text-[#8a7320]">
-                    {item.lead
-                      ? `${item.lead.name ?? item.lead.email} has requested your input.`
-                      : "Your input is requested."}
-                  </p>
-                  <Link
-                    href={`/actions/${item.id}`}
-                    className="inline-flex h-[34px] items-center gap-1.5 rounded-[9px] px-4 text-[12.5px] font-bold text-white no-underline"
-                    style={{ background: "#d9a300" }}
-                  >
-                    Give input →
-                  </Link>
-                </div>
-              ))
-            ) : (
-              <div className="px-[18px] py-4 text-[12.5px] leading-relaxed text-ink-muted">
-                Nobody is waiting on your input right now. Requests from other leads show up here.
-              </div>
-            )}
-          </Lane>
-
           {completed.length > 0 ? (
             <Lane dot="#0e9f6e" title="Recently completed">
               {completed.map((item) => (
