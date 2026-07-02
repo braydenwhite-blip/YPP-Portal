@@ -31,6 +31,7 @@ import {
 import { DEFAULT_YPP_DESCRIPTION } from "@/lib/partners/outreach-email";
 import type { PartnerScope } from "@/lib/partners/permissions";
 import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import { isActionOverdue } from "@/lib/people-strategy/my-actions-selectors";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import type {
   PartnerDetailDTO,
@@ -271,9 +272,8 @@ async function loadPartnerOpenActions(
   return actions
     .filter((a) => OPEN_ACTION_STATUSES.has(a.status))
     .map((a) => {
-      const due = a.deadlineEnd ?? a.deadlineStart;
-      const overdue =
-        a.status === "OVERDUE" || (!!due && due.getTime() < now.getTime());
+      // The canonical overdue rule — so this card and /actions always agree.
+      const overdue = isActionOverdue(a, now);
       return {
         id: a.id,
         title: a.title,

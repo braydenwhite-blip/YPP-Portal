@@ -35,6 +35,11 @@ const IN_FLIGHT_STATUSES = ["ACTIVE", "BLOCKED", "ON_HOLD"] as const;
 /** A drawer section stays scannable — the worst few, not an inventory. */
 const MAX_WORKFLOWS = 6;
 
+/** How many candidates get health-scored before the worst-first cut. Bounds the
+ *  hydration query on records with pathologically many workflows while keeping
+ *  the cut health-ordered, not recency-ordered. */
+const MAX_HEALTH_CANDIDATES = 24;
+
 type ExecutionRow = {
   id: string;
   stepId: string | null;
@@ -134,10 +139,11 @@ export async function loadEntity360Workflows(
   const [instances, stageEvents] = await Promise.all([
     prisma.workflowInstance.findMany({
       // Re-filter by status: step-linked ids arrive unfiltered, and the panel
-      // only shows in-flight work.
+      // only shows in-flight work. Health is computed for ALL of these and the
+      // worst-first cut happens after sorting — never cut by recency here.
       where: { id: { in: candidateIds }, status: { in: [...IN_FLIGHT_STATUSES] } },
       orderBy: { startedAt: "desc" },
-      take: MAX_WORKFLOWS,
+      take: MAX_HEALTH_CANDIDATES,
       select: {
         id: true,
         title: true,
@@ -240,5 +246,5 @@ export async function loadEntity360Workflows(
     };
   });
 
-  return sortWorkflowsWorstFirst(workflows);
+  return sortWorkflowsWorstFirst(workflows).slice(0, MAX_WORKFLOWS);
 }

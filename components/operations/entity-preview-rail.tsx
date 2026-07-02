@@ -286,19 +286,7 @@ export function EntityPreviewRail({
                         {[workflow.stageName, workflow.progressLabel].filter(Boolean).join(" · ")}
                       </span>
                     </span>
-                    <StatusBadge
-                      tone={
-                        workflow.tone === "overdue"
-                          ? "danger"
-                          : workflow.tone === "warning"
-                            ? "warning"
-                            : workflow.tone === "success"
-                              ? "success"
-                              : workflow.tone === "info"
-                                ? "info"
-                                : "neutral"
-                      }
-                    >
+                    <StatusBadge tone={ENTITY_TONE_TO_BADGE[workflow.tone] ?? "neutral"}>
                       {workflow.healthLabel}
                     </StatusBadge>
                   </Link>

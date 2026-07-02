@@ -9,6 +9,7 @@
  */
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -290,7 +291,7 @@ export function PartnerOperatingRoom({ partner }: { partner: PartnerDetailDTO })
               <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
                 {partner.openActions.map((action) => (
                   <li key={action.id}>
-                    <a
+                    <Link
                       href={action.href}
                       className="flex items-center justify-between gap-2 rounded-[8px] border border-line-soft px-2.5 py-2 no-underline transition-colors duration-150 hover:border-brand-400 hover:bg-brand-50/50"
                     >
@@ -303,7 +304,7 @@ export function PartnerOperatingRoom({ partner }: { partner: PartnerDetailDTO })
                       <StatusBadge tone={action.overdue ? "danger" : "neutral"}>
                         {action.statusLabel}
                       </StatusBadge>
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>

@@ -584,7 +584,9 @@ export function routeIntent(question: string): Intent {
 }
 
 const BLOCK_BUILDERS: Record<
-  Exclude<CoSBlockKind, "entity_summary" | "recent_decisions">,
+  // entity_summary / recent_decisions / workflows_in_flight are entity-answer
+  // blocks (buildEntitySummaryAnswer), never produced by the global classifier.
+  Exclude<CoSBlockKind, "entity_summary" | "recent_decisions" | "workflows_in_flight">,
   (data: Data360Payload, now: Date) => CoSAnswerBlock
 > = {
   needs_attention: (d) => needsAttentionBlock(d),
@@ -604,7 +606,8 @@ const BLOCK_BUILDERS: Record<
 
 /** "recent_decisions" reuses the decisions-needing-action data but shows all. */
 function buildBlock(kind: CoSBlockKind, data: Data360Payload, now: Date): CoSAnswerBlock | null {
-  if (kind === "entity_summary") return null;
+  // Entity-answer-only kinds — never produced by the global classifier.
+  if (kind === "entity_summary" || kind === "workflows_in_flight") return null;
   if (kind === "recent_decisions") {
     const block = decisionsNeedingActionBlock(data);
     return {
@@ -690,9 +693,10 @@ const WORK_TONE: Record<string, CoSTone> = {
  * Should a question asked WITH entity context (the "Ask about this record"
  * flow) be answered about that entity, rather than falling back to the global
  * brief? Yes when it reads entity-shaped ("this…", "what's blocking…",
- * "status", "workflow", …) or names the record's own title. Pure and
- * conservative — a clearly global question ("what needs attention this week")
- * from an entity page still gets the global answer.
+ * "status", "workflow", …) or names the record's own title. Deliberately
+ * generous: with explicit context the user clicked "Ask about this", so only
+ * questions with none of the hint words (e.g. "what needs attention across
+ * chapters?") fall through to the global brief.
  */
 const ENTITY_SCOPE_HINT =
   /\b(this|it|summar|contribut|blocking|blocked|stuck|status|workflow|risk|owner|why|next outreach|promised|happen next|next step)\b/i;

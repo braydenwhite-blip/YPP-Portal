@@ -26,7 +26,7 @@ function meeting(
     scheduledISO: "2026-06-22T15:00:00.000Z",
     facilitator: null,
     scopeLabel: null,
-    counts: { attendees: 0, decisions: 0, followUps: 0, topics: 0 },
+    counts: { attendees: 0, decisions: 0, followUps: 0, openFollowUps: 0, topics: 0 },
   };
 }
 

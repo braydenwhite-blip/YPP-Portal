@@ -103,23 +103,26 @@ export async function POST(request: Request) {
   // Build the deterministic answer.
   let answer: CoSAnswer;
   try {
-    // Chapter questions get real chapter data — but only for chapter leadership,
-    // so a CP/officer can't pull the whole network's chapter picture this way.
-    if (isChapterQuestion(question) && isChapterLeadership(session.user)) {
+    // Entity context wins first: the ask came from a specific record ("Ask
+    // about this"), so even a question containing the word "chapter" (e.g.
+    // "Summarize this chapter.") must answer about THAT record, not the
+    // network-wide chapter roll-up. Load the entity first so the scope check
+    // can also match its title; a clearly global question still falls through.
+    let entityAnswer: CoSAnswer | null = null;
+    if (context && isEntity360Type(context.entityType)) {
+      const entity = await loadEntity360(context.entityType, context.entityId!, viewer, { now });
+      if (entity && shouldScopeAnswerToEntity(question, entity.title)) {
+        entityAnswer = buildEntitySummaryAnswer(question, entity, { now, aiAvailable });
+      }
+    }
+    if (entityAnswer) {
+      answer = entityAnswer;
+    } else if (isChapterQuestion(question) && isChapterLeadership(session.user)) {
+      // Chapter questions get real chapter data — but only for chapter leadership,
+      // so a CP/officer can't pull the whole network's chapter picture this way.
       const chapterAnswer = await answerChapterQuestion(question, { now, aiAvailable });
       if (chapterAnswer) {
         answer = chapterAnswer;
-      } else {
-        const data = await loadData360(viewer, { now });
-        answer = buildChiefOfStaffAnswer(question, data, { now, aiAvailable });
-      }
-    } else if (context && isEntity360Type(context.entityType)) {
-      // Entity context means the ask came from an entity record ("Ask about
-      // this"). Load the entity first so the scope check can also match its
-      // title; a clearly global question still falls through to the brief.
-      const entity = await loadEntity360(context.entityType, context.entityId!, viewer, { now });
-      if (entity && shouldScopeAnswerToEntity(question, entity.title)) {
-        answer = buildEntitySummaryAnswer(question, entity, { now, aiAvailable });
       } else {
         const data = await loadData360(viewer, { now });
         answer = buildChiefOfStaffAnswer(question, data, { now, aiAvailable });

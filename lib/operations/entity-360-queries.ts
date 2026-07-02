@@ -2193,7 +2193,7 @@ async function loadChapter360(
   }
   // Advising gaps come from the same metrics Data 360 grades (target-zero only).
   for (const metric of advising.metrics) {
-    if (metric.breached && metric.value > 0) {
+    if (metric.isGap && metric.value > 0) {
       risks.push(`${metric.label}: ${metric.value}.`);
     }
   }

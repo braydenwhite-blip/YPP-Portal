@@ -55,7 +55,8 @@ export async function listMeetings(): Promise<MeetingListItem[]> {
     },
   });
   // Open follow-up counts in ONE grouped query (never per-meeting): "open"
-  // means not yet COMPLETED — the same reading the command center uses.
+  // means not yet COMPLETED (OPEN or IN_PROGRESS), matching MeetingFollowUp's
+  // WeeklyFollowUpStatus semantics.
   const openFollowUpGroups = await prisma.meetingFollowUp.groupBy({
     by: ["meetingId"],
     where: {
