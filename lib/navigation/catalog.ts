@@ -694,81 +694,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 3,
     },
     {
-      href: "/people/develop",
-      label: "Development",
-      icon: "🌱",
-      // Leadership development cockpit: who needs coaching, who is overloaded,
-      // which reviews are due, who is ready for more. Officer-tier in nav; the
-      // page itself additionally requires leadership (mirrors /people gating).
-      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: [
-        "Leadership development",
-        "Development cockpit",
-        "Needs coach",
-        "Review overdue",
-        "Ready for more",
-        "Coaching",
-        "Development record",
-        "Officer support",
-        "Instructor development",
-      ],
-      dashboardDescription:
-        "Who needs coaching, who is overloaded, which reviews are due, and who is ready for more responsibility.",
-      dashboardPriority: 4,
-    },
-    {
-      href: "/people/develop/reviews",
-      label: "Review Cycles",
-      icon: "🔄",
-      // The review-cycle workspace: run each instructor/officer review end to
-      // end. Officer-tier plus MENTOR — mentors can be assigned as reviewers;
-      // the loader scopes non-leadership viewers to their own cycles.
-      roles: [
-        "ADMIN",
-        "STAFF",
-        "CHAPTER_PRESIDENT",
-        "HIRING_CHAIR",
-        "MENTOR",
-      ] as NavRole[],
-      searchAliases: [
-        "Review cycle",
-        "Run a review",
-        "Start a review",
-        "Review workspace",
-        "Synthesis",
-        "Coaching plan",
-      ],
-      dashboardDescription:
-        "Run instructor and officer reviews end to end — collect input, synthesize, and build the coaching plan.",
-      dashboardPriority: 5,
-    },
-    {
-      href: "/my-input",
-      label: "Review Input",
-      icon: "✍️",
-      // The reviewee/contributor side of the review flow: self-reflection,
-      // feedback requests about teammates, released summaries. Internal roles
-      // only; the page shows nothing unless something is waiting on you.
-      roles: [
-        "ADMIN",
-        "STAFF",
-        "CHAPTER_PRESIDENT",
-        "HIRING_CHAIR",
-        "MENTOR",
-        "INSTRUCTOR",
-      ] as NavRole[],
-      searchAliases: [
-        "Self-reflection",
-        "My review",
-        "Review feedback",
-        "Give feedback",
-        "Review summary",
-      ],
-      dashboardDescription:
-        "Your self-reflection, feedback requests about teammates, and your released review summaries.",
-      dashboardPriority: 6,
-    },
-    {
       href: "/partners",
       label: "Partners",
       icon: "🤝",
@@ -951,10 +876,34 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/mentorship",
       label: "Mentorship",
       icon: "🤝",
-      roles: MENTOR_ROLES,
-      searchAliases: ["Support Hub", "Mentees", "Relationships"],
-      dashboardDescription: "Open mentorship relationships, check-ins, next steps, and review work.",
-      dashboardPriority: 16,
+      // The unified leadership-development hub: three perspectives in one place
+      // (My development / Mentor console / leadership Oversight). Every internal
+      // role lands here; the page resolves what each viewer may see.
+      roles: [
+        "ADMIN",
+        "STAFF",
+        "CHAPTER_PRESIDENT",
+        "HIRING_CHAIR",
+        "MENTOR",
+        "INSTRUCTOR",
+      ] as NavRole[],
+      searchAliases: [
+        "Support Hub",
+        "Mentees",
+        "Relationships",
+        "Development",
+        "Leadership development",
+        "My development",
+        "Mentor console",
+        "Coaching",
+        "Review cycles",
+        "Self-reflection",
+        "Ready for more",
+        "Needs coach",
+      ],
+      dashboardDescription:
+        "Your development, the people you coach, and (for leadership) who needs support across the whole system.",
+      dashboardPriority: 4,
     },
     {
       href: "/my-mentor",

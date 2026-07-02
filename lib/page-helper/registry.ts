@@ -3266,11 +3266,11 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/mentorship",
-    title: "Mentorship",
+    title: "Mentorship — Pathways Portal",
     content: {
-      purpose: "This page brings together the main tools and details for the mentorship.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+      purpose: "This is the leadership-development hub with three perspectives: your own development, the people you coach, and (for leadership) oversight of the whole system.",
+      firstStep: "Check the perspective chips under the header — each shows a different side of mentorship; the page opens on the widest one you have.",
+      nextStep: "Take the next step each card names — submit input, coach a mentee, or clear the most pressing lane — and the hub updates as work lands."
     }
   },
   {
@@ -3406,15 +3406,6 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page brings together the main tools and details for the committee prep packet.",
       firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
-    }
-  },
-  {
-    pattern: "/mentorship/dashboard",
-    title: "Mentorship",
-    content: {
-      purpose: "This page gives you a clear view of the mentorship so you can spot what needs attention first.",
-      firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
-      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
     }
   },
   {
@@ -3667,15 +3658,6 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page brings together the main tools and details for my growth.",
       firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
-    }
-  },
-  {
-    pattern: "/my-input",
-    title: "Review Input — Pathways Portal",
-    content: {
-      purpose: "This page holds your review input — your self-reflection, feedback requests about teammates, and your released review summaries.",
-      firstStep: "Start with whatever is marked as waiting on you — a self-reflection or a feedback form — and answer the prompts that apply.",
-      nextStep: "After you submit, the reviewer is notified and your answers flow into the review; released summaries appear here when ready."
     }
   },
   {
@@ -4332,15 +4314,6 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page brings together the main tools and details for the classes.",
       firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
-    }
-  },
-  {
-    pattern: "/people/develop",
-    title: "Development — Pathways Portal",
-    content: {
-      purpose: "This page shows who needs coaching, who is overloaded, which reviews are due, and who is ready for more responsibility.",
-      firstStep: "Start with the top lane — it holds the most pressing situations — and open a person's next step to act on it.",
-      nextStep: "After you assign a mentor, record a review, or compile a check-in, the person moves out of their lane automatically."
     }
   },
   {

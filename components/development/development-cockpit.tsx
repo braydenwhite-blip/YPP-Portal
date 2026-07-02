@@ -39,10 +39,10 @@ const CARD_SIGNAL_CAP = 3;
 
 function developHref(who: string, lane?: DevelopmentLaneId | null): string {
   const params = new URLSearchParams();
+  params.set("view", "admin");
   if (who === "officers") params.set("who", "officers");
   if (lane) params.set("lane", lane);
-  const qs = params.toString();
-  return qs ? `/people/develop?${qs}` : "/people/develop";
+  return `/mentorship?${params.toString()}`;
 }
 
 function PersonCard({ card }: { card: DevelopmentCard }) {

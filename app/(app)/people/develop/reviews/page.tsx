@@ -63,8 +63,8 @@ export default async function ReviewCyclesPage() {
           eyebrow="Leadership development"
           title="Review cycles"
           subtitle="Run each instructor and officer review end to end — collect input, synthesize, and turn it into a coaching plan."
-          backHref="/people/develop"
-          backLabel="Development"
+          backHref="/mentorship"
+          backLabel="Mentorship"
         />
         {workspace.canStart ? (
           <ButtonLink href="/people/develop/reviews/new" variant="primary" size="sm">

@@ -156,7 +156,7 @@ export function DevelopmentRecordView({ record }: { record: DevelopmentRecord })
         eyebrow="Development record"
         name={facts.name || facts.email}
         identityLine={[facts.contextLabel, facts.email].filter(Boolean).join(" · ")}
-        backHref="/people/develop"
+        backHref="/mentorship?view=admin"
         backLabel="Development"
         badges={
           signals.length > 0 ? (

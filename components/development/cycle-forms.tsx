@@ -16,8 +16,9 @@ import {
 } from "@/lib/development/cycle-flow";
 
 /**
- * Reviewee + contributor forms for the review flow (`/my-input`). Calm,
- * structured-but-not-painful: every prompt optional, one submit, plain
+ * Reviewee + contributor forms for the review flow (the hub's "My
+ * development" view). Calm, structured-but-not-painful: every prompt
+ * optional, one submit, plain
  * language. Manager-side forms live in cycle-manager-forms.tsx.
  */
 

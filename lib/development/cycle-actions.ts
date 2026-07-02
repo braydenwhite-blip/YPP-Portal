@@ -60,11 +60,10 @@ async function requireCycleManager(cycleId: string) {
 }
 
 function revalidateCycleSurfaces(cycleId: string, revieweeId: string) {
-  revalidatePath("/people/develop");
+  revalidatePath("/mentorship");
   revalidatePath("/people/develop/reviews");
   revalidatePath(`/people/develop/reviews/${cycleId}`);
   revalidatePath(`/people/develop/${revieweeId}`);
-  revalidatePath("/my-input");
 }
 
 // ── Start / open ─────────────────────────────────────────────────────────────
@@ -129,7 +128,7 @@ export async function startReviewCycle(
       type: "SYSTEM",
       title: "Your review has started",
       body: "Share your self-reflection — what went well, what was hard, and where you need support.",
-      link: "/my-input",
+      link: "/mentorship?view=me",
     });
   }
   if (data.reviewerId !== leader.id) {
@@ -164,7 +163,7 @@ export async function openCycleForInput(
     type: "SYSTEM",
     title: "Your review has started",
     body: "Share your self-reflection — what went well, what was hard, and where you need support.",
-    link: "/my-input",
+    link: "/mentorship?view=me",
   });
 
   revalidateCycleSurfaces(cycleId, cycle.revieweeId);
@@ -215,7 +214,7 @@ export async function requestCycleFeedback(
         type: "SYSTEM",
         title: `Feedback requested: ${revieweeName}`,
         body: "A short, structured form — what they do well, where they need support.",
-        link: "/my-input",
+        link: "/mentorship?view=me",
       })
     )
   );
@@ -499,7 +498,7 @@ export async function releaseCycleSummary(
     type: "SYSTEM",
     title: "Your review summary is ready",
     body: "Strengths, growth areas, and your recommended next step.",
-    link: "/my-input",
+    link: "/mentorship?view=me",
   });
 
   revalidateCycleSurfaces(cycleId, cycle.revieweeId);
@@ -539,7 +538,7 @@ export async function completeReviewCycle(
       type: "SYSTEM",
       title: "Your review is complete",
       body: "Read your summary — strengths, growth areas, and your next step.",
-      link: "/my-input",
+      link: "/mentorship?view=me",
     });
   }
 

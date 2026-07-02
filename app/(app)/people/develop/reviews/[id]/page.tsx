@@ -17,7 +17,7 @@ export default async function ReviewCyclePage({
 
   // Access is per cycle: the assigned reviewer, the creator, or leadership.
   // The loader returns null for everyone else (including the reviewee — their
-  // surface is /my-input) without revealing that the cycle exists.
+  // surface is the hub's "My development" view) without revealing it exists.
   const detail = await loadReviewCycleDetail(params.id);
   if (!detail) notFound();
 

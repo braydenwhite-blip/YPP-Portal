@@ -558,3 +558,18 @@ export async function loadDevelopmentFactsForReview(
   const { people } = await loadDevelopmentFacts(now);
   return people.find((p) => p.id === userId) ?? null;
 }
+
+/**
+ * Batch variant of `loadDevelopmentFactsForReview` — one pipeline run for a
+ * set of people the caller coaches. Same access contract: callers MUST have
+ * verified the coaching/review relationship for every id first.
+ */
+export async function loadDevelopmentFactsForPeople(
+  userIds: Iterable<string>,
+  now: Date = new Date()
+): Promise<Map<string, DevelopmentPersonFacts>> {
+  const wanted = new Set(userIds);
+  if (wanted.size === 0) return new Map();
+  const { people } = await loadDevelopmentFacts(now);
+  return new Map(people.filter((p) => wanted.has(p.id)).map((p) => [p.id, p]));
+}
