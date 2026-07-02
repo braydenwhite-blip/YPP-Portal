@@ -28,10 +28,12 @@ import {
 } from "./signals";
 import {
   buildReviewQueue,
+  type ActiveCycleQueueInput,
   type PendingChairApproval,
   type RecentStrongReview,
   type ReviewQueueItem,
 } from "./review-queue";
+import { deriveCycleDisplayState } from "./cycle-flow";
 
 /**
  * Leadership Development — data loader.
@@ -126,6 +128,7 @@ async function loadDevelopmentFacts(now: Date): Promise<{
   people: DevelopmentPersonFacts[];
   pendingApprovals: PendingChairApproval[];
   strongReviews: RecentStrongReview[];
+  activeCycles: ActiveCycleQueueInput[];
 }> {
   const today = startOfDay(now);
   const currentQuarter = currentQuarterLabel(now);
@@ -210,7 +213,7 @@ async function loadDevelopmentFacts(now: Date): Promise<{
 
   const ids = classified.map((entry) => entry.user.id);
   if (ids.length === 0) {
-    return { people: [], pendingApprovals: [], strongReviews: [] };
+    return { people: [], pendingApprovals: [], strongReviews: [], activeCycles: [] };
   }
 
   const [
@@ -223,6 +226,7 @@ async function loadDevelopmentFacts(now: Date): Promise<{
     growthTags,
     contributions,
     teachingCounts,
+    openCycles,
   ] = await Promise.all([
     prisma.teamMembership.findMany({
       where: { userId: { in: ids }, isLead: true, team: { status: "ACTIVE" } },
@@ -291,6 +295,22 @@ async function loadDevelopmentFacts(now: Date): Promise<{
       },
       _count: { id: true },
     }),
+    prisma.reviewCycle.findMany({
+      where: { revieweeId: { in: ids }, state: { not: "COMPLETED" } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        revieweeId: true,
+        state: true,
+        dueDate: true,
+        selfInputSubmittedAt: true,
+        synthesisSubmittedAt: true,
+        followUpDueAt: true,
+        releasedToRevieweeAt: true,
+        completedAt: true,
+        feedback: { select: { submittedAt: true } },
+      },
+    }),
   ]);
 
   const countBy = <T>(rows: T[], key: (row: T) => string | null): Map<string, number> => {
@@ -333,6 +353,32 @@ async function loadDevelopmentFacts(now: Date): Promise<{
     const list = contributionsByUser.get(contribution.instructorId);
     if (list) list.push(contribution);
     else contributionsByUser.set(contribution.instructorId, [contribution]);
+  }
+
+  // Newest open cycle per reviewee (findMany is createdAt-desc).
+  const cycleByReviewee = new Map<
+    string,
+    { id: string; displayState: ReturnType<typeof deriveCycleDisplayState> }
+  >();
+  for (const cycle of openCycles) {
+    if (cycleByReviewee.has(cycle.revieweeId)) continue;
+    cycleByReviewee.set(cycle.revieweeId, {
+      id: cycle.id,
+      displayState: deriveCycleDisplayState(
+        {
+          state: cycle.state,
+          dueDate: cycle.dueDate,
+          selfInputSubmittedAt: cycle.selfInputSubmittedAt,
+          synthesisSubmittedAt: cycle.synthesisSubmittedAt,
+          followUpDueAt: cycle.followUpDueAt,
+          releasedToRevieweeAt: cycle.releasedToRevieweeAt,
+          completedAt: cycle.completedAt,
+          feedbackRequested: cycle.feedback.length,
+          feedbackSubmitted: cycle.feedback.filter((f) => f.submittedAt).length,
+        },
+        now
+      ),
+    });
   }
 
   const people: DevelopmentPersonFacts[] = classified.map(({ user, population }) => {
@@ -405,10 +451,24 @@ async function loadDevelopmentFacts(now: Date): Promise<{
       growthTags: growthByUser.get(user.id) ?? [],
       meetsSeniorExpectations: progress.senior.met,
       meetsLeadExpectations: progress.lead.met,
+      activeReviewCycle: cycleByReviewee.get(user.id) ?? null,
     };
   });
 
   const factsById = new Map(people.map((p) => [p.id, p]));
+
+  const activeCycles: ActiveCycleQueueInput[] = [];
+  for (const [revieweeId, cycle] of cycleByReviewee) {
+    const personFacts = factsById.get(revieweeId);
+    if (!personFacts) continue;
+    activeCycles.push({
+      cycleId: cycle.id,
+      revieweeId,
+      revieweeName: personFacts.name || personFacts.email,
+      contextLabel: personFacts.contextLabel,
+      displayState: cycle.displayState,
+    });
+  }
 
   const pendingApprovals: PendingChairApproval[] = pendingReviews.map((review) => ({
     reviewId: review.id,
@@ -439,7 +499,7 @@ async function loadDevelopmentFacts(now: Date): Promise<{
     });
   }
 
-  return { people, pendingApprovals, strongReviews };
+  return { people, pendingApprovals, strongReviews, activeCycles };
 }
 
 /** The Development cockpit for one population, plus the shared review queue. */
@@ -449,7 +509,8 @@ export async function loadDevelopmentOverview(
 ): Promise<DevelopmentOverview> {
   await requireLeadership();
 
-  const { people, pendingApprovals, strongReviews } = await loadDevelopmentFacts(now);
+  const { people, pendingApprovals, strongReviews, activeCycles } =
+    await loadDevelopmentFacts(now);
 
   const populationCounts: Record<DevelopmentPopulation, number> = {
     instructor: people.filter((p) => p.population === "instructor").length,
@@ -463,6 +524,7 @@ export async function loadDevelopmentOverview(
     cockpit: buildDevelopmentCockpit(scoped),
     reviewQueue: buildReviewQueue({
       people: scoped,
+      activeCycles: activeCycles.filter((c) => scopedIds.has(c.revieweeId)),
       pendingApprovals: pendingApprovals.filter((a) => scopedIds.has(a.menteeId)),
       strongReviews: strongReviews.filter((r) => scopedIds.has(r.menteeId)),
     }),
@@ -479,6 +541,20 @@ export async function loadDevelopmentFactsForPerson(
 ): Promise<DevelopmentPersonFacts | null> {
   await requireLeadership();
 
+  const { people } = await loadDevelopmentFacts(now);
+  return people.find((p) => p.id === userId) ?? null;
+}
+
+/**
+ * Facts for one person WITHOUT the leadership gate — for the review-cycle
+ * workspace, where access is granted per cycle (assigned reviewer/creator; see
+ * lib/development/cycle-access.ts). Callers MUST have verified cycle access
+ * first; never expose this from a route without that check.
+ */
+export async function loadDevelopmentFactsForReview(
+  userId: string,
+  now: Date = new Date()
+): Promise<DevelopmentPersonFacts | null> {
   const { people } = await loadDevelopmentFacts(now);
   return people.find((p) => p.id === userId) ?? null;
 }

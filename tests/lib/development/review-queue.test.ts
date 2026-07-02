@@ -87,6 +87,59 @@ describe("buildReviewQueue", () => {
     expect(queue[1]?.tone).toBe("warning");
   });
 
+  it("puts review-cycle moves ahead of everything and skips the quarterly nag for people in a cycle", () => {
+    const queue = buildReviewQueue({
+      people: [
+        person({
+          id: "in-cycle",
+          name: "Cy",
+          reviewDue: true,
+          hasAnyReview: true,
+          lastReviewQuarter: "2026-Q1",
+        }),
+      ],
+      activeCycles: [
+        {
+          cycleId: "c1",
+          revieweeId: "in-cycle",
+          revieweeName: "Cy",
+          contextLabel: "Instructor",
+          displayState: "follow-up-overdue",
+        },
+        {
+          cycleId: "c2",
+          revieweeId: "other",
+          revieweeName: "Ada",
+          contextLabel: null,
+          displayState: "waiting-feedback",
+        },
+      ],
+      pendingApprovals: [],
+      strongReviews: [],
+    });
+
+    expect(queue.map((item) => item.kind)).toEqual([
+      "cycle-follow-up-overdue",
+      "cycle-waiting",
+    ]);
+    // The person with a running cycle gets no duplicate quarterly item.
+    expect(queue.some((item) => item.kind === "quarterly-overdue")).toBe(false);
+    expect(queue[0]?.href).toBe("/people/develop/reviews/c1");
+    expect(queue[0]?.reason).toBe("Follow-up overdue");
+  });
+
+  it("routes quarterly items to starting a review cycle", () => {
+    const queue = buildReviewQueue({
+      people: [
+        person({ reviewDue: true, hasAnyReview: true, lastReviewQuarter: "2026-Q1" }),
+      ],
+      pendingApprovals: [],
+      strongReviews: [],
+    });
+    expect(queue[0]?.actionLabel).toBe("Start review");
+    expect(queue[0]?.href).toBe("/people/develop/reviews/new");
+  });
+
   it("skips people whose reviews are current and non-purple strong reviews", () => {
     const queue = buildReviewQueue({
       people: [person({ reviewDue: false })],

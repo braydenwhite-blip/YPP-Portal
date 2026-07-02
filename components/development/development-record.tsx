@@ -34,6 +34,7 @@ const EVENT_KIND_LABEL: Record<DevelopmentTimelineEvent["kind"], string> = {
   "check-in": "Check-in",
   "quarterly-review": "Review",
   "mentor-review": "Mentor review",
+  "review-cycle": "Review",
   session: "Session",
   "action-completed": "Done",
   "growth-tag": "Signal",
@@ -138,8 +139,16 @@ function buildKeyFacts(record: DevelopmentRecord): KeyFact[] {
 }
 
 export function DevelopmentRecordView({ record }: { record: DevelopmentRecord }) {
-  const { facts, signals, nextStep, timeline, openActions, openFollowUps, reviewEvidence } =
-    record;
+  const {
+    facts,
+    signals,
+    nextStep,
+    activeReview,
+    timeline,
+    openActions,
+    openFollowUps,
+    reviewEvidence,
+  } = record;
 
   return (
     <div className="flex flex-col gap-5">
@@ -187,6 +196,31 @@ export function DevelopmentRecordView({ record }: { record: DevelopmentRecord })
           </ButtonLink>
         </div>
       </section>
+
+      {activeReview ? (
+        <section className="flex flex-col gap-3 rounded-[12px] border border-line-soft bg-surface p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="m-0 text-[12px] font-bold uppercase tracking-[0.1em] text-ink-muted">
+                Active review
+              </p>
+              <StatusBadge tone={SIGNAL_TONE_TO_BADGE[activeReview.tone]}>
+                {activeReview.stateLabel}
+              </StatusBadge>
+            </div>
+            <p className="m-0 mt-1 text-[13px] text-ink-muted">{activeReview.blurb}</p>
+          </div>
+          <div className="shrink-0">
+            <ButtonLink
+              href={`/people/develop/reviews/${activeReview.cycleId}`}
+              variant="secondary"
+              size="sm"
+            >
+              Open review cycle
+            </ButtonLink>
+          </div>
+        </section>
+      ) : null}
 
       {(openActions.length > 0 || openFollowUps.length > 0) && (
         <RecordSection

@@ -38,6 +38,7 @@ export const ACTION_SOURCE_TYPE_VALUES = [
   "COMMAND_CENTER",
   "FOLLOW_UP",
   "WORKFLOW_STEP",
+  "REVIEW_CYCLE",
 ] as const;
 
 /** Source types that mean "this action came out of a meeting". */
@@ -68,6 +69,7 @@ export const ACTION_SOURCE_TYPE_LABELS: Record<ActionSourceType, string> = {
   COMMAND_CENTER: "Command center",
   FOLLOW_UP: "Follow-up",
   WORKFLOW_STEP: "Workflow step",
+  REVIEW_CYCLE: "Review",
 };
 
 /** Context-aware creation-page header copy. */
@@ -83,6 +85,7 @@ export const ACTION_SOURCE_HEADER: Record<ActionSourceType, string> = {
   COMMAND_CENTER: "Command center action",
   FOLLOW_UP: "Follow-up action",
   WORKFLOW_STEP: "Action from a workflow step",
+  REVIEW_CYCLE: "Action from a review",
 };
 
 /** Why this provenance matters — one honest line for the source-context panel. */
@@ -98,6 +101,7 @@ export const ACTION_SOURCE_WHY: Record<ActionSourceType, string> = {
   COMMAND_CENTER: "Created from a command-center recommendation — it was flagged as mattering now.",
   FOLLOW_UP: "This is a follow-up to another action — the original isn't done until this is.",
   WORKFLOW_STEP: "This exists to move a workflow step forward — completing it lets the workflow advance to what comes next.",
+  REVIEW_CYCLE: "This came out of someone's review — it is part of their coaching plan.",
 };
 
 export function isActionSourceType(value: unknown): value is ActionSourceType {
@@ -362,6 +366,8 @@ export function deriveActionSourceLabel(input: ActionSourceInput): string {
       return `${prefix} a follow-up`;
     case "WORKFLOW_STEP":
       return `${prefix} a workflow step`;
+    case "REVIEW_CYCLE":
+      return `${prefix} a review`;
   }
 }
 

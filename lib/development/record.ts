@@ -13,6 +13,7 @@ import { GROWTH_TAG_META } from "@/lib/people-strategy/growth-signals";
 import { isActionOverdue } from "@/lib/people-strategy/people-dashboard-selectors";
 import { formatDueDate, startOfDay } from "@/lib/leadership-action-center/dates";
 
+import { CYCLE_DISPLAY_META, CYCLE_TYPE_META } from "./cycle-flow";
 import { loadDevelopmentFactsForPerson } from "./load";
 import {
   deriveDevelopmentSignals,
@@ -43,6 +44,7 @@ export type DevelopmentTimelineEvent = {
     | "check-in"
     | "quarterly-review"
     | "mentor-review"
+    | "review-cycle"
     | "session"
     | "action-completed"
     | "growth-tag"
@@ -67,6 +69,13 @@ export type DevelopmentRecord = {
   lane: DevelopmentLaneId | null;
   laneTitle: string | null;
   nextStep: DevelopmentNextStep;
+  /** The in-flight review cycle, for the "Active review" card. */
+  activeReview: {
+    cycleId: string;
+    stateLabel: string;
+    tone: "danger" | "warning" | "info" | "brand" | "success" | "neutral";
+    blurb: string;
+  } | null;
   timeline: DevelopmentTimelineEvent[];
   openActions: DevelopmentOpenItem[];
   openFollowUps: Array<{ id: string; title: string; meetingTitle: string; dueLabel: string | null }>;
@@ -132,6 +141,7 @@ export async function loadDevelopmentRecord(
     contributions,
     openActions,
     openFollowUps,
+    completedCycles,
   ] = await Promise.all([
     prisma.checkIn.findMany({
       where: { userId },
@@ -230,6 +240,18 @@ export async function loadDevelopmentRecord(
         meeting: { select: { title: true } },
       },
     }),
+    prisma.reviewCycle.findMany({
+      where: { revieweeId: userId, state: "COMPLETED" },
+      orderBy: { completedAt: "desc" },
+      take: 6,
+      select: {
+        id: true,
+        type: true,
+        completedAt: true,
+        releasedToRevieweeAt: true,
+        recognitionFlag: true,
+      },
+    }),
   ]);
 
   const events: DevelopmentTimelineEvent[] = [];
@@ -323,6 +345,24 @@ export async function loadDevelopmentRecord(
     });
   }
 
+  for (const cycle of completedCycles) {
+    const at = cycle.completedAt;
+    if (!at) continue;
+    events.push({
+      atISO: at.toISOString(),
+      dateLabel: dateLabel(at),
+      kind: "review-cycle",
+      label: `${CYCLE_TYPE_META[cycle.type].label} completed`,
+      detail: [
+        cycle.releasedToRevieweeAt ? "Summary released" : "Summary not released",
+        cycle.recognitionFlag ? "Recognition recommended" : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      tone: cycle.recognitionFlag ? "brand" : "success",
+    });
+  }
+
   for (const contribution of contributions) {
     if (!contribution.reviewVisible) continue;
     events.push({
@@ -345,12 +385,26 @@ export async function loadDevelopmentRecord(
       ? generateReviewEvidence(contributions, null)
       : null;
 
+  const activeCycle = facts.activeReviewCycle;
+  const activeMeta = activeCycle
+    ? CYCLE_DISPLAY_META[activeCycle.displayState]
+    : null;
+
   return {
     facts,
     signals,
     lane,
     laneTitle: lane ? LANE_META[lane].title : null,
     nextStep: recommendNextStep(facts, signals),
+    activeReview:
+      activeCycle && activeMeta
+        ? {
+            cycleId: activeCycle.id,
+            stateLabel: activeMeta.label,
+            tone: activeMeta.tone,
+            blurb: activeMeta.blurb,
+          }
+        : null,
     timeline: events.slice(0, TIMELINE_CAP),
     openActions: openActions.map((action) => {
       const overdue = isActionOverdue(

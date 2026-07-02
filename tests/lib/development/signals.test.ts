@@ -201,6 +201,70 @@ describe("deriveDevelopmentSignals", () => {
   });
 });
 
+describe("review-cycle signals", () => {
+  it("surfaces a cycle ready for synthesis in the review-due lane", () => {
+    const signals = deriveDevelopmentSignals(
+      person({
+        activeReviewCycle: { id: "cycle-1", displayState: "ready-for-synthesis" },
+      })
+    );
+    const signal = signals.find((s) => s.kind === "cycle-synthesis-ready");
+    expect(signal?.label).toBe("Review ready for synthesis — all input in");
+    expect(primaryLane(signals)).toBe("review-due");
+  });
+
+  it("surfaces an overdue review follow-up as danger", () => {
+    const signals = deriveDevelopmentSignals(
+      person({
+        activeReviewCycle: { id: "cycle-1", displayState: "follow-up-overdue" },
+      })
+    );
+    const signal = signals.find((s) => s.kind === "cycle-follow-up-overdue");
+    expect(signal?.tone).toBe("danger");
+  });
+
+  it("suppresses the quarterly review-due nag while a cycle is running it", () => {
+    const signals = deriveDevelopmentSignals(
+      person({
+        reviewDue: true,
+        hasAnyReview: true,
+        lastReviewQuarter: "2026-Q1",
+        activeReviewCycle: { id: "cycle-1", displayState: "waiting-input" },
+      })
+    );
+    expect(signals.some((s) => s.kind === "review-overdue")).toBe(false);
+  });
+
+  it("keeps waiting-on-input cycles off the person lanes entirely", () => {
+    const signals = deriveDevelopmentSignals(
+      person({
+        activeReviewCycle: { id: "cycle-1", displayState: "waiting-self-input" },
+      })
+    );
+    expect(signals.some((s) => s.kind.startsWith("cycle-"))).toBe(false);
+  });
+
+  it("routes the next step into the cycle workspace", () => {
+    const facts = person({
+      activeReviewCycle: { id: "cycle-9", displayState: "action-plan-needed" },
+    });
+    const step = recommendNextStep(facts, deriveDevelopmentSignals(facts));
+    expect(step.label).toBe("Build the action plan");
+    expect(step.href).toBe("/people/develop/reviews/cycle-9");
+  });
+
+  it("routes a plain review-due person to starting a cycle", () => {
+    const facts = person({
+      reviewDue: true,
+      hasAnyReview: true,
+      lastReviewQuarter: "2026-Q1",
+    });
+    const step = recommendNextStep(facts, deriveDevelopmentSignals(facts));
+    expect(step.label).toBe("Start their review");
+    expect(step.href).toBe("/people/develop/reviews/new");
+  });
+});
+
 describe("primaryLane priority", () => {
   it("a concern outranks readiness — the concern lane wins", () => {
     const signals = deriveDevelopmentSignals(
@@ -242,16 +306,16 @@ describe("recommendNextStep", () => {
     );
   });
 
-  it("routes an overdue review to the quarterly reviews queue", () => {
+  it("routes an overdue review to starting a review cycle", () => {
     const facts = person({
       reviewDue: true,
       hasAnyReview: true,
       lastReviewQuarter: "2026-Q1",
     });
     const step = recommendNextStep(facts, deriveDevelopmentSignals(facts));
-    expect(step.label).toBe("Record the review");
+    expect(step.label).toBe("Start their review");
     expect(step.reason).toBe("Review overdue — last review 2026-Q1");
-    expect(step.href).toBe("/people/quarterly-reviews");
+    expect(step.href).toBe("/people/develop/reviews/new");
   });
 
   it("routes a stuck chair approval to the approvals tab", () => {

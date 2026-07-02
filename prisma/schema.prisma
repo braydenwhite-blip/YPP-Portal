@@ -832,6 +832,7 @@ model Chapter {
   studentIntakeCases           StudentIntakeCase[]
   workflowItems                WorkflowItem[]
   workflowAssignmentRules      WorkflowAssignmentRule[]
+  reviewCycles                 ReviewCycle[]                 @relation("ChapterReviewCycles")
 
   // Governance & Risk
   kpiSnapshots       ChapterKpiSnapshot[]
@@ -1351,6 +1352,11 @@ model User {
   peopleCheckIns                      CheckIn[]                @relation("UserPeopleCheckIns")
   quarterlyReviews                    QuarterlyReview[]        @relation("UserQuarterlyReviews")
   quarterlyReviewsCreated             QuarterlyReview[]        @relation("QuarterlyReviewsCreated")
+  reviewCyclesAsReviewee              ReviewCycle[]            @relation("ReviewCycleReviewee")
+  reviewCyclesAsReviewer              ReviewCycle[]            @relation("ReviewCycleReviewer")
+  reviewCyclesCreated                 ReviewCycle[]            @relation("ReviewCycleCreatedBy")
+  reviewCycleFeedbackGiven            ReviewCycleFeedback[]    @relation("ReviewCycleFeedbackContributor")
+  reviewCycleFeedbackRequested        ReviewCycleFeedback[]    @relation("ReviewCycleFeedbackRequestedBy")
   achievementPointSummary             AchievementPointSummary? @relation("AchievementPointSummary")
   achievementAwardNominations         AwardNomination[]        @relation("AwardNominations")
   achievementAwardNominationsGiven    AwardNomination[]        @relation("AwardNominationsGiven")
@@ -7553,6 +7559,7 @@ model ClassOffering {
   approval                     ClassOfferingApproval?
   timeline                     ClassOfferingTimelineEvent[]
   feedback                     ClassFeedback[]
+  reviewCycles                 ReviewCycle[]                @relation("ClassOfferingReviewCycles")
   outcome                      ClassOutcome?
   regularInstructorAssignments RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsForOffering")
 
@@ -13671,6 +13678,7 @@ model Team {
   memberships   TeamMembership[]    @relation("TeamMemberships")
   weeklyEntries WeeklyImpactEntry[] @relation("TeamWeeklyEntries")
   meetings      Meeting[]           @relation("TeamMeetings")
+  reviewCycles  ReviewCycle[]       @relation("TeamReviewCycles")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -15184,4 +15192,152 @@ model WorkflowMetric {
   capturedAt  DateTime @default(now())
 
   @@index([templateId, metricKey, capturedAt])
+}
+
+// ============================================
+// Leadership Development — Review Cycles
+// The orchestration layer for running an instructor/officer review end to end:
+// collect the reviewee's self-input and structured contributor feedback, let
+// the reviewer synthesize strengths/growth/concerns, then turn the review into
+// an action plan and a scheduled follow-up. Operational work created from a
+// cycle lives in the canonical Action Tracker (ActionItem with
+// sourceType = "REVIEW_CYCLE", sourceId = cycle id) — no parallel task system.
+// Confidentiality: contributor feedback bodies, concerns, and coaching notes
+// are reviewer/leadership-only; the reviewee sees only the released summary
+// (strengths / growth areas / recommended next step) once
+// `releasedToRevieweeAt` is set. Read gating lives in
+// lib/development/cycle-access.ts.
+// ============================================
+
+/// Which development population the review covers. Mirrors the two cockpit
+/// populations (lib/development/signals.ts); the finer role being reviewed is
+/// carried by `roleLabel`.
+enum ReviewCycleType {
+  INSTRUCTOR
+  OFFICER
+}
+
+/// Stored coarse state. Finer operational states ("waiting on self-input",
+/// "waiting on feedback", "ready for synthesis", "follow-up overdue") are
+/// DERIVED deterministically in lib/development/cycle-flow.ts from this state
+/// plus the input timestamps — they are never stored, so they can't go stale.
+enum ReviewCycleState {
+  DRAFT
+  COLLECTING
+  ACTION_PLAN
+  FOLLOW_UP
+  COMPLETED
+}
+
+model ReviewCycle {
+  id String @id @default(cuid())
+
+  revieweeId String
+  reviewee   User   @relation("ReviewCycleReviewee", fields: [revieweeId], references: [id], onDelete: Cascade)
+  /// The mentor/reviewer who synthesizes the review. May differ from creator.
+  reviewerId String
+  reviewer   User   @relation("ReviewCycleReviewer", fields: [reviewerId], references: [id])
+
+  createdById String
+  createdBy   User   @relation("ReviewCycleCreatedBy", fields: [createdById], references: [id])
+
+  type ReviewCycleType
+  /// Human role line being reviewed, e.g. "Lead Instructor" / "Chapter President".
+  roleLabel String?
+
+  /// Optional context links — where this person's work lives.
+  chapterId       String?
+  chapter         Chapter?       @relation("ChapterReviewCycles", fields: [chapterId], references: [id], onDelete: SetNull)
+  teamId          String?
+  team            Team?          @relation("TeamReviewCycles", fields: [teamId], references: [id], onDelete: SetNull)
+  classOfferingId String?
+  classOffering   ClassOffering? @relation("ClassOfferingReviewCycles", fields: [classOfferingId], references: [id], onDelete: SetNull)
+
+  state   ReviewCycleState @default(DRAFT)
+  dueDate DateTime?
+
+  // --- Reviewee self-input (one per cycle; reviewee-authored) ---------------
+  selfInputSubmittedAt   DateTime?
+  selfWentWell           String?   @db.Text
+  selfWasHard            String?   @db.Text
+  selfImproved           String?   @db.Text
+  selfSupportNeeded      String?   @db.Text
+  selfGoals              String?   @db.Text
+  selfNextResponsibility String?   @db.Text
+  selfLeadershipNote     String?   @db.Text
+
+  // --- Reviewer synthesis (reviewer/leadership-authored) --------------------
+  synthesisSubmittedAt DateTime?
+  strengths            String?   @db.Text
+  growthAreas          String?   @db.Text
+  /// Concerns needing leadership attention. NEVER shown to the reviewee.
+  concerns             String?   @db.Text
+  /// Internal coaching notes. NEVER shown to the reviewee.
+  coachingNotes        String?   @db.Text
+  recommendedNextStep  String?   @db.Text
+  /// Reviewer recommends recognition / promotion consideration.
+  recognitionFlag      Boolean   @default(false)
+  /// Reviewer flags this review for leadership attention.
+  leadershipFlag       Boolean   @default(false)
+
+  // --- Action plan & follow-up ----------------------------------------------
+  /// Next check-in on this person, set when the action plan is recorded.
+  followUpDueAt DateTime?
+  followUpNote  String?   @db.Text
+
+  /// Set when the released summary (strengths / growth areas / recommended
+  /// next step — never concerns or coaching notes) becomes reviewee-visible.
+  releasedToRevieweeAt DateTime?
+  completedAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  feedback ReviewCycleFeedback[]
+
+  @@index([revieweeId, state])
+  @@index([reviewerId, state])
+  @@index([state, dueDate])
+  @@index([chapterId])
+  @@index([teamId])
+  @@index([classOfferingId])
+}
+
+/// One contributor's structured feedback within a review cycle. Requested by
+/// the reviewer/leadership; submitted by the contributor. Bodies are
+/// confidential to cycle managers (reviewer/creator/leadership) — mirroring the
+/// FeedbackRequest confidentiality convention. `submittedAt` null = outstanding.
+model ReviewCycleFeedback {
+  id      String      @id @default(cuid())
+  cycleId String
+  cycle   ReviewCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  contributorId String
+  contributor   User   @relation("ReviewCycleFeedbackContributor", fields: [contributorId], references: [id], onDelete: Cascade)
+
+  requestedById String?
+  requestedBy   User?   @relation("ReviewCycleFeedbackRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  /// Why this contributor was chosen — shown to them on the form.
+  reason        String? @db.Text
+  dueAt         DateTime?
+
+  submittedAt DateTime?
+
+  // --- Structured answers (all optional; contributor fills what applies) ----
+  doingWell         String? @db.Text
+  needsSupport      String? @db.Text
+  concerns          String? @db.Text
+  examples          String? @db.Text
+  suggestedNextStep String? @db.Text
+  /// Topic chips from the population-specific vocabulary
+  /// (lib/development/cycle-flow.ts) — validated in application code.
+  topics            String[] @default([])
+  /// Contributor asks leadership to look at this feedback directly.
+  flagForLeadership Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cycleId, contributorId])
+  @@index([contributorId, submittedAt])
 }

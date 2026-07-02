@@ -717,6 +717,58 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 4,
     },
     {
+      href: "/people/develop/reviews",
+      label: "Review Cycles",
+      icon: "🔄",
+      // The review-cycle workspace: run each instructor/officer review end to
+      // end. Officer-tier plus MENTOR — mentors can be assigned as reviewers;
+      // the loader scopes non-leadership viewers to their own cycles.
+      roles: [
+        "ADMIN",
+        "STAFF",
+        "CHAPTER_PRESIDENT",
+        "HIRING_CHAIR",
+        "MENTOR",
+      ] as NavRole[],
+      searchAliases: [
+        "Review cycle",
+        "Run a review",
+        "Start a review",
+        "Review workspace",
+        "Synthesis",
+        "Coaching plan",
+      ],
+      dashboardDescription:
+        "Run instructor and officer reviews end to end — collect input, synthesize, and build the coaching plan.",
+      dashboardPriority: 5,
+    },
+    {
+      href: "/my-input",
+      label: "Review Input",
+      icon: "✍️",
+      // The reviewee/contributor side of the review flow: self-reflection,
+      // feedback requests about teammates, released summaries. Internal roles
+      // only; the page shows nothing unless something is waiting on you.
+      roles: [
+        "ADMIN",
+        "STAFF",
+        "CHAPTER_PRESIDENT",
+        "HIRING_CHAIR",
+        "MENTOR",
+        "INSTRUCTOR",
+      ] as NavRole[],
+      searchAliases: [
+        "Self-reflection",
+        "My review",
+        "Review feedback",
+        "Give feedback",
+        "Review summary",
+      ],
+      dashboardDescription:
+        "Your self-reflection, feedback requests about teammates, and your released review summaries.",
+      dashboardPriority: 6,
+    },
+    {
       href: "/partners",
       label: "Partners",
       icon: "🤝",

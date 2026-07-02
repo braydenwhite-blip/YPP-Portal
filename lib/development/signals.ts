@@ -6,6 +6,8 @@ import {
   GROWTH_OPPORTUNITY_TAGS,
 } from "@/lib/people-strategy/growth-signals";
 
+import type { CycleDisplayState } from "./cycle-flow";
+
 /**
  * Leadership Development — the signal engine (deterministic, testable).
  *
@@ -100,6 +102,12 @@ export type DevelopmentPersonFacts = {
   /** Meets Senior/Lead Instructor leadership expectations (instructor lane). */
   meetsSeniorExpectations: boolean;
   meetsLeadExpectations: boolean;
+
+  /** The person's in-flight review cycle, when one exists. */
+  activeReviewCycle: {
+    id: string;
+    displayState: CycleDisplayState;
+  } | null;
 };
 
 /** Neutral defaults — loaders spread real values over this. */
@@ -137,6 +145,7 @@ export const EMPTY_DEVELOPMENT_FACTS: Omit<
   growthTags: [],
   meetsSeniorExpectations: false,
   meetsLeadExpectations: false,
+  activeReviewCycle: null,
 };
 
 // ── Signals ──────────────────────────────────────────────────────────────────
@@ -169,6 +178,9 @@ export type DevelopmentSignal = {
     | "review-overdue"
     | "review-due"
     | "approval-waiting"
+    | "cycle-synthesis-ready"
+    | "cycle-action-plan"
+    | "cycle-follow-up-overdue"
     | "new-without-mentor"
     | "no-mentor"
     | "never-checked-in"
@@ -305,8 +317,36 @@ export function deriveDevelopmentSignals(
     });
   }
 
-  // ── Review due / overdue.
-  if (facts.reviewDue) {
+  // ── Review cycle in flight — the reviewer-side states that need a move.
+  // (Waiting-on-input states stay off the person lanes; the review queue
+  // carries them so the lanes only show situations leadership can act on.)
+  const cycle = facts.activeReviewCycle;
+  if (cycle?.displayState === "ready-for-synthesis") {
+    signals.push({
+      kind: "cycle-synthesis-ready",
+      lane: "review-due",
+      label: "Review ready for synthesis — all input in",
+      tone: "warning",
+    });
+  } else if (cycle?.displayState === "action-plan-needed") {
+    signals.push({
+      kind: "cycle-action-plan",
+      lane: "review-due",
+      label: "Review needs an action plan",
+      tone: "warning",
+    });
+  } else if (cycle?.displayState === "follow-up-overdue") {
+    signals.push({
+      kind: "cycle-follow-up-overdue",
+      lane: "review-due",
+      label: "Review follow-up overdue",
+      tone: "danger",
+    });
+  }
+
+  // ── Review due / overdue — suppressed while a cycle is already running the
+  // review, so a person isn't flagged for the thing already in motion.
+  if (facts.reviewDue && !cycle) {
     if (facts.hasAnyReview) {
       signals.push({
         kind: "review-overdue",
@@ -572,7 +612,21 @@ export function recommendNextStep(
         href: `/people/develop/${facts.id}`,
       };
     case "review-due": {
-      if (laneSignals[0]?.kind === "approval-waiting") {
+      const kind = laneSignals[0]?.kind;
+      if (facts.activeReviewCycle && kind?.startsWith("cycle-")) {
+        const label =
+          kind === "cycle-synthesis-ready"
+            ? "Write the synthesis"
+            : kind === "cycle-action-plan"
+              ? "Build the action plan"
+              : "Hold the follow-up";
+        return {
+          label,
+          reason,
+          href: `/people/develop/reviews/${facts.activeReviewCycle.id}`,
+        };
+      }
+      if (kind === "approval-waiting") {
         return {
           label: "Unblock the approval",
           reason,
@@ -580,9 +634,9 @@ export function recommendNextStep(
         };
       }
       return {
-        label: "Record the review",
+        label: "Start their review",
         reason,
-        href: "/people/quarterly-reviews",
+        href: "/people/develop/reviews/new",
       };
     }
     case "needs-coach":

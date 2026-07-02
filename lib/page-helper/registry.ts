@@ -3670,6 +3670,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/my-input",
+    title: "Review Input — Pathways Portal",
+    content: {
+      purpose: "This page holds your review input — your self-reflection, feedback requests about teammates, and your released review summaries.",
+      firstStep: "Start with whatever is marked as waiting on you — a self-reflection or a feedback form — and answer the prompts that apply.",
+      nextStep: "After you submit, the reviewer is notified and your answers flow into the review; released summaries appear here when ready."
+    }
+  },
+  {
     pattern: "/my-interview",
     title: "My Interview",
     content: {
@@ -4341,6 +4350,33 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page shows one person's development record — their coaching signals, reviews, open work, and recommended next step.",
       firstStep: "Read the recommended next step and the signal badges first so you know what this person needs before acting.",
       nextStep: "Use the linked surfaces to take the step; the record and timeline update as new check-ins and reviews land."
+    }
+  },
+  {
+    pattern: "/people/develop/reviews",
+    title: "Review Cycles — Pathways Portal",
+    content: {
+      purpose: "This page lists every review cycle in flight — who it covers, what state it is in, and what should happen next.",
+      firstStep: "Open the top item — the list is ordered most-pressing-first, so overdue follow-ups and syntheses come before waiting states.",
+      nextStep: "Inside a cycle, take the next step it shows; completed cycles land on the reviewee's development record automatically."
+    }
+  },
+  {
+    pattern: "/people/develop/reviews/[id]",
+    title: "Review cycle — Pathways Portal",
+    content: {
+      purpose: "This page is one review cycle's workspace — collect input, read it in context, synthesize, and build the coaching plan.",
+      firstStep: "Check the next-step banner under the header; it always names the single move the cycle is waiting on.",
+      nextStep: "After the synthesis, create coaching actions and schedule the follow-up — then complete and release the summary."
+    }
+  },
+  {
+    pattern: "/people/develop/reviews/new",
+    title: "Start a review — Pathways Portal",
+    content: {
+      purpose: "This page starts a new instructor or officer review cycle — pick the reviewee, the reviewer, and the due date.",
+      firstStep: "Choose who is being reviewed; the review type follows from their role automatically.",
+      nextStep: "The cycle opens for input right away — the reviewee is asked for their self-reflection and you can request feedback."
     }
   },
   {

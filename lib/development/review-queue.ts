@@ -2,18 +2,25 @@ import type { GoalRatingColor } from "@prisma/client";
 
 import { RATING_LABELS } from "@/lib/people-strategy/check-in-rating";
 
+import { CYCLE_DISPLAY_META, type CycleDisplayState } from "./cycle-flow";
 import type { DevelopmentPersonFacts } from "./signals";
 
 /**
  * Leadership Development — the review queue (pure).
  *
- * Reduces every review situation to one actionable item: quarterly reviews
- * that are due or overdue, monthly mentor reviews stuck in chair approval, and
- * strong recent reviews worth recognizing. Ordered most-pressing-first so the
- * queue reads top-to-bottom as "do this next".
+ * Reduces every review situation to one actionable item: review cycles that
+ * need a move (synthesis, action plan, an overdue follow-up — or input being
+ * waited on), quarterly reviews due or overdue with no cycle running yet,
+ * monthly mentor reviews stuck in chair approval, and strong recent reviews
+ * worth recognizing. Ordered most-pressing-first so the queue reads
+ * top-to-bottom as "do this next".
  */
 
 export type ReviewQueueItemKind =
+  | "cycle-follow-up-overdue"
+  | "cycle-synthesis"
+  | "cycle-action-plan"
+  | "cycle-waiting"
   | "quarterly-overdue"
   | "quarterly-due"
   | "approval-stuck"
@@ -32,7 +39,16 @@ export type ReviewQueueItem = {
   href: string;
   /** Lower sorts first. */
   rank: number;
-  tone: "danger" | "warning" | "brand";
+  tone: "danger" | "warning" | "info" | "brand";
+};
+
+/** One in-flight review cycle, shaped by the loader. */
+export type ActiveCycleQueueInput = {
+  cycleId: string;
+  revieweeId: string;
+  revieweeName: string;
+  contextLabel: string | null;
+  displayState: CycleDisplayState;
 };
 
 export type PendingChairApproval = {
@@ -53,15 +69,81 @@ export type RecentStrongReview = {
   monthLabel: string | null;
 };
 
+const CYCLE_QUEUE_ITEMS: Partial<
+  Record<
+    CycleDisplayState,
+    { kind: ReviewQueueItemKind; actionLabel: string; rank: number; tone: ReviewQueueItem["tone"] }
+  >
+> = {
+  "follow-up-overdue": {
+    kind: "cycle-follow-up-overdue",
+    actionLabel: "Open review",
+    rank: 0,
+    tone: "danger",
+  },
+  "ready-for-synthesis": {
+    kind: "cycle-synthesis",
+    actionLabel: "Write synthesis",
+    rank: 1,
+    tone: "warning",
+  },
+  "action-plan-needed": {
+    kind: "cycle-action-plan",
+    actionLabel: "Build action plan",
+    rank: 1,
+    tone: "warning",
+  },
+  "waiting-self-input": {
+    kind: "cycle-waiting",
+    actionLabel: "Open review",
+    rank: 5,
+    tone: "info",
+  },
+  "waiting-feedback": {
+    kind: "cycle-waiting",
+    actionLabel: "Open review",
+    rank: 5,
+    tone: "info",
+  },
+  "waiting-input": {
+    kind: "cycle-waiting",
+    actionLabel: "Open review",
+    rank: 5,
+    tone: "info",
+  },
+};
+
 export function buildReviewQueue(input: {
   people: DevelopmentPersonFacts[];
+  activeCycles?: ActiveCycleQueueInput[];
   pendingApprovals: PendingChairApproval[];
   strongReviews: RecentStrongReview[];
 }): ReviewQueueItem[] {
   const items: ReviewQueueItem[] = [];
 
+  for (const cycle of input.activeCycles ?? []) {
+    const config = CYCLE_QUEUE_ITEMS[cycle.displayState];
+    if (!config) continue;
+    items.push({
+      id: `cycle:${cycle.cycleId}`,
+      kind: config.kind,
+      personId: cycle.revieweeId,
+      personName: cycle.revieweeName,
+      contextLabel: cycle.contextLabel,
+      reason: CYCLE_DISPLAY_META[cycle.displayState].label,
+      actionLabel: config.actionLabel,
+      href: `/people/develop/reviews/${cycle.cycleId}`,
+      rank: config.rank,
+      tone: config.tone,
+    });
+  }
+
+  // People with a running cycle are covered by their cycle item — don't also
+  // nag about the quarterly review the cycle exists to produce.
+  const inCycle = new Set((input.activeCycles ?? []).map((c) => c.revieweeId));
+
   for (const person of input.people) {
-    if (!person.reviewDue) continue;
+    if (!person.reviewDue || inCycle.has(person.id)) continue;
     if (person.hasAnyReview) {
       items.push({
         id: `quarterly-overdue:${person.id}`,
@@ -70,8 +152,8 @@ export function buildReviewQueue(input: {
         personName: person.name || person.email,
         contextLabel: person.contextLabel,
         reason: `Review overdue — last review ${person.lastReviewQuarter}`,
-        actionLabel: "Record review",
-        href: "/people/quarterly-reviews",
+        actionLabel: "Start review",
+        href: "/people/develop/reviews/new",
         rank: 0,
         tone: "danger",
       });
@@ -83,8 +165,8 @@ export function buildReviewQueue(input: {
         personName: person.name || person.email,
         contextLabel: person.contextLabel,
         reason: "Review due — no review on file yet",
-        actionLabel: "Record review",
-        href: "/people/quarterly-reviews",
+        actionLabel: "Start review",
+        href: "/people/develop/reviews/new",
         rank: 2,
         tone: "warning",
       });

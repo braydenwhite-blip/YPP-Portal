@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { DevelopmentCockpit } from "@/components/development/development-cockpit";
 import { PeopleHubNav } from "@/components/people/people-hub-nav";
-import { PageHeaderV2 } from "@/components/ui-v2";
+import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
 import { getSession } from "@/lib/auth-supabase";
 import { requireLeadership } from "@/lib/authorization";
 import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
@@ -58,6 +58,16 @@ export default async function DevelopmentPage({
           eyebrow="Leadership development"
           title="Development"
           subtitle="Who needs coaching, who is carrying too much, and who is ready for more — across the instructors and officers who run YPP."
+          actions={
+            <div className="flex items-center gap-2">
+              <ButtonLink href="/people/develop/reviews" variant="secondary" size="sm">
+                Review cycles
+              </ButtonLink>
+              <ButtonLink href="/people/develop/reviews/new" variant="primary" size="sm">
+                Start a review
+              </ButtonLink>
+            </div>
+          }
         />
       </div>
 
