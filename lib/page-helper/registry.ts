@@ -4326,6 +4326,24 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/people/develop",
+    title: "Development — Pathways Portal",
+    content: {
+      purpose: "This page shows who needs coaching, who is overloaded, which reviews are due, and who is ready for more responsibility.",
+      firstStep: "Start with the top lane — it holds the most pressing situations — and open a person's next step to act on it.",
+      nextStep: "After you assign a mentor, record a review, or compile a check-in, the person moves out of their lane automatically."
+    }
+  },
+  {
+    pattern: "/people/develop/[id]",
+    title: "Development record — Pathways Portal",
+    content: {
+      purpose: "This page shows one person's development record — their coaching signals, reviews, open work, and recommended next step.",
+      firstStep: "Read the recommended next step and the signal badges first so you know what this person needs before acting.",
+      nextStep: "Use the linked surfaces to take the step; the record and timeline update as new check-ins and reviews land."
+    }
+  },
+  {
     pattern: "/people/directory",
     title: "People Directory — Pathways Portal",
     content: {

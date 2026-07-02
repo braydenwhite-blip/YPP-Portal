@@ -41,7 +41,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/instructor/parent-feedback",
     "/my-mentor",
   ],
-  ADMIN: ["/", "/people", "/actions", "/meetings"],
+  ADMIN: ["/", "/people", "/people/develop", "/actions", "/meetings"],
   HIRING_CHAIR: [
     "/",
     "/admin/instructor-applicants",
@@ -51,7 +51,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/meetings",
   ],
   PARENT: ["/", "/parent", "/parent/resources", "/calendar", "/parent/connect", "/goals"],
-  CHAPTER_PRESIDENT: ["/", "/chapter", "/people", "/actions"],
-  MENTOR: ["/", "/mentorship", "/mentorship/mentees", "/office-hours"],
-  STAFF: ["/", "/people", "/actions", "/meetings"],
+  CHAPTER_PRESIDENT: ["/", "/chapter", "/people", "/actions", "/meetings"],
+  MENTOR: ["/", "/mentorship", "/mentorship/mentees", "/mentorship/reviews", "/office-hours"],
+  STAFF: ["/", "/people", "/people/develop", "/actions", "/meetings"],
 };

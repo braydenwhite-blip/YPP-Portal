@@ -694,6 +694,29 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 3,
     },
     {
+      href: "/people/develop",
+      label: "Development",
+      icon: "🌱",
+      // Leadership development cockpit: who needs coaching, who is overloaded,
+      // which reviews are due, who is ready for more. Officer-tier in nav; the
+      // page itself additionally requires leadership (mirrors /people gating).
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Leadership development",
+        "Development cockpit",
+        "Needs coach",
+        "Review overdue",
+        "Ready for more",
+        "Coaching",
+        "Development record",
+        "Officer support",
+        "Instructor development",
+      ],
+      dashboardDescription:
+        "Who needs coaching, who is overloaded, which reviews are due, and who is ready for more responsibility.",
+      dashboardPriority: 4,
+    },
+    {
       href: "/partners",
       label: "Partners",
       icon: "🤝",
