@@ -203,15 +203,25 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
         </Link>
       ) : null}
 
-      <header className="mb-4">
-        <h1 className="m-0 text-[22px] font-bold tracking-[-0.3px] text-[#1c1a2e]">
-          {profile.name}
-        </h1>
-        <p className="m-0 mt-1 text-[13.5px] text-[#717189]">
-          {profile.title}
-          {profile.chapterName ? ` · ${profile.chapterName}` : ""}
-          {` · ${activeLabel(profile.monthsActive)}`}
-        </p>
+      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="m-0 text-[22px] font-bold tracking-[-0.3px] text-[#1c1a2e]">
+            {profile.name}
+          </h1>
+          <p className="m-0 mt-1 text-[13.5px] text-[#717189]">
+            {profile.title}
+            {profile.chapterName ? ` · ${profile.chapterName}` : ""}
+            {` · ${activeLabel(profile.monthsActive)}`}
+          </p>
+        </div>
+        {showReviewPanel ? (
+          <Link
+            href={`/people/develop/${id}`}
+            className="inline-flex items-center gap-1 rounded-[10px] border border-[#e3d5f7] bg-[#faf7fe] px-3 py-1.5 text-[12.5px] font-semibold text-[#6b21c8] hover:bg-[#f3ecfc]"
+          >
+            Development record →
+          </Link>
+        ) : null}
       </header>
 
       {performanceRow ? (
