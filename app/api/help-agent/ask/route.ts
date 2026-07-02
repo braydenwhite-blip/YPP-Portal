@@ -11,6 +11,7 @@ import { isEntity360Type } from "@/lib/operations/entity-360";
 import {
   buildChiefOfStaffAnswer,
   buildEntitySummaryAnswer,
+  shouldScopeAnswerToEntity,
 } from "@/lib/help-agent/chief-of-staff";
 import { answerChapterQuestion, isChapterQuestion } from "@/lib/help-agent/chapter-answers";
 import { isChapterLeadership } from "@/lib/chapters/access";
@@ -38,11 +39,6 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return NextResponse.json({ aiAvailable: isChiefOfStaffAIConfigured() });
-}
-
-/** Entity-scoped questions ("summarize this person", "what's blocking this class"). */
-function isEntityScopedQuestion(question: string): boolean {
-  return /\b(this|summar|contribut|blocking|next outreach|promised|happen next)\b/i.test(question);
 }
 
 export async function POST(request: Request) {
@@ -117,9 +113,12 @@ export async function POST(request: Request) {
         const data = await loadData360(viewer, { now });
         answer = buildChiefOfStaffAnswer(question, data, { now, aiAvailable });
       }
-    } else if (context && isEntity360Type(context.entityType) && isEntityScopedQuestion(question)) {
+    } else if (context && isEntity360Type(context.entityType)) {
+      // Entity context means the ask came from an entity record ("Ask about
+      // this"). Load the entity first so the scope check can also match its
+      // title; a clearly global question still falls through to the brief.
       const entity = await loadEntity360(context.entityType, context.entityId!, viewer, { now });
-      if (entity) {
+      if (entity && shouldScopeAnswerToEntity(question, entity.title)) {
         answer = buildEntitySummaryAnswer(question, entity, { now, aiAvailable });
       } else {
         const data = await loadData360(viewer, { now });

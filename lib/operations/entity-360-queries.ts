@@ -9,6 +9,7 @@ import {
 } from "@/lib/people-strategy/action-permissions";
 import {
   getActionItemById,
+  getActionsForChapter,
   getActionsForEntity,
   getActionsForMeeting,
   getMyActionItems,
@@ -16,8 +17,10 @@ import {
 } from "@/lib/people-strategy/action-queries";
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 import { loadChapterMeetingContext } from "@/lib/chapters/meeting-context";
+import { loadMentorshipSnapshot } from "@/lib/data-360/mentorship-analytics";
 import {
   getMeetingById,
+  getMeetingsForChapter,
   getMeetingsForEntity,
   mapMeetingToCardDTO,
   mapMeetingsToCardDTOs,
@@ -59,7 +62,10 @@ import {
   type Entity360Tone,
   type Entity360Type,
 } from "./entity-360";
+import { getWorkflowContextForActionItems } from "@/lib/workflow-engine/card-data";
+
 import { APPLICANT_STUCK_DAYS, MENTORSHIP_QUIET_DAYS } from "./attention";
+import { loadEntity360Workflows } from "./entity-360-workflows";
 import {
   deriveMentorshipAttention,
   mergeMentorshipActionFacts,
@@ -249,6 +255,11 @@ async function loadPerson360(
             nextCheckInDueAt: true,
             needsFollowUp: true,
             advisor: { select: { id: true, name: true, email: true, title: true } },
+            recommendations: {
+              where: { status: { in: ["SUGGESTED", "IN_PROGRESS"] } },
+              orderBy: { createdAt: "desc" },
+              select: { id: true, title: true, kind: true, createdAt: true },
+            },
           },
         },
         advisorAssignments: {
@@ -391,6 +402,19 @@ async function loadPerson360(
       }
       if (advising.needsFollowUp) {
         risks.push("Advisor flagged this student for follow-up");
+      }
+      // Open recommendations are commitments to the student — keep them visible.
+      for (const rec of advising.recommendations.slice(0, 3)) {
+        facts.push({
+          label: "Open recommendation",
+          value: `${rec.title} (${prettyEnum(rec.kind)})`,
+        });
+      }
+      if (advising.recommendations.length > 3) {
+        facts.push({
+          label: "Open recommendation",
+          value: `+${advising.recommendations.length - 3} more`,
+        });
       }
     }
   }
@@ -1514,10 +1538,14 @@ async function loadAction360(
   const item = await getActionItemById(id, viewer);
   if (!item) return null;
 
-  const related =
+  const [related, workflowContexts] = await Promise.all([
     item.relatedEntityType && item.relatedEntityId
-      ? await loadRelatedEntitySummary(item.relatedEntityType, item.relatedEntityId)
-      : null;
+      ? loadRelatedEntitySummary(item.relatedEntityType, item.relatedEntityId)
+      : Promise.resolve(null),
+    // The workflow step this action realizes (any status — provenance, not a queue).
+    getWorkflowContextForActionItems([id]),
+  ]);
+  const workflowContext = workflowContexts.get(id) ?? null;
   const labels = related
     ? new Map([[`${related.type}:${related.id}`, related]])
     : undefined;
@@ -1561,7 +1589,15 @@ async function loadAction360(
       ...(item.department ? [{ label: "Department", value: item.department.name }] : []),
       ...(lite.sourceMeetingTitle
         ? [{ label: "Source", value: `Meeting · ${lite.sourceMeetingTitle}` }]
-        : [{ label: "Source", value: "Created directly" }]),
+        : workflowContext
+          ? [
+              {
+                label: "Source",
+                value: `Workflow · ${workflowContext.instanceTitle}${workflowContext.stageName ? ` (${workflowContext.stageName})` : ""}`,
+                href: `/workflows/${workflowContext.instanceId}`,
+              },
+            ]
+          : [{ label: "Source", value: "Created directly" }]),
       ...(related ? [{ label: related.typeLabel, value: related.label }] : []),
       ...(item.chapter ? [{ label: "Chapter", value: item.chapter.name }] : []),
       ...(item.successDefinition
@@ -1627,6 +1663,7 @@ async function loadMentorship360(
       status: true,
       type: true,
       programGroup: true,
+      cycleStage: true,
       startDate: true,
       kickoffCompletedAt: true,
       mentor: { select: { id: true, name: true, email: true, title: true } },
@@ -1640,8 +1677,21 @@ async function loadMentorship360(
       },
       sessions: {
         orderBy: { scheduledAt: "desc" },
-        take: 1,
-        select: { scheduledAt: true, completedAt: true },
+        take: 30,
+        where: { cancelledAt: null },
+        select: { id: true, scheduledAt: true, completedAt: true, cancelledAt: true },
+      },
+      // Unbridged legacy commitments — the canonical merge de-dupes converted rows.
+      actionItems: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          dueAt: true,
+          completedAt: true,
+          linkedActionId: true,
+          sessionId: true,
+        },
       },
     },
   });
@@ -1657,6 +1707,45 @@ async function loadMentorship360(
 
   const mentorName = pairing.mentor.name ?? pairing.mentor.email;
   const menteeName = pairing.mentee.name ?? pairing.mentee.email;
+
+  // Canonical next-step derivation — the SAME merge + attention read the
+  // person panel, cockpit, and queues use, so this panel can never disagree.
+  const cycleStage = String(pairing.cycleStage);
+  const openFacts = mergeMentorshipActionFacts(
+    actions.map((a) => ({
+      id: a.id,
+      title: a.title,
+      status: a.status,
+      deadlineStart: a.deadlineStart,
+      deadlineEnd: a.deadlineEnd,
+      mentorshipSessionId: a.mentorshipSessionId,
+    })),
+    pairing.actionItems
+  );
+  const openSummary = summarizeMentorshipActionFacts(openFacts, now);
+  const checkInFacts: MentorshipCheckInFact[] = pairing.sessions.map((s) => ({
+    id: s.id,
+    scheduledAt: s.scheduledAt,
+    completedAt: s.completedAt,
+    cancelledAt: s.cancelledAt,
+  }));
+  const attention = deriveMentorshipAttention(
+    {
+      mentorshipId: pairing.id,
+      menteeId: pairing.mentee.id,
+      menteeName,
+      mentorName,
+      status: pairing.status,
+      openActions: openFacts,
+      checkIns: checkInFacts,
+      reviewDue:
+        cycleStage === "REFLECTION_SUBMITTED" || cycleStage === "CHANGES_REQUESTED"
+          ? { kind: "REVIEW" as const, dueAt: null }
+          : null,
+      workspaceHref: `/admin/mentorship/relationships/${pairing.id}`,
+    },
+    now
+  );
 
   // Last recorded activity — the exact rule the attention engine uses.
   const lastActivity = latestActivityISO([
@@ -1685,22 +1774,38 @@ async function loadMentorship360(
     initials: entityInitials(`${mentorName} ${menteeName}`),
     avatarUrl: null,
     pageHref: `/admin/mentorship/relationships/${id}`,
-    signal: quiet
-      ? {
-          label: `Quiet ${quietDays} days`,
-          tone: quietDays >= MENTORSHIP_QUIET_DAYS * 2 ? "overdue" : "warning",
-          detail: "No check-ins, reviews, or sessions recorded recently.",
-        }
-      : null,
+    // The canonical attention read leads; the coarser "quiet" sweep only shows
+    // when nothing more concrete is wrong.
+    signal:
+      attention.state === "needs_attention"
+        ? {
+            label: attention.headline,
+            tone: attention.severity === "critical" ? "overdue" : "warning",
+            detail: attention.explanation,
+          }
+        : quiet
+          ? {
+              label: `Quiet ${quietDays} days`,
+              tone: quietDays >= MENTORSHIP_QUIET_DAYS * 2 ? "overdue" : "warning",
+              detail: "No check-ins, reviews, or sessions recorded recently.",
+            }
+          : null,
     glance: [
       { label: "Check-ins", value: String(pairing._count.checkIns) },
       { label: "Sessions", value: String(pairing._count.sessions) },
-      { label: "Open work", value: String(workItems.filter((w) => !w.completedISO).length) },
+      {
+        label: "Open next steps",
+        value: String(openSummary.open),
+        ...(openSummary.overdue > 0 || openSummary.blocked > 0
+          ? { tone: "warning" as const }
+          : {}),
+      },
       { label: "Last activity", value: recencyLabel(lastActivity, now) },
     ],
     facts: [
       { label: "Type", value: prettyEnum(pairing.type) },
       { label: "Program", value: prettyEnum(pairing.programGroup) },
+      { label: "Review cycle", value: prettyEnum(cycleStage) },
       { label: "Started", value: fmtDate(pairing.startDate) },
       {
         label: "Kickoff",
@@ -1745,11 +1850,20 @@ async function loadMentorship360(
       limit: DRAWER_LIMITS.timeline,
     }),
     nextStep:
+      (attention.state === "needs_attention" ? attention.recommendedAction : null) ??
       nextStepFromWork(workItems) ??
       (quiet ? `Ask ${mentorName} for a check-in.` : null),
-    risks: quiet
-      ? [`No recorded activity in ${quietDays} days — the pairing may have stalled.`]
-      : [],
+    risks: [
+      ...(openSummary.overdue > 0
+        ? [`${openSummary.overdue} next step${openSummary.overdue === 1 ? " is" : "s are"} overdue.`]
+        : []),
+      ...(openSummary.blocked > 0
+        ? [`${openSummary.blocked} next step${openSummary.blocked === 1 ? " is" : "s are"} blocked.`]
+        : []),
+      ...(quiet
+        ? [`No recorded activity in ${quietDays} days — the pairing may have stalled.`]
+        : []),
+    ],
     footnote: OFFICER_FOOTNOTE,
   };
 }
@@ -2008,41 +2122,89 @@ async function loadChapter360(
   const ctx = await loadChapterMeetingContext(id);
   if (!ctx) return null;
 
-  const meetings = await prisma.meeting.findMany({
-    where: { chapterId: id },
-    orderBy: { scheduledAt: "desc" },
-    take: 5,
-    select: {
-      id: true,
-      title: true,
-      scheduledAt: true,
-      _count: { select: { decisions: true, followUps: true } },
-    },
-  });
-  const upcomingCount = meetings.filter((m) => m.scheduledAt.getTime() >= now.getTime()).length;
-  const meetingRefs: Entity360MeetingRef[] = meetings.map((m) => ({
-    id: m.id,
-    title: m.title,
-    dateISO: m.scheduledAt.toISOString(),
-    categoryLabel: "Chapter meeting",
-    outcome:
-      m._count.decisions + m._count.followUps > 0
-        ? `${m._count.decisions} decision${m._count.decisions === 1 ? "" : "s"} · ${m._count.followUps} follow-up${m._count.followUps === 1 ? "" : "s"}`
-        : null,
-    upcoming: m.scheduledAt.getTime() >= now.getTime(),
-  }));
+  const [meetings, actions, offerings, partners, advising] = await Promise.all([
+    getMeetingsForChapter(id, DRAWER_LIMITS.meetings),
+    getActionsForChapter(id, viewer),
+    prisma.classOffering.findMany({
+      where: { chapterId: id },
+      orderBy: { startDate: "desc" },
+      take: DRAWER_LIMITS.classes,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        semester: true,
+        instructor: { select: { name: true } },
+        _count: { select: { enrollments: true } },
+      },
+    }),
+    prisma.partner.findMany({
+      where: { chapterId: id, archivedAt: null },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, relationshipLead: { select: { name: true } } },
+    }),
+    loadMentorshipSnapshot(now, { chapterId: id }),
+  ]);
 
+  const meetingDtos = await mapMeetingsToCardDTOs(meetings, now);
+  const meetingRefs = meetingDtos.map(meetingRef);
+  const upcomingCount = meetingRefs.filter((m) => m.upcoming).length;
+
+  const actionLites = actions.map((a) => toActionLite(a, now));
+  const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
+  const timeline = buildUnifiedTimeline({
+    actions: actionLites,
+    meetings: meetingDtos.map((dto) => toMeetingLite(dto, now)),
+    decisions: [],
+    now,
+    limit: DRAWER_LIMITS.timeline,
+  });
+
+  const classRefs = offerings.map((o) => ({
+    id: o.id,
+    title: o.title,
+    context:
+      [
+        o.semester,
+        o.instructor?.name ? `Instructor: ${o.instructor.name}` : "Needs instructor",
+        `${o._count.enrollments} student${o._count.enrollments === 1 ? "" : "s"}`,
+      ]
+        .filter(Boolean)
+        .join(" · ") || null,
+    status: o.status,
+  }));
+  const classesNeedingInstructor = offerings.filter((o) => !o.instructor).length;
+
+  // Concrete risk lines only — every one names the underlying gap.
   const risks: string[] = [];
   if (!ctx.president) risks.push("No Chapter President assigned.");
   if (upcomingCount === 0) risks.push("No upcoming meeting scheduled.");
   if (ctx.memberCount === 0) risks.push("No members yet.");
+  if (classesNeedingInstructor > 0) {
+    risks.push(
+      `${classesNeedingInstructor} class${classesNeedingInstructor === 1 ? "" : "es"} without an instructor.`
+    );
+  }
+  const overdueHere = actionLites.filter(
+    (a) => a.overdue && a.status !== "COMPLETE" && a.status !== "DROPPED"
+  ).length;
+  if (overdueHere > 0) {
+    risks.push(`${overdueHere} chapter action${overdueHere === 1 ? " is" : "s are"} overdue.`);
+  }
+  // Advising gaps come from the same metrics Data 360 grades (target-zero only).
+  for (const metric of advising.metrics) {
+    if (metric.breached && metric.value > 0) {
+      risks.push(`${metric.label}: ${metric.value}.`);
+    }
+  }
 
   const nextStep =
-    upcomingCount === 0
+    nextStepFromWork(workItems) ??
+    (upcomingCount === 0
       ? "Schedule the next chapter meeting"
-      : ctx.openActionCount > 0
-        ? "Work the open chapter actions"
-        : null;
+      : classesNeedingInstructor > 0
+        ? "Assign instructors to the uncovered classes"
+        : null);
 
   return {
     type: "chapter",
@@ -2057,6 +2219,8 @@ async function loadChapter360(
     pageHref: ctx.detailHref,
     glance: [
       { label: "Members", value: String(ctx.memberCount) },
+      { label: "Classes", value: String(offerings.length) },
+      { label: "Partners", value: String(partners.length) },
       {
         label: "Open actions",
         value: String(ctx.openActionCount),
@@ -2075,6 +2239,11 @@ async function loadChapter360(
         value: ctx.president?.name ?? "Unassigned",
         ...(ctx.president ? { href: `/people/${ctx.president.id}` } : {}),
       },
+      ...partners.slice(0, 4).map((p) => ({
+        label: "Partner",
+        value: p.relationshipLead?.name ? `${p.name} · Lead: ${p.relationshipLead.name}` : p.name,
+        href: `/partners/${p.id}`,
+      })),
     ],
     people: ctx.president
       ? [
@@ -2086,10 +2255,10 @@ async function loadChapter360(
           },
         ]
       : [],
-    classes: [],
-    workItems: [],
+    classes: classRefs,
+    workItems,
     meetings: meetingRefs,
-    timeline: [],
+    timeline,
     nextStep,
     risks,
     footnote: OFFICER_FOOTNOTE,
@@ -2105,25 +2274,41 @@ export async function loadEntity360(
   const now = options.now ?? new Date();
   const trimmed = id?.trim();
   if (!trimmed) return null;
+  const entity = await loadEntity360Base(type, trimmed, viewer, now);
+  if (!entity) return null;
+  // Workflows are operations data. The person panel is member-visible, so the
+  // officer gate lives here — once, for every type — not in each loader.
+  if (isOfficerTier(viewer)) {
+    entity.workflows = await loadEntity360Workflows(type, trimmed, now);
+  }
+  return entity;
+}
+
+function loadEntity360Base(
+  type: Entity360Type,
+  id: string,
+  viewer: ActionViewer,
+  now: Date
+): Promise<Entity360 | null> {
   switch (type) {
     case "person":
-      return loadPerson360(trimmed, viewer, now);
+      return loadPerson360(id, viewer, now);
     case "class":
-      return loadClass360(trimmed, viewer, now);
+      return loadClass360(id, viewer, now);
     case "partner":
-      return loadPartner360(trimmed, viewer, now);
+      return loadPartner360(id, viewer, now);
     case "initiative":
-      return loadInitiative360(trimmed, viewer, now);
+      return loadInitiative360(id, viewer, now);
     case "meeting":
-      return loadMeeting360(trimmed, viewer, now);
+      return loadMeeting360(id, viewer, now);
     case "action":
-      return loadAction360(trimmed, viewer, now);
+      return loadAction360(id, viewer, now);
     case "mentorship":
-      return loadMentorship360(trimmed, viewer, now);
+      return loadMentorship360(id, viewer, now);
     case "applicant":
-      return loadApplicant360(trimmed, viewer, now);
+      return loadApplicant360(id, viewer, now);
     case "chapter":
-      return loadChapter360(trimmed, viewer, now);
+      return loadChapter360(id, viewer, now);
     default: {
       const _exhaustive: never = type;
       return _exhaustive;

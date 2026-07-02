@@ -27,6 +27,25 @@ export type PartnerIssueDTO = {
   overdue: boolean; // open > 24h
 };
 
+/** A class offering connected to this partner, as the operating room shows it. */
+export type PartnerClassDTO = {
+  id: string;
+  title: string;
+  statusLabel: string;
+  students: number;
+  instructorName: string | null;
+};
+
+/** An open tracker action linked to this partner (visibility-filtered upstream). */
+export type PartnerActionDTO = {
+  id: string;
+  title: string;
+  statusLabel: string;
+  overdue: boolean;
+  ownerName: string | null;
+  href: string;
+};
+
 export type PartnerDetailDTO = {
   id: string;
   name: string;
@@ -55,6 +74,10 @@ export type PartnerDetailDTO = {
   timeline: PartnerTimelineEntry[];
   openIssues: PartnerIssueDTO[];
   classCount: number;
+  /** Connected classes (newest first, capped) — the concrete programs behind classCount. */
+  connectedClasses: PartnerClassDTO[];
+  /** Open tracker actions linked to this partner, overdue first (capped). */
+  openActions: PartnerActionDTO[];
   emailContext: OutreachEmailContext;
   meetingBriefContext: MeetingBriefContext;
 };

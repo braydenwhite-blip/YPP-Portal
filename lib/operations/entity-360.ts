@@ -155,6 +155,33 @@ export type Entity360MentorshipPanel = {
   pairings: Entity360MentorshipPairing[];
 };
 
+/**
+ * One workflow instance touching this entity (as its PRIMARY subject or via a
+ * WorkflowAttachment), with the engine's honest health read — concrete reasons,
+ * never a vague score. (Universal Workflow Engine → Data 360 integration.)
+ */
+export type Entity360Workflow = {
+  /** WorkflowInstance id (links to /workflows/[id]). */
+  id: string;
+  title: string;
+  templateName: string | null;
+  /** Raw `WorkflowHealthStatus` ("BLOCKED", "ON_TRACK", …) — drives sorting. */
+  healthStatus: string;
+  /** Health read from `computeWorkflowHealth` ("Blocked", "Overdue", "On track", …). */
+  healthLabel: string;
+  tone: Entity360Tone;
+  /** The concrete findings behind the health read ("\"Kickoff\" is blocked: …"). */
+  reasons: string[];
+  stageName: string | null;
+  /** "62% complete" / "Not started" / "Complete". */
+  progressLabel: string;
+  ownerName: string | null;
+  dueISO: string | null;
+  /** The current stage's next outstanding step, when one is known. */
+  nextStepTitle: string | null;
+  href: string;
+};
+
 export type Entity360 = {
   type: Entity360Type;
   id: string;
@@ -188,6 +215,8 @@ export type Entity360 = {
   footnote: string | null;
   /** Active mentorship pairings (officer-gated, like the rest of the panel). */
   mentorship?: Entity360MentorshipPanel | null;
+  /** Workflow instances touching this entity, worst health first (officer-gated). */
+  workflows?: Entity360Workflow[];
 };
 
 // --- pure helpers ---------------------------------------------------------------
@@ -452,6 +481,86 @@ export function buildMentorshipPanel(
       href: `/admin/mentorship/relationships/${p.id}`,
     })),
   };
+}
+
+// --- workflows (Universal Workflow Engine → Data 360) -----------------------------
+
+/**
+ * Which workflow-engine subject/attachment entity type each drawer type maps to
+ * (`WorkflowInstance.subjectType` / `WorkflowAttachment.entityType` — see
+ * lib/workflow-engine/entity-types.ts). Every drawer type has a counterpart, so
+ * every 360 panel can show the workflows that touch its record.
+ */
+export const ENTITY_360_WORKFLOW_SUBJECT: Record<Entity360Type, string> = {
+  person: "USER",
+  class: "CLASS_OFFERING",
+  partner: "PARTNER",
+  initiative: "INITIATIVE",
+  meeting: "MEETING",
+  action: "ACTION_ITEM",
+  mentorship: "MENTORSHIP",
+  applicant: "INSTRUCTOR_APPLICATION",
+  chapter: "CHAPTER",
+};
+
+/** Plain-language labels for `WorkflowHealthStatus` values. */
+export const WORKFLOW_HEALTH_LABELS: Record<string, string> = {
+  BLOCKED: "Blocked",
+  OVERDUE: "Overdue",
+  STALLED: "Stalled",
+  NEEDS_ATTENTION: "Needs attention",
+  ON_TRACK: "On track",
+  COMPLETE: "Complete",
+  ARCHIVED: "Archived",
+};
+
+/** Drawer tone for each `WorkflowHealthStatus` value. */
+export const WORKFLOW_HEALTH_TONES: Record<string, Entity360Tone> = {
+  BLOCKED: "overdue",
+  OVERDUE: "overdue",
+  STALLED: "warning",
+  NEEDS_ATTENTION: "warning",
+  ON_TRACK: "success",
+  COMPLETE: "neutral",
+  ARCHIVED: "neutral",
+};
+
+/** Worst-first ordering for workflow health (mirrors lib/workflow-engine/health.ts). */
+const WORKFLOW_HEALTH_RANK: Record<string, number> = {
+  BLOCKED: 0,
+  OVERDUE: 1,
+  STALLED: 2,
+  NEEDS_ATTENTION: 3,
+  ON_TRACK: 4,
+  COMPLETE: 5,
+  ARCHIVED: 6,
+};
+
+/** "62% complete" / "Not started" / "Complete" from the instance's percent. */
+export function workflowProgressLabel(completionPercent: number): string {
+  const pct = Math.round(Math.min(100, Math.max(0, completionPercent)));
+  if (pct <= 0) return "Not started";
+  if (pct >= 100) return "Complete";
+  return `${pct}% complete`;
+}
+
+/**
+ * Worst health first, then earliest due, then title — so a blocked workflow
+ * always outranks an on-track one regardless of insertion order. Stable and
+ * deterministic (same inputs, same order); returns a new array.
+ */
+export function sortWorkflowsWorstFirst(
+  workflows: Entity360Workflow[]
+): Entity360Workflow[] {
+  return [...workflows].sort((a, b) => {
+    const rank =
+      (WORKFLOW_HEALTH_RANK[a.healthStatus] ?? 9) -
+      (WORKFLOW_HEALTH_RANK[b.healthStatus] ?? 9);
+    if (rank !== 0) return rank;
+    const aDue = a.dueISO ? new Date(a.dueISO).getTime() : Number.POSITIVE_INFINITY;
+    const bDue = b.dueISO ? new Date(b.dueISO).getTime() : Number.POSITIVE_INFINITY;
+    return aDue - bDue || a.title.localeCompare(b.title);
+  });
 }
 
 /** Earliest-due open work item's title — the default "next step" for an entity. */

@@ -30,10 +30,13 @@ import {
 } from "@/lib/partners/logistics";
 import { DEFAULT_YPP_DESCRIPTION } from "@/lib/partners/outreach-email";
 import type { PartnerScope } from "@/lib/partners/permissions";
+import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import type {
   PartnerDetailDTO,
   PartnerTimelineEntry,
   PartnerIssueDTO,
+  PartnerActionDTO,
 } from "@/lib/partners/detail-types";
 
 const DAY_MS = 86_400_000;
@@ -58,7 +61,10 @@ function metaString(meta: unknown, key: string): string | null {
 export async function loadPartnerDetail(
   partnerId: string,
   scope: PartnerScope,
-  now: Date = new Date()
+  now: Date = new Date(),
+  /** When given, open tracker actions linked to this partner are included
+   *  (visibility-filtered per viewer by the action-queries layer). */
+  viewer?: ActionViewer
 ): Promise<PartnerDetailDTO | null> {
   const partner = await prisma.partner.findFirst({
     where: { id: partnerId, archivedAt: null },
@@ -89,9 +95,22 @@ export async function loadPartnerDetail(
         select: { id: true, kind: true, body: true, createdAt: true, authorId: true, metadata: true },
       },
       _count: { select: { classOfferings: true } },
+      classOfferings: {
+        orderBy: { startDate: "desc" },
+        take: 6,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          instructor: { select: { name: true } },
+          _count: { select: { enrollments: true } },
+        },
+      },
     },
   });
   if (!partner) return null;
+
+  const openActions = await loadPartnerOpenActions(partnerId, viewer, now);
 
   // Resolve note author names in one query (FK-less authorId per repo convention).
   const authorIds = Array.from(
@@ -220,7 +239,50 @@ export async function loadPartnerDetail(
     timeline,
     openIssues,
     classCount: partner._count.classOfferings,
+    connectedClasses: partner.classOfferings.map((o) => ({
+      id: o.id,
+      title: o.title,
+      statusLabel: prettyStatus(o.status),
+      students: o._count.enrollments,
+      instructorName: o.instructor?.name ?? null,
+    })),
+    openActions,
     emailContext,
     meetingBriefContext,
   };
+}
+
+/** "IN_PROGRESS" → "In progress" — readable enum values for the class list. */
+function prettyStatus(value: string): string {
+  const words = value.replaceAll("_", " ").toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+const OPEN_ACTION_STATUSES = new Set(["NOT_STARTED", "IN_PROGRESS", "OVERDUE", "BLOCKED"]);
+
+/** Open partner-linked tracker actions, overdue first, capped for the sidebar. */
+async function loadPartnerOpenActions(
+  partnerId: string,
+  viewer: ActionViewer | undefined,
+  now: Date
+): Promise<PartnerActionDTO[]> {
+  if (!viewer) return [];
+  const actions = await getActionsForEntity("PARTNER", partnerId, viewer);
+  return actions
+    .filter((a) => OPEN_ACTION_STATUSES.has(a.status))
+    .map((a) => {
+      const due = a.deadlineEnd ?? a.deadlineStart;
+      const overdue =
+        a.status === "OVERDUE" || (!!due && due.getTime() < now.getTime());
+      return {
+        id: a.id,
+        title: a.title,
+        statusLabel: overdue ? "Overdue" : prettyStatus(a.status),
+        overdue,
+        ownerName: a.lead?.name ?? null,
+        href: `/actions/${a.id}`,
+      };
+    })
+    .sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.title.localeCompare(b.title))
+    .slice(0, 6);
 }

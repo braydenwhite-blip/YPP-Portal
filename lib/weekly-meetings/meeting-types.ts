@@ -26,6 +26,8 @@ export type MeetingCounts = {
   attendees: number;
   decisions: number;
   followUps: number;
+  /** Follow-ups not yet COMPLETED — what "unresolved" means on hub lanes. */
+  openFollowUps: number;
   topics: number;
 };
 

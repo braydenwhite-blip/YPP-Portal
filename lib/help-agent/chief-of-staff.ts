@@ -686,6 +686,32 @@ const WORK_TONE: Record<string, CoSTone> = {
   neutral: "neutral",
 };
 
+/**
+ * Should a question asked WITH entity context (the "Ask about this record"
+ * flow) be answered about that entity, rather than falling back to the global
+ * brief? Yes when it reads entity-shaped ("this…", "what's blocking…",
+ * "status", "workflow", …) or names the record's own title. Pure and
+ * conservative — a clearly global question ("what needs attention this week")
+ * from an entity page still gets the global answer.
+ */
+const ENTITY_SCOPE_HINT =
+  /\b(this|it|summar|contribut|blocking|blocked|stuck|status|workflow|risk|owner|why|next outreach|promised|happen next|next step)\b/i;
+
+export function shouldScopeAnswerToEntity(
+  question: string,
+  entityTitle?: string | null
+): boolean {
+  if (ENTITY_SCOPE_HINT.test(question)) return true;
+  if (
+    entityTitle &&
+    entityTitle.trim().length >= 3 &&
+    question.toLowerCase().includes(entityTitle.trim().toLowerCase())
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** Summarize a single entity (person / class / partner / initiative / meeting). */
 export function buildEntitySummaryAnswer(
   question: string,
@@ -743,6 +769,29 @@ export function buildEntitySummaryAnswer(
         source: w.meetingTitle ? `From: ${w.meetingTitle}` : w.sourceLabel,
       })),
       emptyState: "No open work on this record.",
+    });
+  }
+
+  // Workflows in flight on this record (Universal Workflow Engine), worst first.
+  // The loader already sorted worst-health-first and attached concrete reasons.
+  const workflows = entity.workflows ?? [];
+  if (workflows.length > 0) {
+    blocks.push({
+      kind: "workflows_in_flight",
+      title: "Workflows in flight",
+      subtitle: "Multi-step processes running on this record, worst health first.",
+      items: workflows.slice(0, BLOCK_LIMIT).map((w) => ({
+        label: w.title,
+        detail:
+          w.reasons[0] ??
+          (w.nextStepTitle ? `Next: ${w.nextStepTitle}` : null) ??
+          [w.stageName, w.progressLabel].filter(Boolean).join(" · "),
+        signal: w.healthLabel,
+        tone: entityToneToCoS(w.tone),
+        href: w.href,
+        source: w.templateName,
+      })),
+      emptyState: "No workflows running on this record.",
     });
   }
 
@@ -1031,6 +1080,21 @@ export function entityPrompts(entityType: string | null | undefined): CoSPrompt[
         { label: "Summarize this action", question: "Summarize this action." },
         { label: "What is blocking it?", question: "What is blocking this action?" },
         { label: "What should happen next?", question: "What should happen next on this action?" },
+      ];
+    case "mentorship":
+      return [
+        { label: "Summarize this mentorship", question: "Summarize this mentorship." },
+        { label: "Where does the cycle stand?", question: "Where does the review cycle stand for this mentorship?" },
+        { label: "Open next steps", question: "Show the open next steps for this mentorship." },
+        { label: "What should happen next?", question: "What should happen next on this mentorship?" },
+      ];
+    case "chapter":
+      return [
+        { label: "Summarize this chapter", question: "Summarize this chapter." },
+        { label: "What needs attention?", question: "What needs attention in this chapter?" },
+        { label: "Open work", question: "Show the open work for this chapter." },
+        { label: "Meetings & follow-ups", question: "Show recent meetings and follow-ups for this chapter." },
+        { label: "What should happen next?", question: "What should happen next for this chapter?" },
       ];
     default:
       return GLOBAL_PROMPTS;
