@@ -1,8 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import skin from "@/components/ui-v2/portal-skin.module.css";
-import Link from "next/link";
 import { ButtonLink, CardV2, PageHeaderV2 } from "@/components/ui-v2";
+import { CommandCenterView } from "@/components/mentorship/command-center-view";
 import { getSession } from "@/lib/auth-supabase";
 import {
   canAccessMentorship,
@@ -12,14 +13,48 @@ import { getLanesForChair } from "@/lib/mentorship-chair-access";
 import { getSimplifiedMentorKanban } from "@/lib/mentorship-kanban-actions";
 import { getMentorshipPendingActionCount } from "@/lib/mentorship-notifications";
 import { getMentorEngagementSnapshot } from "@/lib/mentor-overview";
-import { CalmOnly, ExecutiveOnly } from "@/components/command-center/command-mode";
 import { buildMentorHomeViewModel } from "@/lib/mentorship/load";
+import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
+import { loadMentorshipCommandCenter } from "@/lib/mentorship/command-center";
+import { availablePovs, resolvePov, type HubPov } from "@/lib/mentorship/hub-pov";
+import { LANE_META, type DevelopmentLaneId } from "@/lib/development/signals";
 import { mentorCardNeedsAttention } from "./_components/mentor-priority-list";
 import { MentorHomeCalm } from "./_components/mentor-home-calm";
-import { MentorHomeExecutive } from "./_components/mentor-home-executive";
+import { MenteeDevelopmentBrief } from "./_components/mentee-development-brief";
+import { SegmentedTabs } from "./_components/segmented-tabs";
 import { EmptyStateEditorial } from "./_components/empty-state-editorial";
 
-export default async function MentorshipPage() {
+/**
+ * The Mentorship Command Center — one hub, three POVs.
+ *
+ *   me      → "My Development": what the person being developed owes and owns.
+ *   mentor  → the coaching console: who needs a check-in, a review, a kickoff.
+ *   admin   → the org command center: lifecycle lanes, review cycles, mentor
+ *             load (leadership only).
+ *
+ * The POV is a URL param, so every view is shareable and back-button safe.
+ */
+
+const POV_LABELS: Record<HubPov, string> = {
+  me: "My development",
+  mentor: "Mentor console",
+  admin: "Command center",
+};
+
+function parseLane(value: string | undefined): DevelopmentLaneId | null {
+  if (value && value in LANE_META) return value as DevelopmentLaneId;
+  return null;
+}
+
+function povHref(pov: HubPov): string {
+  return `/mentorship?view=${pov}`;
+}
+
+export default async function MentorshipPage({
+  searchParams,
+}: {
+  searchParams?: { view?: string; who?: string; lane?: string };
+}) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -30,49 +65,68 @@ export default async function MentorshipPage() {
   }
 
   const isAdmin = roles.includes("ADMIN");
-  const membership = await getInstructorMentorshipMembership(userId);
-  const showMentorSection = membership.isMentor || isAdmin;
+  const [membership, chairLanes, commandAccess] = await Promise.all([
+    getInstructorMentorshipMembership(userId),
+    getLanesForChair(userId, (session.user.adminSubtypes ?? []) as string[]),
+    hasMentorshipCommandAccess(session.user),
+  ]);
 
-  if (membership.isMentee && !showMentorSection) {
-    redirect("/my-mentor");
-  }
+  const facts = {
+    isMentee: membership.isMentee,
+    isMentor: membership.isMentor,
+    isAdmin,
+    isChair: chairLanes.length > 0,
+    hasCommandCenterAccess: commandAccess,
+  };
+  const povs = availablePovs(facts);
+  const pov = resolvePov(facts, searchParams?.view);
 
-  if (!showMentorSection) {
+  const header = (
+    <PageHeaderV2
+      eyebrow="Mentorship"
+      title="Mentorship"
+      subtitle="One place to run development — yours, your mentees', and the whole org's."
+    >
+      {povs.length > 1 ? (
+        <SegmentedTabs
+          ariaLabel="Mentorship view"
+          activeId={pov}
+          tabs={povs.map((p) => ({ id: p, label: POV_LABELS[p], href: povHref(p) }))}
+        />
+      ) : null}
+    </PageHeaderV2>
+  );
+
+  // ── Admin POV — the org command center. ────────────────────────────────────
+  if (pov === "admin") {
+    const who = searchParams?.who === "officers" ? "officers" : "instructors";
+    const data = await loadMentorshipCommandCenter(
+      who === "officers" ? "officer" : "instructor"
+    );
     return (
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>
-        <PageHeaderV2
-          eyebrow="Mentorship"
-          title="Mentorship"
-          actions={
-            <>
-              <ButtonLink href="/my-mentor" variant="secondary" size="sm">
-                My Mentor →
-              </ButtonLink>
-              <ButtonLink href="/leadership-pathway" variant="secondary" size="sm">
-                Pathway →
-              </ButtonLink>
-            </>
-          }
-        />
-        <EmptyStateEditorial
-          title="Your mentor workspace is on the way."
-          body="Once you're assigned to mentor an instructor, this becomes the place you'll work from each month. If you're looking for your own mentor, open My Mentor."
-          link={{
-            label: "Open My Mentor",
-            href: "/my-mentor",
-          }}
-        />
+        {header}
+        <CommandCenterView data={data} who={who} laneFilter={parseLane(searchParams?.lane)} />
       </div>
     );
   }
 
-  const [mentorBlock, engagement, pendingActionCount, chairLanes] =
-    await Promise.all([
-      getSimplifiedMentorKanban(),
-      getMentorEngagementSnapshot(),
-      getMentorshipPendingActionCount(userId),
-      getLanesForChair(userId, (session.user.adminSubtypes ?? []) as string[]),
-    ]);
+  // ── Mentee POV — "My Development". ──────────────────────────────────────────
+  if (pov === "me") {
+    return (
+      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
+        {header}
+        <MenteeDevelopmentBrief userId={userId} />
+      </div>
+    );
+  }
+
+  // ── Mentor POV — the coaching console. ─────────────────────────────────────
+  const [mentorBlock, engagement, pendingActionCount] = await Promise.all([
+    getSimplifiedMentorKanban(),
+    getMentorEngagementSnapshot(),
+    getMentorshipPendingActionCount(userId),
+  ]);
   const showChairQueue = isAdmin || chairLanes.length > 0;
 
   const allMentorCards = mentorBlock.columns.flatMap((c) => c.cards);
@@ -80,8 +134,6 @@ export default async function MentorshipPage() {
     mentorBlock.columns.find((c) => c.key === "READY_FOR_REVIEW")?.cards.length ?? 0;
   const needsKickoff = allMentorCards.filter((c) => c.kickoffPending).length;
   const needsYouCount = allMentorCards.filter(mentorCardNeedsAttention).length;
-  const menteeCount = mentorBlock.total;
-  const activeMenteeCount = mentorBlock.total - mentorBlock.inactive.length;
 
   // Render only the more urgent of the two top alerts — stacked alerts is
   // noise; one is signal.
@@ -100,12 +152,6 @@ export default async function MentorshipPage() {
     };
   }
 
-  const subtitle = `${menteeCount} instructor mentee${
-    menteeCount === 1 ? "" : "s"
-  } across all cycles.`;
-
-  // One canonical view-model feeds the Calm summary; Executive keeps the full
-  // kanban + engagement density it has always shown.
   const vm = buildMentorHomeViewModel({
     viewerId: userId,
     viewerName: "You",
@@ -128,34 +174,18 @@ export default async function MentorshipPage() {
     now: new Date(),
   });
 
-  // Reskinned onto the ui-v2 primitives (PageHeaderV2 + CardV2 + ButtonLink)
-  // under the `.portalSkin` scope; the Calm/Executive bodies already compose
-  // the SimpleSurface kit (mentor-home-calm / mentor-home-executive).
   return (
     <div className={`${skin.portalSkin} flex flex-col gap-6`}>
-      <PageHeaderV2
-        eyebrow="Mentorship"
-        title="Mentorship"
-        subtitle={subtitle}
-        actions={
-          <>
-            {membership.isMentee && (
-              <ButtonLink href="/my-mentor" variant="secondary" size="sm">
-                My Mentor →
-              </ButtonLink>
-            )}
-          </>
-        }
-      >
-        {pendingActionCount > 0 && (
-          <Link
-            href="/notifications"
-            className="inline-flex w-fit items-center gap-1.5 rounded-full bg-progress-50 px-3 py-1 text-[12.5px] font-semibold text-progress-700 no-underline transition-[filter] hover:brightness-[0.97]"
-          >
-            {pendingActionCount} mentorship update{pendingActionCount === 1 ? "" : "s"} unread →
-          </Link>
-        )}
-      </PageHeaderV2>
+      {header}
+
+      {pendingActionCount > 0 ? (
+        <Link
+          href="/notifications"
+          className="inline-flex w-fit items-center gap-1.5 rounded-full bg-progress-50 px-3 py-1 text-[12.5px] font-semibold text-progress-700 no-underline transition-[filter] hover:brightness-[0.97]"
+        >
+          {pendingActionCount} mentorship update{pendingActionCount === 1 ? "" : "s"} unread →
+        </Link>
+      ) : null}
 
       {mentorBlock.total === 0 ? (
         <EmptyStateEditorial
@@ -168,43 +198,39 @@ export default async function MentorshipPage() {
         />
       ) : (
         <div className="grid gap-6">
-          {membership.isMentee && (
+          {urgentAlert ? (
             <CardV2
               padding="md"
-              className="flex flex-wrap items-center justify-between gap-4 border-l-4 border-l-brand-600"
+              className={
+                urgentAlert.tone === "amber"
+                  ? "border-l-4 border-l-warning-500"
+                  : "border-l-4 border-l-brand-600"
+              }
             >
-              <div className="min-w-0">
-                <strong className="text-[14px] text-ink">
-                  You&apos;re also being mentored.
-                </strong>
-                <p className="mt-1 text-[13px] text-ink-muted">
-                  Your own goals, released feedback, resources, and check-ins live
-                  in My Mentor.
-                </p>
-              </div>
-              <ButtonLink href="/my-mentor" variant="secondary" size="sm">
-                Open My Mentor
-              </ButtonLink>
+              <strong className="text-[14px] text-ink">{urgentAlert.title}</strong>
+              <p className="m-0 mt-1 text-[13px] text-ink-muted">{urgentAlert.detail}</p>
             </CardV2>
-          )}
+          ) : null}
 
-          <CalmOnly>
-            <MentorHomeCalm
-              vm={vm}
-              needsYouCount={needsYouCount}
-              showChairQueue={showChairQueue}
-            />
-          </CalmOnly>
-          <ExecutiveOnly>
-            <MentorHomeExecutive
-              urgentAlert={urgentAlert}
-              mentorBlock={mentorBlock}
-              engagement={engagement}
-              activeMenteeCount={activeMenteeCount}
-              needsYouCount={needsYouCount}
-              showChairQueue={showChairQueue}
-            />
-          </ExecutiveOnly>
+          <MentorHomeCalm
+            vm={vm}
+            needsYouCount={needsYouCount}
+            showChairQueue={showChairQueue}
+          />
+
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/mentorship/mentees" variant="secondary" size="sm">
+              All mentees →
+            </ButtonLink>
+            <ButtonLink href="/mentorship/schedule" variant="secondary" size="sm">
+              Schedule →
+            </ButtonLink>
+            {showChairQueue ? (
+              <ButtonLink href="/mentorship/reviews" variant="secondary" size="sm">
+                Review inbox →
+              </ButtonLink>
+            ) : null}
+          </div>
         </div>
       )}
     </div>

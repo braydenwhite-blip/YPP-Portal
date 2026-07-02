@@ -119,6 +119,8 @@ export type DevelopmentOverview = {
   population: DevelopmentPopulation;
   populationCounts: Record<DevelopmentPopulation, number>;
   currentQuarter: string;
+  /** Every scoped person's facts (incl. steady people the cockpit hides). */
+  people: DevelopmentPersonFacts[];
 };
 
 /** Load every development-population member's facts, plus queue inputs. */
@@ -469,7 +471,20 @@ export async function loadDevelopmentOverview(
     population,
     populationCounts,
     currentQuarter: currentQuarterLabel(now),
+    people: scoped,
   };
+}
+
+/** Every development-population member's facts (both populations) — used by
+ *  the review-cycle launcher to resolve cohorts against the same facts the
+ *  command-center lanes are built from. */
+export async function loadDevelopmentPeople(
+  now: Date = new Date()
+): Promise<DevelopmentPersonFacts[]> {
+  await requireLeadership();
+
+  const { people } = await loadDevelopmentFacts(now);
+  return people;
 }
 
 /** Facts for one person (for the development record). Null when out of scope. */

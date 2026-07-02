@@ -38,7 +38,6 @@ export const CHAPTER_PRESIDENT_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/mentorship",
   "/curriculum",
   "/pathways",
-  "/my-mentor",
   // Meetings
   "/meetings",
   "/scheduling",
@@ -89,7 +88,6 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/mentorship": { group: "Programs", label: "Mentorship", icon: "🤝" },
   "/curriculum": { group: "Programs", label: "Curriculum", icon: "📖" },
   "/pathways": { group: "Programs", label: "Pathways", icon: "🗺" },
-  "/my-mentor": { group: "Programs", label: "My Mentor", icon: "🌱" },
 
   // Meetings — prepare, run, and follow up
   "/meetings": { group: "Meetings", label: "Meetings", icon: "📅" },
@@ -131,7 +129,6 @@ export const CHAPTER_PRESIDENT_SIDEBAR_LINK_ORDER: string[] = [
   "/mentorship",
   "/curriculum",
   "/pathways",
-  "/my-mentor",
   // Meetings
   "/meetings",
   "/scheduling",

@@ -216,7 +216,7 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
         </div>
         {showReviewPanel ? (
           <Link
-            href={`/people/develop/${id}`}
+            href={`/mentorship/people/${id}`}
             className="inline-flex items-center gap-1 rounded-[10px] border border-[#e3d5f7] bg-[#faf7fe] px-3 py-1.5 text-[12.5px] font-semibold text-[#6b21c8] hover:bg-[#f3ecfc]"
           >
             Development record →
