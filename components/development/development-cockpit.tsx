@@ -39,10 +39,10 @@ const CARD_SIGNAL_CAP = 3;
 
 function developHref(who: string, lane?: DevelopmentLaneId | null): string {
   const params = new URLSearchParams();
+  params.set("view", "admin");
   if (who === "officers") params.set("who", "officers");
   if (lane) params.set("lane", lane);
-  const qs = params.toString();
-  return qs ? `/people/develop?${qs}` : "/people/develop";
+  return `/mentorship?${params.toString()}`;
 }
 
 function PersonCard({ card }: { card: DevelopmentCard }) {
@@ -53,7 +53,7 @@ function PersonCard({ card }: { card: DevelopmentCard }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <Link
-            href={`/people/develop/${facts.id}`}
+            href={`/mentorship/people/${facts.id}`}
             className="text-[14.5px] font-semibold text-ink hover:text-brand-700 hover:underline"
           >
             {facts.name || facts.email}
@@ -143,7 +143,7 @@ function ReviewQueueSection({ items }: { items: ReviewQueueItem[] }) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2">
                 <Link
-                  href={`/people/develop/${item.personId}`}
+                  href={`/mentorship/people/${item.personId}`}
                   className="text-[14px] font-semibold text-ink hover:text-brand-700 hover:underline"
                 >
                   {item.personName}

@@ -3268,9 +3268,9 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     pattern: "/mentorship",
     title: "Mentorship",
     content: {
-      purpose: "This page brings together the main tools and details for the mentorship.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+      purpose: "This page is the Mentorship Command Center — your own development, your mentees, and (for leadership) the org-wide coaching lanes and review cycles, switched with the view tabs.",
+      firstStep: "Check the view tabs first: My development shows what you owe, Mentor console shows who needs you, Command center shows where the org is stuck.",
+      nextStep: "Follow the one recommended step on each card — submit the reflection, write the review, or launch a review cycle."
     }
   },
   {
@@ -3691,9 +3691,9 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     pattern: "/my-mentor",
     title: "My Mentor",
     content: {
-      purpose: "This page brings together the main tools and details for my mentor.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+      purpose: "This page redirects to the Mentorship hub's My development view — your mentor, reflection, released feedback, and next steps live there now.",
+      firstStep: "You'll land on /mentorship?view=me automatically.",
+      nextStep: "Use the drill-down cards there to open goals, progress, reflection, schedule, resources, or awards."
     }
   },
   {
@@ -4326,21 +4326,21 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
-    pattern: "/people/develop",
-    title: "Development — Pathways Portal",
+    pattern: "/mentorship/people/[id]",
+    title: "Development record — Pathways Portal",
     content: {
-      purpose: "This page shows who needs coaching, who is overloaded, which reviews are due, and who is ready for more responsibility.",
-      firstStep: "Start with the top lane — it holds the most pressing situations — and open a person's next step to act on it.",
-      nextStep: "After you assign a mentor, record a review, or compile a check-in, the person moves out of their lane automatically."
+      purpose: "This page shows one person's development record — their coaching plan, signals, reviews, active review cycles, open work, and recommended next step.",
+      firstStep: "Read the recommended next step and the signal badges first so you know what this person needs before acting.",
+      nextStep: "Use the linked surfaces to take the step — or press Start review to launch an individual review cycle for them."
     }
   },
   {
-    pattern: "/people/develop/[id]",
-    title: "Development record — Pathways Portal",
+    pattern: "/mentorship/cycles",
+    title: "Review Cycles — Pathways Portal",
     content: {
-      purpose: "This page shows one person's development record — their coaching signals, reviews, open work, and recommended next step.",
-      firstStep: "Read the recommended next step and the signal badges first so you know what this person needs before acting.",
-      nextStep: "Use the linked surfaces to take the step; the record and timeline update as new check-ins and reviews land."
+      purpose: "This page lists every review cycle — individual or cohort — with live progress from self-input through release.",
+      firstStep: "Open the active cycle with the most people still waiting, or launch a new cycle for a person or a cohort.",
+      nextStep: "Inside a cycle, each row shows exactly what unblocks that person: a reflection, a review, or a chair approval."
     }
   },
   {
@@ -4365,9 +4365,9 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     pattern: "/people/mentorship",
     title: "Mentorship — Pathways Portal",
     content: {
-      purpose: "This page brings together the main tools and details for the mentorship — pathways portal.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+      purpose: "This page redirects to the Mentorship Command Center (/mentorship?view=admin), where the mentorship dashboard now lives.",
+      firstStep: "You'll land on the command center automatically.",
+      nextStep: "Work the lifecycle lanes and review cycles there."
     }
   },
   {

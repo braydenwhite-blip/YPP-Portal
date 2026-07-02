@@ -28,7 +28,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/announcements": { group: "People & Support", label: "Updates", icon: "📢" },
   "/notifications": { group: "Profile & Settings", label: "Notifications", icon: "🔔" },
   "/calendar": { group: "People & Support", label: "Calendar", icon: "🗓" },
-  "/my-mentor": { group: "People & Support", label: "My Mentor", icon: "🤝" },
+  "/mentorship": { group: "People & Support", label: "Mentorship", icon: "🤝" },
   "/chapters": { group: "Chapters", label: "Chapter", icon: "🏘" },
   "/settings/personalization": { group: "Profile & Settings", label: "Account", icon: "⚙️" },
 };
@@ -50,7 +50,7 @@ export const INSTRUCTOR_SIDEBAR_LINK_ORDER: string[] = [
   "/scheduling",
   "/announcements",
   "/calendar",
-  "/my-mentor",
+  "/mentorship",
   "/chapters",
   "/settings/personalization",
   "/notifications",

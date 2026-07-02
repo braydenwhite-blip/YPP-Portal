@@ -272,7 +272,7 @@ describe("recommendNextStep", () => {
     const facts = person({ growthTags: ["READY_FOR_MORE"] });
     const step = recommendNextStep(facts, deriveDevelopmentSignals(facts));
     expect(step.label).toBe("Plan their next step");
-    expect(step.href).toBe("/people/develop/user-1");
+    expect(step.href).toBe("/mentorship/people/user-1");
   });
 });
 

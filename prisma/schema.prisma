@@ -1587,6 +1587,10 @@ model User {
   // Admin-editable portal settings this user last updated
   portalSettingsUpdated PortalSetting[] @relation("PortalSettingUpdatedBy")
 
+  // Mentorship review cycles (cohort review launches)
+  reviewCyclesCreated       ReviewCycle[]            @relation("ReviewCyclesCreated")
+  reviewCycleParticipations ReviewCycleParticipant[] @relation("ReviewCycleParticipations")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -3040,6 +3044,7 @@ model Mentorship {
   feedbackRequests QuarterlyFeedbackRequest[]
   scheduleRequests MentorshipScheduleRequest[]
   grDocuments      GRDocument[]
+  reviewCycleParticipants ReviewCycleParticipant[]
 
   @@index([trackId])
   @@index([chairId])
@@ -3059,6 +3064,59 @@ model MentorshipCheckIn {
   mentorship     Mentorship @relation(fields: [mentorshipId], references: [id])
 
   @@index([mentorshipId, createdAt])
+}
+
+/// A review cycle launched for one person or a whole cohort. Tracks a set of
+/// people through one review period — the participant's stage is DERIVED at
+/// read time from the existing review artifacts (MonthlySelfReflection,
+/// MentorGoalReview, QuarterlyReview); nothing here duplicates review state.
+/// Statuses/kinds are strings validated in app code
+/// (lib/mentorship/cycle-constants.ts) — mentorship-2 convention.
+model ReviewCycle {
+  id          String  @id @default(cuid())
+  name        String
+  /// "monthly" | "quarterly"
+  kind        String  @default("monthly")
+  /// Period targeted: "2026-07" (monthly) or "2026-Q3" (quarterly).
+  periodLabel String
+  /// "role-group" | "chapter" | "lane" | "custom"
+  scopeType   String
+  /// Human descriptor, e.g. "All chapter presidents" / "Scarsdale chapter".
+  scopeLabel  String
+  /// Snapshot of the launcher input for auditability.
+  scopeJson   Json?
+  dueDate     DateTime?
+  /// "active" | "closed"
+  status      String    @default("active")
+  createdById String
+  createdBy   User      @relation("ReviewCyclesCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  closedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  participants ReviewCycleParticipant[]
+
+  @@index([status, createdAt])
+  @@index([createdById])
+}
+
+model ReviewCycleParticipant {
+  id           String      @id @default(cuid())
+  cycleId      String
+  cycle        ReviewCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User        @relation("ReviewCycleParticipations", fields: [userId], references: [id], onDelete: Cascade)
+  /// Active pairing snapshotted at launch (null ⇒ "needs mentor" stage).
+  mentorshipId String?
+  mentorship   Mentorship? @relation(fields: [mentorshipId], references: [id], onDelete: SetNull)
+  /// Manual override: "waived" — normally null, stage is derived.
+  stageOverride String?
+  note          String?
+  addedAt       DateTime @default(now())
+
+  @@unique([cycleId, userId])
+  @@index([userId])
+  @@index([mentorshipId])
 }
 
 model MentorshipCircleMember {

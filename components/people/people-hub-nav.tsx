@@ -1,11 +1,6 @@
 import Link from "next/link";
 
-export type PeopleHubTab =
-  | "reviews"
-  | "develop"
-  | "check-ins"
-  | "mentorship"
-  | "quarterly-reviews";
+export type PeopleHubTab = "reviews" | "check-ins" | "quarterly-reviews";
 
 type TabDef = {
   key: PeopleHubTab;
@@ -13,11 +8,11 @@ type TabDef = {
   href: string;
 };
 
+// Development + Mentorship moved into the unified Mentorship Command Center
+// (/mentorship?view=admin) — linked below the tabs rather than duplicated.
 const TABS: TabDef[] = [
   { key: "reviews", label: "People & Reviews", href: "/people" },
-  { key: "develop", label: "Development", href: "/people/develop" },
   { key: "check-ins", label: "Monthly Check-ins", href: "/people/check-ins" },
-  { key: "mentorship", label: "Mentorship", href: "/people/mentorship" },
   { key: "quarterly-reviews", label: "Quarterly Reviews", href: "/people/quarterly-reviews" },
 ];
 
@@ -48,6 +43,9 @@ export function PeopleHubNav({
             </Link>
           );
         })}
+        <Link href="/mentorship?view=admin" className="ps-tab">
+          Mentorship &amp; Development ↗
+        </Link>
       </div>
     </nav>
   );

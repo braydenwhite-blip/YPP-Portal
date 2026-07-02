@@ -693,29 +693,9 @@ export const NAV_CATALOG: NavLink[] = [
         "One hub for the people directory, leadership performance view, and (for admins) class operations.",
       dashboardPriority: 3,
     },
-    {
-      href: "/people/develop",
-      label: "Development",
-      icon: "🌱",
-      // Leadership development cockpit: who needs coaching, who is overloaded,
-      // which reviews are due, who is ready for more. Officer-tier in nav; the
-      // page itself additionally requires leadership (mirrors /people gating).
-      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: [
-        "Leadership development",
-        "Development cockpit",
-        "Needs coach",
-        "Review overdue",
-        "Ready for more",
-        "Coaching",
-        "Development record",
-        "Officer support",
-        "Instructor development",
-      ],
-      dashboardDescription:
-        "Who needs coaching, who is overloaded, which reviews are due, and who is ready for more responsibility.",
-      dashboardPriority: 4,
-    },
+    // /people/develop (the Leadership Development cockpit) folded into the
+    // unified Mentorship Command Center — it redirects to
+    // /mentorship?view=admin and its search aliases moved onto /mentorship.
     {
       href: "/partners",
       label: "Partners",
@@ -899,19 +879,55 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/mentorship",
       label: "Mentorship",
       icon: "🤝",
-      roles: MENTOR_ROLES,
-      searchAliases: ["Support Hub", "Mentees", "Relationships"],
-      dashboardDescription: "Open mentorship relationships, check-ins, next steps, and review work.",
-      dashboardPriority: 16,
-    },
-    {
-      href: "/my-mentor",
-      label: "My Mentor",
-      icon: "🤝",
-      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
-      searchAliases: ["Mentorship", "Mentor", "Goals", "Next steps"],
-      dashboardDescription: "See your mentor, goals, resources, progress, reflection, and next steps.",
+      // The unified Mentorship Command Center — mentee ("My Development"),
+      // mentor (coaching console), and leadership (command center) POVs on
+      // one URL. Replaces the separate /my-mentor front door and the
+      // /people/develop cockpit (both now redirect here).
+      roles: [
+        "INSTRUCTOR",
+        "MENTOR",
+        "CHAPTER_PRESIDENT",
+        "HIRING_CHAIR",
+        "STAFF",
+        "ADMIN",
+      ] as NavRole[],
+      searchAliases: [
+        "Support Hub",
+        "Mentees",
+        "Relationships",
+        "My Mentor",
+        "My Development",
+        "Leadership development",
+        "Development cockpit",
+        "Coaching",
+        "Development record",
+        "Ready for more",
+        "Needs coach",
+      ],
+      dashboardDescription:
+        "Your development, your mentees, and the command center for developing the people who run YPP.",
       dashboardPriority: 4,
+    },
+    // /my-mentor now redirects to /mentorship?view=me (the mentee POV). Its
+    // detail subroutes (goals, progress, reflection, schedule, resources,
+    // awards) still live under /my-mentor/* and are linked from the hub.
+    {
+      href: "/mentorship/cycles",
+      label: "Review Cycles",
+      icon: "🔄",
+      // Cohort review launcher + progress board. Officer-tier in nav; the
+      // page additionally requires leadership (mirrors the old /people/develop
+      // gating).
+      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      searchAliases: [
+        "Cohort review",
+        "Review cycle",
+        "Launch reviews",
+        "Review progress",
+      ],
+      dashboardDescription:
+        "Launch a review for one person or a whole cohort, and see who is waiting on self-input, review, or chair approval.",
+      dashboardPriority: 6,
     },
     {
       href: "/mentorship/mentees",

@@ -80,7 +80,7 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toContain("/scheduling");
     expect(visibleHrefs).toContain("/announcements");
     expect(visibleHrefs).toContain("/calendar");
-    expect(visibleHrefs).toContain("/my-mentor");
+    expect(visibleHrefs).toContain("/mentorship");
     expect(visibleHrefs).not.toContain("/messages");
     // `/chapters` (Find a Chapter) is consolidated into the Chapter Hub and
     // intentionally hidden from the sidebar — see ALWAYS_HIDDEN_HREFS.
@@ -111,7 +111,7 @@ describe("resolveNavModel", () => {
       instructorFullPortalExplorer: true,
     });
     expect(hrefs(model)).toContain("/interviews");
-    expect(hrefs(model)).toContain("/my-mentor");
+    expect(hrefs(model)).toContain("/mentorship");
     expect(hrefs(model)).not.toContain("/my-program");
     expect(hrefs(model)).not.toContain("/my-program/awards");
   });
