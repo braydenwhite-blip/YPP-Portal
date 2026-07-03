@@ -21,7 +21,11 @@ ALTER TABLE "MentorshipCheckIn"
   ADD COLUMN IF NOT EXISTS "commitments" TEXT,
   ADD COLUMN IF NOT EXISTS "participantIds" TEXT[] NOT NULL DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS "followUpDate" TIMESTAMP(3),
-  ADD COLUMN IF NOT EXISTS "occurredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+  -- Added nullable so the backfill below can stamp each legacy row's true
+  -- occurredAt from its createdAt before the column becomes NOT NULL. (Adding it
+  -- NOT NULL DEFAULT now() would collapse every existing row onto the deploy
+  -- timestamp and break `occurredAt desc` ordering.)
+  ADD COLUMN IF NOT EXISTS "occurredAt" TIMESTAMP(3);
 
 -- The relationship link is now optional (person-anchored records may carry none).
 ALTER TABLE "MentorshipCheckIn" ALTER COLUMN "mentorshipId" DROP NOT NULL;
@@ -49,9 +53,15 @@ UPDATE "MentorshipCheckIn" mc
   FROM "Mentorship" m
   WHERE mc."mentorshipId" = m."id" AND mc."subjectId" IS NULL;
 
+-- Stamp each legacy row's occurredAt from its real createdAt, THEN lock the
+-- column to NOT NULL DEFAULT now() for new rows. Idempotent: the UPDATE only
+-- touches nulls, and SET DEFAULT / SET NOT NULL are safe no-ops on re-run.
 UPDATE "MentorshipCheckIn"
   SET "occurredAt" = "createdAt"
   WHERE "occurredAt" IS NULL;
+
+ALTER TABLE "MentorshipCheckIn" ALTER COLUMN "occurredAt" SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "MentorshipCheckIn" ALTER COLUMN "occurredAt" SET NOT NULL;
 
 CREATE INDEX IF NOT EXISTS "MentorshipCheckIn_subjectId_occurredAt_idx"
   ON "MentorshipCheckIn"("subjectId", "occurredAt");

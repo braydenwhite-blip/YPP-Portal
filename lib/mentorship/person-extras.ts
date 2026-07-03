@@ -52,9 +52,11 @@ export async function getLatestCoachingPlan(
 }
 
 /**
- * The viewer's own coaching plan — released reviews only (a mentee never
- * sees an unreleased plan). No leadership gate: self-scope enforced by
- * querying on the caller's own id.
+ * A person's RELEASED coaching plan — released reviews only (an unreleased
+ * plan-of-action is never returned). Safe for the relationship tier and for the
+ * mentee's own view because it filters on `releasedToMenteeAt`. NOT self-scoped:
+ * callers pass the subject's id, so the released-only filter is the guard —
+ * never widen this to include unreleased plans.
  */
 export async function getMyReleasedCoachingPlan(
   menteeId: string

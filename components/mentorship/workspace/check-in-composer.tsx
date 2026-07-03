@@ -19,11 +19,12 @@ const fieldLabel = "text-[12px] font-semibold uppercase tracking-[0.06em] text-i
 const fieldInput =
   "w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[13.5px] text-ink outline-none focus:border-brand-400";
 
+/** Today as a UTC yyyy-mm-dd, matching how the server coerces date-only inputs. */
 function todayValue(): string {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(now.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 
@@ -31,8 +32,8 @@ function todayValue(): string {
  * Log a conversation record inside the Mentorship workspace — the single entry
  * point for a check-in / meeting / conversation. Captures the structured record
  * (wins, challenges, discussion, decisions, commitments, follow-up) and hands it
- * to the `recordCheckIn` server action, which folds it into the timeline and
- * turns commitments into follow-ups automatically.
+ * to the `recordCheckIn` server action, which saves it and folds it into the
+ * timeline. A follow-up date keeps the next step on the radar.
  */
 export function CheckInComposer({
   subjectId,
@@ -85,6 +86,13 @@ export function CheckInComposer({
 
   function submit() {
     setError(null);
+    const hasContent = [wins, challenges, discussion, decisions, commitments].some(
+      (v) => v.trim().length > 0
+    );
+    if (!hasContent) {
+      setError("Add at least one note — wins, challenges, discussion, decisions, or commitments.");
+      return;
+    }
     const input: RecordCheckInInput = {
       subjectId,
       mentorshipId,
@@ -132,8 +140,8 @@ export function CheckInComposer({
             Log a check-in with {personName}
           </h2>
           <p className="m-0 mt-1 text-[13px] text-ink-muted">
-            One record for the whole conversation — it joins the timeline and any
-            commitments become follow-ups automatically.
+            One record for the whole conversation — it joins the timeline. Set a
+            follow-up date to keep the next step on the radar.
           </p>
         </div>
 

@@ -6,7 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { requireSessionUser } from "@/lib/authorization";
 import { isGrowthOsEnabled } from "@/lib/feature-flags";
 import { emitGrowthEvent } from "@/lib/growth/emit";
-import { parseSuggestedActions } from "@/lib/people-strategy/notes-to-actions";
+import {
+  parseSuggestedActions,
+  type SuggestPerson,
+} from "@/lib/people-strategy/notes-to-actions";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 
 import { hasMentorshipCommandAccess } from "./command-access";
@@ -19,30 +22,35 @@ import {
 
 /**
  * Record a conversation record inside Mentorship — the single write path for a
- * logged check-in / meeting / conversation between a leader and a person.
+ * logged check-in / meeting / conversation between a leader and a person, and
+ * for a mentee's own progress check-in.
  *
  * Writes the structured MentorshipCheckIn (person-anchored), emits a durable
- * timeline event (dark until ENABLE_GROWTH_OS), and turns any commitments into
- * follow-up GrowthActions — so nothing needs duplicate entry. Isolated from the
- * monthly review/points/award pipeline: it never touches MentorGoalReview,
- * AchievementPointLog, or AwardNomination.
+ * timeline event (dark until ENABLE_GROWTH_OS), and turns the SUBJECT's own
+ * commitments into follow-up GrowthActions — so nothing needs duplicate entry.
+ * Isolated from the monthly review/points/award pipeline: it never touches
+ * MentorGoalReview, AchievementPointLog, or AwardNomination.
  */
 
 /**
- * Commitments → follow-up GrowthActions. Best-effort, idempotent per
- * (checkInId, index), Growth-OS-gated, attached to the person's mentorship
- * development goal. A failure here never fails the check-in.
+ * Commitments → follow-up GrowthActions for the SUBJECT. Best-effort, idempotent
+ * per (checkInId, index), Growth-OS-gated, attached to the person's mentorship
+ * development goal. Only the subject's own (or unassigned) commitments become
+ * their development actions — a "Mentor will…" commitment is skipped, never
+ * mis-filed as the mentee's action. A failure here never fails the check-in.
  */
 async function maybeCreateCommitmentActions(
   userId: string,
   checkInId: string,
   commitments: string | null | undefined,
-  occurredAt: Date
+  occurredAt: Date,
+  people: SuggestPerson[]
 ): Promise<void> {
   if (!isGrowthOsEnabled() || !commitments) return;
   try {
     const suggested = parseSuggestedActions({
       notes: commitments,
+      people,
       meetingDateISO: occurredAt.toISOString(),
     });
     if (suggested.length === 0) return;
@@ -55,6 +63,8 @@ async function maybeCreateCommitmentActions(
     if (!goal) return;
 
     for (const [index, suggestion] of suggested.entries()) {
+      // Only the subject's own (or unassigned) commitments are their actions.
+      if (suggestion.ownerId && suggestion.ownerId !== userId) continue;
       const sourceRef = `${checkInId}:${index}`;
       const existing = await prisma.growthAction.findFirst({
         where: { userId, source: "mentorship-checkin", sourceRef },
@@ -85,13 +95,19 @@ export async function recordCheckIn(input: RecordCheckInInput) {
     where: { id: data.mentorshipId },
     select: {
       id: true,
+      status: true,
       mentorId: true,
       chairId: true,
       menteeId: true,
       mentee: { select: { name: true } },
+      mentor: { select: { name: true } },
+      chair: { select: { name: true } },
     },
   });
   if (!mentorship) throw new Error("Mentorship not found.");
+  if (mentorship.status !== "ACTIVE") {
+    throw new Error("This mentorship is no longer active.");
+  }
   if (mentorship.menteeId !== data.subjectId) {
     throw new Error("This check-in does not belong to that person.");
   }
@@ -99,8 +115,10 @@ export async function recordCheckIn(input: RecordCheckInInput) {
   const isAdmin = viewer.roles.includes("ADMIN");
   const isRelationshipOwner =
     viewer.id === mentorship.mentorId || viewer.id === mentorship.chairId;
-  const canCommand = isAdmin || isRelationshipOwner || (await hasMentorshipCommandAccess(viewer));
-  if (!canCommand) {
+  const isSubject = viewer.id === mentorship.menteeId;
+  const canRecord =
+    isAdmin || isRelationshipOwner || isSubject || (await hasMentorshipCommandAccess(viewer));
+  if (!canRecord) {
     throw new Error("You don't have access to record a check-in for this person.");
   }
 
@@ -148,11 +166,21 @@ export async function recordCheckIn(input: RecordCheckInInput) {
     occurredAt,
   });
 
+  // Owner resolution for commitment → action (so "Mentor will…" isn't mis-filed).
+  const people: SuggestPerson[] = [
+    { id: mentorship.menteeId, name: mentorship.mentee?.name ?? "" },
+    { id: mentorship.mentorId, name: mentorship.mentor?.name ?? "" },
+    ...(mentorship.chairId
+      ? [{ id: mentorship.chairId, name: mentorship.chair?.name ?? "" }]
+      : []),
+  ].filter((p) => p.name.length > 0);
+
   await maybeCreateCommitmentActions(
     data.subjectId,
     checkIn.id,
     data.commitments,
-    occurredAt
+    occurredAt,
+    people
   );
 
   // Let the mentee know their leader logged a check-in (never for self-authored).

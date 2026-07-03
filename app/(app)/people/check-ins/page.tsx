@@ -51,7 +51,7 @@ export default async function MonthlyCheckInsPage() {
           title="Check-ins now live in Mentorship."
           body="This page keeps the monthly rating rollup; each person's conversation record moved into their Mentorship workspace."
           ctaLabel="Open Mentorship"
-          ctaHref="/mentorship"
+          ctaHref="/mentorship?view=admin"
         />
       </div>
 

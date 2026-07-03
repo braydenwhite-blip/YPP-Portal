@@ -44,7 +44,7 @@ export default async function QuarterlyReviewsPage() {
           title="A person's full story now lives in Mentorship."
           body="This roll-up stays for the quarterly committee; each person's development record and timeline moved into their Mentorship workspace."
           ctaLabel="Open Mentorship"
-          ctaHref="/mentorship"
+          ctaHref="/mentorship?view=admin"
         />
       </div>
 

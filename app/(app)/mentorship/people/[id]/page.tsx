@@ -12,6 +12,7 @@ import {
   OpportunitiesSection,
   RelationshipsSection,
 } from "@/components/mentorship/workspace/sections";
+import { MentorToolsPanel } from "@/components/mentorship/workspace/mentor-tools-panel";
 
 /**
  * The unified Mentorship workspace — one person's complete development journey.
@@ -25,7 +26,7 @@ export const metadata = { title: "Mentorship — Pathways Portal" };
 
 const SECTIONS = [
   { id: "overview", label: "Overview" },
-  { id: "plan", label: "Plan" },
+  { id: "plan", label: "Development plan" },
   { id: "check-ins", label: "Check-ins" },
   { id: "timeline", label: "Timeline" },
   { id: "opportunities", label: "Opportunities" },
@@ -56,7 +57,7 @@ export default async function MentorshipWorkspacePage(props: {
 
   const tabs = SECTIONS.map((s) => ({
     id: s.id,
-    label: s.label,
+    label: s.id === "plan" ? "Plan" : s.label,
     href: `/mentorship/people/${id}?section=${s.id}`,
     count:
       s.id === "check-ins"
@@ -65,6 +66,11 @@ export default async function MentorshipWorkspacePage(props: {
           ? workspace.opportunities.length || undefined
           : undefined,
   }));
+
+  const showMentorTools =
+    !!workspace.activeMentorshipId &&
+    (workspace.accessLevel === "leadership" ||
+      (workspace.canRecordCheckIn && !workspace.isSelf));
 
   return (
     <div className="mx-auto flex w-full max-w-[900px] flex-col gap-5 px-1 pb-12 pt-4">
@@ -76,11 +82,19 @@ export default async function MentorshipWorkspacePage(props: {
           >
             ← Mentorship
           </Link>
-          <h1 className="m-0 mt-1 text-[22px] font-bold tracking-[-0.3px] text-ink">
+          <p className="m-0 mt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-brand-700">
+            {workspace.isSelf ? "Your development" : "Mentorship"}
+          </p>
+          <h1 className="m-0 mt-0.5 text-[22px] font-bold tracking-[-0.3px] text-ink">
             {workspace.person.name}
           </h1>
           <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
-            {[workspace.person.contextLabel, workspace.person.email]
+            {[
+              workspace.person.contextLabel,
+              workspace.overview.mentorName
+                ? `Mentored by ${workspace.overview.mentorName}`
+                : "No mentor assigned",
+            ]
               .filter(Boolean)
               .join(" · ")}
           </p>
@@ -99,7 +113,14 @@ export default async function MentorshipWorkspacePage(props: {
         <SegmentedTabs tabs={tabs} activeId={section} ariaLabel="Mentorship section" />
       </div>
 
-      {section === "overview" ? <OverviewSection workspace={workspace} /> : null}
+      {section === "overview" ? (
+        <>
+          <OverviewSection workspace={workspace} />
+          {showMentorTools ? (
+            <MentorToolsPanel menteeId={id} mentorshipId={workspace.activeMentorshipId!} />
+          ) : null}
+        </>
+      ) : null}
       {section === "plan" ? <DevelopmentPlanSection workspace={workspace} /> : null}
       {section === "check-ins" ? <CheckInsSection workspace={workspace} /> : null}
       {section === "timeline" ? <TimelineSection workspace={workspace} /> : null}

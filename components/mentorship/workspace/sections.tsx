@@ -92,14 +92,14 @@ export function OverviewSection({ workspace }: { workspace: MentorshipWorkspace 
           />
         </div>
 
-        {overview.nextAction || overview.upcomingFollowUp ? (
+        {overview.nextAction ? (
           <div className="flex flex-col gap-3 rounded-[12px] border border-brand-200 bg-brand-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="m-0 text-[11px] font-bold uppercase tracking-[0.1em] text-brand-700">
                 Next recommended action
               </p>
               <p className="m-0 mt-1 text-[14px] font-semibold text-ink">
-                {overview.nextAction?.label ?? "Stay in touch on the current cadence"}
+                {overview.nextAction.reason ?? overview.nextAction.label}
               </p>
               {overview.upcomingFollowUp ? (
                 <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">
@@ -107,16 +107,27 @@ export function OverviewSection({ workspace }: { workspace: MentorshipWorkspace 
                 </p>
               ) : null}
             </div>
-            {overview.nextAction ? (
-              <ButtonLink href={overview.nextAction.href} variant="primary" size="sm">
-                {overview.nextAction.label}
-              </ButtonLink>
-            ) : null}
+            <ButtonLink href={overview.nextAction.href} variant="primary" size="sm">
+              {overview.nextAction.label}
+            </ButtonLink>
           </div>
+        ) : overview.upcomingFollowUp ? (
+          <p className="m-0 text-[12.5px] text-ink-muted">
+            {overview.upcomingFollowUp.label} · {overview.upcomingFollowUp.dateLabel}
+          </p>
         ) : null}
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <MiniStat label="Progress" value={`${developmentPlan.progressPct}%`} />
+          <MiniStat
+            label={
+              developmentPlan.progressBasis === "goals" ? "Goals done" : "Actions done"
+            }
+            value={
+              developmentPlan.progressBasis === "none"
+                ? "—"
+                : `${developmentPlan.progressPct}%`
+            }
+          />
           <MiniStat label="Active goals" value={String(developmentPlan.activeGoals)} />
           <MiniStat label="Check-ins" value={String(checkIns.length)} />
           <MiniStat label="Opportunities" value={String(opportunities.length)} />
@@ -177,35 +188,44 @@ export function DevelopmentPlanSection({
 
   return (
     <div className="flex flex-col gap-4">
-      <CardV2 padding="lg" className="flex flex-col gap-3">
-        <SectionHeading
-          title="Development plan"
-          description="Long-term goals, milestones, and skills this person is building."
-        />
-        <div className="flex items-center gap-3">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-line-soft">
-            <div
-              className="h-full rounded-full bg-brand-600"
-              style={{ width: `${developmentPlan.progressPct}%` }}
-            />
+      {developmentPlan.progressBasis !== "none" ? (
+        <CardV2 padding="lg" className="flex flex-col gap-3">
+          <SectionHeading
+            title="Development plan"
+            description="Long-term goals, milestones, and skills this person is building."
+          />
+          <div className="flex items-center gap-3">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-line-soft">
+              <div
+                className="h-full rounded-full bg-brand-600"
+                style={{ width: `${developmentPlan.progressPct}%` }}
+              />
+            </div>
+            <span className="shrink-0 text-[12.5px] font-semibold text-ink">
+              {developmentPlan.progressLabel}
+            </span>
           </div>
-          <span className="text-[12.5px] font-semibold text-ink">
-            {developmentPlan.progressPct}%
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-2 text-[12px] text-ink-muted">
-          <span>{developmentPlan.activeGoals} active</span>
-          <span>·</span>
-          <span>{developmentPlan.achievedGoals} achieved</span>
-          <span>·</span>
-          <span>{developmentPlan.totalGoals} total goals</span>
-        </div>
-      </CardV2>
+          <div className="flex flex-wrap gap-2 text-[12px] text-ink-muted">
+            <span>{developmentPlan.activeGoals} active</span>
+            <span>·</span>
+            <span>{developmentPlan.achievedGoals} achieved</span>
+            <span>·</span>
+            <span>{developmentPlan.totalGoals} total goals</span>
+          </div>
+        </CardV2>
+      ) : null}
 
       {goals.length === 0 ? (
         <EmptyStateV2
           title="No development plan yet"
-          body="Goals appear here once a mentorship plan is set. Match a mentor or add goals to get started."
+          body="Goals appear here once a mentorship plan is set — either from a mentor match or added directly."
+          action={
+            workspace.accessLevel === "leadership" ? (
+              <ButtonLink href="/admin/mentorship?tab=assignments" size="sm" variant="secondary">
+                Assign a mentor
+              </ButtonLink>
+            ) : undefined
+          }
         />
       ) : (
         <div className="flex flex-col gap-3">
@@ -488,10 +508,10 @@ export function RelationshipsSection({
     { label: "Last conversation", value: relationships.lastConversationLabel ?? "None yet" },
     { label: "Conversation cadence", value: relationships.cadenceLabel ?? "Not established" },
     {
-      label: "Outstanding commitments",
-      value: String(relationships.outstandingCommitments),
+      label: "Upcoming follow-ups",
+      value: String(relationships.upcomingFollowUps),
     },
-    { label: "Overall progress", value: `${workspace.developmentPlan.progressPct}%` },
+    { label: "Overall progress", value: workspace.developmentPlan.progressLabel },
   ];
 
   return (

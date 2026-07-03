@@ -3,7 +3,7 @@ import "server-only";
 import type { SessionUser } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { isGrowthOsEnabled } from "@/lib/feature-flags";
-import { hasMentorshipMenteeAccess } from "@/lib/mentorship-access";
+import { defaultGrowthEventTitle, isGrowthEventType } from "@/lib/growth/events";
 import {
   loadDevelopmentRecord,
   type DevelopmentRecord,
@@ -27,13 +27,20 @@ import { STAGE_META } from "./cycle-constants";
  * The unified Mentorship workspace loader — one person's complete development
  * journey assembled from the existing engine (no parallel data stores).
  *
- * Two access tiers (Mentorship consolidation V1):
+ * Two access tiers:
  *   - "leadership"   → full record incl. leadership-confidential data
  *                      (`loadDevelopmentRecord`, coaching plans, review cycles).
- *   - "relationship" → the person's own mentor/chair; a scoped, relationship-safe
- *                      view (conversation records, released reviews, sessions,
- *                      the growth plan, opportunities) with NO confidential
- *                      internals — never calls the leadership-gated loaders.
+ *   - "relationship" → the assigned mentor/chair, or the person themselves; a
+ *                      scoped, relationship-safe view (conversation records,
+ *                      released reviews, sessions, growth plan, opportunities)
+ *                      with NO confidential internals — never calls the
+ *                      leadership-gated loaders.
+ *
+ * Access is restricted to the assigned owner: admin, leadership/board, the
+ * mentor/chair on the ACTIVE pairing, or the person themselves. A viewer's OWN
+ * record is always the relationship tier — nobody sees their own confidential
+ * succession/potential ratings. Non-leadership relationship viewers only see
+ * check-ins from the mentorship they own.
  */
 
 const TONE_ORDER = ["danger", "warning", "info", "brand", "success", "neutral"] as const;
@@ -82,9 +89,12 @@ export type WorkspaceOpportunity = {
 
 export type WorkspaceParticipant = { id: string; name: string };
 
+export type WorkspaceNextAction = { label: string; href: string; reason: string | null };
+
 export type MentorshipWorkspace = {
   person: { id: string; name: string; email: string; contextLabel: string | null };
   accessLevel: WorkspaceAccessLevel;
+  isSelf: boolean;
   canRecordCheckIn: boolean;
   activeMentorshipId: string | null;
   participantOptions: WorkspaceParticipant[];
@@ -92,7 +102,7 @@ export type MentorshipWorkspace = {
     mentorName: string | null;
     statusLabel: string;
     currentFocus: string | null;
-    nextAction: { label: string; href: string } | null;
+    nextAction: WorkspaceNextAction | null;
     upcomingFollowUp: { label: string; dateLabel: string } | null;
     coachingPlan: CoachingPlan | null;
     record: DevelopmentRecord | null;
@@ -103,6 +113,8 @@ export type MentorshipWorkspace = {
     activeGoals: number;
     achievedGoals: number;
     progressPct: number;
+    progressBasis: "actions" | "goals" | "none";
+    progressLabel: string;
   };
   checkIns: ConversationRecordView[];
   timeline: WorkspaceTimelineEvent[];
@@ -112,7 +124,7 @@ export type MentorshipWorkspace = {
     startedAtLabel: string | null;
     lastConversationLabel: string | null;
     cadenceLabel: string | null;
-    outstandingCommitments: number;
+    upcomingFollowUps: number;
     reviewCycles: Array<{ id: string; name: string; stageLabel: string }>;
   };
 };
@@ -126,7 +138,29 @@ const ROLE_LABELS: Record<string, string> = {
   MENTOR: "Mentor",
 };
 
+/**
+ * Growth-event source types that are safe to surface in the scoped
+ * (relationship/self) timeline. Anything else — or any event whose type isn't a
+ * registered growth type — is skipped and rendered from the registry default
+ * title (never the raw emitter text), so a future emitter can't leak confidential
+ * strings into a non-leadership view. Leadership sees everything.
+ */
+const GROWTH_SAFE_SOURCE_TYPES = new Set([
+  "mentorship",
+  "class",
+  "classOffering",
+  "certificate",
+  "leadership",
+  "leadershipContribution",
+  "chapter",
+  "project",
+]);
+
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+function utcMidnight(d: Date): number {
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
 
 function dateLabel(d: Date): string {
   return new Intl.DateTimeFormat("en-US", {
@@ -137,8 +171,9 @@ function dateLabel(d: Date): string {
   }).format(d);
 }
 
-function relativeDayLabel(d: Date, now: Date): string {
-  const days = Math.round((d.getTime() - now.getTime()) / DAY_MS);
+/** Whole-day relative label, computed midnight-to-midnight in UTC (no time-of-day skew). */
+function relativeDayLabel(d: Date, todayMidnightMs: number): string {
+  const days = Math.round((utcMidnight(d) - todayMidnightMs) / DAY_MS);
   if (days === 0) return "today";
   if (days === 1) return "tomorrow";
   if (days === -1) return "yesterday";
@@ -152,12 +187,11 @@ function firstLine(text: string | null): string | null {
   return line ? line.slice(0, 160) : null;
 }
 
-/** Access + record target for a workspace, or null when the viewer is denied. */
-export async function resolveWorkspaceAccess(
-  viewer: SessionUser,
-  personId: string
-): Promise<{
+type WorkspaceAccess = {
   level: WorkspaceAccessLevel;
+  isSelf: boolean;
+  isAdmin: boolean;
+  ownsRelationship: boolean;
   canRecordCheckIn: boolean;
   activeMentorship: {
     id: string;
@@ -166,8 +200,16 @@ export async function resolveWorkspaceAccess(
     startDate: Date;
     status: string;
     mentor: { name: string | null; email: string };
+    chair: { name: string | null; email: string } | null;
   } | null;
-} | null> {
+};
+
+/** Access + record target for a workspace, or null when the viewer is denied. */
+export async function resolveWorkspaceAccess(
+  viewer: SessionUser,
+  personId: string
+): Promise<WorkspaceAccess | null> {
+  const isSelf = viewer.id === personId;
   const isAdmin = viewer.roles.includes("ADMIN");
   const [leadership, activeMentorship] = await Promise.all([
     hasMentorshipCommandAccess(viewer),
@@ -181,6 +223,7 @@ export async function resolveWorkspaceAccess(
         startDate: true,
         status: true,
         mentor: { select: { name: true, email: true } },
+        chair: { select: { name: true, email: true } },
       },
     }),
   ]);
@@ -189,17 +232,23 @@ export async function resolveWorkspaceAccess(
     !!activeMentorship &&
     (viewer.id === activeMentorship.mentorId || viewer.id === activeMentorship.chairId);
 
-  const relationship =
-    isAdmin ||
-    ownsRelationship ||
-    (await hasMentorshipMenteeAccess(viewer.id, viewer.roles, personId));
+  // Restricted to the assigned owner: admin, leadership/board, the mentor/chair
+  // on the active pairing, or the person themselves. (No chapter-wide access.)
+  const hasAccess = isAdmin || leadership || ownsRelationship || isSelf;
+  if (!hasAccess) return null;
 
-  if (!leadership && !relationship) return null;
+  // A viewer's OWN record is always the relationship tier — never expose one's
+  // own leadership-confidential succession/potential ratings or unreleased plans.
+  const level: WorkspaceAccessLevel = leadership && !isSelf ? "leadership" : "relationship";
 
-  const canRecordCheckIn = !!activeMentorship && (isAdmin || leadership || ownsRelationship);
+  const canRecordCheckIn =
+    !!activeMentorship && (isAdmin || (leadership && !isSelf) || ownsRelationship || isSelf);
 
   return {
-    level: leadership ? "leadership" : "relationship",
+    level,
+    isSelf,
+    isAdmin,
+    ownsRelationship,
     canRecordCheckIn,
     activeMentorship,
   };
@@ -213,9 +262,7 @@ export async function loadMentorshipWorkspace(
   if (!access) return null;
 
   const now = new Date();
-  const startOfToday = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-  );
+  const todayMs = utcMidnight(now);
 
   const person = await prisma.user.findUnique({
     where: { id: personId },
@@ -231,6 +278,14 @@ export async function loadMentorshipWorkspace(
   if (!person || person.archivedAt) return null;
 
   const isLeadership = access.level === "leadership";
+  // Full check-in history is visible to leadership, admins, and the person
+  // themselves. An assigned mentor/chair sees only the pairing they own, so a
+  // prior mentor's private notes never surface to a later one.
+  const isFullScope = isLeadership || access.isAdmin || access.isSelf;
+  const checkInWhere =
+    isFullScope || !access.activeMentorship
+      ? { OR: [{ subjectId: personId }, { mentorship: { menteeId: personId } }] }
+      : { mentorshipId: access.activeMentorship.id };
 
   const [
     checkInRows,
@@ -242,7 +297,7 @@ export async function loadMentorshipWorkspace(
     growthTimeline,
   ] = await Promise.all([
     prisma.mentorshipCheckIn.findMany({
-      where: { OR: [{ subjectId: personId }, { mentorship: { menteeId: personId } }] },
+      where: checkInWhere,
       orderBy: { occurredAt: "desc" },
       take: 50,
       select: {
@@ -331,7 +386,7 @@ export async function loadMentorshipWorkspace(
 
   const checkIns: ConversationRecordView[] = checkInRows.map((row) => {
     const followUpOverdue =
-      !!row.followUpDate && row.followUpDate.getTime() < startOfToday.getTime();
+      !!row.followUpDate && utcMidnight(row.followUpDate) < todayMs;
     return {
       id: row.id,
       kind: row.kind,
@@ -349,7 +404,7 @@ export async function loadMentorshipWorkspace(
       commitments: row.commitments,
       notes: row.notes,
       followUpISO: row.followUpDate?.toISOString() ?? null,
-      followUpLabel: row.followUpDate ? relativeDayLabel(row.followUpDate, now) : null,
+      followUpLabel: row.followUpDate ? relativeDayLabel(row.followUpDate, todayMs) : null,
       followUpOverdue,
     };
   });
@@ -409,16 +464,26 @@ export async function loadMentorshipWorkspace(
   }
 
   // Merge durable growth events (dark until ENABLE_GROWTH_OS). Skip source types
-  // the derived timeline already owns to avoid double-counting.
-  const COVERED_SOURCE_TYPES = new Set(["mentorship-checkin"]);
+  // the derived timeline already owns; for the scoped tier, only surface known,
+  // benign milestone types and render the registry's canonical title (never the
+  // raw emitter text) so no future emitter can leak confidential strings.
   for (const event of growthTimeline.events) {
-    if (event.sourceType && COVERED_SOURCE_TYPES.has(event.sourceType)) continue;
+    if (event.sourceType === "mentorship-checkin") continue; // owned by the derived path
+    // Scoped tier: only known, benign milestone types, rendered from the registry's
+    // canonical title (never raw emitter text) so no future emitter leaks strings.
+    let label = event.title;
+    if (!isLeadership) {
+      if (!isGrowthEventType(event.type)) continue;
+      const safeSource = !event.sourceType || GROWTH_SAFE_SOURCE_TYPES.has(event.sourceType);
+      if (!safeSource) continue;
+      label = defaultGrowthEventTitle(event.type);
+    }
     timeline.push({
       atISO: event.occurredAt.toISOString(),
       dateLabel: dateLabel(event.occurredAt),
       kind: "growth",
-      label: event.title,
-      detail: event.description,
+      label,
+      detail: isLeadership ? event.description : null,
       tone: "brand",
     });
   }
@@ -445,12 +510,23 @@ export async function loadMentorshipWorkspace(
   };
   for (const vision of hierarchy.visions) vision.goals.forEach(countGoal);
   hierarchy.looseGoals.forEach(countGoal);
-  const progressPct =
-    totalActions > 0
-      ? Math.round((doneActions / totalActions) * 100)
-      : totalGoals > 0
-        ? Math.round((achievedGoals / totalGoals) * 100)
-        : 0;
+
+  let progressBasis: "actions" | "goals" | "none";
+  let progressPct: number;
+  let progressLabel: string;
+  if (totalActions > 0) {
+    progressBasis = "actions";
+    progressPct = Math.round((doneActions / totalActions) * 100);
+    progressLabel = `${doneActions} of ${totalActions} actions complete`;
+  } else if (totalGoals > 0) {
+    progressBasis = "goals";
+    progressPct = Math.round((achievedGoals / totalGoals) * 100);
+    progressLabel = `${achievedGoals} of ${totalGoals} goals achieved`;
+  } else {
+    progressBasis = "none";
+    progressPct = 0;
+    progressLabel = "No plan yet";
+  }
 
   // --- Opportunities (computed + human-recommended) ---
   const opportunities: WorkspaceOpportunity[] = [
@@ -479,9 +555,15 @@ export async function loadMentorshipWorkspace(
   // --- Relationships summary ---
   const lastConversation = checkInRows[0]?.occurredAt ?? null;
   const upcomingFollowUps = checkInRows
-    .filter((r) => r.followUpDate && r.followUpDate.getTime() >= startOfToday.getTime())
+    .filter((r) => r.followUpDate && utcMidnight(r.followUpDate) >= todayMs)
     .sort((a, b) => a.followUpDate!.getTime() - b.followUpDate!.getTime());
   const nextFollowUp = upcomingFollowUps[0]?.followUpDate ?? null;
+
+  // Most recent check-in that set a follow-up date drives the "follow up now" nudge.
+  const latestWithFollowUp = checkInRows.find((r) => r.followUpDate);
+  const followUpIsOverdue =
+    !!latestWithFollowUp?.followUpDate &&
+    utcMidnight(latestWithFollowUp.followUpDate) < todayMs;
 
   let cadenceLabel: string | null = null;
   if (checkInRows.length >= 2) {
@@ -507,11 +589,32 @@ export async function loadMentorshipWorkspace(
     firstLine(coachingPlan?.planOfAction ?? null) ??
     firstLine(checkInRows[0]?.discussion ?? checkInRows[0]?.commitments ?? null);
 
-  const nextAction: { label: string; href: string } | null = isLeadership && record
-    ? { label: record.nextStep.label, href: record.nextStep.href }
-    : access.canRecordCheckIn
-      ? { label: "Log a check-in", href: `/mentorship/people/${personId}?section=check-ins` }
-      : null;
+  const workspaceBase = `/mentorship/people/${personId}`;
+  const toSectionHref = (href: string): string =>
+    href === workspaceBase ? `${workspaceBase}?section=check-ins` : href;
+
+  let nextAction: WorkspaceNextAction | null = null;
+  if (isLeadership && record) {
+    nextAction = {
+      label: record.nextStep.label,
+      href: toSectionHref(record.nextStep.href),
+      reason: record.nextStep.reason ?? null,
+    };
+  } else if (followUpIsOverdue && latestWithFollowUp?.followUpDate) {
+    nextAction = {
+      label: "Follow up now",
+      href: `${workspaceBase}?section=check-ins`,
+      reason: `Follow-up was due ${dateLabel(latestWithFollowUp.followUpDate)}`,
+    };
+  } else if (access.canRecordCheckIn) {
+    nextAction = {
+      label: "Log a check-in",
+      href: `${workspaceBase}?section=check-ins`,
+      reason: lastConversation
+        ? `Last conversation ${dateLabel(lastConversation)}`
+        : "No check-ins logged yet",
+    };
+  }
 
   const roleLabel = ROLE_LABELS[person.primaryRole] ?? person.primaryRole;
   const contextLabel = person.chapter?.name
@@ -520,15 +623,17 @@ export async function loadMentorshipWorkspace(
 
   const participantOptions: WorkspaceParticipant[] = [];
   if (access.activeMentorship) {
-    participantOptions.push({
-      id: personId,
-      name: person.name || person.email,
-    });
+    participantOptions.push({ id: personId, name: person.name || person.email });
     participantOptions.push({
       id: access.activeMentorship.mentorId,
-      name:
-        access.activeMentorship.mentor.name || access.activeMentorship.mentor.email,
+      name: access.activeMentorship.mentor.name || access.activeMentorship.mentor.email,
     });
+    if (access.activeMentorship.chairId && access.activeMentorship.chair) {
+      participantOptions.push({
+        id: access.activeMentorship.chairId,
+        name: access.activeMentorship.chair.name || access.activeMentorship.chair.email,
+      });
+    }
   }
 
   return {
@@ -539,6 +644,7 @@ export async function loadMentorshipWorkspace(
       contextLabel,
     },
     accessLevel: access.level,
+    isSelf: access.isSelf,
     canRecordCheckIn: access.canRecordCheckIn,
     activeMentorshipId: access.activeMentorship?.id ?? null,
     participantOptions,
@@ -562,6 +668,8 @@ export async function loadMentorshipWorkspace(
       activeGoals,
       achievedGoals,
       progressPct,
+      progressBasis,
+      progressLabel,
     },
     checkIns,
     timeline,
@@ -576,7 +684,7 @@ export async function loadMentorshipWorkspace(
         : null,
       lastConversationLabel: lastConversation ? dateLabel(lastConversation) : null,
       cadenceLabel,
-      outstandingCommitments: upcomingFollowUps.length,
+      upcomingFollowUps: upcomingFollowUps.length,
       reviewCycles,
     },
   };
