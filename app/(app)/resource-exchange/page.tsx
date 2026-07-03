@@ -4,11 +4,12 @@ import { getResourceExchangeListings, getMyExchangeListings } from "@/lib/real-w
 import Link from "next/link";
 import { CreateListingForm, RequestItemButton, RespondToRequest } from "./client";
 
-export default async function ResourceExchangePage({
-  searchParams,
-}: {
-  searchParams: { tab?: string; category?: string; type?: string };
-}) {
+export default async function ResourceExchangePage(
+  props: {
+    searchParams: Promise<{ tab?: string; category?: string; type?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

@@ -8,11 +8,12 @@ import {
 import Link from "next/link";
 import { getProgramColor, formatProgramType } from "@/lib/program-constants";
 
-export default async function ProgramDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function ProgramDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   if (!session) redirect("/login");
 

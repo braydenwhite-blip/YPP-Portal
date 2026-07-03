@@ -36,11 +36,12 @@ async function toggleTalentAction(formData: FormData) {
   await toggleTalentActivity(challengeId, nextActive);
 }
 
-export default async function AdminActivitiesPage({
-  searchParams,
-}: {
-  searchParams?: { tab?: string };
-}) {
+export default async function AdminActivitiesPage(
+  props: {
+    searchParams?: Promise<{ tab?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

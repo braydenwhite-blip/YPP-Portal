@@ -4,7 +4,8 @@ import { getInternshipDetail } from "@/lib/real-world-actions";
 import Link from "next/link";
 import { ApplyButton } from "../client";
 
-export default async function InternshipDetailPage({ params }: { params: { id: string } }) {
+export default async function InternshipDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

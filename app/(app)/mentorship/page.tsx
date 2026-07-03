@@ -50,11 +50,12 @@ function povHref(pov: HubPov): string {
   return `/mentorship?view=${pov}`;
 }
 
-export default async function MentorshipPage({
-  searchParams,
-}: {
-  searchParams?: { view?: string; who?: string; lane?: string };
-}) {
+export default async function MentorshipPage(
+  props: {
+    searchParams?: Promise<{ view?: string; who?: string; lane?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

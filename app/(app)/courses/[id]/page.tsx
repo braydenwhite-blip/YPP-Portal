@@ -4,11 +4,12 @@ import { redirect, notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 
-export default async function CourseDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function CourseDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

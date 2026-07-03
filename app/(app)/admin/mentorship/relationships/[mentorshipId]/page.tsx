@@ -128,11 +128,12 @@ function AdminRelationshipControls({
   );
 }
 
-export default async function AdminMentorshipRelationshipDetailPage({
-  params,
-}: {
-  params: { mentorshipId: string };
-}) {
+export default async function AdminMentorshipRelationshipDetailPage(
+  props: {
+    params: Promise<{ mentorshipId: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {

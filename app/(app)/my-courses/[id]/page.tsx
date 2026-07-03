@@ -5,11 +5,12 @@ import { submitAssignment } from "@/lib/upload-actions";
 import Link from "next/link";
 import FileUpload from "@/components/file-upload";
 
-export default async function CourseDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function CourseDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   if (!session) redirect("/login");
 

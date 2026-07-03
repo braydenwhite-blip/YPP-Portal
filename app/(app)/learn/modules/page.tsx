@@ -8,11 +8,12 @@ import {
 } from "@/lib/module-actions";
 import ModuleFilters from "./module-filters";
 
-export default async function LearningModulesPage({
-  searchParams,
-}: {
-  searchParams: { passion?: string; level?: string; q?: string; status?: string };
-}) {
+export default async function LearningModulesPage(
+  props: {
+    searchParams: Promise<{ passion?: string; level?: string; q?: string; status?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");

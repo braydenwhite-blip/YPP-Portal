@@ -17,7 +17,8 @@ const APP_STATUS_COLORS: Record<string, string> = {
   WAITLISTED: "#8b3fe8", REJECTED: "#ef4444", WITHDRAWN: "#6b7280",
 };
 
-export default async function CohortDetailPage({ params }: { params: { id: string } }) {
+export default async function CohortDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -66,7 +67,6 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
         </div>
         <Link href="/admin/incubator" className="button secondary">Back to All Cohorts</Link>
       </div>
-
       {/* Stats */}
       <div className="grid three" style={{ marginBottom: 24 }}>
         <div className="card" style={{ textAlign: "center" }}>
@@ -82,7 +82,6 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
           <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>Mentor Assignments</div>
         </div>
       </div>
-
       <div className="grid three" style={{ marginBottom: 24 }}>
         <div className="card" style={{ textAlign: "center" }}>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#dc2626" }}>{mentorlessProjects.length}</div>
@@ -97,7 +96,6 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
           <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>Launches Awaiting Approval</div>
         </div>
       </div>
-
       {/* Pending Applications */}
       {pendingApps.length > 0 && (
         <div style={{ marginBottom: 32 }}>
@@ -136,7 +134,6 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
           </div>
         </div>
       )}
-
       {/* Active Projects */}
       <div style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 18, marginBottom: 12 }}>Active Projects ({cohort.projects.length})</h2>
@@ -185,7 +182,6 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
           </div>
         )}
       </div>
-
       {pendingLaunches.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 18, marginBottom: 12 }}>Launch Approval Queue ({pendingLaunches.length})</h2>
@@ -213,7 +209,6 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
           </div>
         </div>
       )}
-
       {/* Reviewed Applications */}
       {reviewedApps.length > 0 && (
         <div>

@@ -33,11 +33,12 @@ function normalizeSource(value: string | undefined): ActivitySourceType | undefi
   return candidates.find((candidate) => candidate === value);
 }
 
-export default async function ActivitiesPage({
-  searchParams,
-}: {
-  searchParams?: { source?: string; passion?: string };
-}) {
+export default async function ActivitiesPage(
+  props: {
+    searchParams?: Promise<{ source?: string; passion?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   const featureEnabled = await isFeatureEnabledForUser("ACTIVITY_HUB", {
@@ -99,7 +100,6 @@ export default async function ActivitiesPage({
           <Link href="/pathways" className="button secondary">Pathways</Link>
         </div>
       </div>
-
       <div className="grid three" style={{ marginBottom: 20 }}>
         <div className="card" style={{ textAlign: "center" }}>
           <div style={{ fontSize: 28, fontWeight: 700, color: "var(--ypp-purple)" }}>{items.length}</div>
@@ -114,7 +114,6 @@ export default async function ActivitiesPage({
           <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>Completed</div>
         </div>
       </div>
-
       <div className="card" style={{ marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>Filter by Type</h3>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
@@ -135,7 +134,6 @@ export default async function ActivitiesPage({
           ))}
         </div>
       </div>
-
       {items.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: 40 }}>
           <h3>No activities matched this filter</h3>

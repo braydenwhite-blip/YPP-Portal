@@ -3,11 +3,12 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { AuditAction } from "@prisma/client";
 
-export default async function AuditLogPage({
-  searchParams,
-}: {
-  searchParams: { action?: string; search?: string; page?: string };
-}) {
+export default async function AuditLogPage(
+  props: {
+    searchParams: Promise<{ action?: string; search?: string; page?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {
@@ -82,7 +83,6 @@ export default async function AuditLogPage({
           <h1 className="page-title">Audit Log / Activity Feed</h1>
         </div>
       </div>
-
       {auditTableMissing ? (
         <div className="card" style={{ marginTop: 16 }}>
           <h3>Audit Log Not Enabled Yet</h3>
@@ -94,7 +94,6 @@ export default async function AuditLogPage({
           </p>
         </div>
       ) : null}
-
       <div className="grid three">
         <div className="card">
           <div className="kpi">{total}</div>
@@ -109,7 +108,6 @@ export default async function AuditLogPage({
           <div className="kpi-label">Last 7 Days</div>
         </div>
       </div>
-
       <div className="card" style={{ marginTop: 24 }}>
         <h3>Search & Filter</h3>
         <form className="form-grid" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -141,7 +139,6 @@ export default async function AuditLogPage({
           </a>
         </form>
       </div>
-
       <div className="card" style={{ marginTop: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3>Activity History ({total} events)</h3>

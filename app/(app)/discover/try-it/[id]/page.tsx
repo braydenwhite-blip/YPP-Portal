@@ -17,11 +17,12 @@ function toEmbedUrl(url: string): string {
   return url;
 }
 
-export default async function TryItSessionDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function TryItSessionDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");

@@ -16,11 +16,12 @@ const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> 
   PARENT: { label: "Parent", color: "#6b21c8", bg: "#f5f3ff" },
 };
 
-export default async function ChapterMembersPage({
-  searchParams,
-}: {
-  searchParams: { q?: string };
-}) {
+export default async function ChapterMembersPage(
+  props: {
+    searchParams: Promise<{ q?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await requirePageRoles(["CHAPTER_PRESIDENT", "ADMIN"]);
 
   const members = await getChapterMembers(searchParams.q);

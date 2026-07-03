@@ -66,7 +66,8 @@ function occurrenceSummary(startDate: Date, endDate: Date) {
   })}`;
 }
 
-export default async function ChapterCalendarPage({ searchParams }: ChapterCalendarPageProps) {
+export default async function ChapterCalendarPage(props: ChapterCalendarPageProps) {
+  const searchParams = await props.searchParams;
   const manager = await requireChapterCalendarManager(singleParam(searchParams?.chapterId) || null);
   const eventId = singleParam(searchParams?.eventId) || null;
   const seriesId = singleParam(searchParams?.seriesId) || null;

@@ -9,7 +9,8 @@ const CONTENT_TYPE_COLORS: Record<string, string> = {
   ART: "#ec4899", MUSIC: "#d97706", CODE: "#06b6d4", OTHER: "#6b7280",
 };
 
-export default async function ShowcaseDetailPage({ params }: { params: { id: string } }) {
+export default async function ShowcaseDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

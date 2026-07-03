@@ -26,11 +26,12 @@ function formatDate(value: Date | string | null | undefined) {
   return new Date(value).toLocaleString();
 }
 
-export default async function ChapterRecruitingPage({
-  searchParams,
-}: {
-  searchParams?: Record<string, string | string[] | undefined>;
-}) {
+export default async function ChapterRecruitingPage(
+  props: {
+    searchParams?: Promise<Record<string, string | string[] | undefined>>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const tabQuery = Array.isArray(searchParams?.tab) ? searchParams?.tab[0] : searchParams?.tab;
   const activeTab = resolveRecruitingTab(tabQuery);
 
@@ -170,7 +171,6 @@ export default async function ChapterRecruitingPage({
           + New Opening
         </Link>
       </div>
-
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {RECRUITING_TABS.map((tab) => {
@@ -198,7 +198,6 @@ export default async function ChapterRecruitingPage({
           })}
         </div>
       </div>
-
       <div className="grid four" style={{ marginBottom: 20 }}>
         <div className="card">
           <div className="kpi">{positions.filter((position) => position.isOpen).length}</div>
@@ -217,7 +216,6 @@ export default async function ChapterRecruitingPage({
           <div className="kpi-label">Decision Queue</div>
         </div>
       </div>
-
       {activeTab === "positions" ? (
         <div className="card" style={{ marginBottom: 20 }}>
           <h3>Open Positions</h3>
@@ -276,7 +274,6 @@ export default async function ChapterRecruitingPage({
           )}
         </div>
       ) : null}
-
       {activeTab === "candidates" ? (
         <div className="card" style={{ marginBottom: 20 }}>
           <h3>Candidate Pipeline</h3>
@@ -330,7 +327,6 @@ export default async function ChapterRecruitingPage({
           )}
         </div>
       ) : null}
-
       {activeTab === "decisions" ? (
         <div className="card">
           <h3>Decision Queue</h3>

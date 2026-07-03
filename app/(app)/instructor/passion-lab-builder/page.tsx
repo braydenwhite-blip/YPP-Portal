@@ -11,10 +11,11 @@ import {
 } from "@/lib/instructor-builder-blueprints";
 
 type Props = {
-  searchParams: { id?: string };
+  searchParams: Promise<{ id?: string }>;
 };
 
-export default async function PassionLabBuilderPage({ searchParams }: Props) {
+export default async function PassionLabBuilderPage(props: Props) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

@@ -4,11 +4,12 @@ import Link from "next/link";
 import { getModuleById, getMyProgressForModule } from "@/lib/module-actions";
 import ModuleViewerClient from "./client";
 
-export default async function ModuleDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function ModuleDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");

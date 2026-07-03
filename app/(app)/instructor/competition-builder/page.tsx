@@ -13,11 +13,12 @@ import {
 } from "@/lib/schema-compat";
 import { normalizeCompetitionPlanningDetails } from "@/lib/instructor-builder-blueprints";
 
-export default async function CompetitionBuilderPage({
-  searchParams,
-}: {
-  searchParams: { id?: string };
-}) {
+export default async function CompetitionBuilderPage(
+  props: {
+    searchParams: Promise<{ id?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

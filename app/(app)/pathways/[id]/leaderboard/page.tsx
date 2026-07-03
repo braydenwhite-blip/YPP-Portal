@@ -36,7 +36,8 @@ function getDisplayName(name: string) {
   return `${nameParts[0]} ${nameParts[nameParts.length - 1][0]}.`;
 }
 
-export default async function PathwayLeaderboardPage({ params }: { params: { id: string } }) {
+export default async function PathwayLeaderboardPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   // Gamification gate (dynamic route — not covered by the proxy prefix list).
   if (!isGamificationEnabled()) notFound();
   const session = await getSession();
