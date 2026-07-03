@@ -2,6 +2,31 @@
 -- Required (NOT NULL) refs -> CASCADE; optional (nullable) refs -> SET NULL.
 -- Idempotent: each constraint is dropped-if-exists then re-added.
 
+-- ---------------------------------------------------------------------------
+-- Schema-drift reconciliation (must run BEFORE the FK statements below).
+--
+-- ClassTemplate and SeasonalCompetition are baselined-from-Supabase tables:
+-- their review-workflow columns were added to prisma/schema.prisma but no
+-- migration ever added them to the database. The reviewedById FK statements
+-- further down (and the generated Prisma Client) reference columns Postgres
+-- does not have, which is what produced:
+--   ERROR 42703: column "reviewedById" referenced in foreign key constraint
+--   does not exist
+-- Add the missing columns first so the FKs can be created. IF NOT EXISTS makes
+-- every statement a no-op where the column is already present (additive only,
+-- no data loss). The "CurriculumSubmissionStatus" enum already exists (created
+-- in 20260313120000_align_instructor_builder_schema).
+ALTER TABLE "ClassTemplate"
+  ADD COLUMN IF NOT EXISTS "submissionStatus" "CurriculumSubmissionStatus" NOT NULL DEFAULT 'DRAFT',
+  ADD COLUMN IF NOT EXISTS "submittedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "reviewedById" TEXT,
+  ADD COLUMN IF NOT EXISTS "reviewNotes" TEXT;
+
+ALTER TABLE "SeasonalCompetition"
+  ADD COLUMN IF NOT EXISTS "reviewedById" TEXT,
+  ADD COLUMN IF NOT EXISTS "reviewNotes" TEXT;
+-- ---------------------------------------------------------------------------
+
 ALTER TABLE "ChapterSupportRequest" DROP CONSTRAINT IF EXISTS "ChapterSupportRequest_requestedById_fkey";
 ALTER TABLE "ChapterSupportRequest" ADD CONSTRAINT "ChapterSupportRequest_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -725,8 +750,13 @@ ALTER TABLE "AwardNomination" ADD CONSTRAINT "AwardNomination_boardApproverId_fk
 ALTER TABLE "MentorCommitteeChair" DROP CONSTRAINT IF EXISTS "MentorCommitteeChair_userId_fkey";
 ALTER TABLE "MentorCommitteeChair" ADD CONSTRAINT "MentorCommitteeChair_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE "Rubric" DROP CONSTRAINT IF EXISTS "Rubric_createdById_fkey";
-ALTER TABLE "Rubric" ADD CONSTRAINT "Rubric_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- Rubric is provisioned only via `prisma db push` (absent from every migration
+-- and from the supabase_sync baseline), so its presence/columns can't be proven
+-- from migration history. Guard so a missing table/column can't abort the deploy.
+DO $$ BEGIN
+  ALTER TABLE "Rubric" DROP CONSTRAINT IF EXISTS "Rubric_createdById_fkey";
+  ALTER TABLE "Rubric" ADD CONSTRAINT "Rubric_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN undefined_column OR undefined_table OR duplicate_object THEN null; END $$;
 
 ALTER TABLE "InstructorCohort" DROP CONSTRAINT IF EXISTS "InstructorCohort_createdById_fkey";
 ALTER TABLE "InstructorCohort" ADD CONSTRAINT "InstructorCohort_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -734,11 +764,17 @@ ALTER TABLE "InstructorCohort" ADD CONSTRAINT "InstructorCohort_createdById_fkey
 ALTER TABLE "InstructorCohortMember" DROP CONSTRAINT IF EXISTS "InstructorCohortMember_userId_fkey";
 ALTER TABLE "InstructorCohortMember" ADD CONSTRAINT "InstructorCohortMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE "PassionLabProgress" DROP CONSTRAINT IF EXISTS "PassionLabProgress_studentId_fkey";
-ALTER TABLE "PassionLabProgress" ADD CONSTRAINT "PassionLabProgress_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- PassionLabProgress: db-push-only table (see Rubric note). Guard defensively.
+DO $$ BEGIN
+  ALTER TABLE "PassionLabProgress" DROP CONSTRAINT IF EXISTS "PassionLabProgress_studentId_fkey";
+  ALTER TABLE "PassionLabProgress" ADD CONSTRAINT "PassionLabProgress_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN undefined_column OR undefined_table OR duplicate_object THEN null; END $$;
 
-ALTER TABLE "CompetitionPrepProgress" DROP CONSTRAINT IF EXISTS "CompetitionPrepProgress_studentId_fkey";
-ALTER TABLE "CompetitionPrepProgress" ADD CONSTRAINT "CompetitionPrepProgress_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- CompetitionPrepProgress: db-push-only table (see Rubric note). Guard defensively.
+DO $$ BEGIN
+  ALTER TABLE "CompetitionPrepProgress" DROP CONSTRAINT IF EXISTS "CompetitionPrepProgress_studentId_fkey";
+  ALTER TABLE "CompetitionPrepProgress" ADD CONSTRAINT "CompetitionPrepProgress_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN undefined_column OR undefined_table OR duplicate_object THEN null; END $$;
 
 ALTER TABLE "ChapterPresidentApplication" DROP CONSTRAINT IF EXISTS "ChapterPresidentApplication_applicantId_fkey";
 ALTER TABLE "ChapterPresidentApplication" ADD CONSTRAINT "ChapterPresidentApplication_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -797,8 +833,11 @@ ALTER TABLE "JourneyMilestone" ADD CONSTRAINT "JourneyMilestone_userId_fkey" FOR
 ALTER TABLE "ClassAnnouncement" DROP CONSTRAINT IF EXISTS "ClassAnnouncement_authorId_fkey";
 ALTER TABLE "ClassAnnouncement" ADD CONSTRAINT "ClassAnnouncement_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE "QuarterlyFeedbackRequest" DROP CONSTRAINT IF EXISTS "QuarterlyFeedbackRequest_requestedById_fkey";
-ALTER TABLE "QuarterlyFeedbackRequest" ADD CONSTRAINT "QuarterlyFeedbackRequest_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- QuarterlyFeedbackRequest: db-push-only table (see Rubric note). Guard defensively.
+DO $$ BEGIN
+  ALTER TABLE "QuarterlyFeedbackRequest" DROP CONSTRAINT IF EXISTS "QuarterlyFeedbackRequest_requestedById_fkey";
+  ALTER TABLE "QuarterlyFeedbackRequest" ADD CONSTRAINT "QuarterlyFeedbackRequest_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN undefined_column OR undefined_table OR duplicate_object THEN null; END $$;
 
 ALTER TABLE "MentorshipScheduleRequest" DROP CONSTRAINT IF EXISTS "MentorshipScheduleRequest_requestedById_fkey";
 ALTER TABLE "MentorshipScheduleRequest" ADD CONSTRAINT "MentorshipScheduleRequest_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
