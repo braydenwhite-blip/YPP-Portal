@@ -102,7 +102,11 @@ export type ChapterCommandView = {
     | "waiting_on_cp"
     | "waiting_on_ypp"
     | "recently_launched"
-    | "high_performing";
+    | "high_performing"
+    | "missing_weekly_update"
+    | "decisions_needed"
+    | "bottlenecks"
+    | "ready_to_scale";
 };
 
 export const CHAPTER_COMMAND_VIEWS: ChapterCommandView[] = [
@@ -111,9 +115,13 @@ export const CHAPTER_COMMAND_VIEWS: ChapterCommandView[] = [
   { key: "active", label: "Active", statuses: ["ACTIVE", "NEEDS_SUPPORT", "AT_RISK"] },
   { key: "needs_support", label: "Needs Support", statuses: ["NEEDS_SUPPORT"] },
   { key: "at_risk", label: "At Risk", statuses: ["AT_RISK"] },
+  { key: "missing_weekly_update", label: "Missing Weekly Update", statuses: null, signal: "missing_weekly_update" },
+  { key: "decisions_needed", label: "Decisions Needed", statuses: null, signal: "decisions_needed" },
+  { key: "bottlenecks", label: "Bottlenecks", statuses: null, signal: "bottlenecks" },
   { key: "no_upcoming_meeting", label: "No Upcoming Meeting", statuses: null, signal: "no_upcoming_meeting" },
   { key: "waiting_on_cp", label: "Waiting on CP", statuses: null, signal: "waiting_on_cp" },
   { key: "waiting_on_ypp", label: "Waiting on YPP", statuses: null, signal: "waiting_on_ypp" },
+  { key: "ready_to_scale", label: "Ready to Scale", statuses: null, signal: "ready_to_scale" },
   { key: "recently_launched", label: "Recently Launched", statuses: null, signal: "recently_launched" },
   { key: "high_performing", label: "High Performing", statuses: null, signal: "high_performing" },
   { key: "prospect", label: "Prospects", statuses: ["PROSPECT"] },

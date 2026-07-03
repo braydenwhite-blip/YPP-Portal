@@ -4,6 +4,8 @@
 // spreadsheets, no parallel tracking.
 
 import { prisma } from "@/lib/prisma";
+import { withPrismaFallback } from "@/lib/prisma-guard";
+import { weekStartFor } from "@/lib/weekly-meetings/week";
 import { gatherChapterSignals, healthFromSignals } from "@/lib/chapters/signals";
 import {
   CHAPTER_COMMAND_VIEWS,
@@ -11,6 +13,15 @@ import {
   isOperatingStatus,
   isLaunchingStatus,
 } from "@/lib/chapters/lifecycle";
+import {
+  buildChapterRadarRow,
+  emptyRadarCounts,
+  summarizeChapterRadar,
+  type ChapterRadarCounts,
+  type ChapterRadarRow,
+  type WeeklyUpdateState,
+} from "@/lib/chapters/radar";
+import { PARTNER_WON_STAGES, PARTNER_ACTIVE_STAGES } from "@/lib/partners-constants";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -28,6 +39,8 @@ export type ChapterCommandCard = {
   blocker: string | null;
   lastActivityAt: Date;
   upcomingMeetingAt: Date | null;
+  /** Pipeline bottlenecks, weekly-update state, decisions, expectations. */
+  radar: ChapterRadarRow;
   // derived view membership
   flags: {
     noUpcomingMeeting: boolean;
@@ -35,8 +48,148 @@ export type ChapterCommandCard = {
     waitingOnYpp: boolean;
     recentlyLaunched: boolean;
     highPerforming: boolean;
+    missingWeeklyUpdate: boolean;
+    decisionsNeeded: boolean;
+    bottlenecks: boolean;
+    readyToScale: boolean;
   };
 };
+
+/**
+ * Batched pipeline/decision/weekly-update counts across every chapter — the
+ * inputs the pure radar rules read. A handful of grouped org-wide queries, all
+ * fault-tolerant, so the command center never N+1s or blanks on one bad table.
+ */
+async function gatherRadarCounts(
+  chapterIds: string[],
+  weekStart: Date,
+  now: Date
+): Promise<{ counts: Map<string, ChapterRadarCounts>; weeklyUpdate: Map<string, WeeklyUpdateState> }> {
+  const counts = new Map<string, ChapterRadarCounts>();
+  const weeklyUpdate = new Map<string, WeeklyUpdateState>();
+  for (const id of chapterIds) {
+    counts.set(id, emptyRadarCounts());
+    weeklyUpdate.set(id, "MISSING");
+  }
+  if (chapterIds.length === 0) return { counts, weeklyUpdate };
+
+  const [partnerStages, partnerOverdue, applications, offerings, entries, decisionRows] =
+    await Promise.all([
+      withPrismaFallback(
+        "chapter-radar:partner-stages",
+        () =>
+          prisma.partner.groupBy({
+            by: ["chapterId", "stage"],
+            where: { chapterId: { in: chapterIds }, archivedAt: null },
+            _count: { _all: true },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-radar:partner-overdue",
+        () =>
+          prisma.partner.groupBy({
+            by: ["chapterId"],
+            where: { chapterId: { in: chapterIds }, archivedAt: null, nextFollowUpAt: { lt: now } },
+            _count: { _all: true },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-radar:applications",
+        () =>
+          prisma.instructorApplication.findMany({
+            where: {
+              archivedAt: null,
+              status: { not: "WITHDRAWN" },
+              applicant: { chapterId: { in: chapterIds } },
+            },
+            take: 5000,
+            select: { status: true, applicant: { select: { chapterId: true } } },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-radar:offerings",
+        () =>
+          prisma.classOffering.findMany({
+            where: { chapterId: { in: chapterIds }, status: { not: "CANCELLED" } },
+            take: 5000,
+            select: {
+              chapterId: true,
+              status: true,
+              _count: { select: { enrollments: { where: { status: "ENROLLED" } } } },
+            },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-radar:weekly-entries",
+        () =>
+          prisma.weeklyImpactEntry.findMany({
+            where: { chapterId: { in: chapterIds }, weekStart },
+            select: { chapterId: true, status: true },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-radar:decision-rows",
+        () =>
+          prisma.weeklyImpactRow.findMany({
+            where: { decisionNeeded: true, entry: { chapterId: { in: chapterIds }, weekStart } },
+            take: 2000,
+            select: { entry: { select: { chapterId: true } } },
+          }),
+        []
+      ),
+    ]);
+
+  const won = new Set<string>(PARTNER_WON_STAGES);
+  const inFlight = new Set<string>(PARTNER_ACTIVE_STAGES);
+  for (const row of partnerStages) {
+    if (!row.chapterId) continue;
+    const c = counts.get(row.chapterId);
+    if (!c) continue;
+    const n = row._count._all;
+    if (row.stage && won.has(row.stage)) c.confirmedPartners += n;
+    else if (row.stage && inFlight.has(row.stage)) c.partnersInFlight += n;
+  }
+  for (const row of partnerOverdue) {
+    if (!row.chapterId) continue;
+    const c = counts.get(row.chapterId);
+    if (c) c.partnerFollowUpsOverdue = row._count._all;
+  }
+  for (const app of applications) {
+    const chapterId = app.applicant?.chapterId;
+    if (!chapterId) continue;
+    const c = counts.get(chapterId);
+    if (!c) continue;
+    if (app.status !== "REJECTED") c.instructorApplicants += 1;
+    if (app.status === "APPROVED") c.instructorsHired += 1;
+  }
+  for (const o of offerings) {
+    if (!o.chapterId) continue;
+    const c = counts.get(o.chapterId);
+    if (!c) continue;
+    c.classesTotal += 1;
+    if (o.status === "IN_PROGRESS") c.classesRunning += 1;
+    c.studentsEnrolled += o._count.enrollments;
+  }
+  for (const e of entries) {
+    if (!e.chapterId) continue;
+    const prev = weeklyUpdate.get(e.chapterId);
+    if (e.status === "SUBMITTED") weeklyUpdate.set(e.chapterId, "SUBMITTED");
+    else if (prev === "MISSING") weeklyUpdate.set(e.chapterId, "DRAFT");
+  }
+  for (const d of decisionRows) {
+    const chapterId = d.entry?.chapterId;
+    if (!chapterId) continue;
+    const c = counts.get(chapterId);
+    if (c) c.decisionsNeeded += 1;
+  }
+
+  return { counts, weeklyUpdate };
+}
 
 type EnrichedChapter = ChapterCommandCard & { archivedExcluded: true };
 
@@ -61,10 +214,12 @@ async function enrichAllChapters(now: Date): Promise<ChapterCommandCard[]> {
     },
   });
 
-  const signals = await gatherChapterSignals(
-    chapters.map((c) => c.id),
-    now
-  );
+  const chapterIds = chapters.map((c) => c.id);
+  const weekStart = weekStartFor(now);
+  const [signals, radarData] = await Promise.all([
+    gatherChapterSignals(chapterIds, now),
+    gatherRadarCounts(chapterIds, weekStart, now),
+  ]);
 
   return chapters.map((c) => {
     const raw = signals.get(c.id) ?? {
@@ -116,6 +271,18 @@ async function enrichAllChapters(now: Date): Promise<ChapterCommandCard[]> {
       isLaunchingStatus(c.lifecycleStatus) && (raw.overdueActions > 0 || raw.launchDone < raw.launchTotal);
     const noUpcomingMeeting = isOperatingStatus(c.lifecycleStatus) && !raw.nextMeetingAt;
 
+    const radarCounts = radarData.counts.get(c.id) ?? emptyRadarCounts();
+    radarCounts.overdueActions = raw.overdueActions;
+    radarCounts.openSupportRequests = raw.openSupportRequests;
+    const radar = buildChapterRadarRow({
+      id: c.id,
+      lifecycleStatus: c.lifecycleStatus,
+      healthLabel: health.label,
+      counts: radarCounts,
+      weeklyUpdate: radarData.weeklyUpdate.get(c.id) ?? "MISSING",
+      daysSinceActivity: Math.max(0, Math.floor((now.getTime() - lastActivityAt.getTime()) / DAY_MS)),
+    });
+
     return {
       id: c.id,
       name: c.name,
@@ -130,7 +297,22 @@ async function enrichAllChapters(now: Date): Promise<ChapterCommandCard[]> {
       blocker,
       lastActivityAt,
       upcomingMeetingAt: raw.nextMeetingAt,
-      flags: { noUpcomingMeeting, waitingOnCp, waitingOnYpp, recentlyLaunched, highPerforming },
+      radar,
+      flags: {
+        noUpcomingMeeting,
+        waitingOnCp,
+        waitingOnYpp,
+        recentlyLaunched,
+        highPerforming,
+        // Weekly-update / decision lenses only apply once a chapter is operating
+        // or launching — prospects have nothing to report yet.
+        missingWeeklyUpdate:
+          (isOperatingStatus(c.lifecycleStatus) || isLaunchingStatus(c.lifecycleStatus)) &&
+          radar.weeklyUpdate !== "SUBMITTED",
+        decisionsNeeded: radar.decisionsNeeded > 0,
+        bottlenecks: radar.bottlenecks.length > 0,
+        readyToScale: radar.readyToScale,
+      },
     };
   });
 }
@@ -149,6 +331,14 @@ function matchesView(card: ChapterCommandCard, viewKey: string): boolean {
         return card.flags.recentlyLaunched;
       case "high_performing":
         return card.flags.highPerforming;
+      case "missing_weekly_update":
+        return card.flags.missingWeeklyUpdate;
+      case "decisions_needed":
+        return card.flags.decisionsNeeded;
+      case "bottlenecks":
+        return card.flags.bottlenecks;
+      case "ready_to_scale":
+        return card.flags.readyToScale;
     }
   }
   if (!view.statuses) return true;
@@ -174,6 +364,7 @@ export async function loadLeadershipChapters(opts?: { view?: string; state?: str
   ).sort();
 
   // Headline tiles for the command center.
+  const radarSummary = summarizeChapterRadar(all.map((c) => c.radar));
   const summary = {
     total: all.length,
     launching: all.filter((c) => isLaunchingStatus(c.lifecycleStatus)).length,
@@ -181,6 +372,10 @@ export async function loadLeadershipChapters(opts?: { view?: string; state?: str
     needsSupport: all.filter((c) => c.health.label === "NEEDS_SUPPORT").length,
     atRisk: all.filter((c) => c.health.label === "AT_RISK").length,
     noUpcomingMeeting: all.filter((c) => c.flags.noUpcomingMeeting).length,
+    missingWeeklyUpdate: all.filter((c) => c.flags.missingWeeklyUpdate).length,
+    decisionsNeeded: radarSummary.decisionsNeeded,
+    bottlenecks: all.filter((c) => c.flags.bottlenecks).length,
+    readyToScale: radarSummary.readyToScale,
   };
 
   return { cards, viewCounts, requestedView: requestedView.key, states, summary };

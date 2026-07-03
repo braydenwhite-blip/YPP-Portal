@@ -95,6 +95,9 @@ export default async function ChapterHomePage() {
             <ButtonLink href="/chapter/operating" variant="primary" size="sm">
               Operating System
             </ButtonLink>
+            <ButtonLink href="/chapter/impact" variant="secondary" size="sm">
+              Impact Meeting
+            </ButtonLink>
             <ButtonLink href="/chapter/recruiting" variant="secondary" size="sm">
               Recruiting
             </ButtonLink>

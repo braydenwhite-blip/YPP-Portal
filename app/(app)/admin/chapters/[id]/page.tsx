@@ -203,6 +203,13 @@ export default async function AdminChapterDetailPage({
             <Link href="/admin/chapters" className="button secondary" style={{ fontSize: 12 }}>
               ← All Chapters
             </Link>
+            <Link
+              href={`/chapter/impact?chapter=${chapter.id}`}
+              className="button secondary"
+              style={{ fontSize: 12 }}
+            >
+              Impact Brief
+            </Link>
             {chapter.slug && (
               <Link
                 href={`/chapters/${chapter.slug}`}

@@ -1184,6 +1184,23 @@ export const NAV_CATALOG: NavLink[] = [
       ],
     },
     {
+      href: "/chapter/impact",
+      label: "Impact Meeting",
+      icon: "📊",
+      roles: CHAPTER_PRESIDENT_ONLY,
+      dashboardDescription:
+        "Your generated weekly brief — what changed, current numbers, wins, risks, decisions, and next-week commitments — ready to present.",
+      dashboardPriority: 3,
+      searchAliases: [
+        "Impact Meeting",
+        "Weekly brief",
+        "Impact brief",
+        "Meeting prep",
+        "What changed this week",
+        "Chapter report",
+      ],
+    },
+    {
       href: "/chapter/organization",
       label: "Organization Graph",
       icon: "🕸",
