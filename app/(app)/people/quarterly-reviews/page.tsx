@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { PeopleHubNav } from "@/components/people/people-hub-nav";
+import { LegacySurfaceBanner } from "@/components/ui-v2";
 import { QuarterlyReviewsClient } from "@/components/people-strategy/quarterly-reviews-client";
 import { requireLeadership } from "@/lib/authorization";
 import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
@@ -37,6 +38,15 @@ export default async function QuarterlyReviewsPage() {
   return (
     <div className="mx-auto w-full max-w-[1200px] px-1 pb-12 pt-2">
       <PeopleHubNav active="quarterly-reviews" showPerformance />
+
+      <div className="mt-4">
+        <LegacySurfaceBanner
+          title="A person's full story now lives in Mentorship."
+          body="This roll-up stays for the quarterly committee; each person's development record and timeline moved into their Mentorship workspace."
+          ctaLabel="Open Mentorship"
+          ctaHref="/mentorship?view=admin"
+        />
+      </div>
 
       <div className="mb-5 mt-4">
         <h1 className="m-0 text-[26px] font-extrabold tracking-[-0.4px] text-[#1c1a2e]">

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { PeopleHubNav } from "@/components/people/people-hub-nav";
+import { LegacySurfaceBanner } from "@/components/ui-v2";
 import { MonthlyCheckInsClient } from "@/components/people-strategy/monthly-check-ins-client";
 import { requireLeadership } from "@/lib/authorization";
 import { isPeopleDashboardEnabled } from "@/lib/feature-flags";
@@ -44,6 +45,15 @@ export default async function MonthlyCheckInsPage() {
   return (
     <div className="mx-auto w-full max-w-[1200px] px-1 pb-12 pt-2">
       <PeopleHubNav active="check-ins" showPerformance />
+
+      <div className="mt-4">
+        <LegacySurfaceBanner
+          title="Check-ins now live in Mentorship."
+          body="This page keeps the monthly rating rollup; each person's conversation record moved into their Mentorship workspace."
+          ctaLabel="Open Mentorship"
+          ctaHref="/mentorship?view=admin"
+        />
+      </div>
 
       <div className="mb-5 mt-4">
         <h1 className="m-0 text-[26px] font-extrabold tracking-[-0.4px] text-[#1c1a2e]">

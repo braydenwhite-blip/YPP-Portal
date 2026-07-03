@@ -22,6 +22,7 @@ export const GROWTH_EVENT_TYPES = [
   "INSTRUCTOR_TRAINING_COMPLETED",
   // Mentorship
   "MENTOR_MATCHED",
+  "MENTORSHIP_CHECK_IN",
   "MENTORSHIP_GOAL_SET",
   "MENTORSHIP_MILESTONE_REACHED",
   "MENTORSHIP_COMPLETED",
@@ -108,6 +109,14 @@ export const GROWTH_EVENT_DEFINITIONS: Record<GrowthEventType, GrowthEventDefini
     category: "MENTORSHIP",
     label: "Matched with a mentor",
     defaultTitle: "Matched with a mentor",
+    countsAsExperience: false,
+  },
+  MENTORSHIP_CHECK_IN: {
+    type: "MENTORSHIP_CHECK_IN",
+    track: "MENTORSHIP",
+    category: "MENTORSHIP",
+    label: "Mentorship check-in logged",
+    defaultTitle: "Had a mentorship check-in",
     countsAsExperience: false,
   },
   MENTORSHIP_GOAL_SET: {

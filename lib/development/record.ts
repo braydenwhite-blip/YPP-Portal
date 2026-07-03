@@ -41,6 +41,7 @@ export type DevelopmentTimelineEvent = {
   dateLabel: string;
   kind:
     | "check-in"
+    | "conversation"
     | "quarterly-review"
     | "mentor-review"
     | "session"
@@ -132,6 +133,7 @@ export async function loadDevelopmentRecord(
     contributions,
     openActions,
     openFollowUps,
+    conversationCheckIns,
   ] = await Promise.all([
     prisma.checkIn.findMany({
       where: { userId },
@@ -230,9 +232,45 @@ export async function loadDevelopmentRecord(
         meeting: { select: { title: true } },
       },
     }),
+    // Conversation records logged inside Mentorship (extended MentorshipCheckIn).
+    // Person-anchored, with a legacy bridge for rows predating `subjectId`.
+    prisma.mentorshipCheckIn.findMany({
+      where: { OR: [{ subjectId: userId }, { mentorship: { menteeId: userId } }] },
+      orderBy: { occurredAt: "desc" },
+      take: 12,
+      select: {
+        id: true,
+        kind: true,
+        notes: true,
+        wins: true,
+        discussion: true,
+        occurredAt: true,
+        author: { select: { name: true, email: true } },
+      },
+    }),
   ]);
 
   const events: DevelopmentTimelineEvent[] = [];
+
+  for (const conversation of conversationCheckIns) {
+    const kindLabel =
+      conversation.kind === "MEETING"
+        ? "Meeting"
+        : conversation.kind === "CONVERSATION"
+          ? "Conversation"
+          : "Check-in";
+    const author = conversation.author?.name || conversation.author?.email || null;
+    const snippet =
+      (conversation.discussion || conversation.wins || conversation.notes || "").trim();
+    events.push({
+      atISO: conversation.occurredAt.toISOString(),
+      dateLabel: dateLabel(conversation.occurredAt),
+      kind: "conversation",
+      label: author ? `${kindLabel} with ${author}` : `${kindLabel} logged`,
+      detail: snippet ? snippet.slice(0, 140) : null,
+      tone: "brand",
+    });
+  }
 
   for (const checkIn of checkIns) {
     events.push({

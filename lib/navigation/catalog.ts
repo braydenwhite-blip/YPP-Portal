@@ -901,6 +901,12 @@ export const NAV_CATALOG: NavLink[] = [
         "Needs coach",
         "My Awards",
         "Monthly Reflection",
+        // Check-ins now live inside each person's Mentorship workspace.
+        "Check-in",
+        "Check-ins",
+        "Conversation",
+        "Growth opportunities",
+        "Workspace",
       ],
       dashboardDescription:
         "Your development, your mentees, and the command center for developing the people who run YPP.",
@@ -1778,9 +1784,12 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/admin/mentorship",
-      label: "Mentorship",
+      // "Mentorship Ops" (not "Mentorship") so ADMIN doesn't see the label twice —
+      // the member-facing hub already owns "Mentorship" (/mentorship).
+      label: "Mentorship Ops",
       icon: "🎯",
       roles: ADMIN_ONLY,
+      searchAliases: ["Mentorship admin", "Mentorship health", "Assignments", "Approvals"],
       dashboardDescription: "Oversee mentorship health, assignments, approvals, G&R, committees, and analytics.",
       dashboardPriority: 6,
     },
