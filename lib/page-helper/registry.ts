@@ -4930,6 +4930,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/chapter/impact",
+    title: "Impact Meeting",
+    content: {
+      purpose: "This page generates your weekly Impact Meeting brief from the work your chapter already records — numbers, changes, wins, risks, decisions, and commitments.",
+      firstStep: "Check the readiness badge and data check first, then fill any missing item so the brief is complete before the meeting.",
+      nextStep: "Open the brief during the meeting and speak from it top to bottom, ending with the decisions needed and next week's commitments."
+    }
+  },
+  {
     pattern: "/chapter/operating",
     title: "Chapter Operating",
     content: {

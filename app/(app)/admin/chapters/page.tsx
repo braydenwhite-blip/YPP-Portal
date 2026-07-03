@@ -64,7 +64,11 @@ export default async function AdminChaptersPage({
     { label: "Active", value: summary.active, href: "/admin/chapters?view=active", accent: "success" as const },
     { label: "Needs support", value: summary.needsSupport, href: "/admin/chapters?view=needs_support", accent: "warning" as const },
     { label: "At risk", value: summary.atRisk, href: "/admin/chapters?view=at_risk", accent: "danger" as const },
+    { label: "Missing weekly update", value: summary.missingWeeklyUpdate, href: "/admin/chapters?view=missing_weekly_update", accent: "warning" as const },
+    { label: "Decisions needed", value: summary.decisionsNeeded, href: "/admin/chapters?view=decisions_needed", accent: "danger" as const },
+    { label: "Bottlenecks", value: summary.bottlenecks, href: "/admin/chapters?view=bottlenecks", accent: "warning" as const },
     { label: "No upcoming meeting", value: summary.noUpcomingMeeting, href: "/admin/chapters?view=no_upcoming_meeting", accent: "warning" as const },
+    { label: "Ready to scale", value: summary.readyToScale, href: "/admin/chapters?view=ready_to_scale", accent: "success" as const },
   ];
 
   return (
@@ -87,7 +91,7 @@ export default async function AdminChaptersPage({
 
       <ChapterIntegrityPanel issues={integrityIssues} />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         {tiles.map((t) => (
           <StatCardV2
             key={t.label}
@@ -176,9 +180,49 @@ export default async function AdminChaptersPage({
               {c.blocker && (
                 <p className="text-[12.5px] font-medium text-blocked-700">⚠ {c.blocker}</p>
               )}
+              {(c.flags.missingWeeklyUpdate ||
+                c.radar.decisionsNeeded > 0 ||
+                c.radar.bottlenecks.length > 0 ||
+                c.radar.readyToScale) && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {c.flags.missingWeeklyUpdate && (
+                    <StatusBadge tone="warning">
+                      {c.radar.weeklyUpdate === "DRAFT" ? "Weekly update not submitted" : "Missing weekly update"}
+                    </StatusBadge>
+                  )}
+                  {c.radar.decisionsNeeded > 0 && (
+                    <StatusBadge tone="danger">
+                      {c.radar.decisionsNeeded === 1
+                        ? "1 decision needed"
+                        : `${c.radar.decisionsNeeded} decisions needed`}
+                    </StatusBadge>
+                  )}
+                  {c.radar.bottlenecks.slice(0, 2).map((b) => (
+                    <StatusBadge key={b.key} tone="warning" title={b.detail}>
+                      {b.label}
+                    </StatusBadge>
+                  ))}
+                  {c.radar.readyToScale && (
+                    <StatusBadge tone="success" withDot>
+                      Ready to scale
+                    </StatusBadge>
+                  )}
+                </div>
+              )}
               <div className="mt-1 flex items-center justify-between border-t border-line-soft pt-2 text-[11.5px] text-ink-muted">
                 <span>Next meeting: {fmtDate(c.upcomingMeetingAt)}</span>
+                <span title={`${c.radar.expectations.headline}`}>
+                  {c.radar.expectations.metCount}/{c.radar.expectations.total} expectations
+                </span>
                 <span>Active {relDays(c.lastActivityAt, now)}</span>
+              </div>
+              <div className="flex items-center gap-3 text-[11.5px]">
+                <Link href={`/chapter/impact?chapter=${c.id}`} className="font-semibold text-brand-800 hover:underline">
+                  Impact brief
+                </Link>
+                <Link href={`/admin/chapters/${c.id}`} className="font-semibold text-brand-800 hover:underline">
+                  Chapter 360
+                </Link>
               </div>
             </CardV2>
           ))}

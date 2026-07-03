@@ -78,6 +78,9 @@ export default async function ChapterOperatingPage() {
             <StatusBadge tone={chapterLifecycleTone(model.chapter.lifecycleStatus)}>
               {model.chapter.lifecycleLabel}
             </StatusBadge>
+            <ButtonLink href="/chapter/impact" variant="primary" size="sm">
+              Impact Meeting
+            </ButtonLink>
             <ButtonLink href="/chapter" variant="secondary" size="sm">
               Chapter home
             </ButtonLink>
