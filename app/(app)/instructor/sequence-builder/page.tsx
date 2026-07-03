@@ -10,11 +10,12 @@ import { SequenceBuilderClient } from "./client";
 import { getClassTemplateCapabilities } from "@/lib/class-template-compat";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 
-export default async function SequenceBuilderPage({
-  searchParams,
-}: {
-  searchParams: { id?: string };
-}) {
+export default async function SequenceBuilderPage(
+  props: {
+    searchParams: Promise<{ id?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

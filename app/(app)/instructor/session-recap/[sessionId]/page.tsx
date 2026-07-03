@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 
-export default async function SessionRecapPage({ params }: { params: { sessionId: string } }) {
+export default async function SessionRecapPage(props: { params: Promise<{ sessionId: string }> }) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");

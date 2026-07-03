@@ -74,11 +74,12 @@ function rowCta(
   }
 }
 
-export default async function ReviewCyclePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function ReviewCyclePage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   if (!(await hasMentorshipCommandAccess(session.user))) redirect("/mentorship");

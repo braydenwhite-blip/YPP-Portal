@@ -4,11 +4,12 @@ import { getInternshipListings } from "@/lib/real-world-actions";
 import Link from "next/link";
 import { ApplyButton, CreateListingButton } from "./client";
 
-export default async function InternshipsPage({
-  searchParams,
-}: {
-  searchParams: { passionArea?: string; type?: string };
-}) {
+export default async function InternshipsPage(
+  props: {
+    searchParams: Promise<{ passionArea?: string; type?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

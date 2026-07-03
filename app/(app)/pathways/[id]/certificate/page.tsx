@@ -5,7 +5,8 @@ import Link from "next/link";
 import { getSingleStudentPathwayJourney } from "@/lib/chapter-pathway-journey";
 import { isGamificationEnabled } from "@/lib/feature-flags";
 
-export default async function PathwayCertificatePage({ params }: { params: { id: string } }) {
+export default async function PathwayCertificatePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   // Gamification gate (dynamic route — not covered by the proxy prefix list).
   if (!isGamificationEnabled()) notFound();
   const session = await getSession();

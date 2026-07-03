@@ -4,11 +4,12 @@ import { getInviteByCode } from "@/lib/chapter-invite-actions";
 import { AcceptInviteButton } from "./accept-invite-button";
 import Link from "next/link";
 
-export default async function InviteAcceptPage({
-  params,
-}: {
-  params: { code: string };
-}) {
+export default async function InviteAcceptPage(
+  props: {
+    params: Promise<{ code: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect(`/login?callbackUrl=/invite/${params.code}`);
 

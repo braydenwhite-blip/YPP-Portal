@@ -15,11 +15,12 @@ import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Launch review cycle — Pathways Portal" };
 
-export default async function NewReviewCyclePage({
-  searchParams,
-}: {
-  searchParams?: { person?: string; lane?: string; who?: string };
-}) {
+export default async function NewReviewCyclePage(
+  props: {
+    searchParams?: Promise<{ person?: string; lane?: string; who?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   if (!(await hasMentorshipCommandAccess(session.user))) redirect("/mentorship");

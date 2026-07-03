@@ -9,11 +9,12 @@ import { TemplateBuilder } from "@/components/workflow-engine/template-builder";
 
 export const metadata = { title: "Edit template · Admin" };
 
-export default async function WorkflowTemplateBuilderPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function WorkflowTemplateBuilderPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   await requireAdminPage();
   const template = await getTemplateDefinition(params.id);
   if (!template) notFound();

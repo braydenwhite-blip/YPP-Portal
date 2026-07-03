@@ -10,11 +10,12 @@ function formatDate(date: Date) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(date));
 }
 
-export default async function ChapterProfilePage({
-  params,
-}: {
-  params: { slug: string };
-}) {
+export default async function ChapterProfilePage(
+  props: {
+    params: Promise<{ slug: string }>;
+  }
+) {
+  const params = await props.params;
   const chapter = await getChapterBySlug(params.slug);
   if (!chapter) notFound();
 
@@ -54,7 +55,6 @@ export default async function ChapterProfilePage({
           </Link>
         )}
       </div>
-
       {/* Banner */}
       <div style={{ borderRadius: 16, overflow: "hidden", marginBottom: 24 }}>
         {chapter.bannerUrl ? (
@@ -75,7 +75,6 @@ export default async function ChapterProfilePage({
           />
         )}
       </div>
-
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 32 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -170,7 +169,6 @@ export default async function ChapterProfilePage({
           </a>
         </div>
       </div>
-
       <div className="grid two" style={{ alignItems: "start" }}>
         {/* Left Column: About */}
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>

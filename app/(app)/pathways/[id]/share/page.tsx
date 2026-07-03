@@ -5,7 +5,8 @@ import Link from "next/link";
 import { getSingleStudentPathwayJourney } from "@/lib/chapter-pathway-journey";
 import { isGamificationEnabled } from "@/lib/feature-flags";
 
-export default async function PathwaySharePage({ params }: { params: { id: string } }) {
+export default async function PathwaySharePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

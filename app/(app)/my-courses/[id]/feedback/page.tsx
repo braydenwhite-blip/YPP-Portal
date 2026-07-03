@@ -3,11 +3,12 @@ import { getSession } from "@/lib/auth-supabase";
 import { getCourseDetail, submitCourseFeedback } from "@/lib/student-actions";
 import Link from "next/link";
 
-export default async function CourseFeedbackPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function CourseFeedbackPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   if (!session) redirect("/login");
 

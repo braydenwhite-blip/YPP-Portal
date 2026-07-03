@@ -3,7 +3,8 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
-export default async function AttendanceAnalyticsPage({ params }: { params: { courseId: string } }) {
+export default async function AttendanceAnalyticsPage(props: { params: Promise<{ courseId: string }> }) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");

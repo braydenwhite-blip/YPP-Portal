@@ -7,7 +7,8 @@ import { hasInstructorPathwaySpecTable } from "@/lib/instructor-pathway-spec-com
 import { getSingleStudentPathwayJourney } from "@/lib/chapter-pathway-journey";
 import { whereUserHasRole } from "@/lib/user-role-where";
 
-export default async function PathwayMentorsPage({ params }: { params: { id: string } }) {
+export default async function PathwayMentorsPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

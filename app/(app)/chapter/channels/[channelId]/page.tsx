@@ -24,11 +24,12 @@ const ROLE_COLORS: Record<string, string> = {
   STAFF: "#059669",
 };
 
-export default async function ChannelPage({
-  params,
-}: {
-  params: { channelId: string };
-}) {
+export default async function ChannelPage(
+  props: {
+    params: Promise<{ channelId: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 

@@ -6,11 +6,12 @@ import { ProgressBar } from "@/components/progress-bar";
 
 export const dynamic = "force-dynamic";
 
-export default async function InstructorDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function InstructorDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   await requirePageRoles(["CHAPTER_PRESIDENT", "ADMIN", "MENTOR"]);
 
   const instructor = await getInstructorDetail(params.id);
@@ -73,7 +74,6 @@ export default async function InstructorDetailPage({
           Open Monthly Review
         </Link>
       </div>
-
       <div className="instructor-grid">
         <div className="main-column">
           {/* Profile Card */}
@@ -157,7 +157,6 @@ export default async function InstructorDetailPage({
                           </p>
                         </div>
                       )}
-
                       {/* Progress History */}
                       {goal.progress.length > 1 && (
                         <details className="history">
@@ -350,7 +349,6 @@ export default async function InstructorDetailPage({
           )}
         </div>
       </div>
-
     </main>
   );
 }

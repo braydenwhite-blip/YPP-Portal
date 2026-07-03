@@ -46,17 +46,18 @@ const HEALTH_VALUES: WorkflowHealthStatus[] = [
   "ON_TRACK",
 ];
 
-export default async function WorkflowsPage({
-  searchParams,
-}: {
-  searchParams?: {
-    status?: string;
-    health?: string;
-    chapterId?: string;
-    templateId?: string;
-    entityType?: string;
-  };
-}) {
+export default async function WorkflowsPage(
+  props: {
+    searchParams?: Promise<{
+      status?: string;
+      health?: string;
+      chapterId?: string;
+      templateId?: string;
+      entityType?: string;
+    }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await requirePageRoles(OFFICER_ROLES as unknown as string[]);
 
   const sp = searchParams ?? {};

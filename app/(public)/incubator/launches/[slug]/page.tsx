@@ -4,7 +4,8 @@ import { getPublicIncubatorLaunchBySlug } from "@/lib/incubator-actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function PublicIncubatorLaunchDetailPage({ params }: { params: { slug: string } }) {
+export default async function PublicIncubatorLaunchDetailPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const launch = await getPublicIncubatorLaunchBySlug(params.slug);
 
   if (!launch) {

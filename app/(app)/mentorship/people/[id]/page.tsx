@@ -37,11 +37,12 @@ function monthLabelUTC(d: Date): string {
  * (facts, signals, timeline, open work) plus the coaching plan, active review
  * cycles, and a one-click individual review launch.
  */
-export default async function MentorshipPersonPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function MentorshipPersonPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   if (!(await hasMentorshipCommandAccess(session.user))) redirect("/mentorship");

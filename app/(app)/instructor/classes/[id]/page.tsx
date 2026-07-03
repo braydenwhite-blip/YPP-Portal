@@ -11,7 +11,8 @@ const COCKPIT_ROLES = ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"];
 
 // One class's command surface for the instructor: identity, runtime, attendance
 // roll-call, post-session reflection, roster signals, and feedback.
-export default async function InstructorClassDetailPage({ params }: { params: { id: string } }) {
+export default async function InstructorClassDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   const roles = session.user.roles ?? [];

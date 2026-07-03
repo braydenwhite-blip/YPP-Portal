@@ -14,11 +14,12 @@ export const metadata = { title: "Workflow · MissionOS" };
 
 const OFFICER_ROLES = ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"];
 
-export default async function WorkflowInstancePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function WorkflowInstancePage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   await requirePageRoles(OFFICER_ROLES);
   const detail = await getInstanceDetail(params.id);
   if (!detail) notFound();

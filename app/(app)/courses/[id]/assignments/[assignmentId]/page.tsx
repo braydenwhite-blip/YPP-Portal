@@ -3,11 +3,12 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
-export default async function AssignmentDetailPage({
-  params
-}: {
-  params: { id: string; assignmentId: string };
-}) {
+export default async function AssignmentDetailPage(
+  props: {
+    params: Promise<{ id: string; assignmentId: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");

@@ -9,14 +9,16 @@ import { ClassSignupPanel } from "@/components/classes/class-signup-panel";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
+export async function generateMetadata(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const detail = await getPublicClassDetail(params.id);
   return { title: detail ? `${detail.title} — Youth Passion Project` : "Class — Youth Passion Project" };
 }
 
 // Public class detail + family signup. Polished, reassuring, and honest — and a
 // real enrollment for signed-in students via the existing race-safe path.
-export default async function PublicClassDetailPage({ params }: { params: { id: string } }) {
+export default async function PublicClassDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const detail = await getPublicClassDetail(params.id);
   if (!detail) notFound();
 
@@ -39,7 +41,6 @@ export default async function PublicClassDetailPage({ params }: { params: { id: 
       <a href="/classes" className="text-[12.5px] font-semibold text-brand-700 hover:underline">
         ← All classes
       </a>
-
       <header className="mt-3">
         <h1 className="m-0 text-[26px] font-bold text-ink">{detail.title}</h1>
         <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
@@ -47,7 +48,6 @@ export default async function PublicClassDetailPage({ params }: { params: { id: 
           {detail.chapterName ? ` · ${detail.chapterName}` : ""}
         </p>
       </header>
-
       <CardV2 className="mt-4">
         <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
           <Fact label="Starts" value={detail.startDateLabel} />
@@ -59,13 +59,11 @@ export default async function PublicClassDetailPage({ params }: { params: { id: 
           />
         </dl>
       </CardV2>
-
       {detail.description && (
         <Section title="What is this class?">
           <p className="m-0 whitespace-pre-line text-[14px] leading-relaxed text-ink">{detail.description}</p>
         </Section>
       )}
-
       {detail.learningOutcomes.length > 0 && (
         <Section title="What students learn">
           <ul className="m-0 flex list-disc flex-col gap-1.5 pl-5 text-[14px] text-ink">
@@ -75,7 +73,6 @@ export default async function PublicClassDetailPage({ params }: { params: { id: 
           </ul>
         </Section>
       )}
-
       {detail.instructorName && (
         <Section title="Who teaches it">
           <p className="m-0 text-[14px] text-ink">
@@ -84,7 +81,6 @@ export default async function PublicClassDetailPage({ params }: { params: { id: 
           </p>
         </Section>
       )}
-
       <div className="mt-6">
         <ClassSignupPanel
           offeringId={detail.id}

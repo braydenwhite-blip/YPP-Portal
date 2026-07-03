@@ -36,7 +36,8 @@ function phaseLabelFor(phase: string | null | undefined) {
   return INCUBATOR_PHASE_LABELS[phase as keyof typeof INCUBATOR_PHASE_LABELS] || phase;
 }
 
-export default async function IncubatorProjectPage({ params }: { params: { id: string } }) {
+export default async function IncubatorProjectPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -98,7 +99,6 @@ export default async function IncubatorProjectPage({ params }: { params: { id: s
           <Link href="/incubator" className="button secondary">Back to Incubator</Link>
         </div>
       </div>
-
       <div
         className="card"
         style={{
@@ -220,7 +220,6 @@ export default async function IncubatorProjectPage({ params }: { params: { id: s
           })}
         </div>
       </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 24, alignItems: "start" }}>
         <div>
           <div className="card" style={{ marginBottom: 16 }}>
