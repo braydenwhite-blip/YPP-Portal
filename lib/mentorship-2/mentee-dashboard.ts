@@ -5,6 +5,10 @@
  * "command center" view. Read-only (plain async). Crucially, the mentee never
  * sees internal mentor rankings — only whether their application is received,
  * under review, matched, or complete.
+ *
+ * @deprecated Orphaned (zero consumers) — the live hub uses `MenteeDevelopmentBrief`.
+ * Superseded by the unified Mentorship workspace (`lib/mentorship/workspace.ts`).
+ * Scheduled for removal in the consolidation V2 cleanup; do not add new callers.
  */
 
 import { prisma } from "@/lib/prisma";

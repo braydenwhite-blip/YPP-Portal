@@ -1006,6 +1006,8 @@ model User {
   mentorAvailabilityRules                  MentorAvailabilityRule[]                 @relation("MentorAvailabilityRules")
   mentorAvailabilityOverrides              MentorAvailabilityOverride[]             @relation("MentorAvailabilityOverrides")
   menteePairs                              Mentorship[]                             @relation("MenteeLinks")
+  mentorshipCheckInsSubject                MentorshipCheckIn[]                      @relation("MentorshipCheckInSubject")
+  mentorshipCheckInsAuthored               MentorshipCheckIn[]                      @relation("MentorshipCheckInAuthor")
   chairedMentorships                       Mentorship[]                             @relation("MentorshipChairs")
   mentorshipHistoryAsMentee                MentorshipAssignmentHistory[]            @relation("MentorshipHistoryMentee")
   mentorshipHistoryAsMentor                MentorshipAssignmentHistory[]            @relation("MentorshipHistoryMentor")
@@ -3053,17 +3055,48 @@ model Mentorship {
   @@index([menteeId])
 }
 
+/// A conversation record inside Mentorship — the single home for every logged
+/// check-in / meeting / conversation between a leader and a person. Extended
+/// (Mentorship consolidation V1) from a thin between-review touchpoint into the
+/// structured record: it is anchored on the SUBJECT person (`subjectId`) so it
+/// survives the eventual unification of the relationship tables, with optional
+/// soft links to whichever relationship it came from (`mentorshipId` today,
+/// `advisorAssignmentId` reserved for the advising fold-in). `kind`, note-body,
+/// and the structured fields are validated in app code.
 model MentorshipCheckIn {
-  id             String     @id @default(cuid())
-  mentorshipId   String
-  notes          String
-  rating         Int?
-  mentorResponse String?
-  acknowledgedAt DateTime?
-  createdAt      DateTime   @default(now())
-  mentorship     Mentorship @relation(fields: [mentorshipId], references: [id])
+  id                  String                    @id @default(cuid())
+  /// The person being developed (mentee/advisee). Backfilled from Mentorship.menteeId.
+  subjectId           String?
+  /// Nullable since V1 — a record may be anchored on the person, not a pairing.
+  mentorshipId        String?
+  /// Reserved for the V2 advising fold-in; unused by the V1 UI.
+  advisorAssignmentId String?
+  /// Who logged the conversation (the leader). Null for legacy mentee-posted rows.
+  authorId            String?
+  /// CHECK_IN | MEETING | CONVERSATION
+  kind                String                    @default("CHECK_IN")
+  notes               String
+  rating              Int?
+  mentorResponse      String?
+  acknowledgedAt      DateTime?
+  /// Structured conversation fields (all optional/defaulted → additive).
+  wins                String?                   @db.Text
+  challenges          String?                   @db.Text
+  discussion          String?                   @db.Text
+  decisions           String?                   @db.Text
+  commitments         String?                   @db.Text
+  participantIds      String[]                  @default([])
+  followUpDate        DateTime?
+  occurredAt          DateTime                  @default(now())
+  createdAt           DateTime                  @default(now())
+  mentorship          Mentorship?               @relation(fields: [mentorshipId], references: [id])
+  advisorAssignment   StudentAdvisorAssignment? @relation(fields: [advisorAssignmentId], references: [id], onDelete: SetNull)
+  subject             User?                     @relation("MentorshipCheckInSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+  author              User?                     @relation("MentorshipCheckInAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([mentorshipId, createdAt])
+  @@index([subjectId, occurredAt])
+  @@index([advisorAssignmentId, createdAt])
 }
 
 /// A review cycle launched for one person or a whole cohort. Tracks a set of
@@ -14496,6 +14529,8 @@ model StudentAdvisorAssignment {
 
   notes           AdvisingNote[]
   recommendations AdvisingRecommendation[]
+  /// Conversation records logged against this advising relationship (V2 fold-in).
+  checkIns        MentorshipCheckIn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

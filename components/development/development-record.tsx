@@ -33,6 +33,7 @@ const SIGNAL_TONE_TO_BADGE: Record<DevelopmentSignalTone, StatusTone> = {
 
 const EVENT_KIND_LABEL: Record<DevelopmentTimelineEvent["kind"], string> = {
   "check-in": "Check-in",
+  conversation: "Conversation",
   "quarterly-review": "Review",
   "mentor-review": "Mentor review",
   session: "Session",
@@ -81,14 +82,14 @@ function buildKeyFacts(record: DevelopmentRecord): KeyFact[] {
       detail: facts.lastCheckInRating
         ? RATING_LABELS[facts.lastCheckInRating]
         : undefined,
-      href: "/people/check-ins",
+      href: `/mentorship/people/${facts.id}?section=check-ins`,
     });
   } else {
     keyFacts.push({
       label: "Last check-in",
       value: "Never",
       tone: "attention",
-      href: "/people/check-ins",
+      href: `/mentorship/people/${facts.id}?section=check-ins`,
     });
   }
 
@@ -97,14 +98,14 @@ function buildKeyFacts(record: DevelopmentRecord): KeyFact[] {
       label: "Last review",
       value: facts.lastReviewQuarter,
       detail: `${RATING_LABELS[facts.lastReviewPerformance]} · ${RATING_LABELS[facts.lastReviewPotential]}`,
-      href: "/people/quarterly-reviews",
+      href: `/mentorship/people/${facts.id}?section=timeline`,
     });
   } else {
     keyFacts.push({
       label: "Last review",
       value: "None on file",
       tone: facts.reviewDue ? "attention" : "default",
-      href: "/people/quarterly-reviews",
+      href: `/mentorship/people/${facts.id}?section=timeline`,
     });
   }
 

@@ -1,126 +1,114 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
-import { DevelopmentRecordView } from "@/components/development/development-record";
-import { StartReviewButton } from "@/components/mentorship/start-review-button";
-import { CardV2, StatusBadge } from "@/components/ui-v2";
-import { getSession } from "@/lib/auth-supabase";
-import { loadDevelopmentRecord } from "@/lib/development/record";
-import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
-import { STAGE_META } from "@/lib/mentorship/cycle-constants";
-import { loadParticipationsForUser } from "@/lib/mentorship/cycle-load";
-import { getLatestCoachingPlan } from "@/lib/mentorship/person-extras";
-import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
-
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Development record — Pathways Portal" };
-
-const TONE_TO_BADGE = {
-  danger: "danger",
-  warning: "warning",
-  info: "info",
-  brand: "brand",
-  success: "success",
-  neutral: "neutral",
-} as const;
-
-function monthLabelUTC(d: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(d);
-}
+import { getSessionUser } from "@/lib/auth-supabase";
+import { loadMentorshipWorkspace } from "@/lib/mentorship/workspace";
+import { SegmentedTabs } from "../../_components/segmented-tabs";
+import {
+  OverviewSection,
+  DevelopmentPlanSection,
+  CheckInsSection,
+  TimelineSection,
+  OpportunitiesSection,
+  RelationshipsSection,
+} from "@/components/mentorship/workspace/sections";
 
 /**
- * One person's full development story inside the mentorship hub: the record
- * (facts, signals, timeline, open work) plus the coaching plan, active review
- * cycles, and a one-click individual review launch.
+ * The unified Mentorship workspace — one person's complete development journey.
+ * Every ongoing relationship, conversation, goal, follow-up, and opportunity
+ * lives here. Sections are server-rendered and switch on `?section=`, so each
+ * view is a shareable, back-safe URL.
  */
-export default async function MentorshipPersonPage(
-  props: {
-    params: Promise<{ id: string }>;
-  }
-) {
-  const params = await props.params;
-  const session = await getSession();
-  if (!session?.user?.id) redirect("/login");
-  if (!(await hasMentorshipCommandAccess(session.user))) redirect("/mentorship");
 
-  const [record, plan, participations] = await Promise.all([
-    loadDevelopmentRecord(params.id),
-    getLatestCoachingPlan(params.id),
-    loadParticipationsForUser(params.id),
-  ]);
-  if (!record) notFound();
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Mentorship — Pathways Portal" };
+
+const SECTIONS = [
+  { id: "overview", label: "Overview" },
+  { id: "plan", label: "Plan" },
+  { id: "check-ins", label: "Check-ins" },
+  { id: "timeline", label: "Timeline" },
+  { id: "opportunities", label: "Opportunities" },
+  { id: "relationships", label: "Relationships" },
+] as const;
+
+type SectionId = (typeof SECTIONS)[number]["id"];
+
+function isSectionId(value: string): value is SectionId {
+  return SECTIONS.some((s) => s.id === value);
+}
+
+export default async function MentorshipWorkspacePage(props: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { id } = await props.params;
+  const sp = await props.searchParams;
+
+  const viewer = await getSessionUser();
+  if (!viewer) redirect(`/login?next=/mentorship/people/${id}`);
+
+  const workspace = await loadMentorshipWorkspace(viewer, id);
+  if (!workspace) redirect("/mentorship");
+
+  const rawSection = typeof sp.section === "string" ? sp.section : "overview";
+  const section: SectionId = isSectionId(rawSection) ? rawSection : "overview";
+
+  const tabs = SECTIONS.map((s) => ({
+    id: s.id,
+    label: s.label,
+    href: `/mentorship/people/${id}?section=${s.id}`,
+    count:
+      s.id === "check-ins"
+        ? workspace.checkIns.length || undefined
+        : s.id === "opportunities"
+          ? workspace.opportunities.length || undefined
+          : undefined,
+  }));
 
   return (
-    <div className="mx-auto flex w-full max-w-[880px] flex-col gap-5 px-1 pb-12 pt-4">
-      <div className="flex justify-end">
-        <StartReviewButton userId={params.id} />
+    <div className="mx-auto flex w-full max-w-[900px] flex-col gap-5 px-1 pb-12 pt-4">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link
+            href="/mentorship"
+            className="text-[12.5px] font-medium text-brand-700 hover:text-brand-800"
+          >
+            ← Mentorship
+          </Link>
+          <h1 className="m-0 mt-1 text-[22px] font-bold tracking-[-0.3px] text-ink">
+            {workspace.person.name}
+          </h1>
+          <p className="m-0 mt-1 text-[13.5px] text-ink-muted">
+            {[workspace.person.contextLabel, workspace.person.email]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+        {workspace.accessLevel === "leadership" ? (
+          <Link
+            href={`/people/${id}`}
+            className="inline-flex items-center gap-1 rounded-[10px] border border-line bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-brand-700 hover:bg-brand-50"
+          >
+            Full profile →
+          </Link>
+        ) : null}
+      </header>
+
+      <div className="overflow-x-auto pb-1">
+        <SegmentedTabs tabs={tabs} activeId={section} ariaLabel="Mentorship section" />
       </div>
 
-      {participations.length > 0 ? (
-        <CardV2 padding="md">
-          <h3 className="m-0 text-[13.5px] font-bold text-ink">Active review cycles</h3>
-          <ul className="m-0 mt-2 list-none divide-y divide-line-soft/70 p-0">
-            {participations.map((p) => (
-              <li key={p.cycleId} className="flex flex-col gap-0.5 py-2">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <Link
-                    href={`/mentorship/cycles/${p.cycleId}`}
-                    className="text-[13px] font-semibold text-ink hover:text-brand-700 hover:underline"
-                  >
-                    {p.cycleName}
-                  </Link>
-                  <StatusBadge tone={TONE_TO_BADGE[STAGE_META[p.stage].tone]}>
-                    {STAGE_META[p.stage].label}
-                  </StatusBadge>
-                </div>
-                <p className="m-0 text-[12px] text-ink-muted">
-                  {STAGE_META[p.stage].blurb}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </CardV2>
+      {section === "overview" ? <OverviewSection workspace={workspace} /> : null}
+      {section === "plan" ? <DevelopmentPlanSection workspace={workspace} /> : null}
+      {section === "check-ins" ? <CheckInsSection workspace={workspace} /> : null}
+      {section === "timeline" ? <TimelineSection workspace={workspace} /> : null}
+      {section === "opportunities" ? (
+        <OpportunitiesSection workspace={workspace} />
       ) : null}
-
-      {plan ? (
-        <CardV2 padding="md">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="m-0 text-[13.5px] font-bold text-ink">
-              Coaching plan — {monthLabelUTC(plan.cycleMonth)}
-            </h3>
-            <div className="flex items-center gap-2">
-              <StatusBadge
-                tone={
-                  plan.overallRating === "BEHIND_SCHEDULE"
-                    ? "danger"
-                    : plan.overallRating === "GETTING_STARTED"
-                      ? "warning"
-                      : plan.overallRating === "ACHIEVED"
-                        ? "success"
-                        : "brand"
-                }
-              >
-                {getGoalRatingCopy(plan.overallRating).label}
-              </StatusBadge>
-              {plan.releasedToMenteeAt == null ? (
-                <StatusBadge tone="neutral">Not yet released</StatusBadge>
-              ) : null}
-            </div>
-          </div>
-          <p className="m-0 mt-2 whitespace-pre-line text-[13px] leading-relaxed text-ink">
-            {plan.planOfAction}
-          </p>
-          <p className="m-0 mt-2 text-[12px] text-ink-muted">
-            From {plan.mentorName}&apos;s approved monthly review.
-          </p>
-        </CardV2>
+      {section === "relationships" ? (
+        <RelationshipsSection workspace={workspace} />
       ) : null}
-
-      <DevelopmentRecordView record={record} />
     </div>
   );
 }

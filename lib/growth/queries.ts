@@ -171,3 +171,57 @@ export async function loadGrowthEvents(userId: string): Promise<LoadedEvents> {
     lastEventAt: rows.length > 0 ? rows[0].occurredAt : null,
   };
 }
+
+export interface PersonTimelineEvent {
+  id: string;
+  type: string;
+  title: string;
+  description: string | null;
+  track: GrowthTrackId;
+  sourceType: string | null;
+  sourceId: string | null;
+  occurredAt: Date;
+}
+
+export interface PersonGrowthTimeline {
+  events: PersonTimelineEvent[];
+  nextCursor: string | null;
+}
+
+/**
+ * Paginated per-user activity feed over the durable GrowthProgressEvent log —
+ * the future-proof spine for the Mentorship workspace Timeline. Cursor-based
+ * (id), newest-first. Empty in prod until ENABLE_GROWTH_OS is on, so the
+ * workspace merges it with the derived timeline rather than depending on it.
+ */
+export async function loadPersonGrowthTimeline(
+  userId: string,
+  opts: { cursor?: string | null; take?: number } = {}
+): Promise<PersonGrowthTimeline> {
+  const take = Math.min(Math.max(opts.take ?? 25, 1), 100);
+  const rows = await prisma.growthProgressEvent.findMany({
+    where: { userId },
+    orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+    take: take + 1,
+    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      description: true,
+      track: true,
+      sourceType: true,
+      sourceId: true,
+      occurredAt: true,
+    },
+  });
+  const hasMore = rows.length > take;
+  const events = (hasMore ? rows.slice(0, take) : rows).map((r) => ({
+    ...r,
+    track: r.track as GrowthTrackId,
+  }));
+  return {
+    events,
+    nextCursor: hasMore ? events[events.length - 1].id : null,
+  };
+}

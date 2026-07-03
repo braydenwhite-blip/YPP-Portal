@@ -901,6 +901,12 @@ export const NAV_CATALOG: NavLink[] = [
         "Needs coach",
         "My Awards",
         "Monthly Reflection",
+        // Check-ins now live inside each person's Mentorship workspace.
+        "Check-in",
+        "Check-ins",
+        "Conversation",
+        "Growth opportunities",
+        "Workspace",
       ],
       dashboardDescription:
         "Your development, your mentees, and the command center for developing the people who run YPP.",

@@ -84,6 +84,9 @@ export async function postMenteeCheckIn(formData: FormData) {
   await prisma.mentorshipCheckIn.create({
     data: {
       mentorshipId: mentorship.id,
+      // Person-anchor mentee self-check-ins too (author stays null — no leader
+      // logged it) so they join the unified Mentorship timeline.
+      subjectId: userId,
       notes,
       rating,
     },
@@ -122,7 +125,13 @@ export async function respondToMenteeCheckIn(formData: FormData) {
   if (!checkIn) {
     throw new Error("Check-in not found.");
   }
-  if (!isAdmin && checkIn.mentorship.mentorId !== userId) {
+  // `mentorshipId` is nullable since the Mentorship consolidation — this legacy
+  // responder only applies to pairing-anchored mentee check-ins.
+  const pairing = checkIn.mentorship;
+  if (!pairing) {
+    throw new Error("This check-in has no mentor pairing to respond on.");
+  }
+  if (!isAdmin && pairing.mentorId !== userId) {
     throw new Error("Only the mentor on this pairing can respond.");
   }
 
@@ -135,7 +144,7 @@ export async function respondToMenteeCheckIn(formData: FormData) {
   });
 
   await createMentorshipNotification({
-    userId: checkIn.mentorship.menteeId,
+    userId: pairing.menteeId,
     title: "Your mentor responded to your check-in",
     body: response
       ? response.length > 120
@@ -146,5 +155,5 @@ export async function respondToMenteeCheckIn(formData: FormData) {
   });
 
   revalidatePath("/mentorship");
-  revalidatePath(`/mentorship/mentees/${checkIn.mentorship.menteeId}`);
+  revalidatePath(`/mentorship/mentees/${pairing.menteeId}`);
 }

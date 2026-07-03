@@ -5,6 +5,10 @@
  * action, plus the mentor's own capacity and expertise summary. Read-only (plain
  * async, not `"use server"`). Answers: who am I mentoring, what do they need,
  * what's next, am I at capacity, is my profile complete.
+ *
+ * @deprecated Orphaned (zero consumers) — the live hub uses `getSimplifiedMentorKanban`.
+ * Superseded by the unified Mentorship workspace (`lib/mentorship/workspace.ts`).
+ * Scheduled for removal in the consolidation V2 cleanup; do not add new callers.
  */
 
 import { prisma } from "@/lib/prisma";
