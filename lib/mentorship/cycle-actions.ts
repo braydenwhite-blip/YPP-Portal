@@ -10,6 +10,7 @@
  * so the mentorship write paths stay untouched.
  */
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
@@ -122,29 +123,42 @@ export async function launchReviewCycle(input: unknown): Promise<LaunchResult> {
   const periodLabel = periodLabelFor(data.kind);
   const mentorshipByMentee = await activeMentorshipByMentee(userIds);
 
-  const cycle = await prisma.$transaction(async (tx) => {
-    const created = await tx.reviewCycle.create({
-      data: {
-        name: data.name ?? `${label} — ${periodLabel}`,
-        kind: data.kind,
-        periodLabel,
-        scopeType: data.scope.type,
-        scopeLabel: label,
-        scopeJson: JSON.parse(JSON.stringify(data.scope)),
-        dueDate: data.dueDate ?? null,
-        createdById: viewer.id,
-      },
+  let cycle;
+  try {
+    cycle = await prisma.$transaction(async (tx) => {
+      const created = await tx.reviewCycle.create({
+        data: {
+          name: data.name ?? `${label} — ${periodLabel}`,
+          kind: data.kind,
+          periodLabel,
+          scopeType: data.scope.type,
+          scopeLabel: label,
+          scopeJson: JSON.parse(JSON.stringify(data.scope)),
+          dueDate: data.dueDate ?? null,
+          createdById: viewer.id,
+        },
+      });
+      await tx.reviewCycleParticipant.createMany({
+        data: userIds.map((userId) => ({
+          cycleId: created.id,
+          userId,
+          mentorshipId: mentorshipByMentee.get(userId) ?? null,
+        })),
+        skipDuplicates: true,
+      });
+      return created;
     });
-    await tx.reviewCycleParticipant.createMany({
-      data: userIds.map((userId) => ({
-        cycleId: created.id,
-        userId,
-        mentorshipId: mentorshipByMentee.get(userId) ?? null,
-      })),
-      skipDuplicates: true,
-    });
-    return created;
-  });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      console.error("[launchReviewCycle] Prisma error creating cycle.", error);
+      return {
+        ok: false,
+        error:
+          "Couldn't launch this review cycle — something went wrong saving it. Try again, and let support know if it keeps happening.",
+      };
+    }
+    throw error;
+  }
 
   revalidatePath("/mentorship");
   revalidatePath("/mentorship/cycles");

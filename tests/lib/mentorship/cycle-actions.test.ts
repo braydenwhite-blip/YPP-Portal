@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/authorization", async (importOriginal) => {
@@ -162,6 +163,49 @@ describe("launchReviewCycle", () => {
       prisma as never as { reviewCycle: { create: ReturnType<typeof vi.fn> } }
     ).reviewCycle.create.mock.calls[0][0];
     expect(createArgs.data.periodLabel).toMatch(/^\d{4}-Q[1-4]$/);
+  });
+
+  it("never sends the legacy single-reviewee fields — the participant model is the only source of truth", async () => {
+    await launchReviewCycle({
+      kind: "monthly",
+      scope: { type: "role-group", group: "instructors" },
+    });
+    const createArgs = (
+      prisma as never as { reviewCycle: { create: ReturnType<typeof vi.fn> } }
+    ).reviewCycle.create.mock.calls[0][0];
+    expect(createArgs.data).not.toHaveProperty("revieweeId");
+    expect(createArgs.data).not.toHaveProperty("reviewerId");
+    expect(createArgs.data).not.toHaveProperty("type");
+
+    const createManyArgs = (
+      prisma as never as {
+        reviewCycleParticipant: { createMany: ReturnType<typeof vi.fn> };
+      }
+    ).reviewCycleParticipant.createMany.mock.calls[0][0];
+    // Every person in the cohort becomes a participant row — a "one-person
+    // review" is just a ReviewCycle with a single ReviewCycleParticipant.
+    expect(createManyArgs.data.length).toBeGreaterThan(1);
+  });
+
+  it("returns a typed error instead of a 500 when Prisma rejects the write (e.g. a drifted-table constraint)", async () => {
+    (
+      prisma as never as { reviewCycle: { create: ReturnType<typeof vi.fn> } }
+    ).reviewCycle.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError(
+        "Null constraint violation on the fields: (`revieweeId`)",
+        { code: "P2011", clientVersion: "5.22.0", meta: { constraint: ["revieweeId"] } }
+      )
+    );
+
+    const result = await launchReviewCycle({
+      kind: "monthly",
+      scope: { type: "role-group", group: "instructors" },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toEqual(expect.any(String));
+      expect(result.error.length).toBeGreaterThan(0);
+    }
   });
 });
 
