@@ -27,6 +27,27 @@ CREATE TABLE IF NOT EXISTS "ReviewCycle" (
   CONSTRAINT "ReviewCycle_pkey" PRIMARY KEY ("id")
 );
 
+-- Reconcile pre-existing tables. If "ReviewCycle" was created by an earlier
+-- `prisma db push` with an older shape, the CREATE TABLE IF NOT EXISTS above is
+-- a no-op and the indexes/FKs below reference columns Postgres doesn't have
+-- (this is what produced: ERROR 42703 column "status" does not exist). Backfill
+-- every column; IF NOT EXISTS => no-op where already present. Columns that are
+-- NOT NULL-without-default in the schema are added nullable here so the ALTER
+-- can't fail on an already-populated table (a no-op when the column exists).
+ALTER TABLE "ReviewCycle"
+  ADD COLUMN IF NOT EXISTS "name" TEXT,
+  ADD COLUMN IF NOT EXISTS "kind" TEXT NOT NULL DEFAULT 'monthly',
+  ADD COLUMN IF NOT EXISTS "periodLabel" TEXT,
+  ADD COLUMN IF NOT EXISTS "scopeType" TEXT,
+  ADD COLUMN IF NOT EXISTS "scopeLabel" TEXT,
+  ADD COLUMN IF NOT EXISTS "scopeJson" JSONB,
+  ADD COLUMN IF NOT EXISTS "dueDate" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active',
+  ADD COLUMN IF NOT EXISTS "createdById" TEXT,
+  ADD COLUMN IF NOT EXISTS "closedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3);
+
 CREATE INDEX IF NOT EXISTS "ReviewCycle_status_createdAt_idx"
   ON "ReviewCycle"("status", "createdAt");
 
@@ -49,6 +70,15 @@ CREATE TABLE IF NOT EXISTS "ReviewCycleParticipant" (
 
   CONSTRAINT "ReviewCycleParticipant_pkey" PRIMARY KEY ("id")
 );
+
+-- Reconcile pre-existing "ReviewCycleParticipant" (see ReviewCycle note above).
+ALTER TABLE "ReviewCycleParticipant"
+  ADD COLUMN IF NOT EXISTS "cycleId" TEXT,
+  ADD COLUMN IF NOT EXISTS "userId" TEXT,
+  ADD COLUMN IF NOT EXISTS "mentorshipId" TEXT,
+  ADD COLUMN IF NOT EXISTS "stageOverride" TEXT,
+  ADD COLUMN IF NOT EXISTS "note" TEXT,
+  ADD COLUMN IF NOT EXISTS "addedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
 CREATE UNIQUE INDEX IF NOT EXISTS "ReviewCycleParticipant_cycleId_userId_key"
   ON "ReviewCycleParticipant"("cycleId", "userId");
