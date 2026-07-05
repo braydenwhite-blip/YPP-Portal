@@ -15,17 +15,10 @@ const SLUG_ORDER = new Map(STANDING_ACTION_DEPARTMENTS.map((d, i) => [d.slug, i]
 
 const DEPT_HEADER_COLORS: Record<string, string> = {
   instruction: "#db2777",
-  "recruitment-hiring": "#7c3aed",
-  mentorship: "#0891b2",
-  partnerships: "#0e9f6e",
-  operations: "#2563eb",
   chapters: "#d97706",
   tech: "#4f46e5",
   communications: "#059669",
   "social-media": "#e11d48",
-  fundraising: "#047857",
-  officers: "#475569",
-  board: "#1e293b",
   unassigned: "#9a9ab0",
 };
 

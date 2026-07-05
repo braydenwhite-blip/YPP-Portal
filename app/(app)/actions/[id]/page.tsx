@@ -22,6 +22,10 @@ import { ACTION_VISIBILITY_LABELS, isRelatedEntityType } from "@/lib/people-stra
 import { loadRelatedEntitySummary } from "@/lib/people-strategy/connections";
 import { effectiveDeadline } from "@/lib/people-strategy/my-actions-selectors";
 import {
+  canApproveActionCompletion,
+  isPendingCompletionApproval,
+} from "@/lib/people-strategy/action-approval";
+import {
   canAssignAction,
   canEditAction,
   canDeleteAction,
@@ -113,6 +117,8 @@ function toDetailDTO(
     status: item.status,
     priority: item.priority,
     completedAt: item.completedAt ? item.completedAt.toISOString() : null,
+    approvedAt: item.approvedAt ? item.approvedAt.toISOString() : null,
+    approvedByName: item.approvedBy?.name?.trim() || item.approvedBy?.email || null,
     deadlineStart: item.deadlineStart.toISOString(),
     deadlineEnd: item.deadlineEnd ? item.deadlineEnd.toISOString() : null,
     visibility: item.visibility,
@@ -237,6 +243,9 @@ export default async function ActionDetailPage({ params }: PageProps) {
   const actionSource = deriveActionSource(item);
   const linkedMeetingId = item.meetingId ?? actionSource.meetingId;
 
+  const canApproveCompletion =
+    canApproveActionCompletion(viewer) && isPendingCompletionApproval(item);
+
   return (
     <div className={`${skin.portalSkin} ${skin.fadeIn}`}>
       <div className="mx-auto flex w-full max-w-[880px] flex-col gap-5 pb-12 pt-4">
@@ -306,6 +315,7 @@ export default async function ActionDetailPage({ params }: PageProps) {
           sameEntityActions={sameEntityActions}
           sameMeetingActions={sameMeetingActions}
           variant="hub"
+          canApproveCompletion={canApproveCompletion}
         />
       </div>
     </div>

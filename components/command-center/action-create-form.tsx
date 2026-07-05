@@ -24,7 +24,6 @@ import {
 import {
   ACTION_STATUS_LABELS,
   ACTION_STATUS_SELECTABLE,
-  ACTION_VISIBILITY_HINTS,
   DEFAULT_ACTION_DEADLINE_DAYS,
 } from "@/lib/people-strategy/constants";
 import type { ActionItemVisibility } from "@prisma/client";
@@ -348,53 +347,6 @@ export function ActionCreateForm({
               onChange={setDepartmentIds}
               compact
             />
-          </FormSection>
-
-          <div className="h-px bg-line-soft/80" aria-hidden />
-
-          <FormSection
-            step={5}
-            title="Officer visibility"
-            hint="Separate from teams — who can find this outside their own assignment."
-          >
-            <button
-              type="button"
-              role="switch"
-              aria-checked={visibility === "OFFICERS_ONLY"}
-              aria-label="Restrict to assigned officers only"
-              onClick={() =>
-                setVisibility(visibility === "OFFICERS_ONLY" ? "ALL_LEADERSHIP" : "OFFICERS_ONLY")
-              }
-              className={cn(
-                "flex w-full items-start gap-3 rounded-[14px] border px-4 py-3.5 text-left transition-colors",
-                visibility === "OFFICERS_ONLY"
-                  ? "border-brand-400 bg-brand-50/70"
-                  : "border-line-soft bg-surface hover:border-line"
-              )}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  "mt-0.5 inline-flex h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors",
-                  visibility === "OFFICERS_ONLY" ? "bg-brand-600" : "bg-line-strong/70"
-                )}
-              >
-                <span
-                  className={cn(
-                    "block size-5 rounded-full bg-white shadow-sm transition-transform",
-                    visibility === "OFFICERS_ONLY" ? "translate-x-5" : "translate-x-0"
-                  )}
-                />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[14px] font-semibold text-ink">
-                  Assigned officers only
-                </span>
-                <span className="mt-0.5 block text-[12.5px] leading-relaxed text-ink-muted">
-                  {ACTION_VISIBILITY_HINTS[visibility]}
-                </span>
-              </span>
-            </button>
           </FormSection>
 
           <div className="rounded-[14px] border border-dashed border-line-soft bg-surface/60">

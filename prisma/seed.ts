@@ -1916,51 +1916,42 @@ async function seedActionTracker() {
     return;
   }
 
-  // The five standing functional teams — the single source of truth for the
-  // Action Tracker picker. (Previously the seed created three broader
-  // departments — "Instructional Affairs"/"Community & Partnerships"/"Platform &
-  // Operations" — and, before that, legacy "Instruction"/"Marketing" rows; the
-  // seeded demo items now attach to these standing teams so the picker stays
-  // clean. The 20260607120000 migration remaps existing action items and
-  // archives any leftover legacy rows.)
+  // Action Tracker — five standing teams (see lib/people-strategy/action-departments.ts).
   const instruction = await prisma.department.upsert({
-    where: { name: "Instruction" },
-    create: { name: "Instruction", slug: "instruction", description: "Academics — curriculum, teaching, and classroom operations." },
-    update: {},
+    where: { slug: "instruction" },
+    create: {
+      name: "Instruction",
+      slug: "instruction",
+      description: "Classes, curriculum, teaching quality, and mentorship.",
+    },
+    update: { archivedAt: null },
   });
-  const partnerships = await prisma.department.upsert({
-    where: { name: "Partnerships" },
-    create: { name: "Partnerships", slug: "partnerships", description: "Growth — community building, outreach, and partnerships." },
-    update: {},
-  });
-  await prisma.department.upsert({
-    where: { name: "Recruitment & Hiring" },
-    create: { name: "Recruitment & Hiring", slug: "recruitment-hiring", description: "Recruitment — sourcing, interviewing, and hiring instructors." },
-    update: {},
-  });
-  await prisma.department.upsert({
-    where: { name: "Mentorship" },
-    create: { name: "Mentorship", slug: "mentorship", description: "Mentorship — pairing, coaching, and instructor growth support." },
-    update: {},
-  });
-  await prisma.department.upsert({
-    where: { name: "Operations" },
-    create: { name: "Operations", slug: "operations", description: "Operations — platform, logistics, and internal operations." },
-    update: {},
+  const chapters = await prisma.department.upsert({
+    where: { slug: "chapters" },
+    create: {
+      name: "Chapters",
+      slug: "chapters",
+      description: "Local chapters, hiring, and community partnerships.",
+    },
+    update: { archivedAt: null },
   });
   for (const def of [
-    { name: "Chapters", slug: "chapters", description: "Chapter launches, expansion, and local chapter leads." },
     { name: "Tech", slug: "tech", description: "Portal, tooling, automation, and technical delivery." },
-    { name: "Communications", slug: "communications", description: "Org-wide messaging, announcements, and comms strategy." },
-    { name: "Social Media", slug: "social-media", description: "Social content, campaigns, and channel management." },
-    { name: "Fundraising", slug: "fundraising", description: "Donor outreach, sponsorships, and fundraising campaigns." },
-    { name: "Officers", slug: "officers", description: "Officer-team work that spans multiple functions." },
-    { name: "Board", slug: "board", description: "Board-facing priorities, governance, and approvals." },
+    {
+      name: "Communications",
+      slug: "communications",
+      description: "Org messaging, announcements, fundraising outreach, and comms.",
+    },
+    {
+      name: "Social Media",
+      slug: "social-media",
+      description: "Social content, campaigns, and channel management.",
+    },
   ]) {
     await prisma.department.upsert({
-      where: { name: def.name },
+      where: { slug: def.slug },
       create: def,
-      update: {},
+      update: { archivedAt: null, description: def.description },
     });
   }
 
@@ -2022,7 +2013,7 @@ async function seedActionTracker() {
       title: "Finalize Q3 marketing calendar",
       description: "Lock the Q3 content calendar and hand off to the social team.",
       goalCategory: "Brand & Recruitment",
-      departmentId: partnerships.id,
+      departmentId: chapters.id,
       status: "OVERDUE",
       deadlineStart: daysFromNow(-14),
       deadlineEnd: daysFromNow(-3),

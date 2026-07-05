@@ -172,7 +172,7 @@ export function ActionStatusCapture({
           {pending
             ? "Saving…"
             : mode === "complete"
-              ? "Mark complete"
+              ? "Submit for approval"
               : "Mark blocked"}
         </Button>
         <Button variant="ghost" size="sm" onClick={onCancel} disabled={pending}>

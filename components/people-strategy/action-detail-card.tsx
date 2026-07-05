@@ -9,6 +9,7 @@ import {
   addActionAssignment,
   addActionComment,
   addActionFileLink,
+  approveActionCompletion,
   removeActionAssignment,
   updateActionItem,
   updateActionStatus,
@@ -73,6 +74,8 @@ export type ActionDetailDTO = {
   status: ActionItemStatus;
   priority: string;
   completedAt: string | null;
+  approvedAt: string | null;
+  approvedByName: string | null;
   deadlineStart: string;
   deadlineEnd: string | null;
   visibility: "OFFICERS_ONLY" | "ALL_LEADERSHIP";
@@ -224,6 +227,7 @@ export default function ActionDetailCard({
   sameEntityActions = [],
   sameMeetingActions = [],
   variant = "hub",
+  canApproveCompletion = false,
 }: {
   item: ActionDetailDTO;
   canEdit: boolean;
@@ -234,6 +238,7 @@ export default function ActionDetailCard({
   sameEntityActions?: RelatedActionLite[];
   sameMeetingActions?: RelatedActionLite[];
   variant?: "hub" | "full";
+  canApproveCompletion?: boolean;
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -241,8 +246,6 @@ export default function ActionDetailCard({
   const [description, setDescription] = useState(item.description ?? "");
   const [editingDescription, setEditingDescription] = useState(false);
   const [addingRole, setAddingRole] = useState<ActionAssignmentRole | null>(null);
-  const [linkLabel, setLinkLabel] = useState("");
-  const [linkUrl, setLinkUrl] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -283,8 +286,17 @@ export default function ActionDetailCard({
 
   function handleStatus(next: ActionItemStatus) {
     setStatus(next);
-    runMutation(async () => updateActionStatus(item.id, next), "Status updated.");
+    const success =
+      next === "COMPLETE" ? "Submitted for officer approval." : "Status updated.";
+    runMutation(async () => updateActionStatus(item.id, next), success);
   }
+
+  function handleApproveCompletion() {
+    runMutation(async () => approveActionCompletion(item.id), "Completion approved.");
+  }
+
+  const pendingApproval = status === "COMPLETE" && !item.approvedAt;
+  const approvedCompletion = status === "COMPLETE" && Boolean(item.approvedAt);
 
   function handleComment(body: string) {
     return new Promise<void>((resolve, reject) => {
@@ -303,21 +315,6 @@ export default function ActionDetailCard({
         }
       });
     });
-  }
-
-  function handleLink() {
-    if (!linkLabel.trim() || !linkUrl.trim()) {
-      setError("Add both a label and a URL.");
-      return;
-    }
-    runMutation(
-      async () => {
-        await addActionFileLink(item.id, linkLabel.trim(), linkUrl.trim());
-        setLinkLabel("");
-        setLinkUrl("");
-      },
-      "Link added."
-    );
   }
 
   async function uploadFile(file: File) {
@@ -400,7 +397,8 @@ export default function ActionDetailCard({
               <div className="min-w-0">
                 <p className="m-0 text-[14px] font-semibold text-ink">Finished with this?</p>
                 <p className="m-0 text-[12.5px] text-ink-muted">
-                  Mark it complete when the work is done.
+                  Submit for approval — an officer or leadership-tier reviewer will sign off
+                  before it is archived.
                 </p>
               </div>
             </div>
@@ -412,12 +410,40 @@ export default function ActionDetailCard({
               onClick={() => handleStatus("COMPLETE")}
               className="w-full shrink-0 sm:w-auto"
             >
-              Mark complete
+              Submit for approval
             </Button>
           </div>
         ) : null}
 
-        {status === "COMPLETE" ? (
+        {pendingApproval ? (
+          <div className="mb-4 flex flex-col gap-3 rounded-[14px] border border-[#e4d8f7] bg-[#faf8ff] p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="min-w-0">
+              <p className="m-0 text-[14px] font-semibold text-brand-800">
+                Awaiting officer approval
+              </p>
+              <p className="m-0 text-[12.5px] text-ink-muted">
+                {item.completedAt
+                  ? `Submitted ${formatDate(item.completedAt)} · `
+                  : null}
+                Pending approval before archiving.
+              </p>
+            </div>
+            {canApproveCompletion ? (
+              <Button
+                type="button"
+                variant="primary"
+                size="md"
+                loading={pending}
+                onClick={handleApproveCompletion}
+                className="w-full shrink-0 sm:w-auto"
+              >
+                Approve completion
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {approvedCompletion ? (
           <div className="mb-4 flex items-center gap-3 rounded-[14px] border border-line-soft bg-complete-50/50 px-4 py-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-complete-50 text-complete-700">
               <span aria-hidden className="text-[16px] leading-none">
@@ -425,10 +451,11 @@ export default function ActionDetailCard({
               </span>
             </span>
             <div className="min-w-0">
-              <p className="m-0 text-[14px] font-semibold text-complete-700">Complete</p>
-              {item.completedAt ? (
+              <p className="m-0 text-[14px] font-semibold text-complete-700">Approved & archived</p>
+              {item.approvedAt ? (
                 <p className="m-0 text-[12.5px] text-ink-muted">
-                  Marked complete · {formatDate(item.completedAt)}
+                  Approved {formatDate(item.approvedAt)}
+                  {item.approvedByName ? ` · ${item.approvedByName}` : ""}
                 </p>
               ) : null}
             </div>
@@ -671,7 +698,7 @@ export default function ActionDetailCard({
         )}
       </HubSection>
 
-      <HubSection title="Files & links">
+      <HubSection title="Files">
         <input
           ref={fileInputRef}
           type="file"
@@ -680,42 +707,20 @@ export default function ActionDetailCard({
           accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx"
         />
         {canEdit ? (
-          <div className="mb-3 flex flex-col gap-2 sm:flex-row">
-            <input
-              value={linkLabel}
-              onChange={(event) => setLinkLabel(event.target.value)}
-              placeholder="Link label"
-              aria-label="Link label"
-              className="h-10 flex-1 rounded-[9px] border border-line-soft bg-surface px-3 text-[14px]"
-              disabled={!canEdit}
-            />
-            <input
-              value={linkUrl}
-              onChange={(event) => setLinkUrl(event.target.value)}
-              placeholder="https://…"
-              type="url"
-              aria-label="Link URL"
-              className="h-10 flex-1 rounded-[9px] border border-line-soft bg-surface px-3 text-[14px]"
-              disabled={!canEdit}
-            />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className={BTN_SECONDARY_SM}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={pending}
-              >
-                Attach file
-              </button>
-              <button type="button" className={BTN_SECONDARY_SM} onClick={handleLink} disabled={pending}>
-                Add link
-              </button>
-            </div>
+          <div className="mb-3">
+            <button
+              type="button"
+              className={BTN_SECONDARY_SM}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={pending}
+            >
+              Attach file
+            </button>
           </div>
         ) : null}
 
         {item.fileLinks.length === 0 ? (
-          <p className="m-0 text-[13px] text-ink-muted">No files or links yet.</p>
+          <p className="m-0 text-[13px] text-ink-muted">No files attached yet.</p>
         ) : (
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {item.fileLinks.map((file) => (

@@ -257,7 +257,8 @@ const HUB_TAB_PRESERVED_KEYS = [
  */
 export function buildActionsHubTabHref(
   tabParams: Record<string, string>,
-  currentParams: RawParams
+  currentParams: RawParams,
+  basePath = "/actions",
 ): string {
   const out = new URLSearchParams();
   for (const [key, value] of Object.entries(tabParams)) {
@@ -268,7 +269,7 @@ export function buildActionsHubTabHref(
     if (raw?.trim()) out.set(key, raw.trim());
   }
   const qs = out.toString();
-  return qs ? `/actions?${qs}` : "/actions";
+  return qs ? `${basePath}?${qs}` : basePath;
 }
 
 /** Hub filter row — department, chapter, visibility, search only (no status/type/source). */

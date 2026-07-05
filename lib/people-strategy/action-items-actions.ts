@@ -903,6 +903,8 @@ export async function updateActionStatus(
   if (existing.status === data.status) return;
 
   const completedAt = completedAtForTransition(existing.status, data.status, new Date());
+  const enteringComplete = data.status === "COMPLETE" && existing.status !== "COMPLETE";
+  const leavingComplete = data.status !== "COMPLETE" && existing.status === "COMPLETE";
 
   await prisma.$transaction(async (tx) => {
     await tx.actionItem.update({
@@ -910,13 +912,18 @@ export async function updateActionStatus(
       data: {
         status: data.status as never,
         completedAt,
+        ...(enteringComplete || leavingComplete
+          ? { approvedAt: null, approvedById: null }
+          : {}),
       },
     });
     await postSystemComment(
       tx,
       data.id,
       session.id,
-      `Status changed from ${existing.status} to ${data.status}`
+      enteringComplete
+        ? `Submitted for officer approval (was ${existing.status})`
+        : `Status changed from ${existing.status} to ${data.status}`
     );
   });
 
@@ -986,6 +993,8 @@ export async function captureActionCompletion(input: {
       data: {
         status: "COMPLETE" as never,
         ...(completedAt !== undefined ? { completedAt } : {}),
+        approvedAt: null,
+        approvedById: null,
         completionOutcome: data.completionOutcome,
         completionNote: data.completionNote,
         nextFollowUpAt: data.nextFollowUpAt,
@@ -1003,12 +1012,53 @@ export async function captureActionCompletion(input: {
       session.id,
       existing.status === "COMPLETE"
         ? `Completion details updated${detail ? ` (${detail})` : ""}`
-        : `Status changed from ${existing.status} to COMPLETE${detail ? ` (${detail})` : ""}`
+        : `Submitted for officer approval (was ${existing.status})${detail ? ` (${detail})` : ""}`
     );
   });
 
   // Mirror the completion onto any linked workflow step so the workflow advances.
   await onActionItemCompleted(data.id, session.id);
+
+  await syncActionSearchDocument(data.id);
+  revalidateAll();
+}
+
+const ApproveCompletionSchema = z.object({
+  id: NonEmptyString,
+});
+
+/** Officer-tier sign-off after someone submits a completion for approval. */
+export async function approveActionCompletion(id: string) {
+  ensureEnabled();
+  const session = await requireSessionUser();
+  if (!isOfficerTier(session)) throw new Error("Unauthorized");
+
+  const data = ApproveCompletionSchema.parse({ id });
+
+  const access = await loadAccess(data.id);
+  if (!canViewAction(session, access)) throw new Error("Unauthorized");
+
+  const existing = await prisma.actionItem.findUnique({
+    where: { id: data.id },
+    select: { status: true, approvedAt: true },
+  });
+  if (!existing) throw new Error("Action item not found");
+  if (existing.status !== "COMPLETE") {
+    throw new Error("Only submitted completions can be approved.");
+  }
+  if (existing.approvedAt) return;
+
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.actionItem.update({
+      where: { id: data.id },
+      data: {
+        approvedAt: now,
+        approvedById: session.id,
+      },
+    });
+    await postSystemComment(tx, data.id, session.id, "Completion approved by officer");
+  });
 
   await syncActionSearchDocument(data.id);
   revalidateAll();

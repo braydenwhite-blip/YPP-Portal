@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { EmptyStateV2 } from "@/components/ui-v2";
+import { EmptyStateV2, cn } from "@/components/ui-v2";
 import { ActionHubCard } from "@/components/people-strategy/action-hub-card";
+import { ActionsHubAllView } from "@/components/people-strategy/actions-hub-all-view";
+import { ActionsHubAnalytics } from "@/components/people-strategy/actions-hub-analytics";
 import { ActionFiltersBar } from "@/components/people-strategy/action-filters-bar";
 import { ActionsHubTabs, type ActionsHubTab } from "@/components/people-strategy/actions-hub-tabs";
+import {
+  summarizeDepartments,
+  summarizeStatuses,
+} from "@/lib/people-strategy/action-analytics";
 import type { ActionChapterOption, ActionDepartmentOption, ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
 import type { ActionViewer } from "@/lib/people-strategy/action-permissions";
 import type { ActionFilters } from "@/lib/people-strategy/action-filters";
@@ -26,6 +32,8 @@ export function ActionsHub({
   canCreate,
   viewer,
   actionsOnlyPreview = false,
+  hubBasePath = "/actions",
+  activeTabArchivedScope = "me",
 }: {
   items: ActionItemWithRelations[];
   now: Date;
@@ -39,6 +47,8 @@ export function ActionsHub({
   canCreate: boolean;
   viewer: ActionViewer;
   actionsOnlyPreview?: boolean;
+  hubBasePath?: string;
+  activeTabArchivedScope?: "me" | "all";
 }) {
   const groups = groupActionsByDepartment(items, now);
 
@@ -58,19 +68,60 @@ export function ActionsHub({
             </div>
           }
         >
-          <ActionsHubTabs active={activeTab} officer={officer} />
+          <ActionsHubTabs
+            active={activeTab}
+            officer={officer}
+            archivedScope={activeTabArchivedScope}
+          />
         </Suspense>
         ) : (
           <h1 className="m-0 text-[22px] font-extrabold tracking-[-0.02em] text-ink">My Actions</h1>
         )}
         <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+          {activeTab === "archived" && officer && !actionsOnlyPreview ? (
+            <nav
+              aria-label="Archived scope"
+              className="flex shrink-0 flex-nowrap items-center gap-1.5 rounded-full border border-line-soft bg-surface p-1"
+            >
+              {(
+                [
+                  { key: "me", label: "My archived" },
+                  { key: "all", label: "All archived" },
+                ] as const
+              ).map((scope) => {
+                const active = activeTabArchivedScope === scope.key;
+                const qs = new URLSearchParams();
+                qs.set("who", scope.key);
+                if (filters.department !== "ALL") qs.set("department", filters.department);
+                if (filters.chapter !== "ALL") qs.set("chapter", filters.chapter);
+                if (filters.visibility !== "ALL") qs.set("visibility", filters.visibility);
+                if (filters.search) qs.set("search", filters.search);
+                const href = `/actions/archived?${qs.toString()}`;
+                return (
+                  <Link
+                    key={scope.key}
+                    href={href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "inline-flex h-7 items-center rounded-full px-3 text-[12px] font-semibold no-underline transition-colors",
+                      active
+                        ? "bg-brand-600 text-white"
+                        : "text-brand-800 hover:bg-brand-50",
+                    )}
+                  >
+                    {scope.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          ) : null}
           {!actionsOnlyPreview ? (
           <ActionFiltersBar
             departments={departments}
             chapters={chapters}
             filters={filters}
             hasActive={hasActiveFilters}
-            basePath="/actions"
+            basePath={hubBasePath}
             variant="hub"
           />
           ) : null}
@@ -88,13 +139,28 @@ export function ActionsHub({
       {groups.length === 0 ? (
         <EmptyStateV2
           icon="✓"
-          title={hasActiveFilters ? "No matches" : "All clear"}
+          title={hasActiveFilters ? "No matches" : activeTab === "archived" ? "Nothing archived" : "All clear"}
           body={
             hasActiveFilters
               ? "Try clearing a filter or searching with different words."
-              : "Nothing is open in this view right now."
+              : activeTab === "archived"
+                ? "Approved and dropped actions will show up here."
+                : "Nothing is open in this view right now."
           }
         />
+      ) : activeTab === "all" ? (
+        <>
+          <ActionsHubAnalytics
+            breakdown={summarizeStatuses(items, now)}
+            bars={summarizeDepartments(items, now)}
+          />
+          <ActionsHubAllView
+            groups={groups}
+            now={now}
+            viewer={viewer}
+            hasActiveFilters={hasActiveFilters}
+          />
+        </>
       ) : (
         <section className="overflow-hidden rounded-[14px] border border-line-card bg-surface shadow-card">
           {groups.map((group, groupIndex) => (

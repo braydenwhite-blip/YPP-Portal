@@ -127,6 +127,7 @@ export const DEFAULT_ACTION_DEADLINE_DAYS = 3;
  */
 export const ACTION_ITEM_PATHS = [
   "/actions",
+  "/actions/archived",
   "/actions/all",
   "/actions/all/classes",
   "/actions/command-center",

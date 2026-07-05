@@ -2,10 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { isActionTrackerEnabled } from "@/lib/feature-flags";
 
 /**
- * Standing teams / departments for the Action Tracker picker.
+ * Standing teams for the Action Tracker picker — five categories only.
  * Synced to the `Department` table via migration + `ensureStandingActionDepartments`.
  */
-export type ActionDepartmentGroup = "core" | "org" | "leadership";
+export type ActionDepartmentGroup = "core" | "org";
 
 export type StandingActionDepartmentDef = {
   name: string;
@@ -15,47 +15,36 @@ export type StandingActionDepartmentDef = {
 };
 
 export const ACTION_DEPARTMENT_GROUP_LABELS: Record<ActionDepartmentGroup, string> = {
-  core: "Core teams",
-  org: "Org & growth",
-  leadership: "Leadership",
+  core: "Programs",
+  org: "Org",
 };
+
+/** Retired slugs — remapped or archived by migration; kept for reference in tests. */
+export const RETIRED_ACTION_DEPARTMENT_SLUGS = [
+  "mentorship",
+  "recruitment-hiring",
+  "partnerships",
+  "operations",
+  "fundraising",
+  "officers",
+  "board",
+  "instructional-affairs",
+  "community-partnerships",
+  "platform-operations",
+] as const;
 
 export const STANDING_ACTION_DEPARTMENTS: StandingActionDepartmentDef[] = [
   {
     name: "Instruction",
     slug: "instruction",
     group: "core",
-    description: "Curriculum, teaching, and classroom operations.",
-  },
-  {
-    name: "Recruitment & Hiring",
-    slug: "recruitment-hiring",
-    group: "core",
-    description: "Sourcing, interviewing, and hiring instructors.",
-  },
-  {
-    name: "Mentorship",
-    slug: "mentorship",
-    group: "core",
-    description: "Pairing, coaching, and instructor growth support.",
-  },
-  {
-    name: "Partnerships",
-    slug: "partnerships",
-    group: "core",
-    description: "Community building, outreach, and partnerships.",
-  },
-  {
-    name: "Operations",
-    slug: "operations",
-    group: "core",
-    description: "Platform, logistics, and internal operations.",
+    description: "Classes, curriculum, teaching quality, and mentorship.",
   },
   {
     name: "Chapters",
     slug: "chapters",
-    group: "org",
-    description: "Chapter launches, expansion, and local chapter leads.",
+    group: "core",
+    description: "Local chapters, hiring, and community partnerships.",
   },
   {
     name: "Tech",
@@ -67,7 +56,7 @@ export const STANDING_ACTION_DEPARTMENTS: StandingActionDepartmentDef[] = [
     name: "Communications",
     slug: "communications",
     group: "org",
-    description: "Org-wide messaging, announcements, and comms strategy.",
+    description: "Org messaging, announcements, fundraising outreach, and comms.",
   },
   {
     name: "Social Media",
@@ -75,28 +64,11 @@ export const STANDING_ACTION_DEPARTMENTS: StandingActionDepartmentDef[] = [
     group: "org",
     description: "Social content, campaigns, and channel management.",
   },
-  {
-    name: "Fundraising",
-    slug: "fundraising",
-    group: "org",
-    description: "Donor outreach, sponsorships, and fundraising campaigns.",
-  },
-  {
-    name: "Officers",
-    slug: "officers",
-    group: "leadership",
-    description: "Officer-team work that spans multiple functions.",
-  },
-  {
-    name: "Board",
-    slug: "board",
-    group: "leadership",
-    description: "Board-facing priorities, governance, and approvals.",
-  },
 ];
 
 const SLUG_ORDER = new Map(STANDING_ACTION_DEPARTMENTS.map((d, index) => [d.slug, index]));
 const SLUG_TO_GROUP = new Map(STANDING_ACTION_DEPARTMENTS.map((d) => [d.slug, d.group]));
+const STANDING_SLUGS = STANDING_ACTION_DEPARTMENTS.map((d) => d.slug);
 
 export type ActionDepartmentOption = {
   id: string;
@@ -105,7 +77,7 @@ export type ActionDepartmentOption = {
   group: ActionDepartmentGroup | null;
 };
 
-/** Upsert every standing department so the picker is complete on every environment. */
+/** Upsert standing departments and archive retired teams so the picker stays at five. */
 export async function ensureStandingActionDepartments(): Promise<void> {
   if (!isActionTrackerEnabled()) return;
 
@@ -126,6 +98,14 @@ export async function ensureStandingActionDepartments(): Promise<void> {
       })
     )
   );
+
+  await prisma.department.updateMany({
+    where: {
+      slug: { in: [...RETIRED_ACTION_DEPARTMENT_SLUGS] },
+      archivedAt: null,
+    },
+    data: { archivedAt: new Date() },
+  });
 }
 
 export function enrichActionDepartmentOption(row: {
@@ -158,12 +138,14 @@ export function groupActionDepartments(departments: ActionDepartmentOption[]): A
   const buckets: Record<ActionDepartmentGroup | "other", ActionDepartmentOption[]> = {
     core: [],
     org: [],
-    leadership: [],
     other: [],
   };
 
   for (const department of departments) {
-    const key = department.group ?? "other";
+    const key =
+      department.slug && STANDING_SLUGS.includes(department.slug)
+        ? (SLUG_TO_GROUP.get(department.slug) ?? "other")
+        : "other";
     buckets[key].push(department);
   }
 
@@ -173,7 +155,7 @@ export function groupActionDepartments(departments: ActionDepartmentOption[]): A
     items: ActionDepartmentOption[];
   }> = [];
 
-  for (const key of ["core", "org", "leadership"] as const) {
+  for (const key of ["core", "org"] as const) {
     if (buckets[key].length > 0) {
       groups.push({
         key,

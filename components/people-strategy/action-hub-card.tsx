@@ -66,11 +66,16 @@ export function ActionHubCard({
   now,
   viewer,
   isLast = false,
+  selected = false,
+  onSelect,
 }: {
   item: ActionItemWithRelations;
   now: Date;
   viewer: ActionViewer;
   isLast?: boolean;
+  /** When set, clicking selects for preview instead of navigating to the detail page. */
+  selected?: boolean;
+  onSelect?: () => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -112,8 +117,13 @@ export function ActionHubCard({
       : [{ id: "unassigned", name: "Unassigned", slug: null as string | null }];
 
   const actionHref = `/actions/${item.id}`;
+  const previewMode = Boolean(onSelect);
 
   function openAction() {
+    if (previewMode) {
+      onSelect?.();
+      return;
+    }
     router.push(actionHref);
   }
 
@@ -138,9 +148,10 @@ export function ActionHubCard({
 
   return (
     <article
-      role="link"
+      role={previewMode ? "button" : "link"}
       tabIndex={0}
-      aria-label={`Open action: ${item.title}`}
+      aria-label={previewMode ? `Preview action: ${item.title}` : `Open action: ${item.title}`}
+      aria-pressed={previewMode ? selected : undefined}
       onClick={openAction}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -149,8 +160,9 @@ export function ActionHubCard({
         }
       }}
       className={cn(
-        "cursor-pointer px-4 py-3.5 transition-colors hover:bg-surface-soft focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-400",
-        !isLast && "border-b border-line-soft"
+        "cursor-pointer px-4 py-3.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-400",
+        selected ? "bg-brand-50" : "hover:bg-surface-soft",
+        !isLast && "border-b border-line-soft",
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -190,6 +202,10 @@ export function ActionHubCard({
         </span>
         {!isComplete ? (
           <ActionStatusBadge item={hubItem} now={now} />
+        ) : !item.approvedAt ? (
+          <span className="inline-flex items-center rounded-md bg-[#f3ecff] px-2 py-0.5 text-[11px] font-bold text-brand-800">
+            Awaiting approval
+          </span>
         ) : null}
         {linkedMeetingId ? (
           <ActionMeetingLink
@@ -212,7 +228,7 @@ export function ActionHubCard({
             onClick={(event) => markComplete(event)}
             className="h-7 px-2.5 text-[11px]"
           >
-            Mark as complete
+            Submit for approval
           </Button>
         ) : null}
       </div>

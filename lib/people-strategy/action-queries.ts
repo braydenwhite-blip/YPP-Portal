@@ -239,6 +239,63 @@ export async function listVisibleActionItems(
   return hydrated.filter((item) => canViewAction(viewer, toAccessShape(item)));
 }
 
+const ARCHIVED_WHERE = {
+  OR: [
+    { status: "DROPPED" as const },
+    { status: "COMPLETE" as const, approvedAt: { not: null } },
+  ],
+};
+
+/**
+ * Archived actions the viewer may see: approved completions and dropped items.
+ */
+export async function listVisibleArchivedActionItems(
+  viewer: ActionViewer,
+): Promise<ActionItemWithRelations[]> {
+  if (!isActionTrackerEnabled()) return [];
+
+  const items = await prisma.actionItem.findMany({
+    where: ARCHIVED_WHERE,
+    include: ACTION_ITEM_INCLUDE,
+    orderBy: [{ updatedAt: "desc" }],
+    take: 500,
+  });
+
+  const hydrated = await withDepartmentLinks(items);
+  return hydrated.filter((item) => canViewAction(viewer, toAccessShape(item)));
+}
+
+/** Archived actions the user was involved in (lead or assignee). */
+export async function getMyArchivedActionItems(
+  userId: string,
+  viewer: ActionViewer,
+): Promise<ActionItemWithRelations[]> {
+  if (!isActionTrackerEnabled()) return [];
+
+  const items = await prisma.actionItem.findMany({
+    where: {
+      AND: [
+        ARCHIVED_WHERE,
+        {
+          OR: [
+            { leadId: userId },
+            { assignments: { some: { userId } } },
+          ],
+        },
+      ],
+    },
+    include: ACTION_ITEM_INCLUDE,
+    orderBy: [{ updatedAt: "desc" }],
+    take: 500,
+  });
+
+  const hydrated = await withDepartmentLinks(items);
+  return hydrated.filter((item) => {
+    const shape = toAccessShape(item);
+    return canViewAction(viewer, shape) && isUserInvolvedInAction(userId, shape);
+  });
+}
+
 /**
  * Every action item with relations, leadership-wide (no per-viewer scoping).
  * For trusted server-side leadership summaries — specifically the weekly
