@@ -49,12 +49,13 @@ begin
   -- 2. Portal "User" rows (public schema, Prisma-managed table)
   insert into "User" (
     id, name, email, "passwordHash", "primaryRole", title,
-    "internalLevel", ladder, "emailVerified", supabase_auth_id
+    "internalLevel", ladder, "emailVerified", supabase_auth_id,
+    "createdAt", "updatedAt"
   ) values
     (jackson_user_id, 'Jackson Faber', 'jackson.faber@youthpassionproject.org', jackson_hash,
-     'STAFF', 'Manager', 4, 'LEADERSHIP', now(), jackson_auth_id::text),
+     'STAFF', 'Manager', 4, 'LEADERSHIP', now(), jackson_auth_id::text, now(), now()),
     (jennifer_user_id, 'Jennifer Chen', 'jennifer.chen@youthpassionproject.org', jennifer_hash,
-     'STAFF', 'Manager', 4, 'LEADERSHIP', now(), jennifer_auth_id::text);
+     'STAFF', 'Manager', 4, 'LEADERSHIP', now(), jennifer_auth_id::text, now(), now());
 
   -- 3. Role grants
   insert into "UserRole" ("userId", role) values
