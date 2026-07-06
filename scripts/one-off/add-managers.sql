@@ -49,7 +49,7 @@ begin
   -- 2. Portal "User" rows (public schema, Prisma-managed table)
   insert into "User" (
     id, name, email, "passwordHash", "primaryRole", title,
-    "internalLevel", ladder, "emailVerified", "supabaseAuthId"
+    "internalLevel", ladder, "emailVerified", supabase_auth_id
   ) values
     (jackson_user_id, 'Jackson Faber', 'jackson.faber@youthpassionproject.org', jackson_hash,
      'STAFF', 'Manager', 4, 'LEADERSHIP', now(), jackson_auth_id::text),
