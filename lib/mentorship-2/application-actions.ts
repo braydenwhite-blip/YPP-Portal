@@ -67,7 +67,7 @@ export async function submitMentorshipApplication(
     },
   });
 
-  revalidatePath("/my-mentor");
+  revalidatePath("/mentorship");
   return row;
 }
 
@@ -93,7 +93,7 @@ export async function withdrawMentorshipApplication(applicationId: string) {
     data: { status: "WITHDRAWN", decidedAt: new Date() },
   });
 
-  revalidatePath("/my-mentor");
+  revalidatePath("/mentorship");
   return row;
 }
 

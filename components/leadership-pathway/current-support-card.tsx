@@ -11,7 +11,7 @@ interface CurrentSupportCardProps {
  * the user through it — their mentor and a clear way into the mentorship home.
  *
  * It deliberately stays compact: it surfaces who supports you + one CTA, and
- * leaves the full mentor card, goals, and reflection to /my-mentor rather than
+ * leaves the full mentor card, goals, and reflection to /mentorship?view=me rather than
  * duplicating the whole mentee dashboard here.
  */
 export function CurrentSupportCard({ mentor }: CurrentSupportCardProps) {
@@ -40,7 +40,7 @@ export function CurrentSupportCard({ mentor }: CurrentSupportCardProps) {
                 : "Your mentor helps you move through this pathway with monthly check-ins and goals."}
             </p>
           </div>
-          <Link href="/my-mentor" className="button small">
+          <Link href="/mentorship?view=me" className="button small">
             View My Mentor →
           </Link>
         </div>
@@ -61,7 +61,7 @@ export function CurrentSupportCard({ mentor }: CurrentSupportCardProps) {
         When you&apos;re paired with a mentor, they&apos;ll appear here — your mentor is the
         support that helps you move through this pathway.
       </p>
-      <Link href="/my-mentor" className="button secondary small" style={{ justifySelf: "start" }}>
+      <Link href="/mentorship?view=me" className="button secondary small" style={{ justifySelf: "start" }}>
         Go to My Mentor →
       </Link>
     </section>

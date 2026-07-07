@@ -2,7 +2,8 @@ import { permanentRedirect } from "next/navigation";
 
 export const metadata = { title: "My Goals & Resources" };
 
-// Canonical mentee home is /my-mentor; goals & resources now live at /my-mentor/goals.
+// Canonical mentee home is /mentorship?view=me; goals & resources now live in
+// its Goals section.
 export default function LegacyMyProgramGRPage() {
-  permanentRedirect("/my-mentor/goals");
+  permanentRedirect("/mentorship?view=me&section=goals");
 }

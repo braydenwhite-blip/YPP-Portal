@@ -738,8 +738,7 @@ export async function saveGRPlanOfAction(formData: FormData) {
   });
 
   revalidatePath("/my-program/gr");
-  revalidatePath("/my-mentor/goals");
-  revalidatePath("/my-mentor/progress");
+  revalidatePath("/mentorship");
 }
 
 // ============================================
@@ -758,8 +757,7 @@ export async function recordGRKPIValue(formData: FormData) {
   });
 
   revalidatePath("/my-program/gr");
-  revalidatePath("/my-mentor/goals");
-  revalidatePath("/my-mentor/progress");
+  revalidatePath("/mentorship");
 }
 
 // ============================================

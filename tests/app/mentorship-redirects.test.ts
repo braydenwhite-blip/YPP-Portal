@@ -23,6 +23,13 @@ import LegacyGRResourcesPage from "@/app/(app)/admin/mentorship-program/gr-resou
 import LegacyReflectionPage from "@/app/(app)/reflection/page";
 import LegacyReflectionHistoryPage from "@/app/(app)/reflection/history/page";
 import LegacyReflectionFormsPage from "@/app/(app)/admin/reflection-forms/page";
+import LegacyMyMentorGoalsPage from "@/app/(app)/my-mentor/goals/page";
+import LegacyMyMentorProgressPage from "@/app/(app)/my-mentor/progress/page";
+import LegacyMyMentorReflectionPage from "@/app/(app)/my-mentor/reflection/page";
+import LegacyMyMentorSchedulePage from "@/app/(app)/my-mentor/schedule/page";
+import LegacyMyMentorResourcesPage from "@/app/(app)/my-mentor/resources/page";
+import LegacyMyMentorAwardsPage from "@/app/(app)/my-mentor/awards/page";
+import LegacyMyMentorHelpPage from "@/app/(app)/my-mentor/help/page";
 
 class RedirectError extends Error {
   constructor(public to: string) {
@@ -73,16 +80,50 @@ describe("mentorship legacy route redirects", () => {
   });
 
   it("redirects the deprecated reflection surfaces into the unified self-input flow", () => {
-    expect(() => LegacyReflectionPage()).toThrow("redirect:/my-mentor/reflection");
-    expect(() => LegacyReflectionHistoryPage()).toThrow("redirect:/my-mentor/reflection");
+    expect(() => LegacyReflectionPage()).toThrow(
+      "redirect:/mentorship?view=me&section=reflection"
+    );
+    expect(() => LegacyReflectionHistoryPage()).toThrow(
+      "redirect:/mentorship?view=me&section=reflection"
+    );
     expect(() => LegacyReflectionFormsPage()).toThrow("redirect:/admin/reflections");
   });
 
-  it("redirects legacy /my-program mentee flows into the canonical /my-mentor home", () => {
-    expect(() => LegacyMyProgramGRPage()).toThrow("redirect:/my-mentor/goals");
-    expect(() => LegacyMyProgramReflectPage()).toThrow("redirect:/my-mentor/reflection");
-    expect(() => LegacyMyProgramSchedulePage()).toThrow("redirect:/my-mentor/schedule");
-    expect(() => LegacyMyProgramAwardsPage()).toThrow("redirect:/my-mentor/awards");
+  it("redirects legacy /my-program mentee flows into the self workspace sections", () => {
+    expect(() => LegacyMyProgramGRPage()).toThrow(
+      "redirect:/mentorship?view=me&section=goals"
+    );
+    expect(() => LegacyMyProgramReflectPage()).toThrow(
+      "redirect:/mentorship?view=me&section=reflection"
+    );
+    expect(() => LegacyMyProgramSchedulePage()).toThrow(
+      "redirect:/mentorship?view=me&section=schedule"
+    );
+    expect(() => LegacyMyProgramAwardsPage()).toThrow(
+      "redirect:/mentorship?view=me&section=recognition"
+    );
+  });
+
+  it("redirects the /my-mentor satellites into the self workspace sections", () => {
+    expect(() => LegacyMyMentorGoalsPage()).toThrow(
+      "redirect:/mentorship?view=me&section=goals"
+    );
+    expect(() => LegacyMyMentorProgressPage()).toThrow(
+      "redirect:/mentorship?view=me&section=reviews"
+    );
+    expect(() => LegacyMyMentorReflectionPage()).toThrow(
+      "redirect:/mentorship?view=me&section=reflection"
+    );
+    expect(() => LegacyMyMentorSchedulePage()).toThrow(
+      "redirect:/mentorship?view=me&section=schedule"
+    );
+    expect(() => LegacyMyMentorResourcesPage()).toThrow(
+      "redirect:/mentorship?view=me&section=recognition"
+    );
+    expect(() => LegacyMyMentorAwardsPage()).toThrow(
+      "redirect:/mentorship?view=me&section=recognition"
+    );
+    expect(() => LegacyMyMentorHelpPage()).toThrow("redirect:/mentorship?view=me");
   });
 
   it("redirects legacy admin G&R routes to the canonical /admin/mentorship/gr area", async () => {

@@ -108,7 +108,7 @@ export function RoleStrip({
         >
           {showMentorLink && mentorName && (
             <Link
-              href="/my-mentor"
+              href="/mentorship?view=me"
               style={{
                 fontSize: 12,
                 fontWeight: 600,

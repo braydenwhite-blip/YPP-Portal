@@ -17,11 +17,12 @@ const RATING_TONE: Record<GoalRatingColor, StatusTone> = {
 };
 
 /**
- * Mentee POV — "My Development" at /mentorship. The supportive brief: who
- * mentors you, what you owe this cycle, the latest released feedback and
- * coaching plan, and the next steps you own. Deep work happens on the
- * existing detail surfaces (/my-mentor/*, /my-program/*); this is the calm
- * front door that always says what to do next.
+ * The mentee mission brief: what you owe this cycle, the latest released
+ * feedback and coaching plan, and the next steps you own. Rendered at the top
+ * of the self workspace's Overview section (`embedded`, which hides the
+ * coaching-plan card the workspace overview already shows), and standalone as
+ * the "no mentorship footprint yet" fallback on /mentorship?view=me. Deep work
+ * happens in the workspace sections.
  */
 
 const DATE_FMT = new Intl.DateTimeFormat("en-US", {
@@ -47,7 +48,8 @@ type MenteeNextStep = {
 
 function menteeNextStep(
   state: Awaited<ReturnType<typeof getMenteeCycleState>>,
-  hasMentor: boolean
+  hasMentor: boolean,
+  links: BriefLinks
 ): MenteeNextStep {
   if (!hasMentor) {
     return {
@@ -62,7 +64,7 @@ function menteeNextStep(
     return {
       title: `Your ${state.cycleLabel} reflection is ${state.isOverdue ? "overdue" : "due"}.`,
       detail: `Self-input comes first: your reflection is what your mentor's review builds on. Soft deadline ${DATE_FMT.format(state.softDeadline)}.`,
-      cta: { label: "Submit this month's reflection", href: "/my-mentor/reflection" },
+      cta: { label: "Submit this month's reflection", href: links.reflection },
       tone: state.isOverdue ? "warning" : "info",
     };
   }
@@ -78,22 +80,28 @@ function menteeNextStep(
   return {
     title: `Your ${state.cycleLabel} review is released.`,
     detail: "Read the feedback and the plan of action, then work the next steps below.",
-    cta: { label: "Read your released review", href: "/my-mentor/progress" },
+    cta: { label: "Read your released review", href: links.reviews },
     tone: "success",
   };
 }
 
-const DRILL_DOWNS: Array<{ label: string; href: string; blurb: string }> = [
-  { label: "Goals & Responsibilities", href: "/my-mentor/goals", blurb: "Your role charter and goals" },
-  { label: "Progress & reviews", href: "/my-mentor/progress", blurb: "Released reviews and trajectory" },
-  { label: "Monthly reflection", href: "/my-mentor/reflection", blurb: "Submit or revisit self-input" },
-  { label: "Schedule time", href: "/my-mentor/schedule", blurb: "Book time with your mentor" },
-  { label: "Resources", href: "/my-mentor/resources", blurb: "What your mentor shared" },
-  { label: "Awards", href: "/my-mentor/awards", blurb: "Recognition and points" },
-  { label: "Get help", href: "/my-mentor/help", blurb: "Ask your mentor or the program for support" },
-];
+type BriefLinks = { reflection: string; reviews: string };
 
-export async function MenteeDevelopmentBrief({ userId }: { userId: string }) {
+const DEFAULT_LINKS: BriefLinks = {
+  reflection: "/mentorship?view=me&section=reflection",
+  reviews: "/mentorship?view=me&section=reviews",
+};
+
+export async function MenteeDevelopmentBrief({
+  userId,
+  embedded = false,
+  links = DEFAULT_LINKS,
+}: {
+  userId: string;
+  /** Inside the self workspace overview — skip what the workspace already shows. */
+  embedded?: boolean;
+  links?: BriefLinks;
+}) {
   const [state, mentorship, plan, actions] = await Promise.all([
     getMenteeCycleState(userId),
     prisma.mentorship.findFirst({
@@ -117,7 +125,7 @@ export async function MenteeDevelopmentBrief({ userId }: { userId: string }) {
     ? mentorship.mentor.name || mentorship.mentor.email
     : null;
   const nextSession = mentorship?.sessions[0] ?? null;
-  const next = menteeNextStep(state, mentorName != null);
+  const next = menteeNextStep(state, mentorName != null, links);
   const myActions = actions.slice(0, 6);
 
   return (
@@ -157,8 +165,9 @@ export async function MenteeDevelopmentBrief({ userId }: { userId: string }) {
         </div>
       </CardV2>
 
-      {/* Latest released feedback + coaching plan. */}
-      {plan ? (
+      {/* Latest released feedback + coaching plan (the workspace overview
+          renders its own coaching-plan card when embedded). */}
+      {plan && !embedded ? (
         <CardV2 padding="md">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="m-0 text-[13.5px] font-bold text-ink">
@@ -173,7 +182,7 @@ export async function MenteeDevelopmentBrief({ userId }: { userId: string }) {
           </p>
           <p className="m-0 mt-2 text-[12px] text-ink-muted">
             From {plan.mentorName}&apos;s released review.{" "}
-            <Link href="/my-mentor/progress" className="font-semibold text-brand-700 hover:underline">
+            <Link href={links.reviews} className="font-semibold text-brand-700 hover:underline">
               Read the full review →
             </Link>
           </p>
@@ -211,25 +220,6 @@ export async function MenteeDevelopmentBrief({ userId }: { userId: string }) {
           </ul>
         )}
       </CardV2>
-
-      {/* Drill-downs into the existing detail surfaces. */}
-      <section aria-label="Your development spaces">
-        <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
-          {DRILL_DOWNS.map((item) => (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className="block rounded-[12px] border border-line-soft bg-surface px-4 py-3 no-underline shadow-card transition-[border-color] hover:border-brand-300"
-              >
-                <span className="block text-[13.5px] font-semibold text-ink">
-                  {item.label}
-                </span>
-                <span className="mt-0.5 block text-[12px] text-ink-muted">{item.blurb}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   );
 }

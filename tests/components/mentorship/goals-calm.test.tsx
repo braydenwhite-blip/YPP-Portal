@@ -20,7 +20,7 @@ describe("GoalsCalm", () => {
     // Mentee audience copy for ACHIEVED comes from the shared rubric source.
     expect(screen.getByRole("link", { name: /Update progress/ })).toHaveAttribute(
       "href",
-      "/my-mentor/reflection"
+      "/mentorship?view=me&section=reflection"
     );
   });
 

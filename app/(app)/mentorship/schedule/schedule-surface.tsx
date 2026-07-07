@@ -13,7 +13,7 @@ import ScheduleClient from "@/app/(app)/my-program/schedule/schedule-client";
  */
 export function ScheduleSurface({
   data,
-  reviewHref = "/my-mentor/goals",
+  reviewHref = "/mentorship?view=me&section=goals",
 }: {
   data: SchedulePageData | null;
   reviewHref?: string;

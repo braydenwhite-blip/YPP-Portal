@@ -2,7 +2,8 @@ import { permanentRedirect } from "next/navigation";
 
 export const metadata = { title: "Submit Reflection" };
 
-// Canonical mentee home is /my-mentor; the monthly reflection now lives at /my-mentor/reflection.
+// Canonical mentee home is /mentorship?view=me; the monthly reflection now
+// lives in its Reflection section.
 export default function LegacyMyProgramReflectPage() {
-  permanentRedirect("/my-mentor/reflection");
+  permanentRedirect("/mentorship?view=me&section=reflection");
 }

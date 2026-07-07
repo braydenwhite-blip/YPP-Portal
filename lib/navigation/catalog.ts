@@ -247,7 +247,7 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/motivation", label: "Motivation", icon: "🔥", roles: STUDENT_ONLY },
     // /reflections/streaks removed — it read the retired ReflectionForm models
     // that students never wrote to. /reflection now redirects to
-    // /my-mentor/reflection, the canonical self-input for the mentorship
+    // the Reflection section of /mentorship?view=me, the self-input for the mentorship
     // review loop, so it no longer needs its own nav entry.
     {
       href: "/admin/reflections",
@@ -913,8 +913,8 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 4,
     },
     // /my-mentor now redirects to /mentorship?view=me (the mentee POV). Its
-    // detail subroutes (goals, progress, reflection, schedule, resources,
-    // awards) still live under /my-mentor/* and are linked from the hub.
+    // old detail subroutes (goals, progress, reflection, schedule, resources,
+    // awards, help) redirect to that workspace's sections.
     {
       href: "/mentorship/cycles",
       label: "Review Cycles",
@@ -1026,9 +1026,8 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Nominate mentees for Bronze, Silver, Gold, and Lifetime achievement awards.",
     },
     // /my-mentor/awards removed from nav — awards are a supporting detail of
-    // the Mentorship hub's "My development" view, reachable from its
-    // drill-down grid and subnav. A separate top-level entry duplicated the
-    // product.
+    // the Mentorship hub's "My development" view (its Recognition section).
+    // A separate top-level entry duplicated the product.
     {
       href: "/my-program/achievement-journey",
       label: "Achievement Journey",

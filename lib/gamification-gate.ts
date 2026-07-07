@@ -59,7 +59,6 @@ export const GAMIFICATION_GATED_PREFIXES: readonly string[] = [
   "/instructor/competition-builder",
   "/mentorship/awards",
   "/mentorship-program/awards",
-  "/my-mentor/awards",
   "/my-program/awards",
   "/my-program/achievement-journey",
   "/my-program/certificate",

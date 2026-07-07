@@ -43,19 +43,19 @@ export const GROWTH_MODEL: Record<GrowthModelKey, GrowthModelPiece> = {
     key: "mentorship",
     label: "Mentorship",
     meaning: "The support helping you move through your pathway.",
-    href: "/my-mentor",
+    href: "/mentorship?view=me",
   },
   goals: {
     key: "goals",
     label: "Goals & Resources",
     meaning: "What you're working on right now.",
-    href: "/my-mentor/goals",
+    href: "/mentorship?view=me&section=goals",
   },
   reviews: {
     key: "reviews",
     label: "Monthly review",
     meaning: "The checkpoint that shows how this month went.",
-    href: "/my-mentor/progress",
+    href: "/mentorship?view=me&section=reviews",
   },
   ratings: {
     key: "ratings",
@@ -66,7 +66,7 @@ export const GROWTH_MODEL: Record<GrowthModelKey, GrowthModelPiece> = {
     key: "awards",
     label: "Recognition",
     meaning: "Recognition that celebrates consistent growth.",
-    href: "/my-mentor/awards",
+    href: "/mentorship?view=me&section=recognition",
   },
   approval: {
     key: "approval",
