@@ -25,7 +25,7 @@ export type CalmGoal = {
 
 export function GoalsCalm({
   goals,
-  updateHref = "/my-mentor/reflection",
+  updateHref = "/mentorship?view=me&section=reflection",
   updateLabel = "Update progress →",
   empty = "Once you're paired with a mentor, your goals show up here.",
 }: {

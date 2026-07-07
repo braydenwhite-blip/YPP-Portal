@@ -333,7 +333,7 @@ export async function approveRecommendation(
 
   revalidateApplication(application.id);
   revalidatePath("/mentorship");
-  revalidatePath("/my-mentor");
+  revalidatePath("/mentorship");
 
   // Growth Engine (Phase N1): seed the mentee's Vision -> Goal -> Milestone ->
   // Action hierarchy from the M2 bridge and emit MENTOR_MATCHED. Flag-gated +

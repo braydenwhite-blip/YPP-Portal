@@ -140,7 +140,7 @@ async function getStudentReflectionSummary(userId: string, primaryRole: string |
         }
       : null,
     currentStateLabel: hasSubmittedCurrentMonth ? "Submitted this month" : "Ready to submit",
-    primaryHref: "/my-mentor/reflection",
+    primaryHref: "/mentorship?view=me&section=reflection",
     primaryLabel: hasSubmittedCurrentMonth ? "View Reflection History" : "Submit Reflection",
   };
 }

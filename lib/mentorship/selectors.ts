@@ -106,7 +106,7 @@ function detailHref(role: MentorshipRole, menteeId: string): string {
   // otherwise). Pass `fact.menteeId`, never `fact.id` (the mentorship/relation
   // id) — that mismatch 404s every Calm-mode roster row and focus CTA. Mirrors
   // the canonical builder in lib/queue/from-mentorship.ts.
-  return role === "mentee" ? "/my-mentor" : `/mentorship/mentees/${menteeId}`;
+  return role === "mentee" ? "/mentorship?view=me" : `/mentorship/people/${menteeId}`;
 }
 
 function upcomingSession(fact: MentorshipRelationshipFact, now: Date) {
@@ -198,7 +198,7 @@ function candidatesForFact(
         "Submit this month's reflection",
         "Your reflection opens this cycle's review.",
         "Open reflection",
-        "/my-mentor/reflection",
+        "/mentorship?view=me&section=reflection",
         "brand",
         now
       )
@@ -214,7 +214,7 @@ function candidatesForFact(
         `Session with ${otherName}`,
         "Your next mentorship session is coming up.",
         "View session",
-        menteeSide ? "/my-mentor/schedule" : "/mentorship/schedule",
+        menteeSide ? "/mentorship?view=me&section=schedule" : "/mentorship/schedule",
         "brand",
         now,
         Date.parse(next.scheduledISO)
@@ -322,7 +322,7 @@ function collectSessions(
   const sessions: SessionSummary[] = [];
   for (const fact of facts) {
     const role = viewerRelationshipRole(viewer, fact);
-    const href = role === "mentee" ? "/my-mentor/schedule" : "/mentorship/schedule";
+    const href = role === "mentee" ? "/mentorship?view=me&section=schedule" : "/mentorship/schedule";
     for (const session of fact.sessions) {
       if (session.cancelledISO) continue;
       sessions.push({

@@ -52,7 +52,7 @@ export function SupportLine({ mentor, stageId }: SupportLineProps) {
       >
         Coached by{" "}
         <Link
-          href="/my-mentor"
+          href="/mentorship?view=me"
           style={{
             color: "var(--text)",
             fontWeight: 600,

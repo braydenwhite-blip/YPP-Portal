@@ -143,7 +143,7 @@ const ruleApplyForMentor: Rule = (input) => {
       kind: "MENTORSHIP_ACTION",
       title: "Find a mentor",
       detail: "Apply for mentorship to get personal guidance toward your goals.",
-      href: "/my-mentor",
+      href: "/mentorship?view=me",
       reason: `You've set interests (${formatList(
         interests.slice(0, 3)
       )}) but don't have a mentor yet — a mentor can help you get there.`,

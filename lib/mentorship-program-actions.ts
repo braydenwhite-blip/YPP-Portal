@@ -1441,7 +1441,7 @@ export async function approveMonthlyGoalReview(formData: FormData) {
     userId: review.mentorId,
     title: "Monthly Goal Review Approved",
     body: `${review.mentee.name}'s monthly goal review was approved.`,
-    link: `/mentorship/mentees/${review.menteeId}`,
+    link: `/mentorship/people/${review.menteeId}`,
   });
 
   await createMentorshipNotification({

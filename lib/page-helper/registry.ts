@@ -3684,7 +3684,7 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     content: {
       purpose: "This page redirects to the Mentorship hub's My development view — your mentor, reflection, released feedback, and next steps live there now.",
       firstStep: "You'll land on /mentorship?view=me automatically.",
-      nextStep: "Use the drill-down cards there to open goals, progress, reflection, schedule, resources, or awards."
+      nextStep: "Use the section tabs there to open goals, reviews, reflection, schedule, or recognition."
     }
   },
   {
@@ -3700,63 +3700,63 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     pattern: "/my-mentor/awards",
     title: "My Awards — My Mentor",
     content: {
-      purpose: "This page brings together the main tools and details for my awards — my mentor.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+      purpose: "This page redirects to the Mentorship hub's My development view — awards now live in its Recognition section.",
+      firstStep: "You'll land on /mentorship?view=me&section=recognition automatically.",
+      nextStep: "Review your points, tiers, and nominations there."
     }
   },
   {
     pattern: "/my-mentor/goals",
     title: "My Goals — My Mentor",
     content: {
-      purpose: "This page brings together the main tools and details for my goals — my mentor.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+      purpose: "This page redirects to the Mentorship hub's My development view — your goals now live in its Goals section.",
+      firstStep: "You'll land on /mentorship?view=me&section=goals automatically.",
+      nextStep: "Review your role charter, goals, and KPIs there."
     }
   },
   {
     pattern: "/my-mentor/help",
     title: "Get Help — My Mentor",
     content: {
-      purpose: "This page brings together the main tools and details for the get help — my mentor.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+      purpose: "This page redirects to the Mentorship hub's My development view — the help card now sits at the bottom of its Overview section.",
+      firstStep: "You'll land on /mentorship?view=me automatically.",
+      nextStep: "Scroll to the Get help card to message your mentor privately."
     }
   },
   {
     pattern: "/my-mentor/progress",
     title: "My Progress — My Mentor",
     content: {
-      purpose: "This page gives you a clear view of my progress — my mentor so you can spot what needs attention first.",
-      firstStep: "Scan the top summary or first section, then open the item with the closest deadline or biggest blocker.",
-      nextStep: "After you review the current status, move into the matching record or workspace and take the next action from there."
+      purpose: "This page redirects to the Mentorship hub's My development view — released reviews and trajectory now live in its Reviews section.",
+      firstStep: "You'll land on /mentorship?view=me&section=reviews automatically.",
+      nextStep: "Read your released feedback and next steps there."
     }
   },
   {
     pattern: "/my-mentor/reflection",
     title: "My Reflection — My Mentor",
     content: {
-      purpose: "This page brings together the main tools and details for my reflection — my mentor.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+      purpose: "This page redirects to the Mentorship hub's My development view — the monthly self-input form now lives in its Reflection section.",
+      firstStep: "You'll land on /mentorship?view=me&section=reflection automatically.",
+      nextStep: "Submit this month's reflection there to start the review loop."
     }
   },
   {
     pattern: "/my-mentor/resources",
     title: "My Resources — My Mentor",
     content: {
-      purpose: "This page helps you browse my resources — my mentor and open the resource that fits your next task.",
-      firstStep: "Start with the most relevant section, filter, or card so you can narrow the list before opening anything.",
-      nextStep: "Once you find the right resource, open it and use the linked workspace or material to keep moving forward."
+      purpose: "This page redirects to the Mentorship hub's My development view — mentor-shared resources now live in its Recognition/Resources section.",
+      firstStep: "You'll land on /mentorship?view=me&section=recognition automatically.",
+      nextStep: "Open the resource that fits your next task from there."
     }
   },
   {
     pattern: "/my-mentor/schedule",
     title: "Schedule — My Mentor",
     content: {
-      purpose: "This page helps you see and plan the schedule — my mentor in one place.",
-      firstStep: "Look at the upcoming items first so you can spot the next date, deadline, or meeting that matters most.",
-      nextStep: "After you open an event or schedule item, use the linked details to prepare, join, or follow up on time."
+      purpose: "This page redirects to the Mentorship hub's My development view — mentor scheduling now lives in its Schedule section.",
+      firstStep: "You'll land on /mentorship?view=me&section=schedule automatically.",
+      nextStep: "Book or review time with your mentor there."
     }
   },
   {

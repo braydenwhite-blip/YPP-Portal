@@ -2,7 +2,8 @@ import { permanentRedirect } from "next/navigation";
 
 export const metadata = { title: "Schedule Meeting — YPP Mentorship" };
 
-// Canonical mentee home is /my-mentor; scheduling now lives at /my-mentor/schedule.
+// Canonical mentee home is /mentorship?view=me; scheduling now lives in its
+// Schedule section.
 export default function LegacyMyProgramSchedulePage() {
-  permanentRedirect("/my-mentor/schedule");
+  permanentRedirect("/mentorship?view=me&section=schedule");
 }

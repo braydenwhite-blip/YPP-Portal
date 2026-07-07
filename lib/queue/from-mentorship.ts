@@ -121,7 +121,7 @@ function loopsForFact(
   const mentorSide = role === "mentor" || role === "admin";
   const chairSide = role === "chair" || role === "admin" || viewer.userId === fact.chairId;
   const detailHref =
-    role === "mentee" ? "/my-mentor" : `/mentorship/mentees/${fact.menteeId}`;
+    role === "mentee" ? "/mentorship?view=me" : `/mentorship/people/${fact.menteeId}`;
   const source: QueueEntityRef = {
     type: "mentorship",
     id: fact.id,

@@ -91,7 +91,7 @@ export default async function MonthlyReviewEditorPage({
           body={`${mentee.name} doesn't have an active mentorship, so there's no monthly review cycle running for them. Their workspace still holds their history, requests, and progress signals.`}
           link={{
             label: "Open their workspace",
-            href: `/mentorship/mentees/${menteeId}`,
+            href: `/mentorship/people/${menteeId}`,
           }}
         />
       </div>
@@ -139,7 +139,7 @@ export default async function MonthlyReviewEditorPage({
           body={`${mentee.name} hasn't submitted this cycle's self-input yet. The review form opens the moment they do — the cycle status block on their workspace shows exactly where things stand.`}
           link={{
             label: "Open their workspace",
-            href: `/mentorship/mentees/${menteeId}`,
+            href: `/mentorship/people/${menteeId}`,
           }}
         />
       </div>
@@ -268,7 +268,7 @@ export default async function MonthlyReviewEditorPage({
         backLabel="Review inbox"
         actions={
           <ButtonLink
-            href={`/mentorship/mentees/${menteeId}`}
+            href={`/mentorship/people/${menteeId}`}
             variant="secondary"
             size="sm"
           >

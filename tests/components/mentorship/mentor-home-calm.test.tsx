@@ -29,7 +29,7 @@ describe("MentorHomeCalm", () => {
       },
     ]);
 
-    render(<MentorHomeCalm vm={vm} needsYouCount={1} showChairQueue={false} />);
+    render(<MentorHomeCalm vm={vm} needsYouCount={1} />);
 
     // Focus card leads with the single next move.
     expect(screen.getByText("Review Sam Mentee")).toBeInTheDocument();
@@ -52,14 +52,16 @@ describe("MentorHomeCalm", () => {
       },
     ]);
 
-    render(<MentorHomeCalm vm={vm} needsYouCount={0} showChairQueue={false} />);
+    render(<MentorHomeCalm vm={vm} needsYouCount={0} />);
 
     expect(screen.getByText(/caught up/i)).toBeInTheDocument();
   });
 
-  it("adds the chair queue action when the viewer runs a lane", () => {
+  it("links the review inbox as the one canonical reviews URL", () => {
     const vm = vmWith([]);
-    render(<MentorHomeCalm vm={vm} needsYouCount={0} showChairQueue />);
-    expect(screen.getByRole("link", { name: /Chair queue/ })).toBeInTheDocument();
+    render(<MentorHomeCalm vm={vm} needsYouCount={0} />);
+    expect(
+      screen.getByRole("link", { name: /Monthly reviews/ })
+    ).toHaveAttribute("href", "/mentorship/reviews");
   });
 });

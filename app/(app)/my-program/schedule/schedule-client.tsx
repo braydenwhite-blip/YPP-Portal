@@ -178,7 +178,7 @@ export default function ScheduleClient({ data }: Props) {
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Link href="/mentorship/calendar" className="button secondary small">
+          <Link href="/mentorship/schedule" className="button secondary small">
             View Calendar
           </Link>
           {hasMentorship && !showRequestForm && (

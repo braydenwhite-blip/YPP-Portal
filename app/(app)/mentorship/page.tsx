@@ -16,6 +16,8 @@ import { getMentorEngagementSnapshot } from "@/lib/mentor-overview";
 import { buildMentorHomeViewModel } from "@/lib/mentorship/load";
 import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
 import { loadMentorshipCommandCenter } from "@/lib/mentorship/command-center";
+import { loadMentorshipWorkspace } from "@/lib/mentorship/workspace";
+import { MentorshipWorkspaceView } from "@/components/mentorship/workspace/workspace-view";
 import { availablePovs, resolvePov, type HubPov } from "@/lib/mentorship/hub-pov";
 import { LANE_META, type DevelopmentLaneId } from "@/lib/development/signals";
 import { mentorCardNeedsAttention } from "./_components/mentor-priority-list";
@@ -52,7 +54,13 @@ function povHref(pov: HubPov): string {
 
 export default async function MentorshipPage(
   props: {
-    searchParams?: Promise<{ view?: string; who?: string; lane?: string }>;
+    searchParams?: Promise<{
+      view?: string;
+      who?: string;
+      lane?: string;
+      section?: string;
+      sent?: string;
+    }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -112,12 +120,25 @@ export default async function MentorshipPage(
     );
   }
 
-  // ── Mentee POV — "My Development". ──────────────────────────────────────────
+  // ── Mentee POV — "My Development": the full self workspace. ────────────────
   if (pov === "me") {
+    const workspace = await loadMentorshipWorkspace(session.user, userId);
     return (
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>
         {header}
-        <MenteeDevelopmentBrief userId={userId} />
+        {workspace ? (
+          <MentorshipWorkspaceView
+            workspace={workspace}
+            section={searchParams?.section}
+            sectionHref={(sectionId) => `/mentorship?view=me&section=${sectionId}`}
+            showHeader={false}
+            helpSent={searchParams?.sent === "1"}
+          />
+        ) : (
+          // No mentorship footprint (e.g. archived record) — the brief handles
+          // the "no mentor yet" state without the section tabs.
+          <MenteeDevelopmentBrief userId={userId} />
+        )}
       </div>
     );
   }
@@ -213,11 +234,7 @@ export default async function MentorshipPage(
             </CardV2>
           ) : null}
 
-          <MentorHomeCalm
-            vm={vm}
-            needsYouCount={needsYouCount}
-            showChairQueue={showChairQueue}
-          />
+          <MentorHomeCalm vm={vm} needsYouCount={needsYouCount} />
 
           <div className="flex flex-wrap gap-2">
             <ButtonLink href="/mentorship/mentees" variant="secondary" size="sm">

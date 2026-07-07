@@ -90,7 +90,7 @@ describe("selectNextFocus", () => {
       NOW
     );
     expect(focus?.kind).toBe("reflection");
-    expect(focus?.ctaHref).toBe("/my-mentor/reflection");
+    expect(focus?.ctaHref).toBe("/mentorship?view=me&section=reflection");
   });
 
   it("prioritizes a due review over a pending kickoff for the mentor", () => {
@@ -150,7 +150,7 @@ describe("buildMentorshipViewModel", () => {
     expect(vm.relationships).toHaveLength(1);
     expect(vm.relationships[0].id).toBe("mine");
     expect(vm.relationships[0].viewerRole).toBe("mentee");
-    expect(vm.relationships[0].href).toBe("/my-mentor");
+    expect(vm.relationships[0].href).toBe("/mentorship?view=me");
     expect(vm.relationships[0].colorStatus).toBe("ACHIEVED");
   });
 

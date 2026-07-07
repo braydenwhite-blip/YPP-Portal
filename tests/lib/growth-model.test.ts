@@ -20,8 +20,8 @@ describe("growth model", () => {
 
   it("anchors the long-term journey on the leadership pathway and support on mentorship", () => {
     expect(GROWTH_MODEL.pathway.href).toBe("/leadership-pathway");
-    expect(GROWTH_MODEL.mentorship.href).toBe("/my-mentor");
-    expect(GROWTH_MODEL.goals.href).toBe("/my-mentor/goals");
+    expect(GROWTH_MODEL.mentorship.href).toBe("/mentorship?view=me");
+    expect(GROWTH_MODEL.goals.href).toBe("/mentorship?view=me&section=goals");
   });
 
   it("keeps every model piece described in one concise sentence", () => {

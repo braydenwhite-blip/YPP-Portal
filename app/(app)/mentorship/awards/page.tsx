@@ -23,7 +23,7 @@ export default async function MentorshipAwardsPage() {
     roles.includes("CHAPTER_PRESIDENT");
 
   if (!canUseAwards) {
-    redirect("/my-mentor");
+    redirect("/mentorship?view=me");
   }
 
   const [eligibleMentees, nominations] = await Promise.all([
