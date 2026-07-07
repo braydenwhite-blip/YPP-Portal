@@ -21,7 +21,8 @@ import type {
  * removed — it is moved out of the calm default and behind a disclosure.
  */
 
-const ADMIN_BASE = "/admin/mentorship";
+// The cockpit now lives on the hub's admin POV, so tab links append `&tab=`.
+const ADMIN_BASE = "/mentorship?view=admin";
 
 export type TriageFocus = {
   eyebrow: string;
@@ -72,7 +73,7 @@ export function deriveTriageFocus(
       reason:
         "Pairing them is the highest-leverage move — nothing else in their cycle can start until they have a mentor.",
       ctaLabel: "Open assignments",
-      ctaHref: `${ADMIN_BASE}?tab=assignments`,
+      ctaHref: `${ADMIN_BASE}&tab=assignments`,
       icon: "users",
       tone: "brand",
     };
@@ -85,7 +86,7 @@ export function deriveTriageFocus(
       reason:
         "Mentees can't see their feedback until these reviews are approved. Clear the queue to keep the cycle moving.",
       ctaLabel: "Open approvals",
-      ctaHref: `${ADMIN_BASE}?tab=approvals`,
+      ctaHref: `${ADMIN_BASE}&tab=approvals`,
       icon: "scale",
       tone: "brand",
     };
@@ -98,7 +99,7 @@ export function deriveTriageFocus(
       reason:
         "No recent or upcoming session. A quick nudge keeps mentors and mentees from drifting apart.",
       ctaLabel: "Review quiet pairs",
-      ctaHref: `${ADMIN_BASE}?tab=needs-attention`,
+      ctaHref: `${ADMIN_BASE}&tab=needs-attention`,
       icon: "clock",
       tone: "brand",
     };
@@ -111,7 +112,7 @@ export function deriveTriageFocus(
       reason:
         "Goals & resources anchor every cycle — these relationships can't be reviewed until their G&R exists.",
       ctaLabel: "See what's missing",
-      ctaHref: `${ADMIN_BASE}?tab=needs-attention`,
+      ctaHref: `${ADMIN_BASE}&tab=needs-attention`,
       icon: "flag",
       tone: "brand",
     };
@@ -124,7 +125,7 @@ export function deriveTriageFocus(
       reason:
         "Overdue or blocked goals with no recent progress. Surface them to the mentors who can help.",
       ctaLabel: "Review stalled goals",
-      ctaHref: `${ADMIN_BASE}?tab=needs-attention`,
+      ctaHref: `${ADMIN_BASE}&tab=needs-attention`,
       icon: "hourglass",
       tone: "brand",
     };
@@ -135,7 +136,7 @@ export function deriveTriageFocus(
     reason:
       "No unstaffed mentees, pending approvals, quiet pairs, or stalled goals right now. Open the cockpit for the full picture.",
     ctaLabel: "Open the cockpit",
-    ctaHref: `${ADMIN_BASE}?tab=overview`,
+    ctaHref: `${ADMIN_BASE}&tab=overview`,
     icon: "check",
     tone: "success",
   };

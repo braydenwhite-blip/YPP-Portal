@@ -203,7 +203,7 @@ export const notifyChairApprovalBatch = safeEmit(async function notifyChairAppro
     type: NotificationType.GR_CHAIR_APPROVAL_PENDING,
     title: `${params.pendingCount} review${params.pendingCount > 1 ? "s" : ""} awaiting your approval`,
     body: `Chair approval needed for ${params.pendingCount} monthly review${params.pendingCount > 1 ? "s" : ""}. Please approve or request changes.`,
-    link: "/admin/mentorship",
+    link: "/mentorship?view=admin&tab=approvals",
     dedupKey: `gr:chair-pending:${params.chairId}:${params.cycleMonthIso.slice(0, 7)}`,
     updateBodyIfExists: true, // always reflect the latest count
   });

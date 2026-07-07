@@ -221,7 +221,7 @@ export function DevelopmentPlanSection({
           body="Goals appear here once a mentorship plan is set — either from a mentor match or added directly."
           action={
             workspace.accessLevel === "leadership" ? (
-              <ButtonLink href="/admin/mentorship?tab=assignments" size="sm" variant="secondary">
+              <ButtonLink href="/mentorship?view=admin&tab=assignments" size="sm" variant="secondary">
                 Assign a mentor
               </ButtonLink>
             ) : undefined

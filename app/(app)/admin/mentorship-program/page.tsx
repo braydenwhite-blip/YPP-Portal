@@ -14,5 +14,5 @@ export default async function AdminMentorshipProgramRedirect({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const { tab } = await searchParams;
-  redirect(tab ? `/admin/mentorship?tab=${encodeURIComponent(tab)}` : "/admin/mentorship");
+  redirect(tab ? `/mentorship?view=admin&tab=${encodeURIComponent(tab)}` : "/mentorship?view=admin");
 }

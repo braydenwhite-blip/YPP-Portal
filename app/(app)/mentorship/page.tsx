@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { ButtonLink, CardV2, PageHeaderV2 } from "@/components/ui-v2";
-import { CommandCenterView } from "@/components/mentorship/command-center-view";
+import { AdminMentorshipCockpit } from "@/app/(app)/admin/mentorship/_components/admin-cockpit";
 import { getSession } from "@/lib/auth-supabase";
 import {
   canAccessMentorship,
@@ -15,11 +15,9 @@ import { getMentorshipPendingActionCount } from "@/lib/mentorship-notifications"
 import { getMentorEngagementSnapshot } from "@/lib/mentor-overview";
 import { buildMentorHomeViewModel } from "@/lib/mentorship/load";
 import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
-import { loadMentorshipCommandCenter } from "@/lib/mentorship/command-center";
 import { loadMentorshipWorkspace } from "@/lib/mentorship/workspace";
 import { MentorshipWorkspaceView } from "@/components/mentorship/workspace/workspace-view";
 import { availablePovs, resolvePov, type HubPov } from "@/lib/mentorship/hub-pov";
-import { LANE_META, type DevelopmentLaneId } from "@/lib/development/signals";
 import { mentorCardNeedsAttention } from "./_components/mentor-priority-list";
 import { MentorHomeCalm } from "./_components/mentor-home-calm";
 import { MenteeDevelopmentBrief } from "./_components/mentee-development-brief";
@@ -31,8 +29,9 @@ import { EmptyStateEditorial } from "./_components/empty-state-editorial";
  *
  *   me      → "My Development": what the person being developed owes and owns.
  *   mentor  → the coaching console: who needs a check-in, a review, a kickoff.
- *   admin   → the org command center: lifecycle lanes, review cycles, mentor
- *             load (leadership only).
+ *   admin   → the full admin cockpit: review cycles + lifecycle lanes on the
+ *             overview, plus the eight-tab oversight surface that used to
+ *             live at /admin/mentorship (leadership only).
  *
  * The POV is a URL param, so every view is shareable and back-button safe.
  */
@@ -42,11 +41,6 @@ const POV_LABELS: Record<HubPov, string> = {
   mentor: "Mentor console",
   admin: "Command center",
 };
-
-function parseLane(value: string | undefined): DevelopmentLaneId | null {
-  if (value && value in LANE_META) return value as DevelopmentLaneId;
-  return null;
-}
 
 function povHref(pov: HubPov): string {
   return `/mentorship?view=${pov}`;
@@ -58,6 +52,9 @@ export default async function MentorshipPage(
       view?: string;
       who?: string;
       lane?: string;
+      tab?: string;
+      menteeId?: string;
+      supportRole?: string;
       section?: string;
       sent?: string;
     }>;
@@ -106,16 +103,24 @@ export default async function MentorshipPage(
     </PageHeaderV2>
   );
 
-  // ── Admin POV — the org command center. ────────────────────────────────────
+  // ── Admin POV — the full admin cockpit. ────────────────────────────────────
+  // Available to any ADMIN (parity with the old /admin/mentorship gate) and to
+  // leadership with command-center access; the leadership-only overview blocks
+  // (review cycles + lifecycle lanes) stay behind commandAccess.
   if (pov === "admin") {
-    const who = searchParams?.who === "officers" ? "officers" : "instructors";
-    const data = await loadMentorshipCommandCenter(
-      who === "officers" ? "officer" : "instructor"
-    );
     return (
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>
         {header}
-        <CommandCenterView data={data} who={who} laneFilter={parseLane(searchParams?.lane)} />
+        <AdminMentorshipCockpit
+          showLeadershipOverview={commandAccess}
+          searchParams={{
+            tab: searchParams?.tab,
+            lane: searchParams?.lane,
+            who: searchParams?.who,
+            menteeId: searchParams?.menteeId,
+            supportRole: searchParams?.supportRole,
+          }}
+        />
       </div>
     );
   }

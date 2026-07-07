@@ -150,7 +150,7 @@ export function buildExecutiveSnapshot(input: {
       label: "Active mentorships",
       value: org.activeMentorships,
       tone: toneWhenPresent(org.mentorshipsQuiet, "warning"),
-      href: "/admin/mentorship",
+      href: "/mentorship?view=admin",
       hint: org.mentorshipsQuiet > 0 ? `${org.mentorshipsQuiet} gone quiet` : null,
     },
   ];

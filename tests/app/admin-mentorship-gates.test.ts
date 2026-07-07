@@ -55,7 +55,7 @@ describe("/admin/mentor-match admin gate", () => {
     await expect(AdminMentorMatchPage()).rejects.toThrow("redirect:/");
     expect(vi.mocked(redirect)).toHaveBeenCalledWith("/");
     expect(vi.mocked(redirect)).not.toHaveBeenCalledWith(
-      "/admin/mentorship?tab=assignments"
+      "/mentorship?view=admin&tab=assignments"
     );
   });
 
@@ -71,7 +71,7 @@ describe("/admin/mentor-match admin gate", () => {
     } as any);
 
     await expect(AdminMentorMatchPage()).rejects.toThrow(
-      "redirect:/admin/mentorship?tab=assignments"
+      "redirect:/mentorship?view=admin&tab=assignments"
     );
   });
 });

@@ -35,11 +35,14 @@ describe("availablePovs", () => {
     expect(availablePovs(viewer({ isAdmin: true }))).toContain("mentor");
   });
 
-  it("only command-center access unlocks the admin POV", () => {
-    expect(availablePovs(viewer({ isAdmin: true }))).not.toContain("admin");
+  it("admins and command-center access both unlock the admin POV", () => {
+    // Parity with the old ADMIN-gated /admin/mentorship cockpit, which now
+    // lives inside this POV.
+    expect(availablePovs(viewer({ isAdmin: true }))).toContain("admin");
     expect(
-      availablePovs(viewer({ isAdmin: true, hasCommandCenterAccess: true }))
+      availablePovs(viewer({ isAdmin: false, hasCommandCenterAccess: true }))
     ).toContain("admin");
+    expect(availablePovs(viewer({ isMentor: true }))).not.toContain("admin");
   });
 
   it("someone with no capabilities still gets their own development view", () => {

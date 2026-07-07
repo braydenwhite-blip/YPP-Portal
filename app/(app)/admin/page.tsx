@@ -50,7 +50,7 @@ const ADMIN_DOMAINS: AdminDomain[] = [
   {
     title: "Mentorship & Advising",
     items: [
-      { href: "/admin/mentorship", label: "Mentorship Ops", description: "Pairings, check-ins, goal reviews, approvals" },
+      { href: "/mentorship?view=admin", label: "Mentorship Ops", description: "Pairings, check-ins, goal reviews, approvals" },
       { href: "/admin/mentor-match", label: "Mentor Matching", description: "Assign mentors to mentees" },
       { href: "/admin/students", label: "Student Roster", description: "Students with enrollment, mentor, and advisor columns" },
     ],
