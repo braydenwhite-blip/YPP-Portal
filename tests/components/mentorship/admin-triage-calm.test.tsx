@@ -35,7 +35,7 @@ function actionItem(overrides: Partial<AdminActionItem> = {}): AdminActionItem {
     title: "Someone needs a mentor",
     detail: "INSTRUCTOR · Atlanta",
     emphasis: "Assign mentor",
-    href: "/admin/mentorship?tab=assignments",
+    href: "/mentorship?view=admin&tab=assignments",
     priority: 0,
     ...overrides,
   };
@@ -47,7 +47,7 @@ describe("deriveTriageFocus", () => {
       summary({ unassignedInstructors: 3, pendingReviews: 5, overdueCheckIns: 9 })
     );
     expect(focus.title).toContain("3 mentees need a mentor");
-    expect(focus.ctaHref).toBe("/admin/mentorship?tab=assignments");
+    expect(focus.ctaHref).toBe("/mentorship?view=admin&tab=assignments");
     expect(focus.tone).toBe("brand");
   });
 
@@ -56,12 +56,12 @@ describe("deriveTriageFocus", () => {
       summary({ pendingReviews: 1, overdueCheckIns: 4 })
     );
     expect(focus.title).toContain("1 review waiting");
-    expect(focus.ctaHref).toBe("/admin/mentorship?tab=approvals");
+    expect(focus.ctaHref).toBe("/mentorship?view=admin&tab=approvals");
   });
 
   it("falls to quiet relationships, then missing G&R, then stalled goals", () => {
     expect(deriveTriageFocus(summary({ overdueCheckIns: 2 })).ctaHref).toBe(
-      "/admin/mentorship?tab=needs-attention"
+      "/mentorship?view=admin&tab=needs-attention"
     );
     expect(
       deriveTriageFocus(summary({ relationshipsWithoutGoals: 2 })).title
@@ -75,7 +75,7 @@ describe("deriveTriageFocus", () => {
     const focus = deriveTriageFocus(summary());
     expect(focus.eyebrow).toBe("All clear");
     expect(focus.tone).toBe("success");
-    expect(focus.ctaHref).toBe("/admin/mentorship?tab=overview");
+    expect(focus.ctaHref).toBe("/mentorship?view=admin&tab=overview");
   });
 });
 
@@ -115,7 +115,7 @@ describe("AdminMentorshipTriage", () => {
 
     expect(
       screen.getByRole("link", { name: /Open assignments/ })
-    ).toHaveAttribute("href", "/admin/mentorship?tab=assignments");
+    ).toHaveAttribute("href", "/mentorship?view=admin&tab=assignments");
     expect(screen.getByText("Dana needs a mentor")).toBeInTheDocument();
     expect(screen.getByText("Needs attention (1)")).toBeInTheDocument();
   });

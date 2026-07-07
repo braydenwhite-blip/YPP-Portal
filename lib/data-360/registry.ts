@@ -85,7 +85,7 @@ export const METRIC_REGISTRY: MetricDefinition[] = [
     source: "Mentorship · status = ACTIVE",
     cadence: "real-time",
     visibility: "leadership",
-    drilldown: "/admin/mentorship",
+    drilldown: "/mentorship?view=admin",
     group: "people",
     available: true,
   },

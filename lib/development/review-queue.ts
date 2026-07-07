@@ -102,7 +102,7 @@ export function buildReviewQueue(input: {
         approval.daysWaiting === 1 ? "day" : "days"
       } for chair approval`,
       actionLabel: "Approve",
-      href: "/admin/mentorship?tab=approvals",
+      href: "/mentorship?view=admin&tab=approvals",
       rank: approval.daysWaiting >= 7 ? 1 : 3,
       tone: approval.daysWaiting >= 7 ? "danger" : "warning",
     });

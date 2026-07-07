@@ -67,7 +67,7 @@ export default async function AnalyticsDashboardPage({
           <Link href="/admin/instructor-readiness" className="button secondary small">
             Approvals
           </Link>
-          <Link href="/admin/mentorship" className="button secondary small">
+          <Link href="/mentorship?view=admin" className="button secondary small">
             Mentorship
           </Link>
           <Link href="/admin/goals" className="button secondary small">

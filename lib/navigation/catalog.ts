@@ -893,6 +893,13 @@ export const NAV_CATALOG: NavLink[] = [
         "Relationships",
         "My Mentor",
         "My Development",
+        // From the retired ADMIN "Mentorship Ops" entry (/admin/mentorship,
+        // now a redirect into the admin POV of this hub).
+        "Mentorship Ops",
+        "Mentorship admin",
+        "Mentorship health",
+        "Assignments",
+        "Approvals",
         "Leadership development",
         "Development cockpit",
         "Coaching",
@@ -1783,17 +1790,9 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "🚨",
       roles: ADMIN_ONLY,
     },
-    {
-      href: "/admin/mentorship",
-      // "Mentorship Ops" (not "Mentorship") so ADMIN doesn't see the label twice —
-      // the member-facing hub already owns "Mentorship" (/mentorship).
-      label: "Mentorship Ops",
-      icon: "🎯",
-      roles: ADMIN_ONLY,
-      searchAliases: ["Mentorship admin", "Mentorship health", "Assignments", "Approvals"],
-      dashboardDescription: "Oversee mentorship health, assignments, approvals, G&R, committees, and analytics.",
-      dashboardPriority: 6,
-    },
+    // "Mentorship Ops" (/admin/mentorship) folded into the unified hub — the
+    // eight-tab cockpit now renders at /mentorship?view=admin and the old URL
+    // redirects there. Its search aliases moved onto the /mentorship entry.
     { href: "/admin/alumni", label: "Manage Alumni", icon: "🎓", roles: ADMIN_ONLY },
     { href: "/admin/unlock-approvals", label: "Unlock Approvals", icon: "🔓", roles: ADMIN_ONLY, dashboardDescription: "Review and approve section unlock recommendations from mentors." },
     {

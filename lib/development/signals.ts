@@ -576,7 +576,7 @@ export function recommendNextStep(
         return {
           label: "Unblock the approval",
           reason,
-          href: "/admin/mentorship?tab=approvals",
+          href: "/mentorship?view=admin&tab=approvals",
         };
       }
       return {
@@ -596,7 +596,7 @@ export function recommendNextStep(
       return {
         label: "Assign a mentor",
         reason,
-        href: `/admin/mentorship?tab=assignments&menteeId=${facts.id}&supportRole=PRIMARY_MENTOR`,
+        href: `/mentorship?view=admin&tab=assignments&menteeId=${facts.id}&supportRole=PRIMARY_MENTOR`,
       };
     case "no-recent-checkin":
       return {

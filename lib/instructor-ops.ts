@@ -689,7 +689,7 @@ function buildAttentionFlags({
       title: "No active mentor",
       detail: "Instructor has no active instructor mentor relationship.",
       tone: "info",
-      href: "/admin/mentorship?tab=assignments",
+      href: "/mentorship?view=admin&tab=assignments",
     });
   }
 

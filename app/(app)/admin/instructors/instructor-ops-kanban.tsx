@@ -35,7 +35,7 @@ function primaryAction(record: InstructorOpsRecord) {
     return { href: "/admin/instructor-readiness", label: "Readiness" };
   }
   if (record.stage === "LEADERSHIP") {
-    return { href: "/admin/mentorship", label: "Mentorship" };
+    return { href: "/mentorship?view=admin", label: "Mentorship" };
   }
   if (record.stage === "NEEDS_ATTENTION") {
     return { href: "/admin/instructors/attention", label: "Review flag" };

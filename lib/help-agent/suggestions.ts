@@ -232,7 +232,7 @@ export const HELP_AGENT_SUGGESTIONS: HelpAgentSuggestion[] = [
   {
     label: "Mentorships missing check-ins",
     description: "Mentorship ops — needs-action and check-ins tabs",
-    href: "/admin/mentorship",
+    href: "/mentorship?view=admin&tab=needs-attention",
     icon: "🔄",
     tier: "OFFICER",
     adminOnly: true,

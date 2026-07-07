@@ -28,7 +28,9 @@ export function availablePovs(facts: HubViewerFacts): HubPov[] {
   const povs = new Set<HubPov>();
   if (facts.isMentee) povs.add("me");
   if (facts.isMentor || facts.isChair || facts.isAdmin) povs.add("mentor");
-  if (facts.hasCommandCenterAccess) povs.add("admin");
+  // Any ADMIN gets the cockpit (parity with the old /admin/mentorship gate);
+  // the leadership-only overview blocks are gated separately inside it.
+  if (facts.hasCommandCenterAccess || facts.isAdmin) povs.add("admin");
   // Everyone who can open the hub gets at least their own development view —
   // an instructor without a mentor yet still needs to see what they owe.
   if (povs.size === 0) povs.add("me");

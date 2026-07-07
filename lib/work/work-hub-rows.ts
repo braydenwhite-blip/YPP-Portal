@@ -452,7 +452,7 @@ export function workHubRowFromQuietMentorship(
   options: { mine?: boolean; canOpenAdminRecord?: boolean } = {}
 ): WorkHubRow {
   const href = options.canOpenAdminRecord
-    ? "/admin/mentorship"
+    ? "/mentorship?view=admin"
     : workEntityHref("mentorship", mentorship.id);
   return {
     id: `mentorship:${mentorship.id}`,
