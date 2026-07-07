@@ -494,7 +494,7 @@ export async function getAdminMentorshipCommandCenterData() {
         openActions,
         checkIns,
         reviewDue: null,
-        workspaceHref: `/mentorship/mentees/${mentorship.menteeId}`,
+        workspaceHref: `/mentorship/people/${mentorship.menteeId}`,
       },
       now
     );
@@ -516,7 +516,7 @@ export async function getAdminMentorshipCommandCenterData() {
         description: `${lastSessionLabel}${overduePhrase ? ` · ${overduePhrase}` : ""}.`,
         emphasis: overduePhrase ?? attention.headline,
         actionLabel: "Open relationship",
-        actionHref: `/mentorship/mentees/${mentorship.menteeId}`,
+        actionHref: `/mentorship/people/${mentorship.menteeId}`,
         priority: latestSession ? 4 : 1,
       },
     ];
@@ -539,7 +539,7 @@ export async function getAdminMentorshipCommandCenterData() {
         kind: request.kind.replace(/_/g, " "),
         trackName: request.track?.name ?? null,
         requestedAt: request.requestedAt.toISOString(),
-        actionHref: `/mentorship/mentees/${request.menteeId}`,
+        actionHref: `/mentorship/people/${request.menteeId}`,
       };
     }
   );

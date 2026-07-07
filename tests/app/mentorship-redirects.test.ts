@@ -50,7 +50,7 @@ describe("mentorship legacy route redirects", () => {
     await expect(async () => LegacyMentorshipReviewsPage()).rejects.toThrow("redirect:/mentorship/reviews");
     await expect(async () => LegacyMentorshipSchedulePage()).rejects.toThrow("redirect:/mentorship/schedule");
     await expect(async () => LegacyMentorshipAwardsPage()).rejects.toThrow("redirect:/mentorship/awards");
-    await expect(async () => LegacyMentorshipChairPage()).rejects.toThrow("redirect:/mentorship/chair");
+    await expect(async () => LegacyMentorshipChairPage()).rejects.toThrow("redirect:/mentorship/reviews");
     expect(() => MentorDashboardRedirectPage()).toThrow("redirect:/mentorship");
   });
 

@@ -46,7 +46,7 @@ export async function getReviewsToDraftRows(): Promise<OperationalQueueRow[]> {
         m.reviewStatus === "CHANGES_REQUESTED"
           ? "Review returned for revision"
           : "Self-reflection submitted — write the review",
-      href: m.reviewId ? `/mentorship/reviews/${m.reviewId}` : `/mentorship/mentees/${m.menteeId}`,
+      href: m.reviewId ? `/mentorship/reviews/${m.reviewId}` : `/mentorship/people/${m.menteeId}`,
       ageLabel: null,
     }));
 }

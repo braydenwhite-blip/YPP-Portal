@@ -213,11 +213,7 @@ export default async function MentorshipPage(
             </CardV2>
           ) : null}
 
-          <MentorHomeCalm
-            vm={vm}
-            needsYouCount={needsYouCount}
-            showChairQueue={showChairQueue}
-          />
+          <MentorHomeCalm vm={vm} needsYouCount={needsYouCount} />
 
           <div className="flex flex-wrap gap-2">
             <ButtonLink href="/mentorship/mentees" variant="secondary" size="sm">

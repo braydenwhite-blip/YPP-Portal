@@ -81,7 +81,7 @@ export async function loadRelatedEntitySummary(
         typeLabel,
         // The mentee workspace route is keyed by the mentee USER id.
         href: mentorship.mentee?.id
-          ? `/mentorship/mentees/${mentorship.mentee.id}`
+          ? `/mentorship/people/${mentorship.mentee.id}`
           : null,
       };
     }
@@ -227,7 +227,7 @@ export async function loadRelatedEntityLabels(
               id: m.id,
               label: `${mentor} → ${mentee}`,
               typeLabel,
-              href: m.mentee?.id ? `/mentorship/mentees/${m.mentee.id}` : null,
+              href: m.mentee?.id ? `/mentorship/people/${m.mentee.id}` : null,
             });
           }
         })

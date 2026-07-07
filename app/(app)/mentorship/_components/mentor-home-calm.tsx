@@ -22,22 +22,18 @@ const CALM_LIST_LIMIT = 5;
 export function MentorHomeCalm({
   vm,
   needsYouCount,
-  showChairQueue,
 }: {
   vm: MentorshipViewModel;
   needsYouCount: number;
-  showChairQueue: boolean;
 }) {
   const shown = vm.relationships.slice(0, CALM_LIST_LIMIT);
   const remaining = vm.relationships.length - shown.length;
 
   const actions: SimpleAction[] = [
+    // The review inbox doubles as the chair queue — one canonical URL.
     { label: "Monthly reviews", href: "/mentorship/reviews", icon: "scale" },
     { label: "Schedule", href: "/mentorship/schedule", icon: "calendar" },
     { label: "Feedback", href: "/mentorship/feedback", icon: "send" },
-    ...(showChairQueue
-      ? [{ label: "Chair queue", href: "/mentorship/chair", icon: "inbox" as const }]
-      : []),
   ];
 
   return (

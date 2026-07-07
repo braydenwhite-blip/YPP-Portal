@@ -191,7 +191,7 @@ function MenteeDetailPanel({
           </Link>
           {mentee.mentorshipId && (
             <Link
-              href={`/mentorship/mentees/${mentee.id}`}
+              href={`/mentorship/people/${mentee.id}`}
               className="button secondary small"
             >
               Open Circle

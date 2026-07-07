@@ -106,7 +106,7 @@ function detailHref(role: MentorshipRole, menteeId: string): string {
   // otherwise). Pass `fact.menteeId`, never `fact.id` (the mentorship/relation
   // id) — that mismatch 404s every Calm-mode roster row and focus CTA. Mirrors
   // the canonical builder in lib/queue/from-mentorship.ts.
-  return role === "mentee" ? "/my-mentor" : `/mentorship/mentees/${menteeId}`;
+  return role === "mentee" ? "/my-mentor" : `/mentorship/people/${menteeId}`;
 }
 
 function upcomingSession(fact: MentorshipRelationshipFact, now: Date) {

@@ -100,7 +100,7 @@ export const emitReflectionSubmitted = safeEmit(async function emitReflectionSub
     type: NotificationType.REFLECTION_SUBMITTED,
     title: `${params.menteeName} submitted their ${label} reflection`,
     body: `Their reflection is ready for your monthly review.`,
-    link: `/mentorship/mentees/${params.menteeId}`,
+    link: `/mentorship/people/${params.menteeId}`,
     dedupKey: `refl-submit:${params.mentorId}:${params.ctx.cycleNumber}:${params.menteeId}`,
   });
 }, "emitReflectionSubmitted");
@@ -153,7 +153,7 @@ export const emitReviewApprovedAndReleased = safeEmit(async function emitReviewA
     type: NotificationType.REVIEW_APPROVED_AND_RELEASED,
     title: `Your ${label} review for ${params.menteeName} was approved`,
     body: `The chair has approved the review. ${params.pointsAwarded} points awarded.`,
-    link: `/mentorship/mentees/${params.menteeId}`,
+    link: `/mentorship/people/${params.menteeId}`,
     dedupKey: `review-released-mentor:${params.reviewId}`,
   });
 }, "emitReviewApprovedAndReleased");

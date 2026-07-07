@@ -23,7 +23,7 @@ export function MentorKanbanCard({ card }: Props) {
       }}
     >
       <Link
-        href={`/mentorship/mentees/${menteeId}`}
+        href={`/mentorship/people/${menteeId}`}
         style={{ textDecoration: "none", color: "inherit" }}
       >
         <strong style={{ fontSize: "0.95rem", display: "block" }}>{menteeName}</strong>

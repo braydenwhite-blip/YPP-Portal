@@ -987,7 +987,9 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 11,
     },
     // /mentorship/unlock-sections is intentionally not surfaced in top-level
-    // nav -- it's a rare, contextual action accessed from a mentee's workspace.
+    // nav -- it's a legacy student-section unlock page (gamification suite,
+    // default off) kept reachable by direct URL only; recommendations it
+    // creates are approved at /admin/unlock-approvals.
     {
       href: "/my-program",
       label: "My Program",
