@@ -18,6 +18,10 @@ const APPLICANT_ROLES_EXCLUDING_APPLICANT: NavRole[] = ["STUDENT", "INSTRUCTOR",
 const INTERVIEW_ROLES: NavRole[] = ["INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"];
 const ADMIN_ONLY: NavRole[] = ["ADMIN"];
 const HIRING_CHAIR_ADMIN_ROLES: NavRole[] = ["ADMIN", "HIRING_CHAIR"];
+// Matches the "officer" tier used by requireOfficer() / OFFICER_ROLES page
+// guards (lib/authorization.ts, app/(app)/workflows/*): the roles that can
+// actually run and view workflow instances, not just admins.
+const OFFICER_ROLES: NavRole[] = ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"];
 const PARENT_ONLY: NavRole[] = ["PARENT"];
 const STUDENT_ONLY: NavRole[] = ["STUDENT"];
 const CHAPTER_PRESIDENT_ONLY: NavRole[] = ["CHAPTER_PRESIDENT"];
@@ -1805,7 +1809,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/workflows",
       label: "Workflows",
       icon: "⚙️",
-      roles: ["ADMIN", "STAFF"],
+      roles: OFFICER_ROLES,
       searchAliases: ["Workflow Engine", "Processes", "MissionOS", "Workflow Runner"],
       dashboardDescription: "Run any business process as a reusable workflow — hiring, onboarding, launches, and more.",
       coreEligible: false,

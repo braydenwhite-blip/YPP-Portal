@@ -13,7 +13,6 @@ export * from "@/lib/automation/stage-detector";
 export * from "@/lib/automation/readiness";
 export * from "@/lib/automation/escalation";
 export * from "@/lib/automation/impact-meeting-prep";
-export * from "@/lib/automation/workflows";
 export * from "@/lib/automation/build-item";
 export * from "@/lib/automation/normalize/from-blockers";
 export * from "@/lib/automation/normalize/from-student-needs";

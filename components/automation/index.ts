@@ -11,6 +11,5 @@ export { PlaybookProgressPanel } from "./playbook-progress-panel";
 export { ReadinessChecklist } from "./readiness-checklist";
 export { ImpactMeetingPrepPanel } from "./impact-meeting-prep-panel";
 export { EscalationPanel } from "./escalation-panel";
-export { WorkflowAutomationCard } from "./workflow-automation-card";
 export { ChapterAutomationSection } from "./chapter-automation-section";
 export { severityTone, SEVERITY_LABEL, workflowLabel } from "./severity";
