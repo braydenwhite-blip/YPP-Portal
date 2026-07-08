@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { buildContextTrail } from "@/lib/context-trail";
 import ContextTrail from "@/components/context-trail";
 import { normalizeRoleList } from "@/lib/authorization";
+import { canAccessMentorship } from "@/lib/mentorship-access";
 
 const TONE_STYLES = {
   neutral: { background: "#e2e8f0", color: "#334155" },
@@ -20,6 +21,14 @@ export default async function GoalsPage() {
 
   if (!userId) {
     redirect("/login");
+  }
+
+  // For everyone with a Mentorship footprint (instructors, officers,
+  // leadership), Mentorship's Goals section IS the goals product — this
+  // legacy page stays only for students, whose goals live on the older
+  // Goal/GoalTemplate stack this page reads.
+  if (canAccessMentorship(session!.user.primaryRole ?? "")) {
+    redirect("/mentorship?view=me&section=goals");
   }
 
   const currentMonth = new Date();

@@ -4,17 +4,12 @@ import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
 import AdminMentorMatchPage from "@/app/(app)/admin/mentor-match/page";
-import AdminMentorshipRelationshipDetailPage from "@/app/(app)/admin/mentorship/relationships/[mentorshipId]/page";
 import { ADMIN_MENTORSHIP_PAGE_TITLE } from "@/app/(app)/admin/mentorship/page";
-import { prisma } from "@/lib/prisma";
 
-function installRelationshipDetailStubs() {
-  (prisma as any).mentorship = {
-    findUnique: vi.fn(),
-  };
-  (prisma as any).user = (prisma as any).user ?? {};
-  (prisma as any).user.findMany = vi.fn().mockResolvedValue([]);
-}
+// The /admin/mentorship/relationships/[mentorshipId] admin gate now lives
+// downstream, at the unified workspace itself (resolveWorkspaceAccess) —
+// this route is a pure redirect for any caller. See
+// tests/app/admin-mentorship-relationship-detail-page.test.tsx.
 
 // In production Next's redirect() throws to halt the request. Our test
 // setup mocks it as vi.fn() which silently returns, so non-admin paths
@@ -76,80 +71,3 @@ describe("/admin/mentor-match admin gate", () => {
   });
 });
 
-describe("/admin/mentorship/relationships/[mentorshipId] admin gate", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    installRelationshipDetailStubs();
-    makeRedirectThrow();
-  });
-
-  it("redirects non-admin sessions before fetching the relationship", async () => {
-    vi.mocked(getSession).mockResolvedValue({
-      user: { id: "u-1", roles: ["INSTRUCTOR"] },
-    } as any);
-
-    await expect(
-      AdminMentorshipRelationshipDetailPage({
-        params: { mentorshipId: "ms-1" },
-      })
-    ).rejects.toThrow("redirect:/");
-
-    expect((prisma as any).mentorship.findUnique).not.toHaveBeenCalled();
-  });
-
-  it("redirects mentor-only callers", async () => {
-    vi.mocked(getSession).mockResolvedValue({
-      user: { id: "m-1", roles: ["MENTOR"] },
-    } as any);
-
-    await expect(
-      AdminMentorshipRelationshipDetailPage({
-        params: { mentorshipId: "ms-1" },
-      })
-    ).rejects.toThrow("redirect:/");
-
-    expect((prisma as any).mentorship.findUnique).not.toHaveBeenCalled();
-  });
-
-  it("loads the relationship when the caller is an admin", async () => {
-    vi.mocked(getSession).mockResolvedValue({
-      user: { id: "admin-1", roles: ["ADMIN"] },
-    } as any);
-
-    (prisma as any).mentorship.findUnique.mockResolvedValue({
-      id: "ms-1",
-      mentorId: "mentor-1",
-      menteeId: "mentee-1",
-      status: "ACTIVE",
-      mentor: {
-        id: "mentor-1",
-        name: "Mentor One",
-        email: "m@example.com",
-        primaryRole: "INSTRUCTOR",
-      },
-      mentee: {
-        id: "mentee-1",
-        name: "Mentee One",
-        email: "n@example.com",
-        primaryRole: "INSTRUCTOR",
-        chapter: null,
-      },
-      track: null,
-      chair: null,
-      sessions: [],
-      checkIns: [],
-      goalReviews: [],
-      grDocuments: [],
-      circleMembers: [],
-    });
-
-    await AdminMentorshipRelationshipDetailPage({
-      params: { mentorshipId: "ms-1" },
-    });
-
-    expect((prisma as any).mentorship.findUnique).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "ms-1" } })
-    );
-    expect(vi.mocked(redirect)).not.toHaveBeenCalled();
-  });
-});

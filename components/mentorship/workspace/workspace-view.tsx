@@ -1,61 +1,54 @@
 import skin from "@/components/ui-v2/portal-skin.module.css";
 import { ButtonLink, PageHeaderV2 } from "@/components/ui-v2";
+import { prisma } from "@/lib/prisma";
 import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
-import { isGamificationEnabled } from "@/lib/gamification-gate";
 import { SegmentedTabs } from "@/app/(app)/mentorship/_components/segmented-tabs";
 import { MenteeDevelopmentBrief } from "@/app/(app)/mentorship/_components/mentee-development-brief";
 
-import {
-  OverviewSection,
-  DevelopmentPlanSection,
-  CheckInsSection,
-  TimelineSection,
-  OpportunitiesSection,
-  RelationshipsSection,
-} from "./sections";
-import {
-  SelfGoalsSection,
-  SelfHelpCard,
-  SelfRecognitionSection,
-  SelfReflectionSection,
-  SelfReviewsSection,
-  SelfScheduleSection,
-} from "./self-sections";
+import { OverviewSection, CheckInsSection } from "./sections";
+import { MenteeGoalsSection } from "./goals-section";
+import { ReviewsSection } from "./reviews-section";
+import { ManageRelationship } from "./manage-relationship";
 import { MentorToolsPanel } from "./mentor-tools-panel";
+import { SelfGoalsSection, SelfHelpCard, SelfMilestones, SelfRecognitionCard, SelfScheduleExtra } from "./self-sections";
 
 /**
  * The shared Mentorship workspace body — header, section tabs, and the active
  * section. Rendered from two hosts: `/mentorship/people/[id]` (full header) and
  * the hub's `?view=me` POV (`showHeader={false}`, one header per page).
  *
- * Two section sets, decided by `workspace.isSelf` (never by URL): the person's
- * own workspace gets the expanded mentee set (goals, reviews, reflection,
- * schedule, recognition folded in from the old /my-mentor/* satellites); every
- * other viewer keeps the mentor/leadership six.
+ * One lifecycle, one workspace: four sections for every viewer — Overview,
+ * Goals, Check-ins, Reviews — because Mentorship is one lifecycle
+ * (relationship → goals → check-ins → reflection/review → follow-up), not a
+ * menu of features. `workspace.isSelf` only changes what each section shows
+ * (e.g. Goals renders the mentee's own G&R document vs. the mentor's read
+ * view + propose-change form), never which tabs exist.
  */
 
-const STANDARD_SECTIONS = [
+const SECTIONS = [
   { id: "overview", label: "Overview" },
-  { id: "plan", label: "Plan" },
+  { id: "goals", label: "Goals" },
   { id: "check-ins", label: "Check-ins" },
-  { id: "timeline", label: "Timeline" },
-  { id: "opportunities", label: "Opportunities" },
-  { id: "relationships", label: "Relationships" },
+  { id: "reviews", label: "Reviews" },
 ] as const;
 
-function selfSections(): Array<{ id: string; label: string }> {
-  return [
-    { id: "overview", label: "Overview" },
-    { id: "goals", label: "Goals" },
-    { id: "reviews", label: "Reviews" },
-    { id: "reflection", label: "Reflection" },
-    { id: "check-ins", label: "Check-ins" },
-    { id: "schedule", label: "Schedule" },
-    // Awards are dark until ENABLE_GAMIFICATION; the section then only holds
-    // mentor-shared resources.
-    { id: "recognition", label: isGamificationEnabled() ? "Recognition" : "Resources" },
-    { id: "timeline", label: "Timeline" },
-  ];
+type SectionId = (typeof SECTIONS)[number]["id"];
+
+/** Old section ids from the previous seven-tab layout resolve into the four above. */
+const SECTION_ALIASES: Record<string, SectionId> = {
+  plan: "goals",
+  relationships: "overview",
+  timeline: "overview",
+  opportunities: "overview",
+  reflection: "reviews",
+  schedule: "check-ins",
+  recognition: "overview",
+};
+
+function resolveSection(raw: string | undefined): SectionId {
+  if (!raw) return "overview";
+  if (SECTIONS.some((s) => s.id === raw)) return raw as SectionId;
+  return SECTION_ALIASES[raw] ?? "overview";
 }
 
 export function MentorshipWorkspaceView({
@@ -66,7 +59,7 @@ export function MentorshipWorkspaceView({
   helpSent = false,
 }: {
   workspace: MentorshipWorkspace;
-  /** Raw `?section=` value; anything unknown falls back to "overview". */
+  /** Raw `?section=` value; unknown or legacy ids resolve to one of the four. */
   section?: string;
   /** Builds the tab href for a section id (host decides the URL shape). */
   sectionHref: (sectionId: string) => string;
@@ -76,23 +69,16 @@ export function MentorshipWorkspaceView({
   helpSent?: boolean;
 }) {
   const isSelf = workspace.isSelf;
+  const active = resolveSection(section);
 
-  const sections: Array<{ id: string; label: string }> = isSelf
-    ? selfSections()
-    : [...STANDARD_SECTIONS];
-
-  const active = sections.some((s) => s.id === section) ? section! : "overview";
-
-  const tabs = sections.map((s) => ({
+  const tabs = SECTIONS.map((s) => ({
     id: s.id,
     label: s.label,
     href: sectionHref(s.id),
     count:
       s.id === "check-ins"
         ? workspace.checkIns.length || undefined
-        : s.id === "opportunities"
-          ? workspace.opportunities.length || undefined
-          : undefined,
+        : undefined,
   }));
 
   const showMentorTools =
@@ -113,65 +99,58 @@ export function MentorshipWorkspaceView({
               userId={workspace.person.id}
               embedded
               links={{
-                reflection: sectionHref("reflection"),
+                reflection: sectionHref("reviews"),
                 reviews: sectionHref("reviews"),
               }}
             />
+            <SelfMilestones />
             <OverviewSection workspace={workspace} />
-            {/* No ninth tab: growth opportunities surface inline when present. */}
-            {workspace.opportunities.length > 0 ? (
-              <OpportunitiesSection workspace={workspace} />
-            ) : null}
             <SelfHelpCard
               returnHref={sectionHref("overview")}
               sent={helpSent}
-              scheduleHref={sectionHref("schedule")}
+              scheduleHref={sectionHref("check-ins")}
               goalsHref={sectionHref("goals")}
-              resourcesHref={sectionHref("recognition")}
+              resourcesHref={sectionHref("goals")}
             />
           </>
         ) : (
-          <>
-            <OverviewSection workspace={workspace} />
+          <OverviewSection workspace={workspace}>
             {showMentorTools ? (
               <MentorToolsPanel
                 menteeId={workspace.person.id}
                 mentorshipId={workspace.activeMentorshipId!}
               />
             ) : null}
-          </>
+            {workspace.accessLevel === "leadership" && workspace.activeMentorshipId ? (
+              <ManageRelationshipHost
+                mentorshipId={workspace.activeMentorshipId}
+                menteeId={workspace.person.id}
+              />
+            ) : null}
+          </OverviewSection>
         )
       ) : null}
 
-      {/* Shared sections */}
-      {active === "check-ins" ? <CheckInsSection workspace={workspace} /> : null}
-      {active === "timeline" ? <TimelineSection workspace={workspace} /> : null}
+      {active === "goals" ? (
+        isSelf ? (
+          <>
+            <SelfGoalsSection />
+            <SelfRecognitionCard reflectionHref={sectionHref("reviews")} />
+          </>
+        ) : (
+          <MenteeGoalsSection workspace={workspace} />
+        )
+      ) : null}
 
-      {/* Self-only sections (folded in from the old /my-mentor/* satellites) */}
-      {isSelf && active === "goals" ? <SelfGoalsSection /> : null}
-      {isSelf && active === "reviews" ? (
-        <SelfReviewsSection reflectionHref={sectionHref("reflection")} />
-      ) : null}
-      {isSelf && active === "reflection" ? (
-        <SelfReflectionSection overviewHref={sectionHref("overview")} />
-      ) : null}
-      {isSelf && active === "schedule" ? (
-        <SelfScheduleSection reflectionHref={sectionHref("reflection")} />
-      ) : null}
-      {isSelf && active === "recognition" ? (
-        <SelfRecognitionSection
-          reflectionHref={sectionHref("reflection")}
-          overviewHref={sectionHref("overview")}
+      {active === "check-ins" ? (
+        <CheckInsSection
+          workspace={workspace}
+          scheduleExtra={isSelf ? <SelfScheduleExtra reviewsHref={sectionHref("reviews")} /> : null}
         />
       ) : null}
 
-      {/* Mentor/leadership-only sections */}
-      {!isSelf && active === "plan" ? <DevelopmentPlanSection workspace={workspace} /> : null}
-      {!isSelf && active === "opportunities" ? (
-        <OpportunitiesSection workspace={workspace} />
-      ) : null}
-      {!isSelf && active === "relationships" ? (
-        <RelationshipsSection workspace={workspace} />
+      {active === "reviews" ? (
+        <ReviewsSection workspace={workspace} sectionHref={sectionHref} />
       ) : null}
     </>
   );
@@ -209,5 +188,27 @@ export function MentorshipWorkspaceView({
       />
       {body}
     </div>
+  );
+}
+
+async function ManageRelationshipHost({
+  mentorshipId,
+  menteeId,
+}: {
+  mentorshipId: string;
+  menteeId: string;
+}) {
+  const mentorship = await prisma.mentorship.findUnique({
+    where: { id: mentorshipId },
+    select: { mentorId: true, status: true },
+  });
+  if (!mentorship) return null;
+  return (
+    <ManageRelationship
+      mentorshipId={mentorshipId}
+      menteeId={menteeId}
+      mentorId={mentorship.mentorId}
+      status={mentorship.status}
+    />
   );
 }

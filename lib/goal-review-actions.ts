@@ -99,6 +99,11 @@ function getString(formData: FormData, key: string, required = true): string {
   return value ? String(value).trim() : "";
 }
 
+function getOptionalDate(value: FormDataEntryValue | null): Date | null {
+  if (!value || String(value).trim() === "") return null;
+  return new Date(String(value));
+}
+
 // ============================================
 // FETCH: MENTOR'S REVIEW QUEUE
 // ============================================
@@ -218,6 +223,12 @@ export async function saveGoalReview(formData: FormData) {
   const promotionReadiness = getString(formData, "promotionReadiness", false);
   const submitForApproval = formData.get("submitForApproval") === "true";
   const aiDraftUsed = formData.get("aiDraftUsed") === "true";
+
+  // Optional follow-up commitment — what came out of this review, owned by
+  // the mentee, linked back via MentorshipActionItem.sourceReviewId so the
+  // Reviews section can show it under "what came out of this review".
+  const followUpActionTitle = getString(formData, "followUpActionTitle", false)?.trim() || null;
+  const followUpActionDueAt = getOptionalDate(formData.get("followUpActionDueAt"));
 
   // Character & Culture bonus points (0–25)
   const bonusPointsRaw = formData.get("bonusPoints");
@@ -462,6 +473,24 @@ export async function saveGoalReview(formData: FormData) {
       await tx.mentorship.update({
         where: { id: reflection.mentorshipId },
         data: { reviewStreak: newReviewStreak, longestReviewStreak: newLongestReviewStreak },
+      });
+    }
+
+    // Optional follow-up commitment — completes the loop from review to a
+    // concrete, owned, due-dated next step. Mentee-owned by default (it's
+    // their commitment to act on the feedback); only created once, on
+    // submission (not on every draft save).
+    if (submitForApproval && followUpActionTitle) {
+      await tx.mentorshipActionItem.create({
+        data: {
+          mentorshipId: reflection.mentorshipId,
+          menteeId: reflection.mentorship.menteeId,
+          title: followUpActionTitle,
+          ownerId: reflection.mentorship.menteeId,
+          createdById: session.user.id,
+          dueAt: followUpActionDueAt,
+          sourceReviewId: persistedReviewId,
+        },
       });
     }
 

@@ -11,20 +11,16 @@ import {
   type StatusTone,
 } from "@/components/ui-v2";
 import GRDocumentView from "@/components/gr/gr-document-view";
+import { MilestoneToast } from "@/components/gr/milestone-toast";
 import { RoleStrip } from "@/components/leadership-pathway/role-strip";
 import { RatingLegend } from "@/components/mentorship/rating-legend";
 import { LearnMore } from "@/components/mentorship/learn-more";
 import { CalmCollapse, CalmOnly } from "@/components/command-center/command-mode";
 import { GoalsCalm, type CalmGoal } from "@/components/mentorship/calm";
-import {
-  GoalTrajectory,
-  type TrajectoryGoal,
-} from "@/components/mentorship/goal-trajectory";
-import ReflectionForm from "@/app/(app)/my-program/reflect/reflection-form";
 import { ScheduleSurface } from "@/app/(app)/mentorship/schedule/schedule-surface";
 import { getSessionUser } from "@/lib/auth-supabase";
-import { prisma } from "@/lib/prisma";
 import { getMyGRDocument } from "@/lib/gr-actions";
+import { getUnseenMilestones } from "@/lib/milestones";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { getLeadershipContext } from "@/lib/leadership-context";
 import { getGrowthConnectLine } from "@/lib/growth-model";
@@ -34,13 +30,13 @@ import { getMyAwardsData } from "@/lib/award-nomination-actions";
 import { TIER_CONFIG } from "@/lib/award-tier-config";
 import { isGamificationEnabled } from "@/lib/gamification-gate";
 import { createMentorshipRequest } from "@/lib/mentorship-hub-actions";
-import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 
 /**
- * Self-only workspace sections — the old /my-mentor/* satellite pages
- * (goals, progress, reflection, schedule, resources, awards, help) folded into
- * the unified workspace as sections. Each section loads its own data, so a
- * tab only pays for what it renders. All render for `workspace.isSelf` only.
+ * Self-only workspace pieces. The four-section workspace keeps the self POV's
+ * extras here: the Goals section (the person's own G&R document), the help
+ * card and milestone celebrations on Overview, the recognition collapse
+ * (gamification-gated), and the booking surface embedded in Check-ins.
+ * Each piece loads its own data, so a tab only pays for what it renders.
  */
 
 const RATING_TONE: Record<string, StatusTone> = {
@@ -48,13 +44,6 @@ const RATING_TONE: Record<string, StatusTone> = {
   ACHIEVED: "success",
   GETTING_STARTED: "warning",
   BEHIND_SCHEDULE: "danger",
-};
-
-const RATING_ACCENT: Record<string, string> = {
-  ABOVE_AND_BEYOND: "border-l-brand-600",
-  ACHIEVED: "border-l-complete-700",
-  GETTING_STARTED: "border-l-progress-700",
-  BEHIND_SCHEDULE: "border-l-blocked-700",
 };
 
 function SectionIntro({ title, description }: { title: string; description?: string }) {
@@ -66,10 +55,6 @@ function SectionIntro({ title, description }: { title: string; description?: str
       ) : null}
     </div>
   );
-}
-
-function formatMonth(value: Date | string) {
-  return new Date(value).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
 /* ---------------------------------- Goals --------------------------------- */
@@ -254,8 +239,6 @@ export async function SelfGoalsSection() {
     })),
     roleLabel: ROLE_LABELS[doc.template.roleType] ?? doc.template.roleType,
     ratingHistoryByGoal: doc.ratingHistoryByGoal,
-    unseenMilestones: [],
-    reviewAck: null,
   };
 
   // Calm lead: the few goals actually in motion, with their released rubric
@@ -306,306 +289,57 @@ export async function SelfGoalsSection() {
   );
 }
 
-/* ------------------------- Reviews (released feedback) -------------------- */
+/* ----------------------- Milestones (Overview toast) ---------------------- */
 
-export async function SelfReviewsSection({ reflectionHref }: { reflectionHref: string }) {
+/**
+ * Unseen milestone celebrations, shown once on the person's own Overview.
+ * Pure read at render; the toast marks rows seen only when dismissed.
+ */
+export async function SelfMilestones() {
   const viewer = await getSessionUser();
-  if (!viewer) redirect("/login");
-
-  const menteeRoleType = toMenteeRoleType(viewer.primaryRole ?? "");
-  const doc = menteeRoleType ? await getMyGRDocument() : null;
-
-  // Trajectory from released-review rating history (oldest → newest).
-  const trajectoryGoals: TrajectoryGoal[] = [];
-  if (doc) {
-    for (const goal of doc.goals) {
-      const history = doc.ratingHistoryByGoal[goal.id];
-      if (history && history.length > 0) {
-        const points = [...history]
-          .sort((a, b) => a.cycleNumber - b.cycleNumber)
-          .map((h) => ({ label: `C${h.cycleNumber}`, rating: h.rating }));
-        trajectoryGoals.push({ title: goal.title, points });
-      }
-    }
-  }
-
-  const releasedReviews = doc
-    ? [doc.latestReview, ...doc.pastReviews].filter(
-        (r): r is NonNullable<typeof r> => !!r && !!r.releasedToMenteeAt
-      )
-    : [];
-
-  const latestReleased = releasedReviews[0] ?? null;
-  const statusCfg = latestReleased ? getGoalRatingCopy(latestReleased.overallRating) : null;
-
+  if (!viewer) return null;
+  const milestones = await getUnseenMilestones(viewer.id);
+  if (milestones.length === 0) return null;
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <SectionIntro
-          title="Progress & reviews"
-          description="How far you've come — and the feedback your mentor has released to you."
-        />
-        <ButtonLink href={reflectionHref} size="sm">
-          Update this month&apos;s reflection →
-        </ButtonLink>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        {statusCfg ? (
-          <StatusBadge
-            tone={RATING_TONE[String(latestReleased?.overallRating)] ?? "info"}
-            title={statusCfg.menteeDescription}
-            withDot
-          >
-            {statusCfg.menteeLabel}
-          </StatusBadge>
-        ) : null}
-        <p className="m-0 max-w-[70ch] text-[13px] leading-relaxed text-ink-muted">
-          {getGrowthConnectLine("progress")}
-        </p>
-      </div>
-
-      {!doc || (trajectoryGoals.length === 0 && releasedReviews.length === 0) ? (
-        <CardV2 padding="lg" className="text-center">
-          <p className="m-0 text-[15px] font-semibold text-ink">
-            Your progress story starts soon
-          </p>
-          <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-muted">
-            After your first monthly review is shared with you, you&apos;ll see how your
-            goals are trending and the encouragement your mentor wrote. Nothing here is a
-            grade — it&apos;s a picture of your growth.
-          </p>
-        </CardV2>
-      ) : (
-        <div className="grid gap-5">
-          {trajectoryGoals.length > 0 && <GoalTrajectory goals={trajectoryGoals} />}
-
-          {releasedReviews.length > 0 && (
-            <section className="grid gap-3">
-              <h3 className="m-0 text-[15px] font-bold text-ink">Feedback released to you</h3>
-              {releasedReviews.map((review) => {
-                const cfg = getGoalRatingCopy(review.overallRating);
-                const rating = String(review.overallRating);
-                return (
-                  <CardV2
-                    key={review.id}
-                    padding="md"
-                    className={`border-l-4 ${RATING_ACCENT[rating] ?? "border-l-brand-600"}`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <strong className="text-[14px] text-ink">
-                        {formatMonth(review.cycleMonth)}
-                      </strong>
-                      <StatusBadge
-                        tone={RATING_TONE[rating] ?? "info"}
-                        title={cfg.menteeDescription}
-                        withDot
-                      >
-                        {cfg.menteeLabel}
-                      </StatusBadge>
-                    </div>
-                    {review.overallComments && (
-                      <p className="m-0 mt-2.5 text-[13px] leading-relaxed text-ink">
-                        {review.overallComments}
-                      </p>
-                    )}
-                    {review.planOfAction && (
-                      <div className="mt-2.5 rounded-lg bg-surface-soft px-3 py-2.5">
-                        <p className="m-0 text-[11.5px] font-bold uppercase tracking-[0.05em] text-ink-muted">
-                          Your next steps
-                        </p>
-                        <p className="m-0 mt-1 text-[13px] text-ink">{review.planOfAction}</p>
-                      </div>
-                    )}
-                  </CardV2>
-                );
-              })}
-            </section>
-          )}
-
-          <LearnMore summary="What do these status colors mean?">
-            <RatingLegend audience="mentee" />
-          </LearnMore>
-        </div>
-      )}
-    </div>
+    <MilestoneToast
+      milestones={milestones.map((m) => ({
+        id: m.id,
+        kind: m.kind,
+        payload: (m.payload ?? {}) as Record<string, unknown>,
+      }))}
+    />
   );
 }
 
-/* -------------------------------- Reflection ------------------------------ */
+/* ------------------- Booking surface (inside Check-ins) ------------------- */
 
-export async function SelfReflectionSection({ overviewHref }: { overviewHref: string }) {
-  const viewer = await getSessionUser();
-  if (!viewer) redirect("/login");
-
-  const menteeRoleType = toMenteeRoleType(viewer.primaryRole ?? "");
-
-  const [mentorship, goals] = await Promise.all([
-    prisma.mentorship.findFirst({
-      where: { menteeId: viewer.id, status: "ACTIVE" },
-      select: {
-        ...MENTORSHIP_LEGACY_ROOT_SELECT,
-        selfReflections: {
-          orderBy: { cycleNumber: "desc" },
-          take: 1,
-          select: { cycleNumber: true },
-        },
-      },
-    }),
-    menteeRoleType
-      ? prisma.mentorshipProgramGoal.findMany({
-          where: { roleType: menteeRoleType, isActive: true },
-          orderBy: { sortOrder: "asc" },
-          select: { id: true, title: true, description: true },
-        })
-      : [],
-  ]);
-
-  if (!mentorship) {
-    const monthLabel = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    return (
-      <div className="flex flex-col gap-4">
-        <SectionIntro
-          title="Monthly reflection"
-          description="Your self-input — the honest first word that starts each monthly review."
-        />
-        <CardV2 padding="lg" className="text-center">
-          <p className="m-0 text-[15px] font-semibold text-ink">No reflection open yet</p>
-          <p className="mx-auto mt-2 max-w-md text-[13px] text-ink-muted">
-            Reflections open at the start of each month once you&apos;re matched with a
-            mentor. There&apos;s nothing you need to do right now — we&apos;ll let you know
-            when {monthLabel}&apos;s reflection is ready.
-          </p>
-        </CardV2>
-      </div>
-    );
-  }
-
-  const lastCycle = mentorship.selfReflections[0]?.cycleNumber ?? 0;
-  const cycleNumber = lastCycle + 1;
-  const isQuarterly = cycleNumber % 3 === 0;
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <SectionIntro
-          title="Monthly reflection"
-          description={`Cycle ${cycleNumber}${isQuarterly ? " (Quarterly)" : ""} · ${new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })} — your self-input starts the monthly review loop.`}
-        />
-        <ButtonLink href={overviewHref} variant="ghost" size="sm">
-          Cancel
-        </ButtonLink>
-      </div>
-
-      <CardV2 padding="md" className="border-l-4 border-l-brand-600">
-        <p className="m-0 text-[13px] text-ink">
-          <strong>This is for you and your mentor.</strong> Be honest about what&apos;s
-          going well and what&apos;s hard — it helps your mentor support you better. Your
-          mentor reads this before writing your monthly review.
-        </p>
-      </CardV2>
-
-      <ReflectionForm goals={goals} cycleNumber={cycleNumber} isQuarterly={isQuarterly} />
-    </div>
-  );
-}
-
-/* --------------------------------- Schedule ------------------------------- */
-
-export async function SelfScheduleSection({ reflectionHref }: { reflectionHref: string }) {
+/** The old Schedule tab, folded into Check-ins as a collapse. */
+export async function SelfScheduleExtra({ reviewsHref }: { reviewsHref: string }) {
   const data = await getSchedulePageData();
-
   return (
-    <div className="flex flex-col gap-4">
-      <SectionIntro
-        title="Schedule time"
-        description="Book time with your mentor — the sessions where coaching actually happens."
-      />
-      <ScheduleSurface data={data} reviewHref={reflectionHref} />
-    </div>
+    <CalmCollapse label="Book time with your mentor" hint="pick a slot that works">
+      <ScheduleSurface data={data} reviewHref={reviewsHref} />
+    </CalmCollapse>
   );
 }
 
-/* --------------------- Recognition (awards + resources) ------------------- */
+/* ------------------- Recognition (Overview, gamification) ----------------- */
+
+/** Awards + points, dark until ENABLE_GAMIFICATION; one collapse on Overview. */
+export async function SelfRecognitionCard({ reflectionHref }: { reflectionHref: string }) {
+  if (!isGamificationEnabled()) return null;
+  const data = await getMyAwardsData();
+  if (!data) return null;
+  return (
+    <CalmCollapse label="Recognition" hint="awards, points, and how they grow">
+      <AwardsBlock data={data} reflectionHref={reflectionHref} />
+    </CalmCollapse>
+  );
+}
+
+/* ------------------------------ Awards block ------------------------------ */
 
 const TIER_ORDER = ["BRONZE", "SILVER", "GOLD", "LIFETIME"] as const;
-
-export async function SelfRecognitionSection({
-  reflectionHref,
-  overviewHref,
-}: {
-  reflectionHref: string;
-  overviewHref: string;
-}) {
-  const viewer = await getSessionUser();
-  if (!viewer) redirect("/login");
-
-  const menteeRoleType = toMenteeRoleType(viewer.primaryRole ?? "");
-  // Awards stay dark until ENABLE_GAMIFICATION (same gate that hid the old
-  // /my-mentor/awards route); resources are always available.
-  const gamificationOn = isGamificationEnabled();
-  const [data, doc] = await Promise.all([
-    gamificationOn ? getMyAwardsData() : null,
-    menteeRoleType ? getMyGRDocument() : null,
-  ]);
-  const resources = doc?.resources ?? [];
-
-  return (
-    <div className="flex flex-col gap-4">
-      {gamificationOn && data ? <AwardsBlock data={data} reflectionHref={reflectionHref} /> : null}
-
-      <SectionIntro
-        title="Resources"
-        description="Materials your mentor recommends to help you grow."
-      />
-
-      {resources.length === 0 ? (
-        <CardV2 padding="lg" className="text-center">
-          <p className="m-0 text-[15px] font-semibold text-ink">No resources yet</p>
-          <p className="mx-auto mt-1 max-w-sm text-[13px] text-ink-muted">
-            Once your mentor recommends resources, they&apos;ll show up here. You can
-            always ask for something specific from the Overview section.
-          </p>
-          <div className="mt-4">
-            <ButtonLink href={overviewHref} size="sm">
-              Ask for a resource
-            </ButtonLink>
-          </div>
-        </CardV2>
-      ) : (
-        <div className="grid gap-3">
-          {resources.map((r, i) => (
-            <CardV2 key={`${r.resource.url}-${i}`} padding="md">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <strong className="text-[14px] text-ink">{r.resource.title}</strong>
-                  {r.resource.description && (
-                    <p className="m-0 mt-1 text-[13px] text-ink-muted">
-                      {r.resource.description}
-                    </p>
-                  )}
-                </div>
-                {r.resource.url && (
-                  <a
-                    href={r.resource.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(
-                      buttonVariants({ variant: "secondary", size: "sm" }),
-                      "shrink-0 no-underline"
-                    )}
-                  >
-                    Open →
-                  </a>
-                )}
-              </div>
-            </CardV2>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function AwardsBlock({
   data,

@@ -1,0 +1,176 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  buildCycleStrip,
+  defaultLifecycleHrefs,
+  deriveNextAction,
+  type LifecycleSnapshot,
+} from "@/lib/mentorship/lifecycle";
+
+const hrefs = defaultLifecycleHrefs("mentee-1");
+
+function snapshot(overrides: Partial<LifecycleSnapshot> = {}): LifecycleSnapshot {
+  return {
+    hasActiveMentorship: true,
+    mentorshipStatus: "ACTIVE",
+    kickoffComplete: true,
+    cycleStage: "REFLECTION_DUE",
+    mentorName: "Maya Chen",
+    grDocStatus: "ACTIVE",
+    cycleLabel: "July 2026",
+    reflectionOverdue: false,
+    releasedReviewPendingAck: false,
+    requiresChairApproval: true,
+    overdueFollowUpLabel: null,
+    openActionItems: 0,
+    overdueActionItems: 0,
+    lastCheckInLabel: "Jul 1, 2026",
+    ...overrides,
+  };
+}
+
+describe("deriveNextAction — one lifecycle, one verb per POV", () => {
+  it("routes an unpaired person to matching for leadership, patience for the mentee", () => {
+    const s = snapshot({ hasActiveMentorship: false, mentorshipStatus: null, cycleStage: null });
+    expect(deriveNextAction(s, "leadership", hrefs, "Ari").key).toBe("assign-mentor");
+    expect(deriveNextAction(s, "leadership", hrefs, "Ari").href).toBe(hrefs.adminMatching);
+    expect(deriveNextAction(s, "me", hrefs).key).toBe("await-pairing");
+    expect(deriveNextAction(s, "me", hrefs).href).toBeNull();
+  });
+
+  it("surfaces paused/complete relationships to leadership only", () => {
+    const s = snapshot({ hasActiveMentorship: false, mentorshipStatus: "PAUSED" });
+    expect(deriveNextAction(s, "leadership", hrefs).key).toBe("resume-or-close");
+    expect(deriveNextAction(s, "me", hrefs).key).toBe("await-pairing");
+  });
+
+  it("puts the kickoff on the mentor, urgently", () => {
+    const s = snapshot({ kickoffComplete: false, cycleStage: "KICKOFF_PENDING" });
+    const mentor = deriveNextAction(s, "mentor", hrefs, "Ari");
+    expect(mentor.key).toBe("schedule-kickoff");
+    expect(mentor.urgent).toBe(true);
+    expect(deriveNextAction(s, "me", hrefs).key).toBe("await-kickoff");
+  });
+
+  it("asks leadership to assign G&R goals when no document exists", () => {
+    const s = snapshot({ grDocStatus: "NONE" });
+    const action = deriveNextAction(s, "leadership", hrefs, "Ari");
+    expect(action.key).toBe("assign-goals");
+    expect(action.href).toBe(hrefs.adminGoals);
+    // The mentee's cycle is not blocked by the missing doc.
+    expect(deriveNextAction(s, "me", hrefs).key).toBe("submit-reflection");
+  });
+
+  it("walks the review cycle: reflection → review → approval → ack", () => {
+    const due = snapshot({ cycleStage: "REFLECTION_DUE" });
+    expect(deriveNextAction(due, "me", hrefs).key).toBe("submit-reflection");
+    expect(deriveNextAction(due, "mentor", hrefs).key).toBe("log-check-in");
+
+    const submitted = snapshot({ cycleStage: "REFLECTION_SUBMITTED" });
+    const write = deriveNextAction(submitted, "mentor", hrefs, "Ari");
+    expect(write.key).toBe("write-review");
+    expect(write.href).toBe("/mentorship/reviews/mentee-1");
+    expect(write.urgent).toBe(true);
+    expect(deriveNextAction(submitted, "me", hrefs).key).toBe("await-reflection");
+
+    const withChair = snapshot({ cycleStage: "REVIEW_SUBMITTED" });
+    expect(deriveNextAction(withChair, "leadership", hrefs).key).toBe("approve-review");
+    expect(deriveNextAction(withChair, "mentor", hrefs).key).toBe("await-approval");
+
+    const changes = snapshot({ cycleStage: "CHANGES_REQUESTED" });
+    expect(deriveNextAction(changes, "mentor", hrefs).key).toBe("revise-review");
+
+    const released = snapshot({ cycleStage: "APPROVED", releasedReviewPendingAck: true });
+    expect(deriveNextAction(released, "me", hrefs).key).toBe("acknowledge-review");
+    expect(deriveNextAction(released, "mentor", hrefs).key).toBe("await-acknowledgment");
+  });
+
+  it("flags an overdue reflection as urgent for the mentee", () => {
+    const s = snapshot({ reflectionOverdue: true });
+    const action = deriveNextAction(s, "me", hrefs);
+    expect(action.key).toBe("submit-reflection");
+    expect(action.urgent).toBe(true);
+  });
+
+  it("falls through to follow-up work once the cycle is settled", () => {
+    const s = snapshot({ cycleStage: "APPROVED", overdueActionItems: 2 });
+    const me = deriveNextAction(s, "me", hrefs);
+    expect(me.key).toBe("close-follow-up");
+    const mentor = deriveNextAction(s, "mentor", hrefs);
+    expect(mentor.key).toBe("close-follow-up");
+    expect(mentor.href).toBe(hrefs.section("check-ins"));
+
+    const overdueCheckIn = snapshot({
+      cycleStage: "APPROVED",
+      overdueFollowUpLabel: "Follow-up was due Jun 12, 2026",
+    });
+    expect(deriveNextAction(overdueCheckIn, "mentor", hrefs).key).toBe("close-follow-up");
+    // A check-in follow-up nudge belongs to the relationship owner, not the mentee.
+    expect(deriveNextAction(overdueCheckIn, "me", hrefs).key).toBe("all-caught-up");
+  });
+
+  it("defaults to a check-in for mentors and calm for the mentee", () => {
+    const s = snapshot({ cycleStage: "APPROVED" });
+    expect(deriveNextAction(s, "mentor", hrefs).key).toBe("log-check-in");
+    const me = deriveNextAction(s, "me", hrefs);
+    expect(me.key).toBe("all-caught-up");
+    expect(me.href).toBeNull();
+  });
+});
+
+describe("buildCycleStrip — the loop in plain language", () => {
+  it("marks the reflection step current when the cycle starts", () => {
+    const steps = buildCycleStrip(snapshot(), "me");
+    expect(steps.map((s) => s.key)).toEqual([
+      "reflection",
+      "review",
+      "approval",
+      "released",
+      "acknowledged",
+    ]);
+    expect(steps[0].state).toBe("current");
+    expect(steps[0].detail).toBe("Waiting on you");
+    expect(steps.slice(1).every((s) => s.state === "upcoming")).toBe(true);
+  });
+
+  it("says who moves next at every stage, with no database words", () => {
+    const review = buildCycleStrip(snapshot({ cycleStage: "REFLECTION_SUBMITTED" }), "me");
+    expect(review[1].state).toBe("current");
+    expect(review[1].detail).toBe("Waiting on Maya Chen");
+
+    const mentorView = buildCycleStrip(
+      snapshot({ cycleStage: "CHANGES_REQUESTED" }),
+      "mentor",
+      "Ari"
+    );
+    expect(mentorView[1].detail).toBe("Back with you for changes");
+
+    const approval = buildCycleStrip(snapshot({ cycleStage: "REVIEW_SUBMITTED" }), "me");
+    expect(approval[2].state).toBe("current");
+    expect(approval[2].detail).toBe("With the chair for approval");
+  });
+
+  it("completes through acknowledgment", () => {
+    const pendingAck = buildCycleStrip(
+      snapshot({ cycleStage: "APPROVED", releasedReviewPendingAck: true }),
+      "mentor",
+      "Ari"
+    );
+    expect(pendingAck[3].state).toBe("done"); // released
+    expect(pendingAck[4].state).toBe("current");
+    expect(pendingAck[4].detail).toBe("Waiting on Ari to react");
+
+    const done = buildCycleStrip(snapshot({ cycleStage: "APPROVED" }), "me");
+    expect(done.every((s) => s.state === "done")).toBe(true);
+  });
+
+  it("hides the approval step for pairings without a chair", () => {
+    const steps = buildCycleStrip(snapshot({ requiresChairApproval: false }), "me");
+    expect(steps.map((s) => s.key)).toEqual([
+      "reflection",
+      "review",
+      "released",
+      "acknowledged",
+    ]);
+  });
+});

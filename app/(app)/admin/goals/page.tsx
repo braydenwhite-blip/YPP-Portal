@@ -1,10 +1,16 @@
+import { notFound, redirect } from "next/navigation";
+
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
-import { redirect } from "next/navigation";
 import { createGoalTemplate, assignGoalsToUserByRole } from "@/lib/goals-actions";
 import { hasRole } from "@/lib/authorization";
+import { isLegacyGoalsAdminEnabled } from "@/lib/feature-flags";
 
 export default async function AdminGoalsPage() {
+  // The pre-G&R goals stack this page manages only still serves the
+  // separate student goals product (/goals) — dark by default.
+  if (!isLegacyGoalsAdminEnabled()) notFound();
+
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
 

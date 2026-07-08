@@ -6,8 +6,6 @@ import CurrentPrioritiesHero from "./current-priorities-hero";
 import RatingBadge from "./rating-badge";
 import ProgressStateChip from "./progress-state-chip";
 import { GrowthSparkline } from "./growth-sparkline";
-import { MilestoneToast } from "./milestone-toast";
-import { MenteeReviewAck } from "./mentee-review-ack";
 
 // ─────────────── Types ───────────────
 
@@ -51,8 +49,6 @@ interface PastReview {
 }
 interface NextMonthGoal { id: string; title: string; description: string; priority: GoalPriority; dueDate: string | null }
 
-interface Milestone { id: string; kind: string; payload: Record<string, unknown> }
-
 interface DocumentData {
   id: string; templateTitle: string; roleType: string; roleLabel: string;
   roleMission: string; status: string; roleStartDate: string;
@@ -64,8 +60,6 @@ interface DocumentData {
   plansOfAction: PlanOfAction[]; latestReview: LatestReview | null;
   nextMonthGoals: NextMonthGoal[]; pastReviews: PastReview[];
   ratingHistoryByGoal: Record<string, Array<{ cycleNumber: number; rating: string }>>;
-  unseenMilestones: Milestone[];
-  reviewAck?: { reaction: string; note: string | null } | null;
 }
 
 // ─────────────── Constants ───────────────
@@ -252,9 +246,6 @@ export default function GRDocumentView({ document: doc, isOwner }: { document: D
   return (
     <div style={{ display: "grid", gap: "1.5rem" }}>
 
-      {/* Milestone celebrations (fixed bottom-right, outside flow) */}
-      {doc.unseenMilestones.length > 0 && <MilestoneToast milestones={doc.unseenMilestones} />}
-
       {/* 1. Current Priorities hero */}
       <CurrentPrioritiesHero goals={doc.currentPriorities as Parameters<typeof CurrentPrioritiesHero>[0]["goals"]} />
 
@@ -398,10 +389,6 @@ export default function GRDocumentView({ document: doc, isOwner }: { document: D
             </div>
           )}
 
-          {/* Mentee acknowledgement (C3) — only shown to the mentee */}
-          {isOwner && doc.latestReview.releasedToMenteeAt && (
-            <MenteeReviewAck reviewId={doc.latestReview.id} existingAck={doc.reviewAck} />
-          )}
         </div>
       )}
 

@@ -222,6 +222,11 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/goals",
       label: "My Goals",
       icon: "🎯",
+      // Instructors/officers/leadership use the Mentorship hub's Goals
+      // section instead (canAccessMentorship redirects them off this route
+      // — see lib/mentorship-access.ts). Students and parents (who fall
+      // outside canAccessMentorship) keep this as their goals home.
+      roles: ["STUDENT", "PARENT"] as NavRole[],
       dashboardDescription: "Track progress against your active goals.",
       dashboardPriority: 12,
     },
@@ -893,6 +898,10 @@ export const NAV_CATALOG: NavLink[] = [
         "Relationships",
         "My Mentor",
         "My Development",
+        // From the retired /my-program/gr entry (a redirect into this hub's
+        // Goals section).
+        "My Goals",
+        "Goals & Responsibilities",
         // From the retired ADMIN "Mentorship Ops" entry (/admin/mentorship,
         // now a redirect into the admin POV of this hub).
         "Mentorship Ops",
@@ -1005,16 +1014,11 @@ export const NAV_CATALOG: NavLink[] = [
       searchAliases: ["My Mentor", "Support Hub", "Program Hub"],
       dashboardDescription: "Open your support hub for reflections, next steps, awards, rewards, and recognition.",
     },
-    {
-      href: "/my-program/gr",
-      label: "My Goals",
-      icon: "📋",
-      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
-      featureKey: "GR_SYSTEM",
-      searchAliases: ["My G&R", "Goals & Responsibilities"],
-      dashboardDescription: "View your Goals & Responsibilities document, track progress, and update your plan of action.",
-      dashboardPriority: 5,
-    },
+    // /my-program/gr removed: it was a permanentRedirect into
+    // /mentorship?view=me&section=goals, and the Mentorship entry below
+    // already covers "My Goals" for instructors/officers via its search
+    // aliases — a second nav entry pointing at the same destination was
+    // redundant, not a second surface.
     // Removed from nav:
     //   /mentorship-program           -> redirects to /mentorship
     //   /mentorship-program/reviews   -> mentor surface duplicates the per-
@@ -1662,7 +1666,9 @@ export const NAV_CATALOG: NavLink[] = [
       searchAliases: ["Classes", "Sections", "Class management", "Class operations"],
     },
     { href: "/admin/training", label: "Training Modules", icon: "🏫", roles: ADMIN_ONLY },
-    { href: "/admin/goals", label: "Goals", icon: "🎯", roles: ADMIN_ONLY },
+    // /admin/goals removed from nav — it manages the deprecated pre-G&R goals
+    // stack, now dark by default (isLegacyGoalsAdminEnabled). Instructor/
+    // officer goal admin lives in the Mentorship cockpit's Goals tab.
     // /admin/reflection-forms removed — the legacy form builder now redirects
     // to the read-only /admin/reflections archive.
     { href: "/admin/challenges", label: "Challenges Mgmt", icon: "⚡", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },

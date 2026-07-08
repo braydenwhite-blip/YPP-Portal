@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { notifyMenteeReflectionDue } from "@/lib/mentorship-notifications";
+import { z } from "zod";
 
 // Local structural fallback type references protect compilers from generated prisma variations
 type GRTimePhase = any;
@@ -1133,5 +1134,53 @@ export async function sendReflectionNudge(formData: FormData) {
     cycleMonthIso: reflection.cycleMonth.toISOString(),
   });
 
+  return { ok: true };
+}
+// ============================================
+// MENTEE REVIEW ACKNOWLEDGEMENT
+// ============================================
+
+const ACK_REACTIONS = ["GRATEFUL", "MOTIVATED", "UNCLEAR", "UNSURE"] as const;
+
+/**
+ * The mentee's reaction to a released review — the step that closes the
+ * monthly loop (reflection → review → approval → release → acknowledgment).
+ * Mentee-only; upserts so a reaction can be revised.
+ */
+export async function acknowledgeMentorReview(input: unknown) {
+  const session = await requireAuth();
+
+  const AckSchema = z.object({
+    reviewId: z.string().min(1),
+    reaction: z.enum(ACK_REACTIONS),
+    note: z.string().max(2000).nullish(),
+  });
+  const data = AckSchema.parse(input);
+
+  const review = await prisma.mentorGoalReview.findUnique({
+    where: { id: data.reviewId },
+    select: { id: true, menteeId: true, releasedToMenteeAt: true },
+  });
+  if (!review || review.menteeId !== session.user.id) {
+    throw new Error("Unauthorized");
+  }
+  if (!review.releasedToMenteeAt) {
+    throw new Error("This review has not been released yet.");
+  }
+
+  const note = data.note?.trim() || null;
+  await prisma.menteeReviewAck.upsert({
+    where: { reviewId: review.id },
+    update: { reaction: data.reaction, note },
+    create: {
+      reviewId: review.id,
+      userId: session.user.id,
+      reaction: data.reaction,
+      note,
+    },
+  });
+
+  revalidatePath("/mentorship");
+  revalidatePath(`/mentorship/people/${session.user.id}`);
   return { ok: true };
 }

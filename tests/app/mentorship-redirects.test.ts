@@ -30,6 +30,11 @@ import LegacyMyMentorSchedulePage from "@/app/(app)/my-mentor/schedule/page";
 import LegacyMyMentorResourcesPage from "@/app/(app)/my-mentor/resources/page";
 import LegacyMyMentorAwardsPage from "@/app/(app)/my-mentor/awards/page";
 import LegacyMyMentorHelpPage from "@/app/(app)/my-mentor/help/page";
+import MentorMenteeGRPage from "@/app/(app)/mentorship/mentees/[id]/gr/page";
+import AdminGROverviewPage from "@/app/(app)/admin/mentorship/gr/page";
+import AdminGRTemplatesPage from "@/app/(app)/admin/mentorship/gr/templates/page";
+import AdminGRAssignmentsPage from "@/app/(app)/admin/mentorship/gr/assignments/page";
+import AdminGRResourcesPage from "@/app/(app)/admin/mentorship/gr/resources/page";
 
 class RedirectError extends Error {
   constructor(public to: string) {
@@ -139,5 +144,26 @@ describe("mentorship legacy route redirects", () => {
     await expect(
       LegacyGRTemplateDetailPage({ params: Promise.resolve({ id: "tpl-1" }) })
     ).rejects.toThrow("redirect:/admin/mentorship/gr/templates/tpl-1");
+  });
+
+  it("sends the mentor's mentee G&R view into the workspace Goals section", async () => {
+    await expect(
+      MentorMenteeGRPage({ params: Promise.resolve({ id: "mentee-1" }) })
+    ).rejects.toThrow("redirect:/mentorship/people/mentee-1?section=goals");
+  });
+
+  it("folds the standalone admin G&R list pages into the cockpit's Goals tab", () => {
+    expect(() => AdminGROverviewPage()).toThrow(
+      "redirect:/mentorship?view=admin&tab=templates"
+    );
+    expect(() => AdminGRTemplatesPage()).toThrow(
+      "redirect:/mentorship?view=admin&tab=templates"
+    );
+    expect(() => AdminGRAssignmentsPage()).toThrow(
+      "redirect:/mentorship?view=admin&tab=templates"
+    );
+    expect(() => AdminGRResourcesPage()).toThrow(
+      "redirect:/mentorship?view=admin&tab=templates"
+    );
   });
 });
