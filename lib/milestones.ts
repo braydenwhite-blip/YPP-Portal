@@ -23,19 +23,29 @@ export async function insertMilestoneOnce(
   await prisma.milestoneEvent.create({ data: { userId, kind, payload: payload as any } });
 }
 
-/** Return all unseen milestones for a user and mark them as seen. */
-export async function consumeUnseenMilestones(userId: string) {
-  const milestones = await prisma.milestoneEvent.findMany({
+/**
+ * Return all unseen milestones for a user — a pure read. Rendering never
+ * mutates; the toast marks rows seen via `markMilestonesSeen` when the user
+ * dismisses it (or lets it auto-dismiss).
+ */
+export async function getUnseenMilestones(userId: string) {
+  return prisma.milestoneEvent.findMany({
     where: { userId, seenAt: null },
     orderBy: { createdAt: "asc" },
   });
-  if (milestones.length > 0) {
-    await prisma.milestoneEvent.updateMany({
-      where: { id: { in: milestones.map((m) => m.id) } },
-      data: { seenAt: new Date() },
-    });
-  }
-  return milestones;
+}
+
+/** Mark the current user's milestones as seen. Explicit — called on dismissal. */
+export async function markMilestonesSeen(ids: string[]) {
+  if (ids.length === 0) return;
+  const { getSessionUser } = await import("@/lib/auth-supabase");
+  const viewer = await getSessionUser();
+  if (!viewer) throw new Error("Unauthorized");
+  await prisma.milestoneEvent.updateMany({
+    // Scoped to the viewer — nobody can consume someone else's celebrations.
+    where: { id: { in: ids }, userId: viewer.id, seenAt: null },
+    data: { seenAt: new Date() },
+  });
 }
 
 /** Check tenure milestones for a user and insert if applicable. */

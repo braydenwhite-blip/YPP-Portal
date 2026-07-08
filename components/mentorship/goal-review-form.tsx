@@ -187,6 +187,10 @@ export function GoalReviewForm({
   const [planOfAction, setPlanOfAction] = useState(initialReview?.planOfAction ?? "");
   const [bonusPoints, setBonusPoints] = useState<number>(initialReview?.bonusPoints ?? 0);
   const [bonusReason, setBonusReason] = useState(initialReview?.bonusReason ?? "");
+  // What comes out of this review — an optional, owned, due-dated commitment
+  // for the mentee. Only created on submission, never on a draft save.
+  const [followUpActionTitle, setFollowUpActionTitle] = useState("");
+  const [followUpActionDueAt, setFollowUpActionDueAt] = useState("");
 
   function initGoalRatings(goalList: GoalRow[]) {
     const init: Record<string, { rating: string | null; comments: string }> = {};
@@ -309,6 +313,10 @@ export function GoalReviewForm({
     if (bonusReason.trim()) fd.set("bonusReason", bonusReason.trim());
     if (submitForApproval) fd.set("submitForApproval", "true");
     if (aiDraftUsed) fd.set("aiDraftUsed", "true");
+    if (submitForApproval && followUpActionTitle.trim()) {
+      fd.set("followUpActionTitle", followUpActionTitle.trim());
+      if (followUpActionDueAt) fd.set("followUpActionDueAt", followUpActionDueAt);
+    }
     goals.forEach((g) => {
       if (g.grDocumentGoalId) {
         fd.append("grGoalIds", g.grDocumentGoalId);
@@ -521,6 +529,30 @@ export function GoalReviewForm({
           rows={4}
           style={{ width: "100%", marginTop: 8 }}
         />
+
+        <div className="section-title" style={{ marginTop: 14 }}>
+          Follow-up action (optional)
+        </div>
+        <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 4, marginBottom: 8 }}>
+          One concrete, owned commitment that comes out of this review — it appears in{" "}
+          {menteeName}&apos;s Check-ins as an open commitment.
+        </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <input
+            type="text"
+            value={followUpActionTitle}
+            onChange={(e) => setFollowUpActionTitle(e.target.value)}
+            placeholder="e.g. Shadow a lead instructor's class"
+            style={{ flex: "1 1 260px" }}
+          />
+          <input
+            type="date"
+            value={followUpActionDueAt}
+            onChange={(e) => setFollowUpActionDueAt(e.target.value)}
+            aria-label="Follow-up due date"
+            style={{ flex: "0 0 auto" }}
+          />
+        </div>
       </section>
 
       {/* Action Buttons */}

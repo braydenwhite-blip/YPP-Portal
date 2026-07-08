@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import type { GoalRatingColor } from "@prisma/client";
 
-import { ButtonLink, CardV2, StatusBadge, type StatusTone } from "@/components/ui-v2";
+import { ButtonLink, CardV2, StatusBadge, cn, type StatusTone } from "@/components/ui-v2";
 import { prisma } from "@/lib/prisma";
 import { getMenteeCycleState } from "@/lib/mentorship-cycle";
 import { getMyReleasedCoachingPlan } from "@/lib/mentorship/person-extras";
@@ -125,28 +125,36 @@ export async function MenteeDevelopmentBrief({
     ? mentorship.mentor.name || mentorship.mentor.email
     : null;
   const nextSession = mentorship?.sessions[0] ?? null;
-  const next = menteeNextStep(state, mentorName != null, links);
+  // When embedded, the workspace's own Overview card (built from the same
+  // lifecycle engine) is the canonical "what happens next" — showing this
+  // component's own version too would be two systems disagreeing about the
+  // same person. Only the standalone fallback (no workspace record at all)
+  // computes and shows its own.
+  const next = embedded ? null : menteeNextStep(state, mentorName != null, links);
   const myActions = actions.slice(0, 6);
 
   return (
     <div className="grid gap-6">
-      {/* Mission brief — one next step, never a wall of tables. */}
+      {/* Mission context — mentor, cycle, next session. The next-step hero
+          (title/detail/CTA) only renders standalone; see `next` above. */}
       <CardV2 padding="md" className="border-l-4 border-l-brand-600">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="m-0 text-[12px] font-semibold uppercase tracking-wide text-ink-muted">
-              Your next step
-            </p>
-            <h2 className="m-0 mt-1 text-[16px] font-bold text-ink">{next.title}</h2>
-            <p className="m-0 mt-1 max-w-xl text-[13px] text-ink-muted">{next.detail}</p>
+        {next ? (
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="m-0 text-[12px] font-semibold uppercase tracking-wide text-ink-muted">
+                Your next step
+              </p>
+              <h2 className="m-0 mt-1 text-[16px] font-bold text-ink">{next.title}</h2>
+              <p className="m-0 mt-1 max-w-xl text-[13px] text-ink-muted">{next.detail}</p>
+            </div>
+            {next.cta ? (
+              <ButtonLink href={next.cta.href} size="sm">
+                {next.cta.label}
+              </ButtonLink>
+            ) : null}
           </div>
-          {next.cta ? (
-            <ButtonLink href={next.cta.href} size="sm">
-              {next.cta.label}
-            </ButtonLink>
-          ) : null}
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12.5px] text-ink-muted">
+        ) : null}
+        <div className={cn("flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12.5px] text-ink-muted", next && "mt-4")}>
           <span>
             Mentor:{" "}
             <strong className="text-ink">{mentorName ?? "Not assigned yet"}</strong>

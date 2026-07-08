@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 
+import { markMilestonesSeen } from "@/lib/milestones";
+
 interface Milestone {
   id: string;
   kind: string;
@@ -48,6 +50,9 @@ export function MilestoneToast({ milestones }: MilestoneToastProps) {
   }, [current, visible]);
 
   function dismiss() {
+    // Seen-state is written HERE, on dismissal — rendering the page never
+    // consumes a celebration the user hasn't seen.
+    if (current) void markMilestonesSeen([current.id]).catch(() => {});
     const remaining = queue.slice(1);
     setQueue(remaining);
     if (remaining.length > 0) {

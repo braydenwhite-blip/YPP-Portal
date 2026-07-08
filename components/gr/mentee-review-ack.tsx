@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-// FIX: Using the correct, existing export from gr-actions
-import { submitGRTemplateForReview } from "@/lib/gr-actions";
+import { acknowledgeMentorReview } from "@/lib/gr-actions";
 
 const REACTIONS = [
   { value: "GRATEFUL", label: "🙏", text: "Grateful" },
@@ -16,91 +15,84 @@ interface MenteeReviewAckProps {
   existingAck?: { reaction: string; note: string | null } | null;
 }
 
+/**
+ * The mentee's reaction to a released review — closes the monthly loop and
+ * tells the mentor how the feedback landed.
+ */
 export function MenteeReviewAck({ reviewId, existingAck }: MenteeReviewAckProps) {
   const [selected, setSelected] = useState(existingAck?.reaction ?? "");
   const [note, setNote] = useState(existingAck?.note ?? "");
   const [saved, setSaved] = useState(!!existingAck);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function save(reaction: string) {
     setSelected(reaction);
+    setError(null);
     startTransition(async () => {
-      const fd = new FormData();
-      fd.set("reviewId", reviewId);
-      fd.set("reaction", reaction);
-      if (note.trim()) fd.set("note", note.trim());
-      
-      // FIX: Calling the corrected function name here
-      await submitGRTemplateForReview(fd);
-      setSaved(true);
+      try {
+        await acknowledgeMentorReview({
+          reviewId,
+          reaction,
+          note: note.trim() || null,
+        });
+        setSaved(true);
+      } catch {
+        setSaved(false);
+        setError("Couldn't save your reaction — please try again.");
+      }
     });
   }
 
   return (
-    <div
-      style={{
-        background: "var(--surface-alt)",
-        borderRadius: 8,
-        padding: "1rem",
-        marginTop: "0.75rem",
-      }}
-    >
-      <div style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "0.5rem" }}>
+    <div className="mt-3 rounded-[10px] bg-surface-soft p-4">
+      <div className="mb-2 text-[12.5px] text-ink-muted">
         How does this feedback land?
       </div>
-      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+      <div className="flex flex-wrap gap-2">
         {REACTIONS.map((r) => (
           <button
             key={r.value}
-            onClick={() => save(r.value)}
+            type="button"
             disabled={isPending}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.3rem",
-              padding: "0.3rem 0.65rem",
-              borderRadius: 20,
-              border: `1.5px solid ${selected === r.value ? "var(--ypp-purple-500)" : "var(--border)"}`,
-              background: selected === r.value ? "var(--ypp-purple-50, #f5f3ff)" : "var(--surface)",
-              color: selected === r.value ? "var(--ypp-purple-700, #6d28d9)" : "var(--text)",
-              cursor: "pointer",
-              fontSize: "0.82rem",
-              fontWeight: selected === r.value ? 600 : 400,
-              transition: "all 0.15s",
-            }}
+            onClick={() => save(r.value)}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors disabled:opacity-60 ${
+              selected === r.value
+                ? "border-brand-600 bg-brand-50 text-brand-800"
+                : "border-line bg-surface text-ink hover:bg-surface-soft"
+            }`}
           >
-            <span>{r.label}</span>
-            <span>{r.text}</span>
+            <span aria-hidden>{r.label}</span>
+            {r.text}
           </button>
         ))}
       </div>
-
-      {selected && !saved && (
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Add a note (optional)"
-          rows={2}
-          style={{
-            marginTop: "0.5rem",
-            width: "100%",
-            resize: "vertical",
-            padding: "0.4rem 0.6rem",
-            borderRadius: 6,
-            border: "1px solid var(--border)",
-            fontSize: "0.82rem",
-            background: "var(--surface)",
-            color: "var(--text)",
-            boxSizing: "border-box",
-          }}
-        />
-      )}
-
-      {saved && (
-        <p style={{ fontSize: "0.78rem", color: "var(--success, #22c55e)", marginTop: "0.4rem" }}>
-          ✓ Reaction saved
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+        placeholder="Add a note for your mentor (optional)"
+        className="mt-3 w-full resize-y rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-ink placeholder:text-ink-muted focus:border-brand-500 focus:outline-none"
+      />
+      {selected && note.trim() !== (existingAck?.note ?? "") && !isPending ? (
+        <button
+          type="button"
+          onClick={() => save(selected)}
+          className="mt-2 block text-[12.5px] font-semibold text-brand-700 hover:underline"
+        >
+          Save note
+        </button>
+      ) : null}
+      {saved && !isPending ? (
+        <p className="m-0 mt-2 text-[12.5px] font-semibold text-complete-700" role="status">
+          Shared with your mentor. You can change your reaction any time.
         </p>
-      )}
+      ) : null}
+      {error ? (
+        <p className="m-0 mt-2 text-[12.5px] font-semibold text-blocked-700" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

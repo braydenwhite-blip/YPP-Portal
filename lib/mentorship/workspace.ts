@@ -8,13 +8,23 @@ import {
   loadDevelopmentRecord,
   type DevelopmentRecord,
 } from "@/lib/development/record";
+import { loadPersonGrowthTimeline } from "@/lib/growth/queries";
+import { mentorshipRequiresChairApproval } from "@/lib/mentorship-canonical";
 import {
-  loadGrowthHierarchy,
-  loadPersonGrowthTimeline,
-  type LoadedHierarchy,
-} from "@/lib/growth/queries";
+  getCurrentCycleMonth,
+  getReflectionSoftDeadline,
+} from "@/lib/mentorship-cycle";
 
 import { hasMentorshipCommandAccess } from "./command-access";
+import {
+  buildCycleStrip,
+  defaultLifecycleHrefs,
+  deriveNextAction,
+  type CycleStripStep,
+  type LifecycleNextAction,
+  type LifecyclePov,
+  type LifecycleSnapshot,
+} from "./lifecycle";
 import {
   getLatestCoachingPlan,
   getMyReleasedCoachingPlan,
@@ -25,15 +35,18 @@ import { STAGE_META } from "./cycle-constants";
 
 /**
  * The unified Mentorship workspace loader — one person's complete development
- * journey assembled from the existing engine (no parallel data stores).
+ * journey assembled from the canonical lifecycle objects (Mentorship, GRDocument,
+ * MentorshipCheckIn, MonthlySelfReflection → MentorGoalReview → MenteeReviewAck,
+ * MentorshipActionItem). No parallel data stores: Growth-OS and advising rows
+ * belong to their own flag-gated domains and are not loaded here.
  *
  * Two access tiers:
  *   - "leadership"   → full record incl. leadership-confidential data
  *                      (`loadDevelopmentRecord`, coaching plans, review cycles).
  *   - "relationship" → the assigned mentor/chair, or the person themselves; a
  *                      scoped, relationship-safe view (conversation records,
- *                      released reviews, sessions, growth plan, opportunities)
- *                      with NO confidential internals — never calls the
+ *                      released reviews, sessions, commitments) with NO
+ *                      confidential internals — never calls the
  *                      leadership-gated loaders.
  *
  * Access is restricted to the assigned owner: admin, leadership/board, the
@@ -76,51 +89,66 @@ export type WorkspaceTimelineEvent = {
   tone: WorkspaceTone;
 };
 
-export type WorkspaceOpportunity = {
+/** An owned, due-dated follow-up commitment (MentorshipActionItem). */
+export type WorkspaceCommitment = {
   id: string;
-  source: "computed" | "recommended";
-  kind: string;
   title: string;
-  detail: string | null;
-  href: string | null;
-  reason: string | null;
-  status: string;
+  details: string | null;
+  ownerName: string | null;
+  ownedByPerson: boolean;
+  dueLabel: string | null;
+  overdue: boolean;
+  completed: boolean;
+  completedLabel: string | null;
+  /** Set when this commitment came out of a released mentor review. */
+  fromReviewLabel: string | null;
+};
+
+export type WorkspaceSession = {
+  id: string;
+  title: string;
+  scheduledISO: string;
+  scheduledLabel: string;
 };
 
 export type WorkspaceParticipant = { id: string; name: string };
-
-export type WorkspaceNextAction = { label: string; href: string; reason: string | null };
 
 export type MentorshipWorkspace = {
   person: { id: string; name: string; email: string; contextLabel: string | null };
   accessLevel: WorkspaceAccessLevel;
   isSelf: boolean;
+  /** The viewer's lifecycle point of view — drives every next-action verb. */
+  pov: LifecyclePov;
   canRecordCheckIn: boolean;
   activeMentorshipId: string | null;
   participantOptions: WorkspaceParticipant[];
+  /** The canonical lifecycle state + the one thing to do next. */
+  lifecycle: LifecycleSnapshot;
+  nextAction: LifecycleNextAction;
+  cycleStrip: CycleStripStep[];
   overview: {
     mentorName: string | null;
+    chairName: string | null;
     statusLabel: string;
     currentFocus: string | null;
-    nextAction: WorkspaceNextAction | null;
     upcomingFollowUp: { label: string; dateLabel: string } | null;
     coachingPlan: CoachingPlan | null;
     record: DevelopmentRecord | null;
   };
-  developmentPlan: {
-    hierarchy: LoadedHierarchy;
-    totalGoals: number;
+  /** G&R rollup for stats; the Goals section loads the full document itself. */
+  goals: {
+    docStatus: LifecycleSnapshot["grDocStatus"];
     activeGoals: number;
-    achievedGoals: number;
-    progressPct: number;
-    progressBasis: "actions" | "goals" | "none";
+    completedGoals: number;
     progressLabel: string;
   };
   checkIns: ConversationRecordView[];
+  commitments: WorkspaceCommitment[];
+  upcomingSessions: WorkspaceSession[];
   timeline: WorkspaceTimelineEvent[];
-  opportunities: WorkspaceOpportunity[];
   relationships: {
     primaryMentorName: string | null;
+    chairName: string | null;
     startedAtLabel: string | null;
     lastConversationLabel: string | null;
     cadenceLabel: string | null;
@@ -199,6 +227,10 @@ type WorkspaceAccess = {
     chairId: string | null;
     startDate: Date;
     status: string;
+    kickoffCompletedAt: Date | null;
+    cycleStage: string;
+    programGroup: string;
+    governanceMode: string;
     mentor: { name: string | null; email: string };
     chair: { name: string | null; email: string } | null;
   } | null;
@@ -222,6 +254,10 @@ export async function resolveWorkspaceAccess(
         chairId: true,
         startDate: true,
         status: true,
+        kickoffCompletedAt: true,
+        cycleStage: true,
+        programGroup: true,
+        governanceMode: true,
         mentor: { select: { name: true, email: true } },
         chair: { select: { name: true, email: true } },
       },
@@ -289,9 +325,11 @@ export async function loadMentorshipWorkspace(
 
   const [
     checkInRows,
-    hierarchy,
-    growthOpportunities,
-    advisingRecs,
+    grDoc,
+    actionItemRows,
+    upcomingSessionRows,
+    latestMentorshipAnyStatus,
+    latestReleasedReview,
     releasedReviews,
     sessions,
     growthTimeline,
@@ -316,21 +354,55 @@ export async function loadMentorshipWorkspace(
         author: { select: { name: true, email: true } },
       },
     }),
-    loadGrowthHierarchy(personId),
-    prisma.growthOpportunity.findMany({
-      where: { userId: personId, status: { in: ["SUGGESTED", "IN_PROGRESS"] } },
-      orderBy: { score: "desc" },
-      take: 12,
-      select: { id: true, kind: true, title: true, detail: true, href: true, reason: true, status: true },
-    }),
-    prisma.advisingRecommendation.findMany({
-      where: {
-        assignment: { studentId: personId, isActive: true },
-        status: { in: ["SUGGESTED", "IN_PROGRESS"] },
-      },
+    prisma.gRDocument.findFirst({
+      where: { userId: personId, status: { in: ["DRAFT", "PENDING_APPROVAL", "ACTIVE"] } },
       orderBy: { createdAt: "desc" },
-      take: 12,
-      select: { id: true, kind: true, title: true, detail: true, href: true, status: true },
+      select: {
+        status: true,
+        goals: {
+          where: { lifecycleStatus: { in: ["ACTIVE", "COMPLETED"] } },
+          select: { lifecycleStatus: true },
+        },
+      },
+    }),
+    prisma.mentorshipActionItem.findMany({
+      where: { menteeId: personId },
+      orderBy: [{ status: "asc" }, { dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }],
+      take: 30,
+      select: {
+        id: true,
+        title: true,
+        details: true,
+        status: true,
+        ownerId: true,
+        owner: { select: { name: true, email: true } },
+        dueAt: true,
+        completedAt: true,
+        sourceReview: { select: { cycleMonth: true } },
+      },
+    }),
+    prisma.mentorshipSession.findMany({
+      where: {
+        menteeId: personId,
+        completedAt: null,
+        cancelledAt: null,
+        scheduledAt: { gte: now },
+      },
+      orderBy: { scheduledAt: "asc" },
+      take: 3,
+      select: { id: true, title: true, scheduledAt: true },
+    }),
+    access.activeMentorship
+      ? Promise.resolve(null)
+      : prisma.mentorship.findFirst({
+          where: { menteeId: personId },
+          orderBy: { startDate: "desc" },
+          select: { status: true },
+        }),
+    prisma.mentorGoalReview.findFirst({
+      where: { menteeId: personId, releasedToMenteeAt: { not: null } },
+      orderBy: { releasedToMenteeAt: "desc" },
+      select: { id: true, reviewAck: { select: { id: true } } },
     }),
     prisma.mentorGoalReview.findMany({
       where: { menteeId: personId, releasedToMenteeAt: { not: null } },
@@ -409,6 +481,40 @@ export async function loadMentorshipWorkspace(
     };
   });
 
+  // --- Commitments (MentorshipActionItem) ---
+  const monthMs = 30 * DAY_MS;
+  const commitments: WorkspaceCommitment[] = actionItemRows
+    .filter(
+      (item) =>
+        !item.completedAt || now.getTime() - item.completedAt.getTime() <= monthMs
+    )
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      details: item.details,
+      ownerName: item.owner?.name || item.owner?.email || null,
+      ownedByPerson: item.ownerId === personId,
+      dueLabel: item.dueAt ? relativeDayLabel(item.dueAt, todayMs) : null,
+      overdue: !item.completedAt && !!item.dueAt && utcMidnight(item.dueAt) < todayMs,
+      completed: !!item.completedAt,
+      completedLabel: item.completedAt ? dateLabel(item.completedAt) : null,
+      fromReviewLabel: item.sourceReview
+        ? `From your ${item.sourceReview.cycleMonth.toLocaleDateString("en-US", {
+            month: "long",
+            timeZone: "UTC",
+          })} review`
+        : null,
+    }));
+  const overdueActionItems = commitments.filter((c) => c.overdue).length;
+  const openActionItems = commitments.filter((c) => !c.completed).length;
+
+  const upcomingSessions: WorkspaceSession[] = upcomingSessionRows.map((s) => ({
+    id: s.id,
+    title: s.title,
+    scheduledISO: s.scheduledAt.toISOString(),
+    scheduledLabel: `${dateLabel(s.scheduledAt)} · ${relativeDayLabel(s.scheduledAt, todayMs)}`,
+  }));
+
   // --- Timeline ---
   const timeline: WorkspaceTimelineEvent[] = [];
   if (isLeadership && record) {
@@ -469,8 +575,6 @@ export async function loadMentorshipWorkspace(
   // raw emitter text) so no future emitter can leak confidential strings.
   for (const event of growthTimeline.events) {
     if (event.sourceType === "mentorship-checkin") continue; // owned by the derived path
-    // Scoped tier: only known, benign milestone types, rendered from the registry's
-    // canonical title (never raw emitter text) so no future emitter leaks strings.
     let label = event.title;
     if (!isLeadership) {
       if (!isGrowthEventType(event.type)) continue;
@@ -489,68 +593,22 @@ export async function loadMentorshipWorkspace(
   }
   timeline.sort((a, b) => b.atISO.localeCompare(a.atISO));
 
-  // --- Development plan rollup ---
-  let totalGoals = 0;
-  let activeGoals = 0;
-  let achievedGoals = 0;
-  let totalActions = 0;
-  let doneActions = 0;
-  const countGoal = (goal: LoadedHierarchy["looseGoals"][number]) => {
-    totalGoals += 1;
-    if (goal.status === "ACHIEVED") achievedGoals += 1;
-    else if (goal.status === "ACTIVE") activeGoals += 1;
-    const actions = [
-      ...goal.directActions,
-      ...goal.milestones.flatMap((m) => m.actions),
-    ];
-    for (const action of actions) {
-      totalActions += 1;
-      if (action.completedAt != null || action.status === "DONE") doneActions += 1;
-    }
-  };
-  for (const vision of hierarchy.visions) vision.goals.forEach(countGoal);
-  hierarchy.looseGoals.forEach(countGoal);
-
-  let progressBasis: "actions" | "goals" | "none";
-  let progressPct: number;
-  let progressLabel: string;
-  if (totalActions > 0) {
-    progressBasis = "actions";
-    progressPct = Math.round((doneActions / totalActions) * 100);
-    progressLabel = `${doneActions} of ${totalActions} actions complete`;
-  } else if (totalGoals > 0) {
-    progressBasis = "goals";
-    progressPct = Math.round((achievedGoals / totalGoals) * 100);
-    progressLabel = `${achievedGoals} of ${totalGoals} goals achieved`;
-  } else {
-    progressBasis = "none";
-    progressPct = 0;
-    progressLabel = "No plan yet";
-  }
-
-  // --- Opportunities (computed + human-recommended) ---
-  const opportunities: WorkspaceOpportunity[] = [
-    ...growthOpportunities.map((o) => ({
-      id: o.id,
-      source: "computed" as const,
-      kind: o.kind,
-      title: o.title,
-      detail: o.detail,
-      href: o.href,
-      reason: o.reason,
-      status: o.status,
-    })),
-    ...advisingRecs.map((r) => ({
-      id: r.id,
-      source: "recommended" as const,
-      kind: r.kind,
-      title: r.title,
-      detail: r.detail,
-      href: r.href,
-      reason: null,
-      status: r.status,
-    })),
-  ];
+  // --- G&R rollup (the only development model) ---
+  const grDocStatus: LifecycleSnapshot["grDocStatus"] = grDoc
+    ? (grDoc.status as LifecycleSnapshot["grDocStatus"])
+    : "NONE";
+  const activeGoals = grDoc
+    ? grDoc.goals.filter((g) => g.lifecycleStatus === "ACTIVE").length
+    : 0;
+  const completedGoals = grDoc
+    ? grDoc.goals.filter((g) => g.lifecycleStatus === "COMPLETED").length
+    : 0;
+  const progressLabel =
+    grDocStatus === "ACTIVE"
+      ? `${activeGoals} active goal${activeGoals === 1 ? "" : "s"} · ${completedGoals} completed`
+      : grDocStatus === "NONE"
+        ? "No goals yet"
+        : "Goals being prepared";
 
   // --- Relationships summary ---
   const lastConversation = checkInRows[0]?.occurredAt ?? null;
@@ -584,37 +642,54 @@ export async function loadMentorshipWorkspace(
     stageLabel: STAGE_META[p.stage]?.label ?? p.stage,
   }));
 
+  // --- The canonical lifecycle snapshot + next action ---
+  const { cycleMonth, cycleLabel } = getCurrentCycleMonth(now);
+  const reflectionOverdue =
+    access.activeMentorship?.cycleStage === "REFLECTION_DUE" &&
+    now > getReflectionSoftDeadline(cycleMonth);
+
+  const lifecycle: LifecycleSnapshot = {
+    hasActiveMentorship: !!access.activeMentorship,
+    mentorshipStatus: access.activeMentorship?.status ?? latestMentorshipAnyStatus?.status ?? null,
+    kickoffComplete: !!access.activeMentorship?.kickoffCompletedAt,
+    cycleStage: (access.activeMentorship?.cycleStage ?? null) as LifecycleSnapshot["cycleStage"],
+    mentorName:
+      access.activeMentorship?.mentor.name ||
+      access.activeMentorship?.mentor.email ||
+      null,
+    grDocStatus,
+    cycleLabel,
+    reflectionOverdue: !!reflectionOverdue,
+    releasedReviewPendingAck: !!latestReleasedReview && !latestReleasedReview.reviewAck,
+    requiresChairApproval: access.activeMentorship
+      ? mentorshipRequiresChairApproval({
+          governanceMode: access.activeMentorship.governanceMode as never,
+          programGroup: access.activeMentorship.programGroup as never,
+        })
+      : true,
+    overdueFollowUpLabel:
+      followUpIsOverdue && latestWithFollowUp?.followUpDate
+        ? `Follow-up was due ${dateLabel(latestWithFollowUp.followUpDate)}`
+        : null,
+    openActionItems,
+    overdueActionItems,
+    lastCheckInLabel: lastConversation ? dateLabel(lastConversation) : null,
+  };
+
+  const pov: LifecyclePov = access.isSelf ? "me" : isLeadership ? "leadership" : "mentor";
+  const personName = person.name || person.email;
+  const nextAction = deriveNextAction(
+    lifecycle,
+    pov,
+    defaultLifecycleHrefs(personId),
+    personName
+  );
+  const cycleStrip = buildCycleStrip(lifecycle, pov, personName);
+
   // --- Overview ---
   const currentFocus =
     firstLine(coachingPlan?.planOfAction ?? null) ??
     firstLine(checkInRows[0]?.discussion ?? checkInRows[0]?.commitments ?? null);
-
-  const workspaceBase = `/mentorship/people/${personId}`;
-  const toSectionHref = (href: string): string =>
-    href === workspaceBase ? `${workspaceBase}?section=check-ins` : href;
-
-  let nextAction: WorkspaceNextAction | null = null;
-  if (isLeadership && record) {
-    nextAction = {
-      label: record.nextStep.label,
-      href: toSectionHref(record.nextStep.href),
-      reason: record.nextStep.reason ?? null,
-    };
-  } else if (followUpIsOverdue && latestWithFollowUp?.followUpDate) {
-    nextAction = {
-      label: "Follow up now",
-      href: `${workspaceBase}?section=check-ins`,
-      reason: `Follow-up was due ${dateLabel(latestWithFollowUp.followUpDate)}`,
-    };
-  } else if (access.canRecordCheckIn) {
-    nextAction = {
-      label: "Log a check-in",
-      href: `${workspaceBase}?section=check-ins`,
-      reason: lastConversation
-        ? `Last conversation ${dateLabel(lastConversation)}`
-        : "No check-ins logged yet",
-    };
-  }
 
   const roleLabel = ROLE_LABELS[person.primaryRole] ?? person.primaryRole;
   const contextLabel = person.chapter?.name
@@ -623,7 +698,7 @@ export async function loadMentorshipWorkspace(
 
   const participantOptions: WorkspaceParticipant[] = [];
   if (access.activeMentorship) {
-    participantOptions.push({ id: personId, name: person.name || person.email });
+    participantOptions.push({ id: personId, name: personName });
     participantOptions.push({
       id: access.activeMentorship.mentorId,
       name: access.activeMentorship.mentor.name || access.activeMentorship.mentor.email,
@@ -639,45 +714,48 @@ export async function loadMentorshipWorkspace(
   return {
     person: {
       id: person.id,
-      name: person.name || person.email,
+      name: personName,
       email: person.email,
       contextLabel,
     },
     accessLevel: access.level,
     isSelf: access.isSelf,
+    pov,
     canRecordCheckIn: access.canRecordCheckIn,
     activeMentorshipId: access.activeMentorship?.id ?? null,
     participantOptions,
+    lifecycle,
+    nextAction,
+    cycleStrip,
     overview: {
-      mentorName:
-        access.activeMentorship?.mentor.name ||
-        access.activeMentorship?.mentor.email ||
+      mentorName: lifecycle.mentorName,
+      chairName:
+        access.activeMentorship?.chair?.name ||
+        access.activeMentorship?.chair?.email ||
         null,
       statusLabel: access.activeMentorship ? "Active mentorship" : "No active mentorship",
       currentFocus,
-      nextAction,
       upcomingFollowUp: nextFollowUp
         ? { label: "Upcoming follow-up", dateLabel: dateLabel(nextFollowUp) }
         : null,
       coachingPlan,
       record,
     },
-    developmentPlan: {
-      hierarchy,
-      totalGoals,
+    goals: {
+      docStatus: grDocStatus,
       activeGoals,
-      achievedGoals,
-      progressPct,
-      progressBasis,
+      completedGoals,
       progressLabel,
     },
     checkIns,
+    commitments,
+    upcomingSessions,
     timeline,
-    opportunities,
     relationships: {
-      primaryMentorName:
-        access.activeMentorship?.mentor.name ||
-        access.activeMentorship?.mentor.email ||
+      primaryMentorName: lifecycle.mentorName,
+      chairName:
+        access.activeMentorship?.chair?.name ||
+        access.activeMentorship?.chair?.email ||
         null,
       startedAtLabel: access.activeMentorship
         ? dateLabel(access.activeMentorship.startDate)

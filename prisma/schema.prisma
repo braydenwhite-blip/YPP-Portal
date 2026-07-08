@@ -3283,6 +3283,10 @@ model MentorshipActionItem {
   // ActionItem links back via relatedEntityType:"MENTORSHIP", and this side
   // tolerates a stale id (the read path treats a missing target as unlinked).
   linkedActionId String?
+  /// Follow-up spawned from a released mentor review — links the outcome back
+  /// to the review, so "what came out of this review" is queryable.
+  sourceReviewId String?
+  sourceReview   MentorGoalReview?          @relation("ActionItemsFromReview", fields: [sourceReviewId], references: [id], onDelete: SetNull)
   createdAt      DateTime                   @default(now())
   updatedAt      DateTime                   @updatedAt
 
@@ -3291,6 +3295,7 @@ model MentorshipActionItem {
   @@index([ownerId, status])
   @@index([sessionId])
   @@index([linkedActionId])
+  @@index([sourceReviewId])
 }
 
 // ============================================
@@ -10086,6 +10091,8 @@ model MentorGoalReview {
   spawnedGRGoals GRDocumentGoal[]               @relation("GRGoalsSpawnedByReview")
   reviewAck      MenteeReviewAck?
   peopleCheckIns CheckIn[]                      @relation("CheckInMentorGoalReview")
+  /// Follow-up commitments created from this review's outcomes.
+  followUpActionItems MentorshipActionItem[]    @relation("ActionItemsFromReview")
 
   /// Draft next-month goal proposals persisted between form saves. Cleared on submit.
   nextMonthGoalDraftsJson Json?
