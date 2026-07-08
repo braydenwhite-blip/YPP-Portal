@@ -122,6 +122,6 @@ export async function submitSessionReflection(input: unknown): Promise<Reflectio
 
   revalidatePath(`/instructor/classes/${data.offeringId}`);
   revalidatePath("/instructor/classes");
-  revalidatePath("/chapter/operating");
+  revalidatePath("/chapter");
   return { ok: true };
 }

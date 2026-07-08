@@ -77,6 +77,10 @@ export type ChapterOSModel = {
   curriculum: ChapterOperatingSystem["curriculum"];
   launch: ChapterOperatingSystem["launch"];
   blockers: ChapterOperatingSystem["blockers"];
+  // Re-exposed so the five-lane adapters (lib/chapters/lanes.ts) can build
+  // structured lane records (owner/status/next-step/related) from this single
+  // load — no extra DB reads. Same evidence rows the rooms already render.
+  deliberables: ChapterOperatingSystem["deliberables"];
 };
 
 const ACTIVE_ENROLLMENT: ClassEnrollmentStatus[] = ["ENROLLED", "COMPLETED"];
@@ -307,6 +311,7 @@ export async function loadChapterOS(
     curriculum: os.curriculum,
     launch: os.launch,
     blockers: os.blockers,
+    deliberables: os.deliberables,
   };
 }
 

@@ -98,7 +98,7 @@ function revalidateAttendanceSurfaces(offeringId: string): void {
   revalidatePath(`/instructor/classes`);
   revalidatePath(`/curriculum/${offeringId}`);
   revalidatePath(`/admin/classes/${offeringId}`);
-  revalidatePath("/chapter/operating");
+  revalidatePath("/chapter");
 }
 
 /** Submit the full roster for a session in one call. Idempotent. */

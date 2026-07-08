@@ -180,7 +180,7 @@ export function buildPlaybookPacingItem(
     why: playbook.recommendedNextAction,
     resolvesWhen: "Complete the overdue playbook steps for your week.",
     primaryActionLabel: "Open operating system",
-    primaryActionHref: "/chapter/operating",
+    primaryActionHref: "/chapter",
     playbookWeekRelevance: playbook.currentWindow.weeks[0],
     currentWeek: facts.weekNumber,
     sourceData: {

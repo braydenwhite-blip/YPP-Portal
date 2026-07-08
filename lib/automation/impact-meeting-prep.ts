@@ -93,7 +93,7 @@ export function buildImpactMeetingItems(
           .join("; ")}.`,
         resolvesWhen: "Move each metric to its target, or bring a plan to the meeting.",
         primaryActionLabel: "Open operating system",
-        primaryActionHref: "/chapter/operating",
+        primaryActionHref: "/chapter",
         playbookWeekRelevance: week,
         currentWeek: week,
         sourceData: { missing: impact.missingNumbers },

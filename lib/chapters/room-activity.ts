@@ -199,7 +199,7 @@ export function snapshotActivity(s: SnapshotSource): RoomActivityItem {
     roomKey: "chapter_growth",
     title: `Weekly KPI snapshot saved (week of ${shortDate(s.weekStart)})`,
     occurredAt: s.createdAt,
-    href: "/chapter/operating",
+    href: "/chapter",
   };
 }
 

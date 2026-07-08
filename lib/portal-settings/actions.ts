@@ -36,6 +36,6 @@ export async function updatePortalSettings(input: unknown): Promise<UpdatePortal
   }
 
   revalidatePath("/admin/settings");
-  revalidatePath("/chapter/operating");
+  revalidatePath("/chapter");
   return { ok: true };
 }

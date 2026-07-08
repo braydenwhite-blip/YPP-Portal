@@ -157,7 +157,7 @@ export async function submitImpactEntry(input: unknown) {
     try {
       await requireChapterManager(chapterId);
       await captureChapterKpiSnapshot(chapterId, entry.weekStart);
-      revalidatePath("/chapter/operating");
+      revalidatePath("/chapter");
     } catch {
       // not a chapter the submitter manages, or a transient snapshot error
     }

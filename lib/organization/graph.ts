@@ -69,7 +69,7 @@ function chapterNode(c: ChapterInput): OrgNode {
     entityId: c.id,
     label: c.name,
     sublabel: c.location ?? undefined,
-    href: "/chapter/operating",
+    href: "/chapter",
     status: c.lifecycleLabel,
     health: c.health ?? chapterNodeHealth(c.lifecycleStatus),
     purpose:

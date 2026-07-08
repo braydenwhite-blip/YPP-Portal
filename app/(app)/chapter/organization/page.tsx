@@ -60,8 +60,8 @@ export default async function ChapterOrganizationPage() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone={model.chapter.health.tone}>{model.chapter.health.label}</StatusBadge>
-            <ButtonLink href="/chapter/operating" variant="secondary" size="sm">
-              Operating rooms
+            <ButtonLink href="/chapter" variant="secondary" size="sm">
+              Chapter Operating System
             </ButtonLink>
           </div>
         }
