@@ -364,7 +364,7 @@ function buildLanes(input: ChapterImpactBriefInput): BriefLaneUpdate[] {
         m.classesTotal === 0 ? "Create the first class" : "Classes on track"
       ),
       attentionCount: laneBlockerCount("classes"),
-      href: "/chapter/operating",
+      href: "/chapter",
     },
   ];
 }
@@ -406,7 +406,7 @@ function buildMissingData(input: ChapterImpactBriefInput): MissingDataItem[] {
       key: "attendance",
       label: "No attendance recorded this week",
       action: "Record attendance for this week's sessions",
-      href: "/chapter/operating",
+      href: "/chapter",
     });
   }
 
@@ -508,7 +508,7 @@ function buildCommitments(
   for (const a of openWork.overdue.slice(0, 3)) {
     push({ text: `Clear overdue: ${a.title}`, source: "overdue_action", href: `/actions/${a.id}` });
   }
-  push({ text: input.growth.nextAction, source: "growth", href: "/chapter/operating" });
+  push({ text: input.growth.nextAction, source: "growth", href: "/chapter?lane=meetings" });
   const topBlocker = [...input.blockers].sort(
     (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]
   )[0];

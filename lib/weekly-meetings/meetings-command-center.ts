@@ -227,7 +227,7 @@ export async function loadMeetingsCommandCenter(viewer: SessionUser): Promise<Me
 
   return {
     chapterName: chapterOs?.chapter.name ?? null,
-    chapterHref: chapterId ? `/chapter/operating` : null,
+    chapterHref: chapterId ? `/chapter` : null,
     impact: chapterOs?.impact ?? null,
     partnerPipeline: pipeline
       ? {

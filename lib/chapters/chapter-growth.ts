@@ -450,7 +450,7 @@ export function summarizeChapterGrowth(input: ChapterGrowthInput): ChapterGrowth
         title: `${t.label} behind playbook target (${have}/${t.target})`,
         detail: t.note,
         severity: have < t.target * 0.5 ? "warning" : "info",
-        href: "/chapter/operating",
+        href: "/chapter?lane=meetings",
       });
     }
   }

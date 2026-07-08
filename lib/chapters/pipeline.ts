@@ -127,6 +127,8 @@ export type PartnerRecord = {
   lastContactedAt: Date | null;
   nextFollowUpAt: Date | null;
   hasRelationshipLead: boolean;
+  /** Resolved name of the relationship lead, when known — for lane owner chips. */
+  relationshipLeadName?: string | null;
   // Confirmed-partner logistics, derived in the loader from linked offerings +
   // signed agreements (the playbook's "lock it in" list).
   confirmedRoom: boolean;
@@ -245,6 +247,8 @@ export type PartnerEvidenceRow = {
   /** The single most useful next action, derived from stage + logistics. */
   nextStep: string;
   status: EvidenceStatus;
+  /** Resolved relationship-lead name, when known — the lane "owner" chip. */
+  ownerName: string | null;
 };
 
 /** The stage-appropriate next action for a partner (never invented data). */
@@ -312,6 +316,7 @@ export function partnerEvidenceRow(
     lastContact: relativeAgo(p.lastContactedAt, now),
     nextStep: partnerNextStep(p),
     status: partnerEvidenceStatus(p, now, t),
+    ownerName: p.relationshipLeadName ?? null,
   };
 }
 

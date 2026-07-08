@@ -1771,11 +1771,11 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/chapter",
-    title: "Chapter Home",
+    title: "Chapter Operating System",
     content: {
-      purpose: "Your one place to run your chapter — health, what needs you, launch checklist, meetings, members, programs, actions, and requests for help.",
-      firstStep: "Read the status band and the highlighted next step, then clear anything under “Needs your attention” or work the launch checklist.",
-      nextStep: "Completing a checklist item or an action updates your chapter's status and what national leadership sees automatically."
+      purpose: "Your one place to run your chapter — five lanes: Partners, Students, Instructors, Actions, and Meetings, plus this week's numbers and (while launching) your launch checklist.",
+      firstStep: "Start on whichever lane has open needs, resolve or track them, then move to the next lane.",
+      nextStep: "Tracking a need creates a real action; completing it updates what national leadership sees automatically."
     }
   },
   {
@@ -4939,15 +4939,6 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
-    pattern: "/chapter/operating",
-    title: "Chapter Operating",
-    content: {
-      purpose: "This page brings together the main operating tools and details for running your chapter.",
-      firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
-      nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
-    }
-  },
-  {
     pattern: "/chapter/organization",
     title: "Chapter Organization",
     content: {
@@ -4972,6 +4963,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page brings together the main tools and details for the chapter workspace.",
       firstStep: "Start with the top section or first card so you can understand what is available before opening a deeper workspace.",
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
+    }
+  },
+  {
+    pattern: "/chapter/operating",
+    title: "Chapter Operating",
+    content: {
+      purpose: "This page has moved — it now redirects to the Chapter Operating System at /chapter.",
+      firstStep: "You'll land on /chapter automatically.",
+      nextStep: "Update any bookmarks to /chapter directly."
     }
   },
   {

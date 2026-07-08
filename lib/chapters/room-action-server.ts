@@ -37,7 +37,7 @@ export async function saveChapterKpiSnapshot(input: unknown): Promise<SaveSnapsh
   const result = await captureChapterKpiSnapshot(chapterId, weekStartFor(new Date()));
   if (!result.ok) return result;
 
-  revalidatePath("/chapter/operating");
+  revalidatePath("/chapter");
   return { ok: true, weekStartISO: result.weekStartISO };
 }
 
@@ -85,7 +85,7 @@ export async function logPartnerFollowUp(input: unknown): Promise<LogFollowUpRes
     return { ok: false, error: "Could not log follow-up" };
   }
 
-  revalidatePath("/chapter/operating");
+  revalidatePath("/chapter");
   revalidatePath(`/admin/partners/${partnerId}`);
   revalidatePath("/partners");
   return { ok: true };

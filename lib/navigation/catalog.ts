@@ -18,6 +18,10 @@ const APPLICANT_ROLES_EXCLUDING_APPLICANT: NavRole[] = ["STUDENT", "INSTRUCTOR",
 const INTERVIEW_ROLES: NavRole[] = ["INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"];
 const ADMIN_ONLY: NavRole[] = ["ADMIN"];
 const HIRING_CHAIR_ADMIN_ROLES: NavRole[] = ["ADMIN", "HIRING_CHAIR"];
+// Matches the "officer" tier used by requireOfficer() / OFFICER_ROLES page
+// guards (lib/authorization.ts, app/(app)/workflows/*): the roles that can
+// actually run and view workflow instances, not just admins.
+const OFFICER_ROLES: NavRole[] = ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"];
 const PARENT_ONLY: NavRole[] = ["PARENT"];
 const STUDENT_ONLY: NavRole[] = ["STUDENT"];
 const CHAPTER_PRESIDENT_ONLY: NavRole[] = ["CHAPTER_PRESIDENT"];
@@ -1167,11 +1171,11 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/chapter",
-      label: "Chapter Home",
+      label: "Chapter Operating System",
       icon: "🧭",
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription:
-        "Run your chapter: health, what needs you, launch checklist, meetings, members, and programs.",
+        "Run your chapter in five lanes: Partners, Students, Instructors, Actions, and Meetings — plus this week's numbers and your launch checklist.",
       dashboardPriority: 1,
       searchAliases: [
         "Dashboard",
@@ -1181,17 +1185,6 @@ export const NAV_CATALOG: NavLink[] = [
         "Workspace",
         "Launch checklist",
         "Command Center",
-      ],
-    },
-    {
-      href: "/chapter/operating",
-      label: "Operating System",
-      icon: "🛠",
-      roles: CHAPTER_PRESIDENT_ONLY,
-      dashboardDescription:
-        "Run Weeks 1–10: partners, instructors, curriculum, classes, launch readiness, and impact-meeting prep.",
-      dashboardPriority: 2,
-      searchAliases: [
         "Operating System",
         "Chapter OS",
         "Pipeline",
@@ -1216,24 +1209,6 @@ export const NAV_CATALOG: NavLink[] = [
         "Meeting prep",
         "What changed this week",
         "Chapter report",
-      ],
-    },
-    {
-      href: "/chapter/organization",
-      label: "Organization Graph",
-      icon: "🕸",
-      roles: CHAPTER_PRESIDENT_ONLY,
-      dashboardDescription:
-        "See your whole chapter as one connected model — every partner, class, instructor, and student, with their dependencies and recommended next moves.",
-      dashboardPriority: 3,
-      searchAliases: [
-        "Organization Graph",
-        "Org graph",
-        "Entity 360",
-        "Relationships",
-        "Dependencies",
-        "Connected chapter",
-        "Digital twin",
       ],
     },
     {
@@ -1805,7 +1780,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/workflows",
       label: "Workflows",
       icon: "⚙️",
-      roles: ["ADMIN", "STAFF"],
+      roles: OFFICER_ROLES,
       searchAliases: ["Workflow Engine", "Processes", "MissionOS", "Workflow Runner"],
       dashboardDescription: "Run any business process as a reusable workflow — hiring, onboarding, launches, and more.",
       coreEligible: false,

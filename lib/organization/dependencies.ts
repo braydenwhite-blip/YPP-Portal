@@ -132,7 +132,7 @@ export function instructorDependencies(classes: ClassInput[]): NodeDependency[] 
       blocking: true,
       severity: "warning",
       detail: intervention.map((c) => c.title).join(", "),
-      href: "/chapter/operating",
+      href: "/chapter",
     });
   }
   return deps;

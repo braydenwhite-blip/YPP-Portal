@@ -2,15 +2,14 @@
 //
 // The parallel Partner Growth Automation pass owns the partner CRM UI, so this
 // pass does NOT render partner pages. Instead it exposes the partner slice of
-// the automation brain as data the partner pass can drop into its own surfaces
-// (alongside the reusable `WorkflowAutomationCard` component). Read-only.
+// the automation brain as data the partner pass can drop into its own surfaces.
+// Read-only.
 
 import "server-only";
 
-import type { AutomationItem } from "@/lib/automation/types";
+import { AUTOMATION_TYPE_META, type AutomationItem } from "@/lib/automation/types";
 import type { ChapterEscalation } from "@/lib/automation/escalation";
 import { loadChapterAutomations } from "@/lib/automation/build-chapter-automation";
-import { recipeForType } from "@/lib/automation/workflows";
 
 export type ChapterPartnerAutomation = {
   chapterId: string;
@@ -35,6 +34,6 @@ export async function loadChapterPartnerAutomation(
     chapterId: automation.chapterId,
     chapterName: automation.chapterName,
     items: automation.byWorkflow.PARTNERS,
-    escalations: automation.escalations.filter((e) => recipeForType(e.type)?.workflow === "PARTNERS"),
+    escalations: automation.escalations.filter((e) => AUTOMATION_TYPE_META[e.type].workflow === "PARTNERS"),
   };
 }

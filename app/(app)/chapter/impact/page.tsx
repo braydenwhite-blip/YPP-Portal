@@ -73,8 +73,8 @@ export default async function ChapterImpactPage({
               {brief.readiness.label}
             </StatusBadge>
             <PrintBriefButton />
-            <ButtonLink href="/chapter/operating" variant="secondary" size="sm">
-              Operating System
+            <ButtonLink href="/chapter?lane=meetings" variant="secondary" size="sm">
+              Chapter Operating System
             </ButtonLink>
           </div>
         }

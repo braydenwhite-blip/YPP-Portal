@@ -56,7 +56,7 @@ export async function trackChapterBlocker(input: unknown): Promise<TrackBlockerR
     select: { id: true },
   });
   if (existing) {
-    revalidatePath("/chapter/operating");
+    revalidatePath("/chapter");
     return { ok: true, id: existing.id, existing: true };
   }
 
@@ -93,7 +93,7 @@ export async function trackChapterBlocker(input: unknown): Promise<TrackBlockerR
     select: { id: true },
   });
 
-  revalidatePath("/chapter/operating");
+  revalidatePath("/chapter");
   revalidatePath("/actions");
   return { ok: true, id: created.id, existing: false };
 }

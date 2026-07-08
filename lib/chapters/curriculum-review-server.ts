@@ -183,7 +183,7 @@ async function runCurriculumTransition(
     return { ok: false, error: "Could not save the curriculum review" };
   }
 
-  revalidatePath("/chapter/operating");
+  revalidatePath("/chapter");
   revalidatePath("/admin/curricula");
   revalidatePath("/instructor/workspace");
   return { ok: true, stage: newStage };

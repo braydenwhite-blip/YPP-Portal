@@ -36,13 +36,23 @@ test("@smoke the Become a Chapter President opportunity surfaces with live stats
   await expect(page.getByText("Active chapters", { exact: true })).toBeVisible();
 });
 
-test("@smoke a chapter president can open their chapter home", async ({ page }) => {
+test("@smoke a chapter president can open their chapter operating system", async ({ page }) => {
   await loginAs(page, "chapterLead");
   await page.goto("/chapter");
 
-  await expect(page.getByRole("heading", { name: /Your Chapter Home/ })).toBeVisible();
-  // The legacy /chapter/workspace surface now consolidates into the home.
+  await expect(page.getByRole("heading", { name: /Chapter Operating System/ })).toBeVisible();
+  // The five lanes are all reachable as tabs on the one page.
+  await expect(page.getByRole("link", { name: "Partners" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Students" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Instructors" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Actions" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Meetings" })).toBeVisible();
+
+  // The legacy /chapter/workspace and /chapter/operating surfaces now
+  // consolidate into this single page.
   await page.goto("/chapter/workspace");
+  await expect(page).toHaveURL(/\/chapter$/);
+  await page.goto("/chapter/operating");
   await expect(page).toHaveURL(/\/chapter$/);
 });
 

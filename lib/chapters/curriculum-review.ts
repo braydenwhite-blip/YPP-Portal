@@ -384,6 +384,8 @@ export type CurriculumEvidenceRow = {
   actor: string;
   owner: string;
   status: CurriculumEvidenceStatus;
+  /** The raw two-stage playbook status — drives which one-click review action (if any) applies. */
+  playbookStatus: CurriculumPlaybookStatus;
 };
 
 /** Map playbook status → the table's three-way health. */
@@ -409,6 +411,7 @@ export function curriculumEvidenceRow(c: CurriculumRecord): CurriculumEvidenceRo
     actor: CURRICULUM_ACTOR_LABEL[CURRICULUM_STAGE_ACTOR[status]],
     owner: c.instructorName && c.instructorName.trim() ? c.instructorName.trim() : "Unassigned",
     status: curriculumEvidenceStatus(c),
+    playbookStatus: status,
   };
 }
 
