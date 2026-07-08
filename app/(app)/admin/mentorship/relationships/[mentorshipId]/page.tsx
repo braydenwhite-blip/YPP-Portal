@@ -1,205 +1,27 @@
 import { notFound, redirect } from "next/navigation";
 
-import { AskAboutThis } from "@/components/help-agent/ask-about-this";
-import { RelationshipWorkspace } from "@/components/mentorship/relationship-workspace/relationship-workspace";
-import { EntityWorkflowCard } from "@/components/workflow-engine/entity-workflow-card";
-import { getSession } from "@/lib/auth-supabase";
-import {
-  reassignProgramMentor,
-  setProgramMentorshipStatus,
-} from "@/lib/mentorship-program-actions";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = {
   title: "Mentorship relationship — Admin",
 };
 
-type EligibleMentor = {
-  id: string;
-  name: string | null;
-  email: string;
-  primaryRole: string;
-};
-
-function AdminRelationshipControls({
-  mentorshipId,
-  status,
-  eligibleMentors,
-}: {
-  mentorshipId: string;
-  status: string;
-  eligibleMentors: EligibleMentor[];
+/**
+ * This admin-only relationship view is now the unified workspace: the same
+ * reassign/status controls live in the leadership-only "Manage relationship"
+ * disclosure on the mentee's Overview section.
+ * See components/mentorship/workspace/manage-relationship.tsx.
+ */
+export default async function AdminMentorshipRelationshipDetailPage(props: {
+  params: Promise<{ mentorshipId: string }>;
 }) {
-  const statusToneClass =
-    status === "ACTIVE"
-      ? "pill-success"
-      : status === "PAUSED"
-        ? "pill-pending"
-        : "pill-declined";
-
-  return (
-    <div className="grid two">
-      <div className="card">
-        <div className="section-title" style={{ marginBottom: 8 }}>
-          Reassign mentor
-        </div>
-        <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 13 }}>
-          Ends this relationship and creates a fresh one with the new mentor.
-          The change is recorded in the audit log.
-        </p>
-        <form action={reassignProgramMentor} className="form-grid">
-          <input type="hidden" name="mentorshipId" value={mentorshipId} />
-          <div className="form-row">
-            <label>New mentor</label>
-            <select name="newMentorId" className="input" required>
-              <option value="">Select mentor...</option>
-              {eligibleMentors.map((mentor) => (
-                <option key={mentor.id} value={mentor.id}>
-                  {mentor.name ?? mentor.email} ({mentor.primaryRole})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-row">
-            <label>Reason (optional)</label>
-            <textarea
-              name="reason"
-              className="input"
-              rows={3}
-              placeholder="Why is this mentee being reassigned?"
-            />
-          </div>
-          <button
-            type="submit"
-            className="button primary small"
-            disabled={status !== "ACTIVE"}
-          >
-            Reassign mentor
-          </button>
-        </form>
-      </div>
-
-      <div className="card">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-            marginBottom: 8,
-          }}
-        >
-          <div className="section-title" style={{ margin: 0 }}>
-            Relationship status
-          </div>
-          <span className={`pill pill-small ${statusToneClass}`}>
-            Currently {status}
-          </span>
-        </div>
-        <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 13 }}>
-          Pause when the relationship is on hold, mark complete when it closes,
-          or reactivate a paused relationship.
-        </p>
-        <form action={setProgramMentorshipStatus} className="form-grid">
-          <input type="hidden" name="mentorshipId" value={mentorshipId} />
-          <div className="form-row">
-            <label>New status</label>
-            <select name="status" className="input" defaultValue={status}>
-              <option value="ACTIVE">Active</option>
-              <option value="PAUSED">Paused</option>
-              <option value="COMPLETE">Complete</option>
-            </select>
-          </div>
-          <div className="form-row">
-            <label>Note (optional)</label>
-            <textarea
-              name="reason"
-              className="input"
-              rows={2}
-              placeholder="Internal note for the audit log."
-            />
-          </div>
-          <button type="submit" className="button secondary small">
-            Update status
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-export default async function AdminMentorshipRelationshipDetailPage(
-  props: {
-    params: Promise<{ mentorshipId: string }>;
-  }
-) {
-  const params = await props.params;
-  const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) {
-    redirect("/");
-  }
+  const { mentorshipId } = await props.params;
 
   const mentorship = await prisma.mentorship.findUnique({
-    where: { id: params.mentorshipId },
-    select: {
-      id: true,
-      mentorId: true,
-      menteeId: true,
-      status: true,
-    },
+    where: { id: mentorshipId },
+    select: { menteeId: true },
   });
+  if (!mentorship) notFound();
 
-  if (!mentorship) {
-    notFound();
-  }
-
-  const excludedUserIds = [mentorship.mentorId, mentorship.menteeId].filter(
-    (id): id is string => Boolean(id)
-  );
-  const eligibleMentors = await prisma.user.findMany({
-    where: {
-      OR: [
-        { roles: { some: { role: "MENTOR" } } },
-        { roles: { some: { role: "ADMIN" } } },
-        { primaryRole: "INSTRUCTOR" },
-        { primaryRole: "CHAPTER_PRESIDENT" },
-      ],
-      NOT: { id: { in: excludedUserIds } },
-    },
-    select: { id: true, name: true, email: true, primaryRole: true },
-    orderBy: { name: "asc" },
-  });
-
-  return (
-    <RelationshipWorkspace
-      menteeId={mentorship.menteeId}
-      backHref="/admin/mentorship"
-      backLabel="Admin Mentorship"
-      badge="Admin · Mentorship relationship"
-      subtitle="Shared relationship workspace with admin intervention controls, check-ins, goals, recommendations, and next steps."
-      adminControls={
-        <div className="grid gap-4">
-          <div className="flex justify-end">
-            <AskAboutThis entityType="mentorship" entityId={mentorship.id} align="right" />
-          </div>
-          <AdminRelationshipControls
-            mentorshipId={mentorship.id}
-            status={mentorship.status}
-            eligibleMentors={eligibleMentors}
-          />
-          {/* Mentorship workflow — the active playbook (if any) running for
-              this relationship, with stage, health reason, and next step, so
-              admins reviewing this relationship see workflow status alongside
-              the intervention controls above, not buried in the collapsible
-              workspace body below. */}
-          <EntityWorkflowCard
-            entityType="MENTORSHIP"
-            entityId={mentorship.id}
-            title="Mentorship workflow"
-          />
-        </div>
-      }
-    />
-  );
+  redirect(`/mentorship/people/${mentorship.menteeId}`);
 }

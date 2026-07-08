@@ -109,6 +109,17 @@ export function isLegacyActionCenterNavEnabled(): boolean {
 }
 
 /**
+ * Admin management for the deprecated Goal/GoalTemplate/MonthlyGoalReview
+ * stack (the pre-G&R goals system). Instructors and officers moved to the
+ * Mentorship hub's Goals section (G&R); this page only still matters for the
+ * separate student goals product at /goals. Off by default — turn on only if
+ * a student-goals admin workflow still needs it.
+ */
+export function isLegacyGoalsAdminEnabled(): boolean {
+  return process.env.ENABLE_LEGACY_GOALS_ADMIN === "true";
+}
+
+/**
  * People Strategy — automated Action Tracker emails (e.g. the "New Assignment"
  * notification sent when a user is newly added to an ActionAssignment).
  *

@@ -7,7 +7,7 @@ import {
   getEligibleMentees,
   getNominationQueue,
 } from "@/lib/award-nomination-actions";
-import NominationsPanel from "@/app/(app)/mentorship-program/awards/nominations-panel";
+import NominationsPanel from "./nominations-panel";
 import { LearnMore } from "@/components/mentorship/learn-more";
 
 export const metadata = { title: "Awards — Mentorship" };

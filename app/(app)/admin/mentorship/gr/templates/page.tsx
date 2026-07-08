@@ -1,46 +1,6 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-supabase";
-import { getGRTemplates } from "@/lib/gr-actions";
-import GRTemplateListPanel from "@/components/gr/gr-template-list-panel";
-import { GRAdminSubnav } from "../_components/gr-admin-subnav";
 
-export const metadata = { title: "G&R Templates — Admin Mentorship" };
-
-export default async function AdminGRTemplatesPage() {
-  const session = await getSession();
-  if (!session?.user?.roles?.includes("ADMIN")) redirect("/");
-
-  const templates = await getGRTemplates();
-
-  const serialized = templates.map((t) => ({
-    id: t.id,
-    title: t.title,
-    roleType: t.roleType,
-    officerPosition: t.officerPosition,
-    status: t.status,
-    version: t.version,
-    publishedAt: t.publishedAt?.toISOString() ?? null,
-    goalCount: t._count.goals,
-    assignmentCount: t._count.assignments,
-    commentCount: t._count.comments,
-    updatedAt: t.updatedAt.toISOString(),
-  }));
-
-  return (
-    <div>
-      <div className="topbar">
-        <div>
-          <p className="badge">Admin · Goals & Resources</p>
-          <h1 className="page-title">G&R Templates</h1>
-          <p className="page-subtitle">
-            Create and manage Goals &amp; Responsibilities templates for each mentee role
-          </p>
-        </div>
-      </div>
-
-      <GRAdminSubnav />
-
-      <GRTemplateListPanel templates={serialized} />
-    </div>
-  );
+/** Folded into the cockpit's Goals tab. See app/(app)/admin/mentorship/gr/page.tsx. */
+export default function AdminGRTemplatesPage() {
+  redirect("/mentorship?view=admin&tab=templates");
 }
