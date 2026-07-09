@@ -1,32 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import type { ReactNode } from "react";
 
-import { EntityActionPanel } from "@/components/work/entity-action-panel";
+import WorkspaceChairDecisionPanel from "@/components/instructor-applicants/WorkspaceChairDecisionPanel";
+import type { WorkspaceApplicant } from "@/components/instructor-applicants/InstructorApplicantsWorkspace";
 import type { ApplicationRecord } from "@/lib/applications/application-record";
-import type { ActionItemWithRelations } from "@/lib/people-strategy/action-queries";
+import { ApplicationRecordInlineReviews } from "@/components/instructor-applicants/ApplicationRecordInlineReviews";
+import type { InlineReviewPanels } from "@/lib/applications/load-inline-review-panels";
+import { parseSubjectsOfInterest } from "@/lib/instructor-applicants/parse-subjects";
+import { DecisionReadinessChecklist } from "@/components/instructor-applicants/DecisionReadinessChecklist";
+import { ApplicantAssignmentHeaderControls } from "@/components/instructor-applicants/ApplicantAssignmentHeaderControls";
+import type { ReviewerCandidate } from "@/components/instructor-applicants/ReviewerAssignDropdown";
+import type { LeadInterviewerCandidate } from "@/components/instructor-applicants/LeadInterviewerAssignDropdown";
 import {
-  ButtonLink,
-  Checklist,
-  DecisionDock,
   EntityChip,
+  KeyFactsGrid,
+  RecordSection,
   StatusBadge,
   cn,
   type ChecklistItem,
-  type DecisionOption,
   type KeyFact,
   type StatusTone,
 } from "@/components/ui-v2";
-
-const TABS = [
-  { id: "summary", label: "Summary" },
-  { id: "application", label: "Application" },
-  { id: "reviews", label: "Reviews" },
-  { id: "work", label: "Work" },
-] as const;
-
-type TabId = (typeof TABS)[number]["id"];
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -44,13 +40,46 @@ function pretty(value: string): string {
     .replace(/^./, (c) => c.toUpperCase());
 }
 
-const DECIDED_STATUSES = new Set([
-  "APPROVED",
-  "REJECTED",
-  "ON_HOLD",
-  "WAITLISTED",
-  "WITHDRAWN",
-]);
+function DetailBlock({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-[10px] border border-line-soft bg-surface-soft px-3.5 py-3">
+      <p className="m-0 text-[11px] font-bold uppercase tracking-[0.05em] text-ink-muted">{title}</p>
+      <div className="mt-1.5 text-[14px] leading-relaxed text-ink">{children}</div>
+    </div>
+  );
+}
+
+function ContactTile({
+  label,
+  value,
+  href,
+  empty,
+}: {
+  label: string;
+  value: string;
+  href?: string;
+  empty?: boolean;
+}) {
+  const inner = (
+    <span className={cn("text-[14px] font-semibold", empty ? "text-ink-muted" : "text-ink")}>
+      {value}
+    </span>
+  );
+  return (
+    <div className="rounded-[11px] border border-line-soft bg-surface-soft px-3.5 py-3">
+      <p className="m-0 text-[11px] font-bold uppercase tracking-[0.05em] text-ink-muted">{label}</p>
+      <div className="mt-1">
+        {href && !empty ? (
+          <a href={href} className="font-semibold text-brand-700 no-underline hover:underline">
+            {value}
+          </a>
+        ) : (
+          inner
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function ApplicationRecordSimple({
   record,
@@ -59,14 +88,19 @@ export function ApplicationRecordSimple({
   facts,
   nextStep,
   readinessChecks,
-  readyCount,
-  viewerIsChair,
-  detailHref,
-  cockpitHref,
-  applicantIsMember,
-  chairDecisionOptions,
-  linkedActions,
-  sessionUser,
+  readinessHeadline,
+  actorId,
+  canMakeFinalDecision = false,
+  activeChairName,
+  decisionLockMessage,
+  decisionApplicant,
+  inlineReviewPanels,
+  returnTo,
+  canMarkMaterials = false,
+  canChangeReviewer = false,
+  reviewerCandidates = [],
+  canChangeLeadInterviewer = false,
+  leadInterviewerCandidates = [],
 }: {
   record: ApplicationRecord;
   status: { label: string; tone: StatusTone };
@@ -77,298 +111,225 @@ export function ApplicationRecordSimple({
     detail: string;
     href: string;
     cta: string;
+    ctaKind?: "link" | "assign-reviewer";
   } | null;
   readinessChecks: ChecklistItem[];
-  readyCount: number;
-  viewerIsChair: boolean;
-  detailHref: string;
-  cockpitHref: string;
-  applicantIsMember: boolean;
-  chairDecisionOptions: DecisionOption[];
-  linkedActions: ActionItemWithRelations[];
-  sessionUser: {
-    id: string;
-    roles: string[];
-    primaryRole: string | null;
-    adminSubtypes: string[];
-  };
+  readinessHeadline: string;
+  actorId?: string;
+  canMakeFinalDecision?: boolean;
+  activeChairName?: string | null;
+  decisionLockMessage?: string;
+  decisionApplicant?: WorkspaceApplicant | null;
+  inlineReviewPanels?: InlineReviewPanels;
+  returnTo?: string;
+  canMarkMaterials?: boolean;
+  canChangeReviewer?: boolean;
+  reviewerCandidates?: ReviewerCandidate[];
+  canChangeLeadInterviewer?: boolean;
+  leadInterviewerCandidates?: LeadInterviewerCandidate[];
 }) {
-  const [tab, setTab] = useState<TabId>("summary");
-  const [showChairOptions, setShowChairOptions] = useState(false);
+  const subjects = parseSubjectsOfInterest(record.subjectsOfInterest);
 
-  const factTabTarget = (href?: string): TabId | null => {
-    if (href === "#reviews") return "reviews";
-    if (href === "#readiness") return "summary";
-    return null;
-  };
+  const longFields = [
+    { title: "Motivation", body: record.motivation },
+    { title: "Teaching experience", body: record.teachingExperience },
+    { title: "Availability", body: record.availability },
+    { title: "Course idea", body: record.courseIdea },
+    { title: "Course outline", body: record.courseOutline },
+    { title: "First-class plan", body: record.firstClassPlan },
+  ].filter((f) => f.body?.trim());
 
-  const showDecisionModule =
-    record.status === "CHAIR_REVIEW" && viewerIsChair && !DECIDED_STATUSES.has(record.status);
+  const internalNotes = record.internalNotes?.trim() ?? "";
+
+  const decided = ["APPROVED", "REJECTED", "ON_HOLD", "WAITLISTED", "WITHDRAWN"].includes(
+    record.status
+  );
+
+  const showActiveDecision =
+    !decided && Boolean(actorId) && Boolean(decisionApplicant);
+  const decisionCardActive = showActiveDecision;
+
+  const actorIsReviewer = Boolean(actorId) && record.reviewer?.id === actorId;
+  const actorIsInterviewer = Boolean(
+    actorId && record.interviewerAssignments.some((a) => a.interviewer.id === actorId)
+  );
+  const needsInitialReview = readinessChecks.some(
+    (check) => check.label === "Initial review" && !check.done
+  );
+  const needsInterviewFeedback = readinessChecks.some(
+    (check) => check.label === "Interview feedback" && !check.done
+  );
+  const leadAssignment =
+    record.interviewerAssignments.find(
+      (assignment) =>
+        assignment.role === "LEAD" &&
+        (assignment.round == null || assignment.round === record.interviewRound)
+    ) ?? null;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header — one glance */}
-      <div className="flex flex-col gap-3">
-        <Link
-          href="/admin/instructor-applicants"
-          className="inline-flex w-fit items-center gap-1.5 text-[13px] font-semibold text-[#717189] no-underline hover:text-[#5a1da8]"
-        >
-          ← Application board
-        </Link>
-        <div className="rounded-[14px] border border-[#ebebf2] bg-white p-5 shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-[#a8a8bd]">
-                Instructor applicant
-              </p>
-              <h1 className="m-0 mt-0.5 text-[24px] font-extrabold tracking-[-0.3px] text-[#1c1a2e]">
-                {record.displayName}
-              </h1>
-              <p className="m-0 mt-1 text-[13px] text-[#717189]">{identityLine}</p>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-              {record.isReapplication ? <StatusBadge tone="info">Reapplication</StatusBadge> : null}
-              {record.archived ? <StatusBadge tone="neutral">Archived</StatusBadge> : null}
-            </div>
-          </div>
-
-          {/* Primary actions — always visible */}
-          <div className="mt-4 flex flex-wrap gap-2">
-            {nextStep ? (
-              <ButtonLink href={nextStep.href} variant="primary" size="md">
-                {nextStep.cta} →
-              </ButtonLink>
-            ) : null}
-            <ButtonLink href={detailHref} variant={nextStep ? "secondary" : "primary"} size="md">
-              Open full application
-            </ButtonLink>
-            {showDecisionModule ? (
-              <ButtonLink href={cockpitHref} variant="secondary" size="md">
-                Decision cockpit
-              </ButtonLink>
-            ) : null}
-            {applicantIsMember ? (
-              <ButtonLink href={`/people/${record.applicant.id}`} variant="ghost" size="md">
-                People profile
-              </ButtonLink>
-            ) : null}
-          </div>
-
-          {nextStep ? (
-            <p className="m-0 mt-3 rounded-[10px] bg-[#faf7ff] px-3 py-2.5 text-[13px] leading-relaxed text-[#5c5c74]">
-              <span className="font-semibold text-[#1c1a2e]">{nextStep.title}.</span>{" "}
-              {nextStep.detail}
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div
-        className="sticky top-0 z-10 -mx-1 flex gap-1 rounded-[11px] border border-[#ebebf2] bg-[#fafafd] p-1"
-        role="tablist"
-        aria-label="Application sections"
+    <div className="flex flex-col gap-5">
+      <Link
+        href="/admin/instructor-applicants?view=pipeline"
+        className="inline-flex w-fit items-center gap-1.5 text-[13px] font-semibold text-ink-muted no-underline hover:text-brand-700"
       >
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === item.id}
-            onClick={() => setTab(item.id)}
-            className={cn(
-              "flex-1 cursor-pointer rounded-[8px] px-3 py-2 text-[13px] font-semibold transition-colors",
-              tab === item.id
-                ? "bg-white text-[#6b21c8] shadow-sm"
-                : "text-[#717189] hover:bg-white/60"
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
+        ← Application board
+      </Link>
+
+      {/* Header */}
+      <div className="rounded-[14px] border border-line-soft bg-surface p-5 shadow-card">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+              Instructor applicant
+            </p>
+            <h1 className="m-0 mt-0.5 text-[24px] font-extrabold tracking-[-0.3px] text-ink">
+              {record.displayName}
+            </h1>
+            <p className="m-0 mt-1 text-[13px] text-ink-muted">{identityLine}</p>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+            {record.isReapplication ? <StatusBadge tone="info">Reapplication</StatusBadge> : null}
+            {record.archived ? <StatusBadge tone="neutral">Archived</StatusBadge> : null}
+          </div>
+        </div>
+
+        {!decided ? (
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <p className="m-0 rounded-[10px] bg-brand-50 px-3 py-2.5 text-[13px] leading-relaxed text-ink-muted">
+              {nextStep ? (
+                <>
+                  <span className="font-semibold text-ink">{nextStep.title}.</span>{" "}
+                  {nextStep.detail}
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold text-ink">Assignments.</span> Choose the
+                  reviewer and lead interviewer for this application.
+                </>
+              )}
+            </p>
+            <ApplicantAssignmentHeaderControls
+              applicationId={record.id}
+              reviewerName={record.reviewer?.name}
+              reviewerId={record.reviewer?.id ?? null}
+              canChangeReviewer={canChangeReviewer}
+              reviewerCandidates={reviewerCandidates}
+              leadAssignment={leadAssignment}
+              canChangeLeadInterviewer={canChangeLeadInterviewer}
+              leadInterviewerCandidates={leadInterviewerCandidates}
+            />
+          </div>
+        ) : null}
+
       </div>
 
-      {tab === "summary" ? (
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-            {facts.map((fact) => {
-              const tabTarget = factTabTarget(fact.href);
-              const tileClass = cn(
-                "flex min-w-0 flex-col gap-0.5 rounded-[12px] border bg-surface p-3.5 shadow-card text-left",
-                fact.tone === "attention" ? "border-danger-700/20" : "border-line-soft",
-                (tabTarget || fact.href) &&
-                  "cursor-pointer transition-colors duration-150 hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
-              );
-              const body = (
-                <>
-                  <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
-                    {fact.label}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[14px] font-semibold leading-snug",
-                      fact.tone === "attention" ? "text-danger-700" : "text-ink"
-                    )}
-                  >
-                    {fact.value}
-                  </span>
-                  {fact.detail ? (
-                    <span
-                      className={cn(
-                        "text-[11.5px]",
-                        fact.tone === "attention"
-                          ? "font-medium text-danger-700"
-                          : "text-ink-muted"
-                      )}
-                    >
-                      {fact.detail}
-                    </span>
-                  ) : null}
-                </>
-              );
-              if (tabTarget) {
-                return (
-                  <button
-                    key={fact.label}
-                    type="button"
-                    className={tileClass}
-                    onClick={() => setTab(tabTarget)}
-                  >
-                    {body}
-                  </button>
-                );
-              }
-              if (fact.href) {
-                return (
-                  <Link key={fact.label} href={fact.href} className={tileClass}>
-                    {body}
-                  </Link>
-                );
-              }
-              return (
-                <div key={fact.label} className={tileClass}>
-                  {body}
-                </div>
-              );
-            })}
-          </div>
-          <section className="rounded-[13px] border border-[#ebebf2] bg-white p-[18px] shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
-            <h2 className="m-0 text-[14px] font-bold text-[#1c1a2e]">
-              Ready to decide?{" "}
-              <span className="font-normal text-[#9a9ab0]">
-                {readyCount} of 4 checks
-              </span>
-            </h2>
-            <div className="mt-3">
-              <Checklist items={readinessChecks} />
-            </div>
-          </section>
-          {showDecisionModule ? (
-            <section className="rounded-[13px] border border-[#ebebf2] bg-white p-[18px]">
-              <button
-                type="button"
-                onClick={() => setShowChairOptions((v) => !v)}
-                className="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent p-0 text-left text-[13px] font-semibold text-[#5a1da8]"
-              >
-                {showChairOptions ? "Hide" : "Show"} chair decision options
-                <span aria-hidden>{showChairOptions ? "▲" : "▼"}</span>
-              </button>
-              {showChairOptions ? (
-                <div className="mt-3">
-                  <DecisionDock
-                    tone="attention"
-                    statusLabel="Decision needed"
-                    statusDetail={`${readyCount}/4 readiness checks met — use the cockpit to commit.`}
-                    primaryAction={
-                      <ButtonLink href={cockpitHref} variant="primary" size="md">
-                        Decide in cockpit →
-                      </ButtonLink>
-                    }
-                    options={chairDecisionOptions}
-                  />
-                </div>
-              ) : null}
-            </section>
-          ) : record.latestDecision ? (
-            <p className="m-0 rounded-[12px] border border-line-soft bg-surface-soft px-4 py-3 text-[13px] text-ink-muted">
-              Latest decision: {pretty(record.latestDecision.action)} ·{" "}
-              {record.latestDecision.decidedBy} · {fmtDate(record.latestDecision.decidedAtISO)}
-            </p>
-          ) : null}
+      {/* At-a-glance facts */}
+      <KeyFactsGrid facts={facts} />
+
+      {/* Contact */}
+      <RecordSection title="Contact">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ContactTile
+            label="Email"
+            value={record.applicant.email}
+            href={`mailto:${record.applicant.email}`}
+          />
+          <ContactTile
+            label="Phone"
+            value={record.phoneNumber?.trim() || "Not provided"}
+            href={record.phoneNumber?.trim() ? `tel:${record.phoneNumber.replace(/\s/g, "")}` : undefined}
+            empty={!record.phoneNumber?.trim()}
+          />
+        </div>
+      </RecordSection>
+
+      {subjects.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {subjects.map((subject) => (
+            <span
+              key={subject}
+              className="inline-flex rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[12px] font-semibold text-brand-800"
+            >
+              {subject}
+            </span>
+          ))}
         </div>
       ) : null}
 
-      {tab === "application" ? (
-        <section className="rounded-[13px] border border-[#ebebf2] bg-white p-[18px] shadow-[0_1px_2px_rgba(20,20,50,0.03)]">
-          <h2 className="m-0 text-[14px] font-bold text-[#1c1a2e]">What they submitted</h2>
-          <p className="m-0 mt-1 text-[13px] text-[#717189]">
-            Tap through to read motivation, outlines, and uploads on the full application page.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(
-              [
-                ["Motivation", record.materials.motivation],
-                ["Course outline", record.materials.courseOutline],
-                ["First-class plan", record.materials.firstClassPlan],
-                ...(record.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR"
-                  ? ([
-                      [
-                        record.workshopOutlineTitle
-                          ? `Workshop · ${record.workshopOutlineTitle}`
-                          : "Workshop outline",
-                        record.materials.workshopOutline,
-                      ],
-                    ] as Array<[string, boolean]>)
-                  : []),
-              ] as Array<[string, boolean]>
-            ).map(([label, present]) => (
-              <StatusBadge key={label} tone={present ? "success" : "warning"}>
-                {label}: {present ? "✓" : "missing"}
-              </StatusBadge>
+      {!decided && readinessChecks.length > 0 ? (
+        <RecordSection
+          id="readiness"
+          title="Decision readiness"
+          description={readinessHeadline}
+          className="scroll-mt-24"
+        >
+          <DecisionReadinessChecklist
+            applicationId={record.id}
+            items={readinessChecks}
+            canMarkMaterials={canMarkMaterials}
+          />
+        </RecordSection>
+      ) : null}
+
+      {/* Application materials — inline, no separate page */}
+      <RecordSection id="application" title="Application" className="scroll-mt-24">
+        {longFields.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {longFields.map((field) => (
+              <DetailBlock key={field.title} title={field.title}>
+                <p className="m-0 whitespace-pre-wrap">{field.body!.trim()}</p>
+              </DetailBlock>
             ))}
           </div>
-          {record.subjectsOfInterest ? (
-            <p className="m-0 mt-3 text-[13px] text-[#5c5c74]">
-              <span className="font-semibold text-[#3a3a52]">Subjects:</span>{" "}
-              {record.subjectsOfInterest}
-            </p>
-          ) : null}
-          {record.documents.length > 0 ? (
-            <ul className="m-0 mt-3 flex list-none flex-col gap-2 p-0">
-              {record.documents.map((doc) => (
-                <li
-                  key={doc.id}
-                  className="flex flex-wrap justify-between gap-2 rounded-[8px] bg-[#fafafd] px-3 py-2 text-[13px]"
-                >
-                  <span className="font-medium text-[#1c1a2e]">
-                    {doc.originalName ?? pretty(doc.kind)}
-                  </span>
-                  <span className="text-[#9a9ab0]">{fmtDate(doc.uploadedAtISO)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <ButtonLink href={detailHref} className="mt-4" variant="primary" size="sm">
-            Read full application materials →
-          </ButtonLink>
-        </section>
-      ) : null}
+        ) : (
+          <p className="m-0 text-[13px] text-ink-muted">No written responses on file.</p>
+        )}
 
-      {tab === "reviews" ? (
-        <section className="flex flex-col gap-4">
-          <div className="rounded-[13px] border border-[#ebebf2] bg-white p-[18px]">
-            <h2 className="m-0 text-[14px] font-bold text-[#1c1a2e]">Application reviews</h2>
+        {record.documents.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {record.documents.map((doc) => (
+              <Link
+                key={doc.id}
+                href={doc.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-surface-soft px-3 py-1.5 text-[12.5px] font-semibold text-brand-800 no-underline hover:border-brand-300 hover:bg-brand-50"
+              >
+                📎 {doc.originalName ?? pretty(doc.kind)}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+      </RecordSection>
+
+      {/* Reviews & team */}
+      <RecordSection id="reviews" title="Reviews & team" className="scroll-mt-24">
+        {!decided && inlineReviewPanels && returnTo ? (
+          <ApplicationRecordInlineReviews
+            applicationId={record.id}
+            returnTo={returnTo}
+            needsInitialReview={needsInitialReview}
+            needsInterviewFeedback={needsInterviewFeedback}
+            actorIsReviewer={actorIsReviewer}
+            actorIsInterviewer={actorIsInterviewer}
+            initialPanel={inlineReviewPanels.initial}
+            interviewPanel={inlineReviewPanels.interview}
+          />
+        ) : null}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div>
+            <h3 className="m-0 text-[13px] font-bold text-ink">Application reviews</h3>
             {record.applicationReviews.length === 0 ? (
-              <p className="m-0 mt-2 text-[13px] text-[#9a9ab0]">No reviews yet.</p>
+              <p className="m-0 mt-2 text-[13px] text-ink-muted">No reviews yet.</p>
             ) : (
-              <div className="mt-3 flex flex-col gap-2">
+              <div className="mt-2 flex flex-col gap-2">
                 {record.applicationReviews.map((review) => (
                   <div
                     key={review.id}
-                    className="rounded-[10px] border border-[#f1f1f6] px-3 py-2.5"
+                    className="rounded-[10px] border border-line-soft px-3 py-2.5"
                   >
-                    <p className="m-0 text-[13.5px] font-semibold text-[#1c1a2e]">
+                    <p className="m-0 text-[13.5px] font-semibold text-ink">
                       {review.reviewerName}
                       {review.isLeadReview ? (
                         <span className="ml-2">
@@ -376,8 +337,8 @@ export function ApplicationRecordSimple({
                         </span>
                       ) : null}
                     </p>
-                    <p className="m-0 text-[12px] text-[#9a9ab0]">
-                      {review.summary?.slice(0, 200) ??
+                    <p className="m-0 mt-1 whitespace-pre-wrap text-[13px] text-ink-muted">
+                      {review.summary?.trim() ||
                         (review.status === "SUBMITTED" ? "Submitted" : "Draft")}
                     </p>
                   </div>
@@ -385,8 +346,9 @@ export function ApplicationRecordSimple({
               </div>
             )}
           </div>
-          <div className="rounded-[13px] border border-[#ebebf2] bg-white p-[18px]">
-            <h2 className="m-0 text-[14px] font-bold text-[#1c1a2e]">Interviews</h2>
+
+          <div>
+            <h3 className="m-0 text-[13px] font-bold text-ink">Interviews</h3>
             {record.interviewerAssignments.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-2">
                 {record.interviewerAssignments.map((a) => (
@@ -402,19 +364,17 @@ export function ApplicationRecordSimple({
               </div>
             ) : null}
             {record.interviewReviews.length === 0 ? (
-              <p className="m-0 mt-2 text-[13px] text-[#9a9ab0]">
+              <p className="m-0 mt-2 text-[13px] text-ink-muted">
                 {record.interviewScheduledAtISO
                   ? `Scheduled ${fmtDate(record.interviewScheduledAtISO)} — no review yet.`
                   : "No interview activity yet."}
               </p>
             ) : (
-              <div className="mt-3 flex flex-col gap-2">
+              <div className="mt-2 flex flex-col gap-2">
                 {record.interviewReviews.map((review) => (
-                  <div key={review.id} className="rounded-[10px] bg-[#fafafd] px-3 py-2.5">
-                    <p className="m-0 text-[13.5px] font-semibold text-[#1c1a2e]">
-                      {review.reviewerName}
-                    </p>
-                    <p className="m-0 text-[12px] text-[#717189]">
+                  <div key={review.id} className="rounded-[10px] bg-surface-soft px-3 py-2.5">
+                    <p className="m-0 text-[13.5px] font-semibold text-ink">{review.reviewerName}</p>
+                    <p className="m-0 text-[12px] text-ink-muted">
                       {review.recommendation
                         ? `Recommends ${pretty(review.recommendation)}`
                         : pretty(review.status)}
@@ -424,70 +384,49 @@ export function ApplicationRecordSimple({
                 ))}
               </div>
             )}
-            <ButtonLink href={detailHref} className="mt-4" variant="secondary" size="sm">
-              Open review editors →
-            </ButtonLink>
           </div>
-        </section>
+        </div>
+      </RecordSection>
+
+      {internalNotes ? (
+        <RecordSection title="Internal notes">
+          <p className="m-0 whitespace-pre-wrap text-[14px] leading-relaxed text-ink">{internalNotes}</p>
+        </RecordSection>
       ) : null}
 
-      {tab === "work" ? (
-        <div className="flex flex-col gap-4">
-          <section className="rounded-[13px] border border-[#ebebf2] bg-white p-[18px]">
-            <h2 className="m-0 text-[14px] font-bold text-[#1c1a2e]">Linked actions</h2>
-            <p className="m-0 mt-1 text-[13px] text-[#717189]">
-              Follow-ups and blockers tied to this application.
+      <RecordSection
+        id="decision"
+        title="Decision"
+        className={cn(
+          "scroll-mt-24 overflow-hidden p-4 sm:p-6",
+          decisionCardActive &&
+            "border-brand-200 bg-gradient-to-br from-brand-50/80 via-surface to-surface"
+        )}
+      >
+        {showActiveDecision && decisionApplicant && actorId ? (
+          <WorkspaceChairDecisionPanel
+              app={decisionApplicant}
+              actorId={actorId}
+              canMakeFinalDecision={canMakeFinalDecision}
+              activeChairName={activeChairName}
+              decisionLockMessage={decisionLockMessage}
+              readinessChecks={readinessChecks}
+              readinessHeadline={readinessHeadline}
+          />
+        ) : record.latestDecision ? (
+          <>
+            <p className="m-0 text-[13px] text-ink-muted">
+              Latest decision: {pretty(record.latestDecision.action)} ·{" "}
+              {record.latestDecision.decidedBy} · {fmtDate(record.latestDecision.decidedAtISO)}
             </p>
-            <div className="mt-3">
-              <EntityActionPanel
-                actions={linkedActions}
-                viewer={sessionUser}
-                entityType="INSTRUCTOR_APPLICATION"
-                entityId={record.id}
-                entityLabel={record.displayName}
-              />
-            </div>
-          </section>
-          {(record.previousApplicationId || record.decisionHistory.length > 1) && (
-            <section className="rounded-[13px] border border-[#ebebf2] bg-white p-[18px]">
-              <h2 className="m-0 text-[14px] font-bold text-[#1c1a2e]">Connected</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {record.previousApplicationId ? (
-                  <EntityChip
-                    type="applicant"
-                    id={record.previousApplicationId}
-                    label="Previous application"
-                    href={`/admin/instructor-applicants/${record.previousApplicationId}`}
-                  />
-                ) : null}
-              </div>
-            </section>
-          )}
-          {record.timeline.length > 0 ? (
-            <section className="rounded-[13px] border border-[#ebebf2] bg-white p-[18px]">
-              <h2 className="m-0 text-[14px] font-bold text-[#1c1a2e]">Timeline</h2>
-              <ul className="m-0 mt-3 flex list-none flex-col gap-2 p-0">
-                {record.timeline.map((event) => (
-                  <li
-                    key={event.id}
-                    className="flex justify-between gap-2 border-b border-[#f4f4f8] pb-2 text-[13px] last:border-0"
-                  >
-                    <span className="font-medium text-[#3a3a52]">
-                      {pretty(event.kind)}
-                      {event.actorName ? (
-                        <span className="ml-1 font-normal text-[#9a9ab0]">
-                          · {event.actorName}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="shrink-0 text-[#9a9ab0]">{fmtDate(event.createdAtISO)}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-        </div>
-      ) : null}
+            {record.latestDecision.rationale ? (
+              <p className="m-0 mt-2 whitespace-pre-wrap text-[14px] text-ink">
+                {record.latestDecision.rationale}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+      </RecordSection>
     </div>
   );
 }

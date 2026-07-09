@@ -360,10 +360,7 @@ export default function ApplicantQuickDrawer({
               {/* Open record / workspace CTAs */}
               <div className="mt-6 flex flex-wrap gap-2">
                 <ButtonLink href={`/admin/instructor-applicants/${app.id}`} variant="primary" size="md">
-                  Open Application 360
-                </ButtonLink>
-                <ButtonLink href={`/applications/instructor/${app.id}`} variant="secondary" size="md">
-                  Full workspace
+                  View applicant
                 </ButtonLink>
                 {isAdmin && (
                   <ArchiveOneButton

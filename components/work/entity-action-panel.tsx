@@ -76,6 +76,7 @@ export function EntityActionPanel({
   entityLabel,
   viewer,
   now = new Date(),
+  showCreateAction = true,
 }: {
   actions: ActionItemWithRelations[];
   decisions?: DecisionLite[];
@@ -85,6 +86,8 @@ export function EntityActionPanel({
   /** When provided, rows the viewer can edit get inline Complete / Block. */
   viewer?: ActionViewer;
   now?: Date;
+  /** When false, hides the "Create action" quick action (e.g. applicant 360). */
+  showCreateAction?: boolean;
 }) {
   const panel = deriveEntityActionPanel({ actions, decisions }, now);
 
@@ -105,9 +108,11 @@ export function EntityActionPanel({
 
   const quickActions = (
     <div className="flex flex-wrap items-center gap-2">
-      <ButtonLink href={newActionHref} variant="secondary" size="sm">
-        Create action
-      </ButtonLink>
+      {showCreateAction ? (
+        <ButtonLink href={newActionHref} variant="secondary" size="sm">
+          Create action
+        </ButtonLink>
+      ) : null}
       <ButtonLink href={workHubHref} variant="ghost" size="sm">
         View in Work →
       </ButtonLink>

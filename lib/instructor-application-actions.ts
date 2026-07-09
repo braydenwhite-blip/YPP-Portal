@@ -49,6 +49,7 @@ import {
   isAdmin,
   isChapterLead,
   isHiringChair,
+  canChangeReviewer,
 } from "@/lib/chapter-hiring-permissions";
 import {
   canMakeFinalApplicantDecision,
@@ -993,7 +994,9 @@ export async function assignReviewer(
   reviewerId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const session = await requireAdminOrChapterLead();
+    const session = await getSession();
+    if (!session?.user?.id) throw new Error("Unauthorized");
+    const actor = await getHiringActor(session.user.id);
     const application = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
       select: {
@@ -1005,14 +1008,14 @@ export async function assignReviewer(
       },
     });
     if (!application) return { success: false, error: "Application not found." };
-    const actor = await getHiringActor(session.user.id);
-    assertCanManageApplication(actor, {
-      id: application.id,
-      applicantId: application.applicantId,
-      reviewerId: application.reviewerId,
-      applicantChapterId: application.applicant.chapterId,
-      interviewerAssignments: [],
-    });
+
+    const activeChairUserId = await getActiveChairUserId();
+    const isActiveChair = canMakeFinalApplicantDecision({ id: actor.id }, activeChairUserId);
+    if (
+      !canChangeReviewer(actor, application.applicant.chapterId, { isActiveChair })
+    ) {
+      throw new Error("Unauthorized - you cannot assign a reviewer for this application.");
+    }
     const targetReviewer = await prisma.user.findUnique({
       where: { id: reviewerId },
       select: { chapterId: true, roles: { select: { role: true } } },
@@ -1077,6 +1080,7 @@ export async function assignReviewer(
       meta: { reviewerId },
     });
     revalidatePath("/admin/instructor-applicants");
+    revalidatePath(`/admin/instructor-applicants/${applicationId}`);
     revalidatePath("/chapter-lead/instructor-applicants");
     revalidatePath(`/applications/instructor/${applicationId}`);
     return { success: true };
@@ -1819,6 +1823,8 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
     if (!app) return { success: false, error: "Application not found." };
 
     const actor = await getHiringActor(session.user.id);
+    const activeChairUserId = await getActiveChairUserId();
+    const isActiveChair = canMakeFinalApplicantDecision({ id: actor.id }, activeChairUserId);
     assertCanAssignInterviewers(
       actor,
       {
@@ -1829,7 +1835,8 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
         applicantChapterId: app.applicant.chapterId,
         interviewerAssignments: app.interviewerAssignments,
       },
-      role
+      role,
+      { isActiveChair }
     );
 
     const currentRoundAssignments = app.interviewerAssignments.filter(
@@ -1884,6 +1891,8 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
     });
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
+    revalidatePath(`/admin/instructor-applicants/${applicationId}`);
+    revalidatePath("/chapter-lead/instructor-applicants");
     return { success: true };
   } catch (error) {
     console.error("[assignInterviewer]", error);
@@ -1951,6 +1960,8 @@ export async function removeInterviewer(formData: FormData): Promise<{ success: 
 
     revalidatePath(`/applications/instructor/${assignment.applicationId}`);
     revalidatePath("/admin/instructor-applicants");
+    revalidatePath(`/admin/instructor-applicants/${assignment.applicationId}`);
+    revalidatePath("/chapter-lead/instructor-applicants");
     return { success: true };
   } catch (error) {
     console.error("[removeInterviewer]", error);

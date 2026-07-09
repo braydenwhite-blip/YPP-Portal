@@ -40,7 +40,9 @@ function LoginPageContent() {
   const hasSupabaseBrowserAuth = supabase !== null;
   const localPasswordFallbackEnabled = canUseLocalPasswordFallback();
   const authSetupMessage = localPasswordFallbackEnabled
-    ? "Supabase public auth is missing in this local environment, so password sign-in is using the local fallback. Magic links and email-link flows stay unavailable until NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are added."
+    ? hasSupabaseBrowserAuth
+      ? "Local password sign-in is enabled for development (LOCAL_PASSWORD_FALLBACK). Magic links still require a reachable Supabase project."
+      : "Supabase public auth is missing in this local environment, so password sign-in is using the local fallback. Magic links and email-link flows stay unavailable until NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are added."
     : !hasSupabaseBrowserAuth
       ? `${SUPABASE_PUBLIC_ENV_MISSING_MESSAGE} Magic links are unavailable until it is configured.`
       : null;
@@ -70,8 +72,11 @@ function LoginPageContent() {
     setError(null);
     setLoading(true);
     const normalizedEmail = email.trim().toLowerCase();
+    const legacyBypassEmail = isLegacyAuthBypassEmail(normalizedEmail);
+    const shouldTryLegacyPassword =
+      localPasswordFallbackEnabled || legacyBypassEmail || !hasSupabaseBrowserAuth;
 
-    if (!hasSupabaseBrowserAuth || isLegacyAuthBypassEmail(normalizedEmail)) {
+    if (shouldTryLegacyPassword) {
       // Bound the legacy pre-flight so a slow DB/pool cannot block the
       // Supabase fallback. 3s is generous for a single findUnique; if the
       // database is that unhealthy we want the user on Supabase auth anyway.
@@ -96,8 +101,8 @@ function LoginPageContent() {
           | null;
       } catch {
         // Network error / abort — treat as "legacy unavailable" and fall
-        // through to Supabase. If Supabase isn't configured either, the
-        // branch below surfaces the error.
+        // through to Supabase when configured. Bypass/dev accounts stop here
+        // so a dead Supabase URL cannot throw an uncaught fetch error.
         legacyResponse = null;
         legacyResult = null;
       } finally {
@@ -109,7 +114,7 @@ function LoginPageContent() {
         return;
       }
 
-      if (!hasSupabaseBrowserAuth) {
+      if (localPasswordFallbackEnabled || legacyBypassEmail || !hasSupabaseBrowserAuth) {
         setError(legacyResult?.error || "Invalid email or password.");
         setLoading(false);
         return;
@@ -122,10 +127,20 @@ function LoginPageContent() {
       return;
     }
 
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password,
-    });
+    let data: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["data"];
+    let signInError: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>["error"];
+    try {
+      ({ data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      }));
+    } catch {
+      setError(
+        "Could not reach the sign-in service. Check your internet connection, or use local dev credentials with LOCAL_PASSWORD_FALLBACK=true when Supabase is unavailable."
+      );
+      setLoading(false);
+      return;
+    }
 
     if (signInError) {
       if (signInError.message.includes("Invalid login credentials")) {

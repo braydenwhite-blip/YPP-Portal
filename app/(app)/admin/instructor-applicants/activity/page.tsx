@@ -185,7 +185,6 @@ export default async function ActivityFeedPage({ searchParams }: PageProps) {
       }
       actions={[
         { label: "Application board", href: "/admin/instructor-applicants", icon: "list" },
-        { label: "Home", href: "/", icon: "compass" },
       ]}
     >
       <section className="card" style={{ marginBottom: 16 }}>

@@ -273,37 +273,7 @@ async function main() {
     },
   });
 
-  // Brayden White is the active Chair — the single person allowed to make final
-  // applicant decisions. The assignment is a singleton row (id = "singleton");
-  // mirror setActiveChair()'s no-op-aware logic so re-seeding is idempotent and
-  // we only append a history row the first time the seat actually changes.
-  const existingChair = await prisma.activeChairAssignment.findUnique({
-    where: { id: ACTIVE_CHAIR_SINGLETON_ID },
-    select: { chairUserId: true },
-  });
-  await prisma.activeChairAssignment.upsert({
-    where: { id: ACTIVE_CHAIR_SINGLETON_ID },
-    create: {
-      id: ACTIVE_CHAIR_SINGLETON_ID,
-      chairUserId: brayden.id,
-      assignedById: brayden.id,
-    },
-    update: {
-      chairUserId: brayden.id,
-      assignedById: brayden.id,
-    },
-  });
-  if (existingChair?.chairUserId !== brayden.id) {
-    await prisma.chairAssignmentHistory.create({
-      data: {
-        previousChairId: existingChair?.chairUserId ?? null,
-        newChairId: brayden.id,
-        changedById: brayden.id,
-      },
-    });
-  }
-
-  await prisma.user.upsert({
+  const anthea = await prisma.user.upsert({
     where: { email: "anthea.zamir@youthpassionproject.org" },
     create: {
       name: "Anthea Zamir",
@@ -335,6 +305,34 @@ async function main() {
       },
     },
   });
+
+  // Anthea is the active Chair in seed — the one person allowed to make final
+  // applicant decisions locally (SUPER_ADMIN + HIRING_ADMIN for nav + decisions).
+  const existingChair = await prisma.activeChairAssignment.findUnique({
+    where: { id: ACTIVE_CHAIR_SINGLETON_ID },
+    select: { chairUserId: true },
+  });
+  await prisma.activeChairAssignment.upsert({
+    where: { id: ACTIVE_CHAIR_SINGLETON_ID },
+    create: {
+      id: ACTIVE_CHAIR_SINGLETON_ID,
+      chairUserId: anthea.id,
+      assignedById: anthea.id,
+    },
+    update: {
+      chairUserId: anthea.id,
+      assignedById: anthea.id,
+    },
+  });
+  if (existingChair?.chairUserId !== anthea.id) {
+    await prisma.chairAssignmentHistory.create({
+      data: {
+        previousChairId: existingChair?.chairUserId ?? null,
+        newChairId: anthea.id,
+        changedById: anthea.id,
+      },
+    });
+  }
 
   const mentor = await prisma.user.upsert({
     where: { email: "carly.gelles@youthpassionproject.org" },

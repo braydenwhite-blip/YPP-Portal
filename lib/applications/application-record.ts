@@ -36,6 +36,14 @@ export type ApplicationRecord = {
   previousApplicationId: string | null;
   schoolName: string | null;
   subjectsOfInterest: string | null;
+  phoneNumber: string | null;
+  teachingExperience: string | null;
+  availability: string | null;
+  courseIdea: string | null;
+  motivation: string | null;
+  courseOutline: string | null;
+  firstClassPlan: string | null;
+  internalNotes: string | null;
   city: string | null;
   stateProvince: string | null;
   createdAtISO: string;
@@ -88,6 +96,7 @@ export type ApplicationRecord = {
     id: string;
     kind: string;
     originalName: string | null;
+    fileUrl: string;
     uploadedAtISO: string;
   }>;
   latestDecision: {
@@ -130,6 +139,11 @@ export async function loadApplicationRecord(
       previousApplicationId: true,
       schoolName: true,
       subjectsOfInterest: true,
+      phoneNumber: true,
+      teachingExperience: true,
+      availability: true,
+      courseIdea: true,
+      internalNotes: true,
       city: true,
       stateProvince: true,
       createdAt: true,
@@ -198,7 +212,7 @@ export async function loadApplicationRecord(
         where: { supersededAt: null },
         orderBy: { uploadedAt: "desc" },
         take: 10,
-        select: { id: true, kind: true, originalName: true, uploadedAt: true },
+        select: { id: true, kind: true, originalName: true, fileUrl: true, uploadedAt: true },
       },
       chairDecisions: {
         orderBy: { decidedAt: "desc" },
@@ -234,10 +248,22 @@ export async function loadApplicationRecord(
   const submittedApplicationReviews = app.applicationReviews.filter(
     (r) => r.status === "SUBMITTED"
   );
+  const workshopMaterials = {
+    courseOutline: Boolean(app.courseOutline?.trim()),
+    firstClassPlan: Boolean(app.firstClassPlan?.trim()),
+  };
   const readiness = computeReadinessSignals({
+    status: app.status,
     interviewReviews: submittedInterviewReviews,
-    applicationReviews: submittedApplicationReviews,
+    applicationReviews: submittedApplicationReviews.map((r) => ({
+      summary: r.summary,
+      nextStep: r.nextStep,
+      status: r.status,
+      isLeadReview: r.isLeadReview,
+    })),
+    interviewerAssignmentCount: app.interviewerAssignments.length,
     materialsReadyAt: app.materialsReadyAt,
+    materials: workshopMaterials,
     infoRequest: app.infoRequest,
   });
 
@@ -269,6 +295,14 @@ export async function loadApplicationRecord(
     previousApplicationId: app.previousApplicationId,
     schoolName: app.schoolName,
     subjectsOfInterest: app.subjectsOfInterest,
+    phoneNumber: app.phoneNumber,
+    teachingExperience: app.teachingExperience,
+    availability: app.availability,
+    courseIdea: app.courseIdea,
+    motivation: app.motivation,
+    courseOutline: app.courseOutline,
+    firstClassPlan: app.firstClassPlan,
+    internalNotes: app.internalNotes,
     city: app.city,
     stateProvince: app.stateProvince,
     createdAtISO: app.createdAt.toISOString(),
@@ -324,6 +358,7 @@ export async function loadApplicationRecord(
       id: d.id,
       kind: d.kind,
       originalName: d.originalName,
+      fileUrl: d.fileUrl,
       uploadedAtISO: d.uploadedAt.toISOString(),
     })),
     latestDecision: activeDecision

@@ -16,6 +16,13 @@ export function hasSupabasePublicEnv() {
   return getSupabasePublicEnv() !== null;
 }
 
+/**
+ * Dev-only Prisma password sign-in when Supabase public auth is absent or
+ * explicitly skipped (`LOCAL_PASSWORD_FALLBACK=true`).
+ */
 export function canUseLocalPasswordFallback() {
-  return process.env.NODE_ENV !== "production" && !hasSupabasePublicEnv();
+  if (process.env.NODE_ENV === "production") return false;
+  if (process.env.LOCAL_PASSWORD_FALLBACK === "true") return true;
+  if (process.env.LOCAL_PASSWORD_FALLBACK === "false") return false;
+  return !hasSupabasePublicEnv();
 }

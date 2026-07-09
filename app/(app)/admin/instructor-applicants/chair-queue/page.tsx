@@ -181,7 +181,6 @@ export default async function ChairQueuePage() {
       }
       actions={[
         { label: "Application board", href: "/admin/instructor-applicants", icon: "list" },
-        { label: "Home", href: "/", icon: "compass" },
       ]}
     >
       {applications.length === 0 ? (

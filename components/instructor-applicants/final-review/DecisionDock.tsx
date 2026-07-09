@@ -17,6 +17,8 @@ import DecisionButtons from "./DecisionButtons";
 import DockRiskPreview from "./DockRiskPreview";
 
 export interface DecisionDockProps {
+  /** Sticky bottom bar (cockpit) vs embedded panel (applicant review tab). */
+  variant?: "sticky" | "inline";
   applicationId: string;
   actorId: string;
   initialRationale: string;
@@ -42,6 +44,7 @@ export interface DecisionDockProps {
 
 export default function DecisionDock(props: DecisionDockProps) {
   const {
+    variant = "sticky",
     applicationId,
     actorId,
     initialRationale,
@@ -60,10 +63,15 @@ export default function DecisionDock(props: DecisionDockProps) {
     exposeQuoteHandler,
   } = props;
 
+  const shellClass =
+    variant === "inline"
+      ? "rounded-[12px] border border-line-soft bg-surface-soft px-4 py-4"
+      : "sticky bottom-0 z-20 border-t border-line bg-surface px-6 py-4 shadow-[0_-8px_32px_rgb(59_15_110/0.10),0_-2px_8px_rgb(59_15_110/0.06)]";
+
   if (readOnly) {
     return (
       <div
-        className="sticky bottom-0 z-20 border-t border-line bg-surface px-6 py-4 text-center text-[13px] text-ink-muted"
+        className={`${shellClass} text-center text-[13px] text-ink-muted`}
         role="region"
         aria-label="Decision dock (read-only)"
       >
@@ -74,37 +82,33 @@ export default function DecisionDock(props: DecisionDockProps) {
   }
 
   const draftMeetsRequirements =
-    pendingAction === "REJECT" || pendingAction === "REQUEST_INFO"
-      ? rationale.trim().length > 0
-      : true;
+    pendingAction === "REJECT" ? rationale.trim().length > 0 : true;
 
-  return (
-    <motion.div
-      className="sticky bottom-0 z-20 grid grid-cols-1 items-stretch gap-4 border-t border-line bg-surface px-6 py-4 shadow-[0_-8px_32px_rgb(59_15_110/0.10),0_-2px_8px_rgb(59_15_110/0.06)] lg:grid-cols-[minmax(0,1.1fr)_auto]"
-      role="region"
-      aria-label="Decision dock"
-      initial={{ y: 32, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ type: "spring", stiffness: 220, damping: 26 }}
-    >
-      <DraftRationaleField
-        applicationId={applicationId}
-        actorId={actorId}
-        initialRationale={initialRationale}
-        initialComparisonNotes={initialComparisonNotes}
-        initialSavedAt={initialSavedAt}
-        onChange={onDraftChange}
-        exposeQuoteHandler={exposeQuoteHandler}
-        requiredForIntent={pendingAction}
-      />
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          gap: 8,
-        }}
-      >
+  const layoutClass =
+    variant === "inline"
+      ? "flex flex-col gap-5 2xl:flex-row 2xl:items-start"
+      : "flex flex-col gap-5 lg:flex-row lg:items-start";
+
+  const actionsClass =
+    variant === "inline"
+      ? "w-full shrink-0 2xl:w-[min(100%,20rem)]"
+      : "w-full shrink-0 lg:w-[min(100%,20rem)]";
+
+  const content = (
+    <>
+      <div className="min-w-0 w-full flex-1">
+        <DraftRationaleField
+          applicationId={applicationId}
+          actorId={actorId}
+          initialRationale={initialRationale}
+          initialComparisonNotes={initialComparisonNotes}
+          initialSavedAt={initialSavedAt}
+          onChange={onDraftChange}
+          exposeQuoteHandler={exposeQuoteHandler}
+          requiredForIntent={pendingAction}
+        />
+      </div>
+      <div className={`flex flex-col gap-2 ${actionsClass}`}>
         {props.warnings && props.acknowledgements ? (
           <DockRiskPreview
             warnings={props.warnings}
@@ -116,15 +120,12 @@ export default function DecisionDock(props: DecisionDockProps) {
           hasRedFlags={hasRedFlags}
           hasMajorityReject={hasMajorityReject}
           hasMixedConsensus={hasMixedConsensus}
-          draftMeetsRequirements={true}
+          draftMeetsRequirements={draftMeetsRequirements}
           pending={pending}
           pendingAction={pendingAction}
+          className={variant === "inline" ? "2xl:flex 2xl:flex-col" : "lg:flex lg:flex-col"}
           onChoose={(action) => {
-            // Soft validation handled by the confirm modal; the dock just
-            // surfaces the intent. The modal blocks Confirm until required
-            // text is present. We pre-flight required fields here too so a
-            // chair can't open the modal in an invalid state.
-            if ((action === "REJECT" || action === "REQUEST_INFO") && rationale.trim().length === 0) {
+            if (action === "REJECT" && rationale.trim().length === 0) {
               onChoose(action);
               return;
             }
@@ -133,6 +134,31 @@ export default function DecisionDock(props: DecisionDockProps) {
           }}
         />
       </div>
+    </>
+  );
+
+  if (variant === "inline") {
+    return (
+      <div
+        className={`${shellClass} ${layoutClass}`}
+        role="region"
+        aria-label="Decision dock"
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      className={`${shellClass} ${layoutClass}`}
+      role="region"
+      aria-label="Decision dock"
+      initial={{ y: 32, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 220, damping: 26 }}
+    >
+      {content}
     </motion.div>
   );
 }

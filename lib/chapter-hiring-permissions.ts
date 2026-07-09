@@ -161,6 +161,8 @@ export function isAssignedInterviewer(actor: HiringActor, application: Applicati
 export function assertCanManageApplication(actor: HiringActor, application: ApplicationContext): void {
   if (isAdmin(actor)) return;
 
+  if (isHiringChair(actor)) return;
+
   if (
     isChapterLead(actor) &&
     actor.chapterId &&
@@ -172,6 +174,28 @@ export function assertCanManageApplication(actor: HiringActor, application: Appl
   throw new Error("Chapter Presidents can only manage applicants in their own chapter.");
 }
 
+/** ADMIN, HIRING_CHAIR, active Chair, or same-chapter Chapter President. */
+export function canChangeReviewer(
+  actor: HiringActor,
+  applicantChapterId: string | null,
+  options?: { isActiveChair?: boolean }
+): boolean {
+  if (options?.isActiveChair || isAdmin(actor) || isHiringChair(actor)) return true;
+  return (
+    isChapterLead(actor) &&
+    Boolean(actor.chapterId) &&
+    actor.chapterId === applicantChapterId
+  );
+}
+
+/** @deprecated Use canChangeReviewer */
+export function canAssignReviewer(
+  actor: HiringActor,
+  applicantChapterId: string | null
+): boolean {
+  return canChangeReviewer(actor, applicantChapterId);
+}
+
 /**
  * ADMIN, chapter-scoped CHAPTER_PRESIDENT, or assigned LEAD reviewer adding a SECOND.
  * targetRole = the role being assigned ("LEAD" | "SECOND").
@@ -179,9 +203,10 @@ export function assertCanManageApplication(actor: HiringActor, application: Appl
 export function assertCanAssignInterviewers(
   actor: HiringActor,
   application: ApplicationContext,
-  targetRole: "LEAD" | "SECOND"
+  targetRole: "LEAD" | "SECOND",
+  options?: { isActiveChair?: boolean }
 ): void {
-  if (isAdmin(actor)) return;
+  if (isAdmin(actor) || isHiringChair(actor) || options?.isActiveChair) return;
 
   if (
     isChapterLead(actor) &&
@@ -194,6 +219,15 @@ export function assertCanAssignInterviewers(
   if (isAssignedReviewer(actor, application) && targetRole === "SECOND") return;
 
   throw new Error("Unauthorized: you cannot assign interviewers for this application.");
+}
+
+/** Same gate as reviewer assignment — used for lead interviewer dropdown on Application 360. */
+export function canChangeLeadInterviewer(
+  actor: HiringActor,
+  applicantChapterId: string | null,
+  options?: { isActiveChair?: boolean }
+): boolean {
+  return canChangeReviewer(actor, applicantChapterId, options);
 }
 
 /** ADMIN or HIRING_CHAIR. Chapter Presidents are explicitly NOT chairs per product decision. */

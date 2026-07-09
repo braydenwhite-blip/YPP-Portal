@@ -16,7 +16,7 @@ import Link from "next/link";
 import { CardV2 } from "@/components/ui-v2/card";
 import { EmptyStateV2 } from "@/components/ui-v2/empty-state";
 import { StatusBadge } from "@/components/ui-v2/status-badge";
-import { getMyWorkflowQueue } from "@/lib/workflow-engine/my-queue";
+import { getMyWorkflowQueue, isWorkflowEnginePrismaReady } from "@/lib/workflow-engine/my-queue";
 
 function formatDueDate(iso: string | null): string | null {
   if (!iso) return null;
@@ -26,6 +26,10 @@ function formatDueDate(iso: string | null): string | null {
 }
 
 export async function MyWorkflowQueueCard({ userId }: { userId: string }) {
+  if (!isWorkflowEnginePrismaReady()) {
+    return null;
+  }
+
   const queue = await getMyWorkflowQueue(userId);
   const { assignedToMe, instancesIOwn, overdueCount, dueThisWeekCount } = queue;
 

@@ -23,6 +23,7 @@ import {
   isGamificationEnabled,
   isGamificationGatedPath,
 } from "@/lib/gamification-gate";
+import { isPeopleHubOfficerRoute } from "@/lib/people/hub-access";
 
 // Supabase SSR writes session data into cookies of the form `sb-<ref>-auth-token`
 // and may chunk large JWTs across `<name>.0`, `<name>.1`, … When the refresh
@@ -316,6 +317,15 @@ export async function proxy(request: NextRequest) {
 
     if (!isAllowedPublicPath(pathname)) {
       if (!previewValid) {
+        if (isPeopleHubOfficerRoute(pathname) && !officerBypass) {
+          const dest = request.nextUrl.clone();
+          dest.pathname = LOCKED_PATH;
+          dest.search = "";
+          if (pathname && pathname !== "/") {
+            dest.searchParams.set("from", pathname);
+          }
+          return NextResponse.redirect(dest);
+        }
         if (isLeadershipPreviewPath(pathname) && !leadershipAccess) {
           const actionsPathAllowed =
             actionsOnlyUiActive &&

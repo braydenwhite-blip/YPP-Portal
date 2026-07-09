@@ -6,20 +6,27 @@
  * lightweight tooltip; Phase 3 wires the filter action).
  */
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   type ReadinessSignals,
   readinessPercentage,
   readinessSignalLabel,
 } from "@/lib/readiness-signals";
+import type { DecisionReadinessCheck } from "@/lib/applications/decision-readiness";
+import { readinessPercentFromChecks } from "@/lib/applications/decision-readiness";
 import { CheckIcon, AlertTriangleIcon } from "./cockpit-icons";
 
 export interface DecisionReadinessMeterProps {
-  signals: ReadinessSignals;
+  /** Stage-aware checklist — matches Application 360 #readiness. */
+  checks?: DecisionReadinessCheck[];
+  /** Legacy four-signal input for the final-review cockpit. */
+  signals?: ReadinessSignals;
+  /** e.g. "1 of 3 complete" — shown beside the ring in compact mode. */
+  summaryLine?: string;
   compact?: boolean;
 }
 
-const SEGMENTS: Array<keyof ReadinessSignals> = [
+const LEGACY_SEGMENTS: Array<keyof ReadinessSignals> = [
   "hasSubmittedInterviewReviews",
   "hasMaterialsComplete",
   "hasReviewerRecommendation",
@@ -38,15 +45,45 @@ function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg
 }
 
 export default function DecisionReadinessMeter({
+  checks,
   signals,
+  summaryLine,
   compact = false,
 }: DecisionReadinessMeterProps) {
-  const [hoveredSegment, setHoveredSegment] = useState<keyof ReadinessSignals | null>(null);
-  const completedCount = useMemo(
-    () => SEGMENTS.filter((key) => signals[key]).length,
-    [signals]
-  );
-  const percent = readinessPercentage(signals);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  const segments = checks?.length
+    ? checks.map((check, idx) => ({
+        key: check.label,
+        done: check.done,
+        complete: check.detail ?? check.label,
+        gap: check.detail ?? `${check.label} pending`,
+        idx,
+      }))
+    : signals
+      ? LEGACY_SEGMENTS.map((key, idx) => {
+          const label = readinessSignalLabel(key);
+          return {
+            key,
+            done: signals[key],
+            complete: label.complete,
+            gap: label.gap,
+            idx,
+          };
+        })
+      : [];
+
+  if (segments.length === 0) return null;
+
+  const completedCount = segments.filter((s) => s.done).length;
+  const segmentCount = segments.length;
+  const percent = checks?.length
+    ? readinessPercentFromChecks(checks)
+    : signals
+      ? readinessPercentage(signals)
+      : 0;
+  const degreesPerSegment = 360 / segmentCount;
+  const arcGap = Math.min(4, degreesPerSegment * 0.08);
   const ringSize = compact ? 48 : 88;
   const stroke = compact ? 5 : 9;
   const radius = (ringSize - stroke) / 2;
@@ -67,7 +104,7 @@ export default function DecisionReadinessMeter({
         className="readiness-ring"
         style={{ position: "relative", width: ringSize, height: ringSize }}
       >
-        <svg width={ringSize} height={ringSize} role="img" aria-label={`Decision readiness: ${completedCount} of 4 signals met`}>
+        <svg width={ringSize} height={ringSize} role="img" aria-label={`Decision readiness: ${completedCount} of ${segmentCount} complete`}>
           <circle
             cx={cx}
             cy={cy}
@@ -76,29 +113,28 @@ export default function DecisionReadinessMeter({
             stroke="rgba(168, 156, 184, 0.28)"
             strokeWidth={stroke}
           />
-          {SEGMENTS.map((key, idx) => {
-            const start = idx * 90 + 4;
-            const end = (idx + 1) * 90 - 4;
-            const complete = signals[key];
+          {segments.map((segment) => {
+            const start = segment.idx * degreesPerSegment + arcGap;
+            const end = (segment.idx + 1) * degreesPerSegment - arcGap;
             return (
               <path
-                key={key}
+                key={String(segment.key)}
                 d={describeArc(cx, cy, radius, start, end)}
                 fill="none"
-                stroke={complete ? "#22c55e" : "rgba(168, 156, 184, 0.4)"}
+                stroke={segment.done ? "#22c55e" : "rgba(168, 156, 184, 0.4)"}
                 strokeWidth={stroke}
                 strokeLinecap="round"
                 style={{
                   transition: "stroke 200ms ease",
                   cursor: "pointer",
                 }}
-                onMouseEnter={() => setHoveredSegment(key)}
-                onMouseLeave={() => setHoveredSegment(null)}
-                onFocus={() => setHoveredSegment(key)}
-                onBlur={() => setHoveredSegment(null)}
+                onMouseEnter={() => setHoveredIndex(segment.idx)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                onFocus={() => setHoveredIndex(segment.idx)}
+                onBlur={() => setHoveredIndex(null)}
                 tabIndex={compact ? -1 : 0}
               >
-                <title>{readinessSignalLabel(key).title}</title>
+                <title>{segment.done ? segment.complete : segment.gap}</title>
               </path>
             );
           })}
@@ -115,7 +151,7 @@ export default function DecisionReadinessMeter({
             color: "var(--ink-default, #1a0533)",
           }}
         >
-          {completedCount}/4
+          {completedCount}/{segmentCount}
         </div>
       </div>
       {!compact ? (
@@ -132,23 +168,25 @@ export default function DecisionReadinessMeter({
             color: "var(--ink-default, #1a0533)",
           }}
         >
-          {SEGMENTS.map((key) => {
-            const label = readinessSignalLabel(key);
-            const ok = signals[key];
+          {segments.map((segment) => {
             return (
-              <li key={key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <li key={String(segment.key)} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span
                   aria-hidden="true"
                   style={{
-                    color: ok ? "#16a34a" : "#d97706",
+                    color: segment.done ? "#16a34a" : "#d97706",
                     display: "inline-flex",
                     alignItems: "center",
                   }}
                 >
-                  {ok ? <CheckIcon size={14} /> : <AlertTriangleIcon size={14} />}
+                  {segment.done ? <CheckIcon size={14} /> : <AlertTriangleIcon size={14} />}
                 </span>
-                <span style={{ color: ok ? "var(--ink-default, #1a0533)" : "var(--ink-muted, #6b5f7a)" }}>
-                  {ok ? label.complete : label.gap}
+                <span
+                  style={{
+                    color: segment.done ? "var(--ink-default, #1a0533)" : "var(--ink-muted, #6b5f7a)",
+                  }}
+                >
+                  {segment.done ? segment.complete : segment.gap}
                 </span>
               </li>
             );
@@ -168,11 +206,11 @@ export default function DecisionReadinessMeter({
             {percent === 100 ? "Ready to decide" : "Decision readiness"}
           </span>
           <span>
-            {hoveredSegment
-              ? signals[hoveredSegment]
-                ? readinessSignalLabel(hoveredSegment).complete
-                : readinessSignalLabel(hoveredSegment).gap
-              : `${percent}% complete`}
+            {hoveredIndex !== null
+              ? segments[hoveredIndex].done
+                ? segments[hoveredIndex].complete
+                : segments[hoveredIndex].gap
+              : summaryLine ?? `${percent}% complete`}
           </span>
         </div>
       )}

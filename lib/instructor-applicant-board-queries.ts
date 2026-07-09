@@ -354,6 +354,18 @@ const CHAIR_QUEUE_SELECT = {
   instructorSubtype: true,
   workshopOutline: true,
   promotionEligibility: true,
+  phoneNumber: true,
+  motivationVideoUrl: true,
+  schoolName: true,
+  graduationYear: true,
+  city: true,
+  stateProvince: true,
+  source: true,
+  infoRequest: true,
+  applicantResponse: true,
+  internalNotes: true,
+  reviewerAssignedAt: true,
+  updatedAt: true,
   applicant: {
     select: {
       id: true,
@@ -509,6 +521,16 @@ function buildWorkspaceWhere({
   }
 
   return where;
+}
+
+/** Full workspace payload for one application (decision panel + inline review). */
+export async function getApplicationForWorkspace(applicationId: string) {
+  const application = await prisma.instructorApplication.findFirst({
+    where: { id: applicationId, archivedAt: null },
+    select: WORKSPACE_SELECT,
+  });
+  if (!application) return null;
+  return normalizeChairQueueApplication(application);
 }
 
 /** Applicants in active review/interview stages — powers the mockup-style workspace. */

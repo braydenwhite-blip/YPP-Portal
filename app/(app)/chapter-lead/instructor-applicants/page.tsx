@@ -9,12 +9,10 @@ import {
 } from "@/lib/instructor-applicant-board-queries";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
-import { type FunnelCounts } from "@/components/instructor-applicants/ApplicantPipelineOverview";
 import { PageHeaderV2 } from "@/components/ui-v2";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 const DEMO_PIPELINE_TAKE = 48;
-const DEMO_FILTER_TAKE = 40;
 
 export default async function ChapterLeadInstructorApplicantsPage({
   searchParams,
@@ -42,7 +40,6 @@ export default async function ChapterLeadInstructorApplicantsPage({
             subtitle="The new applicant workflow is currently disabled."
           />
         }
-        actions={[{ label: "Home", href: "/", icon: "compass" }]}
       />
     );
   }
@@ -67,7 +64,6 @@ export default async function ChapterLeadInstructorApplicantsPage({
             subtitle="No chapter is assigned to your account yet, so there are no applicants to show. Ask an administrator to link your account to a chapter."
           />
         }
-        actions={[{ label: "Home", href: "/", icon: "compass" }]}
       />
     );
   }
@@ -100,91 +96,26 @@ export default async function ChapterLeadInstructorApplicantsPage({
     applicationTrack: applicationTrackFilter,
   };
 
-  // The "filter by reviewer/interviewer" dropdown only needs people who could
-  // realistically own work in this chapter's pipeline. We require chapterId to
-  // avoid `chapterId: undefined` collapsing to "no filter".
-  const loadReviewerUsers = () =>
-    chapterId
-      ? prisma.user.findMany({
-          where: {
-            chapterId,
-            OR: [
-              { roles: { some: { role: "ADMIN" } } },
-              { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
-            ],
-          },
-          select: { id: true, name: true, email: true },
-          orderBy: { name: "asc" },
-          take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
-        })
-      : Promise.resolve([] as Array<{ id: string; name: string | null; email: string }>);
-
-  const loadInterviewerUsers = () =>
-    chapterId
-      ? prisma.user.findMany({
-          where: {
-            chapterId,
-            OR: [
-              { roles: { some: { role: "ADMIN" } } },
-              { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
-              {
-                featureGateRulesTargeted: {
-                  some: { featureKey: "INTERVIEWER", enabled: true },
-                },
-              },
-            ],
-          },
-          select: { id: true, name: true, email: true },
-          orderBy: { name: "asc" },
-          take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
-        })
-      : Promise.resolve([] as Array<{ id: string; name: string | null; email: string }>);
-
   let pipelineResult: Awaited<ReturnType<typeof getApplicantPipeline>>;
   let archiveResult: Awaited<ReturnType<typeof getArchivedApplications>>;
-  let reviewerUsers: Awaited<ReturnType<typeof loadReviewerUsers>>;
-  let interviewerUsers: Awaited<ReturnType<typeof loadInterviewerUsers>>;
-  let funnelCounts: FunnelCounts = {};
 
   if (hiringDemoMode) {
-    [pipelineResult, reviewerUsers] = await Promise.all([
-      getApplicantPipeline({
-        scope: "chapter",
-        chapterId,
-        filters: pipelineFilters,
-        take: DEMO_PIPELINE_TAKE,
-      }),
-      loadReviewerUsers(),
-    ]);
+    pipelineResult = await getApplicantPipeline({
+      scope: "chapter",
+      chapterId,
+      filters: pipelineFilters,
+      take: DEMO_PIPELINE_TAKE,
+    });
     archiveResult = { items: [], total: 0, skip: 0, take: 0 };
-    interviewerUsers = reviewerUsers;
   } else {
-    const funnelGroupBy =
-      chapterId != null
-        ? prisma.instructorApplication.groupBy({
-            by: ["status"],
-            _count: true,
-            where: { archivedAt: null, applicant: { chapterId } },
-          })
-        : Promise.resolve([] as Awaited<ReturnType<typeof prisma.instructorApplication.groupBy>>);
-
-    const [pipelineRes, archiveRes, reviewerRes, interviewerRes, funnelRes] = await Promise.all([
+    [pipelineResult, archiveResult] = await Promise.all([
       getApplicantPipeline({
         scope: "chapter",
         chapterId,
         filters: pipelineFilters,
       }),
       getArchivedApplications({ scope: "chapter", chapterId }),
-      loadReviewerUsers(),
-      loadInterviewerUsers(),
-      funnelGroupBy,
     ]);
-
-    pipelineResult = pipelineRes;
-    archiveResult = archiveRes;
-    reviewerUsers = reviewerRes;
-    interviewerUsers = interviewerRes;
-    funnelCounts = Object.fromEntries(funnelRes.map((row) => [row.status, row._count])) as FunnelCounts;
   }
 
   const pipelineApps = (Object.values(pipelineResult.columns).flat() as any[]);
@@ -254,12 +185,6 @@ export default async function ChapterLeadInstructorApplicantsPage({
     workshopOutlinePresent: !!(app as { workshopOutline?: unknown }).workshopOutline,
   }));
 
-  const newCount = pipelineResult.columns.new.length;
-  const toReviewCount = pipelineResult.columns.needs_review.length;
-  const toInterviewCount =
-    pipelineResult.columns.interview_prep.length + pipelineResult.columns.ready_for_interview.length;
-  const postInterviewCount = pipelineResult.columns.post_interview.length;
-
   return (
     <ApplicationReviewShell
       maxWidth={1200}
@@ -267,32 +192,20 @@ export default async function ChapterLeadInstructorApplicantsPage({
         <PageHeaderV2
           eyebrow="Chapter"
           title="Application board"
-          subtitle={`${serializedPipeline.length} applicants · ${toReviewCount} need review`}
+          subtitle={
+            serializedPipeline.length === 1
+              ? "1 applicant in the pipeline"
+              : `${serializedPipeline.length} applicants in the pipeline`
+          }
         />
       }
       actions={[
-        { label: "Home", href: "/", icon: "compass" },
         { label: "All applicants", href: "/admin/instructor-applicants", icon: "list" },
       ]}
     >
       <InstructorApplicantsCommandCenter
-        scope="chapter"
-        chapterId={chapterId}
         pipelineApps={serializedPipeline as any}
         archivedApps={serializedArchive as any}
-        chairQueueCount={0}
-        canSeeChairQueue={false}
-        reviewers={reviewerUsers}
-        interviewers={interviewerUsers}
-        actorId={session!.user.id}
-        isAdmin={false}
-        pipelineFilteredCounts={{
-          newApplications: newCount,
-          needsReview: toReviewCount,
-          interviewStage: toInterviewCount,
-          postInterview: postInterviewCount,
-        }}
-        funnelCounts={funnelCounts}
       />
     </ApplicationReviewShell>
   );

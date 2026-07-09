@@ -5,19 +5,15 @@ import { canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
 import { requireApplicationReviewerPage } from "@/lib/page-guards";
 import {
   getApplicantPipeline,
-  getApplicantsWorkspace,
   getArchivedApplications,
   getChairQueue,
 } from "@/lib/instructor-applicant-board-queries";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
 import { buttonVariants, PageHeaderV2 } from "@/components/ui-v2";
-import { ArchiveAllButton } from "@/components/instructor-applicants/ArchiveActions";
-import { type FunnelCounts } from "@/components/instructor-applicants/ApplicantPipelineOverview";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 const DEMO_PIPELINE_TAKE = 48;
-const DEMO_FILTER_TAKE = 40;
 
 export default async function AdminInstructorApplicantsPage({
   searchParams,
@@ -71,7 +67,6 @@ export default async function AdminInstructorApplicantsPage({
             </p>
           </PageHeaderV2>
         }
-        actions={[{ label: "Home", href: "/", icon: "compass" }]}
       />
     );
   }
@@ -111,7 +106,6 @@ export default async function AdminInstructorApplicantsPage({
               subtitle="No chapter is assigned to your account yet, so there are no applicants to show. Ask an administrator to link your account to a chapter."
             />
           }
-          actions={[{ label: "Home", href: "/", icon: "compass" }]}
         />
       );
     }
@@ -168,116 +162,31 @@ export default async function AdminInstructorApplicantsPage({
     source: sourceFilter,
   };
 
-  const loadChapters = () =>
-    hasNetworkScope
-      ? prisma.chapter.findMany({
-          select: { id: true, name: true },
-          orderBy: { name: "asc" },
-          take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
-        })
-      : Promise.resolve([]);
-
-  const loadReviewerUsers = () =>
-    prisma.user.findMany({
-      where: {
-        OR: [
-          { roles: { some: { role: "ADMIN" } } },
-          { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
-        ],
-      },
-      select: { id: true, name: true, email: true },
-      orderBy: { name: "asc" },
-      take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
-    });
-
-  const loadInterviewerUsers = () =>
-    prisma.user.findMany({
-      where: {
-        OR: [
-          { roles: { some: { role: "ADMIN" } } },
-          { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
-          {
-            featureGateRulesTargeted: {
-              some: { featureKey: "INTERVIEWER", enabled: true },
-            },
-          },
-        ],
-      },
-      select: { id: true, name: true, email: true },
-      orderBy: { name: "asc" },
-      take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
-    });
-
   let pipelineResult: Awaited<ReturnType<typeof getApplicantPipeline>>;
   let archiveResult: Awaited<ReturnType<typeof getArchivedApplications>>;
   let chairQueueItems: Awaited<ReturnType<typeof getChairQueue>>;
-  let workspaceApps: Awaited<ReturnType<typeof getApplicantsWorkspace>>;
-  let chapters: Awaited<ReturnType<typeof loadChapters>>;
-  let reviewerUsers: Awaited<ReturnType<typeof loadReviewerUsers>>;
-  let interviewerUsers: Awaited<ReturnType<typeof loadInterviewerUsers>>;
-
-  // Funnel counts — separate query, no filters applied (global view of the funnel).
-  // ADMIN and HIRING_CHAIR share the network-wide funnel; pure CPs see a
-  // chapter-scoped funnel.
-  const funnelGroupBy = hasNetworkScope
-    ? prisma.instructorApplication.groupBy({
-        by: ["status"],
-        _count: true,
-        where: { archivedAt: null },
-      })
-    : prisma.instructorApplication.groupBy({
-        by: ["status"],
-        _count: true,
-        where: { archivedAt: null, applicant: { chapterId } },
-      });
-
-  let funnelCounts: FunnelCounts = {};
 
   if (hiringDemoMode) {
-    [pipelineResult, chapters, reviewerUsers] = await Promise.all([
+    pipelineResult = await getApplicantPipeline({
+      scope,
+      chapterId: effectiveChapterId,
+      filters: pipelineFilters,
+      take: DEMO_PIPELINE_TAKE,
+    });
+    archiveResult = { items: [], total: 0, skip: 0, take: 0 };
+    chairQueueItems = [];
+  } else {
+    [pipelineResult, archiveResult, chairQueueItems] = await Promise.all([
       getApplicantPipeline({
         scope,
         chapterId: effectiveChapterId,
         filters: pipelineFilters,
-        take: DEMO_PIPELINE_TAKE,
       }),
-      loadChapters(),
-      loadReviewerUsers(),
+      getArchivedApplications({ scope, chapterId: effectiveChapterId }),
+      showChairQueue
+        ? getChairQueue({ scope, chapterId: effectiveChapterId })
+        : Promise.resolve([]),
     ]);
-    archiveResult = { items: [], total: 0, skip: 0, take: 0 };
-    chairQueueItems = [];
-    workspaceApps = [];
-    interviewerUsers = reviewerUsers;
-  } else {
-    const [pipelineRes, archiveRes, chairRes, workspaceRes, chaptersRes, reviewerRes, interviewerRes, funnelRes] =
-      await Promise.all([
-        getApplicantPipeline({
-          scope,
-          chapterId: effectiveChapterId,
-          filters: pipelineFilters,
-        }),
-        getArchivedApplications({ scope, chapterId: effectiveChapterId }),
-        showChairQueue
-          ? getChairQueue({ scope, chapterId: effectiveChapterId })
-          : Promise.resolve([]),
-        getApplicantsWorkspace({ scope, chapterId: effectiveChapterId }),
-        loadChapters(),
-        loadReviewerUsers(),
-        loadInterviewerUsers(),
-        funnelGroupBy,
-      ]);
-
-    pipelineResult = pipelineRes;
-    archiveResult = archiveRes;
-    chairQueueItems = chairRes;
-    workspaceApps = workspaceRes;
-    chapters = chaptersRes;
-    reviewerUsers = reviewerRes;
-    interviewerUsers = interviewerRes;
-
-    funnelCounts = Object.fromEntries(
-      funnelRes.map((row) => [row.status, row._count])
-    ) as FunnelCounts;
   }
 
   // Flatten pipeline columns into a single array
@@ -374,77 +283,39 @@ export default async function AdminInstructorApplicantsPage({
     };
   });
 
-  const newCount = pipelineResult.columns.new.length;
-  const toReviewCount = pipelineResult.columns.needs_review.length;
-  const toInterviewCount =
-    pipelineResult.columns.interview_prep.length +
-    pipelineResult.columns.ready_for_interview.length;
-  const postInterviewCount = pipelineResult.columns.post_interview.length;
   const chairQueueCount =
     hiringDemoMode && showChairQueue
       ? pipelineResult.columns.chair_review.length
       : chairQueueItems.length;
-
-  const missingMaterialsCount = serializedPipeline.filter(
-    (app) =>
-      app.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" && !app.materialsReadyAt
-  ).length;
-  const overdueCount = serializedPipeline.filter((app) => app.overdue).length;
 
   const strip = [
     { label: "Add applicant", href: "/admin/external-applicants/new", icon: "user" as const },
     ...(showChairQueue
       ? [{ label: "Chair queue", href: "/admin/instructor-applicants/chair-queue", icon: "inbox" as const }]
       : []),
-    { label: "Home", href: "/", icon: "compass" as const },
   ];
 
   return (
     <ApplicationReviewShell
-      maxWidth={1200}
+      maxWidth={1280}
       header={
         <PageHeaderV2
           eyebrow="Applicants"
           title="Application board"
-          subtitle={`${serializedPipeline.length} in pipeline · ${toReviewCount} need review${overdueCount > 0 ? ` · ${overdueCount} overdue` : ""}${missingMaterialsCount > 0 ? ` · ${missingMaterialsCount} missing materials` : ""}`}
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              {hasNetworkScope && (
-                <a
-                  href="/api/admin/instructor-applicants/export.csv"
-                  download
-                  className={buttonVariants({ variant: "secondary", size: "md" })}
-                >
-                  Export CSV
-                </a>
-              )}
-              {isAdmin && <ArchiveAllButton />}
-            </div>
+          subtitle={
+            serializedPipeline.length === 1
+              ? "1 applicant in the pipeline"
+              : `${serializedPipeline.length} applicants in the pipeline`
           }
         />
       }
       actions={strip}
     >
       <InstructorApplicantsCommandCenter
-        scope={hasNetworkScope ? "global" : "chapter"}
-        chapterId={chapterId}
         pipelineApps={serializedPipeline as any}
         archivedApps={serializedArchive as any}
         chairQueueCount={chairQueueCount}
         canSeeChairQueue={showChairQueue}
-        chapters={chapters}
-        reviewers={reviewerUsers}
-        interviewers={interviewerUsers}
-        actorId={sessionUser.id}
-        isAdmin={isAdmin}
-        workspaceApps={workspaceApps as any}
-        pipelineFilteredCounts={{
-          newApplications: newCount,
-          needsReview: toReviewCount,
-          interviewStage: toInterviewCount,
-          postInterview: postInterviewCount,
-        }}
-        funnelCounts={funnelCounts}
       />
     </ApplicationReviewShell>
   );

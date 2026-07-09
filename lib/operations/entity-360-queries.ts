@@ -46,7 +46,6 @@ import { getInitiativeDef } from "@/lib/people-strategy/strategic-initiatives";
 
 import {
   buildMentorshipPanel,
-  buildPersonTimeline,
   entityInitials,
   meetingOutcomeLine,
   nextStepFromWork,
@@ -75,7 +74,6 @@ import {
 import {
   deriveClassReadiness,
   derivePartnerHealth,
-  derivePersonProfileCompleteness,
   latestActivityISO,
   recencyLabel,
 } from "./signals";
@@ -159,7 +157,7 @@ async function loadPerson360(
   if (!profile) return null;
   const officer = isOfficerTier(viewer);
 
-  const [extra, actions, meetings, latestReview] = await Promise.all([
+  const [extra, actions, meetings] = await Promise.all([
     prisma.user.findUnique({
       where: { id },
       select: {
@@ -298,17 +296,6 @@ async function loadPerson360(
           },
         })
       : Promise.resolve([]),
-    // Latest quarterly review (officer read) — instructor/staff records show
-    // "last review" as a concrete fact, never a bare performance label (§19).
-    officer
-      ? prisma.quarterlyReview
-          .findFirst({
-            where: { userId: id },
-            orderBy: { createdAt: "desc" },
-            select: { quarter: true, createdAt: true },
-          })
-          .catch(() => null)
-      : Promise.resolve(null),
   ]);
   if (!extra) return null;
 
@@ -317,8 +304,6 @@ async function loadPerson360(
     ...extra.roles.map((r) => r.role),
   ]);
   const isStudent = roleSet.has("STUDENT");
-  const isInstructorTier =
-    roleSet.has("INSTRUCTOR") || roleSet.has("STAFF") || roleSet.has("CHAPTER_PRESIDENT");
 
   const actionLites = actions.map((a) => toActionLite(a, now));
   const openLites = actionLites.filter(
@@ -327,75 +312,33 @@ async function loadPerson360(
   const openWork = openLites
     .map(workItemFromAction)
     .slice(0, DRAWER_LIMITS.workItems);
-  const completedActions = actionLites
-    .filter((a) => a.status === "COMPLETE" && a.completedISO)
-    .slice(0, 6)
-    .map((a) => ({
-      id: a.id,
-      title: a.title,
-      completedAt: a.completedISO as string,
-      href: a.href,
-    }));
-  const overdueCount = openLites.filter((a) => a.overdue).length;
-  const lastActivity = latestActivityISO([
-    completedActions[0]?.completedAt,
-    meetings[0]?.scheduledAt,
-    extra.classOfferingsInstructed[0]?.startDate,
-  ]);
-  const glance: Entity360Glance[] = [
-    { label: "Open work", value: String(openLites.length) },
-    ...(overdueCount > 0
-      ? [{ label: "Overdue", value: String(overdueCount), tone: "overdue" as const }]
-      : []),
-    { label: "Classes", value: String(extra.classOfferingsInstructed.length) },
-    ...(officer ? [{ label: "Meetings", value: String(meetings.length) }] : []),
-    { label: "Mentees", value: String(profile.mentees.length) },
-    { label: "Last activity", value: recencyLabel(lastActivity, now) },
-  ];
+  const roleLabel = prettyEnum(extra.primaryRole ?? "Member");
 
-  const facts: Entity360["facts"] = [];
-  facts.push({ label: "Email", value: profile.email, href: `mailto:${profile.email}` });
-  if (profile.phone) facts.push({ label: "Phone", value: profile.phone });
-  if (profile.school) facts.push({ label: "School", value: profile.school });
-  if (extra.profile?.grade) {
-    facts.push({ label: "Grade", value: `Grade ${extra.profile.grade}` });
+  const facts: Entity360["facts"] = [
+    { label: "Email", value: profile.email, href: `mailto:${profile.email}` },
+  ];
+  if (profile.chapterName) {
+    facts.push({ label: "Chapter", value: profile.chapterName });
   }
-  if (profile.location) facts.push({ label: "Location", value: profile.location });
-  if (profile.chapterName) facts.push({ label: "Chapter", value: profile.chapterName });
-  const completeness = derivePersonProfileCompleteness({
-    hasBio: Boolean(profile.bio),
-    hasAvatar: Boolean(profile.avatarUrl),
-    hasPhone: Boolean(profile.phone),
-    hasSchool: Boolean(profile.school),
-    hasLocation: Boolean(profile.location),
-    hasChapter: Boolean(profile.chapterName),
-  });
-  if (completeness.percent < 100) {
+  facts.push({ label: "Role", value: roleLabel });
+  if (profile.phone) {
     facts.push({
-      label: "Profile",
-      value: `${completeness.percent}% complete · missing ${completeness.missing.join(", ")}`,
+      label: "Phone",
+      value: profile.phone,
+      href: `tel:${profile.phone.replace(/\s/g, "")}`,
     });
   }
 
   // Advisor centrality (plan §12): for students, the advisor relationship and
-  // its check-in state are always-visible officer facts — concrete dates and
-  // flags, never a "health" label.
+  // its check-in state are officer-facing risks — concrete dates and flags, never
+  // a "health" label in the contact block.
   const risks: string[] = [];
   if (officer && isStudent) {
     const advising = extra.adviseeAssignments[0];
     if (!advising) {
       risks.push("No advisor assigned");
     } else {
-      facts.push({
-        label: "Advisor",
-        value: advising.advisor.name ?? advising.advisor.email,
-      });
-      facts.push({
-        label: "Last check-in",
-        value: advising.lastCheckInAt ? fmtDate(advising.lastCheckInAt) : "Never",
-      });
       if (advising.nextCheckInDueAt) {
-        facts.push({ label: "Next check-in", value: fmtDate(advising.nextCheckInDueAt) });
         if (advising.nextCheckInDueAt.getTime() < now.getTime()) {
           risks.push(`Advisor check-in overdue (due ${fmtDate(advising.nextCheckInDueAt)})`);
         }
@@ -403,31 +346,7 @@ async function loadPerson360(
       if (advising.needsFollowUp) {
         risks.push("Advisor flagged this student for follow-up");
       }
-      // Open recommendations are commitments to the student — keep them visible.
-      for (const rec of advising.recommendations.slice(0, 3)) {
-        facts.push({
-          label: "Open recommendation",
-          value: `${rec.title} (${prettyEnum(rec.kind)})`,
-        });
-      }
-      if (advising.recommendations.length > 3) {
-        facts.push({
-          label: "Open recommendation",
-          value: `+${advising.recommendations.length - 3} more`,
-        });
-      }
     }
-  }
-
-  // Instructor leadership centrality (plan §11): last review as a concrete
-  // fact for instructor-tier records on the officer view.
-  if (officer && isInstructorTier) {
-    facts.push({
-      label: "Last review",
-      value: latestReview
-        ? `${latestReview.quarter} · ${fmtDate(latestReview.createdAt)}`
-        : "None on record",
-    });
   }
 
   const people: Entity360["people"] = [
@@ -493,10 +412,6 @@ async function loadPerson360(
       .filter((d): d is Date => d != null)
       .sort((x, y) => x.getTime() - y.getTime())[0];
 
-    glance.push({ label: "Advisees", value: String(total) });
-    if (followUps > 0) glance.push({ label: "Follow-ups due", value: String(followUps), tone: "overdue" });
-    if (kickoffs > 0) glance.push({ label: "Kickoffs needed", value: String(kickoffs), tone: "warning" });
-
     const parts = [`${total} student${total === 1 ? "" : "s"}`];
     if (followUps > 0) parts.push(`${followUps} follow-up${followUps === 1 ? "" : "s"} due`);
     if (kickoffs > 0) parts.push(`${kickoffs} kickoff${kickoffs === 1 ? "" : "s"} not scheduled`);
@@ -517,37 +432,6 @@ async function loadPerson360(
           : `Follow up with ${first.studentName}`;
     }
   }
-
-  const timeline = buildPersonTimeline(
-    {
-      joinedAt: extra.createdAt,
-      mentors: extra.menteePairs.map((p) => ({
-        id: p.id,
-        name: p.mentor.name ?? p.mentor.email,
-        startedAt: p.startDate,
-      })),
-      mentees: extra.mentorPairs.map((p) => ({
-        id: p.id,
-        name: p.mentee.name ?? p.mentee.email,
-        startedAt: p.startDate,
-      })),
-      classesTaught: extra.classOfferingsInstructed.map((c) => ({
-        id: c.id,
-        title: c.title,
-        startedAt: c.startDate,
-      })),
-      completedActions,
-      // Leadership roles are an officer-facing read; peers see the public story.
-      roles: officer
-        ? extra.leadershipContributions.map((r) => ({
-            id: r.id,
-            title: r.title,
-            startedAt: r.startDate,
-          }))
-        : [],
-    },
-    { limit: DRAWER_LIMITS.timeline }
-  );
 
   // Mentorship panel: the person's active pairings, read through the ONE
   // canonical derivation (lib/mentorship/attention). Open next-step counts come
@@ -685,7 +569,6 @@ async function loadPerson360(
     avatarUrl: profile.avatarUrl,
     pageHref,
     signal: advisorSignal,
-    glance,
     facts,
     people,
     classes: extra.classOfferingsInstructed.map((c) => ({
@@ -713,7 +596,7 @@ async function loadPerson360(
       }),
       upcoming: m.scheduledAt.getTime() >= now.getTime() && m.status !== "CANCELLED",
     })),
-    timeline,
+    timeline: [],
     nextStep: advisorNextStep ?? nextStepFromWork(openWork),
     risks,
     footnote: personFootnote(officer),
@@ -1931,14 +1814,9 @@ async function loadApplicant360(
     getActionsForEntity("INSTRUCTOR_APPLICATION", id, viewer),
     getMeetingsForEntity("INSTRUCTOR_APPLICATION", id, DRAWER_LIMITS.meetings),
   ]);
-  const actionLites = actions.map((a) => toActionLite(a, now));
   const meetingDtos = await mapMeetingsToCardDTOs(meetings, now);
   const workItems = liteWorkItems(actions, now).slice(0, DRAWER_LIMITS.workItems);
 
-  const daysInPipeline = Math.max(
-    0,
-    Math.floor((now.getTime() - app.createdAt.getTime()) / DAY_MS)
-  );
   const idleDays = Math.max(
     0,
     Math.floor((now.getTime() - app.updatedAt.getTime()) / DAY_MS)
@@ -1949,64 +1827,6 @@ async function loadApplicant360(
     app.interviewScheduledAt.getTime() > now.getTime();
   const stuck =
     !decided && !interviewUpcoming && idleDays >= APPLICANT_STUCK_DAYS;
-
-  // The pipeline story: stage milestones first, then linked work/meetings.
-  const milestones = [
-    {
-      id: "applicant:submitted",
-      occurredAtISO: app.createdAt.toISOString(),
-      title: "Application submitted",
-    },
-    ...(app.interviewScheduledAt
-      ? [
-          {
-            id: "applicant:interview",
-            occurredAtISO: app.interviewScheduledAt.toISOString(),
-            title: interviewUpcoming ? "Interview scheduled" : "Interview held",
-          },
-        ]
-      : []),
-    ...(app.approvedAt
-      ? [
-          {
-            id: "applicant:approved",
-            occurredAtISO: app.approvedAt.toISOString(),
-            title: "Approved",
-          },
-        ]
-      : []),
-    ...(app.rejectedAt
-      ? [
-          {
-            id: "applicant:rejected",
-            occurredAtISO: app.rejectedAt.toISOString(),
-            title: "Not moved forward",
-          },
-        ]
-      : []),
-  ].map((m) => ({
-    ...m,
-    kind: "milestone" as const,
-    detail: null,
-    actorName: null,
-    relatedType: null,
-    relatedId: null,
-    relatedLabel: null,
-    href: null,
-  }));
-  const workEvents = buildUnifiedTimeline({
-    actions: actionLites,
-    meetings: meetingDtos.map((dto) => toMeetingLite(dto, now)),
-    decisions: [],
-    now,
-    daysBack: 180,
-  });
-  const timeline = [...milestones, ...workEvents]
-    .sort(
-      (a, b) =>
-        new Date(b.occurredAtISO).getTime() - new Date(a.occurredAtISO).getTime()
-    )
-    .slice(0, DRAWER_LIMITS.timeline);
 
   // A pure applicant has no member profile to open — keep the name plain text.
   const applicantIsMember =
@@ -2030,20 +1850,6 @@ async function loadApplicant360(
           detail: "No movement on the application — applicants this stale usually walk away.",
         }
       : null,
-    glance: [
-      { label: "In pipeline", value: `${daysInPipeline}d` },
-      {
-        label: "Since movement",
-        value: `${idleDays}d`,
-        ...(stuck ? { tone: "warning" as const } : {}),
-      },
-      {
-        label: "Interview",
-        value: app.interviewScheduledAt
-          ? fmtDate(app.interviewScheduledAt)
-          : "Not scheduled",
-      },
-    ],
     facts: [
       { label: "Track", value: prettyEnum(app.applicationTrack) },
       ...(app.schoolName ? [{ label: "School", value: app.schoolName }] : []),
@@ -2084,7 +1890,7 @@ async function loadApplicant360(
     classes: [],
     workItems,
     meetings: meetingDtos.map(meetingRef),
-    timeline,
+    timeline: [],
     nextStep:
       nextStepFromWork(workItems) ??
       (stuck ? "Assign a reviewer or schedule the interview." : null),

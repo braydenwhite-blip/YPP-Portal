@@ -29,7 +29,6 @@ import { listManualEmailTasksForInstructorApplication } from "@/lib/manual-email
 import { suggestedEmailKindsForStatus } from "@/lib/application-source-config";
 import ApplicantCockpitSidebar from "@/components/instructor-applicants/ApplicantCockpitSidebar";
 import ApplicantNextActionBar from "@/components/instructor-applicants/ApplicantNextActionBar";
-import ApplicantTimelineFeed from "@/components/instructor-applicants/ApplicantTimelineFeed";
 import CollapsibleAssignmentPanel from "@/components/instructor-applicants/CollapsibleAssignmentPanel";
 import InterviewSchedulingInlinePanel from "@/components/instructor-applicants/InterviewSchedulingInlinePanel";
 import InterviewerAssignPicker from "@/components/instructor-applicants/InterviewerAssignPicker";
@@ -204,13 +203,18 @@ export default async function ApplicantCockpitPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ notice?: string; reviewWarnings?: string; adminPreview?: string }>;
+  searchParams: Promise<{
+    notice?: string;
+    reviewWarnings?: string;
+    adminPreview?: string;
+    full?: string;
+  }>;
 }) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const { notice, reviewWarnings, adminPreview } = await searchParams;
+  const { notice, reviewWarnings, adminPreview, full } = await searchParams;
 
   if (!isInstructorApplicantWorkflowV1Enabled()) {
     // Admins/chairs go to the admin board; applicants and other roles get
@@ -291,6 +295,15 @@ export default async function ApplicantCockpitPage({
   const actorIsChair = isHiringChair(actor);
   const actorIsReviewer = isAssignedReviewer(actor, appCtx);
   const actorIsInterviewer = isAssignedInterviewer(actor, appCtx);
+
+  // Officers browsing from the board land on Application 360 — the single
+  // scrollable record. Assigned reviewers/interviewers keep the operational
+  // cockpit for review editors and scheduling tools.
+  const wantsFullCockpit = adminPreview === "1" || full === "1";
+  const isAssignedToWorkflow = actorIsReviewer || actorIsInterviewer;
+  if (!wantsFullCockpit && !isAssignedToWorkflow) {
+    redirect(`/admin/instructor-applicants/${id}`);
+  }
 
   // SW-only mode gate: while the Standard track is paused, public access to
   // an in-flight Standard application is hidden. But anyone with a legitimate
@@ -547,33 +560,21 @@ export default async function ApplicantCockpitPage({
               hidden={isHidden}
             />
 
-            {/* Applicant Summary */}
+            {/* Contact & profile — compact; header already shows name, chapter, school */}
             <section id="section-summary" className={`${PANEL} border-l-4 border-l-brand-600`}>
-              <div className={HEADING}>
-                <span className={KICKER}>Profile</span>
-                <h2 className={H2}>Applicant Summary</h2>
-              </div>
               <dl className={DETAIL_GRID}>
                 <dt>Email</dt>
                 <dd>{application.applicant.email}</dd>
-                {application.phoneNumber && (
+                {application.phoneNumber ? (
                   <>
                     <dt>Phone</dt>
                     <dd>{application.phoneNumber}</dd>
                   </>
-                )}
-                <dt>Last Name</dt>
-                <dd>{application.lastName ?? "Missing"}</dd>
-                <dt>Teaching Experience</dt>
+                ) : null}
+                <dt>Teaching experience</dt>
                 <dd>{application.teachingExperience}</dd>
                 <dt>Availability</dt>
                 <dd>{application.availability}</dd>
-                {application.subjectsOfInterest && (
-                  <>
-                    <dt>Subjects</dt>
-                    <dd>{application.subjectsOfInterest}</dd>
-                  </>
-                )}
               </dl>
             </section>
 
@@ -845,19 +846,6 @@ export default async function ApplicantCockpitPage({
               />
             )}
 
-            {/* Full Timeline */}
-            <section id="section-timeline" className={PANEL}>
-              <div className={HEADING}>
-                <span className={KICKER}>Audit trail</span>
-                <h2 className={H2}>Timeline</h2>
-              </div>
-              <ApplicantTimelineFeed
-                events={application.timeline.map((e) => ({
-                  ...e,
-                  payload: e.payload as Record<string, unknown>,
-                }))}
-              />
-            </section>
           </main>
 
           {/* Sidebar — compact supporting context only */}
