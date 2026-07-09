@@ -8,7 +8,7 @@
 import "server-only";
 
 import {
-  requireOfficer,
+  requireLeadership,
   requireSessionUser,
   type SessionUser,
 } from "@/lib/authorization";
@@ -27,9 +27,9 @@ export function isAdmin(viewer: Viewer): boolean {
   return hasRole(viewer.roles, "ADMIN", viewer.primaryRole);
 }
 
-/** Whoever may run/edit meetings (officer-tier). */
+/** Whoever may run/edit meetings (Sr. Leadership / Board only). */
 export async function requireMeetingRunner(): Promise<Viewer> {
-  return requireOfficer();
+  return requireLeadership();
 }
 
 /** Team configuration is admin-only. */

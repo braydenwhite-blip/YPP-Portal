@@ -60,7 +60,6 @@ const CRITICAL_CORE_LINKS: string[] = [];
 const OFFICER_CRITICAL_CORE_LINKS = [
   "/people",
   "/actions",
-  "/meetings",
 ];
 
 type RoleGroupOrder = Record<NavRole, NavGroup[]>;
@@ -640,6 +639,9 @@ export function resolveNavModel(
       if (item.requiresOperationsHub && !input.operationsHubEnabled) return false;
       if (item.requiresLegacyActionCenterNav && !input.legacyActionCenterNavEnabled) return false;
       if (!hasRoleAccess(item, roles)) return false;
+      // People hub is officer-tier only — not leadership preview pilots without
+      // an assigned officer role (ADMIN, STAFF, CHAPTER_PRESIDENT, HIRING_CHAIR).
+      if (item.href === "/people" && !officerTierUser) return false;
       if (primaryRole !== "STUDENT" && isLegacyMenteeMentorshipHref(item.href)) {
         return false;
       }

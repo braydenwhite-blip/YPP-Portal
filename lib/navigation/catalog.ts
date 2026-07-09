@@ -825,8 +825,10 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/meetings",
       label: "Meetings",
       icon: "📅",
-      // Officer-tier and above only (mirrors requireOfficer()).
-      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
+      // Leadership-only — hidden from officer-tier sidebars; reachable by URL for
+      // Sr. Leadership / Board (requireLeadership() on routes).
+      roles: ["ADMIN"] as NavRole[],
+      coreEligible: false,
       requiresActionTracker: true,
       searchAliases: [
         "Meetings",

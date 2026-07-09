@@ -69,7 +69,6 @@ export const OFFICER_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {
  * un-hides only these specific routes for the officer layout.
  */
 export const OFFICER_UNHIDE_HREFS: ReadonlySet<string> = new Set<string>([
-  "/meetings",
   "/actions/all",
   "/actions/responsibility",
   "/admin/chapters",

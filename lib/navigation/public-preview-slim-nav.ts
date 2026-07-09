@@ -1,4 +1,5 @@
 import type { NavRole } from "@/lib/navigation/types";
+import { isOfficerTierFromAuth } from "@/lib/org/role-sets";
 import { isPublicGateEnabled } from "@/lib/public-gate";
 import {
   canAccessActionsOnlyPreview,
@@ -17,8 +18,8 @@ import {
  * Set `PORTAL_SLIM_NAV=false` to restore the full officer sidebar locally.
  */
 
-/** Leadership home + People Strategy front doors. */
-const LEADERSHIP_SLIM_HREFS = ["/", "/people", "/actions", "/meetings"] as const;
+/** Leadership home + People Strategy front doors (People added when officer-tier). */
+const LEADERSHIP_SLIM_HREFS = ["/", "/actions"] as const;
 
 /** Home + Actions only — for narrow preview pilots. */
 const ACTIONS_ONLY_SLIM_HREFS = ["/", "/actions"] as const;
@@ -92,6 +93,10 @@ export function getPublicPreviewSlimNavHrefs(
   }
 
   const hrefs = new Set<string>(LEADERSHIP_SLIM_HREFS);
+
+  if (isOfficerTierFromAuth(roles, primaryRole)) {
+    hrefs.add("/people");
+  }
 
   for (const href of PUBLIC_GATE_NAV_HREFS) {
     hrefs.add(href);

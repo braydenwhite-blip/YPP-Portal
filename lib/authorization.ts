@@ -130,6 +130,9 @@ export async function requireBoard(): Promise<SessionUser> {
  */
 export async function requireOfficer(): Promise<SessionUser> {
   const sessionUser = await requireSessionUser();
+  if (hasAnyRole(sessionUser.roles, [...OFFICER_TIER_ROLES], sessionUser.primaryRole)) {
+    return sessionUser;
+  }
   if (
     canAccessLeadershipPreviewStack({
       id: sessionUser.id,

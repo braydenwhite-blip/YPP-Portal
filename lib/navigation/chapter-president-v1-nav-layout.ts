@@ -4,12 +4,12 @@ import type { NavGroup, NavLink, NavRole } from "@/lib/navigation/types";
  * Chapter President navigation.
  *
  * CPs run a chapter, so they get the same plain-noun object sections leadership
- * uses — People · Programs · Meetings · Actions — alongside their chapter
+ * uses — People · Programs · Actions — alongside their chapter
  * operations, instead of a hiring-pipeline-only sidebar. This file is the single
  * source of truth for what a CP sees and how it is grouped, mirroring the
  * student/instructor `v1` layout pattern.
  *
- * Layout: Home · Chapter · People · Programs · Meetings · Actions (+ account).
+ * Layout: Home · Chapter · People · Programs · Actions (+ account).
  */
 
 /** The full set of routes a Chapter President can reach from the sidebar. */
@@ -38,10 +38,6 @@ export const CHAPTER_PRESIDENT_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/mentorship",
   "/curriculum",
   "/pathways",
-  // Meetings
-  "/meetings",
-  "/scheduling",
-  "/interviews",
   // Actions
   "/actions",
   "/operations/initiatives",
@@ -55,7 +51,6 @@ export const CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, str
   Chapters: "🏘",
   People: "👥",
   Programs: "🎓",
-  Meetings: "📅",
   Actions: "✅",
   "Profile & Settings": "⚙️",
 };
@@ -88,11 +83,6 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/mentorship": { group: "Programs", label: "Mentorship", icon: "🤝" },
   "/curriculum": { group: "Programs", label: "Curriculum", icon: "📖" },
   "/pathways": { group: "Programs", label: "Pathways", icon: "🗺" },
-
-  // Meetings — prepare, run, and follow up
-  "/meetings": { group: "Meetings", label: "Meetings", icon: "📅" },
-  "/scheduling": { group: "Meetings", label: "Scheduling", icon: "🗓" },
-  "/interviews": { group: "Meetings", label: "Interviews", icon: "🎤" },
 
   // Actions — action items and initiatives
   "/actions": { group: "Actions", label: "Actions", icon: "✅" },
@@ -129,10 +119,6 @@ export const CHAPTER_PRESIDENT_SIDEBAR_LINK_ORDER: string[] = [
   "/mentorship",
   "/curriculum",
   "/pathways",
-  // Meetings
-  "/meetings",
-  "/scheduling",
-  "/interviews",
   // Actions
   "/actions",
   "/operations/initiatives",

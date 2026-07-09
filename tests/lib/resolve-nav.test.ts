@@ -291,7 +291,22 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).not.toContain("/admin/portal-rollout");
   });
 
-  it("pins People, Actions, and Meetings for admins even when publicGateActive is true", () => {
+  it("pins Actions in Top Tools for staff without Meetings", () => {
+    const model = resolveNavModel({
+      roles: ["STAFF"],
+      primaryRole: "STAFF",
+      pathname: "/",
+      actionTrackerEnabled: true,
+      operationsHubEnabled: true,
+    });
+
+    const coreHrefs = model.core.map((item) => item.href);
+    expect(coreHrefs).toContain("/actions");
+    expect(coreHrefs).not.toContain("/meetings");
+    expect(coreHrefs).toContain("/people");
+  });
+
+  it("pins People and Actions for admins even when publicGateActive is true", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       adminSubtypes: ["SUPER_ADMIN"],
@@ -305,8 +320,7 @@ describe("resolveNavModel", () => {
     const coreHrefs = model.core.map((item) => item.href);
     expect(coreHrefs).toContain("/people");
     expect(coreHrefs).toContain("/actions");
-    // The canonical Meetings umbrella is the pinned front door.
-    expect(coreHrefs).toContain("/meetings");
+    expect(coreHrefs).not.toContain("/meetings");
     // The retired Work hub is no longer pinned (or present at all).
     expect(coreHrefs).not.toContain("/work");
   });
@@ -368,7 +382,7 @@ describe("resolveNavModel", () => {
       expect(visibleHrefs).toContain("/");
       expect(visibleHrefs).toContain("/people");
       expect(visibleHrefs).toContain("/actions");
-      expect(visibleHrefs).toContain("/meetings");
+      expect(visibleHrefs).not.toContain("/meetings");
       expect(visibleHrefs).toContain("/applications");
       expect(visibleHrefs).toContain("/instructor/workshop-design-studio");
       expect(visibleHrefs).toContain("/instructor-training");
@@ -385,7 +399,6 @@ describe("resolveNavModel", () => {
         "/",
         "/people",
         "/actions",
-        "/meetings",
         "/applications",
         "/instructor/workshop-design-studio",
         "/instructor-training",
@@ -411,6 +424,23 @@ describe("resolveNavModel", () => {
       expect(visibleHrefs).not.toContain("/admin/bulk-users");
       expect(visibleHrefs).not.toContain("/admin");
       expect(model.more).toHaveLength(0);
+    });
+
+    it("hides People hub from leadership preview pilots without officer roles", () => {
+      const model = resolveNavModel({
+        roles: ["INSTRUCTOR"],
+        primaryRole: "INSTRUCTOR",
+        pathname: "/",
+        actionTrackerEnabled: true,
+        operationsHubEnabled: true,
+        publicGateActive: true,
+        officerSlimNavActive: true,
+        viewerEmail: "brayden.white@youthpassionproject.org",
+        viewerInternalLevel: 5,
+      });
+
+      const visibleHrefs = hrefs(model);
+      expect(visibleHrefs).not.toContain("/people");
     });
   });
 
@@ -529,7 +559,6 @@ describe("officer section navigation (9-section IA)", () => {
       "/admin/instructor-applicants",
       "/admin/chapter-president-applicants",
       "/actions",
-      "/meetings",
       "/follow-up",
       "/delegate",
       "/partners",
@@ -540,12 +569,13 @@ describe("officer section navigation (9-section IA)", () => {
     ]) {
       expect(visibleHrefs).toContain(href);
     }
+    expect(visibleHrefs).not.toContain("/meetings");
   });
 
   it("assigns each surface to the right object section", () => {
     const model = officerModel();
     expect(groupOf(model, "/people")).toBe("People");
-    expect(groupOf(model, "/meetings")).toBe("Meetings");
+    expect(groupOf(model, "/meetings")).toBeUndefined();
     expect(groupOf(model, "/actions/meetings")).toBeUndefined();
     expect(groupOf(model, "/impact-meetings")).toBeUndefined();
     expect(groupOf(model, "/actions")).toBe("Actions");
@@ -567,13 +597,21 @@ describe("chapter-president section navigation", () => {
     });
   }
 
-  it("gives chapter presidents the People/Programs/Meetings/Actions sections plus Chapter ops", () => {
+  it("pins Actions in Top Tools for chapter presidents without Meetings", () => {
+    const model = cpModel();
+    const coreHrefs = model.core.map((item) => item.href);
+    expect(coreHrefs).toContain("/actions");
+    expect(coreHrefs).not.toContain("/meetings");
+    expect(coreHrefs).toContain("/people");
+  });
+
+  it("gives chapter presidents the People/Programs/Actions sections plus Chapter ops", () => {
     const model = cpModel();
     const visibleHrefs = model.visible.map((item) => item.href);
     // Cross-cutting object sections are now reachable for CPs.
     expect(visibleHrefs).toContain("/people");
     expect(visibleHrefs).toContain("/actions");
-    expect(visibleHrefs).toContain("/meetings");
+    expect(visibleHrefs).not.toContain("/meetings");
     expect(visibleHrefs).toContain("/mentorship");
     // Chapter operations stay.
     expect(visibleHrefs).toContain("/chapter");
@@ -584,7 +622,6 @@ describe("chapter-president section navigation", () => {
 
     const groupOf = (href: string) => model.visible.find((i) => i.href === href)?.group;
     expect(groupOf("/people")).toBe("People");
-    expect(groupOf("/meetings")).toBe("Meetings");
     expect(groupOf("/actions")).toBe("Actions");
     expect(groupOf("/mentorship")).toBe("Programs");
   });
