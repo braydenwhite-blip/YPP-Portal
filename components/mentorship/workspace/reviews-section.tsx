@@ -13,8 +13,10 @@ import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
 import { prisma } from "@/lib/prisma";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
+import { resolveReflectionQuestions } from "@/lib/mentorship/reflection-questions";
 
 import { CycleStrip } from "./cycle-strip";
+import { QuarterlyReviewSection } from "./quarterly-review-section";
 
 /**
  * Reviews — the monthly loop as one lifecycle, not a set of components:
@@ -56,7 +58,7 @@ export async function ReviewsSection({
   workspace: MentorshipWorkspace;
   sectionHref: (sectionId: string) => string;
 }) {
-  const { isSelf, lifecycle, cycleStrip, nextAction, person } = workspace;
+  const { isSelf, lifecycle, cycleStrip, nextAction, person, capabilities } = workspace;
   const firstName = person.name.split(" ")[0];
 
   // Everything released to this person, plus the mentee's reactions and the
@@ -101,6 +103,10 @@ export async function ReviewsSection({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Quarterly Committee Review dominates once due — committee-internal
+          deliberation, never shown to the mentee themselves. */}
+      {capabilities.canRunQuarterlyReview ? <QuarterlyReviewSection workspace={workspace} /> : null}
+
       {lifecycle.hasActiveMentorship && lifecycle.kickoffComplete ? (
         <CycleStrip steps={cycleStrip} cycleLabel={lifecycle.cycleLabel} />
       ) : null}
@@ -268,7 +274,7 @@ async function SelfReflectionComposer({ personId }: { personId: string }) {
   });
   const menteeRoleType = toMenteeRoleType(person?.primaryRole ?? "");
 
-  const [mentorship, goals] = await Promise.all([
+  const [mentorship, goals, cycleParticipant] = await Promise.all([
     prisma.mentorship.findFirst({
       where: { menteeId: personId, status: "ACTIVE" },
       select: {
@@ -287,11 +293,25 @@ async function SelfReflectionComposer({ personId }: { personId: string }) {
           select: { id: true, title: true, description: true },
         })
       : [],
+    // A Chief of Staff/admin can retune this cycle's reflection prompt
+    // wording (ReviewCycle.reflectionQuestionsJson) without touching the
+    // form itself — falls back to the standard copy when no active cycle
+    // covers this person.
+    prisma.reviewCycleParticipant.findFirst({
+      where: { userId: personId, cycle: { status: "active" } },
+      orderBy: { addedAt: "desc" },
+      select: { cycle: { select: { reflectionQuestionsJson: true } } },
+    }),
   ]);
   if (!mentorship) return null;
 
   const cycleNumber = (mentorship.selfReflections[0]?.cycleNumber ?? 0) + 1;
   const isQuarterly = cycleNumber % 3 === 0;
+  const questions = resolveReflectionQuestions(
+    cycleParticipant?.cycle.reflectionQuestionsJson as
+      | Parameters<typeof resolveReflectionQuestions>[0]
+      | undefined
+  );
 
   return (
     <details className="rounded-[12px] border border-brand-200 bg-brand-50/40 p-4" open>
@@ -306,7 +326,7 @@ async function SelfReflectionComposer({ personId }: { personId: string }) {
         writing your monthly review.
       </p>
       <div className="mt-3">
-        <ReflectionForm goals={goals} cycleNumber={cycleNumber} isQuarterly={isQuarterly} />
+        <ReflectionForm goals={goals} cycleNumber={cycleNumber} isQuarterly={isQuarterly} questions={questions} />
       </div>
     </details>
   );

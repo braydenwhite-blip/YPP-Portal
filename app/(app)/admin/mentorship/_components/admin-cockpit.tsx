@@ -375,35 +375,26 @@ export async function AdminMentorshipCockpit({
 
   const [rawChairsData, eligibleUsersData] = tab === "committees"
     ? await Promise.all([
-        prisma.user.findMany({
-          where: { roles: { some: {} } },
-          include: { roles: true }
+        prisma.mentorCommitteeChair.findMany({
+          include: { user: { select: { id: true, name: true, email: true } } },
+          orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
         }),
         prisma.user.findMany({ select: { id: true, name: true, email: true } }),
       ])
     : [[], []];
 
-  const chairsData = (rawChairsData ?? [])
-    .filter((user: any) =>
-      user.roles?.some(
-        (r: any) =>
-          String(r.role).toUpperCase() === "CHAIR" || String(r.role).toUpperCase() === "ADMIN"
-      )
-    )
-    .map((user: any) => {
-      const chairRole = user.roles?.find(
-        (r: any) =>
-          String(r.role).toUpperCase() === "CHAIR" || String(r.role).toUpperCase() === "ADMIN"
-      );
-      return {
-        id: user.id,
-        userId: user.id,
-        userName: user.name,
-        userEmail: user.email,
-        roleType: String(chairRole?.role ?? "ADMIN"),
-        isActive: true,
-      };
-    });
+  // The four named Role Committees (Officers, Global Directors/Managers,
+  // Chapter Presidents, Instructors) — sourced from MentorCommitteeChair,
+  // the model that actually gates review approval (lib/mentorship-chair-access.ts).
+  const chairsData = (rawChairsData ?? []).map((chair: any) => ({
+    id: chair.id,
+    userId: chair.userId,
+    userName: chair.user.name,
+    userEmail: chair.user.email,
+    roleType: String(chair.roleType),
+    lane: chair.lane ? String(chair.lane) : null,
+    isActive: chair.isActive,
+  }));
 
   const laneMeta = ADMIN_MENTORSHIP_LANE_META[lane];
   const selectedSummary =

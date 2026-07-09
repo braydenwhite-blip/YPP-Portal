@@ -1,14 +1,31 @@
 import type { GoalReviewStatus } from "@prisma/client";
+import { deriveReviewArtifactStage, type ReviewArtifactStage } from "@/lib/mentorship-cycle";
 
 /**
  * Shared, presentation-agnostic mapping of a mentor goal review's lifecycle so
  * every chair/admin surface describes approval state, release state, and point
  * consequences with identical language. Pure + unit-testable — no IO here.
  *
- * The underlying state machine is unchanged (see `GoalReviewStatus`):
- *   DRAFT → PENDING_CHAIR_APPROVAL → (APPROVED | CHANGES_REQUESTED)
- * On APPROVED the review is released to the mentee and points are awarded.
+ * Stage determination itself is NOT re-derived here — it delegates to
+ * `deriveReviewArtifactStage()` (lib/mentorship-cycle.ts), the same primitive
+ * `deriveCycleState()`/`buildCycleStrip()` use for `/people/[id]`. This module
+ * only owns the list/queue-specific label and tone copy on top of that shared
+ * stage, so the chair queue and the canonical person page can never disagree
+ * about *what stage a review is in* — only how they word it.
  */
+
+function stageFromInput(input: ReviewStateInput): ReviewArtifactStage {
+  const status = String(input.status) as GoalReviewStatus | "DRAFT";
+  return deriveReviewArtifactStage({
+    // A MentorGoalReview row only exists once a reflection has been
+    // submitted, so DRAFT (mentor is still writing) is the one status not
+    // explicitly branched in deriveReviewArtifactStage — it needs
+    // reflectionAwaitingReview: true to resolve to REFLECTION_SUBMITTED.
+    reflectionAwaitingReview: status === "DRAFT",
+    reviewStatus: status === "DRAFT" ? null : (status as GoalReviewStatus),
+    releasedToMentee: Boolean(input.releasedToMenteeAt),
+  });
+}
 
 export type ReviewStateTone =
   | "neutral"
@@ -55,8 +72,9 @@ export function getReviewHeadlineState(input: ReviewStateInput): {
 } {
   const status = String(input.status);
   const released = Boolean(input.releasedToMenteeAt);
+  const stage = stageFromInput(input);
 
-  if (status === "DRAFT") {
+  if (stage === "REFLECTION_SUBMITTED") {
     return {
       key: "draft",
       label: "Draft",
@@ -64,7 +82,7 @@ export function getReviewHeadlineState(input: ReviewStateInput): {
       description: "The mentor is still writing this review. Nothing is waiting on you yet.",
     };
   }
-  if (status === "CHANGES_REQUESTED") {
+  if (stage === "CHANGES_REQUESTED") {
     return {
       key: "changes-requested",
       label: "Changes requested",
@@ -83,7 +101,7 @@ export function getReviewHeadlineState(input: ReviewStateInput): {
         : "Approved by the chair. Feedback and points are being finalized.",
     };
   }
-  // PENDING_CHAIR_APPROVAL (submitted) is the default actionable state.
+  // REVIEW_SUBMITTED (PENDING_CHAIR_APPROVAL) is the default actionable state.
   return {
     key: "pending-chair",
     label: "Pending chair approval",

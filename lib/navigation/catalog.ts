@@ -973,6 +973,15 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
+      href: "/mentorship/committee",
+      label: "Committee Queue",
+      icon: "🏛️",
+      roles: MENTOR_ROLES,
+      searchAliases: ["Role Committee", "Quarterly Review Queue", "Pathway Decisions"],
+      dashboardDescription: "Everyone due for a quarterly committee review and Pathway Decision.",
+      dashboardPriority: 7,
+    },
+    {
       href: "/mentorship/schedule",
       label: "Mentor Schedule",
       icon: "📅",

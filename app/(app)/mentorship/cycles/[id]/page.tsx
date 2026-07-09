@@ -7,6 +7,8 @@ import {
   CloseCycleButton,
   WaiveToggle,
 } from "@/components/mentorship/cycle-row-actions";
+import { ReflectionQuestionsEditor } from "@/components/mentorship/reflection-questions-editor";
+import type { ReflectionQuestionOverrides } from "@/lib/mentorship/reflection-questions";
 import { getSession } from "@/lib/auth-supabase";
 import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
 import {
@@ -132,6 +134,13 @@ export default async function ReviewCyclePage(
           />
         </div>
       </PageHeaderV2>
+
+      {cycle.kind === "monthly" ? (
+        <ReflectionQuestionsEditor
+          cycleId={cycle.id}
+          currentOverrides={cycle.reflectionQuestionsJson as ReflectionQuestionOverrides | null}
+        />
+      ) : null}
 
       {cycle.participants.length === 0 ? (
         <CardV2 padding="md">

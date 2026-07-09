@@ -445,9 +445,23 @@ export default function MatchingPanel({
                                 </span>
                               )}
                             </span>
-                            <span className="pill pill-small">
-                              {candidate.mentorCurrentMentees} active assignment
-                              {candidate.mentorCurrentMentees === 1 ? "" : "s"}
+                            <span
+                              className={`pill pill-small ${
+                                candidate.mentorCapacity != null &&
+                                candidate.mentorCurrentMentees >= candidate.mentorCapacity
+                                  ? "pill-pending"
+                                  : ""
+                              }`}
+                            >
+                              {candidate.mentorCapacity != null
+                                ? `${candidate.mentorCurrentMentees} of ${candidate.mentorCapacity} mentees`
+                                : `${candidate.mentorCurrentMentees} active assignment${
+                                    candidate.mentorCurrentMentees === 1 ? "" : "s"
+                                  }`}
+                              {candidate.mentorCapacity != null &&
+                              candidate.mentorCurrentMentees >= candidate.mentorCapacity
+                                ? " · at capacity"
+                                : ""}
                             </span>
                           </div>
 

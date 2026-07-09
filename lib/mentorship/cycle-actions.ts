@@ -22,6 +22,7 @@ import { requireMentorshipCommandAccess } from "./command-access";
 import { CYCLE_KINDS, type CycleKind } from "./cycle-constants";
 import { resolveCohortFromFacts, type CohortScope } from "./cohort";
 import { CohortScopeSchema, LaunchReviewCycleSchema } from "./cycle-schemas";
+import { REFLECTION_QUESTION_KEYS } from "./reflection-questions";
 
 type LaunchResult =
   | { ok: true; cycleId: string; participantCount: number }
@@ -253,6 +254,49 @@ export async function setParticipantOverride(input: unknown) {
     select: { cycleId: true },
   });
   revalidatePath(`/mentorship/cycles/${participant.cycleId}`);
+  revalidatePath("/mentorship/cycles");
+  return { ok: true };
+}
+
+const ReflectionQuestionOverrideSchema = z.object({
+  label: z.string().trim().max(200).optional(),
+  hint: z.string().trim().max(500).optional(),
+});
+
+const UpdateReflectionQuestionsSchema = z.object({
+  cycleId: z.string().trim().min(1),
+  overrides: z.record(z.enum(REFLECTION_QUESTION_KEYS as [string, ...string[]]), ReflectionQuestionOverrideSchema),
+});
+
+/**
+ * Retune this cycle's monthly self-reflection prompt wording without
+ * touching the form engine — see lib/mentorship/reflection-questions.ts.
+ * The underlying MonthlySelfReflection columns never change; only the
+ * displayed label/hint for each does, and only for this one cycle.
+ */
+export async function updateReflectionQuestions(input: unknown) {
+  await requireMentorshipCommandAccess();
+  const { cycleId, overrides } = UpdateReflectionQuestionsSchema.parse(input);
+
+  // Drop empty overrides so a cleared field falls back to the default copy
+  // instead of persisting an empty string forever.
+  const cleaned = Object.fromEntries(
+    Object.entries(overrides)
+      .map(([key, value]) => {
+        const entry: { label?: string; hint?: string } = {};
+        if (value.label) entry.label = value.label;
+        if (value.hint) entry.hint = value.hint;
+        return [key, entry] as const;
+      })
+      .filter(([, value]) => Object.keys(value).length > 0)
+  );
+
+  await prisma.reviewCycle.update({
+    where: { id: cycleId },
+    data: { reflectionQuestionsJson: Object.keys(cleaned).length > 0 ? cleaned : Prisma.JsonNull },
+  });
+
+  revalidatePath(`/mentorship/cycles/${cycleId}`);
   revalidatePath("/mentorship/cycles");
   return { ok: true };
 }

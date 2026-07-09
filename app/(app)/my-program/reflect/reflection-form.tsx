@@ -3,6 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitSelfReflection } from "@/lib/self-reflection-actions";
+import {
+  DEFAULT_REFLECTION_QUESTIONS,
+  type ReflectionQuestionSet,
+} from "@/lib/mentorship/reflection-questions";
 
 export interface ProgramGoal {
   id: string;
@@ -14,6 +18,8 @@ interface Props {
   goals: ProgramGoal[];
   cycleNumber: number;
   isQuarterly: boolean;
+  /** Cycle-specific question wording (lib/mentorship/reflection-questions.ts). Defaults to the standard copy when omitted. */
+  questions?: ReflectionQuestionSet;
 }
 
 type GoalState = {
@@ -65,7 +71,12 @@ function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: stri
   );
 }
 
-export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Props) {
+export default function ReflectionForm({
+  goals,
+  cycleNumber,
+  isQuarterly,
+  questions = DEFAULT_REFLECTION_QUESTIONS,
+}: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [step, setStep] = useState(0);
@@ -206,8 +217,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
         {/* Section 1: Overall Reflection */}
         {step === 0 && (
           <div>
-            <FieldLabel hint="Reflect on this past month overall — what stood out, what you learned, how you've grown.">
-              Overall Reflection
+            <FieldLabel hint={questions.overallReflection.hint}>
+              {questions.overallReflection.label}
             </FieldLabel>
             <textarea
               value={overallReflection}
@@ -223,8 +234,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
         {step === 1 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
             <div>
-              <FieldLabel hint="How engaged and fulfilled have you felt in your YPP role this month overall?">
-                Overall Engagement & Fulfillment
+              <FieldLabel hint={questions.engagementOverall.hint}>
+                {questions.engagementOverall.label}
               </FieldLabel>
               <textarea
                 value={engagementOverall}
@@ -235,8 +246,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
               />
             </div>
             <div>
-              <FieldLabel hint="What specific aspects of your role have been working especially well?">
-                What's Working Well
+              <FieldLabel hint={questions.workingWell.hint}>
+                {questions.workingWell.label}
               </FieldLabel>
               <textarea
                 value={workingWell}
@@ -247,8 +258,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
               />
             </div>
             <div>
-              <FieldLabel hint="What support, resources, or changes would help you be more effective?">
-                Support Needed
+              <FieldLabel hint={questions.supportNeeded.hint}>
+                {questions.supportNeeded.label}
               </FieldLabel>
               <textarea
                 value={supportNeeded}
@@ -259,8 +270,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
               />
             </div>
             <div>
-              <FieldLabel hint="How helpful has your mentor been this month? What could they do more or differently?">
-                Mentor Helpfulness
+              <FieldLabel hint={questions.mentorHelpfulness.hint}>
+                {questions.mentorHelpfulness.label}
               </FieldLabel>
               <textarea
                 value={mentorHelpfulness}
@@ -277,8 +288,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
         {step === 2 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
             <div>
-              <FieldLabel hint="How has collaboration with your leadership team been this month? Highlight what's worked and any friction.">
-                Team Collaboration Assessment
+              <FieldLabel hint={questions.collaborationAssessment.hint}>
+                {questions.collaborationAssessment.label}
               </FieldLabel>
               <textarea
                 value={collaborationAssessment}
@@ -289,8 +300,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
               />
             </div>
             <div>
-              <FieldLabel hint="Optional — shout out any team members who went above and beyond.">
-                Team Members Above & Beyond (optional)
+              <FieldLabel hint={questions.teamMembersAboveAndBeyond.hint}>
+                {questions.teamMembersAboveAndBeyond.label}
               </FieldLabel>
               <textarea
                 value={teamMembersAboveAndBeyond}
@@ -301,8 +312,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
               />
             </div>
             <div>
-              <FieldLabel hint="Optional — what could improve about how the team collaborates?">
-                Collaboration Improvements (optional)
+              <FieldLabel hint={questions.collaborationImprovements.hint}>
+                {questions.collaborationImprovements.label}
               </FieldLabel>
               <textarea
                 value={collaborationImprovements}
@@ -359,8 +370,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
                       <div>
-                        <FieldLabel hint="What concrete progress did you make on this goal this month?">
-                          Progress Made
+                        <FieldLabel hint={questions.goalProgressMade.hint}>
+                          {questions.goalProgressMade.label}
                         </FieldLabel>
                         <textarea
                           value={s.progressMade}
@@ -385,8 +396,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
                       </div>
 
                       <div>
-                        <FieldLabel hint="List specific accomplishments, wins, or milestones reached.">
-                          Accomplishments
+                        <FieldLabel hint={questions.goalAccomplishments.hint}>
+                          {questions.goalAccomplishments.label}
                         </FieldLabel>
                         <textarea
                           value={s.accomplishments}
@@ -398,8 +409,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
                       </div>
 
                       <div>
-                        <FieldLabel hint="Optional — what obstacles or blockers did you encounter?">
-                          Blockers (optional)
+                        <FieldLabel hint={questions.goalBlockers.hint}>
+                          {questions.goalBlockers.label}
                         </FieldLabel>
                         <textarea
                           value={s.blockers}
@@ -411,8 +422,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
                       </div>
 
                       <div>
-                        <FieldLabel hint="What do you plan to focus on for this goal next month?">
-                          Next Month's Plans
+                        <FieldLabel hint={questions.goalNextMonthPlans.hint}>
+                          {questions.goalNextMonthPlans.label}
                         </FieldLabel>
                         <textarea
                           value={s.nextMonthPlans}
@@ -433,8 +444,8 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
         {/* Section 5: Additional Reflections */}
         {step === 4 && (
           <div>
-            <FieldLabel hint="Optional — anything else you'd like your mentor or program chair to know.">
-              Additional Reflections (optional)
+            <FieldLabel hint={questions.additionalReflections.hint}>
+              {questions.additionalReflections.label}
             </FieldLabel>
             <textarea
               value={additionalReflections}

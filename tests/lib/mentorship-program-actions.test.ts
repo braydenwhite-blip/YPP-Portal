@@ -45,7 +45,7 @@ import {
 } from "@/lib/mentorship-canonical";
 import { hasMentorshipMenteeAccess } from "@/lib/mentorship-access";
 import { prisma } from "@/lib/prisma";
-import { submitMonthlyGoalReview } from "@/lib/mentorship-program-actions";
+import { submitMonthlyGoalReview, assignCommitteeChair } from "@/lib/mentorship-program-actions";
 
 describe("mentorship-program-actions", () => {
   beforeEach(() => {
@@ -178,5 +178,70 @@ describe("mentorship-program-actions", () => {
         description: "Submitted monthly goal review for Mentee One.",
       })
     );
+  });
+});
+
+describe("assignCommitteeChair — Role Committee lane split", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "admin-1", roles: ["ADMIN"] },
+    } as any);
+    (prisma as any).user = {
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ name: "Aveena" }),
+    };
+    (prisma as any).mentorCommitteeChair = {
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      findFirst: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({ id: "chair-row-1" }),
+      update: vi.fn().mockResolvedValue({ id: "chair-row-1" }),
+    };
+  });
+
+  it("deactivates only the prior chair of the SAME lane, not the whole roleType", async () => {
+    const formData = new FormData();
+    formData.set("userId", "aveena-1");
+    formData.set("lane", "GLOBAL_DIRECTOR_MANAGER");
+
+    await assignCommitteeChair(formData);
+
+    // Officers and Global Directors/Managers share roleType GLOBAL_LEADERSHIP —
+    // the deactivation query must scope by lane, never by roleType alone, or
+    // assigning one committee's chair would silently remove the other's.
+    expect((prisma as any).mentorCommitteeChair.updateMany).toHaveBeenCalledWith({
+      where: { lane: "GLOBAL_DIRECTOR_MANAGER", isActive: true },
+      data: { isActive: false },
+    });
+    expect((prisma as any).mentorCommitteeChair.upsert).toHaveBeenCalledWith({
+      where: { userId_lane: { userId: "aveena-1", lane: "GLOBAL_DIRECTOR_MANAGER" } },
+      create: { userId: "aveena-1", roleType: "GLOBAL_LEADERSHIP", lane: "GLOBAL_DIRECTOR_MANAGER", isActive: true },
+      update: { isActive: true, roleType: "GLOBAL_LEADERSHIP" },
+    });
+  });
+
+  it("re-picks the lane on a pre-split legacy chair row instead of creating an orphaned duplicate", async () => {
+    (prisma as any).mentorCommitteeChair.findFirst = vi
+      .fn()
+      .mockResolvedValue({ id: "legacy-row-1", userId: "sam-1", roleType: "GLOBAL_LEADERSHIP", lane: null });
+
+    const formData = new FormData();
+    formData.set("userId", "sam-1");
+    formData.set("lane", "OFFICER");
+
+    await assignCommitteeChair(formData);
+
+    expect((prisma as any).mentorCommitteeChair.update).toHaveBeenCalledWith({
+      where: { id: "legacy-row-1" },
+      data: { lane: "OFFICER", isActive: true },
+    });
+    expect((prisma as any).mentorCommitteeChair.upsert).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid lane value", async () => {
+    const formData = new FormData();
+    formData.set("userId", "aveena-1");
+    formData.set("lane", "NOT_A_REAL_LANE");
+
+    await expect(assignCommitteeChair(formData)).rejects.toThrow("Invalid committee lane");
   });
 });

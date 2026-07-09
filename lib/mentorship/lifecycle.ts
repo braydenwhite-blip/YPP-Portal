@@ -49,6 +49,22 @@ export type LifecycleSnapshot = {
   commentsRequested: number;
   commentsSubmitted: number;
   commentsOverdue: number;
+  /**
+   * Quarterly Committee Review — true once every 3rd cycle's monthly review
+   * has been released. Layers on top of the monthly flow rather than
+   * gating it; see deriveNextAction below for how it dominates once due.
+   */
+  quarterlyDue: boolean;
+  /** Null when no MentorshipQuarterlyReview row exists yet for the due quarter. */
+  quarterlyStatus:
+    | "DRAFT"
+    | "PENDING_CHAIR_APPROVAL"
+    | "CHANGES_REQUESTED"
+    | "PENDING_BOARD_APPROVAL"
+    | "APPROVED"
+    | null;
+  /** Whether the in-flight (or approved) quarterly review needs Board sign-off. */
+  quarterlyRequiresBoardApproval: boolean;
 };
 
 /**
@@ -73,6 +89,14 @@ export type ReviewCapabilities = {
   canRelease: boolean;
   canViewReleasedReview: boolean;
   canLogCheckIn: boolean;
+  /** Chair-only recalibration of the mentor's proposed Character & Culture bonus points on THIS review — the same authority as canApprove, named for what it does. */
+  canCalibratePoints: boolean;
+  /** Committee member (chair, mentor-on-committee, leadership, admin) can open/participate in this person's quarterly committee review. */
+  canRunQuarterlyReview: boolean;
+  /** Mentor/committee member can propose a Pathway Decision as part of a quarterly review. */
+  canRecommendPathwayDecision: boolean;
+  /** Chair (or admin/leadership for org-level decisions) can finalize a Pathway Decision. */
+  canApprovePathwayDecision: boolean;
 };
 
 export function deriveReviewCapabilities(args: {
@@ -98,6 +122,13 @@ export function deriveReviewCapabilities(args: {
     canRelease: isApprover,
     canViewReleasedReview: isSelf || isMentor || isChair || isLeadership || isAdmin,
     canLogCheckIn: canRecordCheckIn,
+    canCalibratePoints: isApprover,
+    // Visibility gate for the whole quarterly packet — mentor, chair,
+    // leadership, admin (never the mentee; quarterly is committee-internal
+    // deliberation, not released to them the way a monthly review is).
+    canRunQuarterlyReview: isReviewer || isApprover || isLeadership,
+    canRecommendPathwayDecision: isReviewer || isLeadership,
+    canApprovePathwayDecision: isApprover || isLeadership,
   };
 }
 
@@ -118,6 +149,13 @@ export type LifecycleNextAction = {
     | "await-approval"
     | "acknowledge-review"
     | "await-acknowledgment"
+    | "start-quarterly-review"
+    | "await-quarterly-start"
+    | "revise-quarterly-review"
+    | "approve-quarterly-review"
+    | "await-quarterly-approval"
+    | "board-approve-quarterly-review"
+    | "await-board-approval"
     | "close-follow-up"
     | "log-check-in"
     | "all-caught-up";
@@ -314,6 +352,83 @@ export function deriveNextAction(
       break;
   }
 
+  // ── Quarterly Committee Review ────────────────────────────────────────────
+  // Every 3rd cycle, once that cycle's monthly review has been released, a
+  // quarterly layer dominates until the committee's Pathway Decision (if any)
+  // is approved. Mentees have no action here — the doc's quarterly step is
+  // committee-internal; a mentee only ever sees its eventual outcome (a
+  // promotion, award, etc.) through the normal channels, not this flow.
+  if (snapshot.quarterlyDue && snapshot.quarterlyStatus !== "APPROVED") {
+    if (snapshot.quarterlyStatus === null || snapshot.quarterlyStatus === "DRAFT") {
+      if (pov === "mentor") {
+        return {
+          key: "start-quarterly-review",
+          label: "Start the quarterly committee review",
+          href: hrefs.section("reviews"),
+          reason: `${personName}'s quarterly review is due — gather feedback and summarize the last 3 reviews.`,
+          urgent: true,
+        };
+      }
+      if (pov === "leadership") {
+        return {
+          key: "await-quarterly-start",
+          label: "Quarterly review not started",
+          href: hrefs.section("reviews"),
+          reason: `${personName}'s mentor hasn't started the quarterly review yet.`,
+          urgent: false,
+        };
+      }
+    } else if (snapshot.quarterlyStatus === "CHANGES_REQUESTED") {
+      if (pov === "mentor") {
+        return {
+          key: "revise-quarterly-review",
+          label: "Revise the quarterly review",
+          href: hrefs.section("reviews"),
+          reason: "The chair requested changes to the quarterly packet.",
+          urgent: true,
+        };
+      }
+    } else if (snapshot.quarterlyStatus === "PENDING_CHAIR_APPROVAL") {
+      if (pov === "leadership") {
+        return {
+          key: "approve-quarterly-review",
+          label: "Review the quarterly committee packet",
+          href: hrefs.section("reviews"),
+          reason: `${personName}'s quarterly review is waiting on the committee.`,
+          urgent: true,
+        };
+      }
+      if (pov === "mentor") {
+        return {
+          key: "await-quarterly-approval",
+          label: "Quarterly review with the committee",
+          href: hrefs.section("reviews"),
+          reason: null,
+          urgent: false,
+        };
+      }
+    } else if (snapshot.quarterlyStatus === "PENDING_BOARD_APPROVAL") {
+      if (pov === "leadership") {
+        return {
+          key: "board-approve-quarterly-review",
+          label: "Board sign-off needed",
+          href: hrefs.section("reviews"),
+          reason: `${personName}'s Pathway Decision needs Board approval.`,
+          urgent: true,
+        };
+      }
+      if (pov === "mentor") {
+        return {
+          key: "await-board-approval",
+          label: "Pathway Decision with the Board",
+          href: hrefs.section("reviews"),
+          reason: null,
+          urgent: false,
+        };
+      }
+    }
+  }
+
   // ── Acknowledgment closes the loop ────────────────────────────────────────
   if (snapshot.releasedReviewPendingAck) {
     if (pov === "me") {
@@ -481,12 +596,20 @@ const STAGE_CRITICAL_KEYS = new Set<LifecycleNextAction["key"]>([
   "revise-review",
   "approve-review",
   "acknowledge-review",
+  "start-quarterly-review",
+  "revise-quarterly-review",
+  "approve-quarterly-review",
+  "board-approve-quarterly-review",
 ]);
 
 function ownerRoleForPov(pov: LifecyclePov, actionKey: LifecycleNextAction["key"]): CycleOwnerRole {
   if (pov === "me") return "subject";
   if (pov === "mentor") return "writer";
-  return actionKey === "approve-review" ? "approver" : "leadership";
+  return actionKey === "approve-review" ||
+    actionKey === "approve-quarterly-review" ||
+    actionKey === "board-approve-quarterly-review"
+    ? "approver"
+    : "leadership";
 }
 
 /**
@@ -551,6 +674,26 @@ export function deriveCycleState(
   }
   if (capabilities.canApprove && snapshot.cycleStage === "REVIEW_SUBMITTED") {
     availableActions.push("approve-review");
+  }
+  if (snapshot.quarterlyDue && snapshot.quarterlyStatus !== "APPROVED") {
+    if (
+      capabilities.canRecommendPathwayDecision &&
+      (snapshot.quarterlyStatus === null ||
+        snapshot.quarterlyStatus === "DRAFT" ||
+        snapshot.quarterlyStatus === "CHANGES_REQUESTED")
+    ) {
+      availableActions.push(
+        snapshot.quarterlyStatus === "CHANGES_REQUESTED"
+          ? "revise-quarterly-review"
+          : "start-quarterly-review"
+      );
+    }
+    if (capabilities.canApprovePathwayDecision && snapshot.quarterlyStatus === "PENDING_CHAIR_APPROVAL") {
+      availableActions.push("approve-quarterly-review");
+    }
+    if (capabilities.canApprovePathwayDecision && snapshot.quarterlyStatus === "PENDING_BOARD_APPROVAL") {
+      availableActions.push("board-approve-quarterly-review");
+    }
   }
 
   return {
