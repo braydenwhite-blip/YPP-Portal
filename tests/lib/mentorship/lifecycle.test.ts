@@ -69,7 +69,7 @@ describe("deriveNextAction — one lifecycle, one verb per POV", () => {
     const submitted = snapshot({ cycleStage: "REFLECTION_SUBMITTED" });
     const write = deriveNextAction(submitted, "mentor", hrefs, "Ari");
     expect(write.key).toBe("write-review");
-    expect(write.href).toBe("/mentorship/reviews/mentee-1");
+    expect(write.href).toBe("/people/mentee-1?section=review&panel=draft");
     expect(write.urgent).toBe(true);
     expect(deriveNextAction(submitted, "me", hrefs).key).toBe("await-reflection");
 

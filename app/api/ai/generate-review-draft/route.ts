@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { AuditAction } from "@prisma/client";
-import { getSession } from "@/lib/auth-supabase";
+import { getSession, getSessionUser } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit-redis";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { generateMentorshipReviewDraft } from "@/lib/ai/generate-review-draft";
-import type { ReviewGoalInput, PriorReview } from "@/lib/ai/generate-review-draft";
+import type {
+  ReviewGoalInput,
+  PriorReview,
+  ReviewCompetencyInput,
+  LabeledEvidenceInput,
+} from "@/lib/ai/generate-review-draft";
+import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
+import { getFeedbackResponsesForSubject } from "@/lib/people-strategy/feedback-requests";
 
 /** Extract the real client IP from proxy headers (same pattern as /api/upload/applicant-video). */
 function getClientIp(request: Request): string {
@@ -126,14 +133,17 @@ export async function POST(request: Request) {
     },
   });
 
+  const activeGoals = grDoc ? grDoc.goals.filter((g) => g.kind === "GOAL") : [];
+  const activeCompetencies = grDoc ? grDoc.goals.filter((g) => g.kind === "COMPETENCY") : [];
+
   // Build a title-keyed lookup from legacy reflection responses for cross-referencing
   const reflByTitle = new Map(
     reflection.goalResponses.map((gr) => [gr.goal.title.toLowerCase().trim(), gr])
   );
 
   let goals: ReviewGoalInput[];
-  if (grDoc && grDoc.goals.length > 0) {
-    goals = grDoc.goals.map((g) => {
+  if (grDoc && activeGoals.length > 0) {
+    goals = activeGoals.map((g) => {
       // Try to match a reflection response by title (best-effort)
       const match = reflByTitle.get(g.title.toLowerCase().trim());
       return {
@@ -197,6 +207,68 @@ export async function POST(request: Request) {
     })),
   }));
 
+  // ── Competencies — fixed rubric rows, rated the same way as goals ────────
+  let competencies: ReviewCompetencyInput[] | undefined;
+  if (activeCompetencies.length > 0) {
+    const priorRatingsByCompetency = await prisma.goalReviewRating.findMany({
+      where: {
+        grDocumentGoalId: { in: activeCompetencies.map((c) => c.id) },
+        review: { menteeId: reflection.menteeId, releasedToMenteeAt: { not: null } },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { grDocumentGoalId: true, rating: true },
+    });
+    const priorRatingById = new Map<string, string>();
+    for (const r of priorRatingsByCompetency) {
+      if (r.grDocumentGoalId && !priorRatingById.has(r.grDocumentGoalId)) {
+        priorRatingById.set(r.grDocumentGoalId, r.rating);
+      }
+    }
+    competencies = activeCompetencies.map((c) => ({
+      id: c.id,
+      title: c.title,
+      description: c.description,
+      priorRating: priorRatingById.get(c.id) ?? null,
+    }));
+  }
+
+  // ── Evidence — completed actions/check-ins linked to a goal, narrow and labeled ──
+  const goalIdsForEvidence = [...activeGoals, ...activeCompetencies].map((g) => g.id);
+  let evidence: LabeledEvidenceInput[] | undefined;
+  if (goalIdsForEvidence.length > 0) {
+    const completedActions = await prisma.mentorshipActionItem.findMany({
+      where: { grDocumentGoalId: { in: goalIdsForEvidence }, status: "COMPLETE" },
+      orderBy: { completedAt: "desc" },
+      take: 20,
+      select: { id: true, title: true, details: true, grDocumentGoalId: true },
+    });
+    if (completedActions.length > 0) {
+      const goalTitleById = new Map(
+        [...activeGoals, ...activeCompetencies].map((g) => [g.id, g.title] as const)
+      );
+      evidence = completedActions.map((a) => ({
+        key: `action:${a.id}`,
+        label: `Completed action for "${goalTitleById.get(a.grDocumentGoalId ?? "") ?? "a goal"}"`,
+        body: a.details ? `${a.title} — ${a.details}` : a.title,
+      }));
+    }
+  }
+
+  // ── Collaborator comments — leadership-authorized only, never for a plain mentor ──
+  let collaboratorComments: LabeledEvidenceInput[] | undefined;
+  const viewer = await getSessionUser();
+  if (viewer && (await hasMentorshipCommandAccess(viewer))) {
+    const responses = await getFeedbackResponsesForSubject(reflection.menteeId, reflection.cycleMonth);
+    const withBody = responses.filter((r) => r.submittedAt && r.responseBody);
+    if (withBody.length > 0) {
+      collaboratorComments = withBody.map((r) => ({
+        key: `comment:${r.id}`,
+        label: `Collaborator comment from ${r.collaborator.name || r.collaborator.email || "a colleague"}`,
+        body: r.responseBody!,
+      }));
+    }
+  }
+
   // ── Generate draft ────────────────────────────────────────────────────────
   try {
     const draft = await generateMentorshipReviewDraft({
@@ -205,6 +277,9 @@ export async function POST(request: Request) {
       cycleNumber: reflection.cycleNumber,
       goals,
       priorReviews,
+      competencies,
+      evidence,
+      collaboratorComments,
     });
 
     // ── Audit log successful generation ──────────────────────────────────────

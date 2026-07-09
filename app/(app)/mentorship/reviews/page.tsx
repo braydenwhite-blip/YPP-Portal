@@ -126,7 +126,7 @@ export default async function MonthlyReviewInboxPage() {
             return (
               <Link
                 key={review.id}
-                href={`/mentorship/chair/${review.id}`}
+                href={`/people/${review.menteeId}?section=review&panel=approve`}
                 className="group no-underline"
               >
                 <CardV2

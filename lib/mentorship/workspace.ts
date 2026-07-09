@@ -19,11 +19,15 @@ import { hasMentorshipCommandAccess } from "./command-access";
 import {
   buildCycleStrip,
   defaultLifecycleHrefs,
+  deriveCycleState,
   deriveNextAction,
+  deriveReviewCapabilities,
+  type CycleState,
   type CycleStripStep,
   type LifecycleNextAction,
   type LifecyclePov,
   type LifecycleSnapshot,
+  type ReviewCapabilities,
 } from "./lifecycle";
 import {
   getLatestCoachingPlan,
@@ -120,12 +124,17 @@ export type MentorshipWorkspace = {
   /** The viewer's lifecycle point of view — drives every next-action verb. */
   pov: LifecyclePov;
   canRecordCheckIn: boolean;
+  /** What this viewer can actually do — drives which panels/controls render. */
+  capabilities: ReviewCapabilities;
   activeMentorshipId: string | null;
   participantOptions: WorkspaceParticipant[];
   /** The canonical lifecycle state + the one thing to do next. */
   lifecycle: LifecycleSnapshot;
   nextAction: LifecycleNextAction;
   cycleStrip: CycleStripStep[];
+  /** The single source of truth for "what happens next" — stage, comment
+   * status, owner, and available actions — organizing element for the page. */
+  cycleState: CycleState;
   overview: {
     mentorName: string | null;
     chairName: string | null;
@@ -219,8 +228,15 @@ type WorkspaceAccess = {
   level: WorkspaceAccessLevel;
   isSelf: boolean;
   isAdmin: boolean;
+  isLeadership: boolean;
+  /** The assigned mentor on the active pairing — the review's writer. */
+  isMentor: boolean;
+  /** The assigned chair on the active pairing — the review's approver. */
+  isChair: boolean;
+  /** @deprecated use isMentor / isChair — kept for existing call sites that only need "owns this pairing at all". */
   ownsRelationship: boolean;
   canRecordCheckIn: boolean;
+  capabilities: ReviewCapabilities;
   activeMentorship: {
     id: string;
     mentorId: string;
@@ -264,9 +280,9 @@ export async function resolveWorkspaceAccess(
     }),
   ]);
 
-  const ownsRelationship =
-    !!activeMentorship &&
-    (viewer.id === activeMentorship.mentorId || viewer.id === activeMentorship.chairId);
+  const isMentor = !!activeMentorship && viewer.id === activeMentorship.mentorId;
+  const isChair = !!activeMentorship && viewer.id === activeMentorship.chairId;
+  const ownsRelationship = isMentor || isChair;
 
   // Restricted to the assigned owner: admin, leadership/board, the mentor/chair
   // on the active pairing, or the person themselves. (No chapter-wide access.)
@@ -280,12 +296,25 @@ export async function resolveWorkspaceAccess(
   const canRecordCheckIn =
     !!activeMentorship && (isAdmin || (leadership && !isSelf) || ownsRelationship || isSelf);
 
+  const capabilities = deriveReviewCapabilities({
+    isSelf,
+    isAdmin,
+    isMentor,
+    isChair,
+    isLeadership: leadership && !isSelf,
+    canRecordCheckIn,
+  });
+
   return {
     level,
     isSelf,
     isAdmin,
+    isLeadership: leadership && !isSelf,
+    isMentor,
+    isChair,
     ownsRelationship,
     canRecordCheckIn,
+    capabilities,
     activeMentorship,
   };
 }
@@ -323,6 +352,8 @@ export async function loadMentorshipWorkspace(
       ? { OR: [{ subjectId: personId }, { mentorship: { menteeId: personId } }] }
       : { mentorshipId: access.activeMentorship.id };
 
+  const { cycleMonth, cycleLabel } = getCurrentCycleMonth(now);
+
   const [
     checkInRows,
     grDoc,
@@ -333,6 +364,7 @@ export async function loadMentorshipWorkspace(
     releasedReviews,
     sessions,
     growthTimeline,
+    feedbackRequestRows,
   ] = await Promise.all([
     prisma.mentorshipCheckIn.findMany({
       where: checkInWhere,
@@ -430,6 +462,17 @@ export async function loadMentorshipWorkspace(
     isGrowthOsEnabled()
       ? loadPersonGrowthTimeline(personId, { take: 40 })
       : Promise.resolve({ events: [], nextCursor: null }),
+    // Comment-request status for the active cycle — a live-computed dimension
+    // of the lifecycle, never a gate. Counts only (never responseBody), so
+    // safe to compute regardless of viewer tier.
+    prisma.feedbackRequest.findMany({
+      where: {
+        subjectUserId: personId,
+        month: cycleMonth,
+        cancelledAt: null,
+      },
+      select: { submittedAt: true, dueAt: true },
+    }),
   ]);
 
   // Leadership-only enrichments — the confidential record, review cycles, and
@@ -643,10 +686,15 @@ export async function loadMentorshipWorkspace(
   }));
 
   // --- The canonical lifecycle snapshot + next action ---
-  const { cycleMonth, cycleLabel } = getCurrentCycleMonth(now);
   const reflectionOverdue =
     access.activeMentorship?.cycleStage === "REFLECTION_DUE" &&
     now > getReflectionSoftDeadline(cycleMonth);
+
+  const commentsRequested = feedbackRequestRows.length;
+  const commentsSubmitted = feedbackRequestRows.filter((r) => r.submittedAt != null).length;
+  const commentsOverdue = feedbackRequestRows.filter(
+    (r) => r.submittedAt == null && r.dueAt != null && r.dueAt < now
+  ).length;
 
   const lifecycle: LifecycleSnapshot = {
     hasActiveMentorship: !!access.activeMentorship,
@@ -674,9 +722,21 @@ export async function loadMentorshipWorkspace(
     openActionItems,
     overdueActionItems,
     lastCheckInLabel: lastConversation ? dateLabel(lastConversation) : null,
+    commentsRequested,
+    commentsSubmitted,
+    commentsOverdue,
   };
 
-  const pov: LifecyclePov = access.isSelf ? "me" : isLeadership ? "leadership" : "mentor";
+  // Resolve POV from the viewer's actual relationship to THIS pairing first —
+  // being Leadership-tier does not override being the assigned mentor. Before
+  // this fix, a Leadership member who was also someone's assigned mentor
+  // always got the "leadership" verb set (approve/synthesize) and was never
+  // prompted to write the review that was, in fact, their job to write.
+  const pov: LifecyclePov = access.isSelf
+    ? "me"
+    : access.isMentor
+      ? "mentor"
+      : "leadership"; // covers the assigned chair and any other leadership-tier viewer
   const personName = person.name || person.email;
   const nextAction = deriveNextAction(
     lifecycle,
@@ -685,6 +745,12 @@ export async function loadMentorshipWorkspace(
     personName
   );
   const cycleStrip = buildCycleStrip(lifecycle, pov, personName);
+  const cycleState = deriveCycleState(
+    lifecycle,
+    access.capabilities,
+    defaultLifecycleHrefs(personId),
+    personName
+  );
 
   // --- Overview ---
   const currentFocus =
@@ -722,11 +788,13 @@ export async function loadMentorshipWorkspace(
     isSelf: access.isSelf,
     pov,
     canRecordCheckIn: access.canRecordCheckIn,
+    capabilities: access.capabilities,
     activeMentorshipId: access.activeMentorship?.id ?? null,
     participantOptions,
     lifecycle,
     nextAction,
     cycleStrip,
+    cycleState,
     overview: {
       mentorName: lifecycle.mentorName,
       chairName:

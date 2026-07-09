@@ -7,6 +7,8 @@ import { revalidatePath } from "next/cache";
 import {
   GoalRatingColor,
   GoalReviewStatus,
+  GoalProgressState,
+  GoalLifecycleStatus,
 } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
@@ -368,6 +370,12 @@ export async function saveGoalReview(formData: FormData) {
           goalId: gr.legacyGoalId,
           rating: gr.rating,
           comments: gr.comments,
+          proposedProgressState: gr.progressState
+            ? (gr.progressState as GoalProgressState)
+            : null,
+          proposedLifecycleStatus: gr.newLifecycleStatus
+            ? (gr.newLifecycleStatus as GoalLifecycleStatus)
+            : null,
         })),
       });
       persistedReviewId = reflection.goalReview.id;
@@ -402,6 +410,12 @@ export async function saveGoalReview(formData: FormData) {
               goalId: gr.legacyGoalId,
               rating: gr.rating,
               comments: gr.comments,
+              proposedProgressState: gr.progressState
+                ? (gr.progressState as GoalProgressState)
+                : null,
+              proposedLifecycleStatus: gr.newLifecycleStatus
+                ? (gr.newLifecycleStatus as GoalLifecycleStatus)
+                : null,
             })),
           },
         },
@@ -419,22 +433,13 @@ export async function saveGoalReview(formData: FormData) {
       },
     });
 
-    // Apply inline goal status updates (progressState / lifecycleStatus) ONLY on submission
-    if (submitForApproval) {
-      const now = new Date();
-      for (const gr of goalRatings) {
-        if (!gr.grDocumentGoalId) continue;
-        const update: Record<string, unknown> = {};
-        if (gr.progressState) update.progressState = gr.progressState;
-        if (gr.newLifecycleStatus) {
-          update.lifecycleStatus = gr.newLifecycleStatus;
-          if (gr.newLifecycleStatus === "COMPLETED") update.completedAt = now;
-        }
-        if (Object.keys(update).length > 0) {
-          await tx.gRDocumentGoal.update({ where: { id: gr.grDocumentGoalId }, data: update });
-        }
-      }
-    }
+    // NOTE: goal progressState/lifecycleStatus updates proposed here are
+    // deliberately NOT applied to the live GRDocumentGoal yet — they're
+    // captured on GoalReviewRating.proposed{ProgressState,LifecycleStatus}
+    // above and only take effect in approveGoalReview(), once the chair has
+    // actually approved and released the review. A draft or
+    // pending-chair-approval review must never change what shows as the
+    // person's current G&R.
 
     // Write goal snapshots when submitting for approval — never delete existing ones
     if (submitForApproval && grGoalIds.length > 0) {
@@ -660,6 +665,7 @@ export async function getChairQueue() {
 
   return reviews.map((r) => ({
     id: r.id,
+    menteeId: r.mentee.id,
     mentorName: r.mentor.name,
     menteeName: r.mentee.name,
     menteeEmail: r.mentee.email,
@@ -720,6 +726,143 @@ export async function getReviewForChair(reviewId: string) {
   return review;
 }
 
+export type ChairPacketGoalRating = {
+  id: string;
+  title: string;
+  kind: string;
+  rating: GoalRatingColor;
+  comments: string | null;
+  priorRating: GoalRatingColor | null;
+  ratingChanged: boolean;
+};
+
+export type ChairPacket = {
+  reviewId: string;
+  menteeName: string;
+  mentorName: string;
+  cycleLabel: string;
+  overallRating: GoalRatingColor;
+  overallComments: string;
+  planOfAction: string;
+  aiDraftUsed: boolean;
+  isQuarterly: boolean;
+  priorOverallRating: GoalRatingColor | null;
+  goalRatings: ChairPacketGoalRating[];
+  commentStatus: { requested: number; submitted: number; overdue: number };
+  isComplete: boolean;
+  incompleteReasons: string[];
+};
+
+/**
+ * Everything a chair needs to approve a review as a coherent packet, not
+ * proofread a raw form: what changed since the previous cycle, where ratings
+ * moved, whether AI assistance was used, and comment-completion counts. Pure
+ * composition of data that already exists — no new storage. Renders as the
+ * in-page `?panel=approve` control on /people/[id], not a separate destination.
+ */
+export async function loadChairPacket(reviewId: string): Promise<ChairPacket | null> {
+  const session = await getSession();
+  if (!session?.user?.id) return null;
+
+  const userId = session.user.id as string;
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+
+  const review = await prisma.mentorGoalReview.findUnique({
+    where: { id: reviewId },
+    include: {
+      mentor: { select: { id: true, name: true, email: true } },
+      mentee: { select: { id: true, name: true, email: true, primaryRole: true } },
+      goalRatings: {
+        include: { grDocumentGoal: { select: { id: true, title: true, kind: true } } },
+      },
+    },
+  });
+  if (!review) return null;
+
+  if (!isAdmin) {
+    const menteeRoleType = toMenteeRoleType(review.mentee.primaryRole);
+    if (!menteeRoleType) return null;
+    const isChair = await prisma.mentorCommitteeChair.findFirst({
+      where: { userId, roleType: menteeRoleType, isActive: true },
+    });
+    if (!isChair) return null;
+  }
+
+  const [priorReview, feedbackRows] = await Promise.all([
+    prisma.mentorGoalReview.findFirst({
+      where: {
+        menteeId: review.menteeId,
+        releasedToMenteeAt: { not: null },
+        cycleMonth: { lt: review.cycleMonth },
+      },
+      orderBy: { cycleMonth: "desc" },
+      select: {
+        overallRating: true,
+        goalRatings: { select: { grDocumentGoalId: true, rating: true } },
+      },
+    }),
+    prisma.feedbackRequest.findMany({
+      where: { subjectUserId: review.menteeId, month: review.cycleMonth, cancelledAt: null },
+      select: { submittedAt: true, dueAt: true },
+    }),
+  ]);
+
+  const priorRatingByGoalId = new Map(
+    (priorReview?.goalRatings ?? [])
+      .filter((r) => r.grDocumentGoalId)
+      .map((r) => [r.grDocumentGoalId as string, r.rating] as const)
+  );
+
+  const goalRatings: ChairPacketGoalRating[] = review.goalRatings
+    .filter((r) => r.grDocumentGoal)
+    .map((r) => {
+      const priorRating = r.grDocumentGoalId ? (priorRatingByGoalId.get(r.grDocumentGoalId) ?? null) : null;
+      return {
+        id: r.grDocumentGoal!.id,
+        title: r.grDocumentGoal!.title,
+        kind: r.grDocumentGoal!.kind,
+        rating: r.rating,
+        comments: r.comments,
+        priorRating,
+        ratingChanged: priorRating != null && priorRating !== r.rating,
+      };
+    });
+
+  const commentStatus = {
+    requested: feedbackRows.length,
+    submitted: feedbackRows.filter((r) => r.submittedAt != null).length,
+    overdue: feedbackRows.filter((r) => r.submittedAt == null && r.dueAt != null && r.dueAt < new Date())
+      .length,
+  };
+
+  const incompleteReasons: string[] = [];
+  if (!review.overallComments.trim()) incompleteReasons.push("Overall comments are empty.");
+  if (!review.planOfAction.trim()) incompleteReasons.push("Plan of action is empty.");
+  if (review.goalRatings.length === 0) incompleteReasons.push("No competency or goal ratings recorded.");
+
+  return {
+    reviewId: review.id,
+    menteeName: review.mentee.name || review.mentee.email,
+    mentorName: review.mentor.name || review.mentor.email,
+    cycleLabel: review.cycleMonth.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }),
+    overallRating: review.overallRating,
+    overallComments: review.overallComments,
+    planOfAction: review.planOfAction,
+    aiDraftUsed: review.aiDraftUsed,
+    isQuarterly: review.isQuarterly,
+    priorOverallRating: priorReview?.overallRating ?? null,
+    goalRatings,
+    commentStatus,
+    isComplete: incompleteReasons.length === 0,
+    incompleteReasons,
+  };
+}
+
 // ============================================
 // CHAIR ACTIONS: APPROVE / REQUEST CHANGES
 // ============================================
@@ -744,6 +887,13 @@ export async function approveGoalReview(formData: FormData) {
     include: {
       mentee: { select: { id: true, name: true, primaryRole: true } },
       mentor: { select: { id: true } },
+      goalRatings: {
+        select: {
+          grDocumentGoalId: true,
+          proposedProgressState: true,
+          proposedLifecycleStatus: true,
+        },
+      },
     },
   });
 
@@ -780,6 +930,21 @@ export async function approveGoalReview(formData: FormData) {
         chairAdjustedBonusPoints: chairAdjustedBonusPoints,
       },
     });
+
+    // Only NOW does the review's proposed goal progress/lifecycle updates
+    // apply to the live GRDocumentGoal — approval+release is the moment the
+    // person's current G&R actually changes, never at submit/draft time.
+    for (const gr of review.goalRatings) {
+      if (!gr.grDocumentGoalId) continue;
+      if (!gr.proposedProgressState && !gr.proposedLifecycleStatus) continue;
+      const update: Record<string, unknown> = {};
+      if (gr.proposedProgressState) update.progressState = gr.proposedProgressState;
+      if (gr.proposedLifecycleStatus) {
+        update.lifecycleStatus = gr.proposedLifecycleStatus;
+        if (gr.proposedLifecycleStatus === "COMPLETED") update.completedAt = now;
+      }
+      await tx.gRDocumentGoal.update({ where: { id: gr.grDocumentGoalId }, data: update });
+    }
 
     // Upsert achievement summary — fetch fresh row after increment to avoid stale totalPoints
     await tx.achievementPointSummary.upsert({

@@ -3,11 +3,12 @@
  * (`lib/org/review-routing.ts`) against real users.
  *
  * Phase 1 of docs/ROLES_ACCESS_REVIEWS_MENTORSHIP_PLAN.md. This is ADDITIVE and
- * OFF BY DEFAULT: unless `ORG_REVIEW_AUTHORITY_ENFORCED=true`, the guard is a
- * no-op so existing approval flows are completely unchanged. When enabled it
- * layers the "approver outranks author (or has a configured exception)" rule on
- * top of the existing chair/admin checks - it can only ever *restrict*, never
- * widen, who may finalize a review.
+ * ON BY DEFAULT — see isReviewAuthorityEnforced() below for the exact rule and
+ * its kill-switch (`ORG_REVIEW_AUTHORITY_ENFORCED=false`). It layers the
+ * "approver outranks author (or has a configured exception)" rule on top of
+ * the existing chair/admin checks — it can only ever *restrict*, never widen,
+ * who may finalize a review, and it fails open when a participant's org
+ * authority can't be resolved.
  */
 
 import { prisma } from "@/lib/prisma";

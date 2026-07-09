@@ -60,6 +60,36 @@ type CycleStageInputs = {
   currentCycleMonth?: Date;
 };
 
+export type ReviewArtifactStage =
+  | "REFLECTION_DUE"
+  | "REFLECTION_SUBMITTED"
+  | "REVIEW_SUBMITTED"
+  | "CHANGES_REQUESTED"
+  | "APPROVED";
+
+/**
+ * Pure, shared decision over one cycle's reflection/review artifacts.
+ * This is the single place the stage-decision rules live — both
+ * computeCycleStage() (mentorship-level, "latest cycle") and
+ * deriveParticipantStage() (lib/mentorship/cycle-progress.ts, cohort-level,
+ * "this specific period") resolve their own period/recency logic first, then
+ * call this, so the rules themselves cannot drift apart between the two.
+ */
+export function deriveReviewArtifactStage(args: {
+  /** A reflection exists for this cycle with no (relevant) review accounting for it yet. */
+  reflectionAwaitingReview: boolean;
+  reviewStatus: GoalReviewStatus | null;
+  releasedToMentee: boolean;
+}): ReviewArtifactStage {
+  const { reflectionAwaitingReview, reviewStatus, releasedToMentee } = args;
+  if (reviewStatus === "APPROVED" && releasedToMentee) return "APPROVED";
+  if (reviewStatus === "CHANGES_REQUESTED") return "CHANGES_REQUESTED";
+  if (reviewStatus === "PENDING_CHAIR_APPROVAL") return "REVIEW_SUBMITTED";
+  if (reviewStatus === "APPROVED" && !releasedToMentee) return "REVIEW_SUBMITTED";
+  if (reflectionAwaitingReview) return "REFLECTION_SUBMITTED";
+  return "REFLECTION_DUE";
+}
+
 /**
  * Pure function deriving the denormalized Mentorship.cycleStage.
  * See prisma/schema.prisma `enum MentorshipCycleStage` for the ordering.
@@ -76,24 +106,27 @@ export function computeCycleStage({
 
   const cycleAnchor = currentCycleMonth ?? getCurrentCycleMonth().cycleMonth;
 
-  if (latestReview) {
-    if (latestReview.status === "APPROVED" && latestReview.releasedToMenteeAt) {
-      // Approved for the CURRENT cycle → APPROVED; otherwise a new cycle is due.
-      if (sameCalendarMonth(latestReview.cycleMonth, cycleAnchor)) return "APPROVED";
-    } else if (latestReview.status === "CHANGES_REQUESTED") {
-      return "CHANGES_REQUESTED";
-    } else if (latestReview.status === "PENDING_CHAIR_APPROVAL") {
-      return "REVIEW_SUBMITTED";
-    }
-  }
+  // A review approved+released in a PRIOR calendar month no longer describes
+  // the current cycle — treat it as if it doesn't exist for this decision.
+  const reviewDescribesCurrentCycle =
+    !latestReview ||
+    latestReview.status !== "APPROVED" ||
+    !latestReview.releasedToMenteeAt ||
+    sameCalendarMonth(latestReview.cycleMonth, cycleAnchor);
 
-  if (latestReflection) {
-    const hasReviewForReflection =
-      latestReview && latestReview.cycleNumber === latestReflection.cycleNumber;
-    if (!hasReviewForReflection) return "REFLECTION_SUBMITTED";
-  }
+  const hasReviewForReflection =
+    !!latestReview && !!latestReflection && latestReview.cycleNumber === latestReflection.cycleNumber;
 
-  return "REFLECTION_DUE";
+  const artifactStage = deriveReviewArtifactStage({
+    reflectionAwaitingReview: !!latestReflection && !hasReviewForReflection,
+    reviewStatus: reviewDescribesCurrentCycle ? (latestReview?.status ?? null) : null,
+    releasedToMentee: reviewDescribesCurrentCycle ? !!latestReview?.releasedToMenteeAt : false,
+  });
+
+  // ReviewArtifactStage's values are a strict subset of MentorshipCycleStage's
+  // vocabulary (the mentorship-level stage adds KICKOFF_PENDING/PAUSED/COMPLETE
+  // above), so this mapping is a direct pass-through.
+  return artifactStage;
 }
 
 function sameCalendarMonth(a: Date, b: Date): boolean {

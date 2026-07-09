@@ -24,11 +24,11 @@ export default async function GoalsPage() {
   }
 
   // For everyone with a Mentorship footprint (instructors, officers,
-  // leadership), Mentorship's Goals section IS the goals product — this
-  // legacy page stays only for students, whose goals live on the older
-  // Goal/GoalTemplate stack this page reads.
+  // leadership), the Review & G&R flow on their own /people/[id] IS the goals
+  // product — this legacy page stays only for students, whose goals live on
+  // the older Goal/GoalTemplate stack this page reads.
   if (canAccessMentorship(session!.user.primaryRole ?? "")) {
-    redirect("/mentorship?view=me&section=goals");
+    redirect(`/people/${userId}?section=review`);
   }
 
   const currentMonth = new Date();

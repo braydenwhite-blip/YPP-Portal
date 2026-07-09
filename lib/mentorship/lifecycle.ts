@@ -40,7 +40,66 @@ export type LifecycleSnapshot = {
   openActionItems: number;
   overdueActionItems: number;
   lastCheckInLabel: string | null; // e.g. "Jun 3, 2026"
+  /**
+   * Collaborator comment-request status (FeedbackRequest rows) for the
+   * active cycle. This is a live-computed DIMENSION, never a gate — leadership
+   * can draft/synthesize at any point regardless of how many are outstanding.
+   * All zero when no comments have been requested for this cycle.
+   */
+  commentsRequested: number;
+  commentsSubmitted: number;
+  commentsOverdue: number;
 };
+
+/**
+ * What a viewer can actually DO in the Review & G&R flow for this person,
+ * derived once from the facts resolveWorkspaceAccess() gathers
+ * (isSelf/isMentor/isChair/isLeadership/isAdmin). Capabilities union rather
+ * than forcing a viewer into one mutually-exclusive tier — someone can be
+ * Leadership AND the assigned chair AND (elsewhere) a collaborator, and a
+ * single enum tier can't represent that without picking a wrong "winner".
+ */
+export type ReviewCapabilities = {
+  /** Sees the reflection itself (the subject's answers), not just its status. */
+  canViewReflection: boolean;
+  /** Sees raw collaborator comments — never true for the subject themselves. */
+  canViewPrivateComments: boolean;
+  canRequestComments: boolean;
+  canDraftReview: boolean;
+  canRateCompetencies: boolean;
+  /** Assigned-chair (or admin) approval authority for THIS person's review. */
+  canApprove: boolean;
+  /** Approval and release are one atomic action in this codebase today. */
+  canRelease: boolean;
+  canViewReleasedReview: boolean;
+  canLogCheckIn: boolean;
+};
+
+export function deriveReviewCapabilities(args: {
+  isSelf: boolean;
+  isAdmin: boolean;
+  isMentor: boolean;
+  isChair: boolean;
+  isLeadership: boolean;
+  canRecordCheckIn: boolean;
+}): ReviewCapabilities {
+  const { isSelf, isAdmin, isMentor, isChair, isLeadership, canRecordCheckIn } = args;
+  const isReviewer = isMentor || isAdmin;
+  const isApprover = isChair || isAdmin;
+  return {
+    canViewReflection: isSelf || isMentor || isChair || isLeadership || isAdmin,
+    // Raw collaborator comments are private to leadership — never the subject,
+    // and not automatically to a plain assigned mentor/chair either.
+    canViewPrivateComments: isLeadership || isAdmin,
+    canRequestComments: isLeadership || isAdmin,
+    canDraftReview: isReviewer,
+    canRateCompetencies: isReviewer,
+    canApprove: isApprover,
+    canRelease: isApprover,
+    canViewReleasedReview: isSelf || isMentor || isChair || isLeadership || isAdmin,
+    canLogCheckIn: canRecordCheckIn,
+  };
+}
 
 export type LifecycleNextAction = {
   /** Stable identifier — tests and telemetry key off this, never the label. */
@@ -81,14 +140,20 @@ export type LifecycleHrefs = {
   reviewInbox: string;
 };
 
+/**
+ * `/people/[id]` is the canonical destination for a person's whole Review &
+ * G&R flow — every href the lifecycle engine bakes into `nextAction`/
+ * `cycleStrip`/`cycleState` points there (with a `?panel=` for the
+ * draft/approve in-page panels), never at the old `/mentorship/*` routes.
+ */
 export function defaultLifecycleHrefs(menteeId: string): LifecycleHrefs {
-  const base = `/mentorship/people/${menteeId}`;
+  const base = `/people/${menteeId}`;
   return {
     section: (sectionId) => `${base}?section=${sectionId}`,
-    writeReview: `/mentorship/reviews/${menteeId}`,
+    writeReview: `${base}?section=review&panel=draft`,
     adminMatching: "/mentorship?view=admin&tab=assignments",
     adminGoals: "/mentorship?view=admin&tab=templates",
-    reviewInbox: "/mentorship/reviews",
+    reviewInbox: `${base}?section=review&panel=approve`,
   };
 }
 
@@ -384,4 +449,120 @@ export function buildCycleStrip(
       state: index > s.at ? "done" : index === s.at ? "current" : "upcoming",
       detail: index === s.at ? s.detail : null,
     }));
+}
+
+/* ---------------------------- Cycle state (single source of truth) ---------------------------- */
+
+export type CycleOwnerRole = "subject" | "writer" | "approver" | "leadership";
+
+export type CommentsSubstate = {
+  requested: number;
+  submitted: number;
+  overdue: number;
+};
+
+export type CycleState = {
+  stage: MentorshipCycleStage | null;
+  /** Never a gate — comment collection can be at any point when a review is drafted/approved. */
+  commentsSubstate: CommentsSubstate | null;
+  completedSteps: CycleStripStep[];
+  nextAction: LifecycleNextAction & { ownerRole: CycleOwnerRole; ownerName: string | null };
+  blockingReason: string | null;
+  availableActions: LifecycleNextAction["key"][];
+};
+
+/** Stage-critical action keys — the ones that mean "it's actually this party's turn", as opposed to ambient/always-available actions like "log-check-in". */
+const STAGE_CRITICAL_KEYS = new Set<LifecycleNextAction["key"]>([
+  "assign-mentor",
+  "schedule-kickoff",
+  "assign-goals",
+  "submit-reflection",
+  "write-review",
+  "revise-review",
+  "approve-review",
+  "acknowledge-review",
+]);
+
+function ownerRoleForPov(pov: LifecyclePov, actionKey: LifecycleNextAction["key"]): CycleOwnerRole {
+  if (pov === "me") return "subject";
+  if (pov === "mentor") return "writer";
+  return actionKey === "approve-review" ? "approver" : "leadership";
+}
+
+/**
+ * The one deterministic "what happens next" for a review cycle — stage,
+ * live comment-collection status, completed steps, the next action (with WHO
+ * owns it), why it's blocked (if it is), and everything the viewer's
+ * capabilities would additionally let them do right now. Consumed by
+ * /people/[id], the chair queue, and the leadership cockpit alike so none of
+ * them compute their own "what's next" independently.
+ */
+export function deriveCycleState(
+  snapshot: LifecycleSnapshot,
+  capabilities: ReviewCapabilities,
+  hrefs: LifecycleHrefs,
+  personName = "this person"
+): CycleState {
+  // Determine whose turn it actually is, independent of who's looking: try
+  // each POV's action in priority order and take the first stage-critical one.
+  const povsInPriority: LifecyclePov[] = ["me", "mentor", "leadership"];
+  let owningPov: LifecyclePov = "leadership";
+  let owningAction: LifecycleNextAction = deriveNextAction(snapshot, "leadership", hrefs, personName);
+  for (const pov of povsInPriority) {
+    const action = deriveNextAction(snapshot, pov, hrefs, personName);
+    if (STAGE_CRITICAL_KEYS.has(action.key)) {
+      owningPov = pov;
+      owningAction = action;
+      break;
+    }
+  }
+  // No stage-critical action anywhere (follow-ups / ambient check-in state) —
+  // fall back to whichever POV's action is flagged urgent, defaulting to
+  // "leadership" as the generic owner of ambient follow-through.
+  if (!STAGE_CRITICAL_KEYS.has(owningAction.key)) {
+    const urgentPov = povsInPriority.find(
+      (pov) => deriveNextAction(snapshot, pov, hrefs, personName).urgent
+    );
+    if (urgentPov) {
+      owningPov = urgentPov;
+      owningAction = deriveNextAction(snapshot, urgentPov, hrefs, personName);
+    }
+  }
+
+  const blockingReason = !snapshot.hasActiveMentorship
+    ? "No active mentorship"
+    : !snapshot.kickoffComplete
+      ? "Kickoff not held"
+      : null;
+
+  const commentsSubstate: CommentsSubstate | null =
+    snapshot.commentsRequested > 0
+      ? {
+          requested: snapshot.commentsRequested,
+          submitted: snapshot.commentsSubmitted,
+          overdue: snapshot.commentsOverdue,
+        }
+      : null;
+
+  const availableActions: LifecycleNextAction["key"][] = [];
+  if (capabilities.canDraftReview) {
+    if (snapshot.cycleStage === "REFLECTION_SUBMITTED") availableActions.push("write-review");
+    if (snapshot.cycleStage === "CHANGES_REQUESTED") availableActions.push("revise-review");
+  }
+  if (capabilities.canApprove && snapshot.cycleStage === "REVIEW_SUBMITTED") {
+    availableActions.push("approve-review");
+  }
+
+  return {
+    stage: snapshot.cycleStage,
+    commentsSubstate,
+    completedSteps: buildCycleStrip(snapshot, owningPov, personName),
+    nextAction: {
+      ...owningAction,
+      ownerRole: ownerRoleForPov(owningPov, owningAction.key),
+      ownerName: owningPov === "mentor" ? snapshot.mentorName : null,
+    },
+    blockingReason,
+    availableActions,
+  };
 }

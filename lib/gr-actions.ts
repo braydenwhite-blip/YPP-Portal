@@ -2,10 +2,12 @@
 
 import { prisma } from "@/lib/prisma";
 import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
-import { getSession } from "@/lib/auth-supabase";
+import { getSession, getSessionUser } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { notifyMenteeReflectionDue } from "@/lib/mentorship-notifications";
+import { resolveWorkspaceAccess } from "@/lib/mentorship/workspace";
+import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 import { z } from "zod";
 
 // Local structural fallback type references protect compilers from generated prisma variations
@@ -1183,4 +1185,285 @@ export async function acknowledgeMentorReview(input: unknown) {
   revalidatePath("/mentorship");
   revalidatePath(`/mentorship/people/${session.user.id}`);
   return { ok: true };
+}
+
+// ============================================
+// CURRENT G&R SUMMARY — the top of the Review & G&R flow on /people/[id]
+// ============================================
+
+export type CurrentGRGoal = {
+  id: string;
+  title: string;
+  description: string;
+  progressState: string;
+  dueDateLabel: string | null;
+  latestRatingLabel: string | null;
+};
+
+export type CurrentGRCompetency = {
+  id: string;
+  title: string;
+  latestRatingLabel: string | null;
+  latestRatingColor: string | null;
+};
+
+export type CurrentGRResource = {
+  id: string;
+  title: string;
+  url: string;
+};
+
+export type CurrentGRSummary = {
+  hasDocument: boolean;
+  documentStatus: string | null;
+  overallRatingLabel: string | null;
+  monthlyGoals: CurrentGRGoal[];
+  competencies: CurrentGRCompetency[];
+  resources: CurrentGRResource[];
+  nextReviewLabel: string | null;
+};
+
+const EMPTY_GR_SUMMARY: CurrentGRSummary = {
+  hasDocument: false,
+  documentStatus: null,
+  overallRatingLabel: null,
+  monthlyGoals: [],
+  competencies: [],
+  resources: [],
+  nextReviewLabel: null,
+};
+
+/**
+ * The "Current G&R" card at the top of /people/[id] — the living plan, not
+ * just a summary of the last review. Reuses the same tables
+ * loadMentorshipWorkspace() touches, but is purpose-built and cheaper: no
+ * timeline/check-ins/coaching-plan assembly, just the current goals,
+ * competencies, resources, and next review period. Returns null when the
+ * viewer has no access (mirrors resolveWorkspaceAccess's own gating).
+ */
+export async function getCurrentGRSummary(personId: string): Promise<CurrentGRSummary | null> {
+  const viewer = await getSessionUser();
+  if (!viewer) return null;
+  const access = await resolveWorkspaceAccess(viewer, personId);
+  if (!access) return null;
+
+  const doc = await prisma.gRDocument.findFirst({
+    where: { userId: personId, status: { in: ["DRAFT", "PENDING_APPROVAL", "ACTIVE"] } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      goals: {
+        where: { lifecycleStatus: "ACTIVE" },
+        orderBy: [{ priority: "desc" }, { dueDate: "asc" }, { sortOrder: "asc" }],
+        select: {
+          id: true,
+          kind: true,
+          title: true,
+          description: true,
+          progressState: true,
+          dueDate: true,
+          reviewRatings: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { rating: true },
+          },
+        },
+      },
+      resources: {
+        orderBy: { sortOrder: "asc" },
+        select: { resource: { select: { id: true, title: true, url: true } } },
+      },
+    },
+  });
+
+  if (!doc) return EMPTY_GR_SUMMARY;
+
+  const latestReleasedReview = await prisma.mentorGoalReview.findFirst({
+    where: { menteeId: personId, releasedToMenteeAt: { not: null } },
+    orderBy: { releasedToMenteeAt: "desc" },
+    select: { overallRating: true },
+  });
+
+  const monthlyGoals: CurrentGRGoal[] = doc.goals
+    .filter((g) => g.kind === "GOAL")
+    .map((g) => ({
+      id: g.id,
+      title: g.title,
+      description: g.description,
+      progressState: g.progressState,
+      dueDateLabel: g.dueDate
+        ? g.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+        : null,
+      latestRatingLabel: g.reviewRatings[0] ? getGoalRatingCopy(g.reviewRatings[0].rating).label : null,
+    }));
+
+  const competencies: CurrentGRCompetency[] = doc.goals
+    .filter((g) => g.kind === "COMPETENCY")
+    .map((g) => ({
+      id: g.id,
+      title: g.title,
+      latestRatingLabel: g.reviewRatings[0] ? getGoalRatingCopy(g.reviewRatings[0].rating).label : null,
+      latestRatingColor: g.reviewRatings[0] ? getGoalRatingCopy(g.reviewRatings[0].rating).color : null,
+    }));
+
+  const resources: CurrentGRResource[] = doc.resources.map((r) => ({
+    id: r.resource.id,
+    title: r.resource.title,
+    url: r.resource.url,
+  }));
+
+  const nextReviewLabel = access.activeMentorship
+    ? getCurrentCycleMonthLabel()
+    : null;
+
+  return {
+    hasDocument: true,
+    documentStatus: doc.status,
+    overallRatingLabel: latestReleasedReview ? getGoalRatingCopy(latestReleasedReview.overallRating).label : null,
+    monthlyGoals,
+    competencies,
+    resources,
+    nextReviewLabel,
+  };
+}
+
+function getCurrentCycleMonthLabel(): string {
+  const now = new Date();
+  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return nextMonth.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+// ============================================
+// REVIEW HISTORY — progression over time, not just a document list
+// ============================================
+
+export type ReviewHistoryEntry = {
+  reviewId: string;
+  cycleLabel: string;
+  overallRatingLabel: string;
+  overallRatingColor: string;
+  releasedAtISO: string;
+};
+
+export type CompetencyTrend = {
+  competencyId: string;
+  title: string;
+  /** Oldest first — {cycleLabel, ratingLabel, color}. */
+  series: Array<{ cycleLabel: string; ratingLabel: string; ratingColor: string }>;
+};
+
+export type ReviewHistory = {
+  entries: ReviewHistoryEntry[];
+  competencyTrends: CompetencyTrend[];
+};
+
+/**
+ * Progression over time — rating trend + per-competency movement — not just
+ * a flat list of past documents. No new storage: this is a read over the
+ * existing immutable MentorGoalReview / GoalReviewRating rows. Because
+ * competencies are permanent GRDocumentGoal rows (kind=COMPETENCY), their
+ * rating series line up across cycles automatically.
+ */
+export async function loadReviewHistory(personId: string): Promise<ReviewHistory | null> {
+  const viewer = await getSessionUser();
+  if (!viewer) return null;
+  const access = await resolveWorkspaceAccess(viewer, personId);
+  if (!access) return null;
+
+  const releasedReviews = await prisma.mentorGoalReview.findMany({
+    where: { menteeId: personId, releasedToMenteeAt: { not: null } },
+    orderBy: { releasedToMenteeAt: "asc" },
+    select: {
+      id: true,
+      cycleMonth: true,
+      overallRating: true,
+      releasedToMenteeAt: true,
+      goalRatings: {
+        select: {
+          rating: true,
+          grDocumentGoal: { select: { id: true, title: true, kind: true } },
+        },
+      },
+    },
+  });
+
+  const entries: ReviewHistoryEntry[] = releasedReviews.map((r) => ({
+    reviewId: r.id,
+    cycleLabel: r.cycleMonth.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" }),
+    overallRatingLabel: getGoalRatingCopy(r.overallRating).label,
+    overallRatingColor: getGoalRatingCopy(r.overallRating).color,
+    releasedAtISO: r.releasedToMenteeAt!.toISOString(),
+  }));
+
+  const trendByCompetency = new Map<string, CompetencyTrend>();
+  for (const review of releasedReviews) {
+    const cycleLabel = review.cycleMonth.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+    for (const rating of review.goalRatings) {
+      if (!rating.grDocumentGoal || rating.grDocumentGoal.kind !== "COMPETENCY") continue;
+      const goal = rating.grDocumentGoal;
+      let trend = trendByCompetency.get(goal.id);
+      if (!trend) {
+        trend = { competencyId: goal.id, title: goal.title, series: [] };
+        trendByCompetency.set(goal.id, trend);
+      }
+      const copy = getGoalRatingCopy(rating.rating);
+      trend.series.push({ cycleLabel, ratingLabel: copy.label, ratingColor: copy.color });
+    }
+  }
+
+  return {
+    entries: entries.reverse(), // newest first for display
+    competencyTrends: Array.from(trendByCompetency.values()),
+  };
+}
+
+// ============================================
+// GOAL EVIDENCE — completed actions linked to a G&R goal
+// ============================================
+
+export type GoalEvidenceItem = {
+  id: string;
+  title: string;
+  completedAtLabel: string;
+  ownerName: string | null;
+};
+
+/**
+ * Completed MentorshipActionItems linked to one G&R goal — the goal's
+ * evidence trail for the next review. Progressive disclosure: fetched only
+ * when a goal is expanded, not eagerly for the whole document. The minimum
+ * connection needed to close the loop from "review creates goal" to "work
+ * happens" to "next review evaluates progress" — no project-management
+ * system, just a query over the existing grDocumentGoalId link.
+ */
+export async function getGoalEvidence(grDocumentGoalId: string): Promise<GoalEvidenceItem[]> {
+  const rows = await prisma.mentorshipActionItem.findMany({
+    where: { grDocumentGoalId, status: "COMPLETE" },
+    orderBy: { completedAt: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      title: true,
+      completedAt: true,
+      owner: { select: { name: true, email: true } },
+    },
+  });
+  return rows
+    .filter((r) => r.completedAt)
+    .map((r) => ({
+      id: r.id,
+      title: r.title,
+      completedAtLabel: r.completedAt!.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      }),
+      ownerName: r.owner?.name || r.owner?.email || null,
+    }));
 }

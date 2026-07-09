@@ -15,12 +15,9 @@ import { getMentorshipPendingActionCount } from "@/lib/mentorship-notifications"
 import { getMentorEngagementSnapshot } from "@/lib/mentor-overview";
 import { buildMentorHomeViewModel } from "@/lib/mentorship/load";
 import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
-import { loadMentorshipWorkspace } from "@/lib/mentorship/workspace";
-import { MentorshipWorkspaceView } from "@/components/mentorship/workspace/workspace-view";
 import { availablePovs, resolvePov, type HubPov } from "@/lib/mentorship/hub-pov";
 import { mentorCardNeedsAttention } from "./_components/mentor-priority-list";
 import { MentorHomeCalm } from "./_components/mentor-home-calm";
-import { MenteeDevelopmentBrief } from "./_components/mentee-development-brief";
 import { SegmentedTabs } from "./_components/segmented-tabs";
 import { EmptyStateEditorial } from "./_components/empty-state-editorial";
 
@@ -125,27 +122,12 @@ export default async function MentorshipPage(
     );
   }
 
-  // ── Mentee POV — "My Development": the full self workspace. ────────────────
+  // ── Mentee POV — retired as an in-hub view. Your own Review & G&R flow is
+  // your own /people/[id] now, not a "Mentorship" destination — redirect
+  // rather than render inline.
   if (pov === "me") {
-    const workspace = await loadMentorshipWorkspace(session.user, userId);
-    return (
-      <div className={`${skin.portalSkin} flex flex-col gap-6`}>
-        {header}
-        {workspace ? (
-          <MentorshipWorkspaceView
-            workspace={workspace}
-            section={searchParams?.section}
-            sectionHref={(sectionId) => `/mentorship?view=me&section=${sectionId}`}
-            showHeader={false}
-            helpSent={searchParams?.sent === "1"}
-          />
-        ) : (
-          // No mentorship footprint (e.g. archived record) — the brief handles
-          // the "no mentor yet" state without the section tabs.
-          <MenteeDevelopmentBrief userId={userId} />
-        )}
-      </div>
-    );
+    const section = typeof searchParams?.section === "string" ? searchParams.section : null;
+    redirect(`/people/${userId}${section ? `?section=${section}` : ""}`);
   }
 
   // ── Mentor POV — the coaching console. ─────────────────────────────────────

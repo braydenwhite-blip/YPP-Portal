@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 
 /**
- * The mentor's G&R view is now the workspace's Goals section — one canonical
- * place for a mentee's goals, whether you're the mentee, their mentor, or
- * leadership. See components/mentorship/workspace/goals-section.tsx.
+ * The mentor's G&R view now lives directly on /people/[id] — the Current
+ * G&R card plus the "Full G&R & check-ins" disclosure. See
+ * components/people-strategy/current-gr-card.tsx.
  */
 export default async function MentorMenteeGRPage({
   params,
@@ -11,5 +11,5 @@ export default async function MentorMenteeGRPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  redirect(`/mentorship/people/${id}?section=goals`);
+  redirect(`/people/${id}?section=review`);
 }
