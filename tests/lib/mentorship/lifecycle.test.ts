@@ -26,6 +26,12 @@ function snapshot(overrides: Partial<LifecycleSnapshot> = {}): LifecycleSnapshot
     openActionItems: 0,
     overdueActionItems: 0,
     lastCheckInLabel: "Jul 1, 2026",
+    commentsRequested: 0,
+    commentsSubmitted: 0,
+    commentsOverdue: 0,
+    quarterlyDue: false,
+    quarterlyStatus: null,
+    quarterlyRequiresBoardApproval: false,
     ...overrides,
   };
 }
@@ -176,6 +182,55 @@ describe("buildCycleStrip — the loop in plain language", () => {
   });
 });
 
+describe("deriveNextAction — quarterly committee review dominates when due", () => {
+  it("puts starting the quarterly review on the mentor once monthly work is released", () => {
+    const s = snapshot({ cycleStage: "APPROVED", releasedReviewPendingAck: false, quarterlyDue: true, quarterlyStatus: null });
+    const mentor = deriveNextAction(s, "mentor", hrefs, "Ari");
+    expect(mentor.key).toBe("start-quarterly-review");
+    expect(mentor.urgent).toBe(true);
+    expect(deriveNextAction(s, "leadership", hrefs, "Ari").key).toBe("await-quarterly-start");
+  });
+
+  it("gives the mentee no quarterly action — it's committee-internal", () => {
+    const s = snapshot({ cycleStage: "APPROVED", quarterlyDue: true, quarterlyStatus: "DRAFT" });
+    const mine = deriveNextAction(s, "me", hrefs, "Ari");
+    expect(mine.key).not.toMatch(/quarterly/);
+  });
+
+  it("routes changes-requested back to the mentor", () => {
+    const s = snapshot({ cycleStage: "APPROVED", quarterlyDue: true, quarterlyStatus: "CHANGES_REQUESTED" });
+    expect(deriveNextAction(s, "mentor", hrefs, "Ari").key).toBe("revise-quarterly-review");
+  });
+
+  it("puts committee approval on leadership, waiting on mentor", () => {
+    const s = snapshot({ cycleStage: "APPROVED", quarterlyDue: true, quarterlyStatus: "PENDING_CHAIR_APPROVAL" });
+    expect(deriveNextAction(s, "leadership", hrefs, "Ari").key).toBe("approve-quarterly-review");
+    expect(deriveNextAction(s, "mentor", hrefs, "Ari").key).toBe("await-quarterly-approval");
+  });
+
+  it("puts board sign-off on leadership when required", () => {
+    const s = snapshot({
+      cycleStage: "APPROVED",
+      quarterlyDue: true,
+      quarterlyStatus: "PENDING_BOARD_APPROVAL",
+      quarterlyRequiresBoardApproval: true,
+    });
+    expect(deriveNextAction(s, "leadership", hrefs, "Ari").key).toBe("board-approve-quarterly-review");
+  });
+
+  it("stops dominating once the quarterly review is approved", () => {
+    const s = snapshot({ cycleStage: "APPROVED", releasedReviewPendingAck: false, quarterlyDue: true, quarterlyStatus: "APPROVED" });
+    const mentor = deriveNextAction(s, "mentor", hrefs, "Ari");
+    expect(mentor.key).not.toMatch(/quarterly/);
+  });
+
+  it("never surfaces quarterly actions off-cycle", () => {
+    const s = snapshot({ cycleStage: "APPROVED", quarterlyDue: false });
+    const mentor = deriveNextAction(s, "mentor", hrefs, "Ari");
+    expect(mentor.key).not.toMatch(/quarterly/);
+  });
+});
+
 describe("deriveReviewCapabilities — lifecycle capabilities beyond draft/approve/release", () => {
   const base = { isSelf: false, isAdmin: false, isMentor: false, isChair: false, isLeadership: false, canRecordCheckIn: false };
 
@@ -188,9 +243,10 @@ describe("deriveReviewCapabilities — lifecycle capabilities beyond draft/appro
     expect(caps.canRecommendPathwayDecision).toBe(false);
   });
 
-  it("gives the mentor pathway-recommendation authority but not calibration/approval", () => {
+  it("gives the mentor pathway-recommendation and packet-visibility authority but not calibration/approval", () => {
     const caps = deriveReviewCapabilities({ ...base, isMentor: true });
     expect(caps.canRecommendPathwayDecision).toBe(true);
+    expect(caps.canRunQuarterlyReview).toBe(true);
     expect(caps.canCalibratePoints).toBe(false);
     expect(caps.canApprovePathwayDecision).toBe(false);
   });

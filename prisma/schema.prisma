@@ -1353,6 +1353,10 @@ model User {
   peopleCheckIns                      CheckIn[]                @relation("UserPeopleCheckIns")
   quarterlyReviews                    QuarterlyReview[]        @relation("UserQuarterlyReviews")
   quarterlyReviewsCreated             QuarterlyReview[]        @relation("QuarterlyReviewsCreated")
+  mentorshipQuarterlyReviews          MentorshipQuarterlyReview[] @relation("MentorshipQuarterlyReviewMentees")
+  mentorshipQuarterlyReviewsRecommended MentorshipQuarterlyReview[] @relation("MentorshipQuarterlyReviewRecommendedBy")
+  mentorshipQuarterlyReviewsChairApproved MentorshipQuarterlyReview[] @relation("MentorshipQuarterlyReviewChairApproved")
+  mentorshipQuarterlyReviewsBoardApproved MentorshipQuarterlyReview[] @relation("MentorshipQuarterlyReviewBoardApproved")
   achievementPointSummary             AchievementPointSummary? @relation("AchievementPointSummary")
   achievementAwardNominations         AwardNomination[]        @relation("AwardNominations")
   achievementAwardNominationsGiven    AwardNomination[]        @relation("AwardNominationsGiven")
@@ -3047,6 +3051,7 @@ model Mentorship {
   scheduleRequests MentorshipScheduleRequest[]
   grDocuments      GRDocument[]
   reviewCycleParticipants ReviewCycleParticipant[]
+  quarterlyReviews MentorshipQuarterlyReview[]
 
   @@index([trackId])
   @@index([chairId])
@@ -4028,6 +4033,9 @@ model AchievementPointLedger {
   @@index([approvedById])
 }
 
+/// DEPRECATED: never wired to any loader/action/route/UI. Superseded by
+/// MentorshipQuarterlyReview (Phase 2 of the Mentorship Process Overview
+/// work) — do not write new code against this model.
 model QuarterlyCommitteeReview {
   id                       String                         @id @default(cuid())
   committeeId              String?
@@ -4079,6 +4087,9 @@ model MentorshipAwardRecommendation {
   @@index([trackId])
 }
 
+/// DEPRECATED: never wired to any loader/action/route/UI. Superseded by
+/// MentorshipQuarterlyReview.decision (Phase 2 of the Mentorship Process
+/// Overview work) — do not write new code against this model.
 model PromotionRecommendation {
   id                String                    @id @default(cuid())
   userId            String
@@ -10123,6 +10134,10 @@ model MentorGoalReview {
   /// Draft next-month goal proposals persisted between form saves. Cleared on submit.
   nextMonthGoalDraftsJson Json?
 
+  /// Quarterly Committee Reviews that cite this monthly review as evidence
+  /// (the "last 3 monthly reviews" every quarterly review is based on).
+  quarterlyReviewEvidence MentorshipQuarterlyReviewEvidence[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -14231,6 +14246,114 @@ model QuarterlyReview {
   @@index([userId])
   @@index([createdById])
   @@index([successionFlag])
+}
+
+// ============================================
+// MENTORSHIP QUARTERLY COMMITTEE REVIEW (Phase 2)
+// ============================================
+//
+// Deliberately a SEPARATE model from `QuarterlyReview` above.
+// `QuarterlyReview` is a live, leadership-only succession-matrix tool (one
+// row per user/quarter, single-author upsert, consumed today by
+// /admin/instructors/[id]/manage/strategy) — it must not be touched or
+// commingled with the mentorship committee's multi-stage, evidence-linked,
+// chair-then-board workflow. The two share only the Pathway Decision
+// vocabulary (`QuarterlyReviewDecision`), reused here as a type, not a table.
+
+/// Approval lifecycle for a quarterly committee review, mirroring the
+/// monthly GoalReviewStatus shape (DRAFT → PENDING_CHAIR_APPROVAL →
+/// CHANGES_REQUESTED ↔ PENDING_CHAIR_APPROVAL → APPROVED), with an optional
+/// PENDING_BOARD_APPROVAL stage inserted before APPROVED for officer/board-
+/// level Pathway Decisions.
+enum MentorshipQuarterlyReviewStatus {
+  DRAFT
+  PENDING_CHAIR_APPROVAL
+  CHANGES_REQUESTED
+  PENDING_BOARD_APPROVAL
+  APPROVED
+}
+
+/// Every third monthly cycle, the Role Committee reviews the mentee's last 3
+/// monthly MentorGoalReviews plus gathered stakeholder feedback and may
+/// record a Pathway Decision (continue / promotion / award recommendation /
+/// role change / support plan / termination recommendation). One row per
+/// mentorship per quarter — @@unique([mentorshipId, quarter]) is owned
+/// entirely by this model, independent of QuarterlyReview's constraint.
+model MentorshipQuarterlyReview {
+  id           String     @id @default(cuid())
+  mentorshipId String
+  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+  menteeId     String
+  mentee       User       @relation("MentorshipQuarterlyReviewMentees", fields: [menteeId], references: [id], onDelete: Cascade)
+
+  /// e.g. "2026-Q3" (see lib/people-strategy/people-performance-selectors.ts currentQuarterLabel).
+  quarter String
+  /// The monthly cycleNumber (divisible by 3) that triggered this review.
+  cycleNumber Int
+
+  /// The last 3 monthly MentorGoalReviews this quarterly review is based on —
+  /// snapshotted via the join table at creation so a later review never
+  /// silently changes what evidence a past quarterly decision was based on.
+  evidenceReviews MentorshipQuarterlyReviewEvidence[]
+
+  /// Mentor's written synthesis of gathered stakeholder feedback (parents,
+  /// students, school officials, leadership, collaborators) — the
+  /// QuarterlyFeedbackResponse rows for this mentorship/quarter are the
+  /// underlying raw evidence; this is the mentor's summary of them.
+  broaderFeedbackSummary String? @db.Text
+
+  /// The Role Committee's discussion notes.
+  committeeNotes String? @db.Text
+
+  /// The Pathway Decision, once recommended. Reuses QuarterlyReviewDecision
+  /// (PROMOTION / ACHIEVEMENT_AWARD / ROLE_CHANGE / PIP / CONTINUATION) —
+  /// vocabulary only, no relation to the QuarterlyReview table.
+  decision          QuarterlyReviewDecision?
+  decisionRationale String?                  @db.Text
+
+  status MentorshipQuarterlyReviewStatus @default(DRAFT)
+
+  /// The mentor (or a committee member) proposes the Pathway Decision.
+  recommendedById String?
+  recommendedBy   User?     @relation("MentorshipQuarterlyReviewRecommendedBy", fields: [recommendedById], references: [id], onDelete: SetNull)
+  recommendedAt   DateTime?
+
+  /// Role Chair (or Chief of Staff / MENTORSHIP_ADMIN) approval — required
+  /// for every decision before it is final.
+  chairApproverId String?
+  chairApprover   User?     @relation("MentorshipQuarterlyReviewChairApproved", fields: [chairApproverId], references: [id], onDelete: SetNull)
+  chairApprovedAt DateTime?
+  chairComments   String?   @db.Text
+
+  /// Officer/board-level decisions (promotion or role change into Global
+  /// Leadership) additionally require Board approval — computed at chair
+  /// approval time, not manually toggled.
+  requiresBoardApproval Boolean   @default(false)
+  boardApproverId       String?
+  boardApprover         User?     @relation("MentorshipQuarterlyReviewBoardApproved", fields: [boardApproverId], references: [id], onDelete: SetNull)
+  boardApprovedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([mentorshipId, quarter])
+  @@index([menteeId])
+  @@index([status])
+}
+
+/// Join row linking a MentorshipQuarterlyReview to one of the (up to 3)
+/// monthly MentorGoalReviews it's based on. An explicit model rather than an
+/// implicit many-to-many so the evidence set is easy to read/write directly.
+model MentorshipQuarterlyReviewEvidence {
+  id                  String                    @id @default(cuid())
+  quarterlyReviewId   String
+  quarterlyReview     MentorshipQuarterlyReview @relation(fields: [quarterlyReviewId], references: [id], onDelete: Cascade)
+  monthlyReviewId     String
+  monthlyReview       MentorGoalReview          @relation(fields: [monthlyReviewId], references: [id], onDelete: Cascade)
+  createdAt           DateTime                  @default(now())
+
+  @@unique([quarterlyReviewId, monthlyReviewId])
+  @@index([monthlyReviewId])
 }
 
 // ============================================================================

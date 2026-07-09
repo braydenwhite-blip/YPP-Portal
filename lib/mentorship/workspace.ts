@@ -36,6 +36,8 @@ import {
 } from "./person-extras";
 import { loadParticipationsForUser } from "./cycle-load";
 import { STAGE_META } from "./cycle-constants";
+import { isQuarterlyCycle, findQuarterlyReview } from "./quarterly-review";
+import { currentQuarterLabel } from "@/lib/people-strategy/people-performance-selectors";
 
 /**
  * The unified Mentorship workspace loader — one person's complete development
@@ -696,6 +698,32 @@ export async function loadMentorshipWorkspace(
     (r) => r.submittedAt == null && r.dueAt != null && r.dueAt < now
   ).length;
 
+  // Quarterly Committee Review — only relevant once every 3rd cycle's
+  // monthly work is fully released. Scoped to the ACTIVE mentorship
+  // specifically (not just menteeId) so a prior mentorship's cycle count
+  // never bleeds into a new pairing's quarterly cadence.
+  let quarterlyDue = false;
+  let quarterlyStatus: LifecycleSnapshot["quarterlyStatus"] = null;
+  let quarterlyRequiresBoardApproval = false;
+  if (access.activeMentorship && access.activeMentorship.cycleStage === "APPROVED") {
+    const latestApproved = await prisma.mentorGoalReview.findFirst({
+      where: {
+        mentorshipId: access.activeMentorship.id,
+        status: "APPROVED",
+        releasedToMenteeAt: { not: null },
+      },
+      orderBy: { cycleNumber: "desc" },
+      select: { cycleNumber: true, cycleMonth: true },
+    });
+    if (latestApproved && isQuarterlyCycle(latestApproved.cycleNumber)) {
+      quarterlyDue = true;
+      const quarter = currentQuarterLabel(latestApproved.cycleMonth);
+      const existing = await findQuarterlyReview(access.activeMentorship.id, quarter);
+      quarterlyStatus = (existing?.status ?? null) as LifecycleSnapshot["quarterlyStatus"];
+      quarterlyRequiresBoardApproval = existing?.requiresBoardApproval ?? false;
+    }
+  }
+
   const lifecycle: LifecycleSnapshot = {
     hasActiveMentorship: !!access.activeMentorship,
     mentorshipStatus: access.activeMentorship?.status ?? latestMentorshipAnyStatus?.status ?? null,
@@ -725,6 +753,9 @@ export async function loadMentorshipWorkspace(
     commentsRequested,
     commentsSubmitted,
     commentsOverdue,
+    quarterlyDue,
+    quarterlyStatus,
+    quarterlyRequiresBoardApproval,
   };
 
   // Resolve POV from the viewer's actual relationship to THIS pairing first —

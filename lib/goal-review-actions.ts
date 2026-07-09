@@ -60,7 +60,7 @@ async function requireAdmin() {
  * bypasses for SUPER_ADMIN / MENTORSHIP_ADMIN — this only adds the
  * plain-ADMIN-role fallback so existing portal admins are unaffected.
  */
-async function requireReviewApprover(mentee: { primaryRole: string | null }) {
+export async function requireReviewApprover(mentee: { primaryRole: string | null }) {
   const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];

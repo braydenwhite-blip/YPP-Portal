@@ -16,6 +16,7 @@ import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 import { resolveReflectionQuestions } from "@/lib/mentorship/reflection-questions";
 
 import { CycleStrip } from "./cycle-strip";
+import { QuarterlyReviewSection } from "./quarterly-review-section";
 
 /**
  * Reviews — the monthly loop as one lifecycle, not a set of components:
@@ -57,7 +58,7 @@ export async function ReviewsSection({
   workspace: MentorshipWorkspace;
   sectionHref: (sectionId: string) => string;
 }) {
-  const { isSelf, lifecycle, cycleStrip, nextAction, person } = workspace;
+  const { isSelf, lifecycle, cycleStrip, nextAction, person, capabilities } = workspace;
   const firstName = person.name.split(" ")[0];
 
   // Everything released to this person, plus the mentee's reactions and the
@@ -102,6 +103,10 @@ export async function ReviewsSection({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Quarterly Committee Review dominates once due — committee-internal
+          deliberation, never shown to the mentee themselves. */}
+      {capabilities.canRunQuarterlyReview ? <QuarterlyReviewSection workspace={workspace} /> : null}
+
       {lifecycle.hasActiveMentorship && lifecycle.kickoffComplete ? (
         <CycleStrip steps={cycleStrip} cycleLabel={lifecycle.cycleLabel} />
       ) : null}
