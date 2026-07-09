@@ -10224,6 +10224,23 @@ model AwardNomination {
   @@index([nomineeId])
 }
 
+/// The four named Role Committees from the Mentorship Process Overview —
+/// Officers and Global Directors/Managers are today both roleType
+/// GLOBAL_LEADERSHIP (shared points/rubric — see MenteeRoleType), but the
+/// source document gives them distinct chairs and rosters. `lane` is that
+/// orthogonal committee-identity dimension: it does NOT affect review
+/// approval routing (still governed by `roleType`, unchanged, 3 buckets) —
+/// it only distinguishes which named committee a chair leads / a member
+/// sits on. Nullable because existing GLOBAL_LEADERSHIP chairs need an
+/// admin to explicitly pick OFFICER vs GLOBAL_DIRECTOR_MANAGER; guessing
+/// from title would silently misassign committee governance.
+enum MentorCommitteeLane {
+  OFFICER
+  GLOBAL_DIRECTOR_MANAGER
+  CHAPTER_PRESIDENT
+  INSTRUCTOR
+}
+
 /// Designates which user is the Mentor Committee Chair for a given mentee role group.
 /// Chairs approve goal reviews and award nominations for their role group.
 model MentorCommitteeChair {
@@ -10231,13 +10248,17 @@ model MentorCommitteeChair {
   userId   String
   user     User           @relation("MentorCommitteeChairRoles", fields: [userId], references: [id], onDelete: Cascade)
   roleType MenteeRoleType
+  /// The named committee this chair leads (see MentorCommitteeLane doc comment).
+  lane     MentorCommitteeLane?
   isActive Boolean        @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, roleType])
+  @@unique([userId, lane])
   @@index([roleType])
+  @@index([lane])
 }
 
 // ============================================

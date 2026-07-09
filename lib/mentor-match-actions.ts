@@ -46,6 +46,8 @@ export interface MentorMatchSuggestion {
   mentorChapter: string | null;
   mentorInterests: string[];
   mentorCurrentMentees: number;
+  /** Preferred mentee cap for this mentor, when set — doc guideline is 2-3. Null when no override is on file. */
+  mentorCapacity: number | null;
   mentorAvailability: string | null;
   menteeId: string;
   menteeName: string;
@@ -293,6 +295,7 @@ export async function computeMentorMatches(
         mentorChapter: mentor.chapter?.name ?? null,
         mentorInterests,
         mentorCurrentMentees: currentLoad,
+        mentorCapacity: capacity,
         mentorAvailability: availability,
         menteeId: mentee.id,
         menteeName: mentee.name,

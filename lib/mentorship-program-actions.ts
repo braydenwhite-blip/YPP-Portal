@@ -11,6 +11,7 @@ import { getSession } from "@/lib/auth-supabase";
 import {
   AuditAction,
   MenteeRoleType,
+  MentorCommitteeLane,
   MentorshipAwardPolicy,
   MentorshipAwardLevel,
   MentorshipCommitteeScope,
@@ -24,6 +25,18 @@ import {
   ProgressStatus,
   RoleType,
 } from "@prisma/client";
+
+/// Maps each of the four Role Committee lanes to the (still 3-bucket)
+/// MenteeRoleType that governs review-approval routing — see the
+/// MentorCommitteeLane doc comment in schema.prisma. Officers and Global
+/// Directors/Managers are distinct committees that share GLOBAL_LEADERSHIP
+/// points/rubric.
+const LANE_TO_ROLE_TYPE: Record<MentorCommitteeLane, MenteeRoleType> = {
+  OFFICER: MenteeRoleType.GLOBAL_LEADERSHIP,
+  GLOBAL_DIRECTOR_MANAGER: MenteeRoleType.GLOBAL_LEADERSHIP,
+  CHAPTER_PRESIDENT: MenteeRoleType.CHAPTER_PRESIDENT,
+  INSTRUCTOR: MenteeRoleType.INSTRUCTOR,
+};
 import { revalidatePath } from "next/cache";
 
 import { logAuditEvent } from "@/lib/audit-log-actions";
@@ -610,35 +623,53 @@ export async function setProgramMentorshipStatus(formData: FormData) {
 export async function assignCommitteeChair(formData: FormData) {
   const session = await requireAdmin();
   const userId = getString(formData, "userId");
-  const roleTypeRaw = getString(formData, "roleType");
-  const roleType = roleTypeRaw as MenteeRoleType;
+  const laneRaw = getString(formData, "lane");
+  const lane = laneRaw as MentorCommitteeLane;
 
-  if (!Object.values(MenteeRoleType).includes(roleType)) {
-    throw new Error("Invalid roleType");
+  if (!Object.values(MentorCommitteeLane).includes(lane)) {
+    throw new Error("Invalid committee lane");
   }
+  const roleType = LANE_TO_ROLE_TYPE[lane];
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { name: true },
   });
 
+  // Deactivate the prior chair of THIS SPECIFIC lane only. Officers and
+  // Global Directors/Managers share roleType GLOBAL_LEADERSHIP, so scoping
+  // by roleType here would incorrectly clobber the other committee's chair.
   await prisma.mentorCommitteeChair.updateMany({
-    where: { roleType, isActive: true },
+    where: { lane, isActive: true },
     data: { isActive: false },
   });
 
-  await prisma.mentorCommitteeChair.upsert({
-    where: { userId_roleType: { userId, roleType } },
-    create: { userId, roleType, isActive: true },
-    update: { isActive: true },
+  // A chair assigned before the lane split has an active roleType row with
+  // lane still null — re-pick that row's lane instead of leaving it behind
+  // as an orphaned duplicate when this same user is re-assigned.
+  const legacyRow = await prisma.mentorCommitteeChair.findFirst({
+    where: { userId, roleType, lane: null },
   });
+
+  if (legacyRow) {
+    await prisma.mentorCommitteeChair.update({
+      where: { id: legacyRow.id },
+      data: { lane, isActive: true },
+    });
+  } else {
+    await prisma.mentorCommitteeChair.upsert({
+      where: { userId_lane: { userId, lane } },
+      create: { userId, roleType, lane, isActive: true },
+      update: { isActive: true, roleType },
+    });
+  }
 
   await logAuditEvent({
     action: AuditAction.SETTINGS_CHANGED,
     actorId: session.user.id,
     targetType: "MentorCommitteeChair",
     targetId: userId,
-    description: `Mentor Committee Chair assigned: ${user.name} -> ${roleType}`,
+    description: `Mentor Committee Chair assigned: ${user.name} -> ${lane}`,
   });
 
   revalidatePath("/admin/mentorship");

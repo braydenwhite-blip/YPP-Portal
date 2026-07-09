@@ -73,6 +73,14 @@ export type ReviewCapabilities = {
   canRelease: boolean;
   canViewReleasedReview: boolean;
   canLogCheckIn: boolean;
+  /** Chair-only recalibration of the mentor's proposed Character & Culture bonus points on THIS review — the same authority as canApprove, named for what it does. */
+  canCalibratePoints: boolean;
+  /** Committee member (chair, mentor-on-committee, leadership, admin) can open/participate in this person's quarterly committee review. */
+  canRunQuarterlyReview: boolean;
+  /** Mentor/committee member can propose a Pathway Decision as part of a quarterly review. */
+  canRecommendPathwayDecision: boolean;
+  /** Chair (or admin/leadership for org-level decisions) can finalize a Pathway Decision. */
+  canApprovePathwayDecision: boolean;
 };
 
 export function deriveReviewCapabilities(args: {
@@ -98,6 +106,10 @@ export function deriveReviewCapabilities(args: {
     canRelease: isApprover,
     canViewReleasedReview: isSelf || isMentor || isChair || isLeadership || isAdmin,
     canLogCheckIn: canRecordCheckIn,
+    canCalibratePoints: isApprover,
+    canRunQuarterlyReview: isApprover || isLeadership,
+    canRecommendPathwayDecision: isReviewer || isLeadership,
+    canApprovePathwayDecision: isApprover || isLeadership,
   };
 }
 

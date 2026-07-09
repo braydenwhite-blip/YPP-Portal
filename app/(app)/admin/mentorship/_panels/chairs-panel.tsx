@@ -9,6 +9,8 @@ export interface SerializedChair {
   userName: string;
   userEmail: string;
   roleType: string;
+  /** The named committee this chair leads — null for legacy rows assigned before the lane split; an admin must explicitly re-pick one. */
+  lane: string | null;
   isActive: boolean;
 }
 
@@ -23,10 +25,14 @@ interface Props {
   eligibleUsers: SerializedUser[];
 }
 
-const ROLE_TYPES = [
-  { value: "INSTRUCTOR", label: "Instructors" },
+// The four Role Committees from the Mentorship Process Overview. Officers and
+// Global Directors/Managers are distinct committees with distinct chairs, even
+// though they share the GLOBAL_LEADERSHIP review-approval lane under the hood.
+const COMMITTEE_LANES = [
+  { value: "OFFICER", label: "Officers" },
+  { value: "GLOBAL_DIRECTOR_MANAGER", label: "Global Directors/Managers" },
   { value: "CHAPTER_PRESIDENT", label: "Chapter Presidents" },
-  { value: "GLOBAL_LEADERSHIP", label: "Global Leadership" },
+  { value: "INSTRUCTOR", label: "Instructors" },
 ] as const;
 
 export default function ChairsPanel({ chairs, eligibleUsers }: Props) {
@@ -35,6 +41,10 @@ export default function ChairsPanel({ chairs, eligibleUsers }: Props) {
   const [success, setSuccess] = useState<string | null>(null);
 
   const activeChairs = chairs.filter((c) => c.isActive);
+  // Chairs assigned before the Officer / Global Director-Manager split —
+  // they still gate review approval via roleType, but need an admin to pick
+  // which of the two committees they actually belong to.
+  const needsLaneAssignment = activeChairs.filter((c) => !c.lane);
 
   function handleAssign(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -52,8 +62,8 @@ export default function ChairsPanel({ chairs, eligibleUsers }: Props) {
     });
   }
 
-  function handleRemove(chairId: string, name: string, roleType: string) {
-    if (!confirm(`Remove ${name} as Chair for ${roleType}?`)) return;
+  function handleRemove(chairId: string, name: string, laneLabel: string) {
+    if (!confirm(`Remove ${name} as Chair for ${laneLabel}?`)) return;
     setError(null);
     setSuccess(null);
     const formData = new FormData();
@@ -70,10 +80,29 @@ export default function ChairsPanel({ chairs, eligibleUsers }: Props) {
 
   return (
     <div>
+      {needsLaneAssignment.length > 0 && (
+        <div className="card" style={{ marginBottom: "1.5rem", borderColor: "#f59e0b" }}>
+          <p style={{ fontWeight: 600, marginBottom: "0.4rem" }}>
+            {needsLaneAssignment.length} chair{needsLaneAssignment.length === 1 ? "" : "s"} need
+            {needsLaneAssignment.length === 1 ? "s" : ""} a committee assignment
+          </p>
+          <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.5rem" }}>
+            Assigned before Officers and Global Directors/Managers became separate committees.
+            They still approve Global Leadership reviews — re-assign them to Officers or Global
+            Directors/Managers below so the committee overview reflects reality.
+          </p>
+          {needsLaneAssignment.map((c) => (
+            <p key={c.id} style={{ fontSize: "0.85rem" }}>
+              {c.userName} — currently {c.roleType}
+            </p>
+          ))}
+        </div>
+      )}
+
       {/* Current chairs overview */}
-      <div className="grid three" style={{ marginBottom: "1.5rem" }}>
-        {ROLE_TYPES.map(({ value, label }) => {
-          const chair = activeChairs.find((c) => c.roleType === value);
+      <div className="grid four" style={{ marginBottom: "1.5rem" }}>
+        {COMMITTEE_LANES.map(({ value, label }) => {
+          const chair = activeChairs.find((c) => c.lane === value);
           return (
             <div key={value} className="card">
               <p style={{ fontSize: "0.7rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", marginBottom: "0.4rem" }}>
@@ -119,10 +148,10 @@ export default function ChairsPanel({ chairs, eligibleUsers }: Props) {
               </select>
             </div>
             <div className="form-row">
-              <label>Role Group</label>
-              <select name="roleType" required>
-                <option value="">— select role group —</option>
-                {ROLE_TYPES.map(({ value, label }) => (
+              <label>Role Committee</label>
+              <select name="lane" required>
+                <option value="">— select committee —</option>
+                {COMMITTEE_LANES.map(({ value, label }) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
@@ -148,7 +177,7 @@ export default function ChairsPanel({ chairs, eligibleUsers }: Props) {
             <thead>
               <tr>
                 <th className="th">Name</th>
-                <th className="th">Role Group</th>
+                <th className="th">Committee</th>
                 <th className="th">Status</th>
               </tr>
             </thead>
@@ -158,7 +187,9 @@ export default function ChairsPanel({ chairs, eligibleUsers }: Props) {
                 .map((c) => (
                   <tr key={c.id} style={{ opacity: 0.6 }}>
                     <td className="td">{c.userName}</td>
-                    <td className="td">{c.roleType}</td>
+                    <td className="td">
+                      {COMMITTEE_LANES.find((l) => l.value === c.lane)?.label ?? c.roleType}
+                    </td>
                     <td className="td">
                       <span className="pill pill-declined">Inactive</span>
                     </td>

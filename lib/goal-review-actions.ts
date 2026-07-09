@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { isChairForLane } from "@/lib/mentorship-chair-access";
 import { assertReviewApprovalAuthority } from "@/lib/org/review-authority-guard";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { syncMentorGoalReviewWorkflow } from "@/lib/workflow";
@@ -47,6 +48,33 @@ async function requireAdmin() {
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) throw new Error("Unauthorized");
   return session as typeof session & { user: { id: string } };
+}
+
+/**
+ * Authorization for approving/returning a Monthly Progress Update: the
+ * assigned Role Chair for the mentee's committee lane, or an admin. This is
+ * the one place that decision lives — approveGoalReview() and
+ * requestReviewChanges() both call it instead of each re-deriving their own
+ * "who can approve this" rule. Delegates the lane-chair check to
+ * isChairForLane() (lib/mentorship-chair-access.ts), which already
+ * bypasses for SUPER_ADMIN / MENTORSHIP_ADMIN — this only adds the
+ * plain-ADMIN-role fallback so existing portal admins are unaffected.
+ */
+async function requireReviewApprover(mentee: { primaryRole: string | null }) {
+  const session = await getSession();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  const roles = session.user.roles ?? [];
+  const adminSubtypes = session.user.adminSubtypes ?? [];
+  if (roles.includes("ADMIN")) {
+    return session as typeof session & { user: { id: string } };
+  }
+  const laneRoleType = toMenteeRoleType(mentee.primaryRole);
+  if (laneRoleType && (await isChairForLane(session.user.id, laneRoleType, adminSubtypes))) {
+    return session as typeof session & { user: { id: string } };
+  }
+  throw new Error(
+    "Unauthorized: You must be the assigned Role Chair (or an admin) to approve this review."
+  );
 }
 
 async function surfaceAdminAttentionForRedReview(params: {
@@ -871,8 +899,6 @@ export async function loadChairPacket(reviewId: string): Promise<ChairPacket | n
  * Chair approves a review. Triggers point award + release to mentee.
  */
 export async function approveGoalReview(formData: FormData) {
-  const session = await requireAdmin();
-
   const reviewId = getString(formData, "reviewId");
   const chairComments = getString(formData, "chairComments", false);
 
@@ -896,6 +922,11 @@ export async function approveGoalReview(formData: FormData) {
       },
     },
   });
+
+  // Authorize against the review's own mentee lane — the assigned Role
+  // Chair for that lane, or an admin — not just literal ADMIN role, so a
+  // non-admin Role Chair can actually approve reviews assigned to them.
+  const session = await requireReviewApprover(review.mentee);
 
   if (review.status === "APPROVED") throw new Error("Already approved");
 
@@ -1289,15 +1320,18 @@ export async function getQuarterlyReviewData(reviewId: string) {
  * Chair requests changes on a review (sends it back to CHANGES_REQUESTED).
  */
 export async function requestReviewChanges(formData: FormData) {
-  const session = await requireAdmin();
-
   const reviewId = getString(formData, "reviewId");
   const chairComments = getString(formData, "chairComments");
 
   const review = await prisma.mentorGoalReview.findUniqueOrThrow({
     where: { id: reviewId },
-    include: { mentee: { select: { name: true } }, mentor: { select: { id: true } } },
+    include: {
+      mentee: { select: { name: true, primaryRole: true } },
+      mentor: { select: { id: true } },
+    },
   });
+
+  const session = await requireReviewApprover(review.mentee);
 
   if (review.status === "APPROVED") throw new Error("Cannot request changes on an approved review");
 

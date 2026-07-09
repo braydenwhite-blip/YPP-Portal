@@ -34,7 +34,7 @@ vi.mock("@/lib/audit-log-actions", () => ({
   logAuditEvent: vi.fn(),
 }));
 
-import { saveGoalReview, approveGoalReview } from "@/lib/goal-review-actions";
+import { saveGoalReview, approveGoalReview, requestReviewChanges } from "@/lib/goal-review-actions";
 
 describe("goal-review-actions", () => {
   beforeEach(() => {
@@ -230,5 +230,62 @@ describe("goal-review-actions", () => {
       }),
     });
     expect(vi.mocked(revalidatePath)).toHaveBeenCalledWith("/admin/mentorship");
+  });
+
+  describe("requestReviewChanges — Role Chair authorization", () => {
+    function mockReviewForChairCheck() {
+      (prisma as any).mentorGoalReview.findUniqueOrThrow = vi.fn().mockResolvedValue({
+        id: "review-1",
+        status: "PENDING_CHAIR_APPROVAL",
+        mentee: { name: "Mentee One", primaryRole: "INSTRUCTOR" },
+        mentor: { id: "mentor-1" },
+      });
+      (prisma as any).mentorGoalReview.update = vi
+        .fn()
+        .mockResolvedValue({ mentorshipId: "ms-1" });
+    }
+
+    it("lets a non-admin who chairs the mentee's committee lane request changes", async () => {
+      vi.mocked(getSession).mockResolvedValue({
+        user: { id: "chair-1", roles: ["CHAPTER_PRESIDENT"], adminSubtypes: [] },
+      } as any);
+      mockReviewForChairCheck();
+      (prisma as any).mentorCommitteeChair = {
+        findUnique: vi.fn().mockResolvedValue({ isActive: true }),
+      };
+
+      const formData = new FormData();
+      formData.set("reviewId", "review-1");
+      formData.set("chairComments", "Please add more detail on goal 2.");
+
+      await expect(requestReviewChanges(formData)).resolves.not.toThrow();
+      expect((prisma as any).mentorCommitteeChair.findUnique).toHaveBeenCalledWith({
+        where: { userId_roleType: { userId: "chair-1", roleType: "INSTRUCTOR" } },
+        select: { isActive: true },
+      });
+      expect((prisma as any).mentorGoalReview.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "review-1" },
+          data: expect.objectContaining({ status: "CHANGES_REQUESTED", chairReviewerId: "chair-1" }),
+        })
+      );
+    });
+
+    it("rejects a non-admin who does not chair the mentee's committee lane", async () => {
+      vi.mocked(getSession).mockResolvedValue({
+        user: { id: "rando-1", roles: ["MENTOR"], adminSubtypes: [] },
+      } as any);
+      mockReviewForChairCheck();
+      (prisma as any).mentorCommitteeChair = {
+        findUnique: vi.fn().mockResolvedValue(null),
+      };
+
+      const formData = new FormData();
+      formData.set("reviewId", "review-1");
+      formData.set("chairComments", "Not my lane.");
+
+      await expect(requestReviewChanges(formData)).rejects.toThrow(/Unauthorized/);
+      expect((prisma as any).mentorGoalReview.update).not.toHaveBeenCalled();
+    });
   });
 });

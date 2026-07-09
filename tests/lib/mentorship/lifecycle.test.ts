@@ -4,6 +4,7 @@ import {
   buildCycleStrip,
   defaultLifecycleHrefs,
   deriveNextAction,
+  deriveReviewCapabilities,
   type LifecycleSnapshot,
 } from "@/lib/mentorship/lifecycle";
 
@@ -172,5 +173,46 @@ describe("buildCycleStrip — the loop in plain language", () => {
       "released",
       "acknowledged",
     ]);
+  });
+});
+
+describe("deriveReviewCapabilities — lifecycle capabilities beyond draft/approve/release", () => {
+  const base = { isSelf: false, isAdmin: false, isMentor: false, isChair: false, isLeadership: false, canRecordCheckIn: false };
+
+  it("gives the chair calibration, quarterly-review, and pathway-approval authority", () => {
+    const caps = deriveReviewCapabilities({ ...base, isChair: true });
+    expect(caps.canCalibratePoints).toBe(true);
+    expect(caps.canRunQuarterlyReview).toBe(true);
+    expect(caps.canApprovePathwayDecision).toBe(true);
+    // Chair alone (not also the mentor) can recommend but the mentor is the primary author.
+    expect(caps.canRecommendPathwayDecision).toBe(false);
+  });
+
+  it("gives the mentor pathway-recommendation authority but not calibration/approval", () => {
+    const caps = deriveReviewCapabilities({ ...base, isMentor: true });
+    expect(caps.canRecommendPathwayDecision).toBe(true);
+    expect(caps.canCalibratePoints).toBe(false);
+    expect(caps.canApprovePathwayDecision).toBe(false);
+  });
+
+  it("gives leadership every lifecycle capability regardless of the direct pairing", () => {
+    const caps = deriveReviewCapabilities({ ...base, isLeadership: true });
+    expect(caps.canRunQuarterlyReview).toBe(true);
+    expect(caps.canRecommendPathwayDecision).toBe(true);
+    expect(caps.canApprovePathwayDecision).toBe(true);
+  });
+
+  it("denies every new capability to a plain mentee viewing their own record", () => {
+    const caps = deriveReviewCapabilities({ ...base, isSelf: true });
+    expect(caps.canCalibratePoints).toBe(false);
+    expect(caps.canRunQuarterlyReview).toBe(false);
+    expect(caps.canRecommendPathwayDecision).toBe(false);
+    expect(caps.canApprovePathwayDecision).toBe(false);
+  });
+
+  it("admin gets full authority same as chair", () => {
+    const caps = deriveReviewCapabilities({ ...base, isAdmin: true });
+    expect(caps.canCalibratePoints).toBe(true);
+    expect(caps.canApprovePathwayDecision).toBe(true);
   });
 });

@@ -33,6 +33,8 @@ export type CycleSummary = {
   createdAt: Date;
   closedAt: Date | null;
   progress: CycleProgress;
+  /** Per-cycle reflection question wording override (lib/mentorship/reflection-questions.ts). */
+  reflectionQuestionsJson: unknown;
 };
 
 export type CycleParticipantDetail = {
@@ -62,6 +64,7 @@ type CycleRow = {
   dueDate: Date | null;
   createdAt: Date;
   closedAt: Date | null;
+  reflectionQuestionsJson: unknown;
 };
 
 type ParticipantRow = {
@@ -208,6 +211,7 @@ const CYCLE_SELECT = {
   dueDate: true,
   createdAt: true,
   closedAt: true,
+  reflectionQuestionsJson: true,
 } as const;
 
 const PARTICIPANT_SELECT = {
@@ -249,6 +253,7 @@ function toSummary(
     createdAt: cycle.createdAt,
     closedAt: cycle.closedAt,
     progress: rollupCycleProgress(stages),
+    reflectionQuestionsJson: cycle.reflectionQuestionsJson,
   };
 }
 
