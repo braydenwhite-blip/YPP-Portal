@@ -886,10 +886,14 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/mentorship",
       label: "Mentorship",
       icon: "🤝",
-      // The unified Mentorship Command Center — mentee ("My Development"),
-      // mentor (coaching console), and leadership (command center) POVs on
-      // one URL. Replaces the separate /my-mentor front door and the
-      // /people/develop cockpit (both now redirect here).
+      // The mentor coaching console (multi-mentee Kanban) and leadership
+      // command center (cohort review-cycle launcher, templates, committees,
+      // analytics) — a launcher for managing OTHER people's Review & G&R
+      // cycles, not a personal workspace. A viewer's OWN Review & G&R flow
+      // is their own /people/[id] (see catalog entry above); this hub
+      // redirects there automatically for anyone without a mentor/admin POV,
+      // so the search aliases below still resolve correctly even though this
+      // entry's href can't point at a per-viewer dynamic URL.
       roles: [
         "INSTRUCTOR",
         "MENTOR",
@@ -904,10 +908,10 @@ export const NAV_CATALOG: NavLink[] = [
         "Relationships",
         "My Mentor",
         "My Development",
-        // From the retired /my-program/gr entry (a redirect into this hub's
-        // Goals section).
+        // From the retired /my-program/gr entry (redirects into /people/[id]).
         "My Goals",
         "Goals & Responsibilities",
+        "Review & G&R",
         // From the retired ADMIN "Mentorship Ops" entry (/admin/mentorship,
         // now a redirect into the admin POV of this hub).
         "Mentorship Ops",
@@ -916,22 +920,17 @@ export const NAV_CATALOG: NavLink[] = [
         "Assignments",
         "Approvals",
         "Leadership development",
-        "Development cockpit",
         "Coaching",
-        "Development record",
         "Ready for more",
         "Needs coach",
         "My Awards",
         "Monthly Reflection",
-        // Check-ins now live inside each person's Mentorship workspace.
         "Check-in",
         "Check-ins",
-        "Conversation",
         "Growth opportunities",
-        "Workspace",
       ],
       dashboardDescription:
-        "Your development, your mentees, and the command center for developing the people who run YPP.",
+        "The mentor console and command center for developing the people who run YPP — your own development lives on your person page.",
       dashboardPriority: 4,
     },
     // /my-mentor now redirects to /mentorship?view=me (the mentee POV). Its

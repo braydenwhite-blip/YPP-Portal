@@ -143,6 +143,9 @@ const SendSchema = z.object({
     .array(z.string().min(1))
     .min(1, "Select at least one recipient.")
     .max(30, "Too many recipients selected at once."),
+  /** Set when raised from inside a person's Review & G&R flow, so the
+   * request is linked back to that review cycle instead of standing alone. */
+  reviewCycleParticipantId: z.string().min(1).optional(),
 });
 
 export type SendPlannedFeedbackInput = z.input<typeof SendSchema>;
@@ -167,7 +170,8 @@ export async function sendPlannedFeedbackRequests(
   assertFeatureEnabled();
   const viewer = await requireLeadership();
 
-  const { subjectUserId, monthKey, collaboratorIds } = SendSchema.parse(input);
+  const { subjectUserId, monthKey, collaboratorIds, reviewCycleParticipantId } =
+    SendSchema.parse(input);
 
   const now = new Date();
   const allowed = allowedFeedbackMonths(now);
@@ -217,6 +221,7 @@ export async function sendPlannedFeedbackRequests(
           reason: suggestion.reasons.join("; "),
           contextItems: suggestion.contextItems as unknown as Prisma.InputJsonValue,
           dueAt,
+          reviewCycleParticipantId: reviewCycleParticipantId ?? null,
         },
         select: { id: true },
       });
@@ -408,4 +413,52 @@ export async function loadFeedbackReviewForSubject(
     months,
     canCompile: isQuarterlyReviewsEnabled(),
   };
+}
+
+// ── Withdraw / extend a request — comments never gate the review cycle ──────
+
+const CancelSchema = z.object({ requestId: z.string().min(1) });
+
+/**
+ * Leadership withdraws an outstanding request — the collaborator's link
+ * stops working. Comment collection never blocks the review cycle, so this
+ * exists purely for cleanup, not as a "close collection" gate.
+ */
+export async function cancelFeedbackRequest(
+  input: z.input<typeof CancelSchema>
+): Promise<{ ok: true }> {
+  await requireLeadership();
+  const { requestId } = CancelSchema.parse(input);
+
+  await prisma.feedbackRequest.update({
+    where: { id: requestId },
+    data: { cancelledAt: new Date() },
+  });
+
+  revalidatePath("/people");
+  return { ok: true };
+}
+
+const ExtendSchema = z.object({
+  requestId: z.string().min(1),
+  newDueAt: z.string().min(1),
+});
+
+/** Extending the deadline is simply updating dueAt on the outstanding row. */
+export async function extendFeedbackRequestDeadline(
+  input: z.input<typeof ExtendSchema>
+): Promise<{ ok: true }> {
+  await requireLeadership();
+  const { requestId, newDueAt } = ExtendSchema.parse(input);
+
+  const dueAt = new Date(newDueAt);
+  if (Number.isNaN(dueAt.getTime())) throw new Error("Invalid due date");
+
+  await prisma.feedbackRequest.update({
+    where: { id: requestId },
+    data: { dueAt },
+  });
+
+  revalidatePath("/people");
+  return { ok: true };
 }

@@ -3121,6 +3121,12 @@ model ReviewCycle {
   dueDate     DateTime?
   /// "active" | "closed"
   status      String    @default("active")
+  /// This cycle's actual monthly reflection question wording, editable by
+  /// admin/Global Leadership before launch. Falls back to the participant's
+  /// GRTemplate.reflectionQuestions default when null — the reflection form
+  /// still writes to MonthlySelfReflection's fixed columns; only the
+  /// displayed prompt text is templated/overridable per cycle.
+  reflectionQuestionsJson Json?
   createdById String
   createdBy   User      @relation("ReviewCyclesCreated", fields: [createdById], references: [id], onDelete: Cascade)
   closedAt    DateTime?
@@ -3146,6 +3152,8 @@ model ReviewCycleParticipant {
   stageOverride String?
   note          String?
   addedAt       DateTime @default(now())
+
+  feedbackRequests FeedbackRequest[]
 
   @@unique([cycleId, userId])
   @@index([userId])
@@ -3287,6 +3295,13 @@ model MentorshipActionItem {
   /// to the review, so "what came out of this review" is queryable.
   sourceReviewId String?
   sourceReview   MentorGoalReview?          @relation("ActionItemsFromReview", fields: [sourceReviewId], references: [id], onDelete: SetNull)
+  /// The other direction: which current-G&R goal this action item advances.
+  /// Completed items linked to a goal become that goal's evidence trail for
+  /// the next review cycle — the minimum connection needed to close the loop
+  /// from "review creates goal" to "work happens" to "next review evaluates
+  /// progress," without a project-management system.
+  grDocumentGoalId String?
+  grDocumentGoal   GRDocumentGoal?          @relation("MentorshipActionItemsForGoal", fields: [grDocumentGoalId], references: [id], onDelete: SetNull)
   createdAt      DateTime                   @default(now())
   updatedAt      DateTime                   @updatedAt
 
@@ -3296,6 +3311,7 @@ model MentorshipActionItem {
   @@index([sessionId])
   @@index([linkedActionId])
   @@index([sourceReviewId])
+  @@index([grDocumentGoalId])
 }
 
 // ============================================
@@ -10053,6 +10069,16 @@ model MentorGoalReview {
   // Overall rating — drives automatic point calculation on approval
   overallRating GoalRatingColor
 
+  /// Which GRTemplate.version was current when this review was submitted —
+  /// makes the released review self-describing forever, independent of later
+  /// template edits (pairs with GRTemplateVersion's existing snapshot).
+  templateVersion Int?
+  /// Which rubric column/level (e.g. "Senior Instructor", or one of the
+  /// Global Leadership columns) was used for this review, resolved by
+  /// columnForAuthority() and snapshotted here so a later promotion never
+  /// rewrites how a past review reads.
+  columnLabel     String?
+
   // Per-goal ratings
   goalRatings GoalReviewRating[]
 
@@ -10120,6 +10146,13 @@ model GoalReviewRating {
 
   rating   GoalRatingColor
   comments String?
+
+  /// Proposed goal progress/lifecycle update, captured at submit time but
+  /// applied to the live GRDocumentGoal only on chair approval/release (see
+  /// approveGoalReview()) — the draft/pending review must never mutate the
+  /// person's current G&R before it's approved.
+  proposedProgressState   GoalProgressState?
+  proposedLifecycleStatus GoalLifecycleStatus?
 
   createdAt DateTime @default(now())
 
@@ -10928,6 +10961,11 @@ enum GRGoalChangeStatus {
   REJECTED
 }
 
+enum GRGoalKind {
+  GOAL
+  COMPETENCY
+}
+
 // ============================================
 // PHASE 3: GOVERNANCE & RISK CONTROLS
 // ============================================
@@ -11129,6 +11167,16 @@ model GRTemplate {
   publishedAt           DateTime?
   isActive              Boolean          @default(true)
   maxActiveMonthlyGoals Int              @default(5)
+  /// Ordered column labels for this template's competency rubric grid — e.g.
+  /// ["Instructor","Senior Instructor","Lead Instructor"] or the four Global
+  /// Leadership columns. Informational/guidance only; not bound to a title
+  /// enum, so it doesn't require extending the org authority spine's title
+  /// lists to add new column labels.
+  columns Json?
+  /// Default monthly reflection question text per fixed MonthlySelfReflection
+  /// section, editable per-cycle via ReviewCycle.reflectionQuestionsJson
+  /// (falls back to this when a cycle hasn't overridden it).
+  reflectionQuestions Json?
 
   createdById    String
   createdBy      User    @relation("GRTemplatesCreated", fields: [createdById], references: [id], onDelete: Cascade)
@@ -11159,6 +11207,12 @@ model GRTemplateGoal {
   timePhase   GRTimePhase
   sortOrder   Int         @default(0)
   isActive    Boolean     @default(true)
+  /// See GRDocumentGoal.kind — GOAL rows are copied per-cycle/time-phase;
+  /// COMPETENCY rows are copied once and re-rated every cycle.
+  kind        GRGoalKind  @default(GOAL)
+  /// Map of column label (from GRTemplate.columns) -> guidance bullets for
+  /// this competency at that level. Only meaningful for kind=COMPETENCY rows.
+  levelGuidance Json?
 
   kpiDefinitions GRKPIDefinition[]
   documentGoals  GRDocumentGoal[]
@@ -11167,6 +11221,7 @@ model GRTemplateGoal {
   updatedAt DateTime @updatedAt
 
   @@index([templateId, timePhase])
+  @@index([templateId, kind])
 }
 
 /// Structured success criteria per time phase on a template
@@ -11298,6 +11353,13 @@ model GRDocumentGoal {
   isCustom    Boolean     @default(false)
   /// @deprecated use lifecycleStatus instead
   isActive    Boolean     @default(true)
+  /// GOAL (default): a normal time-phased, completable monthly/quarterly goal.
+  /// COMPETENCY: a fixed rubric row (e.g. "Curriculum & Class Delivery") that
+  /// is copied once from the template, stays permanently ACTIVE, and is
+  /// re-rated every review cycle via the same GoalReviewRating link — the
+  /// living, month-to-month goals and the fixed competency rubric share one
+  /// rating mechanism instead of two parallel ones.
+  kind        GRGoalKind  @default(GOAL)
 
   // Lifecycle & progress tracking
   lifecycleStatus GoalLifecycleStatus @default(ACTIVE)
@@ -11313,12 +11375,15 @@ model GRDocumentGoal {
   kpiValues       GRKPIValue[]
   reviewRatings   GoalReviewRating[]
   reviewSnapshots MentorGoalReviewGoalSnapshot[]
+  /// Completed actions linked here become this goal's evidence trail.
+  actionItems     MentorshipActionItem[] @relation("MentorshipActionItemsForGoal")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([documentId, timePhase])
   @@index([documentId, lifecycleStatus, dueDate])
+  @@index([documentId, kind])
 }
 
 /// Per-person success criteria (copied from template, customizable)
@@ -11422,6 +11487,12 @@ model MentorGoalReviewGoalSnapshot {
   priority                  GoalPriority        @default(NORMAL)
   dueDateAtSnapshot         DateTime?
   lifecycleStatusAtSnapshot GoalLifecycleStatus @default(ACTIVE)
+  /// For kind=COMPETENCY goals: the guidance bullets and rating-label copy in
+  /// effect at submit time, frozen here so a later admin edit to the
+  /// template's wording never silently rewrites how this historical review
+  /// reads.
+  levelGuidanceAtSnapshot   Json?
+  ratingLabelsAtSnapshot    Json?
 
   createdAt DateTime @default(now())
 
@@ -13569,12 +13640,26 @@ model FeedbackRequest {
   /// The reply-by date communicated in the request email.
   dueAt         DateTime?
 
+  /// Set when Leadership withdraws an outstanding request — the collaborator's
+  /// link stops working. "Extending the deadline" is simply updating dueAt.
+  /// Comment collection never gates the review cycle (see ReviewCycleParticipant
+  /// below); this exists only so leadership can clean up a request they no
+  /// longer want an answer to.
+  cancelledAt DateTime?
+
+  /// Links this request to the universal review cycle it was raised from, when
+  /// raised from inside a person's Review & G&R flow. Null for legacy/standalone
+  /// requests not tied to a specific cycle.
+  reviewCycleParticipantId String?
+  reviewCycleParticipant   ReviewCycleParticipant? @relation(fields: [reviewCycleParticipantId], references: [id], onDelete: SetNull)
+
   /// One outstanding request per (subject, collaborator, month) — makes
   /// `sendFeedbackRequest` idempotent across re-runs.
   @@unique([subjectUserId, collaboratorId, month])
   @@index([subjectUserId, month])
   @@index([collaboratorId, submittedAt])
   @@index([requestedById])
+  @@index([reviewCycleParticipantId])
 }
 
 // ============================================

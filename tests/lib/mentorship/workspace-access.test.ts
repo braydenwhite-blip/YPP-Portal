@@ -99,4 +99,40 @@ describe("resolveWorkspaceAccess", () => {
     expect(res?.isSelf).toBe(true);
     expect(res?.level).toBe("relationship"); // never see your own succession/potential
   });
+
+  it("a Leadership member who is ALSO the assigned mentor is flagged as both — the precondition for the POV fix", async () => {
+    // Before the POV fix, workspace.ts resolved pov as
+    // `isSelf ? "me" : isLeadership ? "leadership" : "mentor"` — a Leadership
+    // viewer who also happened to be the assigned mentor always got the
+    // "leadership" verb set (approve/synthesize) and was never prompted to
+    // write the review that was, in fact, their job to write. The fix reads
+    // isMentor before isLeadership; this test locks in that both booleans
+    // are available (and both true) so that fix can't silently regress.
+    hasMentorshipCommandAccess.mockResolvedValue(true);
+    mentorshipFindFirst.mockResolvedValue({ ...ACTIVE, mentorId: "lead-mentor" });
+    const res = await resolveWorkspaceAccess(
+      viewer({ id: "lead-mentor", roles: ["ADMIN"] }),
+      "personA"
+    );
+    expect(res).not.toBeNull();
+    expect(res?.isMentor).toBe(true);
+    expect(res?.isLeadership).toBe(true);
+    expect(res?.capabilities.canDraftReview).toBe(true);
+  });
+
+  it("derives capabilities that union rather than picking one winner", async () => {
+    // The assigned chair, who is not otherwise leadership-tier, must still
+    // be able to approve THIS person's review — a plain tier enum would
+    // have no way to grant that without also granting full leadership
+    // visibility (private comments, etc.), which is exactly the brittleness
+    // capability-based access replaces.
+    hasMentorshipCommandAccess.mockResolvedValue(false);
+    mentorshipFindFirst.mockResolvedValue({ ...ACTIVE, chairId: "chair-only" });
+    const res = await resolveWorkspaceAccess(viewer({ id: "chair-only" }), "personA");
+    expect(res).not.toBeNull();
+    expect(res?.isChair).toBe(true);
+    expect(res?.isLeadership).toBe(false);
+    expect(res?.capabilities.canApprove).toBe(true);
+    expect(res?.capabilities.canViewPrivateComments).toBe(false);
+  });
 });

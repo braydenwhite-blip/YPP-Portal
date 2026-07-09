@@ -314,6 +314,7 @@ export async function getFeedbackResponsesForSubject(
   const rows = await prisma.feedbackRequest.findMany({
     where: {
       subjectUserId,
+      cancelledAt: null,
       ...(month ? { month: monthStart(month) } : {}),
     },
     orderBy: [{ month: "desc" }, { submittedAt: "desc" }],
@@ -363,7 +364,7 @@ export async function getFeedbackRequestStatusForSubject(
   if (!isActionTrackerEmailsEnabled()) return null;
 
   const rows = await prisma.feedbackRequest.findMany({
-    where: { subjectUserId },
+    where: { subjectUserId, cancelledAt: null },
     select: { month: true, createdAt: true, submittedAt: true },
   });
 

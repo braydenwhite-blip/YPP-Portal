@@ -1,15 +1,22 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { getSession } from "@/lib/auth-supabase";
+import { getSession, getSessionUser } from "@/lib/auth-supabase";
 import {
   isActionTrackerEnabled,
   isOperationsHubEnabled,
-  isPeopleDashboardEnabled,
-  isQuarterlyReviewsEnabled,
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { loadPublicProfile } from "@/lib/people-strategy/public-profile";
+import { loadMentorshipWorkspace } from "@/lib/mentorship/workspace";
+import { getCurrentGRSummary, loadReviewHistory } from "@/lib/gr-actions";
+import { ActiveReviewCycleCard } from "@/components/people-strategy/active-review-cycle-card";
+import { CurrentGRCard } from "@/components/people-strategy/current-gr-card";
+import { ReviewHistoryPanel } from "@/components/people-strategy/review-history-panel";
+import { ReviewsSection } from "@/components/mentorship/workspace/reviews-section";
+import { MenteeGoalsSection } from "@/components/mentorship/workspace/goals-section";
+import { CheckInsSection } from "@/components/mentorship/workspace/sections";
+import { SelfGoalsSection } from "@/components/mentorship/workspace/self-sections";
 import {
   getOperationalContextForEntity,
   type EntityOperationalContext,
@@ -35,11 +42,8 @@ import { StrategicEntityPanel } from "@/components/people-strategy/strategic-ent
 import { LeadershipStageContext } from "@/components/people-strategy/leadership-stage-context";
 import { ProfileBody, activeLabel } from "@/components/people-strategy/profile-body";
 import { PersonChapterSection } from "@/components/chapters/person-chapter-section";
-import { PersonProfileLeadership } from "@/components/people-strategy/person-profile-leadership";
 import { AskAboutThis } from "@/components/help-agent/ask-about-this";
-import { getPeopleHubAccess } from "@/lib/people/hub-access";
 import { getPersonAccessSummary } from "@/lib/org/access-summary";
-import { loadPersonPerformanceContext } from "@/lib/people-strategy/people-performance";
 import { AccessSummaryPanel } from "@/components/people-strategy/access-summary-panel";
 import type { AccessFact } from "@/lib/org/access-explainer";
 import { prisma } from "@/lib/prisma";
@@ -124,25 +128,18 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
   const showLinkedActions =
     isOperationsHubEnabled() && isActionTrackerEnabled() && isOfficerTier(viewer);
 
-  const hubAccess = getPeopleHubAccess(viewer);
-  const showReviewPanel =
-    isPeopleDashboardEnabled() &&
-    isOfficerTier(viewer) &&
-    hubAccess.showPerformance;
-
-  let performanceRow = null;
-  let monthLabel = "";
-  let monthShortLabel = "";
-  let quarter = "";
-  const quarterlyEnabled = isQuarterlyReviewsEnabled();
-
-  if (showReviewPanel) {
-    const performanceContext = await loadPersonPerformanceContext(id);
-    performanceRow = performanceContext.row;
-    monthLabel = performanceContext.monthLabel;
-    monthShortLabel = performanceContext.monthShortLabel;
-    quarter = performanceContext.quarter;
-  }
+  // The Review & G&R flow — the canonical home for this person's cycle. Gated
+  // by resolveWorkspaceAccess() itself (self, assigned mentor/chair, or
+  // leadership), NOT by officer tier — the person being reviewed sees their
+  // own flow here too, which is the whole point of making this page canonical.
+  const sessionUser = await getSessionUser();
+  const [workspace, grSummary, reviewHistory] = sessionUser
+    ? await Promise.all([
+        loadMentorshipWorkspace(sessionUser, id),
+        getCurrentGRSummary(id),
+        loadReviewHistory(id),
+      ])
+    : [null, null, null];
 
   // Phase 6 connective tissue — surface where this person sits on the Leadership
   // Pathway as context next to their linked actions (the team's prescribed
@@ -214,24 +211,38 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
             {` · ${activeLabel(profile.monthsActive)}`}
           </p>
         </div>
-        {showReviewPanel ? (
-          <Link
-            href={`/mentorship/people/${id}`}
-            className="inline-flex items-center gap-1 rounded-[10px] border border-[#e3d5f7] bg-[#faf7fe] px-3 py-1.5 text-[12.5px] font-semibold text-[#6b21c8] hover:bg-[#f3ecfc]"
-          >
-            Development record →
-          </Link>
-        ) : null}
       </header>
 
-      {performanceRow ? (
-        <PersonProfileLeadership
-          row={performanceRow}
-          monthLabel={monthLabel}
-          monthShortLabel={monthShortLabel}
-          quarter={quarter}
-          quarterlyEnabled={quarterlyEnabled}
-        />
+      {/* Review & G&R — the whole flow, organized around the active cycle,
+          not a separate "Mentorship workspace" destination. */}
+      {workspace ? (
+        <div className="mb-4 flex flex-col gap-4">
+          <ActiveReviewCycleCard cycleState={workspace.cycleState} />
+
+          <ReviewsSection workspace={workspace} sectionHref={(s) => `/people/${id}?section=${s}`} />
+
+          {grSummary ? <CurrentGRCard summary={grSummary} personName={profile.name} /> : null}
+
+          <details className="group overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
+              <span className="text-[13.5px] font-semibold text-[#1c1a2e]">Full G&amp;R &amp; check-ins</span>
+              <span className="text-[12px] text-[#9a9ab0]">
+                Full document, propose changes, log a check-in
+                <span className="ml-2 transition-transform group-open:rotate-180" aria-hidden>
+                  ▾
+                </span>
+              </span>
+            </summary>
+            <div className="flex flex-col gap-4 border-t border-[#f1f1f6] p-4">
+              {workspace.isSelf ? <SelfGoalsSection /> : <MenteeGoalsSection workspace={workspace} />}
+              <CheckInsSection workspace={workspace} />
+            </div>
+          </details>
+
+          {reviewHistory ? (
+            <ReviewHistoryPanel history={reviewHistory} personName={profile.name} />
+          ) : null}
+        </div>
       ) : null}
 
       <ProfileBody profile={profile} compact={fromPeopleReviews} />

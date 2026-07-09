@@ -34,7 +34,7 @@ vi.mock("@/lib/audit-log-actions", () => ({
   logAuditEvent: vi.fn(),
 }));
 
-import { saveGoalReview } from "@/lib/goal-review-actions";
+import { saveGoalReview, approveGoalReview } from "@/lib/goal-review-actions";
 
 describe("goal-review-actions", () => {
   beforeEach(() => {
@@ -65,6 +65,8 @@ describe("goal-review-actions", () => {
     (prisma as any).mentorGoalReview = {
       create: vi.fn().mockResolvedValue({ id: "review-1" }),
       update: vi.fn().mockResolvedValue({ id: "review-1" }),
+      findUniqueOrThrow: vi.fn(),
+      findUnique: vi.fn(),
     };
     (prisma as any).mentorship = {
       findFirstOrThrow: vi.fn().mockResolvedValue({ id: "ms-1" }),
@@ -80,6 +82,130 @@ describe("goal-review-actions", () => {
         .mockResolvedValueOnce({ name: "Mentee One", primaryRole: "INSTRUCTOR" })
         .mockResolvedValueOnce({ name: "Mentor One" }),
     };
+    (prisma as any).goalReviewRating = {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
+    };
+    (prisma as any).mentorGoalReviewGoalSnapshot = {
+      findMany: vi.fn().mockResolvedValue([]),
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
+    };
+    (prisma as any).gRDocumentGoal = {
+      findMany: vi.fn().mockResolvedValue([]),
+      update: vi.fn().mockResolvedValue({}),
+    };
+    (prisma as any).achievementPointSummary = {
+      upsert: vi.fn().mockResolvedValue({ id: "summary-1", totalPoints: 0 }),
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "summary-1", totalPoints: 100 }),
+      update: vi.fn().mockResolvedValue({}),
+    };
+    (prisma as any).achievementPointLog = {
+      create: vi.fn().mockResolvedValue({}),
+    };
+  });
+
+  it("never mutates GRDocumentGoal at draft/submit time — only approveGoalReview() (release) may", async () => {
+    const formData = new FormData();
+    formData.set("reflectionId", "reflection-1");
+    formData.set("overallRating", "ACHIEVED");
+    formData.set("overallComments", "Solid month overall.");
+    formData.set("planOfAction", "Keep building on this momentum.");
+    formData.set("submitForApproval", "true");
+    formData.append("grGoalIds", "goal-1");
+    formData.set("goal_goal-1_rating", "ACHIEVED");
+    formData.set("goal_goal-1_progressState", "IN_PROGRESS");
+    formData.set("goal_goal-1_lifecycleStatus", "COMPLETED");
+
+    await saveGoalReview(formData);
+
+    // The proposed progress/lifecycle update must be carried on the rating
+    // row, never applied to the live goal before the chair approves.
+    expect((prisma as any).gRDocumentGoal.update).not.toHaveBeenCalled();
+    expect((prisma as any).mentorGoalReview.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          goalRatings: {
+            create: [
+              expect.objectContaining({
+                grDocumentGoalId: "goal-1",
+                proposedProgressState: "IN_PROGRESS",
+                proposedLifecycleStatus: "COMPLETED",
+              }),
+            ],
+          },
+        }),
+      })
+    );
+  });
+
+  it("applies the proposed goal update only on approveGoalReview() (release)", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "chair-1", roles: ["ADMIN"] },
+    } as any);
+
+    (prisma as any).mentorGoalReview.findUniqueOrThrow = vi.fn().mockResolvedValue({
+      id: "review-1",
+      status: "PENDING_CHAIR_APPROVAL",
+      overallRating: "ACHIEVED",
+      cycleNumber: 5,
+      cycleMonth: new Date("2026-05-01T00:00:00.000Z"),
+      bonusPoints: 0,
+      mentee: { id: "mentee-1", name: "Mentee One", primaryRole: "INSTRUCTOR" },
+      mentor: { id: "mentor-1" },
+      menteeId: "mentee-1",
+      goalRatings: [
+        {
+          grDocumentGoalId: "goal-1",
+          proposedProgressState: "IN_PROGRESS",
+          proposedLifecycleStatus: "COMPLETED",
+        },
+      ],
+    });
+    (prisma as any).mentorGoalReview.findUnique = vi
+      .fn()
+      .mockResolvedValue({ mentorshipId: "ms-1" });
+    // assertReviewApprovalAuthority resolves each participant's org authority —
+    // give the chair a higher authority than the mentor/mentee so the
+    // "approver outranks author" rule passes instead of failing open or
+    // blocking on identical/self-approval authority.
+    (prisma as any).user.findUnique = vi.fn().mockImplementation(({ where }: { where: { id: string } }) => {
+      if (where.id === "chair-1") {
+        return Promise.resolve({
+          id: "chair-1",
+          name: "Chair One",
+          title: null,
+          primaryRole: "ADMIN",
+          internalLevel: 6,
+          ladder: "LEADERSHIP",
+          canonicalTitle: "Senior Officer",
+          adminSubtypes: [],
+        });
+      }
+      return Promise.resolve({
+        id: where.id,
+        name: "Some Person",
+        title: null,
+        primaryRole: "INSTRUCTOR",
+        internalLevel: 1,
+        ladder: "INSTRUCTION",
+        canonicalTitle: "Instructor",
+        adminSubtypes: [],
+      });
+    });
+
+    const formData = new FormData();
+    formData.set("reviewId", "review-1");
+
+    await approveGoalReview(formData);
+
+    expect((prisma as any).gRDocumentGoal.update).toHaveBeenCalledWith({
+      where: { id: "goal-1" },
+      data: expect.objectContaining({
+        progressState: "IN_PROGRESS",
+        lifecycleStatus: "COMPLETED",
+        completedAt: expect.any(Date),
+      }),
+    });
   });
 
   it("opens a private admin attention request for submitted red reviews", async () => {

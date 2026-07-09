@@ -9,6 +9,8 @@
 
 import type { GoalReviewStatus } from "@prisma/client";
 
+import { deriveReviewArtifactStage } from "@/lib/mentorship-cycle";
+
 import {
   COMPLETED_STAGES,
   STAGE_META,
@@ -47,19 +49,30 @@ export function deriveParticipantStage(
 
   if (!a.hasMentorship) return "blocked-no-mentor";
   if (!a.reflectionSubmitted) return "waiting-self-input";
-  if (
-    a.reviewStatus == null ||
-    a.reviewStatus === "DRAFT" ||
-    a.reviewStatus === "CHANGES_REQUESTED"
-  ) {
-    return "waiting-review";
+
+  // Delegate the actual stage decision to the one shared function also used
+  // by computeCycleStage() (lib/mentorship-cycle.ts), then project its
+  // 5-value vocabulary onto this cohort view's coarser bucket set.
+  const artifactStage = deriveReviewArtifactStage({
+    reflectionAwaitingReview: a.reviewStatus == null || a.reviewStatus === "DRAFT",
+    reviewStatus: a.reviewStatus,
+    releasedToMentee: a.releasedToMentee,
+  });
+
+  switch (artifactStage) {
+    case "REFLECTION_DUE":
+    case "REFLECTION_SUBMITTED":
+    case "CHANGES_REQUESTED":
+      // CHANGES_REQUESTED has no dedicated bucket in this coarser vocabulary —
+      // it's bucketed with "the mentor needs to (re)write the review".
+      return "waiting-review";
+    case "REVIEW_SUBMITTED":
+      // Covers PENDING_CHAIR_APPROVAL and APPROVED-but-not-yet-released —
+      // both are in the chair's hands, still pre-release.
+      return "ready-for-chair";
+    case "APPROVED":
+      return a.openFollowUpCount > 0 ? "follow-ups-open" : "released";
   }
-  // PENDING_CHAIR_APPROVAL, or APPROVED but not yet released, are both in the
-  // chair's hands — still pre-release.
-  if (a.reviewStatus === "PENDING_CHAIR_APPROVAL" || !a.releasedToMentee) {
-    return "ready-for-chair";
-  }
-  return a.openFollowUpCount > 0 ? "follow-ups-open" : "released";
 }
 
 export type CycleProgress = {
