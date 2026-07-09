@@ -109,26 +109,37 @@ describe("mentorship legacy route redirects", () => {
     );
   });
 
-  it("redirects the /my-mentor satellites into the self workspace sections", () => {
-    expect(() => LegacyMyMentorGoalsPage()).toThrow(
-      "redirect:/mentorship?view=me&section=goals"
+  it("redirects the /my-mentor satellites into the viewer's own /people/[id] sections", async () => {
+    // These pages resolve the signed-in viewer first — their canonical home
+    // is the person page for the viewer's own id.
+    const { getSessionUser } = await import("@/lib/auth-supabase");
+    vi.mocked(getSessionUser).mockResolvedValue({ id: "user-1" } as never);
+
+    await expect(LegacyMyMentorGoalsPage()).rejects.toThrow(
+      "redirect:/people/user-1?section=review"
     );
-    expect(() => LegacyMyMentorProgressPage()).toThrow(
-      "redirect:/mentorship?view=me&section=reviews"
+    await expect(LegacyMyMentorProgressPage()).rejects.toThrow(
+      "redirect:/people/user-1?section=review"
     );
-    expect(() => LegacyMyMentorReflectionPage()).toThrow(
-      "redirect:/mentorship?view=me&section=reflection"
+    await expect(LegacyMyMentorReflectionPage()).rejects.toThrow(
+      "redirect:/people/user-1?section=review"
     );
-    expect(() => LegacyMyMentorSchedulePage()).toThrow(
-      "redirect:/mentorship?view=me&section=schedule"
+    await expect(LegacyMyMentorSchedulePage()).rejects.toThrow(
+      "redirect:/people/user-1?section=check-ins"
     );
-    expect(() => LegacyMyMentorResourcesPage()).toThrow(
-      "redirect:/mentorship?view=me&section=recognition"
+    await expect(LegacyMyMentorResourcesPage()).rejects.toThrow(
+      "redirect:/people/user-1?section=review"
     );
-    expect(() => LegacyMyMentorAwardsPage()).toThrow(
-      "redirect:/mentorship?view=me&section=recognition"
+    await expect(LegacyMyMentorAwardsPage()).rejects.toThrow("redirect:/people/user-1");
+    await expect(LegacyMyMentorHelpPage()).rejects.toThrow("redirect:/people/user-1");
+  });
+
+  it("sends signed-out visitors of the /my-mentor satellites to login", async () => {
+    const { getSessionUser } = await import("@/lib/auth-supabase");
+    vi.mocked(getSessionUser).mockResolvedValue(null as never);
+    await expect(LegacyMyMentorGoalsPage()).rejects.toThrow(
+      "redirect:/login?next=/my-mentor/goals"
     );
-    expect(() => LegacyMyMentorHelpPage()).toThrow("redirect:/mentorship?view=me");
   });
 
   it("redirects legacy admin G&R routes to the canonical /admin/mentorship/gr area", async () => {
@@ -146,10 +157,10 @@ describe("mentorship legacy route redirects", () => {
     ).rejects.toThrow("redirect:/admin/mentorship/gr/templates/tpl-1");
   });
 
-  it("sends the mentor's mentee G&R view into the workspace Goals section", async () => {
+  it("sends the mentor's mentee G&R view to the person page's review section", async () => {
     await expect(
       MentorMenteeGRPage({ params: Promise.resolve({ id: "mentee-1" }) })
-    ).rejects.toThrow("redirect:/mentorship/people/mentee-1?section=goals");
+    ).rejects.toThrow("redirect:/people/mentee-1?section=review");
   });
 
   it("folds the standalone admin G&R list pages into the cockpit's Goals tab", () => {

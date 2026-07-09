@@ -14,6 +14,8 @@ import {
   getCurrentCycleMonth,
   getReflectionSoftDeadline,
 } from "@/lib/mentorship-cycle";
+import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { isChairForLane } from "@/lib/mentorship-chair-access";
 
 import { hasMentorshipCommandAccess } from "./command-access";
 import {
@@ -261,7 +263,7 @@ export async function resolveWorkspaceAccess(
 ): Promise<WorkspaceAccess | null> {
   const isSelf = viewer.id === personId;
   const isAdmin = viewer.roles.includes("ADMIN");
-  const [leadership, activeMentorship] = await Promise.all([
+  const [leadership, activeMentorship, personForLane] = await Promise.all([
     hasMentorshipCommandAccess(viewer),
     prisma.mentorship.findFirst({
       where: { menteeId: personId, status: "ACTIVE" },
@@ -280,10 +282,22 @@ export async function resolveWorkspaceAccess(
         chair: { select: { name: true, email: true } },
       },
     }),
+    prisma.user.findUnique({ where: { id: personId }, select: { primaryRole: true } }),
   ]);
 
   const isMentor = !!activeMentorship && viewer.id === activeMentorship.mentorId;
-  const isChair = !!activeMentorship && viewer.id === activeMentorship.chairId;
+  const isChairOfPairing = !!activeMentorship && viewer.id === activeMentorship.chairId;
+  // The real approval authority is the lane chair (MentorCommitteeChair for
+  // the person's role lane) — the same check requireReviewApprover() in
+  // lib/goal-review-actions.ts uses, not just whoever happens to be recorded
+  // as this specific pairing's chairId. Null-safe: no mappable primaryRole
+  // (e.g. MENTOR/STUDENT) or no MentorCommitteeChair row for that lane just
+  // yields false, independent of whether an active mentorship exists.
+  const laneRoleType = toMenteeRoleType(personForLane?.primaryRole ?? null);
+  const isLaneChair = laneRoleType
+    ? await isChairForLane(viewer.id, laneRoleType, viewer.adminSubtypes)
+    : false;
+  const isChair = isChairOfPairing || isLaneChair;
   const ownsRelationship = isMentor || isChair;
 
   // Restricted to the assigned owner: admin, leadership/board, the mentor/chair

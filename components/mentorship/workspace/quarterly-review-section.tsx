@@ -4,6 +4,7 @@ import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
 import { getGoalRatingCopy } from "@/lib/mentorship-rubric-copy";
 
 import { QuarterlyReviewForm } from "../quarterly-committee-review-form";
+import { LinkedWorkEvidence } from "./linked-work-evidence";
 
 const RATING_TONE: Record<string, StatusTone> = {
   ABOVE_AND_BEYOND: "brand",
@@ -84,6 +85,12 @@ export async function QuarterlyReviewSection({ workspace }: { workspace: Mentors
           </div>
         </div>
       )}
+
+      {/* Real work as evidence — the committee reads decisions against what
+          the person actually has on their plate, not just review prose. */}
+      <div className="mt-4">
+        <LinkedWorkEvidence menteeId={person.id} commitments={workspace.commitments} />
+      </div>
 
       <p className="m-0 mt-3 text-[12px] text-ink-muted">
         {packet.pointsThisQuarter} achievement points earned across these reviews.

@@ -630,6 +630,7 @@ export async function saveGoalReview(formData: FormData) {
 
   revalidatePath("/mentorship/reviews");
   revalidatePath("/mentorship/chair");
+  revalidatePath(`/people/${reflection.mentorship.menteeId}`);
 }
 
 // ============================================
@@ -1065,6 +1066,7 @@ export async function approveGoalReview(formData: FormData) {
   revalidatePath("/mentorship/reviews");
   revalidatePath("/mentorship/chair");
   revalidatePath("/my-program");
+  revalidatePath(`/people/${review.menteeId}`);
 }
 
 // ============================================
@@ -1367,11 +1369,12 @@ export async function requestReviewChanges(formData: FormData) {
     userId: review.mentor.id,
     title: "Review Changes Requested",
     body: `The chair has requested changes on your review for ${review.mentee.name}. Please review the feedback and update.`,
-    link: `/mentorship/reviews/${review.menteeId}`,
+    link: `/people/${review.menteeId}?section=review&panel=draft`,
   });
 
   revalidatePath("/mentorship/chair");
   revalidatePath("/mentorship/reviews");
+  revalidatePath(`/people/${review.menteeId}`);
 }
 
 // ============================================

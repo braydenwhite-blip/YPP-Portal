@@ -243,17 +243,17 @@ export async function ReviewsSection({
         </p>
       ) : null}
 
-      {!isSelf ? (
+      {!isSelf && capabilities.canDraftReview ? (
         <p className="m-0 text-[12.5px] text-ink-muted">
           Need the full review history?{" "}
           <a
-            href={`/mentorship/reviews/${person.id}`}
+            href={sectionHref("review") + "&panel=draft"}
             className="font-semibold text-brand-700 hover:underline"
           >
             Open the review writer →
           </a>
         </p>
-      ) : (
+      ) : !isSelf ? null : (
         <p className="m-0 text-[12.5px] text-ink-muted">
           Your goals and their latest ratings live in{" "}
           <a href={sectionHref("goals")} className="font-semibold text-brand-700 hover:underline">
