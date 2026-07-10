@@ -17,7 +17,7 @@ import type { MentorshipCycleStage } from "@prisma/client";
  * keeps every verb per-POV so no surface invents its own next-action logic.
  */
 
-export type LifecyclePov = "me" | "mentor" | "leadership";
+export type LifecyclePov = "me" | "mentor" | "committee" | "leadership";
 
 export type LifecycleSnapshot = {
   /** Relationship */
@@ -26,15 +26,22 @@ export type LifecycleSnapshot = {
   kickoffComplete: boolean;
   cycleStage: MentorshipCycleStage | null;
   mentorName: string | null;
+  chairName?: string | null;
   /** Goals — the G&R document state ("NONE" when no doc exists). */
   grDocStatus: "NONE" | "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "ARCHIVED";
   /** Current review cycle */
   cycleLabel: string | null;
+  /** The reflection currently driving the monthly cycle, when one exists. */
+  activeReflectionId?: string | null;
+  /** The assigned mentor has recorded the cycle-bound conversation. */
+  mentorCheckInComplete?: boolean;
   reflectionOverdue: boolean;
   /** Latest released review that the mentee has not yet reacted to. */
   releasedReviewPendingAck: boolean;
   /** Whether this pairing routes reviews through a chair. */
   requiresChairApproval: boolean;
+  /** At least one active Role Chair can receive and decide this lane's packet. */
+  hasRoleChair?: boolean;
   /** Follow-through */
   overdueFollowUpLabel: string | null; // e.g. "Follow-up was due Jun 12, 2026"
   openActionItems: number;
@@ -105,9 +112,18 @@ export function deriveReviewCapabilities(args: {
   isMentor: boolean;
   isChair: boolean;
   isLeadership: boolean;
+  isCommitteeMember?: boolean;
   canRecordCheckIn: boolean;
 }): ReviewCapabilities {
-  const { isSelf, isAdmin, isMentor, isChair, isLeadership, canRecordCheckIn } = args;
+  const {
+    isSelf,
+    isAdmin,
+    isMentor,
+    isChair,
+    isLeadership,
+    isCommitteeMember = false,
+    canRecordCheckIn,
+  } = args;
   const isReviewer = isMentor || isAdmin;
   const isApprover = isChair || isAdmin;
   return {
@@ -126,8 +142,9 @@ export function deriveReviewCapabilities(args: {
     // Visibility gate for the whole quarterly packet — mentor, chair,
     // leadership, admin (never the mentee; quarterly is committee-internal
     // deliberation, not released to them the way a monthly review is).
-    canRunQuarterlyReview: isReviewer || isApprover || isLeadership,
-    canRecommendPathwayDecision: isReviewer || isLeadership,
+    canRunQuarterlyReview:
+      isReviewer || isApprover || isCommitteeMember || isLeadership,
+    canRecommendPathwayDecision: isReviewer || isCommitteeMember || isLeadership,
     canApprovePathwayDecision: isApprover || isLeadership,
   };
 }
@@ -141,10 +158,16 @@ export type LifecycleNextAction = {
     | "schedule-kickoff"
     | "await-kickoff"
     | "assign-goals"
+    | "await-goals"
+    | "assign-role-chair"
+    | "await-role-chair"
     | "submit-reflection"
     | "await-reflection"
+    | "record-mentor-check-in"
+    | "await-mentor-check-in"
     | "write-review"
     | "revise-review"
+    | "await-review-revision"
     | "approve-review"
     | "await-approval"
     | "acknowledge-review"
@@ -170,6 +193,8 @@ export type LifecycleHrefs = {
   section: (sectionId: "overview" | "goals" | "check-ins" | "reviews") => string;
   /** The mentor's review-authoring page for this mentee. */
   writeReview: string;
+  /** The cycle-bound Mentor Check-in composer. */
+  recordMentorCheckIn: string;
   /** Admin matching lane (assign a mentor). */
   adminMatching: string;
   /** Admin G&R lane (assign goals). */
@@ -179,19 +204,20 @@ export type LifecycleHrefs = {
 };
 
 /**
- * `/people/[id]` is the canonical destination for a person's whole Review &
+ * `/mentorship/people/[id]` is the canonical destination for a person's whole Review &
  * G&R flow — every href the lifecycle engine bakes into `nextAction`/
  * `cycleStrip`/`cycleState` points there (with a `?panel=` for the
  * draft/approve in-page panels), never at the old `/mentorship/*` routes.
  */
 export function defaultLifecycleHrefs(menteeId: string): LifecycleHrefs {
-  const base = `/people/${menteeId}`;
+  const base = `/mentorship/people/${menteeId}`;
   return {
     section: (sectionId) => `${base}?section=${sectionId}`,
-    writeReview: `${base}?section=review&panel=draft`,
-    adminMatching: "/mentorship?view=admin&tab=assignments",
-    adminGoals: "/mentorship?view=admin&tab=templates",
-    reviewInbox: `${base}?section=review&panel=approve`,
+    writeReview: `${base}?section=reviews&panel=draft`,
+    recordMentorCheckIn: `${base}?section=check-ins&panel=cycle-check-in`,
+    adminMatching: `${base}?panel=setup`,
+    adminGoals: `${base}?panel=setup`,
+    reviewInbox: `${base}?section=reviews&panel=approve`,
   };
 }
 
@@ -209,22 +235,19 @@ export function deriveNextAction(
 
   // ── Relationship ──────────────────────────────────────────────────────────
   if (!snapshot.hasActiveMentorship) {
-    if (snapshot.mentorshipStatus === "PAUSED" || snapshot.mentorshipStatus === "COMPLETE") {
+    if (snapshot.mentorshipStatus === "PAUSED") {
       if (pov === "leadership") {
         return {
           key: "resume-or-close",
           label: "Review relationship status",
           href: hrefs.section("overview"),
-          reason:
-            snapshot.mentorshipStatus === "PAUSED"
-              ? "The mentorship is paused."
-              : "The mentorship is complete.",
+          reason: "The mentorship is paused.",
           urgent: false,
         };
       }
       return {
         key: "await-pairing",
-        label: snapshot.mentorshipStatus === "PAUSED" ? "Mentorship paused" : "Mentorship complete",
+        label: "Mentorship paused",
         href: null,
         reason: null,
         urgent: false,
@@ -235,7 +258,19 @@ export function deriveNextAction(
         key: "assign-mentor",
         label: "Assign a mentor",
         href: hrefs.adminMatching,
-        reason: `${personName} has no active mentorship.`,
+        reason:
+          snapshot.mentorshipStatus === "COMPLETE"
+            ? `${personName}'s previous mentorship is complete and there is no active pairing.`
+            : `${personName} has no active mentorship.`,
+        urgent: false,
+      };
+    }
+    if (snapshot.mentorshipStatus === "COMPLETE") {
+      return {
+        key: "await-pairing",
+        label: "Previous mentorship complete",
+        href: null,
+        reason: null,
         urgent: false,
       };
     }
@@ -259,6 +294,15 @@ export function deriveNextAction(
         urgent: false,
       };
     }
+    if (pov === "committee") {
+      return {
+        key: "await-kickoff",
+        label: "Kickoff not complete",
+        href: hrefs.section("overview"),
+        reason: "The mentor owns this setup step.",
+        urgent: false,
+      };
+    }
     return {
       key: "schedule-kickoff",
       label: "Hold the kickoff meeting",
@@ -269,12 +313,43 @@ export function deriveNextAction(
   }
 
   // ── Goals (leadership owns G&R assignment) ────────────────────────────────
-  if (pov === "leadership" && snapshot.grDocStatus === "NONE") {
+  // Nobody begins the monthly reflection loop without the living plan it is
+  // meant to review. Non-leadership viewers see the blocker and exact owner.
+  if (snapshot.grDocStatus === "NONE") {
+    if (pov === "leadership") {
+      return {
+        key: "assign-goals",
+        label: "Assign G&R goals",
+        href: hrefs.adminGoals,
+        reason: `${personName} has no Goals & Responsibilities document yet.`,
+        urgent: false,
+      };
+    }
     return {
-      key: "assign-goals",
-      label: "Assign G&R goals",
-      href: hrefs.adminGoals,
-      reason: `${personName} has no Goals & Responsibilities document yet.`,
+      key: "await-goals",
+      label: "Waiting for Goals & Responsibilities setup",
+      href: hrefs.section("goals"),
+      reason: "A mentorship admin owns this setup step.",
+      urgent: false,
+    };
+  }
+
+  // ── Role Chair (required before a cycle can be submitted) ─────────────────
+  if (snapshot.requiresChairApproval && snapshot.hasRoleChair === false) {
+    if (pov === "leadership") {
+      return {
+        key: "assign-role-chair",
+        label: "Assign the Role Chair",
+        href: hrefs.adminGoals,
+        reason: `${personName}'s lane has no active Role Chair.`,
+        urgent: false,
+      };
+    }
+    return {
+      key: "await-role-chair",
+      label: "Waiting for Role Chair setup",
+      href: null,
+      reason: "Leadership owns this setup step.",
       urgent: false,
     };
   }
@@ -298,12 +373,33 @@ export function deriveNextAction(
       // is follow-through (handled below) — fall through.
       break;
     case "REFLECTION_SUBMITTED":
+      if (!snapshot.mentorCheckInComplete) {
+        if (pov === "mentor") {
+          return {
+            key: "record-mentor-check-in",
+            label: "Record the Mentor Check-in",
+            href: hrefs.recordMentorCheckIn,
+            reason: `${personName}'s reflection is ready to discuss before you write the Monthly Progress Update.`,
+            urgent: true,
+          };
+        }
+        return {
+          key: "await-mentor-check-in",
+          label:
+            pov === "me"
+              ? `Meet with ${mentor} for your Mentor Check-in`
+              : "Mentor Check-in not recorded",
+          href: hrefs.section("check-ins"),
+          reason: "The check-in comes before the Monthly Progress Update.",
+          urgent: false,
+        };
+      }
       if (pov === "mentor") {
         return {
           key: "write-review",
-          label: "Write this month's review",
+          label: "Write the Monthly Progress Update",
           href: hrefs.writeReview,
-          reason: `${personName}'s reflection is in.`,
+          reason: `${personName}'s reflection and Mentor Check-in are complete.`,
           urgent: true,
         };
       }
@@ -327,12 +423,21 @@ export function deriveNextAction(
           urgent: true,
         };
       }
-      break;
+      return {
+        key: "await-review-revision",
+        label:
+          pov === "me"
+            ? "Your mentor is revising the Monthly Progress Update"
+            : "Waiting for the mentor's revision",
+        href: hrefs.section("reviews"),
+        reason: "The Role Chair requested changes before release.",
+        urgent: false,
+      };
     case "REVIEW_SUBMITTED":
       if (pov === "leadership") {
         return {
           key: "approve-review",
-          label: "Approve the review",
+        label: "Approve the Monthly Progress Update",
           href: hrefs.reviewInbox,
           reason: `${personName}'s${cycle} review is waiting on the chair.`,
           urgent: true,
@@ -341,7 +446,7 @@ export function deriveNextAction(
       if (pov === "mentor") {
         return {
           key: "await-approval",
-          label: "Review with the chair for approval",
+          label: "Monthly Progress Update is with the Role Chair",
           href: hrefs.section("reviews"),
           reason: null,
           urgent: false,
@@ -360,10 +465,13 @@ export function deriveNextAction(
   // promotion, award, etc.) through the normal channels, not this flow.
   if (snapshot.quarterlyDue && snapshot.quarterlyStatus !== "APPROVED") {
     if (snapshot.quarterlyStatus === null || snapshot.quarterlyStatus === "DRAFT") {
-      if (pov === "mentor") {
+      if (pov === "mentor" || pov === "committee") {
         return {
           key: "start-quarterly-review",
-          label: "Start the quarterly committee review",
+          label:
+            pov === "committee"
+              ? "Continue the quarterly committee review"
+              : "Start the quarterly committee review",
           href: hrefs.section("reviews"),
           reason: `${personName}'s quarterly review is due — gather feedback and summarize the last 3 reviews.`,
           urgent: true,
@@ -498,7 +606,7 @@ export function deriveNextAction(
 /* ---------------------------- Cycle strip ---------------------------- */
 
 export type CycleStripStep = {
-  key: "reflection" | "review" | "approval" | "released" | "acknowledged";
+  key: "reflection" | "check-in" | "review" | "approval" | "released" | "acknowledged";
   label: string;
   state: "done" | "current" | "upcoming";
   /** Plain-language "who moves next", only on the current step. */
@@ -517,23 +625,26 @@ export function buildCycleStrip(
   const mentee = pov === "me" ? "you" : personName;
   const mentor = pov === "mentor" ? "you" : (snapshot.mentorName ?? "the mentor");
 
-  type StageIndex = 0 | 1 | 2 | 3 | 4 | 5;
-  // 0 = reflection pending, 1 = review pending, 2 = approval pending,
-  // 3 = release pending (approved, not yet visible), 4 = ack pending, 5 = done
+  type StageIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  // 0 = reflection pending, 1 = mentor check-in pending, 2 = progress update
+  // pending, 3 = approval pending, 4 = release pending, 5 = ack pending,
+  // 6 = complete.
   let index: StageIndex;
   switch (snapshot.cycleStage) {
     case "REFLECTION_DUE":
       index = 0;
       break;
     case "REFLECTION_SUBMITTED":
-    case "CHANGES_REQUESTED":
-      index = 1;
+      index = snapshot.mentorCheckInComplete ? 2 : 1;
       break;
-    case "REVIEW_SUBMITTED":
+    case "CHANGES_REQUESTED":
       index = 2;
       break;
+    case "REVIEW_SUBMITTED":
+      index = 3;
+      break;
     case "APPROVED":
-      index = snapshot.releasedReviewPendingAck ? 4 : 5;
+      index = snapshot.releasedReviewPendingAck ? 5 : 6;
       break;
     default:
       index = 0;
@@ -542,18 +653,19 @@ export function buildCycleStrip(
 
   const steps: Array<{ key: CycleStripStep["key"]; label: string; at: StageIndex; detail: string }> = [
     { key: "reflection", label: "Reflection", at: 0, detail: `Waiting on ${mentee}` },
+    { key: "check-in", label: "Mentor check-in", at: 1, detail: `Waiting on ${mentor}` },
     {
       key: "review",
-      label: "Mentor review",
-      at: 1,
+      label: "Progress update",
+      at: 2,
       detail:
         snapshot.cycleStage === "CHANGES_REQUESTED"
           ? `Back with ${mentor} for changes`
           : `Waiting on ${mentor}`,
     },
-    { key: "approval", label: "Approval", at: 2, detail: "With the chair for approval" },
-    { key: "released", label: "Released", at: 3, detail: "About to be shared" },
-    { key: "acknowledged", label: "Acknowledged", at: 4, detail: `Waiting on ${mentee} to react` },
+    { key: "approval", label: "Chair approval", at: 3, detail: "With the chair for approval" },
+    { key: "released", label: "Released", at: 4, detail: "About to be shared" },
+    { key: "acknowledged", label: "Acknowledged", at: 5, detail: `Waiting on ${mentee} to react` },
   ];
 
   return steps
@@ -592,6 +704,7 @@ const STAGE_CRITICAL_KEYS = new Set<LifecycleNextAction["key"]>([
   "schedule-kickoff",
   "assign-goals",
   "submit-reflection",
+  "record-mentor-check-in",
   "write-review",
   "revise-review",
   "approve-review",
@@ -669,7 +782,12 @@ export function deriveCycleState(
 
   const availableActions: LifecycleNextAction["key"][] = [];
   if (capabilities.canDraftReview) {
-    if (snapshot.cycleStage === "REFLECTION_SUBMITTED") availableActions.push("write-review");
+    if (snapshot.cycleStage === "REFLECTION_SUBMITTED" && !snapshot.mentorCheckInComplete) {
+      availableActions.push("record-mentor-check-in");
+    }
+    if (snapshot.cycleStage === "REFLECTION_SUBMITTED" && snapshot.mentorCheckInComplete) {
+      availableActions.push("write-review");
+    }
     if (snapshot.cycleStage === "CHANGES_REQUESTED") availableActions.push("revise-review");
   }
   if (capabilities.canApprove && snapshot.cycleStage === "REVIEW_SUBMITTED") {
@@ -703,7 +821,15 @@ export function deriveCycleState(
     nextAction: {
       ...owningAction,
       ownerRole: ownerRoleForPov(owningPov, owningAction.key),
-      ownerName: owningPov === "mentor" ? snapshot.mentorName : null,
+      ownerName:
+        owningPov === "mentor"
+          ? snapshot.mentorName
+          : owningPov === "me"
+            ? personName
+            : owningAction.key === "approve-review" ||
+                owningAction.key === "approve-quarterly-review"
+              ? snapshot.chairName ?? null
+            : null,
     },
     blockingReason,
     availableActions,

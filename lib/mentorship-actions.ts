@@ -434,4 +434,5 @@ export async function markKickoffComplete(formData: FormData) {
   revalidatePath("/mentorship/mentees");
   revalidatePath("/mentorship");
   revalidatePath(`/people/${mentorship.menteeId}`);
+  revalidatePath(`/mentorship/people/${mentorship.menteeId}`);
 }

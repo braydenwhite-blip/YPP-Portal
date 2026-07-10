@@ -73,15 +73,18 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
     allowEmpty = true,
     required = false,
     compact = false,
-    multiple = false,
   } = props;
 
   const selectClass = compact ? calmSelectClass : "ps-select";
 
-  const selectedIds = multiple ? props.value : props.value ? [props.value] : [];
+  const selectedIds: string[] = props.multiple
+    ? props.value
+    : props.value
+      ? [props.value]
+      : [];
 
   function removeDepartment(departmentId: string) {
-    if (multiple) {
+    if (props.multiple) {
       props.onChange(selectedIds.filter((id) => id !== departmentId));
       return;
     }
@@ -90,7 +93,7 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
 
   function addDepartment(departmentId: string) {
     if (!departmentId) return;
-    if (multiple) {
+    if (props.multiple) {
       if (selectedIds.includes(departmentId)) return;
       props.onChange([...selectedIds, departmentId]);
       return;
@@ -98,7 +101,7 @@ function SimpleDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
     props.onChange(departmentId);
   }
 
-  if (!multiple) {
+  if (!props.multiple) {
     return (
       <div className="ps-field" id={id}>
         <label className="ps-label" htmlFor={id ? `${id}-select` : undefined}>
@@ -201,19 +204,22 @@ function ChipDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
     allowEmpty = true,
     required = false,
     compact = false,
-    multiple = false,
   } = props;
 
   if (departments.length === 0) return null;
 
-  const selectedIds = multiple ? props.value : props.value ? [props.value] : [];
+  const selectedIds: string[] = props.multiple
+    ? props.value
+    : props.value
+      ? [props.value]
+      : [];
 
   function isActive(departmentId: string) {
     return selectedIds.includes(departmentId);
   }
 
   function toggleDepartment(departmentId: string) {
-    if (multiple) {
+    if (props.multiple) {
       const active = isActive(departmentId);
       if (active) {
         if (!allowEmpty && selectedIds.length <= 1) return;
@@ -229,7 +235,7 @@ function ChipDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
   }
 
   function clearAll() {
-    if (multiple) {
+    if (props.multiple) {
       props.onChange([]);
     } else {
       props.onChange("");
@@ -281,7 +287,7 @@ function ChipDepartmentPicker(props: SinglePickerProps | MultiPickerProps) {
                 : "border-line-soft bg-surface text-ink-muted hover:border-line hover:text-ink"
             )}
           >
-            {multiple ? "No teams yet" : "No team yet"}
+            {props.multiple ? "No teams yet" : "No team yet"}
           </button>
         ) : null}
       </div>

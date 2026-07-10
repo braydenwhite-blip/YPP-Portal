@@ -15,6 +15,12 @@ const USERS = {
     process.env.E2E_BLOCKED_INSTRUCTOR_EMAIL ??
     "e2e.instructor.blocked.alpha@ypp.test",
   student: process.env.E2E_STUDENT_EMAIL ?? "e2e.student.alpha@ypp.test",
+  monthlyMentee: process.env.E2E_MONTHLY_MENTEE_EMAIL ?? "e2e.mentee.monthly@ypp.test",
+  mentor: process.env.E2E_MENTOR_EMAIL ?? "e2e.mentor.alpha@ypp.test",
+  instructorChair:
+    process.env.E2E_INSTRUCTOR_CHAIR_EMAIL ?? "e2e.chair.instructor@ypp.test",
+  committeeMember:
+    process.env.E2E_COMMITTEE_MEMBER_EMAIL ?? "e2e.committee.instructor@ypp.test",
 } as const;
 
 export async function loginAs(

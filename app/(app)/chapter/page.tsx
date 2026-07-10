@@ -7,7 +7,9 @@ import { loadChapterWorkspace } from "@/lib/chapters/workspace";
 import { chapterLifecycleTone, chapterLifecycleLabel, isLaunchingStatus } from "@/lib/chapters/lifecycle";
 import { LaunchChecklist } from "@/components/chapters/launch-checklist";
 import { ChapterOS } from "@/components/chapters/chapter-os";
-import { activeLaneFromSearchParam } from "@/components/chapters/chapter-os-lane-tabs";
+import { ChapterOSLaneTabs, activeLaneFromSearchParam } from "@/components/chapters/chapter-os-lane-tabs";
+import { ChapterOperationsOverview } from "@/components/chapters/chapter-operations-overview";
+import { loadChapterOperations } from "@/lib/chapters/operations";
 import { LanePartners } from "@/components/chapters/lane-partners";
 import { LaneInstructors } from "@/components/chapters/lane-instructors";
 import { LaneStudents } from "@/components/chapters/lane-students";
@@ -61,6 +63,7 @@ export default async function ChapterHomePage(props: {
 
   const chapterId = ctx.ledChapterId;
   const searchParams = (await props.searchParams) ?? {};
+  const showOverview = !searchParams.lane;
   const active: LaneKey = activeLaneFromSearchParam(searchParams.lane);
 
   const [model, workspace, onboarding] = await Promise.all([
@@ -74,6 +77,7 @@ export default async function ChapterHomePage(props: {
       .catch(() => null),
   ]);
   if (!model || !workspace) redirect("/chapter/apply");
+  const operations = showOverview ? await loadChapterOperations(chapterId, new Date(), model) : null;
 
   // CP onboarding nudge — surfaced inline so the President has one home.
   const onboardingSteps = onboarding
@@ -162,12 +166,10 @@ export default async function ChapterHomePage(props: {
         </div>
       )}
 
-      <div className="mt-6">
-        <ChapterAutomationSection automation={automation} showEscalations={ctx.isLeadership} />
-      </div>
+      {!showOverview && <div className="mt-6"><ChapterAutomationSection automation={automation} showEscalations={ctx.isLeadership} /></div>}
 
       <div className="mt-6">
-        <ChapterOS
+        {showOverview && operations ? <div className="space-y-6"><ChapterOSLaneTabs active={null} counts={laneCounts} /><ChapterOperationsOverview data={operations} /></div> : <ChapterOS
           chapterId={chapterId}
           weekNumber={model.weekNumber}
           growth={model.growth}
@@ -197,7 +199,7 @@ export default async function ChapterHomePage(props: {
             ) : null
           }
           panel={panel}
-        />
+        />}
       </div>
     </div>
   );

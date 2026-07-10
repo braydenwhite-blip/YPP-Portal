@@ -20,6 +20,8 @@ interface Props {
   isQuarterly: boolean;
   /** Cycle-specific question wording (lib/mentorship/reflection-questions.ts). Defaults to the standard copy when omitted. */
   questions?: ReflectionQuestionSet;
+  /** Canonical workspace destination after submission. */
+  returnHref?: string;
 }
 
 type GoalState = {
@@ -76,6 +78,7 @@ export default function ReflectionForm({
   cycleNumber,
   isQuarterly,
   questions = DEFAULT_REFLECTION_QUESTIONS,
+  returnHref = "/mentorship",
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -178,8 +181,8 @@ export default function ReflectionForm({
           formData.set(`goal_${g.id}_nextMonthPlans`, s.nextMonthPlans);
         });
 
-        const reflectionId = await submitSelfReflection(formData);
-        router.push(`/my-program/reflect/${reflectionId}`);
+        await submitSelfReflection(formData);
+        router.push(returnHref);
       } catch (err) {
         setSubmitError(err instanceof Error ? err.message : "Submission failed. Please try again.");
       }

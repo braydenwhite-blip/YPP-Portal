@@ -11,5 +11,5 @@ export default async function MentorMenteeGRPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  redirect(`/people/${id}?section=review`);
+  redirect(`/mentorship/people/${id}?section=goals`);
 }

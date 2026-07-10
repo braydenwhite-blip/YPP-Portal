@@ -21,6 +21,8 @@ import { MonthlyApprovalQueue, QuarterlyCommitteeQueue } from "./_components/app
 import { MentorHomeCalm } from "./_components/mentor-home-calm";
 import { SegmentedTabs } from "./_components/segmented-tabs";
 import { EmptyStateEditorial } from "./_components/empty-state-editorial";
+import { AdminMentorshipHome } from "./_components/admin-home-calm";
+import { prisma } from "@/lib/prisma";
 
 /**
  * The Mentorship Command Center — one hub, three POVs.
@@ -69,17 +71,25 @@ export default async function MentorshipPage(
   }
 
   const isAdmin = roles.includes("ADMIN");
-  const [membership, chairLanes, commandAccess] = await Promise.all([
+  const [membership, chairLanes, commandAccess, committeeMemberships] = await Promise.all([
     getInstructorMentorshipMembership(userId),
     getLanesForChair(userId, (session.user.adminSubtypes ?? []) as string[]),
     hasMentorshipCommandAccess(session.user),
+    prisma.mentorCommitteeMember.findMany({
+      where: { userId },
+      select: { committee: { select: { track: { select: { programGroup: true } } } } },
+    }),
   ]);
+  const committeeProgramGroups = Array.from(
+    new Set(committeeMemberships.map((membership) => membership.committee.track.programGroup))
+  );
 
   const facts = {
     isMentee: membership.isMentee,
     isMentor: membership.isMentor,
     isAdmin,
     isChair: chairLanes.length > 0,
+    isCommitteeMember: committeeProgramGroups.length > 0,
     hasCommandCenterAccess: commandAccess,
   };
   const povs = availablePovs(facts);
@@ -109,16 +119,20 @@ export default async function MentorshipPage(
     return (
       <div className={`${skin.portalSkin} flex flex-col gap-6`}>
         {header}
-        <AdminMentorshipCockpit
-          showLeadershipOverview={commandAccess}
-          searchParams={{
-            tab: searchParams?.tab,
-            lane: searchParams?.lane,
-            who: searchParams?.who,
-            menteeId: searchParams?.menteeId,
-            supportRole: searchParams?.supportRole,
-          }}
-        />
+        {searchParams?.tab ? (
+          <AdminMentorshipCockpit
+            showLeadershipOverview={commandAccess}
+            searchParams={{
+              tab: searchParams.tab,
+              lane: searchParams?.lane,
+              who: searchParams?.who,
+              menteeId: searchParams?.menteeId,
+              supportRole: searchParams?.supportRole,
+            }}
+          />
+        ) : (
+          <AdminMentorshipHome viewer={session.user} />
+        )}
       </div>
     );
   }
@@ -128,7 +142,7 @@ export default async function MentorshipPage(
   // rather than render inline.
   if (pov === "me") {
     const section = typeof searchParams?.section === "string" ? searchParams.section : null;
-    redirect(`/people/${userId}${section ? `?section=${section}` : ""}`);
+    redirect(`/mentorship/people/${userId}${section ? `?section=${section}` : ""}`);
   }
 
   // ── Mentor POV — the coaching console. ─────────────────────────────────────
@@ -205,6 +219,7 @@ export default async function MentorshipPage(
         viewerId={userId}
         isAdminOrLeadership={isAdmin || commandAccess}
         chairedLanes={chairLanes}
+        committeeProgramGroups={committeeProgramGroups}
       />
 
       {mentorBlock.total === 0 ? (

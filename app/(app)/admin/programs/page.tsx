@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import {
   PROGRAM_TYPE_CONFIG,
+  PROGRAM_TYPE_ORDER,
   getProgramColor,
   formatProgramType,
 } from "@/lib/program-constants";

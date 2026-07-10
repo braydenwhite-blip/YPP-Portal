@@ -8,6 +8,7 @@
 // idempotent (upsert by session).
 
 import { revalidatePath } from "next/cache";
+import type { RegularInstructorAssignmentStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser } from "@/lib/authorization";
@@ -15,7 +16,11 @@ import { getChapterViewerContext } from "@/lib/chapters/access";
 import { canManageClassAttendance } from "@/lib/classes/attendance";
 import { SubmitReflectionSchema, reflectionRaisesConcern } from "@/lib/classes/reflection";
 
-const CONFIRMED_RIA = ["INSTRUCTOR_CONFIRMED", "CHAPTER_CONFIRMED", "FULLY_CONFIRMED"];
+const CONFIRMED_RIA: RegularInstructorAssignmentStatus[] = [
+  "INSTRUCTOR_CONFIRMED",
+  "CHAPTER_CONFIRMED",
+  "FULLY_CONFIRMED",
+];
 
 export type ReflectionResult = { ok: true } | { ok: false; error: string };
 

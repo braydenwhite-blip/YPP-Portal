@@ -10,6 +10,10 @@
 // feeds Student Community, retention, the class runtime, and Recent Activity.
 
 import { revalidatePath } from "next/cache";
+import type {
+  ClassEnrollmentStatus,
+  RegularInstructorAssignmentStatus,
+} from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser } from "@/lib/authorization";
@@ -20,8 +24,12 @@ import {
   canManageClassAttendance,
 } from "@/lib/classes/attendance";
 
-const CONFIRMED_RIA = ["INSTRUCTOR_CONFIRMED", "CHAPTER_CONFIRMED", "FULLY_CONFIRMED"];
-const ATTENDED_ENROLLMENT = ["ENROLLED", "COMPLETED"];
+const CONFIRMED_RIA: RegularInstructorAssignmentStatus[] = [
+  "INSTRUCTOR_CONFIRMED",
+  "CHAPTER_CONFIRMED",
+  "FULLY_CONFIRMED",
+];
+const ATTENDED_ENROLLMENT: ClassEnrollmentStatus[] = ["ENROLLED", "COMPLETED"];
 
 export type AttendanceResult = { ok: true; recorded: number } | { ok: false; error: string };
 

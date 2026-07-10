@@ -17,6 +17,8 @@ export type HubViewerFacts = {
   isAdmin: boolean;
   /** Chairs at least one review lane (chair queue access). */
   isChair: boolean;
+  /** Participates in at least one Role Committee. */
+  isCommitteeMember?: boolean;
   /** Passes the leadership command-center gate (flag + officer tier + leadership). */
   hasCommandCenterAccess: boolean;
 };
@@ -27,7 +29,9 @@ const POV_ORDER: HubPov[] = ["me", "mentor", "admin"];
 export function availablePovs(facts: HubViewerFacts): HubPov[] {
   const povs = new Set<HubPov>();
   if (facts.isMentee) povs.add("me");
-  if (facts.isMentor || facts.isChair || facts.isAdmin) povs.add("mentor");
+  if (facts.isMentor || facts.isChair || facts.isCommitteeMember || facts.isAdmin) {
+    povs.add("mentor");
+  }
   // Any ADMIN gets the cockpit (parity with the old /admin/mentorship gate);
   // the leadership-only overview blocks are gated separately inside it.
   if (facts.hasCommandCenterAccess || facts.isAdmin) povs.add("admin");

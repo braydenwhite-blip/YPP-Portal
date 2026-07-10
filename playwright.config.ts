@@ -22,7 +22,7 @@ export default defineConfig({
     baseURL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    video: process.env.PLAYWRIGHT_DISABLE_VIDEO === "1" ? "off" : "retain-on-failure",
   },
   webServer:
     process.env.PLAYWRIGHT_SKIP_WEBSERVER === "1"
@@ -38,6 +38,9 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+          : undefined,
       },
     },
   ],

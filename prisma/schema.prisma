@@ -781,6 +781,8 @@ model Chapter {
   users                          User[]
   meetings                       Meeting[]                       @relation("ChapterMeetings")
   weeklyEntries                  WeeklyImpactEntry[]             @relation("ChapterWeeklyEntries")
+  operationsTarget              ChapterOperationsTarget?
+  operationsReports             ChapterOperationsReport[]
   joinRequests                   ChapterJoinRequest[]
   goals                          ChapterGoal[]
   channels                       ChapterChannel[]
@@ -960,6 +962,7 @@ model User {
   title        String?
   chapterId    String?
   chapter      Chapter? @relation(fields: [chapterId], references: [id])
+  chapterOperationsReportsCreated ChapterOperationsReport[] @relation("ChapterOperationsReportCreator")
 
   // Org authority spine (Phase 3 of the Roles/Mentorship/Reviews/Access plan).
   // All additive + nullable. `resolvePersonAuthority` (lib/org/levels.ts) reads
@@ -3078,6 +3081,9 @@ model MentorshipCheckIn {
   advisorAssignmentId String?
   /// Who logged the conversation (the leader). Null for legacy mentee-posted rows.
   authorId            String?
+  /// When present, this is the one Mentor Check-in that fulfills the monthly
+  /// review step for this Self-Reflection. Generic conversations leave it null.
+  selfReflectionId    String?                   @unique
   /// CHECK_IN | MEETING | CONVERSATION
   kind                String                    @default("CHECK_IN")
   notes               String
@@ -3098,6 +3104,7 @@ model MentorshipCheckIn {
   advisorAssignment   StudentAdvisorAssignment? @relation(fields: [advisorAssignmentId], references: [id], onDelete: SetNull)
   subject             User?                     @relation("MentorshipCheckInSubject", fields: [subjectId], references: [id], onDelete: Cascade)
   author              User?                     @relation("MentorshipCheckInAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  selfReflection      MonthlySelfReflection?    @relation("MentorCycleCheckIn", fields: [selfReflectionId], references: [id], onDelete: SetNull)
 
   @@index([mentorshipId, createdAt])
   @@index([subjectId, occurredAt])
@@ -10031,6 +10038,7 @@ model MonthlySelfReflection {
   submittedAt DateTime @default(now())
 
   goalReview     MentorGoalReview?
+  mentorCycleCheckIn MentorshipCheckIn? @relation("MentorCycleCheckIn")
   peopleCheckIns CheckIn[]         @relation("CheckInSelfReflection")
 
   @@unique([mentorshipId, cycleNumber])
@@ -11080,6 +11088,68 @@ model ChapterWeeklyKpiSnapshot {
   @@unique([chapterId, weekStart])
   @@index([chapterId])
   @@index([weekStart])
+}
+
+enum ChapterOperationsReportType {
+  WEEKLY
+  MONTHLY
+}
+
+enum ChapterOperationsReportStatus {
+  DRAFT
+  FINALIZED
+}
+
+/// Chapter-owned targets used by the Chapter Operations scorecard. Keeping
+/// these in one row prevents report forms and dashboards from maintaining
+/// separate copies of the same goals.
+model ChapterOperationsTarget {
+  id        String  @id @default(cuid())
+  chapterId String  @unique
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  activeStudentsTarget      Int @default(80)
+  activeInstructorsTarget   Int @default(15)
+  instructorPipelineTarget  Int @default(30)
+  activePartnersTarget      Int @default(8)
+  classesRunningTarget      Int @default(8)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Immutable-on-finalize operational report snapshot. `metrics` contains the
+/// deterministic values shown at save time; `sourceRecordRefs` contains the
+/// record ids and routes that explain those values.
+model ChapterOperationsReport {
+  id        String  @id @default(cuid())
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  type        ChapterOperationsReportType
+  status      ChapterOperationsReportStatus @default(DRAFT)
+  periodStart DateTime
+  periodEnd   DateTime
+  metrics     Json
+  sourceRecordRefs Json
+
+  biggestWin       String? @db.Text
+  biggestChallenge String? @db.Text
+  mainFocus        String? @db.Text
+  decisionNeeded   String? @db.Text
+  supportNeeded    String? @db.Text
+  nextPeriodFocus  String? @db.Text
+
+  createdById String
+  createdBy   User @relation("ChapterOperationsReportCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  finalizedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([chapterId, type, periodStart])
+  @@index([chapterId, type, periodStart])
+  @@index([status])
+  @@index([createdById])
 }
 
 /// SLA and operational rule definitions for escalation workflows

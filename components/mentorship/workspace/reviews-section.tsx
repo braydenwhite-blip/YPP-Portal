@@ -20,7 +20,7 @@ import { QuarterlyReviewSection } from "./quarterly-review-section";
 
 /**
  * Reviews — the monthly loop as one lifecycle, not a set of components:
- * reflection → mentor review → approval → release → acknowledgment →
+ * reflection → Mentor Check-in → Monthly Progress Update → approval → release → acknowledgment →
  * what came out of it (next steps + follow-up commitments).
  *
  * Self view: the cycle strip, the reflection composer when it's your move,
@@ -97,8 +97,14 @@ export async function ReviewsSection({
     );
   }
 
-  const showReflectionComposer = isSelf && lifecycle.cycleStage === "REFLECTION_DUE";
-  const reviewActionKeys = new Set(["write-review", "revise-review", "approve-review"]);
+  const showReflectionComposer =
+    isSelf && lifecycle.kickoffComplete && lifecycle.cycleStage === "REFLECTION_DUE";
+  const reviewActionKeys = new Set([
+    "record-mentor-check-in",
+    "write-review",
+    "revise-review",
+    "approve-review",
+  ]);
   const showCycleCta = !isSelf && nextAction.href && reviewActionKeys.has(nextAction.key);
 
   return (
@@ -247,10 +253,10 @@ export async function ReviewsSection({
         <p className="m-0 text-[12.5px] text-ink-muted">
           Need the full review history?{" "}
           <a
-            href={sectionHref("review") + "&panel=draft"}
+            href={sectionHref("reviews") + "&panel=draft"}
             className="font-semibold text-brand-700 hover:underline"
           >
-            Open the review writer →
+            Open the Monthly Progress Update writer →
           </a>
         </p>
       ) : !isSelf ? null : (
@@ -326,7 +332,13 @@ async function SelfReflectionComposer({ personId }: { personId: string }) {
         writing your monthly review.
       </p>
       <div className="mt-3">
-        <ReflectionForm goals={goals} cycleNumber={cycleNumber} isQuarterly={isQuarterly} questions={questions} />
+        <ReflectionForm
+          goals={goals}
+          cycleNumber={cycleNumber}
+          isQuarterly={isQuarterly}
+          questions={questions}
+          returnHref={`/mentorship/people/${personId}?section=reviews`}
+        />
       </div>
     </details>
   );

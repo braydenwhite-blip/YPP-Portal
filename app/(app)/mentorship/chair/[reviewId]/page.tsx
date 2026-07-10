@@ -20,5 +20,5 @@ export default async function ChairReviewDetailRedirect({
   const review = await getReviewForChair(reviewId);
   if (!review) redirect("/mentorship");
 
-  redirect(`/people/${review.menteeId}?section=review&panel=approve`);
+  redirect(`/mentorship/people/${review.menteeId}?section=reviews&panel=approve`);
 }
