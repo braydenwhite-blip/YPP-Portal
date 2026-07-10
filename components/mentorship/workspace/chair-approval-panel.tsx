@@ -1,5 +1,5 @@
 import { CardV2, StatusBadge, type StatusTone } from "@/components/ui-v2";
-import { getReviewForChair } from "@/lib/goal-review-actions";
+import { getReviewForChair, loadChairPacket } from "@/lib/goal-review-actions";
 import { projectAwardOutcome } from "@/lib/award-projection";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { POINT_TABLE } from "@/lib/mentorship-point-table";
@@ -11,8 +11,12 @@ import { getReviewHeadlineState, type ReviewStateTone } from "@/lib/mentorship-r
 import { RatingLegend } from "@/components/mentorship/rating-legend";
 import { LearnMore } from "@/components/mentorship/learn-more";
 import { prisma } from "@/lib/prisma";
+import type { WorkspaceCommitment } from "@/lib/mentorship/workspace";
+import { getCurrentGRSummary } from "@/lib/gr-actions";
+import { CurrentGRCard } from "@/components/people-strategy/current-gr-card";
 
 import { ChairDecisionForm } from "./chair-decision-form";
+import { LinkedWorkEvidence } from "./linked-work-evidence";
 
 /**
  * The chair's approval step, inline on /people/[id] (?panel=approve) — the
@@ -46,10 +50,22 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="m-0 text-[13.5px] font-bold text-ink">{children}</h2>;
 }
 
-export async function ChairApprovalPanel({ menteeId }: { menteeId: string }) {
+export async function ChairApprovalPanel({
+  menteeId,
+  mentorshipId,
+  commitments = [],
+}: {
+  menteeId: string;
+  mentorshipId: string;
+  commitments?: WorkspaceCommitment[];
+}) {
   const pending = await prisma.mentorGoalReview.findFirst({
-    where: { menteeId, status: { in: ["PENDING_CHAIR_APPROVAL", "CHANGES_REQUESTED"] } },
-    orderBy: { cycleMonth: "desc" },
+    where: {
+      menteeId,
+      mentorshipId,
+      status: { in: ["PENDING_CHAIR_APPROVAL", "CHANGES_REQUESTED"] },
+    },
+    orderBy: [{ cycleMonth: "desc" }, { createdAt: "desc" }],
     select: { id: true, status: true, chairComments: true },
   });
   if (!pending) {
@@ -67,7 +83,7 @@ export async function ChairApprovalPanel({ menteeId }: { menteeId: string }) {
       <CardV2 padding="md" className="border-l-4 border-l-progress-700">
         <strong className="text-[14px] text-ink">Changes requested — back with the mentor</strong>
         <p className="m-0 mt-1 text-[13px] text-ink-muted">
-          The review returns here for your decision once the mentor resubmits it.
+          The Monthly Progress Update returns here once the mentor resubmits it.
         </p>
         {pending.chairComments ? (
           <p className="m-0 mt-2 whitespace-pre-wrap text-[13px] text-ink">
@@ -78,7 +94,11 @@ export async function ChairApprovalPanel({ menteeId }: { menteeId: string }) {
     );
   }
 
-  const review = await getReviewForChair(pending.id);
+  const [review, packet, currentGR] = await Promise.all([
+    getReviewForChair(pending.id),
+    loadChairPacket(pending.id),
+    getCurrentGRSummary(menteeId),
+  ]);
   if (!review) {
     // The viewer doesn't chair this review's lane (getReviewForChair
     // re-checked) — render nothing rather than a broken decision surface.
@@ -105,12 +125,21 @@ export async function ChairApprovalPanel({ menteeId }: { menteeId: string }) {
     releasedToMenteeAt: review.releasedToMenteeAt,
     pointsAwarded: review.pointsAwarded,
   });
+  const nextMonthDrafts = Array.isArray(review.nextMonthGoalDraftsJson)
+    ? review.nextMonthGoalDraftsJson.filter(
+        (item): item is { title: string; description?: string } =>
+          typeof item === "object" &&
+          item !== null &&
+          "title" in item &&
+          typeof item.title === "string"
+      )
+    : [];
 
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="m-0 text-[15px] font-bold text-ink">
-          Approve {review.mentee.name}&apos;s review · Cycle {review.selfReflection.cycleNumber} ·
+          Approve {review.mentee.name}&apos;s Monthly Progress Update · Cycle {review.selfReflection.cycleNumber} ·
           Mentor {review.mentor.name}
         </h3>
         <StatusBadge tone={STATE_TONE[headlineState.tone]} title={headlineState.description} withDot>
@@ -132,7 +161,7 @@ export async function ChairApprovalPanel({ menteeId }: { menteeId: string }) {
         </ul>
         <LearnMore summary="Privacy — what the mentee sees">
           <p className="m-0 text-[13px] leading-relaxed">
-            This is <strong>{review.mentor.name}</strong>&apos;s review of{" "}
+            This is <strong>{review.mentor.name}</strong>&apos;s Monthly Progress Update for{" "}
             <strong>{review.mentee.name}</strong> ({formatEnum(review.mentee.primaryRole)} lane),
             rated <strong>{ratingLabel(review.overallRating)}</strong>. The mentee never sees this
             approval panel, chair notes, or pre-release drafts — only the released summary once you
@@ -141,9 +170,100 @@ export async function ChairApprovalPanel({ menteeId }: { menteeId: string }) {
         </LearnMore>
       </CardV2>
 
+      {packet ? (
+        <CardV2 as="section" padding="md" className="grid gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <SectionTitle>Decision check</SectionTitle>
+            <StatusBadge tone={packet.isComplete ? "success" : "danger"}>
+              {packet.isComplete ? "Ready for decision" : "Missing information"}
+            </StatusBadge>
+          </div>
+          <div className="grid gap-2 text-[12.5px] text-ink-muted sm:grid-cols-3">
+            <span>
+              <strong className="text-ink">Prior rating:</strong>{" "}
+              {packet.priorOverallRating ? ratingLabel(packet.priorOverallRating) : "First cycle"}
+            </span>
+            <span>
+              <strong className="text-ink">AI assistance:</strong>{" "}
+              {packet.aiDraftUsed ? "Used and mentor-reviewed" : "Not used"}
+            </span>
+            <span>
+              <strong className="text-ink">Requested feedback:</strong>{" "}
+              {packet.commentStatus.submitted}/{packet.commentStatus.requested} received
+            </span>
+          </div>
+          {packet.incompleteReasons.length > 0 ? (
+            <ul className="m-0 grid gap-1 pl-5 text-[12.5px] text-danger-700">
+              {packet.incompleteReasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          ) : null}
+          {packet.goalRatings.some((rating) => rating.ratingChanged) ? (
+            <div>
+              <p className="m-0 text-[12px] font-bold uppercase tracking-[0.05em] text-ink-muted">
+                Meaningful rating changes
+              </p>
+              <ul className="m-0 mt-1 grid gap-1 pl-5 text-[12.5px] text-ink">
+                {packet.goalRatings
+                  .filter((rating) => rating.ratingChanged)
+                  .map((rating) => (
+                    <li key={rating.id}>
+                      {rating.title}: {ratingLabel(rating.priorRating!)} → {ratingLabel(rating.rating)}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ) : null}
+        </CardV2>
+      ) : null}
+
+      {currentGR ? (
+        <LearnMore summary="Current Goals & Responsibilities" hint="the plan this update evaluates">
+          <CurrentGRCard summary={currentGR} personName={review.mentee.name} />
+        </LearnMore>
+      ) : null}
+
+      {review.selfReflection.mentorCycleCheckIn ? (
+        <LearnMore summary="Mentor Check-in context" hint="conversation recorded before this update">
+          <div className="grid gap-2 text-[13px] text-ink">
+            {review.selfReflection.mentorCycleCheckIn.discussion ? (
+              <p className="m-0 whitespace-pre-wrap">
+                <strong>Discussion:</strong> {review.selfReflection.mentorCycleCheckIn.discussion}
+              </p>
+            ) : null}
+            {review.selfReflection.mentorCycleCheckIn.decisions ? (
+              <p className="m-0 whitespace-pre-wrap">
+                <strong>Decisions:</strong> {review.selfReflection.mentorCycleCheckIn.decisions}
+              </p>
+            ) : null}
+            {review.selfReflection.mentorCycleCheckIn.commitments ? (
+              <p className="m-0 whitespace-pre-wrap">
+                <strong>Commitments:</strong> {review.selfReflection.mentorCycleCheckIn.commitments}
+              </p>
+            ) : null}
+          </div>
+        </LearnMore>
+      ) : null}
+
+      {nextMonthDrafts.length > 0 ? (
+        <LearnMore summary="Proposed next-month plan" hint={`${nextMonthDrafts.length} goal proposal${nextMonthDrafts.length === 1 ? "" : "s"}`}>
+          <ul className="m-0 grid gap-2 pl-5 text-[13px] text-ink">
+            {nextMonthDrafts.map((draft, index) => (
+              <li key={`${draft.title}-${index}`}>
+                <strong>{draft.title}</strong>
+                {draft.description ? ` — ${draft.description}` : ""}
+              </li>
+            ))}
+          </ul>
+        </LearnMore>
+      ) : null}
+
       <LearnMore summary="Points & awards impact" hint="what approving will trigger">
         <AwardsSummaryPanel projection={projection} menteeName={review.mentee.name} />
       </LearnMore>
+
+      <LinkedWorkEvidence menteeId={menteeId} commitments={commitments} />
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-4">
@@ -187,7 +307,7 @@ export async function ChairApprovalPanel({ menteeId }: { menteeId: string }) {
                   <div key={gr.id} className="rounded-[10px] bg-surface-soft px-3 py-2.5">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[13.5px] font-semibold text-ink">
-                        {gr.goal?.title ?? "(goal removed)"}
+                      {gr.grDocumentGoal?.title ?? gr.goal?.title ?? "(goal removed)"}
                       </span>
                       <StatusBadge tone={RATING_TONE[gr.rating] ?? "neutral"}>
                         {ratingLabel(gr.rating)}

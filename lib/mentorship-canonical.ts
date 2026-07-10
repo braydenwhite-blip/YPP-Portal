@@ -138,6 +138,10 @@ export function mentorshipRequiresKickoff(params: {
   return params.programGroup !== MentorshipProgramGroup.STUDENT;
 }
 
+/**
+ * Capacity is advisory. Assignment paths may call this to measure workload,
+ * but it must never block an authorized leader from making the assignment.
+ */
 export async function enforceFullProgramMentorCapacity(params: {
   mentorId: string;
   programGroup: MentorshipProgramGroup;
@@ -149,7 +153,7 @@ export async function enforceFullProgramMentorCapacity(params: {
     governanceMode !== MentorshipGovernanceMode.FULL_PROGRAM ||
     programGroup === MentorshipProgramGroup.STUDENT
   ) {
-    return;
+    return null;
   }
 
   const activeCount = await prisma.mentorship.count({
@@ -164,11 +168,11 @@ export async function enforceFullProgramMentorCapacity(params: {
     },
   });
 
-  if (activeCount >= FULL_PROGRAM_MENTOR_CAP) {
-    throw new Error(
-      `This mentor already has ${activeCount} active officer/instructor mentees. The hard cap is ${FULL_PROGRAM_MENTOR_CAP}.`
-    );
-  }
+  return {
+    activeCount,
+    capacity: FULL_PROGRAM_MENTOR_CAP,
+    atOrOverCapacity: activeCount >= FULL_PROGRAM_MENTOR_CAP,
+  };
 }
 
 function slugify(value: string) {

@@ -62,22 +62,15 @@ export function primaryActionDepartmentId(departmentIds: string[]): string | nul
   return departmentIds[0] ?? null;
 }
 
-type ActionItemDepartmentClient = {
-  findMany?: (args: unknown) => Promise<unknown>;
-  deleteMany?: (args: unknown) => Promise<unknown>;
-  createMany?: (args: unknown) => Promise<unknown>;
-};
-
-type Tx = {
-  actionItemDepartment?: ActionItemDepartmentClient;
-};
+type Tx = Prisma.TransactionClient | typeof prisma;
 
 export type ActionItemDepartmentLink = {
   department: ActionDepartmentRef;
 };
 
-export function hasActionItemDepartmentModel(client: Tx): boolean {
-  return typeof client.actionItemDepartment?.findMany === "function";
+export function hasActionItemDepartmentModel(client: unknown): boolean {
+  const candidate = client as { actionItemDepartment?: { findMany?: unknown } };
+  return typeof candidate.actionItemDepartment?.findMany === "function";
 }
 
 /** Batch-load junction teams onto action rows (avoids invalid include when client is stale). */
@@ -122,9 +115,9 @@ export async function syncActionItemDepartments(
   if (!hasActionItemDepartmentModel(tx)) return;
 
   const uniqueIds = [...new Set(departmentIds.filter(Boolean))];
-  await tx.actionItemDepartment!.deleteMany({ where: { actionItemId } });
+  await tx.actionItemDepartment.deleteMany({ where: { actionItemId } });
   if (uniqueIds.length === 0) return;
-  await tx.actionItemDepartment!.createMany({
+  await tx.actionItemDepartment.createMany({
     data: uniqueIds.map((departmentId) => ({ actionItemId, departmentId })),
     skipDuplicates: true,
   });

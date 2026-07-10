@@ -20,7 +20,14 @@
    ============================================================ */
 
 @import "tailwindcss/theme.css";
-@import "tailwindcss/utilities.css";
+@import "tailwindcss/utilities.css" source(none);
+
+/* Keep Tailwind's class scanner inside the product code. Automatic discovery
+   from the repository root can walk synced artifacts, reports, and fixtures,
+   which makes local development and production builds nondeterministic. */
+@source "./";
+@source "../components";
+@source "../lib";
 
 @theme {
   /* --- Brand (mapped 1:1 from the legacy --ypp-* values) --- */

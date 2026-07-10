@@ -4,6 +4,7 @@ import {
   CourseFormat,
   GoalRatingColor,
   GoalReviewStatus,
+  GRTemplateStatus,
   InterviewSlotStatus,
   MentorshipGovernanceMode,
   MentorshipProgramGroup,
@@ -12,6 +13,9 @@ import {
   MentorshipRequestVisibility,
   MentorshipSessionType,
   MentorshipStatus,
+  MentorCommitteeLane,
+  MentorCommitteeMemberRole,
+  MenteeRoleType,
   PositionType,
   PrismaClient,
   RoleType,
@@ -297,6 +301,46 @@ async function main() {
     passwordHash,
     roles: [RoleType.MENTOR, RoleType.STAFF],
   });
+  const monthlyFlowMentee = await ensureUser({
+    email: "e2e.mentee.monthly@ypp.test",
+    name: "E2E Monthly Flow Mentee",
+    primaryRole: RoleType.INSTRUCTOR,
+    chapterId: alphaChapter.id,
+    passwordHash,
+    roles: [RoleType.INSTRUCTOR],
+  });
+  const instructorChair = await ensureUser({
+    email: "e2e.chair.instructor@ypp.test",
+    name: "E2E Instructor Role Chair",
+    primaryRole: RoleType.INSTRUCTOR,
+    chapterId: alphaChapter.id,
+    passwordHash,
+    roles: [RoleType.INSTRUCTOR],
+  });
+  const committeeMember = await ensureUser({
+    email: "e2e.committee.instructor@ypp.test",
+    name: "E2E Instructor Committee Member",
+    primaryRole: RoleType.STAFF,
+    chapterId: alphaChapter.id,
+    passwordHash,
+    roles: [RoleType.STAFF],
+  });
+  const capacityInstructor = await ensureUser({
+    email: "e2e.instructor.capacity.alpha@ypp.test",
+    name: "E2E Instructor Capacity",
+    primaryRole: RoleType.INSTRUCTOR,
+    chapterId: alphaChapter.id,
+    passwordHash,
+    roles: [RoleType.INSTRUCTOR],
+  });
+  const quarterlyMentee = await ensureUser({
+    email: "e2e.mentee.quarterly@ypp.test",
+    name: "E2E Quarterly Review Mentee",
+    primaryRole: RoleType.INSTRUCTOR,
+    chapterId: alphaChapter.id,
+    passwordHash,
+    roles: [RoleType.INSTRUCTOR],
+  });
   const student = await ensureUser({
     email: "e2e.student.alpha@ypp.test",
     name: "E2E Student Alpha",
@@ -319,6 +363,11 @@ async function main() {
   await ensureCompletedOnboarding(blockedInstructor.id);
   await ensureCompletedOnboarding(readyInstructor.id);
   await ensureCompletedOnboarding(mentor.id);
+  await ensureCompletedOnboarding(monthlyFlowMentee.id);
+  await ensureCompletedOnboarding(instructorChair.id);
+  await ensureCompletedOnboarding(committeeMember.id);
+  await ensureCompletedOnboarding(capacityInstructor.id);
+  await ensureCompletedOnboarding(quarterlyMentee.id);
   await ensureCompletedOnboarding(student.id);
 
   const instructorPosition = await ensurePosition({
@@ -841,6 +890,130 @@ async function main() {
     },
   });
 
+  // Canonical instructor Role Committee fixtures. The Chair is deliberately
+  // non-admin so approval permissions are exercised exactly as they are in
+  // production. The separate MEMBER account verifies committee packet access.
+  const instructorTrack = await prisma.mentorshipTrack.upsert({
+    where: { slug: "e2e-instructor-development" },
+    create: {
+      slug: "e2e-instructor-development",
+      name: "E2E Instructor Development",
+      description: "Stable end-to-end Mentorship fixture track.",
+      programGroup: MentorshipProgramGroup.INSTRUCTOR,
+      governanceMode: MentorshipGovernanceMode.FULL_PROGRAM,
+      requiresQuarterlyReview: true,
+    },
+    update: {
+      isActive: true,
+      requiresQuarterlyReview: true,
+    },
+  });
+
+  const instructorCommittee =
+    (await prisma.mentorCommittee.findFirst({
+      where: { trackId: instructorTrack.id, name: "E2E Instructor Role Committee" },
+    })) ??
+    (await prisma.mentorCommittee.create({
+      data: {
+        trackId: instructorTrack.id,
+        name: "E2E Instructor Role Committee",
+        description: "Decision group for the E2E instructor mentorship lane.",
+        chairUserId: instructorChair.id,
+      },
+    }));
+
+  await prisma.mentorCommittee.update({
+    where: { id: instructorCommittee.id },
+    data: { chairUserId: instructorChair.id },
+  });
+  await prisma.mentorCommitteeMember.upsert({
+    where: {
+      committeeId_userId: {
+        committeeId: instructorCommittee.id,
+        userId: instructorChair.id,
+      },
+    },
+    create: {
+      committeeId: instructorCommittee.id,
+      userId: instructorChair.id,
+      role: MentorCommitteeMemberRole.CHAIR,
+    },
+    update: { role: MentorCommitteeMemberRole.CHAIR },
+  });
+  await prisma.mentorCommitteeMember.upsert({
+    where: {
+      committeeId_userId: {
+        committeeId: instructorCommittee.id,
+        userId: committeeMember.id,
+      },
+    },
+    create: {
+      committeeId: instructorCommittee.id,
+      userId: committeeMember.id,
+      role: MentorCommitteeMemberRole.MEMBER,
+    },
+    update: { role: MentorCommitteeMemberRole.MEMBER },
+  });
+  await prisma.mentorCommitteeChair.updateMany({
+    where: { roleType: MenteeRoleType.INSTRUCTOR },
+    data: { isActive: false },
+  });
+  await prisma.mentorCommitteeChair.upsert({
+    where: {
+      userId_lane: {
+        userId: instructorChair.id,
+        lane: MentorCommitteeLane.INSTRUCTOR,
+      },
+    },
+    create: {
+      userId: instructorChair.id,
+      lane: MentorCommitteeLane.INSTRUCTOR,
+      roleType: MenteeRoleType.INSTRUCTOR,
+      isActive: true,
+    },
+    update: { roleType: MenteeRoleType.INSTRUCTOR, isActive: true },
+  });
+
+  // Reset only the dedicated monthly-flow subject. Prior relationships remain
+  // immutable history; the UI test creates a new active assignment every run.
+  await prisma.gRDocument.deleteMany({ where: { userId: monthlyFlowMentee.id } });
+  await prisma.mentorship.updateMany({
+    where: { menteeId: monthlyFlowMentee.id, status: MentorshipStatus.ACTIVE },
+    data: { status: MentorshipStatus.COMPLETE, endDate: new Date() },
+  });
+
+  const approvedInstructorTemplate =
+    (await prisma.gRTemplate.findFirst({
+      where: { title: "E2E Instructor Current G&R" },
+    })) ??
+    (await prisma.gRTemplate.create({
+      data: {
+        title: "E2E Instructor Current G&R",
+        roleType: MenteeRoleType.INSTRUCTOR,
+        roleMission: "Create an engaging, measurable learning experience and improve it through evidence.",
+        status: GRTemplateStatus.GR_APPROVED,
+        publishedAt: new Date("2026-03-01T00:00:00.000Z"),
+        createdById: admin.id,
+        lastEditedById: admin.id,
+        goals: {
+          create: {
+            title: "Launch a learner-centered robotics experience",
+            description: "Use learner feedback, delivery evidence, and follow-through to improve the class.",
+            timePhase: "MONTHLY",
+            sortOrder: 1,
+          },
+        },
+      },
+    }));
+  await prisma.gRTemplate.update({
+    where: { id: approvedInstructorTemplate.id },
+    data: {
+      status: GRTemplateStatus.GR_APPROVED,
+      isActive: true,
+      publishedAt: new Date("2026-03-01T00:00:00.000Z"),
+    },
+  });
+
   const staleMentorship =
     (await prisma.mentorship.findFirst({
       where: {
@@ -873,13 +1046,239 @@ async function main() {
       data: {
         mentorId: mentor.id,
         menteeId: readyInstructor.id,
+        chairId: instructorChair.id,
+        trackId: instructorTrack.id,
         type: "INSTRUCTOR",
         programGroup: MentorshipProgramGroup.INSTRUCTOR,
         governanceMode: MentorshipGovernanceMode.FULL_PROGRAM,
         status: MentorshipStatus.ACTIVE,
         startDate: new Date("2026-02-15T12:00:00.000Z"),
+        kickoffCompletedAt: new Date("2026-02-16T12:00:00.000Z"),
       },
     }));
+
+  await prisma.mentorship.update({
+    where: { id: staleMentorship.id },
+    data: { trackId: instructorTrack.id, chairId: instructorChair.id },
+  });
+  await prisma.mentorship.update({
+    where: { id: reviewMentorship.id },
+    data: {
+      trackId: instructorTrack.id,
+      chairId: instructorChair.id,
+      kickoffCompletedAt: new Date("2026-02-16T12:00:00.000Z"),
+    },
+  });
+
+  const readyGRDocument = await prisma.gRDocument.upsert({
+    where: {
+      userId_templateId: {
+        userId: readyInstructor.id,
+        templateId: approvedInstructorTemplate.id,
+      },
+    },
+    create: {
+      userId: readyInstructor.id,
+      mentorshipId: reviewMentorship.id,
+      templateId: approvedInstructorTemplate.id,
+      roleMission: approvedInstructorTemplate.roleMission,
+      roleStartDate: new Date("2026-02-15T12:00:00.000Z"),
+      status: "ACTIVE",
+    },
+    update: {
+      mentorshipId: reviewMentorship.id,
+      status: "ACTIVE",
+    },
+  });
+  const templateGoal = await prisma.gRTemplateGoal.findFirst({
+    where: { templateId: approvedInstructorTemplate.id, isActive: true },
+    orderBy: { sortOrder: "asc" },
+  });
+  if (templateGoal) {
+    const existingReadyGoal = await prisma.gRDocumentGoal.findFirst({
+      where: { documentId: readyGRDocument.id, templateGoalId: templateGoal.id },
+      select: { id: true },
+    });
+    if (existingReadyGoal) {
+      await prisma.gRDocumentGoal.update({
+        where: { id: existingReadyGoal.id },
+        data: {
+          title: templateGoal.title,
+          description: templateGoal.description,
+        },
+      });
+    } else {
+      await prisma.gRDocumentGoal.create({
+        data: {
+        documentId: readyGRDocument.id,
+        templateGoalId: templateGoal.id,
+        title: templateGoal.title,
+        description: templateGoal.description,
+        timePhase: templateGoal.timePhase,
+        sortOrder: templateGoal.sortOrder,
+        },
+      });
+    }
+  }
+
+  const capacityMentorship =
+    (await prisma.mentorship.findFirst({
+      where: {
+        mentorId: mentor.id,
+        menteeId: capacityInstructor.id,
+        status: MentorshipStatus.ACTIVE,
+      },
+    })) ??
+    (await prisma.mentorship.create({
+      data: {
+        mentorId: mentor.id,
+        menteeId: capacityInstructor.id,
+        chairId: instructorChair.id,
+        trackId: instructorTrack.id,
+        type: "INSTRUCTOR",
+        programGroup: MentorshipProgramGroup.INSTRUCTOR,
+        governanceMode: MentorshipGovernanceMode.FULL_PROGRAM,
+        status: MentorshipStatus.ACTIVE,
+        startDate: new Date("2026-02-20T12:00:00.000Z"),
+        kickoffCompletedAt: new Date("2026-02-21T12:00:00.000Z"),
+      },
+    }));
+  await prisma.mentorship.update({
+    where: { id: capacityMentorship.id },
+    data: { trackId: instructorTrack.id, chairId: instructorChair.id },
+  });
+
+  const quarterlyMentorship =
+    (await prisma.mentorship.findFirst({
+      where: {
+        mentorId: mentor.id,
+        menteeId: quarterlyMentee.id,
+        status: MentorshipStatus.ACTIVE,
+      },
+    })) ??
+    (await prisma.mentorship.create({
+      data: {
+        mentorId: mentor.id,
+        menteeId: quarterlyMentee.id,
+        chairId: instructorChair.id,
+        trackId: instructorTrack.id,
+        type: "INSTRUCTOR",
+        programGroup: MentorshipProgramGroup.INSTRUCTOR,
+        governanceMode: MentorshipGovernanceMode.FULL_PROGRAM,
+        status: MentorshipStatus.ACTIVE,
+        startDate: new Date("2026-03-01T12:00:00.000Z"),
+        kickoffCompletedAt: new Date("2026-03-02T12:00:00.000Z"),
+      },
+    }));
+  await prisma.mentorship.update({
+    where: { id: quarterlyMentorship.id },
+    data: {
+      trackId: instructorTrack.id,
+      chairId: instructorChair.id,
+      kickoffCompletedAt: new Date("2026-03-02T12:00:00.000Z"),
+      cycleStage: "APPROVED",
+    },
+  });
+
+  const quarterlyGRDocument = await prisma.gRDocument.upsert({
+    where: {
+      userId_templateId: {
+        userId: quarterlyMentee.id,
+        templateId: approvedInstructorTemplate.id,
+      },
+    },
+    create: {
+      userId: quarterlyMentee.id,
+      mentorshipId: quarterlyMentorship.id,
+      templateId: approvedInstructorTemplate.id,
+      roleMission: approvedInstructorTemplate.roleMission,
+      roleStartDate: new Date("2026-03-01T12:00:00.000Z"),
+      status: "ACTIVE",
+    },
+    update: { mentorshipId: quarterlyMentorship.id, status: "ACTIVE" },
+  });
+  if (templateGoal) {
+    const quarterlyGoal = await prisma.gRDocumentGoal.findFirst({
+      where: { documentId: quarterlyGRDocument.id, templateGoalId: templateGoal.id },
+      select: { id: true },
+    });
+    if (!quarterlyGoal) {
+      await prisma.gRDocumentGoal.create({
+        data: {
+          documentId: quarterlyGRDocument.id,
+          templateGoalId: templateGoal.id,
+          title: templateGoal.title,
+          description: templateGoal.description,
+          timePhase: templateGoal.timePhase,
+          sortOrder: templateGoal.sortOrder,
+          progressState: "IN_PROGRESS",
+        },
+      });
+    }
+  }
+
+  const quarterlyMonths = [
+    new Date("2026-04-01T00:00:00.000Z"),
+    new Date("2026-05-01T00:00:00.000Z"),
+    new Date("2026-06-01T00:00:00.000Z"),
+  ];
+  for (const [index, month] of quarterlyMonths.entries()) {
+    const cycleNumber = index + 1;
+    const reflection = await prisma.monthlySelfReflection.upsert({
+      where: {
+        mentorshipId_cycleNumber: {
+          mentorshipId: quarterlyMentorship.id,
+          cycleNumber,
+        },
+      },
+      create: {
+        mentorshipId: quarterlyMentorship.id,
+        menteeId: quarterlyMentee.id,
+        cycleMonth: month,
+        cycleNumber,
+        overallReflection: `Cycle ${cycleNumber}: delivery became more learner-centered and measurable.`,
+        engagementOverall: "Engaged and supported.",
+        workingWell: "Student feedback and lesson iteration.",
+        supportNeeded: "Continue observing learner outcomes.",
+        mentorHelpfulness: "Specific and useful.",
+        collaborationAssessment: "Strong collaboration.",
+        teamMembersAboveAndBeyond: "The mentor supported evidence review.",
+        collaborationImprovements: "Keep decisions documented.",
+        additionalReflections: "Ready for committee synthesis.",
+      },
+      update: { cycleMonth: month },
+    });
+    await prisma.mentorGoalReview.upsert({
+      where: { selfReflectionId: reflection.id },
+      create: {
+        mentorId: mentor.id,
+        menteeId: quarterlyMentee.id,
+        mentorshipId: quarterlyMentorship.id,
+        selfReflectionId: reflection.id,
+        cycleMonth: month,
+        cycleNumber,
+        isQuarterly: cycleNumber === 3,
+        overallRating: cycleNumber === 1 ? GoalRatingColor.GETTING_STARTED : GoalRatingColor.ACHIEVED,
+        overallComments: `Cycle ${cycleNumber} shows clear evidence of learner-centered improvement.`,
+        planOfAction: "Continue the strongest practices and measure the next learner outcome.",
+        status: GoalReviewStatus.APPROVED,
+        chairReviewerId: instructorChair.id,
+        chairApprovedAt: new Date(month.getTime() + 15 * 24 * 60 * 60 * 1000),
+        releasedToMenteeAt: new Date(month.getTime() + 15 * 24 * 60 * 60 * 1000),
+        pointsAwarded: 50,
+      },
+      update: {
+        cycleMonth: month,
+        cycleNumber,
+        isQuarterly: cycleNumber === 3,
+        status: GoalReviewStatus.APPROVED,
+        chairReviewerId: instructorChair.id,
+        chairApprovedAt: new Date(month.getTime() + 15 * 24 * 60 * 60 * 1000),
+        releasedToMenteeAt: new Date(month.getTime() + 15 * 24 * 60 * 60 * 1000),
+        pointsAwarded: 50,
+      },
+    });
+  }
 
   const staleSession = await prisma.mentorshipSession.findFirst({
     where: {
@@ -1108,6 +1507,10 @@ async function main() {
   console.log("Portal E2E seed ready.");
   console.log(`Admin login: e2e.admin@ypp.test / ${E2E_PASSWORD}`);
   console.log(`Chapter Lead login: e2e.chapter.lead.alpha@ypp.test / ${E2E_PASSWORD}`);
+  console.log(`Monthly mentee login: e2e.mentee.monthly@ypp.test / ${E2E_PASSWORD}`);
+  console.log(`Mentor login: e2e.mentor.alpha@ypp.test / ${E2E_PASSWORD}`);
+  console.log(`Instructor Role Chair login: e2e.chair.instructor@ypp.test / ${E2E_PASSWORD}`);
+  console.log(`Committee member login: e2e.committee.instructor@ypp.test / ${E2E_PASSWORD}`);
 }
 
 main()

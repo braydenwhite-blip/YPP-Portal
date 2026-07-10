@@ -77,7 +77,7 @@ function RosterRow({ mentee }: { mentee: RosterMentee }) {
       <div style={{ minWidth: 0, display: "grid", gap: 7 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
           <Link
-            href={`/people/${mentee.menteeId}`}
+            href={`/mentorship/people/${mentee.menteeId}`}
             style={{
               fontSize: 15,
               fontWeight: 600,

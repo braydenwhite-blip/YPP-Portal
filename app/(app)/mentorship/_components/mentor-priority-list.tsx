@@ -213,7 +213,7 @@ function MentorRow({
           }}
         >
           <Link
-            href={`/people/${card.menteeId}`}
+            href={`/mentorship/people/${card.menteeId}`}
             style={{
               fontSize: 15,
               fontWeight: 600,

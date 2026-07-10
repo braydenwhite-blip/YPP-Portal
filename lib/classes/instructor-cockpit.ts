@@ -1,4 +1,8 @@
 import "server-only";
+import type {
+  ClassEnrollmentStatus,
+  RegularInstructorAssignmentStatus,
+} from "@prisma/client";
 
 // Class Runtime OS (Phase 5) — the Instructor Cockpit loader. Gathers the
 // classes a person teaches (lead instructor OR confirmed co-instructor), maps
@@ -28,9 +32,16 @@ import {
   type InstructorCockpit,
 } from "@/lib/classes/cockpit";
 
-const CONFIRMED_RIA = ["INSTRUCTOR_CONFIRMED", "CHAPTER_CONFIRMED", "FULLY_CONFIRMED"];
-const NOT_READY_RIA = ["NEEDS_TRAINING", "NEEDS_CURRICULUM"];
-const ACTIVE_ENROLLMENT = ["ENROLLED", "COMPLETED"];
+const CONFIRMED_RIA: RegularInstructorAssignmentStatus[] = [
+  "INSTRUCTOR_CONFIRMED",
+  "CHAPTER_CONFIRMED",
+  "FULLY_CONFIRMED",
+];
+const NOT_READY_RIA: RegularInstructorAssignmentStatus[] = [
+  "NEEDS_TRAINING",
+  "NEEDS_CURRICULUM",
+];
+const ACTIVE_ENROLLMENT: ClassEnrollmentStatus[] = ["ENROLLED", "COMPLETED"];
 
 // The shape we select for an offering. Hand-typed so the mappers stay
 // prisma-generation-independent (the client isn't always generated locally).

@@ -4,6 +4,8 @@ import { getChapterSettings } from "@/lib/chapter-settings-actions";
 import { getJoinRequests } from "@/lib/chapter-join-actions";
 import { ChapterSettingsForm } from "./chapter-settings-form";
 import { JoinRequestsPanel } from "./join-requests-panel";
+import { prisma } from "@/lib/prisma";
+import { ChapterOperationsTargetsForm } from "@/components/chapters/chapter-operations-targets-form";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,8 @@ export default async function ChapterSettingsPage() {
     getChapterSettings(),
     getJoinRequests(),
   ]);
+  const operationsTargets = await prisma.chapterOperationsTarget.findUnique({ where: { chapterId: settings.id } });
+  const targets = operationsTargets ?? { activeStudentsTarget: 80, activeInstructorsTarget: 15, instructorPipelineTarget: 30, activePartnersTarget: 8, classesRunningTarget: 8 };
 
   return (
     <main className="main-content">
@@ -28,6 +32,7 @@ export default async function ChapterSettingsPage() {
         <ChapterSettingsForm settings={settings} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <ChapterOperationsTargetsForm chapterId={settings.id} targets={targets} />
           {/* Onboarding Settings Link */}
           <Link
             href="/chapter/settings/onboarding"

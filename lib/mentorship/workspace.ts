@@ -11,6 +11,7 @@ import {
 import { loadPersonGrowthTimeline } from "@/lib/growth/queries";
 import { mentorshipRequiresChairApproval } from "@/lib/mentorship-canonical";
 import {
+  computeCycleStage,
   getCurrentCycleMonth,
   getReflectionSoftDeadline,
 } from "@/lib/mentorship-cycle";
@@ -128,6 +129,8 @@ export type MentorshipWorkspace = {
   /** The viewer's lifecycle point of view — drives every next-action verb. */
   pov: LifecyclePov;
   canRecordCheckIn: boolean;
+  /** Authorized to repair relationship, G&R, and Role Chair setup. */
+  canManageSetup: boolean;
   /** What this viewer can actually do — drives which panels/controls render. */
   capabilities: ReviewCapabilities;
   activeMentorshipId: string | null;
@@ -237,9 +240,12 @@ type WorkspaceAccess = {
   isMentor: boolean;
   /** The assigned chair on the active pairing — the review's approver. */
   isChair: boolean;
+  /** An active Role Committee member for this mentorship's program group. */
+  isCommitteeMember: boolean;
   /** @deprecated use isMentor / isChair — kept for existing call sites that only need "owns this pairing at all". */
   ownsRelationship: boolean;
   canRecordCheckIn: boolean;
+  canManageSetup: boolean;
   capabilities: ReviewCapabilities;
   activeMentorship: {
     id: string;
@@ -298,11 +304,24 @@ export async function resolveWorkspaceAccess(
     ? await isChairForLane(viewer.id, laneRoleType, viewer.adminSubtypes)
     : false;
   const isChair = isChairOfPairing || isLaneChair;
+  const isCommitteeMember = activeMentorship
+    ? Boolean(
+        await prisma.mentorCommitteeMember.findFirst({
+          where: {
+            userId: viewer.id,
+            committee: {
+              track: { programGroup: activeMentorship.programGroup as never },
+            },
+          },
+          select: { id: true },
+        })
+      )
+    : false;
   const ownsRelationship = isMentor || isChair;
 
   // Restricted to the assigned owner: admin, leadership/board, the mentor/chair
   // on the active pairing, or the person themselves. (No chapter-wide access.)
-  const hasAccess = isAdmin || leadership || ownsRelationship || isSelf;
+  const hasAccess = isAdmin || leadership || ownsRelationship || isCommitteeMember || isSelf;
   if (!hasAccess) return null;
 
   // A viewer's OWN record is always the relationship tier — never expose one's
@@ -311,6 +330,7 @@ export async function resolveWorkspaceAccess(
 
   const canRecordCheckIn =
     !!activeMentorship && (isAdmin || (leadership && !isSelf) || ownsRelationship || isSelf);
+  const canManageSetup = isAdmin || leadership;
 
   const capabilities = deriveReviewCapabilities({
     isSelf,
@@ -318,6 +338,7 @@ export async function resolveWorkspaceAccess(
     isMentor,
     isChair,
     isLeadership: leadership && !isSelf,
+    isCommitteeMember,
     canRecordCheckIn,
   });
 
@@ -328,8 +349,10 @@ export async function resolveWorkspaceAccess(
     isLeadership: leadership && !isSelf,
     isMentor,
     isChair,
+    isCommitteeMember,
     ownsRelationship,
     canRecordCheckIn,
+    canManageSetup,
     capabilities,
     activeMentorship,
   };
@@ -363,8 +386,17 @@ export async function loadMentorshipWorkspace(
   // themselves. An assigned mentor/chair sees only the pairing they own, so a
   // prior mentor's private notes never surface to a later one.
   const isFullScope = isLeadership || access.isAdmin || access.isSelf;
+  const isCommitteeOnly =
+    access.isCommitteeMember &&
+    !access.isAdmin &&
+    !access.isLeadership &&
+    !access.isMentor &&
+    !access.isChair &&
+    !access.isSelf;
   const checkInWhere =
-    isFullScope || !access.activeMentorship
+    isCommitteeOnly
+      ? { id: { in: [] as string[] } }
+      : isFullScope || !access.activeMentorship
       ? { OR: [{ subjectId: personId }, { mentorship: { menteeId: personId } }] }
       : { mentorshipId: access.activeMentorship.id };
 
@@ -381,6 +413,8 @@ export async function loadMentorshipWorkspace(
     sessions,
     growthTimeline,
     feedbackRequestRows,
+    activeCycleReflection,
+    roleChair,
   ] = await Promise.all([
     prisma.mentorshipCheckIn.findMany({
       where: checkInWhere,
@@ -489,6 +523,35 @@ export async function loadMentorshipWorkspace(
       },
       select: { submittedAt: true, dueAt: true },
     }),
+    access.activeMentorship
+      ? prisma.monthlySelfReflection.findFirst({
+          where: { mentorshipId: access.activeMentorship.id },
+          orderBy: { cycleNumber: "desc" },
+          select: {
+            id: true,
+            cycleNumber: true,
+            cycleMonth: true,
+            mentorCycleCheckIn: { select: { id: true } },
+            goalReview: {
+              select: {
+                status: true,
+                cycleNumber: true,
+                cycleMonth: true,
+                releasedToMenteeAt: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve(null),
+    (() => {
+      const laneRoleType = toMenteeRoleType(person.primaryRole);
+      return laneRoleType
+        ? prisma.mentorCommitteeChair.findFirst({
+            where: { roleType: laneRoleType, isActive: true },
+            select: { user: { select: { name: true, email: true } } },
+          })
+        : Promise.resolve(null);
+    })(),
   ]);
 
   // Leadership-only enrichments — the confidential record, review cycles, and
@@ -702,9 +765,33 @@ export async function loadMentorshipWorkspace(
   }));
 
   // --- The canonical lifecycle snapshot + next action ---
+  // Derive the live stage from the actual reflection/review artifacts instead
+  // of trusting the denormalized Mentorship.cycleStage. The stored column is a
+  // queue optimization and may be stale after imports or repairs; this
+  // workspace is the source users act on, so it must always show live truth.
+  const effectiveCycleStage = access.activeMentorship
+    ? computeCycleStage({
+        mentorship: {
+          status: access.activeMentorship.status as never,
+          kickoffCompletedAt: access.activeMentorship.kickoffCompletedAt,
+        },
+        latestReflection: activeCycleReflection,
+        latestReview: activeCycleReflection?.goalReview ?? null,
+        currentCycleMonth: cycleMonth,
+      })
+    : null;
+  const mentorCheckInComplete = Boolean(
+    activeCycleReflection?.mentorCycleCheckIn || activeCycleReflection?.goalReview
+  );
+  const lifecycleCycleLabel = activeCycleReflection
+    ? activeCycleReflection.cycleMonth.toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : cycleLabel;
   const reflectionOverdue =
-    access.activeMentorship?.cycleStage === "REFLECTION_DUE" &&
-    now > getReflectionSoftDeadline(cycleMonth);
+    effectiveCycleStage === "REFLECTION_DUE" && now > getReflectionSoftDeadline(cycleMonth);
 
   const commentsRequested = feedbackRequestRows.length;
   const commentsSubmitted = feedbackRequestRows.filter((r) => r.submittedAt != null).length;
@@ -719,7 +806,7 @@ export async function loadMentorshipWorkspace(
   let quarterlyDue = false;
   let quarterlyStatus: LifecycleSnapshot["quarterlyStatus"] = null;
   let quarterlyRequiresBoardApproval = false;
-  if (access.activeMentorship && access.activeMentorship.cycleStage === "APPROVED") {
+  if (access.activeMentorship && effectiveCycleStage === "APPROVED") {
     const latestApproved = await prisma.mentorGoalReview.findFirst({
       where: {
         mentorshipId: access.activeMentorship.id,
@@ -742,13 +829,21 @@ export async function loadMentorshipWorkspace(
     hasActiveMentorship: !!access.activeMentorship,
     mentorshipStatus: access.activeMentorship?.status ?? latestMentorshipAnyStatus?.status ?? null,
     kickoffComplete: !!access.activeMentorship?.kickoffCompletedAt,
-    cycleStage: (access.activeMentorship?.cycleStage ?? null) as LifecycleSnapshot["cycleStage"],
+    cycleStage: effectiveCycleStage as LifecycleSnapshot["cycleStage"],
     mentorName:
       access.activeMentorship?.mentor.name ||
       access.activeMentorship?.mentor.email ||
       null,
+    chairName:
+      access.activeMentorship?.chair?.name ||
+      access.activeMentorship?.chair?.email ||
+      roleChair?.user.name ||
+      roleChair?.user.email ||
+      null,
     grDocStatus,
-    cycleLabel,
+    cycleLabel: lifecycleCycleLabel,
+    activeReflectionId: activeCycleReflection?.id ?? null,
+    mentorCheckInComplete,
     reflectionOverdue: !!reflectionOverdue,
     releasedReviewPendingAck: !!latestReleasedReview && !latestReleasedReview.reviewAck,
     requiresChairApproval: access.activeMentorship
@@ -757,6 +852,7 @@ export async function loadMentorshipWorkspace(
           programGroup: access.activeMentorship.programGroup as never,
         })
       : true,
+    hasRoleChair: Boolean(roleChair),
     overdueFollowUpLabel:
       followUpIsOverdue && latestWithFollowUp?.followUpDate
         ? `Follow-up was due ${dateLabel(latestWithFollowUp.followUpDate)}`
@@ -781,6 +877,8 @@ export async function loadMentorshipWorkspace(
     ? "me"
     : access.isMentor
       ? "mentor"
+      : access.isCommitteeMember && !access.isChair && !access.isLeadership
+        ? "committee"
       : "leadership"; // covers the assigned chair and any other leadership-tier viewer
   const personName = person.name || person.email;
   const nextAction = deriveNextAction(
@@ -833,6 +931,7 @@ export async function loadMentorshipWorkspace(
     isSelf: access.isSelf,
     pov,
     canRecordCheckIn: access.canRecordCheckIn,
+    canManageSetup: access.canManageSetup,
     capabilities: access.capabilities,
     activeMentorshipId: access.activeMentorship?.id ?? null,
     participantOptions,

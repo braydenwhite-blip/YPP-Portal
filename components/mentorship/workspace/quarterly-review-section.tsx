@@ -21,7 +21,8 @@ function formatMonth(value: Date) {
  * The Quarterly Committee Review packet — dominates the Reviews section once
  * every 3rd cycle's monthly review is released, until the committee's
  * Pathway Decision (if any) is fully approved. Renders on /people/[id]
- * itself; there is no separate quarterly-review page for a single person.
+ * itself in the canonical Mentorship person workspace; there is no separate
+ * quarterly-review page for a single person.
  */
 export async function QuarterlyReviewSection({ workspace }: { workspace: MentorshipWorkspace }) {
   const { lifecycle, capabilities, person, activeMentorshipId } = workspace;

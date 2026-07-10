@@ -38,11 +38,15 @@ function todayValue(): string {
 export function CheckInComposer({
   subjectId,
   mentorshipId,
+  selfReflectionId,
+  cycleLabel,
   participantOptions,
   personName,
 }: {
   subjectId: string;
   mentorshipId: string;
+  selfReflectionId?: string | null;
+  cycleLabel?: string | null;
   participantOptions: Participant[];
   personName: string;
 }) {
@@ -51,6 +55,7 @@ export function CheckInComposer({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const isCycleCheckIn = Boolean(selfReflectionId);
   const [kind, setKind] = useState<"CHECK_IN" | "MEETING" | "CONVERSATION">("CHECK_IN");
   const [occurredAt, setOccurredAt] = useState(todayValue);
   const [participants, setParticipants] = useState<string[]>(
@@ -96,7 +101,8 @@ export function CheckInComposer({
     const input: RecordCheckInInput = {
       subjectId,
       mentorshipId,
-      kind,
+      selfReflectionId: selfReflectionId ?? undefined,
+      kind: isCycleCheckIn ? "CHECK_IN" : kind,
       occurredAt: occurredAt || undefined,
       participantIds: participants,
       wins,
@@ -122,7 +128,7 @@ export function CheckInComposer({
   return (
     <>
       <Button variant="primary" size="sm" onClick={() => setOpen(true)}>
-        Log check-in
+        {isCycleCheckIn ? "Record Mentor Check-in" : "Log check-in"}
       </Button>
 
       <ModalV2
@@ -137,11 +143,12 @@ export function CheckInComposer({
             id="checkin-composer-title"
             className="m-0 text-[16px] font-bold text-ink"
           >
-            Log a check-in with {personName}
+            {isCycleCheckIn ? "Record Mentor Check-in" : `Log a check-in with ${personName}`}
           </h2>
           <p className="m-0 mt-1 text-[13px] text-ink-muted">
-            One record for the whole conversation — it joins the timeline. Set a
-            follow-up date to keep the next step on the radar.
+            {isCycleCheckIn
+              ? `Discuss ${personName}'s ${cycleLabel ?? "current"} reflection, capture the conversation, and agree on the next step before writing the Monthly Progress Update.`
+              : "One record for the whole conversation — it joins the timeline. Set a follow-up date to keep the next step on the radar."}
           </p>
         </div>
 
@@ -150,8 +157,9 @@ export function CheckInComposer({
             <span className={fieldLabel}>Type</span>
             <select
               className={fieldInput}
-              value={kind}
+              value={isCycleCheckIn ? "CHECK_IN" : kind}
               onChange={(e) => setKind(e.target.value as typeof kind)}
+              disabled={isCycleCheckIn}
             >
               {KINDS.map((k) => (
                 <option key={k.value} value={k.value}>
@@ -245,7 +253,7 @@ export function CheckInComposer({
             Cancel
           </Button>
           <Button variant="primary" size="sm" onClick={submit} loading={pending}>
-            Save check-in
+            {isCycleCheckIn ? "Complete Mentor Check-in" : "Save check-in"}
           </Button>
         </ModalFooterV2>
       </ModalV2>

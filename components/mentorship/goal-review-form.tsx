@@ -381,16 +381,16 @@ export function GoalReviewForm({
         await saveGoalReview(fd);
         setSuccess(
           submitForApproval
-            ? `Submitted for chair approval. ${menteeName} will see the released review once approved.`
+            ? `Submitted for chair approval. ${menteeName} will see the Monthly Progress Update once approved.`
             : "Draft saved."
         );
         if (submitForApproval) {
-          setTimeout(() => router.push(`/people/${menteeId}?section=review`), 1200);
+          setTimeout(() => router.push(`/mentorship/people/${menteeId}?section=reviews`), 1200);
         } else {
           router.refresh();
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to save review");
+        setError(err instanceof Error ? err.message : "Failed to save Monthly Progress Update");
       }
     });
   }
@@ -416,28 +416,21 @@ export function GoalReviewForm({
         </div>
       )}
 
-      {/* Live award preview */}
-      <section className="card" style={{ padding: "1rem 1.1rem", borderLeft: "4px solid #f59e0b", background: "linear-gradient(135deg, #fffbeb 0%, #fefce8 100%)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <strong style={{ fontSize: "0.95rem" }}>Live award preview</strong>
-            <p className="muted" style={{ margin: "4px 0 0", fontSize: "0.78rem" }}>Updates as you change settings.</p>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: "1.6rem", fontWeight: 700, color: "#92400e" }}>+{projection.cyclePoints}</div>
-            <div className="muted" style={{ fontSize: "0.72rem" }}>{projection.base} base + {projection.bonus} bonus</div>
-          </div>
-        </div>
-      </section>
-
       {hasReflection && goals.length > 0 && (
-        <AiCoachingSidebar
-          reflectionId={reflectionId}
-          goals={goals.map((g) => ({ id: g.id, title: g.title }))}
-          onApplyComment={handleApplyComment}
-          onApplyRating={handleApplyRating}
-          onApplyAll={handleApplyAll}
-        />
+        <details className="rounded-xl border border-line-soft bg-surface px-4 py-3">
+          <summary className="cursor-pointer text-[13px] font-semibold text-ink">
+            Drafting assistance <span className="font-normal text-ink-muted">(optional)</span>
+          </summary>
+          <div className="mt-3 border-t border-line-soft pt-3">
+            <AiCoachingSidebar
+              reflectionId={reflectionId}
+              goals={goals.map((g) => ({ id: g.id, title: g.title }))}
+              onApplyComment={handleApplyComment}
+              onApplyRating={handleApplyRating}
+              onApplyAll={handleApplyAll}
+            />
+          </div>
+        </details>
       )}
       {!hasReflection && goals.length > 0 && (
         <NudgePanel reflectionId={reflectionId} menteeName={menteeName} />
@@ -470,6 +463,47 @@ export function GoalReviewForm({
                     </button>
                   ))}
                 </div>
+                {g.grDocumentGoalId ? (
+                  <div className="mt-3 grid gap-3 border-t border-line-soft pt-3 sm:grid-cols-2">
+                    <label className="grid gap-1 text-[12px] font-semibold text-ink-muted">
+                      Progress after release
+                      <select
+                        aria-label={`Progress after release for ${g.title}`}
+                        value={grProgressStates[g.grDocumentGoalId] ?? "NOT_STARTED"}
+                        onChange={(event) =>
+                          setGrProgressStates((currentStates) => ({
+                            ...currentStates,
+                            [g.grDocumentGoalId!]: event.target.value,
+                          }))
+                        }
+                        className="rounded-lg border border-line-soft bg-surface px-3 py-2 text-[13px] font-normal text-ink"
+                      >
+                        <option value="NOT_STARTED">Not started</option>
+                        <option value="IN_PROGRESS">In progress</option>
+                        <option value="BLOCKED">Blocked</option>
+                        <option value="DONE">Done</option>
+                      </select>
+                    </label>
+                    <label className="grid gap-1 text-[12px] font-semibold text-ink-muted">
+                      Goal after release
+                      <select
+                        aria-label={`Goal after release for ${g.title}`}
+                        value={grLifecycleStatuses[g.grDocumentGoalId] ?? "ACTIVE"}
+                        onChange={(event) =>
+                          setGrLifecycleStatuses((currentStatuses) => ({
+                            ...currentStatuses,
+                            [g.grDocumentGoalId!]: event.target.value,
+                          }))
+                        }
+                        className="rounded-lg border border-line-soft bg-surface px-3 py-2 text-[13px] font-normal text-ink"
+                      >
+                        <option value="ACTIVE">Keep active</option>
+                        <option value="COMPLETED">Complete</option>
+                        <option value="ARCHIVED">Archive</option>
+                      </select>
+                    </label>
+                  </div>
+                ) : null}
               </div>
             );
           })}
@@ -514,7 +548,25 @@ export function GoalReviewForm({
 
       {/* Summary Form Block */}
       <section className="card">
-        <div className="section-title">Overall Review Comments</div>
+        <div className="section-title">Overall rating</div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {RATINGS.map((rating) => (
+            <button
+              key={rating.value}
+              type="button"
+              aria-pressed={overallRating === rating.value}
+              onClick={() => setOverallRating(rating.value)}
+              className={
+                overallRating === rating.value
+                  ? "rounded-full border border-brand-600 bg-brand-600 px-3 py-1.5 text-[12.5px] font-semibold text-white"
+                  : "rounded-full border border-line-soft bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-ink"
+              }
+            >
+              {rating.label}
+            </button>
+          ))}
+        </div>
+        <div className="section-title mt-4">Monthly Progress Update summary</div>
         <textarea
           value={overallComments}
           onChange={(e) => setOverallComments(e.target.value)}

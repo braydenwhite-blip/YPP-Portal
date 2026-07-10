@@ -22,6 +22,7 @@ const structuredText = z.preprocess(
 export const RecordCheckInSchema = z.object({
   subjectId: z.string().min(1),
   mentorshipId: z.string().min(1),
+  selfReflectionId: z.string().min(1).optional(),
   kind: z.enum(CHECK_IN_KINDS).default("CHECK_IN"),
   occurredAt: z.coerce.date().optional(),
   participantIds: z.array(z.string().min(1)).default([]),
@@ -43,6 +44,7 @@ export type ParsedCheckIn = z.infer<typeof RecordCheckInSchema>;
 export interface RecordCheckInInput {
   subjectId: string;
   mentorshipId: string;
+  selfReflectionId?: string;
   kind?: CheckInKind;
   occurredAt?: string;
   participantIds?: string[];

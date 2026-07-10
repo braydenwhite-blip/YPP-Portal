@@ -76,7 +76,7 @@ export function OverviewSection({
   /** Host-supplied extras (leadership controls, self help card) render at the end. */
   children?: React.ReactNode;
 }) {
-  const { overview, relationships, goals, checkIns, nextAction, lifecycle } = workspace;
+  const { overview, relationships, goals, checkIns, lifecycle } = workspace;
   const concerns =
     overview.record?.signals.filter((s) => s.lane === "concern") ?? [];
   const openCommitments = workspace.commitments.filter((c) => !c.completed);
@@ -94,39 +94,6 @@ export function OverviewSection({
             </StatusBadge>
           ))}
         </div>
-
-        {nextAction.href || nextAction.reason ? (
-          <div
-            className={cn(
-              "flex flex-col gap-3 rounded-[12px] border p-4 sm:flex-row sm:items-center sm:justify-between",
-              nextAction.urgent
-                ? "border-warning-700/40 bg-warning-700/5"
-                : "border-brand-200 bg-brand-50/50"
-            )}
-          >
-            <div className="min-w-0">
-              <p className="m-0 text-[11px] font-bold uppercase tracking-[0.1em] text-brand-700">
-                What happens next
-              </p>
-              <p className="m-0 mt-1 text-[14px] font-semibold text-ink">{nextAction.label}</p>
-              {nextAction.reason ? (
-                <p className="m-0 mt-0.5 text-[12.5px] text-ink-muted">{nextAction.reason}</p>
-              ) : null}
-            </div>
-            {nextAction.href ? (
-              <ButtonLink href={nextAction.href} variant="primary" size="sm">
-                Go →
-              </ButtonLink>
-            ) : null}
-          </div>
-        ) : (
-          <p className="m-0 text-[13.5px] font-semibold text-ink">
-            {nextAction.label}
-            {nextAction.reason ? (
-              <span className="font-normal text-ink-muted"> · {nextAction.reason}</span>
-            ) : null}
-          </p>
-        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <FieldBlock
@@ -282,6 +249,12 @@ export function CheckInsSection({
             <CheckInComposer
               subjectId={workspace.person.id}
               mentorshipId={workspace.activeMentorshipId}
+              selfReflectionId={
+                workspace.nextAction.key === "record-mentor-check-in"
+                  ? workspace.lifecycle.activeReflectionId
+                  : null
+              }
+              cycleLabel={workspace.lifecycle.cycleLabel}
               participantOptions={workspace.participantOptions}
               personName={workspace.person.name}
             />

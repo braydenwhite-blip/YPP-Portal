@@ -122,6 +122,33 @@ export async function recordCheckIn(input: RecordCheckInInput) {
     throw new Error("You don't have access to record a check-in for this person.");
   }
 
+  // A cycle-bound Mentor Check-in is a lifecycle artifact, not a private
+  // self-note. Validate that it belongs to this pairing and that the assigned
+  // mentor (or authorized leadership) is the person recording it.
+  if (data.selfReflectionId) {
+    const reflection = await prisma.monthlySelfReflection.findUnique({
+      where: { id: data.selfReflectionId },
+      select: {
+        mentorshipId: true,
+        menteeId: true,
+        mentorCycleCheckIn: { select: { id: true } },
+      },
+    });
+    if (
+      !reflection ||
+      reflection.mentorshipId !== mentorship.id ||
+      reflection.menteeId !== mentorship.menteeId
+    ) {
+      throw new Error("This reflection does not belong to the active mentorship.");
+    }
+    if (reflection.mentorCycleCheckIn) {
+      throw new Error("The Mentor Check-in for this cycle has already been recorded.");
+    }
+    if (isSubject && !isAdmin) {
+      throw new Error("The assigned mentor records the monthly Mentor Check-in.");
+    }
+  }
+
   // Participants are restricted to the relationship's members + the author, so a
   // conversation record can never surface content to a non-participant.
   const allowedParticipants = new Set(
@@ -140,6 +167,7 @@ export async function recordCheckIn(input: RecordCheckInInput) {
       subjectId: data.subjectId,
       mentorshipId: data.mentorshipId,
       authorId: viewer.id,
+      selfReflectionId: data.selfReflectionId ?? null,
       kind: data.kind,
       notes: composeNotesSummary(data),
       rating: data.rating ?? null,
@@ -191,11 +219,12 @@ export async function recordCheckIn(input: RecordCheckInInput) {
       body: `${viewer.name ?? "Your mentor"} logged a ${kindLabel(
         data.kind
       ).toLowerCase()} for you.`,
-      link: `/people/${data.subjectId}?section=check-ins`,
+      link: `/mentorship/people/${data.subjectId}?section=check-ins`,
     }).catch(() => {});
   }
 
   revalidatePath("/mentorship");
   revalidatePath(`/people/${data.subjectId}`);
+  revalidatePath(`/mentorship/people/${data.subjectId}`);
   return { ok: true as const, checkInId: checkIn.id };
 }

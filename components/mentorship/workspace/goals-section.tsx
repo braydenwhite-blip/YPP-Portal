@@ -38,6 +38,12 @@ const RATING_TONE: Record<string, StatusTone> = {
   GETTING_STARTED: "warning",
   BEHIND_SCHEDULE: "danger",
 };
+const PROGRESS_LABELS: Record<string, string> = {
+  NOT_STARTED: "Not started",
+  IN_PROGRESS: "In progress",
+  BLOCKED: "Blocked",
+  DONE: "Done",
+};
 
 export async function MenteeGoalsSection({
   workspace,
@@ -124,6 +130,19 @@ export async function MenteeGoalsSection({
             {goal.title}
           </h3>
           <div className="flex items-center gap-2">
+            <StatusBadge
+              tone={
+                goal.progressState === "DONE"
+                  ? "success"
+                  : goal.progressState === "BLOCKED"
+                    ? "danger"
+                    : goal.progressState === "IN_PROGRESS"
+                      ? "info"
+                      : "neutral"
+              }
+            >
+              {PROGRESS_LABELS[goal.progressState] ?? goal.progressState}
+            </StatusBadge>
             {rated && cfg ? (
               <StatusBadge tone={RATING_TONE[String(rated.rating)] ?? "info"} withDot>
                 {cfg.label}

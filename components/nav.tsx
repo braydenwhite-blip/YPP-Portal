@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode, RefObject } from "react";
+import type { ReactNode, Ref } from "react";
 import { useHelpAgent } from "@/components/help-agent/help-agent-provider";
 import { SidebarRecents } from "@/components/help-agent/sidebar-recents";
 import {
@@ -98,7 +98,7 @@ function SidebarSearch({
   value: string;
   onChange: (value: string) => void;
   onClear: () => void;
-  inputRef: RefObject<HTMLInputElement | null>;
+  inputRef: Ref<HTMLInputElement>;
 }) {
   const helpAgent = useHelpAgent();
 

@@ -103,24 +103,6 @@ export function ChairDecisionForm({
     <div className="rounded-[12px] border border-line-soft bg-surface p-4 shadow-card">
       <p style={{ fontWeight: 700, marginBottom: "1rem" }}>Chair Decision</p>
 
-      {/* Points preview */}
-      <div
-        style={{
-          padding: "0.75rem 1rem",
-          background: "var(--surface-alt)",
-          borderRadius: "var(--radius-sm)",
-          marginBottom: "1.25rem",
-          fontSize: "0.85rem",
-        }}
-      >
-        <span style={{ color: "var(--muted)" }}>Points that will be awarded on approval: </span>
-        <strong style={{ fontSize: "1.05rem" }}>{totalPoints} pts</strong>
-        <span style={{ color: "var(--muted)", fontSize: "0.78rem", marginLeft: "0.5rem" }}>
-          (base: {pointsToAward - bonusPoints}
-          {bonusPoints > 0 || effectiveBonus > 0 ? ` + bonus: ${effectiveBonus}` : ""})
-        </span>
-      </div>
-
       {/* Mentor's bonus points */}
       {(bonusPoints > 0 || bonusReason) && (
         <div
@@ -200,7 +182,7 @@ export function ChairDecisionForm({
             handleApprove();
           }}
         >
-          {isPending && mode === "approve" ? "Approving…" : `Approve & Award ${totalPoints} pts`}
+          {isPending && mode === "approve" ? "Approving…" : "Approve & release"}
         </button>
         <button
           className="inline-flex items-center justify-center rounded-full border border-line-soft bg-surface px-4 py-2 text-[13.5px] font-semibold text-ink transition-colors hover:bg-surface-soft disabled:opacity-60"

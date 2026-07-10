@@ -284,6 +284,7 @@ export async function saveGoalReview(formData: FormData) {
       },
       mentee: { select: { name: true } },
       goalReview: { select: { id: true, status: true } },
+      mentorCycleCheckIn: { select: { id: true } },
     },
   });
 
@@ -297,6 +298,20 @@ export async function saveGoalReview(formData: FormData) {
   // Cannot edit an already-approved review
   if (reflection.goalReview?.status === "APPROVED") {
     throw new Error("This review has already been approved and cannot be edited");
+  }
+
+  // The Monthly Progress Update must reflect a real conversation, not just a
+  // form filled out after reading the reflection. Existing change-request
+  // loops are grandfathered so legacy reviews can still be corrected and
+  // released instead of becoming dead ends.
+  if (
+    submitForApproval &&
+    !reflection.mentorCycleCheckIn &&
+    reflection.goalReview?.status !== "CHANGES_REQUESTED"
+  ) {
+    throw new Error(
+      "Record the Mentor Check-in for this cycle before submitting the Monthly Progress Update."
+    );
   }
 
   const newStatus: GoalReviewStatus = submitForApproval
@@ -631,6 +646,7 @@ export async function saveGoalReview(formData: FormData) {
   revalidatePath("/mentorship/reviews");
   revalidatePath("/mentorship/chair");
   revalidatePath(`/people/${reflection.mentorship.menteeId}`);
+  revalidatePath(`/mentorship/people/${reflection.mentorship.menteeId}`);
 }
 
 // ============================================
@@ -727,6 +743,15 @@ export async function getReviewForChair(reviewId: string) {
       mentee: { select: { id: true, name: true, email: true, primaryRole: true } },
       selfReflection: {
         include: {
+          mentorCycleCheckIn: {
+            select: {
+              occurredAt: true,
+              discussion: true,
+              decisions: true,
+              commitments: true,
+              notes: true,
+            },
+          },
           goalResponses: {
             include: { goal: { select: { id: true, title: true, description: true, sortOrder: true } } },
             orderBy: { goal: { sortOrder: "asc" } },
@@ -734,7 +759,10 @@ export async function getReviewForChair(reviewId: string) {
         },
       },
       goalRatings: {
-        include: { goal: { select: { id: true, title: true, sortOrder: true } } },
+        include: {
+          goal: { select: { id: true, title: true, sortOrder: true } },
+          grDocumentGoal: { select: { id: true, title: true, sortOrder: true } },
+        },
         orderBy: { goal: { sortOrder: "asc" } },
       },
     },

@@ -16,7 +16,12 @@ import "server-only";
  * the sequential quarter index (1st, 2nd, 3rd…), i.e. monthly cycleNumber / 3.
  */
 
-import type { GoalRatingColor, MenteeRoleType, MentorshipQuarterlyReview } from "@prisma/client";
+import type {
+  GoalRatingColor,
+  MenteeRoleType,
+  MentorshipProgramGroup,
+  MentorshipQuarterlyReview,
+} from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { currentQuarterLabel } from "@/lib/people-strategy/people-performance-selectors";
@@ -168,6 +173,7 @@ export type QuarterlyQueueEntry = {
   menteeRole: string | null;
   mentorId: string;
   mentorName: string | null;
+  programGroup: MentorshipProgramGroup;
   quarter: string;
   /**
    * Null means due but not yet started. Includes "APPROVED" in the type
@@ -198,6 +204,7 @@ export async function loadQuarterlyCommitteeQueue(): Promise<QuarterlyQueueEntry
       id: true,
       menteeId: true,
       mentorId: true,
+      programGroup: true,
       mentee: { select: { name: true, email: true, primaryRole: true } },
       mentor: { select: { name: true, email: true } },
     },
@@ -239,6 +246,7 @@ export async function loadQuarterlyCommitteeQueue(): Promise<QuarterlyQueueEntry
         menteeRole: m.mentee.primaryRole,
         mentorId: m.mentorId,
         mentorName: m.mentor.name || m.mentor.email,
+        programGroup: m.programGroup,
         quarter,
         status,
       };
@@ -259,6 +267,7 @@ export function scopeQuarterlyQueueForViewer(
     viewerId: string;
     isAdminOrLeadership: boolean;
     chairedLanes: MenteeRoleType[];
+    committeeProgramGroups?: MentorshipProgramGroup[];
   }
 ): QuarterlyQueueEntry[] {
   if (facts.isAdminOrLeadership) return entries;
@@ -266,6 +275,7 @@ export function scopeQuarterlyQueueForViewer(
     const roleType = toMenteeRoleType(entry.menteeRole);
     const chairsThisLane = roleType != null && facts.chairedLanes.includes(roleType);
     const isTheirMentee = entry.mentorId === facts.viewerId;
-    return chairsThisLane || isTheirMentee;
+    const servesCommittee = facts.committeeProgramGroups?.includes(entry.programGroup) ?? false;
+    return chairsThisLane || isTheirMentee || servesCommittee;
   });
 }

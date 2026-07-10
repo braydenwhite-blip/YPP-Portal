@@ -107,12 +107,16 @@ function getConnectSrcDirectives(isDev: boolean) {
 
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV !== "production";
-  const scriptSrc = [
-    "'self'",
-    `'nonce-${nonce}'`,
-    // unsafe-eval is only needed in development (Next.js HMR / fast refresh)
-    ...(isDev ? ["'unsafe-eval'"] : []),
-  ].join(" ");
+  const scriptSrc = isDev
+    ? [
+        "'self'",
+        // Next.js development tooling injects HMR/bootstrap scripts that do
+        // not consistently carry the request nonce. These allowances never
+        // ship in production; production remains nonce-only below.
+        "'unsafe-inline'",
+        "'unsafe-eval'",
+      ].join(" ")
+    : ["'self'", `'nonce-${nonce}'`].join(" ");
 
   return [
     "default-src 'self'",
@@ -157,10 +161,22 @@ function mergeMiddlewareResponse(
   return merged;
 }
 
-function applySecurityHeaders(response: NextResponse, pathname?: string): NextResponse {
-  const nonce = generateNonce();
+function securityRequestHeaders(nonce: string) {
+  return {
+    "x-nonce": nonce,
+    // Next.js reads the request CSP while rendering so it can attach this
+    // request's nonce to its inline bootstrap scripts. Setting the policy only
+    // on the response is too late and leaves the page unable to hydrate.
+    "content-security-policy": buildCsp(nonce),
+  };
+}
 
-  // Forward nonce to server components via request header
+function applySecurityHeaders(
+  response: NextResponse,
+  pathname?: string,
+  nonce = generateNonce()
+): NextResponse {
+  // Expose the nonce for server components that need it explicitly.
   response.headers.set("x-nonce", nonce);
 
   // Forward the request pathname so layouts/RSCs can read it via `headers()`.
@@ -183,12 +199,17 @@ export async function proxy(request: NextRequest) {
   const isPublic = isPublicPath(pathname);
 
   if (isPublic && !isLogin && !isSignup) {
+    const nonce = generateNonce();
     const response = NextResponse.next({
       request: {
-        headers: withForwardedRequestHeaders(request, pathname),
+        headers: withForwardedRequestHeaders(
+          request,
+          pathname,
+          securityRequestHeaders(nonce)
+        ),
       },
     });
-    return applySecurityHeaders(response, pathname);
+    return applySecurityHeaders(response, pathname, nonce);
   }
 
   // Create Supabase client and refresh session
@@ -363,9 +384,14 @@ export async function proxy(request: NextRequest) {
     if (legacySession.email) authForward["x-legacy-auth-email"] = legacySession.email;
   }
 
+  const nonce = generateNonce();
   return applySecurityHeaders(
-    mergeMiddlewareResponse(request, response, pathname, authForward),
-    pathname
+    mergeMiddlewareResponse(request, response, pathname, {
+      ...authForward,
+      ...securityRequestHeaders(nonce),
+    }),
+    pathname,
+    nonce
   );
 }
 

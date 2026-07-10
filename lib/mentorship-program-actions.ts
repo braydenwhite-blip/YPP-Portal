@@ -417,8 +417,8 @@ function appendNote(existingNote: string | null | undefined, line: string) {
  * active relationship (status = COMPLETE) and creates a fresh mentorship
  * with the new mentor. Admin only.
  *
- * The capacity check is repeated inside the transaction so two concurrent
- * reassignments cannot push the same mentor past FULL_PROGRAM_MENTOR_CAP.
+ * Workload is measured for advisory UI, but authorized assignments are never
+ * rejected solely because a mentor is already at or above the suggested cap.
  */
 export async function reassignProgramMentor(formData: FormData) {
   const session = await requireAdmin();

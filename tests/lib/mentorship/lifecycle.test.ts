@@ -45,10 +45,17 @@ describe("deriveNextAction — one lifecycle, one verb per POV", () => {
     expect(deriveNextAction(s, "me", hrefs).href).toBeNull();
   });
 
-  it("surfaces paused/complete relationships to leadership only", () => {
+  it("surfaces paused relationships to leadership only", () => {
     const s = snapshot({ hasActiveMentorship: false, mentorshipStatus: "PAUSED" });
     expect(deriveNextAction(s, "leadership", hrefs).key).toBe("resume-or-close");
     expect(deriveNextAction(s, "me", hrefs).key).toBe("await-pairing");
+  });
+
+  it("allows leadership to start a new pairing after a completed relationship", () => {
+    const s = snapshot({ hasActiveMentorship: false, mentorshipStatus: "COMPLETE" });
+    expect(deriveNextAction(s, "leadership", hrefs, "Ari").key).toBe("assign-mentor");
+    expect(deriveNextAction(s, "leadership", hrefs, "Ari").href).toBe(hrefs.adminMatching);
+    expect(deriveNextAction(s, "me", hrefs).label).toBe("Previous mentorship complete");
   });
 
   it("puts the kickoff on the mentor, urgently", () => {

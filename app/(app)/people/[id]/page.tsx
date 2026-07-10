@@ -1,25 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { getSession, getSessionUser } from "@/lib/auth-supabase";
+import { getSession } from "@/lib/auth-supabase";
 import {
   isActionTrackerEnabled,
   isOperationsHubEnabled,
   isStrategicInitiativesEnabled,
 } from "@/lib/feature-flags";
 import { loadPublicProfile } from "@/lib/people-strategy/public-profile";
-import { loadMentorshipWorkspace } from "@/lib/mentorship/workspace";
-import { getCurrentGRSummary, loadReviewHistory } from "@/lib/gr-actions";
-import { ActiveReviewCycleCard } from "@/components/people-strategy/active-review-cycle-card";
-import { CurrentGRCard } from "@/components/people-strategy/current-gr-card";
-import { ReviewHistoryPanel } from "@/components/people-strategy/review-history-panel";
-import { ReviewsSection } from "@/components/mentorship/workspace/reviews-section";
-import { ReviewDraftPanel } from "@/components/mentorship/workspace/review-draft-panel";
-import { ChairApprovalPanel } from "@/components/mentorship/workspace/chair-approval-panel";
-import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
-import { MenteeGoalsSection } from "@/components/mentorship/workspace/goals-section";
-import { CheckInsSection } from "@/components/mentorship/workspace/sections";
-import { SelfGoalsSection } from "@/components/mentorship/workspace/self-sections";
 import {
   getOperationalContextForEntity,
   type EntityOperationalContext,
@@ -55,7 +43,6 @@ import {
   type MentorshipHistoryEntry,
 } from "@/lib/mentorship-reassign-actions";
 import { MentorHistoryPanel } from "@/components/people-strategy/mentor-history-panel";
-import { ReassignMentorForm } from "@/components/people-strategy/reassign-mentor-form";
 import {
   getPersonPromotionHistory,
   type PromotionHistoryEntry,
@@ -73,7 +60,7 @@ async function loadMentorCandidates(
   return prisma.user.findMany({
     where: {
       id: { not: excludeUserId },
-      primaryRole: { in: ["MENTOR", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"] },
+      archivedAt: null,
     },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
@@ -93,9 +80,17 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
   const { id } = await params;
   const sp = await searchParams;
   const fromPeopleReviews = sp.from === "people";
-  // The lifecycle engine's deep links (?section=…&panel=draft|approve) land
-  // here — the panel param opens the matching inline step of the review loop.
-  const panel = typeof sp.panel === "string" ? sp.panel : undefined;
+  const legacyMentorshipSection = typeof sp.section === "string" ? sp.section : undefined;
+  const legacyMentorshipPanel = typeof sp.panel === "string" ? sp.panel : undefined;
+
+  // Preserve old bookmarks, but keep People as a general member profile. All
+  // Mentorship work belongs to the canonical Mentorship person workspace.
+  if (legacyMentorshipSection || legacyMentorshipPanel) {
+    const query = new URLSearchParams();
+    if (legacyMentorshipSection) query.set("section", legacyMentorshipSection);
+    if (legacyMentorshipPanel) query.set("panel", legacyMentorshipPanel);
+    redirect(`/mentorship/people/${id}?${query.toString()}`);
+  }
 
   // Any signed-in member may view; signed-out visitors go to login.
   const session = await getSession();
@@ -133,30 +128,6 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
   // viewing the public profile don't get it), visibility-filtered for the viewer.
   const showLinkedActions =
     isOperationsHubEnabled() && isActionTrackerEnabled() && isOfficerTier(viewer);
-
-  // The Review & G&R flow — the canonical home for this person's cycle. Gated
-  // by resolveWorkspaceAccess() itself (self, assigned mentor/chair, or
-  // leadership), NOT by officer tier — the person being reviewed sees their
-  // own flow here too, which is the whole point of making this page canonical.
-  const sessionUser = await getSessionUser();
-  const [workspace, grSummary, reviewHistory] = sessionUser
-    ? await Promise.all([
-        loadMentorshipWorkspace(sessionUser, id),
-        getCurrentGRSummary(id),
-        loadReviewHistory(id),
-      ])
-    : [null, null, null];
-
-  // Kickoff repair path inputs — only fetched while the kickoff is the blocker.
-  const kickoffRepair =
-    workspace?.lifecycle.hasActiveMentorship &&
-    !workspace.lifecycle.kickoffComplete &&
-    workspace.activeMentorshipId
-      ? await prisma.mentorship.findUnique({
-          where: { id: workspace.activeMentorshipId },
-          select: { kickoffScheduledAt: true, kickoffCompletedAt: true },
-        })
-      : null;
 
   // Phase 6 connective tissue — surface where this person sits on the Leadership
   // Pathway as context next to their linked actions (the team's prescribed
@@ -231,98 +202,6 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
         </div>
       </header>
 
-      {/* Review & G&R — the whole flow, organized around the active cycle,
-          not a separate "Mentorship workspace" destination. */}
-      {workspace ? (
-        <div className="mb-4 flex flex-col gap-4">
-          <ActiveReviewCycleCard cycleState={workspace.cycleState} />
-
-          {/* Repair paths — when the loop can't run yet, the fix lives right
-              here instead of deep in an admin cockpit tab. */}
-          {!workspace.lifecycle.hasActiveMentorship && showLinkedActions ? (
-            <ReassignMentorForm menteeId={id} candidates={mentorCandidates} />
-          ) : null}
-          {workspace.lifecycle.hasActiveMentorship &&
-          !workspace.lifecycle.kickoffComplete &&
-          kickoffRepair ? (
-            <KickoffStatusRow
-              mentorshipId={workspace.activeMentorshipId!}
-              kickoffScheduledAt={kickoffRepair.kickoffScheduledAt}
-              kickoffCompletedAt={kickoffRepair.kickoffCompletedAt}
-              canMarkComplete={workspace.capabilities.canDraftReview}
-            />
-          ) : null}
-          {workspace.lifecycle.hasActiveMentorship &&
-          workspace.lifecycle.kickoffComplete &&
-          workspace.lifecycle.grDocStatus === "NONE" &&
-          showLinkedActions ? (
-            <section className="rounded-[12px] border border-[#ebebf2] bg-[#fafafd] px-4 py-3">
-              <p className="m-0 text-[13.5px] text-[#1c1a2e]">
-                <strong>{profile.name} has no Goals &amp; Responsibilities document yet.</strong>{" "}
-                Reviews are far more useful once a G&amp;R plan is assigned.
-              </p>
-              <Link
-                href="/mentorship?view=admin&tab=templates"
-                className="mt-1 inline-block text-[13px] font-semibold text-[#6b21c8] hover:underline"
-              >
-                Assign G&amp;R goals →
-              </Link>
-            </section>
-          ) : null}
-
-          {/* The inline steps of the loop — ?panel=draft (mentor's review
-              writer) and ?panel=approve (chair's decision). When the panel is
-              asked for but it isn't that party's turn, say why instead of
-              silently showing the plain profile. */}
-          {panel === "draft" &&
-          workspace.capabilities.canDraftReview &&
-          (workspace.lifecycle.cycleStage === "REFLECTION_SUBMITTED" ||
-            workspace.lifecycle.cycleStage === "CHANGES_REQUESTED") ? (
-            <ReviewDraftPanel
-              menteeId={id}
-              menteeName={profile.name}
-              commitments={workspace.commitments}
-            />
-          ) : panel === "approve" &&
-            workspace.capabilities.canApprove &&
-            (workspace.lifecycle.cycleStage === "REVIEW_SUBMITTED" ||
-              workspace.lifecycle.cycleStage === "CHANGES_REQUESTED") ? (
-            <ChairApprovalPanel menteeId={id} />
-          ) : panel === "draft" || panel === "approve" ? (
-            <section className="rounded-[12px] border border-[#ebebf2] bg-[#fafafd] px-4 py-3">
-              <p className="m-0 text-[13px] text-[#717189]">
-                Nothing to {panel === "draft" ? "draft" : "approve"} right now —{" "}
-                {workspace.cycleState.nextAction.label}.
-              </p>
-            </section>
-          ) : null}
-
-          <ReviewsSection workspace={workspace} sectionHref={(s) => `/people/${id}?section=${s}`} />
-
-          {grSummary ? <CurrentGRCard summary={grSummary} personName={profile.name} /> : null}
-
-          <details className="group overflow-hidden rounded-[14px] border border-[#ebebf2] bg-white">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
-              <span className="text-[13.5px] font-semibold text-[#1c1a2e]">Full G&amp;R &amp; check-ins</span>
-              <span className="text-[12px] text-[#9a9ab0]">
-                Full document, propose changes, log a check-in
-                <span className="ml-2 transition-transform group-open:rotate-180" aria-hidden>
-                  ▾
-                </span>
-              </span>
-            </summary>
-            <div className="flex flex-col gap-4 border-t border-[#f1f1f6] p-4">
-              {workspace.isSelf ? <SelfGoalsSection /> : <MenteeGoalsSection workspace={workspace} />}
-              <CheckInsSection workspace={workspace} />
-            </div>
-          </details>
-
-          {reviewHistory ? (
-            <ReviewHistoryPanel history={reviewHistory} personName={profile.name} />
-          ) : null}
-        </div>
-      ) : null}
-
       <ProfileBody profile={profile} compact={fromPeopleReviews} />
 
       <div className="mt-4">
@@ -361,7 +240,6 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
           <LeadershipStageContext stage={leadershipStage} nextStage={leadershipNextStage} />
           <AccessSummaryPanel personName={profile.name} facts={accessFacts} />
           <MentorHistoryPanel personName={profile.name} entries={mentorHistory} />
-          <ReassignMentorForm menteeId={id} candidates={mentorCandidates} />
           <PromotionHistoryPanel personName={profile.name} entries={promotionHistory} />
           <PromotePersonForm
             userId={id}

@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import type { WorkspaceCommitment } from "@/lib/mentorship/workspace";
 
 /**
- * The monthly review writer, inline on /people/[id] (?panel=draft) — the
+ * The Monthly Progress Update writer, inline on the canonical Mentorship workspace.
  * mentor's step of the loop happens where everything else about the person
  * already lives, not on a separate route. The page gates rendering on
  * capabilities.canDraftReview + cycle stage; this panel only assembles the
@@ -40,7 +40,7 @@ export async function ReviewDraftPanel({
     return (
       <CardV2 padding="md">
         <p className="m-0 text-[13px] text-ink-muted">
-          {menteeName} has no active mentorship, so there&apos;s no review cycle to write for.
+          {menteeName} has no active mentorship, so there&apos;s no progress cycle to write for.
         </p>
       </CardV2>
     );
@@ -67,14 +67,25 @@ export async function ReviewDraftPanel({
           },
         },
       },
+      mentorCycleCheckIn: { select: { id: true } },
     },
   });
   if (!latestReflection) {
     return (
       <CardV2 padding="md">
         <p className="m-0 text-[13px] text-ink-muted">
-          Waiting on {menteeName}&apos;s self-reflection — the review form opens the moment it&apos;s
+          Waiting on {menteeName}&apos;s self-reflection — the progress update opens the moment it&apos;s
           in.
+        </p>
+      </CardV2>
+    );
+  }
+
+  if (!latestReflection.mentorCycleCheckIn && !latestReflection.goalReview) {
+    return (
+      <CardV2 padding="md" className="border-l-4 border-l-progress-700">
+        <p className="m-0 text-[13px] text-ink-muted">
+          Record the Mentor Check-in before writing this Monthly Progress Update.
         </p>
       </CardV2>
     );
@@ -187,7 +198,7 @@ export async function ReviewDraftPanel({
           Approved and released to {menteeName}.
         </strong>
         <p className="m-0 mt-1 text-[13px] text-ink-muted">
-          Approved reviews are read-only — it now shows under Released reviews below.
+          Approved progress updates are read-only and appear in the released history below.
         </p>
       </CardV2>
     );
@@ -196,7 +207,7 @@ export async function ReviewDraftPanel({
   return (
     <section className="flex flex-col gap-3">
       <h3 className="m-0 text-[15px] font-bold text-ink">
-        Write the {cycleMonthLabel} review · Cycle {latestReflection.cycleNumber}
+        Write the {cycleMonthLabel} Monthly Progress Update · Cycle {latestReflection.cycleNumber}
       </h3>
 
       <LinkedWorkEvidence menteeId={menteeId} commitments={commitments} />

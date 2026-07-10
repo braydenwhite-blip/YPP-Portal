@@ -9,7 +9,7 @@ import {
   loadQuarterlyCommitteeQueue,
   scopeQuarterlyQueueForViewer,
 } from "@/lib/mentorship/quarterly-review";
-import type { MenteeRoleType } from "@prisma/client";
+import type { MenteeRoleType, MentorshipProgramGroup } from "@prisma/client";
 
 /**
  * The approval queues, folded into the Mentorship home — "who needs me and
@@ -73,7 +73,7 @@ export async function MonthlyApprovalQueue() {
         return (
           <Link
             key={review.id}
-            href={`/people/${review.menteeId}?section=review&panel=approve`}
+            href={`/mentorship/people/${review.menteeId}?section=reviews&panel=approve`}
             className="group no-underline"
           >
             <CardV2
@@ -126,16 +126,19 @@ export async function QuarterlyCommitteeQueue({
   viewerId,
   isAdminOrLeadership,
   chairedLanes,
+  committeeProgramGroups = [],
 }: {
   viewerId: string;
   isAdminOrLeadership: boolean;
   chairedLanes: MenteeRoleType[];
+  committeeProgramGroups?: MentorshipProgramGroup[];
 }) {
   const allDue = await loadQuarterlyCommitteeQueue();
   const visible = scopeQuarterlyQueueForViewer(allDue, {
     viewerId,
     isAdminOrLeadership,
     chairedLanes,
+    committeeProgramGroups,
   });
   if (visible.length === 0) return null;
 
@@ -153,7 +156,7 @@ export async function QuarterlyCommitteeQueue({
       {visible.map((entry) => (
         <Link
           key={entry.mentorshipId}
-          href={`/people/${entry.menteeId}?section=review`}
+          href={`/mentorship/people/${entry.menteeId}?section=reviews`}
           className="group no-underline"
         >
           <CardV2

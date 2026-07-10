@@ -282,6 +282,8 @@ export async function reassignPrimaryMentor(
   });
 
   revalidatePath(`/people/${input.menteeId}`);
+  revalidatePath(`/mentorship/people/${input.menteeId}`);
+  revalidatePath("/mentorship");
   revalidatePath("/admin/mentorship");
 
   return { status: "reassigned", mentorshipId: newMentorshipId };

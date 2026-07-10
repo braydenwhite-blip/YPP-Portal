@@ -4,10 +4,18 @@ import { prisma } from "@/lib/prisma";
 import type { MentorshipWorkspace } from "@/lib/mentorship/workspace";
 import { SegmentedTabs } from "@/app/(app)/mentorship/_components/segmented-tabs";
 import { MenteeDevelopmentBrief } from "@/app/(app)/mentorship/_components/mentee-development-brief";
+import { ActiveReviewCycleCard } from "@/components/people-strategy/active-review-cycle-card";
+import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
 
 import { OverviewSection, CheckInsSection } from "./sections";
 import { MenteeGoalsSection } from "./goals-section";
 import { ReviewsSection } from "./reviews-section";
+import { ReviewDraftPanel } from "./review-draft-panel";
+import { ChairApprovalPanel } from "./chair-approval-panel";
+import {
+  SetupRepairPanel,
+  type MentorshipSetupData,
+} from "./setup-repair-panel";
 import { ManageRelationship } from "./manage-relationship";
 import { MentorToolsPanel } from "./mentor-tools-panel";
 import { SelfGoalsSection, SelfHelpCard, SelfMilestones, SelfRecognitionCard, SelfScheduleExtra } from "./self-sections";
@@ -54,6 +62,9 @@ function resolveSection(raw: string | undefined): SectionId {
 export function MentorshipWorkspaceView({
   workspace,
   section,
+  panel,
+  setup,
+  kickoff,
   sectionHref,
   showHeader = true,
   helpSent = false,
@@ -61,6 +72,14 @@ export function MentorshipWorkspaceView({
   workspace: MentorshipWorkspace;
   /** Raw `?section=` value; unknown or legacy ids resolve to one of the four. */
   section?: string;
+  /** Opens the one stage-specific work surface selected by the lifecycle CTA. */
+  panel?: string;
+  setup?: MentorshipSetupData;
+  kickoff?: {
+    scheduledAt: Date | null;
+    completedAt: Date | null;
+    canMarkComplete: boolean;
+  };
   /** Builds the tab href for a section id (host decides the URL shape). */
   sectionHref: (sectionId: string) => string;
   /** The hub renders its own PageHeaderV2 — pass false to skip this one. */
@@ -83,11 +102,85 @@ export function MentorshipWorkspaceView({
 
   const showMentorTools =
     !!workspace.activeMentorshipId &&
-    (workspace.accessLevel === "leadership" ||
-      (workspace.canRecordCheckIn && !workspace.isSelf));
+    workspace.pov === "mentor";
+
+  const canOpenDraft =
+    panel === "draft" &&
+    workspace.capabilities.canDraftReview &&
+    (workspace.lifecycle.cycleStage === "REFLECTION_SUBMITTED" ||
+      workspace.lifecycle.cycleStage === "CHANGES_REQUESTED");
+  const canOpenApproval =
+    panel === "approve" &&
+    workspace.capabilities.canApprove &&
+    workspace.lifecycle.cycleStage === "REVIEW_SUBMITTED";
+  const requestedUnavailablePanel =
+    (panel === "draft" || panel === "approve") && !canOpenDraft && !canOpenApproval;
 
   const body = (
     <>
+      <ActiveReviewCycleCard
+        cycleState={workspace.cycleState}
+        canTakeNextAction={
+          workspace.nextAction.key === workspace.cycleState.nextAction.key ||
+          workspace.cycleState.availableActions.includes(workspace.cycleState.nextAction.key) ||
+          (workspace.canManageSetup &&
+            ["assign-mentor", "schedule-kickoff", "assign-goals", "assign-role-chair"].includes(
+              workspace.cycleState.nextAction.key
+            ))
+        }
+      />
+
+      {panel === "setup" && setup ? (
+        <SetupRepairPanel
+          personId={workspace.person.id}
+          personName={workspace.person.name}
+          needsMentor={!workspace.lifecycle.hasActiveMentorship}
+          needsGR={workspace.lifecycle.grDocStatus === "NONE"}
+          needsChair={
+            workspace.lifecycle.requiresChairApproval &&
+            workspace.lifecycle.hasRoleChair === false
+          }
+          setup={setup}
+        />
+      ) : null}
+
+      {active === "check-ins" &&
+      workspace.activeMentorshipId &&
+      kickoff &&
+      !kickoff.completedAt ? (
+        <KickoffStatusRow
+          mentorshipId={workspace.activeMentorshipId}
+          kickoffScheduledAt={kickoff.scheduledAt}
+          kickoffCompletedAt={kickoff.completedAt}
+          canMarkComplete={kickoff.canMarkComplete}
+        />
+      ) : null}
+
+      {canOpenDraft ? (
+        <ReviewDraftPanel
+          menteeId={workspace.person.id}
+          menteeName={workspace.person.name}
+          commitments={workspace.commitments}
+        />
+      ) : null}
+
+      {canOpenApproval ? (
+        <ChairApprovalPanel
+          menteeId={workspace.person.id}
+          mentorshipId={workspace.activeMentorshipId!}
+          commitments={workspace.commitments}
+        />
+      ) : null}
+
+      {requestedUnavailablePanel ? (
+        <section className="rounded-[12px] border border-[#ebebf2] bg-[#fafafd] px-4 py-3">
+          <p className="m-0 text-[13px] text-[#717189]">
+            That step is not ready for you right now. The current next step is{" "}
+            <strong className="text-[#1c1a2e]">{workspace.cycleState.nextAction.label}</strong>.
+          </p>
+        </section>
+      ) : null}
+
       <div className="overflow-x-auto pb-1">
         <SegmentedTabs tabs={tabs} activeId={active} ariaLabel="Mentorship section" />
       </div>
@@ -181,7 +274,7 @@ export function MentorshipWorkspaceView({
               variant="secondary"
               size="sm"
             >
-              Full profile →
+              Member profile →
             </ButtonLink>
           ) : undefined
         }

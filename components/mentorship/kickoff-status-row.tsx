@@ -1,4 +1,5 @@
 import { markKickoffComplete } from "@/lib/mentorship-actions";
+import { CardV2, StatusBadge } from "@/components/ui-v2";
 
 type Props = {
   mentorshipId: string;
@@ -22,36 +23,35 @@ export function KickoffStatusRow({
   canMarkComplete,
 }: Props) {
   return (
-    <div
-      className="card"
-      style={{
-        padding: "0.75rem 1rem",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "1rem",
-        flexWrap: "wrap",
-        marginBottom: "1rem",
-      }}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.1rem" }}>
-        <strong style={{ fontSize: "0.9rem" }}>Kickoff</strong>
+    <CardV2 as="section" padding="md" className="flex flex-wrap items-center justify-between gap-4 border-l-4 border-l-progress-700">
+      <div className="grid gap-1">
+        <div className="flex items-center gap-2">
+          <strong className="text-[14px] text-ink">Kickoff meeting</strong>
+          <StatusBadge tone={kickoffCompletedAt ? "success" : "warning"}>
+            {kickoffCompletedAt ? "Complete" : "Required"}
+          </StatusBadge>
+        </div>
         {kickoffCompletedAt ? (
-          <span className="muted">Completed {fmtDate(kickoffCompletedAt)}</span>
+          <span className="text-[12.5px] text-ink-muted">Completed {fmtDate(kickoffCompletedAt)}</span>
         ) : kickoffScheduledAt ? (
-          <span className="muted">Scheduled for {fmtDate(kickoffScheduledAt)}</span>
+          <span className="text-[12.5px] text-ink-muted">Scheduled for {fmtDate(kickoffScheduledAt)}</span>
         ) : (
-          <span className="muted">Not yet scheduled</span>
+          <span className="text-[12.5px] text-ink-muted">
+            Not scheduled yet. Hold this meeting before reflection and monthly progress work begins.
+          </span>
         )}
       </div>
       {!kickoffCompletedAt && canMarkComplete && (
         <form action={markKickoffComplete}>
           <input type="hidden" name="mentorshipId" value={mentorshipId} />
-          <button type="submit" className="button primary small">
+          <button
+            type="submit"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-[13px] font-semibold text-white"
+          >
             Mark kickoff complete
           </button>
         </form>
       )}
-    </div>
+    </CardV2>
   );
 }

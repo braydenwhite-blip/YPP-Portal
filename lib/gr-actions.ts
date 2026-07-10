@@ -581,6 +581,22 @@ export async function activateGRDocument(formData: FormData) {
   revalidatePath("/admin/mentorship");
 }
 
+/**
+ * Inline setup repair for the canonical Mentorship workspace. It deliberately
+ * uses the same assignment and activation actions as the admin screens, so
+ * there is one write path and one audit trail.
+ */
+export async function assignAndActivateGRDocument(formData: FormData): Promise<void> {
+  const userId = getString(formData, "userId");
+  const assigned = await assignGRDocument(formData);
+  const activation = new FormData();
+  activation.set("documentId", assigned.id);
+  await activateGRDocument(activation);
+
+  revalidatePath(`/mentorship/people/${userId}`);
+  revalidatePath("/mentorship");
+}
+
 // ============================================
 // GOAL CHANGES (Mentor Proposes, Admin Approves)
 // ============================================
