@@ -569,7 +569,7 @@ export function recommendNextStep(
       return {
         label: "Rebalance their work",
         reason,
-        href: `/mentorship/people/${facts.id}`,
+        href: `/people/${facts.id}`,
       };
     case "review-due": {
       if (laneSignals[0]?.kind === "approval-waiting") {
@@ -590,7 +590,7 @@ export function recommendNextStep(
         return {
           label: "Plan their training",
           reason,
-          href: `/mentorship/people/${facts.id}`,
+          href: `/people/${facts.id}`,
         };
       }
       return {
@@ -608,14 +608,14 @@ export function recommendNextStep(
       return {
         label: "Plan their next step",
         reason,
-        href: `/mentorship/people/${facts.id}`,
+        href: `/people/${facts.id}`,
       };
     case "recently-supported":
     default:
       return {
         label: "View development record",
         reason,
-        href: `/mentorship/people/${facts.id}`,
+        href: `/people/${facts.id}`,
       };
   }
 }

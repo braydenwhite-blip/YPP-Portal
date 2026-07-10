@@ -62,14 +62,14 @@ function rowCta(
       // dashboard is the surface where the review actually gets recorded.
       return kind === "quarterly"
         ? { label: "Record review", href: "/people/quarterly-reviews" }
-        : { label: "Write review", href: `/mentorship/reviews/${p.userId}` };
+        : { label: "Write review", href: `/people/${p.userId}?section=review&panel=draft` };
     case "ready-for-chair":
       return {
         label: "Open chair review",
         href: p.reviewId ? `/mentorship/chair/${p.reviewId}` : "/mentorship?view=mentor",
       };
     case "follow-ups-open":
-      return { label: "See open work", href: `/mentorship/people/${p.userId}` };
+      return { label: "See open work", href: `/people/${p.userId}` };
     case "released":
     case "waived":
       return null;
@@ -175,7 +175,7 @@ export default async function ReviewCyclePage(
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline gap-x-2">
                         <Link
-                          href={`/mentorship/people/${p.userId}`}
+                          href={`/people/${p.userId}`}
                           className="text-[14px] font-semibold text-ink hover:text-brand-700 hover:underline"
                         >
                           {p.name}

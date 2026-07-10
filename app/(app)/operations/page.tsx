@@ -250,7 +250,7 @@ function MentorView({ hub }: { hub: OperationsHubData }) {
           {hub.myMentees.map((m) => (
             <li key={m.mentorshipId} style={{ fontSize: 13 }}>
               <Link
-                href={`/mentorship/people/${m.menteeId}`}
+                href={`/people/${m.menteeId}`}
                 style={{ fontWeight: 600, color: "inherit" }}
               >
                 {m.menteeName}

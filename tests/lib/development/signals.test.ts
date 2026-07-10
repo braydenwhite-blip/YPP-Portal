@@ -238,7 +238,7 @@ describe("recommendNextStep", () => {
     const step = recommendNextStep(facts, deriveDevelopmentSignals(facts));
     expect(step.label).toBe("Assign a mentor");
     expect(step.href).toBe(
-      "/admin/mentorship?tab=assignments&menteeId=user-1&supportRole=PRIMARY_MENTOR"
+      "/mentorship?view=admin&tab=assignments&menteeId=user-1&supportRole=PRIMARY_MENTOR"
     );
   });
 
@@ -258,7 +258,7 @@ describe("recommendNextStep", () => {
     const facts = person({ pendingChairReviewDays: 10 });
     const step = recommendNextStep(facts, deriveDevelopmentSignals(facts));
     expect(step.label).toBe("Unblock the approval");
-    expect(step.href).toBe("/admin/mentorship?tab=approvals");
+    expect(step.href).toBe("/mentorship?view=admin&tab=approvals");
   });
 
   it("uses the person's first name for a concern check-in", () => {
@@ -272,7 +272,7 @@ describe("recommendNextStep", () => {
     const facts = person({ growthTags: ["READY_FOR_MORE"] });
     const step = recommendNextStep(facts, deriveDevelopmentSignals(facts));
     expect(step.label).toBe("Plan their next step");
-    expect(step.href).toBe("/mentorship/people/user-1");
+    expect(step.href).toBe("/people/user-1");
   });
 });
 

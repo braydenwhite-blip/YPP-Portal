@@ -191,11 +191,11 @@ export async function recordCheckIn(input: RecordCheckInInput) {
       body: `${viewer.name ?? "Your mentor"} logged a ${kindLabel(
         data.kind
       ).toLowerCase()} for you.`,
-      link: `/mentorship/people/${data.subjectId}?section=check-ins`,
+      link: `/people/${data.subjectId}?section=check-ins`,
     }).catch(() => {});
   }
 
   revalidatePath("/mentorship");
-  revalidatePath(`/mentorship/people/${data.subjectId}`);
+  revalidatePath(`/people/${data.subjectId}`);
   return { ok: true as const, checkInId: checkIn.id };
 }

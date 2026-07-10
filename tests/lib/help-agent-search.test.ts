@@ -118,7 +118,7 @@ describe("runHelpAgentSearch — mentorship relationships (privacy)", () => {
 
     const res = await runHelpAgentSearch("sam", mentor);
     const group = mentorshipGroup(res);
-    expect(group?.items[0].href).toBe("/mentorship/people/u-mentee");
+    expect(group?.items[0].href).toBe("/people/u-mentee");
 
     // Non-admin authorization scopes to the viewer's own relationships.
     const where = mock(prisma.mentorship.findMany).mock.calls[0][0].where;

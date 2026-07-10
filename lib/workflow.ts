@@ -797,8 +797,8 @@ export async function syncMentorGoalReviewWorkflow(reviewId: string) {
     summary: `Cycle ${review.cycleNumber} · ${review.status.replace(/_/g, " ")}`,
     href:
       review.status === "PENDING_CHAIR_APPROVAL"
-        ? `/mentorship/chair/${review.id}`
-        : `/mentorship/reviews/${review.menteeId}`,
+        ? `/people/${review.menteeId}?section=review&panel=approve`
+        : `/people/${review.menteeId}?section=review&panel=draft`,
     sourceType: "MentorGoalReview",
     sourceId: review.id,
     chapterId: review.mentee.chapterId,

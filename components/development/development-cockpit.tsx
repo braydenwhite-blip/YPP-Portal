@@ -53,7 +53,7 @@ function PersonCard({ card }: { card: DevelopmentCard }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <Link
-            href={`/mentorship/people/${facts.id}`}
+            href={`/people/${facts.id}`}
             className="text-[14.5px] font-semibold text-ink hover:text-brand-700 hover:underline"
           >
             {facts.name || facts.email}
@@ -151,7 +151,7 @@ function ReviewQueueSection({ items }: { items: ReviewQueueItem[] }) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2">
                 <Link
-                  href={`/mentorship/people/${item.personId}`}
+                  href={`/people/${item.personId}`}
                   className="text-[14px] font-semibold text-ink hover:text-brand-700 hover:underline"
                 >
                   {item.personName}

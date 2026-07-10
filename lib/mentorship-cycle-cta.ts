@@ -30,7 +30,7 @@ export function getCycleStageCTA({ stage, menteeId, reviewId }: LookupArgs): Cyc
     case "KICKOFF_PENDING":
       return {
         label: "Mark kickoff complete",
-        href: `/mentorship/people/${menteeId}`,
+        href: `/people/${menteeId}`,
         disabled: false,
         variant: "primary",
       };
@@ -44,7 +44,7 @@ export function getCycleStageCTA({ stage, menteeId, reviewId }: LookupArgs): Cyc
     case "REFLECTION_SUBMITTED":
       return {
         label: "Write monthly review",
-        href: `/mentorship/reviews/${menteeId}`,
+        href: `/people/${menteeId}?section=review&panel=draft`,
         disabled: false,
         variant: "primary",
       };
@@ -58,14 +58,14 @@ export function getCycleStageCTA({ stage, menteeId, reviewId }: LookupArgs): Cyc
     case "CHANGES_REQUESTED":
       return {
         label: "Revise review",
-        href: `/mentorship/reviews/${menteeId}`,
+        href: `/people/${menteeId}?section=review&panel=draft`,
         disabled: false,
         variant: "primary",
       };
     case "APPROVED":
       return {
         label: "View released review",
-        href: reviewId ? `/mentorship/reviews/${menteeId}` : `/mentorship/people/${menteeId}`,
+        href: `/people/${menteeId}?section=review`,
         disabled: false,
         variant: "secondary",
       };
@@ -74,7 +74,7 @@ export function getCycleStageCTA({ stage, menteeId, reviewId }: LookupArgs): Cyc
     case "COMPLETE":
       return { label: "Complete", href: null, disabled: true, variant: "muted" };
     default:
-      return { label: "View", href: `/mentorship/people/${menteeId}`, disabled: false, variant: "secondary" };
+      return { label: "View", href: `/people/${menteeId}`, disabled: false, variant: "secondary" };
   }
 }
 

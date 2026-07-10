@@ -72,7 +72,7 @@ export function MenteesOverview({ mentees }: MenteesOverviewProps) {
           >
             <div style={{ flex: "1 1 0", minWidth: 0 }}>
               <Link
-                href={`/mentorship/people/${mentee.id}`}
+                href={`/people/${mentee.id}`}
                 style={{
                   fontSize: 14,
                   fontWeight: 600,

@@ -100,7 +100,7 @@ export const emitReflectionSubmitted = safeEmit(async function emitReflectionSub
     type: NotificationType.REFLECTION_SUBMITTED,
     title: `${params.menteeName} submitted their ${label} reflection`,
     body: `Their reflection is ready for your monthly review.`,
-    link: `/mentorship/people/${params.menteeId}`,
+    link: `/people/${params.menteeId}`,
     dedupKey: `refl-submit:${params.mentorId}:${params.ctx.cycleNumber}:${params.menteeId}`,
   });
 }, "emitReflectionSubmitted");
@@ -153,7 +153,7 @@ export const emitReviewApprovedAndReleased = safeEmit(async function emitReviewA
     type: NotificationType.REVIEW_APPROVED_AND_RELEASED,
     title: `Your ${label} review for ${params.menteeName} was approved`,
     body: `The chair has approved the review. ${params.pointsAwarded} points awarded.`,
-    link: `/mentorship/people/${params.menteeId}`,
+    link: `/people/${params.menteeId}`,
     dedupKey: `review-released-mentor:${params.reviewId}`,
   });
 }, "emitReviewApprovedAndReleased");
@@ -188,7 +188,7 @@ export const notifyMentorReviewDue = safeEmit(async function notifyMentorReviewD
     type: NotificationType.GR_REVIEW_DUE,
     title: `${name} review due — ${label}`,
     body: `The ${label} self-reflection is submitted. Write and submit the review before month-end.`,
-    link: `/mentorship/reviews/${params.menteeId}`,
+    link: `/people/${params.menteeId}?section=review&panel=draft`,
     dedupKey: `gr:review-due:${params.mentorId}:${params.menteeId}:${params.cycleMonthIso.slice(0, 7)}`,
   });
 }, "notifyMentorReviewDue");

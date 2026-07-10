@@ -475,7 +475,7 @@ function mentorshipAuthorizationWhere(
 function mentorshipResultHref(viewer: ActionViewer, row: MentorshipResultRow): string {
   if (canOpenAdminRecord(viewer)) return `/admin/mentorship/relationships/${row.id}`;
   if (row.menteeId === viewer.id) return "/mentorship?view=me";
-  return `/mentorship/people/${row.menteeId}`;
+  return `/people/${row.menteeId}`;
 }
 
 function mentorshipResult(viewer: ActionViewer, row: MentorshipResultRow): HelpAgentResult {

@@ -96,7 +96,7 @@ export async function postMenteeCheckIn(formData: FormData) {
     userId: mentorship.mentorId,
     title: "New progress check-in",
     body: `${mentorship.mentee.name ?? "Your mentee"} posted a progress check-in.`,
-    link: `/mentorship/people/${userId}?section=check-ins`,
+    link: `/people/${userId}?section=check-ins`,
   });
 
   revalidatePath("/mentorship");
