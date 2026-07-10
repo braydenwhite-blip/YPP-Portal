@@ -41,11 +41,6 @@ const OFFICER_PUBLISHED_HIRING_HREFS = [
   "/admin/external-applicants",
 ] as const;
 
-/** Hiring chair extras still needed during the instructor-applicant public ship. */
-const HIRING_CHAIR_SLIM_HREFS = [
-  "/admin/instructor-applicants/chair-queue",
-] as const;
-
 /** Chapter president keeps chapter hub + the same leadership stack. */
 const CHAPTER_PRESIDENT_SLIM_HREFS = ["/chapter", ...LEADERSHIP_SLIM_HREFS] as const;
 
@@ -56,7 +51,6 @@ const SLIM_NAV_ORDER = [
   "/chapter",
   ...PUBLIC_GATE_NAV_HREFS,
   ...OFFICER_PUBLISHED_HIRING_HREFS,
-  ...HIRING_CHAIR_SLIM_HREFS,
 ] as const;
 
 function isActionsOnlyPreviewViewer(
@@ -115,17 +109,6 @@ export function getPublicPreviewSlimNavHrefs(
 
   if (hasOfficerTierSlimNav) {
     for (const href of OFFICER_PUBLISHED_HIRING_HREFS) {
-      hrefs.add(href);
-    }
-  }
-
-  const hasHiringChairAccess =
-    primaryRole === "HIRING_CHAIR" ||
-    roles.includes("HIRING_CHAIR") ||
-    adminSubtypes.includes("HIRING_ADMIN");
-
-  if (hasHiringChairAccess) {
-    for (const href of HIRING_CHAIR_SLIM_HREFS) {
       hrefs.add(href);
     }
   }

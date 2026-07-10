@@ -52,6 +52,30 @@ describe("authenticateLegacyPassword", () => {
     });
   });
 
+  it("allows local fallback for any account when LOCAL_PASSWORD_FALLBACK is true", async () => {
+    vi.stubEnv("LOCAL_PASSWORD_FALLBACK", "true");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "user-3",
+      email: "e2e.instructor.blocked.alpha@ypp.test",
+      passwordHash: "hashed-password",
+      primaryRole: "INSTRUCTOR",
+      roles: [{ role: "INSTRUCTOR" }],
+    } as never);
+    bcryptMocks.compare.mockResolvedValue(true);
+
+    const result = await authenticateLegacyPassword({
+      email: "e2e.instructor.blocked.alpha@ypp.test",
+      password: "CodexE2E!2026",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.mode).toBe("LOCAL_PASSWORD_FALLBACK");
+    }
+  });
+
   it("blocks non-bypass accounts when Supabase public auth is configured", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");

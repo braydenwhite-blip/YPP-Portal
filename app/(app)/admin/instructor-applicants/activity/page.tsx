@@ -175,17 +175,16 @@ export default async function ActivityFeedPage({ searchParams }: PageProps) {
           subtitle="Every reviewer comment, concern, highlight, and chair note across all applications — newest first."
           actions={
             <Link
-              href="/admin/instructor-applicants/chair-queue"
+              href="/admin/instructor-applicants"
               className="text-[13px] font-semibold text-brand-700 hover:underline"
             >
-              Chair queue →
+              Application board →
             </Link>
           }
         />
       }
       actions={[
         { label: "Application board", href: "/admin/instructor-applicants", icon: "list" },
-        { label: "Home", href: "/", icon: "compass" },
       ]}
     >
       <section className="card" style={{ marginBottom: 16 }}>

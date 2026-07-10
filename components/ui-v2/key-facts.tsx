@@ -68,10 +68,17 @@ export function KeyFactsGrid({
           fact.href &&
             "transition-colors duration-150 hover:border-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
         );
+        const isHashLink = Boolean(fact.href?.startsWith("#"));
         return fact.href ? (
-          <Link key={fact.label} href={fact.href} className={tileClass}>
-            {body}
-          </Link>
+          isHashLink ? (
+            <a key={fact.label} href={fact.href} className={tileClass}>
+              {body}
+            </a>
+          ) : (
+            <Link key={fact.label} href={fact.href} className={tileClass}>
+              {body}
+            </Link>
+          )
         ) : (
           <div key={fact.label} className={tileClass}>
             {body}

@@ -3,17 +3,35 @@ import { notFound } from "next/navigation";
 import { requireApplicationReviewerPage } from "@/lib/page-guards";
 import {
   assertCanViewApplicant,
+  canChangeReviewer,
+  canChangeLeadInterviewer,
   canSeeChairQueue,
   getHiringActor,
+  isAdmin,
+  isChapterLead,
+  isHiringChair,
 } from "@/lib/chapter-hiring-permissions";
 import { loadApplicationRecord } from "@/lib/applications/application-record";
-import { readinessSignalLabel } from "@/lib/readiness-signals";
-import { getActionsForEntity } from "@/lib/people-strategy/action-queries";
+import {
+  buildDecisionReadinessChecks,
+  readinessFactValue,
+  readinessSummary,
+} from "@/lib/applications/decision-readiness";
+import { loadInlineReviewPanels } from "@/lib/applications/load-inline-review-panels";
+import {
+  getApplicationForWorkspace,
+  getCandidateInterviewers,
+  getCandidateReviewers,
+} from "@/lib/instructor-applicant-board-queries";
+import {
+  canMakeFinalApplicantDecision,
+  getActiveChair,
+  NON_CHAIR_DECISION_MESSAGE,
+} from "@/lib/active-chair";
 import { ApplicationReviewShell } from "@/components/applications/application-review-shell";
 import { ApplicationRecordSimple } from "@/components/instructor-applicants/ApplicationRecordSimple";
+import { prisma } from "@/lib/prisma";
 import {
-  type ChecklistItem,
-  type DecisionOption,
   type KeyFact,
   type StatusTone,
 } from "@/components/ui-v2";
@@ -52,26 +70,6 @@ const STATUS_META: Record<string, { label: string; tone: StatusTone }> = {
   WITHDRAWN: { label: "Withdrawn", tone: "neutral" },
 };
 
-/** The real chair vocabulary — 1:1 with the ChairDecisionAction enum. */
-const CHAIR_DECISION_OPTIONS: DecisionOption[] = [
-  { label: "Approve", description: "approve and start instructor onboarding." },
-  {
-    label: "Approve with conditions",
-    description: "approve with named conditions that must be satisfied first.",
-  },
-  {
-    label: "Request more information",
-    description: "send the applicant a specific information request.",
-  },
-  {
-    label: "Request second interview",
-    description: "send the application back for another interview round.",
-  },
-  { label: "Hold", description: "pause the application with a recorded reason." },
-  { label: "Waitlist", description: "keep the applicant warm for a later cohort." },
-  { label: "Decline", description: "decline with a recorded rejection reason." },
-];
-
 const DECIDED_STATUSES = new Set([
   "APPROVED",
   "REJECTED",
@@ -80,14 +78,18 @@ const DECIDED_STATUSES = new Set([
   "WITHDRAWN",
 ]);
 
+/** Deep-serialize Prisma rows for client components (dates → ISO strings). */
+function serializeWorkspaceApplicant(
+  app: NonNullable<Awaited<ReturnType<typeof getApplicationForWorkspace>>>
+) {
+  return JSON.parse(
+    JSON.stringify(app, (_key, value) => (value instanceof Date ? value.toISOString() : value))
+  ) as NonNullable<Awaited<ReturnType<typeof getApplicationForWorkspace>>>;
+}
+
 /**
- * Application 360 (Knowledge OS V2, plan §16) — the decision-first record
- * page for one instructor application: who, what track, what stage, what is
- * concretely missing, what reviewers said, and what the chair can do next.
- * Deep workflows stay where they are proven: the role-scoped detail page
- * (materials, assignment tools) and the chair decision cockpit (commit form
- * with idempotency/conditions/warnings). This page is the connected summary
- * altitude that previously didn't exist — the old route was a blind redirect.
+ * Application 360 — one scrollable record: contact, materials, reviews,
+ * readiness, and inline chair decision. No separate cockpit or tab strip.
  */
 export default async function ApplicationRecordPage({
   params,
@@ -118,46 +120,96 @@ export default async function ApplicationRecordPage({
     notFound();
   }
 
-  // Action System 4.0 — tracker actions linked to this application.
-  const linkedActions = await getActionsForEntity("INSTRUCTOR_APPLICATION", id, {
-    id: sessionUser.id,
-    roles: sessionUser.roles,
-    primaryRole: sessionUser.primaryRole ?? null,
-    adminSubtypes: sessionUser.adminSubtypes ?? [],
-  }).catch(() => []);
+  const [workspaceRow, activeChair, inlineReviewPanels, offeredSlotRows] = await Promise.all([
+    !DECIDED_STATUSES.has(record.status)
+      ? getApplicationForWorkspace(id)
+      : Promise.resolve(null),
+    canSeeChairQueue(actor) ? getActiveChair() : Promise.resolve(null),
+    loadInlineReviewPanels(id, record, actor),
+    !DECIDED_STATUSES.has(record.status)
+      ? prisma.offeredInterviewSlot.findMany({
+          where: { instructorApplicationId: id },
+          select: {
+            id: true,
+            scheduledAt: true,
+            durationMinutes: true,
+            meetingUrl: true,
+            confirmedAt: true,
+          },
+          orderBy: { scheduledAt: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
 
-  const viewerIsChair = canSeeChairQueue(actor);
+  const canMakeFinalDecision = canMakeFinalApplicantDecision(
+    { id: sessionUser.id },
+    activeChair
+  );
+  const decisionApplicant = workspaceRow ? serializeWorkspaceApplicant(workspaceRow) : null;
+
+  const isActiveChair = canMakeFinalDecision;
+  const currentRound = record.interviewRound ?? 1;
+  const actorIsLeadInterviewer = record.interviewerAssignments.some(
+    (assignment) =>
+      assignment.role === "LEAD" &&
+      assignment.interviewer.id === sessionUser.id &&
+      (assignment.round == null || assignment.round === currentRound)
+  );
+  const canScheduleInterview =
+    !DECIDED_STATUSES.has(record.status) &&
+    (isAdmin(actor) ||
+      isHiringChair(actor) ||
+      actorIsLeadInterviewer ||
+      (isChapterLead(actor) && actor.chapterId === record.applicant.chapterId));
+
+  const offeredInterviewSlots = offeredSlotRows.map((slot) => ({
+    id: slot.id,
+    scheduledAt: slot.scheduledAt.toISOString(),
+    durationMinutes: slot.durationMinutes,
+    meetingUrl: slot.meetingUrl,
+    confirmedAt: slot.confirmedAt?.toISOString() ?? null,
+  }));
 
   const status = STATUS_META[record.status] ?? {
     label: pretty(record.status),
     tone: "neutral" as StatusTone,
   };
-  const detailHref = `/applications/instructor/${record.id}`;
-  const cockpitHref = `/admin/instructor-applicants/${record.id}/review`;
-  const applicantIsMember = record.applicant.primaryRole !== "APPLICANT";
 
-  // Decision-readiness checks — the four real inputs, by name (plan §16:
-  // never a bare percentage without its inputs).
-  const readinessChecks: ChecklistItem[] = (
-    [
-      "hasMaterialsComplete",
-      "hasSubmittedInterviewReviews",
-      "hasReviewerRecommendation",
-      "hasNoOpenInfoRequest",
-    ] as const
-  ).map((key) => {
-    const meta = readinessSignalLabel(key);
-    const done = record.readiness[key];
-    return {
-      label: meta.title,
-      done,
-      detail: done ? meta.complete : meta.gap,
-      href: detailHref,
-    };
+  const readinessChecks = buildDecisionReadinessChecks(record, {
+    applicationId: id,
+    actorId: sessionUser.id,
+    inlineForms: true,
   });
-  const readyCount = readinessChecks.filter((c) => c.done).length;
+  const { readyCount, headline: readinessHeadline } = readinessSummary(readinessChecks);
 
-  // The concrete next step per pipeline stage.
+  const canChangeReviewerRole = canChangeReviewer(actor, record.applicant.chapterId, {
+    isActiveChair,
+  });
+  const canChangeLeadInterviewerRole = canChangeLeadInterviewer(actor, record.applicant.chapterId, {
+    isActiveChair,
+  });
+  let reviewerCandidates: Awaited<ReturnType<typeof getCandidateReviewers>> = [];
+  let leadInterviewerCandidates: Awaited<ReturnType<typeof getCandidateInterviewers>> = [];
+  let secondInterviewerCandidates: Awaited<ReturnType<typeof getCandidateInterviewers>> = [];
+  if (canChangeReviewerRole) {
+    try {
+      reviewerCandidates = await getCandidateReviewers(id);
+    } catch {
+      reviewerCandidates = [];
+    }
+  }
+  if (canChangeLeadInterviewerRole) {
+    try {
+      [leadInterviewerCandidates, secondInterviewerCandidates] = await Promise.all([
+        getCandidateInterviewers(id, { role: "LEAD" }),
+        getCandidateInterviewers(id, { role: "SECOND" }),
+      ]);
+    } catch {
+      leadInterviewerCandidates = [];
+      secondInterviewerCandidates = [];
+    }
+  }
+
   const nextStep = DECIDED_STATUSES.has(record.status)
     ? null
     : record.status === "CHAIR_REVIEW"
@@ -166,22 +218,23 @@ export default async function ApplicationRecordPage({
           detail: record.chairQueuedAtISO
             ? `In the chair queue since ${fmtDate(record.chairQueuedAtISO)}.`
             : "This application is waiting on a chair decision.",
-          href: cockpitHref,
-          cta: "Open decision cockpit",
+          href: "#decision",
+          cta: "Go to decision",
         }
       : record.status === "SUBMITTED"
         ? record.reviewer
           ? {
               title: "Review pending",
               detail: `${record.reviewer.name} is assigned but hasn't submitted a review yet.`,
-              href: detailHref,
-              cta: "Open application",
+              href: "#inline-initial-review",
+              cta: "Open review form",
             }
           : {
               title: "Assign a reviewer",
-              detail: "Nobody is reviewing this application yet.",
-              href: detailHref,
+              detail: "Choose who will lead the initial application review.",
+              href: "",
               cta: "Assign reviewer",
+              ctaKind: "assign-reviewer" as const,
             }
         : record.status === "UNDER_REVIEW"
           ? {
@@ -189,53 +242,53 @@ export default async function ApplicationRecordPage({
               detail: record.reviewer
                 ? `${record.reviewer.name} is reviewing.`
                 : "A review is in progress.",
-              href: detailHref,
-              cta: "Open application",
+              href: "#inline-initial-review",
+              cta: "Open review form",
             }
           : record.status === "INFO_REQUESTED"
             ? record.applicantResponse
               ? {
                   title: "Applicant responded — resume the review",
                   detail: "The requested information has been provided.",
-                  href: detailHref,
-                  cta: "Open application",
+                  href: "#application",
+                  cta: "View response",
                 }
               : {
                   title: "Waiting on the applicant",
                   detail: record.infoRequest
                     ? `Requested: ${record.infoRequest.slice(0, 140)}`
                     : "An information request is outstanding.",
-                  href: detailHref,
-                  cta: "Open application",
+                  href: "#application",
+                  cta: "View request",
                 }
             : record.status === "PRE_APPROVED"
               ? {
                   title: "Schedule the interview",
-                  detail: "Pre-approved; no interview is on the calendar yet.",
-                  href: detailHref,
+                  detail: "Pre-approved — set a time below or send options from the scheduler.",
+                  href: "#scheduling",
                   cta: "Schedule interview",
                 }
               : record.status === "INTERVIEW_SCHEDULED"
                 ? {
                     title: record.interviewScheduledAtISO
-                      ? "Interview scheduled — mark it complete afterwards"
+                      ? "Interview scheduled"
                       : "Interview scheduling in progress",
                     detail: record.interviewScheduledAtISO
-                      ? `Interview on ${fmtDate(record.interviewScheduledAtISO)}. Once it happens, mark the interview complete to move into post-interview review.`
-                      : "Waiting on the applicant to pick a time from the proposed slots.",
-                    href: detailHref,
-                    cta: "Open application",
+                      ? `Interview on ${fmtDate(record.interviewScheduledAtISO)}. Update the time below if needed.`
+                      : "Waiting on the applicant to pick a time — or set one directly below.",
+                    href: "#scheduling",
+                    cta: record.interviewScheduledAtISO ? "View schedule" : "Schedule interview",
                   }
                 : record.status === "INTERVIEW_COMPLETED"
                   ? {
                       title: "Submit interview reviews, then queue for chair",
                       detail:
-                        record.interviewReviews.filter((r) => r.status === "SUBMITTED")
-                          .length === 0
+                        record.interviewReviews.filter((r) => r.status === "SUBMITTED").length ===
+                        0
                           ? "The interview happened but no review is submitted yet."
                           : "Reviews are in — move this application to the chair queue.",
-                      href: detailHref,
-                      cta: "Open application",
+                      href: "#reviews",
+                      cta: "View reviews",
                     }
                   : null;
 
@@ -262,12 +315,12 @@ export default async function ApplicationRecordPage({
         : record.interviewScheduledAtISO
           ? fmtDate(record.interviewScheduledAtISO)
           : "Not scheduled",
-      href: "#reviews",
+      href: "#scheduling",
     },
     {
       label: "Decision readiness",
-      value: `${readyCount}/4 checks`,
-      tone: readyCount < 4 && record.status === "CHAIR_REVIEW" ? "attention" : undefined,
+      value: readinessFactValue(readinessChecks),
+      tone: readyCount < readinessChecks.length && record.status === "CHAIR_REVIEW" ? "attention" : undefined,
       href: "#readiness",
     },
     {
@@ -288,36 +341,35 @@ export default async function ApplicationRecordPage({
 
   return (
     <ApplicationReviewShell
-      maxWidth={900}
+      maxWidth={1280}
       actions={[
         { label: "Application board", href: "/admin/instructor-applicants", icon: "list" },
-        ...(viewerIsChair
-          ? [{ label: "Chair queue", href: "/admin/instructor-applicants/chair-queue", icon: "inbox" as const }]
-          : []),
-        { label: "Home", href: "/", icon: "compass" },
       ]}
     >
       <ApplicationRecordSimple
-      record={record}
-      status={status}
-      identityLine={identityLine}
-      facts={facts}
-      nextStep={nextStep}
-      readinessChecks={readinessChecks}
-      readyCount={readyCount}
-      viewerIsChair={viewerIsChair}
-      detailHref={detailHref}
-      cockpitHref={cockpitHref}
-      applicantIsMember={applicantIsMember}
-      chairDecisionOptions={CHAIR_DECISION_OPTIONS}
-      linkedActions={linkedActions}
-      sessionUser={{
-        id: sessionUser.id,
-        roles: sessionUser.roles,
-        primaryRole: sessionUser.primaryRole ?? null,
-        adminSubtypes: sessionUser.adminSubtypes ?? [],
-      }}
-    />
+        record={record}
+        status={status}
+        identityLine={identityLine}
+        facts={facts}
+        nextStep={nextStep}
+        readinessChecks={readinessChecks}
+        readinessHeadline={readinessHeadline}
+        actorId={sessionUser.id}
+        canMakeFinalDecision={canMakeFinalDecision}
+        activeChairName={activeChair?.name ?? activeChair?.email ?? null}
+        decisionLockMessage={NON_CHAIR_DECISION_MESSAGE}
+        decisionApplicant={decisionApplicant}
+        inlineReviewPanels={inlineReviewPanels}
+        returnTo={`/admin/instructor-applicants/${id}`}
+        canMarkMaterials
+        canChangeReviewer={canChangeReviewerRole}
+        reviewerCandidates={reviewerCandidates}
+        canChangeLeadInterviewer={canChangeLeadInterviewerRole}
+        leadInterviewerCandidates={leadInterviewerCandidates}
+        secondInterviewerCandidates={secondInterviewerCandidates}
+        canScheduleInterview={canScheduleInterview}
+        offeredInterviewSlots={offeredInterviewSlots}
+      />
     </ApplicationReviewShell>
   );
 }

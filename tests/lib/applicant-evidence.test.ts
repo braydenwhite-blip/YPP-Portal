@@ -95,14 +95,14 @@ describe("computeApplicantOverview", () => {
     expect(overview.disagreementStatement).toMatch(/split/i);
   });
 
-  it("flags missing interview feedback when assigned > submitted", () => {
+  it("flags missing live interview notes when assigned > submitted", () => {
     const overview = computeApplicantOverview({
       initialReviews: [initial()],
       interviewReviews: [interview()],
       assignedInterviewerCount: 2,
     });
     expect(overview.missingInterviewCount).toBe(1);
-    expect(overview.missingInformation.join(" ")).toMatch(/not submitted interview feedback/);
+    expect(overview.missingInformation.join(" ")).toMatch(/not submitted live interview notes/);
   });
 
   it("surfaces a majority approval recommendation", () => {

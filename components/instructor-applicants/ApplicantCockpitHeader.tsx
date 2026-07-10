@@ -107,7 +107,7 @@ export default function ApplicantCockpitHeader({ application }: Props) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-bold uppercase tracking-[0.11em] text-brand-700">
-            Instructor applicant workspace
+            Application workspace
           </div>
           <h1 className="m-0 mt-0.5 text-[24px] font-bold leading-tight text-ink">
             {displayName}

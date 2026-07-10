@@ -8,7 +8,6 @@ const mockLoadApplicationRecord = vi.fn();
 const mockGetHiringActor = vi.fn();
 const mockAssertCanViewApplicant = vi.fn();
 const mockCanSeeChairQueue = vi.fn();
-const mockGetActionsForEntity = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => mockNotFound(),
@@ -28,12 +27,19 @@ vi.mock("@/lib/chapter-hiring-permissions", () => ({
   getHiringActor: mockGetHiringActor,
 }));
 
-vi.mock("@/lib/people-strategy/action-queries", () => ({
-  getActionsForEntity: mockGetActionsForEntity,
+vi.mock("@/lib/instructor-applicant-board-queries", () => ({
+  getApplicationForWorkspace: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock("@/components/work/entity-action-panel", () => ({
-  EntityActionPanel: () => null,
+vi.mock("@/lib/active-chair", () => ({
+  getActiveChair: vi.fn().mockResolvedValue(null),
+  canMakeFinalApplicantDecision: vi.fn().mockReturnValue(false),
+  NON_CHAIR_DECISION_MESSAGE:
+    "Only the currently assigned Chair can submit the final decision.",
+}));
+
+vi.mock("@/components/instructor-applicants/WorkspaceChairDecisionPanel", () => ({
+  default: () => null,
 }));
 
 vi.mock("@/components/ui-v2", () => ({
@@ -90,10 +96,9 @@ describe("ApplicationRecordPage permissions", () => {
       featureKeys: new Set<string>(),
     });
     mockCanSeeChairQueue.mockReturnValue(false);
-    mockGetActionsForEntity.mockResolvedValue([]);
   });
 
-  it("404s before loading linked work when the per-record applicant guard fails", async () => {
+  it("404s when the per-record applicant guard fails", async () => {
     mockAssertCanViewApplicant.mockImplementation(() => {
       throw new Error("Chapter Presidents can only view applicants in their own chapter.");
     });
@@ -120,6 +125,5 @@ describe("ApplicationRecordPage permissions", () => {
       }
     );
     expect(mockNotFound).toHaveBeenCalled();
-    expect(mockGetActionsForEntity).not.toHaveBeenCalled();
   });
 });

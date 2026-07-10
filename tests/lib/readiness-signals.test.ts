@@ -70,6 +70,55 @@ describe("computeReadinessSignals", () => {
     expect(result.hasNoOpenInfoRequest).toBe(true);
   });
 
+  it("flags an open info request when status is INFO_REQUESTED", () => {
+    const result = computeReadinessSignals({
+      interviewReviews: [],
+      applicationReviews: [],
+      materialsReadyAt: null,
+      infoRequest: "Send transcript",
+      status: "INFO_REQUESTED",
+    });
+    expect(result.hasNoOpenInfoRequest).toBe(false);
+  });
+
+  it("requires all assigned interviewers to submit when assignment count is known", () => {
+    expect(
+      computeReadinessSignals({
+        interviewReviews: [{ id: "r1", status: "SUBMITTED" }],
+        applicationReviews: [],
+        materialsReadyAt: null,
+        infoRequest: null,
+        interviewerAssignmentCount: 2,
+      }).hasSubmittedInterviewReviews
+    ).toBe(false);
+    expect(
+      computeReadinessSignals({
+        interviewReviews: [
+          { id: "r1", status: "SUBMITTED" },
+          { id: "r2", status: "SUBMITTED" },
+        ],
+        applicationReviews: [],
+        materialsReadyAt: null,
+        infoRequest: null,
+        interviewerAssignmentCount: 2,
+      }).hasSubmittedInterviewReviews
+    ).toBe(true);
+  });
+
+  it("prefers the lead review for the initial recommendation check", () => {
+    expect(
+      computeReadinessSignals({
+        interviewReviews: [],
+        applicationReviews: [
+          { summary: "Backup note", isLeadReview: false, status: "SUBMITTED" },
+          { summary: "", nextStep: null, isLeadReview: true, status: "SUBMITTED" },
+        ],
+        materialsReadyAt: null,
+        infoRequest: null,
+      }).hasReviewerRecommendation
+    ).toBe(false);
+  });
+
   it("flags materials complete on a Date or ISO string", () => {
     expect(
       computeReadinessSignals({

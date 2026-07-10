@@ -39,6 +39,17 @@ import {
   syncPersonSearchDocument,
 } from "@/lib/help-agent/search-indexing";
 import {
+  APPLICANT_ARCHIVE_REASONS,
+  INACTIVITY_ARCHIVE_DAYS,
+  INACTIVITY_NUDGE_DAYS,
+  INSTRUCTOR_INACTIVITY_STATUSES,
+  CP_INACTIVITY_STATUSES,
+  sendInactivityNudgeEmailStub,
+  terminalArchiveReasonForStatus,
+  type ApplicantArchiveReason,
+} from "@/lib/applicant-archive";
+import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
+import {
   startProvisionalClock,
   clearProvisionalClock,
 } from "@/lib/people-strategy/provisional";
@@ -49,6 +60,7 @@ import {
   isAdmin,
   isChapterLead,
   isHiringChair,
+  canChangeReviewer,
 } from "@/lib/chapter-hiring-permissions";
 import {
   canMakeFinalApplicantDecision,
@@ -78,8 +90,12 @@ async function requireAdminOrChapterLead() {
   const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
-    throw new Error("Unauthorized - Admin or Chapter President access required");
+  if (
+    !roles.includes("ADMIN") &&
+    !roles.includes("CHAPTER_PRESIDENT") &&
+    !roles.includes("HIRING_CHAIR")
+  ) {
+    throw new Error("Unauthorized - Admin, Hiring Chair, or Chapter President access required");
   }
   return session;
 }
@@ -98,9 +114,17 @@ async function assertReviewerCanManageApplicant(reviewerId: string, applicantId:
   if (!reviewer || !applicant) throw new Error("Reviewer or applicant not found");
   const reviewerRoles = reviewer.roles.map((r) => r.role);
   const reviewerIsAdmin = reviewerRoles.includes("ADMIN");
+  const reviewerIsHiringChair = reviewerRoles.includes("HIRING_CHAIR");
   const reviewerIsChapterLead = reviewerRoles.includes("CHAPTER_PRESIDENT");
-  if (!reviewerIsAdmin && !reviewerIsChapterLead) throw new Error("Unauthorized");
-  if (reviewerIsChapterLead && !reviewerIsAdmin && reviewer.chapterId !== applicant.chapterId) {
+  if (!reviewerIsAdmin && !reviewerIsHiringChair && !reviewerIsChapterLead) {
+    throw new Error("Unauthorized");
+  }
+  if (
+    reviewerIsChapterLead &&
+    !reviewerIsAdmin &&
+    !reviewerIsHiringChair &&
+    reviewer.chapterId !== applicant.chapterId
+  ) {
     throw new Error("Chapter Presidents can only review applicants in their own chapter.");
   }
 }
@@ -649,7 +673,98 @@ export async function scheduleInterview(
   revalidatePath("/admin/instructor-applicants");
   revalidatePath("/chapter-lead/instructor-applicants");
   revalidatePath(`/applications/instructor/${applicationId}`);
+  revalidatePath(`/admin/instructor-applicants/${applicationId}`);
   revalidatePath("/application-status");
+}
+
+/**
+ * Application 360 schedule/reschedule. Admin, Hiring Chair, same-chapter CP,
+ * or the assigned lead interviewer can set a confirmed interview time.
+ */
+export async function scheduleInstructorInterviewOnRecord(input: {
+  applicationId: string;
+  scheduledAt: string;
+  meetingUrl?: string | null;
+  notes?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const applicationId = String(input.applicationId ?? "").trim();
+    if (!applicationId) return { success: false, error: "Missing application." };
+
+    const scheduledAt = new Date(input.scheduledAt);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      return { success: false, error: "Pick a valid date and time." };
+    }
+    if (scheduledAt <= new Date()) {
+      return { success: false, error: "Interview time must be in the future." };
+    }
+
+    const actor = await getHiringActor(session.user.id);
+    const application = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        id: true,
+        status: true,
+        interviewRound: true,
+        applicant: { select: { chapterId: true } },
+        interviewerAssignments: {
+          where: { removedAt: null },
+          select: { interviewerId: true, role: true, round: true },
+        },
+      },
+    });
+    if (!application) return { success: false, error: "Application not found." };
+
+    const terminal = [
+      InstructorApplicationStatus.APPROVED,
+      InstructorApplicationStatus.REJECTED,
+      InstructorApplicationStatus.WITHDRAWN,
+      InstructorApplicationStatus.WAITLISTED,
+    ];
+    if (terminal.includes(application.status)) {
+      return { success: false, error: "This application can no longer be scheduled." };
+    }
+
+    const currentRound = application.interviewRound ?? 1;
+    const actorIsLead = application.interviewerAssignments.some(
+      (assignment) =>
+        assignment.role === "LEAD" &&
+        assignment.interviewerId === actor.id &&
+        (assignment.round == null || assignment.round === currentRound)
+    );
+    const actorIsSameChapterCp =
+      isChapterLead(actor) && actor.chapterId === application.applicant.chapterId;
+
+    if (!isAdmin(actor) && !isHiringChair(actor) && !actorIsSameChapterCp && !actorIsLead) {
+      return {
+        success: false,
+        error: "Only admins, hiring chairs, chapter leads, or the lead interviewer can schedule.",
+      };
+    }
+
+    const meetingUrl = cleanMeetingDetails(input.meetingUrl);
+    const noteParts = [
+      input.notes?.trim() || null,
+      meetingUrl ? `Meeting: ${meetingUrl}` : null,
+    ].filter(Boolean);
+    await scheduleInterview(
+      applicationId,
+      actor.id,
+      scheduledAt,
+      noteParts.length > 0 ? noteParts.join("\n") : undefined
+    );
+
+    return { success: true };
+  } catch (error) {
+    console.error("[scheduleInstructorInterviewOnRecord]", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Could not schedule interview.",
+    };
+  }
 }
 
 export async function markInterviewCompleted(
@@ -993,7 +1108,9 @@ export async function assignReviewer(
   reviewerId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const session = await requireAdminOrChapterLead();
+    const session = await getSession();
+    if (!session?.user?.id) throw new Error("Unauthorized");
+    const actor = await getHiringActor(session.user.id);
     const application = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
       select: {
@@ -1005,14 +1122,14 @@ export async function assignReviewer(
       },
     });
     if (!application) return { success: false, error: "Application not found." };
-    const actor = await getHiringActor(session.user.id);
-    assertCanManageApplication(actor, {
-      id: application.id,
-      applicantId: application.applicantId,
-      reviewerId: application.reviewerId,
-      applicantChapterId: application.applicant.chapterId,
-      interviewerAssignments: [],
-    });
+
+    const activeChairUserId = await getActiveChairUserId();
+    const isActiveChair = canMakeFinalApplicantDecision({ id: actor.id }, activeChairUserId);
+    if (
+      !canChangeReviewer(actor, application.applicant.chapterId, { isActiveChair })
+    ) {
+      throw new Error("Unauthorized - you cannot assign a reviewer for this application.");
+    }
     const targetReviewer = await prisma.user.findUnique({
       where: { id: reviewerId },
       select: { chapterId: true, roles: { select: { role: true } } },
@@ -1077,6 +1194,7 @@ export async function assignReviewer(
       meta: { reviewerId },
     });
     revalidatePath("/admin/instructor-applicants");
+    revalidatePath(`/admin/instructor-applicants/${applicationId}`);
     revalidatePath("/chapter-lead/instructor-applicants");
     revalidatePath(`/applications/instructor/${applicationId}`);
     return { success: true };
@@ -1348,8 +1466,11 @@ export async function offerInterviewSlots(
         (assignment.round == null || assignment.round === currentRound)
     );
 
-    if (!isAdmin(actor) && !actorIsAssignedLead) {
-      return { success: false, error: "Only the assigned lead interviewer can send applicant interview times." };
+    if (!isAdmin(actor) && !isHiringChair(actor) && !actorIsAssignedLead) {
+      return {
+        success: false,
+        error: "Only admins, hiring chairs, or the assigned lead interviewer can send interview times.",
+      };
     }
 
     if (slots.length !== 3) {
@@ -1391,10 +1512,14 @@ export async function offerInterviewSlots(
     const leadReview = application.applicationReviews[0] ?? null;
     const allowedStatuses: InstructorApplicationStatus[] = [
       InstructorApplicationStatus.UNDER_REVIEW,
+      InstructorApplicationStatus.PRE_APPROVED,
       InstructorApplicationStatus.INTERVIEW_SCHEDULED,
     ];
     if (!allowedStatuses.includes(application.status)) {
-      return { success: false, error: "Interview times can only be sent for applications in review or interview scheduling." };
+      return {
+        success: false,
+        error: "Interview times can only be sent once the applicant is ready for interview.",
+      };
     }
     if (application.interviewScheduledAt) {
       return { success: false, error: "This applicant already confirmed an interview time." };
@@ -1406,7 +1531,9 @@ export async function offerInterviewSlots(
       return { success: false, error: "Submit the initial review with Move to Interview before sending times." };
     }
 
-    const shouldAdvanceToScheduling = application.status === InstructorApplicationStatus.UNDER_REVIEW;
+    const shouldAdvanceToScheduling =
+      application.status === InstructorApplicationStatus.UNDER_REVIEW ||
+      application.status === InstructorApplicationStatus.PRE_APPROVED;
 
     await prisma.$transaction(
       async (tx) => {
@@ -1785,9 +1912,66 @@ export async function reassignReviewer(
   return assignReviewer(applicationId, newReviewerId);
 }
 
+/** Clear the assigned reviewer so the application has no reviewer. */
+export async function unassignReviewer(
+  applicationId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) throw new Error("Unauthorized");
+    const actor = await getHiringActor(session.user.id);
+    const application = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        id: true,
+        reviewerId: true,
+        applicant: { select: { chapterId: true } },
+      },
+    });
+    if (!application) return { success: false, error: "Application not found." };
+    if (!application.reviewerId) return { success: true };
+
+    const activeChairUserId = await getActiveChairUserId();
+    const isActiveChair = canMakeFinalApplicantDecision({ id: actor.id }, activeChairUserId);
+    if (!canChangeReviewer(actor, application.applicant.chapterId, { isActiveChair })) {
+      throw new Error("Unauthorized - you cannot change the reviewer for this application.");
+    }
+
+    const previousReviewerId = application.reviewerId;
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: applicationId },
+        data: {
+          reviewerId: null,
+          reviewerAssignedAt: null,
+          reviewerAssignedById: null,
+        },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "REVIEWER_ASSIGNED",
+          actorId: actor.id,
+          payload: { reviewerId: null, previousReviewerId, cleared: true },
+        },
+      });
+    });
+
+    await syncInstructorApplicationWorkflow(applicationId);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath(`/admin/instructor-applicants/${applicationId}`);
+    revalidatePath("/chapter-lead/instructor-applicants");
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    return { success: true };
+  } catch (error) {
+    console.error("[unassignReviewer]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
 /**
  * Assign an interviewer (LEAD or SECOND) to an application.
- * LEAD must exist before SECOND can be assigned.
+ * Either role can be assigned independently — order does not matter.
  */
 export async function assignInterviewer(formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
@@ -1819,6 +2003,8 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
     if (!app) return { success: false, error: "Application not found." };
 
     const actor = await getHiringActor(session.user.id);
+    const activeChairUserId = await getActiveChairUserId();
+    const isActiveChair = canMakeFinalApplicantDecision({ id: actor.id }, activeChairUserId);
     assertCanAssignInterviewers(
       actor,
       {
@@ -1829,16 +2015,14 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
         applicantChapterId: app.applicant.chapterId,
         interviewerAssignments: app.interviewerAssignments,
       },
-      role
+      role,
+      { isActiveChair }
     );
 
     const currentRoundAssignments = app.interviewerAssignments.filter(
       (assignment) => assignment.round === app.interviewRound
     );
 
-    if (role === "SECOND" && !currentRoundAssignments.some((a) => a.role === "LEAD")) {
-      return { success: false, error: "Assign a LEAD interviewer before adding a SECOND." };
-    }
     if (currentRoundAssignments.some((a) => a.role === role)) {
       return { success: false, error: `${role} interviewer is already assigned for this round.` };
     }
@@ -1884,6 +2068,8 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
     });
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
+    revalidatePath(`/admin/instructor-applicants/${applicationId}`);
+    revalidatePath("/chapter-lead/instructor-applicants");
     return { success: true };
   } catch (error) {
     console.error("[assignInterviewer]", error);
@@ -1951,6 +2137,8 @@ export async function removeInterviewer(formData: FormData): Promise<{ success: 
 
     revalidatePath(`/applications/instructor/${assignment.applicationId}`);
     revalidatePath("/admin/instructor-applicants");
+    revalidatePath(`/admin/instructor-applicants/${assignment.applicationId}`);
+    revalidatePath("/chapter-lead/instructor-applicants");
     return { success: true };
   } catch (error) {
     console.error("[removeInterviewer]", error);
@@ -3131,19 +3319,22 @@ export async function archiveApplication(formData: FormData): Promise<{ success:
 
     const applicationId = String(formData.get("applicationId") ?? "").trim();
     if (!applicationId) return { success: false, error: "Missing applicationId." };
+    const reasonRaw = String(formData.get("reason") ?? "").trim();
+    const archiveReason: ApplicantArchiveReason =
+      (reasonRaw as ApplicantArchiveReason) || APPLICANT_ARCHIVE_REASONS.MANUAL;
 
     const now = new Date();
     await prisma.$transaction(async (tx) => {
       await tx.instructorApplication.update({
         where: { id: applicationId },
-        data: { archivedAt: now },
+        data: { archivedAt: now, archiveReason },
       });
       await tx.instructorApplicationTimelineEvent.create({
         data: {
           applicationId,
           kind: "ARCHIVED",
           actorId: session.user.id,
-          payload: { manual: true, archivedAt: now.toISOString() },
+          payload: { manual: true, reason: archiveReason, archivedAt: now.toISOString() },
         },
       });
     });
@@ -3185,17 +3376,18 @@ export async function autoArchiveTerminalApplications(): Promise<{ archived: num
 
   for (const app of candidates) {
     try {
+      const archiveReason = terminalArchiveReasonForStatus(app.status);
       await prisma.$transaction(async (tx) => {
         await tx.instructorApplication.update({
           where: { id: app.id },
-          data: { archivedAt: now },
+          data: { archivedAt: now, archiveReason },
         });
         await tx.instructorApplicationTimelineEvent.create({
           data: {
             applicationId: app.id,
             kind: "ARCHIVED",
             actorId: null,
-            payload: { manual: false, reason: "auto-archive-30d" },
+            payload: { manual: false, reason: archiveReason, source: "auto-archive-30d" },
           },
         });
       });
@@ -3207,6 +3399,157 @@ export async function autoArchiveTerminalApplications(): Promise<{ archived: num
   }
 
   return { archived };
+}
+
+/**
+ * Nightly inactivity sweep:
+ * - Day 3 / 7 / 14: advance nudge stage (emails stubbed for now)
+ * - Day 14+: soft-archive with reason INACTIVE_14D
+ *
+ * Uses `updatedAt` as the activity clock (any staff/applicant write bumps it).
+ */
+export async function autoArchiveInactiveApplications(now = new Date()): Promise<{
+  nudged: number;
+  archived: number;
+}> {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  let nudged = 0;
+  let archived = 0;
+
+  const instructorCandidates = await prisma.instructorApplication.findMany({
+    where: {
+      archivedAt: null,
+      status: { in: [...INSTRUCTOR_INACTIVITY_STATUSES] as InstructorApplicationStatus[] },
+    },
+    select: {
+      id: true,
+      status: true,
+      updatedAt: true,
+      inactivityNudgeStage: true,
+      preferredFirstName: true,
+      lastName: true,
+      legalName: true,
+      applicant: { select: { name: true, email: true } },
+    },
+    take: 500,
+  });
+
+  for (const app of instructorCandidates) {
+    const idleDays = Math.floor((now.getTime() - app.updatedAt.getTime()) / msPerDay);
+    if (idleDays < INACTIVITY_NUDGE_DAYS[0]) continue;
+
+    try {
+      const nextNudge =
+        [...INACTIVITY_NUDGE_DAYS].reverse().find((day) => idleDays >= day && app.inactivityNudgeStage < day) ??
+        null;
+
+      if (nextNudge != null) {
+        await sendInactivityNudgeEmailStub({
+          kind: "instructor",
+          applicationId: app.id,
+          email: app.applicant.email,
+          displayName: formatApplicantDisplayName(app),
+          nudgeDay: nextNudge,
+          daysUntilArchive: Math.max(0, INACTIVITY_ARCHIVE_DAYS - idleDays),
+        });
+        await prisma.instructorApplication.update({
+          where: { id: app.id },
+          data: { inactivityNudgeStage: nextNudge },
+        });
+        nudged++;
+      }
+
+      if (idleDays >= INACTIVITY_ARCHIVE_DAYS) {
+        await prisma.$transaction(async (tx) => {
+          await tx.instructorApplication.update({
+            where: { id: app.id },
+            data: {
+              archivedAt: now,
+              archiveReason: APPLICANT_ARCHIVE_REASONS.INACTIVE_14D,
+              inactivityNudgeStage: 14,
+            },
+          });
+          await tx.instructorApplicationTimelineEvent.create({
+            data: {
+              applicationId: app.id,
+              kind: "ARCHIVED",
+              actorId: null,
+              payload: {
+                manual: false,
+                reason: APPLICANT_ARCHIVE_REASONS.INACTIVE_14D,
+                idleDays,
+              },
+            },
+          });
+        });
+        await syncApplicationSearchDocument(app.id);
+        archived++;
+      }
+    } catch (e) {
+      console.error(`[autoArchiveInactiveApplications] instructor ${app.id}:`, e);
+    }
+  }
+
+  const cpCandidates = await prisma.chapterPresidentApplication.findMany({
+    where: {
+      archivedAt: null,
+      status: { in: [...CP_INACTIVITY_STATUSES] as any },
+    },
+    select: {
+      id: true,
+      status: true,
+      updatedAt: true,
+      inactivityNudgeStage: true,
+      preferredFirstName: true,
+      lastName: true,
+      legalName: true,
+      applicant: { select: { name: true, email: true } },
+    },
+    take: 500,
+  });
+
+  for (const app of cpCandidates) {
+    const idleDays = Math.floor((now.getTime() - app.updatedAt.getTime()) / msPerDay);
+    if (idleDays < INACTIVITY_NUDGE_DAYS[0]) continue;
+
+    try {
+      const nextNudge =
+        [...INACTIVITY_NUDGE_DAYS].reverse().find((day) => idleDays >= day && app.inactivityNudgeStage < day) ??
+        null;
+
+      if (nextNudge != null) {
+        await sendInactivityNudgeEmailStub({
+          kind: "cp",
+          applicationId: app.id,
+          email: app.applicant.email,
+          displayName: formatApplicantDisplayName(app),
+          nudgeDay: nextNudge,
+          daysUntilArchive: Math.max(0, INACTIVITY_ARCHIVE_DAYS - idleDays),
+        });
+        await prisma.chapterPresidentApplication.update({
+          where: { id: app.id },
+          data: { inactivityNudgeStage: nextNudge },
+        });
+        nudged++;
+      }
+
+      if (idleDays >= INACTIVITY_ARCHIVE_DAYS) {
+        await prisma.chapterPresidentApplication.update({
+          where: { id: app.id },
+          data: {
+            archivedAt: now,
+            archiveReason: APPLICANT_ARCHIVE_REASONS.INACTIVE_14D,
+            inactivityNudgeStage: 14,
+          },
+        });
+        archived++;
+      }
+    } catch (e) {
+      console.error(`[autoArchiveInactiveApplications] cp ${app.id}:`, e);
+    }
+  }
+
+  return { nudged, archived };
 }
 
 /**
@@ -3299,7 +3642,7 @@ export async function archiveApplicantSubmissionById(
   opts?: { actorId?: string | null; reason?: string }
 ): Promise<boolean> {
   const now = new Date();
-  const reason = opts?.reason ?? "manual-admin-archive";
+  const reason = opts?.reason ?? APPLICANT_ARCHIVE_REASONS.MANUAL;
   const actorId = opts?.actorId ?? null;
 
   switch (kind) {
@@ -3307,7 +3650,7 @@ export async function archiveApplicantSubmissionById(
       const res = await prisma.$transaction(async (tx) => {
         const updated = await tx.instructorApplication.updateMany({
           where: { id, archivedAt: null },
-          data: { archivedAt: now },
+          data: { archivedAt: now, archiveReason: reason },
         });
         if (updated.count > 0) {
           await tx.instructorApplicationTimelineEvent.create({
@@ -3334,7 +3677,7 @@ export async function archiveApplicantSubmissionById(
     case "chapter-president": {
       const res = await prisma.chapterPresidentApplication.updateMany({
         where: { id, archivedAt: null },
-        data: { archivedAt: now },
+        data: { archivedAt: now, archiveReason: reason },
       });
       return res.count > 0;
     }

@@ -1,9 +1,9 @@
 /**
  * Pure helpers for the Decision Readiness Meter.
  *
- * The meter displays four signals — interviews submitted, materials complete,
- * lead-reviewer recommendation, and no open info request. Below 100% the dock
- * still allows decisions but the primary action shows a warning state.
+ * Four signals — live interview notes, course materials, initial review, and
+ * no open info request. Below 100% the decision dock still allows commits but
+ * surfaces a warning state.
  */
 
 export interface ReadinessSignals {
@@ -14,19 +14,54 @@ export interface ReadinessSignals {
 }
 
 export interface ReadinessInput {
-  interviewReviews: Array<{ id: string; status?: string | null } | { id: string }>;
-  applicationReviews: Array<{ summary?: string | null; nextStep?: string | null }>;
+  status?: string;
+  interviewReviews: Array<{ id?: string; status?: string | null }>;
+  applicationReviews: Array<{
+    summary?: string | null;
+    nextStep?: string | null;
+    status?: string | null;
+    isLeadReview?: boolean;
+  }>;
+  interviewerAssignmentCount?: number;
   materialsReadyAt: Date | string | null;
+  materials?: { courseOutline: boolean; firstClassPlan: boolean };
   infoRequest?: string | null;
 }
 
-export function computeReadinessSignals(input: ReadinessInput): ReadinessSignals {
-  const hasSubmittedInterviewReviews = (input.interviewReviews ?? []).length > 0;
-  const hasMaterialsComplete = Boolean(input.materialsReadyAt);
-  const hasReviewerRecommendation = (input.applicationReviews ?? []).some(
-    (review) => Boolean(review.summary?.trim() || review.nextStep?.trim())
+function isSubmittedReview(review: { status?: string | null }): boolean {
+  return review.status === undefined || review.status === "SUBMITTED";
+}
+
+function hasSubmittedRecommendation(
+  reviews: ReadinessInput["applicationReviews"]
+): boolean {
+  const lead = reviews.find((r) => r.isLeadReview);
+  if (lead) {
+    return isSubmittedReview(lead) && Boolean(lead.summary?.trim() || lead.nextStep);
+  }
+  return reviews.some(
+    (review) =>
+      isSubmittedReview(review) &&
+      Boolean(review.summary?.trim() || review.nextStep?.trim())
   );
-  const hasNoOpenInfoRequest = !input.infoRequest?.trim();
+}
+
+export function computeReadinessSignals(input: ReadinessInput): ReadinessSignals {
+  const submittedInterviews = (input.interviewReviews ?? []).filter(isSubmittedReview);
+  const assigned = input.interviewerAssignmentCount ?? 0;
+  const hasSubmittedInterviewReviews =
+    assigned > 0 ? submittedInterviews.length >= assigned : submittedInterviews.length > 0;
+
+  const hasMaterialsComplete =
+    Boolean(input.materialsReadyAt) ||
+    Boolean(input.materials?.courseOutline && input.materials?.firstClassPlan);
+
+  const hasReviewerRecommendation = hasSubmittedRecommendation(
+    input.applicationReviews ?? []
+  );
+
+  const hasNoOpenInfoRequest =
+    input.status !== "INFO_REQUESTED" && !input.infoRequest?.trim();
 
   return {
     hasSubmittedInterviewReviews,
@@ -52,21 +87,21 @@ export function readinessSignalLabel(
   switch (key) {
     case "hasSubmittedInterviewReviews":
       return {
-        title: "Interview reviews",
-        complete: "All interview reviews submitted",
-        gap: "Interview review pending",
+        title: "Live interview notes",
+        complete: "All interviewer reviews submitted",
+        gap: "Live interview notes pending",
       };
     case "hasMaterialsComplete":
       return {
-        title: "Materials",
-        complete: "Course outline and first-class plan ready",
-        gap: "Materials still missing",
+        title: "Course materials",
+        complete: "Course outline and first-class plan on file",
+        gap: "Course materials still missing",
       };
     case "hasReviewerRecommendation":
       return {
-        title: "Lead recommendation",
-        complete: "Lead reviewer note submitted",
-        gap: "Lead reviewer recommendation pending",
+        title: "Initial review",
+        complete: "Reviewer recommendation submitted",
+        gap: "Initial review pending",
       };
     case "hasNoOpenInfoRequest":
       return {

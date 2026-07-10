@@ -46,6 +46,33 @@ export type MyWorkflowQueue = {
   dueThisWeekCount: number;
 };
 
+const EMPTY_MY_WORKFLOW_QUEUE: MyWorkflowQueue = {
+  assignedToMe: [],
+  instancesIOwn: [],
+  overdueCount: 0,
+  dueThisWeekCount: 0,
+};
+
+/** True when `prisma generate` has been run after the workflow-engine migration. */
+export function isWorkflowEnginePrismaReady(): boolean {
+  const client = prisma as {
+    workflowStepExecution?: { findMany?: unknown };
+    workflowInstance?: { findMany?: unknown };
+  };
+  return (
+    typeof client.workflowStepExecution?.findMany === "function" &&
+    typeof client.workflowInstance?.findMany === "function"
+  );
+}
+
+function isWorkflowSchemaMissingError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = "code" in error ? String((error as { code?: string }).code) : "";
+  if (code === "P2021") return true;
+  const message = "message" in error ? String((error as { message?: string }).message) : "";
+  return /WorkflowStepExecution|WorkflowInstance/i.test(message);
+}
+
 const ASSIGNED_TO_ME_TAKE = 50;
 const INSTANCES_I_OWN_TAKE = 20;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -88,6 +115,11 @@ export async function getMyWorkflowQueue(
   userId: string,
   now: Date = new Date()
 ): Promise<MyWorkflowQueue> {
+  if (!isWorkflowEnginePrismaReady()) {
+    return EMPTY_MY_WORKFLOW_QUEUE;
+  }
+
+  try {
   const [executions, instances] = await Promise.all([
     prisma.workflowStepExecution.findMany({
       where: {
@@ -167,4 +199,10 @@ export async function getMyWorkflowQueue(
   );
 
   return { assignedToMe, instancesIOwn, overdueCount, dueThisWeekCount };
+  } catch (error) {
+    if (isWorkflowSchemaMissingError(error)) {
+      return EMPTY_MY_WORKFLOW_QUEUE;
+    }
+    throw error;
+  }
 }

@@ -8,6 +8,8 @@ export type ChecklistItem = {
   detail?: string;
   /** Where to go to close the gap (rendered only when not done). */
   href?: string;
+  /** Link text when `href` is set (defaults to "View →"). */
+  linkLabel?: string;
 };
 
 /**
@@ -58,7 +60,7 @@ export function Checklist({
                       href={item.href}
                       className="font-semibold text-brand-700 hover:underline"
                     >
-                      Resolve →
+                      {item.linkLabel ?? "View →"}
                     </a>
                   </>
                 ) : null}

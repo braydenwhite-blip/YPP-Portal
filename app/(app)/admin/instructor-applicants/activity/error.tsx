@@ -29,10 +29,10 @@ export default function ActivityFeedError({
             Reload
           </button>
           <a
-            href="/admin/instructor-applicants/chair-queue"
+            href="/admin/instructor-applicants"
             className="px-5 py-2.5 bg-gray-200 text-gray-900 rounded-full text-sm font-semibold hover:bg-gray-300 transition-colors"
           >
-            Back to queue
+            Back to board
           </a>
         </div>
       </div>

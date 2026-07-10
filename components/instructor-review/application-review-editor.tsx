@@ -64,16 +64,17 @@ interface ApplicationReviewEditorProps {
   applicationId: string;
   returnTo: string;
   initialReview: ReviewSnapshot;
-  roughPlan: RoughPlan;
+  roughPlan?: RoughPlan;
   canEdit: boolean;
-  /**
-   * When set, explains why the editor is locked (e.g. the applicant advanced
-   * past the initial-review stage). Takes precedence over the generic
-   * already-submitted lock notice.
-   */
   lockedReason?: string | null;
   isLeadReviewer: boolean;
   hasLeadInterviewer: boolean;
+  /** Application 360 inline — rubric + decision only, no course snapshot. */
+  variant?: "full" | "compact";
+}
+
+function compactSignalLabel(label: string): string {
+  return label.replace(/^GOAL \d+ — /, "");
 }
 
 function buildInitialSignals(initialReview: ReviewSnapshot): SignalState[] {
@@ -112,7 +113,9 @@ export default function ApplicationReviewEditor({
   lockedReason,
   isLeadReviewer,
   hasLeadInterviewer,
+  variant = "full",
 }: ApplicationReviewEditorProps) {
+  const compact = variant === "compact";
   const [nextStep, setNextStep] = useState<InstructorApplicationNextStepValue | "">(
     initialReview?.nextStep ?? ""
   );
@@ -157,7 +160,10 @@ export default function ApplicationReviewEditor({
   }
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form action={action} className={compact ? "flex flex-col gap-3" : "flex flex-col gap-4"}>
+      {compact ? (
+        <h3 className="m-0 text-[14px] font-bold text-ink">Initial review</h3>
+      ) : null}
       <input type="hidden" name="applicationId" value={applicationId} />
       <input type="hidden" name="returnTo" value={returnTo} />
       <input type="hidden" name="categoriesJson" value={signalPayload} />
@@ -173,45 +179,63 @@ export default function ApplicationReviewEditor({
           <p>
             {lockedReason
               ? lockedReason
-              : "This screen is locked because it has already been submitted. An admin can still edit it if needed."}
+              : compact
+                ? "Already submitted."
+                : "This screen is locked because it has already been submitted. An admin can still edit it if needed."}
           </p>
         </div>
       ) : null}
 
-      <div className={EDITOR_PANEL}>
-        <div>
-          <h2>Rough Course Snapshot</h2>
-          <p>
-            Use this as a paper screen. The applicant will build the full curriculum later if hired.
-          </p>
+      {!compact && roughPlan ? (
+        <div className={EDITOR_PANEL}>
+          <div>
+            <h2>Rough Course Snapshot</h2>
+            <p>
+              Use this as a paper screen. The applicant will build the full curriculum later if hired.
+            </p>
+          </div>
+          <div className="grid gap-3">
+            <FieldBlock label="Class Idea" value={roughPlan.courseIdea} />
+            <FieldBlock label="Rough Outline" value={roughPlan.courseOutline} />
+            <FieldBlock label="First-Session Sketch" value={roughPlan.firstClassPlan} />
+          </div>
         </div>
-        <div className="grid gap-3">
-          <FieldBlock label="Class Idea" value={roughPlan.courseIdea} />
-          <FieldBlock label="Rough Outline" value={roughPlan.courseOutline} />
-          <FieldBlock label="First-Session Sketch" value={roughPlan.firstClassPlan} />
-        </div>
-      </div>
+      ) : null}
 
-      <div className={EDITOR_PANEL}>
-        <div>
-          <h2>Initial Review Signals</h2>
-          <p>
-            Rate only the first-pass signals needed to decide whether an interview is worthwhile.
+      <div
+        className={
+          compact
+            ? "flex flex-col gap-3 rounded-[10px] border border-line-soft bg-surface-soft/60 p-3"
+            : EDITOR_PANEL
+        }
+      >
+        {!compact ? (
+          <div>
+            <h2>Initial Review Signals</h2>
+            <p>
+              Rate only the first-pass signals needed to decide whether an interview is worthwhile.
+            </p>
+          </div>
+        ) : (
+          <p className="m-0 text-[12.5px] text-ink-muted">
+            Rate each area. Red = not ready, Green = strong signal.
           </p>
-        </div>
+        )}
 
         {INSTRUCTOR_INITIAL_REVIEW_SIGNALS.map((signal) => {
           const current = signals.find((entry) => entry.category === signal.key)!;
           return (
-            <div key={signal.key} className={CATEGORY_CARD}>
+            <div key={signal.key} className={compact ? "flex flex-col gap-2" : CATEGORY_CARD}>
               <div>
-                <div className={CATEGORY_TITLE}>{signal.label}</div>
-                <div className={CATEGORY_DESCRIPTION}>
-                  {signal.description}
+                <div className={CATEGORY_TITLE}>
+                  {compact ? compactSignalLabel(signal.label) : signal.label}
                 </div>
+                {!compact ? (
+                  <div className={CATEGORY_DESCRIPTION}>{signal.description}</div>
+                ) : null}
               </div>
 
-              <div className={RATING_GRID}>
+              <div className={compact ? "grid grid-cols-3 gap-1.5" : RATING_GRID}>
                 {INITIAL_REVIEW_RATING_OPTIONS.map((option) => {
                   const selected = current.rating === option.value;
                   return (
@@ -238,30 +262,42 @@ export default function ApplicationReviewEditor({
         })}
 
         {hasRedSignal ? (
-          <div className={EDITOR_WARNING}>
-            One or more signals are red. You can still move forward, but use the summary to explain why an interview is still appropriate.
+          <div className={compact ? EDITOR_WARNING.replace("px-3.5 py-2.5", "px-3 py-2") : EDITOR_WARNING}>
+            {compact
+              ? "One or more areas are red — explain in your summary if you still recommend moving forward."
+              : "One or more signals are red. You can still move forward, but use the summary to explain why an interview is still appropriate."}
           </div>
         ) : null}
       </div>
 
-      <div className={EDITOR_PANEL}>
+      <div
+        className={
+          compact
+            ? "flex flex-col gap-3 rounded-[10px] border border-line-soft bg-surface-soft/60 p-3"
+            : EDITOR_PANEL
+        }
+      >
         <label className={FIELD_LABEL}>
-          Internal Summary
+          {compact ? "Summary" : "Internal Summary"}
           <textarea
             className={FIELD_INPUT}
             name="summary"
-            rows={4}
+            rows={compact ? 3 : 4}
             value={summary}
             required={canEdit}
             disabled={!canEdit}
             onChange={(event) => setSummary(event.target.value)}
-            placeholder="Summarize the strongest signal, any concern, and why this applicant should or should not continue."
+            placeholder={
+              compact
+                ? "Key strengths, concerns, and your recommendation."
+                : "Summarize the strongest signal, any concern, and why this applicant should or should not continue."
+            }
           />
         </label>
 
         {isLeadReviewer ? (
           <label className={FIELD_LABEL}>
-            Next Step
+            Next step
             <select
               className={FIELD_INPUT}
               name="nextStep"
@@ -272,7 +308,7 @@ export default function ApplicationReviewEditor({
               }
               disabled={!canEdit}
             >
-              <option value="">Choose the next step</option>
+              <option value="">Choose…</option>
               {INSTRUCTOR_APPLICATION_NEXT_STEP_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -281,67 +317,83 @@ export default function ApplicationReviewEditor({
             </select>
           </label>
         ) : (
-          <div className={EDITOR_CALLOUT}>
-            Your review will inform the lead reviewer&apos;s official next-step decision.
+          <div className={compact ? EDITOR_CALLOUT.replace("px-3.5 py-2.5", "px-3 py-2") : EDITOR_CALLOUT}>
+            {compact
+              ? "Your ratings go to the lead reviewer."
+              : "Your review will inform the lead reviewer's official next-step decision."}
             <input type="hidden" name="nextStep" value="" />
           </div>
         )}
 
         {moveToInterviewNeedsLead ? (
           <div className={EDITOR_WARNING}>
-            Assign a lead interviewer before submitting Move to Interview. The lead will send exactly 3 proposed times to the applicant.
+            {compact
+              ? "Assign a lead interviewer before moving to interview."
+              : "Assign a lead interviewer before submitting Move to Interview. The lead will send exactly 3 proposed times to the applicant."}
           </div>
         ) : null}
 
         {showApplicantMessage ? (
           <label className={FIELD_LABEL}>
-            Applicant-Facing Message
+            {compact ? "Message to applicant" : "Applicant-Facing Message"}
             <textarea
-              className="input"
+              className={FIELD_INPUT}
               name="applicantMessage"
-              rows={3}
+              rows={compact ? 2 : 3}
               value={applicantMessage}
               required={canEdit}
               disabled={!canEdit}
               onChange={(event) => setApplicantMessage(event.target.value)}
-              placeholder="This message will be used when asking for more information or rejecting the application."
+              placeholder={
+                compact
+                  ? "Used if you request info or reject."
+                  : "This message will be used when asking for more information or rejecting the application."
+              }
             />
           </label>
         ) : (
           <input type="hidden" name="applicantMessage" value={applicantMessage} />
         )}
 
-        <label className={CHECKBOX_ROW}>
-          <input
-            type="checkbox"
-            checked={flagForLeadership}
-            disabled={!canEdit}
-            onChange={(event) => setFlagForLeadership(event.target.checked)}
-          />
-          Flag for leadership discussion
-        </label>
-        <input type="hidden" name="flagForLeadership" value={flagForLeadership ? "true" : "false"} />
+        {!compact ? (
+          <>
+            <label className={CHECKBOX_ROW}>
+              <input
+                type="checkbox"
+                checked={flagForLeadership}
+                disabled={!canEdit}
+                onChange={(event) => setFlagForLeadership(event.target.checked)}
+              />
+              Flag for leadership discussion
+            </label>
+            <input type="hidden" name="flagForLeadership" value={flagForLeadership ? "true" : "false"} />
+          </>
+        ) : (
+          <input type="hidden" name="flagForLeadership" value="false" />
+        )}
       </div>
 
       <div className={EDITOR_ACTIONS}>
+        {!compact ? (
+          <button
+            className={buttonVariants({ variant: "secondary", size: "md" })}
+            type="submit"
+            name="intent"
+            value="save"
+            disabled={!canEdit}
+            formNoValidate
+          >
+            Save Draft
+          </button>
+        ) : null}
         <button
-          className={buttonVariants({ variant: "secondary", size: "md" })}
-          type="submit"
-          name="intent"
-          value="save"
-          disabled={!canEdit}
-          formNoValidate
-        >
-          Save Draft
-        </button>
-        <button
-          className={buttonVariants({ variant: "primary", size: "md" })}
+          className={buttonVariants({ variant: "primary", size: compact ? "sm" : "md" })}
           type="submit"
           name="intent"
           value="submit"
           disabled={!canEdit || moveToInterviewNeedsLead}
         >
-          Submit Initial Review
+          {compact ? "Submit review" : "Submit Initial Review"}
         </button>
       </div>
     </form>

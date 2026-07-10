@@ -205,34 +205,26 @@ export default function DraftRationaleField({
 
   const required =
     requiredForIntent === "REJECT" || requiredForIntent === "REQUEST_INFO";
-  const placeholder =
-    required && requiredForIntent === "REJECT"
-      ? "Required — explain why this applicant is being rejected."
-      : required && requiredForIntent === "REQUEST_INFO"
-        ? "Required — describe the information you're requesting."
-        : "Summarise your decision so reviewers and the candidate know why.";
+
+  const notePlaceholder =
+    requiredForIntent === "REJECT"
+      ? "Required — why you're rejecting."
+      : requiredForIntent === "REQUEST_INFO"
+        ? "Required — what's missing."
+        : "Why you decided this way.";
+
+  const placeholder = activeTab === "rationale" ? notePlaceholder : "Staff only. Optional.";
 
   return (
-    <div
-      className="draft-rationale-field"
-      style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}
-    >
+    <div className="draft-rationale-field flex min-w-0 w-full flex-col gap-2">
       <div
         role="tablist"
-        aria-label="Draft sections"
-        style={{
-          display: "inline-flex",
-          gap: 4,
-          padding: 2,
-          background: "var(--cockpit-surface-strong, #faf8ff)",
-          border: "1px solid var(--cockpit-line, rgba(71,85,105,0.16))",
-          borderRadius: 8,
-          width: "fit-content",
-        }}
+        aria-label="Note type"
+        className="inline-flex w-fit gap-1 rounded-lg border border-line-soft bg-surface-soft p-0.5"
       >
         {(["rationale", "notes"] as Tab[]).map((tab) => {
           const active = activeTab === tab;
-          const label = tab === "rationale" ? "Rationale" : "Comparison notes";
+          const label = tab === "rationale" ? "Note" : "Internal";
           return (
             <button
               key={tab}
@@ -259,11 +251,6 @@ export default function DraftRationaleField({
                   *
                 </span>
               ) : null}
-              {tab === "notes" ? (
-                <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 500, color: "var(--ink-faint, #a89cb8)" }}>
-                  (internal)
-                </span>
-              ) : null}
             </button>
           );
         })}
@@ -276,24 +263,12 @@ export default function DraftRationaleField({
             : handleNotesChange(e.target.value)
         }
         placeholder={placeholder}
-        aria-label={activeTab === "rationale" ? "Rationale" : "Comparison notes"}
+        aria-label={activeTab === "rationale" ? "Decision note" : "Internal note"}
         aria-required={activeTab === "rationale" ? required : undefined}
         rows={3}
-        style={{
-          width: "100%",
-          padding: 12,
-          fontSize: 13,
-          lineHeight: 1.45,
-          borderRadius: 10,
-          border: "1px solid var(--cockpit-line, rgba(71,85,105,0.22))",
-          resize: "vertical",
-          minHeight: 72,
-          background: "var(--cockpit-surface, #fff)",
-          color: "var(--ink-default, #1a0533)",
-          fontFamily: "inherit",
-        }}
+        className="box-border min-h-[72px] min-w-0 w-full resize-y rounded-[10px] border border-line-soft bg-surface px-3 py-3 text-[13px] leading-[1.45] text-ink"
       />
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <SaveStateIndicator
           state={saveState}
           lastSavedAt={lastSavedAt}

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Button, ButtonLink, cn } from "@/components/ui-v2";
+import { FeedbackBanner } from "@/components/people-strategy/motion";
 import {
-  createExternalInstructorApplicantFromForm,
   createExternalChapterPresidentApplicantFromForm,
+  createExternalInstructorApplicantFromForm,
   createExternalStaffApplicantFromForm,
 } from "@/lib/external-applicant-intake";
 
@@ -18,50 +20,57 @@ interface Props {
   chapters: Array<{ id: string; name: string }>;
   staffPositions: StaffPosition[];
   scopedChapterId: string | null;
-  isAdmin: boolean;
+  hasNetworkScope: boolean;
+  canAddChapterPresident: boolean;
+  canAddStaff: boolean;
 }
 
 type ApplicantKind = "INSTRUCTOR" | "CHAPTER_PRESIDENT" | "STAFF";
+type SourceKind = "GOOGLE_FORMS" | "MANUAL_ADMIN_ENTRY";
 
-function InterviewSchedulingFields() {
+const inputClass =
+  "w-full rounded-[12px] border border-line-soft bg-surface px-3.5 py-2.5 text-[14px] text-ink shadow-sm transition-colors placeholder:text-ink-muted/70 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100";
+const titleInputClass = cn(inputClass, "py-3.5 text-[16px] font-medium tracking-[-0.01em]");
+const selectClass = inputClass;
+
+function FormSection({
+  step,
+  title,
+  hint,
+  children,
+}: {
+  step: number;
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div
-      className="card"
-      style={{
-        padding: 16,
-        background: "var(--surface-alt)",
-        border: "1px solid var(--border)",
-      }}
-    >
-      <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600 }}>
-        Interview scheduling (optional)
-      </p>
-      <div className="grid two" style={{ gap: 16 }}>
-        <label className="form-row">
-          Interview date &amp; time
-          <input
-            className="input"
-            type="datetime-local"
-            name="interviewScheduledAt"
-          />
-          <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-            When set, the application is created with the interview already scheduled.
-          </span>
-        </label>
-        <label className="form-row">
-          Interview meeting link
-          <input
-            className="input"
-            type="text"
-            name="interviewMeetingUrl"
-            placeholder="zoom.us/j/... (https:// added automatically)"
-          />
-          <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-            Shown to the applicant on their application page. Requires an interview time.
-          </span>
-        </label>
+    <section className="flex gap-4">
+      <span
+        aria-hidden
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[13px] font-bold text-brand-700"
+      >
+        {step}
+      </span>
+      <div className="min-w-0 flex-1 space-y-3">
+        <div>
+          <h2 className="m-0 text-[15px] font-bold text-ink">{title}</h2>
+          {hint ? (
+            <p className="m-0 mt-0.5 text-[13px] leading-relaxed text-ink-muted">{hint}</p>
+          ) : null}
+        </div>
+        {children}
       </div>
-    </div>
+    </section>
+  );
+}
+
+function chipClass(active: boolean) {
+  return cn(
+    "rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors",
+    active
+      ? "border-brand-500 bg-brand-600 text-white shadow-sm"
+      : "border-line-soft bg-surface text-ink-muted hover:border-brand-300 hover:text-ink"
   );
 }
 
@@ -69,25 +78,43 @@ export default function ExternalApplicantIntakeForm({
   chapters,
   staffPositions,
   scopedChapterId,
-  isAdmin,
+  hasNetworkScope,
+  canAddChapterPresident,
+  canAddStaff,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<"GOOGLE_FORMS" | "MANUAL_ADMIN_ENTRY">("GOOGLE_FORMS");
+  const [source, setSource] = useState<SourceKind>("MANUAL_ADMIN_ENTRY");
   const [kind, setKind] = useState<ApplicantKind>("INSTRUCTOR");
-  const isCP = kind === "CHAPTER_PRESIDENT";
-  const isStaff = kind === "STAFF";
 
-  const submit = (formData: FormData) => {
+  const kindOptions = useMemo(() => {
+    const options: Array<{ value: ApplicantKind; label: string }> = [
+      { value: "INSTRUCTOR", label: "Instructor" },
+    ];
+    if (canAddStaff) options.push({ value: "STAFF", label: "Staff" });
+    if (canAddChapterPresident) {
+      options.push({ value: "CHAPTER_PRESIDENT", label: "Chapter President" });
+    }
+    return options;
+  }, [canAddChapterPresident, canAddStaff]);
+
+  const activeKind =
+    kindOptions.some((option) => option.value === kind) ? kind : "INSTRUCTOR";
+  const isCP = activeKind === "CHAPTER_PRESIDENT";
+  const isStaff = activeKind === "STAFF";
+
+  function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setError(null);
+    const formData = new FormData(e.currentTarget);
+    formData.set("source", source);
+
     startTransition(async () => {
       if (isStaff) {
         const result = await createExternalStaffApplicantFromForm(formData);
         if (result.ok) {
-          router.push(
-            `/admin/external-applicants/new?created=${result.applicationId}&pipeline=staff`,
-          );
+          router.push(`/applications/${result.applicationId}`);
           router.refresh();
         } else {
           setError(result.error);
@@ -97,7 +124,7 @@ export default function ExternalApplicantIntakeForm({
       if (isCP) {
         const result = await createExternalChapterPresidentApplicantFromForm(formData);
         if (result.ok) {
-          router.push("/admin/chapter-president-applicants");
+          router.push(`/admin/chapter-president-applicants/${result.applicationId}`);
           router.refresh();
         } else {
           setError(result.error);
@@ -106,377 +133,223 @@ export default function ExternalApplicantIntakeForm({
       }
       const result = await createExternalInstructorApplicantFromForm(formData);
       if (result.ok) {
-        router.push(
-          `/admin/external-applicants/new?created=${result.applicationId}&pipeline=instructor`,
-        );
+        router.push(`/admin/instructor-applicants/${result.applicationId}`);
         router.refresh();
       } else {
         setError(result.error);
       }
     });
-  };
+  }
 
   return (
-    <form action={submit} className="card" style={{ padding: 24 }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        {isAdmin && (
-          <fieldset
-            style={{
-              border: "none",
-              padding: 0,
-              margin: 0,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-            }}
-          >
-            <legend style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
-              Applicant role
-            </legend>
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div
+      id="add-applicant"
+      className="overflow-hidden rounded-[20px] border border-line-soft bg-gradient-to-br from-brand-50/40 via-surface to-surface shadow-card"
+    >
+      <form onSubmit={submit} className="flex flex-col">
+        <div className="space-y-8 px-5 py-6 sm:px-7 sm:py-7">
+          <FeedbackBanner message={error} tone="error" style={{ padding: "10px 14px" }} />
+
+          {kindOptions.length > 1 ? (
+            <div className="space-y-2">
+              <p className="m-0 text-[13px] font-semibold text-ink">Applicant type</p>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Applicant type">
+                {kindOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setKind(option.value)}
+                    className={chipClass(activeKind === option.value)}
+                    aria-pressed={activeKind === option.value}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <input type="hidden" name="kind" value="INSTRUCTOR" />
+          )}
+
+          <FormSection step={1} title="Who is applying?" hint="Legal name and email.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1.5">
+                <span className="text-[13px] font-semibold text-ink">First name</span>
                 <input
-                  type="radio"
-                  name="kind"
-                  value="INSTRUCTOR"
-                  checked={kind === "INSTRUCTOR"}
-                  onChange={() => setKind("INSTRUCTOR")}
+                  className={titleInputClass}
+                  name="name"
+                  required
+                  placeholder="Alex"
+                  autoComplete="off"
+                  autoFocus
                 />
-                Instructor
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <input
-                  type="radio"
-                  name="kind"
-                  value="STAFF"
-                  checked={kind === "STAFF"}
-                  onChange={() => setKind("STAFF")}
-                />
-                Staff / Org Role
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <input
-                  type="radio"
-                  name="kind"
-                  value="CHAPTER_PRESIDENT"
-                  checked={kind === "CHAPTER_PRESIDENT"}
-                  onChange={() => setKind("CHAPTER_PRESIDENT")}
-                />
-                Chapter President
+              <label className="space-y-1.5">
+                <span className="text-[13px] font-semibold text-ink">Last name</span>
+                <input className={inputClass} name="lastName" required placeholder="Rivera" />
               </label>
             </div>
-            {isStaff && (
-              <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
-                For Technology Manager and other org staff hires. Routes into Admin
-                Recruiting and the interview scheduler.
-              </p>
-            )}
-          </fieldset>
-        )}
-
-        <fieldset
-          style={{
-            border: "none",
-            padding: 0,
-            margin: 0,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
-          <legend style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
-            Application source
-          </legend>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <label className="block space-y-1.5">
+              <span className="text-[13px] font-semibold text-ink">Email</span>
               <input
-                type="radio"
-                name="source"
-                value="GOOGLE_FORMS"
-                checked={source === "GOOGLE_FORMS"}
-                onChange={() => setSource("GOOGLE_FORMS")}
+                className={inputClass}
+                type="email"
+                name="email"
+                required
+                placeholder="applicant@example.com"
               />
-              Google Forms
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input
-                type="radio"
-                name="source"
-                value="MANUAL_ADMIN_ENTRY"
-                checked={source === "MANUAL_ADMIN_ENTRY"}
-                onChange={() => setSource("MANUAL_ADMIN_ENTRY")}
-              />
-              Manual admin entry
-            </label>
-          </div>
-        </fieldset>
+          </FormSection>
 
-        <div className="grid two" style={{ gap: 16 }}>
-          <label className="form-row">
-            Applicant name <span style={{ color: "#b91c1c" }}>*</span>
-            <input className="input" name="name" required placeholder="Full name" />
-          </label>
-          <label className="form-row">
-            Applicant last name <span style={{ color: "#b91c1c" }}>*</span>
-            <input className="input" name="lastName" required placeholder="Last name" />
-          </label>
-          <label className="form-row">
-            Applicant email <span style={{ color: "#b91c1c" }}>*</span>
-            <input
-              className="input"
-              type="email"
-              name="email"
-              required
-              placeholder="applicant@example.com"
-            />
-          </label>
-        </div>
+          <div className="h-px bg-line-soft/80" aria-hidden />
 
-        <div className="grid two" style={{ gap: 16 }}>
-          <label className="form-row">
-            Phone (optional)
-            <input className="input" name="phone" placeholder="(555) 555-1234" />
-          </label>
-          <label className="form-row">
-            Chapter
-            {isAdmin ? (
-              <select className="input" name="chapterId" defaultValue="">
-                <option value="">No chapter assigned</option>
-                {chapters.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
+          <FormSection
+            step={2}
+            title="Which chapter?"
+            hint={
+              isCP
+                ? "Optional — leave blank if they are founding a new chapter."
+                : "Where they would teach, work, or lead."
+            }
+          >
+            {hasNetworkScope ? (
+              <select className={selectClass} name="chapterId" defaultValue="">
+                <option value="">{isCP ? "No chapter yet / new chapter" : "No chapter yet"}</option>
+                {chapters.map((chapter) => (
+                  <option key={chapter.id} value={chapter.id}>
+                    {chapter.name}
                   </option>
                 ))}
               </select>
             ) : (
               <>
+                <input type="hidden" name="chapterId" value={scopedChapterId ?? ""} />
                 <input
-                  type="hidden"
-                  name="chapterId"
-                  value={scopedChapterId ?? ""}
-                />
-                <input
-                  className="input"
-                  value={chapters[0]?.name ?? "(none)"}
+                  className={inputClass}
+                  value={chapters[0]?.name ?? "No chapter assigned"}
                   disabled
                 />
               </>
             )}
-          </label>
-        </div>
+          </FormSection>
 
-        {isStaff && (
-          <div className="grid two" style={{ gap: 16 }}>
-            <label className="form-row">
-              Staff opening
-              <select className="input" name="positionId" defaultValue="">
-                <option value="">Create or match by title below</option>
-                {staffPositions.map((position) => (
-                  <option key={position.id} value={position.id}>
-                    {position.title}
-                    {position.chapterName ? ` · ${position.chapterName}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="form-row">
-              Position title
-              <input
-                className="input"
-                name="positionTitle"
-                defaultValue="Technology Manager"
-                placeholder="Technology Manager"
-              />
-              <span style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-                Used when no opening is selected — finds an open match or creates one.
-              </span>
-            </label>
-          </div>
-        )}
+          <div className="rounded-[14px] border border-dashed border-line-soft bg-surface/60">
+            <div className="border-b border-line-soft px-4 py-3.5">
+              <p className="m-0 text-[13.5px] font-semibold text-ink">Notes & extras</p>
+              <p className="m-0 mt-0.5 text-[12px] text-ink-muted">Optional</p>
+            </div>
 
-        {!isCP && !isStaff && (
-          <div className="grid two" style={{ gap: 16 }}>
-            <label className="form-row">
-              Application track
-              <select
-                className="input"
-                name="applicationTrack"
-                defaultValue="STANDARD_INSTRUCTOR"
-              >
-                <option value="STANDARD_INSTRUCTOR">Standard Instructor</option>
-                <option value="SUMMER_WORKSHOP_INSTRUCTOR">
-                  Summer Workshop Instructor
-                </option>
-              </select>
-            </label>
-            <label className="form-row">
-              External submitted date (optional)
-              <input
-                className="input"
-                type="datetime-local"
-                name="externalSubmittedAt"
-              />
-            </label>
-          </div>
-        )}
+            <div className="space-y-4 px-4 py-4">
+              <div className="space-y-2">
+                <p className="m-0 text-[13px] font-semibold text-ink">Where did they apply?</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSource("MANUAL_ADMIN_ENTRY")}
+                    className={chipClass(source === "MANUAL_ADMIN_ENTRY")}
+                  >
+                    Manual entry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSource("GOOGLE_FORMS")}
+                    className={chipClass(source === "GOOGLE_FORMS")}
+                  >
+                    Google Forms
+                  </button>
+                </div>
+              </div>
 
-        {(isCP || isStaff) && (
-          <label className="form-row">
-            External submitted date (optional)
-            <input className="input" type="datetime-local" name="externalSubmittedAt" />
-          </label>
-        )}
+              {!isCP && !isStaff ? (
+                <label className="block space-y-1.5">
+                  <span className="text-[13px] font-semibold text-ink">Track</span>
+                  <select className={selectClass} name="applicationTrack" defaultValue="STANDARD_INSTRUCTOR">
+                    <option value="STANDARD_INSTRUCTOR">Full Instructor</option>
+                    <option value="SUMMER_WORKSHOP_INSTRUCTOR">Summer Workshop</option>
+                  </select>
+                </label>
+              ) : null}
 
-        <InterviewSchedulingFields />
+              {isStaff ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1.5">
+                    <span className="text-[13px] font-semibold text-ink">Staff opening</span>
+                    <select className={selectClass} name="positionId" defaultValue="">
+                      <option value="">Create / match by title →</option>
+                      {staffPositions.map((position) => (
+                        <option key={position.id} value={position.id}>
+                          {position.title}
+                          {position.chapterName ? ` · ${position.chapterName}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-[13px] font-semibold text-ink">Position title</span>
+                    <input
+                      className={inputClass}
+                      name="positionTitle"
+                      defaultValue="Technology Manager"
+                      placeholder="Technology Manager"
+                    />
+                  </label>
+                </div>
+              ) : null}
 
-        {source === "GOOGLE_FORMS" && (
-          <label className="form-row">
-            Google Form response link (optional)
-            <input
-              className="input"
-              type="url"
-              name="externalResponseUrl"
-              placeholder="https://docs.google.com/forms/.../viewanalytics"
-            />
-          </label>
-        )}
+              <label className="block space-y-1.5">
+                <span className="text-[13px] font-semibold text-ink">Phone</span>
+                <input className={inputClass} name="phone" placeholder="Optional" />
+              </label>
 
-        <label className="form-row">
-          {source === "GOOGLE_FORMS"
-            ? "Copied Google Form answers (optional)"
-            : "Notes from your conversation (optional)"}
-          <textarea
-            className="input"
-            name="externalAnswersCopy"
-            rows={6}
-            placeholder={
-              source === "GOOGLE_FORMS"
-                ? "Paste the applicant's answers here so reviewers can read them inside the portal."
-                : "Capture context from the conversation so the reviewer has something to work with."
-            }
-          />
-        </label>
-
-        {!isCP && !isStaff && (
-          <>
-            <div className="grid two" style={{ gap: 16 }}>
-              <label className="form-row">
-                Teaching experience (optional)
+              <label className="block space-y-1.5">
+                <span className="text-[13px] font-semibold text-ink">
+                  {source === "GOOGLE_FORMS" ? "Form answers or context" : "Conversation notes"}
+                </span>
                 <textarea
-                  className="input"
-                  name="teachingExperience"
+                  className={cn(inputClass, "min-h-[96px] resize-y")}
+                  name="externalAnswersCopy"
                   rows={3}
-                  placeholder="One-line summary or pasted answer."
+                  placeholder="Paste answers or a short summary for reviewers."
                 />
               </label>
-              <label className="form-row">
-                Availability (optional)
+
+              <label className="block space-y-1.5">
+                <span className="text-[13px] font-semibold text-ink">Internal notes</span>
                 <textarea
-                  className="input"
-                  name="availability"
-                  rows={3}
-                  placeholder="e.g. Weekends, 4 hours/week, summer only."
+                  className={cn(inputClass, "min-h-[72px] resize-y")}
+                  name="internalNotes"
+                  rows={2}
+                  placeholder="Admin-only — not shared with the applicant."
                 />
               </label>
             </div>
-
-            <label className="form-row">
-              Motivation (optional)
-              <textarea
-                className="input"
-                name="motivation"
-                rows={3}
-                placeholder="Why does this applicant want to teach with YPP?"
-              />
-            </label>
-          </>
-        )}
-
-        {isStaff && (
-          <label className="form-row">
-            Cover letter / background (optional)
-            <textarea
-              className="input"
-              name="coverLetter"
-              rows={4}
-              placeholder="Resume summary, relevant experience, or why they're a fit for this role."
-            />
-          </label>
-        )}
-
-        {isCP && (
-          <>
-            <div className="grid two" style={{ gap: 16 }}>
-              <label className="form-row">
-                Leadership experience (optional)
-                <textarea
-                  className="input"
-                  name="leadershipExperience"
-                  rows={3}
-                  placeholder="One-line summary or pasted answer."
-                />
-              </label>
-              <label className="form-row">
-                Availability (optional)
-                <textarea
-                  className="input"
-                  name="availability"
-                  rows={3}
-                  placeholder="e.g. Weekdays after 4pm, 6 hours/week."
-                />
-              </label>
-            </div>
-
-            <label className="form-row">
-              Chapter vision (optional)
-              <textarea
-                className="input"
-                name="chapterVision"
-                rows={3}
-                placeholder="What does the applicant want to build with their chapter?"
-              />
-            </label>
-          </>
-        )}
-
-        <label className="form-row">
-          Internal notes (admin-only)
-          <textarea
-            className="input"
-            name="internalNotes"
-            rows={3}
-            placeholder="Visible to admins/reviewers only. Not shared with the applicant."
-          />
-        </label>
-
-        {error && (
-          <div
-            role="alert"
-            style={{
-              padding: "10px 14px",
-              borderRadius: 8,
-              background: "#fef2f2",
-              border: "1px solid #fecaca",
-              color: "#7f1d1d",
-              fontSize: 13,
-            }}
-          >
-            {error}
           </div>
-        )}
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-          }}
-        >
-          <button type="submit" className="button" disabled={pending}>
-            {pending ? "Adding…" : "Add to review pipeline"}
-          </button>
         </div>
-      </div>
-    </form>
+
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft bg-surface/90 px-5 py-4 sm:px-7">
+          <p className="m-0 text-[12.5px] text-ink-muted">
+            {isStaff
+              ? "Creates a Staff application (opens a position if needed)."
+              : isCP
+                ? "Creates a Chapter President application on the board."
+                : "Creates an Instructor application on the board."}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <ButtonLink href="/admin/instructor-applicants" variant="ghost" size="md">
+              Cancel
+            </ButtonLink>
+            <Button type="submit" variant="primary" size="md" disabled={pending}>
+              {pending
+                ? "Adding…"
+                : isStaff
+                  ? "Add Staff Applicant →"
+                  : isCP
+                    ? "Add CP Applicant →"
+                    : "Add Instructor →"}
+            </Button>
+          </div>
+        </footer>
+      </form>
+    </div>
   );
 }

@@ -4,6 +4,10 @@ import { useState, useMemo, type ReactNode } from "react";
 
 import { formatApplicantDisplayName } from "@/lib/applicant-display-name";
 import {
+  archiveReasonLabel,
+  deriveArchiveReason,
+} from "@/lib/applicant-archive";
+import {
   DataTableShell,
   EmptyStateV2,
   StatusBadge,
@@ -24,11 +28,13 @@ type ArchiveApp = {
   id: string;
   status: string;
   archivedAt: Date | string | null;
+  archiveReason?: string | null;
   updatedAt: Date | string;
   subjectsOfInterest: string | null;
   legalName?: string | null;
   preferredFirstName?: string | null;
   lastName?: string | null;
+  kind?: "instructor" | "cp";
   applicant: {
     name: string | null;
     email: string;
@@ -63,11 +69,32 @@ const DECISION_LABELS: Record<string, string> = {
 export default function ArchiveTable({ applications }: ArchiveTableProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [sortKey, setSortKey] = useState<"archivedAt" | "applicant" | "status">("archivedAt");
+  const [reasonFilter, setReasonFilter] = useState("");
+  const [sortKey, setSortKey] = useState<"archivedAt" | "applicant" | "status" | "reason">(
+    "archivedAt"
+  );
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
+  const withReasons = useMemo(
+    () =>
+      applications.map((app) => ({
+        ...app,
+        resolvedReason: deriveArchiveReason({
+          archiveReason: app.archiveReason,
+          status: app.status,
+          chairAction: app.chairDecision?.action ?? null,
+        }),
+      })),
+    [applications]
+  );
+
+  const reasonOptions = useMemo(() => {
+    const set = new Set(withReasons.map((a) => a.resolvedReason));
+    return [...set].sort((a, b) => archiveReasonLabel(a).localeCompare(archiveReasonLabel(b)));
+  }, [withReasons]);
+
   const filtered = useMemo(() => {
-    let result = applications;
+    let result = withReasons;
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -78,11 +105,15 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
           (a.lastName ?? "").toLowerCase().includes(q) ||
           (a.applicant.name ?? "").toLowerCase().includes(q) ||
           a.applicant.email.toLowerCase().includes(q) ||
-          (a.applicant.chapter?.name ?? "").toLowerCase().includes(q)
+          (a.applicant.chapter?.name ?? "").toLowerCase().includes(q) ||
+          archiveReasonLabel(a.resolvedReason).toLowerCase().includes(q)
       );
     }
     if (statusFilter) {
       result = result.filter((a) => a.status === statusFilter);
+    }
+    if (reasonFilter) {
+      result = result.filter((a) => a.resolvedReason === reasonFilter);
     }
     return [...result].sort((a, b) => {
       let av: string, bv: string;
@@ -92,6 +123,9 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
       } else if (sortKey === "applicant") {
         av = formatApplicantDisplayName(a).toLowerCase();
         bv = formatApplicantDisplayName(b).toLowerCase();
+      } else if (sortKey === "reason") {
+        av = archiveReasonLabel(a.resolvedReason).toLowerCase();
+        bv = archiveReasonLabel(b.resolvedReason).toLowerCase();
       } else {
         av = a.status;
         bv = b.status;
@@ -100,7 +134,7 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
       if (av > bv) return sortDir === "asc" ? 1 : -1;
       return 0;
     });
-  }, [applications, search, statusFilter, sortKey, sortDir]);
+  }, [withReasons, search, statusFilter, reasonFilter, sortKey, sortDir]);
 
   function toggleSort(key: typeof sortKey) {
     if (sortKey === key) {
@@ -116,7 +150,7 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
       <EmptyStateV2
         icon="🗄️"
         title="No archived applications yet"
-        body="Applications are automatically archived 30 days after a final decision is made."
+        body="Final decisions archive after 30 days. Applicants with no activity for 14 days are archived as inactive."
       />
     );
   }
@@ -137,7 +171,22 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
         >
           <option value="">All statuses</option>
           {Object.entries(STATUS_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+        <select
+          className="h-9 max-w-64 rounded-[8px] border border-line bg-surface px-2.5 text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-400"
+          value={reasonFilter}
+          onChange={(e) => setReasonFilter(e.target.value)}
+          aria-label="Archive reason"
+        >
+          <option value="">All reasons</option>
+          {reasonOptions.map((reason) => (
+            <option key={reason} value={reason}>
+              {archiveReasonLabel(reason)}
+            </option>
           ))}
         </select>
         <span className="text-[12.5px] text-ink-muted">
@@ -153,8 +202,9 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
                 Applicant
               </Th>
               <Th>Chapter</Th>
-              <Th>Subjects</Th>
-              <Th>Reviewer</Th>
+              <Th onClick={() => toggleSort("reason")} sorted={sortKey === "reason"} dir={sortDir}>
+                Reason
+              </Th>
               <Th onClick={() => toggleSort("status")} sorted={sortKey === "status"} dir={sortDir}>
                 Status
               </Th>
@@ -167,20 +217,30 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
           </thead>
           <tbody>
             {filtered.map((app) => (
-              <tr key={app.id} className="hover:bg-surface-soft">
+              <tr key={`${app.kind ?? "instructor"}-${app.id}`} className="hover:bg-surface-soft">
                 <TableCell className="font-semibold">
-                  {formatApplicantDisplayName(app)}
+                  <div>{formatApplicantDisplayName(app)}</div>
+                  {app.kind === "cp" ? (
+                    <div className="text-[11px] font-medium text-violet-700">Chapter President</div>
+                  ) : null}
                 </TableCell>
                 <TableCell className="text-ink-muted">
                   {app.applicant.chapter?.name ?? "—"}
                 </TableCell>
-                <TableCell className="text-ink-muted">
-                  {app.subjectsOfInterest
-                    ? app.subjectsOfInterest.split(/[\s,;]+/).filter(Boolean).slice(0, 2).join(", ")
-                    : "—"}
-                </TableCell>
-                <TableCell className="text-ink-muted">
-                  {app.reviewer?.name ?? "—"}
+                <TableCell>
+                  <StatusBadge
+                    tone={
+                      app.resolvedReason === "INACTIVE_14D"
+                        ? "warning"
+                        : app.resolvedReason === "REJECTED"
+                          ? "danger"
+                          : app.resolvedReason === "APPROVED"
+                            ? "success"
+                            : "neutral"
+                    }
+                  >
+                    {archiveReasonLabel(app.resolvedReason)}
+                  </StatusBadge>
                 </TableCell>
                 <TableCell>
                   <StatusBadge tone={STATUS_TONES[app.status] ?? "neutral"}>
@@ -189,7 +249,7 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
                 </TableCell>
                 <TableCell className="text-ink-muted">
                   {app.chairDecision
-                    ? DECISION_LABELS[app.chairDecision.action] ?? app.chairDecision.action
+                    ? (DECISION_LABELS[app.chairDecision.action] ?? app.chairDecision.action)
                     : "—"}
                 </TableCell>
                 <TableCell className="text-[12.5px] text-ink-muted">
@@ -199,7 +259,11 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
                 </TableCell>
                 <TableCell>
                   <a
-                    href={`/applications/instructor/${app.id}`}
+                    href={
+                      app.kind === "cp"
+                        ? `/admin/chapter-president-applicants/${app.id}`
+                        : `/admin/instructor-applicants/${app.id}`
+                    }
                     className="text-[12.5px] font-semibold text-brand-600 hover:text-brand-700"
                   >
                     View →

@@ -618,13 +618,10 @@ export async function getInstructorInterviewReviewWorkspace(applicationId: strin
   const session = await requireReviewSession();
   const { actor, application } = await assertInterviewReviewAccess(applicationId, session.user.id);
 
-  if (
+  const preInterviewLocked =
     application.status === InstructorApplicationStatus.SUBMITTED ||
     application.status === InstructorApplicationStatus.UNDER_REVIEW ||
-    application.status === InstructorApplicationStatus.INFO_REQUESTED
-  ) {
-    throw new Error("This applicant has not reached the interview workflow yet.");
-  }
+    application.status === InstructorApplicationStatus.INFO_REQUESTED;
 
   const [drafts, reviews, questionBank, applicationReviews] = await Promise.all([
     listApplicantCurriculumDrafts(application.applicantId),
@@ -718,6 +715,10 @@ export async function getInstructorInterviewReviewWorkspace(applicationId: strin
       (!application.reviewerId && canReviewFullFlow(actor, application.applicant.chapterId)),
     canFinalizeRecommendation: canSubmitCurrentRoundInterviewReview(actor, application),
     canEditSubmittedReview: isAdmin(actor),
+    preInterviewLocked,
+    canEdit:
+      !preInterviewLocked &&
+      (myReview?.status !== "SUBMITTED" || isAdmin(actor)),
   };
 }
 

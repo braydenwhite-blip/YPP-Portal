@@ -39,9 +39,8 @@ const ADMIN_DOMAINS: AdminDomain[] = [
   {
     title: "Hiring",
     items: [
-      { href: "/admin/instructor-applicants", label: "Instructor Applicants", description: "Pipeline from application to chair decision" },
+      { href: "/admin/instructor-applicants", label: "Applicants", description: "Instructor and chapter president pipeline on one board" },
       { href: "/admin/instructor-applicants/chair-settings", label: "Chair Assignment", description: "Assign the active Chair who makes final applicant decisions" },
-      { href: "/admin/chapter-president-applicants", label: "Chapter President Applicants", description: "CP pipeline from application to onboarding and active president profile" },
       { href: "/admin/instructor-readiness", label: "Onboarding Queue", description: "Training evidence, class approvals, and interview gates awaiting review" },
       { href: "/admin/instructors", label: "Instructor Database", description: "Every instructor: status, classes, training, reviews" },
       { href: "/admin/recruiting", label: "Recruiting", description: "Openings, outreach, and funnel" },

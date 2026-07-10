@@ -149,7 +149,7 @@ export default function ApplicantNextActionBar({
     action = {
       label: "Make Decision",
       description: "Open the full chair review workspace and record your decision.",
-      href: `/admin/instructor-applicants/${application.id}/review`,
+      href: `/admin/instructor-applicants/${application.id}#decision`,
     };
   } else if (status === "CHAIR_REVIEW") {
     action = {

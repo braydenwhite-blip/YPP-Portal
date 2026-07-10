@@ -127,7 +127,7 @@ export function cpApplicantFacingStatusLabel(status: CPStatus): string {
   switch (status) {
     case "DECISION_NEEDED":
     case "RECOMMENDATION_SUBMITTED":
-      return "Under final review";
+      return "Under Final Review";
     case "ACCEPTED":
     case "APPROVED":
     case "ONBOARDING":
@@ -136,9 +136,39 @@ export function cpApplicantFacingStatusLabel(status: CPStatus): string {
       return "Active Chapter President";
     case "DECLINED":
     case "REJECTED":
-      return "Not accepted";
+      return "Not Accepted";
+    case "WAITLISTED":
+      return "Waitlisted";
+    case "NEEDS_MORE_INFO":
+    case "INFO_REQUESTED":
+      return "More Info Requested";
+    case "INTERVIEW_NEEDED":
+      return "Interview Next";
+    case "INITIAL_REVIEW":
+    case "UNDER_REVIEW":
+      return "Under Review";
     default:
       return cpStatusLabel(status);
+  }
+}
+
+/** Progress stepper index for applicant-facing CP status page. */
+export function cpApplicantStageIndex(status: CPStatus): number {
+  switch (String(status)) {
+    case "SUBMITTED":
+      return 0;
+    case "INITIAL_REVIEW":
+    case "UNDER_REVIEW":
+    case "NEEDS_MORE_INFO":
+    case "INFO_REQUESTED":
+      return 1;
+    case "INTERVIEW_NEEDED":
+    case "INTERVIEW_SCHEDULED":
+    case "INTERVIEW_COMPLETE":
+    case "INTERVIEW_COMPLETED":
+      return 2;
+    default:
+      return 3;
   }
 }
 

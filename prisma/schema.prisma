@@ -2136,6 +2136,8 @@ model InstructorApplication {
   chairQueuedAt           DateTime?
   materialsReadyAt        DateTime?
   archivedAt              DateTime?
+  archiveReason           String?
+  inactivityNudgeStage    Int                                  @default(0)
   infoRequestReturnStatus InstructorApplicationStatus?
   interviewRound          Int                                  @default(1)
   interviewerAssignments  InstructorApplicationInterviewer[]
@@ -10538,6 +10540,8 @@ model ChapterPresidentApplication {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
+  archiveReason String?
+  inactivityNudgeStage Int @default(0)
 
   @@index([status])
   @@index([reviewerId])

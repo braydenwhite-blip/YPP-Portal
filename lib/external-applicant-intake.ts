@@ -113,16 +113,23 @@ function normalizeMeetingLink(raw: string | null | undefined): string | null {
   return `https://${trimmed}`;
 }
 
-async function requireAdminOrChapterLead() {
+async function requireApplicantIntakeActor(opts?: { allowHiringChair?: boolean }) {
   const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
   const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
-  if (!isAdmin && !isChapterLead) {
-    throw new Error("Unauthorized - Admin or Chapter President access required");
+  const isHiringChair = roles.includes("HIRING_CHAIR");
+  const allowHiringChair = opts?.allowHiringChair !== false;
+  if (!isAdmin && !isChapterLead && !(allowHiringChair && isHiringChair)) {
+    throw new Error("Unauthorized - Admin, Hiring Chair, or Chapter President access required");
   }
-  return { session, isAdmin, isChapterLead };
+  return { session, isAdmin, isChapterLead, isHiringChair };
+}
+
+/** @deprecated Prefer requireApplicantIntakeActor */
+async function requireAdminOrChapterLead() {
+  return requireApplicantIntakeActor({ allowHiringChair: true });
 }
 
 // ─── Public actions ──────────────────────────────────────────────────────────
@@ -141,7 +148,7 @@ async function requireAdminOrChapterLead() {
 export async function createExternalInstructorApplicant(
   input: CreateExternalInstructorApplicantInput,
 ): Promise<CreateExternalInstructorApplicantResult> {
-  const { session, isAdmin } = await requireAdminOrChapterLead();
+  const { session, isAdmin, isHiringChair } = await requireApplicantIntakeActor();
   const importedById = session.user.id;
 
   const name = (input.name ?? "").trim();
@@ -155,10 +162,11 @@ export async function createExternalInstructorApplicant(
     throw new Error("Source must be GOOGLE_FORMS or MANUAL_ADMIN_ENTRY.");
   }
 
-  // Chapter Presidents may only intake into their own chapter. Admins may
-  // intake into any chapter (or leave unscoped).
+  // Chapter Presidents may only intake into their own chapter. Admins and
+  // Hiring Chairs may intake into any chapter (or leave unscoped).
   let chapterId = input.chapterId?.trim() || null;
-  if (!isAdmin) {
+  const hasNetworkScope = isAdmin || isHiringChair;
+  if (!hasNetworkScope) {
     const me = await prisma.user.findUnique({
       where: { id: importedById },
       select: { chapterId: true },
@@ -520,11 +528,9 @@ export async function seedDefaultManualEmailTasksForChapterPresidentApplication(
 export async function createExternalChapterPresidentApplicant(
   input: CreateExternalChapterPresidentApplicantInput,
 ): Promise<CreateExternalChapterPresidentApplicantResult> {
-  const session = await getSession();
-  if (!session?.user?.id) throw new Error("Unauthorized");
-  const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN")) {
-    throw new Error("Unauthorized - Admin access required");
+  const { session, isAdmin, isHiringChair } = await requireApplicantIntakeActor();
+  if (!isAdmin && !isHiringChair) {
+    throw new Error("Unauthorized - Admin or Hiring Chair access required for chapter president intake");
   }
   const importedById = session.user.id;
 
@@ -617,7 +623,9 @@ export async function createExternalChapterPresidentApplicant(
 
   // 5) Cache invalidation.
   revalidatePath("/admin/chapter-president-applicants");
+  revalidatePath("/admin/instructor-applicants");
   revalidatePath("/admin/external-applicants");
+  revalidatePath(`/admin/chapter-president-applicants/${application.id}`);
 
   return {
     applicationId: application.id,
@@ -753,7 +761,7 @@ export async function seedDefaultManualEmailTasksForGenericApplication(opts: {
 export async function createExternalStaffApplicant(
   input: CreateExternalStaffApplicantInput,
 ): Promise<CreateExternalStaffApplicantResult> {
-  const { session, isAdmin } = await requireAdminOrChapterLead();
+  const { session, isAdmin, isHiringChair } = await requireApplicantIntakeActor();
   const importedById = session.user.id;
 
   const name = (input.name ?? "").trim();
@@ -768,7 +776,8 @@ export async function createExternalStaffApplicant(
   }
 
   let chapterId = input.chapterId?.trim() || null;
-  if (!isAdmin) {
+  const hasNetworkScope = isAdmin || isHiringChair;
+  if (!hasNetworkScope) {
     const me = await prisma.user.findUnique({
       where: { id: importedById },
       select: { chapterId: true },
@@ -795,7 +804,7 @@ export async function createExternalStaffApplicant(
     openedById: importedById,
   });
 
-  if (!isAdmin && position.chapterId && position.chapterId !== chapterId) {
+  if (!hasNetworkScope && position.chapterId && position.chapterId !== chapterId) {
     throw new Error("You can only add applicants to staff openings in your chapter.");
   }
 

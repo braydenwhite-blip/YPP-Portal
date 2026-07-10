@@ -2,9 +2,8 @@ import { redirect } from "next/navigation";
 
 import { PeopleReviewsPage } from "@/components/people-strategy/people-reviews-page";
 import { getSession } from "@/lib/auth-supabase";
-import { canAccessLeadershipPreviewStack } from "@/lib/leadership-preview-access";
 import { type ActionViewer } from "@/lib/people-strategy/action-permissions";
-import { getPeopleHubAccess } from "@/lib/people/hub-access";
+import { canAccessPeopleHub, getPeopleHubAccess } from "@/lib/people/hub-access";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "People & Reviews — Pathways Portal" };
@@ -24,16 +23,7 @@ export default async function PeoplePage({
     primaryRole: session.user.primaryRole,
     adminSubtypes: session.user.adminSubtypes,
   };
-  if (
-    !canAccessLeadershipPreviewStack({
-      id: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-      roles: session.user.roles,
-      primaryRole: session.user.primaryRole,
-      internalLevel: session.user.internalLevel,
-    })
-  ) {
+  if (!canAccessPeopleHub(viewer)) {
     redirect("/");
   }
 

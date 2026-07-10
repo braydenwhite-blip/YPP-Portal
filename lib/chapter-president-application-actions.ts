@@ -33,12 +33,13 @@ function getString(formData: FormData, key: string, required = true) {
   return value ? String(value).trim() : "";
 }
 
-async function requireAdmin() {
+/** Admin + Hiring Chair — same audience as the unified applicant board. */
+async function requireChair() {
   const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN")) {
-    throw new Error("Unauthorized - Admin access required");
+  if (!roles.includes("ADMIN") && !roles.includes("HIRING_CHAIR")) {
+    throw new Error("Unauthorized - Admin or Hiring Chair access required");
   }
   return session;
 }
@@ -51,7 +52,7 @@ async function notifyChapterPresidentApplicationReviewers(applicantId: string) {
     }),
     prisma.user.findMany({
       where: {
-        roles: { some: { role: RoleType.ADMIN } },
+        roles: { some: { role: { in: [RoleType.ADMIN, RoleType.HIRING_CHAIR] } } },
       },
       select: { email: true },
     }),
@@ -67,7 +68,7 @@ async function notifyChapterPresidentApplicationReviewers(applicantId: string) {
   await sendNewApplicationNotification({
     to: emails,
     applicantName: applicant?.name ?? "Unknown",
-    reviewUrl: `${baseUrl}/admin/chapter-president-applicants`,
+    reviewUrl: `${baseUrl}/admin/instructor-applicants?kind=cp`,
   });
 }
 
@@ -285,7 +286,7 @@ export async function reviewChapterPresidentApplication(
   formData: FormData
 ): Promise<FormState> {
   try {
-    const session = await requireAdmin();
+    const session = await requireChair();
     const action = getString(formData, "action");
     const applicationId = getString(formData, "applicationId");
 
@@ -642,6 +643,7 @@ function getOptionalScore(formData: FormData, key: string): number | null {
 
 async function revalidateCPApplicantPaths(applicationId: string) {
   revalidatePath("/admin");
+  revalidatePath("/admin/instructor-applicants");
   revalidatePath("/admin/chapter-president-applicants");
   revalidatePath(`/admin/chapter-president-applicants/${applicationId}`);
   revalidatePath("/application-status");
@@ -650,7 +652,7 @@ async function revalidateCPApplicantPaths(applicationId: string) {
 }
 
 export async function beginCPInitialReviewAction(formData: FormData) {
-  const session = await requireAdmin();
+  const session = await requireChair();
   const applicationId = getString(formData, "applicationId");
 
   await prisma.chapterPresidentApplication.update({
@@ -665,7 +667,7 @@ export async function beginCPInitialReviewAction(formData: FormData) {
 }
 
 export async function assignCPReviewerAction(formData: FormData) {
-  await requireAdmin();
+  await requireChair();
   const applicationId = getString(formData, "applicationId");
   const reviewerId = getOptionalString(formData, "reviewerId");
 
@@ -678,7 +680,7 @@ export async function assignCPReviewerAction(formData: FormData) {
 }
 
 export async function assignCPChapterAction(formData: FormData) {
-  await requireAdmin();
+  await requireChair();
   const applicationId = getString(formData, "applicationId");
   const chapterId = getOptionalString(formData, "chapterId");
 
@@ -699,7 +701,7 @@ export async function assignCPChapterAction(formData: FormData) {
 }
 
 export async function saveCPReviewAction(formData: FormData) {
-  const session = await requireAdmin();
+  const session = await requireChair();
   const applicationId = getString(formData, "applicationId");
   const recommendation = getOptionalString(formData, "reviewRecommendation");
   const infoRequest = getOptionalString(formData, "infoRequest");
@@ -710,7 +712,7 @@ export async function saveCPReviewAction(formData: FormData) {
   if (recommendation === "decision") nextStatus = "DECISION_NEEDED" as ChapterPresidentApplicationStatus;
   if (recommendation === "needs_more_info") nextStatus = "NEEDS_MORE_INFO" as ChapterPresidentApplicationStatus;
 
-  await prisma.chapterPresidentApplication.update({
+  const application = await prisma.chapterPresidentApplication.update({
     where: { id: applicationId },
     data: {
       reviewerId: session.user.id,
@@ -726,13 +728,26 @@ export async function saveCPReviewAction(formData: FormData) {
       reviewerNotes: reviewerNotes || null,
       infoRequest: recommendation === "needs_more_info" ? infoRequest || null : undefined,
     },
+    include: { applicant: { select: { email: true, name: true } } },
   });
+
+  if (recommendation === "needs_more_info") {
+    const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+    const baseUrl = await getBaseUrl();
+    sendInfoRequestEmail({
+      to: application.applicant.email,
+      applicantName: application.applicant.name,
+      message: infoRequest || reviewerNotes || "Please provide the requested follow-up information.",
+      statusUrl: `${baseUrl}/application-status`,
+    }).catch((e) => console.error("[saveCPReviewAction] info email failed:", e));
+  }
+
   await syncChapterPresidentApplicationWorkflow(applicationId);
   await revalidateCPApplicantPaths(applicationId);
 }
 
 export async function scheduleCPInterviewAction(formData: FormData) {
-  const session = await requireAdmin();
+  const session = await requireChair();
   const applicationId = getString(formData, "applicationId");
   const scheduledAtRaw = getString(formData, "scheduledAt");
   const scheduledAt = new Date(scheduledAtRaw);
@@ -771,7 +786,7 @@ export async function scheduleCPInterviewAction(formData: FormData) {
 }
 
 export async function completeCPInterviewAction(formData: FormData) {
-  const session = await requireAdmin();
+  const session = await requireChair();
   const applicationId = getString(formData, "applicationId");
   const interviewNotes = getString(formData, "interviewNotes");
   const concerns = getOptionalString(formData, "interviewConcerns");
@@ -794,7 +809,7 @@ export async function completeCPInterviewAction(formData: FormData) {
 }
 
 export async function makeCPDecisionAction(formData: FormData) {
-  const session = await requireAdmin();
+  const session = await requireChair();
   const applicationId = getString(formData, "applicationId");
   const decision = getString(formData, "decision");
   const note = getOptionalString(formData, "finalDecisionNote");
@@ -877,7 +892,7 @@ export async function makeCPDecisionAction(formData: FormData) {
 }
 
 export async function markCPAcceptanceEmailSentAction(formData: FormData) {
-  await requireAdmin();
+  await requireChair();
   const applicationId = getString(formData, "applicationId");
   const application = await prisma.chapterPresidentApplication.findUnique({
     where: { id: applicationId },
@@ -902,7 +917,7 @@ export async function markCPAcceptanceEmailSentAction(formData: FormData) {
 }
 
 export async function linkCPPersonAndRoleAction(formData: FormData) {
-  const session = await requireAdmin();
+  const session = await requireChair();
   const applicationId = getString(formData, "applicationId");
   const mentorAdvisorId = getOptionalString(formData, "mentorAdvisorId");
 
@@ -966,7 +981,7 @@ export async function linkCPPersonAndRoleAction(formData: FormData) {
 }
 
 export async function createCPStarterActionsAction(formData: FormData) {
-  const session = await requireAdmin();
+  const session = await requireChair();
   const applicationId = getString(formData, "applicationId");
   await syncChapterPresidentApplicationWorkflow(applicationId);
 
@@ -1014,7 +1029,7 @@ export async function createCPStarterActionsAction(formData: FormData) {
 }
 
 export async function completeCPOnboardingAction(formData: FormData) {
-  const session = await requireAdmin();
+  const session = await requireChair();
   const applicationId = getString(formData, "applicationId");
 
   const application = await prisma.chapterPresidentApplication.findUnique({
@@ -1075,4 +1090,19 @@ export async function completeCPOnboardingAction(formData: FormData) {
 
   await syncChapterPresidentApplicationWorkflow(applicationId);
   await revalidateCPApplicantPaths(applicationId);
+}
+
+/** Soft-archive a CP application from the detail workspace. */
+export async function archiveCPApplicationAction(formData: FormData) {
+  const session = await requireChair();
+  const applicationId = getString(formData, "applicationId");
+  const { archiveApplicantSubmissionById } = await import("@/lib/instructor-application-actions");
+  const { APPLICANT_ARCHIVE_REASONS } = await import("@/lib/applicant-archive");
+  await archiveApplicantSubmissionById("chapter-president", applicationId, {
+    actorId: session.user.id,
+    reason: APPLICANT_ARCHIVE_REASONS.MANUAL,
+  });
+  await revalidateCPApplicantPaths(applicationId);
+  const { redirect } = await import("next/navigation");
+  redirect("/admin/instructor-applicants?view=archive&kind=cp");
 }
