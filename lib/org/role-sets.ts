@@ -44,6 +44,7 @@ export const LEADERSHIP_ACTION_CENTER_ROLES = ["ADMIN", "STAFF"] as const;
 /** Who works the hiring/application review pipeline. */
 export const APPLICATION_REVIEWER_ROLES = [
   "ADMIN",
+  "STAFF",
   "HIRING_CHAIR",
   "CHAPTER_PRESIDENT",
 ] as const;

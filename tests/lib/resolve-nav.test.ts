@@ -7,9 +7,11 @@ import { STUDENT_V1_ALLOWED_HREFS } from "@/lib/navigation/student-v1-allowlist"
 // nav-shape tests so the assertions cover the un-gated catalog.
 const ORIGINAL_ENABLE_REGULAR_INSTRUCTOR = process.env.ENABLE_REGULAR_INSTRUCTOR;
 const ORIGINAL_PORTAL_SLIM_NAV = process.env.PORTAL_SLIM_NAV;
+const ORIGINAL_LEADERSHIP_FULL_PORTAL_EXPLORER = process.env.LEADERSHIP_FULL_PORTAL_EXPLORER;
 beforeAll(() => {
   process.env.ENABLE_REGULAR_INSTRUCTOR = "true";
   process.env.PORTAL_SLIM_NAV = "false";
+  process.env.LEADERSHIP_FULL_PORTAL_EXPLORER = "false";
 });
 afterAll(() => {
   if (ORIGINAL_ENABLE_REGULAR_INSTRUCTOR === undefined) {
@@ -21,6 +23,11 @@ afterAll(() => {
     delete process.env.PORTAL_SLIM_NAV;
   } else {
     process.env.PORTAL_SLIM_NAV = ORIGINAL_PORTAL_SLIM_NAV;
+  }
+  if (ORIGINAL_LEADERSHIP_FULL_PORTAL_EXPLORER === undefined) {
+    delete process.env.LEADERSHIP_FULL_PORTAL_EXPLORER;
+  } else {
+    process.env.LEADERSHIP_FULL_PORTAL_EXPLORER = ORIGINAL_LEADERSHIP_FULL_PORTAL_EXPLORER;
   }
 });
 
@@ -269,41 +276,75 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).not.toContain("/interviews");
   });
 
-  it("keeps admin users without subtypes on the reduced navigation allowlist", () => {
+  it("keeps admin users on Home, People, Actions, and Applicants only", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       primaryRole: "ADMIN",
       pathname: "/",
       enabledFeatureKeys: new Set(),
+      actionTrackerEnabled: true,
+      leadershipFullPortalExplorer: false,
+    });
+
+    const visibleHrefs = hrefs(model);
+    expect(visibleHrefs).toEqual([
+      "/",
+      "/people",
+      "/actions",
+      "/admin/instructor-applicants",
+    ]);
+    expect(model.core.map((item) => item.href)).toEqual([
+      "/",
+      "/people",
+      "/actions",
+      "/admin/instructor-applicants",
+    ]);
+    expect(model.more).toHaveLength(0);
+  });
+
+  it("unlocks the full officer catalog when leadershipFullPortalExplorer is on", () => {
+    const model = resolveNavModel({
+      roles: ["ADMIN"],
+      adminSubtypes: ["SUPER_ADMIN"],
+      primaryRole: "ADMIN",
+      pathname: "/",
+      enabledFeatureKeys: new Set(),
+      actionTrackerEnabled: true,
+      operationsHubEnabled: true,
+      leadershipFullPortalExplorer: true,
+      officerSlimNavActive: false,
     });
 
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).toContain("/");
-    expect(visibleHrefs).not.toContain("/messages");
-    expect(visibleHrefs).toContain("/notifications");
-    // Knowledge OS V2: /admin is the universal admin home, so it stays
-    // visible even for a subtype-less admin (the page itself filters
-    // domain links by access).
+    expect(visibleHrefs).toContain("/people");
+    expect(visibleHrefs).toContain("/actions");
+    expect(visibleHrefs).toContain("/admin/instructor-applicants");
     expect(visibleHrefs).toContain("/admin");
-    expect(visibleHrefs).not.toContain("/my-mentor");
-    expect(visibleHrefs).not.toContain("/my-program");
-    expect(visibleHrefs).not.toContain("/admin/instructor-applicants");
-    expect(visibleHrefs).not.toContain("/admin/portal-rollout");
+    expect(visibleHrefs).toContain("/partners");
+    expect(visibleHrefs.length).toBeGreaterThan(4);
+    expect(model.more.length).toBeGreaterThan(0);
   });
 
-  it("pins Actions in Top Tools for staff without Meetings", () => {
+  it("pins Home, People, Actions, and Applicants for staff", () => {
     const model = resolveNavModel({
       roles: ["STAFF"],
       primaryRole: "STAFF",
       pathname: "/",
       actionTrackerEnabled: true,
       operationsHubEnabled: true,
+      leadershipFullPortalExplorer: false,
     });
 
     const coreHrefs = model.core.map((item) => item.href);
-    expect(coreHrefs).toContain("/actions");
+    expect(coreHrefs).toEqual([
+      "/",
+      "/people",
+      "/actions",
+      "/admin/instructor-applicants",
+    ]);
     expect(coreHrefs).not.toContain("/meetings");
-    expect(coreHrefs).toContain("/people");
+    expect(hrefs(model)).toEqual(coreHrefs);
   });
 
   it("pins People and Actions for admins even when publicGateActive is true", () => {
@@ -320,6 +361,7 @@ describe("resolveNavModel", () => {
     const coreHrefs = model.core.map((item) => item.href);
     expect(coreHrefs).toContain("/people");
     expect(coreHrefs).toContain("/actions");
+    expect(coreHrefs).toContain("/admin/instructor-applicants");
     expect(coreHrefs).not.toContain("/meetings");
     // The retired Work hub is no longer pinned (or present at all).
     expect(coreHrefs).not.toContain("/work");
@@ -339,7 +381,7 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).not.toContain("/admin/bulk-users");
   });
 
-  it("shows the full leadership sidebar for officers even when publicGateActive is true", () => {
+  it("shows the simple leadership sidebar for officers even when publicGateActive is true", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       adminSubtypes: ["HIRING_ADMIN"],
@@ -354,7 +396,8 @@ describe("resolveNavModel", () => {
     const visibleHrefs = hrefs(model);
     expect(visibleHrefs).toContain("/admin/instructor-applicants");
     expect(visibleHrefs).toContain("/people");
-    expect(visibleHrefs).toContain("/admin/bulk-users");
+    expect(visibleHrefs).toContain("/actions");
+    expect(visibleHrefs).not.toContain("/admin/bulk-users");
   });
 
   describe("public preview slim nav", () => {
@@ -366,7 +409,7 @@ describe("resolveNavModel", () => {
       process.env.PORTAL_SLIM_NAV = "false";
     });
 
-    it("shows only leadership front doors and published public surfaces for admins", () => {
+    it("shows only Home, People, Actions, and Applicants for admins", () => {
       const model = resolveNavModel({
         roles: ["ADMIN"],
         adminSubtypes: ["SUPER_ADMIN"],
@@ -376,34 +419,19 @@ describe("resolveNavModel", () => {
         operationsHubEnabled: true,
         publicGateActive: true,
         officerSlimNavActive: true,
+        leadershipFullPortalExplorer: false,
       });
 
       const visibleHrefs = hrefs(model);
-      expect(visibleHrefs).toContain("/");
-      expect(visibleHrefs).toContain("/people");
-      expect(visibleHrefs).toContain("/actions");
-      expect(visibleHrefs).not.toContain("/meetings");
-      expect(visibleHrefs).toContain("/applications");
-      expect(visibleHrefs).toContain("/instructor/workshop-design-studio");
-      expect(visibleHrefs).toContain("/instructor-training");
-      expect(visibleHrefs).toContain("/admin/instructor-applicants");
-      expect(visibleHrefs).not.toContain("/admin");
-      expect(visibleHrefs).not.toContain("/admin/bulk-users");
-      expect(visibleHrefs).not.toContain("/operations/initiatives");
-      expect(visibleHrefs).not.toContain("/actions/meetings");
-      expect(visibleHrefs).not.toContain("/impact-meetings");
-      expect(visibleHrefs).not.toContain("/work");
-      expect(visibleHrefs).not.toContain("/command-center");
-      expect(model.more).toHaveLength(0);
-      expect(model.core.map((item) => item.href)).toEqual([
+      expect(visibleHrefs).toEqual([
         "/",
         "/people",
         "/actions",
-        "/applications",
-        "/instructor/workshop-design-studio",
-        "/instructor-training",
         "/admin/instructor-applicants",
       ]);
+      expect(model.leadershipSimpleNav).toBe(true);
+      expect(model.officerSlimNav).toBe(false);
+      expect(model.more).toHaveLength(0);
     });
 
     it("adds hiring-chair applicant routes to the slim stack", () => {
@@ -469,37 +497,48 @@ describe("resolveNavModel", () => {
     expect(model.more).toEqual([]);
   });
 
-  it("unlocks only the approved admin pages for content admins", () => {
+  it("keeps content admins on the same four leadership links", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],
       adminSubtypes: ["CONTENT_ADMIN"],
       primaryRole: "ADMIN",
       pathname: "/",
       enabledFeatureKeys: new Set(),
+      actionTrackerEnabled: true,
     });
 
-    const visibleHrefs = hrefs(model);
-    expect(visibleHrefs).toContain("/admin/curricula");
-    expect(visibleHrefs).not.toContain("/admin/recruiting");
-    expect(visibleHrefs).not.toContain("/admin/announcements");
+    expect(hrefs(model)).toEqual([
+      "/",
+      "/people",
+      "/actions",
+      "/admin/instructor-applicants",
+    ]);
+    expect(hrefs(model)).not.toContain("/admin/curricula");
+    expect(hrefs(model)).not.toContain("/admin/recruiting");
   });
 
-  it("preserves non-admin pathway access for multi-role users", () => {
+  it("keeps multi-role admins on the four leadership links (no mentorship sidebar)", () => {
     const model = resolveNavModel({
       roles: ["ADMIN", "MENTOR"],
       primaryRole: "ADMIN",
       adminSubtypes: ["MENTORSHIP_ADMIN"],
       pathname: "/",
       enabledFeatureKeys: new Set(),
+      actionTrackerEnabled: true,
     });
 
-    expect(hrefs(model)).toContain("/mentorship");
-    expect(hrefs(model)).toContain("/admin/mentorship");
-    expect(hrefs(model)).not.toContain("/mentorship/reviews");
+    expect(hrefs(model)).toEqual([
+      "/",
+      "/people",
+      "/actions",
+      "/admin/instructor-applicants",
+    ]);
+    expect(hrefs(model)).not.toContain("/mentorship");
+    expect(hrefs(model)).not.toContain("/admin/mentorship");
   });
 });
 
-describe("officer section navigation (9-section IA)", () => {
+describe("officer section navigation (simple leadership IA)", () => {
   function officerModel() {
     return resolveNavModel({
       roles: ["ADMIN"],
@@ -508,25 +547,24 @@ describe("officer section navigation (9-section IA)", () => {
       pathname: "/",
       actionTrackerEnabled: true,
       operationsHubEnabled: true,
+      leadershipFullPortalExplorer: false,
     });
   }
 
-  function groupOf(model: ReturnType<typeof resolveNavModel>, href: string): string | undefined {
-    return model.visible.find((item) => item.href === href)?.group;
-  }
-
-  it("organizes the leadership sidebar into the eight object sections in order", () => {
+  it("shows only Home, People, Actions, and Applicants", () => {
     const model = officerModel();
-    const sectionLabels = model.more.map((group) => group.label);
-    expect(sectionLabels.slice(0, 8)).toEqual([
+    expect(hrefs(model)).toEqual([
+      "/",
+      "/people",
+      "/actions",
+      "/admin/instructor-applicants",
+    ]);
+    expect(model.more).toHaveLength(0);
+    expect(model.core.map((item) => item.label)).toEqual([
+      "Home",
       "People",
-      "Programs",
-      "Meetings",
       "Actions",
       "Applicants",
-      "Partners",
-      "Chapters",
-      "Admin",
     ]);
   });
 
@@ -541,47 +579,16 @@ describe("officer section navigation (9-section IA)", () => {
       "/decide",
       "/meet",
       "/review",
+      "/meetings",
+      "/partners",
+      "/admin",
+      "/admin/bulk-users",
     ]) {
       expect(visibleHrefs).not.toContain(retired);
     }
-    // No visible link should still be labelled "Work" or "Command Center".
     const labels = model.visible.map((item) => item.label);
     expect(labels).not.toContain("Work");
     expect(labels).not.toContain("Command Center");
-  });
-
-  it("keeps every object section reachable from the sidebar", () => {
-    const model = officerModel();
-    const visibleHrefs = hrefs(model);
-    for (const href of [
-      "/people",
-      "/admin/instructor-applicants",
-      "/actions",
-      "/follow-up",
-      "/delegate",
-      "/partners",
-      "/admin/partners",
-      "/admin/chapters",
-      "/admin/chapter-reports",
-      "/admin",
-    ]) {
-      expect(visibleHrefs).toContain(href);
-    }
-    expect(visibleHrefs).not.toContain("/meetings");
-    expect(visibleHrefs).not.toContain("/admin/chapter-president-applicants");
-  });
-
-  it("assigns each surface to the right object section", () => {
-    const model = officerModel();
-    expect(groupOf(model, "/people")).toBe("People");
-    expect(groupOf(model, "/meetings")).toBeUndefined();
-    expect(groupOf(model, "/actions/meetings")).toBeUndefined();
-    expect(groupOf(model, "/impact-meetings")).toBeUndefined();
-    expect(groupOf(model, "/actions")).toBe("Actions");
-    expect(groupOf(model, "/admin/instructor-applicants")).toBe("Applicants");
-    expect(groupOf(model, "/partners")).toBe("Partners");
-    expect(groupOf(model, "/admin/chapters")).toBe("Chapters");
-    expect(groupOf(model, "/admin")).toBe("Admin");
   });
 });
 
@@ -593,35 +600,36 @@ describe("chapter-president section navigation", () => {
       pathname: "/",
       actionTrackerEnabled: true,
       operationsHubEnabled: true,
+      leadershipFullPortalExplorer: false,
     });
   }
 
   it("pins Actions in Top Tools for chapter presidents without Meetings", () => {
     const model = cpModel();
     const coreHrefs = model.core.map((item) => item.href);
-    expect(coreHrefs).toContain("/actions");
+    expect(coreHrefs).toEqual([
+      "/",
+      "/people",
+      "/actions",
+      "/chapter-lead/instructor-applicants",
+    ]);
     expect(coreHrefs).not.toContain("/meetings");
-    expect(coreHrefs).toContain("/people");
   });
 
-  it("gives chapter presidents the People/Programs/Actions sections plus Chapter ops", () => {
+  it("gives chapter presidents only Home, People, Actions, and Applicants", () => {
     const model = cpModel();
     const visibleHrefs = model.visible.map((item) => item.href);
-    // Cross-cutting object sections are now reachable for CPs.
-    expect(visibleHrefs).toContain("/people");
-    expect(visibleHrefs).toContain("/actions");
+    expect(visibleHrefs).toEqual([
+      "/",
+      "/people",
+      "/actions",
+      "/chapter-lead/instructor-applicants",
+    ]);
     expect(visibleHrefs).not.toContain("/meetings");
-    expect(visibleHrefs).toContain("/mentorship");
-    // Chapter operations stay.
-    expect(visibleHrefs).toContain("/chapter");
-    expect(visibleHrefs).toContain("/chapter/recruiting");
-    // The Work hub and Command Center never leak in.
+    expect(visibleHrefs).not.toContain("/mentorship");
+    expect(visibleHrefs).not.toContain("/chapter");
     expect(visibleHrefs).not.toContain("/work");
     expect(visibleHrefs).not.toContain("/command-center");
-
-    const groupOf = (href: string) => model.visible.find((i) => i.href === href)?.group;
-    expect(groupOf("/people")).toBe("People");
-    expect(groupOf("/actions")).toBe("Actions");
-    expect(groupOf("/mentorship")).toBe("Programs");
+    expect(model.more).toHaveLength(0);
   });
 });

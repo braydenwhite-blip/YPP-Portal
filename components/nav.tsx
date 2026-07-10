@@ -160,6 +160,7 @@ export default function Nav({
   studentFullPortalExplorer,
   studentHasChapter,
   instructorFullPortalExplorer,
+  leadershipFullPortalExplorer,
   hiringDemoMode,
   instructorSubtype,
   publicGateActive,
@@ -191,6 +192,8 @@ export default function Nav({
   /** When true, "Join a chapter" is hidden (user already has a chapter). */
   studentHasChapter?: boolean;
   instructorFullPortalExplorer?: boolean;
+  /** Unlock full officer / CP catalog for local testing. */
+  leadershipFullPortalExplorer?: boolean;
   hiringDemoMode?: boolean;
   /** SUMMER_WORKSHOP keeps the workshop studio + training links visible. */
   instructorSubtype?: string | null;
@@ -223,6 +226,7 @@ export default function Nav({
         studentFullPortalExplorer,
         studentHasChapter,
         instructorFullPortalExplorer,
+        leadershipFullPortalExplorer,
         hiringDemoMode,
         instructorSubtype,
         publicGateActive,
@@ -246,6 +250,7 @@ export default function Nav({
       studentFullPortalExplorer,
       studentHasChapter,
       instructorFullPortalExplorer,
+      leadershipFullPortalExplorer,
       hiringDemoMode,
       instructorSubtype,
       publicGateActive,
@@ -376,15 +381,23 @@ export default function Nav({
   const totalCore = filteredCore.length;
   const totalMore = filteredMore.reduce((sum, group) => sum + group.items.length, 0);
   const totalResults = totalCore + totalMore;
-  const showSearch = hiringDemoMode !== true && actionsOnlyPreviewActive !== true;
+  const showSearch =
+    hiringDemoMode !== true &&
+    actionsOnlyPreviewActive !== true &&
+    model.leadershipSimpleNav !== true;
 
   const showStudentMinimalChrome =
     model.primaryRole === "STUDENT" && studentFullPortalExplorer !== true;
   const showInstructorMinimalChrome =
     model.primaryRole === "INSTRUCTOR" && instructorFullPortalExplorer !== true;
-  const showChapterPresidentMinimalChrome = model.primaryRole === "CHAPTER_PRESIDENT";
+  const showChapterPresidentMinimalChrome =
+    model.primaryRole === "CHAPTER_PRESIDENT" && model.leadershipSimpleNav !== true;
+  const showLeadershipSimpleChrome = model.leadershipSimpleNav === true;
   const useMinimalFlatNavChrome =
-    showStudentMinimalChrome || showInstructorMinimalChrome || showChapterPresidentMinimalChrome;
+    showStudentMinimalChrome ||
+    showInstructorMinimalChrome ||
+    showChapterPresidentMinimalChrome ||
+    showLeadershipSimpleChrome;
   // Officers get the leadership operating-system chrome: always-visible,
   // collapsible sections (Command / Work / People / Programs / Partners / Data /
   // Admin) instead of one big "More Tools" accordion — so every area is one
@@ -486,7 +499,7 @@ export default function Nav({
           preview passcode, an officer bypass, or the gate disabled entirely) —
           mirroring middleware, which redirects gated users away from /site-map.
           So "see everything" is reachable then and only then. */}
-      {publicGateActive !== true ? (
+      {publicGateActive !== true && model.leadershipSimpleNav !== true ? (
         <Link
           href="/site-map"
           onClick={onNavigate}
@@ -528,7 +541,7 @@ export default function Nav({
       ) : (
         <>
           <section className={sidebarNavPanelClass}>
-            {studentHomeOnlyCore ? null : (
+            {studentHomeOnlyCore || showLeadershipSimpleChrome ? null : (
               <p className={sidebarSectionTitleClass}>
                 {hiringDemoMode ? "Hiring" : useMinimalFlatNavChrome ? "Shortcuts" : "Top Tools"}
               </p>

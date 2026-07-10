@@ -147,6 +147,7 @@ export default async function AppLayout({
       studentFullPortalExplorer={process.env.STUDENT_FULL_PORTAL_EXPLORER === "true"}
       studentHasChapter={Boolean(session.user.chapterId)}
       instructorFullPortalExplorer={process.env.INSTRUCTOR_FULL_PORTAL_EXPLORER === "true"}
+      leadershipFullPortalExplorer={process.env.LEADERSHIP_FULL_PORTAL_EXPLORER === "true"}
       hiringDemoMode={hiringDemoMode}
       instructorSubtype={instructorSubtype}
       publicGateActive={publicGateActive}

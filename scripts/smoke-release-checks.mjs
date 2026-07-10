@@ -91,9 +91,10 @@ const contentChecks = [
   },
   {
     id: "admin-chapter-president-applicants-page",
-    description: "Admin chapter president applicants page uses the kanban pipeline",
+    description:
+      "Admin chapter president applicants page redirects to the unified Application board",
     file: "app/(app)/admin/chapter-president-applicants/page.tsx",
-    pattern: "chapterPresidentApplication",
+    pattern: "/admin/instructor-applicants",
   },
 ];
 

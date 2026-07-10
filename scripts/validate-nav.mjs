@@ -165,7 +165,16 @@ if (errors.length === 0) {
     }
 
     const available = catalog.filter((item) => hasRoleAccess(item, role) && hasAwardAccess(item, role));
-    const minRequired = Math.min(5, available.length);
+    // Leadership roles intentionally pin exactly four core links (Home · People ·
+    // Actions · Applicants). Other roles still need a useful core set.
+    const leadershipSimpleRoles = new Set([
+      "ADMIN",
+      "STAFF",
+      "HIRING_CHAIR",
+      "CHAPTER_PRESIDENT",
+    ]);
+    const floor = leadershipSimpleRoles.has(role) ? 4 : 5;
+    const minRequired = Math.min(floor, available.length);
     if (hrefs.length < minRequired) {
       errors.push(
         `Core map for role ${role} has ${hrefs.length} links but requires at least ${minRequired} based on available routes.`,

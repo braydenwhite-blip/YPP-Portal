@@ -1,19 +1,26 @@
 import type { NavGroup, NavLink, NavRole } from "@/lib/navigation/types";
+import { isLeadershipFullPortalExplorerEnabled } from "@/lib/navigation/leadership-simple-nav";
 
 /**
  * Chapter President navigation.
  *
- * CPs run a chapter, so they get the same plain-noun object sections leadership
- * uses — People · Programs · Actions — alongside their chapter
- * operations, instead of a hiring-pipeline-only sidebar. This file is the single
- * source of truth for what a CP sees and how it is grouped, mirroring the
- * student/instructor `v1` layout pattern.
+ * Default (shipped): Home · People · Actions · Applicants — same four-link
+ * leadership sidebar as Admin / Staff / Hiring Chair.
  *
- * Layout: Home · Chapter · People · Programs · Actions (+ account).
+ * Full explorer (`LEADERSHIP_FULL_PORTAL_EXPLORER=true`): chapter ops + People ·
+ * Programs · Actions sections for local testing.
  */
 
-/** The full set of routes a Chapter President can reach from the sidebar. */
-export const CHAPTER_PRESIDENT_ALLOWED_HREFS: ReadonlySet<string> = new Set([
+/** Shipped CP sidebar — four leadership links only. */
+export const CHAPTER_PRESIDENT_SIMPLE_ALLOWED_HREFS: ReadonlySet<string> = new Set([
+  "/",
+  "/people",
+  "/actions",
+  "/chapter-lead/instructor-applicants",
+]);
+
+/** Full CP sidebar used when the leadership explorer flag is on. */
+export const CHAPTER_PRESIDENT_FULL_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/",
   "/chapter",
   // Chapter operations
@@ -45,6 +52,21 @@ export const CHAPTER_PRESIDENT_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/notifications",
   "/settings/personalization",
 ]);
+
+/** @deprecated Prefer {@link chapterPresidentAllowedHrefs}. */
+export const CHAPTER_PRESIDENT_ALLOWED_HREFS = CHAPTER_PRESIDENT_SIMPLE_ALLOWED_HREFS;
+
+export function chapterPresidentAllowedHrefs(
+  leadershipFullPortalExplorer?: boolean,
+): ReadonlySet<string> {
+  const fullExplorer =
+    leadershipFullPortalExplorer !== undefined
+      ? leadershipFullPortalExplorer
+      : isLeadershipFullPortalExplorerEnabled();
+  return fullExplorer
+    ? CHAPTER_PRESIDENT_FULL_ALLOWED_HREFS
+    : CHAPTER_PRESIDENT_SIMPLE_ALLOWED_HREFS;
+}
 
 /** Section emoji shown on each sidebar group header. */
 export const CHAPTER_PRESIDENT_MINIMAL_GROUP_EMOJI: Partial<Record<NavGroup, string>> = {

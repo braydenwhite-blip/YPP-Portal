@@ -17,7 +17,7 @@ const APPLICANT_ROLES: NavRole[] = ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF
 const APPLICANT_ROLES_EXCLUDING_APPLICANT: NavRole[] = ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
 const INTERVIEW_ROLES: NavRole[] = ["INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"];
 const ADMIN_ONLY: NavRole[] = ["ADMIN"];
-const HIRING_CHAIR_ADMIN_ROLES: NavRole[] = ["ADMIN", "HIRING_CHAIR"];
+const HIRING_CHAIR_ADMIN_ROLES: NavRole[] = ["ADMIN", "HIRING_CHAIR", "STAFF"];
 // Matches the "officer" tier used by requireOfficer() / OFFICER_ROLES page
 // guards (lib/authorization.ts, app/(app)/workflows/*): the roles that can
 // actually run and view workflow instances, not just admins.
@@ -674,13 +674,14 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/people",
-      label: "People Hub",
+      label: "People",
       icon: "👥",
       // Master People database (Knowledge OS V2 front door). Officer-tier:
       // advisor check-in state and applicant stages are leadership reads.
       roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
       searchAliases: [
         "People",
+        "People Hub",
         "People Database",
         "Directory",
         "Find a person",
@@ -886,14 +887,12 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/mentorship",
       label: "Mentorship",
       icon: "🤝",
-      // The mentor coaching console (multi-mentee Kanban) and leadership
-      // command center (cohort review-cycle launcher, templates, committees,
-      // analytics) — a launcher for managing OTHER people's Review & G&R
-      // cycles, not a personal workspace. A viewer's OWN Review & G&R flow
-      // is their own /people/[id] (see catalog entry above); this hub
-      // redirects there automatically for anyone without a mentor/admin POV,
-      // so the search aliases below still resolve correctly even though this
-      // entry's href can't point at a per-viewer dynamic URL.
+      // Three POVs, one hub: the mentor coaching console (multi-mentee
+      // Kanban), the leadership command center (cohort review-cycle
+      // launcher, templates, committees, analytics), and a viewer's own
+      // mentee POV (check-ins, G&R doc, reviews — same components rendered
+      // in-hub as on /people/[id]'s Review & G&R block, so their own
+      // development is one toggle away, not a separate destination).
       roles: [
         "INSTRUCTOR",
         "MENTOR",
@@ -945,12 +944,13 @@ export const NAV_CATALOG: NavLink[] = [
         "Review progress",
       ],
       dashboardDescription:
-        "The mentor console and command center for developing the people who run YPP — your own development lives on your person page.",
+        "The mentor console, command center, and your own mentee stuff — check-ins, G&R doc, reviews.",
       dashboardPriority: 4,
     },
-    // /my-mentor now redirects to /mentorship?view=me (the mentee POV). Its
-    // old detail subroutes (goals, progress, reflection, schedule, resources,
-    // awards, help) redirect to that workspace's sections.
+    // /my-mentor now redirects to /mentorship?view=me (the mentee POV, which
+    // renders natively in-hub). Its old detail subroutes (goals, progress,
+    // reflection, schedule, resources, awards, help) redirect to that same
+    // hub — the ?section= params they append are currently inert there.
     // Retired nav entries (pages still live or redirecting):
     //  - "Review Cycles" (/mentorship/cycles) — the cohort launcher stays a
     //    live leadership page, reached from the admin cockpit's overview.
@@ -1356,12 +1356,16 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/chapter-lead/instructor-applicants",
-      label: "Chapter Applicants",
+      label: "Applicants",
       icon: "📝",
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Review and manage instructor applications on your chapter's hiring board.",
       dashboardPriority: 6,
-      searchAliases: ["Instructor Applicants", "Chapter Instructor Applicants"],
+      searchAliases: [
+        "Instructor Applicants",
+        "Chapter Instructor Applicants",
+        "Chapter Applicants",
+      ],
     },
     {
       href: "/chapter-lead/instructor-readiness",
@@ -1521,7 +1525,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/admin/instructor-applicants",
-      label: "Network Applicants",
+      label: "Applicants",
       icon: "📝",
       roles: HIRING_CHAIR_ADMIN_ROLES,
       dashboardDescription:
@@ -1530,9 +1534,9 @@ export const NAV_CATALOG: NavLink[] = [
       searchAliases: [
         "Instructor Applicants",
         "Network Instructor Applicants",
+        "Network Applicants",
         "CP Applicants",
         "Chapter President Applicants",
-        "Applicants",
       ],
       dashboardBadgeKey: "instructor_applicants",
     },

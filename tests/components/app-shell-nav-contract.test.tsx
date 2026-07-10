@@ -15,9 +15,21 @@ import Nav from "@/components/nav";
  */
 
 const ORIGINAL_PORTAL_SLIM_NAV = process.env.PORTAL_SLIM_NAV;
+const ORIGINAL_LEADERSHIP_FULL_PORTAL_EXPLORER = process.env.LEADERSHIP_FULL_PORTAL_EXPLORER;
+
+beforeAll(() => {
+  process.env.LEADERSHIP_FULL_PORTAL_EXPLORER = "false";
+});
+afterAll(() => {
+  if (ORIGINAL_LEADERSHIP_FULL_PORTAL_EXPLORER === undefined) {
+    delete process.env.LEADERSHIP_FULL_PORTAL_EXPLORER;
+  } else {
+    process.env.LEADERSHIP_FULL_PORTAL_EXPLORER = ORIGINAL_LEADERSHIP_FULL_PORTAL_EXPLORER;
+  }
+});
 
 describe("app shell nav contract", () => {
-  it("gives ADMIN the slim preview nav under the public gate", async () => {
+  it("gives ADMIN the simple leadership nav (Home, People, Actions, Applicants)", async () => {
     render(
       <Nav
         roles={["ADMIN"]}
@@ -27,36 +39,23 @@ describe("app shell nav contract", () => {
         operationsHubEnabled
         publicGateActive
         officerSlimNavActive
+        leadershipFullPortalExplorer={false}
       />
     );
 
-    expect(screen.getByRole("link", { name: /Home/i })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: /People Hub/i })).toHaveAttribute("href", "/people");
+    expect(screen.getByRole("link", { name: /^Home$/i })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: /^People$/i })).toHaveAttribute("href", "/people");
     expect(screen.getByRole("link", { name: /^Actions$/i })).toHaveAttribute("href", "/actions");
-    expect(screen.getByRole("link", { name: /^Meetings$/i })).toHaveAttribute(
-      "href",
-      "/meetings"
-    );
-    expect(screen.getByRole("link", { name: /My Applications/i })).toHaveAttribute(
-      "href",
-      "/applications"
-    );
-    expect(screen.getByRole("link", { name: /Workshop Design Studio/i })).toHaveAttribute(
-      "href",
-      "/instructor/workshop-design-studio"
-    );
-    expect(screen.getByRole("link", { name: /Instructor Training/i })).toHaveAttribute(
-      "href",
-      "/instructor-training"
-    );
-    expect(screen.getByRole("link", { name: /Network Applicants/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Applicants$/i })).toHaveAttribute(
       "href",
       "/admin/instructor-applicants"
     );
 
     expect(screen.queryByRole("link", { name: /^Work$/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /Command Center/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: /Initiatives/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /My Applications/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Workshop Design Studio/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^Meetings$/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /Administration/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /more navigation links/i })).toBeNull();
     expect(screen.queryByRole("region", { name: "Navigation sections" })).toBeNull();
@@ -110,21 +109,32 @@ describe("app shell nav contract", () => {
       }
     });
 
-    it("shows notification badges with counts and caps at 99+", () => {
+    it("shows the four leadership links for admins", () => {
       render(
         <Nav
           roles={["ADMIN"]}
           adminSubtypes={["SUPER_ADMIN"]}
           primaryRole="ADMIN"
+          actionTrackerEnabled
           badges={{ notifications: 120 }}
         />
       );
-      expect(screen.getByText("99+")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /^Home$/i })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /^People$/i })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /^Actions$/i })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /^Applicants$/i })).toBeInTheDocument();
+      // Notifications are outside the simple leadership nav, so badge caps are N/A here.
+      expect(screen.queryByText("99+")).toBeNull();
     });
 
     it("filters navigation by the sidebar search input", async () => {
       render(
-        <Nav roles={["ADMIN"]} adminSubtypes={["SUPER_ADMIN"]} primaryRole="ADMIN" />
+        <Nav
+          roles={["ADMIN"]}
+          adminSubtypes={["SUPER_ADMIN"]}
+          primaryRole="ADMIN"
+          leadershipFullPortalExplorer
+        />
       );
 
       const search = screen.getByRole("searchbox", { name: /search sidebar pages/i });

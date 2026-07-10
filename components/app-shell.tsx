@@ -54,6 +54,7 @@ export default function AppShell({
   studentFullPortalExplorer,
   studentHasChapter,
   instructorFullPortalExplorer,
+  leadershipFullPortalExplorer,
   hiringDemoMode,
   instructorSubtype,
   publicGateActive,
@@ -91,6 +92,8 @@ export default function AppShell({
   /** User is assigned to a chapter; hide "Join a chapter" in the nav. */
   studentHasChapter?: boolean;
   instructorFullPortalExplorer?: boolean;
+  /** Unlock full officer / CP catalog for local testing. */
+  leadershipFullPortalExplorer?: boolean;
   hiringDemoMode?: boolean;
   /** SUMMER_WORKSHOP keeps the workshop studio + training links visible. */
   instructorSubtype?: string | null;
@@ -219,6 +222,7 @@ export default function AppShell({
             studentFullPortalExplorer={studentFullPortalExplorer}
             studentHasChapter={studentHasChapter}
             instructorFullPortalExplorer={instructorFullPortalExplorer}
+            leadershipFullPortalExplorer={leadershipFullPortalExplorer}
             hiringDemoMode={hiringDemoMode}
             instructorSubtype={instructorSubtype}
             publicGateActive={publicGateActive}

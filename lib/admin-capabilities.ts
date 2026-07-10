@@ -38,6 +38,8 @@ const ADMIN_SEGMENT_DOMAIN: Record<string, AdminRouteDomain> = {
   training: "UNIVERSAL",
   "bulk-users": "UNIVERSAL",
   reflections: "UNIVERSAL",
+  // Unified applicants board — every admin needs this front door.
+  "instructor-applicants": "UNIVERSAL",
 
   // Baseline — cross-cutting tools shared by every admin with a subtype.
   "action-center": "BASELINE",
@@ -59,7 +61,6 @@ const ADMIN_SEGMENT_DOMAIN: Record<string, AdminRouteDomain> = {
   "external-applicants": "HIRING_ADMIN",
   "form-templates": "HIRING_ADMIN",
   "hiring-committee": "HIRING_ADMIN",
-  "instructor-applicants": "HIRING_ADMIN",
   "instructor-approvals": "HIRING_ADMIN",
   "instructor-assignments": "HIRING_ADMIN",
   "instructor-readiness": "HIRING_ADMIN",

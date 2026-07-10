@@ -2,8 +2,8 @@ import { CORE_NAV_LIMIT, CORE_NAV_MAP, PRIMARY_ROLE_FALLBACK_ORDER } from "@/lib
 import { NAV_CATALOG } from "@/lib/navigation/catalog";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import {
-  CHAPTER_PRESIDENT_ALLOWED_HREFS,
   applyChapterPresidentMinimalSidebarLayout,
+  chapterPresidentAllowedHrefs,
   chapterPresidentMinimalLinkOrderIndex,
   shouldApplyChapterPresidentNavFilter,
 } from "@/lib/navigation/chapter-president-v1-nav-layout";
@@ -45,6 +45,12 @@ import {
   getPublicPreviewSlimNavHrefList,
   shouldApplyPublicPreviewSlimNav,
 } from "@/lib/navigation/public-preview-slim-nav";
+import {
+  LEADERSHIP_FULL_CORE_NAV_MAP,
+  LEADERSHIP_SIMPLE_NAV_ROLES,
+  leadershipSimpleNavHrefs,
+  shouldApplyLeadershipSimpleNav,
+} from "@/lib/navigation/leadership-simple-nav";
 import {
   OFFICER_GROUP_ORDER,
   OFFICER_UNHIDE_HREFS,
@@ -264,6 +270,12 @@ export interface ResolveNavInput {
   studentHasChapter?: boolean;
   /** When true, instructors see the full nav catalog. Omit/false uses env `INSTRUCTOR_FULL_PORTAL_EXPLORER`. */
   instructorFullPortalExplorer?: boolean;
+  /**
+   * When true, Admin / Staff / Hiring Chair / CP see the full officer catalog
+   * instead of the four-link leadership sidebar. Omit/false uses env
+   * `LEADERSHIP_FULL_PORTAL_EXPLORER`.
+   */
+  leadershipFullPortalExplorer?: boolean;
   /** Demo-only: narrow the left sidebar to the hiring surfaces for the active role. */
   hiringDemoMode?: boolean;
   /**
@@ -520,6 +532,7 @@ export function resolveNavModel(
   lockedGroups?: Map<NavGroup, string>;
   officerChrome?: boolean;
   officerSlimNav?: boolean;
+  leadershipSimpleNav?: boolean;
 } {
   const roles = normalizeRoles(input.roles);
   const primaryRole = resolvePrimaryRole(input.primaryRole, roles);
@@ -528,14 +541,22 @@ export function resolveNavModel(
     input.publicGateActive === true && !officerTierUser;
   const hasAward = isAwardTier(input.awardTier);
   const adminSubtypes = input.adminSubtypes ?? [];
+  const leadershipSimpleActive = shouldApplyLeadershipSimpleNav(
+    primaryRole,
+    input.leadershipFullPortalExplorer,
+  );
+  const leadershipFullExplorer =
+    LEADERSHIP_SIMPLE_NAV_ROLES.has(primaryRole) && !leadershipSimpleActive;
   const slimNavActive =
-    input.officerSlimNavActive === true ||
-    input.actionsOnlyPreviewActive === true ||
-    (input.officerSlimNavActive !== false &&
-      shouldApplyPublicPreviewSlimNav(primaryRole, roles, {
-        email: input.viewerEmail,
-        internalLevel: input.viewerInternalLevel,
-      }));
+    !leadershipSimpleActive &&
+    !leadershipFullExplorer &&
+    (input.officerSlimNavActive === true ||
+      input.actionsOnlyPreviewActive === true ||
+      (input.officerSlimNavActive !== false &&
+        shouldApplyPublicPreviewSlimNav(primaryRole, roles, {
+          email: input.viewerEmail,
+          internalLevel: input.viewerInternalLevel,
+        })));
   const slimNavHrefList = slimNavActive
     ? input.actionsOnlyPreviewActive
       ? ["/", "/actions"]
@@ -555,7 +576,10 @@ export function resolveNavModel(
   // Partners → Data → Admin). When the public-preview slim nav is active,
   // officers get the curated leadership + published-public stack instead.
   const officerLayoutActive =
-    shouldApplyOfficerNavLayout(primaryRole) && !hiringDemoHrefs && !slimNavActive;
+    shouldApplyOfficerNavLayout(primaryRole) &&
+    !hiringDemoHrefs &&
+    !slimNavActive &&
+    !leadershipSimpleActive;
   const usesUnlockVisibility =
     primaryRole === "INSTRUCTOR" ||
     (input.unlockedSections && (primaryRole === "STUDENT" || primaryRole === "PARENT"));
@@ -586,6 +610,9 @@ export function resolveNavModel(
       // OTHER roles' sidebars compact by routing chapter pages through the Hub)
       // does not apply, since the CP gets those pages as first-class nav.
       const isChapterPresidentNav = shouldApplyChapterPresidentNavFilter(primaryRole);
+      const cpAllowed = isChapterPresidentNav
+        ? chapterPresidentAllowedHrefs(input.leadershipFullPortalExplorer)
+        : null;
 
       if (
         ALWAYS_HIDDEN_HREFS.has(item.href) &&
@@ -598,8 +625,13 @@ export function resolveNavModel(
         return false;
       }
 
-      if (isChapterPresidentNav && !CHAPTER_PRESIDENT_ALLOWED_HREFS.has(item.href)) {
+      if (cpAllowed && !cpAllowed.has(item.href)) {
         return false;
+      }
+
+      if (leadershipSimpleActive) {
+        const allowed = new Set(leadershipSimpleNavHrefs(primaryRole));
+        if (!allowed.has(item.href)) return false;
       }
 
       // Public portal gate: hide nav links outside the public allowlist.
@@ -736,15 +768,32 @@ export function resolveNavModel(
     visible = visible.map(applyOfficerNavLayout);
   }
 
+  // Leadership / hiring roles: keep Home · People · Actions · Applicants in that order.
+  if (leadershipSimpleActive) {
+    const order = leadershipSimpleNavHrefs(primaryRole);
+    const orderIndex = new Map(order.map((href, index) => [href, index]));
+    visible = [...visible].sort(
+      (a, b) => (orderIndex.get(a.href) ?? 999) - (orderIndex.get(b.href) ?? 999),
+    );
+  }
+
   const visibleByHref = new Map(visible.map((item) => [item.href, item]));
+
+  const fullLeadershipCore = leadershipFullExplorer
+    ? LEADERSHIP_FULL_CORE_NAV_MAP[primaryRole]
+    : undefined;
 
   const coreHrefList =
     hiringDemoHrefs ??
-    (slimNavActive
-      ? slimNavHrefList
-      : studentMinimalSidebar && primaryRole === "STUDENT"
-        ? ["/"]
-        : CORE_NAV_MAP[primaryRole]);
+    (leadershipSimpleActive
+      ? [...leadershipSimpleNavHrefs(primaryRole)]
+      : fullLeadershipCore
+        ? fullLeadershipCore
+        : slimNavActive
+          ? slimNavHrefList
+          : studentMinimalSidebar && primaryRole === "STUDENT"
+            ? ["/"]
+            : CORE_NAV_MAP[primaryRole]);
 
   const core: NavLink[] = [];
   for (const href of coreHrefList) {
@@ -840,5 +889,6 @@ export function resolveNavModel(
     lockedGroups: unlockLockedGroups ?? undefined,
     officerChrome: officerLayoutActive,
     officerSlimNav: slimNavActive,
+    leadershipSimpleNav: leadershipSimpleActive,
   };
 }
