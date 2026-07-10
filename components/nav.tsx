@@ -499,7 +499,32 @@ export default function Nav({
           preview passcode, an officer bypass, or the gate disabled entirely) —
           mirroring middleware, which redirects gated users away from /site-map.
           So "see everything" is reachable then and only then. */}
-      {publicGateActive !== true && model.leadershipSimpleNav !== true ? (
+      {model.leadershipSimpleNav === true ? (
+        publicGateActive !== true ? (
+          <Link
+            href="/site-map"
+            onClick={onNavigate}
+            aria-current={activeNavHref === "/site-map" ? "page" : undefined}
+            className="mb-1 flex items-center gap-2 rounded-xl border border-[rgba(99,102,241,0.25)] bg-[rgba(99,102,241,0.08)] px-3 py-2.5 text-[13.5px] font-semibold text-[#4f46e5] no-underline transition-colors hover:bg-[rgba(99,102,241,0.14)]"
+          >
+            <span aria-hidden className="text-base leading-none">
+              {"🗺️"}
+            </span>
+            <span className="min-w-0 flex-1 truncate">Full Portal — see everything</span>
+          </Link>
+        ) : (
+          <Link
+            href="/preview"
+            onClick={onNavigate}
+            className="mb-1 flex items-center gap-2 rounded-xl border border-[rgba(124,58,237,0.25)] bg-[rgba(124,58,237,0.08)] px-3 py-2.5 text-[13.5px] font-semibold text-[#6b21c8] no-underline transition-colors hover:bg-[rgba(124,58,237,0.14)]"
+          >
+            <span aria-hidden className="text-base leading-none">
+              {"🔑"}
+            </span>
+            <span className="min-w-0 flex-1 truncate">Unlock hidden portal areas</span>
+          </Link>
+        )
+      ) : publicGateActive !== true ? (
         <Link
           href="/site-map"
           onClick={onNavigate}
