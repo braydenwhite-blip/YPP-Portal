@@ -30,8 +30,7 @@ export function MentorHomeCalm({
   const remaining = vm.relationships.length - shown.length;
 
   const actions: SimpleAction[] = [
-    // The review inbox doubles as the chair queue — one canonical URL.
-    { label: "Monthly reviews", href: "/mentorship/reviews", icon: "scale" },
+    // Approvals render right on the Mentorship home now — no separate inbox.
     { label: "Schedule", href: "/mentorship/schedule", icon: "calendar" },
     { label: "Feedback", href: "/mentorship/feedback", icon: "send" },
   ];

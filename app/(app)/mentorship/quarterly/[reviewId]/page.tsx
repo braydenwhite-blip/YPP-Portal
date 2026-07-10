@@ -16,7 +16,7 @@ export default async function QuarterlyReviewRedirect({
   const { reviewId } = await params;
 
   const data = await getQuarterlyReviewData(reviewId);
-  if (!data) redirect("/mentorship/reviews");
+  if (!data) redirect("/mentorship");
 
   redirect(`/people/${data.mentee.id}?section=review&panel=approve`);
 }

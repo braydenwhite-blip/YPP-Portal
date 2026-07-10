@@ -66,7 +66,7 @@ function rowCta(
     case "ready-for-chair":
       return {
         label: "Open chair review",
-        href: p.reviewId ? `/mentorship/chair/${p.reviewId}` : "/mentorship/reviews",
+        href: p.reviewId ? `/mentorship/chair/${p.reviewId}` : "/mentorship?view=mentor",
       };
     case "follow-ups-open":
       return { label: "See open work", href: `/mentorship/people/${p.userId}` };

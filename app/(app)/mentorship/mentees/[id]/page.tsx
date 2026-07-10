@@ -12,5 +12,5 @@ export default async function MenteeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  redirect(`/mentorship/people/${id}`);
+  redirect(`/people/${id}`);
 }

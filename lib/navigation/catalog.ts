@@ -928,6 +928,21 @@ export const NAV_CATALOG: NavLink[] = [
         "Check-in",
         "Check-ins",
         "Growth opportunities",
+        // From the retired "Review Inbox" (/mentorship/reviews) and
+        // "Committee Queue" (/mentorship/committee) entries — both queues now
+        // render directly on this hub's mentor console.
+        "Chair Queue",
+        "Review Approvals",
+        "Monthly Review Inbox",
+        "Role Committee",
+        "Quarterly Review Queue",
+        "Pathway Decisions",
+        // From the retired "Review Cycles" (/mentorship/cycles) entry — the
+        // page is live but reached from the admin cockpit, not top-level nav.
+        "Cohort review",
+        "Review cycle",
+        "Launch reviews",
+        "Review progress",
       ],
       dashboardDescription:
         "The mentor console and command center for developing the people who run YPP — your own development lives on your person page.",
@@ -936,24 +951,13 @@ export const NAV_CATALOG: NavLink[] = [
     // /my-mentor now redirects to /mentorship?view=me (the mentee POV). Its
     // old detail subroutes (goals, progress, reflection, schedule, resources,
     // awards, help) redirect to that workspace's sections.
-    {
-      href: "/mentorship/cycles",
-      label: "Review Cycles",
-      icon: "🔄",
-      // Cohort review launcher + progress board. Officer-tier in nav; the
-      // page additionally requires leadership (mirrors the old /people/develop
-      // gating).
-      roles: ["ADMIN", "STAFF", "CHAPTER_PRESIDENT", "HIRING_CHAIR"] as NavRole[],
-      searchAliases: [
-        "Cohort review",
-        "Review cycle",
-        "Launch reviews",
-        "Review progress",
-      ],
-      dashboardDescription:
-        "Launch a review for one person or a whole cohort, and see who is waiting on self-input, review, or chair approval.",
-      dashboardPriority: 6,
-    },
+    // Retired nav entries (pages still live or redirecting):
+    //  - "Review Cycles" (/mentorship/cycles) — the cohort launcher stays a
+    //    live leadership page, reached from the admin cockpit's overview.
+    //  - "Review Inbox" (/mentorship/reviews) — now a redirect; the monthly
+    //    approval queue renders on /mentorship itself.
+    //  - "Committee Queue" (/mentorship/committee) — now a redirect; the
+    //    quarterly queue renders on /mentorship itself.
     {
       href: "/mentorship/mentees",
       label: "My Mentees",
@@ -962,24 +966,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Review mentee progress and follow-up needs.",
       dashboardPriority: 5,
       dashboardBadgeKey: "active_mentees",
-    },
-    {
-      href: "/mentorship/reviews",
-      label: "Review Inbox",
-      icon: "✅",
-      roles: MENTOR_ROLES,
-      searchAliases: ["Chair Queue", "Review Approvals", "Monthly Review Inbox"],
-      dashboardDescription: "Approve or return monthly goal reviews waiting on chair action.",
-      dashboardPriority: 6,
-    },
-    {
-      href: "/mentorship/committee",
-      label: "Committee Queue",
-      icon: "🏛️",
-      roles: MENTOR_ROLES,
-      searchAliases: ["Role Committee", "Quarterly Review Queue", "Pathway Decisions"],
-      dashboardDescription: "Everyone due for a quarterly committee review and Pathway Decision.",
-      dashboardPriority: 7,
     },
     {
       href: "/mentorship/schedule",

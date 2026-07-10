@@ -1,22 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { redirect } from "next/navigation";
 
-import { getSession } from "@/lib/auth-supabase";
-
-vi.mock("@/lib/mentorship/command-access", () => ({
-  hasMentorshipCommandAccess: vi.fn(),
-}));
-vi.mock("@/lib/mentorship-chair-access", () => ({
-  getLanesForChair: vi.fn(),
-}));
-vi.mock("@/lib/mentorship/quarterly-review", () => ({
-  loadQuarterlyCommitteeQueue: vi.fn().mockResolvedValue([]),
-}));
-
-import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
-import { getLanesForChair } from "@/lib/mentorship-chair-access";
-import { loadQuarterlyCommitteeQueue } from "@/lib/mentorship/quarterly-review";
 import RoleCommitteeQueuePage from "@/app/(app)/mentorship/committee/page";
+import {
+  scopeQuarterlyQueueForViewer,
+  type QuarterlyQueueEntry,
+} from "@/lib/mentorship/quarterly-review";
 
 class RedirectError extends Error {
   constructor(public to: string) {
@@ -24,50 +13,87 @@ class RedirectError extends Error {
   }
 }
 
-describe("/mentorship/committee — Role Committee queue access", () => {
+function entry(overrides: Partial<QuarterlyQueueEntry>): QuarterlyQueueEntry {
+  return {
+    mentorshipId: "m-1",
+    menteeId: "mentee-1",
+    menteeName: "Mentee One",
+    menteeRole: "INSTRUCTOR",
+    mentorId: "mentor-1",
+    mentorName: "Mentor One",
+    quarter: "Q3 2026",
+    status: null,
+    ...overrides,
+  };
+}
+
+describe("/mentorship/committee — folded into the Mentorship home", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(redirect).mockImplementation((to: string) => {
       throw new RedirectError(to);
     });
-    vi.mocked(loadQuarterlyCommitteeQueue).mockResolvedValue([]);
   });
 
-  it("sends a signed-out visitor to login", async () => {
-    vi.mocked(getSession).mockResolvedValue(null as any);
-    await expect(RoleCommitteeQueuePage()).rejects.toThrow("redirect:/login");
+  it("redirects to the Mentorship home, where the quarterly queue now renders", () => {
+    expect(() => RoleCommitteeQueuePage()).toThrow("redirect:/mentorship?view=mentor");
+  });
+});
+
+describe("scopeQuarterlyQueueForViewer — the queue's visibility rules", () => {
+  const queue: QuarterlyQueueEntry[] = [
+    entry({ mentorshipId: "m-1", menteeId: "a", menteeRole: "INSTRUCTOR", mentorId: "mentor-1" }),
+    entry({
+      mentorshipId: "m-2",
+      menteeId: "b",
+      menteeRole: "CHAPTER_PRESIDENT",
+      mentorId: "mentor-2",
+    }),
+    entry({ mentorshipId: "m-3", menteeId: "c", menteeRole: "STAFF", mentorId: "mentor-3" }),
+  ];
+
+  it("shows admins/leadership everything", () => {
+    const visible = scopeQuarterlyQueueForViewer(queue, {
+      viewerId: "anyone",
+      isAdminOrLeadership: true,
+      chairedLanes: [],
+    });
+    expect(visible).toHaveLength(3);
   });
 
-  it("turns away a signed-in user with no committee/mentor standing", async () => {
-    vi.mocked(getSession).mockResolvedValue({
-      user: { id: "student-1", roles: ["STUDENT"], adminSubtypes: [] },
-    } as any);
-    vi.mocked(hasMentorshipCommandAccess).mockResolvedValue(false);
-    vi.mocked(getLanesForChair).mockResolvedValue([]);
-
-    await expect(RoleCommitteeQueuePage()).rejects.toThrow("redirect:/mentorship");
+  it("shows a lane chair their lane's mentees", () => {
+    const visible = scopeQuarterlyQueueForViewer(queue, {
+      viewerId: "chair-1",
+      isAdminOrLeadership: false,
+      chairedLanes: ["INSTRUCTOR"],
+    });
+    expect(visible.map((e) => e.mentorshipId)).toEqual(["m-1"]);
   });
 
-  it("admits a lane chair even without the MENTOR/CHAPTER_PRESIDENT role", async () => {
-    vi.mocked(getSession).mockResolvedValue({
-      user: { id: "chair-1", roles: ["STAFF"], adminSubtypes: [] },
-    } as any);
-    vi.mocked(hasMentorshipCommandAccess).mockResolvedValue(false);
-    vi.mocked(getLanesForChair).mockResolvedValue(["INSTRUCTOR"] as any);
-
-    // Should render (not redirect) — no RedirectError thrown.
-    const result = await RoleCommitteeQueuePage();
-    expect(result).toBeTruthy();
+  it("shows a mentor their own mentees regardless of chair status", () => {
+    const visible = scopeQuarterlyQueueForViewer(queue, {
+      viewerId: "mentor-2",
+      isAdminOrLeadership: false,
+      chairedLanes: [],
+    });
+    expect(visible.map((e) => e.mentorshipId)).toEqual(["m-2"]);
   });
 
-  it("admits leadership regardless of chair assignments", async () => {
-    vi.mocked(getSession).mockResolvedValue({
-      user: { id: "lead-1", roles: ["STAFF"], adminSubtypes: ["LEADERSHIP"] },
-    } as any);
-    vi.mocked(hasMentorshipCommandAccess).mockResolvedValue(true);
-    vi.mocked(getLanesForChair).mockResolvedValue([]);
+  it("unions lane-chair and own-mentee visibility", () => {
+    const visible = scopeQuarterlyQueueForViewer(queue, {
+      viewerId: "mentor-2",
+      isAdminOrLeadership: false,
+      chairedLanes: ["INSTRUCTOR"],
+    });
+    expect(visible.map((e) => e.mentorshipId)).toEqual(["m-1", "m-2"]);
+  });
 
-    const result = await RoleCommitteeQueuePage();
-    expect(result).toBeTruthy();
+  it("hides everything from a viewer with no standing (incl. unmappable lanes)", () => {
+    const visible = scopeQuarterlyQueueForViewer(queue, {
+      viewerId: "stranger",
+      isAdminOrLeadership: false,
+      chairedLanes: [],
+    });
+    expect(visible).toHaveLength(0);
   });
 });

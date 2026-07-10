@@ -37,10 +37,10 @@ describe("mentorship hub consolidation redirects", () => {
     ).rejects.toThrow("redirect:/mentorship?view=admin&who=officers&lane=review-due");
   });
 
-  it("sends /people/develop/[id] to the hub development record", async () => {
+  it("sends /people/develop/[id] straight to the canonical person page", async () => {
     await expect(
       LegacyDevelopRecordRedirect({ params: { id: "user-9" } })
-    ).rejects.toThrow("redirect:/mentorship/people/user-9");
+    ).rejects.toThrow("redirect:/people/user-9");
   });
 
   it("sends /people/mentorship to the hub's command center", async () => {

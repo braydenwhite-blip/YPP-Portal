@@ -17,6 +17,7 @@ import { buildMentorHomeViewModel } from "@/lib/mentorship/load";
 import { hasMentorshipCommandAccess } from "@/lib/mentorship/command-access";
 import { availablePovs, resolvePov, type HubPov } from "@/lib/mentorship/hub-pov";
 import { mentorCardNeedsAttention } from "./_components/mentor-priority-list";
+import { MonthlyApprovalQueue, QuarterlyCommitteeQueue } from "./_components/approval-queues";
 import { MentorHomeCalm } from "./_components/mentor-home-calm";
 import { SegmentedTabs } from "./_components/segmented-tabs";
 import { EmptyStateEditorial } from "./_components/empty-state-editorial";
@@ -196,6 +197,16 @@ export default async function MentorshipPage(
         </Link>
       ) : null}
 
+      {/* The approval queues live here now — chairs and committee members see
+          who needs them without a separate Review Inbox / Committee Queue
+          destination. Both self-hide when empty. */}
+      {showChairQueue ? <MonthlyApprovalQueue /> : null}
+      <QuarterlyCommitteeQueue
+        viewerId={userId}
+        isAdminOrLeadership={isAdmin || commandAccess}
+        chairedLanes={chairLanes}
+      />
+
       {mentorBlock.total === 0 ? (
         <EmptyStateEditorial
           title="Ready when they arrive."
@@ -230,11 +241,6 @@ export default async function MentorshipPage(
             <ButtonLink href="/mentorship/schedule" variant="secondary" size="sm">
               Schedule →
             </ButtonLink>
-            {showChairQueue ? (
-              <ButtonLink href="/mentorship/reviews" variant="secondary" size="sm">
-                Review inbox →
-              </ButtonLink>
-            ) : null}
           </div>
         </div>
       )}

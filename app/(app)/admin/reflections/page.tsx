@@ -52,7 +52,7 @@ export default async function AdminReflectionsPage() {
         title="Reflection archive"
         subtitle="Read-only record of the retired self-reflection forms. Live self-input now flows through the Mentorship review loop."
       >
-        <ButtonLink href="/mentorship/reviews" variant="secondary" size="sm">
+        <ButtonLink href="/mentorship?view=mentor" variant="secondary" size="sm">
           Open the review inbox →
         </ButtonLink>
       </PageHeaderV2>

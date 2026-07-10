@@ -16,8 +16,9 @@ import "server-only";
  * the sequential quarter index (1st, 2nd, 3rd…), i.e. monthly cycleNumber / 3.
  */
 
-import type { GoalRatingColor, MentorshipQuarterlyReview } from "@prisma/client";
+import type { GoalRatingColor, MenteeRoleType, MentorshipQuarterlyReview } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { currentQuarterLabel } from "@/lib/people-strategy/people-performance-selectors";
 
 export type QuarterlyEvidenceReview = {
@@ -243,4 +244,28 @@ export async function loadQuarterlyCommitteeQueue(): Promise<QuarterlyQueueEntry
       };
     })
     .filter((entry) => entry.status !== "APPROVED");
+}
+
+/**
+ * Viewer-scoping over the org-wide quarterly queue — pure so every surface
+ * (the Mentorship home queue, tests) applies identical visibility rules:
+ * admins/leadership see everything; a lane chair sees their lane's mentees;
+ * a mentor sees their own mentees regardless of chair status (they're the
+ * one who starts and drafts the packet).
+ */
+export function scopeQuarterlyQueueForViewer(
+  entries: QuarterlyQueueEntry[],
+  facts: {
+    viewerId: string;
+    isAdminOrLeadership: boolean;
+    chairedLanes: MenteeRoleType[];
+  }
+): QuarterlyQueueEntry[] {
+  if (facts.isAdminOrLeadership) return entries;
+  return entries.filter((entry) => {
+    const roleType = toMenteeRoleType(entry.menteeRole);
+    const chairsThisLane = roleType != null && facts.chairedLanes.includes(roleType);
+    const isTheirMentee = entry.mentorId === facts.viewerId;
+    return chairsThisLane || isTheirMentee;
+  });
 }
